@@ -261,6 +261,24 @@ func checkObserverSentinel(stderr string) error {
 	return fmt.Errorf("observer reported runtime failure: %s", extractObserverFailLine(stderr, idx))
 }
 
+// observerSentinelInSyslog scans the captured syslog messages for the
+// ZE-OBSERVER-FAIL sentinel and returns a descriptive error if found. This is
+// the syslog counterpart to checkObserverSentinel: the runner starts ze with
+// ze.log.backend=syslog whenever a syslog server is active (runner_exec.go), so
+// the relayed sentinel lands in syslog rather than the client's stderr. Without
+// this, an observer's runtime_fail would be invisible to the stderr-only check.
+func observerSentinelInSyslog(syslogSrv *syslog.Server) error {
+	if syslogSrv == nil {
+		return nil
+	}
+	for _, m := range syslogSrv.Messages() {
+		if idx := strings.Index(m, observerFailSentinel); idx >= 0 {
+			return fmt.Errorf("observer reported runtime failure (syslog): %s", extractObserverFailLine(m, idx))
+		}
+	}
+	return nil
+}
+
 // extractObserverFailLine returns the line in stderr that contains the
 // ZE-OBSERVER-FAIL sentinel, trimmed of surrounding whitespace. Used by
 // validateLogging to produce a focused error message pointing at the
@@ -298,6 +316,9 @@ func (r *Runner) validateLogging(rec *Record, stderr string, syslogSrv *syslog.S
 	// observer reports an assertion failure.
 	if idx := strings.Index(stderr, observerFailSentinel); idx >= 0 {
 		return fmt.Errorf("observer reported runtime failure: %s", extractObserverFailLine(stderr, idx))
+	}
+	if serr := observerSentinelInSyslog(syslogSrv); serr != nil {
+		return serr
 	}
 
 	// Check expected stderr patterns

@@ -967,14 +967,6 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		}
 	}
 
-	for _, ch := range input.ConnectionHandlers {
-		reg.ConnectionHandlers = append(reg.ConnectionHandlers, plugin.ConnectionHandler{
-			Type:    ch.Type,
-			Port:    ch.Port,
-			Address: ch.Address,
-		})
-	}
-
 	for _, f := range input.Filters {
 		nlri := true
 		if f.NLRI != nil {
@@ -1094,5 +1086,3 @@ func isLowerKebab(s string) bool {
 	}
 	return !prevHyphen
 }
-
-// validHandoffPort reports whether port is in the valid range for connection handoff (1-65535).

@@ -51,7 +51,6 @@ Full protocol usage:
 
 from __future__ import annotations
 
-import array
 import json
 import os
 import select
@@ -124,9 +123,6 @@ class API:
         self._families: list[dict[str, str]] = []
         self._commands: list[dict[str, str]] = []
         self._wants_config: list[str] = []
-
-        # Accumulated connection handlers for Stage 1
-        self._connection_handlers: list[dict[str, Any]] = []
 
         # Accumulated filter declarations for Stage 1
         self._filters: list[dict[str, Any]] = []
@@ -511,28 +507,6 @@ class API:
         """
         self._commands.append({"name": command})
 
-    def declare_connection_handler(
-        self, handler_type: str = "listen", port: int = 0, address: str = ""
-    ) -> None:
-        """Declare a connection handler for listen socket handoff (Stage 1).
-
-        The engine will create a listen socket on the specified port and
-        send the fd via SCM_RIGHTS on callback connection after Stage 1.
-        Call receive_listener() after declare_done() to receive the fd.
-
-        Args:
-            handler_type: Handler type ('listen' for Mode A)
-            port: TCP port to listen on (1-65535)
-            address: Bind address (empty = all interfaces)
-        """
-        self._connection_handlers.append(
-            {
-                "type": handler_type,
-                "port": port,
-                "address": address,
-            }
-        )
-
     def declare_filter(
         self,
         name: str,
@@ -672,8 +646,6 @@ class API:
             params["commands"] = self._commands
         if self._wants_config:
             params["wants-config"] = self._wants_config
-        if self._connection_handlers:
-            params["connection-handlers"] = self._connection_handlers
         if self._filters:
             params["filters"] = self._filters
         if self._doctor_checks:
@@ -682,57 +654,6 @@ class API:
             params["enrichers"] = self._enrichers
 
         self._call_engine("ze-plugin-engine:declare-registration", params)
-
-    def receive_listener(self) -> socket.socket:
-        """Receive a listen socket fd from the engine via SCM_RIGHTS on callback connection.
-
-        Must be called after declare_done() and before wait_for_config().
-        The engine sends one fd per connection-handler declared in Stage 1.
-
-        Returns:
-            A socket object wrapping the received listen socket fd.
-        """
-        # Create a socket object from the raw callback fd for recvmsg.
-        # socket.fromfd() dups the fd -- we must close this socket after use.
-        sock = socket.fromfd(self._callback_fd, socket.AF_UNIX, socket.SOCK_STREAM)
-        try:
-            # Read 1 framing byte + ancillary data (SCM_RIGHTS carrying one fd).
-            fds = array.array("i")
-            msg, ancdata, _flags, _addr = sock.recvmsg(
-                1, socket.CMSG_SPACE(fds.itemsize)
-            )
-            if not msg:
-                raise RuntimeError("no data received (connection closed?)")
-            for cmsg_level, cmsg_type, cmsg_data in ancdata:
-                if cmsg_level == socket.SOL_SOCKET and cmsg_type == socket.SCM_RIGHTS:
-                    received_fds = array.array("i", cmsg_data)
-                    if not received_fds:
-                        continue
-                    fd = received_fds[0]
-                    # Close any extra fds.
-                    for extra_fd in received_fds[1:]:
-                        os.close(extra_fd)
-                    # Detect socket family from the fd via getsockname.
-                    # The engine may create IPv4 or IPv6 listeners depending
-                    # on the address configured in the connection-handler.
-                    probe = socket.fromfd(fd, socket.AF_INET, socket.SOCK_STREAM)
-                    try:
-                        addr = probe.getsockname()
-                        # IPv6 getsockname returns 4-tuple, IPv4 returns 2-tuple
-                        family = socket.AF_INET6 if len(addr) == 4 else socket.AF_INET
-                    except OSError:
-                        family = socket.AF_INET
-                    finally:
-                        probe.close()
-                    # Create a listener socket with the detected family.
-                    # fromfd() dups the fd, so close the original.
-                    listener = socket.fromfd(fd, family, socket.SOCK_STREAM)
-                    os.close(fd)
-                    return listener
-            raise RuntimeError("no fd in control message")
-        finally:
-            # Close the dup'd socket -- the original _callback_fd is unaffected.
-            sock.close()
 
     # ==================================================================
     # Stage 2: Config Delivery
@@ -1448,18 +1369,6 @@ def declare_command(command: str) -> None:
     _get_api().declare_command(command)
 
 
-def declare_connection_handler(
-    handler_type: str = "listen", port: int = 0, address: str = ""
-) -> None:
-    """Declare a connection handler for listen socket handoff (Stage 1)."""
-    _get_api().declare_connection_handler(handler_type, port, address)
-
-
-def receive_listener() -> socket.socket:
-    """Receive a listen socket fd from the engine via SCM_RIGHTS."""
-    return _get_api().receive_listener()
-
-
 def declare_filter(
     name: str,
     direction: str = "both",
@@ -1565,3 +1474,33 @@ def runtime_fail(message: str) -> None:
     except Exception:  # noqa: BLE001  # best-effort wait after fatal signal
         pass
     sys.exit(1)
+
+
+def _observer_excepthook(exc_type, exc, tb):
+    """Route an uncaught observer exception through runtime_fail().
+
+    Without this, an uncaught exception (e.g. the RuntimeError raised by
+    _call_engine when a dispatch-command returns an error, or a bad assertion,
+    KeyError, etc.) crashes the observer WITHOUT emitting the ZE-OBSERVER-FAIL
+    sentinel. The runner then sees a clean ze exit and reports a false PASS --
+    the test validated nothing. Turning every uncaught exception into a sentinel
+    makes such a crash a loud, authoritative test failure. SystemExit (incl.
+    runtime_fail's own sys.exit) and KeyboardInterrupt are left to the default
+    handler so they neither recurse nor mask intentional exits.
+    """
+    if issubclass(exc_type, (SystemExit, KeyboardInterrupt)):
+        sys.__excepthook__(exc_type, exc, tb)
+        return
+    import traceback
+
+    sys.stderr.write("".join(traceback.format_exception(exc_type, exc, tb)))
+    sys.stderr.flush()
+    detail = "".join(traceback.format_exception_only(exc_type, exc)).strip()
+    detail = detail.replace("\n", " ")
+    try:
+        runtime_fail(f"uncaught observer exception: {detail}")
+    except SystemExit:
+        pass  # runtime_fail already wrote the sentinel; let the process exit
+
+
+sys.excepthook = _observer_excepthook

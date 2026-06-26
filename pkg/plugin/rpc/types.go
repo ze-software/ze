@@ -26,21 +26,20 @@ const (
 
 // DeclareRegistrationInput is the input for ze-plugin-engine:declare-registration (Stage 1).
 type DeclareRegistrationInput struct {
-	Families               []FamilyDecl            `json:"families,omitempty"`
-	Commands               []CommandDecl           `json:"commands,omitempty"`
-	Dependencies           []string                `json:"dependencies,omitempty"`
-	WantsConfig            []string                `json:"wants-config,omitempty"`
-	ConfigOperations       []ConfigOperationDecl   `json:"config-operations,omitempty"`
-	VerifyBudget           int                     `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).
-	ApplyBudget            int                     `json:"apply-budget,omitempty"`  // Estimated apply time in seconds (0 = trivial).
-	Schema                 *SchemaDecl             `json:"schema,omitempty"`
-	WantsValidateOpen      bool                    `json:"wants-validate-open,omitempty"`
-	CacheConsumer          bool                    `json:"cache-consumer,omitempty"`
-	CacheConsumerUnordered bool                    `json:"cache-consumer-unordered,omitempty"`
-	ConnectionHandlers     []ConnectionHandlerDecl `json:"connection-handlers,omitempty"`
-	Filters                []FilterDecl            `json:"filters,omitempty"`
-	DoctorChecks           []DoctorCheckDecl       `json:"doctor-checks,omitempty"`
-	Enrichers              []EnricherDecl          `json:"enrichers,omitempty"`
+	Families               []FamilyDecl          `json:"families,omitempty"`
+	Commands               []CommandDecl         `json:"commands,omitempty"`
+	Dependencies           []string              `json:"dependencies,omitempty"`
+	WantsConfig            []string              `json:"wants-config,omitempty"`
+	ConfigOperations       []ConfigOperationDecl `json:"config-operations,omitempty"`
+	VerifyBudget           int                   `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).
+	ApplyBudget            int                   `json:"apply-budget,omitempty"`  // Estimated apply time in seconds (0 = trivial).
+	Schema                 *SchemaDecl           `json:"schema,omitempty"`
+	WantsValidateOpen      bool                  `json:"wants-validate-open,omitempty"`
+	CacheConsumer          bool                  `json:"cache-consumer,omitempty"`
+	CacheConsumerUnordered bool                  `json:"cache-consumer-unordered,omitempty"`
+	Filters                []FilterDecl          `json:"filters,omitempty"`
+	DoctorChecks           []DoctorCheckDecl     `json:"doctor-checks,omitempty"`
+	Enrichers              []EnricherDecl        `json:"enrichers,omitempty"`
 }
 
 // EnricherDecl declares a show enricher the plugin provides.
@@ -108,13 +107,6 @@ type DoctorCheckDiagnostic struct {
 // DoctorCheckOutput is the output for ze-plugin-callback:doctor-check.
 type DoctorCheckOutput struct {
 	Diagnostics []DoctorCheckDiagnostic `json:"diagnostics"`
-}
-
-// ConnectionHandlerDecl declares a listen socket the plugin wants to receive via fd passing.
-type ConnectionHandlerDecl struct {
-	Type    string `json:"type"`              // "listen" (Mode A)
-	Port    int    `json:"port"`              // TCP port (1-65535)
-	Address string `json:"address,omitempty"` // Bind address (default: all interfaces)
 }
 
 // FamilyDecl declares an address family the plugin handles.

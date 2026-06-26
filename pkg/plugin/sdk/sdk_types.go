@@ -192,9 +192,6 @@ const (
 // DoctorCheckDiagnostic is a single diagnostic result from a plugin doctor check.
 type DoctorCheckDiagnostic = rpc.DoctorCheckDiagnostic
 
-// ConnectionHandlerDecl declares a listen socket the plugin wants via fd passing.
-type ConnectionHandlerDecl = rpc.ConnectionHandlerDecl
-
 // FilterDecl declares a named route filter the plugin offers.
 type FilterDecl = rpc.FilterDecl
 

@@ -94,11 +94,6 @@ type Plugin struct {
 	// Capabilities to declare during Stage 3.
 	capabilities []CapabilityDecl
 
-	// Listen sockets received from engine via SCM_RIGHTS during startup.
-	// Populated automatically between Stage 1 and Stage 2 when connection-handlers
-	// are declared. Access via Listeners() after startup.
-	listeners []net.Listener
-
 	mu sync.Mutex
 }
 
@@ -223,23 +218,10 @@ func NewFromTLSEnv(name string) (*Plugin, error) {
 	return newPlugin(name, engineConn), nil
 }
 
-// Listeners returns listen sockets received from the engine during startup.
-// Returns nil if no connection-handlers were declared.
-func (p *Plugin) Listeners() []net.Listener {
-	return p.listeners
-}
-
-// Close closes the underlying connections and any received listeners,
-// unblocking any goroutines waiting on Read(). Must be called when the
-// plugin is done to prevent goroutine and socket leaks.
-// Safe to call multiple times.
+// Close closes the underlying connections, unblocking any goroutines waiting
+// on Read(). Must be called when the plugin is done to prevent goroutine and
+// socket leaks. Safe to call multiple times.
 func (p *Plugin) Close() error {
-	// Close received listeners first -- they hold open TCP sockets.
-	for _, ln := range p.listeners {
-		ln.Close() //nolint:errcheck,gosec // best-effort cleanup of handed-off listeners
-	}
-	p.listeners = nil
-
 	// Close MuxConn first -- its background reader must stop before
 	// closing the underlying engineConn (which it reads from).
 	if p.engineMux != nil {

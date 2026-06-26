@@ -243,6 +243,11 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		rec.FailureType = FailTypeLoggingMismatch
 		return false
 	}
+	if sentinelErr := observerSentinelInSyslog(syslogSrv); sentinelErr != nil {
+		rec.Error = sentinelErr
+		rec.FailureType = FailTypeLoggingMismatch
+		return false
+	}
 
 	// Check if we timed out
 	if testCtx.Err() != nil {
@@ -816,6 +821,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// in sync: a runtime_fail from a python observer must surface as the
 	// authoritative failure even when the daemon subsequently times out.
 	if sentinelErr := checkObserverSentinel(clientStderr.String()); sentinelErr != nil {
+		rec.Error = sentinelErr
+		rec.FailureType = FailTypeLoggingMismatch
+		return false
+	}
+	if sentinelErr := observerSentinelInSyslog(syslogSrv); sentinelErr != nil {
 		rec.Error = sentinelErr
 		rec.FailureType = FailTypeLoggingMismatch
 		return false
