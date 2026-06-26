@@ -90,6 +90,44 @@ func TestDynamicPeerCreation(t *testing.T) {
 	assert.Equal(t, ConnectionPassive, peer.Settings().Connection)
 }
 
+func TestDynamicPeerTTLCopiedFromGroupTemplate(t *testing.T) {
+	r := newTestReactor(t)
+	dg := newTestDynamicGroup("ix-peers", []string{"185.1.69.0/24"}, 100)
+	dg.Template = map[string]any{
+		"connection": map[string]any{
+			"ttl": map[string]any{"max": "2"},
+		},
+	}
+	r.dynamicGroups = []*DynamicGroupConfig{dg}
+
+	r.mu.Lock()
+	peer, err := r.createDynamicPeer(dg, netip.MustParseAddr("185.1.69.42"))
+	r.mu.Unlock()
+
+	require.NoError(t, err)
+	require.NotNil(t, peer)
+	assert.Equal(t, uint8(255), peer.Settings().OutTTL)
+	assert.Equal(t, uint8(254), peer.Settings().MinTTL)
+}
+
+func TestDynamicPeerTTLConflictRejected(t *testing.T) {
+	r := newTestReactor(t)
+	dg := newTestDynamicGroup("ix-peers", []string{"185.1.69.0/24"}, 100)
+	dg.Template = map[string]any{
+		"connection": map[string]any{
+			"ttl": map[string]any{"max": "1", "set": "255"},
+		},
+	}
+
+	r.mu.Lock()
+	peer, err := r.createDynamicPeer(dg, netip.MustParseAddr("185.1.69.42"))
+	r.mu.Unlock()
+
+	require.Error(t, err)
+	assert.Nil(t, peer)
+	assert.Contains(t, err.Error(), "ttl max cannot be combined with ttl set or ttl min")
+}
+
 func TestDynamicPeerMaxPeers(t *testing.T) {
 	r := newTestReactor(t)
 	dg := newTestDynamicGroup("ix-peers", []string{"185.1.69.0/24"}, 2)

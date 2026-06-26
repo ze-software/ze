@@ -355,6 +355,18 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 
+	// BGP TTL security / GTSM (RFC 5082) from connection > ttl.
+	if connMap != nil {
+		if ttlMap, ok := mapMap(connMap, "ttl"); ok {
+			outTTL, minTTL, ttlErr := parseTTLSettings(name, ttlMap)
+			if ttlErr != nil {
+				return nil, ttlErr
+			}
+			ps.OutTTL = outTTL
+			ps.MinTTL = minTTL
+		}
+	}
+
 	// BFD opt-in from connection > bfd. The YANG container has
 	// `presence`, so the plain existence of the map means the
 	// operator wants BFD on this peer. Parse every leaf with a
@@ -370,6 +382,48 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 	}
 
 	return ps, nil
+}
+
+// parseTTLSettings decodes one `bgp peer connection ttl { ... }` block.
+// RFC 5082 Section 3: "The TTL field in all IP packets used for
+// transmission of messages associated with GTSM-enabled protocol sessions
+// MUST be set to 255." The `max` leaf is the hop-count form used by
+// ExaBGP ttl-security: max N derives OutTTL=255 and MinTTL=255-N+1.
+func parseTTLSettings(peerName string, ttlMap map[string]any) (uint8, uint8, error) {
+	maxTTL, hasMax, err := parseTTLValue(peerName, ttlMap, "max")
+	if err != nil {
+		return 0, 0, err
+	}
+	setTTL, hasSet, err := parseTTLValue(peerName, ttlMap, "set")
+	if err != nil {
+		return 0, 0, err
+	}
+	minTTL, hasMin, err := parseTTLValue(peerName, ttlMap, "min")
+	if err != nil {
+		return 0, 0, err
+	}
+	if hasMax && (hasSet || hasMin) {
+		return 0, 0, fmt.Errorf("peer %s: ttl max cannot be combined with ttl set or ttl min", peerName)
+	}
+	if hasMax {
+		return 255, uint8(256 - int(maxTTL)), nil
+	}
+	return setTTL, minTTL, nil
+}
+
+func parseTTLValue(peerName string, ttlMap map[string]any, key string) (uint8, bool, error) {
+	raw, ok := mapString(ttlMap, key)
+	if !ok {
+		return 0, false, nil
+	}
+	n, err := strconv.ParseUint(raw, 10, 8)
+	if err != nil {
+		return 0, false, fmt.Errorf("peer %s: ttl %s must be in range 0..255", peerName, key)
+	}
+	if n == 0 {
+		return 0, false, nil
+	}
+	return uint8(n), true, nil
 }
 
 // parseBFDSettings decodes one `bgp peer connection bfd { ... }` block

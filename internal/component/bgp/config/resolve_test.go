@@ -1772,6 +1772,40 @@ func TestHasNestedValue(t *testing.T) {
 	}
 }
 
+func TestResolveDynamicGroupRejectsTTLConflict(t *testing.T) {
+	groupFields := map[string]any{
+		"connection": map[string]any{
+			"remote": map[string]any{
+				"ip":      "dynamic",
+				"range":   "192.0.2.0/24",
+				"connect": "false",
+			},
+			"ttl": map[string]any{"max": "1", "set": "255"},
+		},
+	}
+
+	_, err := resolveDynamicGroup("ix", groupFields, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ttl max cannot be combined with ttl set or ttl min")
+}
+
+func TestResolveDynamicGroupRejectsInvalidTTL(t *testing.T) {
+	groupFields := map[string]any{
+		"connection": map[string]any{
+			"remote": map[string]any{
+				"ip":      "dynamic",
+				"range":   "192.0.2.0/24",
+				"connect": "false",
+			},
+			"ttl": map[string]any{"min": "256"},
+		},
+	}
+
+	_, err := resolveDynamicGroup("ix", groupFields, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ttl min must be in range 0..255")
+}
+
 // testSchema loads the YANG schema for test use.
 func testSchema(t *testing.T) *config.Schema {
 	t.Helper()

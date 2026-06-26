@@ -2368,6 +2368,48 @@ func TestMD5PeersForListener(t *testing.T) {
 	assert.Empty(t, md5None)
 }
 
+// TestListenTTLForListener verifies the GTSM listen-socket TTL is the max OutTTL
+// across peers on a port, and that newListenerFactory carries it.
+//
+// VALIDATES: listenTTLForListener picks the per-port max OutTTL; 0 when none.
+// PREVENTS: SYN-ACK on the passive path carrying the default TTL for GTSM peers.
+func TestListenTTLForListener(t *testing.T) {
+	r := New(&Config{Port: 179})
+
+	// Peer 1: GTSM single-hop (OutTTL 255) on default port.
+	s1 := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0x01010101)
+	s1.OutTTL = 255
+	s1.MinTTL = 255
+	require.NoError(t, r.AddPeer(s1))
+
+	// Peer 2: lower OutTTL (200) on default port.
+	s2 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65002, 0x01010101)
+	s2.OutTTL = 200
+	require.NoError(t, r.AddPeer(s2))
+
+	// Peer 3: no GTSM on default port.
+	s3 := NewPeerSettings(mustParseAddr("10.0.0.3"), 65000, 65003, 0x01010101)
+	require.NoError(t, r.AddPeer(s3))
+
+	// Peer 4: GTSM on custom port 1179.
+	s4 := NewPeerSettings(mustParseAddr("10.0.0.4"), 65000, 65004, 0x01010101)
+	s4.Port = 1179
+	s4.OutTTL = 64
+	require.NoError(t, r.AddPeer(s4))
+
+	// Default port: max(255, 200) = 255.
+	assert.Equal(t, uint8(255), r.listenTTLForListener(179))
+	// Custom port: only peer 4.
+	assert.Equal(t, uint8(64), r.listenTTLForListener(1179))
+	// Unrelated port: no GTSM peer.
+	assert.Equal(t, uint8(0), r.listenTTLForListener(2179))
+
+	// newListenerFactory carries the TTL into the RealListenerFactory.
+	lf, ok := r.newListenerFactory(179).(network.RealListenerFactory)
+	require.True(t, ok, "expected RealListenerFactory when GTSM is configured")
+	assert.Equal(t, uint8(255), lf.ListenTTL)
+}
+
 // TestEmitCongestionEvent_PeerNotFound verifies emitCongestionEvent handles
 // unknown peer addresses by returning early at findPeerByAddr.
 //

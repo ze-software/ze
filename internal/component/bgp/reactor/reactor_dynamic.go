@@ -69,7 +69,10 @@ func (r *Reactor) createDynamicPeer(dg *DynamicGroupConfig, remoteAddr netip.Add
 		return nil, ErrDynamicMaxPeers
 	}
 
-	ps := r.buildDynamicPeerSettings(dg, remoteAddr)
+	ps, settingsErr := r.buildDynamicPeerSettings(dg, remoteAddr)
+	if settingsErr != nil {
+		return nil, settingsErr
+	}
 	peer := NewPeer(ps)
 	peer.SetClock(r.clock)
 	peer.SetDialer(r.dialer)
@@ -100,25 +103,28 @@ func (r *Reactor) createDynamicPeer(dg *DynamicGroupConfig, remoteAddr netip.Add
 
 // buildDynamicPeerSettings constructs PeerSettings for a dynamic peer from
 // the group template. PeerAS is left as 0 (filled from OPEN message later).
-func (r *Reactor) buildDynamicPeerSettings(dg *DynamicGroupConfig, remoteAddr netip.Addr) *PeerSettings {
+func (r *Reactor) buildDynamicPeerSettings(dg *DynamicGroupConfig, remoteAddr netip.Addr) (*PeerSettings, error) {
 	tmpl := dg.Settings
 	ps := &PeerSettings{
-		Name:             "dyn-" + remoteAddr.String(),
-		GroupName:        dg.GroupName,
-		Address:          remoteAddr,
-		LocalAddress:     tmpl.LocalAddress,
-		Port:             DefaultBGPPort,
-		LocalAS:          tmpl.LocalAS,
-		GlobalLocalAS:    tmpl.GlobalLocalAS,
-		PeerAS:           0, // Learned from OPEN
-		RouterID:         tmpl.RouterID,
-		ReceiveHoldTime:  tmpl.ReceiveHoldTime,
-		SendHoldTime:     tmpl.SendHoldTime,
-		KeepaliveTime:    tmpl.KeepaliveTime,
-		ConnectRetry:     tmpl.ConnectRetry,
-		Connection:       ConnectionPassive, // Dynamic peers are always passive
-		MD5Key:           tmpl.MD5Key,
-		MD5IP:            tmpl.MD5IP,
+		Name:            "dyn-" + remoteAddr.String(),
+		GroupName:       dg.GroupName,
+		Address:         remoteAddr,
+		LocalAddress:    tmpl.LocalAddress,
+		Port:            DefaultBGPPort,
+		LocalAS:         tmpl.LocalAS,
+		GlobalLocalAS:   tmpl.GlobalLocalAS,
+		PeerAS:          0, // Learned from OPEN
+		RouterID:        tmpl.RouterID,
+		ReceiveHoldTime: tmpl.ReceiveHoldTime,
+		SendHoldTime:    tmpl.SendHoldTime,
+		KeepaliveTime:   tmpl.KeepaliveTime,
+		ConnectRetry:    tmpl.ConnectRetry,
+		Connection:      ConnectionPassive, // Dynamic peers are always passive
+		MD5Key:          tmpl.MD5Key,
+		MD5IP:           tmpl.MD5IP,
+		// OutTTL/MinTTL are not carried on dg.Settings (the resolved
+		// template PeerSettings never parses ttl); they are derived
+		// below from the raw dg.Template connection > ttl block.
 		BFD:              tmpl.BFD,
 		GroupUpdates:     tmpl.GroupUpdates,
 		RSFastPath:       tmpl.RSFastPath,
@@ -153,7 +159,19 @@ func (r *Reactor) buildDynamicPeerSettings(dg *DynamicGroupConfig, remoteAddr ne
 		RawCapabilityConfig:    tmpl.RawCapabilityConfig,
 		CapabilityConfigJSON:   tmpl.CapabilityConfigJSON,
 	}
-	return ps
+	if dg.Template != nil {
+		if connMap, ok := dg.Template["connection"].(map[string]any); ok {
+			if ttlMap, ok := connMap["ttl"].(map[string]any); ok {
+				outTTL, minTTL, err := parseTTLSettings(dg.GroupName, ttlMap)
+				if err != nil {
+					return nil, err
+				}
+				ps.OutTTL = outTTL
+				ps.MinTTL = minTTL
+			}
+		}
+	}
+	return ps, nil
 }
 
 // removeDynamicPeer removes a dynamic peer and decrements the group counter.

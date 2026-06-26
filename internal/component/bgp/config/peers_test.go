@@ -1,6 +1,7 @@
 package bgpconfig
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -423,6 +424,33 @@ func TestLoopDetectionInactiveDisables(t *testing.T) {
 	ps := peers[0]
 	assert.True(t, ps.LoopDisabled, "inactive: on loop-detection should set LoopDisabled")
 	assert.Equal(t, uint8(0), ps.LoopAllowOwnAS, "inactive filter settings should not be extracted")
+}
+
+// TestDynamicGroupsFromTreeCarriesTemplate verifies reactor dynamic groups can
+// parse per-group GTSM settings at peer creation time.
+//
+// VALIDATES: DynamicGroupConfig.Template contains the resolved dynamic group tree.
+// PREVENTS: Dynamic peers losing connection > ttl because only Settings was copied.
+func TestDynamicGroupsFromTreeCarriesTemplate(t *testing.T) {
+	ttl := map[string]any{"max": "2"}
+	groups := dynamicGroupsFromTree(map[string]any{
+		"dynamic-groups": []DynamicGroupTemplate{
+			{
+				GroupName: "ix",
+				Ranges:    []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")},
+				MaxPeers:  100,
+				Template: map[string]any{
+					"connection": map[string]any{"ttl": ttl},
+				},
+			},
+		},
+	})
+
+	require.Len(t, groups, 1)
+	require.NotNil(t, groups[0].Template)
+	connection, ok := groups[0].Template["connection"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, ttl, connection["ttl"])
 }
 
 // TestClusterIDSync verifies session/cluster-id and loop-detection/cluster-id are synced.

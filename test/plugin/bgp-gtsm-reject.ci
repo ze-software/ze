@@ -1,0 +1,49 @@
+# BGP GTSM / TTL-security conflicting config rejection test
+# VALIDATES: AC-6 -- ttl { set N } and ttl { max N } are mutually exclusive
+# PREVENTS: ambiguous outgoing-TTL config (set vs GTSM-derived) silently applied
+#
+# This tests config validation:
+# - A peer configures both `ttl set 200` and `ttl max 1` under connection.
+# - parseTTLSettings rejects the combination before the reactor is built.
+# - Startup fails with a clear "ttl max cannot be combined" error.
+
+# ze-peer expectations (won't be reached - ze fails to start)
+stdin=peer:terminator=EOF_PEER
+EOF_PEER
+
+# ze bgp configuration with conflicting ttl set + max
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+			ttl {
+				set 200
+				max 1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration - expect startup failure
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=5s
+expect=exit:code=1
+expect=stderr:contains=ttl max cannot be combined

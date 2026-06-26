@@ -274,6 +274,9 @@ func resolveDynamicGroup(groupName string, groupFields, bgpDefaults map[string]a
 	deepMergeMaps(resolved, deepCopyMap(bgpDefaults), cumulativePaths)
 	deepMergeMaps(resolved, groupFields, cumulativePaths)
 	resolved["group-name"] = groupName
+	if err := validateDynamicGroupTTL(groupName, resolved); err != nil {
+		return DynamicGroupTemplate{}, err
+	}
 
 	return DynamicGroupTemplate{
 		GroupName: groupName,
@@ -282,6 +285,49 @@ func resolveDynamicGroup(groupName string, groupFields, bgpDefaults map[string]a
 		RSClient:  rsClient,
 		Template:  resolved,
 	}, nil
+}
+
+func validateDynamicGroupTTL(groupName string, resolved map[string]any) error {
+	conn, ok := resolved["connection"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	ttl, ok := conn["ttl"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	hasMax, err := ttlValueSet(ttl, "max")
+	if err != nil {
+		return fmt.Errorf("bgp/group %s: %w", groupName, err)
+	}
+	hasSet, err := ttlValueSet(ttl, "set")
+	if err != nil {
+		return fmt.Errorf("bgp/group %s: %w", groupName, err)
+	}
+	hasMin, err := ttlValueSet(ttl, "min")
+	if err != nil {
+		return fmt.Errorf("bgp/group %s: %w", groupName, err)
+	}
+	if hasMax && (hasSet || hasMin) {
+		return fmt.Errorf("bgp/group %s: ttl max cannot be combined with ttl set or ttl min", groupName)
+	}
+	return nil
+}
+
+func ttlValueSet(ttl map[string]any, key string) (bool, error) {
+	raw, ok := ttl[key]
+	if !ok {
+		return false, nil
+	}
+	s, ok := raw.(string)
+	if !ok {
+		return false, nil
+	}
+	n, err := strconv.ParseUint(s, 10, 8)
+	if err != nil {
+		return false, fmt.Errorf("ttl %s must be in range 0..255", key)
+	}
+	return n != 0, nil
 }
 
 // CheckRequiredFields validates that all ze:required fields on the peer list schema

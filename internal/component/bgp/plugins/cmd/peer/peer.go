@@ -260,6 +260,12 @@ func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plug
 		if p.BFDEnabled {
 			row["bfd"] = true
 		}
+		if p.GTSMOutTTL != 0 {
+			row["gtsm-ttl-out"] = p.GTSMOutTTL
+		}
+		if p.GTSMMinTTL != 0 {
+			row["gtsm-ttl-min"] = p.GTSMMinTTL
+		}
 		if p.RouteReflectorClient {
 			row["route-reflector-client"] = true
 		}

@@ -376,6 +376,8 @@ func TestPeerSettingsEqual(t *testing.T) {
 		{"different_send_hold_time", func(p *PeerSettings) { p.SendHoldTime = 600 * time.Second }, false},
 		{"different_connection", func(p *PeerSettings) { p.Connection = ConnectionBoth }, false},
 		{"different_port", func(p *PeerSettings) { p.Port = 1179 }, false},
+		{"different_out_ttl", func(p *PeerSettings) { p.OutTTL = 255 }, false},
+		{"different_min_ttl", func(p *PeerSettings) { p.MinTTL = 254 }, false},
 	}
 
 	for _, tt := range tests {

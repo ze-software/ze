@@ -150,6 +150,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			RemotePort:              remotePort,
 			MD5Enabled:              s.MD5Key != "",
 			BFDEnabled:              s.BFD != nil,
+			GTSMOutTTL:              s.OutTTL,
+			GTSMMinTTL:              s.MinTTL,
 			NegotiatedHoldTime:      time.Duration(p.NegotiatedHoldTime()) * time.Second,
 			NegotiatedKeepaliveTime: time.Duration(p.NegotiatedKeepaliveTime()) * time.Second,
 		}
@@ -789,7 +791,9 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 	// Compare connectivity fields.
 	if a.LocalAddress != b.LocalAddress ||
 		a.Port != b.Port ||
-		a.Connection != b.Connection {
+		a.Connection != b.Connection ||
+		a.OutTTL != b.OutTTL ||
+		a.MinTTL != b.MinTTL {
 		return false
 	}
 

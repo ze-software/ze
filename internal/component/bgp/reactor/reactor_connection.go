@@ -132,7 +132,7 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb ConnectionCallbac
 	// "collision with existing BGP connection that is in the Established
 	// state causes closing of the newly created connection"
 	if peer.State() == PeerStateEstablished {
-		r.rejectConnectionCollision(conn)
+		r.rejectConnectionCollisionWithSettings(conn, settings)
 		return
 	}
 
@@ -140,7 +140,7 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb ConnectionCallbac
 	// Queue the connection and wait for OPEN to compare BGP IDs.
 	if peer.SessionState() == fsm.StateOpenConfirm {
 		if err := peer.SetPendingConnection(conn); err != nil {
-			r.rejectConnectionCollision(conn)
+			r.rejectConnectionCollisionWithSettings(conn, settings)
 			return
 		}
 		go r.handlePendingCollision(peer, conn)
@@ -170,6 +170,15 @@ func closeConnQuietly(conn net.Conn) {
 	}
 }
 
+func (r *Reactor) rejectConnectionCollisionWithSettings(conn net.Conn, settings *PeerSettings) {
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		if err := tuneTCPConnectionForSettings(tcp, settings); err != nil {
+			reactorLogger().Debug("collision notification socket tuning failed", "peer", settings.Address, "err", err)
+		}
+	}
+	r.rejectConnectionCollision(conn)
+}
+
 // rejectConnectionCollision sends NOTIFICATION Cease/Connection Collision (6/7)
 // and closes the connection. RFC 4271 §6.8.
 func (r *Reactor) rejectConnectionCollision(conn net.Conn) {
@@ -186,6 +195,13 @@ func (r *Reactor) rejectConnectionCollision(conn net.Conn) {
 // RFC 4271 §6.8: Upon receipt of OPEN, compare BGP IDs and close the loser.
 func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	buf := make([]byte, message.MaxMsgLen)
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		if err := tuneTCPConnectionForSettings(tcp, peer.Settings()); err != nil {
+			peer.ClearPendingConnection()
+			_ = conn.Close()
+			return
+		}
+	}
 
 	// Set read deadline - use hold time or 90s default
 	holdTime := peer.Settings().ReceiveHoldTime

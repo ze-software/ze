@@ -3228,6 +3228,65 @@ func TestSessionNoMD5WhenKeyAbsent(t *testing.T) {
 	require.Nil(t, rd.PeerAddr)
 }
 
+// TestSessionTTLDialerWiring verifies NewSession wires outgoing TTL into the dialer.
+//
+// VALIDATES: PeerSettings.OutTTL flows to network.RealDialer before connect.
+// PREVENTS: GTSM config parsed successfully but SYN/data packets still using OS default TTL.
+func TestSessionTTLDialerWiring(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.OutTTL = 255
+
+	session := NewSession(settings)
+	rd, ok := session.dialer.(*network.RealDialer)
+	require.True(t, ok)
+	require.Equal(t, uint8(255), rd.OutTTL)
+}
+
+// TestSessionSetDialerPreservesPerPeerRealDialerOptions verifies production peer
+// runs keep the configured per-peer socket options when the reactor installs its
+// shared RealDialer.
+//
+// VALIDATES: SetDialer merges PeerSettings socket options into injected RealDialer.
+// PREVENTS: Peer.runOnce replacing the configured dialer and dropping GTSM/MD5 options.
+func TestSessionSetDialerPreservesPerPeerRealDialerOptions(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.LocalAddress = netip.MustParseAddr("192.0.2.10")
+	settings.MD5Key = "secret"
+	settings.MD5IP = netip.MustParseAddr("192.0.2.99")
+	settings.OutTTL = 255
+
+	session := NewSession(settings)
+	session.SetDialer(&network.RealDialer{})
+	rd, ok := session.dialer.(*network.RealDialer)
+	require.True(t, ok)
+	require.Equal(t, net.IP(settings.LocalAddress.AsSlice()), rd.LocalAddr.IP)
+	require.Equal(t, net.IP(settings.MD5IP.AsSlice()), rd.PeerAddr)
+	require.Equal(t, "secret", rd.MD5Key)
+	require.Equal(t, uint8(255), rd.OutTTL)
+}
+
+// TestSessionNoTTLWhenAbsent verifies no TTL socket options are requested by default.
+//
+// VALIDATES: Dialer has no outgoing TTL config when PeerSettings.OutTTL is zero.
+// PREVENTS: False positive GTSM activation for peers that did not configure connection ttl.
+func TestSessionNoTTLWhenAbsent(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+
+	session := NewSession(settings)
+	rd, ok := session.dialer.(*network.RealDialer)
+	require.True(t, ok)
+	require.Zero(t, rd.OutTTL)
+}
+
 // TestCloseConnGracefulTCP verifies closeConn sends FIN (not RST) on real TCP.
 // Uses a real TCP connection to exercise the CloseWrite + drain path
 // (which is skipped by net.Pipe in other tests).

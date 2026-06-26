@@ -260,7 +260,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	// Re-resolve the BGP tree to extract dynamic group templates.
 	if bgpTree, resolveErr := ResolveBGPTree(tree); resolveErr != nil {
 		configLogger().Warn("dynamic group resolution failed", "error", resolveErr)
-	} else if dynGroups := DynamicGroupsFromTree(bgpTree); len(dynGroups) > 0 {
+	} else if dynGroups := dynamicGroupsFromTree(bgpTree); len(dynGroups) > 0 {
 		r.SetDynamicGroups(dynGroups)
 	}
 
@@ -325,7 +325,7 @@ func createReloadFunc(store storage.Storage, r *reactor.Reactor) reactor.ReloadF
 
 		// Update dynamic peer groups on reload (after pruning).
 		if bgpTree, resolveErr := ResolveBGPTree(tree); resolveErr == nil {
-			r.SetDynamicGroups(DynamicGroupsFromTree(bgpTree))
+			r.SetDynamicGroups(dynamicGroupsFromTree(bgpTree))
 		}
 
 		return peers, nil

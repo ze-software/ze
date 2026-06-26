@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
 )
 
 // socketRecvBufSize is the SO_RCVBUF size for BGP sessions (256KB).
@@ -233,6 +234,69 @@ func (s *Session) processOpen(open *message.Open) error {
 	return nil
 }
 
+func (s *Session) tuneTCPConnection(tcp *net.TCPConn) error {
+	return tuneTCPConnectionForSettings(tcp, s.settings)
+}
+
+func tuneTCPConnectionForSettings(tcp *net.TCPConn, settings *PeerSettings) error {
+	_ = tcp.SetNoDelay(true)
+
+	addr, ok := tcp.RemoteAddr().(*net.TCPAddr)
+	if !ok {
+		return nil
+	}
+	raw, err := tcp.SyscallConn()
+	if err != nil {
+		if settings.MinTTL != 0 {
+			return fmt.Errorf("tcp raw conn: %w", err)
+		}
+		return nil
+	}
+
+	var sysErr error
+	if err := raw.Control(func(fd uintptr) {
+		intFD := int(fd)
+		if addr.IP.To4() != nil {
+			_ = syscall.SetsockoptInt(intFD, syscall.IPPROTO_IP, syscall.IP_TOS, 0xC0)
+		} else {
+			_ = syscall.SetsockoptInt(intFD, syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS, 0xC0)
+		}
+		if settings.OutTTL != 0 {
+			if err := network.SetIPTTL(intFD, addr.IP, settings.OutTTL); err != nil {
+				if network.IsIPTTLUnsupported(err) {
+					sessionLogger().Debug("GTSM outbound TTL not supported on this platform", "peer", settings.Name, "err", err)
+				} else {
+					sysErr = err
+					return
+				}
+			}
+		}
+		if settings.MinTTL != 0 {
+			if err := network.SetIPMinTTL(intFD, addr.IP, settings.MinTTL); err != nil {
+				if network.IsIPTTLUnsupported(err) {
+					sessionLogger().Debug("GTSM inbound TTL gate not supported on this platform", "peer", settings.Name, "err", err)
+				} else {
+					sysErr = err
+					return
+				}
+			}
+		}
+		// Set socket buffers for BGP burst throughput.
+		if err := syscall.SetsockoptInt(intFD, syscall.SOL_SOCKET, syscall.SO_RCVBUF, socketRecvBufSize); err != nil {
+			sessionLogger().Debug("SO_RCVBUF not set, using OS default", "err", err)
+		}
+		if err := syscall.SetsockoptInt(intFD, syscall.SOL_SOCKET, syscall.SO_SNDBUF, socketSendBufSize); err != nil {
+			sessionLogger().Debug("SO_SNDBUF not set, using OS default", "err", err)
+		}
+	}); err != nil {
+		return fmt.Errorf("tcp raw conn control: %w", err)
+	}
+	if sysErr != nil {
+		return sysErr
+	}
+	return nil
+}
+
 // connectionEstablished handles a new TCP connection (incoming or outgoing).
 func (s *Session) connectionEstablished(conn net.Conn) error {
 	// Tune TCP socket for BGP:
@@ -242,25 +306,11 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 	//   RFC 4271 §5.1 recommends IP precedence for BGP. Network devices
 	//   with QoS policies prioritize CS6 traffic over regular data,
 	//   reducing hold timer expiry risk under network congestion.
+	// - IP_MINTTL/IPV6_MINHOPCOUNT: RFC 5082 GTSM receive-side filtering
+	//   drops packets below the configured minimum TTL or Hop Limit.
 	if tcp, ok := conn.(*net.TCPConn); ok {
-		_ = tcp.SetNoDelay(true)
-		if addr, ok := tcp.RemoteAddr().(*net.TCPAddr); ok {
-			if raw, err := tcp.SyscallConn(); err == nil {
-				_ = raw.Control(func(fd uintptr) {
-					if addr.IP.To4() != nil {
-						_ = syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IP, syscall.IP_TOS, 0xC0)
-					} else {
-						_ = syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS, 0xC0)
-					}
-					// Set socket buffers for BGP burst throughput.
-					if err := syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF, socketRecvBufSize); err != nil {
-						sessionLogger().Debug("SO_RCVBUF not set, using OS default", "err", err)
-					}
-					if err := syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_SNDBUF, socketSendBufSize); err != nil {
-						sessionLogger().Debug("SO_SNDBUF not set, using OS default", "err", err)
-					}
-				})
-			}
+		if err := s.tuneTCPConnection(tcp); err != nil {
+			return err
 		}
 	}
 

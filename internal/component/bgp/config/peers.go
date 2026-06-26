@@ -233,17 +233,17 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 	}
 
 	// Step 5: Validate capability-process constraints.
-	if err := ValidatePeerProcessCaps(peers); err != nil {
+	if err := validatePeerProcessCaps(peers); err != nil {
 		return nil, err
 	}
 
 	return peers, nil
 }
 
-// DynamicGroupsFromTree extracts dynamic group configs from the resolved BGP tree.
+// dynamicGroupsFromTree extracts dynamic group configs from the resolved BGP tree.
 // Returns nil if no dynamic groups are configured. The returned configs are ready
 // to be passed to Reactor.SetDynamicGroups.
-func DynamicGroupsFromTree(bgpTree map[string]any) []*reactor.DynamicGroupConfig {
+func dynamicGroupsFromTree(bgpTree map[string]any) []*reactor.DynamicGroupConfig {
 	raw, ok := bgpTree["dynamic-groups"]
 	if !ok {
 		return nil
@@ -283,6 +283,7 @@ func DynamicGroupsFromTree(bgpTree map[string]any) []*reactor.DynamicGroupConfig
 			RouterID:  routerID,
 			RSClient:  tmpl.RSClient,
 			Settings:  ps,
+			Template:  tmpl.Template,
 		})
 	}
 	return groups
@@ -533,10 +534,10 @@ func patchStaticRoutes(ps *reactor.PeerSettings, routes []StaticRouteConfig, add
 	return nil
 }
 
-// ValidatePeerProcessCaps checks that peers with route-refresh or graceful-restart
+// validatePeerProcessCaps checks that peers with route-refresh or graceful-restart
 // capabilities have at least one process binding with SendUpdate=true.
 // These capabilities require a process to resend routes on demand.
-func ValidatePeerProcessCaps(peers []*reactor.PeerSettings) error {
+func validatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 	for _, ps := range peers {
 		needsProcess := false
 		capName := ""

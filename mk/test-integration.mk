@@ -17,7 +17,7 @@
 .PHONY: ze-interop-test ze-ipsec-interop-test
 .PHONY: ze-stress-test ze-stress-bird-test ze-stress-profile
 .PHONY: ze-live-test ze-live-rpki-test
-.PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test
+.PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-integration-gtsm-test
 .PHONY: ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-deployment-pppoe-accel-docker-test
@@ -83,7 +83,11 @@ ze-integration-traffic-test:
 	@echo "Running traffic-control netlink integration tests (requires CAP_NET_ADMIN)..."
 	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/traffic/netlink/...
 
-ze-integration-test: ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test
+ze-integration-gtsm-test:
+	@echo "Running BGP GTSM / TTL-security socket-option integration tests (linux)..."
+	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/core/network/... ./internal/component/bgp/reactor/...
+
+ze-integration-test: ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-integration-gtsm-test
 
 # ─── Deployment evidence ────────────────────────────────────────────────────
 

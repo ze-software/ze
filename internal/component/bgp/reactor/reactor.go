@@ -950,13 +950,8 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	if r.config.ListenAddr != "" {
 		r.listener = NewListener(r.config.ListenAddr)
 		r.listener.SetClock(r.clock)
-		// Apply MD5 peers to global listener if any peers have MD5 configured.
-		md5Peers := r.md5PeersForListener(r.config.Port)
-		if len(md5Peers) > 0 {
-			r.listener.SetListenerFactory(network.RealListenerFactory{MD5Peers: md5Peers})
-		} else {
-			r.listener.SetListenerFactory(r.listenerFactory)
-		}
+		// Apply MD5 peers and GTSM listen-socket TTL to the global listener.
+		r.listener.SetListenerFactory(r.newListenerFactory(r.config.Port))
 		r.listener.SetHandler(r.handleConnection)
 		if err := r.listener.StartWithContext(r.ctx); err != nil {
 			r.abortStartup()
@@ -1293,6 +1288,42 @@ func (r *Reactor) md5PeersForListener(listenPort int) []network.MD5Peer {
 	return md5Peers
 }
 
+// listenTTLForListener returns the outgoing TTL to apply to a listener on the
+// given port: the maximum OutTTL across peers on that port (GTSM peers use
+// 255), or 0 if no peer on the port enables GTSM. A shared listen socket has a
+// single TTL, so the SYN-ACK to every inbound connection on the port carries
+// it; 255 is safe for non-GTSM peers (they do not gate on inbound TTL).
+// Must be called with r.mu held.
+func (r *Reactor) listenTTLForListener(listenPort int) uint8 {
+	var ttl uint8
+	for _, p := range r.peers {
+		s := p.Settings()
+		if s.OutTTL == 0 {
+			continue
+		}
+		if r.peerListenPort(s) != listenPort {
+			continue
+		}
+		if s.OutTTL > ttl {
+			ttl = s.OutTTL
+		}
+	}
+	return ttl
+}
+
+// newListenerFactory builds the listener factory for a port, applying MD5 peers
+// and the GTSM listen-socket TTL. Returns the configured RealListenerFactory, or
+// the reactor's injected factory (chaos/test) when neither applies.
+// Must be called with r.mu held.
+func (r *Reactor) newListenerFactory(port int) network.ListenerFactory {
+	md5Peers := r.md5PeersForListener(port)
+	listenTTL := r.listenTTLForListener(port)
+	if len(md5Peers) > 0 || listenTTL != 0 {
+		return network.RealListenerFactory{MD5Peers: md5Peers, ListenTTL: listenTTL}
+	}
+	return r.listenerFactory
+}
+
 // startListenerForAddressPort creates and starts a listener on addr:port.
 // If peerKey is valid (non-zero), the listener is a per-peer-port listener that routes
 // directly to that peer (no remote IP matching). Otherwise, it's a shared listener
@@ -1307,13 +1338,8 @@ func (r *Reactor) startListenerForAddressPort(addr netip.Addr, port int, peerKey
 
 	listener := NewListener(lkey)
 	listener.SetClock(r.clock)
-	// Build listener factory with MD5 peers for this port.
-	md5Peers := r.md5PeersForListener(port)
-	if len(md5Peers) > 0 {
-		listener.SetListenerFactory(network.RealListenerFactory{MD5Peers: md5Peers})
-	} else {
-		listener.SetListenerFactory(r.listenerFactory)
-	}
+	// Build listener factory with MD5 peers and GTSM listen-socket TTL for this port.
+	listener.SetListenerFactory(r.newListenerFactory(port))
 
 	if peerKey.IsValid() {
 		// Per-peer-port listener: route directly by peer key

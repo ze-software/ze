@@ -129,6 +129,12 @@ type PeerInfo struct {
 	MD5Enabled bool
 	BFDEnabled bool
 
+	// GTSM / TTL security (RFC 5082). Zero means the option is not
+	// configured for this peer. GTSMOutTTL is the outgoing IP TTL /
+	// IPv6 Hop Limit; GTSMMinTTL is the minimum accepted inbound TTL.
+	GTSMOutTTL uint8
+	GTSMMinTTL uint8
+
 	// RFC 4271 Section 4.2: negotiated timers (min of local and remote).
 	NegotiatedHoldTime      time.Duration
 	NegotiatedKeepaliveTime time.Duration

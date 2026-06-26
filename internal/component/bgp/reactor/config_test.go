@@ -1547,6 +1547,134 @@ func TestParsePeerMD5IPWithoutPassword(t *testing.T) {
 	assert.Contains(t, err.Error(), "md5 ip requires md5 password")
 }
 
+// TestParsePeerTTLFieldsParsed verifies ttl set/min are stored in PeerSettings.
+//
+// VALIDATES: connection > ttl > set/min populate PeerSettings OutTTL and MinTTL.
+// PREVENTS: TTL security config parsing successfully but never reaching socket wiring.
+func TestParsePeerTTLFieldsParsed(t *testing.T) {
+	tree := map[string]any{
+		"connection": map[string]any{
+			"remote": map[string]any{"ip": "10.0.0.1"},
+			"local":  map[string]any{"ip": "auto"},
+			"ttl":    map[string]any{"set": "200", "min": "199"},
+		},
+		"session": map[string]any{"asn": map[string]any{"remote": "65001"}},
+	}
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.NoError(t, err)
+	assert.Equal(t, uint8(200), ps.OutTTL)
+	assert.Equal(t, uint8(199), ps.MinTTL)
+}
+
+// TestParsePeerTTLMaxDerivesSetAndMin verifies RFC 5082 GTSM hop-count derivation.
+//
+// VALIDATES: connection > ttl > max N derives OutTTL=255 and MinTTL=255-N+1.
+// PREVENTS: Off-by-one GTSM windows that reject valid peers or admit spoofed packets.
+func TestParsePeerTTLMaxDerivesSetAndMin(t *testing.T) {
+	tests := []struct {
+		name    string
+		max     string
+		wantMin uint8
+	}{
+		{name: "single hop", max: "1", wantMin: 255},
+		{name: "two hops", max: "2", wantMin: 254},
+		{name: "widest nonzero", max: "255", wantMin: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := map[string]any{
+				"connection": map[string]any{
+					"remote": map[string]any{"ip": "10.0.0.1"},
+					"local":  map[string]any{"ip": "auto"},
+					"ttl":    map[string]any{"max": tt.max},
+				},
+				"session": map[string]any{"asn": map[string]any{"remote": "65001"}},
+			}
+			ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+			require.NoError(t, err)
+			assert.Equal(t, uint8(255), ps.OutTTL)
+			assert.Equal(t, tt.wantMin, ps.MinTTL)
+		})
+	}
+}
+
+// TestParsePeerTTLConflictRejected verifies GTSM max is mutually exclusive with raw TTL leaves.
+//
+// VALIDATES: connection > ttl > max cannot be combined with set or min.
+// PREVENTS: Ambiguous GTSM config silently choosing one of two conflicting TTL policies.
+func TestParsePeerTTLConflictRejected(t *testing.T) {
+	tests := []struct {
+		name string
+		ttl  map[string]any
+	}{
+		{name: "max and set", ttl: map[string]any{"max": "1", "set": "255"}},
+		{name: "max and min", ttl: map[string]any{"max": "1", "min": "255"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := map[string]any{
+				"connection": map[string]any{
+					"remote": map[string]any{"ip": "10.0.0.1"},
+					"local":  map[string]any{"ip": "auto"},
+					"ttl":    tt.ttl,
+				},
+				"session": map[string]any{"asn": map[string]any{"remote": "65001"}},
+			}
+			_, err := parsePeerFromTree("peer1", tree, 65000, 0)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "ttl max cannot be combined with ttl set or ttl min")
+		})
+	}
+}
+
+// TestParsePeerTTLInvalidValuesRejected verifies TTL uint8 boundaries.
+//
+// VALIDATES: connection > ttl numeric leaves reject values outside 0..255.
+// PREVENTS: Invalid socket TTL values wrapping or being silently accepted.
+func TestParsePeerTTLInvalidValuesRejected(t *testing.T) {
+	tests := []struct {
+		name string
+		ttl  map[string]any
+	}{
+		{name: "max below zero", ttl: map[string]any{"max": "-1"}},
+		{name: "max above uint8", ttl: map[string]any{"max": "256"}},
+		{name: "set below zero", ttl: map[string]any{"set": "-1"}},
+		{name: "set above uint8", ttl: map[string]any{"set": "256"}},
+		{name: "min below zero", ttl: map[string]any{"min": "-1"}},
+		{name: "min above uint8", ttl: map[string]any{"min": "256"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := map[string]any{
+				"connection": map[string]any{
+					"remote": map[string]any{"ip": "10.0.0.1"},
+					"local":  map[string]any{"ip": "auto"},
+					"ttl":    tt.ttl,
+				},
+				"session": map[string]any{"asn": map[string]any{"remote": "65001"}},
+			}
+			_, err := parsePeerFromTree("peer1", tree, 65000, 0)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "must be in range 0..255")
+		})
+	}
+}
+
+// TestParsePeerNoTTLFieldsWhenAbsent verifies absent TTL config leaves socket options disabled.
+//
+// VALIDATES: PeerSettings OutTTL and MinTTL default to zero when ttl config is absent.
+// PREVENTS: False positive GTSM activation on peers that did not opt in.
+func TestParsePeerNoTTLFieldsWhenAbsent(t *testing.T) {
+	tree := map[string]any{
+		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
+		"session":    map[string]any{"asn": map[string]any{"remote": "65001"}},
+	}
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.NoError(t, err)
+	assert.Zero(t, ps.OutTTL)
+	assert.Zero(t, ps.MinTTL)
+}
+
 // TestParsePeerFromTree_Name verifies the Name field is parsed from the peer tree.
 //
 // VALIDATES: AC-7 -- peer name flows from config tree into PeerSettings.

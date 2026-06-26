@@ -280,6 +280,14 @@ type PeerSettings struct {
 	// Defaults to Address when empty.
 	MD5IP netip.Addr
 
+	// OutTTL is the outgoing IP TTL / IPv6 Hop Limit for BGP TCP packets.
+	// Zero means leave the OS default unchanged. RFC 5082 GTSM uses 255.
+	OutTTL uint8
+
+	// MinTTL is the minimum accepted inbound IP TTL / IPv6 Hop Limit.
+	// Zero means do not install a kernel receive-side TTL gate.
+	MinTTL uint8
+
 	// BFD is the parsed BFD opt-in from YANG
 	// `bgp peer connection bfd { ... }`. nil means the peer does not
 	// opt into BFD; the reactor skips all BFD client wiring for this

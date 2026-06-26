@@ -49,8 +49,8 @@ type MD5Peer struct {
 func TCPMD5Supported() bool { return tcpMD5Supported() }
 
 // RealDialer implements Dialer using net.Dialer.
-// Supports optional local address binding for source IP selection
-// and TCP MD5 authentication (RFC 2385).
+// Supports optional local address binding, TCP MD5 authentication (RFC 2385),
+// and outgoing TTL / Hop Limit control for GTSM (RFC 5082).
 type RealDialer struct {
 	// LocalAddr is the local address to bind to for outgoing connections.
 	// If nil, the OS chooses the local address.
@@ -63,30 +63,61 @@ type RealDialer struct {
 	// MD5Key is the TCP MD5 authentication password (RFC 2385).
 	// When non-empty, TCP_MD5SIG is set on the socket before connect.
 	MD5Key string
+
+	// OutTTL is the outgoing IPv4 TTL or IPv6 Hop Limit.
+	// Zero leaves the OS default unchanged.
+	OutTTL uint8
 }
 
 // DialContext creates a real TCP connection using net.Dialer.
-// If MD5Key is set, applies TCP_MD5SIG via the Control callback
+// If MD5Key or OutTTL is set, applies socket options via the Control callback
 // before the TCP handshake begins.
 func (d *RealDialer) DialContext(ctx context.Context, nw, address string) (net.Conn, error) {
 	nd := net.Dialer{}
 	if d.LocalAddr != nil {
 		nd.LocalAddr = d.LocalAddr
 	}
-	if d.MD5Key != "" {
+	if d.MD5Key != "" || d.OutTTL != 0 {
 		peerIP := d.PeerAddr
 		password := d.MD5Key
-		nd.Control = func(_, _ string, c syscall.RawConn) error {
+		outTTL := d.OutTTL
+		nd.Control = func(_, controlAddress string, c syscall.RawConn) error {
 			var sysErr error
 			if err := c.Control(func(fd uintptr) {
-				sysErr = setTCPMD5Sig(int(fd), peerIP, password)
+				if password != "" {
+					if err := setTCPMD5Sig(int(fd), peerIP, password); err != nil {
+						sysErr = err
+						return
+					}
+				}
+				if outTTL != 0 {
+					ttlIP := controlAddressIP(controlAddress, peerIP)
+					if ttlIP == nil {
+						sysErr = fmt.Errorf("ttl peer address %q is not an IP address", controlAddress)
+						return
+					}
+					if err := setIPTTL(int(fd), ttlIP, outTTL); err != nil && !IsIPTTLUnsupported(err) {
+						sysErr = err
+						return
+					}
+				}
 			}); err != nil {
-				return fmt.Errorf("md5 raw conn control: %w", err)
+				return fmt.Errorf("raw conn control: %w", err)
 			}
 			return sysErr
 		}
 	}
 	return nd.DialContext(ctx, nw, address)
+}
+
+func controlAddressIP(address string, fallback net.IP) net.IP {
+	host, _, err := net.SplitHostPort(address)
+	if err == nil {
+		if ip := net.ParseIP(host); ip != nil {
+			return ip
+		}
+	}
+	return fallback
 }
 
 // RealListenerFactory implements ListenerFactory using net.ListenConfig.
@@ -96,15 +127,24 @@ type RealListenerFactory struct {
 	// When non-empty, TCP_MD5SIG is set on the listener socket for each peer
 	// before bind, so the kernel validates MD5 on incoming SYN packets.
 	MD5Peers []MD5Peer
+
+	// ListenTTL is the outgoing IP TTL / IPv6 Hop Limit applied to the listen
+	// socket (GTSM, RFC 5082). Zero leaves the OS default. When any peer on
+	// this listener uses GTSM it is set to 255 so the kernel's SYN-ACK to an
+	// inbound (peer-initiated) connection carries TTL 255 and survives the
+	// peer's receive-side TTL gate. The accepted socket's per-peer TTL is then
+	// applied in connectionEstablished.
+	ListenTTL uint8
 }
 
 // Listen creates a real TCP listener using net.ListenConfig.
-// If MD5Peers is configured, applies TCP_MD5SIG for each peer via the
-// Control callback before the socket is bound.
+// If MD5Peers or ListenTTL is configured, applies the matching socket options
+// via the Control callback before the socket is bound.
 func (f RealListenerFactory) Listen(ctx context.Context, nw, address string) (net.Listener, error) {
 	lc := net.ListenConfig{}
-	if len(f.MD5Peers) > 0 {
+	if len(f.MD5Peers) > 0 || f.ListenTTL != 0 {
 		peers := f.MD5Peers
+		listenTTL := f.ListenTTL
 		lc.Control = func(_, _ string, c syscall.RawConn) error {
 			var sysErr error
 			if err := c.Control(func(fd uintptr) {
@@ -114,8 +154,14 @@ func (f RealListenerFactory) Listen(ctx context.Context, nw, address string) (ne
 						return
 					}
 				}
+				if listenTTL != 0 {
+					if err := setListenIPTTL(int(fd), listenTTL); err != nil && !IsIPTTLUnsupported(err) {
+						sysErr = err
+						return
+					}
+				}
 			}); err != nil {
-				return fmt.Errorf("md5 raw conn control: %w", err)
+				return fmt.Errorf("listener raw conn control: %w", err)
 			}
 			return sysErr
 		}

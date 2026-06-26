@@ -175,6 +175,9 @@ func TestRealDialerMD5FieldsZeroValue(t *testing.T) {
 	if d.PeerAddr != nil {
 		t.Error("PeerAddr should default to nil")
 	}
+	if d.OutTTL != 0 {
+		t.Error("OutTTL should default to zero")
+	}
 }
 
 // TestRealListenerFactoryMD5PeersZeroValue verifies MD5Peers defaults to nil.
