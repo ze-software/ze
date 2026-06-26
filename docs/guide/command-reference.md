@@ -580,7 +580,7 @@ route` for IP).
 
 ```
 ze show mpls forwarding                 # All installed MPLS forwarding entries
-ze show mpls forwarding --limit 500     # Cap the response size
+ze show mpls forwarding limit 500       # Cap the response size
 ```
 
 Each entry reports the incoming label (`in-label`), the `operation`

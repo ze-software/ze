@@ -5,6 +5,7 @@ module ze-mpls-cmd {
     import ze-cli-show-cmd  { prefix clishowcmd; }
     description "MPLS show commands: forwarding table inspection.
          Relocated from the central show schema for plugin self-containment.";
+    revision 2026-06-26 { description "Add the row-cap as a 'limit' keyword leaf (was a --limit flag in the handler), matching show route."; }
     revision 2026-06-03 { description "Initial revision: relocated from ze-cli-show-cmd."; }
 
     augment "/clishowcmd:show" {
@@ -17,7 +18,11 @@ module ze-mpls-cmd {
                 ze:command "ze-show:mpls-forwarding";
                 description "Show MPLS forwarding entries installed in the kernel.
 Each entry shows the incoming label, swap/push/pop operation, and
-outgoing next-hop. Accepts a row limit for large tables. Linux only.";
+outgoing next-hop. Pass 'limit N' to cap large tables. Linux only.";
+                leaf limit {
+                    type uint32;
+                    description "Maximum number of entries";
+                }
             }
         }
     }

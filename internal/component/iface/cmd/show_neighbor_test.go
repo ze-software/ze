@@ -42,16 +42,10 @@ func TestHandleShowNeighbor_UnknownFamilyRejects(t *testing.T) {
 	assert.Contains(t, resp.Error, "ipv6")
 }
 
-// TestHandleShowNeighbor_FamilyCaseInsensitive verifies an uppercase family
-// token is accepted (parsing is case-insensitive), not rejected as unknown.
-func TestHandleShowNeighbor_FamilyCaseInsensitive(t *testing.T) {
-	resp, err := handleShowNeighbor(nil, []string{"IPV6"})
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	if resp.Status == plugin.StatusError {
-		assert.NotContains(t, resp.Error, "unknown family")
-	}
-}
+// test-relax: removed TestHandleShowNeighbor_FamilyCaseInsensitive -- the CLI is
+// case-sensitive by design. The dispatcher validates the `family` enum against
+// the YANG leaf (lowercase) before this handler runs, so the handler never sees
+// an uppercase token; a case-insensitivity test asserted a non-feature.
 
 // TestHandleShowNeighbor_TooManyArgsRejects verifies a second positional arg
 // rejects rather than being silently ignored.

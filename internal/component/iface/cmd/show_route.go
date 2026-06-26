@@ -20,7 +20,7 @@ import (
 // defaultRouteLimit caps the number of entries returned by `show route`
 // so an operator on a full DFZ does not turn a single read into a
 // multi-hundred-megabyte RPC response. Callers who want more can raise
-// the cap via `--limit N`; when the kernel FIB has more rows than the
+// the cap via `limit N`; when the kernel FIB has more rows than the
 // cap the handler trims the response and sets `truncated: true, limit: N`
 // in the envelope so the caller can retry with a larger limit if desired.
 const defaultRouteLimit = 100_000
@@ -36,7 +36,7 @@ func init() {
 
 // handleShowRoute returns the kernel routing table. A single positional
 // argument restricts the output to one CIDR; use "default" for the
-// 0.0.0.0/0 / ::/0 entries. The optional `--limit N` caps the response
+// 0.0.0.0/0 / ::/0 entries. The optional `limit N` caps the response
 // size -- default 100 000 rows so a single read on a full DFZ does not
 // produce a multi-hundred-megabyte RPC reply. Backends that do not own
 // the kernel FIB (VPP today) reject per exact-or-reject -- kernel routes

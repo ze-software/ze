@@ -32,7 +32,7 @@ loaded. `ze doctor` warns (`doctor-mpls-unavailable`) when they are missing.
 
 ```
 ze show mpls forwarding              # all installed MPLS entries
-ze show mpls forwarding --limit 500  # cap the response size
+ze show mpls forwarding limit 500    # cap the response size
 ```
 
 Each row reports the incoming label (`in-label`), the `operation` (`swap` or

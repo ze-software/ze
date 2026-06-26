@@ -16,6 +16,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const defaultForwardingLimit = 100_000
@@ -42,22 +43,25 @@ func init() {
 }
 
 func handleShowMPLSForwarding(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	const usage = "usage: show mpls forwarding [--limit N]"
+	const usage = "usage: show mpls forwarding [limit N]"
+	var tb textbuf.Buffer
 	limit := defaultForwardingLimit
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "--limit":
+		case "limit":
 			if i+1 >= len(args) {
-				return &plugin.Response{Status: plugin.StatusError, Error: "--limit requires a value"}, nil
+				return &plugin.Response{Status: plugin.StatusError, Error: "limit requires a value"}, nil
 			}
 			n, parseErr := strconv.Atoi(args[i+1])
 			if parseErr != nil || n <= 0 {
-				return &plugin.Response{Status: plugin.StatusError, Error: "invalid --limit " + strconv.Quote(args[i+1]) + ": must be a positive integer"}, nil //nolint:nilerr // operational error via Response
+				msg := tb.Str("invalid limit ").Quoted(args[i+1]).Str(": must be a positive integer").String()
+				return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil //nolint:nilerr // operational error via Response
 			}
 			limit = n
 			i++
 		default:
-			return &plugin.Response{Status: plugin.StatusError, Error: "unexpected argument " + strconv.Quote(args[i]) + "; " + usage}, nil
+			msg := tb.Reset().Str("unexpected argument ").Quoted(args[i]).Str("; ").Str(usage).String()
+			return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil
 		}
 	}
 

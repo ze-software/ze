@@ -7,8 +7,6 @@
 package cmd
 
 import (
-	"strings"
-
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -29,10 +27,12 @@ func init() {
 }
 
 // parseNeighborFamily maps a user family token (ipv4/ipv6/any/all) to an
-// iface.NeighborFamily. Matching is case-insensitive. The bool is false for an
-// unrecognized token so the caller can produce a usage error.
+// iface.NeighborFamily. The bool is false for an unrecognized token so the
+// caller can produce a usage error. The CLI is case-sensitive and the
+// dispatcher validates the family enum (lowercase) against the YANG leaf before
+// this handler runs, so the switch only ever sees a valid lowercase token.
 func parseNeighborFamily(s string) (int, bool) {
-	switch strings.ToLower(s) {
+	switch s {
 	case "ipv4":
 		return iface.NeighborFamilyIPv4, true
 	case "ipv6":

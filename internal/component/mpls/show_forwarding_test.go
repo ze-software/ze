@@ -17,22 +17,22 @@ func TestShowMPLSForwardingArgs(t *testing.T) {
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 	})
 
-	t.Run("--limit without value rejects", func(t *testing.T) {
-		resp, err := handleShowMPLSForwarding(nil, []string{"--limit"})
+	t.Run("limit without value rejects", func(t *testing.T) {
+		resp, err := handleShowMPLSForwarding(nil, []string{"limit"})
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusError, resp.Status)
-		assert.Contains(t, resp.Error, "--limit requires a value")
+		assert.Contains(t, resp.Error, "limit requires a value")
 	})
 
-	t.Run("non-numeric --limit rejects", func(t *testing.T) {
-		resp, err := handleShowMPLSForwarding(nil, []string{"--limit", "abc"})
+	t.Run("non-numeric limit rejects", func(t *testing.T) {
+		resp, err := handleShowMPLSForwarding(nil, []string{"limit", "abc"})
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusError, resp.Status)
-		assert.Contains(t, resp.Error, "invalid --limit")
+		assert.Contains(t, resp.Error, "invalid limit")
 	})
 
-	t.Run("zero --limit rejects", func(t *testing.T) {
-		resp, err := handleShowMPLSForwarding(nil, []string{"--limit", "0"})
+	t.Run("zero limit rejects", func(t *testing.T) {
+		resp, err := handleShowMPLSForwarding(nil, []string{"limit", "0"})
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusError, resp.Status)
 	})
