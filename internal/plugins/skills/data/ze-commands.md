@@ -16,7 +16,7 @@ ze yang tree|completion|doc [module]
 ze schema list|methods|events
 ze explain [--json] <code>
 ze skills list|get <name>
-ze help --ai [--json]
+ze help ai [--json]
 ```
 
 ## Online Commands (Daemon)
@@ -29,9 +29,9 @@ show version
 delete bgp peer <selector>
 ```
 
-Use `ze help --ai --json` for the full generated command reference.
+Use `ze help ai --json` for the full generated command reference.
 
 ## MCP Tools
 
 MCP tools are auto-generated from the YANG command registry.
-Use `ze help --ai --json` to see the same data in machine-readable form.
+Use `ze help ai --json` to see the same data in machine-readable form.

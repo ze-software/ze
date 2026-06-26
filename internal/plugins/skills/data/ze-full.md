@@ -14,7 +14,7 @@ SSH-accessible CLI, HTMX web UI, and agent-facing tooling.
 ze config validate --json <file>
 ze explain [--json] <diagnostic-code>
 ze config fix --plan --json <file>
-ze help --ai --json
+ze help ai --json
 ze skills list [--json]
 ze skills get <name> [--full] [--json]
 ```

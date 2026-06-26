@@ -478,7 +478,7 @@ func registerLocalCommands() {
 		Description: "Show available commands and how to use them",
 		Mode:        "offline",
 		Section:     registry.SectionSystem,
-		Subs:        "command [<filter>] [--json], --ai [--cli|--api|--mcp|--dispatch|--all]",
+		Subs:        "command [<filter>] [--json], ai [cli|api|mcp|dispatch|all] [--json]",
 	})
 	registry.MustRegisterRootHandler("--plugins", func(_ *registry.RuntimeContext, args []string) int {
 		printPlugins(len(args) > 0 && args[0] == "--json")
@@ -502,6 +502,13 @@ func registerLocalCommands() {
 		return 0
 	}, registry.Meta{
 		Description: "List every command with its description. Use a filter to narrow the list.",
+		Mode:        "offline",
+	})
+	registry.MustRegisterLocalMeta("help ai", func(args []string) int {
+		printAIHelp(args)
+		return 0
+	}, registry.Meta{
+		Description: "AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json).",
 		Mode:        "offline",
 	})
 
@@ -602,7 +609,11 @@ func dispatchHelp(args []string) {
 		} else {
 			printHelpCommand(args[1:])
 		}
+	case len(args) > 0 && args[0] == "ai":
+		// Canonical form: ze help ai [cli|api|mcp|dispatch|all] [--json].
+		printAIHelp(args[1:])
 	case aiHelpRequested(args):
+		// Deprecated alias: ze help --ai [--cli|--api|...]. Still accepted.
 		printAIHelp(args)
 	case slices.Contains(args, "--help") || slices.Contains(args, "-h"):
 		helpUsage()

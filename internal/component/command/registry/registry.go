@@ -182,7 +182,7 @@ func RegisterLocal(path string, handler LocalHandler) error {
 }
 
 // RegisterLocalMeta registers a handler AND its human-facing metadata.
-// Metadata is surfaced by `ze help --ai`.
+// Metadata is surfaced by `ze help ai`.
 func RegisterLocalMeta(path string, handler LocalHandler, meta Meta) error {
 	if err := RegisterLocal(path, handler); err != nil {
 		return err

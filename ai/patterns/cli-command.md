@@ -401,7 +401,7 @@ See `ai/patterns/registration.md` "Binary Personality Registration" section.
 | `registry.RegisterLocal` / `MustRegisterLocal` / `RegisterLocalMeta` / `MustRegisterLocalMeta` | Path-keyed local handler (`"show bgp decode"`) for offline shortcuts |
 | `registry.SetRuntimeStorage(fn)` / `RuntimeStorage()` | Storage resolver for local shortcuts (their `func(args)int` signature gets no context). `main.go` installs it; shortcuts read it lazily |
 | `registry.LookupRoot(name)` / `LookupLocal(words)` | Dispatch lookups used by `main.go` |
-| `registry.ListLocal()` / `ListRoot()` / `ListRootBySection()` | Enumerate everything; used by `help --ai` |
+| `registry.ListLocal()` / `ListRoot()` / `ListRootBySection()` | Enumerate everything; used by `help ai` |
 | `registry.HasLocal` / `HasRootHandler` / `ResetForTest` | Test helpers (do not `ResetForTest` from `cmd/ze` tests -- it wipes init-registered roots; use sentinel names) |
 
 ### Registration shape per command class
@@ -437,7 +437,7 @@ registry.MustRegisterLocalMeta("show config history", func(args []string) int {
 }, registry.Meta{Description: "..."})
 ```
 
-### How `help --ai` consumes the registry
+### How `help ai` consumes the registry
 
 `cmd/ze/help_ai.go:cliSubcommands()` enumerates:
 

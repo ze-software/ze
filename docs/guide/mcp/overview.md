@@ -1,7 +1,7 @@
 # MCP Integration
 
 <!-- source: internal/component/mcp/handler.go -- MCP HTTP handler -->
-<!-- source: cmd/ze/help_ai.go -- ze help --ai output -->
+<!-- source: cmd/ze/help_ai.go -- ze help ai output -->
 
 Ze includes an MCP (Model Context Protocol) server that lets AI assistants
 control BGP operations. The server runs inside the daemon and wraps the
@@ -176,18 +176,21 @@ No parameters. Returns the list of all registered daemon commands.
 
 ## AI Help Reference
 
-`ze help --ai` generates a machine-readable reference from the running binary.
+`ze help ai` generates a machine-readable reference from the running binary.
 All data comes from the plugin registry, YANG schemas, and RPC registrations,
 so it is never out of date.
 
-| Flag | Content |
-|------|---------|
-| `--ai` | Summary with counts and quick start |
-| `--ai --json` | Machine-readable JSON with commands, RPCs, plugins, families, services |
-| `--ai --cli` | CLI subcommands (ze bgp, ze config, ...) |
-| `--ai --api` | Daemon API commands with parameters (YANG RPCs) |
-| `--ai --mcp` | MCP tools with parameters and examples |
-| `--ai --all` | Everything |
+| Command | Content |
+|---------|---------|
+| `ze help ai` | Summary with counts and quick start |
+| `ze help ai --json` | Machine-readable JSON with commands, RPCs, plugins, families, services |
+| `ze help ai cli` | CLI subcommands (ze bgp, ze config, ...) |
+| `ze help ai api` | Daemon API commands with parameters (YANG RPCs) |
+| `ze help ai mcp` | MCP tools with parameters and examples |
+| `ze help ai dispatch` | Dispatch keys for daemon commands |
+| `ze help ai all` | Everything |
+
+The legacy flag form (`ze help --ai --api`) is still accepted as a hidden alias.
 
 ## Agent Tooling
 

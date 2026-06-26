@@ -30,24 +30,27 @@ import (
 // All data comes from the plugin registry, YANG schemas, and RPC registrations
 // so it is always in sync with the running binary.
 //
-// Sections are selected via flags:
+// Sections are selected positionally:
 //
-//	--ai           Summary / table of contents
-//	--ai --cli     CLI subcommands (ze bgp, ze config, ...)
-//	--ai --api     Daemon API commands (YANG RPCs)
-//	--ai --mcp     MCP tools with parameters
-//	--ai --all     Everything
+//	ze help ai           Summary / table of contents
+//	ze help ai cli       CLI subcommands (ze bgp, ze config, ...)
+//	ze help ai api       Daemon API commands (YANG RPCs)
+//	ze help ai mcp       MCP tools with parameters
+//	ze help ai all       Everything
+//
+// The legacy flag form (ze help --ai --api) is accepted as a hidden alias, so
+// section detection matches both "api" and "--api". --json stays a format flag.
 func printAIHelp(args []string) {
 	if slices.Contains(args, "--json") {
 		printAIHelpJSON()
 		return
 	}
 
-	showCLI := slices.Contains(args, "--cli")
-	showAPI := slices.Contains(args, "--api")
-	showMCP := slices.Contains(args, "--mcp")
-	showDispatch := slices.Contains(args, "--dispatch")
-	showAll := slices.Contains(args, "--all")
+	showCLI := hasSection(args, "cli")
+	showAPI := hasSection(args, "api")
+	showMCP := hasSection(args, "mcp")
+	showDispatch := hasSection(args, "dispatch")
+	showAll := hasSection(args, "all")
 
 	if showAll {
 		showCLI = true
@@ -98,12 +101,13 @@ func printAIHelp(args []string) {
 }
 
 func printSummary() {
-	fmt.Println("## Sections (use --ai --<section> for details)")
+	fmt.Println("## Sections (use 'ze help ai <section>' for details)")
 	fmt.Println()
-	fmt.Println("  --cli    CLI subcommands: ze bgp, ze config, ze show, ze signal, ...")
-	fmt.Println("  --api    Daemon API: all RPC commands, update syntax, families, plugins")
-	fmt.Println("  --mcp    MCP tools: ze_announce, ze_withdraw, ze_peers, ze_peer_control")
-	fmt.Println("  --all    Everything")
+	fmt.Println("  cli       CLI subcommands: ze bgp, ze config, ze show, ze signal, ...")
+	fmt.Println("  api       Daemon API: all RPC commands, update syntax, families, plugins")
+	fmt.Println("  mcp       MCP tools: ze_announce, ze_withdraw, ze_peers, ze_peer_control")
+	fmt.Println("  dispatch  Dispatch keys for daemon commands")
+	fmt.Println("  all       Everything")
 	fmt.Println()
 
 	regs := registry.All()
@@ -132,7 +136,7 @@ func printSummary() {
 	fmt.Println("  Or:      ze --mcp 9718 config.conf")
 	fmt.Println("  CLI:     ze cli")
 	fmt.Println("  Show:    ze show <command>")
-	fmt.Println("  Help:    ze help --ai --all")
+	fmt.Println("  Help:    ze help ai all")
 }
 
 // cliCmd describes a CLI subcommand for the help output.
@@ -895,9 +899,22 @@ func printAIHelpJSON() {
 	}
 }
 
-// aiHelpRequested checks if --ai was passed in the help args.
+// aiHelpRequested checks if the deprecated --ai flag was passed in the help args.
+// The canonical form is the "ai" subcommand (ze help ai); --ai is a hidden alias.
 func aiHelpRequested(args []string) bool {
 	return slices.Contains(args, "--ai")
+}
+
+// hasSection reports whether an AI-help section was requested. It accepts both
+// the canonical positional form ("api", from "ze help ai api") and the legacy
+// flag form ("--api", from "ze help --ai --api").
+func hasSection(args []string, name string) bool {
+	for _, a := range args {
+		if strings.TrimLeft(a, "-") == name {
+			return true
+		}
+	}
+	return false
 }
 
 func helpUsage() {
@@ -917,20 +934,20 @@ func helpUsage() {
 	}
 	sections = append(sections, helpfmt.HelpSection{
 		Title: "AI reference", Entries: []helpfmt.HelpEntry{
-			{Name: "--ai", Desc: "Summary with counts and quick start"},
-			{Name: "--ai --json", Desc: "Machine-readable JSON reference"},
-			{Name: "--ai --cli", Desc: "CLI subcommands"},
-			{Name: "--ai --api", Desc: "Daemon API commands with parameters"},
-			{Name: "--ai --mcp", Desc: "MCP tools with parameters and examples"},
-			{Name: "--ai --dispatch", Desc: "Dispatch keys for daemon commands"},
-			{Name: "--ai --all", Desc: "Everything combined"},
+			{Name: "ai", Desc: "Summary with counts and quick start"},
+			{Name: "ai --json", Desc: "Machine-readable JSON reference"},
+			{Name: "ai cli", Desc: "CLI subcommands"},
+			{Name: "ai api", Desc: "Daemon API commands with parameters"},
+			{Name: "ai mcp", Desc: "MCP tools with parameters and examples"},
+			{Name: "ai dispatch", Desc: "Dispatch keys for daemon commands"},
+			{Name: "ai all", Desc: "Everything combined"},
 		},
 	})
 
 	p := helpfmt.Page{
 		Command:  "ze help",
 		Summary:  "Show help and AI reference",
-		Usage:    []string{"ze help [--ai [--json|--cli|--api|--mcp|--dispatch|--all]]"},
+		Usage:    []string{"ze help ai [cli|api|mcp|dispatch|all] [--json]"},
 		Sections: sections,
 	}
 	p.WriteErr()

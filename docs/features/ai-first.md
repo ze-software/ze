@@ -1,7 +1,7 @@
 # AI-First Design
 
 <!-- source: internal/component/mcp/handler.go -- MCP HTTP handler -->
-<!-- source: cmd/ze/help_ai.go -- ze help --ai machine-readable reference -->
+<!-- source: cmd/ze/help_ai.go -- ze help ai machine-readable reference -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 <!-- source: ai/rules/discovery-updates.md -- Current Discovery Surfaces -->
 <!-- source: mk/inventory.mk -- ze-inventory and documentation targets -->
@@ -26,8 +26,9 @@ and the API are the same thing. This means:
 ze help command              # full command catalog, filterable
 ze help command bgp          # filter to BGP-related commands
 ze help command --json       # machine-readable JSON (for tooling, wiki generation)
-ze help --ai                 # AI-oriented summary with recipes and context
-ze help --ai --json          # machine-readable JSON reference
+ze help ai                   # AI-oriented summary with recipes and context
+ze help ai --json            # machine-readable JSON reference
+ze help ai api               # daemon API endpoints (ze-show:*, ze-set:*, ...)
 ```
 
 Generates a command reference from the live binary. The output is assembled
@@ -118,7 +119,7 @@ Start with `ze start --mcp <port>` or configure via YANG (`environment/mcp`).
 Other software adds an API endpoint and hopes someone wraps it for AI. Ze exposes its
 entire command surface through a self-describing interface that AI can discover and use
 without external documentation. `ze help command` lists every command with its description.
-`ze help --ai` adds context (recipes, families, update syntax). The MCP tools have typed
+`ze help ai` adds context (recipes, families, update syntax). The MCP tools have typed
 parameters. The command list is queryable at runtime (`command-list`, `command-help <name>`).
 
 No other network daemon -- BGP or otherwise -- is designed this way.

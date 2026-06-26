@@ -2,7 +2,7 @@
 
 <!-- source: internal/component/config/yang/cli/main.go -- ze schema subcommands -->
 <!-- source: internal/plugins/env/env.go -- ze env subcommands -->
-<!-- source: cmd/ze/help_ai.go -- ze help --ai output -->
+<!-- source: cmd/ze/help_ai.go -- ze help ai output -->
 <!-- source: scripts/inventory/inventory.go -- make ze-inventory -->
 <!-- source: scripts/inventory/commands.go -- make ze-command-list -->
 <!-- source: scripts/docvalid/commands.go -- make ze-validate-commands -->
@@ -29,7 +29,8 @@ unregistered access (`env.MustRegister()`).
 | `ze --plugins` | All registered plugins with families, capabilities, dependencies |
 | `ze help command [filter]` | Full command catalog, filterable, with descriptions |
 | `ze help command --json` | Command catalog as JSON (for wiki generation, tooling) |
-| `ze help --ai` | Machine-readable command reference generated from live binary |
+| `ze help ai` | Machine-readable command reference generated from live binary |
+| `ze help ai api` | Daemon API endpoints (`ze-show:*`, `ze-set:*`, ...) with parameters |
 
 ## Build-Time Verification
 

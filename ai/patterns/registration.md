@@ -117,7 +117,7 @@ imports it directly. `cmd/ze` keeps only no-owner / process-global commands.
 **Query:**
 - `registry.LookupRoot(name)` -- owner root dispatch (used by `main.go` before the static switch).
 - `registry.LookupLocal(words)` -- longest-prefix handler lookup (used by `RunCommand` and `main.go`).
-- `registry.ListRoot()` / `ListLocal()` / `ListRootBySection()` -- used by `help --ai`.
+- `registry.ListRoot()` / `ListLocal()` / `ListRootBySection()` -- used by `help ai`.
 
 **Leaf guarantee:** the registry imports only the standard library, so any owner
 (`internal/component/*`, `internal/plugins/*`, `internal/core/*`) imports it from
