@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"strconv"
@@ -29,7 +30,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
 	zestorage "codeberg.org/thomas-mangin/ze/internal/component/storage"
 	sysctlevents "codeberg.org/thomas-mangin/ze/internal/component/sysctl/events"
-	"codeberg.org/thomas-mangin/ze/internal/component/telemetry/collector"
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/identity"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
@@ -316,46 +316,27 @@ func stopBackend() {
 	}
 }
 
-// startStandaloneTelemetry starts the Prometheus metrics server when
-// telemetry{} is configured but bgp{} is absent. Mirrors the startup
-// logic in loader_create.go but without requiring a reactor.
+// startStandaloneTelemetry starts the Prometheus metrics exporter when
+// telemetry{} is configured but bgp{} is absent, via the always-on
+// metrics.StartExporter seam. The gated exporter (//go:build ze_telemetry)
+// parses the config, builds the registry, starts the HTTP listeners + Netdata
+// collectors, and returns the registry; the seam is nil (and the exporter
+// dropped from the binary) without ze_telemetry. Mirrors the reactor path in
+// loader_create.go but without requiring a reactor.
 type standaloneTelemetry struct {
-	srv     metrics.Server
-	manager *collector.Manager
+	closer io.Closer
 }
 
 func startStandaloneTelemetry(tree *zeconfig.Tree) *standaloneTelemetry {
-	telemetryCfg := metrics.ExtractTelemetryConfig(tree.ToMap())
-	if !telemetryCfg.Enabled {
+	if metrics.StartExporter == nil {
 		return nil
 	}
-
-	st := &standaloneTelemetry{}
-	reg := metrics.NewPrometheusRegistry()
-	if err := st.srv.Start(reg, telemetryCfg); err != nil {
-		slog.Warn("standalone telemetry: metrics server failed to start", "error", err)
+	reg, closer := metrics.StartExporter(tree.ToMap(), slog.Default())
+	if reg == nil {
 		return nil
 	}
 	registry.SetMetricsRegistry(reg)
-	for _, path := range telemetryCfg.DeprecatedAliases {
-		slog.Warn("standalone telemetry: deprecated prometheus config; move setting under telemetry.prometheus.netdata", "path", path)
-	}
-	for _, ep := range telemetryCfg.Endpoints {
-		slog.Info("standalone telemetry: prometheus metrics enabled",
-			"address", ep.Host, "port", ep.Port, "path", telemetryCfg.Path)
-	}
-
-	if telemetryCfg.Netdata.Enabled {
-		overrides := make(map[string]collector.CollectorOverride, len(telemetryCfg.Netdata.Collectors))
-		for name, cc := range telemetryCfg.Netdata.Collectors {
-			overrides[name] = collector.CollectorOverride{
-				Enabled:  cc.Enabled,
-				Interval: time.Duration(cc.Interval) * time.Second,
-			}
-		}
-		st.manager = collector.StartOSCollectors(reg, telemetryCfg.Netdata.Prefix, time.Duration(telemetryCfg.Netdata.Interval)*time.Second, overrides, slog.Default())
-	}
-	return st
+	return &standaloneTelemetry{closer: closer}
 }
 
 var (

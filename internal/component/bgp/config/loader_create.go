@@ -23,7 +23,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/component/telemetry/collector"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
@@ -187,22 +186,18 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 
 	r := reactor.New(reactorCfg)
 
-	// Start Prometheus metrics HTTP server from telemetry config block.
-	// Creates a shared registry that the reactor (and future components) register metrics into.
-	// Every entry in cfg.Endpoints becomes a bound listener on the shared http.Server.
-	if telemetryCfg := metrics.ExtractTelemetryConfig(tree.ToMap()); telemetryCfg.Enabled {
-		reg := metrics.NewPrometheusRegistry()
-		var srv metrics.Server
-		if err := srv.Start(reg, telemetryCfg); err != nil {
-			configLogger().Warn("metrics server failed to start", "error", err)
-		} else {
-			for _, path := range telemetryCfg.DeprecatedAliases {
-				configLogger().Warn("deprecated prometheus telemetry config; move setting under telemetry.prometheus.netdata", "path", path)
-			}
-			for _, ep := range telemetryCfg.Endpoints {
-				configLogger().Info("prometheus metrics enabled",
-					"address", ep.Host, "port", ep.Port, "path", telemetryCfg.Path)
-			}
+	// Start the Prometheus metrics HTTP exporter from the telemetry config block
+	// via the always-on metrics.StartExporter seam. The gated exporter
+	// (//go:build ze_telemetry) parses the config, creates the shared registry,
+	// starts the HTTP listeners + Netdata OS collectors, and returns the
+	// registry; the seam is nil (and the exporter dropped from the binary)
+	// without ze_telemetry, leaving metric collection always-on but unexposed.
+	// The reactor and plugins register their metrics into the returned registry.
+	// Host metrics stay here (reactor-path only) and run only when an exporter
+	// registry is returned. The closer is intentionally discarded: the exporter
+	// runs for the daemon lifetime (as before this seam).
+	if metrics.StartExporter != nil {
+		if reg, _ := metrics.StartExporter(tree.ToMap(), configLogger()); reg != nil {
 			r.SetMetricsRegistry(reg)
 			registry.SetMetricsRegistry(reg)
 			cd := host.NewCachedDetector(&host.Detector{}, 60*time.Second)
@@ -210,17 +205,6 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 			hostMetrics := host.RegisterMetrics(reg, cd)
 			hostMetrics.CollectOnce()
 			hostMetrics.StartRefresh(30 * time.Second)
-
-			if telemetryCfg.Netdata.Enabled {
-				overrides := make(map[string]collector.CollectorOverride, len(telemetryCfg.Netdata.Collectors))
-				for name, cc := range telemetryCfg.Netdata.Collectors {
-					overrides[name] = collector.CollectorOverride{
-						Enabled:  cc.Enabled,
-						Interval: time.Duration(cc.Interval) * time.Second,
-					}
-				}
-				collector.StartOSCollectors(reg, telemetryCfg.Netdata.Prefix, time.Duration(telemetryCfg.Netdata.Interval)*time.Second, overrides, configLogger())
-			}
 		}
 	}
 

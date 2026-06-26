@@ -9,7 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 
 	// Blank import triggers init() registration of the telemetry YANG module.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/exporter/yang"
 )
 
 // TestSchema_ZeTelemetryModule verifies ze-telemetry-conf.yang content.

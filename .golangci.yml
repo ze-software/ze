@@ -23,6 +23,7 @@ run:
     - ze_mcp
     - ze_rest
     - ze_grpc
+    - ze_telemetry
 
 linters:
   exclusions:

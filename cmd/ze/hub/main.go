@@ -1070,8 +1070,7 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 }
 
 func (st *standaloneTelemetry) Close() {
-	if st.manager != nil {
-		st.manager.Stop()
+	if st.closer != nil {
+		_ = st.closer.Close()
 	}
-	_ = st.srv.Close()
 }

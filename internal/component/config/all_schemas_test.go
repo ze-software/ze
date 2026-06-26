@@ -47,7 +47,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ssh/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/sysrib/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/exporter/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/web/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/aaa-cmd/yang"

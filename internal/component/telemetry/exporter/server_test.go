@@ -1,4 +1,6 @@
-package metrics_test
+//go:build ze_telemetry
+
+package exporter
 
 import (
 	"context"
@@ -17,22 +19,22 @@ import (
 
 // TestServer_StartAndScrape verifies the metrics HTTP server starts and serves metrics.
 //
-// VALIDATES: Server serves Prometheus metrics over HTTP.
+// VALIDATES: server serves Prometheus metrics over HTTP.
 // PREVENTS: Server not starting or metrics not being scraped.
 func TestServer_StartAndScrape(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
 	c := reg.Counter("http_test_total", "Test counter for HTTP scrape.")
 	c.Add(7)
 
-	var srv metrics.Server
-	err := srv.Start(reg, metrics.TelemetryConfig{
+	var srv server
+	err := srv.start(reg, telemetryConfig{
 		Enabled:   true,
-		Endpoints: []metrics.Endpoint{{Host: "127.0.0.1", Port: 19274}},
+		Endpoints: []endpoint{{Host: "127.0.0.1", Port: 19274}},
 		Path:      "/metrics",
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		require.NoError(t, srv.Close())
+		require.NoError(t, srv.close())
 	})
 
 	resp, err := http.Get("http://127.0.0.1:19274/metrics") //nolint:noctx // test code, no context needed
@@ -46,43 +48,43 @@ func TestServer_StartAndScrape(t *testing.T) {
 	assert.Contains(t, string(body), "http_test_total 7")
 }
 
-// TestServer_CloseIdempotent verifies Close is safe to call multiple times.
+// TestServer_CloseIdempotent verifies close is safe to call multiple times.
 //
-// VALIDATES: Server.Close is idempotent.
+// VALIDATES: server.close is idempotent.
 // PREVENTS: Panic on double close.
 func TestServer_CloseIdempotent(t *testing.T) {
-	var srv metrics.Server
-	// Close without Start should not panic.
-	require.NoError(t, srv.Close())
-	require.NoError(t, srv.Close())
+	var srv server
+	// close without start should not panic.
+	require.NoError(t, srv.close())
+	require.NoError(t, srv.close())
 }
 
-// TestServer_CloseAfterStartIdempotent verifies double Close after Start is safe.
+// TestServer_CloseAfterStartIdempotent verifies double close after start is safe.
 //
-// VALIDATES: Server.Close is idempotent after a successful Start.
+// VALIDATES: server.close is idempotent after a successful start.
 // PREVENTS: Panic or error on double close of a started server.
 func TestServer_CloseAfterStartIdempotent(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
-	var srv metrics.Server
-	require.NoError(t, srv.Start(reg, metrics.TelemetryConfig{
+	var srv server
+	require.NoError(t, srv.start(reg, telemetryConfig{
 		Enabled:   true,
-		Endpoints: []metrics.Endpoint{{Host: "127.0.0.1", Port: 19277}},
+		Endpoints: []endpoint{{Host: "127.0.0.1", Port: 19277}},
 		Path:      "/metrics",
 	}))
-	require.NoError(t, srv.Close())
-	require.NoError(t, srv.Close())
+	require.NoError(t, srv.close())
+	require.NoError(t, srv.close())
 }
 
-// TestServer_InvalidAddress verifies Start returns error for invalid address.
+// TestServer_InvalidAddress verifies start returns error for invalid address.
 //
-// VALIDATES: Server.Start returns error for bad listen address.
+// VALIDATES: server.start returns error for bad listen address.
 // PREVENTS: Silent failure on invalid address.
 func TestServer_InvalidAddress(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
-	var srv metrics.Server
-	err := srv.Start(reg, metrics.TelemetryConfig{
+	var srv server
+	err := srv.start(reg, telemetryConfig{
 		Enabled:   true,
-		Endpoints: []metrics.Endpoint{{Host: "999.999.999.999", Port: 19275}},
+		Endpoints: []endpoint{{Host: "999.999.999.999", Port: 19275}},
 		Path:      "/metrics",
 	})
 	assert.Error(t, err)
@@ -91,20 +93,20 @@ func TestServer_InvalidAddress(t *testing.T) {
 
 // TestServer_CustomPath verifies metrics are served at a custom path.
 //
-// VALIDATES: Server serves metrics at user-specified path.
+// VALIDATES: server serves metrics at user-specified path.
 // PREVENTS: Custom path ignored, metrics only at /metrics.
 func TestServer_CustomPath(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
 	reg.Counter("custom_path_total", "Test counter.").Inc()
 
-	var srv metrics.Server
-	err := srv.Start(reg, metrics.TelemetryConfig{
+	var srv server
+	err := srv.start(reg, telemetryConfig{
 		Enabled:   true,
-		Endpoints: []metrics.Endpoint{{Host: "127.0.0.1", Port: 19276}},
+		Endpoints: []endpoint{{Host: "127.0.0.1", Port: 19276}},
 		Path:      "/custom",
 	})
 	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, srv.Close()) })
+	t.Cleanup(func() { require.NoError(t, srv.close()) })
 
 	resp, err := http.Get("http://127.0.0.1:19276/custom") //nolint:noctx // test code
 	require.NoError(t, err)
@@ -129,12 +131,12 @@ func TestServer_BasicAuth(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
 	reg.Counter("basic_auth_total", "Test counter.").Inc()
 
-	var srv metrics.Server
-	err = srv.Start(reg, metrics.TelemetryConfig{
+	var srv server
+	err = srv.start(reg, telemetryConfig{
 		Enabled:   true,
-		Endpoints: []metrics.Endpoint{{Host: "127.0.0.1", Port: 19404}},
+		Endpoints: []endpoint{{Host: "127.0.0.1", Port: 19404}},
 		Path:      "/metrics",
-		BasicAuth: metrics.BasicAuthConfig{
+		BasicAuth: basicAuthConfig{
 			Enabled:    true,
 			Realm:      "ze prometheus",
 			Username:   "prometheus",
@@ -142,7 +144,7 @@ func TestServer_BasicAuth(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, srv.Close()) })
+	t.Cleanup(func() { require.NoError(t, srv.close()) })
 
 	resp, err := http.Get("http://127.0.0.1:19404/metrics") //nolint:noctx // test code
 	require.NoError(t, err)
@@ -186,29 +188,29 @@ func TestServer_BasicAuthRequiresCredentials(t *testing.T) {
 
 	tests := []struct {
 		name string
-		auth metrics.BasicAuthConfig
+		auth basicAuthConfig
 	}{
 		{
 			name: "missing username",
-			auth: metrics.BasicAuthConfig{Enabled: true, BcryptHash: string(hash)},
+			auth: basicAuthConfig{Enabled: true, BcryptHash: string(hash)},
 		},
 		{
 			name: "missing password",
-			auth: metrics.BasicAuthConfig{Enabled: true, Username: "prometheus"},
+			auth: basicAuthConfig{Enabled: true, Username: "prometheus"},
 		},
 		{
 			name: "invalid hash",
-			auth: metrics.BasicAuthConfig{Enabled: true, Username: "prometheus", BcryptHash: "cleartext"},
+			auth: basicAuthConfig{Enabled: true, Username: "prometheus", BcryptHash: "cleartext"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reg := metrics.NewPrometheusRegistry()
-			var srv metrics.Server
-			err := srv.Start(reg, metrics.TelemetryConfig{
+			var srv server
+			err := srv.start(reg, telemetryConfig{
 				Enabled:   true,
-				Endpoints: []metrics.Endpoint{{Host: "127.0.0.1", Port: 19405}},
+				Endpoints: []endpoint{{Host: "127.0.0.1", Port: 19405}},
 				Path:      "/metrics",
 				BasicAuth: tt.auth,
 			})
@@ -220,7 +222,7 @@ func TestServer_BasicAuthRequiresCredentials(t *testing.T) {
 
 // TestExtractTelemetryConfig verifies config tree extraction for telemetry settings.
 //
-// VALIDATES: ExtractTelemetryConfig returns correct values from config tree.
+// VALIDATES: extractTelemetryConfig returns correct values from config tree.
 // VALIDATES: implicit telemetry listeners default to loopback.
 // PREVENTS: Telemetry config not parsed or defaults not applied.
 // PREVENTS: exposing unauthenticated Prometheus metrics on all interfaces by default.
@@ -414,7 +416,7 @@ func TestExtractTelemetryConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := metrics.ExtractTelemetryConfig(tt.tree)
+			cfg := extractTelemetryConfig(tt.tree)
 			assert.Equal(t, tt.enabled, cfg.Enabled)
 			if cfg.Enabled {
 				require.NotEmpty(t, cfg.Endpoints, "enabled config must yield at least one endpoint")
@@ -427,11 +429,10 @@ func TestExtractTelemetryConfig(t *testing.T) {
 }
 
 // TestExtractTelemetryConfig_MultipleServers verifies every YANG list entry
-// becomes an Endpoint in the returned slice, sorted alphabetically by key.
+// becomes an endpoint in the returned slice, sorted alphabetically by key.
 //
 // VALIDATES: AC-4 (telemetry config with two server entries yields two
-// endpoints). The original "first entry only" behavior (the `break` on
-// line 97 of the old server.go) is gone.
+// endpoints). The original "first entry only" behavior is gone.
 // PREVENTS: Silent drop of extra telemetry listeners.
 func TestExtractTelemetryConfig_MultipleServers(t *testing.T) {
 	tree := map[string]any{
@@ -448,7 +449,7 @@ func TestExtractTelemetryConfig_MultipleServers(t *testing.T) {
 		},
 	}
 
-	cfg := metrics.ExtractTelemetryConfig(tree)
+	cfg := extractTelemetryConfig(tree)
 	require.True(t, cfg.Enabled)
 	require.Len(t, cfg.Endpoints, 2)
 	assert.Equal(t, "0.0.0.0", cfg.Endpoints[0].Host)
@@ -461,7 +462,7 @@ func TestExtractTelemetryConfig_MultipleServers(t *testing.T) {
 // metric prefix defaults to "netdata" and supports deprecated aliases.
 func TestExtractTelemetryConfig_NetdataPrefix(t *testing.T) {
 	// Default prefix when not specified.
-	cfg := metrics.ExtractTelemetryConfig(map[string]any{
+	cfg := extractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{"enabled": "true"},
 		},
@@ -469,7 +470,7 @@ func TestExtractTelemetryConfig_NetdataPrefix(t *testing.T) {
 	assert.Equal(t, "netdata", cfg.Netdata.Prefix)
 
 	// Deprecated root alias.
-	cfg = metrics.ExtractTelemetryConfig(map[string]any{
+	cfg = extractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{"enabled": "true", "prefix": "node"},
 		},
@@ -478,7 +479,7 @@ func TestExtractTelemetryConfig_NetdataPrefix(t *testing.T) {
 	assert.Equal(t, []string{"telemetry.prometheus.prefix"}, cfg.DeprecatedAliases)
 
 	// New netdata container takes precedence over the deprecated alias.
-	cfg = metrics.ExtractTelemetryConfig(map[string]any{
+	cfg = extractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{
 				"enabled": "true",
@@ -500,7 +501,7 @@ func TestExtractTelemetryConfig_NetdataInterval(t *testing.T) {
 			netdata["interval"] = interval
 		}
 		prom := map[string]any{"enabled": "true", "netdata": netdata}
-		return metrics.ExtractTelemetryConfig(map[string]any{
+		return extractTelemetryConfig(map[string]any{
 			"telemetry": map[string]any{"prometheus": prom},
 		}).Netdata.Interval
 	}
@@ -514,7 +515,7 @@ func TestExtractTelemetryConfig_NetdataInterval(t *testing.T) {
 	assert.Equal(t, 1, extract("-1"))
 	assert.Equal(t, 1, extract("abc"))
 
-	legacy := metrics.ExtractTelemetryConfig(map[string]any{
+	legacy := extractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{"enabled": "true", "interval": "10"},
 		},
@@ -522,7 +523,7 @@ func TestExtractTelemetryConfig_NetdataInterval(t *testing.T) {
 	assert.Equal(t, 10, legacy.Netdata.Interval)
 	assert.Equal(t, []string{"telemetry.prometheus.interval"}, legacy.DeprecatedAliases)
 
-	precedence := metrics.ExtractTelemetryConfig(map[string]any{
+	precedence := extractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{
 				"enabled":  "true",
@@ -537,7 +538,7 @@ func TestExtractTelemetryConfig_NetdataInterval(t *testing.T) {
 // TestExtractTelemetryConfig_NetdataCollectors verifies per-collector overrides
 // are parsed from the Netdata-compatible OS collector list.
 func TestExtractTelemetryConfig_NetdataCollectors(t *testing.T) {
-	cfg := metrics.ExtractTelemetryConfig(map[string]any{
+	cfg := extractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{
 				"enabled": "true",
@@ -574,14 +575,14 @@ func TestExtractTelemetryConfig_NetdataCollectors(t *testing.T) {
 	assert.Equal(t, 10, snmp6.Interval)
 
 	// No collector list -> empty map.
-	cfg2 := metrics.ExtractTelemetryConfig(map[string]any{
+	cfg2 := extractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{"enabled": "true"},
 		},
 	})
 	assert.Empty(t, cfg2.Netdata.Collectors)
 
-	legacy := metrics.ExtractTelemetryConfig(map[string]any{
+	legacy := extractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{
 				"enabled": "true",
@@ -594,7 +595,7 @@ func TestExtractTelemetryConfig_NetdataCollectors(t *testing.T) {
 	assert.Equal(t, 2, legacy.Netdata.Collectors["cpu"].Interval)
 	assert.Equal(t, []string{"telemetry.prometheus.collector"}, legacy.DeprecatedAliases)
 
-	precedence := metrics.ExtractTelemetryConfig(map[string]any{
+	precedence := extractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{
 				"enabled": "true",
@@ -616,7 +617,7 @@ func TestExtractTelemetryConfig_NetdataCollectors(t *testing.T) {
 // TestExtractTelemetryConfig_BasicAuth verifies Basic Auth settings are parsed
 // from telemetry.prometheus.basic-auth.
 func TestExtractTelemetryConfig_BasicAuth(t *testing.T) {
-	cfg := metrics.ExtractTelemetryConfig(map[string]any{
+	cfg := extractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{
 				"enabled": "true",
@@ -639,7 +640,7 @@ func TestExtractTelemetryConfig_BasicAuth(t *testing.T) {
 // TestExtractTelemetryConfig_NetdataDisabled verifies the netdata container can
 // disable only OS collectors without disabling the Prometheus service.
 func TestExtractTelemetryConfig_NetdataDisabled(t *testing.T) {
-	cfg := metrics.ExtractTelemetryConfig(map[string]any{
+	cfg := extractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{
 				"enabled": "true",
@@ -652,20 +653,20 @@ func TestExtractTelemetryConfig_NetdataDisabled(t *testing.T) {
 	assert.False(t, cfg.Netdata.Enabled)
 }
 
-// TestServer_MultiListener verifies Server.Start binds every endpoint and
-// both listeners serve the same metrics handler.
+// TestServer_MultiListener verifies start binds every endpoint and both
+// listeners serve the same metrics handler.
 //
 // VALIDATES: AC-4 (multi-listener binding end-to-end).
-// VALIDATES: AC-14 (Close shuts every listener down).
+// VALIDATES: AC-14 (close shuts every listener down).
 // PREVENTS: Regression where only the first telemetry listener is bound.
 func TestServer_MultiListener(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
 	reg.Counter("multi_listener_total", "Test counter.").Add(42)
 
-	var srv metrics.Server
-	err := srv.Start(reg, metrics.TelemetryConfig{
+	var srv server
+	err := srv.start(reg, telemetryConfig{
 		Enabled: true,
-		Endpoints: []metrics.Endpoint{
+		Endpoints: []endpoint{
 			{Host: "127.0.0.1", Port: 19401},
 			{Host: "127.0.0.1", Port: 19402},
 		},
@@ -673,7 +674,7 @@ func TestServer_MultiListener(t *testing.T) {
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		require.NoError(t, srv.Close())
+		require.NoError(t, srv.close())
 	})
 
 	for _, addr := range []string{"127.0.0.1:19401", "127.0.0.1:19402"} {
@@ -688,7 +689,7 @@ func TestServer_MultiListener(t *testing.T) {
 }
 
 // TestServer_BindFailureRollsBack verifies that when the second endpoint
-// fails to bind, the first listener is closed and Start returns the error.
+// fails to bind, the first listener is closed and start returns the error.
 //
 // VALIDATES: AC-15 (fail-fast on partial bind).
 func TestServer_BindFailureRollsBack(t *testing.T) {
@@ -707,16 +708,16 @@ func TestServer_BindFailureRollsBack(t *testing.T) {
 	require.NoError(t, err)
 
 	reg := metrics.NewPrometheusRegistry()
-	var srv metrics.Server
-	err = srv.Start(reg, metrics.TelemetryConfig{
+	var srv server
+	err = srv.start(reg, telemetryConfig{
 		Enabled: true,
-		Endpoints: []metrics.Endpoint{
+		Endpoints: []endpoint{
 			{Host: "127.0.0.1", Port: 19403},
 			{Host: "127.0.0.1", Port: squattedPort},
 		},
 		Path: "/metrics",
 	})
-	require.Error(t, err, "Start must fail when any bind fails")
+	require.Error(t, err, "start must fail when any bind fails")
 	assert.Contains(t, err.Error(), "metrics server listen")
 
 	// The first port must be free again (partial rollback).

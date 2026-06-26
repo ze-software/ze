@@ -12,6 +12,7 @@ package trafficusage
 import (
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -151,19 +152,18 @@ func TestMetricsScrape(t *testing.T) {
 	m.publishLocked(m.snapshotLocked(), time.Now())
 	m.mu.Unlock()
 
-	var srv metrics.Server
-	if err := srv.Start(reg, metrics.TelemetryConfig{
-		Enabled:   true,
-		Endpoints: []metrics.Endpoint{{Host: "127.0.0.1", Port: 19318}},
-		Path:      "/metrics",
-	}); err != nil {
-		t.Fatalf("metrics server start: %v", err)
-	}
+	// test-relax: replaced the gated exporter Server.Start (and its start-error
+	// check) with httptest.NewServer(reg.Handler()) to drop this test's
+	// dependency on the compile-out-able ze_telemetry exporter package. Scraping
+	// the always-on registry handler proves the same thing (traffic-usage metrics
+	// reach a /metrics page); the metrics-present assertion below is unchanged.
+	ts := httptest.NewServer(reg.Handler())
+	defer ts.Close()
 
 	var body string
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		resp, err := http.Get("http://127.0.0.1:19318/metrics")
+		resp, err := http.Get(ts.URL) //nolint:noctx // test code
 		if err == nil {
 			b := make([]byte, 1<<16)
 			n, _ := resp.Body.Read(b)

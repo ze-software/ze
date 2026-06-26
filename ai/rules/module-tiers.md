@@ -98,7 +98,16 @@ gRPC-without-REST or vice-versa, sharing an always-on engine/session builder
 (`buildAPIShared`). The shared `api-server { token }` YANG base stays always-on
 and each transport's `rest{}`/`grpc{}` container is contributed by a gated YANG
 module (`api/rest/yang`, `api/grpc/yang`) via Ze's same-named-container merge, so
-a compiled-out transport's config block is rejected as unknown. Both shapes gate
+a compiled-out transport's config block is rejected as unknown. Telemetry
+(`ze_telemetry`) is the first **core-level** seam: its hook
+`metrics.StartExporter` lives in always-on `internal/core/metrics` (not the hub)
+because two start sites in different components -- the hub standalone path and the
+bgp reactor path (`internal/component/bgp/config`) -- both read it; the hub's
+gated `register_telemetry.go` wires the gated `internal/component/telemetry/exporter`
+(and its Netdata `collector` sidecar) into the seam. Only the Prometheus HTTP
+exporter compiles out; the metric COLLECTION registry (`PrometheusRegistry`,
+`Registry`, the `NopRegistry` dummy) stays always-on so the ~60 packages that
+record `ze_*` metrics keep working with the exporter gated. Both shapes gate
 their direct package and YANG schema imports into generated `all_ze_<feature>.go`
 files via `plugin_imports.go`. `make ze` / `ze-appliance` pass the default-on feature tags
 (`ZE_FEATURES` in the Makefile); `ze-stripped` omits them for a smaller, hardened
