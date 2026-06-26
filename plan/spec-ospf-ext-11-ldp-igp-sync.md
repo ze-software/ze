@@ -76,7 +76,7 @@ protocol surface.
 | Broadcast handling (RFC 6138) | On a broadcast interface, withhold the Router-LSA transit (Link Type 2) link for the segment until LDP is synchronized with all peers, UNLESS the interface is a cut-edge (then advertise immediately, MUST NOT delay -- §4); cut-edge computed from the existing SPF result (Appendix A); a pending SPF MUST run before the check |
 | Re-origination trigger | Every sync-state change calls `originateSelfLSAs()` so the Router-LSA reflects the new metric / link presence immediately |
 | Persistent-cost-out alert | When the interface stays NotSynchronized beyond a (configurable, default = hold-down) threshold after the LDP session was once up (a genuine fault, not bring-up), raise a network-management alert / log + metric (RFC 5443 §3 SHOULD) |
-| CLI + metrics | `show ip ospf ldp-sync` (per-interface sync state); per-interface gauges/counters |
+| CLI + metrics | `show ospf ldp-sync` (per-interface sync state); per-interface gauges/counters |
 
 ### Out of scope (noted so it is not silently assumed done)
 
@@ -103,7 +103,7 @@ protocol surface.
 - [ ] `ai/rules/plugin-self-containment.md` -- OSPF and LDP are independent plugins
   -> Constraint: OSPF must not import the LDP plugin's internals; the only coupling is the public `ze.EventBus` (`ldp.Namespace` + the session event types) and the new interface-name field on the public event payload. Removing the LDP plugin leaves OSPF compiling; with no LDP events the `ldp-sync` interface simply never leaves NotSynchronized (and, if `ldp-sync` is not enabled, the interface behaves exactly as today)
 - [ ] `ai/rules/no-sprintf-alloc.md` -- no `fmt`/`+` on the hot path
-  -> Constraint: any `show ip ospf ldp-sync` rendering uses `textbuf`/`AppendTo`; the per-interface state and timers do not allocate per tick
+  -> Constraint: any `show ospf ldp-sync` rendering uses `textbuf`/`AppendTo`; the per-interface state and timers do not allocate per tick
 - [ ] `ai/rules/config-surface.md` + `ai/rules/config-naming.md` -- YANG vs env var, kebab-case
   -> Constraint: `ldp-sync` is operational config (per-interface, YANG), NOT an environment leaf; leaves use kebab-case (`ldp-sync`, `holddown`)
 
@@ -189,7 +189,7 @@ protocol surface.
 | LDP discovery <-> LDP event | `ifName` carried from `discoverOnInterface` -> `Adjacency` -> `startSessionForAdj` -> `SessionEvent.Interface` | [ ] |
 | Sync machine <-> origination | per-interface effective cost / withhold flag read in `lsdbTopology()`; state change calls `originateSelfLSAs()` | [ ] |
 | SPF <-> cut-edge | read-only cut-edge query over the last SPF result; pending SPF flushed first (RFC 6138 App A) | [ ] |
-| Sync state <-> CLI/metrics | `show ip ospf ldp-sync`; `ze_ospf_ldp_sync_*` series | [ ] |
+| Sync state <-> CLI/metrics | `show ospf ldp-sync`; `ze_ospf_ldp_sync_*` series | [ ] |
 
 ### Integration Points
 - `internal/plugins/ospf/config.go` -- parse `ldp-sync`; `interfaceConfig` fields.
@@ -198,7 +198,7 @@ protocol surface.
 - `internal/plugins/ospf/spf/` -- the read-only cut-edge query.
 - `internal/plugins/ldp/events.go` + `internal/plugins/ldp/register.go` + `internal/plugins/ldp/discovery.go` -- the `Interface` field and its population.
 - `internal/plugins/ospf/register.go` -- wire `subscribeLDPSyncEvents` (mirroring `subscribeIfaceEvents`).
-- `internal/plugins/ospf/cmd_show.go` + `yang/ze-ospf-cmd.yang` -- `show ip ospf ldp-sync`.
+- `internal/plugins/ospf/cmd_show.go` + `yang/ze-ospf-cmd.yang` -- `show ospf ldp-sync`.
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- the `ldp-sync` container.
 
 ### Architectural Verification
@@ -261,7 +261,7 @@ protocol surface.
 | AC-10 | An OSPF interface WITHOUT `ldp-sync` (or with `enable false`) | byte-for-byte today's behaviour: configured cost, transit always advertised, no subscription effect, no state machine |
 | AC-11 | The LDP plugin emits a session event for a discovered interface | `SessionEvent.Interface` is the discovering OSPF/LDP interface name (P2P link case) so OSPF can match it |
 | AC-12 | An OSPF interface stays NotSynchronized past the alert threshold AFTER having been Synchronized (genuine fault) | a network-management alert is logged and `ze_ospf_ldp_sync_holddown_expired_total` / a "stuck" indicator records it (RFC 5443 §3 SHOULD) |
-| AC-13 | `show ip ospf ldp-sync` | lists each `ldp-sync` interface with its state (not-synchronized / hold-down / synchronized), remaining hold-down, and effective metric |
+| AC-13 | `show ospf ldp-sync` | lists each `ldp-sync` interface with its state (not-synchronized / hold-down / synchronized), remaining hold-down, and effective metric |
 | AC-14 | The OSPF engine reconciles or shuts down | the LDP-event subscription is unsubscribed (no stale handler, no double subscription on re-subscribe) |
 | AC-15 | The TE link cost (if/when Ze originates a TE LSA) | is NEVER raised by this mechanism; only the IP link metric is touched (RFC 5443 §4). Today Ze originates no TE cost, so the IP-only guarantee holds trivially and is asserted by the absence of any TE-cost write |
 
@@ -273,7 +273,7 @@ protocol surface.
 | 2 | LDP forms a session on the link; after the hold-down the cost is restored | LDP `SessionUp{Interface}` -> subscriber -> HoldDown -> timer -> Synchronized -> `originateSelfLSAs` -> Router-LSA advertises the configured cost; the peer's SPF prefers the link again | `test/ospf/ospf-ldp-sync-restore.ci` + `ospf-ldp-sync-frr` interop |
 | 3 | LDP session drops on a synced link | LDP `SessionDown{Interface}` -> machine -> NotSynchronized -> metric LSInfinity -> re-originate; traffic diverts before the black hole | `test/ospf/ospf-ldp-sync-down.ci` |
 | 4 | Configures `ldp-sync` on a broadcast (LAN) interface that has an alternate path | broadcast not-cut-edge -> transit Link-Type-2 withheld until LDP synced with all peers -> appears after sync | `test/ospf/ospf-ldp-sync-broadcast.ci` |
-| 5 | Runs `show ip ospf ldp-sync` | CLI -> per-interface sync snapshot (state, remaining hold-down, effective metric) | `test/ospf/ospf-ldp-sync-show.ci` |
+| 5 | Runs `show ospf ldp-sync` | CLI -> per-interface sync snapshot (state, remaining hold-down, effective metric) | `test/ospf/ospf-ldp-sync-show.ci` |
 | 6 | Builds Ze without the LDP plugin, with an `ldp-sync` interface configured | OSPF compiles; the interface stays NotSynchronized (no LDP events); a non-`ldp-sync` interface is unaffected | `TestLDPSyncDisabledIsNoOp` + build-without-ldp check |
 
 ## 🧪 TDD Test Plan
@@ -311,11 +311,11 @@ protocol surface.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ospf-ldp-sync-config` | `test/ospf/ospf-ldp-sync-config.ci` | an `ldp-sync` interface with no LDP session originates at metric 0xFFFF; `show ip ospf ldp-sync` shows not-synchronized | |
+| `ospf-ldp-sync-config` | `test/ospf/ospf-ldp-sync-config.ci` | an `ldp-sync` interface with no LDP session originates at metric 0xFFFF; `show ospf ldp-sync` shows not-synchronized | |
 | `ospf-ldp-sync-restore` | `test/ospf/ospf-ldp-sync-restore.ci` | LDP session up + hold-down expiry restores the configured cost; state shows synchronized | |
 | `ospf-ldp-sync-down` | `test/ospf/ospf-ldp-sync-down.ci` | LDP session down re-forces 0xFFFF on a synced interface | |
 | `ospf-ldp-sync-broadcast` | `test/ospf/ospf-ldp-sync-broadcast.ci` | a non-cut-edge broadcast interface withholds the transit link until synced; a cut-edge advertises immediately | |
-| `ospf-ldp-sync-show` | `test/ospf/ospf-ldp-sync-show.ci` | `show ip ospf ldp-sync` lists state, remaining hold-down, effective metric | |
+| `ospf-ldp-sync-show` | `test/ospf/ospf-ldp-sync-show.ci` | `show ospf ldp-sync` lists state, remaining hold-down, effective metric | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -343,9 +343,9 @@ protocol surface.
 - `internal/plugins/ospf/lsdb/origination.go` `InterfaceInfo` (struct) -- add `LDPSyncWithholdTransit bool` (broadcast withhold signal)
 - `internal/plugins/ospf/spf/` (the computer) -- a read-only `IsCutEdge(interfaceName)` query over the last SPF result; flush a pending SPF first (RFC 6138 App A)
 - `internal/plugins/ospf/register.go` -- wire `subscribeLDPSyncEvents(getEventBus())` next to `subscribeIfaceEvents`; keep + call the `unsubscribe` on shutdown/reconcile
-- `internal/plugins/ospf/cmd_show.go` -- `show ip ospf ldp-sync` handler + snapshot
+- `internal/plugins/ospf/cmd_show.go` -- `show ospf ldp-sync` handler + snapshot
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- the `ldp-sync` container under `interfaces/interface`
-- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- the `show ip ospf ldp-sync` command
+- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- the `show ospf ldp-sync` command
 - `internal/plugins/ldp/events.go` -- `SessionEvent` gains `Interface string` (`json:"interface"`)
 - `internal/plugins/ldp/discovery.go` -- `Adjacency` gains an interface-name field (carried from discovery)
 - `internal/plugins/ldp/register.go` -- carry `ifName` from `discoverOnInterface` into `Adjacency` and `startSessionForAdj`; populate `SessionEvent.Interface` on `SessionUp`/`SessionDown`
@@ -356,11 +356,11 @@ protocol surface.
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- `ldp-sync` container (`enable` boolean, `holddown` seconds); read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | `enable` native boolean; `holddown` `type uint16 { range "0..65535"; } units seconds` |
 | YANG custom validators | [ ] no | native types suffice |
-| CLI commands/flags | [ ] yes | `show ip ospf ldp-sync` in `ze-ospf-cmd.yang` + `cmd_show.go` |
-| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ip ospf ldp-sync` |
+| CLI commands/flags | [ ] yes | `show ospf ldp-sync` in `ze-ospf-cmd.yang` + `cmd_show.go` |
+| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ospf ldp-sync` |
 | Editor autocomplete | [ ] yes | automatic for the YANG boolean/uint16 + the new show subcommand |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-ldp-sync-*.ci` |
-| Pipe completeness | [ ] yes | `show ip ospf ldp-sync` routes through `ApplyPipes` like the other show outputs |
+| Pipe completeness | [ ] yes | `show ospf ldp-sync` routes through `ApplyPipes` like the other show outputs |
 | Env var registration | [ ] no | `ldp-sync` is per-interface operational config, not an `environment/` leaf |
 | Doctor check for runtime dependencies | [ ] no | no new socket/port/binary/cert; the LDP coupling is the existing in-process EventBus |
 | Prometheus counters/metrics | [ ] yes | see the metrics rows below |
@@ -382,7 +382,7 @@ protocol surface.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPF LDP-IGP synchronization |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md` -- the `ldp-sync` container |
-| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ip ospf ldp-sync` |
+| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ospf ldp-sync` |
 | 4 | API/RPC added/changed? | [ ] no | the show RPC lives in the central `ze-show` namespace; document under the command reference |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains an LDP-sync consumer; LDP session event gains an interface field |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- an LDP-IGP sync section |
@@ -399,7 +399,7 @@ protocol surface.
 | 17 | Existing docs show examples for this area? | [ ] check | verify OSPF interface config examples against the new `ldp-sync` container |
 
 ## Files to Create
-- `internal/plugins/ospf/ldp_sync.go` -- the per-interface LDP-sync state machine (states, hold-down timer, transition logic, alert), the EventBus subscriber (`subscribeLDPSyncEvents`), the effective-cost / withhold query, and the `show ip ospf ldp-sync` snapshot
+- `internal/plugins/ospf/ldp_sync.go` -- the per-interface LDP-sync state machine (states, hold-down timer, transition logic, alert), the EventBus subscriber (`subscribeLDPSyncEvents`), the effective-cost / withhold query, and the `show ospf ldp-sync` snapshot
 - `internal/plugins/ospf/ldp_sync_test.go` -- the unit tests for the machine, subscription, restore, no-op, alert, unsubscribe, TE-cost-untouched
 - `internal/plugins/ospf/lsdb/ldp_sync_origination_test.go` -- broadcast withhold / cut-edge / P2P-LSInfinity origination tests
 - `internal/plugins/ospf/spf/ldp_sync_cutedge_test.go` -- the cut-edge query + fresh-SPF tests
@@ -449,7 +449,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 5. **Phase: CLI + metrics** -- user surface
    - Tests: `ospf-ldp-sync-show.ci`, the config/restore/down `.ci`
    - Files: `cmd_show.go`, `yang/ze-ospf-cmd.yang`, the four metric series registration
-   - Verify: `show ip ospf ldp-sync` lists state + remaining hold-down + effective metric; the four series are registered
+   - Verify: `show ospf ldp-sync` lists state + remaining hold-down + effective metric; the four series are registered
 6. **Functional tests** -> the five `.ci` cover the user-visible behaviour
 7. **RFC refs** -> add `// RFC 5443 Section 2/3/4` and `// RFC 6138 Section 4 / Appendix A` comments on the cost-out, restore, broadcast-withhold, cut-edge, and IP-only enforcement code
 8. **Interop** -> `ospf-ldp-sync-frr` QEMU scenario (ospfd + ldpd)
@@ -464,7 +464,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | max value exactly `0xFFFF` (LSInfinity); restore uses the configured cost not 1/0xFFFF; hold-down honours config with no hardcoded default; cut-edge MUST-advertise; pending-SPF flush; TE cost never touched |
 | Naming | `ze_ospf_ldp_sync_*` metrics; YANG `ldp-sync`/`holddown`/`enable` kebab-case; `SessionEvent.Interface` |
 | Data flow | override computed at origination (`lsdbTopology`/`routerLinks`), never written into stored cost; OSPF<->LDP only via `ze.EventBus`; no LDP internal import |
-| CLI grammar | `show ip ospf ldp-sync` action-before-identifier |
+| CLI grammar | `show ospf ldp-sync` action-before-identifier |
 | Doctor checks | none added (no new runtime dependency) -- confirm |
 | YANG validation | `enable` boolean; `holddown` uint16 range 0..65535 units seconds |
 | Prometheus counters | the four series defined, registered, listed; umbrella table updated |
@@ -480,7 +480,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Broadcast withhold + cut-edge | `go test ./internal/plugins/ospf/lsdb -run TestLDPSyncBroadcast && go test ./internal/plugins/ospf/spf -run TestLDPSyncCutEdge` |
 | LDP event carries the interface | `go test ./internal/plugins/ldp -run TestLDPSessionEventCarriesInterface` |
 | Four metric series registered | `grep -rn 'ze_ospf_ldp_sync_' internal/plugins/ospf` |
-| `show ip ospf ldp-sync` present | `grep -rn 'ldp-sync' internal/plugins/ospf/yang/ze-ospf-cmd.yang internal/plugins/ospf/cmd_show.go` |
+| `show ospf ldp-sync` present | `grep -rn 'ldp-sync' internal/plugins/ospf/yang/ze-ospf-cmd.yang internal/plugins/ospf/cmd_show.go` |
 | Functional tests present | `ls test/ospf/ospf-ldp-sync-*.ci` |
 | Interop scenario present | `ls test/interop/scenarios/ospf-ldp-sync-frr/` |
 | OSPF compiles without LDP | build the OSPF package without the LDP plugin import |

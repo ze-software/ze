@@ -39,6 +39,24 @@ The "no `--flag` syntax in YANG; filters are keyword grammar" rule:
 
 ## Forward-looking
 
-If Ze gains VRF / routing-instance support, add a `vrf <name>` keyword filter
-(`show route vrf <name>`), not a Nokia-style `router` root. Instance and family
-stay filters; the tree stays flat. See the namespacing doc.
+VRF / routing-instance support is designed in `plan/spec-vrf-0-umbrella.md`
+(agreed with user) as an **instance-first prefix**: `show vrf <name> <object>`
+(e.g. `show vrf surfprotect route`); the default VRF keeps the bare, unwrapped
+form (`show route`). This is the Nokia-style instance-first ordering, NOT a
+trailing `show route vrf <name>` filter. Architectural reason: each VRF is a full
+replicated stack (own reactor/RIB/hub/listeners) behind a hub-of-hubs that
+intercepts the leading `vrf <name>` token and forwards the remainder verbatim, so
+the instance must be a prefix; the YANG of each child module is wrapped in `vrf
+<name> { ... }`, so the config tree is instance-rooted too. **Family stays a
+trailing filter** (`show vrf red ospf ipv6`); only the instance moves to the
+front, and the keyword is `vrf`, not Nokia's `router`. See the namespacing doc
+and spec-vrf-0.
+
+**OSPFv3 / IPv6 (decided, not yet shipped):** Ze runs ONE unified OSPF engine
+(v2+v3 via address-family strategy), so OSPFv3 show is a family selector on the
+`ospf` object, not a separate `ospf3` object and not a `show ipv6 ospf`
+namespace prefix: bare `show ospf <noun>` = IPv4 (OSPFv2), `show ospf ipv6
+<noun>` = IPv6 (OSPFv3). The future spec-ospf-ext-* specs were updated to this
+form (FRR-aware: FRR `ospfd` `show ip ospf ...` and FRR `ospf6d` `show ipv6
+ospf6 ...` interop references are KEPT). Shipped OSPFv2 needs no change (it is
+the bare/IPv4 default).

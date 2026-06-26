@@ -257,7 +257,7 @@ subsystem lands.
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
 | OSPFv2 | `show ip ospf` | `show ospf *` | `show router ospf *` | `show ip ospf` | `show ip ospf` | `show ospf *` | shipped | ospf | Native OSPFv2/v3 engine; object-rooted `show ospf ...` / `clear ospf ...`. See guide/ospf.md. |
-| OSPFv3 | `show ipv6 ospfv3` | `show ospf3 *` | `show router ospf3 *` | `show ipv6 ospf` | `show ipv6 ospf` | | scope | - | |
+| OSPFv3 | `show ipv6 ospfv3` | `show ospf3 *` | `show router ospf3 *` | `show ipv6 ospf` | `show ipv6 ospf` | `show ospf ipv6 *` | scope | ospf | Family filter on the unified `ospf` object (object-rooting), not a separate `ospf3` object: bare `show ospf` is IPv4, `show ospf ipv6 ...` is OSPFv3. |
 | IS-IS | `show ip isis` | `show isis *` | `show router isis *` | `show isis` | `show isis` | | scope | - | |
 | RIP | `show ip rip` | `show rip *` | - | `show ip rip` | `show ip rip` | | scope | - | |
 | Babel | - | - | - | - | `show ip babel` | | scope | - | |

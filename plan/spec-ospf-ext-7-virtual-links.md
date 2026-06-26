@@ -106,7 +106,7 @@ exactly as today.
 | Router-LSA virtual-link advertisement | per AF | When Full, originate the virtual link record into the **backbone** Router-LSA (Metric = transit cost) and set the V-bit; IPv4 Type-4 in `routerLinks`, IPv6 `RouterLinkTypeVirtual` in `v6OriginateRouter`; backbone-only in both |
 | Transit-area Summary-LSA pass (§16.3) + TransitCapability | both (shared) | TransitCapability TRUE when a Type-1 / Router-LSA with the V-bit exists in the area; improve already-reachable backbone routes and resolve the *real* next hop for destinations whose next hop was a virtual link; discard unresolved virtual next hops |
 | Backbone attachment | both (shared; §3.5 explicit for IPv6) | A Full virtual link to area 0 makes the endpoint backbone-attached for inter-area / ABR computation |
-| Show / observability | both | IPv4: `show ip ospf virtual-links` + V-bit/Type-4 in `show ip ospf database router`. IPv6: the virtual interface in `show ipv6 ospf6 interface` and the virtual neighbour in `show ipv6 ospf6 neighbor`; virtual-link metrics in both |
+| Show / observability | both | IPv4: `show ospf virtual-links` + V-bit/Type-4 in `show ospf database router`. IPv6: the virtual interface in `show ipv6 ospf6 interface` and the virtual neighbour in `show ipv6 ospf6 neighbor`; virtual-link metrics in both |
 
 ### Out of scope (noted so it is not silently assumed done)
 
@@ -228,7 +228,7 @@ IPv6 family:
 7. **Backbone SPF (reused, shared):** the backbone intra-area SPF graph walk treats the virtual record like P2P; the virtual neighbour becomes a reachable backbone router vertex, repairing the backbone. For IPv6, `v6RouterLinks` maps the record in and resolves the transit next hop.
 8. **§16.3 transit pass + §3.5 (new, shared):** for each transit area with TransitCapability, a second pass over its Summary-LSAs improves already-reachable backbone routes and rewrites virtual-link next hops to the real transit next hop; unresolved virtual next hops are discarded; a Full virtual link to area 0 marks the endpoint backbone-attached.
 9. **Install (reused, shared):** the route delta installs through the existing Loc-RIB seam.
-10. **Show (new, per AF):** IPv4 `show ip ospf virtual-links`; IPv6 the virtual interface/neighbour rows in `show ipv6 ospf6 interface`/`neighbor`.
+10. **Show (new, per AF):** IPv4 `show ospf virtual-links`; IPv6 the virtual interface/neighbour rows in `show ipv6 ospf6 interface`/`neighbor`.
 
 ### Boundaries Crossed
 | Boundary | How | Address family | Verified |
@@ -249,7 +249,7 @@ IPv6 family:
 - `internal/plugins/ospf/iface` + `internal/plugins/ospf/neighbor` -- reused for the synthetic interface and the standard p2p adjacency (shared).
 - `internal/plugins/ospf/transport/` (IPv4) and `internal/plugins/ospf/v3/transport/` (IPv6) -- the two routed send paths.
 - `internal/plugins/ospf/instance.go` -- the synthetic-interface lifecycle and virtual-link manager driven by SPF results; backbone origination input; virtual-link packet demux (shared lifecycle, AF transport adapter).
-- `internal/plugins/ospf/cmd_show.go` -- IPv4 `show ip ospf virtual-links` and V-bit/Type-4 in `show ip ospf database router`; IPv6 virtual interface/neighbour rows.
+- `internal/plugins/ospf/cmd_show.go` -- IPv4 `show ospf virtual-links` and V-bit/Type-4 in `show ospf database router`; IPv6 virtual interface/neighbour rows.
 
 ### Architectural Verification
 - [ ] No bypassed layers (virtual-link packets flow config -> synthetic interface -> neighbour SM -> LSDB/flooding -> SPF, the same spine as a physical p2p interface in both families; only the cost/next-hop source and the routed transport differ)
@@ -301,7 +301,7 @@ IPv6 family:
 | The virtual-link adjacency reaches Full | -> | `v6OriginateSelf` emits the backbone Router-LSA with `RouterFlagV` + the `RouterLinkTypeVirtual` record | IPv6 | `TestVirtualRecordInBackboneRouterLSA` (unit) + `ospfv3-vlink-frr` |
 | The backbone SPF runs with the virtual record present | -> | the virtual neighbour becomes a reachable backbone vertex; the §16.3 pass resolves virtual next hops; §3.5 backbone-attachment holds | both (shared) | `TestBackboneSPFReachesVirtualNeighbor`, `TestV6BackboneGraphIncludesVirtualLink`, `TestVirtualNextHopResolvedOrDiscarded` (unit) + `test/ospf/ospf-virtual-link-route.ci` |
 | An outgoing virtual-link packet | -> | IPv4 routed TTL > 1 / IPv6 routed global-source hop limit > 1 send, not the link-local path | per AF | `TestVirtualLinkSendUsesRoutedTTL` (v4), `TestRoutedSendUsesGlobalSourceAndHopLimit` (v6) |
-| `show ip ospf virtual-links` / `show ipv6 ospf6 interface` | -> | the engine renders virtual-link / virtual-interface state | per AF | `test/ospf/ospf-virtual-link-show.ci`, `test/ospfv3/ospfv3-vlink.ci` |
+| `show ospf virtual-links` / `show ipv6 ospf6 interface` | -> | the engine renders virtual-link / virtual-interface state | per AF | `test/ospf/ospf-virtual-link-show.ci`, `test/ospfv3/ospfv3-vlink.ci` |
 
 ## Acceptance Criteria
 
@@ -321,7 +321,7 @@ IPv6 family:
 | AC-12 | both (shared) | A transit area has a Router-LSA with the V-bit (TransitCapability TRUE) | the §16.3 transit-area Summary-LSA pass runs for that area: it only improves already-reachable backbone routes and never makes a new destination reachable |
 | AC-13 | both (shared) | A destination whose §16 next hop is a virtual link | the §16.3 pass rewrites it to the real transit next hop; if it cannot be resolved, the destination is discarded (not installed with a virtual next hop) |
 | AC-14 | both | The transit-area cost to the virtual neighbour changes | the next SPF run updates the virtual link's cost, reoriginates the backbone Router-LSA virtual metric, and recomputes backbone routes; no flap when the cost is unchanged |
-| AC-15 | IPv4 | `show ip ospf virtual-links` | lists each configured virtual link with transit area, neighbour Router ID, adjacency state, computed cost, and next hop; `show ip ospf database router` shows the V-bit + Type-4 link |
+| AC-15 | IPv4 | `show ospf virtual-links` | lists each configured virtual link with transit area, neighbour Router ID, adjacency state, computed cost, and next hop; `show ospf database router` shows the V-bit + Type-4 link |
 | AC-16 | IPv6 | `show ipv6 ospf6 interface` / `show ipv6 ospf6 neighbor` while a virtual link is Full | the virtual interface and the virtual neighbour are listed with state and the resolved global address; a Down virtual link shows Down |
 | AC-17 | both | No `virtual-link` is configured | OSPF behaves byte-for-byte as today in both families: V-bit clear, no virtual record, no §16.3 pass, the existing link-local send paths unchanged |
 | AC-18 | both | A virtual link's authentication | uses the transit area's configured key-chain / RFC 7166 trailer (the existing `authStore`), not a separate virtual-area key |
@@ -335,7 +335,7 @@ IPv6 family:
 | 3 | IPv4 | Forms a virtual-link adjacency with FRR `ospfd` across a transit area | unicast routed Hello/DD/LSU (TTL > 1) -> p2p neighbour SM -> Full; FRR's `show ip ospf virtual-links` shows the link up | `ospf-virtual-link-frr` interop |
 | 4 | IPv6 | Forms a virtual-link adjacency with FRR `ospf6d` across a transit area | routed-unicast OSPFv3 packets (global src/dst, hop limit > 1) traverse the transit area -> point-to-point NSM -> Full; FRR shows Ze's backbone Router-LSA with the V-bit | `ospfv3-vlink-frr` interop (multi-hop QEMU) |
 | 5 | both | Repairs a partitioned backbone / an ABR with no physical backbone interface | two backbone fragments joined only through a transit area -> virtual link Full -> virtual records both ways -> backbone SPF treats the fragments as connected; a destination in one fragment is reachable from the other | `test/ospf/ospf-virtual-link-route.ci` + `test/ospfv3/ospfv3-vlink-backbone-repair.ci` + both interop scenarios |
-| 6 | both | Inspects the virtual link | CLI -> `show ip ospf virtual-links` (IPv4) / `show ipv6 ospf6 interface`+`neighbor` (IPv6) -> engine state (transit area, neighbour, state, cost, next hop) | `test/ospf/ospf-virtual-link-show.ci` + `test/ospfv3/ospfv3-vlink.ci` |
+| 6 | both | Inspects the virtual link | CLI -> `show ospf virtual-links` (IPv4) / `show ipv6 ospf6 interface`+`neighbor` (IPv6) -> engine state (transit area, neighbour, state, cost, next hop) | `test/ospf/ospf-virtual-link-show.ci` + `test/ospfv3/ospfv3-vlink.ci` |
 | 7 | both | Removes the virtual-link config | reconcile tears down the synthetic interface and adjacency; the backbone Router-LSA loses the virtual record and the V-bit; OSPF otherwise unchanged | `TestVirtualLinkRemovalWithdrawsRecord` + existing OSPF suites still green |
 
 ## 🧪 TDD Test Plan
@@ -395,10 +395,10 @@ IPv6 family:
 ### Functional Tests
 | Test | Location | Address family | End-User Scenario | Status |
 |------|----------|----------------|-------------------|--------|
-| `ospf-virtual-link-config` | `test/ospf/ospf-virtual-link-config.ci` | IPv4 | a `virtual-link` entry parses and shows in `show ip ospf`; stub-transit/non-ABR configs are rejected | |
+| `ospf-virtual-link-config` | `test/ospf/ospf-virtual-link-config.ci` | IPv4 | a `virtual-link` entry parses and shows in `show ospf`; stub-transit/non-ABR configs are rejected | |
 | `ospf-virtual-link-up` | `test/ospf/ospf-virtual-link-up.ci` | IPv4 | the virtual neighbour is resolved over the transit area and the link comes up to Full | |
 | `ospf-virtual-link-route` | `test/ospf/ospf-virtual-link-route.ci` | IPv4 | a destination reachable only across the repaired backbone is installed with the real transit next hop | |
-| `ospf-virtual-link-show` | `test/ospf/ospf-virtual-link-show.ci` | IPv4 | `show ip ospf virtual-links` lists state/cost/next hop; `show ip ospf database router` shows the V-bit + Type-4 link | |
+| `ospf-virtual-link-show` | `test/ospf/ospf-virtual-link-show.ci` | IPv4 | `show ospf virtual-links` lists state/cost/next hop; `show ospf database router` shows the V-bit + Type-4 link | |
 | `ospfv3-vlink-config` | `test/ospfv3/ospfv3-vlink-config.ci` | IPv6 | virtual-link config parses; a stub/NSSA/backbone transit area or self RID is rejected | |
 | `ospfv3-vlink` | `test/ospfv3/ospfv3-vlink.ci` | IPv6 | two Ze routers form a virtual-link adjacency to Full across a transit area; `show ipv6 ospf6 neighbor` shows the virtual neighbour | |
 | `ospfv3-vlink-backbone-repair` | `test/ospfv3/ospfv3-vlink-backbone-repair.ci` | IPv6 | an ABR with no physical backbone interface becomes backbone-attached; inter-area routes appear | |
@@ -429,9 +429,9 @@ Shared / AF-neutral:
 - `internal/plugins/ospf/spf/interarea.go` -- update the `IsABR` "out of scope" comment; invoke the §16.3 transit-area pass; thread the §3.5 backbone-attachment condition
 - `internal/plugins/ospf/spf/computer.go` -- run the transit-area pass after inter-area; expose virtual-neighbour resolution from the transit-area `Result`
 - `internal/plugins/ospf/instance.go` -- the synthetic virtual-interface lifecycle and virtual-link manager driven by SPF results; backbone origination input; virtual-link packet demux (shared lifecycle; AF transport adapter)
-- `internal/plugins/ospf/cmd_show.go` -- IPv4 `show ip ospf virtual-links` and V-bit/Type-4 in `show ip ospf database router`; IPv6 virtual interface/neighbour rows
+- `internal/plugins/ospf/cmd_show.go` -- IPv4 `show ospf virtual-links` and V-bit/Type-4 in `show ospf database router`; IPv6 virtual interface/neighbour rows
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- the `virtual-link` list with native constraints (shared schema, used by both families)
-- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- the `show ip ospf virtual-links` command and the IPv6 show virtual rows
+- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- the `show ospf virtual-links` command and the IPv6 show virtual rows
 - `internal/plugins/ospf/register.go` -- register the new `ospf-virtual-link` config validator
 - `internal/plugins/ospf/doctor.go` -- a doctor check only if a new runtime dependency is introduced (a routed send socket); add one if so
 
@@ -451,8 +451,8 @@ IPv6 family:
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- `virtual-link` list; read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | native `range`/`pattern` on area-id, neighbour Router ID, and the four timers; reject backbone (0.0.0.0) as transit area |
 | YANG custom validators | [ ] yes | `ze:validate "ospf-virtual-link"` for the not-a-stub (IPv6 also NSSA/backbone) / ABR / non-self rules with `ValidateFn` + `CompleteFn`; register in `register.go` |
-| CLI commands/flags | [ ] yes | IPv4 `show ip ospf virtual-links`; IPv6 virtual rows in `show ipv6 ospf6 interface`/`neighbor` in `ze-ospf-cmd.yang` + `cmd_show.go` |
-| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ip ospf virtual-links`; show subcommands unchanged in shape |
+| CLI commands/flags | [ ] yes | IPv4 `show ospf virtual-links`; IPv6 virtual rows in `show ipv6 ospf6 interface`/`neighbor` in `ze-ospf-cmd.yang` + `cmd_show.go` |
+| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ospf virtual-links`; show subcommands unchanged in shape |
 | Editor autocomplete | [ ] yes | automatic for the YANG list + the new show subcommand; `CompleteFn` offers configured transit areas / known area IDs |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-virtual-link-*.ci` + `test/ospfv3/ospfv3-vlink*.ci` |
 | Pipe completeness | [ ] yes | all virtual show outputs route through `ApplyPipes` like the other show outputs |
@@ -481,7 +481,7 @@ IPv6 family:
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPF virtual links (both address families) |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` -- the `virtual-link` list |
-| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ip ospf virtual-links` + the IPv6 show virtual rows |
+| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ospf virtual-links` + the IPv6 show virtual rows |
 | 4 | API/RPC added/changed? | [ ] no | the show RPCs live in the central `ze-show` namespace; documented under the command reference |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains virtual-link config + the synthetic interface + routed transport |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- virtual-link section covering both address families |
@@ -556,7 +556,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 6. **Phase: CLI + metrics + doctor** -- user surface
    - Tests: `ospf-virtual-link-show.ci`, `ospf-virtual-link-up.ci`, `ospf-virtual-link-route.ci`, `ospfv3-vlink.ci`, `ospfv3-vlink-backbone-repair.ci`, `ospfv3-vlink-reresolve.ci`
    - Files: `cmd_show.go`, `yang/ze-ospf-cmd.yang`, metric registration, `doctor.go` (if a routed socket is introduced)
-   - Verify: `show ip ospf virtual-links`, the IPv6 show virtual rows, the V-bit/Type-4 in `show ip ospf database router`, the metric series, the doctor check
+   - Verify: `show ospf virtual-links`, the IPv6 show virtual rows, the V-bit/Type-4 in `show ospf database router`, the metric series, the doctor check
 7. **Functional tests** -> the eight `.ci` cover the user-visible behaviour in both families
 8. **RFC refs** -> add `// RFC 2328 Section 15 / 16.3 / A.4.2` (IPv4) and `// RFC 5340 Section 4.2 / 2.9 / 3.5 / A.4.3` (IPv6) comments on the origination, transit pass, and routed-send code
 9. **Interop** -> `ospf-virtual-link-frr` (IPv4) and `ospfv3-vlink-frr` (IPv6, multi-hop) QEMU scenarios
@@ -571,7 +571,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | cost = transit intra-area cost; next hop from transit SPF (not the neighbour packet address); V-bit + virtual record backbone-only; §16.3 improves-only and resolves/discards virtual next hops; IPv4 Hello Mask 0 / DD MTU 0 / TTL > 1; IPv6 global source / hop limit > 1 / checksum against the global source |
 | Naming | `ze_ospf_virtual_*` / `ze_ospf_transit_*` / `ze_ospfv3_virtual_link*` metrics; YANG `virtual-link` / `remote-router-id` kebab-case; show commands |
 | Data flow | virtual links read the transit-area SPF result read-only; backbone Router-LSA is the only origination point; SPF stays AF-neutral; no virtual-link spelling in generic packages |
-| CLI grammar | `show ip ospf virtual-links` action-before-identifier; IPv6 show rows unchanged in shape |
+| CLI grammar | `show ospf virtual-links` action-before-identifier; IPv6 show rows unchanged in shape |
 | Doctor checks | a routed-send-socket dependency (IPv4), if added, has a `ze doctor` check per `ai/rules/doctor-checks.md`; IPv6 confirms none added |
 | YANG validation | the `virtual-link` list has native range/pattern + a custom validator for stub/NSSA/backbone-transit / ABR / non-self rules |
 | Prometheus counters | the series defined, registered, listed; umbrella table updated |

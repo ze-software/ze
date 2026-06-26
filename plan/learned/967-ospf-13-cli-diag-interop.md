@@ -3,9 +3,9 @@
 ## Context
 
 Completed `plan/spec-ospf-13-cli-diag-interop.md`: the presentation, observability and
-interop layer over the working OSPFv2 engine (ospf-1..12). `show ip ospf` process summary
+interop layer over the working OSPFv2 engine (ospf-1..12). `show ospf` process summary
 + neighbor/interface/database/route/border-routers/spf views + six per-LS-type database
-subviews + three `clear ip ospf` actions; RFC 6987 `max-metric router-lsa` config with
+subviews + three `clear ospf` actions; RFC 6987 `max-metric router-lsa` config with
 stub-router reflection; `ze_ospf_*` metric-namespace verification; two config-sanity
 doctor checks; `/ospf` + `/ospf/database` web views with SSE; and six FRR `ospfd` interop
 scenarios. Nothing here originates protocol state -- it renders snapshots, exports config,

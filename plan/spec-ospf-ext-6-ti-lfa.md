@@ -87,7 +87,7 @@ for OSPFv3 (RFC 8666) is out of scope and is recorded as a follow-on.
 | Per-prefix protection | Backup computed per primary next-hop per prefix (RFC 5286 §3.6 / §3.8), not a single shared per-next-hop alternate, so multi-homed and node-protection coverage is preserved |
 | OSPF multi-area constraints | Suppress LFA where the §6.3 area-leakage conditions hold (backbone with non-meshed virtual links; inter-area route with multiple alternate ABRs; external-route multi-ASBR cases) so a wrong local-area path does not micro-loop |
 | Use + terminate | Mark the backup "in use" on primary-down detection; bound how long it is used (§4 / §4.1) via the existing convergence/hold path; the backup is used only for shortest-path-routed unicast (§4) |
-| CLI | `show ip ospf route fast-reroute` (or `... backup`) listing each prefix's primary + backup next-hop, protection class (LP/NP/SP), and repair label stack; `show ip ospf border-routers` unaffected |
+| CLI | `show ospf route fast-reroute` (or `... backup`) listing each prefix's primary + backup next-hop, protection class (LP/NP/SP), and repair label stack; `show ospf border-routers` unaffected |
 | Config | A YANG `fast-reroute` container under `ospf` (and per-area / per-interface enable, LFA-vs-TI-LFA mode, node-protection preference) |
 | Metrics | `ze_ospf_fast_reroute_*` series (protected/unprotected prefix counts, backup installs, per-class coverage) |
 
@@ -116,7 +116,7 @@ for OSPFv3 (RFC 8666) is out of scope and is recorded as a follow-on.
 - [ ] `ai/rules/buffer-first.md` -- repair-list label-stack build and any backup encode are buffer-first
   -> Constraint: the SR repair label stack is built into a caller-owned buffer / a `[]uint32` produced once per best-path change and shared (not mutated) into `locrib.Path`, mirroring the existing `Labels` field contract in `candidate.go`
 - [ ] `ai/rules/no-sprintf-alloc.md` -- no `fmt`/`+` on the SPF hot path or in the `show` render
-  -> Constraint: the per-neighbour SPF and LFA selection run on every topology change; they must allocate as little as the base SPF does; the `show ip ospf route fast-reroute` render uses `textbuf`/`AppendTo`
+  -> Constraint: the per-neighbour SPF and LFA selection run on every topology change; they must allocate as little as the base SPF does; the `show ospf route fast-reroute` render uses `textbuf`/`AppendTo`
 - [ ] `ai/rules/qemu-testing.md` -- the FIB backup-install path is Linux-only (netlink RTNH backup flag); it MUST be validated under QEMU
   -> Constraint: the backup next-hop programming and the actual kernel failover are QEMU integration tests, never skipped for "needs hardware"; LFA/TI-LFA selection math is unit-testable without a kernel
 
@@ -148,7 +148,7 @@ for OSPFv3 (RFC 8666) is out of scope and is recorded as a follow-on.
 **Source files read:** (read BEFORE writing this spec)
 - [ ] `internal/plugins/ospf/spf/spf.go` -- `Compute(g, root, maxPaths)` -> `computeWithNextHop(g, root, maxPaths, v4NextHop{})` runs RFC 2328 §16.1 stage-1 Dijkstra and returns `*Result{Nodes map[VertexID]*NodeResult}`; `NodeResult{Metric, NextHops}`; `NextHop{Addr, Interface}`; `NextHopSource` is the AF seam (`P2PNextHop`/`TransitNextHop`); `LSInfinity = 0x00ffffff`; `clampMetric` saturates at LSInfinity
   -> Constraint: `computeWithNextHop` already accepts an ARBITRARY root, so `SPT(N)` is the same call with the neighbour's RouterID as root; the per-neighbour SPF reuses this verbatim. The result gives `D_opt(root, vertex)` = `Nodes[vertex].Metric`, which is exactly the `D_opt(N,*)` LFA needs
-- [ ] `internal/plugins/ospf/spf/route.go` -- `RouteEntry{AreaID, Prefix, Metric, Type, Origin, NextHops []NextHop}`; `BuildRoutes` produces per-prefix entries; `selectBestRoutes` resolves preference + ECMP merge; `RouteType` is intra/inter/ext1/ext2; `DiffRoutes`/`routeEqual` diff for install; `Snapshot`/`RouteSnapshotEntry` render `show ip ospf route`
+- [ ] `internal/plugins/ospf/spf/route.go` -- `RouteEntry{AreaID, Prefix, Metric, Type, Origin, NextHops []NextHop}`; `BuildRoutes` produces per-prefix entries; `selectBestRoutes` resolves preference + ECMP merge; `RouteType` is intra/inter/ext1/ext2; `DiffRoutes`/`routeEqual` diff for install; `Snapshot`/`RouteSnapshotEntry` render `show ospf route`
   -> Constraint: the backup next-hop is a NEW per-primary field on `RouteEntry`; `routeEqual` and `DiffRoutes` MUST compare it so a backup-only change re-installs; `Snapshot` MUST surface it for the new CLI
 - [ ] `internal/plugins/ospf/spf/route.go` `RouteEntry.NextHops` carries the primary ECMP set; the backup is keyed per primary next-hop (each primary may have a distinct backup), so the backup is a parallel slice or a per-next-hop wrapper, not a single route-level value
   -> Constraint: per-prefix-per-primary protection (§3.6/§3.8) means the backup CANNOT be a single route-scalar; model it as one backup per primary next-hop
@@ -166,7 +166,7 @@ for OSPFv3 (RFC 8666) is out of scope and is recorded as a follow-on.
   -> Constraint: the backup must NOT be confused with an ECMP path: ECMP next-hops are equal-cost and load-shared; a backup is used only on primary failure. The carry-through backup field keeps them distinct end-to-end
 - [ ] `internal/plugins/ospf/register.go` -- `registerOSPF()` builds the `registry.Registration` (YANG `ZeOSPFConfYANG`, `RunEngine`, config verifier, doctor); `runOSPFEngine` constructs the `Computer`/`Installer`; the v6 (OSPFv3) engine runs as a second instance over the v6 codec
   -> Constraint: the `fast-reroute` config leaf is resolved in `config.go` and threaded into the `Computer`; OSPFv3 reuses the same `Computer`/LFA path through the v6 `NextHopSource`, so LFA selection is AF-neutral and the v6 engine gets it for free (SR labels excepted)
-- [ ] `internal/plugins/ospf/yang/ze-ospf-conf.yang` + `ze-ospf-cmd.yang` -- the OSPF config + command schemas; `fast-reroute` is a new container; `show ip ospf route fast-reroute` is a new command leaf
+- [ ] `internal/plugins/ospf/yang/ze-ospf-conf.yang` + `ze-ospf-cmd.yang` -- the OSPF config + command schemas; `fast-reroute` is a new container; `show ospf route fast-reroute` is a new command leaf
   -> Constraint: the new config + command surface is added here; native YANG constraints (boolean enable, enum mode) per `ai/rules/config-surface.md`
 
 **Behavior to preserve:**
@@ -199,7 +199,7 @@ for OSPFv3 (RFC 8666) is out of scope and is recorded as a follow-on.
 6. **Attach + diff (extends existing):** the backup (address + repair labels + class) attaches to the `RouteEntry` primary; `DiffRoutes`/`routeEqual` include it so a backup-only delta re-installs.
 7. **Install (extends existing):** `Installer.insert` sets the new carry-through backup field on each primary's `locrib.Path`; `InsertForward` carries it through Loc-RIB unchanged (excluded from arbitration); sysrib forwards it to the FIB as a dedicated backup, NOT an ECMP sibling.
 8. **FIB program (new, Linux):** `buildRichRoute` emits the backup as a link-down-flagged backup next-hop with the repair-list MPLS encap; the kernel swings to it the instant the primary link is detected down (§4), bounded in time by the next SPF reconverge (§4.1).
-9. **CLI (new):** `show ip ospf route fast-reroute` renders each prefix's primary + backup + class + repair stack from the route snapshot.
+9. **CLI (new):** `show ospf route fast-reroute` renders each prefix's primary + backup + class + repair stack from the route snapshot.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -270,7 +270,7 @@ for OSPFv3 (RFC 8666) is out of scope and is recorded as a follow-on.
 | An SPF run with a topology that has a base LFA | -> | `Computer.Run` -> per-neighbour SPF -> LFA selection -> backup on `RouteEntry` -> `Installer.insert` sets `locrib.Path` backup | `test/ospf/ospf-lfa-compute.ci` |
 | An SPF run with NO base LFA but SR coverage | -> | TI-LFA fallback builds the repair list from ext-5 maps -> backup label stack on `RouteEntry` | `test/ospf/ospf-ti-lfa-compute.ci` |
 | An installed route with a backup | -> | `buildRichRoute` programs the backup next-hop + repair encap into the kernel | `ospf-lfa-frr` QEMU interop (kernel failover observed) |
-| `show ip ospf route fast-reroute` | -> | `cmd_show.go` renders primary + backup + class + repair stack from the snapshot | `test/ospf/ospf-lfa-show.ci` |
+| `show ospf route fast-reroute` | -> | `cmd_show.go` renders primary + backup + class + repair stack from the snapshot | `test/ospf/ospf-lfa-show.ci` |
 
 ## Acceptance Criteria
 
@@ -290,7 +290,7 @@ for OSPFv3 (RFC 8666) is out of scope and is recorded as a follow-on.
 | AC-12 | A backup-only change (the primary next-hop is unchanged but the backup changes) | `DiffRoutes`/`routeEqual` detect it and re-install the route so the new backup is programmed |
 | AC-13 | The `locrib.Path` backup field on an OSPF path | it is carry-through metadata excluded from arbitration (AdminDistance-then-Metric unchanged); BGP/IS-IS best-path selection is unaffected |
 | AC-14 | An inter-area or external prefix in a §6.3 leakage topology (multiple alternate ABRs / multi-ASBR / non-meshed virtual links) | LFA is suppressed for that prefix (no backup installed) to avoid a micro-loop |
-| AC-15 | `show ip ospf route fast-reroute` | each protected prefix lists primary + backup next-hop, protection class (LP/NP/downstream), and the repair label stack; unprotected prefixes are shown as unprotected |
+| AC-15 | `show ospf route fast-reroute` | each protected prefix lists primary + backup next-hop, protection class (LP/NP/downstream), and the repair label stack; unprotected prefixes are shown as unprotected |
 | AC-16 | OSPFv3 (v6 engine) with fast-reroute enabled and a base-LFA topology | the v6 route set carries a base LFA backup next-hop via the AF seam (SR repair labels are out of scope for v6 and absent) |
 | AC-17 | A primary-down event while a backup is installed | the backup is used only for shortest-path-routed unicast (§4) and its use is bounded in time (§4.1) -- the next SPF reconverge replaces it; no permanent backup pinning |
 
@@ -300,9 +300,9 @@ for OSPFv3 (RFC 8666) is out of scope and is recorded as a follow-on.
 |---|-----------|--------------------|-----------------------|
 | 1 | Enables `fast-reroute` on an OSPF router with a triangle topology, then fails the primary link | config -> `Computer.Run` -> per-neighbour SPF -> LFA -> backup on `RouteEntry` -> `Installer` -> `locrib.Path` -> FIB backup -> kernel swings to the backup on link-down | `ospf-lfa-frr` QEMU interop (ping survives the failover) |
 | 2 | Enables `fast-reroute` mode `ti-lfa` where no directly-connected LFA exists but SR is deployed | TI-LFA fallback -> post-convergence SPF -> repair list from ext-5 SR maps -> backup label stack -> FIB MPLS backup encap | `test/ospf/ospf-ti-lfa-compute.ci` + `ospf-ti-lfa-frr` QEMU interop |
-| 3 | Runs `show ip ospf route fast-reroute` | CLI -> route snapshot -> render primary + backup + class + repair stack | `test/ospf/ospf-lfa-show.ci` |
+| 3 | Runs `show ospf route fast-reroute` | CLI -> route snapshot -> render primary + backup + class + repair stack | `test/ospf/ospf-lfa-show.ci` |
 | 4 | Enables fast-reroute on a multi-area router where a remote-area prefix is reachable via two alternate ABRs | §6.3 suppression -> that prefix gets no backup; intra-area prefixes still get backups | `test/ospf/ospf-lfa-multiarea.ci` + `ospf-multiarea-frr` failover |
-| 5 | Leaves fast-reroute disabled | the LFA pass is skipped; the route set + install + `show ip ospf route` are byte-for-byte as today | existing OSPF suite green + `TestFastRerouteDisabledNoBackup` |
+| 5 | Leaves fast-reroute disabled | the LFA pass is skipped; the route set + install + `show ospf route` are byte-for-byte as today | existing OSPF suite green + `TestFastRerouteDisabledNoBackup` |
 
 ## 🧪 TDD Test Plan
 
@@ -345,10 +345,10 @@ for OSPFv3 (RFC 8666) is out of scope and is recorded as a follow-on.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ospf-lfa-config` | `test/ospf/ospf-lfa-config.ci` | `fast-reroute { enable }` accepted; shows enabled in `show ip ospf` | |
+| `ospf-lfa-config` | `test/ospf/ospf-lfa-config.ci` | `fast-reroute { enable }` accepted; shows enabled in `show ospf` | |
 | `ospf-lfa-compute` | `test/ospf/ospf-lfa-compute.ci` | a triangle topology yields a base LFA backup on the protected prefix | |
 | `ospf-ti-lfa-compute` | `test/ospf/ospf-ti-lfa-compute.ci` | no base LFA + SR coverage -> a TI-LFA repair label stack | |
-| `ospf-lfa-show` | `test/ospf/ospf-lfa-show.ci` | `show ip ospf route fast-reroute` lists primary + backup + class + repair stack | |
+| `ospf-lfa-show` | `test/ospf/ospf-lfa-show.ci` | `show ospf route fast-reroute` lists primary + backup + class + repair stack | |
 | `ospf-lfa-multiarea` | `test/ospf/ospf-lfa-multiarea.ci` | §6.3 suppression: a multi-ABR remote prefix gets no backup; intra-area prefixes do | |
 
 ### Interop Tests (MANDATORY for protocol features)
@@ -380,7 +380,7 @@ for OSPFv3 (RFC 8666) is out of scope and is recorded as a follow-on.
 - `internal/plugins/fib/kernel/fibkernel.go` -- thread the backup from the sysrib event into `RichRoute`
 - `internal/plugins/ospf/config.go` -- resolve the `fast-reroute` container into the engine/`Computer` config
 - `internal/plugins/ospf/register.go` -- thread `fast-reroute` config into the `Computer`; ensure the v6 engine instance gets the same LFA pass
-- `internal/plugins/ospf/cmd_show.go` -- `show ip ospf route fast-reroute` render (primary + backup + class + repair stack)
+- `internal/plugins/ospf/cmd_show.go` -- `show ospf route fast-reroute` render (primary + backup + class + repair stack)
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- the `fast-reroute` container (enable boolean, mode enum lfa|ti-lfa, node-protection-preference boolean; per-area/per-interface enable)
 - `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- the `route fast-reroute` show subcommand
 
@@ -390,11 +390,11 @@ for OSPFv3 (RFC 8666) is out of scope and is recorded as a follow-on.
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- `fast-reroute` container; read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | `enable` boolean (native), `mode` enumeration {lfa, ti-lfa}, `node-protection` boolean; no bare `type string` |
 | YANG custom validators | [ ] no | native boolean/enum suffice |
-| CLI commands/flags | [ ] yes | `show ip ospf route fast-reroute` in `ze-ospf-cmd.yang` + `cmd_show.go` |
-| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ip ospf route fast-reroute` |
+| CLI commands/flags | [ ] yes | `show ospf route fast-reroute` in `ze-ospf-cmd.yang` + `cmd_show.go` |
+| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ospf route fast-reroute` |
 | Editor autocomplete | [ ] yes | automatic for the YANG enum/boolean + the new show subcommand |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-lfa-*.ci` |
-| Pipe completeness | [ ] yes | `show ip ospf route fast-reroute` routes through `ApplyPipes` like the other show outputs |
+| Pipe completeness | [ ] yes | `show ospf route fast-reroute` routes through `ApplyPipes` like the other show outputs |
 | Env var registration | [ ] no | `fast-reroute` is operational config, not an `environment/` leaf |
 | Doctor check for runtime dependencies | [ ] no | no new socket/port/binary/cert; reuses the existing OSPF raw socket and FIB netlink (the FIB doctor already covers netlink) |
 | Prometheus counters/metrics | [ ] yes | see the metrics rows below |
@@ -417,7 +417,7 @@ for OSPFv3 (RFC 8666) is out of scope and is recorded as a follow-on.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPF LFA / TI-LFA fast reroute |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md` -- the `fast-reroute` container |
-| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ip ospf route fast-reroute` |
+| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ospf route fast-reroute` |
 | 4 | API/RPC added/changed? | [ ] no | the show RPC lives in the central `ze-show` namespace; documented under the command reference |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains fast-reroute compute + FIB backup install |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- a fast-reroute section (LFA + TI-LFA) |
@@ -495,7 +495,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 7. **Phase: CLI + metrics + v6** -- user surface
    - Tests: `ospf-lfa-show.ci`, `TestLFAv6NextHopSelection`, `TestFastRerouteDisabledNoBackup`
    - Files: `cmd_show.go`, `yang/ze-ospf-cmd.yang`, metric registration in `computer.go`/`install.go`, the v6 engine wiring in `register.go`
-   - Verify: `show ip ospf route fast-reroute`; the five metric series; v6 base LFA; disabled-path identical to today
+   - Verify: `show ospf route fast-reroute`; the five metric series; v6 base LFA; disabled-path identical to today
 8. **Functional tests** -> the five `.ci` cover the user-visible behaviour
 9. **RFC refs** -> add `// RFC 5286 Section X` (inequalities, §3.5, §3.6, §4.1) and `// RFC 8665 Section 5/6.1` (repair-list SID forms) comments on the enforcing code
 10. **Interop** -> `ospf-lfa-frr` + `ospf-ti-lfa-frr` QEMU scenarios
@@ -510,7 +510,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | Inequality 1/3 STRICT `<`; Errata 2323 downstream against `D_opt(S,D)`; §3.5 LSInfinity gate; §3.3 broadcast PN rule; §3.6 selection order; repair-list SID label form (3-octet 20-bit); §6.3 suppression |
 | Naming | `ze_ospf_fast_reroute_*` metrics; YANG `fast-reroute` kebab-case; protection class names (link/node/downstream) |
 | Data flow | backup flows SPF -> `RouteEntry` -> `Installer` -> `locrib.Path` (carry-through) -> sysrib (non-ECMP) -> FIB; ext-5 read-only; no LSDB/codec change |
-| CLI grammar | `show ip ospf route fast-reroute` action-before-identifier |
+| CLI grammar | `show ospf route fast-reroute` action-before-identifier |
 | Doctor checks | none added (reuses existing OSPF socket + FIB netlink doctor) -- confirm |
 | YANG validation | `enable` boolean, `mode` enum, `node-protection` boolean; no bare string |
 | Prometheus counters | the five series defined, registered, listed; umbrella table updated |
@@ -652,7 +652,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code:
 | TI-LFA SR repair list from P/Q-space | unit + interop | `TestTILFARepairListFromSRMaps`, `ospf-ti-lfa-frr` |
 | Primary + backup programmed into the FIB | interop (QEMU) | `ospf-lfa-frr` kernel failover (ping survives) |
 | Per-prefix protection (not shared per-next-hop) | unit | `TestBackupPerPrimaryNextHop` |
-| `show ip ospf route fast-reroute` CLI | functional | `ospf-lfa-show.ci` |
+| `show ospf route fast-reroute` CLI | functional | `ospf-lfa-show.ci` |
 | §6.3 multi-area suppression | unit + functional | `TestLFASuppressedMultiAreaLeakage`, `ospf-lfa-multiarea.ci` |
 
 ## Review Gate

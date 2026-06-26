@@ -80,7 +80,7 @@ runs exactly as today on the Hello/Dead timers alone, on both families.
 | In-process Service lookup | Reuse `api.GetService()` (already published by the BFD plugin's `OnStarted`); nil-safe graceful degradation identical to BGP | shared |
 | Per-session subscriber goroutine | One long-lived worker per BFD-protected neighbour draining `<-chan StateChange`; translates Down -> `NeighborDown`; goroutine-lifecycle compliant, mirrors `runBFDSubscriber` (stop+done handshake) | shared |
 | Metrics | `ze_ospf_bfd_sessions` gauge, `ze_ospf_bfd_session_down_total` counter, `ze_ospf_bfd_register_failures_total` counter (unified `ze_ospf_*` namespace per learned 970; the `interface` label distinguishes v2 from v3) | shared series |
-| CLI surface | BFD enable + session state via the existing `show ip ospf neighbor`/`interface` (IPv4) and `show ipv6 ospf neighbor`/`interface` (IPv6) outputs (a `bfd` column / flag), no new top-level command | per-AF show verbs |
+| CLI surface | BFD enable + session state via the existing `show ospf neighbor`/`interface` (IPv4) and `show ospf ipv6 neighbor`/`interface` (IPv6) outputs (a `bfd` column / flag), no new top-level command | per-AF show verbs |
 
 ### Out of scope (noted so it is not silently assumed done)
 
@@ -174,7 +174,7 @@ runs exactly as today on the Hello/Dead timers alone, on both families.
 - `interfaceConfig` / `iface.Config` / `neighbor.InterfaceConfig` gain BFD fields (enabled + timers); the parse path serves both the IPv4 and `address-family ipv6` interface lists.
 - `neighborEventSink` (or an equivalent lifecycle observer) opens a single-hop session on Full (AF-dispatched by `codec.IsV6()`) and releases it on leaving Full.
 - A BFD Down transition now drives `Table.NeighborDown` (a new, faster trigger for an existing transition), on both families.
-- `show ip ospf neighbor`/`interface` (IPv4) and `show ipv6 ospf neighbor`/`interface` (IPv6) surface BFD session state (additive columns).
+- `show ospf neighbor`/`interface` (IPv4) and `show ospf ipv6 neighbor`/`interface` (IPv6) surface BFD session state (additive columns).
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
@@ -270,8 +270,8 @@ runs exactly as today on the Hello/Dead timers alone, on both families.
 
 | AC ID | Address family | Input / Condition | Expected Behavior |
 |-------|----------------|-------------------|-------------------|
-| AC-1 | IPv4 | `ospf interface eth0 { bfd { enabled true; min-tx 50; min-rx 50; multiplier 3 } }` | parsed into `interfaceConfig.BFD{Enabled:true, MinTxUs:50000, MinRxUs:50000, Multiplier:3}` on the IPv4 sub-config; surfaced in `show ip ospf interface` as BFD enabled |
-| AC-1b | IPv6 | `ospf address-family ipv6 { interface eth0 { bfd { enabled true; min-tx 50; min-rx 50; multiplier 3 } } }` | parsed into the same struct on the v6 sub-config; surfaced in `show ipv6 ospf interface` as BFD enabled |
+| AC-1 | IPv4 | `ospf interface eth0 { bfd { enabled true; min-tx 50; min-rx 50; multiplier 3 } }` | parsed into `interfaceConfig.BFD{Enabled:true, MinTxUs:50000, MinRxUs:50000, Multiplier:3}` on the IPv4 sub-config; surfaced in `show ospf interface` as BFD enabled |
+| AC-1b | IPv6 | `ospf address-family ipv6 { interface eth0 { bfd { enabled true; min-tx 50; min-rx 50; multiplier 3 } } }` | parsed into the same struct on the v6 sub-config; surfaced in `show ospf ipv6 interface` as BFD enabled |
 | AC-2 | IPv4 | An IPv4 neighbour on a BFD-enabled interface transitions to Full, BFD plugin loaded | exactly one IPv4 single-hop `api.SessionRequest` (Mode SingleHop, Peer = neighbour IPv4, Local = interface IPv4, Interface = ifname, timers from config) sent to `EnsureSession`; a subscriber goroutine running |
 | AC-2b | IPv6 | An IPv6 neighbour on a BFD-enabled interface transitions to Full (engine `IsV6()`), BFD plugin loaded | exactly one IPv6 single-hop `api.SessionRequest` (Mode SingleHop, Peer = neighbour link-local, Local = interface link-local, Interface = ifname, timers from config) sent to `EnsureSession`; a subscriber goroutine running |
 | AC-3 | both | A neighbour on an interface WITHOUT BFD enabled reaches Full | no `EnsureSession` call; OSPF runs on timers alone |
@@ -286,7 +286,7 @@ runs exactly as today on the Hello/Dead timers alone, on both families.
 | AC-12 | dual-stack | A dual-stack link runs both OSPFv2 and OSPFv3 with BFD on each | two distinct BFD sessions (distinct `Key`: IPv4 pair vs link-local pair); releasing one does not affect the other |
 | AC-13 | per-AF | The request `Peer`/`Local` types | the v4 family request carries IPv4 `netip.Addr`; the v6 family request carries IPv6 link-local `netip.Addr` (never an IPv4 address); `Mode: SingleHop` in both |
 | AC-14 | both | `min-tx 0` or `multiplier 0` in config | rejected at parse/validation time with a clear error (YANG `range` + `parseInterface` guard) |
-| AC-15 | both | `show ip ospf neighbor` (IPv4) / `show ipv6 ospf neighbor` (IPv6) for a BFD-protected, Up neighbour | shows the BFD session state (Up); a down/absent session is distinguishable |
+| AC-15 | both | `show ospf neighbor` (IPv4) / `show ospf ipv6 neighbor` (IPv6) for a BFD-protected, Up neighbour | shows the BFD session state (Up); a down/absent session is distinguishable |
 | AC-16 | both | The OSPF plugin is removed from the build | no `ze_ospf_bfd_*` metrics, no OSPF BFD code; the BFD engine and BGP-BFD client are unaffected (self-containment) |
 
 ## End-to-End User Stories (MANDATORY for new features)
@@ -296,7 +296,7 @@ runs exactly as today on the Hello/Dead timers alone, on both families.
 | 1 | Enables BFD on an OSPFv2 interface and forms an adjacency with FRR `ospfd` | config -> `parseInterface` -> Full -> `EnsureSession` (IPv4 single-hop) -> BFD handshake with FRR's `bfdd` -> session Up | `test/ospf/ospf-bfd-session.ci` + `ospf-bfd-frr` interop |
 | 2 | Enables BFD on an OSPFv3 interface and forms an adjacency with FRR `ospf6d` | config -> `parseInterface` (v6 sub-config) -> Full -> `EnsureSession` (IPv6 single-hop, link-local pair) -> BFD handshake with FRR's `bfdd` -> session Up | `test/ospfv3/ospfv3-bfd-session.ci` + `ospfv3-bfd-frr` interop |
 | 3 | Pulls the link / kills FRR; OSPF detects the loss in the BFD detection window, not after RouterDeadInterval | BFD detect-timer expiry -> `StateDown` -> subscriber -> `Table.NeighborDown` -> neighbour Down -> SPF re-run -> route withdrawal, all well under 40 s (both families) | `ospf-bfd-frr` + `ospfv3-bfd-frr` measure detect time < RouterDeadInterval |
-| 4 | Runs `show ip ospf neighbor` / `show ipv6 ospf neighbor` and sees which adjacencies are BFD-protected and the session state | snapshot -> neighbour rows annotated with BFD state from the session map | `test/ospf/ospf-bfd-show.ci` + `test/ospfv3/ospfv3-bfd-show.ci` |
+| 4 | Runs `show ospf neighbor` / `show ospf ipv6 neighbor` and sees which adjacencies are BFD-protected and the session state | snapshot -> neighbour rows annotated with BFD state from the session map | `test/ospf/ospf-bfd-show.ci` + `test/ospfv3/ospfv3-bfd-show.ci` |
 | 5 | Runs BFD on a dual-stack link for both OSPFv2 and OSPFv3 simultaneously | two distinct sessions (IPv4 pair + link-local pair); each family's down is independent | `TestOSPFv3BFDDistinctFromV2OnSameLink` + `ospfv3-bfd-frr` dual-stack variant |
 | 6 | Disables BFD on a live link without dropping OSPF | reload `bfd { enabled false }` -> sessions released -> adjacencies stay Full | `test/ospf/ospf-bfd-disable.ci` + `test/ospfv3/ospfv3-bfd-disable.ci` |
 | 7 | Runs OSPF on a box where the BFD plugin was never loaded | `GetService()==nil` -> warning -> OSPF on timers; no crash, no blocked adjacency | `TestOSPFBFDGracefulWhenPluginAbsent` + `TestOSPFv3BFDGracefulWhenPluginAbsent` |
@@ -345,12 +345,12 @@ runs exactly as today on the Hello/Dead timers alone, on both families.
 | Test | Location | Address family | End-User Scenario | Status |
 |------|----------|----------------|-------------------|--------|
 | `ospf-bfd-config` | `test/ospf/ospf-bfd-config.ci` | IPv4 | `bfd { enabled true; min-tx ...; multiplier ... }` parses; coexists with the top-level `bfd` and BGP `bfd` | |
-| `ospf-bfd-session` | `test/ospf/ospf-bfd-session.ci` | IPv4 | a Full adjacency opens a BFD session; `show ip ospf neighbor` shows it protected | |
-| `ospf-bfd-show` | `test/ospf/ospf-bfd-show.ci` | IPv4 | `show ip ospf interface`/`neighbor` render BFD enabled + session state | |
+| `ospf-bfd-session` | `test/ospf/ospf-bfd-session.ci` | IPv4 | a Full adjacency opens a BFD session; `show ospf neighbor` shows it protected | |
+| `ospf-bfd-show` | `test/ospf/ospf-bfd-show.ci` | IPv4 | `show ospf interface`/`neighbor` render BFD enabled + session state | |
 | `ospf-bfd-disable` | `test/ospf/ospf-bfd-disable.ci` | IPv4 | reload disabling BFD releases sessions without dropping the adjacency | |
 | `ospfv3-bfd-config` | `test/ospfv3/ospfv3-bfd-config.ci` | IPv6 | `bfd { ... }` parses under `address-family ipv6 interface`; coexists with the v2 `bfd`, top-level `bfd`, and BGP `bfd` | |
-| `ospfv3-bfd-session` | `test/ospfv3/ospfv3-bfd-session.ci` | IPv6 | a Full v3 adjacency opens a BFD session; `show ipv6 ospf neighbor` shows it protected | |
-| `ospfv3-bfd-show` | `test/ospfv3/ospfv3-bfd-show.ci` | IPv6 | `show ipv6 ospf interface`/`neighbor` render BFD enabled + session state | |
+| `ospfv3-bfd-session` | `test/ospfv3/ospfv3-bfd-session.ci` | IPv6 | a Full v3 adjacency opens a BFD session; `show ospf ipv6 neighbor` shows it protected | |
+| `ospfv3-bfd-show` | `test/ospfv3/ospfv3-bfd-show.ci` | IPv6 | `show ospf ipv6 interface`/`neighbor` render BFD enabled + session state | |
 | `ospfv3-bfd-disable` | `test/ospfv3/ospfv3-bfd-disable.ci` | IPv6 | reload disabling BFD releases sessions without dropping the v3 adjacency | |
 
 ### Interop Tests (MANDATORY for protocol features)
@@ -378,7 +378,7 @@ runs exactly as today on the Hello/Dead timers alone, on both families.
 - `internal/plugins/ospf/instance.go` -- the AF-neutral BFD lifecycle observer: open on Full, release on down; the per-neighbour `bfdClient` map lives on the engine; `bfdRequestForNeighbor` dispatches on `e.dispatch.codec.IsV6()`; `neighborInterfaceConfig`/`interfaceRuntimeConfigLocked` carry the BFD fields; for the v6 family read the interface IPv6 link-local source from the v3 transport
 - `internal/plugins/ospf/v3/transport/transport.go` / `backend_linux.go` -- expose a typed engine-facing accessor for the interface's IPv6 link-local source (`LinkLocalSource()` exists on the backend; surface it through the orchestrator if not already reachable from the engine)
 - `internal/plugins/ospf/register.go` -- register `ze_ospf_bfd_sessions`, `ze_ospf_bfd_session_down_total`, `ze_ospf_bfd_register_failures_total` (shared series for both families; get-or-create); doctor informational check (BFD configured but plugin absent)
-- `internal/plugins/ospf/cmd_show.go` / `show_summary.go` -- annotate `show ip ospf neighbor`/`interface` (IPv4) and `show ipv6 ospf neighbor`/`interface` (IPv6) rows with BFD enabled + session state
+- `internal/plugins/ospf/cmd_show.go` / `show_summary.go` -- annotate `show ospf neighbor`/`interface` (IPv4) and `show ospf ipv6 neighbor`/`interface` (IPv6) rows with BFD enabled + session state
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- a `container bfd` under the `list interface` in BOTH the IPv4 tree and the `address-family ipv6` tree, with `enabled` (boolean), `min-tx`/`min-rx` (uint32 us, range), `multiplier` (uint8, range)
 - `internal/plugins/ospf/doctor.go` -- informational doctor check: BFD enabled on an interface but `api.GetService()` nil
 - `internal/core/diagnostic/codes.go` -- the doctor diagnostic code for the BFD-configured-but-absent check (per `ai/rules/doctor-checks.md`)
@@ -390,7 +390,7 @@ runs exactly as today on the Hello/Dead timers alone, on both families.
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- `bfd` container on `interface` (both trees); read `ai/rules/config-surface.md` (operational config, not env var) + `ai/rules/config-naming.md` (kebab-case leaves) |
 | YANG validation constraints | [ ] yes | `enabled` boolean; `min-tx`/`min-rx` `uint32 { range "10..255000"; }`; `multiplier` `uint8 { range "1..255"; }`; `units microseconds` on the timers |
 | YANG custom validators | [ ] no | native `range` + `boolean` suffice |
-| CLI commands/flags | [ ] yes | annotate `show ip ospf interface`/`neighbor` and `show ipv6 ospf interface`/`neighbor` with a BFD column; no new top-level verb |
+| CLI commands/flags | [ ] yes | annotate `show ospf interface`/`neighbor` and `show ospf ipv6 interface`/`neighbor` with a BFD column; no new top-level verb |
 | CLI grammar (action before identifier) | [ ] n/a | no new verb added |
 | Editor autocomplete | [ ] yes | automatic for the YANG boolean/uint leaves under `bfd` |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-bfd-*.ci` + `test/ospfv3/ospfv3-bfd-*.ci` |
@@ -416,7 +416,7 @@ runs exactly as today on the Hello/Dead timers alone, on both families.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- BFD for OSPF (both families) |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md` + `docs/guide/ospf.md` -- the per-interface `bfd` block under both `ospf interface` and `address-family ipv6 interface` |
-| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- BFD column in `show ip ospf` and `show ipv6 ospf` neighbor/interface |
+| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- BFD column in `show ospf` and `show ospf ipv6` neighbor/interface |
 | 4 | API/RPC added/changed? | [ ] no | reuses the frozen `internal/component/bfd/api` surface; no new RPC |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains a BFD client (both families) |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` + `docs/guide/bfd.md` -- OSPF opt-in section (IPv4 and IPv6) |

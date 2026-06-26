@@ -219,7 +219,7 @@ must be transmitted and demultiplexed correctly against another RFC 6549 speaker
 | R-3 | Auth breaks because the verifier still treats offsets 14-15 as a 16-bit AuType | AuType 2/3 interop or unit auth tests fail after the split | adjust `auth_verify.go` in the same phase as the header split; `TestAuthUnaffectedByInstanceSplit` |
 | R-4 | Two v4 engines on one transport race on shared transport state or double-process a datagram | duplicate Hellos / duplicate LSAs in logs; data race under `-race` | each engine demuxes independently; the transport fan-out is read-only per engine; `TestSharedTransportFanOut` run under `-race`; if the transport cannot be shared, fall back to per-instance transport binding |
 | R-5 | Engine lifecycle leak: removing an Instance ID from config leaves its engine (and neighbors/LSDB) running | a removed instance keeps sending Hellos; stale neighbors persist | `register.go` reconciles the engine set on reload (add new, tear down removed); `TestInstanceRemovedTearsDown` |
-| R-6 | A non-zero Instance ID Hello reaches the wrong engine's neighbor FSM (demux gap) and forms a cross-instance adjacency | a neighbor appears under the wrong Instance ID; `show ip ospf neighbor` lists it in the wrong instance | the demux drops before the handler runs; `TestNeighborOnlyFormsWithinInstance` proves no cross-instance adjacency |
+| R-6 | A non-zero Instance ID Hello reaches the wrong engine's neighbor FSM (demux gap) and forms a cross-instance adjacency | a neighbor appears under the wrong Instance ID; `show ospf neighbor` lists it in the wrong instance | the demux drops before the handler runs; `TestNeighborOnlyFormsWithinInstance` proves no cross-instance adjacency |
 | R-7 | Config shape ambiguity: per-interface `instance-id` cannot express two instances sharing one interface (a single interface leaf holds one value) | a user wants two instances on `eth0` and the config cannot express it | the config models instances as the unit (an interface can be enrolled under multiple instances); decide the YANG shape in Phase 0 design and pin it in `TestConfigTwoInstancesOneInterface` |
 | R-8 | Decoder panic on a truncated header after the split (off-by-one on the new field) | fuzz crash in `packet` | the split reuses the existing bound-checked `CommonHeaderLen` guard; extend the existing `packet` fuzz target; `TestDecodeHeaderTruncated` |
 
@@ -242,7 +242,7 @@ must be transmitted and demultiplexed correctly against another RFC 6549 speaker
 | AC-3 | `v4Codec.DecodeHeader` on a packet whose header Instance ID is N | the neutral `Header.InstanceID == N` (no longer hard-coded 0) |
 | AC-4 | A received OSPFv2 packet whose Instance ID does not match the receiving engine's configured Instance ID | the packet is discarded before any handler / neighbor FSM runs; no adjacency forms; the drop counter increments (RFC 6549 §2, §3.1 MUST) |
 | AC-5 | An interface configured with `instance-id 5` transmits a Hello/DD/LSReq/LSUpdate/LSAck | every outgoing OSPFv2 packet header carries Instance ID 5 at offset 14 |
-| AC-6 | `ospf { interfaces { interface eth0 { instance-id 5 } } }` committed | exactly one OSPFv2 engine bound to Instance ID 5 is created, with its own LSDB/SPF/neighbor table; `show ip ospf` reflects the instance |
+| AC-6 | `ospf { interfaces { interface eth0 { instance-id 5 } } }` committed | exactly one OSPFv2 engine bound to Instance ID 5 is created, with its own LSDB/SPF/neighbor table; `show ospf` reflects the instance |
 | AC-7 | Two OSPFv2 instances (e.g. IDs 0 and 5) configured on overlapping interfaces | both engines run on the shared transport; each demuxes its own Instance ID; their LSDBs and neighbor tables are fully isolated (no LSA or neighbor crosses instances) |
 | AC-8 | An Instance ID present in the running config is removed and the config recommitted | the corresponding engine is torn down, stops transmitting, and releases its neighbors/LSDB; remaining instances are unaffected |
 | AC-9 | A Ze interface at Instance ID 0 peers with a legacy OSPFv2 router (FRR) | full adjacency forms exactly as today; the legacy peer sees today's bytes |
@@ -256,7 +256,7 @@ must be transmitted and demultiplexed correctly against another RFC 6549 speaker
 |---|-----------|--------------------|-----------------------|
 | 1 | Configures a single OSPFv2 instance (no `instance-id`, default 0) and peers with FRR | config -> one v4 engine (Instance ID 0) -> Hello/DD carry Instance ID 0 (today's bytes) -> full adjacency with FRR | `ospf-multiinstance-frr` interop (Instance ID 0 path) + existing OSPFv2 interop suite |
 | 2 | Configures `instance-id 5` on a set of interfaces and peers with a second Ze (also Instance ID 5) | config -> v4 engine (Instance ID 5) -> packets tagged 5 -> peer's Instance-ID-5 engine accepts, demuxes, forms adjacency | `test/ospf/ospf-instance-demux.ci` + `ospf-multiinstance-frr` (Ze<->BIRD non-zero) |
-| 3 | Runs two instances (0 and 5) on the same interface set | config -> two v4 engines on one transport -> each demuxes its own ID -> `show ip ospf instance` lists both with separate databases | `test/ospf/ospf-instance-config.ci` (two instances, isolated `show` output) |
+| 3 | Runs two instances (0 and 5) on the same interface set | config -> two v4 engines on one transport -> each demuxes its own ID -> `show ospf instance` lists both with separate databases | `test/ospf/ospf-instance-config.ci` (two instances, isolated `show` output) |
 | 4 | Removes the Instance-ID-5 instance and recommits | config diff -> `register.go` tears down the Instance-ID-5 engine -> it stops sending Hellos; instance 0 unaffected | `test/ospf/ospf-instance-teardown.ci` |
 | 5 | Decodes an OSPFv2 packet with a non-zero Instance ID via the CLI | CLI -> `packet.DecodeHeader` -> Instance ID and AuType rendered as separate fields | `test/ospf/ospf-instance-decode.ci` |
 | 6 | Brings a non-zero-instance Ze interface onto a subnet with a legacy FRR router | Ze tags Instance ID N; FRR reads a 16-bit AuType mismatch and drops; no adjacency, no crash on either side | `ospf-multiinstance-frr` interop (legacy-isolation path) |
@@ -292,7 +292,7 @@ must be transmitted and demultiplexed correctly against another RFC 6549 speaker
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ospf-instance-config` | `test/ospf/ospf-instance-config.ci` | `instance-id 5` on interfaces spawns an instance; `show ip ospf instance` lists it with its own database | |
+| `ospf-instance-config` | `test/ospf/ospf-instance-config.ci` | `instance-id 5` on interfaces spawns an instance; `show ospf instance` lists it with its own database | |
 | `ospf-instance-demux` | `test/ospf/ospf-instance-demux.ci` | two Ze nodes at Instance ID 5 form an adjacency; a node at Instance ID 0 on the same subnet does not | |
 | `ospf-instance-teardown` | `test/ospf/ospf-instance-teardown.ci` | removing an Instance ID stops its Hellos and clears its neighbors; other instances unaffected | |
 | `ospf-instance-decode` | `test/ospf/ospf-instance-decode.ci` | `ze` decode of a non-zero-instance OSPFv2 packet shows Instance ID and AuType as separate fields | |
@@ -326,8 +326,8 @@ must be transmitted and demultiplexed correctly against another RFC 6549 speaker
 - `internal/plugins/ospf/iface/iface.go` -- add `InstanceID uint8` to the per-interface `Config`; carry it on the v4 Hello encoder so every Hello header is stamped
 - `internal/plugins/ospf/neighbor/neighbor.go` -- carry the engine's Instance ID through `encodeV4` so DD/LSReq/LSUpdate/LSAck headers are stamped
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- add an `instance-id` leaf to the OSPFv2 per-interface `list interface` (lines 164-191), `type uint8 { range "0..255"; } default 0`, mirroring the v6 leaf at line 262
-- `internal/plugins/ospf/cmd_show.go` -- surface the per-instance view (the engine's Instance ID) in `show ip ospf` / a `show ip ospf instance` summary
-- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- the `show ip ospf instance` command leaf (if a dedicated subcommand is added)
+- `internal/plugins/ospf/cmd_show.go` -- surface the per-instance view (the engine's Instance ID) in `show ospf` / a `show ospf instance` summary
+- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- the `show ospf instance` command leaf (if a dedicated subcommand is added)
 - `internal/plugins/ospf/doctor.go` -- (only if a runtime dependency is added; none expected -- no new socket/port/binary)
 
 ### Integration Checklist
@@ -336,11 +336,11 @@ must be transmitted and demultiplexed correctly against another RFC 6549 speaker
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- per-interface `instance-id` leaf; read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | `instance-id` is `type uint8 { range "0..255"; } default 0` (native, mirrors the v6 leaf) |
 | YANG custom validators | [ ] no | native uint8 range suffices |
-| CLI commands/flags | [ ] yes | `show ip ospf instance` (or instance column in `show ip ospf neighbor`/`database`) in `ze-ospf-cmd.yang` + `cmd_show.go` |
-| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ip ospf instance` |
+| CLI commands/flags | [ ] yes | `show ospf instance` (or instance column in `show ospf neighbor`/`database`) in `ze-ospf-cmd.yang` + `cmd_show.go` |
+| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ospf instance` |
 | Editor autocomplete | [ ] yes | automatic for the YANG uint8 leaf + the new show subcommand |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-instance-*.ci` |
-| Pipe completeness | [ ] yes | `show ip ospf instance` routes through `ApplyPipes` like the other show outputs |
+| Pipe completeness | [ ] yes | `show ospf instance` routes through `ApplyPipes` like the other show outputs |
 | Env var registration | [ ] no | `instance-id` is operational routing config, not an `environment/` leaf |
 | Doctor check for runtime dependencies | [ ] no | no new socket/port/binary/cert; instances share the existing OSPFv2 raw socket/transport |
 | Prometheus counters/metrics | [ ] yes | see the metrics rows below |
@@ -362,7 +362,7 @@ must be transmitted and demultiplexed correctly against another RFC 6549 speaker
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPFv2 multi-instance (RFC 6549) |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md` -- the per-interface `instance-id` leaf |
-| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ip ospf instance` |
+| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ospf instance` |
 | 4 | API/RPC added/changed? | [ ] no | show RPCs live in the central `ze-show` namespace; document under the command reference |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains multi-instance |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- a multi-instance section |
@@ -442,7 +442,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 6. **Phase: CLI + metrics** -- user surface
    - Tests: `ospf-instance-config.ci`, `ospf-instance-decode.ci`
    - Files: `cmd_show.go`, `yang/ze-ospf-cmd.yang`, `packet/json.go` (decode shows Instance ID + AuType), metric registration
-   - Verify: `show ip ospf instance` lists instances; decode shows the split fields; the two metric series register
+   - Verify: `show ospf instance` lists instances; decode shows the split fields; the two metric series register
 7. **Functional tests** -> the four `.ci` cover the user-visible behaviour
 8. **RFC refs** -> add `// RFC 6549 Section 2 / 3.1` comments on the split, the demux discard, and the transmit tagging
 9. **Interop** -> `ospf-multiinstance-frr` QEMU scenario (FRR legacy at ID 0, BIRD multi-instance at non-zero)
@@ -457,7 +457,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | offset-14 = Instance ID, offset-15 = AuType (byte order); Instance ID 0 unchanged; demux discard before any handler; transmit stamps every packet type; engines isolated; reload reconciles |
 | Naming | `instance-id` YANG leaf (kebab-case, mirrors v6); `ze_ospf_instance*` metrics; `InstanceID` field |
 | Data flow | Instance ID flows wire -> codec -> AF-neutral Header -> demux; no shared LSDB/neighbor across instances; no Instance-ID spelling outside the OSPF plugin |
-| CLI grammar | `show ip ospf instance` action-before-identifier |
+| CLI grammar | `show ospf instance` action-before-identifier |
 | Doctor checks | none added (no new runtime dependency) -- confirm |
 | YANG validation | the `instance-id` leaf is a native `uint8 range "0..255"` |
 | Prometheus counters | the two series defined, registered, listed; umbrella table updated |

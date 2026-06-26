@@ -240,7 +240,7 @@ netlink mechanics.
 | R-2 | Shared-key (§7) modeling wrong -- two SAs with different in/out keys -- breaks multicast where every router uses the same group key | FRR rejects Ze's multicast OSPF IPv6-family packets; one-way adjacency | model one key per interface feeding both SAs; pin against FRR in `ospf-ipsec-frr`; `TestSAParamsSharedKey` |
 | R-2b | SPI collision: the same SPI on inbound and outbound is required for the shared group SA, or the kernel rejects a duplicate | XFRM `EEXIST` on the second `InstallSA` | follow RFC 4552 §7: in and out share SA parameters but the kernel keys SAs by (dst, proto, SPI); use the configured SPI for both directions with the correct dst selector; `TestXFRMSharedSPIInOut` (QEMU) |
 | R-3 | Extending `SAParams`/`SPParams` changes IKE ESP behavior (regression in the IPsec component) | IKE site-to-site SAs stop installing | additive fields with zero-value = today's behavior; run the existing IKE dataplane tests; `TestDataplaneIKEUnaffected` |
-| R-4 | Key material logged or surfaced in `show`/diagnostics | a hex key appears in a log line or `show ipv6 ospf interface` | `ze:sensitive` on the YANG key leaves; the installer never logs key bytes; doctor reports presence not value; security-review check |
+| R-4 | Key material logged or surfaced in `show`/diagnostics | a hex key appears in a log line or `show ospf ipv6 interface` | `ze:sensitive` on the YANG key leaves; the installer never logs key bytes; doctor reports presence not value; security-review check |
 | R-5 | The kernel drops protected OSPF packets due to a checksum/source mismatch under IPsec (the SA src selector must equal the on-wire link-local source) | adjacency never forms with IPsec on, forms with it off | derive the SA selector src from `transport.LinkLocalSource()` (the exact on-wire source); `TestIPsecSelectorMatchesLinkLocal` + QEMU |
 | R-6 | Removal leaves stale SAs/policies after interface flap or config change, blocking re-adjacency | adjacency fails after a config change; `ip xfrm state` shows orphan SAs | reconcile diff installed-vs-desired; `RemoveSA`/`RemovePolicy` on down and on changed SPI; `TestIPsecReconcileReplacesSA` |
 | R-7 | XFRM unavailable (no CAP_NET_ADMIN, no kernel IPsec) yields a silent no-op and an unprotected adjacency the operator believes is protected | OSPF IPv6-family forms an adjacency despite IPsec configured but no SA in `ip xfrm` | doctor check warns; the installer logs an error and (configurable) refuses to bring the interface up when IPsec is required but uninstallable; `TestIPsecDoctorWarnsWhenXFRMUnavailable` |
@@ -274,7 +274,7 @@ netlink mechanics.
 | AC-12 | XFRM/dataplane is unavailable (no CAP_NET_ADMIN) but IPsec is configured | doctor reports a warning with code `doctor-ospfv3-ipsec`; the installer logs an error and does not silently pretend the interface is protected |
 | AC-13 | Two Ze routers (or Ze + FRR `ospf6d`) on a link with matching manual SAs | adjacency reaches Full; OSPF IPv6-family packets on the wire carry AH or ESP; `ip xfrm state`/`policy` show the installed transport-mode entries |
 | AC-14 | An IKE site-to-site ESP tunnel configured alongside (unrelated) | IKE ESP SAs install exactly as before the dataplane extension (no regression) |
-| AC-15 | Operator runs `show ipv6 ospf interface` and the IPsec doctor | the interface shows IPsec enabled with protocol/SPI (key value never shown); doctor confirms SAs installed |
+| AC-15 | Operator runs `show ospf ipv6 interface` and the IPsec doctor | the interface shows IPsec enabled with protocol/SPI (key value never shown); doctor confirms SAs installed |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -323,7 +323,7 @@ netlink mechanics.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `ospf-ipsec-config` | `test/ospfv3/ospf-ipsec-config.ci` | a well-formed IPsec block parses; bad blocks (AH+enc, under-IPv4, +7166) are rejected with clear errors | |
-| `ospf-ipsec-install` | `test/ospfv3/ospf-ipsec-install.ci` | bringing up an IPsec interface installs the kernel policy+SAs; `show ipv6 ospf interface` shows IPsec on | |
+| `ospf-ipsec-install` | `test/ospfv3/ospf-ipsec-install.ci` | bringing up an IPsec interface installs the kernel policy+SAs; `show ospf ipv6 interface` shows IPsec on | |
 | `ospf-ipsec-drop` | `test/ospfv3/ospf-ipsec-drop.ci` | an injected unprotected proto-89 packet is dropped; the XFRM drop metric increments (QEMU) | |
 | `ospf-ipsec-rekey` | `test/ospfv3/ospf-ipsec-rekey.ci` | changing SPI/key reconciles cleanly; adjacency re-forms | |
 | `ospf-ipsec-remove` | `test/ospfv3/ospf-ipsec-remove.ci` | removing IPsec clears all kernel state | |
@@ -351,7 +351,7 @@ netlink mechanics.
 - `internal/plugins/ospf/config.go` -- add `IPsec *ipsecInterfaceConfig` to `interfaceConfig`; parse the IPv6-family `ipsec` block; validate (ranges, hex-vs-algo, ESP-only confidentiality, IPv6-family-only, 7166 mutual-exclusion)
 - `internal/plugins/ospf/register.go` -- construct the IPsec installer and register its `OnInterfaceUp`/`OnInterfaceDown` callbacks against the `eng6` transport; load the xfrm dataplane backend when IPv6-family IPsec is configured
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- the `ipsec` container under the IPv6 address-family interface (`spi`, `protocol`, `algorithm`, `key`, `encryption`, `encryption-algorithm`, `encryption-key`), key leaves `ze:sensitive`
-- `internal/plugins/ospf/cmd_show.go` + `internal/plugins/ospf/show_summary.go` -- `show ipv6 ospf interface` reflects IPsec enabled + protocol/SPI (never the key)
+- `internal/plugins/ospf/cmd_show.go` + `internal/plugins/ospf/show_summary.go` -- `show ospf ipv6 interface` reflects IPsec enabled + protocol/SPI (never the key)
 - `internal/plugins/ospf/v3/transport/transport.go` -- (only if needed) expose the bound `LinkLocalSource` for an open interface to the installer; otherwise read it via the existing handle accessor
 - `internal/core/diagnostic/codes.go` -- register the `doctor-ospfv3-ipsec` diagnostic code (title/description/examples) alongside the existing IPv6-family raw-socket code
 
@@ -361,11 +361,11 @@ netlink mechanics.
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- the IPv6 address-family interface `ipsec` container; read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | `spi` `range "256..4294967295"`; `protocol`/`algorithm`/`encryption-algorithm` enumerations; `key`/`encryption-key` `pattern` for hex + `length`; `ze:sensitive` on key leaves |
 | YANG custom validators | [ ] yes | a `ze:validate` validator enforces hex-length-vs-algorithm, ESP-only-confidentiality, and the 7166 mutual-exclusion (native YANG cannot express cross-leaf rules) |
-| CLI commands/flags | [ ] yes | `show ipv6 ospf interface` IPsec status in `ze-ospf-cmd.yang` + `cmd_show.go` |
-| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ipv6 ospf interface` |
+| CLI commands/flags | [ ] yes | `show ospf ipv6 interface` IPsec status in `ze-ospf-cmd.yang` + `cmd_show.go` |
+| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ospf ipv6 interface` |
 | Editor autocomplete | [ ] yes | automatic for the YANG enums; `CompleteFn` not required (no dynamic values) |
 | Functional test for new RPC/API | [ ] yes | `test/ospfv3/ospf-ipsec-*.ci` |
-| Pipe completeness | [ ] yes | `show ipv6 ospf interface` already routes through `ApplyPipes`; the IPsec field inherits it |
+| Pipe completeness | [ ] yes | `show ospf ipv6 interface` already routes through `ApplyPipes`; the IPsec field inherits it |
 | Env var registration | [ ] no | IPsec parameters are per-interface operational config, not `environment/` leaves |
 | Doctor check for runtime dependencies | [ ] yes | XFRM availability + manual-SA sanity: owning-package doctor check, `doctor-ospfv3-ipsec` in `internal/core/diagnostic/codes.go`, unit test, functional test (`ai/rules/doctor-checks.md`) |
 | Prometheus counters/metrics | [ ] yes | see the metrics rows below |
@@ -388,7 +388,7 @@ netlink mechanics.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPF IPv6-family IPsec AH/ESP authentication |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` -- the IPv6-family interface `ipsec` block |
-| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ipv6 ospf interface` IPsec status |
+| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ospf ipv6 interface` IPsec status |
 | 4 | API/RPC added/changed? | [ ] no | the show RPC lives in the central `ze-show` namespace; document under the command reference |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains an IPv6-family IPsec installer |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- an IPsec section under the IPv6 family, distinguished from RFC 7166 |
@@ -456,7 +456,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 5. **Phase: Doctor + metrics + show** -- the operator surface
    - Tests: `TestIPsecDoctorWarnsWhenXFRMUnavailable`, `test/ospfv3/ospf-ipsec-doctor.ci`, the four metric series asserted in install tests
    - Files: `doctor_ipsec.go`, `codes.go` (the diagnostic code), `cmd_show.go`/`show_summary.go` (IPsec status), metric registration in `ipsec_install.go`
-   - Verify: doctor warns correctly; `show ipv6 ospf interface` shows IPsec on without the key; metrics register
+   - Verify: doctor warns correctly; `show ospf ipv6 interface` shows IPsec on without the key; metrics register
 6. **Functional tests** -> the six `.ci` cover config, install, drop, rekey, remove, doctor (drop/install are QEMU)
 7. **RFC refs** -> add `// RFC 4552 Section X` comments on the transport-mode (§2), AH/ESP (§3), confidentiality-ESP-only (§4), proto-89/IP-version (§5), interface-selected-SPD (§6), and manual-shared-key (§7) enforcement points
 8. **Interop** -> `ospf-ipsec-frr` (ESP) and `ospf-ipsec-ah-frr` (AH) QEMU scenarios
@@ -471,7 +471,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | transport mode only; ESP-must/AH-may; confidentiality ESP-only; proto-89 selector; shared key feeds both SAs (§7); install precedes first Hello; reconcile removes the old SA |
 | Naming | `ze_ospfv3_ipsec_*` metrics; YANG `ipsec`/`spi`/`protocol`/`algorithm`/`key` kebab-case; `doctor-ospfv3-ipsec` |
 | Data flow | config -> installer -> dataplane -> kernel; the dataplane names no OSPF symbol; the kernel verifies (Ze never sets the dispatch auth-OK hook for IPsec) |
-| CLI grammar | `show ipv6 ospf interface` action-before-identifier |
+| CLI grammar | `show ospf ipv6 interface` action-before-identifier |
 | Doctor checks | `doctor-ospfv3-ipsec` registered, no-op unless IPsec configured, warns when XFRM unavailable |
 | YANG validation | `spi` range, enums, hex pattern+length, `ze:sensitive` keys, custom cross-leaf validator |
 | Prometheus counters | the four series defined, registered, listed; umbrella table updated |

@@ -19,7 +19,7 @@
 7. `internal/plugins/ospf/spf/route.go` -- `RouteEntry{Prefix, Type RouteType}`, `RouteType` (`RouteIntraArea`/`RouteInterArea`/external), `stubPrefix`, `BuildRoutes` (the source of advertised intra/inter-area prefixes and their route types -> the Extended Prefix TLV Route Type field)
 8. `internal/plugins/ospf/packet/lsa_router.go` -- `RouterLink{LinkID, LinkData, LinkType, Metric}`, `RouterLinkTypeP2P/Transit/Stub/Virtual` (the Link Type / Link ID / Link Data the Extended Link TLV mirrors from the Router-LSA, RFC 2328 §A.4.2)
 9. `internal/plugins/ospf/instance.go` -- `originateSelfLSAs` (the topology-change origination trigger ext-prefix/link hangs off via ext-1's consumer `OnOriginate`), the route/prefix snapshots
-10. `internal/plugins/ospf/show_database.go` -- `dbSubviewType` (the `show ip ospf database <type>` map to extend with `opaque-area`/`opaque-as` extended views)
+10. `internal/plugins/ospf/show_database.go` -- `dbSubviewType` (the `show ospf database <type>` map to extend with `opaque-area`/`opaque-as` extended views)
 
 ## Task
 
@@ -45,7 +45,7 @@ and the hook ext-5 plugs into. A built-without-ext-5 router originates Extended
 Prefix/Link LSAs whose top-level TLVs carry their fixed fields and zero sub-TLVs,
 floods them per scope (via ext-1), receives and decodes peers' Extended
 Prefix/Link LSAs, walks their sub-TLVs (delivering unknown ones to nobody but
-never crashing), and shows them under `show ip ospf database opaque-area`.
+never crashing), and shows them under `show ospf database opaque-area`.
 
 The two LSAs register with ext-1 as opaque consumers: Opaque Type 7 at scope
 area (LS Type 10) or AS (LS Type 11), Opaque Type 8 at scope area (LS Type 10)
@@ -69,7 +69,7 @@ then re-flood Type 7/8 verbatim as unregistered opaque LSAs).
 | Malformed-LSA guard (§5) | a TLV/sub-TLV overrunning the subsuming LSA/TLV/sub-TLV, or trailing data smaller than a TLV header, makes the whole LSA malformed: NOT stored, NOT acked, NOT reflooded; counted/logged |
 | N-Flag / A-Flag handling (§2.1) | N-Flag ignored if the prefix is not a host prefix; N-Flag preserved on inter-area propagation; A-Flag set by an ABR for an inter-area prefix locally connected in another connected area |
 | Tie-break + dedup (§2/§3) | duplicate Extended Prefix TLV for the same prefix in one LSA -> use first, log; same prefix across LSAs from the same router -> use lowest Opaque ID; duplicate Extended Link TLV in one LSA -> use first, log |
-| CLI / show | `show ip ospf database opaque-area` / `opaque-as` render Extended Prefix/Link LSAs decoded (Route Type, prefix, flags, Link Type/ID/Data, sub-TLVs as type/len/hex) |
+| CLI / show | `show ospf database opaque-area` / `opaque-as` render Extended Prefix/Link LSAs decoded (Route Type, prefix, flags, Link Type/ID/Data, sub-TLVs as type/len/hex) |
 | Config | a `extended-prefix` / `extended-link` enable leaf gating origination (off until SR or another sub-TLV producer needs it); decode/store of received LSAs is always on once the plugin is built |
 
 ### Out of scope (dependent spec; noted so it is not silently assumed done)
@@ -97,7 +97,7 @@ then re-flood Type 7/8 verbatim as unregistered opaque LSAs).
 - [ ] `ai/rules/buffer-first.md` -- the two LSA bodies and the three top-level TLVs are buffer-first
   -> Constraint: every body/TLV is emitted via `WriteTo(buf, off) int` over a caller-owned buffer using ext-1's TLV builder; the 4-byte alignment pad is written, never produced by slice concatenation; decode returns views over the received bytes (zero-copy), no per-TLV allocation
 - [ ] `ai/rules/no-sprintf-alloc.md` -- rendering uses `textbuf`/`AppendTo`
-  -> Constraint: `show ip ospf database opaque-*` extended rendering (Route Type, prefix, flags, Link Type/ID/Data, sub-TLV type/len/hex) uses `textbuf`, never `fmt.Sprintf` or `+`
+  -> Constraint: `show ospf database opaque-*` extended rendering (Route Type, prefix, flags, Link Type/ID/Data, sub-TLV type/len/hex) uses `textbuf`, never `fmt.Sprintf` or `+`
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc7684.md` -- the two LSAs and three top-level TLVs
@@ -134,7 +134,7 @@ then re-flood Type 7/8 verbatim as unregistered opaque LSAs).
   -> Constraint: the Extended Prefix TLV Route Type maps from `RouteType` (Intra-Area->1, Inter-Area->3, external->5/7); the prefix set this router advertises Extended Prefix TLVs for is its connected/stub prefixes (intra-area) plus, for an ABR, inter-area prefixes -- derived from the same data `BuildRoutes`/`routerLinks` use, NOT recomputed
 - [ ] `internal/plugins/ospf/instance.go` -- `originateSelfLSAs()` regenerates self-LSAs on topology change (`neighborEventSink{onChange: e.originateSelfLSAs}`) and on the periodic retransmit tick; `routeSnapshot`/`databaseSnapshot` expose state to CLI
   -> Constraint: ext-1 invokes each opaque consumer's `OnOriginate` from inside (or alongside) `originateSelfLSAs`; this spec's consumer recomputes its Extended Prefix/Link LSA set there, so prefix/link changes drive Extended LSA re-origination on the same cadence as Router/Network LSAs
-- [ ] `internal/plugins/ospf/show_database.go` -- `dbSubviewType` maps `show ip ospf database <type>` to a snapshot type for Types 1-5/7; there is no opaque sub-view yet
+- [ ] `internal/plugins/ospf/show_database.go` -- `dbSubviewType` maps `show ospf database <type>` to a snapshot type for Types 1-5/7; there is no opaque sub-view yet
   -> Constraint: ext-1 adds `opaque-link`/`opaque-area`/`opaque-as` raw views; this spec decorates the area/as views so Extended Prefix/Link bodies render decoded instead of hex (a registered-Opaque-Type renderer the carrier calls), keeping the carrier ignorant of Type 7/8
 - [ ] `internal/plugins/ospf/types/lstype.go` -- `LSTypeOpaqueArea`(10), `LSTypeOpaqueAS`(11), `IsOpaque()`; `internal/plugins/ospf/packet/opaque_tlv.go` (ext-1) -- the generic 4-byte-aligned TLV iterator + builder
   -> Constraint: this spec consumes `opaque_tlv.go`; its three top-level TLV codecs and the sub-TLV walk are thin layers over that iterator/builder; if ext-1 is not yet delivered, this spec's first audit step confirms those primitives exist
@@ -148,7 +148,7 @@ then re-flood Type 7/8 verbatim as unregistered opaque LSAs).
 - Register Opaque Type 7 (scope area + AS) and Opaque Type 8 (scope area) with ext-1.
 - Originate Extended Prefix/Link Opaque LSAs from `originateSelfLSAs` when enabled, associated with advertised prefixes/links; withdraw on disappearance.
 - Decode received Extended Prefix/Link Opaque LSAs (always on): walk top-level TLVs and sub-TLVs, dispatch known sub-TLVs to registered codecs, enforce §5 malformed rules, apply N-Flag ignore / dedup / lowest-Opaque-ID tie-break.
-- Render Extended Prefix/Link bodies under `show ip ospf database opaque-area`/`opaque-as`.
+- Render Extended Prefix/Link bodies under `show ospf database opaque-area`/`opaque-as`.
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
@@ -156,7 +156,7 @@ then re-flood Type 7/8 verbatim as unregistered opaque LSAs).
 - **Origination:** a topology/prefix/link change -> `originateSelfLSAs` -> ext-1 invokes this consumer's `OnOriginate` -> this spec computes the Extended Prefix/Link LSA set (one Extended Prefix Opaque LSA per scope grouping; one Extended Link Opaque LSA per advertised link with attributes) -> returns `(opaqueID, scope, body, withdraw)` to ext-1, which sequences, installs, and floods via `OriginateOpaque`.
 - **Reception:** an LS Update carrying an opaque LSA whose Opaque Type is 7 or 8 -> ext-1 carrier decodes the opaque header, applies scope + §5 reachability -> calls this consumer's `OnReceive(opaqueID, body, scope, advRouter, reachable)` -> this spec parses the body's top-level TLVs and sub-TLVs.
 - **Sub-TLV registration:** ext-5 (or any future application) calls `RegisterPrefixSubTLV(type, codec)` / `RegisterLinkSubTLV(type, codec)` from its own `init()`; this spec stores the codec and dispatches matching sub-TLVs to it during decode and lets it contribute bytes during origination.
-- **CLI:** `show ip ospf database opaque-area`/`opaque-as` -> the carrier snapshot -> this spec's registered renderer for Opaque Type 7/8.
+- **CLI:** `show ospf database opaque-area`/`opaque-as` -> the carrier snapshot -> this spec's registered renderer for Opaque Type 7/8.
 
 ### Transformation Path
 1. **Origination input (new):** read the router's advertised prefixes (`spf/route.go` `RouteEntry` set + connected/stub prefixes from `lsdb/origination.go`) and advertised links (`routerLinks`/the originated Router-LSA links); for each, derive Route Type / Link Type / Link ID / Link Data.
@@ -247,7 +247,7 @@ then re-flood Type 7/8 verbatim as unregistered opaque LSAs).
 | AC-12 | This spec is built WITHOUT any sub-TLV producer (no ext-5) | Extended Prefix/Link LSAs are originated with zero sub-TLVs, decoded on receipt, and flooded per scope; nothing crashes; the empty-container LSA round-trips byte-for-byte |
 | AC-13 | An advertised prefix or link disappears (interface down, summary withdrawn) | the corresponding Extended Prefix/Link Opaque LSA is withdrawn via `OnOriginate(withdraw=true)` -> ext-1 MaxAge purge |
 | AC-14 | A received Type-11 Extended Prefix LSA whose originating router is unreachable (ext-1 `reachable=false`) | its attributes are treated as present-but-unusable (not applied) (RFC 5250 §5) |
-| AC-15 | `show ip ospf database opaque-area` / `opaque-as` with a stored Extended Prefix/Link LSA | the output decodes Route Type, prefix, flags, Link Type/ID/Data, and each sub-TLV as (type, length, hex or registered-codec string), not raw opaque hex |
+| AC-15 | `show ospf database opaque-area` / `opaque-as` with a stored Extended Prefix/Link LSA | the output decodes Route Type, prefix, flags, Link Type/ID/Data, and each sub-TLV as (type, length, hex or registered-codec string), not raw opaque hex |
 | AC-16 | A received sub-TLV's registered codec panics during decode | the engine recovers, increments a sub-TLV-error metric, and continues processing the rest of the LSA / other LSAs |
 | AC-17 | An Extended Prefix TLV for AF=0 (IPv4 unicast) with any Prefix Length 0..32 | the Address Prefix is parsed as a fixed 32-bit field and sub-TLV parsing resumes at the correct offset (not variable-length) (§2.1) |
 
@@ -257,7 +257,7 @@ then re-flood Type 7/8 verbatim as unregistered opaque LSAs).
 |---|-----------|--------------------|-----------------------|
 | 1 | Enables `extended-prefix`; the router advertises a loopback prefix | config -> engine -> `originateSelfLSAs` -> `OnOriginate` -> Extended Prefix TLV body -> ext-1 `OriginateOpaque` -> flood; FRR's `show ip ospf database opaque-area` lists the Extended Prefix LSA | `test/ospf/ospf-ext-prefix-originate.ci` + `ospf-ext-prefix-link-frr` interop |
 | 2 | Enables `extended-link`; a p2p adjacency comes up | engine -> `OnOriginate` -> single Extended Link TLV mirroring the Router-LSA link -> ext-1 flood; FRR correlates it to the Router-LSA link | `test/ospf/ospf-ext-link-originate.ci` + `ospf-ext-prefix-link-frr` |
-| 3 | Receives FRR's Extended Prefix/Link Opaque LSAs | wire -> ext-1 carrier -> `OnReceive` -> top-level TLV + sub-TLV walk -> stored; `show ip ospf database opaque-area` decodes them | `test/ospf/ospf-ext-prefix-receive.ci` + `ospf-ext-prefix-link-frr` |
+| 3 | Receives FRR's Extended Prefix/Link Opaque LSAs | wire -> ext-1 carrier -> `OnReceive` -> top-level TLV + sub-TLV walk -> stored; `show ospf database opaque-area` decodes them | `test/ospf/ospf-ext-prefix-receive.ci` + `ospf-ext-prefix-link-frr` |
 | 4 | Later builds with ext-5 SR which registers a Prefix-SID sub-TLV | ext-5 `init()` -> `RegisterPrefixSubTLV` -> the existing Extended Prefix LSA now carries the SR sub-TLV; decode dispatches it | `TestRegisterPrefixSubTLVDispatched` + `test/ospf/ospf-ext-subtlv-hook.ci` |
 | 5 | Runs `ze` decode on an Extended Prefix/Link LSA hex | CLI -> `packet.DecodeLSA` -> Opaque Type 7/8 -> Extended TLV codec -> rendered Route Type/prefix/flags or Link Type/ID/Data + sub-TLVs | `test/ospf/ospf-ext-decode.ci` |
 | 6 | Builds without ext-5; peers exchange empty-container Extended LSAs | `OnOriginate` zero sub-TLVs -> flood -> peer decodes empty container; full adjacency unaffected | `TestExtPrefixEmptyContainerRoundTrip` + `ospf-ext-prefix-link-frr` |
@@ -308,7 +308,7 @@ then re-flood Type 7/8 verbatim as unregistered opaque LSAs).
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ospf-ext-register` | `test/ospf/ospf-ext-register.ci` | Opaque Type 7/8 registered; `show ip ospf` reflects extended capability when enabled | |
+| `ospf-ext-register` | `test/ospf/ospf-ext-register.ci` | Opaque Type 7/8 registered; `show ospf` reflects extended capability when enabled | |
 | `ospf-ext-prefix-originate` | `test/ospf/ospf-ext-prefix-originate.ci` | enabling `extended-prefix` originates an Extended Prefix LSA for a connected prefix; visible in `opaque-area` | |
 | `ospf-ext-link-originate` | `test/ospf/ospf-ext-link-originate.ci` | enabling `extended-link` originates exactly one Extended Link TLV per link; visible in `opaque-area` | |
 | `ospf-ext-prefix-receive` | `test/ospf/ospf-ext-prefix-receive.ci` | a received Extended Prefix LSA is decoded, stored, and listed with Route Type/prefix/flags | |
@@ -339,7 +339,7 @@ then re-flood Type 7/8 verbatim as unregistered opaque LSAs).
 - `internal/plugins/ospf/register.go` -- ensure the two consumer `init()` registrations are discovered (the consumers live in their own files; no consumer name leaks into generic code)
 - `internal/plugins/ospf/config.go` -- resolve the `extended-prefix` / `extended-link` enable leaves into the engine config
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- the `extended-prefix` / `extended-link` boolean enable leaves
-- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- `show ip ospf database opaque-area` / `opaque-as` already added by ext-1; this spec relies on them (no new command needed beyond ext-1's)
+- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- `show ospf database opaque-area` / `opaque-as` already added by ext-1; this spec relies on them (no new command needed beyond ext-1's)
 - `internal/plugins/ospf/packet/json.go` -- decode Opaque Type 7/8 bodies into the JSON opaque view (extended fields, not just hex)
 
 ### Integration Checklist
@@ -348,7 +348,7 @@ then re-flood Type 7/8 verbatim as unregistered opaque LSAs).
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- `extended-prefix`/`extended-link` enable leaves; read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | both are `type boolean` (native); no custom validator |
 | YANG custom validators | [ ] no | native boolean suffices; Opaque ID is internal, not configured |
-| CLI commands/flags | [ ] no new | reuses ext-1's `show ip ospf database opaque-area`/`opaque-as`; this spec adds only a decoded renderer |
+| CLI commands/flags | [ ] no new | reuses ext-1's `show ospf database opaque-area`/`opaque-as`; this spec adds only a decoded renderer |
 | CLI grammar (action before identifier) | [ ] n/a | no new command |
 | Editor autocomplete | [ ] yes | automatic for the two YANG booleans |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-ext-*.ci` |
@@ -376,7 +376,7 @@ then re-flood Type 7/8 verbatim as unregistered opaque LSAs).
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPFv2 Extended Prefix/Link Opaque LSAs (RFC 7684) |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md` -- the `extended-prefix`/`extended-link` leaves |
-| 3 | CLI command added/changed? | [ ] no new | `show ip ospf database opaque-*` documented by ext-1; note the decoded extended view |
+| 3 | CLI command added/changed? | [ ] no new | `show ospf database opaque-*` documented by ext-1; note the decoded extended view |
 | 4 | API/RPC added/changed? | [ ] no | show RPCs live in the central `ze-show` namespace |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains Opaque Type 7/8 consumers + a sub-TLV registry |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- Extended Prefix/Link section (carrier only) |
@@ -466,7 +466,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | TLV 4-byte alignment; §5 malformed rejection; 32-bit Address Prefix for AF=0; Route Type / Link Type-ID-Data association exact; one Extended Link TLV per LSA; N-Flag ignore/preserve; lowest-Opaque-ID dedup; Type 7 scope 10/11, Type 8 scope 10 |
 | Naming | `ze_ospf_ext_*` metrics; YANG `extended-prefix`/`extended-link` kebab-case; `RegisterPrefixSubTLV`/`RegisterLinkSubTLV` |
 | Data flow | Extended LSAs flow only through ext-1's carrier (`OnOriginate`/`OnReceive`/`OriginateOpaque`); SPF/route read-only for association; no carrier or SPF change |
-| CLI grammar | no new command (reuses ext-1's `show ip ospf database opaque-*`) |
+| CLI grammar | no new command (reuses ext-1's `show ospf database opaque-*`) |
 | Doctor checks | none added (no new runtime dependency) -- confirm |
 | YANG validation | the two enable leaves are native booleans |
 | Prometheus counters | the five `ze_ospf_ext_*` series defined, registered, listed; umbrella table updated |

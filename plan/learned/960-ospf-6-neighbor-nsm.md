@@ -16,7 +16,7 @@ OSPFv2 had interface Hellos and DR election from spec-ospf-5, but no Neighbor St
 - Future packet-handler tests should feed encoded packets through the dispatcher, not only call package handlers directly.
 - OSPF packet chunking must budget for the transport envelope when the sender owns payload bytes but not the IP header.
 - OSPFv2 now mirrors IS-IS shape (`types`, `packet`, `iface`, `neighbor`, later `lsdb`, `spf`) while keeping v2 and v3 packages separate.
-- CLI `show ip ospf neighbor` and FRR interop remain spec-ospf-13 work; this child provides the snapshot API and dispatcher-backed runtime fixture.
+- CLI `show ospf neighbor` and FRR interop remain spec-ospf-13 work; this child provides the snapshot API and dispatcher-backed runtime fixture.
 
 ## Gotchas
 - Treating nil LSDB as "request every header" is a Loading deadlock, not a harmless placeholder.

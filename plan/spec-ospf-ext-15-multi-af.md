@@ -96,7 +96,7 @@ interop-unchanged against FRR `ospf6d`.
 | Per-AF route install | Parameterise the SPF `Installer` family: an IPv6-unicast instance installs into `family.IPv6Unicast`, IPv4-unicast into `family.IPv4Unicast`, etc.; fixes the current `NewInstaller` hardcode to `family.IPv4Unicast` for the IPv6-family engine |
 | IPv4-over-OSPFv3 | An IPv4-unicast instance decodes/originates IPv4 prefixes through the RFC 5340 prefix model (RFC 5838 §2.7: a 0-32-bit prefix in one 32-bit word) and resolves the IPv4 next-hop from the adjacency; routes install into `family.IPv4Unicast` |
 | Config | Generalise the IPv6-family `address-family` to accept `ipv6-unicast`/`ipv4-unicast`/`ipv6-multicast`/`ipv4-multicast` (or an AF + instance-id pair) with a validated per-AF Instance-ID range; preserve the existing `address-family ipv6` shape as the IPv6-unicast AF |
-| CLI identification | Show commands (`show ipv6 ospf ...` and a new AF-aware listing) identify the address family + Instance ID per instance (RFC 5838 §2 debugging requirement) |
+| CLI identification | Show commands (`show ospf ipv6 ...` and a new AF-aware listing) identify the address family + Instance ID per instance (RFC 5838 §2 debugging requirement) |
 | AF-aware prefix strategy | The v6 prefix strategy decodes prefixes into the AF's address width (16 bytes for v6, 4 bytes for v4) and tags `RouteEntry` with the install family |
 
 ### Out of scope (noted so it is not silently assumed done)
@@ -258,7 +258,7 @@ interop-unchanged against FRR `ospf6d`.
 | R-4 | IPv4-over-OSPFv3 builds a 16-byte address from a 4-byte prefix (or vice-versa), corrupting the route | the installed IPv4 route has a garbage address | `v6PrefixToNetip` reads the AF address width; `TestIPv4OverV3PrefixRoundTrip` + `TestV6PrefixToNetipAFWidth` for both widths |
 | R-5 | Two AF instances on one link interfere (shared transport socket, cross-AF flooding) | an LSA from AF-A appears in AF-B's database | each engine owns its LSDB/neighbors; the transport demux routes by Instance ID; `TestPerAFLSDBIsolation` + a two-AF integration test |
 | R-6 | The per-AF engine spawn leaks goroutines / sockets when an AF is added then removed by a config change | fd/goroutine growth across reconcile | reuse the existing engine lifecycle (`cancel`/`wg`); the reconcile path stops a removed AF's engine; `TestAFReconcileAddRemove` |
-| R-7 | Show commands cannot distinguish AF instances, breaking the §2 debugging requirement | `show ipv6 ospf neighbor` mixes two AFs' neighbours | every AF instance is identified by AF + Instance ID in the show output; `ospf-multiaf-show.ci` asserts both AFs are listed distinctly |
+| R-7 | Show commands cannot distinguish AF instances, breaking the §2 debugging requirement | `show ospf ipv6 neighbor` mixes two AFs' neighbours | every AF instance is identified by AF + Instance ID in the show output; `ospf-multiaf-show.ci` asserts both AFs are listed distinctly |
 | R-8 | The AF-bit emission decision (which instances set it) diverges between the Hello encoder and the DD encoder | a neighbour sees the AF-bit in Hello but not DD, or vice-versa | the AF-bit is decided once from the instance's AF and applied uniformly in `neutralToV6Options`; `TestAFBitInHelloAndDD` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -269,7 +269,7 @@ interop-unchanged against FRR `ospf6d`.
 | An OSPFv3 datagram with Instance ID 64 arrives | -> | the transport routes it to the v4-unicast instance; `dispatch()` accepts (matches), the IPv6-unicast instance (Instance ID 0) drops it | `TestMultiAFInstanceDemux` (unit) + `ospf-multiaf.ci` |
 | A multi-AF instance originates a Hello | -> | `neutralToV6Options` sets `OptAF`; the wire Hello carries the AF-bit | `TestAFBitInHelloAndDD` (unit) |
 | An SPF run completes on the v4-unicast instance | -> | the family-parameterised `Installer` inserts the IPv4 route into `family.IPv4Unicast` | `TestInstallerFamilyPerAF` (unit) + `ospf-multiaf-v4-route.ci` |
-| `show ipv6 ospf` with two AFs configured | -> | the show handler lists each AF instance with its AF + Instance ID | `ospf-multiaf-show.ci` |
+| `show ospf ipv6` with two AFs configured | -> | the show handler lists each AF instance with its AF + Instance ID | `ospf-multiaf-show.ci` |
 
 ## Acceptance Criteria
 
@@ -284,7 +284,7 @@ interop-unchanged against FRR `ospf6d`.
 | AC-7 | An IPv6-unicast OSPFv3 instance computes a route | the route installs into `family.IPv6Unicast` (correcting the IPv6 base's IPv4Unicast hardcode) |
 | AC-8 | An IPv4-unicast OSPFv3 instance computes a route | the route installs into `family.IPv4Unicast` with an IPv4 prefix and an IPv4 next-hop derived from the adjacency (§2.7) |
 | AC-9 | An IPv4 prefix (e.g., /24) carried in an OSPFv3 Intra-Area-Prefix LSA on the IPv4-unicast instance | it round-trips through the RFC 5340 prefix codec as one 32-bit word and decodes to a 4-byte `netip.Prefix` (§2.7 / RFC 5340 §A.4.1) |
-| AC-10 | Two AFs configured; `show ipv6 ospf` (or the AF-aware show) run | each AF instance is listed with its address family and Instance ID (§2 debugging) |
+| AC-10 | Two AFs configured; `show ospf ipv6` (or the AF-aware show) run | each AF instance is listed with its address family and Instance ID (§2 debugging) |
 | AC-11 | A single IPv6-unicast instance (Instance ID 0) only | the on-wire Hello/DD/LSA bytes and adjacency formation against FRR `ospf6d` are unchanged from the IPv6 base, except the route now installs into `family.IPv6Unicast` |
 | AC-12 | An AF added then removed by a config change | the added AF's engine starts (interfaces open, adjacency forms); on removal its engine stops cleanly (interfaces closed, routes withdrawn, no goroutine/fd leak) |
 | AC-13 | IPv4 redistribution configured with a v4-over-OSPFv3 instance present | the redistributed IPv4 route originates an OSPFv3 AS-External LSA on the IPv4-unicast instance (not the IPv6 instance) |
@@ -295,7 +295,7 @@ interop-unchanged against FRR `ospf6d`.
 |---|-----------|--------------------|-----------------------|
 | 1 | Configures an IPv6-unicast AND an IPv4-unicast OSPFv3 AF on one interface | config -> two AF sub-configs -> two engine instances (Instance ID 0 and 64) -> two adjacencies form, each on its own LSDB/RIB | `test/ospf/ospf-multiaf.ci` + `ospf-multiaf-frr` (or Ze<->Ze) interop |
 | 2 | Advertises an IPv4 prefix over the IPv4-unicast OSPFv3 instance and reaches it | redistribute/connected -> IPv4 prefix in an OSPFv3 LSA on Instance ID 64 -> peer SPF -> route in `family.IPv4Unicast` -> FIB | `ospf-multiaf-v4-route.ci` + `ospf-multiaf-v4-frr` interop |
-| 3 | Runs `show ipv6 ospf` and sees both AF instances distinctly identified | show handler -> per-AF instance listing with AF + Instance ID | `ospf-multiaf-show.ci` |
+| 3 | Runs `show ospf ipv6` and sees both AF instances distinctly identified | show handler -> per-AF instance listing with AF + Instance ID | `ospf-multiaf-show.ci` |
 | 4 | Keeps a single IPv6-unicast instance and forms an adjacency with legacy FRR `ospf6d` | AF-bit set on the default instance; §2.6 back-compat -> Full adjacency unchanged | `ospf-v6-frr` interop still green |
 | 5 | Removes the IPv4-unicast AF from the config | reconcile -> the v4-over-v3 engine stops, its interfaces close, its routes withdraw; the IPv6-unicast instance is unaffected | `TestAFReconcileAddRemove` + `ospf-multiaf-reconcile.ci` |
 
@@ -382,8 +382,8 @@ interop-unchanged against FRR `ospf6d`.
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- the per-AF containers + Instance-ID range; read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | native `range "0..127"` on `instance-id`; an `enumeration` on the AF leaf |
 | YANG custom validators | [ ] yes | a custom validator binding the Instance ID to the declared AF's RFC 5838 range (native `range` alone cannot express "must fall inside THIS AF's sub-range"); register in `validators_register.go`; `CompleteFn` offers the AF names |
-| CLI commands/flags | [ ] yes | `show ipv6 ospf ...` AF-aware listing in `cmd_show.go` (+ any new `address-family` filter) |
-| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ipv6 ospf neighbor` etc. |
+| CLI commands/flags | [ ] yes | `show ospf ipv6 ...` AF-aware listing in `cmd_show.go` (+ any new `address-family` filter) |
+| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ospf ipv6 neighbor` etc. |
 | Editor autocomplete | [ ] yes | automatic for the AF `enumeration`; `CompleteFn` for the AF names in the custom validator |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-multiaf-*.ci` |
 | Pipe completeness | [ ] yes | the AF-aware show routes through `ApplyPipes` like the other OSPF show outputs |
@@ -408,7 +408,7 @@ interop-unchanged against FRR `ospf6d`.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPF IPv6-family multiple address families (RFC 5838) |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md` -- the per-AF `address-family` blocks + Instance-ID ranges |
-| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- AF-aware `show ipv6 ospf` |
+| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- AF-aware `show ospf ipv6` |
 | 4 | API/RPC added/changed? | [ ] no | show RPCs live in the central show namespace; document under the command reference |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains per-AF OSPFv3 instances |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- a multi-AF (IPv6-family) section |
@@ -494,7 +494,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | Instance-ID-range mapping exact (0-31/32-63/64-95/96-127); AF-bit §2.5/§2.6 default-vs-non-default rule; install family per AF; IPv4 prefix width (4 bytes) |
 | Naming | `ze_ospf_af_*` metrics; YANG AF leaves kebab-case; `OptAF`, `afFromInstanceID`, `NewInstallerFamily` |
 | Data flow | per-AF engines independent; no cross-AF LSDB/RIB leakage; install family chosen once from the AF |
-| CLI grammar | AF-aware `show ipv6 ospf ...` action-before-identifier |
+| CLI grammar | AF-aware `show ospf ipv6 ...` action-before-identifier |
 | Doctor checks | none added (reuses the existing v6 transport doctor check) -- confirm |
 | YANG validation | the AF leaf is an `enumeration`; `instance-id` has `range "0..127"`; the custom validator binds the Instance ID to the AF range |
 | Prometheus counters | `ze_ospf_af_instances`, `ze_ospf_af_bit_mismatch_total`, and the `af` label on `ze_ospf_routes_installed` defined, registered, listed; umbrella table updated |

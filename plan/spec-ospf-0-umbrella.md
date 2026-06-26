@@ -83,7 +83,7 @@ pseudo-node LSPs; LSA vs LSP lookup keys differ; metric semantics differ).
 | Component registration + SDK lifecycle | `internal/plugins/ldp/register.go`, `internal/plugins/isis/register.go`; `registry.Registration` | OSPF component skeleton (RunEngine, OnConfigure/OnStarted/OnExecuteCommand) |
 | YANG module discovery/merge (`ze-*-conf.yang`) | `internal/component/config/yang_schema.go:203-231`; `internal/component/config/yang/loader.go` | `ze-ospf-conf.yang` auto-merged at init; `make generate` wires `all/all.go` |
 | Custom config validators with `CompleteFn` | `internal/component/config/validators.go`, `validators_register.go` (IS-IS NET/system-id validators) | OSPF router-id (dotted-quad) and area-id validators |
-| CLI show registration (central `ze-show`/`ze-clear`) | `internal/plugins/ldp/cmd_show.go`, `internal/plugins/isis/cmd_show.go`; `pluginserver.RegisterRPCs` | `show ip ospf neighbor/interface/database/route/border-routers/spf` |
+| CLI show registration (central `ze-show`/`ze-clear`) | `internal/plugins/ldp/cmd_show.go`, `internal/plugins/isis/cmd_show.go`; `pluginserver.RegisterRPCs` | `show ospf neighbor/interface/database/route/border-routers/spf` |
 | Doctor checks, metrics, web SSE | `ai/rules/doctor-checks.md`, `internal/core/metrics`, `internal/component/web` | `CAP_NET_RAW` check, OSPF counters, neighbour/database views |
 
 **OSPF introduces NO genuinely new low-level capability.** The raw-IP transport
@@ -122,13 +122,13 @@ SPF with the two-way check, and multi-area ABR/ASBR/NSSA route computation.
 | Component registration, `ze-ospf-conf.yang`, config resolution, instance/area/interface scaffolding, lifecycle wiring | ospf-4 |
 | Interface State Machine (8 states), Hello send/receive + validation, DR/BDR election (RFC 2328 §9.4 incl. sticky rule) | ospf-5 |
 | Neighbor State Machine (8 states), DD master/slave exchange (I/M/MS bits, MTU check), LS Request list population + drain to Full | ospf-6 |
-| Per-area LSDB (lazy raw bytes + metadata), self-LSA origination (Router-LSA, Network-LSA as DR), the §13 flooding procedure (per-neighbour retransmit lists, delayed acks, MinLSArrival/MinLSInterval), MaxAge walker, LSRefresh, purge; `show ip ospf database` | ospf-7 |
-| Intra-area SPF (RFC 2328 §16.1 two-stage Dijkstra, two-way check), ECMP, SPF throttle, route table with path types, FIB install via Loc-RIB insertion; `show ip ospf route` | ospf-8 |
+| Per-area LSDB (lazy raw bytes + metadata), self-LSA origination (Router-LSA, Network-LSA as DR), the §13 flooding procedure (per-neighbour retransmit lists, delayed acks, MinLSArrival/MinLSInterval), MaxAge walker, LSRefresh, purge; `show ospf database` | ospf-7 |
+| Intra-area SPF (RFC 2328 §16.1 two-stage Dijkstra, two-way check), ECMP, SPF throttle, route table with path types, FIB install via Loc-RIB insertion; `show ospf route` | ospf-8 |
 | Inter-area routing: Type 3 (network) and Type 4 (ASBR) Summary-LSA origination at the ABR, inter-area route computation (§16.2/§16.3), area ranges (aggregate / not-advertise) | ospf-9 |
 | AS-External routing: Type 5 AS-External-LSA origination at the ASBR, external route computation (§16.4) with E1/E2 semantics + forwarding address, `default-information originate`, redistribution source (OSPF -> BGP) and consumer (connected/static/BGP -> Type 5) | ospf-10 |
 | Stub areas (no Type 5; ABR-injected default Type 3) and NSSA (RFC 3101): Type 7 origination + flooding within the NSSA, translator election, Type 7 -> Type 5 translation at the elected ABR | ospf-11 |
 | Authentication: AuType 1 (Simple), AuType 2 (Cryptographic: RFC 2328 MD5 + RFC 5709 HMAC-SHA), and AuType 3 (RFC 7474 Cryptographic with Extended Sequence Numbers), per-interface keys, key rotation, verify-on-receive / sign-on-send | ospf-12 |
-| CLI completeness (`show ip ospf`, `neighbor`, `interface`, `database`, `route`, `border-routers`, `spf`), web neighbour/database views, Prometheus metrics, doctor checks, FRR `ospfd` interop scenarios | ospf-13 |
+| CLI completeness (`show ospf`, `neighbor`, `interface`, `database`, `route`, `border-routers`, `spf`), web neighbour/database views, Prometheus metrics, doctor checks, FRR `ospfd` interop scenarios | ospf-13 |
 | Stub Router Advertisement (RFC 3137 / RFC 6987, "max-metric router-lsa") origination | ospf-7 (origination) / ospf-13 (config + CLI) |
 
 ### Out of scope (future, noted here so it is not silently assumed done)
@@ -231,7 +231,7 @@ section rather than redefining (and contradicting) these contracts.
 - RFC 5709 supplies the HMAC-SHA algorithms used by BOTH AuType 2 and AuType 3; RFC 7474's contribution is the AuType-3 restructured field plus the 64-bit sequence number (NOT a new algorithm). The ospf-12 child owns the verify/sign semantics; ospf-2 owns the AuType-0/1/2/3 field framing.
 
 ### Command + API YANG (owner ospf-13; enforced by command-ownership check)
-- show/clear commands require owner command YANG. OSPF ships ONE command YANG, `ze-ospf-cmd.yang` (CLI tree: `show ip ospf [neighbor|interface|database|route|border-routers|spf]` binding `ze-show:ospf-*`; `clear ip ospf [process|neighbor|counters]` binding `ze-clear:ospf-*`), modelled on `ze-ldp-cmd.yang` / `ze-isis-cmd.yang`. There is NO `ze-ospf-api.yang`: both show and clear RPCs live in the CENTRAL `ze-show`/`ze-clear` namespaces and are registered in Go. `scripts/checks/command_ownership.go` enforces the command-YANG ownership.
+- show/clear commands require owner command YANG. OSPF ships ONE command YANG, `ze-ospf-cmd.yang` (CLI tree: `show ospf [neighbor|interface|database|route|border-routers|spf]` binding `ze-show:ospf-*`; `clear ospf [process|neighbor|counters]` binding `ze-clear:ospf-*`), modelled on `ze-ldp-cmd.yang` / `ze-isis-cmd.yang`. There is NO `ze-ospf-api.yang`: both show and clear RPCs live in the CENTRAL `ze-show`/`ze-clear` namespaces and are registered in Go. `scripts/checks/command_ownership.go` enforces the command-YANG ownership.
 
 ### Metrics (canonical, owner of each series noted; surfaced by ospf-13)
 Single exact and COMPLETE set of Prometheus series and labels -- the one
@@ -284,15 +284,15 @@ assigned rows.
 | 2 | `spec-ospf-2-wire.md` | Codec for the 24-byte common header (AuType 0/1/2/3), the 5 packet types (Hello, DD, LS Request, LS Update, LS Ack), the 20-byte LSA header, and LSA bodies (Router 1, Network 2, Summary 3/4, AS-External 5, NSSA 7); round-trip + fuzz; real-capture decode | `spec-ospf-1-types.md` |
 | 3 | `spec-ospf-3-ip-transport.md` | Raw IP transport: `AF_INET SOCK_RAW` proto 89 behind an interface, IP multicast membership (`224.0.0.5`/`224.0.0.6`) per enabled interface, TTL=1, per-interface RX/TX goroutines, IP-header strip, `CAP_NET_RAW` doctor check | `spec-ospf-1-types.md` |
 | 4 | `spec-ospf-4-component-config.md` | **Wiring backbone (MANDATORY before runtime specs)**: `internal/plugins/ospf/` registration, `ze-ospf-conf.yang` (router-id, areas/area-type/ranges/auth defaults, per-interface area/network-type/cost/timers/priority/passive/auth refs), config resolve to typed structs, instance/area/interface scaffolding, packet receive dispatcher using the ospf-2 common-header codec, OnConfigure/OnConfigApply/OnStarted, `make generate`, `all/all.go` | `spec-ospf-2-wire.md`, `spec-ospf-3-ip-transport.md` |
-| 5 | `spec-ospf-5-interface-ism.md` | Interface State Machine (Down/Loopback/Waiting/Point-to-Point/DROther/Backup/DR) + events, Hello send/receive + header validation, DR/BDR election (RFC 2328 §9.4 incl. sticky rule), Wait timer; `show ip ospf interface` | `spec-ospf-2-wire.md`, `spec-ospf-4-component-config.md` |
-| 6 | `spec-ospf-6-neighbor-nsm.md` | Neighbor State Machine (Down/Attempt/Init/2-Way/ExStart/Exchange/Loading/Full) + events, DD master/slave negotiation (I/M/MS bits, DD sequence, MTU check), LS Request list population + drain, adjacency formation rules; `show ip ospf neighbor` | `spec-ospf-5-interface-ism.md` |
-| 7 | `spec-ospf-7-lsdb-flooding.md` | Per-area LSDB (lazy raw bytes + metadata), self-LSA origination (Router-LSA from interfaces/neighbours, Network-LSA as DR), the §13 flooding procedure (freshness compare §13.1, retransmit lists, delayed acks, MinLSArrival/MinLSInterval), MaxAge walker + purge, LSRefresh, sequence wraparound, stub-router (max-metric) origination; `show ip ospf database` | `spec-ospf-6-neighbor-nsm.md` |
-| 8 | `spec-ospf-8-spf-rib.md` | **SPF + FIB install**: intra-area two-stage Dijkstra (§16.1) over Router/Network-LSAs with the two-way check, ECMP equal-cost parent merge, SPF throttle (exponential back-off), route table with path types, INSERT into Loc-RIB with `AdminDistance` = 110 -> sysrib `OnChange` -> fibkernel (reusing the existing ECMP path-group expansion); `show ip ospf route`, `show ip ospf spf` | `spec-ospf-7-lsdb-flooding.md` |
-| 9 | `spec-ospf-9-inter-area-abr.md` | ABR detection, Type 3 (network) and Type 4 (ASBR) Summary-LSA origination into each attached area, inter-area route computation (§16.2 from summaries, §16.3 ABR examines backbone summaries), area ranges (aggregate / not-advertise), backbone-attachment rule; `show ip ospf border-routers` | `spec-ospf-8-spf-rib.md` |
+| 5 | `spec-ospf-5-interface-ism.md` | Interface State Machine (Down/Loopback/Waiting/Point-to-Point/DROther/Backup/DR) + events, Hello send/receive + header validation, DR/BDR election (RFC 2328 §9.4 incl. sticky rule), Wait timer; `show ospf interface` | `spec-ospf-2-wire.md`, `spec-ospf-4-component-config.md` |
+| 6 | `spec-ospf-6-neighbor-nsm.md` | Neighbor State Machine (Down/Attempt/Init/2-Way/ExStart/Exchange/Loading/Full) + events, DD master/slave negotiation (I/M/MS bits, DD sequence, MTU check), LS Request list population + drain, adjacency formation rules; `show ospf neighbor` | `spec-ospf-5-interface-ism.md` |
+| 7 | `spec-ospf-7-lsdb-flooding.md` | Per-area LSDB (lazy raw bytes + metadata), self-LSA origination (Router-LSA from interfaces/neighbours, Network-LSA as DR), the §13 flooding procedure (freshness compare §13.1, retransmit lists, delayed acks, MinLSArrival/MinLSInterval), MaxAge walker + purge, LSRefresh, sequence wraparound, stub-router (max-metric) origination; `show ospf database` | `spec-ospf-6-neighbor-nsm.md` |
+| 8 | `spec-ospf-8-spf-rib.md` | **SPF + FIB install**: intra-area two-stage Dijkstra (§16.1) over Router/Network-LSAs with the two-way check, ECMP equal-cost parent merge, SPF throttle (exponential back-off), route table with path types, INSERT into Loc-RIB with `AdminDistance` = 110 -> sysrib `OnChange` -> fibkernel (reusing the existing ECMP path-group expansion); `show ospf route`, `show ospf spf` | `spec-ospf-7-lsdb-flooding.md` |
+| 9 | `spec-ospf-9-inter-area-abr.md` | ABR detection, Type 3 (network) and Type 4 (ASBR) Summary-LSA origination into each attached area, inter-area route computation (§16.2 from summaries, §16.3 ABR examines backbone summaries), area ranges (aggregate / not-advertise), backbone-attachment rule; `show ospf border-routers` | `spec-ospf-8-spf-rib.md` |
 | 10 | `spec-ospf-10-as-external-asbr.md` | ASBR: Type 5 AS-External-LSA origination on redistributed routes, external route computation (§16.4) with E1/E2 + forwarding-address resolution after the ospf-9 inter-area route table exists, `default-information originate`; register OSPF as redistribution source `ospf` (-> BGP) and `RedistConsumer` (connected/static/BGP -> Type 5); `redistribute` YANG wiring | `spec-ospf-8-spf-rib.md`, `spec-ospf-9-inter-area-abr.md` |
 | 11 | `spec-ospf-11-stub-nssa.md` | Stub areas (suppress Type 4/5 in the area, ABR injects a Type 3 default; totally-stubby `no-summary`), NSSA (RFC 3101): Type 7 origination + flooding within the NSSA, translator election (§3.5, highest Router ID ABR with the P-bit), Type 7 -> Type 5 translation onto the backbone, NSSA default handling | `spec-ospf-9-inter-area-abr.md`, `spec-ospf-10-as-external-asbr.md` |
 | 12 | `spec-ospf-12-auth.md` | Authentication: AuType 1 (Simple), AuType 2 (Cryptographic: RFC 2328 MD5 + RFC 5709 HMAC-SHA), and AuType 3 (RFC 7474 Cryptographic with Extended Sequence Numbers), per-interface key chains with area `inherit`, verify-on-receive / sign-on-send for all 5 packet types including LS Update/Ack, key rotation, packet-checksum-zeroed handling | `spec-ospf-2-wire.md`, `spec-ospf-3-ip-transport.md`, `spec-ospf-4-component-config.md`, `spec-ospf-5-interface-ism.md`, `spec-ospf-6-neighbor-nsm.md`, `spec-ospf-7-lsdb-flooding.md` |
-| 13 | `spec-ospf-13-cli-diag-interop.md` | CLI completeness (`show ip ospf` + subcommands, `clear ip ospf`), web neighbour/database views, Prometheus metrics scrape/assert, doctor checks, max-metric config, FRR `ospfd` interop scenarios (P2P, broadcast/DR, multi-area, redistribution, stub/NSSA, auth, convergence) | `spec-ospf-1-types.md`, `spec-ospf-2-wire.md`, `spec-ospf-3-ip-transport.md`, `spec-ospf-4-component-config.md`, `spec-ospf-5-interface-ism.md`, `spec-ospf-6-neighbor-nsm.md`, `spec-ospf-7-lsdb-flooding.md`, `spec-ospf-8-spf-rib.md`, `spec-ospf-9-inter-area-abr.md`, `spec-ospf-10-as-external-asbr.md`, `spec-ospf-11-stub-nssa.md`, `spec-ospf-12-auth.md` |
+| 13 | `spec-ospf-13-cli-diag-interop.md` | CLI completeness (`show ospf` + subcommands, `clear ospf`), web neighbour/database views, Prometheus metrics scrape/assert, doctor checks, max-metric config, FRR `ospfd` interop scenarios (P2P, broadcast/DR, multi-area, redistribution, stub/NSSA, auth, convergence) | `spec-ospf-1-types.md`, `spec-ospf-2-wire.md`, `spec-ospf-3-ip-transport.md`, `spec-ospf-4-component-config.md`, `spec-ospf-5-interface-ism.md`, `spec-ospf-6-neighbor-nsm.md`, `spec-ospf-7-lsdb-flooding.md`, `spec-ospf-8-spf-rib.md`, `spec-ospf-9-inter-area-abr.md`, `spec-ospf-10-as-external-asbr.md`, `spec-ospf-11-stub-nssa.md`, `spec-ospf-12-auth.md` |
 
 ## Dependency Graph
 
@@ -505,7 +505,7 @@ time for the RFCs whose normative detail the code must enforce (RFC 2328 first).
 | 1 | Configures OSPF on two linked nodes | config -> component -> interface -> Hello -> ISM/NSM -> Full | `TestOSPFAdjacencyFull`, `test/ospf/ospf-adjacency.ci` |
 | 2 | Expects remote prefixes in the kernel FIB | LSDB -> SPF -> Loc-RIB insertion (`locrib.Path`) -> sysrib `OnChange` -> fibkernel -> kernel (NOT `redistevents`) | `test/ospf/ospf-route-install.ci` |
 | 3 | Redistributes OSPF into BGP | OSPF route -> source registry -> BGP consumer -> BGP RIB | `test/ospf/ospf-redist-bgp.ci` |
-| 4 | Runs `show ip ospf neighbor` / `database` / `route` | CLI -> RPC -> engine snapshot | `test/ospf/ospf-show.ci` |
+| 4 | Runs `show ospf neighbor` / `database` / `route` | CLI -> RPC -> engine snapshot | `test/ospf/ospf-show.ci` |
 | 5 | Meshes with an FRR router across two areas | full protocol over the wire | `test/interop/scenarios/ospf-*-frr` |
 
 ## 🧪 TDD Test Plan
@@ -560,7 +560,7 @@ time for the RFCs whose normative detail the code must enforce (RFC 2328 first).
 | YANG schema (new config) | Yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` |
 | YANG validation constraints | Yes | range/pattern/enum on every leaf (router-id/area-id dotted-quad pattern, area-type enum, network-type enum, interval ranges, priority range) |
 | YANG custom validators | Yes | router-id / area-id validators with `CompleteFn` |
-| CLI commands/flags | Yes | `show ip ospf [neighbor\|interface\|database\|route\|border-routers\|spf]`, `clear ip ospf` |
+| CLI commands/flags | Yes | `show ospf [neighbor\|interface\|database\|route\|border-routers\|spf]`, `clear ospf` |
 | CLI grammar (action before identifier) | Yes | `ai/rules/cli-grammar.md` |
 | Editor autocomplete | Yes | YANG enum/type driven + custom `CompleteFn` |
 | Functional test for new RPC/API | Yes | `test/ospf/*.ci` |
@@ -633,7 +633,7 @@ directly.
 |-------|------------------------------|
 | Completeness | Every child spec exists and cross-references siblings |
 | Correctness | Wire matches RFC 2328/3101; both checksums correct (covered ranges); the §13.4 traps handled |
-| Naming | YANG kebab-case; CLI `show ip ospf <noun>`; admin-distance key `ospf` (single, existing) |
+| Naming | YANG kebab-case; CLI `show ospf <noun>`; admin-distance key `ospf` (single, existing) |
 | Data flow | FIB install flows OSPF SPF -> Loc-RIB insertion (`locrib.Path`) -> sysrib `OnChange` -> fibkernel (NOT `redistevents`); redistribution flows OSPF -> `redistevents` -> orchestrator -> BGP consumer (never the FIB); no bypass and no conflation |
 | Rule: plugin-self-containment | All OSPF schema/help/doctor/commands under `internal/plugins/ospf/` |
 

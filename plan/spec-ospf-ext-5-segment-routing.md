@@ -87,7 +87,7 @@ SID/Label 7, Extended Prefix Range 9), NOT the OSPFv2 RFC 8665 numbers.
 The feature is self-contained inside the OSPF engine: it registers the SR TLV
 emitters/parsers, the SR config leaves (`ospf { segment-routing { ... } }` for the
 IPv4 family and `ospf { address-family { ipv6 { segment-routing { ... } } } }` for
-the IPv6 family), the `show ip ospf segment-routing` and `show ipv6 ospf
+the IPv6 family), the `show ospf segment-routing` and `show ospf ipv6
 segment-routing` CLI, the doctor checks, and the SR metrics. Removing the SR code
 removes all SR behaviour for both AFs; OSPF and the opaque carriers behave exactly
 as before.
@@ -114,7 +114,7 @@ Shared (both address families) unless an Address-family column narrows it.
 | OSPFv3 RI Opaque LSA carriage | RFC 7770 RI LSA for OSPFv3 (function code 12; area `0xA00C`, AS `0xC00C`); originate / decode; verbatim flood; unknown RI TLVs stored + reflooded, never interpreted | IPv6 only (added by this feature) |
 | RFC 8362 Extended-LSA carriage (SR subset) | E-Router-LSA (`0x2021`) Router-Link TLV; E-Intra-Area-Prefix-LSA (`0x2029`), E-Inter-Area-Prefix-LSA (`0x2023`), E-AS-External-LSA (`0x4025`), E-Type-7-LSA (`0x2027`) prefix TLVs; 4-byte-aligned TLV/sub-TLV iteration; verbatim passthrough for unknown TLVs | IPv6 only (added by this feature) |
 | Inter-area Prefix-SID propagation | when the ABR re-advertises a prefix across areas, include the Prefix-SID (best path in source area else backbone), NP set / E clear unless directly attached | both (IPv4 §4 IA-Flag; IPv6 §8.2) |
-| CLI + metrics | `show ip ospf segment-routing` (IPv4) and `show ipv6 ospf segment-routing` (IPv6); `ze_ospf_sr_*` counters/gauges | both |
+| CLI + metrics | `show ospf segment-routing` (IPv4) and `show ospf ipv6 segment-routing` (IPv6); `ze_ospf_sr_*` counters/gauges | both |
 
 ### Out of scope (noted so it is not silently assumed done)
 
@@ -207,7 +207,7 @@ Shared engine / data plane (both AFs):
 - [ ] `internal/plugins/ospf/iface/ism.go` + `iface/iface.go` -- interface/neighbour state machine; adjacency states; transitions
   -> Constraint: the Adj-SID lifecycle (allocate at 2-Way, withdraw below 2-Way) is driven by these adjacency-state transitions for both AFs; SR subscribes to (or is polled on) adjacency change, allocating/freeing an SRLB label and re-originating the carrier LSA
 - [ ] `internal/plugins/ospf/register.go` -- `registerOSPF()`, `runOSPFEngine`, the v4 and v6 engine instances (`eng6` over `v6Codec{}` driven by `cfg.V6`), metrics + snapshot dispatch; consumers wired in `OnStarted`
-  -> Constraint: the SR consumer's metrics + snapshot + post-run hook + adjacency subscription are wired here for both AFs; `cfg.V6` carries the IPv6 SR block; `show ip ospf segment-routing` and `show ipv6 ospf segment-routing` add dispatch keys returning the per-AF SR snapshot
+  -> Constraint: the SR consumer's metrics + snapshot + post-run hook + adjacency subscription are wired here for both AFs; `cfg.V6` carries the IPv6 SR block; `show ospf segment-routing` and `show ospf ipv6 segment-routing` add dispatch keys returning the per-AF SR snapshot
 - [ ] `internal/plugins/ospf/spf/install.go` -- the `Installer` inserts `locrib.Path` per ECMP next-hop, AdminDistance 110
   -> Constraint: SR does NOT touch the Installer (IP routes); SR's output is the MPLS push that rides ON TOP of the IP route the Installer already created (fib-kernel attaches the MPLS encap, as LDP push works)
 
@@ -333,7 +333,7 @@ IPv6 family carriers (added by this feature):
 | An RI + prefix LSA carrying SR TLVs arrives from a peer for a reachable prefix | -> | SR parser records the SRGB, computes the label, emits an `mpls-fib` push toward the SPF next-hop | `TestSRReceivesAndInstallsPrefixSID` + `test/ospf/ospf-sr-receive.ci`; `TestOSPFv3PrefixSIDInstallsPush` + `test/ospfv3/ospfv3-sr-receive.ci` | both |
 | An adjacency reaches 2-Way | -> | SR allocates an SRLB label, originates the AF link carrier LSA with an Adj-SID, installs the pop entry | `test/ospf/ospf-sr-adj.ci` (IPv4); `TestOSPFv3OriginateAdjSID` (IPv6) | both |
 | An adjacency drops below 2-Way | -> | SR withdraws the Adj-SID LSA, frees the label, removes the pop entry | `TestSRAdjSIDWithdrawnBelow2Way` (IPv4); `TestOSPFv3AdjSIDWithdrawOnDown` (IPv6) | both |
-| `show ip ospf segment-routing` / `show ipv6 ospf segment-routing` is run | -> | the per-AF SR snapshot dispatch returns SRGB/SRLB, prefix-SIDs, adj-SIDs, computed labels | `test/ospf/ospf-sr-show.ci`; `test/ospfv3/ospfv3-sr-show.ci` | both |
+| `show ospf segment-routing` / `show ospf ipv6 segment-routing` is run | -> | the per-AF SR snapshot dispatch returns SRGB/SRLB, prefix-SIDs, adj-SIDs, computed labels | `test/ospf/ospf-sr-show.ci`; `test/ospfv3/ospfv3-sr-show.ci` | both |
 
 ## Acceptance Criteria
 
@@ -358,7 +358,7 @@ carriage differs; the observable behaviour is the same).
 | AC-14 | A broadcast/NBMA adjacency to a non-DR neighbour | a LAN-Adj-SID Sub-TLV carrying the Neighbor ID is advertised | both (IPv4 sub-TLV 3; IPv6 sub-TLV 6) |
 | AC-15 | An ABR re-advertises a prefix between areas | the Inter-Area Prefix-SID is included (best path in source/backbone area), NP set / E clear unless directly attached | both (IPv4 sets the IA-Flag on the Extended Prefix Range TLV; IPv6 §8.2) |
 | AC-16 | A malformed SR TLV/sub-TLV (bad length, truncated SID field) | the LSA is treated as malformed and not installed; the parser does not panic; reception is counted | both |
-| AC-17 | `show ip ospf segment-routing` / `show ipv6 ospf segment-routing` | renders the configured SRGB/SRLB, this node's prefix-SIDs and adj-SIDs, and per-remote computed labels with their forwarding action (push/swap/pop) | both |
+| AC-17 | `show ospf segment-routing` / `show ospf ipv6 segment-routing` | renders the configured SRGB/SRLB, this node's prefix-SIDs and adj-SIDs, and per-remote computed labels with their forwarding action (push/swap/pop) | both |
 | AC-18 | A received IPv6 RI / Extended LSA carrying an unknown (non-SR) TLV | the LSA is stored and reflooded byte-for-byte; the unknown TLV is not interpreted and does not block the SR TLVs in the same LSA | IPv6 |
 | AC-19 | An Extended Prefix Range TLV (IPv6 AF=1) with a starting Prefix-SID and Range Size N | the N covered prefixes receive consecutive SIDs (start, start+1, ...); the IPv6 prefix decodes with `((PrefixLength+31)/32)` words; a duplicate Range TLV resolves to the smallest Instance ID | IPv6 (IPv4 Range covered by AC-15) |
 | AC-20 | SR disabled (config removed) | no RI/Extended SR LSA is originated; existing SR-learned `mpls-fib` entries are withdrawn; the base OSPF behaviour for both AFs is exactly as before SR; the IPv6 type additions are inert with SR off | both |
@@ -374,7 +374,7 @@ carriage differs; the observable behaviour is the same).
 | 2 | Enables IPv6 SR (SRGB + loopback prefix-SID) and a peer's loopback becomes reachable | config -> `eng6` SR enabled -> `v6OriginateSelf` -> RI LSA + Prefix-SID E-prefix LSA -> flood; peer's E-prefix LSA received -> label computed -> `mpls-fib` push; `mpls -ls` shows it | `test/ospfv3/ospfv3-sr-originate.ci` + `test/ospfv3/ospfv3-sr-receive.ci` + `ospfv3-sr-frr` interop |
 | 3 | Pings a remote SR loopback over the SR LSP (label-switched), either AF | SR push at ingress -> transit swap -> PHP/Explicit-NULL at the egress per the remote's NP/E flags -> packet delivered | `ospf-sr-frr` (IPv4) + `ospfv3-sr-frr` (IPv6) interop (label-switched reachability + NP/E behaviour) |
 | 4 | Brings an SR adjacency up then down, either AF | adjacency 2-Way -> SRLB label allocated -> link carrier LSA with Adj-SID -> pop entry; adjacency down -> Adj-SID withdrawn, label freed, pop removed | `test/ospf/ospf-sr-adj.ci` (IPv4); `ospfv3-sr-frr` Adj-SID exchange (IPv6) |
-| 5 | Inspects SR state via CLI, either AF | `show ip ospf segment-routing` / `show ipv6 ospf segment-routing` -> SR snapshot (SRGB/SRLB, prefix-SIDs, adj-SIDs, computed labels + actions) | `test/ospf/ospf-sr-show.ci`; `test/ospfv3/ospfv3-sr-show.ci` |
+| 5 | Inspects SR state via CLI, either AF | `show ospf segment-routing` / `show ospf ipv6 segment-routing` -> SR snapshot (SRGB/SRLB, prefix-SIDs, adj-SIDs, computed labels + actions) | `test/ospf/ospf-sr-show.ci`; `test/ospfv3/ospfv3-sr-show.ci` |
 | 6 | Runs Ze SR against FRR ospfd (IPv4) and ospf6d (IPv6) with SR enabled | DD/flood exchange; both originate SR TLVs; Ze installs FRR's prefix-SIDs and FRR installs Ze's; labels agree for a multi-range SRGB | `ospf-sr-frr` + `ospfv3-sr-frr` interop |
 | 7 | Disables SR (config removed) | the SR TLV emitters/parsers stop originating; SR `mpls-fib` entries are withdrawn; OSPF + the carriers behave as before; the IPv6 type additions are inert | `test/ospfv3/ospfv3-sr-disable.ci` + `TestOSPFBuildsWithoutSR` + existing OSPF suites green |
 
@@ -412,7 +412,7 @@ IPv4 (RFC 8665) wire + plumbing:
 | `TestSRPrefixSIDUsesSPFNextHop` / `TestSRInstallPrefixSIDPush` / `TestSRInstallPrefixSIDSwap` | `internal/plugins/ospf/sr/install_test.go` | AC-8, A-9: push/swap toward the SPF next-hop with `Source=mplsSourceOSPFSR` | |
 | `TestSRNoInstallForNonSRNextHop` | `internal/plugins/ospf/sr/install_test.go` | R-? : no label installed toward a non-SR next-hop | |
 | `TestSRAdjSIDForwardsToNeighbor` / `TestSRAdjSIDWithdrawnBelow2Way` | `internal/plugins/ospf/sr/adjsid_test.go` | AC-12/AC-13, R-4: Adj-SID pop to the neighbour; withdrawn + freed below 2-Way (§7.4.1) | |
-| `TestSRSnapshot` | `internal/plugins/ospf/sr/snapshot_test.go` | AC-17: `show ip ospf segment-routing` snapshot rows | |
+| `TestSRSnapshot` | `internal/plugins/ospf/sr/snapshot_test.go` | AC-17: `show ospf segment-routing` snapshot rows | |
 
 IPv6 (RFC 8666) wire carriage + plumbing:
 | Test | File | Validates | Status |
@@ -459,12 +459,12 @@ IPv6 (RFC 8666) wire carriage + plumbing:
 | `ospf-sr-originate` | `test/ospf/ospf-sr-originate.ci` | IPv4 SR enabled; RI LSA shows SR-Algorithm/SRGB, Ext-Prefix shows the node prefix-SID | |
 | `ospf-sr-receive` | `test/ospf/ospf-sr-receive.ci` | a received IPv4 prefix-SID computes a label and installs an `mpls-fib` push; `show mpls forwarding` lists it | |
 | `ospf-sr-adj` | `test/ospf/ospf-sr-adj.ci` | an IPv4 adjacency advertises an Adj-SID; dropping it withdraws the Adj-SID and removes the pop entry | |
-| `ospf-sr-show` | `test/ospf/ospf-sr-show.ci` | `show ip ospf segment-routing` renders SRGB/SRLB, prefix-SIDs, adj-SIDs, computed labels | |
+| `ospf-sr-show` | `test/ospf/ospf-sr-show.ci` | `show ospf segment-routing` renders SRGB/SRLB, prefix-SIDs, adj-SIDs, computed labels | |
 | `ospf-sr-php` | `test/ospf/ospf-sr-php.ci` | NP/E flags drive PHP / keep / Explicit-NULL on the installed IPv4 label | |
-| `ospfv3-sr-config` | `test/ospfv3/ospfv3-sr-config.ci` | IPv6 `segment-routing` config validates; SR appears in `show ipv6 ospf` | |
-| `ospfv3-sr-originate` | `test/ospfv3/ospfv3-sr-originate.ci` | IPv6 RI LSA + Prefix-SID + Adj-SID originated; visible in `show ipv6 ospf database` | |
-| `ospfv3-sr-receive` | `test/ospfv3/ospfv3-sr-receive.ci` | a received IPv6 Prefix-SID installs an `mpls-fib` entry; `show ipv6 ospf segment-routing` lists the computed label | |
-| `ospfv3-sr-show` | `test/ospfv3/ospfv3-sr-show.ci` | `show ipv6 ospf segment-routing` renders SR-Algorithm, SRGB/SRLB, prefix-SIDs, adj-SIDs | |
+| `ospfv3-sr-config` | `test/ospfv3/ospfv3-sr-config.ci` | IPv6 `segment-routing` config validates; SR appears in `show ospf ipv6` | |
+| `ospfv3-sr-originate` | `test/ospfv3/ospfv3-sr-originate.ci` | IPv6 RI LSA + Prefix-SID + Adj-SID originated; visible in `show ospf ipv6 database` | |
+| `ospfv3-sr-receive` | `test/ospfv3/ospfv3-sr-receive.ci` | a received IPv6 Prefix-SID installs an `mpls-fib` entry; `show ospf ipv6 segment-routing` lists the computed label | |
+| `ospfv3-sr-show` | `test/ospfv3/ospfv3-sr-show.ci` | `show ospf ipv6 segment-routing` renders SR-Algorithm, SRGB/SRLB, prefix-SIDs, adj-SIDs | |
 | `ospfv3-sr-disable` | `test/ospfv3/ospfv3-sr-disable.ci` | removing IPv6 SR config withdraws the SR LSAs + `mpls-fib` entries; base OSPFv3 + the v4 engine unaffected | |
 
 ### Interop Tests (MANDATORY for protocol features)
@@ -486,12 +486,12 @@ IPv6 (RFC 8666) wire carriage + plumbing:
 <!-- MUST include feature code (internal/*, cmd/*) -->
 
 Shared (both AFs):
-- `internal/plugins/ospf/register.go` -- wire the SR consumer: metrics, the `show ip ospf segment-routing` and `show ipv6 ospf segment-routing` snapshot dispatch keys, the SR post-SPF-run hook, the adjacency-change subscription for Adj-SID lifecycle; start/stop IPv6 SR on `eng6` from `cfg.V6.SegmentRouting`
+- `internal/plugins/ospf/register.go` -- wire the SR consumer: metrics, the `show ospf segment-routing` and `show ospf ipv6 segment-routing` snapshot dispatch keys, the SR post-SPF-run hook, the adjacency-change subscription for Adj-SID lifecycle; start/stop IPv6 SR on `eng6` from `cfg.V6.SegmentRouting`
 - `internal/plugins/ospf/config.go` -- resolve the IPv4 SR YANG leaves into the engine SR config and the IPv6 `segment-routing` block into `cfg.V6` (enable, SRGB/SRLB ranges, node prefix-SID index, flags)
 - `internal/plugins/ospf/spf/computer.go` -- expose a read-only post-run SR hook (a sibling to `SetOnChange`) firing AFTER the Installer `Apply` (R-8) so SR pushes ride existing IP routes (shared by both AFs)
 - `internal/plugins/ospf/doctor.go` -- a doctor check for SR config sanity (SRGB/SRLB present + non-overlapping with each other and the LDP/RSVP-TE ranges when SR enabled; MPLS forwarding available)
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- the `segment-routing` container for the IPv4 family and under `address-family ipv6` (enable, srgb, srlb, prefix-sid index, node flag)
-- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- the `show ip ospf segment-routing` and `show ipv6 ospf segment-routing` commands
+- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- the `show ospf segment-routing` and `show ospf ipv6 segment-routing` commands
 - `internal/core/diagnostic/codes.go` -- a diagnostic code for the SRGB/SRLB overlap doctor check
 
 IPv4 family carriers (registration seams; no SR spelling added):
@@ -503,7 +503,7 @@ IPv6 family carriage (added by this feature):
 - `internal/plugins/ospf/v3/packet/lsa.go` -- add `RouterInfo` + the Extended-LSA typed bodies to the union, the `WriteTo`/`bodyLen`/`hasTypedBody` switches, and `Decode*` accessors
 - `internal/plugins/ospf/origination_v6.go` -- SR origination off `v6OriginateSelf`: RI LSA (SR capabilities), E-Router-LSA Adj-SIDs, Prefix-SID E-prefix LSA; extend `v6OriginHeader` for the new types
 - `internal/plugins/ospf/afstrategy_v6.go` -- §8.2 Inter-Area Prefix-SID propagation in `OriginateSummaries`/`v6OriginateSummaries`; expose per-next-hop neighbour identity if not already
-- `internal/plugins/ospf/cmd_show.go` -- `show ipv6 ospf segment-routing` backing data
+- `internal/plugins/ospf/cmd_show.go` -- `show ospf ipv6 segment-routing` backing data
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -511,8 +511,8 @@ IPv6 family carriage (added by this feature):
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- `segment-routing` container (IPv4 family + under `address-family ipv6`); read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | SRGB/SRLB base `range "16..1048575"`, size `range "1..1048575"` (or 24-bit per RFC); prefix-sid index `range`; `enable`/flags `boolean` |
 | YANG custom validators | [ ] yes | SRGB/SRLB non-overlap (with each other + LDP/RSVP-TE) + capacity validation (`ze:validate` + `ValidateFn`); `CompleteFn` for label-range hints; register in the OSPF validators register |
-| CLI commands/flags | [ ] yes | `show ip ospf segment-routing` + `show ipv6 ospf segment-routing` in `ze-ospf-cmd.yang` + the register dispatch / `cmd_show.go` |
-| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ip ospf segment-routing`, `show ipv6 ospf segment-routing` |
+| CLI commands/flags | [ ] yes | `show ospf segment-routing` + `show ospf ipv6 segment-routing` in `ze-ospf-cmd.yang` + the register dispatch / `cmd_show.go` |
+| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ospf segment-routing`, `show ospf ipv6 segment-routing` |
 | Editor autocomplete | [ ] yes | automatic for the YANG enum/boolean leaves + the new show subcommands |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-sr-*.ci`, `test/ospfv3/ospfv3-sr-*.ci` |
 | Pipe completeness | [ ] yes | both show commands route through `ApplyPipes` like the other show outputs |
@@ -541,7 +541,7 @@ IPv6 family carriage (added by this feature):
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPF Segment Routing (both AFs) |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md` -- the `segment-routing` container (IPv4 + `address-family ipv6`) |
-| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ip ospf segment-routing`, `show ipv6 ospf segment-routing` |
+| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ospf segment-routing`, `show ospf ipv6 segment-routing` |
 | 4 | API/RPC added/changed? | [ ] no | the show RPCs live in the central `ze-show` namespace; document under the command reference |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains an SR consumer (both AFs) |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- a Segment Routing section (SRGB/SRLB, prefix-SID, adj-SID, both AFs) |
@@ -657,7 +657,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | multi-range index->label arithmetic (shared); V/L sizing; NP/E/M truth table (NULL=0 IPv4, NULL=2 IPv6); area scoping; Adj-SID withdraw below 2-Way; SRGB/SRLB non-overlap; duplicate/unknown-algorithm ignore rules; RFC 8666 OSPFv3 type codes (not RFC 8665 values) |
 | Naming | one `ze_ospf_sr_*` metric namespace with an `af` label; YANG `segment-routing`/`srgb`/`srlb` kebab-case; `mplsSourceOSPFSR` / `mplsSourceOSPFv3SR` |
 | Data flow | IPv4 SR via ext-1/ext-3/ext-4; IPv6 SR via the v3 codec + LSDB store-by-scope; forwarding via mpls-fib only; shared SPF read-only; no SR spelling in carriers/core; the two RFC code sets never cross |
-| CLI grammar | `show ip ospf segment-routing` + `show ipv6 ospf segment-routing` action-before-identifier |
+| CLI grammar | `show ospf segment-routing` + `show ospf ipv6 segment-routing` action-before-identifier |
 | Doctor checks | the SR/MPLS doctor check (SRGB/SRLB overlap with LDP/RSVP-TE + MPLS routing capability) registered per `ai/rules/doctor-checks.md` |
 | YANG validation | SRGB/SRLB ranges have `range` constraints + the non-overlap custom validator; no bare `type string` |
 | Prometheus counters | the seven `ze_ospf_sr_*` series defined, registered, listed, AF-labelled |

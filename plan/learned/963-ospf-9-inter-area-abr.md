@@ -2,7 +2,7 @@
 
 ## Context
 
-Completed `plan/spec-ospf-9-inter-area-abr.md`: ABR detection, Type 3 (network) and Type 4 (ASBR) Summary-LSA origination into each attached area, RFC 2328 §16.2/§16.3 inter-area route computation, area ranges (aggregate/not-advertise), `show ip ospf border-routers`, and the `ze_ospf_abr` / `ze_ospf_summary_lsas{area}` metrics. Implementation was inherited code-complete; this session ran the `/ze-review` gate (3 parallel review agents + maintainer reads), fixed the findings, and closed the spec.
+Completed `plan/spec-ospf-9-inter-area-abr.md`: ABR detection, Type 3 (network) and Type 4 (ASBR) Summary-LSA origination into each attached area, RFC 2328 §16.2/§16.3 inter-area route computation, area ranges (aggregate/not-advertise), `show ospf border-routers`, and the `ze_ospf_abr` / `ze_ospf_summary_lsas{area}` metrics. Implementation was inherited code-complete; this session ran the `/ze-review` gate (3 parallel review agents + maintainer reads), fixed the findings, and closed the spec.
 
 ## Decisions
 

@@ -108,7 +108,7 @@ claimed done until it exists.
 - [ ] `ai/rules/config-surface.md` + `ai/rules/config-naming.md` -- YANG vs env var, kebab-case naming for the PE-CE config surface
   -> Constraint: PE-CE settings (domain-id, vpn-route-tag, sham-link, vrf binding) are operational OSPF config -> YANG under the `ospf` container, NOT environment vars; every leaf gets maximum native validation (Domain ID pattern, route-tag range, metric range)
 - [ ] `ai/rules/no-sprintf-alloc.md` + `ai/rules/buffer-first.md` -- any Ext-Community value encode and any `show` rendering are buffer-first / no `fmt` on the wire
-  -> Constraint: the 8-byte Domain ID / 8-byte Route Type Ext-Community values are written with `WriteTo(buf, off) int`; `show ip ospf` PE-CE rows render via `textbuf`/`AppendTo`
+  -> Constraint: the 8-byte Domain ID / 8-byte Route Type Ext-Community values are written with `WriteTo(buf, off) int`; `show ospf` PE-CE rows render via `textbuf`/`AppendTo`
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc4576.md` -- the DN bit
@@ -271,13 +271,13 @@ claimed done until it exists.
 | AC-12 | A sham link configured with a remote /32 endpoint reachable via a VRF route | the sham link is UP and contributes an unnumbered Type 1 point-to-point link to the Router-LSA, treated as a Demand Circuit, using its configurable metric; the endpoint /32 is NOT advertised by OSPF (RFC 4577 §4.2.7) -- **gated on A-1** for the VRF route |
 | AC-13 | A VPN Route Tag for a 2-byte backbone AS with no explicit tag configured | defaults to the auto-computed tag (Automatic=1, Complete=1, PathLength=01, AS in the low 16 bits); a 4-byte AS REQUIRES an explicit tag distinct from any VPN-internal tag (RFC 4577 §4.2.5.2) |
 | AC-14 | A PE-CE instance with no OSPF cryptographic authentication configured | `ze doctor` raises a warning recommending crypto auth PE<->CE (RFC 4576 §5; RFC 4577 §6) |
-| AC-15 | The `ospf` config with the PE-CE leaf set | resolves into engine config; the honour gate and set-on-originate activate; `show ip ospf` reflects the PE-CE / VRF / Domain ID / VPN Route Tag state |
+| AC-15 | The `ospf` config with the PE-CE leaf set | resolves into engine config; the honour gate and set-on-originate activate; `show ospf` reflects the PE-CE / VRF / Domain ID / VPN Route Tag state |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Configures an OSPF instance as a PE-CE (L3VPN) instance with a VPN Route Tag | YANG `pe-ce` -> `config.go` -> engine flags; `show ip ospf` shows PE-CE on | `test/ospf/ospf-l3vpn-config.ci` |
+| 1 | Configures an OSPF instance as a PE-CE (L3VPN) instance with a VPN Route Tag | YANG `pe-ce` -> `config.go` -> engine flags; `show ospf` shows PE-CE on | `test/ospf/ospf-l3vpn-config.ci` |
 | 2 | Receives, from a CE, a Type 5 LSA with the DN bit set | wire -> `ReceiveUpdate` (stored + flooded) -> SPF `v4ExternalReader` excludes it -> no route, no BGP export | `test/ospf/ospf-l3vpn-dn-honour.ci` + `ospf-l3vpn-frr` interop |
 | 3 | Has the PE re-originate a backbone route to a CE as a Type 5 | redistribute glue -> `OriginateExternal(opts|OptionDN, tag=vpnRouteTag)` -> flooded; the CE/FRR sees DN + tag | `test/ospf/ospf-l3vpn-dn-set.ci` + `ospf-l3vpn-frr` interop |
 | 4 | Receives a Type 5 whose route tag equals the VPN Route Tag (legacy non-DN PE) | wire -> SPF reader excludes by tag -> no route | `TestExternalReaderSkipsVPNRouteTag` + `ospf-l3vpn-frr` interop |
@@ -326,7 +326,7 @@ claimed done until it exists.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ospf-l3vpn-config` | `test/ospf/ospf-l3vpn-config.ci` | PE-CE instance configures; `show ip ospf` shows PE-CE / VRF / VPN Route Tag | |
+| `ospf-l3vpn-config` | `test/ospf/ospf-l3vpn-config.ci` | PE-CE instance configures; `show ospf` shows PE-CE / VRF / VPN Route Tag | |
 | `ospf-l3vpn-dn-honour` | `test/ospf/ospf-l3vpn-dn-honour.ci` | a received DN-marked Type 3/5/7 is excluded from the route table but present in the LSDB | |
 | `ospf-l3vpn-dn-set` | `test/ospf/ospf-l3vpn-dn-set.ci` | a PE-originated Type 5 from a backbone route carries DN + VPN Route Tag | |
 | `ospf-l3vpn-dn-decode` | `test/ospf/ospf-l3vpn-dn-decode.ci` | `ze` decode of a DN LSA shows "DN" in the Options | |
@@ -360,7 +360,7 @@ claimed done until it exists.
 - `internal/plugins/ospf/redistribute/source.go` -- filter Type-4-derived routes and DN-excluded routes out of the BGP export (gated on A-1 for the export)
 - `internal/plugins/ospf/config.go` -- resolve the PE-CE / VRF / Domain ID / VPN Route Tag / sham-link leaves into engine config
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- the PE-CE config surface (leaves below)
-- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- `show ip ospf` PE-CE / sham-link rows
+- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- `show ospf` PE-CE / sham-link rows
 - `internal/plugins/ospf/cmd_show.go` -- render the PE-CE / VRF / Domain ID / VPN Route Tag / sham-link state
 - `internal/plugins/ospf/doctor.go` -- the PE-CE crypto-auth warning check
 - `internal/core/diagnostic/codes.go` -- the new `doctor-ospf-l3vpn-auth` diagnostic code (PE-CE without crypto auth)
@@ -372,11 +372,11 @@ claimed done until it exists.
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- `pe-ce` (boolean), `vrf` (string, name ref), `domain-id` (8-byte hex/pattern), `vpn-route-tag` (uint32), `sham-link` list (local-endpoint /32, remote-endpoint /32, area, metric); read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | `domain-id` pattern (8-byte Ext-Community), `vpn-route-tag` range 0..4294967295, `sham-link/metric` range 1..65535, endpoint `pattern` for an IPv4 /32; every leaf maximally constrained |
 | YANG custom validators | [ ] yes | a 4-byte-AS-requires-explicit-tag cross-field check; an endpoint-must-be-/32 check via `ze:validate` + `ValidateFn`; `CompleteFn` for the `vrf` name where a VRF registry exists (gated on A-1) |
-| CLI commands/flags | [ ] yes | `show ip ospf` PE-CE / sham-link rows in `ze-ospf-cmd.yang` + `cmd_show.go` |
-| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ip ospf` already action-first; new rows reuse it |
+| CLI commands/flags | [ ] yes | `show ospf` PE-CE / sham-link rows in `ze-ospf-cmd.yang` + `cmd_show.go` |
+| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ospf` already action-first; new rows reuse it |
 | Editor autocomplete | [ ] yes | automatic for the YANG enum/boolean/range leaves; `CompleteFn` for `vrf` (gated on A-1) |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-l3vpn-*.ci` |
-| Pipe completeness | [ ] yes | the `show ip ospf` PE-CE output routes through `ApplyPipes` like the other show outputs |
+| Pipe completeness | [ ] yes | the `show ospf` PE-CE output routes through `ApplyPipes` like the other show outputs |
 | Env var registration | [ ] no | PE-CE settings are operational OSPF config, not `environment/` leaves |
 | Doctor check for runtime dependencies | [ ] yes | `doctor-ospf-l3vpn-auth` (PE-CE instance without crypto auth) in `doctor.go` + `internal/core/diagnostic/codes.go` + unit + functional test, per `ai/rules/doctor-checks.md`; no new socket/port (reuses the OSPF raw socket) |
 | Prometheus counters/metrics | [ ] yes | see the metrics rows below |
@@ -399,7 +399,7 @@ claimed done until it exists.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPF L3VPN PE-CE (DN bit) |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` -- the PE-CE leaves |
-| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ip ospf` PE-CE / sham-link rows |
+| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ospf` PE-CE / sham-link rows |
 | 4 | API/RPC added/changed? | [ ] no | show RPCs live in the central `ze-show` namespace; document under the command reference |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains PE-CE behaviour |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- a PE-CE / L3VPN section (with the A-1 gating note) |
@@ -477,7 +477,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 6. **Phase: doctor + metrics + CLI** -- user surface
    - Tests: `TestPECEDoctorWarnsNoAuth`, `ospf-l3vpn-doctor.ci`, `ospf-l3vpn-dn-decode.ci`, `ospf-l3vpn-config.ci`
    - Files: `doctor.go`, `internal/core/diagnostic/codes.go`, `cmd_show.go`, `yang/ze-ospf-cmd.yang`, metric registration, `doctor_l3vpn_test.go`, `config_l3vpn_test.go`
-   - Verify: doctor warns on missing PE-CE auth; `show ip ospf` shows PE-CE state; the five metric series register
+   - Verify: doctor warns on missing PE-CE auth; `show ospf` shows PE-CE state; the five metric series register
 7. **Functional tests** -> the six `.ci` cover the user-visible behaviour
 8. **RFC refs** -> add `// RFC 4576 Section 4` / `// RFC 4577 Section 4.2.x` comments on the honour gate, the set-on-originate, the tag, the Domain ID, the Route Type community, and the sham-link code
 9. **Interop** -> `ospf-l3vpn-frr` QEMU scenario (OSPF-only DN/tag mechanics)
@@ -492,7 +492,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | DN at `0x80` only; gate at route-calc not the LSDB; DN ignored when not PE-CE and on non-3/5/7 types; VPN Route Tag default bit layout; Domain ID §4.2.8.1 equality |
 | Naming | `ze_ospf_l3vpn_*` metrics; YANG `pe-ce`/`domain-id`/`vpn-route-tag`/`sham-link` kebab-case; `doctor-ospf-l3vpn-auth` |
 | Data flow | DN LSAs flood + store unchanged; exclusion only at the SPF reader; no DN route reaches the BGP producer; no "l3vpn" spelling in generic config/redistribute |
-| CLI grammar | `show ip ospf` PE-CE rows action-before-identifier |
+| CLI grammar | `show ospf` PE-CE rows action-before-identifier |
 | Doctor checks | `doctor-ospf-l3vpn-auth` registered per `ai/rules/doctor-checks.md`, code in `codes.go`, unit + functional test |
 | YANG validation | every PE-CE leaf maximally constrained; `domain-id` pattern, `vpn-route-tag` range, `sham-link/metric` range, endpoint /32; cross-field 4-byte-AS-tag validator |
 | Prometheus counters | the five `ze_ospf_l3vpn_*` series defined, registered, listed; umbrella table updated |
@@ -519,7 +519,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Forged DN / tag | a forged DN (RFC 4576 §5) can make prefixes unreachable; a cleared DN can loop; the PE-CE doctor check warns when crypto auth is absent; reuse the existing OSPF auth -- no new auth surface |
 | Route leakage | the honour gate must NOT silently drop routes in a non-PE-CE deployment (gated on the config flag); a DN-excluded route must not be re-exported to BGP (the producer never sees it) |
 | Resource exhaustion | DN LSAs share the existing per-area LSDB caps; the gate adds no storage; the metrics counters are bounded |
-| Error leakage | doctor warnings name the instance, not key material; no auth secret rendered in `show ip ospf` |
+| Error leakage | doctor warnings name the instance, not key material; no auth secret rendered in `show ospf` |
 
 ### Failure Routing
 | Failure | Route To |

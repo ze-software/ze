@@ -92,7 +92,7 @@ intact.
 - [ ] `ai/rules/buffer-first.md` -- TLV emit and opaque-body encode are buffer-first
   -> Constraint: the TLV builder writes into a caller-owned buffer via `WriteTo(buf, off) int`; the 4-byte alignment pad is written, never produced via slice concatenation; the TLV iterator returns views over the caller's bytes (zero-copy), no per-TLV allocation
 - [ ] `ai/rules/no-sprintf-alloc.md` -- no `fmt`/`+` on the wire or hot path
-  -> Constraint: any opaque-LSA rendering (CLI `show ip ospf database opaque`) uses `textbuf`/`AppendTo`
+  -> Constraint: any opaque-LSA rendering (CLI `show ospf database opaque`) uses `textbuf`/`AppendTo`
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc5250.md` -- the framework spec
@@ -247,8 +247,8 @@ intact.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Enables OSPF opaque capability; a registered consumer (test stub) originates an area-scope opaque LSA | config -> engine -> `originateSelfLSAs` -> `OnOriginate` -> `OriginateSelf` -> install + flood; peer's `show ip ospf database opaque-area` shows it | `test/ospf/ospf-opaque-originate.ci` |
-| 2 | Receives an opaque LSA from FRR for a registered type | wire -> dispatcher -> `ReceiveUpdate` -> scope route + install -> `OnReceive`; `show ip ospf database opaque-*` lists it; the consumer's hook fired | `test/ospf/ospf-opaque-receive.ci` + `ospf-opaque-frr` interop |
+| 1 | Enables OSPF opaque capability; a registered consumer (test stub) originates an area-scope opaque LSA | config -> engine -> `originateSelfLSAs` -> `OnOriginate` -> `OriginateSelf` -> install + flood; peer's `show ospf database opaque-area` shows it | `test/ospf/ospf-opaque-originate.ci` |
+| 2 | Receives an opaque LSA from FRR for a registered type | wire -> dispatcher -> `ReceiveUpdate` -> scope route + install -> `OnReceive`; `show ospf database opaque-*` lists it; the consumer's hook fired | `test/ospf/ospf-opaque-receive.ci` + `ospf-opaque-frr` interop |
 | 3 | Runs `ze` decode on opaque-LSA hex | CLI -> `packet.DecodeLSA` -> `OpaqueType()`/`OpaqueID()` rendered, body shown as TLVs/hex | `test/ospf/ospf-opaque-decode.ci` |
 | 4 | Forms an adjacency with FRR where both set the O-bit, then both flood opaque LSAs | DD O-bit negotiation -> per-neighbour capability -> opaque flooding both ways | `ospf-opaque-frr` interop (full adjacency + opaque exchange) |
 | 5 | Removes the test consumer (build without it) | `RegisterOpaqueConsumer` is gone; opaque LSAs still flood verbatim but are not delivered; OSPF otherwise unchanged | `TestUnregisteredOpaqueReflooded` + existing OSPF suite still green |
@@ -289,8 +289,8 @@ intact.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ospf-opaque-register` | `test/ospf/ospf-opaque-register.ci` | a registered consumer appears; opaque enabled shows in `show ip ospf` | |
-| `ospf-opaque-originate` | `test/ospf/ospf-opaque-originate.ci` | a stub consumer originates an opaque LSA; it appears in `show ip ospf database opaque-area` | |
+| `ospf-opaque-register` | `test/ospf/ospf-opaque-register.ci` | a registered consumer appears; opaque enabled shows in `show ospf` | |
+| `ospf-opaque-originate` | `test/ospf/ospf-opaque-originate.ci` | a stub consumer originates an opaque LSA; it appears in `show ospf database opaque-area` | |
 | `ospf-opaque-receive` | `test/ospf/ospf-opaque-receive.ci` | a received opaque LSA is stored, listed, and delivered to the consumer | |
 | `ospf-opaque-decode` | `test/ospf/ospf-opaque-decode.ci` | `ze` decode of opaque hex shows Opaque Type/ID + TLVs | |
 | `ospf-opaque-scope` | `test/ospf/ospf-opaque-scope.ci` | Type 9/10/11 honour their flood boundaries (link/area/AS, not into stub) | |
@@ -320,7 +320,7 @@ intact.
 - `internal/plugins/ospf/instance.go` -- surface neighbour opaque capability into `NeighborInfo`; invoke consumer `OnOriginate` from `originateSelfLSAs`; deliver `OnReceive` from the LSDB hook; the Type-11 reachability lookup
 - `internal/plugins/ospf/lsdb/flooding.go` `NeighborInfo` -- add `OpaqueCapable bool`
 - `internal/plugins/ospf/register.go` -- create the opaque consumer registry; wire discovery into the engine
-- `internal/plugins/ospf/cmd_show.go` + `internal/plugins/ospf/show_database.go` -- `show ip ospf database opaque-link|opaque-area|opaque-as`
+- `internal/plugins/ospf/cmd_show.go` + `internal/plugins/ospf/show_database.go` -- `show ospf database opaque-link|opaque-area|opaque-as`
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- a top-level `opaque` leaf (enable/disable opaque capability); default off until a consumer is present
 - `internal/plugins/ospf/config.go` -- resolve the `opaque` leaf into the engine config
 - `internal/plugins/ospf/doctor.go` -- (only if a runtime dependency is added; none expected -- no new socket/port)
@@ -331,11 +331,11 @@ intact.
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- `opaque` enable leaf; read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | `opaque` is `type boolean` (native); no custom validator needed |
 | YANG custom validators | [ ] no | native boolean suffices |
-| CLI commands/flags | [ ] yes | `show ip ospf database opaque-link|opaque-area|opaque-as` in `ze-ospf-cmd.yang` + `cmd_show.go` |
-| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ip ospf database opaque-*` |
+| CLI commands/flags | [ ] yes | `show ospf database opaque-link|opaque-area|opaque-as` in `ze-ospf-cmd.yang` + `cmd_show.go` |
+| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ospf database opaque-*` |
 | Editor autocomplete | [ ] yes | automatic for the YANG boolean + the new show subcommands |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-opaque-*.ci` |
-| Pipe completeness | [ ] yes | `show ip ospf database opaque-*` routes through `ApplyPipes` like the other show outputs |
+| Pipe completeness | [ ] yes | `show ospf database opaque-*` routes through `ApplyPipes` like the other show outputs |
 | Env var registration | [ ] no | `opaque` is operational config, not an `environment/` leaf |
 | Doctor check for runtime dependencies | [ ] no | no new socket/port/binary/cert; reuses the existing OSPF raw socket |
 | Prometheus counters/metrics | [ ] yes | see the metrics rows below |
@@ -358,7 +358,7 @@ intact.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPF opaque-LSA framework |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md` -- the `opaque` leaf |
-| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ip ospf database opaque-*` |
+| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ospf database opaque-*` |
 | 4 | API/RPC added/changed? | [ ] no | show RPCs live in the central `ze-show` namespace; document under the command reference |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains an opaque consumer registry |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- opaque section (carrier only) |
@@ -437,7 +437,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 7. **Phase: CLI + config + metrics** -- user surface
    - Tests: `ospf-opaque-decode.ci`, the register/originate/receive `.ci`
    - Files: `cmd_show.go`, `show_database.go`, `yang/ze-ospf-conf.yang`, `yang/ze-ospf-cmd.yang`, `config.go`, metric registration
-   - Verify: `show ip ospf database opaque-*`, the `opaque` leaf, the five metric series
+   - Verify: `show ospf database opaque-*`, the `opaque` leaf, the five metric series
 8. **Functional tests** -> the five `.ci` cover the user-visible behaviour
 9. **RFC refs** -> add `// RFC 5250 Section X` comments on the scope, O-bit, LS-ID-split, and §5 enforcement code
 10. **Interop** -> `ospf-opaque-frr` QEMU scenario
@@ -452,7 +452,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | scope routing exact (9 link / 10 area / 11 AS); §3.1 discards; O-bit gate; LS-ID split byte order; TLV 4-byte alignment; §5 reachability |
 | Naming | `ze_ospf_opaque_*` metrics; YANG `opaque` kebab-case; `OpaqueType`/`OpaqueID` |
 | Data flow | opaque touches LSDB + flooding only; SPF read-only for §5; no consumer name in the carrier |
-| CLI grammar | `show ip ospf database opaque-*` action-before-identifier |
+| CLI grammar | `show ospf database opaque-*` action-before-identifier |
 | Doctor checks | none added (no new runtime dependency) -- confirm |
 | YANG validation | the `opaque` leaf is a native boolean |
 | Prometheus counters | the five series defined, registered, listed; umbrella table updated |

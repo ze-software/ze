@@ -19,7 +19,7 @@
 7. `internal/plugins/ospf/instance.go` (881 `originateSelfLSAs`) -- the per-topology-change + periodic origination trigger; branches `v6OriginateSelf` (OSPFv3) vs `lsdb.OriginateFromTopology` (OSPFv2); RI origination hangs off here
 8. `internal/plugins/ospf/afstrategy_v6.go` / `origination_v6.go` (`v6OriginateSelf`, `v6OriginateRouter`, `v6OriginHeader`) -- the OSPFv3 self-LSA builder RI extends with function code 12
 9. `internal/plugins/ospf/v3/types/lsa.go` -- the OSPFv3 16-bit LS Type (U | S2 | S1 | 13-bit function code), `Scope()`, base function-code constants; RI adds `LSTypeRouterInformation` (function code 12) here
-10. `internal/plugins/ospf/show_database.go` / `cmd_show.go` -- the `show ip ospf database <type>` subview map RI extends with `router-information`
+10. `internal/plugins/ospf/show_database.go` / `cmd_show.go` -- the `show ospf database <type>` subview map RI extends with `router-information`
 
 ## Task
 
@@ -74,7 +74,7 @@ FRR/SR deployment where SR consumers need both.
 | TLV-registration hook | `RegisterRITLV(tlvType, scope, BuildFn)` so SR/ext-5 (and other future consumers) append TLVs into the RI LSA; this spec invokes registered builders in TLV-type order after the type-1 TLV; the hook names no consumer |
 | Configurable advertisement scope | A YANG `router-information` container under `ospf` with a `scope` leaf (enumeration `link`/`area`/`as`, multiple allowed; default `area` + `as`) and an `enabled` leaf; resolved into the engine config and applied to both address families |
 | Multi-instance rule | Single Instance 0 by default; when registered TLV builders overflow the maximum LSA length, overflow goes into Instance 1, 2, ...; on receipt, for an unspecified-multi-instance TLV use the numerically smallest Instance ID and ignore the rest (§3) |
-| CLI visibility | `show ip ospf database router-information` (OSPFv2 opaque + OSPFv3 native) decodes and renders the capability bits and TLV list |
+| CLI visibility | `show ospf database router-information` (OSPFv2 opaque + OSPFv3 native) decodes and renders the capability bits and TLV list |
 | Capability-bit accuracy | The advertised informational bits MUST reflect this router's actual capabilities in the advertised scope (§2.4); the bits are derived from live engine state (GR helper enabled, stub-router/max-metric configured, etc.), not hard-coded |
 
 ### Out of scope (noted so it is not silently assumed done)
@@ -105,7 +105,7 @@ FRR/SR deployment where SR consumers need both.
 - [ ] `ai/rules/buffer-first.md` -- TLV emit and RI body build are buffer-first
   -> Constraint: the RI body is built into a caller-owned buffer via `WriteTo(buf, off) int` (the ext-1 TLV builder); the 4-byte pad is written, never produced by slice concatenation; the capability bitfield is written in place; no `append`-grown body on the origination path
 - [ ] `ai/rules/no-sprintf-alloc.md` -- no `fmt`/`+` on the wire or render path
-  -> Constraint: `show ip ospf database router-information` renders capability bits and TLVs through `textbuf`/`AppendTo`, not `fmt.Sprintf`
+  -> Constraint: `show ospf database router-information` renders capability bits and TLVs through `textbuf`/`AppendTo`, not `fmt.Sprintf`
 - [ ] `ai/rules/config-surface.md` + `ai/rules/config-naming.md` -- YANG vs env var, kebab-case
   -> Constraint: the advertisement scope and enable flag are operational config (YANG `router-information` container, kebab-case leaves), not environment vars
 
@@ -145,10 +145,10 @@ FRR/SR deployment where SR consumers need both.
   -> Constraint: add `LSTypeRouterInformation` here. It is NOT a single constant: per RFC 7770 the wire type is `0x000C` link, `0x200C` area, `0x400C` AS (U=1, function=12). Provide a scope->LSType helper (and add the three values to `Known()`), mirroring how the scope bits already work for the base types
 - [ ] `internal/plugins/ospf/lsdb/lsdb.go` -- `LSAKey` triple `(Type, LinkStateID, AdvertisingRouter)`; `dbForLocked`/`dbForReadLocked` route AS-external to `asExternal`, else the per-area store; `OriginateSelf` installs through this
   -> Constraint: for OSPFv3 AS-scoped RI, the store routing must send function-code-12 AS-scope LSAs to the AS-wide store. ext-1 already adds AS-wide opaque routing for OSPFv2; the OSPFv3 AS-scope routing follows the existing `LSTypeASExternal` (0x4005) AS-store precedent via the S2/S1 scope bits -- confirm the OSPFv3 LSDB routes AS-scope by `Scope()`, not by the opaque-type-11 path
-- [ ] `internal/plugins/ospf/show_database.go` -- `dbSubviewType` (10) maps `show ip ospf database <type>` strings to snapshot types (router/network/summary/asbr-summary/external/nssa); `databaseSnapshotByType` (23) filters the LSDB snapshot to one type
+- [ ] `internal/plugins/ospf/show_database.go` -- `dbSubviewType` (10) maps `show ospf database <type>` strings to snapshot types (router/network/summary/asbr-summary/external/nssa); `databaseSnapshotByType` (23) filters the LSDB snapshot to one type
   -> Constraint: add a `router-information` subview. For OSPFv2 it filters the opaque store to Opaque type 4; for OSPFv3 it filters to function code 12. The renderer decodes the RI TLV stream and lists the capability bits
-- [ ] `internal/plugins/ospf/cmd_show.go` -- `init()` (39) registers the `ze-show:ospf-database-*` RPCs via `dbSubviewForwarder("show ip ospf database <type>")`; the database subviews are registered there
-  -> Constraint: register `ze-show:ospf-database-router-information` -> `dbSubviewForwarder("show ip ospf database router-information")`, mirroring the existing subview registrations; the command YANG binding lives in `yang/ze-ospf-cmd.yang`
+- [ ] `internal/plugins/ospf/cmd_show.go` -- `init()` (39) registers the `ze-show:ospf-database-*` RPCs via `dbSubviewForwarder("show ospf database <type>")`; the database subviews are registered there
+  -> Constraint: register `ze-show:ospf-database-router-information` -> `dbSubviewForwarder("show ospf database router-information")`, mirroring the existing subview registrations; the command YANG binding lives in `yang/ze-ospf-cmd.yang`
 - [ ] `internal/plugins/ospf/config.go` -- `parseOSPFConfig` (268) / `applyTree` (300) resolve the `ospf` YANG tree into `ospfConfig`; existing containers like `max-metric` (`parseMaxMetric` 505) and `default-information` (`parseDefaultInformation` 492) are the pattern for a new container
   -> Constraint: add a `router-information` parse (enable + scope list) following the `parseMaxMetric` pattern; the resolved scope/enable flags feed the RI originator; the capability-bit derivation reads existing config (`MaxMetric`, GR helper, etc.), not new leaves
 - [ ] `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- top-level `container ospf` (12) holds `default-information`, `timers`, `max-metric`, `redistribute`, `areas`, `interfaces`; native-typed leaves with `range`/`enumeration` constraints throughout
@@ -186,7 +186,7 @@ FRR/SR deployment where SR consumers need both.
 4. **Store + flood (existing):** OSPFv2 via ext-1's opaque stores/flooding; OSPFv3 via the existing per-area / AS-wide LSDB and §13 flooding selected by the `Scope()` bits. No new store, no new flooding.
 5. **Withdraw (existing):** RI disabled or a scope removed -> OSPFv2 `OnOriginate(withdraw=true)` (ext-1 MaxAge purge); OSPFv3 `FlushStaleSelfLSAs` over `v6ManagedSelfTypes` (existing MaxAge purge). Peers withdraw the RI LSA.
 6. **Multi-instance (new, rare):** if the registered builders overflow the maximum LSA length for Instance 0, the originator emits Instance 1, 2, ... carrying the overflow; Instance 0 always carries the type-1 TLV first (§2.4).
-7. **Render (new):** `show ip ospf database router-information` reads the RI LSA bytes (OSPFv2 opaque store filtered to Opaque type 4; OSPFv3 LSDB filtered to function code 12), iterates the TLV stream via the ext-1 iterator, and renders the capability bits + TLV list via `textbuf`.
+7. **Render (new):** `show ospf database router-information` reads the RI LSA bytes (OSPFv2 opaque store filtered to Opaque type 4; OSPFv3 LSDB filtered to function code 12), iterates the TLV stream via the ext-1 iterator, and renders the capability bits + TLV list via `textbuf`.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -196,7 +196,7 @@ FRR/SR deployment where SR consumers need both.
 | RI originator <-> capability state | read-only snapshot of GR/stub-router/TE config + helper state into the §2.5 bitfield | [ ] |
 | RI originator <-> TLV consumers | `RegisterRITLV(tlvType, scope, BuildFn)`; builders invoked in TLV-type order; recover-wrapped | [ ] |
 | RI TLV stream <-> generic TLV codec | ext-1 `packet/opaque_tlv.go` builder/iterator (shared); a thin `packet/ri_tlv.go` for the type-1 bitfield helpers | [ ] |
-| RI LSA bytes <-> CLI render | `show ip ospf database router-information` decodes via the iterator; `textbuf` render | [ ] |
+| RI LSA bytes <-> CLI render | `show ospf database router-information` decodes via the iterator; `textbuf` render | [ ] |
 | config <-> RI scope/enable | `router-information` YANG container -> `ospfConfig` -> originator | [ ] |
 
 ### Integration Points
@@ -254,7 +254,7 @@ FRR/SR deployment where SR consumers need both.
 | RI enabled in config; `originateSelfLSAs` fires (OSPFv3) | -> | OSPFv3 RI originator -> `OriginateSelf` (function code 12) -> install + flood | `TestRIv3OriginateArea` (unit) + `test/ospf/ospf6-ri-originate.ci` |
 | A consumer calls `RegisterRITLV(tlvType, scope, BuildFn)` from `init()` | -> | the RI TLV registry stores it; the originator invokes it after the type-1 TLV | `TestRITLVRegistered` (unit) + `test/ospf/ospf-ri-register-tlv.ci` |
 | An LS Update carrying an RI LSA (Opaque type 4) arrives | -> | ext-1 opaque receive -> RI `OnReceive` -> stored; `show ... database router-information` lists it | `test/ospf/ospf-ri-receive.ci` |
-| `show ip ospf database router-information` is run | -> | `cmd_show.go` RPC -> `databaseSnapshotByType("router-information")` -> TLV decode + render | `test/ospf/ospf-ri-show.ci` |
+| `show ospf database router-information` is run | -> | `cmd_show.go` RPC -> `databaseSnapshotByType("router-information")` -> TLV decode + render | `test/ospf/ospf-ri-show.ci` |
 
 ## Acceptance Criteria
 
@@ -271,7 +271,7 @@ FRR/SR deployment where SR consumers need both.
 | AC-9 | RI disabled (or a scope removed) after being advertised | the previously originated RI LSA(s) are MaxAge-flushed through the existing purge path (OSPFv2 via ext-1 withdraw, OSPFv3 via `FlushStaleSelfLSAs`); peers withdraw them |
 | AC-10 | RI enabled, no config change, periodic tick fires | the RI body is unchanged so re-origination floods nothing (idempotent); the sequence number does not advance |
 | AC-11 | The same capabilities advertised in OSPFv2 and OSPFv3 | the RI TLV body bytes are identical across the two address families (single shared builder) |
-| AC-12 | `show ip ospf database router-information` run with an RI LSA present | the output lists the Instance ID, the decoded capability bits by name, and each TLV (type, length, value summary), for both OSPFv2 opaque and OSPFv3 native |
+| AC-12 | `show ospf database router-information` run with an RI LSA present | the output lists the Instance ID, the decoded capability bits by name, and each TLV (type, length, value summary), for both OSPFv2 opaque and OSPFv3 native |
 | AC-13 | A received RI LSA from FRR (Opaque type 4 / function code 12) | it is stored and rendered; the informational bits are decoded; no protocol behavior changes from the received informational bits |
 | AC-14 | A received RI LSA with a truncated/malformed TLV stream | the renderer reports what it can and does not crash (bound-checked iterator) |
 | AC-15 | Multiple RI LSA instances received for the same scope/router (unspecified multi-instance TLV) | the renderer/consumer uses the numerically smallest Instance ID and ignores the rest (§3) |
@@ -285,7 +285,7 @@ FRR/SR deployment where SR consumers need both.
 | 1 | Enables `router-information` (default scope) on an OSPFv2 router | config -> `ospfConfig` -> `originateSelfLSAs` -> RI `OnOriginate` (Opaque type 4) -> ext-1 install + flood; FRR's `show ip ospf database opaque-area` shows the RI LSA with capability bits | `test/ospf/ospf-ri-originate.ci` + `ospf-ri-frr` interop |
 | 2 | Enables `router-information` on an OSPFv3 router | config -> `originateSelfLSAs` -> OSPFv3 RI originator -> `OriginateSelf` (function code 12) -> install + flood; FRR's `show ipv6 ospf6 database router-information` shows it | `test/ospf/ospf6-ri-originate.ci` + `ospf6-ri-frr` interop |
 | 3 | A Segment Routing module (ext-5, future) registers SR TLVs | `RegisterRITLV(sr-algorithm, ...)` from ext-5 `init()` -> RI originator appends the SR TLVs after the type-1 TLV in the SAME RI LSA | `TestRITLVRegistered` + `test/ospf/ospf-ri-register-tlv.ci` (with a test-stub TLV builder) |
-| 4 | Inspects advertised capabilities | `show ip ospf database router-information` -> decode TLV stream -> render bits + TLVs | `test/ospf/ospf-ri-show.ci` |
+| 4 | Inspects advertised capabilities | `show ospf database router-information` -> decode TLV stream -> render bits + TLVs | `test/ospf/ospf-ri-show.ci` |
 | 5 | Receives an RI LSA from FRR (both AFs) | wire -> ext-1 opaque receive (v2) / native install (v3) -> stored -> rendered; informational bits decoded, no behavior change | `test/ospf/ospf-ri-receive.ci` + both interop scenarios |
 | 6 | Disables `router-information` | config change -> RI withdraw (MaxAge flush) -> peers purge the RI LSA; OSPF otherwise unchanged | `test/ospf/ospf-ri-withdraw.ci` |
 
@@ -333,11 +333,11 @@ FRR/SR deployment where SR consumers need both.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ospf-ri-originate` | `test/ospf/ospf-ri-originate.ci` | OSPFv2: enable RI; an Opaque type-4 RI LSA appears with the type-1 TLV in `show ip ospf database router-information` | |
+| `ospf-ri-originate` | `test/ospf/ospf-ri-originate.ci` | OSPFv2: enable RI; an Opaque type-4 RI LSA appears with the type-1 TLV in `show ospf database router-information` | |
 | `ospf6-ri-originate` | `test/ospf/ospf6-ri-originate.ci` | OSPFv3: enable RI; a function-code-12 RI LSA appears | |
 | `ospf-ri-register-tlv` | `test/ospf/ospf-ri-register-tlv.ci` | a test-stub `RegisterRITLV` builder's TLV appears after the type-1 TLV in the RI LSA | |
 | `ospf-ri-receive` | `test/ospf/ospf-ri-receive.ci` | a received RI LSA is stored and rendered; informational bits decoded | |
-| `ospf-ri-show` | `test/ospf/ospf-ri-show.ci` | `show ip ospf database router-information` renders bits + TLVs (both AFs) | |
+| `ospf-ri-show` | `test/ospf/ospf-ri-show.ci` | `show ospf database router-information` renders bits + TLVs (both AFs) | |
 | `ospf-ri-withdraw` | `test/ospf/ospf-ri-withdraw.ci` | disabling RI MaxAge-flushes the RI LSA; peers purge it | |
 
 ### Interop Tests (MANDATORY for protocol features)
@@ -361,9 +361,9 @@ FRR/SR deployment where SR consumers need both.
 - `internal/plugins/ospf/v3/types/lsa.go` -- add `LSTypeRouterInformation` (function code 12) + a scope->LSType helper; include the three scoped values in `Known()`
 - `internal/plugins/ospf/config.go` -- `parseRouterInformation` (enable + scope list) following the `parseMaxMetric` pattern; resolve into `ospfConfig`
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- a `router-information` container (`enabled` boolean; `scope` leaf-list enumeration link/area/as, default area+as)
-- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- the `show ip ospf database router-information` command binding
+- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- the `show ospf database router-information` command binding
 - `internal/plugins/ospf/show_database.go` -- add `router-information` to `dbSubviewType`; render the RI TLV stream (bits + TLVs)
-- `internal/plugins/ospf/cmd_show.go` -- register `ze-show:ospf-database-router-information` -> `dbSubviewForwarder("show ip ospf database router-information")`
+- `internal/plugins/ospf/cmd_show.go` -- register `ze-show:ospf-database-router-information` -> `dbSubviewForwarder("show ospf database router-information")`
 - `internal/plugins/ospf/register.go` -- create + discover the `RegisterRITLV` in-process registry; register the OSPFv2 RI opaque consumer (Opaque type 4) with ext-1
 - `internal/plugins/ospf/doctor.go` -- (only if a runtime dependency is added; none expected -- no new socket/port)
 
@@ -373,11 +373,11 @@ FRR/SR deployment where SR consumers need both.
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- `router-information` container; read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | `enabled` boolean (native); `scope` `enumeration` link/area/as (native); no custom validator |
 | YANG custom validators | [ ] no | native enumeration + boolean suffice |
-| CLI commands/flags | [ ] yes | `show ip ospf database router-information` in `ze-ospf-cmd.yang` + `cmd_show.go` |
-| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ip ospf database router-information` |
+| CLI commands/flags | [ ] yes | `show ospf database router-information` in `ze-ospf-cmd.yang` + `cmd_show.go` |
+| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ospf database router-information` |
 | Editor autocomplete | [ ] yes | automatic for the YANG enumeration/boolean + the new show subcommand |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-ri-*.ci`, `ospf6-ri-*.ci` |
-| Pipe completeness | [ ] yes | `show ip ospf database router-information` routes through `ApplyPipes` like the other show subviews |
+| Pipe completeness | [ ] yes | `show ospf database router-information` routes through `ApplyPipes` like the other show subviews |
 | Env var registration | [ ] no | RI scope/enable is operational config, not an `environment/` leaf |
 | Doctor check for runtime dependencies | [ ] no | no new socket/port/binary/cert; reuses the existing OSPF raw socket and ext-1 carriage |
 | Prometheus counters/metrics | [ ] yes | see the metrics rows below |
@@ -401,7 +401,7 @@ FRR/SR deployment where SR consumers need both.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPF Router Information LSA (RFC 7770) |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md` -- the `router-information` container |
-| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ip ospf database router-information` |
+| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ospf database router-information` |
 | 4 | API/RPC added/changed? | [ ] no | the show RPC lives in the central `ze-show` namespace; document under the command reference |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains an RI originator + RI-TLV registry |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- Router Information section |
@@ -479,7 +479,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 6. **Phase: CLI render + SPF exclusion + metrics** -- user surface
    - Tests: `TestRIShowRender`, `TestRIShowMalformedTLV`, `TestRINotInSPFGraph`, `ospf-ri-show.ci`, `ospf-ri-receive.ci`, `ospf-ri-withdraw.ci`
    - Files: `show_database.go`, `cmd_show.go`, `yang/ze-ospf-cmd.yang`, `spf/` (confirm RI excluded), metric registration
-   - Verify: `show ip ospf database router-information` renders both AFs; malformed TLV does not crash; RI never an SPF vertex; the five metric series
+   - Verify: `show ospf database router-information` renders both AFs; malformed TLV does not crash; RI never an SPF vertex; the five metric series
 7. **Functional tests** -> the six `.ci` cover the user-visible behaviour
 8. **RFC refs** -> add `// RFC 7770 Section X` comments on the type-1-first rule, the per-scope wire type, the Instance-ID/Opaque-ID mapping, the §3 smallest-instance rule, and the U-bit
 9. **Interop** -> `ospf-ri-frr` and `ospf6-ri-frr` QEMU scenarios
@@ -494,7 +494,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | OSPFv2 LS ID = `4<<24 | InstanceID`; OSPFv3 wire type per scope (0x000C/0x200C/0x400C, U=1); type-1 TLV first in Instance 0; TLV Length excludes padding; bits reflect live state; smallest-Instance-ID on receive |
 | Naming | `ze_ospf_ri_*` metrics; YANG `router-information`/`scope`/`enabled` kebab-case; `RegisterRITLV`; `LSTypeRouterInformation` |
 | Data flow | RI fills a body; carriage via ext-1 (v2) / `OriginateSelf` (v3); SPF untouched; no SR symbol in RI |
-| CLI grammar | `show ip ospf database router-information` action-before-identifier |
+| CLI grammar | `show ospf database router-information` action-before-identifier |
 | Doctor checks | none added (no new runtime dependency) -- confirm |
 | YANG validation | `enabled` boolean, `scope` enumeration native-constrained |
 | Prometheus counters | the five `ze_ospf_ri_*` series defined, registered, listed |
@@ -510,7 +510,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | `RegisterRITLV` hook exists and is exercised by a stub | `grep -rn 'RegisterRITLV' internal/plugins/ospf` |
 | Capability bits from live state | `go test ./internal/plugins/ospf -run TestRICapabilityBitsFromState` |
 | `router-information` config container | `grep -n 'router-information' internal/plugins/ospf/yang/ze-ospf-conf.yang` |
-| `show ip ospf database router-information` | `go test ./internal/plugins/ospf -run TestRIShowRender` |
+| `show ospf database router-information` | `go test ./internal/plugins/ospf -run TestRIShowRender` |
 | Five metric series registered | `grep -rn 'ze_ospf_ri_' internal/plugins/ospf` |
 | Interop scenarios present | `ls test/interop/scenarios/ospf-ri-frr/ test/interop/scenarios/ospf6-ri-frr/` |
 | Functional tests present | `ls test/ospf/ospf-ri-*.ci test/ospf/ospf6-ri-*.ci` |

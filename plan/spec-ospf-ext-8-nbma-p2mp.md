@@ -129,7 +129,7 @@ or `network-type point-to-multipoint` under its family.
 | PtMP next-hop | IPv4 | SPF resolves the next-hop from the neighbour's interface address in its advertised p2p link (§16.1); reuse the existing point-to-point next-hop |
 | PtMP next-hop | IPv6 | SPF resolves the next-hop from the adjacency link-local (`v6NextHop.P2PNextHop`, §3.8.1); reuse unchanged; confirm no broadcast-only assumption in `v6RouterLinks`/`BuildGraph` |
 | Non-broadcast flood fan-out | shared | `floodDestination` (and the initial flood + Ack path) on a non-broadcast interface unicasts to each Flood-eligible neighbour (IPv4 address / IPv6 link-local) instead of a multicast group; PtMP has no DR-relay suppression |
-| Interface show surface | both | `show ip ospf interface` (IPv4) / `show ipv6 ospf interface` (IPv6) render NBMA/PtMP; NBMA shows its configured-neighbour/poll state |
+| Interface show surface | both | `show ospf interface` (IPv4) / `show ospf ipv6 interface` (IPv6) render NBMA/PtMP; NBMA shows its configured-neighbour/poll state |
 
 ### Out of scope (noted so it is not silently assumed done)
 
@@ -345,7 +345,7 @@ or `network-type point-to-multipoint` under its family.
 
 | AC ID | Address family | Input / Condition | Expected Behavior |
 |-------|----------------|-------------------|-------------------|
-| AC-1 | both | An interface configured `network-type point-to-multipoint` (IPv4 or IPv6 leaf) | accepted by YANG + `parseInterface`; the iface enters the point-to-point ISM state (no Waiting, no WaitTimer); no DR/BDR elected; `show ip ospf interface` / `show ipv6 ospf interface` reports network type `point-to-multipoint` |
+| AC-1 | both | An interface configured `network-type point-to-multipoint` (IPv4 or IPv6 leaf) | accepted by YANG + `parseInterface`; the iface enters the point-to-point ISM state (no Waiting, no WaitTimer); no DR/BDR elected; `show ospf interface` / `show ospf ipv6 interface` reports network type `point-to-multipoint` |
 | AC-2 | both | A PtMP interface forms an adjacency with a neighbour | `should_adj` is true -> the adjacency proceeds to Full (no DR gating); the existing unicast DD/LSReq/LSUpdate exchange completes |
 | AC-3 | IPv4 | A PtMP interface at Full with neighbour N (interface address X) | the Router-LSA contains a Type-1 link with LinkID = N's Router ID, LinkData = our interface address, metric = cost; AND a host-route Type-3 stub link with LinkID = our interface address, mask 255.255.255.255, metric 0 |
 | AC-4 | IPv6 | A v6 PtMP interface at Full with neighbour N | the Router-LSA contains a Type-1 address-free link: NeighborRouterID = N's Router ID, NeighborInterfaceID = N's Interface ID, this router's Interface ID set, metric = cost; NO transit link for that interface |
@@ -372,7 +372,7 @@ or `network-type point-to-multipoint` under its family.
 | 3 | Configures a Frame-Relay-style IPv4 `network-type nbma` with a static neighbour list and expects a DR elected and adjacencies formed without multicast | config -> NBMA Attempt/poll -> unicast Hello -> election -> DR Network-LSA -> Full with DR/BDR | `test/ospf/ospf-nbma.ci` |
 | 4 | Configures an IPv6 NBMA segment with a static neighbour list and expects a DR elected and adjacencies formed without all-routers multicast | v6 config -> NBMA Attempt/poll -> unicast Hello to link-local -> election -> DR `0x2002` Network-LSA + Link-LSA -> Full with DR/BDR | `test/ospfv3/ospfv3-nbma.ci` |
 | 5 | Adds a priority-0 NBMA neighbour (either family) and expects it adjacent to the DR | config -> election makes this router DR/BDR -> §9.4-step-6 Start Hello to the priority-0 neighbour -> adjacency forms | `test/ospf/ospf-nbma.ci` / `test/ospfv3/ospfv3-nbma.ci` (priority-0 step) |
-| 6 | Runs `show ip ospf interface` / `show ipv6 ospf interface` on the NBMA/PtMP interface | CLI -> interface snapshot -> network type + (NBMA) poll/neighbour state rendered | `test/ospf/ospf-nbma.ci` / `test/ospfv3/ospfv3-nbma.ci` (show step) |
+| 6 | Runs `show ospf interface` / `show ospf ipv6 interface` on the NBMA/PtMP interface | CLI -> interface snapshot -> network type + (NBMA) poll/neighbour state rendered | `test/ospf/ospf-nbma.ci` / `test/ospfv3/ospfv3-nbma.ci` (show step) |
 | 7 | Peers a PtMP/NBMA Ze interface with FRR `ospfd` (IPv4) or `ospf6d` (IPv6) of the matching type | wire (unicast/multicast Hello + unicast flood) -> Full adjacency -> LSDB sync -> routes both ways | `test/interop/scenarios/ospf-ptmp-frr/`, `ospf-nbma-frr/`, `ospfv3-ptmp-frr/`, `ospfv3-nbma-frr/` |
 
 ## 🧪 TDD Test Plan
@@ -428,10 +428,10 @@ or `network-type point-to-multipoint` under its family.
 |------|----------|-------------------|--------|
 | `ospf-nbma` | `test/ospf/ospf-nbma.ci` | an IPv4 NBMA interface with a static neighbour list elects a DR, polls a silent neighbour, forms Full, originates a Network-LSA, and floods unicast | |
 | `ospf-ptmp` | `test/ospf/ospf-ptmp.ci` | an IPv4 PtMP interface forms Full with each neighbour, emits /32 host routes + p2p links, no Network-LSA, no DR | |
-| `ospf-nbma-config` | `test/ospf/ospf-nbma-config.ci` | config round-trip of IPv4 `network-type nbma` + `nbma-neighbor` + `poll-interval`; invalid values rejected; `show ip ospf interface` renders | |
+| `ospf-nbma-config` | `test/ospf/ospf-nbma-config.ci` | config round-trip of IPv4 `network-type nbma` + `nbma-neighbor` + `poll-interval`; invalid values rejected; `show ospf interface` renders | |
 | `ospfv3-nbma` | `test/ospfv3/ospfv3-nbma.ci` | a v6 NBMA interface elects a DR, polls a silent neighbour, forms Full, originates a `0x2002` Network-LSA + Link-LSA, and floods unicast | |
 | `ospfv3-ptmp` | `test/ospfv3/ospfv3-ptmp.ci` | a v6 PtMP interface forms Full with each neighbour, emits address-free p2p links + /128 LA-bit host routes, no Network-LSA, no DR | |
-| `ospfv3-nbma-config` | `test/ospfv3/ospfv3-nbma-config.ci` | config round-trip of v6 `network-type nbma` + `nbma-neighbor` + `poll-interval`; invalid values rejected; the IPv4 leaf untouched; `show ipv6 ospf interface` renders | |
+| `ospfv3-nbma-config` | `test/ospfv3/ospfv3-nbma-config.ci` | config round-trip of v6 `network-type nbma` + `nbma-neighbor` + `poll-interval`; invalid values rejected; the IPv4 leaf untouched; `show ospf ipv6 interface` renders | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -467,7 +467,7 @@ or `network-type point-to-multipoint` under its family.
 - `internal/plugins/ospf/config.go` -- extend the `parseInterface` accept-list with `nbma`/`point-to-multipoint` for BOTH families; add `networkNBMA`/`networkPointToMultipoint` constants; add `NBMANeighbors` (IPv4: address + priority; IPv6: router-id + optional link-local + priority) + `PollInterval uint16` to `interfaceConfig` and parse them per family
 - `internal/plugins/ospf/instance.go` -- thread `PollInterval` + the NBMA neighbour list into `ospfiface.Config` for both families; the network-type string + `IsV6` already thread through
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- add `enum nbma;` + `enum point-to-multipoint;` to the IPv4 `network-type` enum (line ~178) AND the `address-family/ipv6/.../network-type` enum (line ~304); add a `nbma-neighbor` list + a `poll-interval` leaf under each interface (IPv4 key `address`; IPv6 key `router-id` + optional `link-local`; both: `priority` default 0, `poll-interval` uint16 default 120 units seconds); the IPv4 enum keeps `loopback`, the v6 enum does not gain it
-- `internal/plugins/ospf/cmd_show.go` / `show_summary.go` -- render NBMA poll/neighbour state in `show ip ospf interface` / `show ipv6 ospf interface` if the existing snapshot does not already surface it
+- `internal/plugins/ospf/cmd_show.go` / `show_summary.go` -- render NBMA poll/neighbour state in `show ospf interface` / `show ospf ipv6 interface` if the existing snapshot does not already surface it
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -475,7 +475,7 @@ or `network-type point-to-multipoint` under its family.
 | YANG schema (new config) | [ ] yes | `yang/ze-ospf-conf.yang` -- two enum values + `nbma-neighbor` list + `poll-interval` leaf on BOTH family leaves; read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | `poll-interval` `range "1..65535"`; `nbma-neighbor` priority `range "0..255"`; IPv4 `address` `ze:validate` an IPv4; IPv6 `router-id` `ze:validate` a router-id, `link-local` `ze:validate` an IPv6 link-local |
 | YANG custom validators | [ ] check | reuse the existing IPv4 / IPv6-link-local / router-id validators if present; otherwise add `ValidateFn`/`CompleteFn` for the missing one |
-| CLI commands/flags | [ ] no | reuses `show ip ospf interface` / `show ipv6 ospf interface`; no new command (NBMA/PtMP are config, not a new verb) |
+| CLI commands/flags | [ ] no | reuses `show ospf interface` / `show ospf ipv6 interface`; no new command (NBMA/PtMP are config, not a new verb) |
 | CLI grammar (action before identifier) | [ ] n/a | no new command |
 | Editor autocomplete | [ ] yes | automatic for the YANG enums + `poll-interval`; `CompleteFn` for the neighbour key/link-local if added |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-nbma*.ci`, `ospf-ptmp.ci`, `test/ospfv3/ospfv3-nbma*.ci`, `ospfv3-ptmp.ci` |
@@ -502,7 +502,7 @@ or `network-type point-to-multipoint` under its family.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPF NBMA + point-to-multipoint network types (both families) |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md` -- `network-type nbma|point-to-multipoint`, `nbma-neighbor`, `poll-interval` (IPv4 + `address-family/ipv6`) |
-| 3 | CLI command added/changed? | [ ] check | `docs/guide/command-reference.md` -- `show ip ospf interface` / `show ipv6 ospf interface` NBMA/PtMP fields if rendered |
+| 3 | CLI command added/changed? | [ ] check | `docs/guide/command-reference.md` -- `show ospf interface` / `show ospf ipv6 interface` NBMA/PtMP fields if rendered |
 | 4 | API/RPC added/changed? | [ ] no | reuses the existing interface-show RPCs |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains NBMA/PtMP for both families |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- network-types section (NBMA + PtMP, both families) |
@@ -588,7 +588,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 8. **Phase: CLI/show + metrics** -- user surface
    - Tests: the `.ci` show steps
    - Files: `cmd_show.go`/`show_summary.go` (NBMA poll/neighbour state, both families), metric registration with the `af` label
-   - Verify: `show ip ospf interface` / `show ipv6 ospf interface` render NBMA/PtMP; the three metric series register
+   - Verify: `show ospf interface` / `show ospf ipv6 interface` render NBMA/PtMP; the three metric series register
 9. **Functional tests** -> `ospf-nbma.ci`, `ospf-ptmp.ci`, `ospf-nbma-config.ci`, `ospfv3-nbma.ci`, `ospfv3-ptmp.ci`, `ospfv3-nbma-config.ci`
 10. **RFC refs** -> add `// RFC 2328 §9.5/§10.1/§12.4.1.4/§16.1` (IPv4) and `// RFC 5340 §A.4.3/§A.4.4/§A.4.10/§A.4.1/§2.9/§3.8.1` (IPv6) comments on the enforcing code
 11. **Interop** -> `ospf-ptmp-frr`, `ospf-nbma-frr`, `ospfv3-ptmp-frr`, `ospfv3-nbma-frr` QEMU scenarios

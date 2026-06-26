@@ -42,8 +42,8 @@ the carrier which sequences, installs, and floods them; (b) **reception/parse**
 -- the consumer's `OnReceive` parses TE LSA bodies arriving from peers into a
 **Traffic Engineering Database (TED)** keyed by link (advertising router + Link
 ID + local address), so the local node holds the area's TE topology; (c)
-**query** -- a `show ip ospf database opaque-area` TE decode plus a dedicated
-`show ip ospf te-database` view and TED metrics expose the stored TE topology.
+**query** -- a `show ospf database opaque-area` TE decode plus a dedicated
+`show ospf te-database` view and TED metrics expose the stored TE topology.
 
 Flooding is **not** re-implemented: TE LSAs are area-scope (Type 10) or, for
 RFC 5392 inter-AS-TE by policy, AS-scope (Type 11) opaque LSAs, flooded entirely
@@ -62,7 +62,7 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 | Inter-AS origination | a `traffic-engineering inter-as` link block (remote-as, remote-asbr-id, scope area\|as); proxies one direction per RFC 5392 §4 |
 | Reception into TED | `OnReceive` parses the body and upserts a TED entry keyed by (advertising-router, Link ID, local-addr); on withdraw/MaxAge the entry is removed |
 | §5 reachability gate (Type 11 only) | the carrier passes `reachable`; an inter-AS-TE-v2 Type-11 LSA from an unreachable originator is held "present but unusable" in the TED |
-| CLI + metrics | `show ip ospf te-database` (router addresses + links + attributes), TE decode under `show ip ospf database opaque-area`, `ze_ospf_te_*` metric series |
+| CLI + metrics | `show ospf te-database` (router addresses + links + attributes), TE decode under `show ospf database opaque-area`, `ze_ospf_te_*` metric series |
 | TED query API | a read-only `Snapshot`/lookup the future `rsvpte` TED consumer can call (value-typed, no cross-boundary pointers) |
 
 ### Out of scope (noted so it is not silently assumed done)
@@ -94,7 +94,7 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 - [ ] `ai/rules/buffer-first.md` -- TE body encode + TED render are buffer-first
   → Constraint: the TE body is built with the ext-1 TLV builder (`WriteTo(buf, off) int`); the IEEE-float bandwidth encode writes the 4 bytes directly; the TLV iterator returns views over caller bytes (zero-copy); no slice concatenation for the body
 - [ ] `ai/rules/no-sprintf-alloc.md` -- no `fmt`/`+` on wire or render hot path
-  → Constraint: TE LSA rendering (`show ip ospf te-database`, opaque-area TE decode) uses `textbuf`/`AppendTo`; bandwidth-to-string formatting uses the existing numeric append helpers
+  → Constraint: TE LSA rendering (`show ospf te-database`, opaque-area TE decode) uses `textbuf`/`AppendTo`; bandwidth-to-string formatting uses the existing numeric append helpers
 - [ ] `ai/rules/data-flow-tracing.md` -- trace config → origination and wire → TED
   → Constraint: every TED entry must be traceable to a received TE LSA; every originated TE LSA must be traceable to a config `traffic-engineering` block; no silent synthesis
 
@@ -139,8 +139,8 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
   → Constraint: a TE LSA is originated only for an interface whose `traffic-engineering` block is enabled AND that has a usable Link ID (adjacency up / DR known); origination defers until the Link TLV is well-formed (Link Type + Link ID present, §2.5)
 - [ ] `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- `container interfaces { list interface { leaf cost; leaf network-type; ... } }` (line ~164); a parallel v6 `interfaces` container at line ~290
   → Constraint: the `traffic-engineering` container is added under the v4 `list interface` only (OSPFv2 TE); the v6 interface container is NOT touched (OSPFv3 TE out of scope); a top-level TE `router-address` leaf is added near `router-id`
-- [ ] `internal/plugins/ospf/cmd_show.go` + `show_database.go` -- `cmdShowDatabase = "show ip ospf database"`; `dbSubviewForwarder("show ip ospf database <view>")`; RPCs registered as `ze-show:ospf-database-*` central-namespace methods bound by `ze-ospf-cmd.yang`
-  → Constraint: the TE views follow this exact pattern — a new `show ip ospf te-database` RPC + the `opaque-area` database subview decoding TE bodies; register through `pluginserver.RegisterRPCs` and bind in `ze-ospf-cmd.yang`, do not invent a new dispatch mechanism
+- [ ] `internal/plugins/ospf/cmd_show.go` + `show_database.go` -- `cmdShowDatabase = "show ospf database"`; `dbSubviewForwarder("show ospf database <view>")`; RPCs registered as `ze-show:ospf-database-*` central-namespace methods bound by `ze-ospf-cmd.yang`
+  → Constraint: the TE views follow this exact pattern — a new `show ospf te-database` RPC + the `opaque-area` database subview decoding TE bodies; register through `pluginserver.RegisterRPCs` and bind in `ze-ospf-cmd.yang`, do not invent a new dispatch mechanism
 - [ ] `internal/plugins/ospf/register.go` -- `registerOSPF()`, `runOSPFEngine(conn)`; ext-1 creates the opaque consumer registry and discovers consumers at startup
   → Constraint: the TE consumer registers from its own `init()`/`registerOSPF` sibling via `RegisterOpaqueConsumer`; the engine discovers it through the ext-1 registry; no new top-level component (module-tiers: TE has the future `rsvpte` consumer but lives inside the OSPF plugin as an opaque extension)
 - [ ] `internal/plugins/rsvpte/admission.go` -- `interfaceBandwidth{MaxBandwidth, MaxReservable, ReservedBandwidth float64}`, `Available()`; bandwidth in `float64` because RSVP carries IEEE-32-bit floats but float32 rounds small reservations away
@@ -150,12 +150,12 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 - The ext-1 carrier contract (scope flooding, sequencing, LS-ID split, O-bit gate, TLV iterator/builder) is consumed unchanged.
 - The base OSPFv2 LSDB key triple, the standard OSPF interface `Cost`/metric, and all existing OSPF functional/interop tests — a router with no `traffic-engineering` config behaves exactly as today (the TE consumer registers but originates nothing).
 - `parseOSPFConfig` signature and the existing `interfaceConfig`/`ospfConfig` fields; TE adds fields, it renames none.
-- The `show ip ospf database` view dispatch and the `ze-show:ospf-*` RPC namespace.
+- The `show ospf database` view dispatch and the `ze-show:ospf-*` RPC namespace.
 
 **Behavior to change:** (all RFC-3630/5392-required, gated on TE being configured)
 - A TE-enabled interface originates a Router-Address TE LSA (once per router) and a Link TE LSA (once per TE link) via the ext-1 carrier.
 - Received Type-10 (Opaque type 1) and Type-10/11 (Opaque type 6) TE LSAs are parsed into the TED (in addition to ext-1's verbatim store/re-flood).
-- New `show ip ospf te-database`, opaque-area TE decode, and `ze_ospf_te_*` metrics.
+- New `show ospf te-database`, opaque-area TE decode, and `ze_ospf_te_*` metrics.
 - A new `traffic-engineering` interface block + a TE `router-address` leaf in the OSPFv2 config.
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
@@ -163,7 +163,7 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 ### Entry Point
 - **Origination:** OSPF config carries a per-interface `traffic-engineering` block + a TE `router-address` → the TE consumer registers via `RegisterOpaqueConsumer` → on topology/config change the carrier invokes the consumer's `OnOriginate`.
 - **Reception:** an LS Update carrying a Type-10/11 opaque LSA with Opaque type 1 or 6 arrives → ext-1 stores/floods verbatim and (because a consumer is registered) calls `OnReceive(opaqueID, body, scope, advRouter, reachable)`.
-- **Query:** a CLI `show ip ospf te-database` / `show ip ospf database opaque-area` request → the TE show handler reads the TED / decodes the stored bodies.
+- **Query:** a CLI `show ospf te-database` / `show ospf database opaque-area` request → the TE show handler reads the TED / decodes the stored bodies.
 
 ### Transformation Path
 1. **Config resolve (new):** `parseOSPFConfig` unmarshals the `traffic-engineering` block per interface and the TE `router-address` into `interfaceConfig.TE` / `ospfConfig.TERouterAddress`.
@@ -172,7 +172,7 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 4. **Reception parse (new):** `OnReceive` parses the body with the ext-1 TLV iterator: a Router-Address TLV upserts the originator's TE Router Address; a Link TLV upserts a TED link entry keyed by (advertising router, Link ID, local addr) with all decoded attributes. Bandwidth decodes IEEE-float → `float64`. Unrecognized sub-TLVs are ignored (§2.4.2). For Opaque type 6, a missing/forbidden Link ID is expected; the remote end is taken from sub-TLVs 21/22/24.
 5. **Reachability gate (new, Type 11 only):** the carrier-supplied `reachable` flag marks a Type-11 inter-AS-TE entry usable/unusable (§5); Type-10 entries are always usable.
 6. **Withdraw (new):** a MaxAge/withdraw delivery removes the corresponding TED entry (the carrier signals the removal through `OnReceive` with a withdraw indication or a separate purge hook from ext-1).
-7. **Query (new):** `show ip ospf te-database` renders router addresses + links + attributes from the TED; `show ip ospf database opaque-area` decodes TE bodies inline; `ze_ospf_te_*` metrics expose counts/gauges; the read-only TED `Snapshot` is available to the future `rsvpte` consumer.
+7. **Query (new):** `show ospf te-database` renders router addresses + links + attributes from the TED; `show ospf database opaque-area` decodes TE bodies inline; `ze_ospf_te_*` metrics expose counts/gauges; the read-only TED `Snapshot` is available to the future `rsvpte` consumer.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -191,7 +191,7 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 - ext-1 carrier (`internal/plugins/ospf/opaque_registry.go`, `packet/opaque_tlv.go`) -- `RegisterOpaqueConsumer`, the TLV iterator/builder, the LS-ID split, scope flooding (consumed, not modified).
 - `internal/plugins/ospf/config.go` + `yang/ze-ospf-conf.yang` -- the `traffic-engineering` block and TE `router-address`.
 - `internal/plugins/ospf/iface` -- READ ONLY: live Link ID / local addr / remote addr for origination.
-- `internal/plugins/ospf/cmd_show.go` + `yang/ze-ospf-cmd.yang` -- `show ip ospf te-database` + opaque-area TE decode.
+- `internal/plugins/ospf/cmd_show.go` + `yang/ze-ospf-cmd.yang` -- `show ospf te-database` + opaque-area TE decode.
 - `internal/plugins/rsvpte` -- READ ONLY future consumer of the TED `Snapshot`; NOT wired in this spec.
 
 ### Architectural Verification
@@ -216,7 +216,7 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 | A-7 | The standard OSPF interface `Cost` (uint16) and the TE metric (uint32, sub-TLV 5) are independent; TE metric defaults to the OSPF cost only if not configured | RFC 3630 §2.5.5 ("may differ"); `config.go` `interfaceConfig.Cost` | TE metric wrongly aliases cost; CSPF later mis-weights | `TestTEMetricIndependentOfCost` | unvalidated |
 | A-8 | RFC 5392 IPv6 Remote ASBR ID is sub-TLV type 24 (not 23) | `rfc/short/rfc5392.md` pitfall (§3.2.1 "23" is editorial; §6.2 assigns 24) | wrong sub-TLV type; FRR interop fails | `TestInterAsTEIPv6AsbrIdType24`, decode an FRR inter-AS-TE LSA | unvalidated |
 | A-9 | The TED can be a passive store with no SPF trigger; OSPF route computation is unaffected | RFC 3630 §1 ("No SPF or other route calculations are necessary") | TE reception perturbs SPF/route table | `TestTEReceptionDoesNotTriggerSPF` | unvalidated |
-| A-10 | A `show ip ospf te-database` RPC can register through `pluginserver.RegisterRPCs` + `ze-ospf-cmd.yang` exactly like the existing database subviews | `cmd_show.go` `RPCRegistration` rows; `ze-ospf-cmd.yang` | a new dispatch mechanism is needed | `test/ospf/ospf-te-show.ci` | unvalidated |
+| A-10 | A `show ospf te-database` RPC can register through `pluginserver.RegisterRPCs` + `ze-ospf-cmd.yang` exactly like the existing database subviews | `cmd_show.go` `RPCRegistration` rows; `ze-ospf-cmd.yang` | a new dispatch mechanism is needed | `test/ospf/ospf-te-show.ci` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -240,7 +240,7 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 | A `traffic-engineering` interface block + TE `router-address` in config, link up | → | `OnOriginate` builds Router-Address + Link LSAs → carrier installs + floods | `test/ospf/ospf-te-originate.ci` |
 | An LS Update carrying a Type-10 Opaque-type-1 TE LSA arrives | → | ext-1 `OnReceive` → TE parse → TED upsert | `test/ospf/ospf-te-receive.ci` |
 | An LS Update carrying a Type-10/11 Opaque-type-6 inter-AS-TE LSA arrives | → | TE parse (sub-TLVs 21/22/24, no Link ID) → TED upsert with remote-AS/ASBR | `TestInterAsTEReceiveIntoTED` (unit) + `test/ospf/ospf-te-interas.ci` |
-| `show ip ospf te-database` issued | → | TE show handler reads the TED → rendered router addresses + links | `test/ospf/ospf-te-show.ci` |
+| `show ospf te-database` issued | → | TE show handler reads the TED → rendered router addresses + links | `test/ospf/ospf-te-show.ci` |
 
 ## Acceptance Criteria
 
@@ -250,7 +250,7 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 | AC-2 | A `traffic-engineering` block enabled on an interface with an up adjacency / known DR + a TE `router-address` | one Router-Address TE LSA (top-level TLV 1, length-4 IPv4 = router-address, Instance 0) and one Link TE LSA (top-level TLV 2) per TE link are originated via the carrier and flood as Type 10 |
 | AC-3 | A configured TE link | the Link TLV carries Link Type (sub-TLV 1) and Link ID (sub-TLV 2) exactly once, plus Local/Remote Interface IP (3/4), TE Metric (5), Max/Max-Reservable Bandwidth (6/7), Unreserved Bandwidth (8, eight floats priority 0→7), and Admin Group (9) as configured; each TLV is 4-octet aligned with padding excluded from Length (§2.3.2) |
 | AC-4 | Bandwidth values to encode (e.g. 1.25e9 bytes/sec) | sub-TLVs 6/7/8 carry 32-bit IEEE-754 single-precision bytes/sec; decode reproduces the value within float32 precision and stores `float64` in the TED |
-| AC-5 | Two TE-enabled links on one router | two Link TE LSAs with distinct Instances are originated; both appear in a peer's `show ip ospf database opaque-area`; neither overwrites the other |
+| AC-5 | Two TE-enabled links on one router | two Link TE LSAs with distinct Instances are originated; both appear in a peer's `show ospf database opaque-area`; neither overwrites the other |
 | AC-6 | A received Type-10 Opaque-type-1 TE LSA | the body is parsed and a TED entry keyed by (advertising router, Link ID, local addr) is upserted with all decoded attributes; a Router-Address TLV upserts the originator's TE Router Address |
 | AC-7 | A received inter-AS-TE LSA (Opaque type 6) with Remote AS Number (21), IPv4 Remote ASBR ID (22), and no Link ID sub-TLV | parsed into a TED entry whose remote end is the Remote ASBR ID + Remote AS; the absent Link ID is accepted (§3.2.1); a 2-byte ASN zero-extended into 4 octets decodes correctly |
 | AC-8 | An inter-AS-TE LSA carrying an IPv6 Remote ASBR ID sub-TLV | decoded as sub-TLV type 24 (16 octets), not 23 (§3.3.3 / §6.2) |
@@ -260,8 +260,8 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 | AC-12 | A self-originated TE LSA whose config attributes do not change | re-origination floods nothing (idempotent); a changed attribute re-originates at most once per `MinLSInterval` (§3) |
 | AC-13 | A TE link removed from config / interface down / TE disabled | the corresponding TE LSA is MaxAge-withdrawn via the carrier and its TED entry is removed |
 | AC-14 | A withdrawn / MaxAged TE LSA received from a peer | the corresponding TED entry is removed |
-| AC-15 | `show ip ospf te-database` issued | router addresses, links (Link ID, local/remote addr, link type), and attributes (TE metric, bandwidths, admin group, and for inter-AS the remote AS/ASBR) are rendered from the TED |
-| AC-16 | `show ip ospf database opaque-area` on a TE LSA | the TE body is decoded inline (Router-Address or Link TLV with sub-TLVs), not shown as raw hex |
+| AC-15 | `show ospf te-database` issued | router addresses, links (Link ID, local/remote addr, link type), and attributes (TE metric, bandwidths, admin group, and for inter-AS the remote AS/ASBR) are rendered from the TED |
+| AC-16 | `show ospf database opaque-area` on a TE LSA | the TE body is decoded inline (Router-Address or Link TLV with sub-TLVs), not shown as raw hex |
 | AC-17 | A TE LSA received | the route table and SPF result are unchanged (RFC 3630 §1); no TE LSA becomes an SPF vertex (inherited from ext-1) |
 | AC-18 | A malformed / truncated TE body or sub-TLV received | parsing never panics; the LSA is still stored and re-flooded verbatim by the carrier; the bad TED entry is skipped and an error metric increments |
 | AC-19 | TE metric not configured on a TE link | the TE metric defaults to the standard OSPF interface cost; an explicitly configured TE metric is independent of and does not change the OSPF cost (§2.5.5) |
@@ -272,7 +272,7 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Configures `traffic-engineering` (bandwidth, admin-group, te-metric) on an OSPF interface + a TE router-address; a peer sees the TE LSA | config → `OnOriginate` → ext-1 carrier → flood; peer `show ip ospf database opaque-area` decodes the Link TLV | `test/ospf/ospf-te-originate.ci` + `ospf-te-frr` interop |
-| 2 | Receives FRR's TE LSAs; runs `show ip ospf te-database` | wire → ext-1 → TE `OnReceive` → TED; `show ip ospf te-database` lists FRR's links + bandwidths | `test/ospf/ospf-te-receive.ci` + `ospf-te-frr` interop |
+| 2 | Receives FRR's TE LSAs; runs `show ospf te-database` | wire → ext-1 → TE `OnReceive` → TED; `show ospf te-database` lists FRR's links + bandwidths | `test/ospf/ospf-te-receive.ci` + `ospf-te-frr` interop |
 | 3 | Configures an inter-AS TE link (remote-as, remote-asbr-id, scope as); a PCE-style peer sees it AS-wide | config inter-as → `OnOriginate` (Opaque type 6, sub-TLVs 21/22/24, no Link ID, Type 11) → carrier floods AS-wide | `test/ospf/ospf-te-interas.ci` |
 | 4 | Runs `ze` decode on a TE LSA hex | CLI → `packet.DecodeLSA` → ext-1 `OpaqueType()`==1/6 → TE body decode → rendered TLVs | `test/ospf/ospf-te-decode.ci` |
 | 5 | Disables TE on a link / link goes down | `OnOriginate(withdraw)` → carrier MaxAge-flush; peer's TED entry and database entry clear | `test/ospf/ospf-te-withdraw.ci` |
@@ -324,13 +324,13 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ospf-te-register` | `test/ospf/ospf-te-register.ci` | TE consumer registered; `show ip ospf` reports TE enabled | |
-| `ospf-te-originate` | `test/ospf/ospf-te-originate.ci` | configured TE link originates Router-Address + Link LSAs; visible in `show ip ospf database opaque-area` | |
-| `ospf-te-receive` | `test/ospf/ospf-te-receive.ci` | a received TE LSA appears in `show ip ospf te-database` | |
+| `ospf-te-register` | `test/ospf/ospf-te-register.ci` | TE consumer registered; `show ospf` reports TE enabled | |
+| `ospf-te-originate` | `test/ospf/ospf-te-originate.ci` | configured TE link originates Router-Address + Link LSAs; visible in `show ospf database opaque-area` | |
+| `ospf-te-receive` | `test/ospf/ospf-te-receive.ci` | a received TE LSA appears in `show ospf te-database` | |
 | `ospf-te-interas` | `test/ospf/ospf-te-interas.ci` | an inter-AS TE link (Opaque type 6) originates with remote-AS/ASBR; Type 10 or 11 per policy | |
 | `ospf-te-decode` | `test/ospf/ospf-te-decode.ci` | `ze` decode of TE hex shows the Router-Address/Link TLV + sub-TLVs | |
 | `ospf-te-withdraw` | `test/ospf/ospf-te-withdraw.ci` | disabling TE / link-down clears the TE LSA and the TED entry | |
-| `ospf-te-show` | `test/ospf/ospf-te-show.ci` | `show ip ospf te-database` renders router addresses + links + attributes | |
+| `ospf-te-show` | `test/ospf/ospf-te-show.ci` | `show ospf te-database` renders router addresses + links + attributes | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -350,9 +350,9 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 <!-- MUST include feature code (internal/*, cmd/*), not only test files -->
 - `internal/plugins/ospf/config.go` -- add a `teConfig` sub-block to `interfaceConfig` (enable, te-metric, max-bandwidth, max-reservable-bandwidth, admin-group, inter-as remote-as/remote-asbr-id/scope) and a `TERouterAddress` field to `ospfConfig`; extend the `parseOSPFConfig` wrapper struct (no signature change); validation (TE metric range, admin-group mask, inter-as requires remote-as)
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- a `traffic-engineering` container under the v4 `list interface` (line ~164) + a TE `router-address` leaf near `router-id`; native constraints (`range`, `pattern` for IPv4/IPv6, boolean)
-- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- bind `show ip ospf te-database`; ensure `show ip ospf database opaque-area` exists (from ext-1) and decodes TE
+- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- bind `show ospf te-database`; ensure `show ospf database opaque-area` exists (from ext-1) and decodes TE
 - `internal/plugins/ospf/register.go` -- register the TE opaque consumer (Opaque type 1 + 6) via the ext-1 `RegisterOpaqueConsumer`; create/own the TED; register TE metrics
-- `internal/plugins/ospf/cmd_show.go` -- a `show ip ospf te-database` RPC (`ze-show:ospf-te-database`) following the existing `RPCRegistration`/`dbSubviewForwarder` pattern
+- `internal/plugins/ospf/cmd_show.go` -- a `show ospf te-database` RPC (`ze-show:ospf-te-database`) following the existing `RPCRegistration`/`dbSubviewForwarder` pattern
 - `internal/plugins/ospf/instance.go` -- invoke the TE `OnOriginate` from the self-LSA origination trigger; route the TE `OnReceive` from the ext-1 reception hook; pass the §5 `reachable` flag through for Type 11
 - `internal/plugins/ospf/doctor.go` -- (only if a runtime dependency is added; none expected — no new socket/port/binary)
 
@@ -362,11 +362,11 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- `traffic-engineering` container + `router-address`; read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | `te-metric` `range "0..4294967295"`; `admin-group` `range`/hex pattern; bandwidth `decimal64`/`uint64` with units bytes/sec; `remote-asbr-id` IPv4/IPv6 `pattern`; `scope` `enumeration { area; as; }`; `router-address` IPv4 `pattern` |
 | YANG custom validators | [ ] yes | inter-as block requires `remote-as` + at least one `remote-asbr-id` (§3.2.1/§3.3.1) — `ze:validate` + `ValidateFn`; `CompleteFn` for `scope` enum |
-| CLI commands/flags | [ ] yes | `show ip ospf te-database` in `ze-ospf-cmd.yang` + `cmd_show.go` |
-| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ip ospf te-database` |
+| CLI commands/flags | [ ] yes | `show ospf te-database` in `ze-ospf-cmd.yang` + `cmd_show.go` |
+| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ospf te-database` |
 | Editor autocomplete | [ ] yes | automatic for the YANG enum/typed leaves; `CompleteFn` for `scope` |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-te-show.ci`, `ospf-te-*.ci` |
-| Pipe completeness | [ ] yes | `show ip ospf te-database` routes through `ApplyPipes`/`ProcessPipes` like the other show outputs |
+| Pipe completeness | [ ] yes | `show ospf te-database` routes through `ApplyPipes`/`ProcessPipes` like the other show outputs |
 | Env var registration | [ ] no | TE is operational config, not an `environment/` leaf |
 | Doctor check for runtime dependencies | [ ] no | no new socket/port/binary/cert; reuses the existing OSPF raw socket and the ext-1 carrier |
 | Prometheus counters/metrics | [ ] yes | see the metrics rows below |
@@ -391,7 +391,7 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPFv2 Traffic Engineering LSAs + TED |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md` -- the `traffic-engineering` block + `router-address` |
-| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ip ospf te-database` |
+| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ospf te-database` |
 | 4 | API/RPC added/changed? | [ ] no | the show RPC lives in the central `ze-show` namespace; documented under the command reference |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains a TE opaque consumer + TED |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- a Traffic Engineering section |
@@ -403,7 +403,7 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 | 12 | Internal architecture changed? | [ ] yes | the OSPF subsystem doc -- the TE consumer + TED |
 | 13 | Route metadata keys added/changed? | [ ] no | TE LSAs install no routes (the TED is passive) |
 | 14 | Prometheus counters added/changed? | [ ] yes | the OSPF telemetry doc -- the `ze_ospf_te_*` series |
-| 15 | Registered plugin/event/command/capability inventory changed? | [ ] yes | `docs/plugin-overview.md` -- the `show ip ospf te-database` command + TE consumer |
+| 15 | Registered plugin/event/command/capability inventory changed? | [ ] yes | `docs/plugin-overview.md` -- the `show ospf te-database` command + TE consumer |
 | 16 | Changed source referenced by doc source anchors? | [ ] check | grep `docs/` for anchors into the changed OSPF files (`config.go`, `cmd_show.go`, `register.go`) |
 | 17 | Existing docs show examples for this area? | [ ] check | verify OSPF config/CLI examples against the new `traffic-engineering` block |
 
@@ -412,7 +412,7 @@ by the ext-1 carrier. The TED is a passive store; it never triggers SPF (RFC 363
 - `internal/plugins/ospf/te_ted.go` -- the Traffic Engineering Database: link-keyed store (advertising router, Link ID, local addr), router-address map, `Snapshot`/lookup (value-typed), bound + eviction
 - `internal/plugins/ospf/packet/te_lsa.go` -- the RFC 3630 TE body codec: Router-Address TLV (1), Link TLV (2), sub-TLVs 1-9, IEEE-float bandwidth encode/decode, built on the ext-1 TLV iterator/builder
 - `internal/plugins/ospf/packet/te_interas.go` -- the RFC 5392 inter-AS sub-TLVs (Remote AS 21, IPv4 ASBR ID 22, IPv6 ASBR ID 24) + the Opaque-type-6 body rules (no Link ID)
-- `internal/plugins/ospf/te_show.go` -- the `show ip ospf te-database` render (textbuf) + the opaque-area TE decode hook
+- `internal/plugins/ospf/te_show.go` -- the `show ospf te-database` render (textbuf) + the opaque-area TE decode hook
 - `internal/plugins/ospf/te_register_test.go`, `te_originate_test.go`, `te_ted_test.go`
 - `internal/plugins/ospf/packet/te_lsa_test.go`, `internal/plugins/ospf/packet/te_interas_test.go`
 - `test/ospf/ospf-te-register.ci`, `ospf-te-originate.ci`, `ospf-te-receive.ci`, `ospf-te-interas.ci`, `ospf-te-decode.ci`, `ospf-te-withdraw.ci`, `ospf-te-show.ci`
@@ -468,7 +468,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 6. **Phase: CLI + metrics + TED Snapshot** -- user surface + future consumer hook
    - Tests: `TestTEDSnapshotReadOnly`, `test/ospf/ospf-te-show.ci`, `ospf-te-decode.ci`
    - Files: `te_show.go`, `cmd_show.go`, `yang/ze-ospf-cmd.yang`, metric registration in `register.go`
-   - Verify: `show ip ospf te-database`; opaque-area TE decode; `ze_ospf_te_*` series; value-typed `Snapshot` for `rsvpte`
+   - Verify: `show ospf te-database`; opaque-area TE decode; `ze_ospf_te_*` series; value-typed `Snapshot` for `rsvpte`
 7. **Functional tests** → the seven `.ci` cover the user-visible behaviour
 8. **RFC refs** → add `// RFC 3630 Section X` / `// RFC 5392 Section X` comments on the TLV layout, alignment, bandwidth, §5 gate, and inter-AS sub-TLV-prohibition code
 9. **Interop** → `ospf-te-frr` + `ospf-te-interas-frr` QEMU scenarios
@@ -483,7 +483,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | 4-octet TLV alignment (pad excluded from Length); IEEE-float bytes/sec bandwidth; Unreserved order priority 0→7; admin-group bit numbering; mandatory Link Type/Link ID; inter-AS Link ID prohibited; IPv6 ASBR sub-TLV = 24; distinct Instance per link; §5 Type-11-only gate |
 | Naming | `ze_ospf_te_*` metrics; YANG `traffic-engineering`/`te-metric`/`admin-group` kebab-case; TED key (adv-router, Link ID, local-addr) |
 | Data flow | TE touches the ext-1 carrier + the TED only; no SPF change; no `rsvpte` import; every TED entry traces to a received LSA, every LSA to config |
-| CLI grammar | `show ip ospf te-database` action-before-identifier |
+| CLI grammar | `show ospf te-database` action-before-identifier |
 | Doctor checks | none added (no new runtime dependency) -- confirm |
 | YANG validation | every TE leaf has max native constraints; inter-as custom validator (`remote-as` + a `remote-asbr-id` required); `scope` enum |
 | Prometheus counters | the six `ze_ospf_te_*` series defined, registered, listed |
@@ -499,7 +499,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Origination from config | `go test ./internal/plugins/ospf -run 'TestTEOriginate'` |
 | TED reception + §5 gate | `go test ./internal/plugins/ospf -run 'TestTE.*TED|UnreachableUnusable'` |
 | Six metric series registered | `grep -rn 'ze_ospf_te_' internal/plugins/ospf` |
-| `show ip ospf te-database` | `ls test/ospf/ospf-te-show.ci` |
+| `show ospf te-database` | `ls test/ospf/ospf-te-show.ci` |
 | Interop scenarios present | `ls test/interop/scenarios/ospf-te-frr/ test/interop/scenarios/ospf-te-interas-frr/` |
 | Functional tests present | `ls test/ospf/ospf-te-*.ci` |
 

@@ -119,9 +119,9 @@ Address family is a positional keyword filter on the object, never a namespace:
 | `show route lookup <ip>` | longest-prefix-match lookup |
 | `show neighbor` / `show neighbor ipv4` / `show neighbor ipv6` | ARP + ND table; family filter |
 | `show arp` | IPv4-only shortcut for `show neighbor ipv4` |
-| `show ospf ...` / `clear ospf ...` | OSPF views and runtime resets (ospf plugin) |
+| `show ospf ...` / `show ospf ipv6 ...` / `clear ospf ...` | OSPF (one unified engine); bare = OSPFv2/IPv4, `ipv6` selector = OSPFv3 |
 
-Two points this settles:
+Three points this settles:
 
 1. **No `show ip` / `show ipv6` split.** That is the Cisco model Ze deliberately
    did not adopt. One tree, one `family` filter.
@@ -129,6 +129,13 @@ Two points this settles:
    uses Neighbor Discovery. So `show neighbor` is the honest name for the unified
    both-families table (the Linux `ip neigh` model), and `show arp` is kept as the
    familiar IPv4-only shortcut (`= show neighbor ipv4`).
+3. **OSPFv2 and OSPFv3 share one `ospf` object.** Ze runs a single unified OSPF
+   engine (IPv4 + IPv6 via an address-family strategy), so the family is a
+   selector on `ospf`, not a separate object: bare `show ospf <noun>` is IPv4
+   (OSPFv2), `show ospf ipv6 <noun>` is IPv6 (OSPFv3), `show ospf ipv4 <noun>` is
+   explicit IPv4. This rejects both Cisco's `show ipv6 ospf` family-prefix and the
+   Juniper/Nokia `ospf3` second object: one engine, one object, family as filter.
+   (Only OSPFv2 ships today; the `ipv6` selector lands with OSPFv3 show.)
 
 This replaced an earlier transitional layout that grouped a few reads under a
 shared `show ip` container (`show ip route`, `show ip arp`, `show ip ospf`). That
@@ -137,19 +144,34 @@ command tree broke plugin self-containment (iface and ospf both reached into a
 shared `ip` parent). Object-rooting removes the shared parent: each plugin owns its
 root outright.
 
-### Why not Nokia's `router` root?
+### Why the shipped CLI isn't `router`-rooted, and what VRF changes
 
 Because Ze is single-instance today. An instance-rooted namespace (`show router
 ...`) only pays off once there are multiple routing instances / VRFs to
 disambiguate. Adopting it now would be verbosity with no instance to select.
 
-Forward-looking: if Ze gains VRF / routing-instance support, the instance becomes
-the natural scoping keyword, and the choice is between Nokia's root form (`show
-router <name> route`) and the Juniper/Cisco filter form (Cisco `show ip route vrf
-<name>`, Juniper `show route table <instance>`). Given Ze's family-as-filter
-stance, the **filter form** for Ze (`show route vrf <name>`, with `vrf <name>` a
-keyword selector) is the consistent extension: instance and family are both
-filters, the tree stays flat. Revisit at that point; do not pre-build it.
+Forward-looking: VRF / routing-instance support is designed in
+[`plan/spec-vrf-0-umbrella.md`](../../../plan/spec-vrf-0-umbrella.md) (agreed
+with user), and it **does adopt the instance-first form**: `show vrf <name>
+<object>` (e.g. `show vrf surfprotect route`), with the default VRF keeping the
+bare, unwrapped command (`show route`). This is deliberately the Nokia-shaped
+instance-first ordering rather than a trailing `show route vrf <name>` filter,
+because the VRF design makes each instance a *full replicated stack* (its own
+reactor, RIB, hub, and TCP listeners), which is exactly the multi-context
+situation that elevates the instance to the root. A hub-of-hubs orchestrator
+intercepts the leading `vrf <name>` token and forwards the remainder verbatim to
+that instance, so the instance must be a prefix, not a trailing qualifier: a
+trailing filter would force either the VRF layer to parse every object's grammar
+or every object handler to reach across instances. The YANG of each child module
+is wrapped in `vrf <name> { ... }`, so the config tree is instance-rooted and the
+operational tree matches it (the MD-CLI symmetry above). Two things stay put:
+the keyword is `vrf`, not Nokia's `router`, and **family remains a trailing
+filter** (`show vrf red ospf ipv6`). So Ze lands on instance-first prefix ->
+object -> family-as-filter, and the default VRF keeps the bare object-rooted form
+so the single-instance case pays no verbosity tax. This does not reopen the `ip`
+namespace problem: the `vrf` node is owned by the VRF orchestrator plugin and
+*wraps* child trees (children never reach up into it), so plugin
+self-containment holds.
 
 ## Filters are keyword grammar, never `--flags`
 

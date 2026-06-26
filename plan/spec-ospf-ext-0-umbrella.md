@@ -247,7 +247,7 @@ likely a new spec) to revive.
 | Rested item | Address family | RFC(s) | Rationale for resting |
 |-------------|----------------|--------|-----------------------|
 | TOS (Type-of-Service) routing | both | RFC 2328 §16.9 (IPv4, and earlier RFC 1583); equivalent v3 metric model | Deprecated by later RFCs; no production OSPF implementation advertises or computes per-TOS metrics. The #TOS field stays 0 in originated LSAs (already the base behaviour, both AFs). Reviving it has no interop value |
-| SNMP OSPF-MIB | both | RFC 4750 (OSPFv2-MIB), RFC 5643 (OSPFV3-MIB) | Ze's management plane is YANG / gNMI / CLI / web, not SNMP. There is no SNMP agent to host either MIB; OSPF state is already exposed through `show ip ospf` / `show ipv6 ospf` and Prometheus metrics. Adding SNMP would duplicate the existing surface against a transport Ze does not speak |
+| SNMP OSPF-MIB | both | RFC 4750 (OSPFv2-MIB), RFC 5643 (OSPFV3-MIB) | Ze's management plane is YANG / gNMI / CLI / web, not SNMP. There is no SNMP agent to host either MIB; OSPF state is already exposed through `show ospf` / `show ospf ipv6` and Prometheus metrics. Adding SNMP would duplicate the existing surface against a transport Ze does not speak |
 | Multi-area adjacencies | IPv4 (and v3 analogue) | RFC 5185 | Niche feature (a single link in multiple areas via a point-to-point logical adjacency). FRR does not implement it; demand is minimal. Virtual links (ext-7) cover the backbone-repair use case that overlaps with it |
 | QoS routing | both | RFC 2676 | Experimental; effectively nobody implements it. The metric model and flooding extensions it needs are speculative with no interop partner, in either AF |
 | OSPF Flood Reduction + demand-circuit DoNotAge | both | RFC 7715, RFC 1793 (DoNotAge) | A pure optimisation for very large, very stable LSDBs (suppressing periodic LSA refresh via the DoNotAge bit). It has subtle failure modes around stale-LSA retention and topology-change re-flooding. DEFERRED, not rejected -- it may be revisited if a deployment ever needs it; until then the shared LSRefresh/MaxAge behaviour is correct and safe for both AFs |
@@ -283,7 +283,7 @@ likely a new spec) to revive.
 - The delivered RFC 5340 codec leaves (`internal/plugins/ospf/v3/{packet,types}`), the scope-aware LSDB, the SPF + prefix-attachment behaviour, the IPv6 raw-transport leaf, the ISM/NSM, the reserved Instance-ID field, and the RFC 7166 auth trailer.
 - All existing OSPFv2 and OSPFv3 functional and FRR (`ospfd` / `ospf6d`) interop tests: every extension is additive; a router with no extension enabled behaves exactly as the delivered base, in either AF.
 - The FIB-install-via-Loc-RIB path and the redistribution-via-redistevents path; extensions that affect forwarding (SR/TI-LFA) install through the SAME shared Loc-RIB seam for both AFs.
-- The canonical OSPF metric set and the command-YANG ownership model; each extension adds its own `ze_ospf_<ext>_*` (IPv4) or `ze_ospfv3_<ext>_*` (IPv6) series and its own `show ip ospf <noun>` / `show ipv6 ospf <noun>` subcommands, it does not rename existing ones.
+- The canonical OSPF metric set and the command-YANG ownership model; each extension adds its own `ze_ospf_<ext>_*` (IPv4) or `ze_ospfv3_<ext>_*` (IPv6) series and its own `show ospf <noun>` / `show ospf ipv6 <noun>` subcommands, it does not rename existing ones.
 
 **Behavior to change:** (this umbrella changes NONE directly)
 - None -- the umbrella implements nothing. Each child changes behaviour additively, documented in that child's own "Behavior to change". The umbrella only coordinates ordering and records the rested set.
@@ -430,7 +430,7 @@ likely a new spec) to revive.
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
 | YANG schema (new config) | Per child | each ext-N adds its own leaves to `internal/plugins/ospf/yang/ze-ospf-conf.yang` (the single unified OSPF schema; IPv6 leaves under `ospf { address-family { ipv6 { ... } } }`) |
-| CLI commands/flags | Per child | each ext-N adds `show ip ospf <noun>` (IPv4) / `show ipv6 ospf <noun>` (IPv6) subcommands in `internal/plugins/ospf/yang/ze-ospf-cmd.yang` |
+| CLI commands/flags | Per child | each ext-N adds `show ospf <noun>` (IPv4) / `show ospf ipv6 <noun>` (IPv6) subcommands in `internal/plugins/ospf/yang/ze-ospf-cmd.yang` |
 | Doctor check for runtime dependencies | Per child | ext-10 (BFD), ext-11 (LDP), ext-16 (kernel IPsec) and any new runtime dependency get their own check |
 | Prometheus counters/metrics | Per child | each ext-N owns its `ze_ospf_<ext>_*` (IPv4) / `ze_ospfv3_<ext>_*` (IPv6) series; the umbrella metrics mapping is updated as children land |
 
@@ -482,7 +482,7 @@ directly.
 |-------|----------------------------------|
 | Completeness | Every child ext-1..ext-16 exists, cross-references its dependencies, records its address-family coverage, and matches the unified-engine layout and the two bases' Shared Contracts |
 | Correctness | The dependency / build order is honoured (IPv4 opaque carrier first; IPv4 SR after RI + Extended; IPv6 SR adds its v3 RI + RFC 8362 LSAs first; TI-LFA after SR; ext-13 VRF-gated) |
-| Naming | Each extension uses `ze_ospf_<ext>_*` (IPv4) / `ze_ospfv3_<ext>_*` (IPv6) metrics and `show ip ospf <noun>` / `show ipv6 ospf <noun>` subcommands; no existing series/command renamed |
+| Naming | Each extension uses `ze_ospf_<ext>_*` (IPv4) / `ze_ospfv3_<ext>_*` (IPv6) metrics and `show ospf <noun>` / `show ospf ipv6 <noun>` subcommands; no existing series/command renamed |
 | Data flow | Extensions attach at delivered seams; SR/TI-LFA install through the existing Loc-RIB path (both AFs); opaque LSAs never enter SPF; no second engine |
 | Rule: plugin-self-containment | Each child's schema/help/doctor/commands live within the unified `ospf` plugin (`internal/plugins/ospf/...`); no v3 extension spelling leaks into a generic/central package or the IPv4 path; no child references a separate `ospfv3` plugin directory |
 

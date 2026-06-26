@@ -113,7 +113,7 @@ in the (shared) restart-fact NVS blob alongside {restarting, grace-end, reason}.
 | Helper: exit | Grace-LSA flushed / grace expiry / topology change -> DR recalc + Router/Network-LSA re-origination (RFC 3623 §3.2) |
 | FIB retention coordination | The restarter relies on the existing fib-kernel `RTPROT_ZE` stale-mark-then-sweep; this spec ensures the grace window closes (routes re-installed) before the sweep deadline, and `RemoveAll` on engine stop is NOT invoked on a graceful restart (RFC 3623 §2.1) |
 | Grace timers | Grace Period (1-1800 s, suggested default 120 s) measured by Grace-LSA LS age; helper expiry timer; restarter exit timer (RFC 3623 §2.1, §B.1; RFC 5187 §2.2) |
-| Config + CLI + metrics | a single family-neutral `graceful-restart` config (restarter support/interval/unplanned, helper support/strict-checking); `show ip ospf graceful-restart` (IPv4) and `show ipv6 ospf graceful-restart` (IPv6); Prometheus series |
+| Config + CLI + metrics | a single family-neutral `graceful-restart` config (restarter support/interval/unplanned, helper support/strict-checking); `show ospf graceful-restart` (IPv4) and `show ospf ipv6 graceful-restart` (IPv6); Prometheus series |
 
 **Per-address-family wire half (labelled):**
 
@@ -360,7 +360,7 @@ in the (shared) restart-fact NVS blob alongside {restarting, grace-end, reason}.
 | AC-23 | both | unplanned-outage support is enabled by the operator | on a cold/unplanned start Grace-LSAs are sent BEFORE any Hello, with reason restricted to 0 (unknown) or 3 (switch to redundant CP) (RFC 3623 §5) |
 | AC-24 | both | the configured grace period (RestartInterval) | accepts 1-1800 s, default 120 s; a value above 1800 is rejected by YANG validation (RFC 3623 §2.1, §B.1, R-12) |
 | AC-25 | both | GR is disabled (the default) | no Grace-LSA is originated, helper mode is never entered, and a restart behaves exactly as today (backward compatibility, A-13) |
-| AC-26 | both | `show ip ospf graceful-restart` (IPv4) / `show ipv6 ospf graceful-restart` (IPv6) | reports the restarter state (in-restart / not, grace-end, reason) and the per-neighbour helper state (helping which neighbours, remaining grace) |
+| AC-26 | both | `show ospf graceful-restart` (IPv4) / `show ospf ipv6 graceful-restart` (IPv6) | reports the restarter state (in-restart / not, grace-end, reason) and the per-neighbour helper state (helping which neighbours, remaining grace) |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -370,7 +370,7 @@ in the (shared) restart-fact NVS blob alongside {restarting, grace-end, reason}.
 | 2 | Enables GR (IPv6) and triggers a planned restart; IPv6 routes keep forwarding across the restart | as story 1 but native 0x000B Grace-LSA (LS ID = Interface ID) + persisted Interface-ID/LSA-ID maps | `ospf-v6-gr-fib-retention` (QEMU) |
 | 3 | A Ze router is a helper for a restarting FRR neighbour (both families) | FRR floods a Grace-LSA -> wire -> carrier (ext-1 v4 / v3 codec v6) -> helper dispatch -> §3.1 checks -> helping; Ze keeps the adjacency advertised; FRR completes GR without flapping | `ospf-gr-frr` (FRR `ospfd`) + `ospf-v6-gr-frr` (FRR `ospf6d`) |
 | 4 | An FRR router is a helper for a restarting Ze neighbour (both families) | Ze originates Grace-LSAs, restarts, re-acquires adjacencies; FRR holds the adjacency; Ze exits GR cleanly with no route flap | `ospf-gr-frr` (Ze restarter) + `ospf-v6-gr-frr` (Ze restarter) |
-| 5 | Runs `show ip ospf graceful-restart` / `show ipv6 ospf graceful-restart` during a restart | CLI -> the GR state reporter -> restarter/helper state rendered | `test/ospf/ospf-gr-show.ci` + `test/ospf/ospf-v6-gr-show.ci` |
+| 5 | Runs `show ospf graceful-restart` / `show ospf ipv6 graceful-restart` during a restart | CLI -> the GR state reporter -> restarter/helper state rendered | `test/ospf/ospf-gr-show.ci` + `test/ospf/ospf-v6-gr-show.ci` |
 | 6 | Leaves GR disabled (default) and restarts the router (both families) | no Grace-LSA, normal restart, routes reconverge normally | `TestGRDisabledNoGraceLSA` + existing OSPF suite green |
 | 7 | Decodes a Grace-LSA hex capture (both families) | CLI decode -> IPv4: ext-1 opaque decode (Opaque Type 3 + three TLVs); IPv6: v3 LSA decode (LS Type 0x000B + LS ID = Interface ID + two TLVs) | `test/ospf/ospf-gr-decode.ci` + `test/ospf/ospf-v6-gr-decode.ci` |
 
@@ -433,14 +433,14 @@ in the (shared) restart-fact NVS blob alongside {restarting, grace-end, reason}.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ospf-gr-register` | `test/ospf/ospf-gr-register.ci` | (IPv4) GR enabled; the consumer + `show ip ospf graceful-restart` are present | |
-| `ospf-v6-gr-register` | `test/ospf/ospf-v6-gr-register.ci` | (IPv6) GR enabled; the Grace-LSA type + `show ipv6 ospf graceful-restart` are present | |
+| `ospf-gr-register` | `test/ospf/ospf-gr-register.ci` | (IPv4) GR enabled; the consumer + `show ospf graceful-restart` are present | |
+| `ospf-v6-gr-register` | `test/ospf/ospf-v6-gr-register.ci` | (IPv6) GR enabled; the Grace-LSA type + `show ospf ipv6 graceful-restart` are present | |
 | `ospf-gr-prepare` | `test/ospf/ospf-gr-prepare.ci` | (IPv4) a planned restart originates one Opaque-3 Grace-LSA per interface; the NVS restart-fact is written | |
 | `ospf-v6-gr-prepare` | `test/ospf/ospf-v6-gr-prepare.ci` | (IPv6) a planned restart originates one 0x000B Grace-LSA per interface; the NVS restart-fact is written | |
 | `ospf-gr-helper` | `test/ospf/ospf-gr-helper.ci` | (IPv4) a received Grace-LSA enters helper mode; the adjacency to X stays advertised; exit on grace expiry | |
 | `ospf-v6-gr-helper` | `test/ospf/ospf-v6-gr-helper.ci` | (IPv6) a received Grace-LSA enters helper mode; the adjacency to X stays advertised; exit on grace expiry | |
-| `ospf-gr-show` | `test/ospf/ospf-gr-show.ci` | (IPv4) `show ip ospf graceful-restart` reports restarter + helper state | |
-| `ospf-v6-gr-show` | `test/ospf/ospf-v6-gr-show.ci` | (IPv6) `show ipv6 ospf graceful-restart` reports restarter + helper state | |
+| `ospf-gr-show` | `test/ospf/ospf-gr-show.ci` | (IPv4) `show ospf graceful-restart` reports restarter + helper state | |
+| `ospf-v6-gr-show` | `test/ospf/ospf-v6-gr-show.ci` | (IPv6) `show ospf ipv6 graceful-restart` reports restarter + helper state | |
 | `ospf-gr-decode` | `test/ospf/ospf-gr-decode.ci` | (IPv4) decode of a Grace-LSA hex shows Opaque Type 3 + three TLVs | |
 | `ospf-v6-gr-decode` | `test/ospf/ospf-v6-gr-decode.ci` | (IPv6) decode of a Grace-LSA hex shows LS Type 0x000B + LS ID = Interface ID + two TLVs | |
 | `ospf-gr-disabled` | `test/ospf/ospf-gr-disabled.ci` | (IPv4) GR off: no Grace-LSA, normal restart, routes reconverge | |
@@ -476,7 +476,7 @@ in the (shared) restart-fact NVS blob alongside {restarting, grace-end, reason}.
 - `internal/plugins/ospf/register.go` -- register (IPv4) the Opaque-Type-3 consumer via ext-1; the `graceful-restart` config resolution; the two show commands; the GR doctor check; the GR metrics
 - `internal/plugins/ospf/config.go` -- resolve the `graceful-restart` config (restarter support/interval/unplanned, helper support/strict-checking) into `ospfConfig`
 - `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- the family-neutral `graceful-restart` container (mirrors the `max-metric` precedent)
-- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- the `show ip ospf graceful-restart` and `show ipv6 ospf graceful-restart` commands
+- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` -- the `show ospf graceful-restart` and `show ospf ipv6 graceful-restart` commands
 - `internal/plugins/ospf/cmd_show.go` -- the two `graceful-restart` show handlers
 - `internal/plugins/ospf/doctor.go` -- a doctor check for the GR NVS blob path / unplanned-support sanity (the NVS path is the new runtime dependency)
 
@@ -492,8 +492,8 @@ in the (shared) restart-fact NVS blob alongside {restarting, grace-end, reason}.
 | YANG schema (new config) | [ ] yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` -- family-neutral `graceful-restart` container; read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
 | YANG validation constraints | [ ] yes | `restart-interval` `range "1..1800"`; `support` enumeration {disabled, planned, planned-and-unplanned}; `helper` `strict-lsa-checking` boolean |
 | YANG custom validators | [ ] no | native range + enumeration + boolean suffice |
-| CLI commands/flags | [ ] yes | `show ip ospf graceful-restart` and `show ipv6 ospf graceful-restart` in `ze-ospf-cmd.yang` + `cmd_show.go`; an operator `ospf graceful-restart prepare` action (managed-reload hook) |
-| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ip ospf graceful-restart` / `show ipv6 ospf graceful-restart` |
+| CLI commands/flags | [ ] yes | `show ospf graceful-restart` and `show ospf ipv6 graceful-restart` in `ze-ospf-cmd.yang` + `cmd_show.go`; an operator `ospf graceful-restart prepare` action (managed-reload hook) |
+| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` -- `show ospf graceful-restart` / `show ospf ipv6 graceful-restart` |
 | Editor autocomplete | [ ] yes | automatic for the YANG enumeration/boolean leaves + the new show subcommands |
 | Functional test for new RPC/API | [ ] yes | `test/ospf/ospf-gr-*.ci` + `test/ospf/ospf-v6-gr-*.ci` |
 | Pipe completeness | [ ] yes | both show commands route through `ApplyPipes` like the other show outputs |
@@ -520,7 +520,7 @@ in the (shared) restart-fact NVS blob alongside {restarting, grace-end, reason}.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [ ] yes | `docs/features.md` -- OSPF Graceful Restart (restarter + helper, both families) |
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md` -- the `graceful-restart` container |
-| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ip ospf graceful-restart` + `show ipv6 ospf graceful-restart` |
+| 3 | CLI command added/changed? | [ ] yes | `docs/guide/command-reference.md` -- `show ospf graceful-restart` + `show ospf ipv6 graceful-restart` |
 | 4 | API/RPC added/changed? | [ ] yes | `docs/architecture/api/commands.md` -- the `prepare` action / managed-reload hook |
 | 5 | Plugin added/changed? | [ ] yes | `docs/guide/plugins.md` -- OSPF gains GR (IPv4 opaque consumer + IPv6 Grace-LSA type) |
 | 6 | Has a user guide page? | [ ] yes | `docs/guide/ospf.md` -- a Graceful Restart section covering both families |
@@ -542,7 +542,7 @@ in the (shared) restart-fact NVS blob alongside {restarting, grace-end, reason}.
 - `internal/plugins/ospf/gr_restarter.go` -- the restarter state machine (pre-restart, in-restart suppression, the three exit triggers, exit actions; IPv6 §3.1/§3.2 preservation restore)
 - `internal/plugins/ospf/gr_helper.go` -- the helper state machine (§3.1 entry checks, while-helping advertisement, §3.2 exit incl. strict checking + stub-area exception)
 - `internal/plugins/ospf/gr_nvs.go` -- the restart-fact ZeFS blob (write on prepare, read/validate on resume; carries grace-end + IPv6 §3.2 Interface-ID map + §3.1 prefix->LSA-ID map), reusing the `openBootCountStore` seam
-- `internal/plugins/ospf/gr_show.go` -- the `show ip ospf graceful-restart` + `show ipv6 ospf graceful-restart` state reporter
+- `internal/plugins/ospf/gr_show.go` -- the `show ospf graceful-restart` + `show ospf ipv6 graceful-restart` state reporter
 - `internal/plugins/ospf/gr_test.go`, `gr_register_test.go`, `gr_restarter_test.go`, `gr_helper_test.go`, `gr_nvs_test.go`, `gr_preserve_test.go`, `gr_unplanned_test.go`, `gr_config_test.go`, `gr_show_test.go`
 
 **IPv4-only wire:**
@@ -627,7 +627,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Feature completeness | each user story has a working path; GR parity with FRR `ospfd` (IPv4) and `ospf6d` (IPv6), restarter + helper, planned + helper-strict-checking; FIB retention proven end-to-end for both families |
 | One feature, not two | the restarter/helper state machines are shared; `codec.IsV6()` branches appear only at the Grace-LSA origination/decode wire seam, never inside the state machines (R-13) |
 | Correctness | LS age = grace clock (never reset, both families); IPv4 three TLVs + Opaque Type 3 / ID 0; IPv6 two TLVs + LS Type 0x000B + LS ID = Interface ID + 4-octet pad (Reason Length 1 -> 4 octets); §3.1 entry checks all enforced; §3.2 exit incl. stub-area exception; restarter suppresses ALL self-LSA types (both); IPv6 Interface IDs + LSA-IDs preserved; `RemoveAll` not called on graceful stop; grace window vs `sweepDelay` reconciled |
-| Naming | `ze_ospf_gr_*` metrics with a `family` label; YANG `graceful-restart` / `restart-interval` kebab-case; `show ip ospf graceful-restart` / `show ipv6 ospf graceful-restart`; `OnOriginate`/`OnReceive` (IPv4); `LSTypeGrace` (IPv6) |
+| Naming | `ze_ospf_gr_*` metrics with a `family` label; YANG `graceful-restart` / `restart-interval` kebab-case; `show ospf graceful-restart` / `show ospf ipv6 graceful-restart`; `OnOriginate`/`OnReceive` (IPv4); `LSTypeGrace` (IPv6) |
 | Data flow | IPv4 GR is an ext-1 consumer (no new flooding); IPv6 Grace-LSA flows v3 codec -> link store -> helper dispatch; fib-kernel read-only; the in-restart flag gates origination + install only; no shared v2/v3 wire code |
 | CLI grammar | both show commands action-before-identifier |
 | Doctor checks | the GR NVS blob path has a `ze doctor` check per `ai/rules/doctor-checks.md` |
