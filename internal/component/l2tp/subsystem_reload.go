@@ -118,6 +118,17 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 		applied++
 	}
 
+	// Hot-apply: hello-retries (dead-peer detection threshold).
+	if prev.HelloRetries != next.HelloRetries {
+		s.params.HelloRetries = next.HelloRetries
+		for _, r := range s.reactors {
+			r.setHelloRetries(next.HelloRetries)
+		}
+		s.logger.Info("l2tp reload: hello-retries updated",
+			"previous", prev.HelloRetries, "new", next.HelloRetries)
+		applied++
+	}
+
 	// Hot-apply: max-tunnels.
 	if prev.MaxTunnels != next.MaxTunnels {
 		s.params.MaxTunnels = next.MaxTunnels
@@ -231,6 +242,7 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 	p := Parameters{
 		Enabled:        true,
 		HelloInterval:  time.Duration(DefaultHelloSecs) * time.Second,
+		HelloRetries:   DefaultHelloRetries,
 		MaxTunnels:     DefaultMaxTunnels,
 		MaxSessions:    DefaultMaxSessions,
 		AuthMethod:     DefaultAuthMethod,
@@ -255,6 +267,13 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 			return Parameters{}, errHelloIntervalMustBe0
 		}
 		p.HelloInterval = time.Duration(n) * time.Second
+	}
+	if v, ok := l2tpRoot["hello-retries"].(string); ok {
+		n, perr := strconv.ParseUint(v, 10, 8)
+		if perr != nil {
+			return Parameters{}, fmt.Errorf("hello-retries: %w", perr)
+		}
+		p.HelloRetries = uint8(n)
 	}
 	if v, ok := l2tpRoot["max-tunnels"].(string); ok {
 		n, perr := strconv.ParseUint(v, 10, 16)

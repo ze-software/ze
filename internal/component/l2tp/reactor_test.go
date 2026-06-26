@@ -1124,6 +1124,17 @@ func buildStopCCN(t *testing.T, destTID, ns, nr, peerAssignedTID, resultCode uin
 	return pkt
 }
 
+// buildZLBAck returns a 12-byte ZLB (Zero-Length Body) control datagram
+// addressed to destTID, carrying nr as its Nr so it acknowledges the peer's
+// outstanding message(s). A ZLB has an empty body, so the engine processes
+// only its Nr (and never updates lastActivity). Used by the dead-peer tests
+// to simulate an idle-but-alive peer that answers HELLOs with ZLB ACKs.
+func buildZLBAck(destTID, ns, nr uint16) []byte {
+	pkt := make([]byte, 12)
+	WriteControlHeader(pkt, 0, 12, destTID, 0, ns, nr)
+	return pkt
+}
+
 // recordingRouteObserver is a RouteObserver test double that records every
 // OnSessionDown call, so a teardown test can assert the subscriber route was
 // withdrawn.
@@ -1197,6 +1208,201 @@ func TestPeerTeardownWithdrawsSubscriberRoute(t *testing.T) {
 	downs := spy.downs()
 	require.Len(t, downs, 1, "peer teardown must withdraw exactly one session route")
 	require.Equal(t, [2]uint16{localTID, sid}, downs[0])
+}
+
+// TestDeadPeerKeepaliveTeardownWithdrawsRoute -- spec-l2tp-dead-peer-detection
+// AC-1, AC-3.
+//
+// VALIDATES: an Established tunnel whose peer stops answering HELLOs is torn
+// down after HelloRetries * HelloInterval (2 * 5s = 10s here), BEFORE the
+// reliable engine's ~31s retransmit exhaustion, and the teardown withdraws
+// subscriber routes and logs a distinct keepalive-timeout reason.
+//
+// PREVENTS: regression to the slow ~36s dead-peer detection that blew the
+// L2TP evidence/interop teardown windows when xl2tpd died without StopCCN.
+func TestDeadPeerKeepaliveTeardownWithdrawsRoute(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	helloInterval := 5 * time.Second
+	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	defer stop()
+
+	spy := &recordingRouteObserver{}
+	r.SetRouteObserver(spy)
+	r.setHelloRetries(2) // dead-peer detection at 2 * 5s = 10s
+
+	client, localTID := driveToEstablished(t, ln, "")
+	defer client.Close()
+	waitForLog(t, logs, "tunnel now established")
+
+	const sid uint16 = 0x4242
+	r.tunnelsMu.Lock()
+	tunnel := r.tunnelsByLocalID[localTID]
+	tunnel.sessions = map[uint16]*L2TPSession{
+		sid: {localSID: sid, remoteSID: 0x4243, state: L2TPSessionEstablished, createdAt: now},
+	}
+	// Peer goes silent (no delivered messages, no ACKs): freeze liveness.
+	tunnel.lastLiveness = now
+	r.tunnelsMu.Unlock()
+
+	// One tick at +11s (> 10s dead-peer deadline, << 31s retransmit
+	// exhaustion) must tear the tunnel down via dead-peer detection.
+	now = now.Add(11 * time.Second)
+	r.handleTick(tickReq{tunnelID: localTID})
+
+	r.tunnelsMu.Lock()
+	state := L2TPTunnelClosed
+	if tn := r.tunnelsByLocalID[localTID]; tn != nil {
+		state = tn.state
+	}
+	r.tunnelsMu.Unlock()
+	require.Equal(t, L2TPTunnelClosed, state, "dead peer must close the tunnel before retransmit exhaustion")
+
+	downs := spy.downs()
+	require.Len(t, downs, 1, "dead-peer teardown must withdraw the session route")
+	require.Equal(t, [2]uint16{localTID, sid}, downs[0])
+	require.Contains(t, logs.String(), "dead peer; keepalive timeout teardown")
+}
+
+// TestDeadPeerZLBAckKeepsTunnelUp -- spec-l2tp-dead-peer-detection AC-2.
+//
+// VALIDATES: an idle-but-alive peer that answers every HELLO with a ZLB ACK
+// (and never delivers a control message) is NOT torn down, even after more
+// than HelloRetries * HelloInterval has elapsed since establishment. The ZLB
+// ACK refreshes lastLiveness (the dead-peer clock) but NOT lastActivity (the
+// HELLO-probe clock).
+//
+// PREVENTS: the naive-hold-timer bug -- basing teardown on lastActivity (which
+// a ZLB does not update) would falsely kill a healthy idle tunnel.
+func TestDeadPeerZLBAckKeepsTunnelUp(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	helloInterval := 5 * time.Second
+	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	defer stop()
+
+	r.setHelloRetries(2) // dead-peer deadline 10s
+
+	client, localTID := driveToEstablished(t, ln, "")
+	defer client.Close()
+	waitForLog(t, logs, "tunnel now established")
+	_ = readDatagram(t, client) // drain the SCCCN ZLB ACK
+
+	r.tunnelsMu.Lock()
+	establishedAt := r.tunnelsByLocalID[localTID].lastActivity
+	r.tunnelsMu.Unlock()
+
+	// Two rounds of (advance 6s -> HELLO -> peer ZLB-ACKs it). 12s total
+	// elapses, exceeding the 10s dead-peer deadline, but each ZLB ACK
+	// refreshes lastLiveness so the tunnel survives. lastActivity is never
+	// updated by the ZLBs, so a HELLO keeps firing each round.
+	for round := range 2 {
+		now = now.Add(6 * time.Second)
+		r.handleTick(tickReq{tunnelID: localTID})
+
+		helloPkt := readDatagram(t, client)
+		require.GreaterOrEqual(t, len(helloPkt), 12, "round %d: expected a HELLO datagram", round)
+		helloNs := uint16(helloPkt[8])<<8 | uint16(helloPkt[9])
+
+		client.Send(t, buildZLBAck(localTID, 2, helloNs+1))
+
+		// Wait for the reactor goroutine to process the ZLB and advance
+		// lastLiveness to the current clock value.
+		liveAt := now
+		require.Eventually(t, func() bool {
+			r.tunnelsMu.Lock()
+			defer r.tunnelsMu.Unlock()
+			tn := r.tunnelsByLocalID[localTID]
+			return tn != nil && tn.lastLiveness.Equal(liveAt)
+		}, 2*time.Second, 10*time.Millisecond, "round %d: ZLB ACK must refresh lastLiveness", round)
+	}
+
+	// A further tick (still within one deadline of the last refresh) must
+	// not tear the tunnel down.
+	now = now.Add(6 * time.Second)
+	r.handleTick(tickReq{tunnelID: localTID})
+
+	r.tunnelsMu.Lock()
+	tn := r.tunnelsByLocalID[localTID]
+	require.NotNil(t, tn)
+	require.Equal(t, L2TPTunnelEstablished, tn.state, "idle-but-alive peer must NOT be torn down")
+	require.True(t, tn.lastActivity.Equal(establishedAt), "ZLB ACKs must NOT refresh lastActivity")
+	require.True(t, tn.lastLiveness.After(establishedAt), "ZLB ACKs MUST refresh lastLiveness")
+	r.tunnelsMu.Unlock()
+	require.NotContains(t, logs.String(), "dead peer; keepalive timeout teardown")
+}
+
+// TestDeadPeerDisabledWhenRetriesZero -- spec-l2tp-dead-peer-detection AC-4.
+//
+// VALIDATES: hello-retries 0 disables dead-peer detection -- a silent peer is
+// not torn down by the keepalive-timeout path (retransmit exhaustion remains
+// the only signal, as it was before this feature).
+func TestDeadPeerDisabledWhenRetriesZero(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	helloInterval := 5 * time.Second
+	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	defer stop()
+	// HelloRetries left at 0 (the builder default): DPD disabled.
+
+	client, localTID := driveToEstablished(t, ln, "")
+	defer client.Close()
+	waitForLog(t, logs, "tunnel now established")
+
+	r.tunnelsMu.Lock()
+	r.tunnelsByLocalID[localTID].lastLiveness = now
+	r.tunnelsMu.Unlock()
+
+	// Far past any plausible dead-peer deadline, but a single tick must not
+	// trigger keepalive teardown when retries==0. (It sends a HELLO instead.)
+	now = now.Add(11 * time.Second)
+	r.handleTick(tickReq{tunnelID: localTID})
+
+	r.tunnelsMu.Lock()
+	state := r.tunnelsByLocalID[localTID].state
+	r.tunnelsMu.Unlock()
+	require.Equal(t, L2TPTunnelEstablished, state, "retries==0 must not tear down via dead-peer detection")
+	require.NotContains(t, logs.String(), "dead peer; keepalive timeout teardown")
+}
+
+// TestDeadPeerNotRunBeforeEstablished -- spec-l2tp-dead-peer-detection AC-8.
+//
+// VALIDATES: dead-peer detection is gated on L2TPTunnelEstablished. A tunnel
+// still in setup (SCCRQ received, SCCCN not yet) keeps the full reliable
+// retransmit budget and is not closed by the keepalive-timeout path, even
+// with a very stale lastLiveness.
+func TestDeadPeerNotRunBeforeEstablished(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	helloInterval := 5 * time.Second
+	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	defer stop()
+	r.setHelloRetries(2)
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	// SCCRQ only -- do NOT send SCCCN, so the tunnel never reaches Established.
+	client.Send(t, buildSCCRQ(t, 42, "peer-timer"))
+	sccrp := readDatagram(t, client)
+	tidBytes := extractAVP(t, sccrp, AVPAssignedTunnelID)
+	localTID := uint16(tidBytes[0])<<8 | uint16(tidBytes[1])
+
+	r.tunnelsMu.Lock()
+	tn := r.tunnelsByLocalID[localTID]
+	require.NotNil(t, tn)
+	require.NotEqual(t, L2TPTunnelEstablished, tn.state, "precondition: tunnel must not be established")
+	tn.lastLiveness = now.Add(-100 * time.Second) // would trip DPD if it ran
+	r.tunnelsMu.Unlock()
+
+	// One tick just past the first SCCRP retransmit deadline (not exhaustion).
+	now = now.Add(2 * time.Second)
+	r.handleTick(tickReq{tunnelID: localTID})
+
+	r.tunnelsMu.Lock()
+	state := L2TPTunnelClosed
+	if tn := r.tunnelsByLocalID[localTID]; tn != nil {
+		state = tn.state
+	}
+	r.tunnelsMu.Unlock()
+	require.NotEqual(t, L2TPTunnelClosed, state, "dead-peer detection must not run before establishment")
+	require.NotContains(t, logs.String(), "dead peer; keepalive timeout teardown")
 }
 
 // TestTunnelFSM_HelloOnSilence -- AC-12.

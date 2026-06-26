@@ -59,6 +59,7 @@ type ConfigSnapshot struct {
 	AuthMethod    string
 	AllowNoAuth   bool
 	HelloInterval time.Duration
+	HelloRetries  uint8
 	SharedSecret  string
 	ListenAddrs   []netip.AddrPort
 }

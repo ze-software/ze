@@ -97,6 +97,32 @@ func TestReloadAppliesHelloInterval(t *testing.T) {
 	require.Equal(t, 120*time.Second, s.params.HelloInterval)
 }
 
+// VALIDATES: spec-l2tp-dead-peer-detection AC-6 -- hello-retries
+// (dead-peer detection threshold) is hot-applied on reload.
+func TestReloadAppliesHelloRetries(t *testing.T) {
+	s := newStartedSubsystem(t, Parameters{
+		Enabled:       true,
+		HelloInterval: 60 * time.Second,
+		HelloRetries:  1,
+		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
+	})
+	cfg := &fakeConfigProvider{trees: map[string]map[string]any{
+		"l2tp": {
+			"hello-interval": "60",
+			"hello-retries":  "3",
+		},
+		"environment": {
+			"l2tp": map[string]any{
+				"server": map[string]any{
+					"default": map[string]any{"ip": "0.0.0.0", "port": "1701"},
+				},
+			},
+		},
+	}}
+	require.NoError(t, s.Reload(context.Background(), cfg))
+	require.Equal(t, uint8(3), s.params.HelloRetries)
+}
+
 // VALIDATES: AC-3 -- max-tunnels and max-sessions hot-apply.
 func TestReloadAppliesLimits(t *testing.T) {
 	s := newStartedSubsystem(t, Parameters{
@@ -173,6 +199,7 @@ func TestReloadNoOpOnIdentical(t *testing.T) {
 	s := newStartedSubsystem(t, Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
+		HelloRetries:  DefaultHelloRetries,
 		SharedSecret:  "same",
 		MaxTunnels:    10,
 		MaxSessions:   20,

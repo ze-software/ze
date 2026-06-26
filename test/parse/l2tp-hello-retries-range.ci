@@ -1,0 +1,20 @@
+# Test: ze config validate rejects an out-of-range L2TP hello-retries
+# VALIDATES: spec-l2tp-dead-peer-detection AC-5 -- YANG uint8 range 0..255 is
+#            enforced; 256 is rejected.
+stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+	hello-retries 256
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1

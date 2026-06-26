@@ -65,6 +65,14 @@ func (t *L2TPTunnel) Process(hdr MessageHeader, payload []byte, now time.Time, d
 		// not prevent the HELLO timeout from firing).
 		t.lastActivity = now
 	}
+	if len(res.Delivered) > 0 || res.Acked > 0 {
+		// Dead-peer detection liveness signal. Unlike lastActivity, this
+		// also fires on a bare acknowledgement (Nr advance) of one of our
+		// outstanding messages, INCLUDING a ZLB ACK of a HELLO. An
+		// idle-but-alive peer that only ZLB-ACKs our keepalives refreshes
+		// lastLiveness, so handleTick does not falsely declare it dead.
+		t.lastLiveness = now
+	}
 	for _, d := range res.Delivered {
 		out = append(out, t.handleMessage(d, now, defaults, sccrq)...)
 		// Only the FIRST delivery can be the SCCRQ we validated at
@@ -236,6 +244,11 @@ func (t *L2TPTunnel) handleSCCCN(now time.Time, defaults TunnelDefaults, payload
 		}
 	}
 	t.transition(L2TPTunnelEstablished, "SCCCN received")
+	// Seed the dead-peer liveness clock at establishment so detection is
+	// measured from a known point even if the establishing exchange did not
+	// flow through the liveness update above (defensive; Process normally
+	// sets it when the SCCCN is delivered).
+	t.lastLiveness = now
 	// Release the challenge now that verification succeeded. No consumer
 	// reads it past established; keeping it would be a 16-byte leak per
 	// tunnel for the tunnel's lifetime.

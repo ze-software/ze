@@ -300,6 +300,37 @@ func TestOnReceiveZLB(t *testing.T) {
 	}
 }
 
+// VALIDATES: spec-l2tp-dead-peer-detection AC-7 -- OnReceive surfaces the
+// count of newly-acknowledged outstanding messages in ReceiveResult.Acked,
+// INCLUDING a ZLB ACK (which is invisible in Delivered). Dead-peer
+// detection relies on Acked > 0 as proof of peer liveness for an
+// idle-but-alive peer that only ZLB-ACKs HELLOs.
+func TestOnReceiveAckedCountSurfaced(t *testing.T) {
+	e := newTestEngine()
+	now := time.Unix(0, 0)
+
+	// Two outstanding messages (Ns=0 in flight, Ns=1 queued behind window).
+	mustEnqueue(t, e, 0, messageTypeAVP(1), now)
+	mustEnqueue(t, e, 0, messageTypeAVP(2), now)
+
+	// A ZLB acking only Ns=0 (Nr=1) must report Acked == 1.
+	zlb := MessageHeader{IsControl: true, HasSequence: true, Version: 2, TunnelID: 100, Ns: 0, Nr: 1}
+	r := e.OnReceive(zlb, []byte{}, now)
+	if r.Class != ClassZLB {
+		t.Fatalf("Class = %v, want ClassZLB", r.Class)
+	}
+	if r.Acked != 1 {
+		t.Errorf("Acked = %d, want 1 (ZLB acked our Ns=0)", r.Acked)
+	}
+
+	// A second ZLB carrying the same Nr=1 acks nothing new -> Acked == 0.
+	dup := MessageHeader{IsControl: true, HasSequence: true, Version: 2, TunnelID: 100, Ns: 0, Nr: 1}
+	r2 := e.OnReceive(dup, []byte{}, now)
+	if r2.Acked != 0 {
+		t.Errorf("Acked = %d on duplicate Nr, want 0 (nothing newly acked)", r2.Acked)
+	}
+}
+
 // VALIDATES: AC-11 Tick retransmits outstanding messages with Nr
 // rewritten. PREVENTS: the stale-Nr trap (RFC 2661 S5.8 line 2589-2590
 // and S24.9).

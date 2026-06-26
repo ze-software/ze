@@ -30,6 +30,17 @@ func (r *L2TPReactor) setHelloInterval(d time.Duration) {
 	r.tunnelsMu.Unlock()
 }
 
+// setHelloRetries updates the per-reactor dead-peer detection threshold:
+// the number of consecutive unanswered HELLO keepalive intervals tolerated
+// before an Established tunnel's peer is declared dead. Effective detection
+// time is HelloRetries * HelloInterval. Zero disables dead-peer detection.
+// Read by handleTick on the reactor goroutine; mutated here under tunnelsMu.
+func (r *L2TPReactor) setHelloRetries(n uint8) {
+	r.tunnelsMu.Lock()
+	r.params.HelloRetries = n
+	r.tunnelsMu.Unlock()
+}
+
 // setMaxTunnels updates the per-reactor tunnel admission cap. Affects
 // the next SCCRQ admission check; existing tunnels are untouched.
 func (r *L2TPReactor) setMaxTunnels(n uint16) {

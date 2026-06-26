@@ -171,6 +171,13 @@ type ReceiveResult struct {
 	Class     Classification
 	Delivered []RecvEntry
 	NewSends  [][]byte
+	// Acked is the number of previously-outstanding control messages that
+	// this receive acknowledged (via the Nr field). It is non-zero for any
+	// inbound control frame whose Nr advanced past one of our unacked
+	// messages, INCLUDING a ZLB ACK of a HELLO. Callers use it as a proof
+	// of peer liveness for dead-peer detection (a ZLB does not appear in
+	// Delivered, so Delivered alone misses the idle-but-alive case).
+	Acked int
 }
 
 // TickResult bundles the outputs of Tick. Retransmits are fully
@@ -473,7 +480,7 @@ func (e *ReliableEngine) OnReceive(hdr MessageHeader, payload []byte, now time.T
 	// "Ns is not incremented after a ZLB message is sent"), so we do
 	// not compare against nextRecvSeq.
 	if len(payload) == 0 {
-		return ReceiveResult{Class: ClassZLB, NewSends: newSends}
+		return ReceiveResult{Class: ClassZLB, NewSends: newSends, Acked: acked}
 	}
 
 	// Non-ZLB control message: classify by Ns vs nextRecvSeq.
@@ -488,19 +495,19 @@ func (e *ReliableEngine) OnReceive(hdr MessageHeader, payload []byte, now time.T
 			delivered = append(delivered, e.makeRecvEntry(r.ns, 0, r.payload))
 			e.nextRecvSeq++
 		}
-		return ReceiveResult{Class: ClassDelivered, Delivered: delivered, NewSends: newSends}
+		return ReceiveResult{Class: ClassDelivered, Delivered: delivered, NewSends: newSends, Acked: acked}
 	}
 	if seqBefore(hdr.Ns, e.nextRecvSeq) {
 		// Duplicate. MUST ACK per RFC 2661 S5.8 line 2550.
 		e.needsZLB = true
-		return ReceiveResult{Class: ClassDuplicate, NewSends: newSends}
+		return ReceiveResult{Class: ClassDuplicate, NewSends: newSends, Acked: acked}
 	}
 	// Out of order: hdr.Ns > nextRecvSeq in sequence terms.
 	// Try to queue; if beyond window, discard.
 	if e.reorder.store(hdr.Ns, e.nextRecvSeq, payload) {
-		return ReceiveResult{Class: ClassReorderQueued, NewSends: newSends}
+		return ReceiveResult{Class: ClassReorderQueued, NewSends: newSends, Acked: acked}
 	}
-	return ReceiveResult{Class: ClassDiscarded, NewSends: newSends}
+	return ReceiveResult{Class: ClassDiscarded, NewSends: newSends, Acked: acked}
 }
 
 // processNr removes rtms_queue entries acknowledged by the peer's Nr,

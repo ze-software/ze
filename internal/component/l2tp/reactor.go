@@ -67,6 +67,7 @@ type ReactorParams struct {
 	AuthTimeout     time.Duration  // PPP auth-phase timeout
 	ReauthInterval  time.Duration  // periodic re-auth; 0 = disabled
 	HelloInterval   time.Duration  // peer silence before HELLO; 0 = no keepalive
+	HelloRetries    uint8          // dead-peer detection: unanswered HELLO intervals before teardown; 0 = disabled
 	EnableIPCP      bool           // IPCP NCP enabled
 	EnableIPv6CP    bool           // IPv6CP NCP enabled
 	NCPTimeout      time.Duration  // NCP negotiation timeout
@@ -487,8 +488,40 @@ func (r *L2TPReactor) handleTick(tr tickReq) {
 	stateBefore := tunnel.state
 	var outbound []sendRequest
 
-	if result.TeardownRequired {
-		// Retransmit limit exhausted. Tear down the tunnel.
+	// Dead-peer detection: an Established tunnel whose peer has not proven
+	// liveness for HelloRetries * HelloInterval is declared dead. Liveness
+	// is a delivered control message OR an acknowledgement of one of our
+	// outstanding messages (including a ZLB ACK of a HELLO), tracked as
+	// tunnel.lastLiveness. This fires before the reliable engine's
+	// retransmit exhaustion (~31s with defaults) whenever the threshold is
+	// shorter, giving fast teardown when a peer (e.g. xl2tpd) dies without
+	// sending StopCCN. It is deliberately kept separate from the retransmit
+	// backoff and gated on Established, so setup (pre-Established) and
+	// teardown (Closed) retain the full retransmit budget.
+	// RFC 2661 Section 15: HELLO is used as a keepalive for the control
+	// channel.
+	deadPeer := false
+	if !result.TeardownRequired && tunnel.state == L2TPTunnelEstablished &&
+		r.params.HelloRetries > 0 && r.params.HelloInterval > 0 &&
+		!tunnel.lastLiveness.IsZero() {
+		deadline := time.Duration(r.params.HelloRetries) * r.params.HelloInterval
+		if now.Sub(tunnel.lastLiveness) >= deadline {
+			deadPeer = true
+		}
+	}
+
+	teardownReason := "retransmit-timeout"
+	if result.TeardownRequired || deadPeer {
+		// Retransmit limit exhausted, or dead-peer keepalive timeout. Tear
+		// down the tunnel.
+		if deadPeer {
+			teardownReason = "keepalive-timeout"
+			r.logger.Info("l2tp: dead peer; keepalive timeout teardown",
+				"tunnel", tunnel.localTID,
+				"hello-retries", r.params.HelloRetries,
+				"hello-interval", r.params.HelloInterval.String(),
+				"since-liveness", now.Sub(tunnel.lastLiveness).String())
+		}
 		if tunnel.state != L2TPTunnelClosed {
 			outbound = append(outbound, tunnel.teardownStopCCN(now, resultGeneralError)...)
 		}
@@ -531,7 +564,7 @@ func (r *L2TPReactor) handleTick(tr tickReq) {
 	if r.eventBus != nil && stateBefore != L2TPTunnelClosed && stateAfter == L2TPTunnelClosed {
 		if _, err := l2tpevents.TunnelDown.Emit(r.eventBus, &l2tpevents.TunnelDownPayload{
 			TunnelID: localTID,
-			Reason:   "retransmit-timeout",
+			Reason:   teardownReason,
 		}); err != nil {
 			r.logger.Warn("l2tp: tunnel-down emit failed", "error", err)
 		}

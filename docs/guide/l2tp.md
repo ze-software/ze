@@ -27,6 +27,7 @@ l2tp {
     auth-method chap-md5;        // PPP Auth-Protocol first advertised
     allow-no-auth false;         // explicit opt-in required for no-auth
     hello-interval 60;           // seconds of peer silence before HELLO
+    hello-retries 2;             // unanswered HELLO intervals before dead-peer teardown (0 disables)
     max-tunnels 1024;            // 0 explicitly means unbounded
     max-sessions 1024;           // per-tunnel, 0 explicitly means unbounded
 }
@@ -460,6 +461,7 @@ each knob according to this policy:
 |-------|------------------|
 | `shared-secret` | Hot-apply; takes effect on new SCCRQs. Live tunnels keep the previously-negotiated state. |
 | `hello-interval` | Hot-apply; new tunnels use the new interval. Live tunnels keep theirs. |
+| `hello-retries` | Hot-apply to all reactors; affects the dead-peer deadline on the next tick. |
 | `max-tunnels` | Hot-apply at next admission decision. |
 | `max-sessions` | Hot-apply at next admission decision. |
 | `auth-method` | Hot-apply to new PPP sessions. |
@@ -479,6 +481,41 @@ Listener changes require full driver teardown which is safer as an
 explicit restart.
 
 <!-- source: internal/component/l2tp/subsystem_reload.go -->
+
+## Dead-peer detection
+
+A HELLO is sent after `hello-interval` seconds of peer silence and is
+delivered reliably, so the peer's ZLB ACK proves the control channel is
+alive. Two independent clocks govern an established tunnel:
+
+- **lastActivity** (delivered control messages only) decides *when to send
+  the next HELLO*. A ZLB ACK does not refresh it, so HELLOs keep probing a
+  quiet peer.
+- **lastLiveness** (any delivered message *or* an acknowledgement of one of
+  our messages, including a ZLB ACK of a HELLO) decides *when the peer is
+  dead*. An idle-but-alive peer that only ZLB-ACKs HELLOs refreshes
+  lastLiveness and is never torn down.
+
+`hello-retries` is the dead-peer threshold: when no liveness signal arrives
+for `hello-retries x hello-interval`, the tunnel is torn down (sessions
+cleared, subscriber routes withdrawn, StopCCN sent, `(l2tp, tunnel-down)`
+emitted with reason `keepalive-timeout`). With the default `hello-retries 2`,
+a tunnel using `hello-interval 5` is declared dead ~10s after the peer goes
+silent -- far faster than the reliable engine's ~31s retransmit exhaustion,
+which is the only signal when a peer (e.g. xl2tpd) dies without sending
+StopCCN.
+
+Dead-peer detection is deliberately separate from the reliable-transport
+retransmit backoff and runs only for established tunnels, so setup
+(pre-established) and teardown (closed) retain the full ~31s retransmit
+budget for link-loss tolerance. Set `hello-retries 0` to disable dead-peer
+detection and fall back to retransmit exhaustion alone. When
+`hello-retries x hello-interval` exceeds ~31s (e.g. the defaults
+`2 x 60s`), retransmit exhaustion fires first and the threshold has no
+effect; lower `hello-interval` to get faster detection.
+
+<!-- source: internal/component/l2tp/reactor.go -- handleTick dead-peer check -->
+<!-- source: internal/component/l2tp/tunnel.go -- lastLiveness vs lastActivity -->
 
 ## Environment variables
 

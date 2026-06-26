@@ -138,6 +138,13 @@ func BuildL2TPConfigFormData(tree *config.Tree) WorkbenchFormData {
 				Description: "Seconds of peer silence before sending HELLO (1-3600)",
 			},
 			{
+				Name:        "hello-retries",
+				Label:       "Hello Retries (dead-peer threshold)",
+				Type:        "number",
+				Value:       getConfigValue(tree, "l2tp/hello-retries"),
+				Description: "Unanswered HELLO intervals before a peer is declared dead (0 disables; detection = retries x interval)",
+			},
+			{
 				Name:        "cqm-enabled",
 				Label:       "CQM Enabled",
 				Type:        "toggle",

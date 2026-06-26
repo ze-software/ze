@@ -105,6 +105,7 @@ func (s *Subsystem) EffectiveConfig() ConfigSnapshot {
 		AuthMethod:    s.params.AuthMethod.String(),
 		AllowNoAuth:   s.params.AllowNoAuth,
 		HelloInterval: s.params.HelloInterval,
+		HelloRetries:  s.params.HelloRetries,
 		SharedSecret:  redactSecret(s.params.SharedSecret),
 	}
 	cs.ListenAddrs = append(cs.ListenAddrs, s.params.ListenAddrs...)

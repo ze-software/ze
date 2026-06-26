@@ -216,6 +216,7 @@ func handleConfig(_ *pluginserver.CommandContext, _ []string) (*plugin.Response,
 		"auth-method":    cs.AuthMethod,
 		"allow-no-auth":  cs.AllowNoAuth,
 		"hello-interval": int(cs.HelloInterval.Seconds()),
+		"hello-retries":  int(cs.HelloRetries),
 		"shared-secret":  cs.SharedSecret,
 		"listeners":      listenAddrs,
 	}

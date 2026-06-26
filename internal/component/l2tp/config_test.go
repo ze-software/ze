@@ -79,6 +79,32 @@ environment {
 	assert.Equal(t, l2tp.DefaultMaxSessions, p.MaxSessions)
 }
 
+// TestConfig_HelloRetries verifies the dead-peer detection threshold leaf:
+// it defaults to DefaultHelloRetries when unset, parses an explicit value,
+// and accepts 0 (which disables dead-peer detection).
+//
+// VALIDATES: spec-l2tp-dead-peer-detection AC-5.
+func TestConfig_HelloRetries(t *testing.T) {
+	t.Run("default when unset", func(t *testing.T) {
+		tree := loadTree(t, "l2tp {\n\tenabled true\n}")
+		p, err := l2tp.ExtractParameters(tree)
+		require.NoError(t, err)
+		assert.Equal(t, l2tp.DefaultHelloRetries, p.HelloRetries)
+	})
+	t.Run("explicit value", func(t *testing.T) {
+		tree := loadTree(t, "l2tp {\n\tenabled true\n\thello-retries 4\n}")
+		p, err := l2tp.ExtractParameters(tree)
+		require.NoError(t, err)
+		assert.Equal(t, uint8(4), p.HelloRetries)
+	})
+	t.Run("zero disables", func(t *testing.T) {
+		tree := loadTree(t, "l2tp {\n\tenabled true\n\thello-retries 0\n}")
+		p, err := l2tp.ExtractParameters(tree)
+		require.NoError(t, err)
+		assert.Equal(t, uint8(0), p.HelloRetries)
+	})
+}
+
 // TestConfig_DefaultAuthRequiresCHAP verifies that enabling L2TP defaults to
 // a real PPP Auth-Protocol and does not allow no-auth fallback unless the
 // operator opts in.

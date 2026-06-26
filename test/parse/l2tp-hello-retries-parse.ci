@@ -1,0 +1,22 @@
+# Test: ze config validate accepts the L2TP hello-retries leaf
+# VALIDATES: spec-l2tp-dead-peer-detection AC-5 -- hello-retries (dead-peer
+#            detection threshold) parses under the root l2tp{} block.
+stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+	hello-interval 5
+	hello-retries 3
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

@@ -32,7 +32,7 @@ func TestBuildL2TPConfigFormData_WithValues(t *testing.T) {
 
 	form := BuildL2TPConfigFormData(tree)
 	assert.Equal(t, "L2TP Configuration", form.Title)
-	require.Len(t, form.Fields, 8)
+	require.Len(t, form.Fields, 9)
 	assert.Equal(t, "true", form.Fields[0].Value)
 	assert.Equal(t, "toggle", form.Fields[0].Type)
 	assert.Equal(t, "100", form.Fields[1].Value)
@@ -46,7 +46,7 @@ func TestBuildL2TPConfigFormData_WithValues(t *testing.T) {
 func TestBuildL2TPConfigFormData_NilTree(t *testing.T) {
 	form := BuildL2TPConfigFormData(nil)
 	assert.Equal(t, "L2TP Configuration", form.Title)
-	require.Len(t, form.Fields, 8)
+	require.Len(t, form.Fields, 9)
 	assert.Empty(t, form.Fields[0].Value)
 	assert.Empty(t, form.Fields[1].Value)
 }
@@ -54,7 +54,7 @@ func TestBuildL2TPConfigFormData_NilTree(t *testing.T) {
 func TestBuildL2TPConfigFormData_EmptyTree(t *testing.T) {
 	tree := config.NewTree()
 	form := BuildL2TPConfigFormData(tree)
-	require.Len(t, form.Fields, 8)
+	require.Len(t, form.Fields, 9)
 	assert.Empty(t, form.Fields[0].Value)
 }
 

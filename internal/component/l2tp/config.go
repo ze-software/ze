@@ -55,12 +55,18 @@ var (
 
 // Default listener and protocol values.
 const (
-	DefaultListenIP           = "0.0.0.0"
-	DefaultListenPort         = 1701
-	DefaultHelloSecs          = 60
-	DefaultMaxTunnels  uint16 = 1024
-	DefaultMaxSessions uint16 = 1024
-	DefaultAuthMethod         = ppp.AuthMethodCHAPMD5
+	DefaultListenIP   = "0.0.0.0"
+	DefaultListenPort = 1701
+	DefaultHelloSecs  = 60
+	// DefaultHelloRetries is the number of consecutive unanswered HELLO
+	// keepalive intervals tolerated before an Established tunnel's peer is
+	// declared dead. Effective dead-peer detection time is
+	// DefaultHelloRetries * hello-interval. Zero disables dead-peer
+	// detection (retransmit exhaustion remains the only signal).
+	DefaultHelloRetries uint8  = 2
+	DefaultMaxTunnels   uint16 = 1024
+	DefaultMaxSessions  uint16 = 1024
+	DefaultAuthMethod          = ppp.AuthMethodCHAPMD5
 
 	DefaultAuthTimeoutSecs    = 30
 	DefaultReauthIntervalSecs = 0
@@ -81,6 +87,14 @@ type Parameters struct {
 	AuthMethod    ppp.AuthMethod
 	AllowNoAuth   bool
 	HelloInterval time.Duration
+	// HelloRetries is the number of consecutive unanswered HELLO keepalive
+	// intervals tolerated before an Established tunnel's peer is declared
+	// dead and the tunnel is torn down. Effective dead-peer detection time
+	// is HelloRetries * HelloInterval, measured from the last proof of peer
+	// liveness (a delivered control message OR an acknowledgement of one of
+	// our outstanding messages, including a ZLB ACK of a HELLO). Zero
+	// disables dead-peer detection. See spec-l2tp-dead-peer-detection.
+	HelloRetries uint8
 	// SharedSecret is the CHAP-MD5 tunnel authentication secret (RFC 2661
 	// S4.2). Empty means peers that include a Challenge AVP in SCCRQ will
 	// be rejected with StopCCN Result Code 4 (Not Authorized).
@@ -125,6 +139,7 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 	p := Parameters{
 		Enabled:        true, // presence of l2tp{} implies enabled
 		HelloInterval:  time.Duration(DefaultHelloSecs) * time.Second,
+		HelloRetries:   DefaultHelloRetries,
 		MaxTunnels:     DefaultMaxTunnels,
 		MaxSessions:    DefaultMaxSessions,
 		AuthMethod:     DefaultAuthMethod,
@@ -179,6 +194,14 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 			return Parameters{}, errL2tpHelloIntervalMustBe0
 		}
 		p.HelloInterval = time.Duration(n) * time.Second
+	}
+
+	if v, ok := l2tpRoot.Get("hello-retries"); ok {
+		n, err := strconv.ParseUint(v, 10, 8)
+		if err != nil {
+			return Parameters{}, fmt.Errorf("l2tp hello-retries: %w", err)
+		}
+		p.HelloRetries = uint8(n)
 	}
 
 	if v, ok := l2tpRoot.Get("shared-secret"); ok {

@@ -88,6 +88,20 @@ type L2TPTunnel struct {
 	// Caller MUST hold the owning reactor's tunnelsMu.
 	lastActivity time.Time
 
+	// lastLiveness records the most recent proof that the peer is alive: a
+	// delivered control message OR an acknowledgement of one of our
+	// outstanding messages (Nr advance), INCLUDING a ZLB ACK of a HELLO.
+	// This differs from lastActivity, which is updated only by delivered
+	// non-ZLB messages: an idle-but-alive peer that only ZLB-ACKs our
+	// HELLOs refreshes lastLiveness but not lastActivity. Dead-peer
+	// detection (handleTick) tears the tunnel down when lastLiveness ages
+	// past HelloRetries * HelloInterval. Set at establishment and on every
+	// liveness signal. Zero until established. See
+	// spec-l2tp-dead-peer-detection.
+	//
+	// Caller MUST hold the owning reactor's tunnelsMu.
+	lastLiveness time.Time
+
 	// createdAt records the time the tunnel object was allocated (SCCRQ
 	// receive on LNS side, SCCRQ send on LAC side). Used by the CLI
 	// snapshot to report uptime. Immutable after newTunnel.

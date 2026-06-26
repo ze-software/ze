@@ -94,6 +94,23 @@ module ze-l2tp-conf {
                  rejected because they effectively disable keepalive.";
         }
 
+        leaf hello-retries {
+            type uint8 {
+                range "0..255";
+            }
+            default 2;
+            description
+                "Dead-peer detection threshold: consecutive unanswered HELLO
+                 keepalive intervals tolerated before an established tunnel's
+                 peer is declared dead and the tunnel is torn down. Effective
+                 detection time is hello-retries x hello-interval, measured
+                 from the last proof of peer liveness (a delivered control
+                 message or an acknowledgement of one of our messages,
+                 including a ZLB ACK of a HELLO). 0 disables dead-peer
+                 detection, leaving reliable-transport retransmit exhaustion
+                 (~31s) as the only teardown signal. Default 2.";
+        }
+
         leaf cqm-enabled {
             type boolean;
             default false;

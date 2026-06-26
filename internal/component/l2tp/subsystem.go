@@ -207,6 +207,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			AuthTimeout:     s.params.AuthTimeout,
 			ReauthInterval:  s.params.ReauthInterval,
 			HelloInterval:   s.params.HelloInterval,
+			HelloRetries:    s.params.HelloRetries,
 			EnableIPCP:      s.params.EnableIPCP,
 			EnableIPv6CP:    s.params.EnableIPv6CP,
 			NCPTimeout:      s.params.NCPTimeout,
