@@ -370,6 +370,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `dhcpserver` | DHCP server for LAN client address assignment |
 | `tftpserver` | Read-only TFTP file server for PXE boot (RFC 2347 option negotiation) |
 | `imageserver` | HTTP provisioning server for disk images and boot files |
+| `geodns` | GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871) |
 | `connected` | Redistribute directly connected interface prefixes |
 | `policy-routes` | Policy-based routing |
 | `vpp` | VPP lifecycle and telemetry management |
