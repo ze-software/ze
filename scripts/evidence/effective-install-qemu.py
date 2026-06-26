@@ -208,7 +208,11 @@ def build_image(root: Path, work: Path) -> Path:
     # (GOOS=linux) and would fail with "exec format error", so never rely on it.
     ze = str(work / "ze-host")
     b = run(
-        ["go", "build", "-tags", "ze_core,ze_distro", "-o", ze, "./cmd/ze"],
+        # The appliance build tooling (init/build/iso/kernel/initrd) is
+        # registered under ze_setup (cmd/ze/setup_features_setup.go imports
+        # internal/appliance); ze_distro does NOT carry it. This host ze runs
+        # `ze appliance ...`, so it must be a ze_setup build.
+        ["go", "build", "-tags", "ze_core,ze_setup", "-o", ze, "./cmd/ze"],
         cwd=str(root),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
