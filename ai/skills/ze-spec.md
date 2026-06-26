@@ -66,6 +66,47 @@ See also: `/ze-design` (stress-test a design), `/ze-explore` (research a topic),
 
 **Status transition:** When starting research, edit the spec: set `Status` to `design`, `Updated` to today. Do this before reading any source files.
 
+#### Feature Surface Gate (BLOCKING)
+
+A feature is not "specced" until every surface it must touch is enumerated in the
+spec. Features that skip this ship in 2-3 commits instead of 1 (lint failures,
+unwired symbols, missing doctor checks, stale docs found after the fact). This gate
+moves the enumeration into the spec so the work happens in one pass. It applies to
+ALL features, not just BGP protocol work.
+
+**1. Identify the feature type(s)** and read the matching pattern doc in full before
+other research. A feature can be more than one type -- read every row that applies.
+
+| Feature type | Read (BLOCKING) | Applies when |
+|---|---|---|
+| BGP family (SAFI / capability / attribute) | `ai/patterns/bgp-family.md` | see BGP Family Gate below |
+| System or BGP plugin | `ai/patterns/plugin.md`, `ai/patterns/registration.md` | new `internal/plugins/<name>/` or `bgp/plugins/<name>/` with `register.go` |
+| Component | `ai/patterns/registration.md`, `ai/rules/module-tiers.md` | new `internal/component/<name>/` |
+| CLI command | `ai/patterns/cli-command.md` | new verb/subcommand or `ze:command` YANG node |
+| Config option / YANG leaf / env var | `ai/patterns/config-option.md`, `ai/rules/config-surface.md` | new YANG leaf, container, or `ze.*` env var |
+| Runtime dependency | `ai/rules/doctor-checks.md` | new file path, socket, listen port, kernel module, external binary, cert, procfs/sysctl, or netlink use |
+
+`ai/INDEX.md` (the "Build / extend" table) is the authoritative feature-type to
+pattern map; consult it if the type is unclear.
+
+**2. Copy both checklists from `plan/TEMPLATE.md` into the spec and answer every row**
+(Yes with file, or N/A with reason). These are the cross-cutting surfaces forgotten
+regardless of feature type:
+- **Integration Checklist** -- YANG schema + validation, CLI grammar, completion,
+  functional test, env var, **doctor check + diagnostic code**, Prometheus counters.
+- **Documentation Update Checklist** (17 rows) -- `docs/features.md`, command/API/plugin
+  docs, source anchors.
+
+**3. Discovery (BLOCKING):** answer the `ai/rules/discovery-updates.md` Mechanical
+Checklist in the spec -- where an agent looks first (`ai/INDEX.md` row), what rule
+prevents regression, what registry/inventory prevents drift, what verification proves
+it. A feature that cannot be found from `ai/INDEX.md` or a discovery surface is not done.
+
+Real incidents this catches: composition-root regen (geodns), server-side RPC
+forwarder for plugin CLI commands (firewall-irr), doctor check registration, and
+stale interop fixtures after a config restructure (PATHS-LIMIT) were each a forgotten
+surface that became a follow-up commit.
+
 #### BGP Family Gate (BLOCKING)
 
 If the spec involves a new SAFI, capability, or attribute:
@@ -209,6 +250,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
    - AC table (from design)
    - TDD Test Plan (from design)
    - Files to Modify/Create (from design)
+   - Integration Checklist + Documentation Update Checklist (from the Feature Surface Gate -- every applicable row named with a file; N/A rows justified)
    - Implementation Steps
 3. Run Pre-Spec Verification:
    - All checkboxes `[ ]` (never `[x]`)
@@ -218,6 +260,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
    - Every assumption row has Basis + validation method; every risk row has early signal + mitigation
    - All reading entries have `→ Decision:` or `→ Constraint:`
    - Wiring test rows all have concrete test names
+   - Integration Checklist and Documentation Update Checklist present, every row answered Yes (file) or N/A (reason) -- never left as empty template placeholders. The doctor-check row is answered if the feature adds any runtime dependency.
 
 #### Spec Independence Test (MANDATORY)
 

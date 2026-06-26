@@ -33,6 +33,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
     | Env var | `env.MustRegister()` call exists, `env.Get*()` call exists |
     | Metrics | Metric created AND updated somewhere reachable |
     | Event / send type | Listed in plugin `Registration.EventTypes`/`SendTypes`, at least one subscriber/caller |
+    | Runtime dependency (file path, socket, listen port, kernel module, external binary, cert, procfs/sysctl, netlink) | A registered `ze doctor` check exists (plugin `Registration.DoctorChecks` or owning-package registration) AND a diagnostic code is registered in `internal/core/diagnostic/codes.go`. A new dependency with no doctor check is a BLOCKER: agents cannot verify host readiness before starting the daemon. See `ai/rules/doctor-checks.md`. This surface is verified nowhere else in the pipeline. |
 
     **Do not skip this step.** "The code compiles" and "tests pass" do not prove wiring. A function with zero callers outside tests is dead code in production. Report every unwired symbol as a BLOCKER finding.
 
@@ -80,6 +81,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
     | Plugin registration/inventory | Runtime inventory docs match registry or `bin/ze --plugins` output |
     | Architecture/data flow | Relevant `docs/architecture/*` claims match current source and have source anchors |
     | Metrics | Telemetry docs list metric names and labels |
+    | New feature, tool, make target, or verification gate | `ai/INDEX.md` keyword + task rows updated; `ai/LEARNED-INDEX.md` if the decision is structural; `ai/rules/hook-mapping.md` if a new hook/gate. Per `ai/rules/discovery-updates.md`. A feature that cannot be found from `ai/INDEX.md` or a discovery surface is an ISSUE. |
 
     Also grep `docs/` for `source: <changed-file>` for every changed source file. If any anchored claim is stale or missing after the code change, report an ISSUE. If a user-visible behavior changed and no documentation was updated or explicitly proven unnecessary, report an ISSUE.
 
