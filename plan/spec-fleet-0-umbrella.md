@@ -97,8 +97,48 @@ spec building on the previous.
 | 3 | `spec-fleet-3-audit-trail.md` | Centralized audit log for fleet operations: config push/ack/reject, device connect/disconnect, template changes. CLI and web views. Structured log entries in ZeFS | fleet-1 |
 | 4 | `spec-fleet-4-inventory-health.md` | New `inventory-report` and `health-report` RPC verbs. Devices push on connect and periodically. Hub stores per-device inventory and health. CLI and web aggregated views | fleet-1 |
 | 5 | `spec-fleet-5-staged-rollout.md` | Percentage-based config push targeting device groups. Rollout state machine (pending, rolling, paused, complete, failed). Automatic pause on ACK failure threshold. CLI rollout commands | fleet-2, fleet-4 |
+| 6 | `spec-fleet-6-config-freeze.md` | Freeze operator config edits (single-writer); hub-side connected-only guard; persisted baseline + reconnect hold (no silent stomp); `ze fleet disable/enable/status` with immediate sever | - |
+| 7 | `spec-fleet-7-config-reconnect-resolution.md` | Resolve a `diverged` device: `config-push` up-verb (existing TLS), commit-style diff (Local=hub, Remote=router), adopt/revert | fleet-6 |
 
-Phases 2, 3, and 4 are independent of each other (all depend only on fleet-1) and can proceed in parallel. Phase 5 depends on templates (for group targeting) and health reporting (for rollout health gates).
+Phases 2, 3, and 4 are independent of each other (all depend only on fleet-1) and can proceed in parallel. Phase 5 depends on templates (for group targeting) and health reporting (for rollout health gates). Phases 6 and 7 are the direction update below: 6 (freeze, persisted baseline, safe reconnect hold) depends on nothing new and is safe to land first; 7 (diverged-config resolution) depends on 6 and surfaces through the fleet-1 dashboard.
+
+### Direction Update (2026-06-26): Single-Writer Config, Emergency Disable, Reconnect Resolution
+
+A review of the fleet direction (`fleet-direction-review.md` at repo root) settled the open
+transport/auth/sync questions and added two child specs. Decisions:
+
+| Topic | Decision |
+|-------|----------|
+| Transport | Keep TLS MuxConn; no SSH tunnel |
+| Auth | Keep pre-declared per-client shared secret; enrollment/PKI stays out of scope |
+| Local edits on managed devices | Frozen (single-writer), not bidirectional sync |
+| Emergency change | `ze fleet disable` leaves the fleet and unfreezes; severs the connection immediately |
+| Reconnect with divergence | Hold and let the operator decide via a commit-style diff; never auto-stomp |
+
+Model: `meta/instance/managed` drives both fleet membership and a local-edit freeze. Config for
+a managed device is single-writer -- the hub writes while the device is connected (device
+frozen), the device writes while disconnected (hub frozen for that device). The device persists a
+**baseline** (`meta/instance/managed/base-version`, the hash of the last config it received from
+the hub). On reconnect it compares its active config to that baseline: equal -> normal resync and
+apply any pending hub update; different -> it was locally edited, so the device holds (keeps
+running its config, never auto-applies) and is marked `diverged` for the operator to resolve. The
+baseline is required, not optional: `cfg.Version` is recomputed from the live config at startup
+(`ze_core_start.go:325`), so without a persisted baseline the device cannot tell a local edit
+from a pending hub update. Detection and the hold live in `fleet-6`; resolution (the commit-style
+diff and a new `config-push` up-verb on the existing TLS transport) is `fleet-7`. `config-push`
+is a bounded, operator-gated up-channel, NOT the continuous bidirectional sync that remains out
+of scope.
+
+Interaction with existing children:
+- `fleet-5` (staged rollout) targets only connected devices, since the hub cannot change a
+  disconnected device's config (you cannot stage a change for an offline device).
+- `fleet-1` (device registry) gains a `diverged` device state, surfaced on the dashboard and
+  consumed by `fleet-7`.
+
+Caveat: single-writer is enforced at the editor level. Raw `ze data write` to the blob bypasses
+both the device-side and hub-side guards, so a determined operator can still create a two-sided
+divergence. The persisted baseline keeps even that case safe (the device holds rather than
+stomps); guarding the blob write path is possible future work.
 
 ### Relationship to Existing Specs
 

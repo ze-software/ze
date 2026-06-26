@@ -35,6 +35,7 @@ investigating "who changed edge-42's config at 3am?" has no answer.
 | Structured entries | JSON-encoded event with type, timestamp, device, actor, payload |
 | Retention | Configurable max entries (default 10000). Oldest pruned on overflow |
 | Query | By device, by event type, by time range. CLI and web |
+| Fleet-6/7 event types | Audit must also record the new fleet-control events: `fleet disable` and `fleet enable` (actor, device, time), reconnect `diverged` detected, `config-push` received, and divergence resolution (`adopt` / `revert`, with which config won). These are high-value security/forensic events. Add them to the event-type set when fleet-3 is designed |
 
 ## Required Reading
 

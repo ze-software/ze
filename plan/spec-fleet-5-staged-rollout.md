@@ -42,6 +42,7 @@ which devices get notified and when.
 | Batch size | Percentage-based (e.g., 10% of group). Minimum 1 device per batch |
 | Health gate | Optional: require all devices in batch to report healthy before proceeding to next batch |
 | Manual control | Operator can pause, resume, abort, or force-complete a rollout |
+| Connected-only targeting | Per the single-writer rule (`spec-fleet-6`), the hub cannot change a disconnected device's config, so a rollout targets only currently-connected devices. Offline devices are not staged; they pick up the current hub config when they reconnect (AC-14 already pauses a rollout with no connected devices) |
 
 ## Required Reading
 

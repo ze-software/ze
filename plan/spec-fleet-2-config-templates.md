@@ -41,6 +41,7 @@ sees templates. Template rendering happens inside HandleConfigFetch on the hub s
 | Assignment model | Group -> template mapping in YANG config. A device's group determines its template |
 | Per-device override | Device can still have a direct config blob; overrides template assignment |
 | Change propagation | Template edit triggers config-changed for all devices using that template |
+| Single-writer interaction (fleet-6) | A template edit changes the rendered config of every device in the group, including ones currently offline -- which is a hub-side change to a disconnected device's config. To respect the single-writer rule, a template edit propagates only to currently-connected group members; offline devices render the new template on their next connect and, if their running config differs, go through the `fleet-7` reconnect compare. Resolve this precisely when fleet-2 is designed |
 
 ## Required Reading
 

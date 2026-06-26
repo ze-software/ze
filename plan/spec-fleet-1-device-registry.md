@@ -39,6 +39,7 @@ storage, and adds a YANG `fleet {}` config container for operator-managed device
 | Storage | ZeFS blob, keyed by device name. No external database |
 | Labels | Flat key=value pairs. Validated: alphanumeric keys, printable values, bounded count |
 | State tracking | Online/offline derived from connection state. Last-seen persisted. Config version from last config-fetch ACK |
+| Diverged state (fleet-6/7) | A device may also be in a `diverged` state: it reconnected with a config that differs from its baseline (an emergency local edit), detected and held by `fleet-6`. The registry records it so the dashboard can warn and offer the resolution diff; set by `fleet-6`, cleared on resolve by `fleet-7`. Named `diverged`, not `conflict`, to avoid collision with the editor's existing `Conflict` types |
 | YANG | `fleet { device <name> { label <key> <value>; group <name>; } }` under hub config |
 | CLI | `show fleet devices [--group <g>] [--label <k>=<v>]`, `show fleet device detail <name>` |
 | Web | New page `/fleet` with device table, status indicators, filter by group/label |
@@ -146,6 +147,7 @@ storage, and adds a YANG `fleet {}` config container for operator-managed device
 | AC-11 | Web `/fleet` page | Table of all devices with status, version, last-seen. Live SSE updates |
 | AC-12 | Standalone hub (no managed clients configured) | Fleet registry empty, `show fleet devices` shows empty table, no errors |
 | AC-13 | Device not declared in `fleet {}` config connects | Device still registered (auto-discovered), but has no labels or groups |
+| AC-14 | Device reconnects in a `diverged` state (set by fleet-6) | Registry stores and exposes the `diverged` state; `show fleet devices` and the web dashboard flag it distinctly from online/offline |
 
 ## 🧪 TDD Test Plan
 
