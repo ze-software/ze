@@ -238,6 +238,25 @@ func (s *Session) writeUpdate(update *message.Update) error {
 	s.writeBuf.Reset()
 	n := update.WriteTo(s.writeBuf.Buffer(), 0, nil) // nil ctx: UPDATE already has wire bytes
 
+	// Egress gate: originated / injected / replayed routes honor the peer's export
+	// filter chain here (forwarded routes are filtered in forwardUpdateCore and use
+	// writeRawUpdateBody; End-of-RIB markers of any family are exempt — RFC 4724
+	// graceful-restart signals are not routes).
+	if s.egressRouteFilter != nil && !update.IsEndOfRIBAnyFamily() {
+		body := s.writeBuf.Buffer()[message.HeaderLen:n]
+		suppress, override := s.egressRouteFilter(body)
+		if suppress {
+			// Suppressed (e.g. export remove ipv4/flow): nothing written. The
+			// caller may still reset the RFC 9687 send-hold timer -- correct, as
+			// that timer tracks TCP write liveness, not whether a route was sent
+			// (and keepalives reset it regardless).
+			return nil
+		}
+		if override != nil {
+			return s.writeRawUpdateBody(override)
+		}
+	}
+
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
 		if s.prefixMetrics != nil {
 			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
@@ -453,6 +472,26 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP,
 	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
 	s.writeBuf.Reset()
 	n := WriteAnnounceUpdate(s.writeBuf.Buffer(), 0, route, localAS, isIBGP, asn4, addPath)
+
+	// Egress gate: an announce is always a route (never an EOR), so it honors the
+	// peer's export filter chain here.
+	if s.egressRouteFilter != nil {
+		body := s.writeBuf.Buffer()[message.HeaderLen:n]
+		suppress, override := s.egressRouteFilter(body)
+		if suppress {
+			return nil
+		}
+		if override != nil {
+			if err := s.writeRawUpdateBody(override); err != nil {
+				return err
+			}
+			if err := s.flushWrites(); err != nil {
+				return err
+			}
+			s.resetSendHoldTimer()
+			return nil
+		}
+	}
 
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
 		return err

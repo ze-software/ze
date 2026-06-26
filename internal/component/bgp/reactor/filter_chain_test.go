@@ -17,12 +17,12 @@ func TestPolicyFilterChainAccept(t *testing.T) {
 		calls++
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	action, result := PolicyFilterChain(
+	res := PolicyFilterChain(
 		[]string{"test:accept"}, "import", "10.0.0.1", 65001,
 		"origin igp as-path 65001 65002", fn,
 	)
-	assert.Equal(t, PolicyAccept, action)
-	assert.Equal(t, "origin igp as-path 65001 65002", result)
+	assert.Equal(t, PolicyAccept, res.Action)
+	assert.Equal(t, "origin igp as-path 65001 65002", res.Text)
 	assert.Equal(t, 1, calls)
 }
 
@@ -36,12 +36,12 @@ func TestPolicyFilterChainReject(t *testing.T) {
 		calls++
 		return PolicyResponse{Action: PolicyReject}
 	}
-	action, result := PolicyFilterChain(
+	res := PolicyFilterChain(
 		[]string{"test:reject", "test:never"}, "import", "10.0.0.1", 65001,
 		"origin igp", fn,
 	)
-	assert.Equal(t, PolicyReject, action)
-	assert.Empty(t, result)
+	assert.Equal(t, PolicyReject, res.Action)
+	assert.Empty(t, res.Text)
 	assert.Equal(t, 1, calls) // second filter never called
 }
 
@@ -53,13 +53,13 @@ func TestPolicyFilterChainModify(t *testing.T) {
 	fn := func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 		return PolicyResponse{Action: PolicyModify, Delta: "local-preference 200"}
 	}
-	action, result := PolicyFilterChain(
+	res := PolicyFilterChain(
 		[]string{"test:modify"}, "import", "10.0.0.1", 65001,
 		"origin igp local-preference 100", fn,
 	)
-	assert.Equal(t, PolicyAccept, action)
-	assert.Contains(t, result, "local-preference 200")
-	assert.Contains(t, result, "origin igp")
+	assert.Equal(t, PolicyAccept, res.Action)
+	assert.Contains(t, res.Text, "local-preference 200")
+	assert.Contains(t, res.Text, "origin igp")
 }
 
 // TestPolicyFilterChainPipedTransform verifies piped transforms.
@@ -82,12 +82,12 @@ func TestPolicyFilterChainPipedTransform(t *testing.T) {
 		}
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	action, result := PolicyFilterChain(
+	res := PolicyFilterChain(
 		[]string{"a:set200", "b:set300", "c:accept"}, "import", "10.0.0.1", 65001,
 		"origin igp local-preference 100", fn,
 	)
-	assert.Equal(t, PolicyAccept, action)
-	assert.Contains(t, result, "local-preference 300")
+	assert.Equal(t, PolicyAccept, res.Action)
+	assert.Contains(t, res.Text, "local-preference 300")
 }
 
 // TestPolicyFilterChainShortCircuit verifies reject stops chain.
@@ -103,11 +103,11 @@ func TestPolicyFilterChainShortCircuit(t *testing.T) {
 		}
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	action, _ := PolicyFilterChain(
+	res := PolicyFilterChain(
 		[]string{"a:accept", "b:reject", "c:never"}, "import", "10.0.0.1", 65001,
 		"origin igp", fn,
 	)
-	assert.Equal(t, PolicyReject, action)
+	assert.Equal(t, PolicyReject, res.Action)
 	assert.Equal(t, 2, calls) // c:never never called
 }
 
@@ -116,9 +116,9 @@ func TestPolicyFilterChainShortCircuit(t *testing.T) {
 // VALIDATES: Empty filter chain = default accept.
 // PREVENTS: Crash on nil/empty filter list.
 func TestPolicyFilterChainEmpty(t *testing.T) {
-	action, result := PolicyFilterChain(nil, "import", "10.0.0.1", 65001, "origin igp", nil)
-	assert.Equal(t, PolicyAccept, action)
-	assert.Equal(t, "origin igp", result)
+	res := PolicyFilterChain(nil, "import", "10.0.0.1", 65001, "origin igp", nil)
+	assert.Equal(t, PolicyAccept, res.Action)
+	assert.Equal(t, "origin igp", res.Text)
 }
 
 // TestPolicyFilterChainInactiveSkipped verifies inactive: entries are skipped.
@@ -151,6 +151,65 @@ func TestPolicyFilterChainDispatch(t *testing.T) {
 	assert.Equal(t, "rpki", gotPlugin)
 	assert.Equal(t, "validate", gotFilter)
 	assert.Equal(t, "import", gotDir)
+}
+
+// TestPolicyFilterChainTeardown verifies a teardown request short-circuits the
+// chain, drops the route (reject), and surfaces the NOTIFICATION code/subcode.
+//
+// VALIDATES: filter_family tear-down -- import filter requests session teardown.
+// PREVENTS: teardown not propagating out of the chain, or not dropping the route.
+func TestPolicyFilterChainTeardown(t *testing.T) {
+	calls := 0
+	fn := func(_, filterName, _, _ string, _ uint32, _ string) PolicyResponse {
+		calls++
+		if filterName == "kill" {
+			return PolicyResponse{Action: PolicyReject, Teardown: true, NotifyCode: 6, NotifySubcode: 5}
+		}
+		return PolicyResponse{Action: PolicyAccept}
+	}
+	res := PolicyFilterChain(
+		[]string{"fam:kill", "test:never"}, "import", "10.0.0.1", 65001,
+		"origin igp", fn,
+	)
+	assert.Equal(t, PolicyReject, res.Action)
+	assert.True(t, res.Teardown)
+	assert.Equal(t, uint8(6), res.NotifyCode)
+	assert.Equal(t, uint8(5), res.NotifySubcode)
+	assert.Equal(t, 1, calls) // second filter never called (short-circuit)
+}
+
+// TestPolicyFilterChainRawTerminal verifies a raw full-payload rewrite is terminal:
+// it surfaces on the result and stops the chain (no downstream filters run).
+//
+// VALIDATES: filter_family remove (mixed UPDATE) -- raw payload replacement.
+// PREVENTS: raw override being silently dropped or composed with later text deltas.
+func TestPolicyFilterChainRawTerminal(t *testing.T) {
+	calls := 0
+	fn := func(_, filterName, _, _ string, _ uint32, _ string) PolicyResponse {
+		calls++
+		if filterName == "strip" {
+			return PolicyResponse{Action: PolicyModify, Raw: "00000000"}
+		}
+		return PolicyResponse{Action: PolicyAccept}
+	}
+	res := PolicyFilterChain(
+		[]string{"fam:strip", "test:never"}, "import", "10.0.0.1", 65001,
+		"origin igp", fn,
+	)
+	assert.Equal(t, PolicyModify, res.Action)
+	assert.Equal(t, "00000000", res.Raw)
+	assert.Equal(t, 1, calls) // raw rewrite is terminal: second filter never called
+}
+
+// TestDecodeFilterRawOverride verifies hex decoding and bounds rejection.
+//
+// VALIDATES: raw override decode rejects malformed/too-short bodies (fail-safe).
+// PREVENTS: a malformed raw response replacing the payload with garbage.
+func TestDecodeFilterRawOverride(t *testing.T) {
+	assert.Nil(t, decodeFilterRawOverride(""))     // empty
+	assert.Nil(t, decodeFilterRawOverride("zz"))   // not hex
+	assert.Nil(t, decodeFilterRawOverride("0000")) // 2 bytes < 4-byte minimum
+	assert.Equal(t, []byte{0, 0, 0, 0}, decodeFilterRawOverride("00000000"))
 }
 
 // TestApplyFilterDelta verifies delta application.

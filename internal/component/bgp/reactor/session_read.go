@@ -234,6 +234,21 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		kept = s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, rpc.DirectionReceived, buf, nil)
 	}
 
+	// A policy filter on the import chain (e.g. filter_family tear-down) may have
+	// requested a session teardown during the callback. Honor it here, on the
+	// session read goroutine, before dispatching the UPDATE — mirroring the
+	// family-not-negotiated teardown above (RFC 4760 §7). Short-circuits
+	// handleUpdate so the FSM is not advanced for a session being closed.
+	if req := s.takePolicyTeardown(); req != nil {
+		s.mu.RLock()
+		conn := s.conn
+		s.mu.RUnlock()
+		s.logNotifyErr(conn, req.code, req.subcode, nil)
+		s.logFSMEvent(fsm.EventUpdateMsgErr)
+		s.closeConn()
+		return nil, kept
+	}
+
 	var err error
 	switch hdr.Type { //nolint:exhaustive // unknown in default
 	case message.TypeUPDATE:

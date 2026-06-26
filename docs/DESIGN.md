@@ -340,6 +340,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `firewall-irr` | IRR-based prefix-list filtering for firewall rules |
 | `bgp-filter-modify` | Attribute modification filter (set LP, prepend, communities) |
 | `bgp-filter-community-match` | Community match filter |
+| `bgp-filter-family` | Per-address-family filter: remove an AFI/SAFI on import/export, or tear down the session on a received family |
 | `bgp-healthcheck` | Link/target health-dependent route withdrawal |
 | `bgp-bmp` | BMP monitoring station (RFC 7854) |
 | `bgp-rr` | Route reflector (RFC 4456) |

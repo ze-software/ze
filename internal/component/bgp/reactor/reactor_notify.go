@@ -463,31 +463,58 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			var scratchArr [65536]byte
 			scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, wireUpdate, nil)
 			updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
-			action, modifiedText := PolicyFilterChain(filters, "import", peerAddr.String(), peerInfo.PeerAS,
+			res := PolicyFilterChain(filters, "import", peerAddr.String(), peerInfo.PeerAS,
 				updateText, r.policyFilterFunc(wireUpdate.Payload()),
 			)
-			if action == PolicyReject {
+			// Honor a policy teardown request (e.g. filter_family tear-down):
+			// queue a NOTIFICATION + session close for the session read loop to
+			// run after this callback (session_read.go), and drop the route.
+			// peer.session is the session whose read goroutine invoked us.
+			if res.Teardown {
+				if peer.session != nil {
+					code := message.NotifyErrorCode(res.NotifyCode)
+					subcode := res.NotifySubcode
+					if res.NotifyCode == 0 {
+						code = message.NotifyCease
+						subcode = message.NotifyCeaseConnectionRejected
+					}
+					peer.session.requestPolicyTeardown(code, subcode)
+				}
+				return false
+			}
+			if res.Action == PolicyReject {
 				return false // Route rejected by policy filter; don't cache or dispatch.
 			}
-			// Wire-level dirty tracking: convert text delta to wire attribute
-			// modifications. Same pattern as in-process ingress filter
-			// modification above (lines 337-352). Additionally, when the
-			// filter chain produced a per-prefix modify (subset of the
-			// legacy IPv4 NLRI section), pass the re-encoded prefix bytes
-			// to buildModifiedPayload so step 8 of the progressive build
-			// writes the filtered NLRI tail instead of copying the original.
-			if modifiedText != updateText {
+			// A raw=true filter may return a full UPDATE-body replacement (e.g.
+			// MP_REACH/MP_UNREACH surgery the text delta cannot express). It is
+			// terminal: use it verbatim instead of the text-delta path.
+			if raw := decodeFilterRawOverride(res.Raw); raw != nil {
+				wireUpdate = wireu.NewWireUpdate(raw, wireUpdate.SourceCtxID())
+				wireUpdate.SetMessageID(messageID)
+				newAttrsWire, parseErr := wireUpdate.Attrs()
+				msg.RawBytes = raw
+				msg.WireUpdate = wireUpdate
+				msg.AttrsWire = newAttrsWire
+				msg.ParseError = parseErr
+			} else if res.Text != updateText {
+				// Wire-level dirty tracking: convert text delta to wire attribute
+				// modifications. Same pattern as in-process ingress filter
+				// modification above (lines 337-352). Additionally, when the
+				// filter chain produced a per-prefix modify (subset of the
+				// legacy IPv4 NLRI section), pass the re-encoded prefix bytes
+				// to buildModifiedPayload so step 8 of the progressive build
+				// writes the filtered NLRI tail instead of copying the original.
 				var importMods filterapi.ModAccumulator
 				// Parse each filter text exactly once; the three extractors
 				// share the maps read-only (spec filter-delta-parse-once).
 				origAttrs := parseFilterAttrs(updateText)
-				modAttrs := parseFilterAttrs(modifiedText)
+				modAttrs := parseFilterAttrs(res.Text)
 				textDeltaToModOps(origAttrs, modAttrs, &importMods)
 				srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 				srcASN4 := srcCtx != nil && srcCtx.ASN4()
 				ExtractRemovePrivateASOps(modAttrs, attrsWire, srcASN4, peerInfo.PeerAS, &importMods)
 				ExtractASPathPrependOps(modAttrs, peer.settings.LocalAS, &importMods)
-				nlriOverride := extractLegacyNLRIOverride(updateText, modifiedText)
+				nlriOverride := extractLegacyNLRIOverride(updateText, res.Text)
 				if importMods.Len() > 0 || nlriOverride != nil {
 					if modPayload, _ := buildModifiedPayload(wireUpdate.Payload(), &importMods, r.attrModHandlers, nil, nlriOverride); modPayload != nil {
 						wireUpdate = wireu.NewWireUpdate(modPayload, wireUpdate.SourceCtxID())

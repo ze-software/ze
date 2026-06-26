@@ -1,0 +1,47 @@
+# Test: ze config validate accepts family-filter config + chain references
+# VALIDATES: AC-1 -- family-filter instances parse (family + action)
+# VALIDATES: Composable in chains (filter export [bgp-filter-family:NAME], import [...])
+# PREVENTS: YANG schema or augment regression breaking family-filter parsing
+stdin=config:terminator=EOF_CONF
+bgp {
+	policy {
+		family-filter NoFlow {
+			family ipv4/flow
+			action remove
+		}
+		family-filter Kill {
+			family ipv4/flow
+			action tear-down
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			family {
+				ipv4/flow { prefix { maximum 10000; } }
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		filter {
+			export [ bgp-filter-family:NoFlow ]
+			import [ bgp-filter-family:Kill ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

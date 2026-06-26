@@ -1,0 +1,60 @@
+# Export filter (family-filter NoFlow, action remove) on an edge peer: a FlowSpec
+# route injected toward the peer is SUPPRESSED on egress, while the End-of-RIB
+# marker for the same family is still DELIVERED (RFC 4724 markers are not routes).
+#
+# VALIDATES: export-direction family-filter removes ipv4/flow from originated
+#            routes (the FlowSpec-route-reflector use case), and the MP-family EoR
+#            exemption (IsEndOfRIBAnyFamily) keeps graceful-restart signalling.
+# PREVENTS:  originated/injected routes bypassing the egress export-filter gate;
+#            the per-family EoR being wrongly suppressed by the same gate.
+
+stdin=peer:terminator=EOF_PEER
+# Inject a FlowSpec route toward the peer. The export filter must drop it, so the
+# peer must NOT receive the destination component (10.1.0.0/24 = 01180A010003).
+cmd=api:conn=1:seq=1:text=peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow destination-ipv4 10.1.0.0/24 protocol tcp destination-port 80
+reject=bgp:conn=1:pattern=01180A010003
+# The ipv4/flow End-of-RIB marker IS delivered (gate exempts EoR of any family).
+cmd=api:conn=1:seq=2:text=peer * update text nlri ipv4/flow eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000185
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	policy {
+		family-filter NoFlow {
+			family ipv4/flow
+			action remove
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		filter {
+			export [ bgp-filter-family:NoFlow ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-family --plugin ze.bgp-nlri-flowspec -:stdin=ze-bgp:timeout=10s

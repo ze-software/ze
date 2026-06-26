@@ -495,24 +495,30 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			var scratchArr [65536]byte
 			scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, update.WireUpdate, nil)
 			updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
-			action, modifiedText := PolicyFilterChain(facts.exportFilters, "export", facts.addrStr, facts.peerAS,
+			res := PolicyFilterChain(facts.exportFilters, "export", facts.addrStr, facts.peerAS,
 				updateText, a.r.policyFilterFunc(update.WireUpdate.Payload()),
 			)
-			if action == PolicyReject {
+			if res.Action == PolicyReject {
 				continue
 			}
-			if modifiedText != updateText {
+			// A raw=true filter may return a full UPDATE-body replacement (e.g.
+			// MP_REACH/MP_UNREACH surgery the text delta cannot express). It is
+			// terminal: use it verbatim instead of the text-delta path. Teardown
+			// is import-only (gated in policyFilterFunc), so it never fires here.
+			if raw := decodeFilterRawOverride(res.Raw); raw != nil {
+				exportWireOverride = wireu.NewWireUpdate(raw, update.WireUpdate.SourceCtxID())
+			} else if res.Text != updateText {
 				var exportMods filterapi.ModAccumulator
 				// Parse each filter text exactly once; the three extractors
 				// share the maps read-only (spec filter-delta-parse-once).
 				origAttrs := parseFilterAttrs(updateText)
-				modAttrs := parseFilterAttrs(modifiedText)
+				modAttrs := parseFilterAttrs(res.Text)
 				textDeltaToModOps(origAttrs, modAttrs, &exportMods)
 				srcCtx := bgpctx.Registry.Get(update.WireUpdate.SourceCtxID())
 				srcASN4 := srcCtx != nil && srcCtx.ASN4()
 				ExtractRemovePrivateASOps(modAttrs, attrsWire, srcASN4, facts.peerAS, &exportMods)
 				ExtractASPathPrependOps(modAttrs, facts.localAS, &exportMods)
-				nlriOverride := extractLegacyNLRIOverride(updateText, modifiedText)
+				nlriOverride := extractLegacyNLRIOverride(updateText, res.Text)
 				if exportMods.Len() > 0 || nlriOverride != nil {
 					if modPayload, _ := buildModifiedPayload(update.WireUpdate.Payload(), &exportMods, a.r.attrModHandlers, nil, nlriOverride); modPayload != nil {
 						exportWireOverride = wireu.NewWireUpdate(modPayload, update.WireUpdate.SourceCtxID())

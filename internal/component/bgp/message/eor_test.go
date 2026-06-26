@@ -203,3 +203,47 @@ func TestBuildEOR_WireFormat(t *testing.T) {
 		}
 	}
 }
+
+// TestIsEndOfRIBAnyFamily verifies the multiprotocol-aware EoR detector accepts
+// EoR markers for every family while rejecting real (un)reachability.
+//
+// VALIDATES: IPv4-unicast empty UPDATE and MP_UNREACH-only markers (IPv6,
+// flowspec) are End-of-RIB; routes and withdrawals are not.
+//
+// PREVENTS: egress route filters suppressing per-family EoR markers (RFC 4724),
+// which would strand a peer waiting for graceful-restart completion.
+func TestIsEndOfRIBAnyFamily(t *testing.T) {
+	ipv4flow := family.Family{AFI: 1, SAFI: 133}
+	ipv6 := family.Family{AFI: 2, SAFI: 1}
+
+	tests := []struct {
+		name   string
+		update *Update
+		want   bool
+	}{
+		{"ipv4-unicast-eor", BuildEOR(family.Family{AFI: 1, SAFI: 1}), true},
+		{"ipv6-unicast-eor", BuildEOR(ipv6), true},
+		{"ipv4-flow-eor", BuildEOR(ipv4flow), true},
+		{
+			// MP_UNREACH carrying an actual withdrawn prefix (AFI/SAFI + NLRI) is
+			// a withdrawal, not an EoR.
+			name:   "mp-withdrawal-not-eor",
+			update: &Update{PathAttributes: []byte{0x90, 15, 0x00, 0x06, 0x00, 0x02, 0x01, 0x40, 0x20, 0x01}},
+			want:   false,
+		},
+		{
+			// Legacy IPv4 NLRI present -> a route, not an EoR.
+			name:   "ipv4-route-not-eor",
+			update: &Update{NLRI: []byte{0x18, 0x0a, 0x00, 0x00}},
+			want:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.update.IsEndOfRIBAnyFamily(); got != tt.want {
+				t.Errorf("IsEndOfRIBAnyFamily() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -194,6 +194,13 @@ func (p *Peer) runOnce() error {
 	session.SetClock(p.clock)
 	session.SetDialer(p.dialer)
 	session.onMessageReceived = p.messageCallback
+	// Originated / injected / replayed routes run the peer's export filter chain at
+	// the session write gate, the same as forwarded routes do in forwardUpdateCore.
+	if p.reactor != nil {
+		session.egressRouteFilter = func(body []byte) (bool, []byte) {
+			return p.reactor.exportFilterForBody(p, body)
+		}
+	}
 	if p.reactor != nil {
 		session.prefixMetrics = p.reactor.rmetrics
 	}

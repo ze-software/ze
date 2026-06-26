@@ -1,0 +1,57 @@
+module ze-filter-family {
+    namespace "urn:ze:filter-family";
+    prefix ff;
+
+    import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
+    import ze-types { prefix zt; }
+
+    description "Address-family policy filter for ZeBGP. Matches an AFI/SAFI in a
+                 BGP UPDATE and either removes that family's NLRI (import + export)
+                 or tears down the session (import only). Referenced from peer
+                 filter chains as bgp-filter-family:NAME.";
+
+    revision 2026-06-26 {
+        description "Initial revision";
+    }
+
+    augment "/bgp:bgp/bgp:policy" {
+        list family-filter {
+            ze:filter;
+            key "name";
+            description "Named address-family filter instance.";
+
+            leaf name {
+                type string;
+                description "Filter instance name (referenced in peer filter chains
+                             as bgp-filter-family:NAME).";
+            }
+
+            leaf family {
+                type zt:address-family;
+                mandatory true;
+                description "Address family to match, e.g. ipv4/flowspec. An UPDATE
+                             with no MP_REACH/MP_UNREACH attribute is treated as
+                             ipv4/unicast.";
+            }
+
+            leaf action {
+                type enumeration {
+                    enum remove {
+                        description "Strip the matched family's MP_REACH/MP_UNREACH
+                                     NLRI from the UPDATE (import and export). If the
+                                     removal empties the UPDATE, the whole UPDATE is
+                                     dropped for that peer.";
+                    }
+                    enum tear-down {
+                        description "Send a BGP NOTIFICATION (Cease / Connection
+                                     Rejected) and close the session when the family
+                                     is present in a received UPDATE. Import only.";
+                    }
+                }
+                mandatory true;
+                description "Action to apply when the family matches.";
+            }
+        }
+    }
+}

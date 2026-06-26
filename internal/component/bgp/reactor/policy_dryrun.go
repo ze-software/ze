@@ -83,7 +83,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	// Defense-in-depth: the CLI parser already enforces import/export, but
 	// PolicyDryRun is an exported interface. Reject an unknown direction so a
 	// direct caller cannot silently get an empty (accept) chain.
-	if direction != "import" && direction != "export" {
+	if direction != directionImport && direction != directionExport {
 		return nil, errInvalidDirection
 	}
 
@@ -111,9 +111,9 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		peerAS = s.PeerAS
 		localAS = s.LocalAS
 		switch direction {
-		case "import":
+		case directionImport:
 			filterRefs = append([]string(nil), s.ImportFilters...)
-		case "export":
+		case directionExport:
 			filterRefs = append([]string(nil), s.ExportFilters...)
 		}
 		break

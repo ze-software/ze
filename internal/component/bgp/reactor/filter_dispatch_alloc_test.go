@@ -29,7 +29,7 @@ func BenchmarkFilterDispatch_ZeroAlloc(b *testing.B) {
 	for range b.N {
 		scratch = AppendUpdateForFilter(scratch[:0], attrs, nil, nil)
 		updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain
-		action, _ = PolicyFilterChain(filters, "import", "10.0.0.1", 65001, updateText, acceptAll)
+		action = PolicyFilterChain(filters, "import", "10.0.0.1", 65001, updateText, acceptAll).Action
 	}
 	_ = action
 }

@@ -6,6 +6,7 @@ package reactor
 
 import (
 	"context"
+	"encoding/hex"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -16,6 +17,13 @@ import (
 
 const policyAttrNLRI = "nlri"
 const policyAttrAtomicAggregate = "atomic-aggregate"
+
+// Policy filter chain direction tokens (the `direction` argument passed to
+// PolicyFilterChain and on to each filter via the RPC FilterUpdateInput).
+const (
+	directionImport = "import"
+	directionExport = "export"
+)
 
 type filterAttrID uint8
 
@@ -116,6 +124,31 @@ type PolicyResponse struct {
 	// Delta contains only changed attribute text (action=modify).
 	// Empty for accept/reject.
 	Delta string
+	// Raw, when non-empty on a modify, is a hex-encoded full UPDATE-body
+	// replacement produced by a raw=true filter (e.g. MP_REACH/MP_UNREACH
+	// surgery the text delta cannot express). A raw rewrite is terminal for the
+	// chain: it cannot be composed with downstream text deltas.
+	Raw string
+	// Teardown requests the session be terminated (NOTIFICATION + close) after
+	// the import chain. Honored only for import (received) UPDATEs. The route is
+	// dropped. NotifyCode/NotifySubcode default to Cease / Connection Rejected.
+	Teardown      bool
+	NotifyCode    uint8
+	NotifySubcode uint8
+}
+
+// PolicyChainResult is the aggregate outcome of running a filter chain.
+type PolicyChainResult struct {
+	Action PolicyAction
+	// Text is the accumulated modified update text (valid unless Action==PolicyReject).
+	Text string
+	// Raw is a hex-encoded full-payload replacement from a raw filter; terminal.
+	// Empty when no raw filter rewrote the payload.
+	Raw string
+	// Teardown (import only) requests NOTIFICATION + session close; route dropped.
+	Teardown      bool
+	NotifyCode    uint8
+	NotifySubcode uint8
 }
 
 // PolicyFilterFunc is the signature for calling a named filter.
@@ -131,10 +164,17 @@ type PolicyFilterFunc func(pluginName, filterName, direction, peer string, peerA
 // callFilter is the function to invoke each filter.
 // updateText is the initial text representation of the update.
 //
-// Returns the final action and the accumulated update text (may be modified).
-func PolicyFilterChain(filterRefs []string, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) (PolicyAction, string) {
+// Returns the aggregate chain result: final action, accumulated update text, an
+// optional raw full-payload override, and an optional teardown request.
+//
+// A raw=true filter that returns a full-payload rewrite (PolicyResponse.Raw) is
+// terminal: the rewrite replaces the wire payload and the chain stops, because a
+// raw rewrite cannot be composed with downstream text deltas (the text was
+// derived from the original payload). A teardown request also short-circuits and
+// drops the route.
+func PolicyFilterChain(filterRefs []string, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) PolicyChainResult {
 	if len(filterRefs) == 0 {
-		return PolicyAccept, updateText
+		return PolicyChainResult{Action: PolicyAccept, Text: updateText}
 	}
 
 	current := updateText
@@ -145,17 +185,31 @@ func PolicyFilterChain(filterRefs []string, direction, peer string, peerAS uint3
 		pluginName, filterName, _ := strings.Cut(ref, ":")
 		result := callFilter(pluginName, filterName, direction, peer, peerAS, current)
 
+		// Teardown short-circuits: the session is going away, so drop the route.
+		if result.Teardown {
+			return PolicyChainResult{
+				Action:        PolicyReject,
+				Teardown:      true,
+				NotifyCode:    result.NotifyCode,
+				NotifySubcode: result.NotifySubcode,
+			}
+		}
+
 		switch result.Action {
 		case PolicyReject:
-			return PolicyReject, ""
+			return PolicyChainResult{Action: PolicyReject}
 		case PolicyModify:
+			// A raw full-payload rewrite is terminal (see doc comment).
+			if result.Raw != "" {
+				return PolicyChainResult{Action: PolicyModify, Text: current, Raw: result.Raw}
+			}
 			current = applyFilterDelta(current, result.Delta)
 		case PolicyAccept:
 			// continue with current text
 		}
 	}
 
-	return PolicyAccept, current
+	return PolicyChainResult{Action: PolicyAccept, Text: current}
 }
 
 // applyFilterDelta merges delta-only attribute changes into the current update text.
@@ -362,8 +416,35 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 			}
 		}
 
-		return PolicyResponse{Action: action, Delta: out.Update}
+		resp := PolicyResponse{Action: action, Delta: out.Update}
+		// Raw full-payload replacement is only meaningful on a modify.
+		if action == PolicyModify {
+			resp.Raw = out.Raw
+		}
+		// Teardown is honored only for import (received) UPDATEs; ignore it on
+		// export so a misconfigured/misbehaving filter cannot drop sessions there.
+		if out.Teardown && direction == directionImport {
+			resp.Teardown = true
+			resp.NotifyCode = out.NotifyCode
+			resp.NotifySubcode = out.NotifySubcode
+		}
+		return resp
 	}
+}
+
+// decodeFilterRawOverride decodes a hex-encoded full UPDATE-body replacement from
+// a raw policy filter. Returns nil on empty/malformed input or a body too short
+// to be a valid UPDATE (the caller then keeps the unmodified payload). A valid
+// UPDATE body is at least 4 bytes: withdrawn-routes-length(2) + path-attr-length(2).
+func decodeFilterRawOverride(rawHex string) []byte {
+	if rawHex == "" {
+		return nil
+	}
+	b, err := hex.DecodeString(rawHex)
+	if err != nil || len(b) < 4 {
+		return nil
+	}
+	return b
 }
 
 // validateModifyDelta checks that a modify delta only contains attributes

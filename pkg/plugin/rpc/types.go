@@ -165,6 +165,15 @@ type FilterUpdateOutput struct {
 	Action FilterAction `json:"action"`           // Typed decision; wire form is "accept"/"reject"/"modify"
 	Update string       `json:"update,omitempty"` // Delta-only modified attributes (only for action=modify)
 	Raw    string       `json:"raw,omitempty"`    // Full raw UPDATE body replacement (only for action=modify with raw)
+
+	// Teardown requests the engine terminate the BGP session after the import
+	// filter chain, sending a NOTIFICATION with the given code/subcode. Honored
+	// only for import (received) UPDATEs; ignored on export. The route itself is
+	// dropped (treated as reject). NotifyCode/NotifySubcode default to
+	// Cease / Connection Rejected (RFC 4486) when zero.
+	Teardown      bool  `json:"teardown,omitempty"`
+	NotifyCode    uint8 `json:"notify-code,omitempty"`
+	NotifySubcode uint8 `json:"notify-subcode,omitempty"`
 }
 
 // ConfigSection is a single config section delivered to the plugin.

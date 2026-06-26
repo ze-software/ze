@@ -731,7 +731,7 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 	scratch = prefix.AppendTo(scratch)
 	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
 
-	action, _ := PolicyFilterChain(
+	res := PolicyFilterChain(
 		[]string{filterName},
 		"export",
 		p.settings.Address.String(),
@@ -739,5 +739,5 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 		updateText,
 		p.reactor.policyFilterFunc(nil), // nil payload -- synthetic update
 	)
-	return action != PolicyReject
+	return res.Action != PolicyReject
 }

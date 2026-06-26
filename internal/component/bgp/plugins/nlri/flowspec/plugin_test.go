@@ -294,6 +294,20 @@ func TestEncodeDecodeViaRunFlowSpecDecode(t *testing.T) {
 			wantContains: "0A0000",
 		},
 		{
+			// destination-ipv4 is an accepted alias of destination (config form).
+			name:         "encode_destination_ipv4_alias",
+			input:        "encode nlri ipv4/flow destination-ipv4 10.0.0.0/24\n",
+			wantPrefix:   "encoded hex ",
+			wantContains: "01180A0000",
+		},
+		{
+			// source-ipv4 is an accepted alias of source.
+			name:         "encode_source_ipv4_alias",
+			input:        "encode nlri ipv4/flow source-ipv4 10.0.0.0/24\n",
+			wantPrefix:   "encoded hex ",
+			wantContains: "02180A0000",
+		},
+		{
 			name:         "decode_destination",
 			input:        "decode nlri ipv4/flow 0501180a0000\n",
 			wantPrefix:   "decoded json ",

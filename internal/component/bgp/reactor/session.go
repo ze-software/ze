@@ -241,6 +241,21 @@ type Session struct {
 	// Set by Peer to forward raw bytes to reactor.
 	onMessageReceived MessageCallback
 
+	// egressRouteFilter, when non-nil, runs the peer's export filter chain on an
+	// outbound route UPDATE body just before it is written (writeUpdate /
+	// SendAnnounce). Returns suppress=true to drop the route, or an override body
+	// to write instead. Set by Peer (capturing the reactor) so originated /
+	// injected / replayed routes honor export filters like forwarded ones. EORs
+	// and the forwarded path (writeRawUpdateBody) do not call it.
+	egressRouteFilter func(body []byte) (suppress bool, override []byte)
+
+	// policyTeardownPending, when non-nil, queues a NOTIFICATION + session close
+	// requested by the import policy filter chain (e.g. filter_family tear-down).
+	// Set on the session read goroutine inside the onMessageReceived callback;
+	// honored in session_read after the callback, before handleUpdate. Accessed
+	// only from the session read goroutine — no lock.
+	policyTeardownPending *policyTeardownRequest
+
 	// recvCtxID is the encoding context for received messages.
 	// Set by Peer after capability negotiation for zero-copy WireUpdate creation.
 	recvCtxID bgpctx.ContextID
@@ -363,6 +378,9 @@ func NewSession(settings *PeerSettings) *Session {
 		dialer.PeerAddr = md5Addr.AsSlice()
 		dialer.MD5Key = settings.MD5Key
 	}
+	if settings.OutTTL != 0 {
+		dialer.OutTTL = settings.OutTTL
+	}
 
 	s := &Session{
 		settings:        settings,
@@ -441,7 +459,30 @@ func (s *Session) SetClock(c clock.Clock) {
 // SetDialer sets the dialer used for outbound connections.
 // Must be called before Connect.
 func (s *Session) SetDialer(d network.Dialer) {
+	if rd, ok := d.(*network.RealDialer); ok {
+		s.dialer = s.mergedRealDialer(rd)
+		return
+	}
 	s.dialer = d
+}
+
+func (s *Session) mergedRealDialer(base *network.RealDialer) *network.RealDialer {
+	merged := *base
+	if s.settings.LocalAddress.IsValid() {
+		merged.LocalAddr = &net.TCPAddr{IP: s.settings.LocalAddress.AsSlice()}
+	}
+	if s.settings.MD5Key != "" {
+		md5Addr := s.settings.Address
+		if s.settings.MD5IP.IsValid() {
+			md5Addr = s.settings.MD5IP
+		}
+		merged.PeerAddr = md5Addr.AsSlice()
+		merged.MD5Key = s.settings.MD5Key
+	}
+	if s.settings.OutTTL != 0 {
+		merged.OutTTL = s.settings.OutTTL
+	}
+	return &merged
 }
 
 // State returns the current FSM state.
@@ -606,6 +647,32 @@ func (s *Session) logNotifyErr(conn net.Conn, code message.NotifyErrorCode, subc
 			"error", err,
 		)
 	}
+}
+
+// policyTeardownRequest carries a NOTIFICATION code/subcode for a deferred
+// session teardown requested by a policy filter (honored in session_read).
+type policyTeardownRequest struct {
+	code    message.NotifyErrorCode
+	subcode uint8
+}
+
+// requestPolicyTeardown queues a NOTIFICATION + session close to run after the
+// current received UPDATE's filter chain (honored in session_read, before
+// handleUpdate). Called on the session read goroutine from the import policy
+// filter chain (notifyMessageReceiver via onMessageReceived). The first request
+// for a given UPDATE wins.
+func (s *Session) requestPolicyTeardown(code message.NotifyErrorCode, subcode uint8) {
+	if s.policyTeardownPending == nil {
+		s.policyTeardownPending = &policyTeardownRequest{code: code, subcode: subcode}
+	}
+}
+
+// takePolicyTeardown returns and clears any pending policy teardown request.
+// Called on the session read goroutine after the onMessageReceived callback.
+func (s *Session) takePolicyTeardown() *policyTeardownRequest {
+	req := s.policyTeardownPending
+	s.policyTeardownPending = nil
+	return req
 }
 
 // logFSMEvent fires an FSM event and logs if the transition fails.
