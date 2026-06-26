@@ -18,6 +18,9 @@ ze skills list
 ze skills get <name> [--full]
 ```
 
+Driving ze over MCP instead of the CLI? Call the `ze_reference` tool (it appears
+in `tools/list` on connect) for the same `ze help ai --json` reference.
+
 ## Version-Matched Skills
 
 Use `ze skills list` to discover skills bundled with this binary.
