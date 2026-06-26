@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
+	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
@@ -64,6 +65,28 @@ type ServiceDeps struct {
 	ConfigUsers       []authz.UserConfig
 	EventRing         *pluginserver.EventRing
 	WebPortalServices []webPortalService
+
+	// MCP resolved bindings + command source (all generic types). Consumed only
+	// by the ze_mcp-gated factory (service_mcp.go); populated always-on so a
+	// no-mcp build neither names a zemcp type nor leaves an unused local. A
+	// pointer so ServiceDeps stays small (the by-value struct trips hugeParam,
+	// learned 981); a nil MCP is the not-configured skip.
+	MCP *mcpServiceDeps
+}
+
+// mcpServiceDeps carries everything the MCP factory needs, all generic-typed so
+// no internal/component/mcp type crosses the always-on registry boundary. The
+// always-on hub resolves these (listen addrs, token, the YANG MCPListenConfig,
+// the MCP-surface dispatcher, the neutral command metadata source, and the
+// audit recorder); the gated factory converts them into zemcp types.
+type mcpServiceDeps struct {
+	Addrs    []string
+	Token    string
+	Config   zeconfig.MCPListenConfig
+	ConfigOK bool
+	Dispatch func(command, username, remoteAddr string) (string, error)
+	Commands func() []commandMeta
+	Recorder audit.Recorder
 }
 
 // ServiceFactory builds (and starts) one service from deps. It returns a nil

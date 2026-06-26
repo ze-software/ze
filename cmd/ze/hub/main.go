@@ -1,5 +1,5 @@
 // Design: docs/architecture/hub-architecture.md -- hub CLI entry point
-// Detail: mcp.go -- MCP server startup
+// Detail: service_mcp.go -- MCP server factory (//go:build ze_mcp)
 // Detail: api.go -- REST/gRPC API server startup
 // Detail: infra_setup.go -- infrastructure server setup hook
 // Related: main_reload.go -- SIGHUP config reload
@@ -39,7 +39,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/managed"
-	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 	zepki "codeberg.org/thomas-mangin/ze/internal/component/pki"
 	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
@@ -710,6 +709,20 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		ConfigUsers:       sshCfg.Users,
 		EventRing:         apiServer.EventRing(),
 		WebPortalServices: webPortalServices,
+		// MCP is built through the registry (service_mcp.go, //go:build ze_mcp)
+		// like web/lg. The listen/token/config resolution stays always-on here
+		// (plain values); the gated factory converts them into zemcp types. With
+		// ze_mcp off no factory consumes these fields and the mcp package is not
+		// linked.
+		MCP: &mcpServiceDeps{
+			Addrs:    mcpAddrs,
+			Token:    mcpToken,
+			Config:   mcpCfg,
+			ConfigOK: mcpCfgOK,
+			Dispatch: mcpDispatch,
+			Commands: commandMetaSource(apiServer),
+			Recorder: auditLog,
+		},
 	})
 	for _, svc := range builtServices {
 		registerBuiltService(lm, svc)
@@ -722,21 +735,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				_ = svc.Shutdown(shutdownCtx)
 			}
 		}()
-	}
-
-	var mcpSrv *MCPServerHandle
-	if len(mcpAddrs) > 0 {
-		mcpStreamCfg := zemcp.StreamableConfig{Token: mcpToken, AuditRecorder: auditLog}
-		var mcpTLSCert, mcpTLSKey string
-		if mcpCfgOK {
-			mcpStreamCfg = mcpConfigToStreamable(mcpCfg, mcpStreamCfg)
-			mcpTLSCert = mcpCfg.TLS.Cert
-			mcpTLSKey = mcpCfg.TLS.Key
-		}
-		mcpSrv = startMCPServer(mcpAddrs, mcpDispatch, serverCommandLister(apiServer), mcpStreamCfg, mcpTLSCert, mcpTLSKey)
-		if mcpSrv != nil {
-			lm.SetMCP(mcpSrv)
-		}
 	}
 
 	// Start REST/gRPC API servers if configured (env > config file).
@@ -908,11 +906,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	close(reloadCh)
 	fmt.Println("\nShutting down...")
 
-	if mcpSrv != nil {
-		mcpCtx, mcpCancel := context.WithTimeout(context.Background(), 3*time.Second)
-		_ = mcpSrv.Shutdown(mcpCtx)
-		mcpCancel()
-	}
+	// MCP shuts down through the construction registry's builtServices defer
+	// (like web/lg), so it is not stopped explicitly here.
 
 	if gnmiSrv != nil {
 		gnmiSrv.Stop()

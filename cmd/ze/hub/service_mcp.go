@@ -1,5 +1,21 @@
-// Design: docs/architecture/hub-architecture.md -- MCP server startup
-// Overview: main.go -- hub CLI entry point
+// Design: ai/rules/feature-gate-registration.md -- compile-out-able services (feature-gate)
+// Related: main.go -- resolves MCP listen/token/config to plain values and feeds them via ServiceDeps.MCP
+//
+// MCP (Model Context Protocol) service: built through the construction registry
+// and compiled in ONLY under //go:build ze_mcp. This file (with register_mcp.go)
+// is the ONLY place always-on-buildable code reaches the internal/component/mcp
+// package. With ze_mcp off the factory is not registered, the hub builds no MCP
+// service, and the mcp package is linked nowhere -- so the linker drops it
+// (smaller binary, smaller attack surface).
+//
+// The MCP server handle is already Reconfigurable + Shutdown (live listener
+// migration), so MCP fits the listener-service registry like web/lg. Only the
+// construction helpers that name zemcp types moved here; the neutral command
+// metadata source (command_meta.go) and the MCP listen/token resolution
+// (main.go) stay always-on. The mcp YANG schema is gated separately by the
+// generator (all_ze_mcp.go). See plan/spec-feature-gate-5-mcp.md.
+
+//go:build ze_mcp
 
 package hub
 
@@ -12,14 +28,90 @@ import (
 	"net/http"
 	"os"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 )
+
+// mcpService adapts *MCPServerHandle to the Service interface (the handle
+// already satisfies Reconfigurable + Shutdown; only Name is added).
+type mcpService struct {
+	*MCPServerHandle
+}
+
+func (mcpService) Name() string { return "mcp" }
+
+// buildMCPService builds and starts the MCP HTTP server from deps. It returns a
+// nil Service (not an error) when MCP is not configured or fails to start --
+// preserving the prior best-effort, non-fatal behavior of the inline
+// startMCPServer call in main.go.
+func buildMCPService(deps ServiceDeps) (Service, error) {
+	m := deps.MCP
+	if m == nil || len(m.Addrs) == 0 || m.Dispatch == nil {
+		// Not configured: a skip, not a failure.
+		return nil, nil //nolint:nilnil // not-configured is an intentional skip
+	}
+
+	mcpStreamCfg := zemcp.StreamableConfig{Token: m.Token, AuditRecorder: m.Recorder}
+	var tlsCert, tlsKey string
+	if m.ConfigOK {
+		mcpStreamCfg = mcpConfigToStreamable(m.Config, mcpStreamCfg)
+		tlsCert = m.Config.TLS.Cert
+		tlsKey = m.Config.TLS.Key
+	}
+
+	handle := startMCPServer(m.Addrs, m.Dispatch, mcpCommandLister(m.Commands), mcpStreamCfg, tlsCert, tlsKey)
+	if handle == nil {
+		// startMCPServer already logged the reason; non-fatal skip.
+		return nil, nil //nolint:nilnil // start failure is a logged, non-fatal skip
+	}
+	return mcpService{handle}, nil
+}
+
+// mcpCommandLister wraps the neutral always-on command metadata source as a
+// zemcp.CommandLister, converting each commandMeta into a zemcp.CommandInfo.
+// This is the ONLY conversion from the neutral type to zemcp types; it lives in
+// the gated file so always-on API code can adapt the same source without
+// pinning the mcp package into the binary.
+func mcpCommandLister(src func() []commandMeta) zemcp.CommandLister {
+	return func() []zemcp.CommandInfo {
+		metas := src()
+		if metas == nil {
+			return nil
+		}
+		infos := make([]zemcp.CommandInfo, len(metas))
+		for i, m := range metas {
+			infos[i] = zemcp.CommandInfo{
+				Name:        m.Name,
+				Help:        m.Help,
+				ReadOnly:    m.ReadOnly,
+				TaskSupport: parseTaskSupportLevel(m.TaskSupport),
+			}
+			if len(m.Params) > 0 {
+				params := make([]zemcp.ParamInfo, len(m.Params))
+				for j, p := range m.Params {
+					params[j] = zemcp.ParamInfo{
+						Name:        p.Name,
+						Type:        p.Type,
+						Description: p.Description,
+						Required:    p.Required,
+					}
+				}
+				infos[i].Params = params
+			}
+			if m.UIResource != nil {
+				infos[i].UIResource = &zemcp.UIResourceInfo{
+					Path:        m.UIResource.Path,
+					Permissions: m.UIResource.Permissions,
+					CSP:         m.UIResource.CSP,
+				}
+			}
+		}
+		return infos
+	}
+}
 
 // mcpConfigToStreamable converts the YANG-derived MCPListenConfig into the
 // StreamableConfig that NewStreamable consumes. Fields already populated on
@@ -56,67 +148,6 @@ func mcpConfigToStreamable(cfg zeconfig.MCPListenConfig, base zemcp.StreamableCo
 	return base
 }
 
-// buildParamMap extracts all RPC metadata from the YANG loader and builds
-// a map from CLI command path to input parameters.
-func buildParamMap(loader *yang.Loader) map[string][]zemcp.ParamInfo {
-	if loader == nil {
-		return nil
-	}
-
-	// Build reverse map: CLI path -> wire method.
-	wireToPath := yang.WireMethodToPath(loader)
-	pathToWire := make(map[string]string, len(wireToPath))
-	for wire, path := range wireToPath {
-		pathToWire[path] = wire
-	}
-
-	// Extract RPC input params for each command path.
-	result := make(map[string][]zemcp.ParamInfo)
-	for path, wire := range pathToWire {
-		// Wire method format: "module:rpc-name". Extract module, add "-api" suffix.
-		module := wireModule(wire)
-		rpcName := wireRPC(wire)
-		if module == "" || rpcName == "" {
-			continue
-		}
-
-		rpcs := yang.ExtractRPCs(loader, module+"-api")
-		if rpcs == nil {
-			// Try without -api suffix (some modules use -cmd).
-			rpcs = yang.ExtractRPCs(loader, module+"-cmd")
-		}
-		for _, rpc := range rpcs {
-			if rpc.Name != rpcName {
-				continue
-			}
-			if len(rpc.Input) == 0 {
-				break
-			}
-			params := make([]zemcp.ParamInfo, len(rpc.Input))
-			for i, leaf := range rpc.Input {
-				params[i] = zemcp.ParamInfo{
-					Name:        leaf.Name,
-					Type:        leaf.Type,
-					Description: leaf.Description,
-					Required:    leaf.Mandatory,
-				}
-			}
-			result[path] = params
-			break
-		}
-	}
-
-	return result
-}
-
-// buildTaskSupportMap extracts ze:task-support values from the YANG loader.
-func buildTaskSupportMap(loader *yang.Loader) map[string]string {
-	if loader == nil {
-		return nil
-	}
-	return yang.PathToTaskSupport(loader)
-}
-
 // parseTaskSupportLevel converts a YANG ze:task-support string to the typed enum.
 func parseTaskSupportLevel(s string) zemcp.TaskSupportLevel {
 	switch s {
@@ -129,51 +160,9 @@ func parseTaskSupportLevel(s string) zemcp.TaskSupportLevel {
 	}
 }
 
-// lookupUIResource checks if a command path or any of its parent paths has
-// a ze:ui-resource annotation. Commands like "peer list" inherit the UI
-// resource from the "peer" grouping container.
-func lookupUIResource(cmdPath string, m map[string]yang.UIResourceEntry) (yang.UIResourceEntry, bool) {
-	if m == nil {
-		return yang.UIResourceEntry{}, false
-	}
-	if info, ok := m[cmdPath]; ok {
-		return info, true
-	}
-	for {
-		idx := strings.LastIndex(cmdPath, " ")
-		if idx < 0 {
-			break
-		}
-		cmdPath = cmdPath[:idx]
-		if info, ok := m[cmdPath]; ok {
-			return info, true
-		}
-	}
-	return yang.UIResourceEntry{}, false
-}
-
-// wireModule extracts the module prefix from a wire method (e.g. "ze-bgp:peer-list" -> "ze-bgp").
-func wireModule(wire string) string {
-	mod, _, ok := strings.Cut(wire, ":")
-	if !ok {
-		return ""
-	}
-	return mod
-}
-
-// wireRPC extracts the RPC name from a wire method (e.g. "ze-bgp:peer-list" -> "peer-list").
-func wireRPC(wire string) string {
-	_, rpc, ok := strings.Cut(wire, ":")
-	if !ok {
-		return ""
-	}
-	return rpc
-}
-
 // MCPServerHandle bundles the running HTTP server with the Streamable handler
 // so the shutdown path can close both: http.Server.Shutdown drains the TCP
-// listener, handler.Close drains the session registry's GC goroutine. Phase
-// 2 resolution of the Phase 1 deferral (`plan/deferrals.md` row 226).
+// listener, handler.Close drains the session registry's GC goroutine.
 type MCPServerHandle struct {
 	Server    *http.Server
 	Handler   *zemcp.Streamable

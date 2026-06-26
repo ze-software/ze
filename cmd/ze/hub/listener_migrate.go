@@ -59,8 +59,11 @@ func (m *ListenerMigrator) SetWeb(web Reconfigurable) { m.web = web }
 // through the construction registry and may be compiled out (//go:build ze_lg).
 func (m *ListenerMigrator) SetLG(s Reconfigurable) { m.lg = s }
 
-// SetMCP updates the MCP server reference.
-func (m *ListenerMigrator) SetMCP(s *MCPServerHandle) { m.mcp = s }
+// SetMCP updates the MCP server reference. Takes Reconfigurable (not
+// *MCPServerHandle) so always-on code never imports the mcp package: mcp is
+// built through the construction registry and may be compiled out
+// (//go:build ze_mcp).
+func (m *ListenerMigrator) SetMCP(s Reconfigurable) { m.mcp = s }
 
 // SetREST updates the REST API server reference.
 func (m *ListenerMigrator) SetREST(s *rest.RESTServer) { m.rest = s }

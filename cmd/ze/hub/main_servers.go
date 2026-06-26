@@ -10,13 +10,10 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -54,66 +51,6 @@ func serverDispatcherWithSurface(s *pluginserver.Server, surface string) func(co
 			return "", fmt.Errorf("marshal response: %w", jsonErr)
 		}
 		return string(b), nil
-	}
-}
-
-// serverCommandLister creates a CommandLister from the plugin server's dispatcher.
-func serverCommandLister(s *pluginserver.Server) zemcp.CommandLister {
-	var (
-		metaOnce          sync.Once
-		paramsByPath      map[string][]zemcp.ParamInfo
-		taskSupportByPath map[string]string
-		uiResourceByPath  map[string]yangloader.UIResourceEntry
-	)
-
-	initMeta := func() {
-		metaOnce.Do(func() {
-			loader, err := yangloader.DefaultLoader()
-			if err != nil {
-				return
-			}
-			paramsByPath = buildParamMap(loader)
-			taskSupportByPath = buildTaskSupportMap(loader)
-			uiResourceByPath = yangloader.PathToUIResource(loader)
-		})
-	}
-
-	return func() []zemcp.CommandInfo {
-		d := s.Dispatcher()
-		if d == nil {
-			return nil
-		}
-
-		initMeta()
-
-		var infos []zemcp.CommandInfo
-		for _, cmd := range d.Commands() {
-			info := zemcp.CommandInfo{
-				Name:        cmd.Name,
-				Help:        cmd.Help,
-				ReadOnly:    cmd.ReadOnly,
-				Params:      paramsByPath[cmd.Name],
-				TaskSupport: parseTaskSupportLevel(taskSupportByPath[cmd.Name]),
-			}
-			if ui, ok := lookupUIResource(cmd.Name, uiResourceByPath); ok {
-				info.UIResource = &zemcp.UIResourceInfo{
-					Path:        ui.Path,
-					Permissions: ui.Permissions,
-					CSP:         ui.CSP,
-				}
-			}
-			infos = append(infos, info)
-		}
-
-		// Plugin-registered commands.
-		for _, cmd := range d.Registry().All() {
-			infos = append(infos, zemcp.CommandInfo{
-				Name: cmd.Name,
-				Help: cmd.Description,
-			})
-		}
-
-		return infos
 	}
 }
 

@@ -1,3 +1,5 @@
+//go:build ze_mcp
+
 package hub
 
 import (

@@ -173,6 +173,20 @@ GOLANGCI = ".golangci.yml"
 # alongside the per-feature gate tags (the lint build is ze_core + every gate).
 GOLANGCI_BASE_TAGS = {"ze_core"}
 
+# Trees that are NOT part of the production `ze` daemon and therefore cannot pin
+# a disableable feature into it. The chaos orchestrator (internal/chaos/*) is the
+# ze-chaos binary's code, reached from cmd/ze only under //go:build ze_chaos
+# (cmd/ze/ze_chaos_run.go); ze-chaos is built `-tags ze_chaos` and always wants
+# the feature it imports. Test-support packages (internal/test/*) are likewise
+# not in the daemon. A direct, untagged import of a disableable feature from
+# these trees is NOT a compile-out violation. cmd/ze is deliberately NOT listed:
+# the gated service/seam files live there and MUST carry the build tag, so they
+# stay in scope. Mirrors the engine gate's NON_FEATURE_PREFIXES rationale.
+DISABLEABLE_NONPROD_PREFIXES = (
+    "internal/chaos/",
+    "internal/test/",
+)
+
 
 def load_feature_gates(root: str) -> dict:
     """Parse feature-gates.txt -> {gated-package: build-tag}.
@@ -235,6 +249,8 @@ def disableable_violations(
                 continue  # the feature's own tree
             if imp.endswith("_test.go"):
                 continue  # tests may import the package directly
+            if any(imp.startswith(p) for p in DISABLEABLE_NONPROD_PREFIXES):
+                continue  # not in the production ze daemon (ze-chaos / test support)
             if not file_requires_tag(root, imp, tag):
                 out.append((imp, pkg, tag))
     return out
@@ -701,6 +717,14 @@ def selftest() -> int:
             "internal/app/use_test.go",
             f'package app\nimport _ "{mod}/internal/component/widget"\n',
         )
+        # non-production tree importer (allowed): ze-chaos orchestrator code is
+        # not in the production ze daemon, so its untagged import of a disableable
+        # feature cannot pin it -- DISABLEABLE_NONPROD_PREFIXES excludes it.
+        w(
+            root,
+            "internal/chaos/orchestrator/use.go",
+            f'package orchestrator\nimport _ "{mod}/internal/component/widget"\n',
+        )
         dis_edges = collect_edges(root, mod)
         dmap = {"internal/component/widget": "ze_widget"}
         dfiles = {v[0] for v in disableable_violations(root, mod, dis_edges, dmap)}
@@ -711,6 +735,9 @@ def selftest() -> int:
             "build-tag-gated importer wrongly flagged"
         )
         assert "internal/app/use_test.go" not in dfiles, "test importer wrongly flagged"
+        assert "internal/chaos/orchestrator/use.go" not in dfiles, (
+            "non-production (ze-chaos) importer of a disableable feature wrongly flagged"
+        )
 
         # feature-gate manifest + lint build-tags fixtures so the full --check
         # gate (run_gate) below exercises only engine placement: no gates declared

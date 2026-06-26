@@ -20,6 +20,7 @@ run:
     - ze_ssh
     - ze_web
     - ze_gnmi
+    - ze_mcp
 
 linters:
   exclusions:

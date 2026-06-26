@@ -81,10 +81,13 @@ from always-on (untagged) code pins the package into every binary and defeats th
 compile-out; only a blank/gated registration import can be dropped by a build tag.
 
 Two shapes exist. **Listener services** (looking-glass: `ze_lg`, web:
-`ze_web`) plug into the construction registry
+`ze_web`, MCP: `ze_mcp`) plug into the construction registry
 (`cmd/ze/hub/service_registry.go`): a gated `service_<x>.go` +
 `register_<x>.go` registers a factory and any listener-migrator wiring the hub
-iterates. Web also has a nil-able standalone seam (`web_infra.go`) for
+iterates. MCP fits because its `MCPServerHandle` is already `Reconfigurable` +
+`Shutdown`; the command metadata it shares with the always-on API is kept
+neutral (`command_meta.go`) so API does not pull mcp back into every binary.
+Web also has a nil-able standalone seam (`web_infra.go`) for
 `ze start --web` so the always-on CLI path does not import `internal/component/web`.
 **Dedicated seams** cover services whose construction shape does not fit the
 registry: ssh (`ze_ssh`) uses `ssh_infra.go` for the shared startup and

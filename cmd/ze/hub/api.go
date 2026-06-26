@@ -414,18 +414,21 @@ func (w *apiStreamLineWriter) markReady(err error) {
 	}
 }
 
-// apiCommandLister creates a CommandSource by converting MCP's command list.
-// Reuses serverCommandLister (mcp.go) to avoid duplicating dispatcher traversal.
+// apiCommandLister creates a CommandSource from the neutral, always-on command
+// metadata source (command_meta.go). The same source backs the MCP command
+// lister (service_mcp.go) when ze_mcp is compiled in; sharing the neutral type
+// -- not a zemcp type -- is what lets the API command lister stay always-on
+// while MCP is compiled out.
 func apiCommandLister(s *pluginserver.Server) api.CommandSource {
-	mcpLister := serverCommandLister(s)
+	metaSource := commandMetaSource(s)
 
 	return func() []api.CommandMeta {
-		mcpCmds := mcpLister()
-		if mcpCmds == nil {
+		cmds := metaSource()
+		if cmds == nil {
 			return nil
 		}
-		infos := make([]api.CommandMeta, len(mcpCmds))
-		for i, cmd := range mcpCmds {
+		infos := make([]api.CommandMeta, len(cmds))
+		for i, cmd := range cmds {
 			infos[i] = api.CommandMeta{
 				Name:        cmd.Name,
 				Description: cmd.Help,

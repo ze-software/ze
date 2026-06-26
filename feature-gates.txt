@@ -32,3 +32,4 @@ ze_ssh   internal/component/ssh
 ze_web   internal/component/web
 ze_gnmi  internal/component/gnmi
 ze_gnmi  internal/plugins/gnmi-cmd
+ze_mcp   internal/component/mcp
