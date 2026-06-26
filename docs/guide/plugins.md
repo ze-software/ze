@@ -195,12 +195,14 @@ ze --plugins
 | `dhcpserver` | DHCP server (RFC 2131/2132) with PXE boot support (RFC 4578): pool management, lease tracking, static mappings, PXE option injection (options 43/60/66/67/93) for BIOS/UEFI bootfile selection | -- (Config-driven, UDP listener) |
 | `tftpserver` | Read-only TFTP server (RFC 1350): serves bootloader files for PXE provisioning in 512-byte blocks with stop-and-wait ACK, concurrent transfer limiting, path traversal protection | -- (Config-driven, UDP listener on port 69) |
 | `imageserver` | HTTP image server for PXE provisioning: serves gokrazy disk images, installer boot files, and pre-provisioned zefs databases with SSH credentials. Own HTTP listener, path traversal protection, Range request support | -- (Config-driven, HTTP listener) |
+| `geodns` | GeoDNS server (RFC 1035): DNS answers selected by client source IP. Client IP from EDNS0 client-subnet (RFC 7871) or packet source; CIDR longest-prefix selects a named host-set (A/AAAA/SRV records); synthesizes SOA/NS/glue. `show geodns`, `ze_geodns_*` metrics, UDP+TCP listeners (default 127.0.0.1:5300) | -- (Config-driven, UDP+TCP listeners) |
 | `traffic-usage` | eBPF TCX per-(port, protocol) and opt-in per-IP byte accounting (IPv4, monitoring only). Pure-Go assembled eBPF (cilium/ebpf asm.Instructions, no C/clang). Prometheus `ze_traffic_usage_*` metrics, `show traffic-usage [name <interface>]`. Linux >= 6.6. [Guide](traffic-usage.md) | -- (Config-driven, Bus events) |
 <!-- source: internal/plugins/trafficusage/register.go -- traffic-usage registration -->
 <!-- source: internal/plugins/policyroute/register.go -- policy-routes registration -->
 <!-- source: internal/component/sysctl/register.go -- sysctl registration -->
 <!-- source: internal/plugins/dhcpserver/register.go -- dhcpserver registration -->
 <!-- source: internal/plugins/tftpserver/register.go -- tftpserver registration -->
+<!-- source: internal/plugins/geodns/register.go -- geodns registration -->
 <!-- source: internal/component/iface/register.go -- iface registration -->
 <!-- source: internal/plugins/iface/netlink/register.go -- iface-netlink backend registration -->
 <!-- source: internal/plugins/iface/dhcp/register.go -- iface-dhcp registration -->

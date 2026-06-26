@@ -74,6 +74,7 @@ func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 		`"ze-show:traffic"`:               "traffic control (QoS) -> internal/plugins/traffic-cmd/yang",
 		`"ze-show:dns-lookup"`:            "DNS lookup -> internal/plugins/resolve-cmd/yang",
 		`"ze-show:dns-cache"`:             "DNS cache inspection -> internal/plugins/resolve-cmd/yang",
+		`"ze-show:geodns"`:                "GeoDNS status -> internal/plugins/geodns/yang",
 		`"ze-show:firewall-ruleset"`:      "firewall ruleset -> internal/component/firewall/yang",
 		`"ze-show:firewall-group"`:        "firewall group -> internal/component/firewall/yang",
 		`"ze-show:pki-certificates"`:      "PKI certificate list -> internal/plugins/pki-cmd/yang",

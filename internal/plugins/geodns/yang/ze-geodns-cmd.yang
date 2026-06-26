@@ -1,0 +1,28 @@
+module ze-geodns-cmd {
+    namespace "urn:ze:geodns:cmd";
+    prefix geodnscmd;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "show geodns command tree. Owned by the geodns plugin because the handler
+         reads the geodns server's live state. See ai/rules/plugin-self-containment.md.";
+
+    revision 2026-06-26 {
+        description "Initial revision";
+    }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container geodns {
+            config false;
+            ze:command "ze-show:geodns";
+            description
+                "GeoDNS server status: enabled, bind addresses/port, client-IP
+                 source mode, zones, nameserver/host-set/source counts, and the
+                 current SOA serial.";
+        }
+    }
+}

@@ -190,6 +190,7 @@ plugin list. The groups below mirror the current registrations in
 | `dhcpserver` | DHCP server for LAN/PXE clients |
 | `imageserver` | HTTP image server for provisioning |
 | `tftpserver` | Read-only TFTP server for PXE (RFC 2347 option negotiation) |
+| `geodns` | GeoDNS server: DNS answers selected by client source IP (RFC 7871 client-subnet) |
 | `ntp` | NTP time synchronization |
 | `vpp` | VPP lifecycle and telemetry management |
 | `ike` | IKEv2 engine for native IPsec VPN |

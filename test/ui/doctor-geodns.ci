@@ -1,0 +1,31 @@
+# Test: ze doctor --json flags geodns configured on a privileged port it cannot bind.
+# VALIDATES: spec-geodns-3 AC-5 - privileged listen-port bind-capability diagnostic.
+# Assumes the functional harness runs unprivileged (no CAP_NET_BIND_SERVICE), so
+# binding port 53 fails and doctor-geodns-port-unavailable fires. The default
+# port 5300 is unprivileged and would produce no diagnostic.
+
+tmpfs=geodns-doctor.conf:terminator=EOF_CONF
+service {
+    geodns {
+        enabled true
+        listener loopback {
+            ip 127.0.0.1
+            port 53
+        }
+        zone geodns.example.
+        nameserver 82.219.4.22
+        host-set external {
+            host a.geodns.example. {
+                address 10.0.0.1
+            }
+        }
+        source 0.0.0.0/0 {
+            host-set external
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json geodns-doctor.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-geodns-port-unavailable

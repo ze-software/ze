@@ -1,0 +1,18 @@
+# Invalid geodns config: a source references a host-set that does not exist.
+# ze YANG has no leafref, so the plugin verifier (parseConfig) must reject this.
+# spec-geodns-1 AC-9: dangling host-set reference aborts the commit.
+stdin=config:terminator=EOF_CONF
+service {
+    geodns {
+        enabled true
+        zone geodns.example.
+        nameserver 82.219.4.22
+        source 0.0.0.0/0 {
+            host-set nonexistent
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1

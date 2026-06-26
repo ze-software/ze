@@ -286,6 +286,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-rsvpte-rawsock-unavailable"},
 	},
 	{
+		Code:        "doctor-geodns-port-unavailable",
+		Title:       "GeoDNS privileged listen-port cannot be bound",
+		Description: "GeoDNS is configured to listen on a privileged port (<1024, e.g. 53) but the daemon cannot bind it for UDP/TCP. The port needs CAP_NET_BIND_SERVICE or root, or it is already in use. The default port 5300 is unprivileged and not affected.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-geodns-port-unavailable"},
+	},
+	{
 		Code:        "doctor-isis-raw-socket",
 		Title:       "IS-IS raw L2 socket unavailable",
 		Description: "IS-IS is configured but a raw AF_PACKET/SOCK_RAW socket cannot be opened. IS-IS runs directly over IEEE 802.3 frames (ISO/IEC 10589), so it needs CAP_NET_RAW or root; without it IS-IS cannot send or receive IIH/LSP/CSNP/PSNP PDUs and forms no adjacencies.",

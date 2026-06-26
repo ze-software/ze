@@ -1,0 +1,233 @@
+module ze-geodns-conf {
+    namespace "urn:ze:geodns:conf";
+    prefix geodns;
+
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description
+        "GeoDNS server configuration for Ze: DNS answers are selected by the
+         client source IP (RFC 1035 records, RFC 7871 EDNS0 client-subnet).
+         Ported from the EXA SurfProtect geodns daemon; the per-source host
+         files become YANG host-sets referenced by source prefixes.";
+
+    revision 2026-06-26 {
+        description "Initial revision";
+    }
+
+    container service {
+        description "Service settings";
+
+        container geodns {
+            description "GeoDNS server: per-source-IP DNS answers";
+
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Enable the GeoDNS server";
+            }
+
+            list listener {
+                key "name";
+                ze:listener;
+                description
+                    "UDP+TCP listen endpoints. Each named entry binds one IP
+                     (IPv4 or IPv6) and port; repeat with the same port for a
+                     dual-stack pair. Defaults to 127.0.0.1:5300 and ::1:5300
+                     when no entry is configured. The ze:listener marking
+                     enables config-time port-conflict detection across services.";
+
+                leaf name {
+                    type string {
+                        length "1..255";
+                    }
+                    description "Listener instance name";
+                }
+
+                uses zt:listener {
+                    refine ip {
+                        default "127.0.0.1";
+                    }
+                    refine port {
+                        default 5300;
+                    }
+                }
+            }
+
+            leaf default-ttl {
+                type uint32 {
+                    range "1..2147483647";
+                }
+                default 300;
+                description "Default record TTL (seconds) when a host omits its own. 1..2147483647 (RFC 2181 section 8); a zero default is not allowed.";
+            }
+
+            leaf client-ip-source {
+                type enumeration {
+                    enum edns0 {
+                        description "Use only the EDNS0 client-subnet option (RFC 7871); no answer without it";
+                    }
+                    enum packet {
+                        description "Use the UDP/TCP packet source IP";
+                    }
+                    enum edns0-then-packet {
+                        description "Prefer EDNS0 client-subnet, fall back to the packet source IP";
+                    }
+                }
+                default "edns0-then-packet";
+                description "Where the client IP used for source selection is read from";
+            }
+
+            leaf-list zone {
+                type string {
+                    length "1..255";
+                }
+                description "Zones served (FQDN). A query name must end in one of these.";
+            }
+
+            leaf-list nameserver {
+                type zt:ipv4-address;
+                max-elements 9;
+                description "Nameserver IPv4 addresses; ns1..nsN.<zone> A glue is synthesised (max 9)";
+            }
+
+            container soa {
+                description "SOA record fields (synthesised; geodns serves no AXFR)";
+
+                leaf mname {
+                    type string {
+                        length "1..255";
+                    }
+                    description "Primary nameserver (SOA MNAME). Defaults to ns1.<first-zone> when unset.";
+                }
+                leaf contact {
+                    type string {
+                        length "1..255";
+                    }
+                    default "hostmaster";
+                    description "Responsible-party mailbox label (SOA RNAME), e.g. hostmaster";
+                }
+                leaf serial-mode {
+                    type enumeration {
+                        enum auto-epoch {
+                            description "max(Unix seconds at commit, previous serial + 1); strictly increases at any rate";
+                        }
+                        enum auto-datetime {
+                            description "YYYYMMDDnn (RFC 1912); capped at 100 revisions/day by the 32-bit serial";
+                        }
+                        enum fixed {
+                            description "Use the serial leaf verbatim";
+                        }
+                    }
+                    default "auto-epoch";
+                    description "How the 32-bit SOA serial is generated";
+                }
+                leaf serial {
+                    type uint32;
+                    description "SOA serial used when serial-mode is fixed";
+                }
+                leaf refresh {
+                    type uint32;
+                    default 3600;
+                    description "SOA refresh seconds";
+                }
+                leaf retry {
+                    type uint32;
+                    default 600;
+                    description "SOA retry seconds";
+                }
+                leaf expire {
+                    type uint32;
+                    default 300;
+                    description "SOA expire seconds";
+                }
+                leaf minimum {
+                    type uint32;
+                    default 300;
+                    description "SOA minimum / negative-cache TTL seconds";
+                }
+            }
+
+            list host-set {
+                key "name";
+                description "Named, reusable set of host records; referenced by source entries";
+
+                leaf name {
+                    type string {
+                        length "1..255";
+                    }
+                    description "Host-set name (referenced by source/host-set)";
+                }
+
+                list host {
+                    key "name";
+                    description "A hostname and its records";
+
+                    leaf name {
+                        type string {
+                            length "1..255";
+                        }
+                        description "Fully-qualified hostname (must end in a configured zone)";
+                    }
+                    leaf ttl {
+                        type uint32 {
+                            range "0..2147483647";
+                        }
+                        description "Record TTL; defaults to default-ttl when unset";
+                    }
+                    leaf type {
+                        type enumeration {
+                            enum A;
+                            enum AAAA;
+                            enum SRV;
+                        }
+                        description "Record type; omit to auto-detect A vs AAAA per address";
+                    }
+                    leaf-list address {
+                        type zt:ip-address;
+                        description "One or more A/AAAA addresses (v4 => A, v6 => AAAA when type omitted)";
+                    }
+                    container srv {
+                        description "SRV record fields (when type is SRV)";
+                        leaf priority {
+                            type uint16;
+                            description "SRV priority";
+                        }
+                        leaf weight {
+                            type uint16;
+                            description "SRV weight";
+                        }
+                        leaf port {
+                            type uint16;
+                            description "SRV port";
+                        }
+                        leaf target {
+                            type string {
+                                length "1..255";
+                            }
+                            description "SRV target hostname";
+                        }
+                    }
+                }
+            }
+
+            list source {
+                key "prefix";
+                description
+                    "Maps a client-IP prefix to a host-set. Longest prefix wins;
+                     0.0.0.0/0 and ::/0 are the catch-all (external) default.";
+
+                leaf prefix {
+                    type zt:ip-prefix;
+                    description "Client source prefix in CIDR (e.g. 82.219.0.0/16, 82.219.4.10/32, 0.0.0.0/0)";
+                }
+                leaf host-set {
+                    type string {
+                        length "1..255";
+                    }
+                    description "Name of the host-set to answer for clients matching this prefix";
+                }
+            }
+        }
+    }
+}
