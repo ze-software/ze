@@ -56,10 +56,17 @@ func (s *pppSession) runNCPPhase() bool {
 		s.logger.Info("ppp: IPCP FSM started, entering loop", "state", s.ipcpState.String())
 	}
 	if ipv6cpEnabled {
-		if !s.requestIPv6CPInterfaceID() {
+		ok, declined := s.requestIPv6CPInterfaceID()
+		if !ok {
 			return false
 		}
-		if !s.startNCP(AddressFamilyIPv6) {
+		if declined {
+			// The handler has no IPv6 for this session (e.g. an
+			// IPv4-only pool). Drop IPv6CP and continue with IPv4 only;
+			// an independent NCP must not tear down a good session.
+			s.disableIPv6CP = true
+			ipv6cpEnabled = false
+		} else if !s.startNCP(AddressFamilyIPv6) {
 			return false
 		}
 	}
@@ -164,12 +171,21 @@ func (s *pppSession) requestIPCPAddresses() bool {
 // requestIPv6CPInterfaceID generates a local 8-byte identifier (crypto/
 // rand), emits EventIPRequest for IPv6, and honors a non-zero
 // PeerInterfaceID override from the handler.
-func (s *pppSession) requestIPv6CPInterfaceID() bool {
+//
+// Returns (ok, declined):
+//   - ok=false: hard failure (interface-id generation, IP-decision
+//     timeout, or stop); the caller tears the session down.
+//   - declined=true: the handler has no IPv6 to offer this session (e.g.
+//     an IPv4-only pool). IPv6CP is an independent NCP (RFC 5072; RFC
+//     1661 §2 runs each Network-Layer Protocol separately), so the
+//     caller drops IPv6CP and keeps an otherwise-good IPv4 session
+//     rather than failing the whole session.
+func (s *pppSession) requestIPv6CPInterfaceID() (ok, declined bool) {
 	id, err := generateIPv6CPInterfaceID()
 	if err != nil {
 		var tb textbuf.Buffer
 		s.fail(tb.Str("ipv6cp: interface-id generation: ").Err(err).String())
-		return false
+		return false, false
 	}
 	s.localInterfaceID = id
 	req := EventIPRequest{
@@ -179,17 +195,17 @@ func (s *pppSession) requestIPv6CPInterfaceID() bool {
 	}
 	msg, ok := s.awaitIPDecision(req, AddressFamilyIPv6)
 	if !ok {
-		return false
+		return false, false
 	}
 	if !msg.accept {
-		var tb textbuf.Buffer
-		s.fail(tb.Str("ipv6cp: handler rejected: ").Str(msg.reason).String())
-		return false
+		s.logger.Info("ppp: IPv6CP declined by handler, continuing IPv4-only",
+			"reason", msg.reason)
+		return true, true
 	}
 	if msg.hasPeerInterface {
 		s.peerInterfaceID = msg.peerInterfaceID
 	}
-	return true
+	return true, false
 }
 
 // awaitIPDecision emits req on ipEventsOut and waits for a matching-

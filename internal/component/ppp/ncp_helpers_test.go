@@ -50,6 +50,14 @@ func newNCPTestDriver(t *testing.T) *ncpTestDriver {
 // merged into the StartSession.
 func newNCPTestDriverCfg(t *testing.T, overrides *StartSession) *ncpTestDriver {
 	t.Helper()
+	return newNCPTestDriverIP(t, overrides, autoAcceptIP)
+}
+
+// newNCPTestDriverIP is newNCPTestDriverCfg with a caller-supplied IP
+// responder, so a test can model a handler that accepts IPv4 but declines
+// IPv6 (an IPv4-only pool).
+func newNCPTestDriverIP(t *testing.T, overrides *StartSession, ipFn func(*Driver)) *ncpTestDriver {
+	t.Helper()
 	reg := newPipeRegistry()
 	installPipeRegistry(t, reg)
 	const fd = 5001
@@ -60,7 +68,7 @@ func newNCPTestDriverCfg(t *testing.T, overrides *StartSession) *ncpTestDriver {
 	backend := &fakeBackend{}
 	ops, _, _ := newFakeOps()
 	d := makeTestDriver(backend, ops)
-	go autoAcceptIP(d)
+	go ipFn(d)
 	if err := d.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
@@ -179,6 +187,32 @@ func autoAcceptIP(d *Driver) {
 			args.DNSSecondary = ipcpTestDNS2
 		case AddressFamilyIPv6:
 			// Accept peer's chosen identifier.
+		}
+		_ = d.IPResponse(req.TunnelID, req.SessionID, args) //nolint:errcheck // ignore teardown race
+	}
+}
+
+// autoAcceptIPv4RejectIPv6 models an IPv4-only pool: it assigns IPv4 but
+// rejects every IPv6 request (the exact shape that l2tppool returns for a
+// static pool without an IPv6 range). Used to prove the session survives
+// an IPv6CP rejection. Runs until IPEventsOut is closed (Driver.Stop).
+func autoAcceptIPv4RejectIPv6(d *Driver) {
+	for ev := range d.IPEventsOut() {
+		req, ok := ev.(EventIPRequest)
+		if !ok {
+			continue
+		}
+		args := IPResponseArgs{Family: req.Family}
+		switch req.Family {
+		case AddressFamilyIPv4:
+			args.Accept = true
+			args.Local = ipcpTestLocal
+			args.Peer = ipcpTestPeer
+			args.DNSPrimary = ipcpTestDNS1
+			args.DNSSecondary = ipcpTestDNS2
+		case AddressFamilyIPv6:
+			args.Accept = false
+			args.Reason = "IPv6 not supported by static pool"
 		}
 		_ = d.IPResponse(req.TunnelID, req.SessionID, args) //nolint:errcheck // ignore teardown race
 	}

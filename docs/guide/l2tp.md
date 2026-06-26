@@ -119,7 +119,12 @@ PPP negotiation proceeds through these phases:
 3. **IPCP** (RFC 1332) -- IPv4 address assignment + DNS options (RFC 1877).
    Dispatched to the registered pool handler (l2tp-pool plugin).
 4. **IPv6CP** (RFC 5072) -- interface identifier negotiation. Runs in
-   parallel with IPCP when both NCPs are enabled.
+   parallel with IPCP when both NCPs are enabled. NCPs are independent
+   (RFC 1661 S2): if the pool handler declines IPv6 (for example an
+   IPv4-only static pool), IPv6CP is dropped and the session stays up
+   with IPv4 alone rather than being torn down.
+
+<!-- source: internal/component/ppp/ncp.go -- requestIPv6CPInterfaceID declined path -->
 
 Each phase has a configurable timeout. LCP proxy (RFC 2661 S18) is
 supported: when the LAC provides proxy LCP AVPs, ze validates them

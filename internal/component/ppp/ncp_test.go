@@ -204,6 +204,31 @@ func TestSingleNCPCompletes(t *testing.T) {
 	}
 }
 
+// VALIDATES: an IPv6CP rejection by the handler (e.g. an IPv4-only
+//
+//	static pool returning "IPv6 not supported by static pool") does NOT
+//	tear the session down; IPCP/IPv4 still reaches EventSessionUp.
+//	IPv6CP is an independent NCP (RFC 5072; RFC 1661 §2).
+//
+// PREVENTS: regression of the L2TP boot-evidence failure where the
+//
+//	IPv6CP-reject path called s.fail and flapped the whole session
+//	(reason="ipv6cp: handler rejected: IPv6 not supported by static
+//	pool"), even though IPCP had already negotiated 10.x addresses.
+func TestIPv6CPRejectionKeepsIPv4Session(t *testing.T) {
+	// Both NCPs enabled; the handler accepts IPv4 and rejects IPv6.
+	td := newNCPTestDriverIP(t, &StartSession{}, autoAcceptIPv4RejectIPv6)
+	defer td.cleanup()
+
+	// IPv6 is declined, so the driver drops IPv6CP and never emits an
+	// IPv6CP CONFREQ -- the sequential IPCP peer is sufficient.
+	td.completeIPCP(t)
+
+	if _, ok := waitForEventOfType[EventSessionUp](t, td.driver.EventsOut(), 2*time.Second); !ok {
+		t.Fatal("no EventSessionUp: an IPv6CP rejection must not tear down the IPv4 session")
+	}
+}
+
 // VALIDATES: AC-17 -- no IPResponse within ip-timeout fires
 //
 //	EventSessionDown.

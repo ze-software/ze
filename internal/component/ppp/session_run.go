@@ -658,13 +658,18 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 		}
 		return s.handleIPCPPacket(pkt)
 	case ProtoIPv6CP:
+		// Disabled takes precedence over the early-frame buffer: once
+		// IPv6CP is dropped (config, or handler-declined IPv6 in
+		// runNCPPhase), the peer keeps retransmitting CONFREQ -- buffering
+		// those into earlyNCPFrames would grow unbounded since the NCP
+		// never starts to drain them. Drop them instead.
+		if s.disableIPv6CP {
+			return false
+		}
 		if s.ipv6cpState == LCPStateInitial {
 			buf := make([]byte, len(frame))
 			copy(buf, frame)
 			s.earlyNCPFrames = append(s.earlyNCPFrames, buf)
-			return false
-		}
-		if s.disableIPv6CP {
 			return false
 		}
 		if perr != nil {
