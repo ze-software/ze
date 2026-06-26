@@ -87,6 +87,9 @@ spec building on the previous.
 | Maintenance windows | Requires alerting integration not yet in Ze. Future spec |
 | Fleet-wide rollback | Achievable as staged rollout with 100% targeting + previous config version. No separate mechanism needed |
 | External metrics aggregation | Operators already use Prometheus. Fleet provides the scrape target list, not a replacement metrics store |
+| Web per-device command routing | Hub proxying HTTP to a selected device over the persistent channel (for NAT'd CPE). High value but a separate spec; today's web fleet selector is UI-only links to each device's own URL |
+| Dynamic enrollment + device identity | Runtime device approval and mTLS / cert-bound identity replacing the pre-declared shared secret (extends the PKI/cert-lifecycle row). Deferred; the shared secret is sufficient for the freeze/resolution step |
+| Bidirectional config sync | Continuous two-way merge. Replaced for now by single-writer plus an operator-gated `config-push` at divergence (`fleet-7`); full bidirectional sync stays out of scope |
 
 ### Child Specs
 
@@ -104,8 +107,12 @@ Phases 2, 3, and 4 are independent of each other (all depend only on fleet-1) an
 
 ### Direction Update (2026-06-26): Single-Writer Config, Emergency Disable, Reconnect Resolution
 
-A review of the fleet direction (`fleet-direction-review.md` at repo root) settled the open
-transport/auth/sync questions and added two child specs. Decisions:
+A review of the fleet direction settled the open transport/auth/sync questions and added two
+child specs. Key reframing: the proposed permanent SSH tunnel from router to hub is an
+implementation choice, not a new capability. Ze already has a persistent, authenticated,
+NAT-traversing channel (the managed TLS connection), so the new requirements are additive on top
+of it; SSH is not adopted, as it would mean building reverse-tunnel support Ze does not have.
+Decisions:
 
 | Topic | Decision |
 |-------|----------|
