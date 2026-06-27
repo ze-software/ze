@@ -27,7 +27,7 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 
 ## Steps
 
-1. **Read the spec:** Read `tmp/session/selected-spec`, then read `plan/<spec-name>`
+1. **Read the spec:** Run `scripts/dev/spec-session.sh current` to find this session's spec. If empty, use the spec named in the conversation and claim it with `scripts/dev/spec-session.sh claim <spec-name>`. Then read `plan/<spec-name>`.
 2. **Update spec status (BLOCKING -- do this FIRST, before any other work):**
    Edit the spec file NOW: set `Status` to `in-progress`, `Phase` to `1/N`, `Updated` to today.
    This is the FIRST action after reading. Not after audit, not after implementation, not at the end.
@@ -120,7 +120,7 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
        Number NNN: read `plan/learned/.counter` (contains the next available number).
        Use the extraction recipe: Context from Task + Current Behavior, Decisions from Key Design Decisions + annotations, Consequences from Design Insights + Limitations, Gotchas from Deviations + Mistake Log.
     b. Update `ai/LEARNED-INDEX.md` if the summary contains a structural decision (not just task completion).
-    c. Remove your line from `tmp/session/selected-spec`.
+    c. Release this session's spec claim: `scripts/dev/spec-session.sh release`.
     d. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
     e. Prepare ONE commit script with `scripts/dev/commit_helper.py` that produces TWO commits:
        - **Commit A (implementation + spec):** run `scripts/dev/commit_helper.py create --replace` with `--file` for every implementation file (code, tests, docs, schema), `plan/learned/NNN-<spec-stem>.md`, `plan/learned/.counter`, `ai/LEARNED-INDEX.md` if updated, and `plan/<spec-name>` to preserve all implementation edits in git history.

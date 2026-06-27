@@ -13,7 +13,7 @@ See also: `/ze-audit` (pre-impl: what already exists?), `/ze-review` (code quali
 
 ## Steps
 
-1. **Read the spec:** Read `tmp/session/selected-spec`, then read `plan/<spec-name>`
+1. **Read the spec:** Run `scripts/dev/spec-session.sh current`, then read `plan/<spec-name>`
 2. **Check git history:** Run `git log --oneline -20` -- avoid proposing work that's already done
 3. **Validate requirements:** For every AC in the spec, find the implementation (file:line). Is it correct? Complete?
 4. **Check test existence:** For every test in the TDD Plan, verify it exists with the exact name listed. If renamed, note the actual name.

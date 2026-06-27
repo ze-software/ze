@@ -11,7 +11,7 @@ See also: `/ze-debrief` (deep dive on current session/spec)
 
 ## Steps
 
-1. **Selected spec:** Read `tmp/session/selected-spec`. If set, read spec metadata (Status, Phase, Updated).
+1. **Selected spec:** Run `scripts/dev/spec-session.sh current`. If set, read spec metadata (Status, Phase, Updated).
 2. **Open specs:** Scan `plan/spec-*.md` for all specs. For each, extract Status from metadata table. Present:
 
 | Spec | Status | Updated |

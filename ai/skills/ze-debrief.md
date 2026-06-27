@@ -11,7 +11,7 @@ See also: `/ze-status` (wider cross-project view), `/ze-handoff` (prepare for ne
 
 ## Steps
 
-1. **Selected spec:** Read `tmp/session/selected-spec`. If a spec is selected, read it and extract:
+1. **Selected spec:** Run `scripts/dev/spec-session.sh current`. If a spec is selected, read it and extract:
    - Spec title and metadata (Status, Phase, Depends)
    - Task section (what the work aims to achieve)
    - Acceptance Criteria summary (total count, how many have evidence)

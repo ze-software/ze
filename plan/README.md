@@ -30,5 +30,5 @@ commit B: `git rm` the spec). Completed knowledge survives as
 - `/ze-status` shows a cross-project attention view (statuses, stalls).
 - `/ze-spec` creates or evolves a spec; `/ze-implement` executes one;
   `/ze-review` runs the completion gate.
-- Session spec selection is tracked in `tmp/session/selected-spec`
-  (see `.claude/rules/planning.md`).
+- Each session records its spec in its own marker via
+  `scripts/dev/spec-session.sh` (see `.claude/rules/planning.md`).

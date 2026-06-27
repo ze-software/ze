@@ -1,6 +1,6 @@
 #!/bin/bash
 # SessionStart hook - compact status summary with rule reminders
-# Creates per-session marker file mapping session to its spec.
+# Reads this session's spec from its own marker (set via scripts/dev/spec-session.sh).
 
 cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || cd "$(dirname "$0")/../.."
 
@@ -14,62 +14,19 @@ _cleanup_stale_markers
 find tmp/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
 find tmp/session/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
 
-# --- Claim spec for this session ---
-# Read all specs from selected-spec
+# --- Read this session's claimed spec (set via scripts/dev/spec-session.sh) ---
+# Each session records its spec in its OWN marker; there is no shared file, so
+# many agents editing main concurrently never collide. The marker is written
+# when work begins (skills call `spec-session.sh claim`), not at session start,
+# so a brand-new session has no spec until it claims one.
 mkdir -p tmp/session
-SELECTED_SPECS=$(grep -v '^#' tmp/session/selected-spec 2>/dev/null | grep -v '^$')
-SELECTED_COUNT=$(echo "$SELECTED_SPECS" | grep -c . 2>/dev/null || true)
-
-# Find which specs are already claimed by other sessions
-UNCLAIMED=""
-while IFS= read -r spec; do
-    [ -z "$spec" ] && continue
-    CLAIMED=false
-    for marker in tmp/session/.session-*; do
-        [ -f "$marker" ] || continue
-        if [ "$(head -1 "$marker" 2>/dev/null)" = "$spec" ]; then
-            CLAIMED=true
-            break
-        fi
-    done
-    if [ "$CLAIMED" = false ]; then
-        UNCLAIMED="${UNCLAIMED:+$UNCLAIMED
-}$spec"
-    fi
-done <<< "$SELECTED_SPECS"
-
-UNCLAIMED_COUNT=$(echo "$UNCLAIMED" | grep -c . 2>/dev/null || true)
-
-# If exactly one unclaimed spec, claim it automatically
-if [ "$UNCLAIMED_COUNT" -eq 1 ]; then
-    _claim_spec "$(echo "$UNCLAIMED" | head -1)"
-elif [ "$UNCLAIMED_COUNT" -eq 0 ] && [ "$SELECTED_COUNT" -eq 1 ]; then
-    # Only one spec total and it may be ours (re-attached session)
-    _claim_spec "$(echo "$SELECTED_SPECS" | head -1)"
-else
-    # Multiple unclaimed or zero specs: create empty marker, AI will claim later
-    _claim_spec "unassigned"
-fi
-
-# --- Auto-transition spec status to in-progress when claimed ---
 SID_CHECK=$(_session_id)
 MARKER_CHECK="tmp/session/.session-${SID_CHECK}"
-CLAIMED_SPEC_NAME=""
+CLAIMED_SPEC=""
 if [ -f "$MARKER_CHECK" ]; then
-    CLAIMED_SPEC_NAME=$(head -1 "$MARKER_CHECK" 2>/dev/null)
+    CLAIMED_SPEC=$(head -1 "$MARKER_CHECK" 2>/dev/null)
 fi
-if [ -n "$CLAIMED_SPEC_NAME" ] && [ "$CLAIMED_SPEC_NAME" != "unassigned" ]; then
-    SPEC_FILE="plan/$CLAIMED_SPEC_NAME"
-    if [ -f "$SPEC_FILE" ]; then
-        SPEC_STATUS=$(sed -n 's/^| Status | *\([a-z-]*\).*/\1/p' "$SPEC_FILE" | head -1)
-        if [ "$SPEC_STATUS" = "ready" ]; then
-            TODAY=$(date +%Y-%m-%d)
-            sed -i '' "s/^| Status | *ready.*/| Status | in-progress |/" "$SPEC_FILE"
-            sed -i '' "s/^| Updated | *[0-9-]*.*/| Updated | $TODAY |/" "$SPEC_FILE"
-            echo "Status: $CLAIMED_SPEC_NAME: ready -> in-progress"
-        fi
-    fi
-fi
+[ "$CLAIMED_SPEC" = "unassigned" ] && CLAIMED_SPEC=""
 
 # --- Display status ---
 
@@ -88,17 +45,11 @@ fi
 # Spec display
 SPEC_COUNT=$(find plan -maxdepth 1 -name "spec-*.md" 2>/dev/null | wc -l | tr -d ' ')
 
-if [ "$SELECTED_COUNT" -gt 1 ]; then
-    echo "Warning: ${SELECTED_COUNT} Claude sessions active on specs:"
-    echo "$SELECTED_SPECS" | while read -r spec; do
-        [ -f "plan/$spec" ] && echo "   - $spec" || echo "   - $spec (missing)"
-    done
-    echo "   -> READ your spec BEFORE any work"
-elif [ "$SELECTED_COUNT" -eq 1 ] && [ -f "plan/$SELECTED_SPECS" ]; then
-    echo "SPEC: $SELECTED_SPECS (+$((SPEC_COUNT-1)) others)"
-    echo "   -> READ plan/$SELECTED_SPECS BEFORE any work"
+if [ -n "$CLAIMED_SPEC" ] && [ -f "plan/$CLAIMED_SPEC" ]; then
+    echo "SPEC: $CLAIMED_SPEC (+$((SPEC_COUNT-1)) others)"
+    echo "   -> READ plan/$CLAIMED_SPEC BEFORE any work"
 elif [ "$SPEC_COUNT" -gt 0 ]; then
-    echo "${SPEC_COUNT} specs, none selected"
+    echo "${SPEC_COUNT} specs, none claimed by this session"
 fi
 
 # Spec status summary (compact counts by status)
@@ -117,20 +68,12 @@ STATE_FILE=$(_state_file)
 FOUND_STATE=""
 if [ -f "$STATE_FILE" ]; then
     FOUND_STATE="$STATE_FILE"
-else
+elif [ -n "$CLAIMED_SPEC" ]; then
     # Look for a previous session's state for the same spec
-    SID=$(_session_id)
-    MARKER="tmp/session/.session-${SID}"
-    CLAIMED_SPEC=""
-    if [ -f "$MARKER" ]; then
-        CLAIMED_SPEC=$(head -1 "$MARKER" 2>/dev/null)
-    fi
-    if [ -n "$CLAIMED_SPEC" ] && [ "$CLAIMED_SPEC" != "unassigned" ]; then
-        STEM=$(echo "$CLAIMED_SPEC" | sed 's/^spec-//; s/\.md$//')
-        PREV=$(_find_latest_state_for_spec "$STEM")
-        if [ -n "$PREV" ]; then
-            FOUND_STATE="$PREV"
-        fi
+    STEM=$(echo "$CLAIMED_SPEC" | sed 's/^spec-//; s/\.md$//')
+    PREV=$(_find_latest_state_for_spec "$STEM")
+    if [ -n "$PREV" ]; then
+        FOUND_STATE="$PREV"
     fi
 fi
 
@@ -160,7 +103,7 @@ echo "Warning:   See .claude/rules/session-start.md 'LSP Load (step 1) -- no-exc
 echo "Warning: RULE: Read spec + source files BEFORE writing any code"
 echo "Rules: ai/rules/INDEX.md is a one-line overview of every rule -- scan it, read the listed file in full before acting on a topic it covers"
 
-# Suggest /ze-status when no spec is selected
-if [ "$SELECTED_COUNT" -eq 0 ] && [ "$SPEC_COUNT" -gt 0 ]; then
+# Suggest /ze-status when this session has no spec claimed
+if [ -z "$CLAIMED_SPEC" ] && [ "$SPEC_COUNT" -gt 0 ]; then
     echo "Tip: /ze-status for a cross-project attention view"
 fi

@@ -13,7 +13,9 @@ if echo "$MESSAGE" | grep -q "continued from a previous conversation" && \
     SID=$(_session_id)
     mkdir -p tmp/session
     echo "$(date -Iseconds)" > "tmp/session/.compaction-detected-${SID}"
-    SELECTED_SPEC=$(grep -v '^#' tmp/session/selected-spec 2>/dev/null | grep -v '^$' | tail -1 | tr -d '[:space:]')
+    SELECTED_SPEC=""
+    [ -f "tmp/session/.session-${SID}" ] && SELECTED_SPEC=$(head -1 "tmp/session/.session-${SID}" 2>/dev/null | tr -d '[:space:]')
+    [ "$SELECTED_SPEC" = "unassigned" ] && SELECTED_SPEC=""
 
     # Compact output to stderr (no tokens)
     echo "🔄 COMPACTION: Read .claude/rules/post-compaction.md" >&2

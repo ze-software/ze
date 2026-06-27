@@ -4,9 +4,18 @@ Extends `ai/rules/planning.md` with Claude Code session management.
 
 ## Spec Selection Tracking
 
-Tracked in `tmp/session/selected-spec` (one filename per line).
-**Append** your spec filename when selecting. **Remove your line** after writing summary to `plan/learned/`.
-Multiple lines means multiple Claude sessions are working concurrently -- do not overwrite their entries.
+Each session records the spec it is working on in its OWN per-session marker via
+`scripts/dev/spec-session.sh`. There is no shared file, so many agents editing
+main concurrently never collide -- nothing to append, nothing to remove.
+
+| Action | Command |
+|--------|---------|
+| Claim the spec you are about to work on | `scripts/dev/spec-session.sh claim <spec-file>` |
+| Read this session's claimed spec | `scripts/dev/spec-session.sh current` |
+| Release the claim when the spec is closed | `scripts/dev/spec-session.sh release` |
+
+`claim` also auto-transitions a `ready` spec to `in-progress`. The marker drives
+the per-session state file name and post-compaction recovery.
 
 ## Plan File Location
 

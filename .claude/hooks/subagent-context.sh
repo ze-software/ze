@@ -5,12 +5,6 @@
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT_DIR="$(cd "$DIR/.." && pwd)"
 
-# Selected spec (if any)
-SPEC=""
-if [ -f "$PROJECT_DIR/tmp/session/selected-spec" ]; then
-  SPEC=$(cat "$PROJECT_DIR/tmp/session/selected-spec" 2>/dev/null | tr -d '[:space:]')
-fi
-
 # Current branch
 BRANCH=$(git -C "$PROJECT_DIR" branch --show-current 2>/dev/null || echo "unknown")
 
@@ -26,7 +20,3 @@ Ze is a Network OS in Go (BGP, CLI, web, plugins). Key constraints:
 - Rules: ai/rules/ (buffer-first.md, design-principles.md, plugin-design.md)
 - Branch: $BRANCH
 EOF
-
-if [ -n "$SPEC" ] && [ -f "$PROJECT_DIR/plan/$SPEC" ]; then
-  echo "- Spec: $SPEC"
-fi
