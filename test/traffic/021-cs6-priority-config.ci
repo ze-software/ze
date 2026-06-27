@@ -1,0 +1,73 @@
+# Test: CS6 priority class with named DSCP value parses correctly.
+# VALIDATES: spec-cp-survival-3 AC-6 -- config "match dscp cs6" (named)
+#            is parsed to DSCP value 48 and accepted by the tc backend.
+# PREVENTS: regression where named DSCP values are rejected by the parser.
+
+tmpfs=wait.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import time
+
+time.sleep(2.5)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+
+traffic-control {
+	backend tc
+	interface eth0 {
+		qdisc {
+			type htb
+			default-class default
+			class control {
+				rate 10mbit
+				ceil 100mbit
+				priority 0
+				match dscp {
+					value cs6
+				}
+			}
+			class default {
+				rate 90mbit
+				ceil 100mbit
+				priority 1
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.traffic:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=traffic-control config applied

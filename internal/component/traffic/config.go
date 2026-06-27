@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/dscp"
 )
 
 var errEmptyFilterValue = errors.New("empty filter value")
@@ -171,10 +173,19 @@ func parseFilterValue(ft FilterType, v string) (uint32, error) {
 	switch ft { //nolint:exhaustive // filterUnknown rejected by ParseFilterType before reaching here
 	case FilterMark:
 		return parseHexOrDec(v)
-	case FilterDSCP, FilterProtocol:
-		n, err := strconv.ParseUint(v, 10, 32)
+	case FilterDSCP:
+		n, err := dscp.Parse(v)
 		if err != nil {
-			return 0, fmt.Errorf("invalid value %q: %w", v, err)
+			return 0, fmt.Errorf("filter dscp: %w", err)
+		}
+		return uint32(n), nil
+	case FilterProtocol:
+		n, err := strconv.ParseUint(v, 10, 16)
+		if err != nil {
+			return 0, fmt.Errorf("invalid protocol %q: %w", v, err)
+		}
+		if n > 255 {
+			return 0, fmt.Errorf("protocol value %d out of range (0-255)", n)
 		}
 		return uint32(n), nil
 	case filterUnknown:

@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/dscp"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -787,29 +788,8 @@ func parseUint32(s string) (uint32, error) {
 	return uint32(n), nil
 }
 
-// dscpNames maps symbolic DSCP names to numeric values.
-var dscpNames = map[string]uint8{
-	"ef":   46,
-	"af11": 10, "af12": 12, "af13": 14,
-	"af21": 18, "af22": 20, "af23": 22,
-	"af31": 26, "af32": 28, "af33": 30,
-	"af41": 34, "af42": 36, "af43": 38,
-	"cs0": 0, "cs1": 8, "cs2": 16, "cs3": 24,
-	"cs4": 32, "cs5": 40, "cs6": 48, "cs7": 56,
-}
-
 func parseDSCP(v string) (uint8, error) {
-	if n, ok := dscpNames[strings.ToLower(v)]; ok {
-		return n, nil
-	}
-	n, err := strconv.ParseUint(v, 10, 8)
-	if err != nil {
-		return 0, fmt.Errorf("invalid dscp %q", v)
-	}
-	if n > 63 {
-		return 0, fmt.Errorf("dscp value %d out of range (0-63)", n)
-	}
-	return uint8(n), nil
+	return dscp.Parse(v)
 }
 
 // byteRateMultiplier encodes the {value-less} prefix multiplier for the

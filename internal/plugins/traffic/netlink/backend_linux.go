@@ -126,12 +126,14 @@ func (b *backend) applyInterface(link netlink.Link, qos *traffic.InterfaceQoS) e
 		// Add filters for this class.
 		classHandle := class.Attrs().Handle
 		for _, f := range tc.Filters {
-			filter, err := translateFilter(f, linkIdx, rootHandle, classHandle)
+			filters, err := translateFilter(f, linkIdx, rootHandle, classHandle)
 			if err != nil {
 				return fmt.Errorf("class %q filter: %w", tc.Name, err)
 			}
-			if err := b.ops.filterAdd(filter); err != nil {
-				return fmt.Errorf("class %q filter add: %w", tc.Name, err)
+			for _, filter := range filters {
+				if err := b.ops.filterAdd(filter); err != nil {
+					return fmt.Errorf("class %q filter add: %w", tc.Name, err)
+				}
 			}
 		}
 	}

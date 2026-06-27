@@ -84,3 +84,45 @@ func TestParseTrafficInvalidRate(t *testing.T) {
 		t.Fatal("expected error for invalid rate")
 	}
 }
+
+func TestParseTrafficNamedDSCP(t *testing.T) {
+	data := `{"traffic-control":{"interface":{"eth0":{"qdisc":{"type":"htb","default-class":"default","class":{"control":{"rate":"10mbit","ceil":"100mbit","priority":"0","match":{"dscp":{"value":"cs6"}}},"default":{"rate":"90mbit","ceil":"100mbit","priority":"1"}}}}}}}`
+	qosMap, err := ParseTrafficConfig(data)
+	if err != nil {
+		t.Fatalf("ParseTrafficConfig: %v", err)
+	}
+	qos := qosMap["eth0"]
+	for _, cls := range qos.Qdisc.Classes {
+		if cls.Name != "control" {
+			continue
+		}
+		if len(cls.Filters) != 1 {
+			t.Fatalf("control class: got %d filters, want 1", len(cls.Filters))
+		}
+		f := cls.Filters[0]
+		if f.Type != FilterDSCP {
+			t.Fatalf("filter type = %v, want FilterDSCP", f.Type)
+		}
+		if f.Value != 48 {
+			t.Errorf("filter value = %d, want 48 (cs6)", f.Value)
+		}
+		return
+	}
+	t.Fatal("control class not found")
+}
+
+func TestParseTrafficDSCPRejectsOutOfRange(t *testing.T) {
+	data := `{"traffic-control":{"interface":{"eth0":{"qdisc":{"type":"htb","class":{"c":{"rate":"10mbit","match":{"dscp":{"value":"64"}}}}}}}}}`
+	_, err := ParseTrafficConfig(data)
+	if err == nil {
+		t.Fatal("expected error for dscp value 64")
+	}
+}
+
+func TestParseTrafficProtocolRejectsOutOfRange(t *testing.T) {
+	data := `{"traffic-control":{"interface":{"eth0":{"qdisc":{"type":"htb","class":{"c":{"rate":"10mbit","match":{"protocol":{"value":"256"}}}}}}}}}`
+	_, err := ParseTrafficConfig(data)
+	if err == nil {
+		t.Fatal("expected error for protocol value 256")
+	}
+}
