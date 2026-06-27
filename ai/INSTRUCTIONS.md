@@ -51,6 +51,15 @@
 
 # Ze - {{TOOL}} Instructions
 
+## Verify before you claim
+
+Before stating what code does, or recommending work premised on a behavioral
+claim, cite the function that PRODUCES the behavior as `file:line`. Reading a
+value's caller and inferring its producer is not evidence; read the producer.
+If you cannot cite it, label the claim "unverified" and do not recommend work
+on it. A coherent story is a hypothesis, not a finding. Full rule:
+`ai/rules/no-fabrication.md`.
+
 ## Core Architecture
 
 Ze is a **Network OS** in Go with its own BGP implementation and interface configuration. "Ze" = "The" with a French accent (predecessor: ExaBGP).
@@ -60,13 +69,13 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 **Components** (`internal/component/`) are independent unless they explicitly depend on each other; `config`, `command`, and `plugin` are infrastructure components nearly everything uses.
 
 <!-- BEGIN GENERATED: arch-components (scripts/dev/arch_map.py; make ze-regen) -->
-48 directories under `internal/component/`:
+49 directories under `internal/component/`:
 
-aaa, api, audit, authz, bfd, bgp, cli, cmd, command, config, debug, diag,
-doctor, engine, firewall, gnmi, gokrazy, host, hub, iface, ike, ipsec, l2tp,
-lg, managed, mcp, mpls, ping, pki, plugin, ppp, pppoe, pppoeclient, radius,
-resolve, ssh, storage, subscriber, support, sysctl, sysrib, tacacs, telemetry,
-traceroute, traffic, update, vpp, web
+aaa, aihelp, api, audit, authz, bfd, bgp, cli, cmd, command, config, debug,
+diag, doctor, engine, firewall, gnmi, gokrazy, host, hub, iface, ike, ipsec,
+l2tp, lg, managed, mcp, mpls, ping, pki, plugin, ppp, pppoe, pppoeclient,
+radius, resolve, ssh, storage, subscriber, support, sysctl, sysrib, tacacs,
+telemetry, traceroute, traffic, update, vpp, web
 <!-- END GENERATED: arch-components -->
 
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
@@ -75,27 +84,27 @@ traceroute, traffic, update, vpp, web
 68 directories under `internal/plugins/`:
 
 aaa-cmd, completion, config-archive-cmd, config-cli, config-schema,
-config-storage, config-yang, connect, connected, cos, crashes, debug,
+config-storage, config-yang, connect, connected, copp, cos, crashes, debug,
 dhcpserver, diag, env, exabgp, explain, fib, firewall, flowexport,
-flowexport-cmd, flowspec-firewall, gnmi-cmd, host, host-cmd, iface,
+flowexport-cmd, flowspec-firewall, geodns, gnmi-cmd, host, host-cmd, iface,
 ifacenetlink, imageserver, init, isis, kernel, l2tp-cmd, l2tpauthlocal,
-l2tpauthradius, l2tppool, l2tpshaper, ldp, ldp-cmd, local, log, meta,
-mpls-cmd, mrt, ntp, ospf, passwd, ping-cmd, pki-cmd, policyroute, pppoe-cmd,
-provision, resolve-cmd, routingtable, rsvpte, rsvpte-cmd, signal, skills,
-static, storage-cmd, subscriber-cmd, support, systemd, tftpserver,
-traceroute-cmd, traffic, traffic-cmd, trafficusage, update-cmd
+l2tpauthradius, l2tppool, l2tpshaper, ldp, local, log, meta, mpls-cmd, mrt,
+ntp, ospf, passwd, ping-cmd, pki-cmd, policyroute, pppoe-cmd, provision,
+resolve-cmd, routingtable, rsvpte, signal, skills, static, storage-cmd,
+subscriber-cmd, support, systemd, tftpserver, traceroute-cmd, traffic,
+traffic-cmd, trafficusage, update-cmd
 <!-- END GENERATED: arch-system-plugins -->
 
 **BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.
 
 <!-- BEGIN GENERATED: arch-bgp-plugins (scripts/dev/arch_map.py; make ze-regen) -->
-30 directories under `internal/component/bgp/plugins/`:
+31 directories under `internal/component/bgp/plugins/`:
 
 adj_rib_in, aigp, bmp, capa, cmd, filter_aspath, filter_aspath_length,
-filter_community, filter_community_match, filter_irr, filter_modify,
-filter_prefix, filter_remove_private_as, gr, healthcheck, hostname, llnh,
-nlri, persist, redistribute_egress, redistribute_ingress, rib, role,
-route_refresh, rpki, rpki_decorator, rr, rs, softver, watchdog
+filter_community, filter_community_match, filter_family, filter_irr,
+filter_modify, filter_prefix, filter_remove_private_as, gr, healthcheck,
+hostname, llnh, nlri, persist, redistribute_egress, redistribute_ingress, rib,
+role, route_refresh, rpki, rpki_decorator, rr, rs, softver, watchdog
 <!-- END GENERATED: arch-bgp-plugins -->
 
 **CLI** -- SSH-accessible network OS CLI: YANG-modeled config editor with modes, completion, diff, commit, history, dashboard, monitoring.
@@ -147,6 +156,7 @@ means "no rule applies".
 | Start a session | `.claude/rules/session-start.md` |
 | Edit CLAUDE.md, AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/canonical-sources.md` -- never edit generated files; shared rules go in `ai/rules/` |
 | Design or implement anything | `ai/rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
+| Make a behavioral claim about code, or recommend work based on one | `ai/rules/no-fabrication.md` -- cite the producing function `file:line`; read the producer, not the caller; if you can't cite it, label it unverified |
 | Find recurring development friction or problem patterns | `ai/rules/friction-reporting.md` -- report the pattern and decide whether a new or changed rule would prevent it |
 | Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/`, `ai/rules/hook-mapping.md` (which checks will fire) |
 | Add terminal colors or TUI styling | `docs/architecture/cli/color-system.md` -- 7 semantic roles, consistent palette across all surfaces |

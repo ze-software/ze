@@ -1186,25 +1186,37 @@ def c_design_without_lsp(ctx):
     if not (_glob_match(rel, "plan/design-*.md") or _glob_match(rel, "plan/spec-*.md")):
         return None
     sid = session_id()
-    marker = os.path.join(PROJECT_DIR, "tmp/session", f".lsp-invoked-{sid}")
-    if not os.path.isfile(marker):
+    # A spec/design write requires that the implementation was investigated this
+    # session: either the LSP tool was invoked (.lsp-invoked) OR an implementation
+    # source file was read (.source-read). Reading the function that PRODUCES a
+    # behavior is the verification we want before authoring a spec that claims
+    # something about that behavior. See ai/rules/no-fabrication.md.
+    markers = (
+        os.path.join(PROJECT_DIR, "tmp/session", f".lsp-invoked-{sid}"),
+        os.path.join(PROJECT_DIR, "tmp/session", f".source-read-{sid}"),
+    )
+    mtimes = []
+    for marker in markers:
+        try:
+            mtimes.append(os.stat(marker).st_mtime)
+        except OSError:
+            pass
+    if not mtimes:
         return (
             2,
-            "❌ Blocked: LSP has not been invoked in this session.\n"
-            '  Run: ToolSearch query="select:LSP"\n'
-            "  This must be done before editing any spec/design file.",
+            "❌ Blocked: no implementation investigated this session before a spec/design write.\n"
+            "  Before specing a gap, READ the function that PRODUCES the behavior you are\n"
+            "  claiming, not its caller (ai/rules/no-fabrication.md, Behavioral claims).\n"
+            "  Reading any .go under internal/ pkg/ cmd/, or using the LSP tool, satisfies this.",
         )
     fresh = int(os.environ.get("LSP_FRESHNESS_SECONDS", "1800"))
-    try:
-        age = time.time() - os.stat(marker).st_mtime
-        if age > fresh:
-            return (
-                2,
-                "❌ Blocked: LSP invocation is stale.\n"
-                '  Run: ToolSearch query="select:LSP"  (refreshes the marker)',
-            )
-    except Exception:
-        pass
+    if time.time() - max(mtimes) > fresh:
+        return (
+            2,
+            "❌ Blocked: implementation investigation is stale (> %ds).\n"
+            "  Re-read the source that produces the behavior, or use the LSP tool,\n"
+            "  before editing the spec/design file." % fresh,
+        )
     return None
 
 

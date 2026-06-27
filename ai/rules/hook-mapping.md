@@ -19,7 +19,7 @@ functions inside these files, not separate scripts:
 
 Still standalone (single-purpose or deliberately not folded):
 `block-until-lsp.sh`, `validate-spec.sh` (see note below), `mark-lsp-invoked.sh`,
-and the session-lifecycle hooks.
+`mark-source-read.sh`, and the session-lifecycle hooks.
 
 **Changing a check:** edit the function in the relevant dispatcher (not a `.sh`),
 then run `python3 scripts/dev/hook-parity-check.py` to confirm no behaviour
@@ -27,10 +27,13 @@ changed. If you intentionally changed behaviour, re-bless the golden table with
 `python3 scripts/dev/hook-parity-check.py --bless` and paste the result back.
 Also satisfy `ai/rules/discovery-updates.md` so future agents can find it.
 
-**Reads are free:** `Read`, `Grep`, `Glob`, `LSP`, `WebFetch`, `WebSearch` and
-other read-only tools trigger NO hooks. Only mutating/executing tools
-(`Bash`, `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Task`, `Agent`) and
-`ToolSearch` (which loads LSP) are gated.
+**Reads never block:** `Read`, `Grep`, `Glob`, `LSP`, `WebFetch`, `WebSearch`
+are never rejected. Two of them write a non-blocking freshness marker so the
+`design-without-lsp` gate knows the implementation was investigated: `LSP`
+(via `mark-lsp-invoked.sh`) and `Read` of a `.go` under `internal/`/`pkg/`/`cmd/`
+(via `mark-source-read.sh`). Only mutating/executing tools (`Bash`, `Write`,
+`Edit`, `MultiEdit`, `NotebookEdit`, `Task`, `Agent`) and `ToolSearch` (which
+loads LSP) are actually gated.
 
 ## PreToolUse Checks (block before the tool runs)
 
@@ -61,7 +64,7 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 
 | Check | Enforces | Triggers on | What it does |
 |---|---|---|---|
-| design-without-lsp | `session-start.md` | design/spec `.md` | Blocks edits to `plan/design-*.md` / `plan/spec-*.md` unless LSP invoked in last 30 min. BLOCKING. | <!-- doc-links: ignore (hook trigger patterns, files may not exist) -->
+| design-without-lsp | `session-start.md`, `no-fabrication.md` | design/spec `.md` | Blocks edits to `plan/design-*.md` / `plan/spec-*.md` unless the implementation was investigated in the last 30 min: LSP invoked OR a `.go` under `internal/`/`pkg/`/`cmd/` was read. BLOCKING. | <!-- doc-links: ignore (hook trigger patterns, files may not exist) -->
 | pre-write-go | `before-writing-code.md` | `internal/**/*.go` | Blocks without proper session state. BLOCKING. |
 | source-edit-spec-not-in-progress | `planning.md` | source/test/learned | Blocks edits when selected spec is not `in-progress`. BLOCKING. |
 | encoding-alloc | `buffer-first.md` | wire-encode `.go` | Blocks `make()`/`append()`/`Bytes()`/`Pack()` in wire-facing code. BLOCKING. |
@@ -110,7 +113,8 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 
 | Check | File | Enforces | Triggers on | What it does |
 |---|---|---|---|---|
-| mark-lsp-invoked | `mark-lsp-invoked.sh` | `session-start.md` | LSP | Writes freshness marker for the design-without-lsp gate. |
+| mark-lsp-invoked | `mark-lsp-invoked.sh` | `session-start.md` | LSP | Writes `.lsp-invoked` freshness marker for the design-without-lsp gate. |
+| mark-source-read | `mark-source-read.sh` | `no-fabrication.md` | Read | Writes `.source-read` freshness marker when a `.go` under `internal/`/`pkg/`/`cmd/` is read, so reading the producing code satisfies the design-without-lsp gate. Non-blocking. |
 | auto-lint | `posttool-writeedit.py` | `go-standards.md` | `.go` Write/Edit | `gofmt`/`goimports -w`, then **one** `golangci-lint --new-from-rev=HEAD` pass (flags only issues this edit introduced). BLOCKING on lint failure. |
 | auto-py-format | `posttool-writeedit.py` | (code style) | `.py` Write/Edit | `ruff format` + `ruff check`. Non-blocking. |
 | validate-spec | `validate-spec.sh` | `planning.md` | `plan/spec-*.md` | Validates required sections/format. **Currently broken** (see note). |
@@ -163,8 +167,9 @@ boundary-tests, observer-sys-exit (`.ci` with Python).
 
 ### Spec files (`plan/spec-*.md`)
 
-validate-spec, design-without-lsp (needs recent LSP), require-docs-read (if new),
-source-edit-spec-not-in-progress (if spec not `in-progress`).
+validate-spec, design-without-lsp (needs recent implementation investigation:
+LSP invoked or a `.go` under `internal/`/`pkg/`/`cmd/` read), require-docs-read
+(if new), source-edit-spec-not-in-progress (if spec not `in-progress`).
 
 ### Python files (`.py`)
 
