@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | done |
 | Depends | spec-cp-survival-0-umbrella |
 | Phase | - |
-| Updated | 2026-06-26 |
+| Updated | 2026-06-27 |
 
 ## Post-Compaction Recovery
 
@@ -225,12 +225,21 @@ strict-priority class.
 |------------------|---------------|----------------|--------|
 
 ## Implementation Audit
-(Filled at closure.)
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 | Done | `translateFilter` returns `U32` with `TcU32Sel{Keys: [{Val: dscp<<18, Mask: 0x00FC0000}]}` for IPv4 |
+| AC-2 | Done | `cs6_integration_linux_test.go` netns test sends CS6 packets, verifies class counter |
+| AC-3 | Done | `021-cs6-priority-config.ci` functional test with HTB control + default class |
+| AC-4 | Done | `dscpFilters` emits IPv6 key `{Val: dscp<<22, Mask: 0x0FC00000}`; dual-family test |
+| AC-5 | Done | `020-vpp-reject-dscp-filter.ci` asserts VPP rejection message |
+| AC-6 | Done | `dscp.Parse("cs6")` returns 48; `config_test.go` covers named + decimal |
 
 ## Review Gate
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded
+Post-commit closure: implementation committed as 5f2857128; spec closure deferred to this session.
 
 ## Checklist
 

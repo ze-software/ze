@@ -119,6 +119,7 @@ YANG schema, migration, config reload, editor, environment variables.
 - [746](plan/learned/746-cpe-4-firewall-global-options.md) -- Firewall global-options: keyword-to-sysctl mapping via EventBus default layer; inverted semantics for ignore-type sysctls
 - [915](plan/learned/915-firewall-irr-iface.md) -- Per-interface IRR source validation: separate ze_irr_iface table, prerouting hook, policy-accept with per-interface drop terms
 - [1005](plan/learned/1005-cp-survival-2-copp-port179.md) -- CoPP for BGP: system plugin mirrors policyroute pattern (RegisterTables), input-hook chain with established-first safety, exported ParseRateSpec
+- [1007](plan/learned/1007-cp-survival-3-egress-cs6-sched.md) -- DSCP u32 selector fix: translateFilter populates TcU32Sel with per-family keys (IPv4 TOS byte + IPv6 traffic class); shared dscp.Parse in internal/core/dscp
 - [758](plan/learned/758-config-graph.md) -- Config dependency graph for agent impact analysis: derived from validation code paths, 7 edge kinds, plugin registry integration
 - [759](plan/learned/759-archive-pruning.md) -- Archive commit-revisions pruning: stable prefix from dual-timestamp diff, mtime-oldest-first, file:// only, uint16 max-keep
 - [860](plan/learned/860-yang-required-generic.md) -- Generic ze:required enforcement: anchor-scoped walker, ValidateTreeAllModules for multi-module YANG sections, bare-form migration to mandatory true
