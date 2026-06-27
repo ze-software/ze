@@ -17,6 +17,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go.fd.io/govpp/api"
+
 	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -80,6 +82,32 @@ func setActiveConnector(c *Connector) {
 	connectorMu.Lock()
 	defer connectorMu.Unlock()
 	connectorRef = c
+}
+
+// IfaceStatsReader is the subset of the VPP stats provider that dependent
+// plugins (ifacevpp) need to read per-interface counters.
+type IfaceStatsReader interface {
+	GetInterfaceStats(*api.InterfaceStats) error
+}
+
+var (
+	statsProviderMu  sync.Mutex
+	statsProviderRef IfaceStatsReader
+)
+
+// GetActiveStatsProvider returns the VPP stats reader from the running VPP
+// Manager. Dependent plugins (ifacevpp) call this to read per-interface
+// counters. Returns nil if the VPP component has no stats connection.
+func GetActiveStatsProvider() IfaceStatsReader {
+	statsProviderMu.Lock()
+	defer statsProviderMu.Unlock()
+	return statsProviderRef
+}
+
+func setActiveStatsProvider(sp IfaceStatsReader) {
+	statsProviderMu.Lock()
+	defer statsProviderMu.Unlock()
+	statsProviderRef = sp
 }
 
 // VPPManager is the self-contained VPP lifecycle manager.
@@ -239,6 +267,7 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) error {
 			pollerCtx, cancel := context.WithCancel(ctx)
 			pollerCancel = cancel
 			statsConn = sc
+			setActiveStatsProvider(sc)
 			interval := time.Duration(m.settings.Stats.PollInterval) * time.Second
 			vppM := newVPPMetrics(reg)
 			poller := newStatsPoller(sc, vppM, interval)
@@ -259,6 +288,7 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) error {
 	if pollerCancel != nil {
 		pollerCancel()
 	}
+	setActiveStatsProvider(nil)
 	if statsConn != nil {
 		statsConn.Disconnect()
 	}

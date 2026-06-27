@@ -1,0 +1,49 @@
+module ze-ddos-detect-conf {
+  namespace "urn:ze:ddos-detect-conf";
+  prefix ddos-detect;
+
+  import ze-types { prefix zt; }
+
+  container ddos-detect {
+    leaf enabled {
+      type boolean;
+      default false;
+      description "Enable the DDoS detector.";
+    }
+    leaf check-interval {
+      type uint16 { range "1..3600"; }
+      default 1;
+      description "Seconds between detection evaluations.";
+    }
+    leaf confirm-duration {
+      type uint16 { range "0..3600"; }
+      default 3;
+      description "Consecutive ticks above threshold before triggering.";
+    }
+    leaf clear-consecutive-checks {
+      type uint16 { range "1..100"; }
+      default 10;
+      description "Consecutive ticks below threshold before clearing.";
+    }
+    leaf baseline-window {
+      type uint32 { range "10..86400"; }
+      default 300;
+      description "Rolling baseline window size in samples.";
+    }
+    leaf threshold-multiplier {
+      type zt:decimal-2 { range "1.00..100.00"; }
+      default "3.00";
+      description "Baseline p99 multiplier for the dynamic threshold.";
+    }
+    leaf absolute-floor {
+      type uint32 { range "1..max"; }
+      default 5000;
+      description "Minimum threshold in PPS regardless of baseline.";
+    }
+    leaf startup-grace {
+      type uint16 { range "0..3600"; }
+      default 90;
+      description "Seconds after startup where only extreme spikes trigger.";
+    }
+  }
+}

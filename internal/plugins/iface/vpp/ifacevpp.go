@@ -80,6 +80,10 @@ var getActiveConnector = func() vppConnector {
 	return c
 }
 
+// getActiveStatsProvider returns the VPP stats reader. Tests override this
+// to inject a fake stats provider.
+var getActiveStatsProvider = vppcomp.GetActiveStatsProvider
+
 // vppConnector is the subset of vppcomp.Connector ifacevpp depends on,
 // isolated so tests can supply fakes.
 type vppConnector interface {
@@ -572,8 +576,12 @@ func (b *vppBackendImpl) SetMTU(ifaceName string, mtu int) error {
 	return nil
 }
 
-func (b *vppBackendImpl) GetStats(_ string) (*iface.InterfaceStats, error) {
-	return nil, errNotSupported("GetStats (pending GoVPP stats API wiring)")
+func (b *vppBackendImpl) GetStats(name string) (*iface.InterfaceStats, error) {
+	statsMap := readVPPIfaceStats()
+	if s, ok := statsMap[name]; ok {
+		return s, nil
+	}
+	return nil, fmt.Errorf("ifacevpp: no stats for interface %q", name)
 }
 
 // ResetCounters on VPP is wired to sw_interface_clear_stats. When name is

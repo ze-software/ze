@@ -1,0 +1,62 @@
+module ze-ddos-flowspec-conf {
+  namespace "urn:ze:ddos-flowspec-conf";
+  prefix ddos-flowspec;
+
+  container ddos-flowspec {
+    leaf response-level {
+      type enumeration {
+        enum alert;
+        enum enforce;
+      }
+      default alert;
+      description "Action on attack detection: alert (log only) or enforce (announce FlowSpec).";
+    }
+    leaf action {
+      type enumeration {
+        enum rate-limit;
+        enum discard;
+      }
+      default rate-limit;
+      description "FlowSpec traffic-action: rate-limit (non-zero rate) or discard (rate 0).";
+    }
+    leaf hold-down {
+      type uint32 { range "1..86400"; }
+      default 300;
+      description "Minimum seconds before the first leak-probe after announcement.";
+    }
+    leaf probe-interval {
+      type uint16 { range "1..3600"; }
+      default 60;
+      description "Seconds between leak-probe attempts after hold-down.";
+    }
+    leaf probe-window {
+      type uint16 { range "1..300"; }
+      default 10;
+      description "Seconds to observe leaked traffic during a probe.";
+    }
+    leaf probe-rate {
+      type uint32 { range "1..max"; }
+      default 1000000;
+      description "Bits per second to allow during a leak-probe.";
+    }
+    leaf announce-rate-limit {
+      type uint16 { range "1..600"; }
+      default 10;
+      description "Maximum FlowSpec announcements per minute.";
+    }
+    leaf max-mitigation-duration {
+      type uint32 { range "0..604800"; }
+      default 3600;
+      description "Maximum seconds a FlowSpec rule stays announced (0 = no cap).";
+    }
+    leaf backoff-cap {
+      type uint32 { range "1..604800"; }
+      default 3600;
+      description "Maximum hold-down after exponential backoff.";
+    }
+    leaf-list allowlist {
+      type string;
+      description "Prefixes that must never be announced for mitigation.";
+    }
+  }
+}

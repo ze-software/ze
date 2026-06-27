@@ -10,6 +10,7 @@ import (
 	"net"
 	"strings"
 
+	"go.fd.io/govpp/api"
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
 
@@ -75,17 +76,55 @@ func (b *vppBackendImpl) dumpByName(name string) ([]interfaces.SwInterfaceDetail
 }
 
 // ListInterfaces returns every interface currently known to VPP, converted
-// to the iface.InterfaceInfo shape.
+// to the iface.InterfaceInfo shape. When the VPP stats provider is
+// available, each InterfaceInfo.Stats is populated from the stats segment
+// so rate.go can compute RxPps/RxBps (dataplane-agnostic rate signal).
 func (b *vppBackendImpl) ListInterfaces() ([]iface.InterfaceInfo, error) {
 	details, err := b.dumpAllInterfaces()
 	if err != nil {
 		return nil, err
 	}
+	statsMap := readVPPIfaceStats()
 	out := make([]iface.InterfaceInfo, 0, len(details))
 	for i := range details {
-		out = append(out, detailsToInfo(&details[i]))
+		info := detailsToInfo(&details[i])
+		if s, ok := statsMap[info.Name]; ok {
+			info.Stats = s
+		}
+		out = append(out, info)
 	}
 	return out, nil
+}
+
+// readVPPIfaceStats reads per-interface counters from the VPP stats segment
+// and returns them keyed by interface name. Returns an empty map if the
+// stats provider is unavailable (graceful degradation).
+func readVPPIfaceStats() map[string]*iface.InterfaceStats {
+	sp := getActiveStatsProvider()
+	if sp == nil {
+		return nil
+	}
+	var raw api.InterfaceStats
+	if err := sp.GetInterfaceStats(&raw); err != nil {
+		return nil
+	}
+	out := make(map[string]*iface.InterfaceStats, len(raw.Interfaces))
+	for i := range raw.Interfaces {
+		name := raw.Interfaces[i].InterfaceName
+		if name == "" {
+			continue
+		}
+		out[name] = &iface.InterfaceStats{
+			RxBytes:   raw.Interfaces[i].Rx.Bytes,
+			RxPackets: raw.Interfaces[i].Rx.Packets,
+			TxBytes:   raw.Interfaces[i].Tx.Bytes,
+			TxPackets: raw.Interfaces[i].Tx.Packets,
+			RxErrors:  raw.Interfaces[i].RxErrors,
+			TxErrors:  raw.Interfaces[i].TxErrors,
+			RxDropped: raw.Interfaces[i].Drops,
+		}
+	}
+	return out
 }
 
 // GetInterface returns the single interface matching name. The name is the
@@ -96,9 +135,13 @@ func (b *vppBackendImpl) GetInterface(name string) (*iface.InterfaceInfo, error)
 	if err != nil {
 		return nil, err
 	}
+	statsMap := readVPPIfaceStats()
 	for i := range details {
 		if trimCString(details[i].InterfaceName) == name {
 			info := detailsToInfo(&details[i])
+			if s, ok := statsMap[info.Name]; ok {
+				info.Stats = s
+			}
 			return &info, nil
 		}
 	}

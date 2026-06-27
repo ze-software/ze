@@ -8,6 +8,8 @@ import (
 	"go.fd.io/govpp/api"
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
+
+	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
 )
 
 // dumpChannel is a mock api.Channel specialised for SwInterfaceDump
@@ -346,5 +348,189 @@ func TestPopulateNameMapEmptyNameSkipped(t *testing.T) {
 	}
 	if b.names.Len() != 1 {
 		t.Errorf("map size: got %d, want 1 (blank skipped)", b.names.Len())
+	}
+}
+
+// --- VPP stats provider tests (spec-cp-survival-5-detect-1a) ---
+
+// fakeStatsProvider implements vppcomp.IfaceStatsReader for testing.
+type fakeStatsProvider struct {
+	ifaces []api.InterfaceCounters
+	err    error
+}
+
+func (f *fakeStatsProvider) GetInterfaceStats(s *api.InterfaceStats) error {
+	if f.err != nil {
+		return f.err
+	}
+	s.Interfaces = f.ifaces
+	return nil
+}
+
+func withFakeStats(fp *fakeStatsProvider) func() {
+	orig := getActiveStatsProvider
+	getActiveStatsProvider = func() vppcomp.IfaceStatsReader { return fp }
+	return func() { getActiveStatsProvider = orig }
+}
+
+func withNilStats() func() {
+	orig := getActiveStatsProvider
+	getActiveStatsProvider = func() vppcomp.IfaceStatsReader { return nil }
+	return func() { getActiveStatsProvider = orig }
+}
+
+func TestVPPDetailsToInfoPopulatesStats(t *testing.T) {
+	// VALIDATES: AC-2 -- InterfaceInfo.Stats is non-nil and carries VPP counters
+	defer withFakeStats(&fakeStatsProvider{
+		ifaces: []api.InterfaceCounters{
+			{InterfaceName: "xe0",
+				Rx:       api.InterfaceCounterCombined{Packets: 1000, Bytes: 64000},
+				Tx:       api.InterfaceCounterCombined{Packets: 500, Bytes: 32000},
+				RxErrors: 3, TxErrors: 1, Drops: 7},
+		},
+	})()
+
+	ch := &dumpChannel{
+		details: []interfaces.SwInterfaceDetails{
+			{SwIfIndex: 1, InterfaceName: asciiName("xe0"),
+				Flags: interface_types.IF_STATUS_API_FLAG_ADMIN_UP},
+		},
+	}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+
+	got, err := b.ListInterfaces()
+	if err != nil {
+		t.Fatalf("ListInterfaces: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("len: got %d, want 1", len(got))
+	}
+	if got[0].Stats == nil {
+		t.Fatal("Stats is nil, want non-nil")
+	}
+	if got[0].Stats.RxPackets != 1000 {
+		t.Errorf("RxPackets: got %d, want 1000", got[0].Stats.RxPackets)
+	}
+	if got[0].Stats.RxBytes != 64000 {
+		t.Errorf("RxBytes: got %d, want 64000", got[0].Stats.RxBytes)
+	}
+	if got[0].Stats.TxPackets != 500 {
+		t.Errorf("TxPackets: got %d, want 500", got[0].Stats.TxPackets)
+	}
+	if got[0].Stats.TxBytes != 32000 {
+		t.Errorf("TxBytes: got %d, want 32000", got[0].Stats.TxBytes)
+	}
+	if got[0].Stats.RxErrors != 3 {
+		t.Errorf("RxErrors: got %d, want 3", got[0].Stats.RxErrors)
+	}
+	if got[0].Stats.TxErrors != 1 {
+		t.Errorf("TxErrors: got %d, want 1", got[0].Stats.TxErrors)
+	}
+	if got[0].Stats.RxDropped != 7 {
+		t.Errorf("RxDropped: got %d, want 7", got[0].Stats.RxDropped)
+	}
+}
+
+func TestVPPStatsIndexToNameMapping(t *testing.T) {
+	// VALIDATES: A-3, R-3 -- stats keyed by name, not stale index
+	defer withFakeStats(&fakeStatsProvider{
+		ifaces: []api.InterfaceCounters{
+			{InterfaceName: "xe0", Rx: api.InterfaceCounterCombined{Packets: 100}},
+			{InterfaceName: "xe1", Rx: api.InterfaceCounterCombined{Packets: 200}},
+		},
+	})()
+
+	ch := &dumpChannel{
+		details: []interfaces.SwInterfaceDetails{
+			{SwIfIndex: 1, InterfaceName: asciiName("xe0")},
+			{SwIfIndex: 2, InterfaceName: asciiName("xe1")},
+		},
+	}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+
+	got, err := b.ListInterfaces()
+	if err != nil {
+		t.Fatalf("ListInterfaces: %v", err)
+	}
+	if got[0].Stats.RxPackets != 100 {
+		t.Errorf("xe0 RxPackets: got %d, want 100", got[0].Stats.RxPackets)
+	}
+	if got[1].Stats.RxPackets != 200 {
+		t.Errorf("xe1 RxPackets: got %d, want 200", got[1].Stats.RxPackets)
+	}
+}
+
+func TestVPPStatsProviderUnavailable(t *testing.T) {
+	// VALIDATES: graceful degradation when stats provider is nil
+	defer withNilStats()()
+
+	ch := &dumpChannel{
+		details: []interfaces.SwInterfaceDetails{
+			{SwIfIndex: 1, InterfaceName: asciiName("xe0")},
+		},
+	}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+
+	got, err := b.ListInterfaces()
+	if err != nil {
+		t.Fatalf("ListInterfaces: %v", err)
+	}
+	if got[0].Stats != nil {
+		t.Errorf("Stats should be nil when provider unavailable, got %+v", got[0].Stats)
+	}
+}
+
+func TestVPPStatsProviderError(t *testing.T) {
+	// VALIDATES: graceful degradation when GetInterfaceStats fails
+	defer withFakeStats(&fakeStatsProvider{err: fmt.Errorf("stats segment disconnected")})()
+
+	ch := &dumpChannel{
+		details: []interfaces.SwInterfaceDetails{
+			{SwIfIndex: 1, InterfaceName: asciiName("xe0")},
+		},
+	}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+
+	got, err := b.ListInterfaces()
+	if err != nil {
+		t.Fatalf("ListInterfaces: %v", err)
+	}
+	if got[0].Stats != nil {
+		t.Errorf("Stats should be nil on error, got %+v", got[0].Stats)
+	}
+}
+
+func TestGetStatsReturnsVPPCounters(t *testing.T) {
+	// VALIDATES: AC-1 -- GetStats returns non-zero counters for a VPP interface
+	defer withFakeStats(&fakeStatsProvider{
+		ifaces: []api.InterfaceCounters{
+			{InterfaceName: "xe0", Rx: api.InterfaceCounterCombined{Packets: 42, Bytes: 2688}},
+		},
+	})()
+
+	b := &vppBackendImpl{ch: &dumpChannel{}, names: newNameMap()}
+	s, err := b.GetStats("xe0")
+	if err != nil {
+		t.Fatalf("GetStats: %v", err)
+	}
+	if s.RxPackets != 42 {
+		t.Errorf("RxPackets: got %d, want 42", s.RxPackets)
+	}
+	if s.RxBytes != 2688 {
+		t.Errorf("RxBytes: got %d, want 2688", s.RxBytes)
+	}
+}
+
+func TestGetStatsUnknownInterface(t *testing.T) {
+	// VALIDATES: GetStats returns error for unknown interface
+	defer withFakeStats(&fakeStatsProvider{
+		ifaces: []api.InterfaceCounters{
+			{InterfaceName: "xe0", Rx: api.InterfaceCounterCombined{Packets: 1}},
+		},
+	})()
+
+	b := &vppBackendImpl{ch: &dumpChannel{}, names: newNameMap()}
+	if _, err := b.GetStats("xe99"); err == nil {
+		t.Fatal("expected error for unknown interface")
 	}
 }
