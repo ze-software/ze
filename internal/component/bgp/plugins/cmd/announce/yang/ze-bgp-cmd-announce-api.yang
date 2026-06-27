@@ -1,0 +1,22 @@
+module ze-bgp-cmd-announce-api {
+    namespace "urn:ze:bgp:cmd:announce:api";
+    prefix "bgp-announce-api";
+
+    organization "Ze Project";
+    description "On-demand route origination RPCs (announce, withdraw, show).";
+    revision 2026-06-27 {
+        description "Initial revision.";
+    }
+
+    rpc announce {
+        description "Announce a route on demand (unicast, blackhole, flowspec).";
+    }
+
+    rpc withdraw {
+        description "Withdraw on-demand announcements (by tag, id, or all).";
+    }
+
+    rpc show-announcements {
+        description "List active on-demand announcements.";
+    }
+}

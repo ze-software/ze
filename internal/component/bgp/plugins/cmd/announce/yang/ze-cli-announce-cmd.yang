@@ -1,0 +1,33 @@
+module ze-cli-announce-cmd {
+    namespace "urn:ze:cli:announce:cmd";
+    prefix cliannouncecmd;
+    import ze-extensions { prefix ze; }
+    description "On-demand route origination and lifecycle management";
+    revision 2026-06-27 { description "Initial revision"; }
+
+    container announce {
+        config false;
+        ze:command "ze-bgp:announce";
+        description "Announce a route on demand to selected peers.
+Usage: announce <unicast|blackhole|flowspec> <args> [tag <key> <value>] [for <duration>]";
+        leaf selector { type string; mandatory true; description "Peer selector"; }
+    }
+
+    container withdraw {
+        config false;
+        ze:command "ze-bgp:withdraw";
+        description "Withdraw on-demand announcements.
+Usage: withdraw tag <key> <value|*> | withdraw tag * | withdraw id <N> | withdraw all";
+    }
+
+    container show {
+        config false;
+
+        container announcements {
+            config false;
+            ze:command "ze-bgp:show-announcements";
+            description "List active on-demand announcements.
+Usage: show announcements [tag <key>] [selector <pattern>] [family <fam>]";
+        }
+    }
+}
