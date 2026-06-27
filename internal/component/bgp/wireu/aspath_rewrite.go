@@ -83,15 +83,16 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 
 	nlriStart := attrsStart + attrLen
 
-	// Scan attributes to find AS_PATH. Break early: the hot path
-	// (tryDirectPrepend, same encoding) only needs AS_PATH position.
+	// Scan attributes to find AS_PATH and validate the whole attribute section.
+	// Later rewrite paths rescan and copy attributes by header length, so every
+	// attribute advertised by attrLen must be bounds-checked before offsets are reused.
 	aspAttrOff := -1
 	aspHdrLen := 0
 	aspValueLen := 0
 	off := attrsStart
 
-	for off < attrsStart+attrLen {
-		if off+3 > len(payload) {
+	for off < nlriStart {
+		if off+3 > nlriStart {
 			return 0, fmt.Errorf("rewrite AS_PATH: truncated attribute at offset %d: %w", off, ErrUpdateMalformed)
 		}
 
@@ -101,7 +102,7 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 		var length int
 		var hdrLen int
 		if flags.IsExtLength() {
-			if off+4 > len(payload) {
+			if off+4 > nlriStart {
 				return 0, fmt.Errorf("rewrite AS_PATH: truncated ext-length attribute: %w", ErrUpdateMalformed)
 			}
 			length = int(binary.BigEndian.Uint16(payload[off+2 : off+4]))
@@ -111,15 +112,14 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 			hdrLen = 3
 		}
 
-		if off+hdrLen+length > len(payload) {
-			return 0, fmt.Errorf("rewrite AS_PATH: attribute value overflows payload: %w", ErrUpdateMalformed)
+		if off+hdrLen+length > nlriStart {
+			return 0, fmt.Errorf("rewrite AS_PATH: attribute value overflows attribute section: %w", ErrUpdateMalformed)
 		}
 
-		if code == attribute.AttrASPath {
+		if code == attribute.AttrASPath && aspAttrOff == -1 {
 			aspAttrOff = off
 			aspHdrLen = hdrLen
 			aspValueLen = length
-			break
 		}
 
 		off += hdrLen + length
@@ -138,8 +138,8 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 	}
 
 	// Slow path: cross-encoding or complex AS_PATH. Scan for
-	// AGGREGATOR/AS4_AGGREGATOR. Bounds already validated by the
-	// AS_PATH scan above.
+	// AGGREGATOR/AS4_AGGREGATOR. The duplicate bounds checks keep this
+	// rescan locally safe if the initial scan changes later.
 	aggAttrOff := -1
 	aggHdrLen := 0
 	aggValueLen := 0
@@ -148,16 +148,26 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 	as4AggValueLen := 0
 
 	off = attrsStart
-	for off < attrsStart+attrLen {
+	for off < nlriStart {
+		if off+3 > nlriStart {
+			return 0, fmt.Errorf("rewrite AS_PATH: truncated attribute at offset %d: %w", off, ErrUpdateMalformed)
+		}
+
 		flags := attribute.AttributeFlags(payload[off])
 		code := attribute.AttributeCode(payload[off+1])
 		var length, hdrLen int
 		if flags.IsExtLength() {
+			if off+4 > nlriStart {
+				return 0, fmt.Errorf("rewrite AS_PATH: truncated ext-length attribute: %w", ErrUpdateMalformed)
+			}
 			length = int(binary.BigEndian.Uint16(payload[off+2 : off+4]))
 			hdrLen = 4
 		} else {
 			length = int(payload[off+2])
 			hdrLen = 3
+		}
+		if off+hdrLen+length > nlriStart {
+			return 0, fmt.Errorf("rewrite AS_PATH: attribute value overflows attribute section: %w", ErrUpdateMalformed)
 		}
 
 		if code == attribute.AttrAggregator {
