@@ -51,7 +51,6 @@ __pycache__/
 
 # Claude session state (lives in tmp/session/, covered by tmp/ ignore)
 # Legacy locations kept for transition period:
-.claude/selected-spec
 .claude/session-state.md
 .claude/session-state-*.md
 .claude/.session-*
