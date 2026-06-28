@@ -78,6 +78,27 @@ class GateFailure(Exception):
     pass
 
 
+def check_design_refs(root: Path) -> int:
+    """Run the Design-ref existence gate (check_doc_links --design-only).
+
+    Unconditional: closure debt is non-local -- deleting/closing a spec
+    orphans `// Design:` refs in any source file, so this scans the whole
+    tree on every verify, not only when related files change. Enforces
+    ai/rules/planning.md "Design references survive closure" (the rule had a
+    checker but no gate, so 201 dangling refs once accumulated silently).
+    """
+    checker = root / "scripts" / "dev" / "check_doc_links.py"
+    if not checker.exists():
+        # Isolated test root or minimal checkout without the checker: skip
+        # rather than fail. The real verify always runs with the repo as root.
+        return 0
+    proc = subprocess.run(
+        ["python3", "scripts/dev/check_doc_links.py", "--design-only"],
+        cwd=root,
+    )
+    return 1 if proc.returncode else 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=".", help="repository root, defaults to cwd")
@@ -124,12 +145,13 @@ def main() -> int:
         return 0
 
     ratchet_rc = check_ci_sleep_ratchet(root, changed)
+    design_rc = check_design_refs(root)
 
     if not targets:
         print("No wiring/doc/inventory checks needed")
         if advisory:
             print(advisory)
-        return ratchet_rc
+        return ratchet_rc or design_rc
 
     if "wiring" in targets:
         issues = check_wiring(root, changed)
@@ -147,8 +169,8 @@ def main() -> int:
 
     if advisory:
         print(advisory)
-    if ratchet_rc:
-        return ratchet_rc
+    if ratchet_rc or design_rc:
+        return ratchet_rc or design_rc
     print("Wiring/doc/inventory gates passed")
     return 0
 

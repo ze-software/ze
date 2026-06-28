@@ -213,6 +213,48 @@ func TestCommitHelperRejectsIgnoredPaths(t *testing.T) {
 	mustContain(t, stderr, "ignored path must not be committed: ignored.txt")
 }
 
+// VALIDATES: commit_helper refuses to write a script when ze-verify reports
+// STALE, and --unverified bypasses the gate with the reason recorded in output.
+// PREVENTS: silently preparing a commit over a red/stale verify -- the root
+// cause behind a batch of slipped-in breakage (plan/learned/1013-verify-gate-hardening.md).
+func TestCommitHelperVerifyGate(t *testing.T) {
+	root := makeCommitHelperFixture(t)
+	writeFixture(t, root, ".gitignore", "tmp/*\n")
+	writeFixture(t, root, "note.md", "n\n")
+	// Fake verify-status.sh reporting STALE (exit 1) so the gate has a
+	// confirmed red to act on.
+	scriptDir := filepath.Join(root, "scripts", "dev")
+	if err := os.MkdirAll(scriptDir, 0o755); err != nil {
+		t.Fatalf("mkdir scripts/dev: %v", err)
+	}
+	statusScript := filepath.Join(scriptDir, "verify-status.sh")
+	if err := os.WriteFile(statusScript, []byte("#!/bin/bash\necho 'STALE: test'\nexit 1\n"), 0o755); err != nil {
+		t.Fatalf("write verify-status.sh: %v", err)
+	}
+	if err := os.Chmod(statusScript, 0o755); err != nil {
+		t.Fatalf("chmod verify-status.sh: %v", err)
+	}
+
+	_, stderr, code := runCommitHelper(t, root,
+		"--repo", root, "create", "--session", "aaaa0000",
+		"--subject", "tools: gated", "--file", "note.md", "--replace",
+	)
+	if code == 0 {
+		t.Fatalf("expected non-zero exit when verify is STALE\nstderr:\n%s", stderr)
+	}
+	mustContain(t, stderr, "not FRESH-green")
+
+	out, stderr2, code2 := runCommitHelper(t, root,
+		"--repo", root, "create", "--session", "aaaa0000",
+		"--subject", "tools: gated", "--file", "note.md", "--replace",
+		"--unverified", "known-red: test",
+	)
+	if code2 != 0 {
+		t.Fatalf("expected success with --unverified, got %d\nstderr:\n%s", code2, stderr2)
+	}
+	mustContain(t, out, "verify=UNVERIFIED (known-red: test)")
+}
+
 func makeCommitHelperFixture(t *testing.T) string {
 	t.Helper()
 	root := filepath.Join(repoRoot(t), "tmp", "commit-helper-test", strings.ReplaceAll(t.Name(), "/", "-"))

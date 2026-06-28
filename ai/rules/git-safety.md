@@ -22,7 +22,7 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
 **Commit workflow:**
 1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a script path).
 2. Use `scripts/dev/commit_helper.py create` to write `tmp/commit-msg-<SESSION>-<tag>.txt` and `tmp/commit-<SESSION>.sh`. Pass `--file` once per explicit file, `--remove` for tracked deletions, `--replace` for the first logical commit, and `--append` for later commits in the same user-run script.
-3. The helper writes executable scripts, uses `git commit -F <message-file>`, rejects ignored/generated paths, and refuses to overwrite an existing script unless `--replace` or `--append` is explicit.
+3. The helper writes executable scripts, uses `git commit -F <message-file>`, rejects ignored/generated paths, and refuses to overwrite an existing script unless `--replace` or `--append` is explicit. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a known-red logged in `plan/known-failures.md`). This makes "verify before commit" enforced rather than honor-system.
 4. Lesson learned check: when a commit changes agent workflow, rules, tooling, verification, or discovery surfaces, include `plan/learned/NNN-<name>.md` and `plan/learned/.counter` in `--file`. If no reusable lesson is useful, pass `--lesson-not-needed "<reason>"`. For known-required lessons, pass `--lesson-required`.
    Allocate the number with `scripts/dev/commit_helper.py learned-next <slug>` -- it picks max(existing file prefixes, .counter)+1, creates the file immediately, and bumps `.counter`, so concurrent sessions cannot allocate the same number. Never hand-read `.counter` to pick a number.
 5. If the helper cannot express the commit shape, hand-write the same `tmp/commit-<SESSION>.sh` pattern and `chmod +x` it. Do not use heredocs. Always use `git commit -F <file>`.
@@ -214,6 +214,27 @@ reviewing `git diff`. This applies only when the global red is not yours -- a re
 caused by your own change must be fixed, not scoped around. Activate it only on an
 explicit owner direction (e.g. "another session is clearing ze-verify, check only
 what we changed"), never inferred from a red suite alone.
+
+**The red must be attributed, not assumed (BLOCKING).** "Known-red" means you
+have identified the specific failing stage/test and confirmed it is pre-existing
+(logged in `plan/known-failures.md`) or owned by another active session. An
+*undocumented* red is NOT scope-aroundable: treat it as possibly your own
+regression until proven otherwise. Scope-to-changed has a blind spot -- it tests
+packages you edited, not packages your edit breaks **transitively**: a new import
+can break a different package's compile/test (a real case: `aihelp` broke
+`bgp/config` through `plugin/all`), a config-driven gap surfaces only in a
+consumer's tests (a missing YANG typedef failed `bgp/config`, not the plugin that
+introduced it), and adding a plugin invalidates the `plugin/all` golden
+snapshots. Before scoping around a red, `go test`/`vet` the reverse-dependency
+closure of your changed packages, or run full `ze-verify` once.
+
+**Do not let a red persist.** Scope-to-changed is a temporary bridge while the
+global suite is being cleared, not a standing mode. A `ze-verify` that stays red
+across sessions hides newly-introduced breakage under the existing red -- that is
+exactly how an import cycle, a YANG typedef gap, and stale registry snapshots all
+landed under one persistent red without any gate firing. Log the failing stage in
+`plan/known-failures.md` with who owns clearing it; if nobody does, clearing it
+comes before stacking more changes on top.
 
 ### Concurrent Verify Runs (BLOCKING)
 

@@ -425,6 +425,27 @@ def write_outputs(
     return script
 
 
+def verify_status(repo: Path) -> tuple[str, str]:
+    """Return (state, detail) from scripts/dev/verify-status.sh check.
+
+    state is "fresh", "stale", or "unknown". Only "stale" blocks a commit:
+    the gate enforces a CONFIRMED red, it never invents one when the checker is
+    unavailable (missing script, isolated test repo, minimal checkout). This
+    never raises.
+    """
+    script = repo / "scripts" / "dev" / "verify-status.sh"
+    if not script.exists():
+        return "unknown", "verify-status.sh not found"
+    try:
+        proc = subprocess.run(
+            [str(script), "check"], cwd=repo, capture_output=True, text=True
+        )
+    except OSError as exc:
+        return "unknown", f"verify-status.sh did not run: {exc}"
+    out = (proc.stdout or proc.stderr or "").strip().splitlines()
+    return ("fresh" if proc.returncode == 0 else "stale"), (out[0] if out else "")
+
+
 def create(args: argparse.Namespace) -> int:
     repo = repo_root(args.repo)
     session = session_id(repo, args.session)
@@ -437,6 +458,19 @@ def create(args: argparse.Namespace) -> int:
         validate_add_path(repo, path)
     for path in remove_paths:
         validate_remove_path(repo, path)
+    # Verify gate: a commit script must not be prepared over a non-green verify
+    # unless the caller explicitly acknowledges why (owner override, or a
+    # known-red logged in plan/known-failures.md). This turns "verify before
+    # commit" from honor-system into an enforced, overridable gate. See
+    # ai/rules/git-safety.md.
+    vstate, detail = verify_status(repo)
+    if vstate == "stale" and not args.unverified:
+        raise UsageError(
+            "ze-verify is not FRESH-green (" + (detail or "unknown") + ").\n"
+            "  Run `make ze-verify` (or `make ze-verify-changed`) until green, then\n"
+            '  commit, OR pass --unverified "<reason>" to commit anyway (owner\n'
+            "  override, or a known-red logged in plan/known-failures.md)."
+        )
     msg = message_text(args.subject, args.body)
     msg_path = f"tmp/commit-msg-{session}-{tag}.txt"
     comment = lesson_comment(
@@ -457,6 +491,10 @@ def create(args: argparse.Namespace) -> int:
         print(f"message={msg_path}")
         print(f"script={script.relative_to(repo).as_posix()}")
         print(f"lesson={comment}")
+        if args.unverified:
+            print(f"verify=UNVERIFIED ({args.unverified})")
+        else:
+            print(f"verify={vstate.upper()} ({detail})")
     return 0
 
 
@@ -583,6 +621,11 @@ def build_parser() -> argparse.ArgumentParser:
     create_cmd.add_argument(
         "--lesson-not-needed",
         help="explicit reason no learned summary is useful for this commit",
+    )
+    create_cmd.add_argument(
+        "--unverified",
+        help="reason to allow a commit when ze-verify is not FRESH-green "
+        "(owner override, or a known-red logged in plan/known-failures.md)",
     )
     create_cmd.add_argument(
         "--dry-run",
