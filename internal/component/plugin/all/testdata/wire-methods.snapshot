@@ -1,6 +1,7 @@
 ze-bfd-api:show-profile
 ze-bfd-api:show-session
 ze-bfd-api:show-sessions
+ze-bgp:announce
 ze-bgp:cache-expire
 ze-bgp:cache-forward
 ze-bgp:cache-list
@@ -38,9 +39,11 @@ ze-bgp:plugin-ack
 ze-bgp:plugin-encoding
 ze-bgp:plugin-format
 ze-bgp:pool-stats
+ze-bgp:show-announcements
 ze-bgp:subscribe
 ze-bgp:summary
 ze-bgp:unsubscribe
+ze-bgp:withdraw
 ze-clear:dns-cache
 ze-clear:interface-counters
 ze-clear:isis-adjacency

@@ -45,10 +45,17 @@ next to gitignored runtime state. They are parser fixtures, consumed only by
    of `plan/` stays specs + learned summaries. `check_doc_links.py` dropped
    the now-stale `handover` KNOWN_ROOT (covered by `plan`).
 
-## Pre-existing issues found (not fixed here)
+## Pre-existing issues found (fixed in follow-up commits)
 
-- `internal/component/bgp/config` test build has an import cycle
-  (`cli/client -> plugin/all -> aihelp -> cli/client`), confirmed by
-  `go vet`; it blocks `go test` for that package independent of this change.
-- `check_doc_links.py` reports ~200 dangling Go `// Design:` references to
-  deleted/closed specs (e.g. `plan/learned/974-traffic-usage.md`).
+- `internal/component/bgp/config` test build had an import cycle
+  (`cli/client -> plugin/all -> aihelp -> cli/client`), confirmed by `go vet`.
+  FIXED in `07dd491a5`: `aihelp` no longer imports `cli/client`; it derives
+  the command tree and dispatch keys directly from the `yang` package.
+- `check_doc_links.py` reported ~200 dangling Go `// Design:` references to
+  closed/deleted specs (closure debt, `ai/rules/planning.md:252`). FIXED by
+  rewriting each to its surviving learned summary (`NNN-<spec-slug>.md`).
+- DDoS detect YANG referenced an undefined `zt:decimal-2` typedef
+  (`ze-ddos-detect-conf.yang:34`), failing strict YANG resolution. FIXED by
+  adding the `decimal-2` typedef (`decimal64`, 2 fraction digits) to
+  `ze-types.yang`. The cycle had masked this; once `bgp/config` compiled it
+  surfaced in `TestParseAllConfigFiles` / `TestExtractAuthzConfig`.

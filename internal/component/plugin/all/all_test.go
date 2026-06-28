@@ -110,6 +110,7 @@ func TestFilterTypeMappings(t *testing.T) {
 		"as-path-length":    "bgp-filter-aspath-length",
 		"as-path-list":      "bgp-filter-aspath",
 		"community-match":   "bgp-filter-community-match",
+		"family-filter":     "bgp-filter-family",
 		"modify":            "bgp-filter-modify",
 		"prefix-list":       "bgp-filter-prefix",
 		"remove-private-as": "bgp-filter-remove-private-as",

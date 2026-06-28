@@ -195,7 +195,7 @@
 | Functional encode tests (.ci round-trip) | [ ] | `test/encode/` | [ ] |
 | Interop scenario + existing interop config audit | [ ] | `test/interop/scenarios/` | [ ] |
 | Cross-plugin impact (existing NLRI plugins still decode correctly) | [ ] | run existing decode tests | [ ] |
-| Feature docs + comparison tables | [ ] | `docs/features/`, `docs/comparison/` | [ ] |
+| Feature docs + comparison tables | [ ] | `docs/features/`, `docs/comparison.md` | [ ] |
 
 ### Integration Checklist
 | Integration Point | Needed? | File |

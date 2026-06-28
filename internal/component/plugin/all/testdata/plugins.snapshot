@@ -8,6 +8,7 @@ bgp-filter-aspath
 bgp-filter-aspath-length
 bgp-filter-community
 bgp-filter-community-match
+bgp-filter-family
 bgp-filter-irr
 bgp-filter-modify
 bgp-filter-prefix
@@ -38,7 +39,13 @@ bgp-rs
 bgp-softver
 bgp-watchdog
 connected
+copp
 cos
+ddos-detect
+ddos-flowspec
+ddos-flowtriq
+ddos-local
+ddos-observe
 dhcpserver
 fib-kernel
 fib-p4

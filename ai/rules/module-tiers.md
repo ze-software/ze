@@ -102,7 +102,7 @@ with TWO independent hooks (`ze_rest` / `ze_grpc`) so an operator can ship
 gRPC-without-REST or vice-versa, sharing an always-on engine/session builder
 (`buildAPIShared`). The shared `api-server { token }` YANG base stays always-on
 and each transport's `rest{}`/`grpc{}` container is contributed by a gated YANG
-module (`api/rest/yang`, `api/grpc/yang`) via Ze's same-named-container merge, so
+module (`internal/component/api/rest/yang`, `internal/component/api/grpc/yang`) via Ze's same-named-container merge, so
 a compiled-out transport's config block is rejected as unknown. Telemetry
 (`ze_telemetry`) is the first **core-level** seam: its hook
 `metrics.StartExporter` lives in always-on `internal/core/metrics` (not the hub)
@@ -116,7 +116,7 @@ record `ze_*` metrics keep working with the exporter gated. Both shapes gate
 their direct package and YANG schema imports into generated `all_ze_<feature>.go`
 files via `plugin_imports.go`. `make ze` / `ze-appliance` pass the default-on feature tags
 (`ZE_FEATURES` in the Makefile); `ze-stripped` omits them for a smaller, hardened
-binary. See `plan/spec-feature-gate-0-umbrella.md`.
+binary. See `plan/learned/983-feature-gate-manifest-ssot.md`.
 
 **Rule:** a compile-out-able feature (gated by `//go:build ze_<feature>`) MUST NOT
 be directly imported by always-on code. Reach it through the construction

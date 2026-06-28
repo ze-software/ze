@@ -70,7 +70,7 @@ ROOT_FILES = {
 # Runtime/build artifacts: existence depends on local state, never checked.
 SKIP_PREFIXES = ("tmp/", "bin/", "~", "/", "test/tmp/")
 # Tokens containing these are templates, not concrete paths.
-PLACEHOLDER_MARKERS = ("<", ">", "$", "NNN", "...", "..")
+PLACEHOLDER_MARKERS = ("<", ">", "$", "*", "NNN", "...", "..")
 
 MD_GLOBS = [
     "ai/INSTRUCTIONS.md",

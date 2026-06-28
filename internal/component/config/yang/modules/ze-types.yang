@@ -129,6 +129,13 @@ module ze-types {
         description "Traffic rate string (for example 10mbit, 100kbit, 1gbps)";
     }
 
+    typedef decimal-2 {
+        type decimal64 {
+            fraction-digits 2;
+        }
+        description "Decimal number with two fractional digits (for example 3.00).";
+    }
+
     typedef ip-prefix {
         type union {
             type prefix-ipv4;
