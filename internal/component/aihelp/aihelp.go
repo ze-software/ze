@@ -18,7 +18,6 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
-	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	cmdregistry "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
@@ -97,7 +96,11 @@ func CLISubcommands() []CLICommand {
 	seen := map[string]bool{}
 	var cmds []CLICommand
 
-	yangTree := cli.YANGCommandTree()
+	loader, err := yang.DefaultLoader()
+	var yangTree *command.Node
+	if err == nil {
+		yangTree = yang.BuildCommandTree(loader)
+	}
 	if yangTree != nil {
 		for _, name := range sortedChildren(yangTree) {
 			child := yangTree.Children[name]
@@ -298,7 +301,9 @@ func Build() Reference {
 		ref.RPCs = append(ref.RPCs, RPC{WireMethod: brpc.WireMethod})
 	}
 
-	ref.DispatchKeys = cli.WireToPath()
+	if loader, err := yang.DefaultLoader(); err == nil {
+		ref.DispatchKeys = yang.WireMethodToPath(loader)
+	}
 	if ref.DispatchKeys == nil {
 		ref.DispatchKeys = map[string]string{}
 	}
