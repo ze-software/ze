@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-11-redistribution.md -- IS-IS redistribution (both directions).
+// Design: plan/learned/936-isis-11-redistribution.md -- IS-IS redistribution (both directions).
 // Related: internal/plugins/isis/lsdb -- PrefixInfo (TLV 135) origination input.
 // Related: internal/plugins/isis/redistribute/events -- redistevents producer wiring.
 //

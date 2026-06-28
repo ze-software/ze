@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-login-shell.md -- gokrazy serial shell wrapper
+// Design: plan/learned/878-appliance-login-shell.md -- gokrazy serial shell wrapper
 //
 // Replaces github.com/gokrazy/serial-busybox. Creates the symlink at
 // /tmp/serial-busybox/ash pointing to the ze binary (/user/ze) so that

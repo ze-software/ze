@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-install-robust.md -- download with retry and integrity check
+// Design: plan/learned/907-appliance-install-robust.md -- download with retry and integrity check
 
 package disk
 

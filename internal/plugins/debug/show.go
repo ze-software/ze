@@ -1,4 +1,4 @@
-// Design: plan/spec-granular-debug.md -- structured debug state display
+// Design: plan/learned/891-granular-debug.md -- structured debug state display
 // Related: debug.go -- CLI handler, profile.go -- Profile data model
 
 package debug

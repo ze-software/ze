@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/spec-mpls-3-rsvp-te.md -- non-Linux RSVP transport stub
+// Design: plan/learned/921-mpls-rsvp-te.md -- non-Linux RSVP transport stub
 // Related: transport.go -- Transport interface and Packet type
 // Related: transport_linux.go -- the real raw-socket implementation
 //

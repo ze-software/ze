@@ -1,4 +1,4 @@
-// Design: plan/spec-show-enricher-v2.md -- in-process test enricher plugin
+// Design: plan/learned/895-show-enricher-v2.md -- in-process test enricher plugin
 
 package fakeenrich
 

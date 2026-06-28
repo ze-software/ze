@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- raw-socket (proto 46) readiness check
+// Design: plan/learned/921-mpls-rsvp-te.md -- raw-socket (proto 46) readiness check
 // Related: register.go -- DoctorChecks registration (rsvp-te-rawsock)
 // Related: transport_linux.go -- the raw socket this check probes
 //

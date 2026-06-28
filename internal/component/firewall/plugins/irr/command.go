@@ -1,4 +1,4 @@
-// Design: plan/spec-firewall-irr.md -- CLI command handlers (show/update firewall irr)
+// Design: plan/learned/913-firewall-irr.md -- CLI command handlers (show/update firewall irr)
 
 package irr
 

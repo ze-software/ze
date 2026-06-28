@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-4-flowspec-origination.md -- BGP reactor type assertion for announce cmd
+// Design: plan/learned/1008-cp-survival-4-on-demand-origination-design.md -- BGP reactor type assertion for announce cmd
 
 package announce
 

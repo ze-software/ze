@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-2-ldp.md -- `show ldp ...` surfaced under the top-level
+// Design: plan/learned/920-mpls-ldp.md -- `show ldp ...` surfaced under the top-level
 // show grammar.
 //
 // The LDP introspection data lives in the plugin engine, reachable via the

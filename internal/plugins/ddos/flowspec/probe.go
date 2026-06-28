@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-5-detect-3-flowspec-responder.md -- leak-probe state machine
+// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- leak-probe state machine
 
 package flowspec
 

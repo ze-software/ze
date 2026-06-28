@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-5-detect-2-local-responder.md -- local responder config
+// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- local responder config
 
 package local
 

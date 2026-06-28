@@ -1,4 +1,4 @@
-// Design: plan/spec-cos-plugin.md -- shared CoS profile registry
+// Design: plan/learned/884-cos-plugin.md -- shared CoS profile registry
 
 package cos
 

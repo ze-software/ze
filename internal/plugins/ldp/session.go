@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-2-ldp.md -- LDP session FSM
+// Design: plan/learned/920-mpls-ldp.md -- LDP session FSM
 // Related: wire.go -- message encoding/decoding
 // Related: discovery.go -- adjacency triggers session initiation
 // Related: lib.go -- label bindings exchanged during session

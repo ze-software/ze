@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-5-detect-3-flowspec-responder.md -- vector to FlowSpec match
+// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- vector to FlowSpec match
 
 package flowspec
 

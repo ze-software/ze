@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- MPLS forwarding-entry input to fib-kernel
+// Design: plan/learned/921-mpls-rsvp-te.md -- MPLS forwarding-entry input to fib-kernel
 //
 // mplsfib is the leaf event package that carries MPLS label-switching entries
 // from label-distribution sources (RSVP-TE, LDP) to the kernel FIB owner

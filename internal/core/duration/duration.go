@@ -1,4 +1,4 @@
-// Design: plan/spec-granular-debug.md -- shared duration parsing for CLI input
+// Design: plan/learned/891-granular-debug.md -- shared duration parsing for CLI input
 
 package duration
 

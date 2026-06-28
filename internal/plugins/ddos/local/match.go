@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-5-detect-2-local-responder.md -- vector to firewall term
+// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- vector to firewall term
 
 package local
 

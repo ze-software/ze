@@ -1,4 +1,4 @@
-// Design: plan/spec-granular-debug.md -- debug CLI registration
+// Design: plan/learned/891-granular-debug.md -- debug CLI registration
 // Related: debug.go -- Run handler
 
 // codegen:skip -- CLI command wired via cmd/ze/main.go, not a runtime plugin.

@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-install-robust.md -- V3 build-side inject verify
+// Design: plan/learned/907-appliance-install-robust.md -- V3 build-side inject verify
 
 package appliance
 

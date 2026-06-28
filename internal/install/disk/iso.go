@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-install-robust.md -- ISO media detection and local image write
+// Design: plan/learned/907-appliance-install-robust.md -- ISO media detection and local image write
 
 package disk
 

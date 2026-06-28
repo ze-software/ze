@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-3-l2-transport.md -- raw L2 transport orchestrator
+// Design: plan/learned/929-isis-3-l2-transport.md -- raw L2 transport orchestrator
 // Related: frame.go -- 802.3 + LLC frame build/parse
 // Related: multicast.go -- ISO multicast MAC selection by level
 //

@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-1-types.md -- SourceID (SystemID + pseudonode ID)
+// Design: plan/learned/927-isis-1-types.md -- SourceID (SystemID + pseudonode ID)
 
 package types
 

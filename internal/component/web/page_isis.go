@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-13-cli-diag-interop.md -- IS-IS web page shell + SSE script.
+// Design: plan/learned/937-isis-13-cli-diag-interop.md -- IS-IS web page shell + SSE script.
 // Related: handler_isis.go -- the handlers that call isisPageHTML
 //
 // The IS-IS neighbor/database pages are a dependency-light HTML shell: a heading,

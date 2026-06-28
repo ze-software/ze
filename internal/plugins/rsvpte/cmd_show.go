@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- `show rsvp-te ...` surfaced under the
+// Design: plan/learned/921-mpls-rsvp-te.md -- `show rsvp-te ...` surfaced under the
 // top-level show grammar.
 // Related: show_data.go -- the show data builders these RPC proxies forward to
 //

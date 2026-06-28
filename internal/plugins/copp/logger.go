@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-2-copp-port179.md -- logger
+// Design: plan/learned/1005-cp-survival-2-copp-port179.md -- logger
 
 package copp
 

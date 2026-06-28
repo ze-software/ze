@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-4-flowspec-origination.md -- on-demand route origination CLI verbs
+// Design: plan/learned/1008-cp-survival-4-on-demand-origination-design.md -- on-demand route origination CLI verbs
 
 package announce
 

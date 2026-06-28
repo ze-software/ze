@@ -1,4 +1,4 @@
-// Design: plan/spec-granular-debug.md -- granular debug with toggle semantics and profiles
+// Design: plan/learned/891-granular-debug.md -- granular debug with toggle semantics and profiles
 // Related: profile.go -- profile storage, show.go -- structured display, register.go -- CLI registration
 
 package debug

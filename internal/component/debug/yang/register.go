@@ -1,4 +1,4 @@
-// Design: plan/spec-granular-debug.md -- debug YANG module registration
+// Design: plan/learned/891-granular-debug.md -- debug YANG module registration
 // Related: internal/component/config/yang/register.go -- same pattern for config YANG
 
 package yang

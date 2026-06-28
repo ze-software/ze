@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-2-ldp.md -- local FEC origination (AC-3)
+// Design: plan/learned/920-mpls-ldp.md -- local FEC origination (AC-3)
 // Related: lib.go -- EnsureLocal allocates the per-FEC local label
 // Related: register.go -- OnStarted programs egress pop and advertises mappings
 //

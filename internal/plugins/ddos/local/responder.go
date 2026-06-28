@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-5-detect-2-local-responder.md -- on-host nft drop responder
+// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- on-host nft drop responder
 
 package local
 

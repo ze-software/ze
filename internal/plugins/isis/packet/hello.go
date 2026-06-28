@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- LAN L1/L2 IIH and P2P IIH body codec
+// Design: plan/learned/928-isis-2-wire.md -- LAN L1/L2 IIH and P2P IIH body codec
 // ISO/IEC 10589 clause 9.5 (LAN IIH), clause 9.6 (P2P IIH).
 
 package packet

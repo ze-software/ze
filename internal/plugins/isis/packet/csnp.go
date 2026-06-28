@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- L1/L2 CSNP body codec (source ID, start/end LSPID)
+// Design: plan/learned/928-isis-2-wire.md -- L1/L2 CSNP body codec (source ID, start/end LSPID)
 // ISO/IEC 10589 clause 9.10 (Complete Sequence Numbers PDU).
 
 package packet

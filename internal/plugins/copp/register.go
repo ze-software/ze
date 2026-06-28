@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-2-copp-port179.md -- plugin registration
+// Design: plan/learned/1005-cp-survival-2-copp-port179.md -- plugin registration
 
 package copp
 

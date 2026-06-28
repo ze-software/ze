@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-3-l2-transport.md -- doctor-check registration
+// Design: plan/learned/929-isis-3-l2-transport.md -- doctor-check registration
 // Related: doctor.go -- the check function registered here
 //
 // The transport registers its raw-socket readiness check via

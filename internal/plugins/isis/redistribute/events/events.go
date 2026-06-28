@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-11-redistribution.md -- IS-IS redistevents producer wiring.
+// Design: plan/learned/936-isis-11-redistribution.md -- IS-IS redistevents producer wiring.
 // Related: internal/plugins/isis/spf -- ProtocolID() (the single "isis" identity).
 //
 // Package isisredistevents is the redistevents PRODUCER wiring for IS-IS. It is

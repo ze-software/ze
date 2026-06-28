@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-2-ldp.md -- LDP event bus types
+// Design: plan/learned/920-mpls-ldp.md -- LDP event bus types
 // Related: wire.go -- LDP message types used in events
 package ldp
 

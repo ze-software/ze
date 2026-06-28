@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- RSVP-TE event bus types
+// Design: plan/learned/921-mpls-rsvp-te.md -- RSVP-TE event bus types
 // Related: wire.go -- message types used in events
 package rsvpte
 

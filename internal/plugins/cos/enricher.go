@@ -1,4 +1,4 @@
-// Design: plan/spec-show-enricher.md -- CoS enricher for subscriber show commands
+// Design: plan/learned/894-show-enricher.md -- CoS enricher for subscriber show commands
 
 package cos
 

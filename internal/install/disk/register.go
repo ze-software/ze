@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-install-robust.md -- ze install disk registration
+// Design: plan/learned/907-appliance-install-robust.md -- ze install disk registration
 
 package disk
 

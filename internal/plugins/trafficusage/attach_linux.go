@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/974-traffic-usage.md -- traffic-usage Linux TCX attacher (load, attach, read maps, detach)
+// Design: plan/learned/977-traffic-usage.md -- traffic-usage Linux TCX attacher (load, attach, read maps, detach)
 
 package trafficusage
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-2-ldp.md -- LDP wire codec
+// Design: plan/learned/920-mpls-ldp.md -- LDP wire codec
 // Related: session.go -- decodes these messages in the read loop
 // Related: register.go -- discovery encodes/decodes Hello via this codec
 //

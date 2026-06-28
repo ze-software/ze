@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-5-detect-1-detector.md -- rolling baseline with poisoning guards
+// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- rolling baseline with poisoning guards
 
 package detect
 

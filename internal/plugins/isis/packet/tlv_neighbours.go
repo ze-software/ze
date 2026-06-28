@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- TLV 6 (IS Neighbors, SNPA list) + TLV 2 (narrow IS Reachability, decode-only)
+// Design: plan/learned/928-isis-2-wire.md -- TLV 6 (IS Neighbors, SNPA list) + TLV 2 (narrow IS Reachability, decode-only)
 // ISO/IEC 10589 clause 9.4 (TLV 6 IS Neighbors), clause 9.3 (TLV 2 IS Reachability).
 
 package packet

@@ -1,4 +1,4 @@
-// Design: plan/spec-cos-dynamic.md -- dynamic CoS event handler
+// Design: plan/learned/885-cos-dynamic.md -- dynamic CoS event handler
 // Related: session_state.go -- per-session state for revert
 
 package cos

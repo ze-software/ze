@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- register the offline `isis-decode` root verb
+// Design: plan/learned/928-isis-2-wire.md -- register the offline `isis-decode` root verb
 //
 // Owner package: the offline IS-IS PDU decode CLI lives with
 // internal/plugins/isis (the codec), not under cmd/ze. The root verb is

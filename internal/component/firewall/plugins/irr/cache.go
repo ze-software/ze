@@ -1,4 +1,4 @@
-// Design: plan/spec-firewall-irr.md -- shared PrefixStore path for firewall-irr
+// Design: plan/learned/913-firewall-irr.md -- shared PrefixStore path for firewall-irr
 
 package irr
 

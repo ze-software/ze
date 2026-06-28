@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-5-detect-4-observability.md -- observability config
+// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- observability config
 
 package observe
 

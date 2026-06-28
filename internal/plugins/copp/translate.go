@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-2-copp-port179.md -- coppPolicy to firewall.Table translation
+// Design: plan/learned/1005-cp-survival-2-copp-port179.md -- coppPolicy to firewall.Table translation
 
 package copp
 

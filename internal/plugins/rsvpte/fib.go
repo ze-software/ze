@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- RSVP-TE dataplane via the mpls-fib bus
+// Design: plan/learned/921-mpls-rsvp-te.md -- RSVP-TE dataplane via the mpls-fib bus
 // Related: engine.go -- fibProgrammer interface the engine drives
 // Related: ../../core/mplsfib/events.go -- the (mpls-fib, entry) payload
 //

@@ -1,4 +1,4 @@
-// Design: plan/spec-firewall-irr.md -- interval set generation from cached prefixes
+// Design: plan/learned/913-firewall-irr.md -- interval set generation from cached prefixes
 
 package irr
 

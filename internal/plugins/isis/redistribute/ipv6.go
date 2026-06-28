@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-12-ipv6.md -- IPv6 redistribution (both directions).
+// Design: plan/learned/924-isis-12-ipv6.md -- IPv6 redistribution (both directions).
 // Related: consumer.go -- the IPv4 consumer this extends to AFI=2.
 // Related: source.go -- the IPv4 producer this extends to AFI=2.
 //

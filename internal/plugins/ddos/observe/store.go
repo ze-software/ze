@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-5-detect-4-observability.md -- bounded incident store
+// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- bounded incident store
 
 package observe
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-granular-debug.md -- debug profile load/save/modify via debug.zefs
+// Design: plan/learned/891-granular-debug.md -- debug profile load/save/modify via debug.zefs
 // Related: debug.go -- CLI handler that reads/writes profiles
 
 package debug

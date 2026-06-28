@@ -1,4 +1,4 @@
-// Design: plan/spec-cp-survival-5-detect-3-flowspec-responder.md -- flowspec responder config
+// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- flowspec responder config
 
 package flowspec
 

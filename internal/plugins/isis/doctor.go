@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-13-cli-diag-interop.md -- IS-IS config-sanity doctor checks.
+// Design: plan/learned/937-isis-13-cli-diag-interop.md -- IS-IS config-sanity doctor checks.
 // Related: config.go -- applyTree/Config the check reuses to read NET/system-id
 // Related: transport/doctor.go -- the SEPARATE raw-socket check (isis-3 owns it)
 //
