@@ -2,7 +2,7 @@
 
 ## Context
 
-Audit-then-fix over the working OSPFv2 engine (ospf-1..13). `ospf-v2-must-audit.md` listed
+Audit-then-fix over the working OSPFv2 engine (ospf-1..13). `plan/audits/ospf-v2-must-audit.md` listed
 62 RFC-MUST findings; independently re-verified (~94% accurate) and remediated 18 real gaps
 across authentication (RFC 2328 App D / RFC 5709 / RFC 7474), config validation (RFC 2328
 App C.3), flooding (RFC 2328 §13 + Table 19), and NSSA (RFC 3101). OSPFv3

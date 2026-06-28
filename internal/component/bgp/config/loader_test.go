@@ -283,14 +283,14 @@ bgp {
 	require.Error(t, err)
 }
 
-// TestParseAllConfigFiles verifies all etc/ze/bgp/*.conf files parse.
+// TestParseAllConfigFiles verifies all test/exabgp-compat/native/*.conf files parse.
 //
-// VALIDATES: Curated native etc/ze/bgp fixtures are syntactically valid, and
+// VALIDATES: Curated native test/exabgp-compat/native fixtures are syntactically valid, and
 // remaining shipped examples are explicitly classified as legacy exclusions.
 //
 // PREVENTS: Blanket skip hiding drift between shipped examples and parser coverage.
 func TestParseAllConfigFiles(t *testing.T) {
-	dir := filepath.Join("..", "..", "..", "..", "etc", "ze", "bgp")
+	dir := filepath.Join("..", "..", "..", "..", "test", "exabgp-compat", "native")
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
 
@@ -314,7 +314,7 @@ func TestParseAllConfigFiles(t *testing.T) {
 
 		reason, ok := legacyExampleFixtureReason(name)
 		require.Truef(t, ok,
-			"unclassified etc/ze/bgp fixture %q; either convert it to native syntax and add it to parser coverage or document its exclusion here",
+			"unclassified test/exabgp-compat/native fixture %q; either convert it to native syntax and add it to parser coverage or document its exclusion here",
 			name,
 		)
 		t.Run(name, func(t *testing.T) {

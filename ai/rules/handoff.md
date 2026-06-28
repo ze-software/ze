@@ -44,16 +44,17 @@ EDIT 2: [file:lines]
 THEN: [test command with timeout]
 ```
 
-## Handover Documents (`handover/`)
+## Handover Documents (`plan/handover/`)
 
 When a handoff must survive beyond the chat (multi-session work, work picked
-up days later), write it to `handover/NN-<slug>.md` using the same template.
+up days later), write it to `plan/handover/NN-<slug>.md` using the same template.
 
-- `NN` = highest existing number in `handover/` plus one. Check with
-  `ls handover/` first; never reuse a number (collisions like two `13-*.md`
+- `NN` = highest existing number in `plan/handover/` plus one. Check with
+  `ls plan/handover/` first; never reuse a number (collisions like two `13-*.md`
   defeat ordering).
-- One handover per file. Do not put handover documents in `plan/` (that
-  directory is specs + learned summaries only).
+- One handover per file, and only under `plan/handover/`. Do not scatter
+  handover documents elsewhere in `plan/` (the rest of `plan/` is specs +
+  learned summaries).
 - The receiving session follows `.claude/rules/session-start.md`
   "Receiving a Handoff": enumerate every outstanding item before planning.
 - Delete the handover file in the commit that completes its last item.

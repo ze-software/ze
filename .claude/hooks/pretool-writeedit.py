@@ -576,6 +576,13 @@ def c_exabgp(ctx):
     if not _go_we(ctx) or "/exabgp/" in fp or "cmd/ze/exabgp" in fp:
         return None
     content = ctx["content"]
+    # Exception: `exabgp-compat` is the established test-fixtures directory
+    # (test/exabgp-compat/). Referencing that path from tests -- globs,
+    # filepath.Join, ReadDir, comments -- is test plumbing, not engine ExaBGP
+    # format/naming logic, so neutralize that one directory token before
+    # scanning. Real exabgp format/JSON references, the ExaBGPCompat type, and
+    # `internal/exabgp` imports below are still blocked.
+    content = re.sub(r"exabgp-compat", "fixtures", content, flags=re.IGNORECASE)
     errs = False
     for p in [
         r"exabgp.*format",

@@ -5,8 +5,8 @@ Two checks:
   1. Markdown corpus: backtick path references and markdown links in the
      normative agent-instruction files (ai/, .claude/rules/, plan/ meta docs)
      must point at files/dirs that exist. Historical records (plan/learned
-     numbered summaries, handover/) are NOT checked: they describe the tree
-     as it was at the time.
+     numbered summaries, plan/handover/) are NOT checked: they describe the
+     tree as it was at the time.
   2. Go sources: the target of every `// Design:` comment must exist
      (`(none ...)` placeholders are allowed).
 
@@ -46,7 +46,6 @@ KNOWN_ROOTS = {
     "api",
     "gokrazy",
     "third_party",
-    "handover",
     "parked",
     "vendor",
     # Non-canonical shorthands, deliberately checked so they FAIL:
