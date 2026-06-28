@@ -131,6 +131,11 @@ type Runner struct {
 	colors   *Colors
 	timings  Timings // rolling timing baseline
 
+	// concurrency is the resolved number of tests run in parallel for the
+	// current Run. Set at the top of Run; read by runTest to decide whether to
+	// apply ParallelTimeoutHeadroom. Zero outside a Run.
+	concurrency int
+
 	// extraBinaries maps binary name -> build spec for additional
 	// binaries that should be built alongside ze and ze-test.
 	extraBinaries map[string]ExtraBinary
@@ -296,6 +301,7 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	if parallel <= 0 {
 		parallel = len(selected)
 	}
+	r.concurrency = parallel
 
 	load := SnapshotHostLoad()
 

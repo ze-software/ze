@@ -22,8 +22,36 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
+
+// doctorProbeTimeoutEnv caps every external-service reachability probe timeout.
+// Production leaves it unset, so each check uses its own multi-second default
+// (appropriate for a real operator). Functional tests set it to a small value
+// so probes to deliberately unreachable fixtures fail fast instead of waiting
+// out the full default; those waits (5s per HTTP HEAD, 3s per TCP/UDP dial, run
+// sequentially) otherwise dominate doctor test wall-clock and tip the tests over
+// their timeout budget under parallel load. See reachProbeTimeout.
+const doctorProbeTimeoutEnv = "ze.test.doctor.probe-timeout"
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         doctorProbeTimeoutEnv,
+	Type:        "duration",
+	Description: "Cap external-service reachability probe timeouts (doctor functional tests)",
+	Private:     true,
+})
+
+// reachProbeTimeout returns the effective timeout for an external-service
+// reachability probe: the per-check default, capped by doctorProbeTimeoutEnv
+// when that override is set and smaller. The override can only shorten a probe,
+// never lengthen it, so production behavior is unchanged when the var is unset.
+func reachProbeTimeout(def time.Duration) time.Duration {
+	if override := env.GetDuration(doctorProbeTimeoutEnv, 0); override > 0 && override < def {
+		return override
+	}
+	return def
+}
 
 var tcpReachable = tcpServerReachable
 
@@ -33,7 +61,7 @@ func checkTACACSServers(tree *config.Tree) []diagnostic.Diagnostic {
 		return nil
 	}
 
-	timeout := configTimeout(tacacs, "timeout", 5)
+	timeout := reachProbeTimeout(configTimeout(tacacs, "timeout", 5))
 	checked := false
 	for _, s := range tacacs.GetListOrdered("server") {
 		address := valueOrDefault(s.Value, "address", s.Key)
@@ -98,7 +126,7 @@ func dnsServerResponds(addr string) bool {
 			return d.DialContext(ctx, "udp", net.JoinHostPort(addr, "53"))
 		},
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), reachProbeTimeout(3*time.Second))
 	defer cancel()
 	_, err := resolver.LookupHost(ctx, "_dns-probe.invalid.")
 	if err == nil {
@@ -118,14 +146,15 @@ const clockSkewThreshold = 5 * time.Minute
 // is off by more than 5 minutes. Uses a lightweight SNTP request (mode 3)
 // rather than a full NTP client.
 func checkClockSkew() []diagnostic.Diagnostic {
-	dialer := net.Dialer{Timeout: 3 * time.Second}
+	skewTimeout := reachProbeTimeout(3 * time.Second)
+	dialer := net.Dialer{Timeout: skewTimeout}
 	conn, err := dialer.DialContext(context.Background(), "udp", "pool.ntp.org:123")
 	if err != nil {
 		return nil // network unavailable, skip silently
 	}
 	defer func() { _ = conn.Close() }()
 
-	_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
+	_ = conn.SetDeadline(time.Now().Add(skewTimeout))
 
 	// SNTP request: version 3, mode 3 (client), 48 bytes.
 	req := make([]byte, 48)
@@ -188,7 +217,7 @@ func checkNTPClient(tree *config.Tree, platform *host.PlatformInfo) []diagnostic
 			continue
 		}
 		checked = true
-		if ntpServerReachable(net.JoinHostPort(addr, "123"), 3*time.Second) {
+		if ntpServerReachable(net.JoinHostPort(addr, "123"), reachProbeTimeout(3*time.Second)) {
 			reachable = true
 			break
 		}
@@ -247,7 +276,7 @@ func checkRPKIServers(tree *config.Tree) []diagnostic.Diagnostic {
 			continue
 		}
 		checked = true
-		if tcpReachable(net.JoinHostPort(addr, port), 3*time.Second) {
+		if tcpReachable(net.JoinHostPort(addr, port), reachProbeTimeout(3*time.Second)) {
 			return nil
 		}
 	}
@@ -279,7 +308,7 @@ func checkBMPCollectors(tree *config.Tree) []diagnostic.Diagnostic {
 		}
 		checked = true
 		port := valueOrDefault(c.Value, "port", "11019")
-		if tcpReachable(net.JoinHostPort(addr, port), 3*time.Second) {
+		if tcpReachable(net.JoinHostPort(addr, port), reachProbeTimeout(3*time.Second)) {
 			return nil
 		}
 	}
@@ -347,7 +376,7 @@ func checkUpdateCheckURL(tree *config.Tree, platform *host.PlatformInfo) []diagn
 		return nil
 	}
 
-	if err := httpHead(url, 5*time.Second); err != nil {
+	if err := httpHead(url, reachProbeTimeout(5*time.Second)); err != nil {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-update-check-unreachable",
@@ -378,7 +407,7 @@ func checkArchiveDestinations(tree *config.Tree) []diagnostic.Diagnostic {
 		if !strings.HasPrefix(loc, "http://") && !strings.HasPrefix(loc, "https://") {
 			continue
 		}
-		if err := httpHead(loc, 5*time.Second); err != nil {
+		if err := httpHead(loc, reachProbeTimeout(5*time.Second)); err != nil {
 			var tb textbuf.Buffer
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-archive-unreachable",

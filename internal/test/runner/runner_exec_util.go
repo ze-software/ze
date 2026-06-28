@@ -17,6 +17,17 @@ import (
 
 var errEmptyExecCommand = errors.New("empty exec command")
 
+// withParallelHeadroom widens a resolved per-test timeout by
+// ParallelTimeoutHeadroom when this Run executes tests concurrently. Serial
+// runs (-p 1 or a single selected test) keep the authored value so real
+// slowdowns surface quickly. See ParallelTimeoutHeadroom for rationale.
+func (r *Runner) withParallelHeadroom(timeout time.Duration) time.Duration {
+	if r.concurrency > 1 {
+		return timeout * ParallelTimeoutHeadroom
+	}
+	return timeout
+}
+
 const (
 	modeForeground  = "foreground"
 	fileCheckFailed = "file_check_failed"

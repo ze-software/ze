@@ -85,6 +85,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 			timeout = d
 		}
 	}
+	timeout = r.withParallelHeadroom(timeout)
 
 	// Create test context with timeout
 	testCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -344,6 +345,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			}
 		}
 	}
+	timeout = r.withParallelHeadroom(timeout)
 
 	testCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -562,6 +564,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			"PYTHONPATH="+filepath.Join(r.baseDir, "test", "scripts"),
 			"PATH="+zeDir+":"+existingPath,
 			"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
+			// Cap doctor reachability probes so they fail fast against
+			// deliberately-unreachable fixtures instead of waiting out their full
+			// multi-second timeout (which dominates wall-clock and flakes under
+			// load); the destination is still reported unreachable. See checks_reach.go.
+			"ze.test.doctor.probe-timeout=250ms",
 		)
 		if binName == "ze" && zeDaemonShouldForceFileStorage(args) {
 			// Functional daemon configs are per-test files. Keep them out of the

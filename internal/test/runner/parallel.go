@@ -15,6 +15,17 @@ const (
 	DefaultParallelTimeout    = 30 * time.Second
 	DefaultParallelConcurrent = 20
 	StatusUpdateInterval      = 200 * time.Millisecond
+
+	// ParallelTimeoutHeadroom widens each test's wall-clock budget when tests
+	// run concurrently. Authored per-test timeouts (an explicit `timeout=` on a
+	// cmd, or the baseline-derived SuggestedTimeout) are measured against an
+	// uncontended run; under parallel execution tests share CPU and run slower,
+	// so a budget set close to the uncontended runtime flakes under load. Many
+	// .ci timeouts sit at 70-100% of the uncontended runtime, leaving no
+	// headroom. Multiplying by this factor when concurrency > 1 absorbs the
+	// contention; serial runs (-p 1, single-test debug) keep the tight value so
+	// real slowdowns still surface quickly.
+	ParallelTimeoutHeadroom = 3
 )
 
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.verify.mode", Type: "bool", Description: "Set by the verify runner; suites emit machine-readable failure groups"})

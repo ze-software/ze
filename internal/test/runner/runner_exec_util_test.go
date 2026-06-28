@@ -9,7 +9,36 @@
 
 package runner
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
+
+// TestWithParallelHeadroom checks that per-test timeouts are widened only when
+// the Run executes tests concurrently (concurrency > 1), leaving serial runs
+// (-p 1 or a single selected test) and the unset/zero state untouched so a real
+// slowdown still surfaces against the authored timeout.
+func TestWithParallelHeadroom(t *testing.T) {
+	const base = 10 * time.Second
+	cases := []struct {
+		name        string
+		concurrency int
+		want        time.Duration
+	}{
+		{"zero (outside a Run) unchanged", 0, base},
+		{"serial run unchanged", 1, base},
+		{"parallel run widened", 2, base * ParallelTimeoutHeadroom},
+		{"high concurrency widened", 20, base * ParallelTimeoutHeadroom},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r := &Runner{concurrency: c.concurrency}
+			if got := r.withParallelHeadroom(base); got != c.want {
+				t.Fatalf("concurrency=%d: got %v, want %v", c.concurrency, got, c.want)
+			}
+		})
+	}
+}
 
 // TestFirstZeSubcommand checks that the ze verb is found past leading flags and
 // that the daemon "read config from stdin" sentinel "-" is not treated as a verb.
