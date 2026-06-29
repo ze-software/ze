@@ -7,6 +7,18 @@
 
 package packet
 
+import "sync"
+
+// maxTLVsPerPDU is the fixed capacity for pooled TLV backing arrays. 64
+// exceeds any real PDU's TLV count (a 1492-byte PDU fits at most ~733
+// two-byte TLVs, but real TLVs are much larger). The pool item is the
+// array pointer itself (*[64]TLV is pointer-like, no interface boxing).
+const maxTLVsPerPDU = 64
+
+var tlvSlicePool = sync.Pool{
+	New: func() any { return new([maxTLVsPerPDU]TLV) },
+}
+
 // TLV is one decoded TLV retained as a type plus its raw value bytes. It is the
 // opaque carrier used both for unknown TLVs (re-flooded verbatim per ISO/IEC
 // 10589 clause 7.3.14) and as a uniform encode unit for TLVs the caller has
@@ -43,17 +55,16 @@ func (t TLV) WriteTo(buf []byte, off int) int {
 // the walk and is reported via the error; the TLVs decoded before the
 // truncation are still returned.
 //
-// Allocation is bounded by the input, not an explicit cap: buf is a single
-// MTU-bounded TLV region (the caller has already framed one received PDU), and
-// each TLV consumes at least TLVHeaderLen octets, so the slice can hold at most
-// len(buf)/TLVHeaderLen entries. The make() below pre-sizes the slice to that
-// bound, so a crafted region cannot force unbounded allocation (security
-// review: resource exhaustion).
+// Allocation uses a fixed capacity so all TLV slices are the same size,
+// enabling future pool reuse. The cap is the maximum TLV count that fits
+// in a single MTU-bounded PDU; each TLV consumes at least TLVHeaderLen
+// octets (security review: resource exhaustion).
 func DecodeTLVs(buf []byte) ([]TLV, error) {
 	if len(buf) == 0 {
 		return nil, nil
 	}
-	out := make([]TLV, 0, len(buf)/TLVHeaderLen)
+	arr, _ := tlvSlicePool.Get().(*[maxTLVsPerPDU]TLV) //nolint:errcheck // pool New returns this type
+	out := arr[:0]
 	it := NewTLVIterator(buf)
 	for {
 		typ, value, ok := it.Next()
@@ -62,7 +73,24 @@ func DecodeTLVs(buf []byte) ([]TLV, error) {
 		}
 		out = append(out, TLV{Type: typ, Value: value})
 	}
+	if cap(out) != maxTLVsPerPDU {
+		clear(arr[:])
+		tlvSlicePool.Put(arr)
+	}
 	return out, it.Err()
+}
+
+// ReleaseTLVs returns a TLV slice obtained from DecodeTLVs to the pool.
+// Callers must not use the slice after this call. Nil and non-pool-sized
+// slices (e.g. from a PDU with >64 TLVs that outgrew the pool array)
+// are silently ignored.
+func ReleaseTLVs(tlvs []TLV) {
+	if len(tlvs) == 0 || cap(tlvs) != maxTLVsPerPDU {
+		return
+	}
+	full := tlvs[:maxTLVsPerPDU]
+	clear(full)
+	tlvSlicePool.Put((*[maxTLVsPerPDU]TLV)(full))
 }
 
 // writeTLVs serializes a slice of TLVs in order into buf at off and returns the

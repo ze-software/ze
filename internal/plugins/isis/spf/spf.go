@@ -18,7 +18,6 @@
 package spf
 
 import (
-	"container/heap"
 	"slices"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
@@ -79,18 +78,43 @@ type heapItem struct {
 
 type spfHeap []heapItem
 
-func (h spfHeap) Len() int           { return len(h) }
-func (h spfHeap) Less(i, j int) bool { return h[i].dist < h[j].dist }
-func (h spfHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-func (h *spfHeap) Push(x any) {
-	it, _ := x.(heapItem) //nolint:errcheck // heap only ever holds heapItem
+func (h *spfHeap) push(it heapItem) {
 	*h = append(*h, it)
+	s := *h
+	i := len(s) - 1
+	for i > 0 {
+		parent := (i - 1) / 2
+		if s[i].dist >= s[parent].dist {
+			break
+		}
+		s[i], s[parent] = s[parent], s[i]
+		i = parent
+	}
 }
-func (h *spfHeap) Pop() any {
-	old := *h
-	n := len(old)
-	it := old[n-1]
-	*h = old[:n-1]
+
+func (h *spfHeap) pop() heapItem {
+	s := *h
+	n := len(s)
+	it := s[0]
+	s[0] = s[n-1]
+	s = s[:n-1]
+	*h = s
+	i := 0
+	for {
+		left := 2*i + 1
+		if left >= len(s) {
+			break
+		}
+		j := left
+		if right := left + 1; right < len(s) && s[right].dist < s[left].dist {
+			j = right
+		}
+		if s[j].dist >= s[i].dist {
+			break
+		}
+		s[i], s[j] = s[j], s[i]
+		i = j
+	}
 	return it
 }
 
@@ -126,10 +150,9 @@ func Compute(g *Graph, root types.SystemID, level Level) *Result {
 	tents[rootID] = &tent{dist: 0}
 
 	h := &spfHeap{{id: rootID, dist: 0}}
-	heap.Init(h)
 
-	for h.Len() > 0 {
-		item, _ := heap.Pop(h).(heapItem) //nolint:errcheck // heap only ever holds heapItem
+	for len(*h) > 0 {
+		item := h.pop()
 		cur := tents[item.id]
 		if cur == nil || cur.settled {
 			continue // a stale heap entry for an already-settled node
@@ -192,7 +215,7 @@ func relax(h *spfHeap, tents map[types.SourceID]*tent, cur *tent, fromID, rootID
 	nt, ok := tents[e.To]
 	if !ok {
 		tents[e.To] = &tent{dist: nd, firstHops: hops}
-		heap.Push(h, heapItem{id: e.To, dist: nd})
+		h.push(heapItem{id: e.To, dist: nd})
 		return
 	}
 	if nt.settled {
@@ -202,7 +225,7 @@ func relax(h *spfHeap, tents map[types.SourceID]*tent, cur *tent, fromID, rootID
 	case nd < nt.dist:
 		nt.dist = nd
 		nt.firstHops = hops
-		heap.Push(h, heapItem{id: e.To, dist: nd})
+		h.push(heapItem{id: e.To, dist: nd})
 	case nd == nt.dist:
 		// Equal-cost path: merge the first-hop sets (ECMP), de-duplicated.
 		nt.firstHops = mergeHops(nt.firstHops, hops)

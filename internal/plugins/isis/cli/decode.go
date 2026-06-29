@@ -66,6 +66,7 @@ func cmdDecode(args []string) int {
 		errln(b.Str("error: decode PDU: ").Err(err).String())
 		return 1
 	}
+	defer pdu.Release()
 
 	enc := json.NewEncoder(os.Stdout)
 	if *pretty {

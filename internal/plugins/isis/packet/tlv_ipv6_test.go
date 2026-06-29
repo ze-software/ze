@@ -18,7 +18,8 @@ func TestISISTLVIPv6InterfaceAddr(t *testing.T) {
 	}}
 	buf := make([]byte, 128)
 	n := writeIPv6InterfaceAddrTLV(buf, 0, in)
-	typ, value, ok := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	typ, value, ok := it.Next()
 	if !ok || typ != TLVIPv6InterfaceAddress {
 		t.Fatalf("framing: ok=%v typ=%d", ok, typ)
 	}
@@ -66,7 +67,8 @@ func TestISISTLVIPv6RoundTrip(t *testing.T) {
 			in := IPv6ReachabilityTLV{Entries: []IPv6ReachEntry{tc.in}}
 			buf := make([]byte, 256)
 			n := in.WriteTo(buf, 0)
-			typ, value, ok := NewTLVIterator(buf[:n]).Next()
+			it := NewTLVIterator(buf[:n])
+			typ, value, ok := it.Next()
 			if !ok || typ != TLVIPv6Reachability {
 				t.Fatalf("framing: ok=%v typ=%d", ok, typ)
 			}
@@ -127,7 +129,8 @@ func TestISISTLVIPv6FlagBits(t *testing.T) {
 	}}}
 	buf := make([]byte, 64)
 	n := in.WriteTo(buf, 0)
-	_, value, _ := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	_, value, _ := it.Next()
 	flags := value[types.PrefixMetricLen]
 	if flags != 0x40 {
 		t.Errorf("flags octet = %#02x, want 0x40 (external X only, RFC 5308 sec 2)", flags)
@@ -140,7 +143,8 @@ func TestISISTLVIPv6FlagBits(t *testing.T) {
 	}}}
 	bufS := make([]byte, 64)
 	nS := inS.WriteTo(bufS, 0)
-	_, valueS, _ := NewTLVIterator(bufS[:nS]).Next()
+	it = NewTLVIterator(bufS[:nS])
+	_, valueS, _ := it.Next()
 	if flagsS := valueS[types.PrefixMetricLen]; flagsS != 0x20 {
 		t.Errorf("flags octet = %#02x, want 0x20 (sub-TLV-present S only, RFC 5308 sec 2)", flagsS)
 	}
@@ -154,7 +158,8 @@ func TestISISTLVIPv6NoSubTLVNoLengthOctet(t *testing.T) {
 	}}}
 	buf := make([]byte, 64)
 	n := in.WriteTo(buf, 0)
-	_, value, _ := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	_, value, _ := it.Next()
 	// metric(4) + flags(1) + prefixlen(1) + 4 prefix octets (/32) = 10.
 	wantValueLen := types.PrefixMetricLen + 1 + 1 + 4
 	if len(value) != wantValueLen {

@@ -6,7 +6,6 @@
 package spf
 
 import (
-	"container/heap"
 	"net/netip"
 	"slices"
 	"sort"
@@ -63,8 +62,7 @@ type heapItem struct {
 
 type spfHeap []heapItem
 
-func (h spfHeap) Len() int { return len(h) }
-func (h spfHeap) Less(i, j int) bool {
+func (h spfHeap) less(i, j int) bool {
 	if h[i].dist != h[j].dist {
 		return h[i].dist < h[j].dist
 	}
@@ -73,16 +71,44 @@ func (h spfHeap) Less(i, j int) bool {
 	}
 	return compareVertexID(h[i].id, h[j].id) < 0
 }
-func (h spfHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
-func (h *spfHeap) Push(x any) {
-	it, _ := x.(heapItem) //nolint:errcheck // heap only stores heapItem
+
+func (h *spfHeap) push(it heapItem) {
 	*h = append(*h, it)
+	s := *h
+	i := len(s) - 1
+	for i > 0 {
+		parent := (i - 1) / 2
+		if !s.less(i, parent) {
+			break
+		}
+		s[i], s[parent] = s[parent], s[i]
+		i = parent
+	}
 }
-func (h *spfHeap) Pop() any {
-	old := *h
-	n := len(old)
-	it := old[n-1]
-	*h = old[:n-1]
+
+func (h *spfHeap) pop() heapItem {
+	s := *h
+	n := len(s)
+	it := s[0]
+	s[0] = s[n-1]
+	s = s[:n-1]
+	*h = s
+	i := 0
+	for {
+		left := 2*i + 1
+		if left >= len(s) {
+			break
+		}
+		j := left
+		if right := left + 1; right < len(s) && s.less(right, left) {
+			j = right
+		}
+		if !s.less(j, i) {
+			break
+		}
+		s[i], s[j] = s[j], s[i]
+		i = j
+	}
 	return it
 }
 
@@ -137,12 +163,11 @@ func computeWithNextHop(g *Graph, root types.RouterID, maxPaths int, nh NextHopS
 
 	tents := map[VertexID]*tent{rootID: {dist: 0}}
 	h := &spfHeap{{id: rootID, dist: 0}}
-	heap.Init(h)
 
 	// RFC 2328 Section 16.1: stage 1 considers only router and transit-network
 	// vertices. Stub networks are leaves and are attached later in route.go.
-	for h.Len() > 0 {
-		item, _ := heap.Pop(h).(heapItem) //nolint:errcheck // heap only stores heapItem
+	for len(*h) > 0 {
+		item := h.pop()
 		cur := tents[item.id]
 		if cur == nil || cur.settled || item.dist > cur.dist {
 			continue
@@ -226,14 +251,14 @@ func relax(h *spfHeap, tents map[VertexID]*tent, cur *tent, e edge, maxPaths int
 	nt, ok := tents[e.to]
 	if !ok {
 		tents[e.to] = &tent{dist: nd, nextHops: hops}
-		heap.Push(h, heapItem{id: e.to, dist: nd})
+		h.push(heapItem{id: e.to, dist: nd})
 		return
 	}
 	if nd < nt.dist {
 		nt.dist = nd
 		nt.nextHops = hops
 		nt.settled = false
-		heap.Push(h, heapItem{id: e.to, dist: nd})
+		h.push(heapItem{id: e.to, dist: nd})
 		return
 	}
 	if nd == nt.dist {
@@ -241,7 +266,7 @@ func relax(h *spfHeap, tents map[VertexID]*tent, cur *tent, e edge, maxPaths int
 		if changed {
 			nt.nextHops = merged
 			nt.settled = false
-			heap.Push(h, heapItem{id: e.to, dist: nd})
+			h.push(heapItem{id: e.to, dist: nd})
 		}
 	}
 }

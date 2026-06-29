@@ -16,7 +16,8 @@ func ext135TLV(prefix netip.Prefix, metric uint32) TLV {
 	}}}
 	buf := make([]byte, 64)
 	n := in.WriteTo(buf, 0)
-	_, value, _ := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	_, value, _ := it.Next()
 	cp := make([]byte, len(value))
 	copy(cp, value)
 	return TLV{Type: TLVExtendedIPReach, Value: cp}

@@ -72,6 +72,7 @@ func (e *engine) hostnameSnapshot() []any {
 				continue
 			}
 			name := hostnameFromLSP(&lsp)
+			packet.ReleaseTLVs(lsp.TLVs)
 			if name == "" {
 				continue
 			}

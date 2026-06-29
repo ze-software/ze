@@ -39,6 +39,7 @@ func SignPDU(pdu []byte, key Key) ([]byte, error) {
 	if err != nil {
 		return nil, ErrAuthMalformed
 	}
+	defer dec.Release()
 	class, ok := classOf(dec.Header.PDUType)
 	if !ok {
 		return nil, ErrAuthMalformed

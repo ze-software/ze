@@ -172,6 +172,7 @@ func BuildGraph(src Source, level Level) *Graph {
 			n.Overload = true
 		}
 		addTLVs(n, rec.LSP)
+		packet.ReleaseTLVs(rec.LSP.TLVs)
 	}
 	return g
 }

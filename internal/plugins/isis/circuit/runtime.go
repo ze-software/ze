@@ -36,11 +36,12 @@ func (c *Circuit) Receive(srcSNPA adjacency.SNPA, pdu []byte) adjacency.Transiti
 	}
 	switch {
 	case p.LANHello != nil:
+		defer packet.ReleaseTLVs(p.LANHello.TLVs)
 		return c.handleLANHello(srcSNPA, p.LANHello)
 	case p.P2PHello != nil:
+		defer packet.ReleaseTLVs(p.P2PHello.TLVs)
 		return c.handleP2PHello(p.P2PHello)
 	default:
-		// Not an IIH (LSP/CSNP/PSNP); the adjacency circuit ignores it.
 		return adjacency.Transition{}
 	}
 }
@@ -268,7 +269,7 @@ func padMTU(ifMTU int) int {
 func (c *Circuit) sendLANHellos(mtu int) error {
 	snpas := c.heardSNPAs()
 	for _, level := range c.levels {
-		pdu := c.buildLANHello(level, snpas)
+		pdu := c.buildLANHello(level, snpas, mtu)
 		pdu = padHello(pdu, mtu)
 		// Sign AFTER padding, BEFORE framing (RFC 5304 sec 2 signs padded Hellos;
 		// spec-isis-10). Unsigned when no IIH chain is configured.
@@ -289,7 +290,7 @@ func (c *Circuit) sendLANHellos(mtu int) error {
 // P2P adjacency (if any).
 func (c *Circuit) sendP2PHello(mtu int) error {
 	state, neighborID, haveNeighbor, adjLevel := c.p2pThreeWayState()
-	pdu := c.buildP2PHello(state, neighborID, haveNeighbor)
+	pdu := c.buildP2PHello(state, neighborID, haveNeighbor, mtu)
 	pdu = padHello(pdu, mtu)
 	// Sign AFTER padding, BEFORE framing (spec-isis-10). RFC 5303 sec 3: a P2P IIH
 	// is level-agnostic on the wire (one PDU type, no level bit), so the IIH chain

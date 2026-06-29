@@ -54,8 +54,8 @@ type TLVIterator struct {
 
 // NewTLVIterator returns an iterator over the TLV region buf. The region is the
 // raw TLV bytes only (no PDU header); callers slice it out of the PDU first.
-func NewTLVIterator(buf []byte) *TLVIterator {
-	return &TLVIterator{buf: buf}
+func NewTLVIterator(buf []byte) TLVIterator {
+	return TLVIterator{buf: buf}
 }
 
 // Next returns the next (type, value) pair and ok=true, or ok=false at the end
@@ -108,6 +108,11 @@ func writeTLV(buf []byte, off int, typ uint8, value []byte) int {
 // tlvOverhead returns the encoded size of a TLV carrying a value of n octets.
 func tlvOverhead(n int) int { return TLVHeaderLen + n }
 
+// maxSubTLVs is the fixed initial capacity for decoded sub-TLV slices.
+// A sub-TLV block fits in at most 255 bytes (single TLV value), so 8
+// is a comfortable fixed size for pooling (real entries carry 1-3).
+const maxSubTLVs = 8
+
 // SubTLV is one sub-TLV (RFC 5305 sec 2): the same Type(1)+Length(1)+Value
 // framing as a TLV, nested inside a TLV 22/135/236 entry. Value aliases the
 // source buffer on decode. Unknown sub-TLVs are retained and re-emitted
@@ -131,7 +136,7 @@ func decodeSubTLVs(block []byte) ([]SubTLV, error) {
 	if len(block) == 0 {
 		return nil, nil
 	}
-	out := make([]SubTLV, 0, len(block)/TLVHeaderLen)
+	out := make([]SubTLV, 0, maxSubTLVs)
 	it := NewTLVIterator(block)
 	for {
 		typ, value, ok := it.Next()

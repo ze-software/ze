@@ -294,7 +294,8 @@ func ext135TLV(t *testing.T, prefix netip.Prefix, metric uint32) packet.TLV {
 	}}}
 	buf := make([]byte, in.EncodedLen())
 	n := in.WriteTo(buf, 0)
-	_, value, _ := packet.NewTLVIterator(buf[:n]).Next()
+	it := packet.NewTLVIterator(buf[:n])
+	_, value, _ := it.Next()
 	cp := make([]byte, len(value))
 	copy(cp, value)
 	return packet.TLV{Type: packet.TLVExtendedIPReach, Value: cp}

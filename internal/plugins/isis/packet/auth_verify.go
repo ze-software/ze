@@ -38,6 +38,7 @@ func VerifyPDU(pdu []byte, keys []Key) error {
 	if err != nil {
 		return ErrAuthMalformed
 	}
+	defer dec.Release()
 	class, ok := classOf(dec.Header.PDUType)
 	if !ok {
 		return ErrAuthMalformed

@@ -14,7 +14,8 @@ func areaTLV(t *testing.T, area []byte) TLV {
 	a := AreaAddressesTLV{Areas: []types.AreaID{mustArea(t, area)}}
 	buf := make([]byte, 64)
 	n := writeAreaAddressesTLV(buf, 0, a)
-	_, value, _ := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	_, value, _ := it.Next()
 	return TLV{Type: TLVAreaAddresses, Value: value}.CopyValue()
 }
 
@@ -84,7 +85,8 @@ func TestISISP2PIIHRoundTrip(t *testing.T) {
 		HasNeighbor: true, NeighborID: types.SystemID{1, 1, 1, 1, 1, 1}, NeighborCircuit: 9}
 	twBuf := make([]byte, 32)
 	twN := writeP2PThreeWayTLV(twBuf, 0, tw)
-	_, twVal, _ := NewTLVIterator(twBuf[:twN]).Next()
+	it := NewTLVIterator(twBuf[:twN])
+	_, twVal, _ := it.Next()
 
 	in := &P2PHello{
 		CircuitType:    CircuitL2,

@@ -18,6 +18,23 @@ type PDU struct {
 	PSNP     *PSNP
 }
 
+// Release returns the decoded TLV slice to the pool. Callers must not access
+// the PDU's TLVs after this call.
+func (p *PDU) Release() {
+	switch {
+	case p.LANHello != nil:
+		ReleaseTLVs(p.LANHello.TLVs)
+	case p.P2PHello != nil:
+		ReleaseTLVs(p.P2PHello.TLVs)
+	case p.LSP != nil:
+		ReleaseTLVs(p.LSP.TLVs)
+	case p.CSNP != nil:
+		ReleaseTLVs(p.CSNP.TLVs)
+	case p.PSNP != nil:
+		ReleaseTLVs(p.PSNP.TLVs)
+	}
+}
+
 // DecodePDU parses a complete IS-IS PDU: the common header followed by the
 // type-specific body. It validates the common header (discriminator, version,
 // ID length, known PDU type), dispatches by the 5-bit PDU type to the matching

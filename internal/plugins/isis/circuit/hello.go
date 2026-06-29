@@ -178,7 +178,7 @@ const p2pThreeWayValueMaxLen = 1 + 4 + types.SystemIDLen + 4
 // origination TLVs and TLV 6, returning the encoded PDU bytes. level selects the
 // PDU type (0x0f L1 / 0x10 L2). The result is the PDU BEFORE padding and
 // authentication; padHello adds TLV 8 and signing happens afterward (isis-10).
-func (c *Circuit) buildLANHello(level adjacency.Level, snpas []adjacency.SNPA) []byte {
+func (c *Circuit) buildLANHello(level adjacency.Level, snpas []adjacency.SNPA, padMTU int) []byte {
 	pt := packet.PDUTypeL1LANHello
 	if level == adjacency.Level2 {
 		pt = packet.PDUTypeL2LANHello
@@ -192,7 +192,8 @@ func (c *Circuit) buildLANHello(level adjacency.Level, snpas []adjacency.SNPA) [
 		LANID:       c.lanID,
 		TLVs:        append(c.originationTLVs(), c.isNeighborsTLV(snpas)),
 	}
-	buf := make([]byte, h.EncodedLen())
+	encodedLen := h.EncodedLen()
+	buf := make([]byte, encodedLen, max(encodedLen, padMTU))
 	n := h.WriteTo(buf, 0)
 	return buf[:n]
 }
@@ -200,7 +201,7 @@ func (c *Circuit) buildLANHello(level adjacency.Level, snpas []adjacency.SNPA) [
 // buildP2PHello assembles a full P2P IIH (without padding) carrying the
 // origination TLVs and TLV 240. state/neighborID/haveNeighbor describe our
 // three-way state toward the single P2P neighbor.
-func (c *Circuit) buildP2PHello(state packet.AdjThreeWayState, neighborID types.SystemID, haveNeighbor bool) []byte {
+func (c *Circuit) buildP2PHello(state packet.AdjThreeWayState, neighborID types.SystemID, haveNeighbor bool, padMTU int) []byte {
 	h := packet.P2PHello{
 		CircuitType:    c.circuitTypeField(),
 		SystemID:       c.systemID,
@@ -208,7 +209,8 @@ func (c *Circuit) buildP2PHello(state packet.AdjThreeWayState, neighborID types.
 		LocalCircuitID: c.localCircuitID,
 		TLVs:           append(c.originationTLVs(), c.threeWayTLV(state, neighborID, haveNeighbor)),
 	}
-	buf := make([]byte, h.EncodedLen())
+	encodedLen := h.EncodedLen()
+	buf := make([]byte, encodedLen, max(encodedLen, padMTU))
 	n := h.WriteTo(buf, 0)
 	return buf[:n]
 }
@@ -238,10 +240,13 @@ func padHello(pdu []byte, mtu int) []byte {
 	if mtu <= 0 || len(pdu) >= mtu {
 		return pdu
 	}
-	// Each Padding TLV costs TLVHeaderLen overhead plus up to MaxTLVValueLen value
-	// octets. Pre-size the output so appends do not reallocate.
-	out := make([]byte, len(pdu), mtu)
-	copy(out, pdu)
+	var out []byte
+	if cap(pdu) >= mtu {
+		out = pdu
+	} else {
+		out = make([]byte, len(pdu), mtu)
+		copy(out, pdu)
+	}
 	for len(out) < mtu {
 		room := mtu - len(out)
 		if room < packet.TLVHeaderLen {

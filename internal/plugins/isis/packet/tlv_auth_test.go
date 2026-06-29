@@ -27,7 +27,8 @@ func TestISISTLVAuthCodec(t *testing.T) {
 			in := AuthTLV{AuthType: tc.authType, Value: tc.value}
 			buf := make([]byte, 64)
 			n := writeAuthTLV(buf, 0, in)
-			typ, value, ok := NewTLVIterator(buf[:n]).Next()
+			it := NewTLVIterator(buf[:n])
+			typ, value, ok := it.Next()
 			if !ok || typ != TLVAuthentication {
 				t.Fatalf("framing: ok=%v typ=%d", ok, typ)
 			}

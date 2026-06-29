@@ -13,7 +13,8 @@ func lspEntriesTLV(entries []LSPEntry) TLV {
 	in := LSPEntriesTLV{Entries: entries}
 	buf := make([]byte, 256)
 	n := writeLSPEntriesTLV(buf, 0, in)
-	_, value, _ := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	_, value, _ := it.Next()
 	cp := make([]byte, len(value))
 	copy(cp, value)
 	return TLV{Type: TLVLSPEntries, Value: cp}

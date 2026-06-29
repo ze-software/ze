@@ -25,6 +25,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/adjacency"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/circuit"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/lsdb"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/packet"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/spf"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
 )
@@ -849,6 +850,7 @@ func (e *engine) databaseDetailSnapshot() []any {
 								Value: hexBuf.Reset().Hex(t.Value).String(),
 							})
 						}
+						packet.ReleaseTLVs(lsp.TLVs)
 					}
 				}
 			}

@@ -161,6 +161,7 @@ func (e *engine) handleLSP(rf transport.RawFrame) {
 	if err != nil || pdu.LSP == nil {
 		return
 	}
+	defer packet.ReleaseTLVs(pdu.LSP.TLVs)
 	// ISO/IEC 10589 sec 7.3.14.2: a received LSP whose Fletcher checksum does not
 	// verify over its raw bytes is corrupt; it MUST be discarded -- not stored and
 	// not re-flooded -- so a bit-flipped LSP cannot poison the LSDB or be relayed
@@ -200,6 +201,7 @@ func (e *engine) handleCSNP(rf transport.RawFrame) {
 	if err != nil || pdu.CSNP == nil {
 		return
 	}
+	defer packet.ReleaseTLVs(pdu.CSNP.TLVs)
 	cid, _, ok := e.circuitContext(rf.IfIndex)
 	if !ok {
 		return
@@ -215,6 +217,7 @@ func (e *engine) handlePSNP(rf transport.RawFrame) {
 	if err != nil || pdu.PSNP == nil {
 		return
 	}
+	defer packet.ReleaseTLVs(pdu.PSNP.TLVs)
 	cid, _, ok := e.circuitContext(rf.IfIndex)
 	if !ok {
 		return

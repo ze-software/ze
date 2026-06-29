@@ -35,7 +35,8 @@ func TestISISTLVAreaAddressesRoundTrip(t *testing.T) {
 	n := writeAreaAddressesTLV(buf, 0, in)
 	// The encoded region is type+len+value; decode the value through the
 	// generic iterator to confirm framing, then the typed decoder.
-	typ, value, ok := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	typ, value, ok := it.Next()
 	if !ok || typ != TLVAreaAddresses {
 		t.Fatalf("framing: ok=%v typ=%d", ok, typ)
 	}
@@ -80,7 +81,8 @@ func TestISISTLVLSPEntriesRoundTrip(t *testing.T) {
 	}}
 	buf := make([]byte, 256)
 	n := writeLSPEntriesTLV(buf, 0, in)
-	_, value, _ := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	_, value, _ := it.Next()
 	out, err := DecodeLSPEntriesTLV(value)
 	if err != nil {
 		t.Fatalf("DecodeLSPEntriesTLV: %v", err)
@@ -130,7 +132,8 @@ func TestISISTLV22RoundTrip(t *testing.T) {
 	}}
 	buf := make([]byte, 512)
 	n := writeExtendedISReachTLV(buf, 0, in)
-	typ, value, ok := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	typ, value, ok := it.Next()
 	if !ok || typ != TLVExtendedISReach {
 		t.Fatalf("framing: ok=%v typ=%d", ok, typ)
 	}
@@ -186,7 +189,8 @@ func TestISISTLVProtocolsSupported(t *testing.T) {
 	in := ProtocolsSupportedTLV{NLPIDs: []uint8{NLPIDIPv4, NLPIDIPv6}}
 	buf := make([]byte, 16)
 	n := writeProtocolsSupportedTLV(buf, 0, in)
-	typ, value, _ := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	typ, value, _ := it.Next()
 	if typ != TLVProtocolsSupported {
 		t.Fatalf("type = %d", typ)
 	}
@@ -201,7 +205,8 @@ func TestISISTLVHostname(t *testing.T) {
 	name := []byte("router-1.example.net")
 	buf := make([]byte, 256)
 	n := writeHostnameTLV(buf, 0, name)
-	typ, value, _ := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	typ, value, _ := it.Next()
 	if typ != TLVDynamicHostname {
 		t.Fatalf("type = %d", typ)
 	}
@@ -232,7 +237,8 @@ func TestISISTLV240ThreeWay(t *testing.T) {
 			if n != TLVHeaderLen+tc.vlen {
 				t.Fatalf("encoded %d bytes, want %d", n, TLVHeaderLen+tc.vlen)
 			}
-			typ, value, _ := NewTLVIterator(buf[:n]).Next()
+			it := NewTLVIterator(buf[:n])
+			typ, value, _ := it.Next()
 			if typ != TLVP2PThreeWay {
 				t.Fatalf("type = %d", typ)
 			}

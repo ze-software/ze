@@ -19,7 +19,8 @@ func TestISISTLV6Neighbors(t *testing.T) {
 	}}
 	buf := make([]byte, 64)
 	n := writeISNeighborsTLV(buf, 0, in)
-	typ, value, ok := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	typ, value, ok := it.Next()
 	if !ok || typ != TLVISNeighbors {
 		t.Fatalf("framing: ok=%v typ=%d", ok, typ)
 	}

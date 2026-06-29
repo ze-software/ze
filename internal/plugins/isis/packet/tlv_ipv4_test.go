@@ -18,7 +18,8 @@ func TestISISTLVIPv4InterfaceAddr(t *testing.T) {
 	}}
 	buf := make([]byte, 64)
 	n := writeIPv4InterfaceAddrTLV(buf, 0, in)
-	typ, value, ok := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	typ, value, ok := it.Next()
 	if !ok || typ != TLVIPInterfaceAddress {
 		t.Fatalf("framing: ok=%v typ=%d", ok, typ)
 	}
@@ -69,7 +70,8 @@ func TestISISTLVIPv4RoundTrip(t *testing.T) {
 			in := ExtendedIPReachTLV{Entries: []ExtIPReachEntry{tc.in}}
 			buf := make([]byte, 256)
 			n := in.WriteTo(buf, 0)
-			typ, value, ok := NewTLVIterator(buf[:n]).Next()
+			it := NewTLVIterator(buf[:n])
+			typ, value, ok := it.Next()
 			if !ok || typ != TLVExtendedIPReach {
 				t.Fatalf("framing: ok=%v typ=%d", ok, typ)
 			}
@@ -119,7 +121,8 @@ func TestISISTLVIPv4NoSubTLVNoLengthOctet(t *testing.T) {
 	}}}
 	buf := make([]byte, 64)
 	n := in.WriteTo(buf, 0)
-	_, value, _ := NewTLVIterator(buf[:n]).Next()
+	it := NewTLVIterator(buf[:n])
+	_, value, _ := it.Next()
 	// metric(4) + control(1) + 3 prefix octets (/24) = 8, NO sub-TLV length.
 	wantValueLen := types.PrefixMetricLen + 1 + 3
 	if len(value) != wantValueLen {

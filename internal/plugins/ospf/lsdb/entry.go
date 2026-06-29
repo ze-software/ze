@@ -22,8 +22,8 @@ const (
 	Newer
 )
 
-// Entry is one LSDB row. It owns raw bytes so receive buffers can be reused by
-// the transport without corrupting re-flood or SPF readers.
+// Entry is one LSDB row. It takes ownership of the raw byte slice passed to
+// newEntry; callers must not retain or mutate it afterward.
 type Entry struct {
 	header      packet.LSAHeader
 	raw         []byte
@@ -35,11 +35,9 @@ type Entry struct {
 }
 
 func newEntry(h packet.LSAHeader, raw []byte, now time.Time, self bool) *Entry {
-	owned := make([]byte, len(raw))
-	copy(owned, raw)
 	return &Entry{
 		header:      h,
-		raw:         owned,
+		raw:         raw,
 		baseAge:     h.Age,
 		baseTime:    now,
 		installedAt: now,
