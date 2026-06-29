@@ -151,6 +151,31 @@ build ICMP echo packets and resolve targets), extract those primitives to a
 `internal/core/<x>` package (e.g. `internal/core/probe`) so neither feature
 module depends on the other or on a central verb package.
 
+### Registration over hardcoding (the CLI client too)
+
+The registration discipline applies to the **CLI client model**, not only the
+daemon's command/schema tree. The daemon already registers streaming views
+generically (`pluginserver.RegisterStreamingHandler(prefix, handler)`,
+`internal/component/plugin/server/handler.go`); the Bubble Tea client must not
+regress that into per-feature hardcoding.
+
+Anti-pattern: each rich live view (dashboard, traceroute, ping, traffic) adding
+its own field + factory + state + dispatch to the core `cli.Model`
+(`internal/component/cli/model*.go`), wired one-by-one in
+`cmd/ze/hub/session_factory.go` and `internal/component/cli/client/main.go`. Every
+new view then edits the core struct in 4-5 places -- the opposite of "the core
+discovers features through a registry."
+
+Correct: a view registry of `{command-prefix, session-factory, renderer}` that the
+core `Model` iterates; each feature registers its view from its owner package, and
+the core holds one map with no per-feature field. New `monitor`/`show` views
+register and are discovered; they do not extend a core struct.
+
+General test for any spec: **a new feature must not require editing a `switch`,
+`case`, field list, or factory in a core or shared package -- it registers and is
+discovered.** This is the "Registration over hardcoding" review item carried by
+`plan/TEMPLATE.md` and warned for by `.claude/hooks/validate-spec.sh`.
+
 ## Mechanical Check
 
 A removal-compliance test must exist and run in verification: build (or analyse

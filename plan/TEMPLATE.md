@@ -76,6 +76,7 @@
 - [ ] No unintended coupling (components remain isolated)
 - [ ] No duplicated functionality (extends existing, doesn't recreate)
 - [ ] Zero-copy preserved where applicable (uses refs, not copies)
+- [ ] Registration over hardcoding — new commands, CLI/monitor views, families, and handlers register via the existing registry and the core discovers them; no new per-feature field, switch case, or factory is added to a core/shared package (small-core/registration; `ai/rules/plugin-self-containment.md`)
 
 ## Risks & Assumptions
 
@@ -307,6 +308,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Naming | [feature-specific: e.g., "JSON keys use kebab-case", "YANG uses kebab-case"] |
 | Data flow | [feature-specific: e.g., "resolution in X only, reactor unaware of Y"] |
 | CLI grammar | If CLI commands added: action before identifier per `ai/rules/cli-grammar.md` |
+| Registration over hardcoding | New command/view/family/handler is registry-registered and core-discovered; no new per-feature field, switch case, or factory added to a core/shared struct (incl. the CLI `Model`). See `ai/rules/plugin-self-containment.md` |
 | Doctor checks | If runtime dependencies added: `ze doctor` check registered per `ai/rules/doctor-checks.md` |
 | YANG validation | If YANG leaves added: every leaf has max native constraints (`range`/`length`/`pattern`/`enum`). Bare `type string` is a red flag. Custom validator + `CompleteFn` where native is insufficient |
 | Prometheus counters | If observable state exists: counters defined, registered, metric names listed |

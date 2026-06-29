@@ -321,6 +321,16 @@ if grep -q "^## Checklist" "$FILE_PATH"; then
     fi
 fi
 
+# === REGISTRATION-OVER-HARDCODING CHECK ===
+# Every spec should carry the registration-over-hardcoding review item: new
+# features register and the core discovers them, instead of adding a per-feature
+# field/switch/case/factory to a core or shared package (small-core/registration;
+# ai/rules/plugin-self-containment.md). WARNING only -- specs predating this rule
+# are exempt; plan/TEMPLATE.md adds it to every newly authored spec.
+if ! grep -qi 'Registration over hardcoding' "$FILE_PATH"; then
+    WARNINGS+=("Missing 'Registration over hardcoding' review item (add to Critical Review Checklist + Architectural Verification). New commands/views/families/handlers must register and be core-discovered, not hardcoded into a core/shared package (ai/rules/plugin-self-containment.md)")
+fi
+
 # === OUTPUT RESULTS (compact) ===
 if [[ ${#ERRORS[@]} -gt 0 ]]; then
     echo -e "${RED}❌ Spec invalid (${#ERRORS[@]} errors):${RESET}" >&2
