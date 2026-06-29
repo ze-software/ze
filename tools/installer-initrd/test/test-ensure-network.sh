@@ -105,6 +105,7 @@ reset_mocks() {
     MOCK_WGET_RC=0
     MOCK_WGET_CALLS=""
     MOCK_IP_CALLS=""
+    ZE_MAC=""          # default: no boot-NIC pin (existing tests scan all NICs)
 }
 
 log() { :; }
@@ -117,6 +118,35 @@ ensure_network_testable() {
             return 0
         fi
         log "Default route present but $ZE_SERVER:$ZE_PORT unreachable; retrying DHCP per interface..."
+    fi
+    # Mirror of the real ensure_network boot-NIC pinning block (ze.mac).
+    if [ -n "$ZE_MAC" ]; then
+        pin_if="$(iface_for_mac "$ZE_MAC")"
+        if [ -n "$pin_if" ]; then
+            log "Pinning install to boot NIC $pin_if (ze.mac=$ZE_MAC)"
+            link_up "$pin_if"
+            pin_waited=0
+            while [ "$pin_waited" -lt 10 ]; do
+                if [ "$(cat "$MOCK_SYSNET_DIR/$pin_if/carrier" 2>/dev/null)" = "1" ]; then
+                    break
+                fi
+                sleep 1
+                pin_waited=$((pin_waited + 1))
+            done
+            if dhcp_acquire "$pin_if"; then
+                probe_err="/tmp/ze-ensure-probe.err"
+                if wget -T 3 --spider -q "http://${ZE_SERVER}:${ZE_PORT}/" 2>"$probe_err" ||
+                   grep -qE "server returned error|HTTP/" "$probe_err" 2>/dev/null; then
+                    log "Got working network on boot NIC $pin_if (ze.mac)"
+                    return 0
+                fi
+                log "boot NIC $pin_if cannot reach $ZE_SERVER:$ZE_PORT; flushing, scanning all NICs"
+                ip addr flush dev "$pin_if" 2>/dev/null
+                ip route del default 2>/dev/null
+            fi
+        else
+            log "ze.mac=$ZE_MAC matches no interface; scanning all NICs"
+        fi
     fi
     log "Acquiring a lease that can reach $ZE_SERVER via userspace DHCP..."
     for iface in "$MOCK_SYSNET_DIR"/*; do
@@ -144,10 +174,10 @@ ensure_network_testable() {
     for iface in "$MOCK_SYSNET_DIR"/*; do
         ifname=$(basename "$iface")
         case "$ifname" in lo) continue ;; esac
-        if udhcpc -i "$ifname" -t 5 -n -q 2>/dev/null; then
+        if dhcp_acquire "$ifname"; then
             probe_err="/tmp/ze-ensure-probe.err"
             if wget -T 3 --spider -q "http://${ZE_SERVER}:${ZE_PORT}/" 2>"$probe_err" ||
-               { [ -s "$probe_err" ] && ! grep -q "can't connect" "$probe_err" 2>/dev/null; }; then
+               grep -qE "server returned error|HTTP/" "$probe_err" 2>/dev/null; then
                 log "Got working network on $ifname"
                 return 0
             fi
@@ -461,6 +491,80 @@ case "$MOCK_IP_CALLS" in
     *addr-flush-eth0*) assert_eq "foreign-dhcp: flushed unreachable eth0" "yes" "yes" ;;
     *) assert_eq "foreign-dhcp: flushed unreachable eth0" "yes" "no" ;;
 esac
+
+# Test 14 (ze.mac): iface_for_mac resolves the interface whose MAC matches,
+# is case-insensitive, skips lo, and returns nothing for an unknown MAC.
+rm -rf "$MOCK_SYSNET_DIR"
+setup_sysnet
+mkdir -p "$MOCK_SYSNET_DIR/eth0" "$MOCK_SYSNET_DIR/eth1" "$MOCK_SYSNET_DIR/lo"
+echo "00:11:22:33:44:55" > "$MOCK_SYSNET_DIR/eth0/address"
+echo "60:be:b4:22:2d:46" > "$MOCK_SYSNET_DIR/eth1/address"
+echo "00:00:00:00:00:00" > "$MOCK_SYSNET_DIR/lo/address"
+ZE_SYSNET_DIR="$MOCK_SYSNET_DIR"
+assert_eq "iface_for_mac: matches eth1 by MAC" "eth1" "$(iface_for_mac 60:be:b4:22:2d:46)"
+assert_eq "iface_for_mac: case-insensitive" "eth1" "$(iface_for_mac 60:BE:B4:22:2D:46)"
+assert_eq "iface_for_mac: unknown MAC -> empty" "" "$(iface_for_mac de:ad:be:ef:00:00)"
+ZE_SYSNET_DIR=""
+
+# Test 15 (ze.mac): boot NIC is pinned; a second NIC on a foreign (corporate)
+# network is NEVER brought up or DHCP'd. eth0=corporate, eth1=boot NIC.
+rm -rf "$MOCK_SYSNET_DIR"
+setup_sysnet
+mkdir -p "$MOCK_SYSNET_DIR/eth0" "$MOCK_SYSNET_DIR/eth1"
+echo "1" > "$MOCK_SYSNET_DIR/eth0/carrier"
+echo "1" > "$MOCK_SYSNET_DIR/eth1/carrier"
+echo "00:11:22:33:44:55" > "$MOCK_SYSNET_DIR/eth0/address"
+echo "60:be:b4:22:2d:46" > "$MOCK_SYSNET_DIR/eth1/address"
+reset_mocks
+MOCK_HAS_ROUTE=0          # corporate kernel default route present, unreachable
+ZE_MAC="60:be:b4:22:2d:46"
+ZE_SYSNET_DIR="$MOCK_SYSNET_DIR"
+udhcpc() {
+    iface=""
+    while [ $# -gt 0 ]; do case "$1" in -i) iface="$2"; shift ;; esac; shift; done
+    MOCK_UDHCPC_CALLS="${MOCK_UDHCPC_CALLS}${MOCK_UDHCPC_CALLS:+ }$iface"
+    return 0
+}
+wget() {
+    MOCK_WGET_CALLS="${MOCK_WGET_CALLS}${MOCK_WGET_CALLS:+ }wget"
+    last_iface="${MOCK_UDHCPC_CALLS##* }"   # reachable only after the boot NIC is up
+    [ "$last_iface" = "eth1" ] && return 0
+    return 1
+}
+ensure_network_testable
+rc=$?
+assert_eq "ze-mac-pin: returns 0" "0" "$rc"
+assert_eq "ze-mac-pin: only the boot NIC DHCP'd" "eth1" "$MOCK_UDHCPC_CALLS"
+assert_eq "ze-mac-pin: only the boot NIC brought up" "eth1" "$MOCK_LINK_UP_CALLS"
+ZE_SYSNET_DIR=""
+
+# Test 16 (ze.mac): a MAC matching no interface falls back to the all-NIC scan.
+rm -rf "$MOCK_SYSNET_DIR"
+setup_sysnet
+mkdir -p "$MOCK_SYSNET_DIR/eth0"
+echo "1" > "$MOCK_SYSNET_DIR/eth0/carrier"
+echo "00:11:22:33:44:55" > "$MOCK_SYSNET_DIR/eth0/address"
+reset_mocks
+MOCK_HAS_ROUTE=1
+MOCK_UDHCPC_RC=0
+MOCK_WGET_RC=0
+ZE_MAC="de:ad:be:ef:00:00"   # matches nothing
+ZE_SYSNET_DIR="$MOCK_SYSNET_DIR"
+udhcpc() {
+    iface=""
+    while [ $# -gt 0 ]; do case "$1" in -i) iface="$2"; shift ;; esac; shift; done
+    MOCK_UDHCPC_CALLS="${MOCK_UDHCPC_CALLS}${MOCK_UDHCPC_CALLS:+ }$iface"
+    return "$MOCK_UDHCPC_RC"
+}
+wget() {
+    MOCK_WGET_CALLS="${MOCK_WGET_CALLS}${MOCK_WGET_CALLS:+ }wget"
+    return "$MOCK_WGET_RC"
+}
+ensure_network_testable
+rc=$?
+assert_eq "ze-mac-nomatch: returns 0 via scan" "0" "$rc"
+assert_eq "ze-mac-nomatch: scanned eth0" "eth0" "$MOCK_UDHCPC_CALLS"
+ZE_SYSNET_DIR=""
 
 # Cleanup
 rm -rf "$MOCK_SYSNET_DIR"

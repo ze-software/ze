@@ -107,20 +107,124 @@ log() {
     emit "[ze-install] $1"
 }
 
+# password_matches returns 0 iff the lowercase hex sha256 of $1 equals
+# ZE_SHELL_AUTH (set from ze.shell-auth on the kernel cmdline). Factored out so
+# the gate logic is unit-testable without a tty. busybox has sha256sum but no
+# bcrypt, so the credential travels as a sha256 hex digest.
+password_matches() {
+    [ -n "$ZE_SHELL_AUTH" ] || return 1
+    pm_hash="$(printf '%s' "$1" | sha256sum)"
+    pm_hash="${pm_hash%% *}"
+    [ "$pm_hash" = "$ZE_SHELL_AUTH" ]
+}
+
+# start_shell replaces the current process with an interactive shell. Separate
+# function so tests can stub it; production exec()s and never returns.
+start_shell() {
+    exec /bin/sh -i
+}
+
+# verify_shell_auth gates an interactive rescue shell behind the admin password
+# on the CURRENT stdio (fatal binds stdio to a console before calling). Echo is
+# disabled while typing (best-effort; the gate still holds if stty is absent).
+# IFS= keeps the password exact (no whitespace trimming). After RETRY_MAX wrong
+# attempts it gives up and returns non-zero.
+verify_shell_auth() {
+    vsa_tries=0
+    while [ "$vsa_tries" -lt "$RETRY_MAX" ]; do
+        printf '[ze-install] admin password for rescue shell: '
+        stty -echo 2>/dev/null || true
+        IFS= read -r vsa_pw || vsa_pw=""
+        stty echo 2>/dev/null || true
+        printf '\n'
+        if password_matches "$vsa_pw"; then
+            printf '[ze-install] authenticated; starting rescue shell\n'
+            start_shell
+            return 0
+        fi
+        printf '[ze-install] incorrect\n'
+        vsa_tries=$((vsa_tries + 1))
+    done
+    printf '[ze-install] too many attempts\n'
+    return 1
+}
+
+# rescue_console runs one console's rescue session on the CURRENT stdio:
+# MODE=gated requires the admin password (verify_shell_auth); MODE=open starts
+# the shell directly. Used per console by rescue_on_all_consoles.
+rescue_console() {
+    if [ "$1" = "open" ]; then
+        start_shell
+    else
+        verify_shell_auth
+    fi
+}
+
+# rescue_on_all_consoles offers a rescue shell on EVERY active console so it is
+# reachable from the physical monitor (tty0) AND any serial line -- not just the
+# kernel's first serial console, where the old single-shell exec went (invisible
+# to an operator at the monitor). initramfs PID 1 has no controlling terminal,
+# so these backgrounded console readers are not stopped by SIGTTIN. This is
+# TERMINAL: fatal() relies on it never returning to the install flow, so once
+# every console's session ends it powers off (ISO: so the media can be pulled)
+# or reboots (network: to retry). A successful gated login or an open shell
+# exec()s a shell that never returns, so this tail is reached only after every
+# console's session has actually ended.
+rescue_on_all_consoles() {
+    roac_mode="$1"
+    roac_started=0
+    for con in $CONSOLES; do
+        [ -c "$con" ] || continue
+        ( rescue_console "$roac_mode" ) <"$con" >"$con" 2>&1 &
+        roac_started=1
+    done
+    if [ "$roac_started" = "1" ]; then
+        wait
+    else
+        # setup_console produced no console list; fall back to one best guess.
+        con="$(debug_console)"
+        if [ -c "$con" ]; then
+            rescue_console "$roac_mode" <"$con" >"$con" 2>&1
+        else
+            rescue_console "$roac_mode"
+        fi
+    fi
+    if [ "$ZE_SOURCE" = "iso" ]; then
+        emit "[ze-install] Rescue session ended; powering off."
+        sleep 2
+        poweroff -f 2>/dev/null || echo o > /proc/sysrq-trigger
+    else
+        emit "[ze-install] Rescue session ended; rebooting."
+        sleep 2
+        reboot -f 2>/dev/null || echo b > /proc/sysrq-trigger
+    fi
+}
+
 fatal() {
     emit "[ze-install] FATAL: $1"
-    emit "[ze-install] Dropping to shell for debugging."
-    con="$(debug_console)"
-    if [ -c "$con" ]; then
-        # Bind the rescue shell to a real, working console. -i forces an
-        # interactive prompt and line editing even though stdin is a redirected
-        # device rather than the process's controlling terminal.
-        # shellcheck disable=SC2094 # $con is a tty char device: reading and
-        # writing the same console is the intended terminal pattern, not a
-        # truncating read+write of a regular file.
-        exec /bin/sh -i <"$con" >"$con" 2>&1
+
+    # Rescue-shell policy by trust context:
+    #  - credential present (ze.shell-auth, always set by `ze provision`): offer
+    #    a PASSWORD-GATED shell on every console.
+    #  - no credential + ISO source: the operator controls the physical install
+    #    media, so a shell does not widen access -- offer it ungated, the
+    #    installer's long-standing debug behavior. (ISO cmdlines carry no
+    #    ze.shell-auth: internal/appliance/cmd_iso.go.)
+    #  - no credential + network source: a potentially unattended box on a shared
+    #    network -- withhold the shell and reboot (fail closed). `ze provision`
+    #    always sets the credential, so this is only reached on a hand-rolled
+    #    http install that opted out of a password.
+    if [ -n "$ZE_SHELL_AUTH" ]; then
+        emit "[ze-install] Enter the admin password on any console for a rescue shell."
+        rescue_on_all_consoles gated
+    elif [ "$ZE_SOURCE" = "iso" ]; then
+        emit "[ze-install] Dropping to a rescue shell for debugging."
+        rescue_on_all_consoles open
+    else
+        emit "[ze-install] No rescue credential configured; rebooting in 30s."
+        sleep 30
+        reboot -f 2>/dev/null || echo b > /proc/sysrq-trigger
     fi
-    exec /bin/sh
 }
 
 # -- cmdline parsing --
@@ -133,6 +237,12 @@ parse_cmdline() {
     ZE_TARGET=""
     ZE_WAIT="30"
     ZE_MEDIA_ID=""
+    # MAC of the NIC iPXE booted from (ze.mac); used to pin the install network
+    # to that interface so a second NIC on a foreign network cannot hijack it.
+    ZE_MAC=""
+    # sha256 hex of the admin password (ze.shell-auth); gates the rescue shell.
+    # Empty means fail-closed: fatal() prints the error and reboots, no shell.
+    ZE_SHELL_AUTH=""
 
     if [ ! -f /proc/cmdline ]; then
         return
@@ -160,6 +270,12 @@ parse_cmdline() {
                 ;;
             ze.media-id=*)
                 ZE_MEDIA_ID="${param#ze.media-id=}"
+                ;;
+            ze.mac=*)
+                ZE_MAC="${param#ze.mac=}"
+                ;;
+            ze.shell-auth=*)
+                ZE_SHELL_AUTH="${param#ze.shell-auth=}"
                 ;;
         esac
     done
@@ -679,15 +795,53 @@ link_up() {
     ip link set "$1" up 2>/dev/null
 }
 
-# server_reachable probes ze.server over HTTP. Any HTTP response (even 404)
-# proves TCP connectivity; only a connection failure ("can't connect") counts
-# as unreachable.
+# DHCP_SCRIPT applies a udhcpc lease (address + default route). busybox udhcpc
+# only negotiates the lease and configures nothing itself, so without this
+# handler the per-interface recovery below would acquire a lease yet leave the
+# NIC with no address and ze.server unreachable. The Makefile installs it at the
+# udhcpc default path; -s passes it explicitly so the contract stays visible.
+DHCP_SCRIPT="/usr/share/udhcpc/default.script"
+
+# dhcp_acquire runs the userspace DHCP client on one interface, applying the
+# lease through DHCP_SCRIPT. Wrapped per ai/rules/initrd-no-external-tools.md so
+# the udhcpc dependency stays visible and replaceable. -t 5 caps discovery, -n
+# exits if no lease is obtained, -q quits once bound.
+dhcp_acquire() {
+    udhcpc -i "$1" -t 5 -n -q -s "$DHCP_SCRIPT" 2>/dev/null
+}
+
+# server_reachable probes ze.server over HTTP. Only an actual HTTP reply (any
+# status, 404 included) proves TCP connectivity. BOTH a connection failure
+# ("can't connect") AND a timeout ("download timed out") count as unreachable.
+# A timeout must NOT be read as reachable: that masks a wrong-network lease (no
+# route to ze.server) and skips the per-interface DHCP recovery below.
 server_reachable() {
     sr_err="/tmp/ze-reach.err"
     if wget -T 3 --spider -q "http://${ZE_SERVER}:${ZE_PORT}/" 2>"$sr_err"; then
         return 0
     fi
-    [ -s "$sr_err" ] && ! grep -q "can't connect" "$sr_err" 2>/dev/null
+    grep -qE "server returned error|HTTP/" "$sr_err" 2>/dev/null
+}
+
+# iface_for_mac echoes the kernel interface name whose MAC matches $1, or
+# nothing. ZE_SYSNET_DIR overrides the sysfs root for unit tests; production
+# reads /sys/class/net. lo is skipped (its address is all-zero and never the
+# boot NIC). The match is case-insensitive: iPXE emits lowercase, sysfs is
+# lowercase, but a cmdline could carry uppercase.
+iface_for_mac() {
+    ifm_want="$(printf '%s' "$1" | tr 'A-Z' 'a-z')"
+    [ -n "$ifm_want" ] || return 1
+    for ifm_dir in "${ZE_SYSNET_DIR:-/sys/class/net}"/*; do
+        [ -d "$ifm_dir" ] || continue
+        ifm_name="${ifm_dir##*/}"
+        case "$ifm_name" in lo) continue ;; esac
+        ifm_addr="$(cat "$ifm_dir/address" 2>/dev/null | tr 'A-Z' 'a-z')"
+        if [ "$ifm_addr" = "$ifm_want" ]; then
+            printf '%s\n' "$ifm_name"
+            return 0
+        fi
+    done
+    return 1
 }
 
 ensure_network() {
@@ -701,6 +855,41 @@ ensure_network() {
             return 0
         fi
         log "Default route present but $ZE_SERVER:$ZE_PORT unreachable; retrying DHCP per interface..."
+    fi
+
+    # Boot-NIC pinning: when ze.mac is known, configure exactly the interface
+    # iPXE booted from and validated against ze.server, BEFORE touching any
+    # other NIC. On a multi-homed target (e.g. a second NIC on the corporate
+    # LAN) this stops the kernel's wrong-NIC lease from being used and never
+    # brings up the foreign NIC. If the pinned NIC cannot reach the server we
+    # flush it and fall through to the all-interface scan below.
+    if [ -n "$ZE_MAC" ]; then
+        pin_if="$(iface_for_mac "$ZE_MAC")"
+        if [ -n "$pin_if" ]; then
+            log "Pinning install to boot NIC $pin_if (ze.mac=$ZE_MAC)"
+            link_up "$pin_if"
+            pin_waited=0
+            while [ "$pin_waited" -lt 10 ]; do
+                if [ "$(cat "/sys/class/net/$pin_if/carrier" 2>/dev/null)" = "1" ]; then
+                    break
+                fi
+                sleep 1
+                pin_waited=$((pin_waited + 1))
+            done
+            if dhcp_acquire "$pin_if"; then
+                probe_err="/tmp/ze-ensure-probe.err"
+                if wget -T 3 --spider -q "http://${ZE_SERVER}:${ZE_PORT}/" 2>"$probe_err" ||
+                   grep -qE "server returned error|HTTP/" "$probe_err" 2>/dev/null; then
+                    log "Got working network on boot NIC $pin_if (ze.mac)"
+                    return 0
+                fi
+                log "boot NIC $pin_if cannot reach $ZE_SERVER:$ZE_PORT; flushing, scanning all NICs"
+                ip addr flush dev "$pin_if" 2>/dev/null
+                ip route del default 2>/dev/null
+            fi
+        else
+            log "ze.mac=$ZE_MAC matches no interface; scanning all NICs"
+        fi
     fi
 
     log "Acquiring a lease that can reach $ZE_SERVER via userspace DHCP..."
@@ -733,10 +922,10 @@ ensure_network() {
     for iface in /sys/class/net/*; do
         ifname=$(basename "$iface")
         case "$ifname" in lo) continue ;; esac
-        if udhcpc -i "$ifname" -t 5 -n -q 2>/dev/null; then
+        if dhcp_acquire "$ifname"; then
             probe_err="/tmp/ze-ensure-probe.err"
             if wget -T 3 --spider -q "http://${ZE_SERVER}:${ZE_PORT}/" 2>"$probe_err" ||
-               { [ -s "$probe_err" ] && ! grep -q "can't connect" "$probe_err" 2>/dev/null; }; then
+               grep -qE "server returned error|HTTP/" "$probe_err" 2>/dev/null; then
                 log "Got working network on $ifname"
                 return 0
             fi
@@ -779,9 +968,12 @@ wait_for_server() {
             log "Server reachable (attempt $((attempt + 1))/$max_attempts)"
             return 0
         fi
-        # --spider returns non-zero for HTTP errors too; a 404 still proves
-        # the TCP connection succeeded. Only "can't connect" means unreachable.
-        if [ -s "$probe_err" ] && ! grep -q "can't connect" "$probe_err" 2>/dev/null; then
+        # --spider returns non-zero for HTTP errors too; a 404 still proves the
+        # TCP connection succeeded, so an actual HTTP reply counts as reachable.
+        # A timeout ("download timed out") or "can't connect" does NOT: treating
+        # a timeout as reachable hid a wrong-network lease and let the install
+        # proceed with no route to the server.
+        if grep -qE "server returned error|HTTP/" "$probe_err" 2>/dev/null; then
             log "Server reachable (attempt $((attempt + 1))/$max_attempts, got HTTP response)"
             return 0
         fi

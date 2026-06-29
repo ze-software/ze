@@ -29,7 +29,8 @@ func TestParseImageConfig(t *testing.T) {
 				"image-directory": "/var/lib/images",
 				"boot-directory": "/var/lib/boot",
 				"ssh-username": "admin",
-				"ssh-password-hash": "$2a$10$abcdefghijklmnopqrstuv"
+				"ssh-password-hash": "$2a$10$abcdefghijklmnopqrstuv",
+				"shell-auth-sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 			}
 		}
 	}`
@@ -58,6 +59,9 @@ func TestParseImageConfig(t *testing.T) {
 	}
 	if cfg.SSHPasswordHash != "$2a$10$abcdefghijklmnopqrstuv" {
 		t.Errorf("ssh-password-hash = %q", cfg.SSHPasswordHash)
+	}
+	if cfg.ShellAuthSHA256 != "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" {
+		t.Errorf("shell-auth-sha256 = %q", cfg.ShellAuthSHA256)
 	}
 }
 
@@ -105,6 +109,10 @@ func TestVerifyImageConfig(t *testing.T) {
 		{"ssh hash only", imageConfig{Enabled: true, ImageDirectory: "/tmp", SSHPasswordHash: hash}, true},
 		{"plaintext ssh hash", imageConfig{Enabled: true, ImageDirectory: "/tmp", SSHUsername: "admin", SSHPasswordHash: "secret"}, true},
 		{"malformed ssh hash", imageConfig{Enabled: true, ImageDirectory: "/tmp", SSHUsername: "admin", SSHPasswordHash: "$2y$.."}, true},
+		{"valid shell-auth", imageConfig{Enabled: true, ImageDirectory: "/tmp", ShellAuthSHA256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}, false},
+		{"shell-auth too short", imageConfig{Enabled: true, ImageDirectory: "/tmp", ShellAuthSHA256: "abc123"}, true},
+		{"shell-auth non-hex", imageConfig{Enabled: true, ImageDirectory: "/tmp", ShellAuthSHA256: "z123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}, true},
+		{"shell-auth uppercase", imageConfig{Enabled: true, ImageDirectory: "/tmp", ShellAuthSHA256: "0123456789ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef"}, true},
 	}
 
 	for _, tc := range tests {

@@ -39,13 +39,16 @@ $(INITRD): check-busybox init
 	mkdir -p $(ROOTFS)/dev $(ROOTFS)/mnt/perm $(ROOTFS)/mnt/iso $(ROOTFS)/tmp
 	cp "$(BUSYBOX)" $(ROOTFS)/bin/busybox
 	chmod 755 $(ROOTFS)/bin/busybox
-	for cmd in sh cat echo printf mount umount mkdir sleep wget dd sync \
+	for cmd in sh cat echo printf mount umount mkdir sleep wget udhcpc dd sync \
 		reboot poweroff blockdev basename rm mktemp mkfifo sha256sum tee wc tr ip gunzip grep \
-		losetup mknod; do \
+		losetup mknod stty; do \
 		ln -sf busybox $(ROOTFS)/bin/$$cmd; \
 	done
 	cp init $(ROOTFS)/init
 	chmod 755 $(ROOTFS)/init
+	mkdir -p $(ROOTFS)/usr/share/udhcpc
+	cp udhcpc.script $(ROOTFS)/usr/share/udhcpc/default.script
+	chmod 755 $(ROOTFS)/usr/share/udhcpc/default.script
 	cd $(ROOTFS) && find . | cpio -o -H newc 2>/dev/null | gzip -9 > ../initrd.img.gz
 	@echo "Built: $(INITRD)"
 	@echo "Size: $$(du -h $(INITRD) | cut -f1)"
@@ -63,6 +66,7 @@ test:
 	@sh test/test-ensure-network.sh
 	@sh test/test-console.sh
 	@sh test/test-applets.sh
+	@sh test/test-udhcpc-script.sh
 	@echo "---"
 	@sh test/test-connectivity.sh
 	@echo "All tests passed."

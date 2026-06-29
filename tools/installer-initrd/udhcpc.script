@@ -1,0 +1,69 @@
+#!/bin/sh
+# udhcpc lease handler for the ze installer initrd.
+#
+# busybox udhcpc negotiates the DHCP lease but applies nothing itself: it execs
+# this script with $1 = action (deconfig|bound|renew) and the lease in the
+# environment ($interface, $ip, $subnet dotted netmask, $router gateways).
+# ensure_network in init runs udhcpc with `-s` pointing here so its per-interface
+# DHCP recovery can actually configure the NIC after a kernel ip=dhcp lease that
+# cannot reach ze.server. Without this handler udhcpc would acquire a lease and
+# leave the interface with no address and no route.
+#
+# Uses only `ip` (a shipped busybox applet) per ai/rules/initrd-no-external-tools.md;
+# ifconfig is intentionally avoided. Unit-tested by test/test-udhcpc-script.sh.
+
+# interface, ip, subnet and router are exported into the environment by udhcpc;
+# their assignment is invisible to static analysis.
+# shellcheck disable=SC2154
+set -e
+
+# mask_to_prefix converts a dotted-decimal netmask to a CIDR prefix length.
+# `ip addr add` needs a prefix, but udhcpc exports the mask in dotted form
+# ($subnet). A byte that is not a valid contiguous netmask octet fails the
+# conversion so the caller can fall back to a sane default.
+mask_to_prefix() {
+    m2p_prefix=0
+    m2p_ifs="$IFS"
+    IFS=.
+    for m2p_octet in $1; do
+        case "$m2p_octet" in
+            255) m2p_prefix=$((m2p_prefix + 8)) ;;
+            254) m2p_prefix=$((m2p_prefix + 7)) ;;
+            252) m2p_prefix=$((m2p_prefix + 6)) ;;
+            248) m2p_prefix=$((m2p_prefix + 5)) ;;
+            240) m2p_prefix=$((m2p_prefix + 4)) ;;
+            224) m2p_prefix=$((m2p_prefix + 3)) ;;
+            192) m2p_prefix=$((m2p_prefix + 2)) ;;
+            128) m2p_prefix=$((m2p_prefix + 1)) ;;
+            0) ;;
+            *) IFS="$m2p_ifs"; return 1 ;;
+        esac
+    done
+    IFS="$m2p_ifs"
+    printf '%s\n' "$m2p_prefix"
+}
+
+case "$1" in
+    deconfig)
+        ip addr flush dev "$interface" 2>/dev/null || true
+        ;;
+    bound | renew)
+        [ -n "$ip" ] || exit 0
+        prefix=24
+        if [ -n "$subnet" ]; then
+            prefix="$(mask_to_prefix "$subnet")" || prefix=24
+        fi
+        ip addr flush dev "$interface" 2>/dev/null || true
+        ip addr add "$ip/$prefix" dev "$interface"
+        if [ -n "$router" ]; then
+            ip route del default 2>/dev/null || true
+            for gw in $router; do
+                if ip route add default via "$gw" dev "$interface" 2>/dev/null; then
+                    break
+                fi
+            done
+        fi
+        ;;
+esac
+
+exit 0

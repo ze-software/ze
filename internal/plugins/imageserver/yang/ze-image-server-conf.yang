@@ -52,6 +52,11 @@ module ze-image-server-conf {
                 type string;
                 description "Bcrypt hash of admin password (written to served zefs)";
             }
+
+            leaf shell-auth-sha256 {
+                type string;
+                description "Lowercase hex sha256 of the admin password. Emitted on the installer kernel cmdline (ze.shell-auth) to gate the rescue shell; empty means the installer fails closed (no shell on fatal).";
+            }
         }
     }
 }

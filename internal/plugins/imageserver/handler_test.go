@@ -444,6 +444,52 @@ func TestServeDynamicBootIPXE(t *testing.T) {
 	if strings.Contains(script, "ze.port=") {
 		t.Errorf("port 80 should not include ze.port in script:\n%s", script)
 	}
+	// The kernel must pin to the iPXE boot NIC (ze.mac) so a second NIC on a
+	// foreign network cannot hijack the install (iPXE expands ${mac}).
+	if !strings.Contains(script, "ze.mac=${mac}") {
+		t.Errorf("missing ze.mac=${mac} in script:\n%s", script)
+	}
+	// No shell-auth hash configured -> the gate arg must be absent (installer
+	// then fails closed).
+	if strings.Contains(script, "ze.shell-auth=") {
+		t.Errorf("no shell-auth configured: ze.shell-auth must be absent:\n%s", script)
+	}
+}
+
+func TestServeDynamicBootIPXEShellAuth(t *testing.T) {
+	t.Parallel()
+
+	imageDir := t.TempDir()
+	bootDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(imageDir, "ze-20260601-120000.img"), []byte("IMG1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hash := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	cfg := imageConfig{
+		Enabled:         true,
+		ImageDirectory:  imageDir,
+		BootDirectory:   bootDir,
+		ListenPort:      80,
+		ShellAuthSHA256: hash,
+	}
+	mux := newMux(cfg, "", "198.19.255.1")
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	resp := testGet(t, ts.URL+"/install/boot/boot.ipxe")
+	defer closeBody(t, resp)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(body)
+	if !strings.Contains(script, "ze.shell-auth="+hash) {
+		t.Errorf("missing ze.shell-auth=<hash> in script:\n%s", script)
+	}
+	if !strings.Contains(script, "ze.mac=${mac}") {
+		t.Errorf("missing ze.mac in script:\n%s", script)
+	}
 }
 
 func TestServeDynamicBootIPXENonDefaultPort(t *testing.T) {

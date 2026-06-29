@@ -4,6 +4,8 @@ package provision
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -87,26 +89,28 @@ func Run(args []string) int {
 	bootScriptURL := "http://" + serverIP + "/install/boot/boot.ipxe"
 
 	cfg := generateConfig(configParams{
-		iface:         *iface,
-		network:       *network,
-		image:         *image,
-		serverIP:      serverIP,
-		sshUsername:   *sshUser,
-		sshPassHash:   hash,
-		bootScriptURL: bootScriptURL,
+		iface:           *iface,
+		network:         *network,
+		image:           *image,
+		serverIP:        serverIP,
+		sshUsername:     *sshUser,
+		sshPassHash:     hash,
+		shellAuthSHA256: shellAuthHash(*sshPass),
+		bootScriptURL:   bootScriptURL,
 	})
 
 	return forkAndServe(cfg)
 }
 
 type configParams struct {
-	iface         string
-	network       string
-	image         string
-	serverIP      string
-	sshUsername   string
-	sshPassHash   string
-	bootScriptURL string
+	iface           string
+	network         string
+	image           string
+	serverIP        string
+	sshUsername     string
+	sshPassHash     string
+	shellAuthSHA256 string
+	bootScriptURL   string
 }
 
 func generateConfig(p configParams) string {
@@ -176,6 +180,9 @@ func generateConfig(p configParams) string {
 	b.WriteString(";\n")
 	b.WriteString("        ssh-password-hash \"")
 	b.WriteString(p.sshPassHash)
+	b.WriteString("\";\n")
+	b.WriteString("        shell-auth-sha256 \"")
+	b.WriteString(p.shellAuthSHA256)
 	b.WriteString("\";\n")
 	b.WriteString("    }\n")
 
@@ -307,6 +314,16 @@ func hashPassword(password string) (string, error) {
 		return "", err
 	}
 	return string(hash), nil
+}
+
+// shellAuthHash returns the lowercase hex sha256 of the admin password. It is
+// passed to the installer on the kernel cmdline (ze.shell-auth) so the busybox
+// rescue shell can be password-gated: the installer compares a typed password's
+// sha256sum against this value. sha256 (not the bcrypt hash above) because the
+// busybox initrd has sha256sum but no bcrypt.
+func shellAuthHash(password string) string {
+	sum := sha256.Sum256([]byte(password))
+	return hex.EncodeToString(sum[:])
 }
 
 func dhcpRange(prefix netip.Prefix, serverIP netip.Addr) (start, stop netip.Addr) {

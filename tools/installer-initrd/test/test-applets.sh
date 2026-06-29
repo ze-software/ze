@@ -25,9 +25,11 @@ assert_listed() {
 }
 
 # External applets the init script invokes (POSIX shell builtins excluded).
-for applet in sh cat echo printf mount umount mkdir sleep wget dd sync \
+# stty: verify_shell_auth disables echo while the rescue-shell password is typed.
+# udhcpc: dhcp_acquire runs it for the per-interface DHCP recovery.
+for applet in sh cat echo printf mount umount mkdir sleep wget udhcpc dd sync \
     reboot poweroff blockdev basename rm mktemp mkfifo sha256sum tee wc tr \
-    ip gunzip grep losetup mknod; do
+    ip gunzip grep losetup mknod stty; do
     assert_listed "$applet"
 done
 

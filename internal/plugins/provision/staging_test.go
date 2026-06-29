@@ -189,3 +189,40 @@ func TestProvisionConfigBootScriptURL(t *testing.T) {
 		t.Errorf("generated config missing boot-script-url:\n%s", cfg)
 	}
 }
+
+func TestProvisionConfigShellAuth(t *testing.T) {
+	t.Parallel()
+
+	want := shellAuthHash("hunter2")
+	cfg := generateConfig(configParams{
+		iface:           "eth0",
+		network:         "198.19.255.0/24",
+		image:           "/images/ze.img",
+		serverIP:        "198.19.255.1",
+		sshUsername:     "admin",
+		sshPassHash:     "$2a$10$hash",
+		shellAuthSHA256: want,
+		bootScriptURL:   "http://198.19.255.1/install/boot/boot.ipxe",
+	})
+
+	if !strings.Contains(cfg, "shell-auth-sha256 \""+want+"\"") {
+		t.Errorf("generated config missing shell-auth-sha256:\n%s", cfg)
+	}
+}
+
+func TestShellAuthHash(t *testing.T) {
+	t.Parallel()
+
+	// sha256 of the empty string -- a well-known vector -- validates the helper
+	// produces a lowercase hex sha256 digest.
+	if got := shellAuthHash(""); got != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
+		t.Errorf("shellAuthHash(%q) = %q", "", got)
+	}
+	h := shellAuthHash("hunter2")
+	if len(h) != 64 {
+		t.Fatalf("shellAuthHash length = %d, want 64", len(h))
+	}
+	if again := shellAuthHash("hunter2"); again != h {
+		t.Errorf("shellAuthHash not deterministic: %q vs %q", again, h)
+	}
+}

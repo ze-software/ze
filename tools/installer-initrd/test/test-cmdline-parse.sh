@@ -51,6 +51,8 @@ parse_cmdline_mock() {
     ZE_TARGET=""
     ZE_WAIT="30"
     ZE_MEDIA_ID=""
+    ZE_MAC=""
+    ZE_SHELL_AUTH=""
     for param in $(cat "$TMPDIR/proc/cmdline"); do
         case "$param" in
             ze.source=*) ZE_SOURCE="${param#ze.source=}" ;;
@@ -60,6 +62,8 @@ parse_cmdline_mock() {
             ze.target=*) ZE_TARGET="${param#ze.target=}" ;;
             ze.wait=*) ZE_WAIT="${param#ze.wait=}" ;;
             ze.media-id=*) ZE_MEDIA_ID="${param#ze.media-id=}" ;;
+            ze.mac=*) ZE_MAC="${param#ze.mac=}" ;;
+            ze.shell-auth=*) ZE_SHELL_AUTH="${param#ze.shell-auth=}" ;;
         esac
     done
 }
@@ -94,6 +98,18 @@ assert_eq "no-source-default" "http" "$ZE_SOURCE"
 assert_eq "no-target-default" "" "$ZE_TARGET"
 assert_eq "no-wait-default" "30" "$ZE_WAIT"
 assert_eq "no-media-id-default" "" "$ZE_MEDIA_ID"
+
+# Test 3b: ze.mac and ze.shell-auth parse (fix #1 NIC pin, fix #3 shell gate).
+echo "console=ttyS0 ze.server=10.0.0.1 ze.mac=60:be:b4:22:2d:46 ze.shell-auth=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef ip=dhcp" > "$TMPDIR/proc/cmdline"
+parse_cmdline_mock
+assert_eq "mac-present" "60:be:b4:22:2d:46" "$ZE_MAC"
+assert_eq "shell-auth-present" "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" "$ZE_SHELL_AUTH"
+
+# Test 3c: ze.mac and ze.shell-auth default empty when absent.
+echo "ze.server=10.0.0.1 ip=dhcp" > "$TMPDIR/proc/cmdline"
+parse_cmdline_mock
+assert_eq "mac-default-empty" "" "$ZE_MAC"
+assert_eq "shell-auth-default-empty" "" "$ZE_SHELL_AUTH"
 
 # Test 4: validate_ipv4 with valid addresses
 validate_ipv4 "10.0.0.1" && assert_eq "valid-ip-10" "ok" "ok" || assert_eq "valid-ip-10" "ok" "fail"

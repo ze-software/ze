@@ -239,6 +239,27 @@ rc=$?
 assert_eq "http-error-reachable: returns 0" "0" "$rc"
 assert_contains "http-error-reachable: log mentions HTTP" "$LOG_OUTPUT" "got HTTP response"
 
+# Test 8b: probe TIMES OUT -- NOT reachable. A timeout is not an HTTP reply.
+# Regression: a wget timeout used to false-positive as "Server reachable (got
+# HTTP response)" because the check only excluded "can't connect". That masked a
+# wrong-network lease (no route to ze.server) and skipped the per-interface DHCP
+# recovery in ensure_network, so the install proceeded and then failed cryptically.
+MOCK_WGET_RC=1
+MOCK_WGET_CALLS=0
+LOG_OUTPUT=""
+
+wget() {
+    MOCK_WGET_CALLS=$((MOCK_WGET_CALLS + 1))
+    echo "wget: download timed out" > /tmp/ze-probe.err
+    return "$MOCK_WGET_RC"
+}
+
+wait_for_server "198.19.255.1" "80" 3
+rc=$?
+assert_eq "timeout-unreachable: returns 1" "1" "$rc"
+assert_eq "timeout-unreachable: tried all attempts" "3" "$MOCK_WGET_CALLS"
+assert_contains "timeout-unreachable: log says not reachable" "$LOG_OUTPUT" "not reachable"
+
 # Test 9: server unreachable (can't connect) -- fails after max attempts
 MOCK_WGET_RC=1
 MOCK_WGET_ERR="wget: can't connect to remote host (198.19.255.1): Connection refused"

@@ -36,6 +36,7 @@ service {
         boot-directory /var/lib/ze/install/boot;
         ssh-username admin;
         ssh-password-hash "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234";
+        shell-auth-sha256 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     }
 }
 EOF_CONF

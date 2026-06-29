@@ -98,6 +98,94 @@ else
 fi
 rm -f "$active_tmp"
 
+# --- rescue-shell password gate (fix #3) ---
+# password_matches + verify_shell_auth hash the typed password with sha256sum;
+# guard on its presence so the suite still runs on a host without it (the
+# busybox installer always has it).
+if command -v sha256sum >/dev/null 2>&1; then
+    EXPECT="$(printf '%s' 'sup3r-secret' | sha256sum)"
+    EXPECT="${EXPECT%% *}"
+
+    # password_matches: only the correct password against a set hash matches.
+    ZE_SHELL_AUTH="$EXPECT"
+    if password_matches "sup3r-secret"; then pm_rc=0; else pm_rc=1; fi
+    assert_eq "password_matches: correct password" "0" "$pm_rc"
+    if password_matches "wrong"; then pm_rc=0; else pm_rc=1; fi
+    assert_eq "password_matches: wrong password" "1" "$pm_rc"
+    ZE_SHELL_AUTH=""
+    if password_matches "sup3r-secret"; then pm_rc=0; else pm_rc=1; fi
+    assert_eq "password_matches: empty auth never matches (fail-closed)" "1" "$pm_rc"
+
+    # verify_shell_auth: forks a shell ONLY after the correct password. stty and
+    # start_shell are stubbed; the password is fed on stdin via a here-doc (no
+    # subshell, so START_SHELL_CALLED is visible here).
+    stty() { :; }
+    start_shell() { START_SHELL_CALLED=1; }
+    ZE_SHELL_AUTH="$EXPECT"
+
+    START_SHELL_CALLED=0
+    verify_shell_auth >/dev/null 2>&1 <<EOF
+sup3r-secret
+EOF
+    assert_eq "verify_shell_auth: correct password starts shell" "1" "$START_SHELL_CALLED"
+
+    START_SHELL_CALLED=0
+    verify_shell_auth >/dev/null 2>&1 <<EOF
+nope1
+nope2
+nope3
+EOF
+    vsa_rc=$?
+    assert_eq "verify_shell_auth: wrong password starts no shell" "0" "$START_SHELL_CALLED"
+    assert_eq "verify_shell_auth: wrong password returns 1" "1" "$vsa_rc"
+else
+    echo "SKIP: sha256sum unavailable; rescue-shell gate tests skipped"
+fi
+
+# fatal policy by trust context (fix #3 + review finding #1: ISO had no
+# ze.shell-auth and must NOT fail-closed/reboot-loop -- the operator controls the
+# physical media). Force the no-CONSOLES fallback via a non-device debug_console.
+debug_console() { echo "/nonexistent-console"; }
+CONSOLES=""
+start_shell() { START_SHELL_CALLED=1; }
+reboot() { REBOOT_CALLED=1; }
+poweroff() { POWEROFF_CALLED=1; }
+sleep() { :; }
+
+# network install, no credential -> fail closed (reboot, never a shell).
+ZE_SHELL_AUTH=""
+ZE_SOURCE="http"
+START_SHELL_CALLED=0; REBOOT_CALLED=0; POWEROFF_CALLED=0
+fatal "net boom" >/dev/null 2>&1
+assert_eq "fatal: http no-cred fails closed (reboot)" "1" "$REBOOT_CALLED"
+assert_eq "fatal: http no-cred starts no shell" "0" "$START_SHELL_CALLED"
+
+# ISO install, no credential -> ungated rescue shell, then poweroff (not reboot).
+ZE_SHELL_AUTH=""
+ZE_SOURCE="iso"
+START_SHELL_CALLED=0; REBOOT_CALLED=0; POWEROFF_CALLED=0
+fatal "iso boom" >/dev/null 2>&1
+assert_eq "fatal: ISO no-cred opens rescue shell" "1" "$START_SHELL_CALLED"
+assert_eq "fatal: ISO no-cred powers off" "1" "$POWEROFF_CALLED"
+assert_eq "fatal: ISO no-cred does not reboot" "0" "$REBOOT_CALLED"
+
+# Structure: the all-console loop lives in rescue_on_all_consoles; fatal routes
+# to it for the credentialed (gated) and ISO (open) paths.
+roac_src="$(sed -n '/^rescue_on_all_consoles()/,/^}/p' "$INIT")"
+case "$roac_src" in
+    *'for con in $CONSOLES'*) assert_eq "rescue_on_all_consoles: iterates all consoles" "yes" "yes" ;;
+    *) assert_eq "rescue_on_all_consoles: iterates all consoles" "yes" "no" ;;
+esac
+fatal_src="$(sed -n '/^fatal()/,/^}/p' "$INIT")"
+case "$fatal_src" in
+    *"rescue_on_all_consoles gated"*) assert_eq "fatal: gated (credentialed) path" "yes" "yes" ;;
+    *) assert_eq "fatal: gated (credentialed) path" "yes" "no" ;;
+esac
+case "$fatal_src" in
+    *"rescue_on_all_consoles open"*) assert_eq "fatal: ISO open-shell path" "yes" "yes" ;;
+    *) assert_eq "fatal: ISO open-shell path" "yes" "no" ;;
+esac
+
 echo ""
 echo "console: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

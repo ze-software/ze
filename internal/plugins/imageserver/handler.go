@@ -27,6 +27,7 @@ type imageHandler struct {
 	zefsPath   string
 	serverAddr string
 	serverPort int
+	shellAuth  string // hex sha256 of admin password; gates the installer rescue shell
 }
 
 func newMux(cfg imageConfig, zefsPath, serverAddr string) *http.ServeMux {
@@ -36,6 +37,7 @@ func newMux(cfg imageConfig, zefsPath, serverAddr string) *http.ServeMux {
 		zefsPath:   zefsPath,
 		serverAddr: serverAddr,
 		serverPort: cfg.ListenPort,
+		shellAuth:  cfg.ShellAuthSHA256,
 	}
 
 	mux := http.NewServeMux()
@@ -187,6 +189,14 @@ func (h *imageHandler) serveBootIPXE(w http.ResponseWriter, r *http.Request) {
 		portArg = tb.Reset().Str(" ze.port=").Int(int64(h.serverPort)).String()
 	}
 
+	// Pass the sha256 of the admin password so the installer can gate its rescue
+	// shell (ze.shell-auth). Omitted when unset -> the installer fails closed
+	// (prints the error and reboots instead of opening a shell).
+	var authArg string
+	if h.shellAuth != "" {
+		authArg = tb.Reset().Str(" ze.shell-auth=").Str(h.shellAuth).String()
+	}
+
 	// Select the console set on the client via iPXE's ${buildarch}: one server
 	// PXE-boots heterogeneous clients, so the arch is known to iPXE, not to us.
 	// ttyAMA0 is the ARM PL011 UART and never registers on x86; left on an x86
@@ -198,7 +208,8 @@ func (h *imageHandler) serveBootIPXE(w http.ResponseWriter, r *http.Request) {
 		Str("#!ipxe\n").
 		Str("iseq ${buildarch} arm64 && set zeconsole console=tty0 console=ttyS0,115200n8 console=ttyAMA0,115200n8 || set zeconsole console=tty0 console=ttyS0,115200n8\n").
 		Str("kernel ").Str(baseURL).Str("/install/boot/vmlinuz ze.server=").Str(h.serverAddr).
-		Str(" ze.image=").Str(imgName).Str(portArg).Str(" ip=dhcp panic=-1 ${zeconsole}\n").
+		Str(" ze.image=").Str(imgName).Str(portArg).
+		Str(" ip=dhcp ze.mac=${mac}").Str(authArg).Str(" panic=-1 ${zeconsole}\n").
 		Str("initrd ").Str(baseURL).Str("/install/boot/initrd.img.gz\n").
 		Str("boot\n").
 		String()
