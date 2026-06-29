@@ -174,6 +174,7 @@ artifact type. Check them whenever your work touches the described concern.
 | `make ze-mutation-test` | `mk/test-mutation.mk` | Mutation testing via gomu on all non-excluded packages (advisory, not gating). Vendored, no install needed. |
 | `make ze-mutation-changed` | `mk/test-mutation.mk` | Incremental mutation testing on changed files only. |
 | `make ze-mutation-report` | `mk/test-mutation.mk` | Mutation testing with HTML report output to `tmp/mutation-report.html`. |
+| `make ze-setup` | `scripts/dev/dev-setup.py` | Unified dev setup: installs all build deps, linters, and appliance/evidence tools (qemu, e2fsprogs, xorriso, grub, uv). OS autodetect (brew/apt). `CHECK=1` for probe-only mode. Drift-guarded against `applianceDoctorChecks()`. |
 
 ## Pattern Cookbooks
 
