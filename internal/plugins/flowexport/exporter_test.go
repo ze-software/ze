@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/observation"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/enrich"
 )
 
@@ -141,5 +142,65 @@ func TestExporterStopRunsStoppers(t *testing.T) {
 	}})
 	if len(stub.got) != 0 {
 		t.Errorf("ExportFlows dispatched %d flows after Stop, want 0", len(stub.got))
+	}
+}
+
+// VALIDATES: AC-5 — ExportFlows publishes per-flow observations to the feed.
+func TestConntrackPublishesFlowObs(t *testing.T) {
+	exp := newTestExporter(t, "netflow9")
+	stub := &stubFlowRecordEncoder{}
+	exp.SetFlowRecordEncoder("c1", stub)
+
+	feed := observation.Global()
+	var received []observation.Observation
+	ch := make(chan struct{}, 1)
+	subID := feed.Subscribe("test", func(obs observation.Observation) {
+		received = append(received, obs)
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	})
+	defer feed.Unsubscribe(subID)
+
+	exp.ExportFlows([]ConntrackFlow{{
+		SrcAddr:  netip.MustParseAddr("192.0.2.1"),
+		DstAddr:  netip.MustParseAddr("10.0.0.1"),
+		SrcPort:  12345,
+		DstPort:  80,
+		Protocol: 6,
+		Bytes:    9999,
+	}})
+
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("no observation received")
+	}
+
+	if len(received) == 0 {
+		t.Fatal("no observations published")
+	}
+	obs := received[0]
+	if obs.Kind != observation.KindFlow {
+		t.Errorf("kind = %v, want Flow", obs.Kind)
+	}
+	if obs.Feature != observation.FeatureFlowBytes {
+		t.Errorf("feature = %v, want FlowBytes", obs.Feature)
+	}
+	if obs.Value != 9999 {
+		t.Errorf("value = %f, want 9999", obs.Value)
+	}
+	if obs.Flow.Src != netip.MustParseAddr("192.0.2.1") {
+		t.Errorf("flow src = %v, want 192.0.2.1", obs.Flow.Src)
+	}
+	if obs.Flow.Dst != netip.MustParseAddr("10.0.0.1") {
+		t.Errorf("flow dst = %v, want 10.0.0.1", obs.Flow.Dst)
+	}
+	if obs.Flow.DstPort != 80 {
+		t.Errorf("flow dst port = %d, want 80", obs.Flow.DstPort)
+	}
+	if obs.Flow.Proto != 6 {
+		t.Errorf("flow proto = %d, want 6", obs.Flow.Proto)
 	}
 }

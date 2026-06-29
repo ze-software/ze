@@ -38,6 +38,7 @@
 | Functional test | `ai/patterns/functional-test.md` | `docs/architecture/testing/ci-format.md` | `ai/rules/testing.md` for format selection (.ci vs .et vs Go) |
 | Editor test | `ai/rules/testing.md` (Editor Tests section) | `test/editor/` existing examples | |
 | Telemetry/metrics | `plan/learned/653-netdata-os-collectors.md` | `plan/learned/736-iface-rate.md` | Registration in loader_create.go |
+| Observation feed, traffic observation, multi-subscriber fan-out | `docs/architecture/observation-feed.md` | `plan/learned/1016-observation-feed.md` | `internal/core/observation/` (Feed, Observation); `iface/rate.go` (SubscribeCollectNotify) |
 | Debug flags for a plugin | `ai/patterns/debug-registration.md` | `internal/component/bgp/yang/register_debug.go` (example) | One file per plugin: `register_debug.go` in yang/ |
 | Diagnostic command | `plan/learned/727-diag-core.md` | `plan/learned/755-ze-doctor.md` | `ai/rules/doctor-checks.md` |
 | Agent-facing command/tool | `ai/rules/agent-tooling.md` | `docs/features/ai-first.md`, `docs/guide/mcp/overview.md` | `ai/rules/discovery-updates.md` for indexes and verification |

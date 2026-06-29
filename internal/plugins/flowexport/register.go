@@ -100,7 +100,7 @@ func runEngine(conn net.Conn) int {
 	p := sdk.NewWithConn("flow-export", conn)
 	defer func() { _ = p.Close() }()
 
-	iface.RegisterCollectNotify(notifyFromRateTracker)
+	collectSubID := iface.SubscribeCollectNotify(notifyFromRateTracker)
 
 	// configure builds (or tears down) the exporter from a parsed config.
 	// Shared by OnConfigure (boot) and OnConfigApply (reload): a reload that
@@ -203,10 +203,11 @@ func runEngine(conn net.Conn) int {
 		ApplyBudget:  10,
 	}); err != nil {
 		log.Error("flow-export plugin failed", "error", err)
+		iface.UnsubscribeCollectNotify(collectSubID)
 		return 1
 	}
 
-	iface.RegisterCollectNotify(nil)
+	iface.UnsubscribeCollectNotify(collectSubID)
 
 	if exp := activeExporter.Swap(nil); exp != nil {
 		exp.Stop()

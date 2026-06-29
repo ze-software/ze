@@ -7,7 +7,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"net/netip"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/core/observation"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -288,6 +291,7 @@ func (m *Monitor) publishLocked(snap []counts, now time.Time) {
 	if pm == nil {
 		return
 	}
+	feed := observation.Global()
 	for _, c := range snap {
 		ifname := c.ifname
 		for k, v := range c.ingressPort {
@@ -313,6 +317,18 @@ func (m *Monitor) publishLocked(snap []counts, now time.Time) {
 		for mapName, n := range c.mapEntries {
 			pm.mapEntries.With(ifname, mapName).Set(float64(n))
 			m.lastSeen[seriesID{"map", ifname, mapName, ""}] = seriesEntry{now, func() { pm.mapEntries.Delete(ifname, mapName) }}
+		}
+
+		for k, v := range c.ingressIP {
+			obs := observation.Observation{
+				Kind:    observation.KindSourceIP,
+				Iface:   ifname,
+				Feature: observation.FeatureRxBytes,
+				Value:   float64(v),
+				At:      now,
+			}
+			obs.Flow.Src = netip.AddrFrom4([4]byte{byte(k), byte(k >> 8), byte(k >> 16), byte(k >> 24)})
+			feed.Publish(obs)
 		}
 	}
 }

@@ -63,7 +63,7 @@ func runEngine(conn net.Conn) int {
 	// The iface rate tracker delivers a ~1 Hz interface snapshot; the monitor
 	// uses it to (re)attach on interface up and detach on down/removal. The
 	// tracker runs because of the "interface" dependency declared above.
-	iface.RegisterCollectNotify(mon.onSnapshot)
+	collectSubID := iface.SubscribeCollectNotify(mon.onSnapshot)
 
 	// Start the metrics poller; it reads the maps and publishes ze_traffic_usage_*
 	// every cfg.Interval (idle until interfaces are configured and attached).
@@ -136,13 +136,13 @@ func runEngine(conn net.Conn) int {
 		ApplyBudget:  10,
 	}); err != nil {
 		log.Error("traffic-usage plugin failed", "error", err)
-		iface.RegisterCollectNotify(nil)
+		iface.UnsubscribeCollectNotify(collectSubID)
 		activeMonitor.Store(nil)
 		mon.Stop()
 		return 1
 	}
 
-	iface.RegisterCollectNotify(nil)
+	iface.UnsubscribeCollectNotify(collectSubID)
 	activeMonitor.Store(nil)
 	mon.Stop()
 	log.Info("traffic-usage plugin stopped")

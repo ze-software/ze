@@ -57,6 +57,7 @@ func runEngine(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	var det *detector
+	var collectSubID int
 
 	parseSections := func(sections []sdk.ConfigSection) (*Config, error) {
 		for _, s := range sections {
@@ -88,7 +89,10 @@ func runEngine(conn net.Conn) int {
 		}
 		det = newDetector(cfg, bus, p.DispatchCommand)
 		if cfg.Enabled {
-			iface.RegisterCollectNotify(det.onRate)
+			if collectSubID != 0 {
+				iface.UnsubscribeCollectNotify(collectSubID)
+			}
+			collectSubID = iface.SubscribeCollectNotify(det.onRate)
 			log.Info("ddos-detect: enabled, subscribing to iface rate")
 		}
 		return nil
@@ -114,10 +118,12 @@ func runEngine(conn net.Conn) int {
 			return err
 		}
 		det = newDetector(cfg, bus, p.DispatchCommand)
+		if collectSubID != 0 {
+			iface.UnsubscribeCollectNotify(collectSubID)
+			collectSubID = 0
+		}
 		if cfg.Enabled {
-			iface.RegisterCollectNotify(det.onRate)
-		} else {
-			iface.RegisterCollectNotify(nil)
+			collectSubID = iface.SubscribeCollectNotify(det.onRate)
 		}
 		return nil
 	})
@@ -134,11 +140,15 @@ func runEngine(conn net.Conn) int {
 		ApplyBudget:  10,
 	}); err != nil {
 		log.Error("ddos-detect plugin failed", "error", err)
-		iface.RegisterCollectNotify(nil)
+		if collectSubID != 0 {
+			iface.UnsubscribeCollectNotify(collectSubID)
+		}
 		return 1
 	}
 
-	iface.RegisterCollectNotify(nil)
+	if collectSubID != 0 {
+		iface.UnsubscribeCollectNotify(collectSubID)
+	}
 	log.Info("ddos-detect plugin stopped")
 	return 0
 }

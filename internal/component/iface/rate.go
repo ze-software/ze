@@ -54,21 +54,85 @@ func bindMetricsRegistry(reg metrics.Registry) {
 var globalTracker atomic.Pointer[rateTracker]
 
 // CollectNotifyFunc is called after each collect() cycle with the raw
-// (pre-baseline) interface data from ListInterfaces(). Used by the
-// flowexport component to receive counter snapshots without polling.
+// (pre-baseline) interface data from ListInterfaces().
 type CollectNotifyFunc func([]InterfaceInfo)
 
-var collectNotifyPtr atomic.Pointer[CollectNotifyFunc]
+type collectSubscribers struct {
+	entries []collectEntry
+}
 
-// RegisterCollectNotify sets the callback invoked after each collect()
-// with raw interface data. Only one callback is supported; the last
-// registration wins. Pass nil to unregister.
-func RegisterCollectNotify(fn CollectNotifyFunc) {
-	if fn == nil {
-		collectNotifyPtr.Store(nil)
-		return
+type collectEntry struct {
+	id int
+	fn CollectNotifyFunc
+}
+
+var (
+	collectSubsMu  sync.Mutex
+	collectSubsPtr = func() *atomic.Pointer[collectSubscribers] {
+		var p atomic.Pointer[collectSubscribers]
+		p.Store(&collectSubscribers{})
+		return &p
+	}()
+	collectSubsSeq int
+	legacySubID    int
+)
+
+// SubscribeCollectNotify registers a callback invoked after each collect()
+// cycle with raw interface data. Returns an ID used to unsubscribe.
+// Multiple subscribers are supported; all are invoked on each tick.
+func SubscribeCollectNotify(fn CollectNotifyFunc) int {
+	collectSubsMu.Lock()
+	defer collectSubsMu.Unlock()
+
+	collectSubsSeq++
+	id := collectSubsSeq
+
+	old := collectSubsPtr.Load()
+	next := &collectSubscribers{
+		entries: make([]collectEntry, len(old.entries)+1),
 	}
-	collectNotifyPtr.Store(&fn)
+	copy(next.entries, old.entries)
+	next.entries[len(old.entries)] = collectEntry{id: id, fn: fn}
+	collectSubsPtr.Store(next)
+	return id
+}
+
+// UnsubscribeCollectNotify removes the subscriber with the given ID.
+func UnsubscribeCollectNotify(id int) {
+	collectSubsMu.Lock()
+	defer collectSubsMu.Unlock()
+
+	old := collectSubsPtr.Load()
+	next := &collectSubscribers{
+		entries: make([]collectEntry, 0, len(old.entries)),
+	}
+	for _, e := range old.entries {
+		if e.id != id {
+			next.entries = append(next.entries, e)
+		}
+	}
+	collectSubsPtr.Store(next)
+}
+
+// RegisterCollectNotify sets a callback invoked after each collect().
+//
+// Deprecated: use SubscribeCollectNotify/UnsubscribeCollectNotify for
+// multi-subscriber support.
+func RegisterCollectNotify(fn CollectNotifyFunc) {
+	collectSubsMu.Lock()
+	prev := legacySubID
+	legacySubID = 0
+	collectSubsMu.Unlock()
+
+	if prev != 0 {
+		UnsubscribeCollectNotify(prev)
+	}
+	if fn != nil {
+		id := SubscribeCollectNotify(fn)
+		collectSubsMu.Lock()
+		legacySubID = id
+		collectSubsMu.Unlock()
+	}
 }
 
 // rateTracker computes per-interface rates from kernel counter deltas.
@@ -173,8 +237,10 @@ func (t *rateTracker) collect() {
 	updateIfaceMetrics(newRates)
 	cleanStaleIfaceMetrics(previousNames, newNames)
 
-	if fn := collectNotifyPtr.Load(); fn != nil {
-		(*fn)(ifs)
+	if subs := collectSubsPtr.Load(); len(subs.entries) > 0 {
+		for i := range subs.entries {
+			subs.entries[i].fn(ifs)
+		}
 	}
 }
 

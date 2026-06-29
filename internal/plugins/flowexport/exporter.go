@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/observation"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/enrich"
 )
 
@@ -281,6 +282,23 @@ func (e *Exporter) ExportFlows(flows []ConntrackFlow) {
 		}
 		addBytes(cs.cfg.Name, cs.cfg.Protocol, float64(bytesAfter-bytesBefore))
 		addFlows(cs.cfg.Name, float64(records))
+	}
+
+	feed := observation.Global()
+	for i := range flows {
+		f := &flows[i]
+		obs := observation.Observation{
+			Kind:    observation.KindFlow,
+			Feature: observation.FeatureFlowBytes,
+			Value:   float64(f.Bytes),
+			At:      now,
+		}
+		obs.Flow.Src = f.SrcAddr
+		obs.Flow.Dst = f.DstAddr
+		obs.Flow.SrcPort = f.SrcPort
+		obs.Flow.DstPort = f.DstPort
+		obs.Flow.Proto = f.Protocol
+		feed.Publish(obs)
 	}
 }
 

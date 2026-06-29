@@ -340,3 +340,119 @@ func TestRateTracker_StartStop(t *testing.T) {
 		t.Error("tracker goroutine did not exit after Stop()")
 	}
 }
+
+func TestRateTrackerFanoutAllSubscribers(t *testing.T) {
+	_, cleanup := withStubBackend(t, []InterfaceInfo{
+		{Name: "eth0", Stats: &InterfaceStats{RxBytes: 100}},
+	})
+	defer cleanup()
+
+	var called [3]atomic.Int32
+	ids := make([]int, 3)
+	for i := range ids {
+		idx := i
+		ids[i] = SubscribeCollectNotify(func(_ []InterfaceInfo) {
+			called[idx].Add(1)
+		})
+	}
+	defer func() {
+		for _, id := range ids {
+			UnsubscribeCollectNotify(id)
+		}
+	}()
+
+	tracker := newRateTracker()
+	tracker.collect()
+
+	for i := range called {
+		if called[i].Load() != 1 {
+			t.Errorf("subscriber %d called %d times, want 1", i, called[i].Load())
+		}
+	}
+}
+
+func TestRateTrackerUnsubscribe(t *testing.T) {
+	_, cleanup := withStubBackend(t, []InterfaceInfo{
+		{Name: "eth0", Stats: &InterfaceStats{RxBytes: 100}},
+	})
+	defer cleanup()
+
+	var called atomic.Int32
+	id := SubscribeCollectNotify(func(_ []InterfaceInfo) {
+		called.Add(1)
+	})
+
+	tracker := newRateTracker()
+	tracker.collect()
+	if called.Load() != 1 {
+		t.Fatalf("before unsubscribe: called %d, want 1", called.Load())
+	}
+
+	UnsubscribeCollectNotify(id)
+	tracker.collect()
+	if called.Load() != 1 {
+		t.Errorf("after unsubscribe: called %d, want 1 (should not increment)", called.Load())
+	}
+}
+
+func TestRateTrackerLegacyRegisterCompat(t *testing.T) {
+	_, cleanup := withStubBackend(t, []InterfaceInfo{
+		{Name: "eth0", Stats: &InterfaceStats{RxBytes: 100}},
+	})
+	defer cleanup()
+
+	var called atomic.Int32
+	RegisterCollectNotify(func(_ []InterfaceInfo) {
+		called.Add(1)
+	})
+	defer RegisterCollectNotify(nil)
+
+	tracker := newRateTracker()
+	tracker.collect()
+	if called.Load() != 1 {
+		t.Errorf("legacy register: called %d, want 1", called.Load())
+	}
+
+	RegisterCollectNotify(nil)
+	tracker.collect()
+	if called.Load() != 1 {
+		t.Errorf("after nil unregister: called %d, want 1", called.Load())
+	}
+}
+
+func TestRateTrackerFanoutPayloadPreserved(t *testing.T) {
+	_, cleanup := withStubBackend(t, []InterfaceInfo{
+		{Name: "eth0", Stats: &InterfaceStats{RxBytes: 42}},
+		{Name: "eth1", Stats: &InterfaceStats{RxBytes: 99}},
+	})
+	defer cleanup()
+
+	var received []InterfaceInfo
+	id := SubscribeCollectNotify(func(ifs []InterfaceInfo) {
+		received = append(received, ifs...)
+	})
+	defer UnsubscribeCollectNotify(id)
+
+	tracker := newRateTracker()
+	tracker.collect()
+
+	if len(received) != 2 {
+		t.Fatalf("received %d interfaces, want 2", len(received))
+	}
+	if received[0].Name != "eth0" || received[1].Name != "eth1" {
+		t.Errorf("names = [%s, %s], want [eth0, eth1]", received[0].Name, received[1].Name)
+	}
+	if received[0].Stats.RxBytes != 42 {
+		t.Errorf("eth0 RxBytes = %d, want 42", received[0].Stats.RxBytes)
+	}
+}
+
+func TestRateTrackerZeroSubscribers(t *testing.T) {
+	_, cleanup := withStubBackend(t, []InterfaceInfo{
+		{Name: "eth0", Stats: &InterfaceStats{RxBytes: 100}},
+	})
+	defer cleanup()
+
+	tracker := newRateTracker()
+	tracker.collect()
+}

@@ -8,10 +8,12 @@ package trafficusage
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/observation"
 )
 
 type fakeAttachment struct {
@@ -343,6 +345,61 @@ func TestReconcileDeletesSeriesOnRemoval(t *testing.T) {
 		if id.a == "eth0" {
 			t.Errorf("eth0 series should be deleted on removal (stale-timeout 0), found %+v", id)
 		}
+	}
+}
+
+// VALIDATES: AC-4 — trafficusage publishes per-source-IP observations to the feed.
+func TestTrafficUsagePublishesSourceObs(t *testing.T) {
+	BindMetrics(metrics.NewPrometheusRegistry())
+	m := newMonitor(newFakeAttacher(), stubResolver(nil))
+	m.cfg = &Config{Enabled: true, Interval: time.Second}
+
+	feed := observation.Global()
+	var received []observation.Observation
+	var mu sync.Mutex
+	subID := feed.Subscribe("test", func(obs observation.Observation) {
+		mu.Lock()
+		received = append(received, obs)
+		mu.Unlock()
+	})
+	defer feed.Unsubscribe(subID)
+
+	snap := []counts{{
+		ifname:    "eth0",
+		ingressIP: map[uint32]uint64{0x0100000a: 42}, // 10.0.0.1 in LE
+	}}
+	m.mu.Lock()
+	m.publishLocked(snap, time.Now())
+	m.mu.Unlock()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		n := len(received)
+		mu.Unlock()
+		if n >= 1 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(received) == 0 {
+		t.Fatal("no observations published")
+	}
+	obs := received[0]
+	if obs.Kind != observation.KindSourceIP {
+		t.Errorf("kind = %v, want SourceIP", obs.Kind)
+	}
+	if obs.Feature != observation.FeatureRxBytes {
+		t.Errorf("feature = %v, want RxBytes", obs.Feature)
+	}
+	if obs.Value != 42 {
+		t.Errorf("value = %f, want 42", obs.Value)
+	}
+	if obs.Iface != "eth0" {
+		t.Errorf("iface = %q, want eth0", obs.Iface)
 	}
 }
 

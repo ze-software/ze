@@ -23,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/health"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/observation"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -145,6 +146,7 @@ func init() {
 		ConfigureMetrics: func(reg any) {
 			if r, ok := reg.(metrics.Registry); ok {
 				bindMetricsRegistry(r)
+				observation.BindMetrics(r)
 			}
 		},
 		ConfigureEventBus: func(eb any) {
