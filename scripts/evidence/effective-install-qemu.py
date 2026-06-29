@@ -505,6 +505,13 @@ def _ssh_login_ok(ssh_port: int) -> bool:
     return False
 
 
+_ssh_tool_warned = False
+
+
+def have_ssh_probe_tool() -> bool:
+    return shutil.which("uv") is not None or shutil.which("sshpass") is not None
+
+
 def _run_capture(cmd: list[str], timeout: float) -> str:
     proc = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
@@ -603,6 +610,11 @@ def main() -> int:
             print("INSTALL-QEMU: FAIL installer did not report success on serial")
             return 1
         print("INSTALL-QEMU: installer wrote disk + completed")
+
+        if not have_ssh_probe_tool():
+            print("INSTALL-QEMU: SKIP AC-10 SSH login (install uv or sshpass to test)")
+            print("INSTALL-QEMU: PASS (installer only, SSH probe skipped)")
+            return 0
 
         if not boot_target_ssh(work, disk, timeout=120):
             print(
