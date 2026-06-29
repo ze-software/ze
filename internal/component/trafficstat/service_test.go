@@ -4,12 +4,26 @@
 package trafficstat
 
 import (
+	"net/netip"
 	"sync"
 	"testing"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/observation"
 )
+
+func waitForSnapshot(t *testing.T, svc *Service, check func(*Snapshot) bool) *Snapshot {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if snap := svc.Snapshot(); snap != nil && check(snap) {
+			return snap
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatal("timed out waiting for snapshot condition")
+	return nil
+}
 
 // TestTrafficstatStartsWithoutDetector verifies the service starts on the
 // first consumer and subscribes to the observation feed, with no DDoS
@@ -28,10 +42,7 @@ func TestTrafficstatStartsWithoutDetector(t *testing.T) {
 		t.Fatalf("expected 1 consumer after attach, got %d", svc.consumerCount())
 	}
 
-	// Give the service a tick to process
-	time.Sleep(100 * time.Millisecond)
-
-	snap := svc.Snapshot()
+	snap := waitForSnapshot(t, svc, func(s *Snapshot) bool { return s != nil })
 	if snap == nil {
 		t.Fatal("expected non-nil snapshot after attach")
 	}
@@ -69,8 +80,10 @@ func TestTrafficstatLazyStopOnLastConsumer(t *testing.T) {
 		t.Fatalf("expected 0 consumers after last detach, got %d", svc.consumerCount())
 	}
 
-	// Give service time to stop
-	time.Sleep(50 * time.Millisecond)
+	deadline := time.Now().Add(3 * time.Second)
+	for svc.Running() && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
 	if svc.Running() {
 		t.Fatal("service should have stopped after last consumer detached")
 	}
@@ -106,8 +119,10 @@ func TestTrafficstatRefcountRace(t *testing.T) {
 	}
 }
 
-// TestTrafficstatDerivesRates verifies cumulative values are diffed and
-// delta values are summed correctly (AC-9).
+// TestTrafficstatDerivesRates verifies the service processes cumulative
+// observations into a non-empty top-source-IPs snapshot (AC-9). Exact
+// rate arithmetic is covered by window_test.go; this test proves the
+// full service pipeline delivers data end-to-end.
 func TestTrafficstatDerivesRates(t *testing.T) {
 	feed := observation.NewFeed()
 	svc := NewService(feed)
@@ -118,38 +133,56 @@ func TestTrafficstatDerivesRates(t *testing.T) {
 
 	now := time.Now()
 
-	// Publish two cumulative observations 1s apart to get a rate
 	feed.Publish(observation.Observation{
 		Kind:    observation.KindSourceIP,
 		Iface:   "eth0",
 		Feature: observation.FeatureRxBytes,
+		Flow:    observation.FlowKey{Src: netip.MustParseAddr("198.51.100.1")},
 		Value:   1000,
 		At:      now,
 	})
 
-	time.Sleep(50 * time.Millisecond)
-
 	feed.Publish(observation.Observation{
 		Kind:    observation.KindSourceIP,
 		Iface:   "eth0",
 		Feature: observation.FeatureRxBytes,
-		Value:   2000,
+		Flow:    observation.FlowKey{Src: netip.MustParseAddr("198.51.100.1")},
+		Value:   3000,
 		At:      now.Add(time.Second),
 	})
 
-	// Wait for the service to process
-	time.Sleep(200 * time.Millisecond)
-
-	snap := svc.Snapshot()
+	target := netip.MustParseAddr("198.51.100.1")
+	snap := waitForSnapshot(t, svc, func(s *Snapshot) bool {
+		for i := range s.TopSourceIPs {
+			if s.TopSourceIPs[i].Addr == target {
+				return true
+			}
+		}
+		return false
+	})
 	if snap == nil {
 		t.Fatal("expected snapshot")
 	}
-	// The snapshot should have processed the observations; detailed rate
-	// derivation is verified in window_test.go.
+	if len(snap.TopSourceIPs) == 0 {
+		t.Fatal("expected non-empty TopSourceIPs after cumulative observations")
+	}
+	found := false
+	for _, te := range snap.TopSourceIPs {
+		if te.Addr == netip.MustParseAddr("198.51.100.1") {
+			if te.Bps <= 0 {
+				t.Fatalf("expected positive Bps for 198.51.100.1, got %v", te.Bps)
+			}
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("198.51.100.1 not present in TopSourceIPs")
+	}
 }
 
-// TestTrafficstatTopNAndEviction verifies the top-N cap and cold eviction
-// keep tracked keys bounded (AC-10).
+// TestTrafficstatTopNAndEviction verifies the top-N cap keeps the snapshot
+// bounded even when many distinct source keys are observed (AC-10).
 func TestTrafficstatTopNAndEviction(t *testing.T) {
 	feed := observation.NewFeed()
 	svc := NewService(feed)
@@ -160,27 +193,39 @@ func TestTrafficstatTopNAndEviction(t *testing.T) {
 
 	now := time.Now()
 
-	// Publish observations for more unique keys than the top-N cap
-	for i := range 200 {
+	// Publish flow deltas from MaxTopN+20 distinct source IPs so the
+	// snapshot must enforce the cap.
+	count := MaxTopN + 20
+	for i := range count {
+		src := netip.AddrFrom4([4]byte{10, 0, byte(i >> 8), byte(i)})
+		dst := netip.MustParseAddr("203.0.113.1")
 		feed.Publish(observation.Observation{
-			Kind:    observation.KindSourceIP,
-			Iface:   "eth0",
-			Feature: observation.FeatureRxBytes,
-			Value:   float64(i * 100),
+			Kind:    observation.KindFlow,
+			Feature: observation.FeatureFlowBytes,
+			Flow:    observation.FlowKey{Src: src, Dst: dst, DstPort: 80, Proto: 6},
+			Value:   float64((i + 1) * 1000),
 			At:      now,
 		})
 	}
 
-	time.Sleep(200 * time.Millisecond)
-
-	snap := svc.Snapshot()
+	snap := waitForSnapshot(t, svc, func(s *Snapshot) bool {
+		return len(s.TopSourceIPs) > 0
+	})
 	if snap == nil {
 		t.Fatal("expected snapshot")
 	}
 
-	// Verify the talker count is bounded
+	if len(snap.TopSourceIPs) == 0 {
+		t.Fatal("expected non-empty TopSourceIPs")
+	}
 	if len(snap.TopSourceIPs) > MaxTopN {
 		t.Errorf("top source IPs %d exceeds cap %d", len(snap.TopSourceIPs), MaxTopN)
+	}
+	if len(snap.TopDestIPs) == 0 {
+		t.Fatal("expected non-empty TopDestIPs from flow observations")
+	}
+	if len(snap.TopPorts) == 0 {
+		t.Fatal("expected non-empty TopPorts from flow observations")
 	}
 }
 
@@ -194,13 +239,11 @@ func TestTrafficstatDegradedNoTrafficUsage(t *testing.T) {
 	id := svc.Attach()
 	defer svc.Detach(id)
 
-	time.Sleep(100 * time.Millisecond)
-
-	snap := svc.Snapshot()
+	snap := waitForSnapshot(t, svc, func(s *Snapshot) bool { return s.Degraded })
 	if snap == nil {
 		t.Fatal("expected snapshot even with no collector data")
 	}
-	if snap.Degraded != true {
+	if !snap.Degraded {
 		t.Error("expected Degraded=true when no collector observations arrive")
 	}
 }
