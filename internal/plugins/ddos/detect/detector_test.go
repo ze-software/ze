@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/component/trafficstat"
 	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -86,6 +87,49 @@ func TestDetectorEmitsOnFlood(t *testing.T) {
 	}
 	if !detected.Observable {
 		t.Error("Observable should be true")
+	}
+}
+
+// VALIDATES: detector triggers correctly when consuming pre-computed rates from
+// the trafficstat service instead of raw iface counters (AC-8).
+// PREVENTS: regression after the Depth-1 refactor that swaps the data source.
+func TestDetectorConsumesTrafficstat(t *testing.T) {
+	bus := newDTestBus()
+	cfg := DefaultConfig()
+	cfg.Enabled = true
+	cfg.ConfirmDuration = 1
+	cfg.AbsoluteFloor = 100
+	cfg.BaselineWindow = 10
+	cfg.StartupGrace = 0
+
+	d := newDetector(cfg, bus, nil)
+
+	var detected *ddosevent.AttackDetected
+	ddosevent.Detected.Subscribe(bus, func(e *ddosevent.AttackDetected) {
+		detected = e
+	})
+
+	// Feed normal traffic via onRates (pre-computed, as trafficstat delivers)
+	for range 20 {
+		d.onRates([]trafficstat.InterfaceEntry{
+			{Name: "xe0", RxPps: 50, RxBps: 5000},
+		})
+	}
+
+	// Spike above threshold
+	for range 5 {
+		d.onRates([]trafficstat.InterfaceEntry{
+			{Name: "xe0", RxPps: 100000, RxBps: 10000000},
+		})
+	}
+
+	d.wg.Wait()
+
+	if detected == nil {
+		t.Fatal("AttackDetected not emitted via onRates path")
+	}
+	if detected.Interface != "xe0" {
+		t.Errorf("Interface: got %q, want xe0", detected.Interface)
 	}
 }
 

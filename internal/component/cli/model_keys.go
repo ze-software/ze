@@ -406,8 +406,8 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			trCmd := m.startTraceroutePiped(args)
 			return m, trCmd
 		}
-		if m.monitorFactory != nil && isMonitorCommand(args) {
-			cmd := m.startMonitorSession(extractMonitorCmdArgs(args))
+		if isMonitorCommand(args) {
+			cmd := m.startMonitorSessionFromInput(extractMonitorCmdArgs(args), args)
 			return m, cmd
 		}
 		m.statusMessage = "running..."
@@ -553,8 +553,8 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			trCmd := m.startTraceroutePiped(input)
 			return m, trCmd
 		}
-		if m.monitorFactory != nil && isMonitorCommand(input) {
-			cmd := m.startMonitorSession(extractMonitorCmdArgs(input))
+		if isMonitorCommand(input) {
+			cmd := m.startMonitorSessionFromInput(extractMonitorCmdArgs(input), input)
 			return m, cmd
 		}
 		m.statusMessage = "running..."

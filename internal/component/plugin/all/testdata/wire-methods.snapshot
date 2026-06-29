@@ -94,6 +94,7 @@ ze-monitor:interface-rate
 ze-monitor:ping
 ze-monitor:system-netlink
 ze-monitor:traceroute
+ze-monitor:traffic-stat
 ze-monitor:vpn-ipsec
 ze-plugin:command-complete
 ze-plugin:command-help
@@ -235,6 +236,7 @@ ze-show:system-update-history
 ze-show:tcp-check
 ze-show:traceroute
 ze-show:traffic
+ze-show:traffic-stat
 ze-show:traffic-usage
 ze-show:uptime
 ze-show:version

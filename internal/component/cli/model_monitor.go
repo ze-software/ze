@@ -48,9 +48,14 @@ func extractMonitorCmdArgs(input string) []string {
 	return args
 }
 
-// startMonitorSession creates a monitor session and returns a tea.Cmd that
-// produces the first poll tick. The session is stored on the model.
-func (m *Model) startMonitorSession(args []string) tea.Cmd {
+// startMonitorSessionFromInput creates a monitor session. It first checks
+// for a registered MonitorProvider (full-screen TUI); if none matches, it
+// falls back to the event-bus factory (log mode).
+func (m *Model) startMonitorSessionFromInput(args []string, fullInput string) tea.Cmd {
+	if provider, provArgs := pluginserver.GetMonitorProvider(fullInput); provider != nil {
+		return m.startProviderMonitor(provider, provArgs)
+	}
+
 	if m.monitorFactory == nil {
 		m.statusMessage = "monitor not available (no daemon connection)"
 		return nil
@@ -65,17 +70,37 @@ func (m *Model) startMonitorSession(args []string) tea.Cmd {
 	}
 
 	m.monitorSession = session
-	// Wrap cancels to ensure both the factory-provided and context cancels fire.
 	origCancel := session.Cancel
 	session.Cancel = func() {
 		origCancel()
 		cancel()
 	}
 
-	// Show header in viewport.
 	m.outputBuf.WriteString("--- monitor active (Esc to stop) ---\n")
 	m.setViewportText(m.outputBuf.String())
 	m.viewport.GotoBottom()
+	m.statusMessage = "monitoring (Esc to stop)"
+
+	return tea.Tick(monitorPollInterval, func(time.Time) tea.Msg { return monitorPollMsg{} })
+}
+
+func (m *Model) startProviderMonitor(provider *pluginserver.MonitorProvider, args []string) tea.Cmd {
+	ctx, cancel := context.WithCancel(context.Background())
+	eventCh, renderFn, provCancel, err := provider.CreateFn(ctx, args)
+	if err != nil {
+		cancel()
+		m.err = err
+		return nil
+	}
+
+	m.monitorSession = &MonitorSession{
+		EventChan: eventCh,
+		Cancel: func() {
+			provCancel()
+			cancel()
+		},
+		RenderFunc: renderFn,
+	}
 	m.statusMessage = "monitoring (Esc to stop)"
 
 	return tea.Tick(monitorPollInterval, func(time.Time) tea.Msg { return monitorPollMsg{} })
@@ -108,41 +133,44 @@ func drainMonitorEvents(ch <-chan string) (events []string, closed bool) {
 }
 
 // handleMonitorPoll drains available events from the monitor channel
-// and appends them to the viewport. Reschedules the next poll.
+// and appends them to the viewport (log mode) or just drains them
+// (full-screen mode where RenderFunc drives View). Reschedules the next poll.
 func (m Model) handleMonitorPoll() (tea.Model, tea.Cmd) {
 	if m.monitorSession == nil {
 		return m, nil
 	}
 
+	fullScreen := m.monitorSession.RenderFunc != nil
 	events, closed := drainMonitorEvents(m.monitorSession.EventChan)
 
-	for _, event := range events {
-		if m.outputBuf.Len() > 0 {
-			m.outputBuf.WriteString("\n")
+	if !fullScreen {
+		for _, event := range events {
+			if m.outputBuf.Len() > 0 {
+				m.outputBuf.WriteString("\n")
+			}
+			if m.monitorSession.FormatFunc != nil {
+				event = m.monitorSession.FormatFunc(event)
+			}
+			m.outputBuf.WriteString(event)
 		}
-		if m.monitorSession.FormatFunc != nil {
-			event = m.monitorSession.FormatFunc(event)
-		}
-		m.outputBuf.WriteString(event)
 	}
 
 	if closed {
-		m.monitorSession.Cancel() // Cancel context before clearing session.
+		m.monitorSession.Cancel()
 		m.monitorSession = nil
 		m.statusMessage = "monitor ended"
-		if len(events) > 0 {
+		if !fullScreen && len(events) > 0 {
 			m.setViewportText(m.outputBuf.String())
 			m.viewport.GotoBottom()
 		}
 		return m, nil
 	}
 
-	if len(events) > 0 {
+	if !fullScreen && len(events) > 0 {
 		m.setViewportText(m.outputBuf.String())
 		m.viewport.GotoBottom()
 	}
 
-	// Reschedule next poll.
 	return m, tea.Tick(monitorPollInterval, func(time.Time) tea.Msg { return monitorPollMsg{} })
 }
 

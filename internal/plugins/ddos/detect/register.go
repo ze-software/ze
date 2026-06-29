@@ -8,6 +8,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/trafficstat"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	detectyang "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/detect/yang"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -58,6 +59,38 @@ func runEngine(conn net.Conn) int {
 
 	var det *detector
 	var collectSubID int
+	var rateSubID int
+
+	// subscribe wires the detector to the trafficstat service (preferred)
+	// or falls back to the raw iface tick.
+	//
+	// EnsureGlobal (not Global): the trafficstat service is created lazily and
+	// nothing else guarantees it exists at detector-config time, so Global()
+	// would almost always be nil here and we would silently fall back to the raw
+	// tick -- defeating the layering. EnsureGlobal makes the detector a real
+	// consumer of the shared usage service.
+	subscribe := func(d *detector) {
+		if svc := trafficstat.EnsureGlobal(); svc != nil {
+			rateSubID = svc.SubscribeRates(d.onRates)
+			log.Info("ddos-detect: enabled, subscribing to trafficstat")
+		} else {
+			collectSubID = iface.SubscribeCollectNotify(d.onRate)
+			log.Info("ddos-detect: enabled, subscribing to iface rate (trafficstat unavailable)")
+		}
+	}
+
+	unsubscribe := func() {
+		if rateSubID != 0 {
+			if svc := trafficstat.Global(); svc != nil {
+				svc.UnsubscribeRates(rateSubID)
+			}
+			rateSubID = 0
+		}
+		if collectSubID != 0 {
+			iface.UnsubscribeCollectNotify(collectSubID)
+			collectSubID = 0
+		}
+	}
 
 	parseSections := func(sections []sdk.ConfigSection) (*Config, error) {
 		for _, s := range sections {
@@ -89,11 +122,8 @@ func runEngine(conn net.Conn) int {
 		}
 		det = newDetector(cfg, bus, p.DispatchCommand)
 		if cfg.Enabled {
-			if collectSubID != 0 {
-				iface.UnsubscribeCollectNotify(collectSubID)
-			}
-			collectSubID = iface.SubscribeCollectNotify(det.onRate)
-			log.Info("ddos-detect: enabled, subscribing to iface rate")
+			unsubscribe()
+			subscribe(det)
 		}
 		return nil
 	})
@@ -118,12 +148,9 @@ func runEngine(conn net.Conn) int {
 			return err
 		}
 		det = newDetector(cfg, bus, p.DispatchCommand)
-		if collectSubID != 0 {
-			iface.UnsubscribeCollectNotify(collectSubID)
-			collectSubID = 0
-		}
+		unsubscribe()
 		if cfg.Enabled {
-			collectSubID = iface.SubscribeCollectNotify(det.onRate)
+			subscribe(det)
 		}
 		return nil
 	})
@@ -140,15 +167,11 @@ func runEngine(conn net.Conn) int {
 		ApplyBudget:  10,
 	}); err != nil {
 		log.Error("ddos-detect plugin failed", "error", err)
-		if collectSubID != 0 {
-			iface.UnsubscribeCollectNotify(collectSubID)
-		}
+		unsubscribe()
 		return 1
 	}
 
-	if collectSubID != 0 {
-		iface.UnsubscribeCollectNotify(collectSubID)
-	}
+	unsubscribe()
 	log.Info("ddos-detect plugin stopped")
 	return 0
 }

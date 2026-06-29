@@ -510,6 +510,32 @@ See the [Flow Export guide](flow-export.md).
 <!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-show:flow-export -->
 <!-- source: internal/plugins/flowexport/exporter.go -- Exporter.Status -->
 
+### show traffic-stat
+<!-- source: internal/component/trafficstat/cmd/traffic.go -- handleShowTraffic -->
+
+Aggregated traffic snapshot from the trafficstat service: per-interface rates,
+top-N source/dest IPs, top ports (with service names from the portname table),
+protocol mix (TCP/UDP/...), severity tier, and 60s history. Returns a degraded
+snapshot (interface rates only) when no collector (traffic-usage / flow-export)
+is active.
+
+```
+show traffic-stat                     # All interfaces
+show traffic-stat name <interface>    # One interface by name
+```
+
+### monitor traffic-stat
+<!-- source: internal/component/trafficstat/cmd/render.go -- createTrafficMonitorSession -->
+
+Full-screen live traffic monitor. Renders per-interface rates, top talkers,
+top ports with service names and amplification labels, protocol mix percentages,
+severity badge, and a sparkline history. Esc/q to quit.
+
+```
+monitor traffic-stat                  # All interfaces
+monitor traffic-stat name <interface> # One interface by name
+```
+
 ### show traffic-usage
 
 Per-interface eBPF byte accounting for the `traffic-usage` plugin (TCX

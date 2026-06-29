@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/component/trafficstat"
 	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -67,6 +68,34 @@ func newDetector(cfg *Config, bus ze.EventBus, dispatch dispatchFunc) *detector 
 	return d
 }
 
+// onRates accepts pre-computed per-interface rates from the trafficstat
+// service, replacing the raw-counter diffing that onRate performs.
+func (d *detector) onRates(entries []trafficstat.InterfaceEntry) {
+	if !d.cfg.Enabled {
+		return
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	d.tickNum++
+
+	var maxPps, maxBps float64
+	var maxIface string
+	for i := range entries {
+		e := &entries[i]
+		d.currentRxPps[e.Name] = e.RxPps
+
+		if e.RxPps > maxPps {
+			maxPps = e.RxPps
+			maxIface = e.Name
+			maxBps = e.RxBps
+		}
+	}
+
+	d.applyTick(maxPps, maxBps, maxIface)
+}
+
 func (d *detector) onRate(infos []iface.InterfaceInfo) {
 	if !d.cfg.Enabled {
 		return
@@ -109,6 +138,12 @@ func (d *detector) onRate(infos []iface.InterfaceInfo) {
 		}
 	}
 
+	d.applyTick(maxPps, maxBps, maxIface)
+}
+
+// applyTick runs the baseline, state machine, and event emission for a
+// single tick. Caller must hold d.mu.
+func (d *detector) applyTick(maxPps, maxBps float64, maxIface string) {
 	if d.tickNum <= d.cfg.StartupGrace {
 		if maxPps < d.cfg.AbsoluteFloor*5 {
 			return
@@ -131,10 +166,6 @@ func (d *detector) onRate(infos []iface.InterfaceInfo) {
 	d.justTriggered = false
 	d.sm.Tick(above)
 
-	// Gate Ongoing on the first Detected having been emitted. Detected is
-	// produced asynchronously by the characterization goroutine, so without
-	// this an Ongoing (emitted synchronously here) could reach subscribers
-	// before the attack's Detected under a slow flow query.
 	if d.sm.State() == stateActive && !d.justTriggered && d.detectedEmitted.Load() {
 		if _, err := ddosevent.Ongoing.Emit(d.bus, &ddosevent.AttackOngoing{
 			Interface:  d.attackIface,

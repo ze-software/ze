@@ -16,6 +16,61 @@ import (
 // username is the authenticated SSH user (for authorization), args are command arguments.
 type StreamingHandler func(ctx context.Context, s *Server, w io.Writer, username string, args []string) error
 
+// MonitorProvider creates a TUI monitor session for a streaming command.
+type MonitorProvider struct {
+	Prefix   string
+	CreateFn func(ctx context.Context, args []string) (eventCh <-chan string, renderFn func(w, h int) string, cancel func(), err error)
+}
+
+var (
+	monitorProvidersMu sync.RWMutex
+	monitorProviders   = make(map[string]MonitorProvider)
+)
+
+// RegisterMonitorProvider registers a TUI monitor provider for a streaming prefix.
+func RegisterMonitorProvider(p MonitorProvider) {
+	key := strings.ToLower(strings.TrimSpace(p.Prefix))
+	monitorProvidersMu.Lock()
+	monitorProviders[key] = p
+	monitorProvidersMu.Unlock()
+}
+
+// GetMonitorProvider returns a provider for the given command input, or nil.
+func GetMonitorProvider(input string) (*MonitorProvider, []string) {
+	trimmed := strings.TrimSpace(input)
+	lower := strings.ToLower(trimmed)
+
+	monitorProvidersMu.RLock()
+	defer monitorProvidersMu.RUnlock()
+
+	var bestPrefix string
+	var bestProvider *MonitorProvider
+	for prefix := range monitorProviders {
+		if matchesPrefix(lower, prefix) {
+			if len(prefix) > len(bestPrefix) {
+				bestPrefix = prefix
+				p := monitorProviders[prefix]
+				bestProvider = &p
+			}
+		}
+	}
+	if bestProvider == nil {
+		return nil, nil
+	}
+	if len(trimmed) <= len(bestPrefix) {
+		return bestProvider, nil
+	}
+	rest := strings.TrimSpace(trimmed[len(bestPrefix):])
+	if rest == "" {
+		return bestProvider, nil
+	}
+	return bestProvider, strings.Fields(rest)
+}
+
+func matchesPrefix(input, prefix string) bool {
+	return input == prefix || (strings.HasPrefix(input, prefix) && len(input) > len(prefix) && input[len(prefix)] == ' ')
+}
+
 // streamingHandlers maps command prefix to handler. Multiple streaming commands
 // can coexist (e.g., "monitor event", "monitor bgp"). Protected by streamingHandlersMu.
 var (

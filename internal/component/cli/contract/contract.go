@@ -64,10 +64,13 @@ type CommitResult struct {
 }
 
 // MonitorSession represents an active streaming monitor.
+// When RenderFunc is set, the TUI renders full-screen (alt-screen)
+// instead of appending events to the scrollback viewport.
 type MonitorSession struct {
 	EventChan  <-chan string
 	Cancel     context.CancelFunc
 	FormatFunc func(string) string
+	RenderFunc func(width, height int) string
 }
 
 // MonitorFactory creates monitor sessions for streaming event display.

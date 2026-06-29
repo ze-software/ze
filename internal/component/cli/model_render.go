@@ -301,6 +301,11 @@ func (m Model) View() tea.View {
 		return tea.NewView("")
 	}
 
+	// Full-screen monitor session (any streaming command with RenderFunc).
+	if m.monitorSession != nil && m.monitorSession.RenderFunc != nil {
+		return paddedAltView(m.monitorSession.RenderFunc(m.width, m.height))
+	}
+
 	// Dashboard mode renders its own full screen.
 	if m.dashboard != nil {
 		return paddedAltView(m.renderDashboard())

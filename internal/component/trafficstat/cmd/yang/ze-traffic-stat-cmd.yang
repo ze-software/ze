@@ -1,0 +1,39 @@
+module ze-traffic-stat-cmd {
+    namespace "urn:ze:traffic-stat:cmd";
+    prefix trafficstatcmd;
+    import ze-extensions { prefix ze; }
+    description "show/monitor traffic-stat command tree. Owned by the trafficstat component.";
+    revision 2026-06-29 { description "Initial: traffic monitoring aggregation service CLI."; }
+
+    container show {
+        config false;
+        description "Read-only commands";
+
+        container traffic-stat {
+            config false;
+            ze:command "ze-show:traffic-stat";
+            description "Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity).
+Without arguments, shows all interfaces. With 'name <interface>', filters to one interface.";
+            leaf name {
+                type string;
+                description "Interface name filter";
+            }
+        }
+    }
+
+    container monitor {
+        config false;
+        description "Streaming monitor commands";
+
+        container traffic-stat {
+            config false;
+            ze:command "ze-monitor:traffic-stat";
+            description "Start streaming traffic monitor (per-second snapshots).
+Without arguments, shows all interfaces. With 'name <interface>', filters to one interface.";
+            leaf name {
+                type string;
+                description "Interface name filter";
+            }
+        }
+    }
+}

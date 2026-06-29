@@ -1,0 +1,15 @@
+# Test: trafficstat service wired end-to-end via show traffic-stat
+# VALIDATES: the `show traffic-stat` command is discoverable via YANG-driven
+#   show help AND returns a valid response when called, proving the trafficstat
+#   component's RPC handler, YANG schema, and lazy service lifecycle are wired.
+# PREVENTS: trafficstat command/schema not registered, handler crash on cold
+#   start, or service failing to initialize (wiring + data-path regression).
+
+cmd=foreground:seq=1:exec=ze show help
+expect=exit:code=0
+expect=stderr:contains=traffic-stat
+
+cmd=foreground:seq=2:exec=ze dispatch-command show traffic-stat
+expect=exit:code=0
+expect=stdout:contains=degraded
+expect=stdout:contains=interfaces
