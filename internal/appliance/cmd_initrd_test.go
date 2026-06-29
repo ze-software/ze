@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -28,7 +29,7 @@ func TestInitrdResolvesCache(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
-	cached := initrdCachePath(defaultInitrdVersion)
+	cached := initrdCachePath(defaultInitrdVersion, runtime.GOARCH)
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +54,7 @@ func TestInitrdCacheHitCopiesToToolsPath(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	content := []byte("cached-initrd")
-	cached := initrdCachePath(defaultInitrdVersion)
+	cached := initrdCachePath(defaultInitrdVersion, runtime.GOARCH)
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -138,43 +139,43 @@ func TestInitrdFallsBackToLocalBuild(t *testing.T) {
 	}
 }
 
-func TestInitrdFailsWithoutBuildTools(t *testing.T) {
+// test-relax: the old "missing build tools" path tested cpio/gzip lookup failure.
+// The initrd build no longer uses external cpio/gzip (pure Go cpio+compress/gzip),
+// so that path is unreachable. This test verifies the build fails clearly when
+// the Go source is absent (e.g., running from a detached temp dir).
+func TestInitrdFailsWhenBuildFails(t *testing.T) {
+	t.Chdir(t.TempDir())
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("network error") })
 
-	oldLookPath := initrdLookPathFn
-	initrdLookPathFn = func(name string) (string, error) { return "", errors.New("not found") }
-	t.Cleanup(func() { initrdLookPathFn = oldLookPath })
-
 	_, err := resolveInitrd()
 	if err == nil {
-		t.Fatal("expected error when download fails and build tools missing")
+		t.Fatal("expected error when download fails and go build has no source")
 	}
-	if !strings.Contains(err.Error(), "missing build tools") {
-		t.Errorf("error should mention missing build tools, got: %v", err)
+	if !strings.Contains(err.Error(), "initrd build") {
+		t.Errorf("error should mention initrd build failure, got: %v", err)
 	}
 }
 
-func TestInitrdInitScriptInvalidatesCache(t *testing.T) {
+// test-relax: cache inputs changed from shell files (tools/installer-initrd/{init,Makefile})
+// to Go sources (cmd/ze-installer/main.go, internal/install/disk/*_linux.go) because the
+// initrd build was rewritten from busybox+shell to a pure-Go binary. The old
+// TestInitrdInitScriptInvalidatesCache and TestInitrdMakefileInvalidatesCache are replaced
+// by TestInitrdSourceChangeInvalidatesCache, TestInitrdCacheVariantIncludesArch, and
+// TestInitrdCacheVariantChangesOnSourceEdit which test the same property (source change
+// invalidates cache) against the new inputs.
+
+func TestInitrdSourceChangeInvalidatesCache(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
-	toolsDir := filepath.Join(dir, initrdToolsDir)
-	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(toolsDir, "init"), []byte("#!/bin/sh\necho boot\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(toolsDir, "Makefile"), []byte("all:\n\tcpio\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	createInitrdCacheInputs(t, dir, "v1")
 
-	cached1 := initrdCachePath(defaultInitrdVersion)
+	cached1 := initrdCachePath(defaultInitrdVersion, runtime.GOARCH)
 	if err := os.MkdirAll(filepath.Dir(cached1), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -184,15 +185,13 @@ func TestInitrdInitScriptInvalidatesCache(t *testing.T) {
 
 	got, err := resolveInitrd()
 	if err != nil {
-		t.Fatalf("resolveInitrd before init change: %v", err)
+		t.Fatalf("resolveInitrd before source change: %v", err)
 	}
 	if got != cached1 {
 		t.Fatalf("expected cache hit at %q, got %q", cached1, got)
 	}
 
-	if err := os.WriteFile(filepath.Join(toolsDir, "init"), []byte("#!/bin/sh\necho boot\nretry_iso_scan\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	createInitrdCacheInputs(t, dir, "v2")
 
 	oldLookPath := initrdLookPathFn
 	initrdLookPathFn = func(name string) (string, error) { return "/usr/bin/" + name, nil }
@@ -209,10 +208,10 @@ func TestInitrdInitScriptInvalidatesCache(t *testing.T) {
 
 	got2, err := resolveInitrd()
 	if err != nil {
-		t.Fatalf("resolveInitrd after init change: %v", err)
+		t.Fatalf("resolveInitrd after source change: %v", err)
 	}
 	if got2 == cached1 {
-		t.Error("init script change did not invalidate initrd cache")
+		t.Error("source change did not invalidate initrd cache")
 	}
 
 	data, err := os.ReadFile(got2)
@@ -224,30 +223,48 @@ func TestInitrdInitScriptInvalidatesCache(t *testing.T) {
 	}
 }
 
-func TestInitrdMakefileInvalidatesCache(t *testing.T) {
+func TestInitrdCacheVariantIncludesArch(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
+	createInitrdCacheInputs(t, dir, "v1")
 
-	toolsDir := filepath.Join(dir, initrdToolsDir)
-	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
-		t.Fatal(err)
+	v1 := initrdCacheVariant(defaultInitrdVersion, "amd64")
+	v2 := initrdCacheVariant(defaultInitrdVersion, "arm64")
+	if v1 == v2 {
+		t.Fatal("cache variant should differ between amd64 and arm64")
 	}
-	if err := os.WriteFile(filepath.Join(toolsDir, "init"), []byte("#!/bin/sh\necho boot\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(toolsDir, "Makefile"), []byte("all:\n\tcpio\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+}
 
-	variant1 := initrdCacheVariant(defaultInitrdVersion)
+func TestInitrdCacheVariantChangesOnSourceEdit(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	createInitrdCacheInputs(t, dir, "v1")
 
-	if err := os.WriteFile(filepath.Join(toolsDir, "Makefile"), []byte("all:\n\tcpio --quiet\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	variant1 := initrdCacheVariant(defaultInitrdVersion, runtime.GOARCH)
 
-	variant2 := initrdCacheVariant(defaultInitrdVersion)
+	createInitrdCacheInputs(t, dir, "v2")
+
+	variant2 := initrdCacheVariant(defaultInitrdVersion, runtime.GOARCH)
 	if variant1 == variant2 {
-		t.Fatal("Makefile change did not change initrd cache variant")
+		t.Fatal("source change did not change initrd cache variant")
+	}
+}
+
+func createInitrdCacheInputs(t *testing.T, root, version string) {
+	t.Helper()
+	for _, rel := range []string{
+		"cmd/ze-installer/main.go",
+		"internal/install/disk/initrd_linux.go",
+		"internal/install/disk/bootstrap_linux.go",
+		"internal/install/disk/rescue_linux.go",
+	} {
+		path := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(version), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

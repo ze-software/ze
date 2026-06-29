@@ -125,6 +125,28 @@ role, route_refresh, rpki, rpki_decorator, rr, rs, softver, watchdog
 | `ze-test` | Functional test runner: bgp, editor, peer, mcp, web, rpki, managed |
 | `ze-gok` | gokrazy appliance image build wrapper (`cmd/ze-gok/`) |
 
+### Binary naming convention
+
+Binaries fall into two families, and the distinction is load-bearing:
+
+- **Host binaries** run on the operator / build / dev machine and are compiled for
+  the host (no `GOOS`/`GOARCH` override). These are the CLIs in the table above (one
+  `cmd/ze/` codebase selected by build tag) plus `ze-gok` (`cmd/ze-gok/`). A build or
+  test script that must RUN one of these to drive `ze appliance ...` on the build host
+  compiles `cmd/ze` (tags `ze_core,ze_setup`) and names it `ze-host` by convention
+  (e.g. `scripts/evidence/effective-install-qemu.py`).
+- **Target binaries** run on the appliance or inside an image and are cross-compiled
+  `GOOS=linux GOARCH=<arch> CGO_ENABLED=0`: `cmd/ze-installer` (the busybox-free
+  installer initrd's PID 1, build tag `ze_installer`, packed into the initrd as
+  `/init`; standalone cross-builds land at `bin/ze-installer-<arch>` per
+  `mk/appliance.mk`), `cmd/ze-serial-shell` (appliance serial console), and `cmd/ze`
+  itself when gokrazy packs it into the image.
+
+Rule: NEVER cross-compile a host binary. A target-arch `ze-host` cannot exec on the
+build host ("exec format error"). Apply `GOARCH=<target>` only to the build of a target
+binary, or to the `ze appliance initrd` invocation that cross-compiles one internally,
+never to the build of the host tool that runs it.
+
 ## Source Layout
 
 | Area | Location |

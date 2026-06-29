@@ -17,10 +17,15 @@ import (
 )
 
 const (
-	retryMax        = 3
-	retryDelay      = 5 * time.Second
-	metadataTimeout = 30 * time.Second
+	retryMax            = 3
+	retryDelay          = 5 * time.Second
+	metadataTimeout     = 30 * time.Second
+	defaultStallTimeout = 60 * time.Second
 )
+
+// stallTimeout is the maximum time without receiving any data before the
+// streaming download is considered stalled. A var so tests can shorten it.
+var stallTimeout = defaultStallTimeout
 
 var (
 	metadataClient = &http.Client{Timeout: metadataTimeout}
@@ -98,6 +103,51 @@ func downloadToDisk(url, disk, expectedSHA string) error {
 	return fmt.Errorf("stream %s to %s failed after %d attempts", url, disk, retryMax)
 }
 
+// stallReader wraps an io.Reader with a per-read stall timeout. Each Read
+// resets a timer; if no data arrives within the timeout the read returns an
+// error. A steady slow transfer (bytes arriving before each deadline) is
+// NOT killed; only a complete stall triggers.
+type stallReader struct {
+	r       io.Reader
+	timeout time.Duration
+	timer   *time.Timer
+}
+
+func newStallReader(r io.Reader, timeout time.Duration) *stallReader {
+	return &stallReader{
+		r:       r,
+		timeout: timeout,
+		timer:   time.NewTimer(timeout),
+	}
+}
+
+func (sr *stallReader) Read(p []byte) (int, error) {
+	type result struct {
+		n   int
+		err error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		n, err := sr.r.Read(p)
+		ch <- result{n, err}
+	}()
+
+	sr.timer.Reset(sr.timeout)
+	select {
+	case res := <-ch:
+		if !sr.timer.Stop() {
+			<-sr.timer.C
+		}
+		return res.n, res.err
+	case <-sr.timer.C:
+		return 0, fmt.Errorf("download stalled: no data received for %v", sr.timeout)
+	}
+}
+
+func (sr *stallReader) Close() {
+	sr.timer.Stop()
+}
+
 func doDownloadToDisk(url, disk, expectedSHA string) error {
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
 	if err != nil {
@@ -124,6 +174,9 @@ func doDownloadToDisk(url, disk, expectedSHA string) error {
 		}
 	}()
 
+	sr := newStallReader(resp.Body, stallTimeout)
+	defer sr.Close()
+
 	var w io.Writer = f
 	var h hash.Hash
 	if expectedSHA != "" {
@@ -131,7 +184,7 @@ func doDownloadToDisk(url, disk, expectedSHA string) error {
 		w = io.MultiWriter(f, h)
 	}
 
-	if _, err := io.Copy(w, resp.Body); err != nil {
+	if _, err := io.Copy(w, sr); err != nil {
 		return fmt.Errorf("write to %s: %w", disk, err)
 	}
 

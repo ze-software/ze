@@ -3,12 +3,16 @@
 package appliance
 
 import (
+	"compress/gzip"
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
@@ -16,7 +20,7 @@ import (
 )
 
 const (
-	defaultInitrdVersion = "v1"
+	defaultInitrdVersion = "v2"
 	initrdURLKey         = "ze.appliance.initrd.url"
 	initrdToolsDir       = "tools/installer-initrd"
 )
@@ -67,7 +71,11 @@ func runInitrd(args []string) int {
 
 func resolveInitrd() (string, error) {
 	version := defaultInitrdVersion
-	cached := initrdCachePath(version)
+	arch := os.Getenv("GOARCH")
+	if arch == "" {
+		arch = runtime.GOARCH
+	}
+	cached := initrdCachePath(version, arch)
 	toolsDst := filepath.Join(initrdToolsDir, "build", initrdFileName)
 
 	if _, err := os.Stat(cached); err == nil {
@@ -108,39 +116,120 @@ func resolveInitrd() (string, error) {
 }
 
 func checkInitrdBuildTools() []string {
-	var missing []string
-	for _, tool := range []string{"busybox", "cpio", "gzip"} {
-		if _, err := initrdLookPathFn(tool); err != nil {
-			missing = append(missing, tool)
-		}
-	}
-	return missing
+	return nil
 }
 
 func defaultInitrdMakeBuild(destPath string) error {
-	srcDir, err := filepath.Abs(initrdToolsDir)
-	if err != nil {
-		return fmt.Errorf("resolve initrd tools dir: %w", err)
+	arch := os.Getenv("GOARCH")
+	if arch == "" {
+		arch = runtime.GOARCH
 	}
+
+	var tb textbuf.Buffer
 
 	ctx, cancel := context.WithTimeout(context.Background(), buildTimeout)
 	defer cancel()
 
-	makeCmd := exec.CommandContext(ctx, "make", "-C", srcDir) //nolint:gosec // controlled args
-	makeCmd.Stdout = os.Stdout
-	makeCmd.Stderr = os.Stdout
-	if err := makeCmd.Run(); err != nil {
-		return fmt.Errorf("make initrd: %w", err)
+	tmpDir, err := os.MkdirTemp("", "ze-initrd-*")
+	if err != nil {
+		return fmt.Errorf("create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir) //nolint:errcheck // best-effort temp cleanup
+
+	initBin := filepath.Join(tmpDir, "init")
+	fmt.Fprintf(os.Stdout, "cross-compiling ze-installer for %s\n", arch) //nolint:errcheck // CLI output
+	goArch := tb.Str("GOARCH=").Str(arch).String()
+	goCmd := exec.CommandContext(ctx, "go", "build", //nolint:gosec // args are compile-time constants + validated arch
+		"-tags", "ze_installer",
+		"-o", initBin,
+		"./cmd/ze-installer",
+	)
+	goCmd.Env = append(os.Environ(), "GOOS=linux", goArch, "CGO_ENABLED=0")
+	goCmd.Stdout = os.Stdout
+	goCmd.Stderr = os.Stdout
+	if err := goCmd.Run(); err != nil {
+		return fmt.Errorf("build ze-installer (%s): %w", arch, err)
 	}
 
-	builtInitrd := filepath.Join(srcDir, "build", initrdFileName)
-	if _, err := os.Stat(builtInitrd); err != nil {
-		return fmt.Errorf("initrd not produced at %s", builtInitrd)
+	initData, err := os.ReadFile(initBin) //nolint:gosec // just-built binary
+	if err != nil {
+		return fmt.Errorf("read init binary: %w", err)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
 		return fmt.Errorf("create cache directory: %w", err)
 	}
 
-	return copyToToolsPath(builtInitrd, destPath)
+	fmt.Fprintf(os.Stdout, "packing initrd (%d bytes) to %s\n", len(initData), destPath) //nolint:errcheck // CLI output
+	out, err := os.Create(destPath)                                                      //nolint:gosec // dest from installer logic
+	if err != nil {
+		return fmt.Errorf("create %s: %w", destPath, err)
+	}
+	outClosed := false
+	defer func() {
+		if !outClosed {
+			out.Close() //nolint:errcheck // cleanup on error path
+		}
+	}()
+
+	gz, err := gzip.NewWriterLevel(out, gzip.BestCompression)
+	if err != nil {
+		return fmt.Errorf("gzip writer: %w", err)
+	}
+	gz.Header.Name = ""
+	gz.Header.ModTime = time.Time{}
+
+	writeNewcEntry(gz, "init", 0o100755, initData)
+	writeNewcTrailer(gz)
+
+	if err := gz.Close(); err != nil {
+		return fmt.Errorf("gzip close: %w", err)
+	}
+	outClosed = true
+	return out.Close()
+}
+
+func writeNewcEntry(w io.Writer, name string, mode uint32, data []byte) {
+	nameBytes := append([]byte(name), 0)
+	nameLen := uint32(len(nameBytes))
+	var hdr [110]byte
+	copy(hdr[:6], "070701")
+	putHex8(hdr[6:], 1)                  // ino
+	putHex8(hdr[14:], mode)              // mode
+	putHex8(hdr[22:], 0)                 // uid
+	putHex8(hdr[30:], 0)                 // gid
+	putHex8(hdr[38:], 1)                 // nlink
+	putHex8(hdr[46:], 0)                 // mtime (zero for reproducibility)
+	putHex8(hdr[54:], uint32(len(data))) // filesize
+	putHex8(hdr[62:], 0)                 // devmajor
+	putHex8(hdr[70:], 0)                 // devminor
+	putHex8(hdr[78:], 0)                 // rdevmajor
+	putHex8(hdr[86:], 0)                 // rdevminor
+	putHex8(hdr[94:], nameLen)           // namesize
+	putHex8(hdr[102:], 0)                // check
+	w.Write(hdr[:])                      //nolint:errcheck // streaming to gzip writer; errors surface on gz.Close
+	w.Write(nameBytes)                   //nolint:errcheck // streaming to gzip writer
+	writePad4(w, 110+int(nameLen))
+	w.Write(data) //nolint:errcheck // streaming to gzip writer
+	writePad4(w, len(data))
+}
+
+func writeNewcTrailer(w io.Writer) {
+	writeNewcEntry(w, "TRAILER!!!", 0, nil)
+}
+
+func putHex8(dst []byte, v uint32) {
+	const digits = "0123456789ABCDEF"
+	for i := 7; i >= 0; i-- {
+		dst[i] = digits[v&0xf]
+		v >>= 4
+	}
+}
+
+func writePad4(w io.Writer, pos int) {
+	pad := (4 - (pos % 4)) % 4
+	if pad > 0 {
+		var zeros [3]byte
+		w.Write(zeros[:pad]) //nolint:errcheck // streaming to gzip writer
+	}
 }

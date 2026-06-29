@@ -50,14 +50,14 @@ func findISOMedia(image, mediaID string) (*isoMedia, error) {
 			if !isBlockDevice(node) {
 				continue
 			}
-			if err := runCmd("mount", "-t", "iso9660", "-o", "ro", node, isoMount); err != nil {
+			if err := mountFS(node, isoMount, "iso9660", true); err != nil {
 				continue
 			}
 
 			if m := checkISOContent(node, name, image, mediaID); m != nil {
 				return m, nil
 			}
-			_ = runCmd("umount", isoMount)
+			_ = umountFS(isoMount)
 		}
 	}
 
@@ -91,7 +91,7 @@ func tryVentoyISO(image, mediaID string) (*isoMedia, error) {
 
 			mounted := false
 			for _, fs := range []string{"vfat", "exfat"} {
-				if runCmd("mount", "-t", fs, "-o", "ro", node, ventoyDataMount) == nil {
+				if mountFS(node, ventoyDataMount, fs, true) == nil {
 					mounted = true
 					break
 				}
@@ -103,7 +103,7 @@ func tryVentoyISO(image, mediaID string) (*isoMedia, error) {
 			if m := scanVentoyISOs(node, name, image, mediaID); m != nil {
 				return m, nil
 			}
-			_ = runCmd("umount", ventoyDataMount)
+			_ = umountFS(ventoyDataMount)
 		}
 	}
 
@@ -118,12 +118,12 @@ func scanVentoyISOs(node, diskName, image, mediaID string) *isoMedia {
 	for _, pattern := range patterns {
 		matches, _ := filepath.Glob(pattern)
 		for _, iso := range matches {
-			loopDev := attachLoop(iso)
-			if loopDev == "" {
+			loopDev, loopErr := loopAttach(iso)
+			if loopErr != nil {
 				continue
 			}
-			if runCmd("mount", "-t", "iso9660", "-o", "ro", loopDev, isoMount) != nil {
-				detachLoop(loopDev)
+			if mountFS(loopDev, isoMount, "iso9660", true) != nil {
+				loopDetach(loopDev)
 				continue
 			}
 			if m := checkISOContent(loopDev, diskName, image, mediaID); m != nil {
@@ -131,8 +131,8 @@ func scanVentoyISOs(node, diskName, image, mediaID string) *isoMedia {
 				slog.Info("found installer ISO via Ventoy", "partition", node, "loop", loopDev)
 				return m
 			}
-			_ = runCmd("umount", isoMount)
-			detachLoop(loopDev)
+			_ = umountFS(isoMount)
+			loopDetach(loopDev)
 		}
 	}
 	return nil
@@ -296,29 +296,4 @@ func isBlockDevice(path string) bool {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
-}
-
-func ensureLoopDevices() {
-	for i := range 8 {
-		var tb textbuf.Buffer
-		dev := tb.Str("/dev/loop").Int(int64(i)).String()
-		if _, err := os.Stat(dev); err == nil {
-			continue
-		}
-		_ = runCmd("mknod", dev, "b", "7", textbuf.StringInt(int64(i)))
-	}
-}
-
-func attachLoop(file string) string {
-	for i := range 8 {
-		dev := textbuf.StrInt("/dev/loop", int64(i))
-		if runCmd("losetup", dev, file) == nil {
-			return dev
-		}
-	}
-	return ""
-}
-
-func detachLoop(dev string) {
-	_ = runCmd("losetup", "-d", dev)
 }

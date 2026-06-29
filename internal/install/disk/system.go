@@ -3,29 +3,47 @@
 package disk
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
+// mountFS, umountFS, syncFS, rebootFS, poweroffFS are the syscall-level
+// operations. On Linux they are replaced by init() in blockdev_linux.go
+// and mount_linux.go with direct syscalls; these defaults exist only so
+// the package compiles on non-Linux (development) targets.
+var (
+	mountFS = func(source, target, fstype string, readOnly bool) error {
+		return fmt.Errorf("mount: not supported on this platform")
+	}
+	umountFS          = func(target string) error { return fmt.Errorf("umount: not supported on this platform") }
+	syncFS            = func() {}
+	rebootFS          = func() { os.WriteFile("/proc/sysrq-trigger", []byte("b"), 0o200) } //nolint:gosec,errcheck // fallback
+	poweroffFS        = func() { os.WriteFile("/proc/sysrq-trigger", []byte("o"), 0o200) } //nolint:gosec,errcheck // fallback
+	blkRereadPart     = func(string) error { return fmt.Errorf("BLKRRPART: not supported on this platform") }
+	loopAttach        = func(string) (string, error) { return "", fmt.Errorf("loop: not supported on this platform") }
+	loopDetach        = func(string) {}
+	ensureLoopDevices = func() {}
+	linkUp            = func(string) error { return fmt.Errorf("linkUp: not supported on this platform") }
+	dhcpAcquireApply  = func(string) error { return fmt.Errorf("dhcp: not supported on this platform") }
+	flushIface        = func(string) error { return fmt.Errorf("flush: not supported on this platform") }
+)
+
 // mountInjectDB mounts partition p4, downloads and writes database.zefs,
-// then unmounts. On a real device this uses mount/umount; the partition
-// is a real block device so standard filesystem I/O works (no ext4 library).
+// then unmounts.
 func mountInjectDB(part4, baseURL string) error {
 	mountPoint := "/mnt/perm"
 	if err := os.MkdirAll(mountPoint, 0o750); err != nil {
 		return fmt.Errorf("mkdir %s: %w", mountPoint, err)
 	}
 
-	if err := runCmd("mount", "-t", "ext4", part4, mountPoint); err != nil {
+	if err := mountFS(part4, mountPoint, "ext4", false); err != nil {
 		return fmt.Errorf("mount %s: %w", part4, err)
 	}
 	defer func() {
-		if umountErr := runCmd("umount", mountPoint); umountErr != nil {
+		if umountErr := umountFS(mountPoint); umountErr != nil {
 			slog.Warn("umount failed", "path", mountPoint, "error", umountErr)
 		}
 	}()
@@ -43,28 +61,16 @@ func mountInjectDB(part4, baseURL string) error {
 	}
 
 	slog.Info("database injected", "path", dbDest)
-	return runCmd("sync")
+	syncFS()
+	return nil
 }
 
 func doReboot() {
 	slog.Info("rebooting")
-	if err := runCmd("reboot", "-f"); err != nil {
-		slog.Warn("reboot failed, trying sysrq", "error", err)
-		os.WriteFile("/proc/sysrq-trigger", []byte("b"), 0o200) //nolint:gosec,errcheck // last resort
-	}
+	rebootFS()
 }
 
 func doPoweroff() {
 	slog.Info("powering off")
-	if err := runCmd("poweroff", "-f"); err != nil {
-		slog.Warn("poweroff failed, trying sysrq", "error", err)
-		os.WriteFile("/proc/sysrq-trigger", []byte("o"), 0o200) //nolint:gosec,errcheck // last resort
-	}
-}
-
-func runCmd(name string, args ...string) error {
-	cmd := exec.CommandContext(context.Background(), name, args...) //nolint:gosec // controlled invocation
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	poweroffFS()
 }

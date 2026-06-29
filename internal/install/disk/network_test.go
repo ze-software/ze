@@ -23,7 +23,7 @@ func TestEnsureNetworkSkipsDHCPWhenServerReachable(t *testing.T) {
 	)
 	defer restore()
 
-	if err := ensureNetwork("198.19.255.1", "80", 5); err != nil {
+	if err := ensureNetwork("198.19.255.1", "80", "", 5); err != nil {
 		t.Fatalf("ensureNetwork: %v", err)
 	}
 }
@@ -40,7 +40,7 @@ func TestEnsureNetworkBringsUpNICsWhenServerUnreachable(t *testing.T) {
 	)
 	defer restore()
 
-	if err := ensureNetwork("198.19.255.1", "80", 5); err != nil {
+	if err := ensureNetwork("198.19.255.1", "80", "", 5); err != nil {
 		t.Fatalf("ensureNetwork: %v", err)
 	}
 	if !broughtUp {
@@ -56,7 +56,7 @@ func TestEnsureNetworkWaitZeroSkipsEverything(t *testing.T) {
 	)
 	defer restore()
 
-	if err := ensureNetwork("198.19.255.1", "80", 0); err != nil {
+	if err := ensureNetwork("198.19.255.1", "80", "", 0); err != nil {
 		t.Fatalf("ensureNetwork: %v", err)
 	}
 }

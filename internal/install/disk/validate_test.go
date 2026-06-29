@@ -250,3 +250,18 @@ func TestSHA256Boundary(t *testing.T) {
 		}
 	}
 }
+
+func TestShellAuthRejectsUppercase(t *testing.T) {
+	lower := strings.Repeat("ab", 32)
+	if err := validateShellAuth(lower); err != nil {
+		t.Errorf("validateShellAuth(%q) = %v, want nil", lower, err)
+	}
+	upper := strings.Repeat("AB", 32)
+	if err := validateShellAuth(upper); err == nil {
+		t.Error("validateShellAuth should reject uppercase hex")
+	}
+	mixed := "ABCDEFabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123"
+	if err := validateShellAuth(mixed); err == nil {
+		t.Error("validateShellAuth should reject mixed-case hex")
+	}
+}

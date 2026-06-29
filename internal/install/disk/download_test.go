@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestDownloadToFileSuccess(t *testing.T) {
@@ -106,6 +107,71 @@ func TestDownloadToDiskRejectsBadSHA(t *testing.T) {
 	err := downloadToDisk(srv.URL, disk, wrongSHA)
 	if err == nil {
 		t.Fatal("downloadToDisk should reject SHA mismatch")
+	}
+}
+
+func TestDownloadToDiskStallTimeout(t *testing.T) {
+	// A server that sends initial bytes then stalls must trigger an error
+	// within the stall timeout, not hang forever (ISSUE-1).
+	done := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte("initial-bytes")) //nolint:errcheck // test
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+		<-done
+	}))
+	t.Cleanup(func() {
+		close(done)
+		srv.CloseClientConnections()
+		srv.Close()
+	})
+
+	dir := t.TempDir()
+	disk := filepath.Join(dir, "disk.img")
+	if err := os.WriteFile(disk, make([]byte, 1024), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	origTimeout := stallTimeout
+	stallTimeout = 500 * time.Millisecond
+	defer func() { stallTimeout = origTimeout }()
+
+	err := downloadToDisk(srv.URL, disk, "")
+	if err == nil {
+		t.Fatal("downloadToDisk should fail on a stalled transfer")
+	}
+}
+
+func TestDownloadToDiskSlowTransferNotKilled(t *testing.T) {
+	// A steady slow transfer must NOT be killed by the stall timeout.
+	body := []byte("slow-but-steady-image-data-here!")
+	h := sha256.Sum256(body)
+	expectedSHA := fmt.Sprintf("%x", h)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		for i := range body {
+			w.Write(body[i : i+1]) //nolint:errcheck // test
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+	disk := filepath.Join(dir, "disk.img")
+	if err := os.WriteFile(disk, make([]byte, 1024), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	origTimeout := stallTimeout
+	stallTimeout = 2 * time.Second
+	defer func() { stallTimeout = origTimeout }()
+
+	if err := downloadToDisk(srv.URL, disk, expectedSHA); err != nil {
+		t.Fatalf("downloadToDisk should succeed for slow-but-steady: %v", err)
 	}
 }
 

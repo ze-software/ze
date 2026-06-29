@@ -1,0 +1,254 @@
+// Design: plan/spec-installer-initrd-pure-go.md -- Go recovery console + three-branch fatal
+
+//go:build linux && ze_installer
+
+package disk
+
+import (
+	"bufio"
+	"crypto/sha256"
+	"crypto/subtle"
+	"fmt"
+	"io"
+	"log/slog"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
+	"golang.org/x/sys/unix"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
+
+var retryMu sync.Mutex
+
+type fatalBranch int
+
+const (
+	branchGated   fatalBranch = iota // credential present: password-gated console
+	branchUngated                    // no credential + ISO: ungated console
+	branchReboot                     // no credential + network: 30s reboot
+)
+
+const rescueMaxAttempts = 3
+
+func branchName(b fatalBranch) string {
+	switch b {
+	case branchGated:
+		return "gated"
+	case branchUngated:
+		return "ungated"
+	case branchReboot:
+		return "reboot"
+	default:
+		return "unknown"
+	}
+}
+
+func selectFatalBranch(shellAuth, source string) fatalBranch {
+	if shellAuth != "" {
+		return branchGated
+	}
+	if source == sourceISO {
+		return branchUngated
+	}
+	return branchReboot
+}
+
+func checkPassword(typed, shellAuth string) bool {
+	h := sha256.Sum256([]byte(typed))
+	actual := textbuf.StringHex(h[:])
+	return subtle.ConstantTimeCompare([]byte(actual), []byte(shellAuth)) == 1
+}
+
+// fatalInitrd implements the three-branch rescue policy from
+// tools/installer-initrd/init:217-227 and never returns.
+func fatalInitrd(cfg InstallConfig, msg string) {
+	slog.Error("FATAL", "error", msg)
+
+	branch := selectFatalBranch(cfg.ShellAuth, cfg.Source)
+	slog.Info("fatal policy", "branch", branchName(branch), "source", cfg.Source, "auth-set", cfg.ShellAuth != "")
+	switch branch {
+	case branchGated:
+		slog.Info("enter the admin password on any console for a rescue shell")
+		rescueOnConsoles(cfg, true)
+	case branchUngated:
+		slog.Info("dropping to rescue console for debugging")
+		rescueOnConsoles(cfg, false)
+	case branchReboot:
+		slog.Info("no rescue credential configured; rebooting in 30s")
+		time.Sleep(30 * time.Second)
+	}
+
+	if cfg.Source == sourceISO {
+		slog.Info("powering off")
+		unix.Sync()
+		_ = unix.Reboot(unix.LINUX_REBOOT_CMD_POWER_OFF)
+	} else {
+		slog.Info("rebooting")
+		unix.Sync()
+		_ = unix.Reboot(unix.LINUX_REBOOT_CMD_RESTART)
+	}
+	select {}
+}
+
+func rescueOnConsoles(cfg InstallConfig, gated bool) {
+	data, err := os.ReadFile("/sys/class/tty/console/active")
+	if err != nil {
+		rescueSession(os.Stdin, os.Stdout, cfg, gated)
+		return
+	}
+
+	type result struct{}
+	done := make(chan result)
+
+	started := 0
+	var tb textbuf.Buffer
+	for name := range strings.FieldsSeq(strings.TrimSpace(string(data))) {
+		path := tb.Reset().Str("/dev/").Str(name).String()
+		f, openErr := os.OpenFile(path, os.O_RDWR, 0)
+		if openErr != nil {
+			continue
+		}
+		started++
+		go func(con *os.File) {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("rescue console panic", "console", con.Name(), "panic", r)
+				}
+				done <- result{}
+			}()
+			rescueSession(con, con, cfg, gated)
+		}(f)
+	}
+
+	if started == 0 {
+		rescueSession(os.Stdin, os.Stdout, cfg, gated)
+		return
+	}
+	for range started {
+		<-done
+	}
+}
+
+func rescueSession(r io.Reader, w io.Writer, cfg InstallConfig, gated bool) {
+	if gated {
+		if !gateWithPassword(r, w, cfg.ShellAuth) {
+			return
+		}
+	}
+	rescueMenu(r, w, cfg)
+}
+
+func gateWithPassword(r io.Reader, w io.Writer, shellAuth string) bool {
+	if f, ok := r.(*os.File); ok {
+		echoOff(f)
+		defer echoOn(f)
+	}
+
+	scanner := bufio.NewScanner(r)
+	for attempt := range rescueMaxAttempts {
+		fmt.Fprint(w, "[ze-install] admin password: ") //nolint:errcheck // console output to recovery terminal
+		if !scanner.Scan() {
+			return false
+		}
+		pw := scanner.Text()
+		if checkPassword(pw, shellAuth) {
+			fmt.Fprintln(w, "\n[ze-install] authenticated") //nolint:errcheck // console output to recovery terminal
+			return true
+		}
+		fmt.Fprintln(w, "\n[ze-install] incorrect") //nolint:errcheck // console output to recovery terminal
+		_ = attempt
+	}
+	fmt.Fprintln(w, "[ze-install] too many attempts") //nolint:errcheck // console output to recovery terminal
+	return false
+}
+
+func echoOff(f *os.File) {
+	fd := int(f.Fd())
+	termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
+	if err != nil {
+		return
+	}
+	termios.Lflag &^= unix.ECHO
+	unix.IoctlSetTermios(fd, unix.TCSETS, termios) //nolint:errcheck // best-effort terminal control
+}
+
+func echoOn(f *os.File) {
+	fd := int(f.Fd())
+	termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
+	if err != nil {
+		return
+	}
+	termios.Lflag |= unix.ECHO
+	unix.IoctlSetTermios(fd, unix.TCSETS, termios) //nolint:errcheck // best-effort terminal control
+}
+
+func rescueMenu(r io.Reader, w io.Writer, _ InstallConfig) {
+	fmt.Fprintln(w, "\n[ze-install] Recovery Console") //nolint:errcheck // console output to recovery terminal
+	fmt.Fprintln(w, "  1) Retry network + install")    //nolint:errcheck // console output to recovery terminal
+	fmt.Fprintln(w, "  2) Show network state")         //nolint:errcheck // console output to recovery terminal
+	fmt.Fprintln(w, "  3) Reboot")                     //nolint:errcheck // console output to recovery terminal
+	fmt.Fprintln(w, "  4) Power off")                  //nolint:errcheck // console output to recovery terminal
+
+	scanner := bufio.NewScanner(r)
+	for {
+		fmt.Fprint(w, "\nze> ") //nolint:errcheck // console output to recovery terminal
+		if !scanner.Scan() {
+			return
+		}
+		switch strings.TrimSpace(scanner.Text()) {
+		case "1":
+			if !retryMu.TryLock() {
+				fmt.Fprintln(w, "[ze-install] retry already in progress on another console") //nolint:errcheck // console output to recovery terminal
+				continue
+			}
+			fmt.Fprintln(w, "[ze-install] retrying...") //nolint:errcheck // console output to recovery terminal
+			code := Run(nil)
+			retryMu.Unlock()
+			if code == 0 {
+				return
+			}
+			fmt.Fprintln(w, "[ze-install] retry failed") //nolint:errcheck // console output to recovery terminal
+		case "2":
+			showNetworkState(w)
+		case "3":
+			unix.Sync()
+			_ = unix.Reboot(unix.LINUX_REBOOT_CMD_RESTART)
+		case "4":
+			unix.Sync()
+			_ = unix.Reboot(unix.LINUX_REBOOT_CMD_POWER_OFF)
+		default:
+			fmt.Fprintln(w, "unknown option") //nolint:errcheck // console output to recovery terminal
+		}
+	}
+}
+
+func showNetworkState(w io.Writer) {
+	entries, err := os.ReadDir("/sys/class/net")
+	if err != nil {
+		fmt.Fprintln(w, "cannot read /sys/class/net") //nolint:errcheck // console output to recovery terminal
+		return
+	}
+	var tb textbuf.Buffer
+	for _, entry := range entries {
+		name := entry.Name()
+		if name == "lo" {
+			continue
+		}
+		carrier := readSysfs(tb.Reset().Str("/sys/class/net/").Str(name).Str("/carrier").String())
+		oper := readSysfs(tb.Reset().Str("/sys/class/net/").Str(name).Str("/operstate").String())
+		addr := readSysfs(tb.Reset().Str("/sys/class/net/").Str(name).Str("/address").String())
+		line := tb.Reset().Str("  ").Str(name).Str(": carrier=").Str(carrier).Str(" oper=").Str(oper).Str(" mac=").Str(addr).String()
+		fmt.Fprintln(w, line) //nolint:errcheck // console output to recovery terminal
+	}
+}
+
+func readSysfs(path string) string {
+	data, err := os.ReadFile(path) //nolint:gosec // sysfs path
+	if err != nil {
+		return "?"
+	}
+	return strings.TrimSpace(string(data))
+}

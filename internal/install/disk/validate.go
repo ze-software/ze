@@ -105,6 +105,18 @@ func validateSHA256(s string) error {
 	return nil
 }
 
+func validateShellAuth(s string) error {
+	if len(s) != 64 {
+		return fmt.Errorf("must be 64 lowercase hex chars, got %d", len(s))
+	}
+	for _, c := range s {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return fmt.Errorf("invalid character %q (lowercase hex only)", string(c))
+		}
+	}
+	return nil
+}
+
 func validateTargetPath(s string) error {
 	if !strings.HasPrefix(s, "/dev/") {
 		return fmt.Errorf("target %q: must start with /dev/", s)

@@ -278,10 +278,10 @@ ze-qemu-isis-frr-test:
 		--run 'go test -tags integration -count=1 -timeout 180s -run TestISISInteropFRR ./internal/plugins/isis/...'
 
 ze-install-qemu-test:
-	@echo "Running full installer-chain QEMU evidence (builds initrd + image, boots installer, verifies SSH login)..."
+	@echo "Running full installer-chain QEMU evidence (builds Go initrd + image, boots installer, verifies SSH login)..."
 	@echo "Set ZE_INSTALL_KERNEL=/path/to/vmlinuz (IP_PNP_DHCP/VIRTIO_NET/VIRTIO_BLK/EXT4 built in); self-skips otherwise."
 	@# macOS: point docker at colima's socket when DOCKER_HOST is unset, else the
-	@# default context is down and busybox extraction (and the test) self-skips.
+	@# default context is down and the image build self-skips.
 	@if [ "$$(uname)" = "Darwin" ] && [ -z "$$DOCKER_HOST" ] && [ -S "$$HOME/.colima/default/docker.sock" ]; then \
 		DOCKER_HOST="unix://$$HOME/.colima/default/docker.sock" python3 scripts/evidence/effective-install-qemu.py; \
 	else \

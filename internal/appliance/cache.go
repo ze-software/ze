@@ -118,18 +118,24 @@ func kernelCacheVariantFor(target, arch string, profile kernelProfileResolution)
 	return tb.Str(target).Byte('-').Str(arch).Byte('-').Str(profile.Name).Byte('-').Str(configHash).Byte('-').Str(builderHash).String()
 }
 
-func initrdCacheVariant(version string) string {
-	hash, ok := cacheFileHash(initrdToolsDir, []string{"init", "Makefile"})
+func initrdCacheVariant(version, arch string) string {
+	hash, ok := cacheFileHashPaths([]string{
+		"cmd/ze-installer/main.go",
+		"internal/install/disk/initrd_linux.go",
+		"internal/install/disk/bootstrap_linux.go",
+		"internal/install/disk/rescue_linux.go",
+	})
 	if !ok {
-		return version
+		var tb textbuf.Buffer
+		return tb.Str(version).Byte('-').Str(arch).String()
 	}
 	var tb textbuf.Buffer
-	return tb.Str(version).Byte('-').Str(hash).String()
+	return tb.Str(version).Byte('-').Str(arch).Byte('-').Str(hash).String()
 }
 
 //nolint:unparam // version names the cache namespace and mirrors kernelCachePath.
-func initrdCachePath(version string) string {
-	return filepath.Join(resolveCacheDir(), initrdCacheDir, initrdCacheVariant(version), initrdFileName)
+func initrdCachePath(version, arch string) string {
+	return filepath.Join(resolveCacheDir(), initrdCacheDir, initrdCacheVariant(version, arch), initrdFileName)
 }
 
 func downloadAndVerify(artifactURL, checksumURL, destPath string) error {

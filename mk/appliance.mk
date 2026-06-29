@@ -21,7 +21,7 @@
 #   PXE_DIR            PXE/TFTP root (default: /var/lib/ze/install)
 #   IPXE_DIR           iPXE source checkout (default: /opt/ipxe)
 
-.PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
+.PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe ze-installer
 
 CONFIG            ?=
 APPLIANCE_BUILDER ?= docker
@@ -97,6 +97,11 @@ ze-iso-build: bin/ze-setup
 	if [ -n "$$iso" ]; then \
 		echo "ISO ready: $$iso"; \
 	fi
+
+ze-installer:
+	@mkdir -p bin
+	GOOS=linux GOARCH=amd64 $(GO) build -tags ze_installer -ldflags "$(ZE_LDFLAGS)" -o bin/ze-installer-amd64 ./cmd/ze-installer
+	GOOS=linux GOARCH=arm64 $(GO) build -tags ze_installer -ldflags "$(ZE_LDFLAGS)" -o bin/ze-installer-arm64 ./cmd/ze-installer
 
 ze-pxe: bin/ze-setup
 	@test -d "$(APPLIANCE_DIR)" || { echo "error: appliance $(NAME) not found; run ze-iso or ze-iso-build first"; exit 1; }

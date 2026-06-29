@@ -5,6 +5,7 @@ package appliance
 import (
 	"os"
 	"os/exec"
+	"runtime"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 )
@@ -89,7 +90,7 @@ func checkKernelArtifact(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 
 func checkInitrdArtifact(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	for _, path := range []string{
-		initrdCachePath(defaultInitrdVersion),
+		initrdCachePath(defaultInitrdVersion, runtime.GOARCH),
 		defaultISOInitrd,
 	} {
 		if _, err := os.Stat(path); err == nil {

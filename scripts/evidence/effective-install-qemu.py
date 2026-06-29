@@ -1,32 +1,31 @@
 #!/usr/bin/env python3
 """End-to-end QEMU evidence for the ze PXE/installer chain.
 
-This is the real coverage behind test/install/qemu-full.ci. It builds the
-installer initrd from scratch, builds a credential-matched gokrazy image with
-`ze appliance`, serves the image + checksum + zefs database over HTTP,
-then boots the installer kernel + initrd in QEMU against a blank disk. It
-asserts the initrd's serial success markers (image written, install complete),
-and finally re-boots the written disk and logs in over SSH as the power user to
-prove the loadZefsUsers credential path (install spec AC-10).
+This is the real coverage behind test/install/qemu-full.ci. It cross-compiles
+cmd/ze-installer into a single-binary Go initrd (no busybox), builds a
+credential-matched gokrazy image with `ze appliance`, serves the image +
+checksum + zefs database over HTTP, then boots the installer kernel + initrd in
+QEMU against a blank disk. It asserts the initrd's serial success markers
+(image written, install complete), and finally re-boots the written disk and
+logs in over SSH as the power user to prove the loadZefsUsers credential path.
 
 The installer kernel is operator-supplied by design (docs/guide/ze-install.md):
 ze neither ships nor builds it. A *suitable* kernel for this test must have, as
-BUILT-IN (=y, not modules, since the busybox initrd carries no modules):
+BUILT-IN (=y, not modules, since the Go initrd carries no modules):
 
   - CONFIG_IP_PNP / CONFIG_IP_PNP_DHCP   (init relies on kernel `ip=dhcp`)
   - CONFIG_VIRTIO_NET, CONFIG_VIRTIO_BLK (virtio NIC + target disk)
   - CONFIG_EXT4_FS, CONFIG_BLK_DEV_INITRD, CONFIG_DEVTMPFS
 
 Point the test at one with ZE_INSTALL_KERNEL=/path/to/vmlinuz. When no usable
-kernel (or QEMU, or a static busybox, or the image-build tooling) is present the
-script prints a single `INSTALL-QEMU: SKIP <reason>` line and exits 0, so it is
-safe to wire into the functional suite and into CI that lacks the artifacts. A
-genuine end-to-end pass prints `INSTALL-QEMU: PASS`; a genuine failure exits
-non-zero with the captured serial log.
+kernel (or QEMU, or the image-build tooling) is present the script prints a
+single `INSTALL-QEMU: SKIP <reason>` line and exits 0, so it is safe to wire
+into the functional suite and into CI that lacks the artifacts. A genuine
+end-to-end pass prints `INSTALL-QEMU: PASS`; a genuine failure exits non-zero
+with the captured serial log.
 
 Environment overrides:
   ZE_INSTALL_KERNEL   path to a suitable installer kernel (vmlinuz/bzImage)
-  ZE_INSTALL_BUSYBOX  path to a static busybox for the initrd (else auto-sourced)
   ZE_INSTALL_ARCH     amd64 | arm64           (default: host arch)
   ZE_INSTALL_IMAGE    pre-built gokrazy image (skip the appliance build)
   ZE_INSTALL_KEEP     1 to keep the work dir for inspection
@@ -49,9 +48,9 @@ import time
 from pathlib import Path
 
 
-# Serial markers emitted by tools/installer-initrd/init on success.
-MARK_WRITTEN = "[ze-install] Disk image written successfully"
-MARK_DONE = "[ze-install] Installation complete. Rebooting"
+# Serial markers emitted by the Go installer (slog output) on success.
+MARK_WRITTEN = "image written, partition table re-read"
+MARK_DONE = "installation complete, rebooting"
 
 IMAGE_NAME = "ze-test.img"
 SSH_USER = os.environ.get("ZE_INSTALL_SSH_USER", "admin")
@@ -119,45 +118,10 @@ def _ensure_docker_host() -> None:
         os.environ["DOCKER_HOST"] = f"unix://{sock}"
 
 
-def find_static_busybox(work: Path) -> Path | None:
-    """Locate or extract a statically-linked busybox for the initrd."""
-    override = os.environ.get("ZE_INSTALL_BUSYBOX")
-    if override and Path(override).is_file():
-        return Path(override)
-
-    host = shutil.which("busybox")
-    if (
-        host
-        and "statically linked" in run(["file", host], stdout=subprocess.PIPE).stdout
-    ):
-        return Path(host)
-
-    # Try a container runtime: the dockerhub busybox image is static musl.
-    _ensure_docker_host()
-    docker = shutil.which("docker")
-    if (
-        docker
-        and run(
-            [docker, "info"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        ).returncode
-        == 0
-    ):
-        dest = work / "busybox-static"
-        cid = run(
-            [docker, "create", "busybox:musl"], stdout=subprocess.PIPE
-        ).stdout.strip()
-        if cid:
-            run(
-                [docker, "cp", f"{cid}:/bin/busybox", str(dest)],
-                stdout=subprocess.DEVNULL,
-            )
-            run(
-                [docker, "rm", cid],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            if dest.is_file():
-                return dest
+def have_initrd_build_tools() -> str | None:
+    """Return a skip-reason if go is missing, else None."""
+    if shutil.which("go") is None:
+        return "go not found (needed to build Go initrd)"
     return None
 
 
@@ -186,16 +150,58 @@ def _brew_debugfs() -> str | None:
 # ── build steps ───────────────────────────────────────────────────────────
 
 
-def build_initrd(root: Path, busybox: Path) -> Path:
-    out = root / "tools" / "installer-initrd" / "build" / "initrd.img.gz"
+def build_host_ze(root: Path, work: Path) -> str:
+    """Build a HOST ze binary (runs on the build machine, not the target).
+
+    No GOARCH override: must execute on this host. The appliance commands
+    (init/build/initrd) are under ze_setup.
+    """
+    ze = str(work / "ze-host")
     r = run(
-        ["make", "-C", str(root / "tools" / "installer-initrd"), f"BUSYBOX={busybox}"],
+        ["go", "build", "-tags", "ze_core,ze_setup", "-o", ze, "./cmd/ze"],
+        cwd=str(root),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
-    if r.returncode != 0 or not out.is_file():
-        raise SystemExit(f"initrd build failed:\n{r.stdout}")
-    return out
+    if r.returncode != 0:
+        raise SystemExit(f"host ze build failed:\n{r.stdout}")
+    return ze
+
+
+def build_initrd(root: Path, work: Path) -> Path:
+    """Build the Go initrd via the production path (ze appliance initrd).
+
+    Uses the same defaultInitrdMakeBuild that the real deploy path uses:
+    cross-compile cmd/ze-installer, pack as newc cpio + gzip, all in Go.
+    No external cpio/gzip/busybox needed.
+    """
+    ze = build_host_ze(root, work)
+
+    env = os.environ.copy()
+    env["GOARCH"] = ARCH
+    r = run(
+        [ze, "appliance", "initrd"],
+        cwd=str(root),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        env=env,
+    )
+    if r.returncode != 0:
+        raise SystemExit(f"ze appliance initrd failed:\n{r.stdout}")
+
+    # resolveInitrd prints "initrd ready: <path>" on success.
+    for line in r.stdout.splitlines():
+        if line.startswith("initrd ready:"):
+            initrd = Path(line.split(":", 1)[1].strip())
+            if initrd.is_file():
+                return initrd
+
+    # Fallback: look in the tools build directory.
+    fallback = root / "tools" / "installer-initrd" / "build" / "initrd.img.gz"
+    if fallback.is_file():
+        return fallback
+
+    raise SystemExit(f"ze appliance initrd produced no output:\n{r.stdout}")
 
 
 def build_image(root: Path, work: Path) -> Path:
@@ -203,22 +209,7 @@ def build_image(root: Path, work: Path) -> Path:
     if override:
         zefs = os.environ.get("ZE_INSTALL_ZEFS")
         return Path(override), (Path(zefs) if zefs else None)
-    # Build a HOST ze for the appliance commands (they run on this machine:
-    # gok in-process, debugfs/mkfs). A checked-in bin/ze is often a cross-build
-    # (GOOS=linux) and would fail with "exec format error", so never rely on it.
-    ze = str(work / "ze-host")
-    b = run(
-        # The appliance build tooling (init/build/iso/kernel/initrd) is
-        # registered under ze_setup (cmd/ze/setup_features_setup.go imports
-        # internal/appliance); ze_distro does NOT carry it. This host ze runs
-        # `ze appliance ...`, so it must be a ze_setup build.
-        ["go", "build", "-tags", "ze_core,ze_setup", "-o", ze, "./cmd/ze"],
-        cwd=str(root),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-    )
-    if b.returncode != 0:
-        raise SystemExit(f"host ze build failed:\n{b.stdout}")
+    ze = build_host_ze(root, work)
     name = "ze-install-qemu"
     appliance_dir = work / "appliances"
     env = os.environ.copy()
@@ -314,7 +305,7 @@ def start_http(served_dir: Path) -> tuple[socketserver.TCPServer, int]:
 
 def _make_handler(served_dir: Path):
     class Handler(http.server.BaseHTTPRequestHandler):
-        # HTTP/1.1 + explicit Content-Length: the guest's busybox wget reads
+        # HTTP/1.1 + explicit Content-Length: the guest's Go net/http reads
         # exactly that many bytes, so a healthy transfer ends cleanly instead of
         # relying on connection close (which can race a slow guest mid-stream).
         protocol_version = "HTTP/1.1"
@@ -558,18 +549,15 @@ def main() -> int:
     tool_skip = have_image_build_tools(root)
     if tool_skip:
         return skip(tool_skip)
+    initrd_skip = have_initrd_build_tools()
+    if initrd_skip:
+        return skip(initrd_skip)
 
     work = Path(tempfile.mkdtemp(prefix="ze-install-qemu-"))
     keep = os.environ.get("ZE_INSTALL_KEEP") == "1"
     try:
-        busybox = find_static_busybox(work)
-        if busybox is None:
-            return skip(
-                "no static busybox (set ZE_INSTALL_BUSYBOX or run a container runtime)"
-            )
-
         print(f"INSTALL-QEMU: arch={ARCH} accel={QEMU_ACCEL} kernel={kernel}")
-        initrd = build_initrd(root, busybox)
+        initrd = build_initrd(root, work)
         print(f"INSTALL-QEMU: initrd built ({initrd.stat().st_size} bytes)")
 
         image, zefs = build_image(root, work)

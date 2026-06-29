@@ -33,7 +33,7 @@ var bringUpAllNICs = fallbackDHCP
 // install server. So probe the server first; only if it is unreachable do we
 // bring up all NICs and DHCP, then probe again over the install NIC's
 // directly-connected route.
-func ensureNetwork(server, port string, maxProbe int) error {
+func ensureNetwork(server, port, mac string, maxProbe int) error {
 	var tb textbuf.Buffer
 	probeURL := tb.Str("http://").Str(server).Byte(':').Str(port).Byte('/').String()
 
@@ -47,11 +47,48 @@ func ensureNetwork(server, port string, maxProbe int) error {
 		return nil
 	}
 
-	slog.Info("network: install server unreachable, bringing up all NICs")
+	if mac != "" {
+		pinIF, err := ifaceForMAC(mac, "")
+		if err != nil {
+			slog.Warn("network: ze.mac matches no interface, scanning all", "mac", mac)
+		} else {
+			slog.Info("network: pinning to boot NIC", "iface", pinIF, "mac", mac)
+			if upErr := linkUp(pinIF); upErr != nil {
+				slog.Warn("network: linkUp failed on pinned NIC", "iface", pinIF, "error", upErr)
+			}
+			slog.Info("network: waiting for carrier on pinned NIC", "iface", pinIF)
+			waitForCarrier(pinIF)
+			slog.Info("network: running DHCP on pinned NIC", "iface", pinIF)
+			dhcpErr := dhcpAcquireApply(pinIF)
+			if dhcpErr != nil {
+				slog.Warn("network: DHCP failed on pinned NIC", "iface", pinIF, "error", dhcpErr)
+			}
+			if dhcpErr == nil && probeServer(probeURL) {
+				slog.Info("network: server reachable on pinned NIC", "iface", pinIF)
+				return nil
+			}
+			slog.Info("network: pinned NIC cannot reach server, flushing", "iface", pinIF)
+			_ = flushIface(pinIF)
+		}
+	}
+
+	slog.Info("network: bringing up all NICs")
 	if err := bringUpAllNICs(); err != nil {
 		return fmt.Errorf("network setup: %w", err)
 	}
 	return waitForServer(probeURL, maxProbe)
+}
+
+func waitForCarrier(ifName string) {
+	var tb textbuf.Buffer
+	carrierPath := tb.Str("/sys/class/net/").Str(ifName).Str("/carrier").String()
+	for range carrierWaitMax {
+		data, err := os.ReadFile(carrierPath) //nolint:gosec // sysfs path
+		if err == nil && strings.TrimSpace(string(data)) == "1" {
+			return
+		}
+		time.Sleep(1 * time.Second)
+	}
 }
 
 func fallbackDHCP() error {
@@ -65,7 +102,9 @@ func fallbackDHCP() error {
 		if name == "lo" {
 			continue
 		}
-		_ = runCmd("ip", "link", "set", name, "up")
+		if upErr := linkUp(name); upErr != nil {
+			slog.Debug("network: linkUp failed", "iface", name, "error", upErr)
+		}
 	}
 
 	slog.Info("network: waiting for carrier")
@@ -94,17 +133,13 @@ func fallbackDHCP() error {
 		return fmt.Errorf("no NIC carrier detected after %ds", carrierWaitMax)
 	}
 
-	// DHCP every NIC with carrier, not just the first to answer: on a
-	// dual-homed target the install network may be a different NIC than the one
-	// the kernel already leased, and we need an address on it to reach the
-	// install server over its directly-connected route.
 	leased := false
 	for _, entry := range entries {
 		name := entry.Name()
 		if name == "lo" {
 			continue
 		}
-		if runCmd("udhcpc", "-i", name, "-t", "5", "-n", "-q") == nil {
+		if dhcpAcquireApply(name) == nil {
 			slog.Info("network: got DHCP lease", "interface", name)
 			leased = true
 		}
@@ -146,6 +181,42 @@ func waitForServer(url string, maxAttempts int) error {
 	}
 
 	return fmt.Errorf("server %s not reachable after %d attempts", url, maxAttempts)
+}
+
+// ifaceForMAC returns the kernel interface name whose MAC matches mac.
+// lo is skipped. The match is case-insensitive. sysnetDir overrides
+// /sys/class/net for testing.
+func ifaceForMAC(mac, sysnetDir string) (string, error) {
+	if mac == "" {
+		return "", fmt.Errorf("empty MAC")
+	}
+	want := strings.ToLower(mac)
+	if sysnetDir == "" {
+		sysnetDir = "/sys/class/net"
+	}
+
+	entries, err := os.ReadDir(sysnetDir)
+	if err != nil {
+		return "", fmt.Errorf("read %s: %w", sysnetDir, err)
+	}
+
+	var tb textbuf.Buffer
+	for _, entry := range entries {
+		name := entry.Name()
+		if name == "lo" {
+			continue
+		}
+		addrPath := tb.Reset().Str(sysnetDir).Byte('/').Str(name).Str("/address").String()
+		data, readErr := os.ReadFile(addrPath) //nolint:gosec // sysfs path
+		if readErr != nil {
+			continue
+		}
+		addr := strings.ToLower(strings.TrimSpace(string(data)))
+		if addr == want {
+			return name, nil
+		}
+	}
+	return "", fmt.Errorf("no interface with MAC %s", mac)
 }
 
 // parseWait parses the ze.wait cmdline value into an int.

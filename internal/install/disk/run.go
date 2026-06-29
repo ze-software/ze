@@ -6,14 +6,18 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
-	sourceHTTP = "http"
-	sourceISO  = "iso"
+	sourceHTTP          = "http"
+	sourceISO           = "iso"
+	defaultPartPollWait = 10 * time.Second
 )
+
+var partPollInterval = 200 * time.Millisecond
 
 // Run is the entry point for `ze install disk`. It reads the kernel cmdline,
 // validates inputs, and performs the install (HTTP download or ISO write).
@@ -78,6 +82,12 @@ func validateConfig(cfg InstallConfig) error {
 		}
 	}
 
+	if cfg.ShellAuth != "" {
+		if err := validateShellAuth(cfg.ShellAuth); err != nil {
+			return fmt.Errorf("ze.shell-auth: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -85,7 +95,7 @@ func runHTTP(cfg InstallConfig) int {
 	var tb textbuf.Buffer
 	baseURL := tb.Str("http://").Str(cfg.Server).Byte(':').Str(cfg.Port).String()
 
-	if err := ensureNetwork(cfg.Server, cfg.Port, parseWait(cfg.Wait)); err != nil {
+	if err := ensureNetwork(cfg.Server, cfg.Port, cfg.Mac, parseWait(cfg.Wait)); err != nil {
 		slog.Error("network setup failed", "error", err)
 		return 1
 	}
@@ -123,11 +133,18 @@ func runHTTP(cfg InstallConfig) int {
 		slog.Error("image write failed", "error", err)
 		return 1
 	}
-	_ = runCmd("sync")
-	_ = runCmd("blockdev", "--rereadpt", disk)
+	syncFS()
+	if err := blkRereadPart(disk); err != nil {
+		slog.Warn("BLKRRPART failed", "error", err)
+	}
 	slog.Info("image written, partition table re-read")
 
 	part4 := partitionPath(disk, 4)
+	slog.Info("waiting for partition node", "partition", part4, "timeout", defaultPartPollWait)
+	if err := waitForPartitionNode(part4, defaultPartPollWait); err != nil {
+		slog.Error("partition not found", "partition", part4, "error", err)
+		return 1
+	}
 	slog.Info("injecting database", "partition", part4)
 	if err := mountInjectDB(part4, tb.Reset().Str(baseURL).String()); err != nil {
 		slog.Error("database injection failed", "error", err)
@@ -169,15 +186,32 @@ func runISO(cfg InstallConfig) int {
 
 	if err := localImageToDisk(imagePath, checksumPath, disk); err != nil {
 		slog.Error("image write failed", "error", err)
-		_ = runCmd("umount", isoMount)
+		_ = umountFS(isoMount)
 		return 1
 	}
 
-	_ = runCmd("sync")
-	_ = runCmd("umount", isoMount)
+	syncFS()
+	_ = umountFS(isoMount)
 	slog.Info("ISO installation complete, powering off")
 	doPoweroff()
 	return 0
+}
+
+// waitForPartitionNode polls for a block device node to appear after
+// BLKRRPART. devtmpfs creates nodes asynchronously; mounting immediately
+// after re-reading the partition table races (ISSUE-2, mirroring
+// tools/installer-initrd/init:1122-1127).
+func waitForPartitionNode(path string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		if _, err := os.Stat(path); err == nil {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("partition %s not found after %v", path, timeout)
+		}
+		time.Sleep(partPollInterval)
+	}
 }
 
 func extractSHA(s string) string {

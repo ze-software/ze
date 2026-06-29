@@ -61,7 +61,7 @@ base = load_pxe_module()
 IMAGE_NAME = "ze-install-qemu"
 SSH_PASS = os.environ.get("ZE_INSTALL_SSH_PASS", "secret")
 
-MARK_ISO_DONE = "[ze-install] Installation complete. Powering off so install media can be removed safely."
+MARK_ISO_DONE = "ISO installation complete, powering off"
 
 
 def skip(reason: str) -> int:
@@ -343,20 +343,17 @@ def main() -> int:
     tool_skip = base.have_image_build_tools(ROOT)
     if tool_skip:
         return skip(tool_skip)
+    initrd_skip = base.have_initrd_build_tools()
+    if initrd_skip:
+        return skip(initrd_skip)
 
     work = Path(tempfile.mkdtemp(prefix="ze-install-iso-qemu-"))
     keep = os.environ.get("ZE_INSTALL_KEEP") == "1"
     try:
-        busybox = base.find_static_busybox(work)
-        if busybox is None:
-            return skip(
-                "no static busybox (set ZE_INSTALL_BUSYBOX or run a container runtime)"
-            )
-
         print(
             f"INSTALL-ISO-QEMU: arch={base.ARCH} accel={base.QEMU_ACCEL} kernel={kernel}"
         )
-        initrd = base.build_initrd(ROOT, busybox)
+        initrd = base.build_initrd(ROOT, work)
         print(f"INSTALL-ISO-QEMU: initrd built ({initrd.stat().st_size} bytes)")
 
         ze = build_host_ze(ROOT, work)
@@ -390,7 +387,7 @@ def main() -> int:
             firmware,
             timeout=float(os.environ.get("ZE_INSTALL_BOOT_TIMEOUT", "300")),
         )
-        if f"[ze-install] Target disk: {install_target}" not in serial:
+        if f"disk={install_target}" not in serial:
             sys.stdout.write(serial)
             print(
                 "INSTALL-ISO-QEMU: FAIL ISO installer did not consume explicit ze.target"
