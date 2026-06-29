@@ -32,6 +32,7 @@ type detector struct {
 	mu       sync.Mutex
 	cfg      *Config
 	bus      ze.EventBus
+	dispatch dispatchFunc
 	baseline *baseline
 	sm       *stateMachine
 	tickNum  int
@@ -43,19 +44,25 @@ type detector struct {
 	peakRxBps     float64
 	attackIface   string
 	justTriggered bool
+
+	wg               sync.WaitGroup
+	sourceAbsentOnce sync.Once
+	detectedEmitted  atomic.Bool
+	attackGen        uint64 // bumped on each activate and clear; guards stale async emits
 }
 
-func newDetector(cfg *Config, bus ze.EventBus) *detector {
+func newDetector(cfg *Config, bus ze.EventBus, dispatch dispatchFunc) *detector {
 	d := &detector{
 		cfg:           cfg,
 		bus:           bus,
+		dispatch:      dispatch,
 		baseline:      newBaseline(cfg.BaselineWindow, cfg.ThresholdMultiplier, cfg.AbsoluteFloor),
 		prevRxPackets: make(map[string]uint64),
 		prevRxBytes:   make(map[string]uint64),
 		currentRxPps:  make(map[string]float64),
 	}
 	d.sm = newStateMachine(cfg.ConfirmDuration, cfg.ClearConsecutive)
-	d.sm.OnDetected = d.emitDetected
+	d.sm.OnDetected = d.onAttackStart
 	d.sm.OnCleared = d.emitCleared
 	return d
 }
@@ -124,7 +131,11 @@ func (d *detector) onRate(infos []iface.InterfaceInfo) {
 	d.justTriggered = false
 	d.sm.Tick(above)
 
-	if d.sm.State() == stateActive && !d.justTriggered {
+	// Gate Ongoing on the first Detected having been emitted. Detected is
+	// produced asynchronously by the characterization goroutine, so without
+	// this an Ongoing (emitted synchronously here) could reach subscribers
+	// before the attack's Detected under a slow flow query.
+	if d.sm.State() == stateActive && !d.justTriggered && d.detectedEmitted.Load() {
 		if _, err := ddosevent.Ongoing.Emit(d.bus, &ddosevent.AttackOngoing{
 			Interface:  d.attackIface,
 			Target:     ddosevent.VectorTuple{DstPrefix: netip.Prefix{}},
@@ -137,21 +148,26 @@ func (d *detector) onRate(infos []iface.InterfaceInfo) {
 	}
 }
 
-func (d *detector) emitDetected() {
+// onAttackStart fires once on the idle/confirming -> active transition, under
+// d.mu (called from onRate via the state machine). It snapshots the attack
+// context and launches characterization on its own goroutine so the rate tick
+// and the detector mutex are never blocked by the engine round-trip. The emit
+// happens from characterizeAndEmit once the target is resolved (or falls back).
+func (d *detector) onAttackStart() {
 	d.justTriggered = true
-	if _, err := ddosevent.Detected.Emit(d.bus, &ddosevent.AttackDetected{
-		Interface:  d.attackIface,
-		Target:     ddosevent.VectorTuple{DstPrefix: netip.Prefix{}},
-		Family:     ddosevent.FamilyGenericFlood,
-		PeakRxPps:  d.peakRxPps,
-		PeakRxBps:  d.peakRxBps,
-		Observable: true,
-	}); err != nil {
-		logger().Warn("ddos-detect: emit detected failed", "error", err)
-	}
+	d.attackGen++
+	gen := d.attackGen
+	ifaceName := d.attackIface
+	peakPps := d.peakRxPps
+	peakBps := d.peakRxBps
+	d.wg.Go(func() {
+		d.characterizeAndEmit(gen, ifaceName, peakPps, peakBps)
+	})
 }
 
 func (d *detector) emitCleared() {
+	d.attackGen++
+	d.detectedEmitted.Store(false)
 	if _, err := ddosevent.Cleared.Emit(d.bus, &ddosevent.AttackCleared{
 		Interface:  d.attackIface,
 		Target:     ddosevent.VectorTuple{DstPrefix: netip.Prefix{}},

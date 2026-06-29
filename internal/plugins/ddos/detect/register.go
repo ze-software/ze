@@ -86,7 +86,7 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		det = newDetector(cfg, bus)
+		det = newDetector(cfg, bus, p.DispatchCommand)
 		if cfg.Enabled {
 			iface.RegisterCollectNotify(det.onRate)
 			log.Info("ddos-detect: enabled, subscribing to iface rate")
@@ -113,7 +113,7 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		det = newDetector(cfg, bus)
+		det = newDetector(cfg, bus, p.DispatchCommand)
 		if cfg.Enabled {
 			iface.RegisterCollectNotify(det.onRate)
 		} else {

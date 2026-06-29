@@ -40,6 +40,9 @@ func (b *dtestBus) Subscribe(namespace, eventType string, handler func(any)) fun
 
 var _ ze.EventBus = (*dtestBus)(nil)
 
+// VALIDATES: a sustained flood above the adaptive threshold drives the state
+// machine to active and emits AttackDetected for the hottest interface.
+// PREVENTS: regression where the detector stops firing on real volumetric floods.
 func TestDetectorEmitsOnFlood(t *testing.T) {
 	bus := newDTestBus()
 	cfg := DefaultConfig()
@@ -49,7 +52,7 @@ func TestDetectorEmitsOnFlood(t *testing.T) {
 	cfg.BaselineWindow = 10
 	cfg.StartupGrace = 0
 
-	d := newDetector(cfg, bus)
+	d := newDetector(cfg, bus, nil)
 
 	var detected *ddosevent.AttackDetected
 	ddosevent.Detected.Subscribe(bus, func(e *ddosevent.AttackDetected) {
@@ -73,6 +76,8 @@ func TestDetectorEmitsOnFlood(t *testing.T) {
 		})
 	}
 
+	d.wg.Wait()
+
 	if detected == nil {
 		t.Fatal("AttackDetected not emitted after flood")
 	}
@@ -84,12 +89,15 @@ func TestDetectorEmitsOnFlood(t *testing.T) {
 	}
 }
 
+// VALIDATES: when the detector is disabled no AttackDetected is emitted regardless
+// of traffic level.
+// PREVENTS: the opt-in detector acting (and mitigating) without being configured on.
 func TestDetectorNoEventWhenDisabled(t *testing.T) {
 	bus := newDTestBus()
 	cfg := DefaultConfig()
 	cfg.Enabled = false
 
-	d := newDetector(cfg, bus)
+	d := newDetector(cfg, bus, nil)
 
 	var detected bool
 	ddosevent.Detected.Subscribe(bus, func(_ *ddosevent.AttackDetected) {

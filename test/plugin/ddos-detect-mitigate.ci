@@ -1,0 +1,113 @@
+# Test: ddos-detect -> trafficusage -> ddos-local end-to-end (Phase 1 "Unblock").
+#
+# VALIDATES: cp-survival-5-detect-5 AC-1 -- on a volumetric flood the detector
+#            queries trafficusage, fills the victim DstPrefix, and emits a
+#            populated AttackDetected.
+# VALIDATES: cp-survival-5-detect-5 AC-2 -- ddos-local (enforce) installs an
+#            nftables drop rule for the attacked destination.
+# PREVENTS:  the mitigation chain staying inert (detector emits an empty target,
+#            responders refuse to act).
+#
+# STATUS: authored for the Linux/QEMU integration run (option=needs-linux); it
+#   is NOT executable on the darwin dev host and has not been run there. The
+#   static surface (config leaves, nft table name `ddos-local`, log strings) is
+#   grounded in source; the runtime behaviour below must be confirmed under QEMU:
+#     - the iface rate collector reports `lo` RxPackets to the detector
+#       (rate.go ListInterfaces feeds all kernel links to onRate),
+#     - trafficusage TCX attaches to `lo` and records the destination in
+#       egress-ips (track-ip),
+#     - the loopback flood sustains > absolute-floor (1000) pps across >=2
+#       collect ticks so the state machine activates.
+#   If the trigger proves hard to drive on loopback, switch the flooded device
+#   to a dedicated veth created before the daemon starts.
+
+option=needs-linux
+option=env:var=ze.log.ddos-detect:value=info
+option=env:var=ze.log.ddos-local:value=info
+option=timeout:value=40s
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Flood loopback to trip ddos-detect, then assert ddos-local installs an nft drop."""
+import os
+import signal
+import socket
+import subprocess
+import sys
+import time
+
+# Wait for the daemon to come up (runner writes daemon.pid + daemon.ready).
+for _ in range(400):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    print("ERROR: daemon.pid/ready never appeared", file=sys.stderr)
+    sys.exit(1)
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+# Flood a loopback destination so the detector's RxPps for `lo` exceeds the
+# 1000 pps floor and trafficusage records 127.0.0.2 as the dominant destination.
+target = "127.0.0.2"
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+payload = b"x" * 64
+
+installed = False
+ruleset = ""
+deadline = time.time() + 25.0
+sent = 0
+while time.time() < deadline:
+    for _ in range(4000):
+        try:
+            sock.sendto(payload, (target, 9999))
+            sent += 1
+        except OSError:
+            pass
+    snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
+    ruleset = snap.stdout
+    if "ddos-local" in ruleset and target in ruleset:
+        installed = True
+        break
+    time.sleep(0.2)
+
+sys.stdout.write(ruleset)
+os.kill(pid, signal.SIGTERM)
+
+if not installed:
+    print(f"ERROR: ddos-local drop rule for {target} not installed (sent {sent} packets)",
+          file=sys.stderr)
+    sys.exit(1)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+ddos-detect {
+    enabled true;
+    absolute-floor 1000;
+    confirm-duration 1;
+    startup-grace 0;
+    baseline-window 10;
+}
+
+ddos-local {
+    response-level enforce;
+}
+
+traffic-usage {
+    enabled true;
+    track-ip true;
+    interfaces {
+        interface lo {
+            enabled true;
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=35s
+expect=exit:code=0
+expect=stdout:contains=ddos-local
+expect=stdout:contains=127.0.0.2
+expect=stderr:contains=ddos-local: drop rule installed

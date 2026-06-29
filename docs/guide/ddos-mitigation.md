@@ -46,11 +46,27 @@ ddos-local {
     allowlist 10.0.0.0/8
     allowlist 192.168.0.0/16
 }
+traffic-usage {
+    enabled true
+    track-ip true
+    interfaces {
+        interface eth0 { enabled true }
+    }
+}
 ```
 
-On attack detection, an nftables drop rule is installed matching the attack
-vector (destination prefix + protocol + port). The allowlist prevents
-auto-mitigation from ever blocking management, DNS, or other critical prefixes.
+On attack detection the detector identifies the victim by querying on-box flow
+data, then emits the target so the local responder installs an nftables drop
+rule for it. The allowlist prevents auto-mitigation from ever blocking
+management, DNS, or other critical prefixes.
+
+**Target identification needs a flow source.** The detector reads the attacked
+destination from `traffic-usage` (with `track-ip` enabled on the exposed
+interfaces). Without a reachable flow source the detector still fires but emits a
+generic signal with no target, and the local responder cannot install a targeted
+rule. Today the rule matches the destination prefix (IPv4); protocol, port, and
+TCP-flag narrowing arrive in a later phase.
+<!-- source: internal/plugins/ddos/detect/characterize.go -- characterizeTarget fills the victim DstPrefix from traffic-usage -->
 
 The drop rule is removed automatically when the attack stops (the detector
 observes RxPps falling below threshold, which works because nftables drops occur
