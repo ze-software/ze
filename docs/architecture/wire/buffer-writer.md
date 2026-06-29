@@ -29,12 +29,12 @@ Current code uses `append()` extensively:
 - All message building uses `copy()` into this buffer
 - Buffer reset (offset = 0) between messages
 
-<!-- source: internal/component/bgp/wire/writer.go -- SessionBuffer struct, NewSessionBuffer -->
+<!-- source: internal/core/bgp/wire/writer.go -- SessionBuffer struct, NewSessionBuffer -->
 
 ### WireWriter Interface
 
 ```go
-// WireWriter is in internal/component/bgp/context/context.go (not wire package due to import cycle).
+// WireWriter is in internal/core/bgp/context/context.go (not wire package due to import cycle).
 // Implemented by all wire types (Message, Attribute, NLRI).
 // Uses EncodingContext for capability-dependent encoding (ASN4, ADD-PATH, etc.)
 type WireWriter interface {
@@ -50,10 +50,10 @@ type WireWriter interface {
 }
 ```
 
-**Note:** Attribute interface has separate methods (`Len()`, `WriteTo()`, `WriteToWithContext()`) rather than embedding WireWriter directly. See `internal/component/bgp/attribute/attribute.go`.
+**Note:** Attribute interface has separate methods (`Len()`, `WriteTo()`, `WriteToWithContext()`) rather than embedding WireWriter directly. See `internal/core/bgp/attribute/attribute.go`.
 
-<!-- source: internal/component/bgp/context/context.go -- WireWriter interface -->
-<!-- source: internal/component/bgp/wire/writer.go -- BufWriter interface, StandardMaxSize, ExtendedMaxSize -->
+<!-- source: internal/core/bgp/context/context.go -- WireWriter interface -->
+<!-- source: internal/core/bgp/wire/writer.go -- BufWriter interface, StandardMaxSize, ExtendedMaxSize -->
 
 All wire types implement WireWriter:
 - `Attribute` types (Origin, ASPath, NextHop, etc.)
@@ -120,7 +120,7 @@ func (sb *SessionBuffer) Bytes() []byte {
 }
 ```
 
-<!-- source: internal/component/bgp/wire/writer.go -- SessionBuffer.Reset, Write, WriteBytes, Bytes -->
+<!-- source: internal/core/bgp/wire/writer.go -- SessionBuffer.Reset, Write, WriteBytes, Bytes -->
 
 ### Building UPDATE Message
 
@@ -209,7 +209,7 @@ Ze has never been released. No backwards compatibility needed:
 `CheckedWriteTo()` provides a safe path with explicit error handling:
 
 ```go
-// CheckedBufWriter (internal/component/bgp/wire/writer.go)
+// CheckedBufWriter (internal/core/bgp/wire/writer.go)
 type CheckedBufWriter interface {
     BufWriter
     CheckedWriteTo(buf []byte, off int) (int, error)
@@ -217,18 +217,18 @@ type CheckedBufWriter interface {
 }
 ```
 
-<!-- source: internal/component/bgp/wire/writer.go -- CheckedBufWriter interface -->
+<!-- source: internal/core/bgp/wire/writer.go -- CheckedBufWriter interface -->
 
 **Note:** The actual interface is `CheckedBufWriter` (context-free), not context-dependent.
 
 ### Error Types
 
 ```go
-// internal/component/bgp/wire/errors.go
+// internal/core/bgp/wire/errors.go
 var ErrBufferTooSmall = errors.New("wire: buffer too small")
 ```
 
-<!-- source: internal/component/bgp/wire/errors.go -- ErrBufferTooSmall -->
+<!-- source: internal/core/bgp/wire/errors.go -- ErrBufferTooSmall -->
 
 ### Implementation Pattern
 
@@ -301,7 +301,7 @@ func (a *Aggregator) LenWithContext(srcCtx, dstCtx *context.EncodingContext) int
 - `ASPath` - 2 or 4 bytes per ASN based on ASN4
 - NLRI types - vary based on ADD-PATH context (path-id added/stripped)
 
-<!-- source: internal/component/bgp/attribute/attribute.go -- Attribute interface, LenWithContext, WriteToWithContext -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- Attribute interface, LenWithContext, WriteToWithContext -->
 
 ### WireNLRI Zero-Allocation Pattern
 
@@ -333,7 +333,7 @@ func (w *WireNLRI) Pack(ctx *PackContext) []byte {
 }
 ```
 
-<!-- source: internal/component/bgp/nlri/wire.go -- WireNLRI struct, WriteTo, Len, PathID -->
+<!-- source: internal/core/bgp/nlri/wire.go -- WireNLRI struct, WriteTo, Len, PathID -->
 
 ---
 

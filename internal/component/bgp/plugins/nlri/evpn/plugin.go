@@ -18,7 +18,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"

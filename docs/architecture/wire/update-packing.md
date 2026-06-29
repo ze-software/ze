@@ -25,7 +25,7 @@ Multi-protocol extensions (RFC 4760) embedded NLRI inside attributes:
 - `MP_REACH_NLRI` (type 14) - contains next-hop + announced NLRI
 - `MP_UNREACH_NLRI` (type 15) - contains withdrawn NLRI
 
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrMPReachNLRI, AttrMPUnreachNLRI constants -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrMPReachNLRI, AttrMPUnreachNLRI constants -->
 
 Later RFCs added more attributes that may relate to specific NLRI.
 
@@ -83,4 +83,4 @@ This is NOT proposing an RFC change. Just documenting Ze's internal strategy
 for efficient UPDATE construction while remaining fully RFC-compliant.
 
 <!-- source: internal/component/bgp/message/update_build.go -- update building with attribute ordering -->
-<!-- source: internal/component/bgp/wire/update_sections.go -- UpdateSections parsing -->
+<!-- source: internal/core/bgp/wire/update_sections.go -- UpdateSections parsing -->

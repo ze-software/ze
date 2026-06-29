@@ -10,10 +10,10 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
 )
 
 // enforceRFC7606 validates an UPDATE per RFC 7606 and enforces the resulting action.

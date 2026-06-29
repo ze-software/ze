@@ -13,7 +13,7 @@ Ze keeps a local structured audit log for operator actions that change state or 
 
 Each entry has `timestamp`, `actor`, `remote-addr`, `surface`, `action`, `detail`, and `outcome` fields. `detail` carries the config diff for commit and discard records when Ze has one.
 
-<!-- source: internal/component/audit/audit.go -- Entry fields and action constants -->
+<!-- source: internal/core/audit/audit.go -- Entry fields and action constants -->
 <!-- source: internal/component/web/handler_config.go -- web config audit recording -->
 <!-- source: internal/component/api/rest/server.go -- REST config and auth-fail audit recording -->
 <!-- source: internal/component/api/grpc/server.go -- gRPC config and auth-fail audit recording -->
@@ -26,8 +26,8 @@ For a daemon started from a real config file, the audit log is stored next to th
 The in-memory query cache keeps the newest records up to the configured retention limit in code. The default is 10,000 entries, with accepted bounds from 100 to 100,000.
 
 <!-- source: cmd/ze/hub/audit.go -- defaultAuditPath and openAuditLog -->
-<!-- source: internal/component/audit/audit.go -- retention bounds -->
-<!-- source: internal/component/audit/store.go -- JSON-lines persistence -->
+<!-- source: internal/core/audit/audit.go -- retention bounds -->
+<!-- source: internal/core/audit/store.go -- JSON-lines persistence -->
 
 ## Querying
 

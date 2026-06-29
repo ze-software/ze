@@ -87,7 +87,7 @@ internal/component/bgp/rib/
 internal/core/selector/
 └── selector.go       # Peer selectors (*, IP, !IP, ip,ip,ip)
 
-internal/component/bgp/attribute/
+internal/core/bgp/attribute/
 ├── wire.go           # AttributesWire (read/iterate received wire bytes)
 ├── builder.go        # Builder (construct new attribute wire bytes)
 ├── text.go           # Text formatting: FormatASPath(), FormatCommunities()

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/audit"
+	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 )
 
 func TestToolProviderInterface(t *testing.T) {

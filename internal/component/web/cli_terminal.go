@@ -13,10 +13,10 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

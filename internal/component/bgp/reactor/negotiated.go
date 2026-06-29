@@ -6,7 +6,7 @@ package reactor
 import (
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 

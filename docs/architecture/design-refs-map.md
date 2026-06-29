@@ -49,9 +49,9 @@ add the annotation to the new files.
 |-----------|------------|
 | `internal/component/api` | `// Design: docs/architecture/api/commands.md - REST and gRPC command API` |
 | `internal/component/bgp` | `// Design: docs/architecture/core-design.md - BGP subsystem` |
-| `internal/component/bgp/attribute` | `// Design: docs/architecture/wire/attributes.md - path attribute encoding` |
-| `internal/component/bgp/capability` | `// Design: docs/architecture/wire/capabilities.md - capability negotiation` |
-| `internal/component/bgp/context` | `// Design: docs/architecture/encoding-context.md - encoding context` |
+| `internal/core/bgp/attribute` | `// Design: docs/architecture/wire/attributes.md - path attribute encoding` |
+| `internal/core/bgp/capability` | `// Design: docs/architecture/wire/capabilities.md - capability negotiation` |
+| `internal/core/bgp/context` | `// Design: docs/architecture/encoding-context.md - encoding context` |
 | `internal/component/bgp/fsm` | `// Design: docs/architecture/behavior/peer-lifecycle.md - BGP finite state machine` |
 | `internal/component/bgp/message` | `// Design: docs/architecture/wire/messages.md - BGP message types` |
 | `internal/component/bgp/plugins` | `// Design: docs/plugin-overview.md - BGP plugin implementations` |
@@ -69,7 +69,7 @@ add the annotation to the new files.
 | `internal/component/hub` | `// Design: docs/architecture/hub-architecture.md - hub coordination` |
 | `internal/component/iface` | `// Design: docs/features/interfaces.md - interface component` |
 | `internal/component/ike` | `// Design: docs/config-reference.md - IKEv2 engine` |
-| `internal/component/ipsec` | `// Design: docs/config-reference.md - IPsec data model` |
+| `internal/component/ike/ipsec` | `// Design: docs/config-reference.md - IPsec data model` |
 | `internal/component/l2tp` | `// Design: docs/guide/l2tp.md - L2TP subsystem` |
 | `internal/plugins/ldp` | `// Design: docs/guide/mpls.md - LDP component` |
 | `internal/component/mcp` | `// Design: docs/guide/mcp/overview.md - MCP server` |

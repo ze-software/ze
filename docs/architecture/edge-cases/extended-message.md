@@ -33,7 +33,7 @@ Extended Message capability allows BGP messages larger than 4096 bytes, up to 65
 ```
 
 The capability has no data - its presence indicates support.
-<!-- source: internal/component/bgp/capability/capability.go -- CodeExtendedMessage=6 -->
+<!-- source: internal/core/bgp/capability/capability.go -- CodeExtendedMessage=6 -->
 
 ### Negotiation
 
@@ -45,7 +45,7 @@ def msg_size(self) -> int:
         return ExtendedMessage.EXTENDED_SIZE
     return ExtendedMessage.INITIAL_SIZE
 ```
-<!-- source: internal/component/bgp/capability/negotiated.go -- Negotiated.ExtendedMessage -->
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiated.ExtendedMessage -->
 
 ---
 
@@ -287,7 +287,7 @@ func (n *Negotiated) MsgSize() int {
     return InitialMsgSize
 }
 ```
-<!-- source: internal/component/bgp/capability/negotiated.go -- Negotiated.ExtendedMessage -->
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiated.ExtendedMessage -->
 
 ### Reading Messages
 

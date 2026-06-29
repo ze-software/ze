@@ -8,9 +8,9 @@ import (
 	"encoding/binary"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )

@@ -12,9 +12,9 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"

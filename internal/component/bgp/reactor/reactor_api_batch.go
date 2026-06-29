@@ -14,11 +14,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
 )
 
 // AnnounceNLRIBatch announces a batch of NLRIs with shared attributes.

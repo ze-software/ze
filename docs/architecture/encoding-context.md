@@ -8,7 +8,7 @@
 | **Key Types** | `EncodingContext`, `NegotiatedCapabilities`, `ContextID` (uint16) |
 | **Key Functions** | `FromNegotiatedRecv/Send()`, `Registry.Register()`, `nc.Has()`, `nc.Families()` |
 | **Zero-Copy Rule** | If `sourceCtxID == destCtxID`, return cached wire bytes directly |
-| **Files** | `internal/component/bgp/context/`, `internal/component/bgp/reactor/peer.go`, `internal/component/bgp/wireu/wire_update.go` |
+| **Files** | `internal/core/bgp/context/`, `internal/component/bgp/reactor/peer.go`, `internal/component/bgp/wireu/wire_update.go` |
 
 **When to read full doc:** Route forwarding, peer session, encoding mismatches, new capabilities.
 
@@ -30,7 +30,7 @@ while EncodingContext answers "how do we encode for this peer?"
 ## Package Structure
 
 ```
-internal/component/bgp/context/
+internal/core/bgp/context/
 ├── context.go      # EncodingContext struct, Hash(), ToPackContext()
 ├── registry.go     # ContextRegistry, ContextID, global Registry
 └── negotiated.go   # FromNegotiatedRecv/Send() helpers
@@ -38,8 +38,8 @@ internal/component/bgp/context/
 internal/component/bgp/reactor/
 └── negotiated.go   # NegotiatedCapabilities struct
 ```
-<!-- source: internal/component/bgp/context/context.go -- EncodingContext struct -->
-<!-- source: internal/component/bgp/context/registry.go -- ContextID, ContextRegistry -->
+<!-- source: internal/core/bgp/context/context.go -- EncodingContext struct -->
+<!-- source: internal/core/bgp/context/registry.go -- ContextID, ContextRegistry -->
 <!-- source: internal/component/bgp/reactor/negotiated.go -- NegotiatedCapabilities struct -->
 
 ## Family Type
@@ -47,13 +47,13 @@ internal/component/bgp/reactor/
 All AFI/SAFI types are consolidated in `family.Family`. Other packages use type aliases:
 
 ```go
-// internal/component/bgp/nlri/nlri.go - canonical definition
+// internal/core/bgp/nlri/nlri.go - canonical definition
 type Family struct { AFI AFI; SAFI SAFI }
 
-// internal/component/bgp/capability/capability.go - alias for backward compat
+// internal/core/bgp/capability/capability.go - alias for backward compat
 type Family = family.Family
 
-// internal/component/bgp/context/context.go - alias
+// internal/core/bgp/context/context.go - alias
 type Family = family.Family
 ```
 
@@ -96,7 +96,7 @@ for _, family := range nc.Families() {
 
 ## EncodingContext
 
-Captures all capability flags that affect wire encoding. Lives in `internal/component/bgp/context/`.
+Captures all capability flags that affect wire encoding. Lives in `internal/core/bgp/context/`.
 References sub-components from `capability.Negotiated` for zero duplication.
 
 ```go
@@ -110,7 +110,7 @@ type EncodingContext struct {
     addPath   map[family.Family]bool  // Derived from encoding.AddPathMode + direction
 }
 
-// EncodingCaps in internal/component/bgp/capability/encoding.go
+// EncodingCaps in internal/core/bgp/capability/encoding.go
 type EncodingCaps struct {
     ASN4            bool                      // RFC 6793: 4-byte ASN support
     ExtendedMessage bool                      // RFC 8654: max message 65535 bytes
@@ -119,8 +119,8 @@ type EncodingCaps struct {
     ExtendedNextHop map[Family]AFI            // RFC 8950: next-hop AFI per family
 }
 ```
-<!-- source: internal/component/bgp/context/context.go -- EncodingContext struct -->
-<!-- source: internal/component/bgp/capability/encoding.go -- EncodingCaps struct -->
+<!-- source: internal/core/bgp/context/context.go -- EncodingContext struct -->
+<!-- source: internal/core/bgp/capability/encoding.go -- EncodingCaps struct -->
 
 **ExtendedMessage:** Determines max message size (4096 standard, 65535 extended).
 Previously in SessionCaps, moved to EncodingCaps because it affects wire encoding.
@@ -155,7 +155,7 @@ type ContextRegistry struct {
 
 var Registry = NewRegistry()  // Global instance
 ```
-<!-- source: internal/component/bgp/context/registry.go -- ContextRegistry, Register, Get -->
+<!-- source: internal/core/bgp/context/registry.go -- ContextRegistry, Register, Get -->
 
 ### Usage Pattern
 
@@ -425,7 +425,7 @@ With same-capability clients, route reflection is O(1):
 All wire types (Message, Attribute, NLRI) implement a common interface:
 
 ```go
-// internal/component/bgp/context/context.go
+// internal/core/bgp/context/context.go
 // Note: In context package (not wire) due to import cycle: wire→context→nlri→wire
 type WireWriter interface {
     // Len returns wire size in bytes. Pass nil for context-independent types.
@@ -446,7 +446,7 @@ type Message interface {
     Type() MessageType
 }
 
-// internal/component/bgp/attribute/attribute.go
+// internal/core/bgp/attribute/attribute.go
 type Attribute interface {
     context.WireWriter
     Code() AttributeCode
@@ -537,17 +537,17 @@ Context IDs must be registered via `Registry.Register()`:
 
 | File | Purpose |
 |------|---------|
-| `internal/component/bgp/nlri/nlri.go` | Canonical `Family` type, `FamilyLess()` |
-| `internal/component/bgp/context/context.go` | EncodingContext struct (references sub-components) |
-| `internal/component/bgp/context/registry.go` | ContextRegistry, global Registry |
-| `internal/component/bgp/context/negotiated.go` | FromNegotiatedRecv/Send factories |
-| `internal/component/bgp/capability/identity.go` | PeerIdentity sub-component |
-| `internal/component/bgp/capability/encoding.go` | EncodingCaps sub-component |
-| `internal/component/bgp/capability/session.go` | SessionCaps sub-component |
+| `internal/core/bgp/nlri/nlri.go` | Canonical `Family` type, `FamilyLess()` |
+| `internal/core/bgp/context/context.go` | EncodingContext struct (references sub-components) |
+| `internal/core/bgp/context/registry.go` | ContextRegistry, global Registry |
+| `internal/core/bgp/context/negotiated.go` | FromNegotiatedRecv/Send factories |
+| `internal/core/bgp/capability/identity.go` | PeerIdentity sub-component |
+| `internal/core/bgp/capability/encoding.go` | EncodingCaps sub-component |
+| `internal/core/bgp/capability/session.go` | SessionCaps sub-component |
 | `internal/component/bgp/reactor/negotiated.go` | NegotiatedCapabilities struct |
 | `internal/component/bgp/rib/route.go` | Wire cache fields, Pack*For methods |
 | `internal/component/bgp/reactor/peer.go` | Peer.negotiated, recvCtx, sendCtx fields |
-<!-- source: internal/component/bgp/context/ -- encoding context package -->
+<!-- source: internal/core/bgp/context/ -- encoding context package -->
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer struct -->
 <!-- source: internal/component/bgp/reactor/negotiated.go -- NegotiatedCapabilities -->
 

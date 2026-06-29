@@ -15,7 +15,7 @@ no supported client/LAC initiation. Two LNSes cannot form a tunnel.
 
 PPPoE is the protocol where Ze and accel-ppp have *complementary* roles:
 accel-ppp's first-class role is the **PPPoE server (access concentrator)**, and
-Ze has a full RFC 2516 **PPPoE client** (`internal/component/pppoeclient/`,
+Ze has a full RFC 2516 **PPPoE client** (`internal/component/l2tp/pppoeclient/`,
 `pppoe-client` interface kind). This lab exercises exactly that pairing, which
 no other test covers: the existing `test/pppoe/*.ci` tests run Ze as the
 *server* against a synthetic client.

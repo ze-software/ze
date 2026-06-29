@@ -374,9 +374,9 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 | `TestParsePKICertificate` | `internal/component/pki/config_test.go` | PEM certificate parsing from YANG tree | |
 | `TestPKICertValidation` | `internal/component/pki/store_test.go` | Chain validation, expiry check | |
 | `TestParseXFRMEntry` | `internal/component/iface/config_test.go` | XFRM config parsing from YANG | |
-| `TestParseIKEGroup` | `internal/component/ipsec/config_test.go` | IKE group with proposals, DPD, lifetime | |
-| `TestParseESPGroup` | `internal/component/ipsec/config_test.go` | ESP group with proposals, PFS, lifetime | |
-| `TestParseSiteToSitePeer` | `internal/component/ipsec/config_test.go` | Peer with X.509 auth, XFRM bind | |
+| `TestParseIKEGroup` | `internal/component/ike/ipsec/config_test.go` | IKE group with proposals, DPD, lifetime | |
+| `TestParseESPGroup` | `internal/component/ike/ipsec/config_test.go` | ESP group with proposals, PFS, lifetime | |
+| `TestParseSiteToSitePeer` | `internal/component/ike/ipsec/config_test.go` | Peer with X.509 auth, XFRM bind | |
 | `TestIKEv2EncodeHeader` | `internal/component/ike/wire/header_test.go` | IKEv2 header encode/decode roundtrip | |
 | `TestIKEv2EncodePayloads` | `internal/component/ike/wire/payload_test.go` | All payload types encode/decode | |
 | `TestIKEv2ProposalNegotiation` | `internal/component/ike/crypto/proposal_test.go` | Proposal selection from remote offers | |
@@ -403,8 +403,8 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 - `internal/component/iface/discover.go` -- add zeTypeXFRM classification
 - `internal/component/iface/register.go` -- register XFRM parsing
 - `internal/component/iface/yang/ze-iface-conf.yang` -- add xfrm interface list
-- `internal/plugins/ifacenetlink/backend_linux.go` -- implement CreateXFRM, GetXFRMInfo
-- `internal/plugins/ifacenetlink/backend_other.go` -- stub CreateXFRM, GetXFRMInfo
+- `internal/plugins/ifacenetlink/backend_linux.go` -- implement CreateXFRM, GetXFRMInfo (removed; ifacenetlink was a dead stub)
+- `internal/plugins/ifacenetlink/backend_other.go` -- stub CreateXFRM, GetXFRMInfo (removed; ifacenetlink was a dead stub)
 - `docs/features/interfaces.md` -- update capability table (XFRM: have)
 - `cmd/ze/hub/main.go` -- wire PKI store and IKE engine component at startup
 
@@ -418,7 +418,7 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 - `internal/component/ike/dataplane/` -- SA/SP installer interface + XFRM netlink backend + VPP backend
 - `internal/component/ike/transport/` -- UDP socket management, NAT-T, port 500/4500
 - `internal/component/iface/xfrm.go` -- XFRMSpec, XFRMInfo types
-- `internal/plugins/ifacenetlink/xfrm_linux.go` -- XFRM interface netlink creation
+- `internal/plugins/ifacenetlink/xfrm_linux.go` -- XFRM interface netlink creation (removed; ifacenetlink was a dead stub)
 - `rfc/short/rfc3748.md`, `rfc5216.md`, `rfc2759.md`, `rfc7427.md` -- RFC summaries (EAP, signature auth)
 
 ## Implementation Steps
@@ -442,7 +442,7 @@ Each phase corresponds to a child spec. Phases are ordered by dependency.
 
 4. **Phase: EAP Data Model (ipsec-4)** -- extend data model for EAP config
    - Tests: EAP authentication config parsing, virtual IP pool config
-   - Files: `internal/component/ipsec/config.go` (extend), YANG schema (extend)
+   - Files: `internal/component/ike/ipsec/config.go` (extend), YANG schema (extend)
    - Verify: EAP peer config parsed, virtual IP pool validated
 
 5. **Phase: IKEv2 Wire Format (ipsec-5)** -- packet codec, all payload types

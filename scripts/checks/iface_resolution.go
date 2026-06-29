@@ -51,7 +51,7 @@ var allowlist = map[string]string{
 	"internal/plugins/diag/cmd/capture_interface_linux.go": "post-resolution: net.InterfaceByName(binding.OsName) after iface.Resolve, to obtain the *net.Interface the AF_PACKET capture socket needs.",
 	"internal/plugins/ldp/register.go":                     "post-resolution: net.InterfaceByName(b.OsName) after iface.Resolve, to obtain the *net.Interface the multicast socket needs.",
 	"internal/component/doctor/":                           "one-shot root CLI (ze doctor) with no iface backend loaded; a resolver call would error on every check. Honors no selectors by design.",
-	"internal/component/ppp/":                              "pppN device names are kernel-assigned per session (created/point-to-point kinds), never config-sourced logical names, so no selector applies (umbrella assumption A-5).",
+	"internal/component/l2tp/ppp/":                         "pppN device names are kernel-assigned per session (created/point-to-point kinds), never config-sourced logical names, so no selector applies (umbrella assumption A-5).",
 }
 
 // patterns match a direct kernel name->device resolution CALL. The trailing '('

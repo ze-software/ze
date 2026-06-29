@@ -9,8 +9,8 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 )
 
 // communityAttrModHandler handles AttrModAdd/Remove for COMMUNITY (code 8, 4-byte values).

@@ -67,7 +67,7 @@ Source of truth: text formatters in `internal/component/bgp/format/`, route-serv
 | ipv4/rtc | bgp-nlri-rtc | `NLRI.String()` | via NLRI string | opaque string collected |
 | mvpn families | bgp-nlri-mvpn | `NLRI.String()` | via NLRI string | opaque string collected |
 | mup families | bgp-nlri-mup | `NLRI.String()` | via NLRI string | opaque string collected |
-<!-- source: internal/component/bgp/nlri/inet.go -- INET.String, INET.AppendString -->
+<!-- source: internal/core/bgp/nlri/inet.go -- INET.String, INET.AppendString -->
 <!-- source: internal/component/bgp/format/text_human.go -- appendNLRIList -->
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- buildNLRIEntries, parseTextNLRIOps -->
 

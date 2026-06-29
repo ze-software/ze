@@ -18,8 +18,8 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

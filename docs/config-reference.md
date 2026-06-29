@@ -296,7 +296,7 @@ vpn {
 ```
 
 Native IKEv2 engine with XFRM dataplane. See [guide/configuration.md](guide/configuration.md) for the full reference.
-<!-- source: internal/component/ipsec/config.go -- IPsec config parser -->
+<!-- source: internal/component/ike/ipsec/config.go -- IPsec config parser -->
 
 ### XFRM Interfaces
 

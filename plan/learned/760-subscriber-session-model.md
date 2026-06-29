@@ -49,5 +49,5 @@ Ze had three independent session models (PPPoE, L2TP, PPP) with no shared subscr
 - `internal/component/l2tp/handler_registry.go` (delegate auth/pool to subscriber)
 - `internal/component/l2tp/subsystem.go` (wire subscriber bridge, bind metrics, publish service)
 - `internal/component/pppoe/subsystem.go` (expand event consumer, wire auth/pool drains, emit subscriber events)
-- `internal/plugins/l2tpauthradius/coa.go` (add subscriber registry lookup for CoA)
+- `internal/component/l2tp/plugins/auth_radius/coa.go` (add subscriber registry lookup for CoA)
 - `internal/component/plugin/all/all.go` (regenerated)

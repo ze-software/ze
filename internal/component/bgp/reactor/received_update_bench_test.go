@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 )
 
 // BenchmarkEBGPWireCacheHitParallel measures the cost of cache-hit reads of

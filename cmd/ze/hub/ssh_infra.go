@@ -16,10 +16,10 @@ import (
 	"log/slog"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 )
 
 // sshServer is the always-on view of a built ssh server: enough to log its

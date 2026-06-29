@@ -3,7 +3,7 @@ package filter
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 )
 
 // TestParseAttributeFilterValid verifies valid parsing.

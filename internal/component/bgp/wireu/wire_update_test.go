@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 

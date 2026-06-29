@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
 )
 
 // VALIDATES: Session handler error paths (OPEN version/hold/malformed/caps, unknown type, ROUTE-REFRESH).

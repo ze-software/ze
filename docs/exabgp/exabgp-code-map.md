@@ -9,9 +9,9 @@
 | ExaBGP | Ze | Notes |
 |--------|-------|-------|
 | `bgp/message/` | `internal/component/bgp/message/` | Message types |
-| `bgp/message/open/capability/` | `internal/component/bgp/capability/` | Capabilities |
-| `bgp/message/update/attribute/` | `internal/component/bgp/attribute/` | Path attributes |
-| `bgp/message/update/nlri/` | `internal/component/bgp/nlri/` | NLRI types |
+| `bgp/message/open/capability/` | `internal/core/bgp/capability/` | Capabilities |
+| `bgp/message/update/attribute/` | `internal/core/bgp/attribute/` | Path attributes |
+| `bgp/message/update/nlri/` | `internal/core/bgp/nlri/` | NLRI types |
 | `reactor/peer/` | `internal/component/bgp/reactor/peer.go` | Peer management |
 | `rib/` | `internal/component/bgp/plugins/rib/` | Route storage |
 
@@ -67,21 +67,21 @@
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `open/capability/capability.py` | Capability base | `internal/component/bgp/capability/capability.go` |
-| `open/capability/capabilities.py` | Capability collection | `internal/component/bgp/capability/capabilities.go` |
-| `open/capability/negotiated.py` | Negotiated state | `internal/component/bgp/capability/negotiated.go` |
-| `open/capability/mp.py` | Multiprotocol | `internal/component/bgp/capability/multiprotocol.go` |
-| `open/capability/asn4.py` | 4-byte AS | `internal/component/bgp/capability/asn4.go` |
-| `open/capability/addpath.py` | ADD-PATH | `internal/component/bgp/capability/addpath.go` |
-| `open/capability/graceful.py` | Graceful Restart | `internal/component/bgp/capability/graceful.go` |
-| `open/capability/extended.py` | Extended Message | `internal/component/bgp/capability/extended.go` |
-| `open/capability/refresh.py` | Route Refresh | `internal/component/bgp/capability/refresh.go` |
-| `open/capability/hostname.py` | FQDN capability | `internal/component/bgp/capability/hostname.go` |
-| `open/capability/software.py` | Software Version | `internal/component/bgp/capability/software.go` |
-| `open/capability/nexthop.py` | Extended Next Hop | `internal/component/bgp/capability/nexthop.go` |
-| `open/capability/ms.py` | Multiple Paths | `internal/component/bgp/capability/multipaths.go` |
-| `open/capability/operational.py` | Operational | `internal/component/bgp/capability/operational.go` |
-| `open/capability/unknown.py` | Unknown capability | `internal/component/bgp/capability/unknown.go` |
+| `open/capability/capability.py` | Capability base | `internal/core/bgp/capability/capability.go` |
+| `open/capability/capabilities.py` | Capability collection | `internal/core/bgp/capability/capabilities.go` |
+| `open/capability/negotiated.py` | Negotiated state | `internal/core/bgp/capability/negotiated.go` |
+| `open/capability/mp.py` | Multiprotocol | `internal/core/bgp/capability/multiprotocol.go` |
+| `open/capability/asn4.py` | 4-byte AS | `internal/core/bgp/capability/asn4.go` |
+| `open/capability/addpath.py` | ADD-PATH | `internal/core/bgp/capability/addpath.go` |
+| `open/capability/graceful.py` | Graceful Restart | `internal/core/bgp/capability/graceful.go` |
+| `open/capability/extended.py` | Extended Message | `internal/core/bgp/capability/extended.go` |
+| `open/capability/refresh.py` | Route Refresh | `internal/core/bgp/capability/refresh.go` |
+| `open/capability/hostname.py` | FQDN capability | `internal/core/bgp/capability/hostname.go` |
+| `open/capability/software.py` | Software Version | `internal/core/bgp/capability/software.go` |
+| `open/capability/nexthop.py` | Extended Next Hop | `internal/core/bgp/capability/nexthop.go` |
+| `open/capability/ms.py` | Multiple Paths | `internal/core/bgp/capability/multipaths.go` |
+| `open/capability/operational.py` | Operational | `internal/core/bgp/capability/operational.go` |
+| `open/capability/unknown.py` | Unknown capability | `internal/core/bgp/capability/unknown.go` |
 
 ### 1.3 UPDATE Message (`bgp/message/update/`)
 
@@ -95,112 +95,112 @@
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `attribute/attribute.py` | Attribute base | `internal/component/bgp/attribute/attribute.go` |
-| `attribute/collection.py` | Attribute collection | `internal/component/bgp/attribute/collection.go` |
-| `attribute/origin.py` | ORIGIN | `internal/component/bgp/attribute/origin.go` |
-| `attribute/aspath.py` | AS_PATH, AS4_PATH | `internal/component/bgp/attribute/aspath.go` |
-| `attribute/nexthop.py` | NEXT_HOP | `internal/component/bgp/attribute/nexthop.go` |
-| `attribute/med.py` | MULTI_EXIT_DISC | `internal/component/bgp/attribute/med.go` |
-| `attribute/localpref.py` | LOCAL_PREF | `internal/component/bgp/attribute/localpref.go` |
-| `attribute/atomicaggregate.py` | ATOMIC_AGGREGATE | `internal/component/bgp/attribute/atomicaggregate.go` |
-| `attribute/aggregator.py` | AGGREGATOR, AS4_AGGREGATOR | `internal/component/bgp/attribute/aggregator.go` |
-| `attribute/originatorid.py` | ORIGINATOR_ID | `internal/component/bgp/attribute/originatorid.go` |
-| `attribute/clusterlist.py` | CLUSTER_LIST | `internal/component/bgp/attribute/clusterlist.go` |
-| `attribute/mprnlri.py` | MP_REACH_NLRI | `internal/component/bgp/attribute/mpreach.go` |
-| `attribute/mpurnlri.py` | MP_UNREACH_NLRI | `internal/component/bgp/attribute/mpunreach.go` |
-| `attribute/aigp.py` | AIGP | `internal/component/bgp/attribute/aigp.go` |
-| `attribute/pmsi.py` | PMSI Tunnel | `internal/component/bgp/attribute/pmsi.go` |
-| `attribute/generic.py` | Generic/unknown | `internal/component/bgp/attribute/generic.go` |
+| `attribute/attribute.py` | Attribute base | `internal/core/bgp/attribute/attribute.go` |
+| `attribute/collection.py` | Attribute collection | `internal/core/bgp/attribute/collection.go` |
+| `attribute/origin.py` | ORIGIN | `internal/core/bgp/attribute/origin.go` |
+| `attribute/aspath.py` | AS_PATH, AS4_PATH | `internal/core/bgp/attribute/aspath.go` |
+| `attribute/nexthop.py` | NEXT_HOP | `internal/core/bgp/attribute/nexthop.go` |
+| `attribute/med.py` | MULTI_EXIT_DISC | `internal/core/bgp/attribute/med.go` |
+| `attribute/localpref.py` | LOCAL_PREF | `internal/core/bgp/attribute/localpref.go` |
+| `attribute/atomicaggregate.py` | ATOMIC_AGGREGATE | `internal/core/bgp/attribute/atomicaggregate.go` |
+| `attribute/aggregator.py` | AGGREGATOR, AS4_AGGREGATOR | `internal/core/bgp/attribute/aggregator.go` |
+| `attribute/originatorid.py` | ORIGINATOR_ID | `internal/core/bgp/attribute/originatorid.go` |
+| `attribute/clusterlist.py` | CLUSTER_LIST | `internal/core/bgp/attribute/clusterlist.go` |
+| `attribute/mprnlri.py` | MP_REACH_NLRI | `internal/core/bgp/attribute/mpreach.go` |
+| `attribute/mpurnlri.py` | MP_UNREACH_NLRI | `internal/core/bgp/attribute/mpunreach.go` |
+| `attribute/aigp.py` | AIGP | `internal/core/bgp/attribute/aigp.go` |
+| `attribute/pmsi.py` | PMSI Tunnel | `internal/core/bgp/attribute/pmsi.go` |
+| `attribute/generic.py` | Generic/unknown | `internal/core/bgp/attribute/generic.go` |
 | `attribute/watchdog.py` | Watchdog (internal) | N/A (internal only) |
 
 ### 1.5 Communities (`bgp/message/update/attribute/community/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `community/initial/community.py` | Standard community | `internal/component/bgp/attribute/community.go` |
-| `community/extended/*.py` | Extended communities | `internal/component/bgp/attribute/extcommunity.go` |
-| `community/large/*.py` | Large communities | `internal/component/bgp/attribute/largecommunity.go` |
+| `community/initial/community.py` | Standard community | `internal/core/bgp/attribute/community.go` |
+| `community/extended/*.py` | Extended communities | `internal/core/bgp/attribute/extcommunity.go` |
+| `community/large/*.py` | Large communities | `internal/core/bgp/attribute/largecommunity.go` |
 
 ### 1.6 BGP-LS Attributes (`bgp/message/update/attribute/bgpls/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `bgpls/node/*.py` | Node attributes | `internal/component/bgp/attribute/bgpls/node.go` |
-| `bgpls/link/*.py` | Link attributes | `internal/component/bgp/attribute/bgpls/link.go` |
-| `bgpls/prefix/*.py` | Prefix attributes | `internal/component/bgp/attribute/bgpls/prefix.go` |
+| `bgpls/node/*.py` | Node attributes | `internal/core/bgp/attribute/bgpls/node.go` |
+| `bgpls/link/*.py` | Link attributes | `internal/core/bgp/attribute/bgpls/link.go` |
+| `bgpls/prefix/*.py` | Prefix attributes | `internal/core/bgp/attribute/bgpls/prefix.go` |
 
 ### 1.7 SR/SRv6 (`bgp/message/update/attribute/sr/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `sr/*.py` | Segment Routing | `internal/component/bgp/attribute/sr/sr.go` |
-| `sr/srv6/*.py` | SRv6 | `internal/component/bgp/attribute/sr/srv6.go` |
+| `sr/*.py` | Segment Routing | `internal/core/bgp/attribute/sr/sr.go` |
+| `sr/srv6/*.py` | SRv6 | `internal/core/bgp/attribute/sr/srv6.go` |
 
 ### 1.8 NLRI Types (`bgp/message/update/nlri/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `nlri/nlri.py` | NLRI base class | `internal/component/bgp/nlri/nlri.go` |
-| `nlri/collection.py` | NLRI collection | `internal/component/bgp/nlri/collection.go` |
-| `nlri/cidr.py` | CIDR utilities | `internal/component/bgp/nlri/cidr.go` |
-| `nlri/inet.py` | IPv4/IPv6 unicast | `internal/component/bgp/nlri/inet.go` |
-| `nlri/label.py` | MPLS labels | `internal/component/bgp/nlri/label.go` |
-| `nlri/ipvpn.py` | VPNv4/VPNv6 | `internal/component/bgp/nlri/ipvpn.go` |
-| `nlri/flow.py` | FlowSpec | `internal/component/bgp/nlri/flowspec.go` |
-| `nlri/vpls.py` | VPLS | `internal/component/bgp/nlri/vpls.go` |
-| `nlri/rtc.py` | Route Target Constraint | `internal/component/bgp/nlri/rtc.go` |
-| `nlri/settings.py` | NLRI settings | `internal/component/bgp/nlri/settings.go` |
-| `nlri/empty.py` | Empty NLRI | `internal/component/bgp/nlri/empty.go` |
+| `nlri/nlri.py` | NLRI base class | `internal/core/bgp/nlri/nlri.go` |
+| `nlri/collection.py` | NLRI collection | `internal/core/bgp/nlri/collection.go` |
+| `nlri/cidr.py` | CIDR utilities | `internal/core/bgp/nlri/cidr.go` |
+| `nlri/inet.py` | IPv4/IPv6 unicast | `internal/core/bgp/nlri/inet.go` |
+| `nlri/label.py` | MPLS labels | `internal/core/bgp/nlri/label.go` |
+| `nlri/ipvpn.py` | VPNv4/VPNv6 | `internal/core/bgp/nlri/ipvpn.go` |
+| `nlri/flow.py` | FlowSpec | `internal/core/bgp/nlri/flowspec.go` |
+| `nlri/vpls.py` | VPLS | `internal/core/bgp/nlri/vpls.go` |
+| `nlri/rtc.py` | Route Target Constraint | `internal/core/bgp/nlri/rtc.go` |
+| `nlri/settings.py` | NLRI settings | `internal/core/bgp/nlri/settings.go` |
+| `nlri/empty.py` | Empty NLRI | `internal/core/bgp/nlri/empty.go` |
 
 ### 1.9 EVPN (`bgp/message/update/nlri/evpn/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `evpn/nlri.py` | EVPN base | `internal/component/bgp/nlri/evpn/evpn.go` |
-| `evpn/ethernetad.py` | Type 1: Ethernet AD | `internal/component/bgp/nlri/evpn/type1.go` |
-| `evpn/mac.py` | Type 2: MAC/IP | `internal/component/bgp/nlri/evpn/type2.go` |
-| `evpn/multicast.py` | Type 3: Inclusive Multicast | `internal/component/bgp/nlri/evpn/type3.go` |
-| `evpn/segment.py` | Type 4: Ethernet Segment | `internal/component/bgp/nlri/evpn/type4.go` |
-| `evpn/prefix.py` | Type 5: IP Prefix | `internal/component/bgp/nlri/evpn/type5.go` |
+| `evpn/nlri.py` | EVPN base | `internal/core/bgp/nlri/evpn/evpn.go` |
+| `evpn/ethernetad.py` | Type 1: Ethernet AD | `internal/core/bgp/nlri/evpn/type1.go` |
+| `evpn/mac.py` | Type 2: MAC/IP | `internal/core/bgp/nlri/evpn/type2.go` |
+| `evpn/multicast.py` | Type 3: Inclusive Multicast | `internal/core/bgp/nlri/evpn/type3.go` |
+| `evpn/segment.py` | Type 4: Ethernet Segment | `internal/core/bgp/nlri/evpn/type4.go` |
+| `evpn/prefix.py` | Type 5: IP Prefix | `internal/core/bgp/nlri/evpn/type5.go` |
 
 ### 1.10 BGP-LS NLRI (`bgp/message/update/nlri/bgpls/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `bgpls/nlri.py` | BGP-LS base | `internal/component/bgp/nlri/bgpls/bgpls.go` |
-| `bgpls/node.py` | Node NLRI | `internal/component/bgp/nlri/bgpls/node.go` |
-| `bgpls/link.py` | Link NLRI | `internal/component/bgp/nlri/bgpls/link.go` |
-| `bgpls/prefixv4.py` | IPv4 Prefix NLRI | `internal/component/bgp/nlri/bgpls/prefix.go` |
-| `bgpls/prefixv6.py` | IPv6 Prefix NLRI | `internal/component/bgp/nlri/bgpls/prefix.go` |
-| `bgpls/tlvs/*.py` | TLV types | `internal/component/bgp/nlri/bgpls/tlv.go` |
+| `bgpls/nlri.py` | BGP-LS base | `internal/core/bgp/nlri/bgpls/bgpls.go` |
+| `bgpls/node.py` | Node NLRI | `internal/core/bgp/nlri/bgpls/node.go` |
+| `bgpls/link.py` | Link NLRI | `internal/core/bgp/nlri/bgpls/link.go` |
+| `bgpls/prefixv4.py` | IPv4 Prefix NLRI | `internal/core/bgp/nlri/bgpls/prefix.go` |
+| `bgpls/prefixv6.py` | IPv6 Prefix NLRI | `internal/core/bgp/nlri/bgpls/prefix.go` |
+| `bgpls/tlvs/*.py` | TLV types | `internal/core/bgp/nlri/bgpls/tlv.go` |
 
 ### 1.11 MUP (`bgp/message/update/nlri/mup/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `mup/nlri.py` | MUP base | `internal/component/bgp/nlri/mup/mup.go` |
-| `mup/isd.py` | Interwork SD | `internal/component/bgp/nlri/mup/isd.go` |
-| `mup/dsd.py` | Direct SD | `internal/component/bgp/nlri/mup/dsd.go` |
-| `mup/t1st.py` | Type 1 ST | `internal/component/bgp/nlri/mup/t1st.go` |
-| `mup/t2st.py` | Type 2 ST | `internal/component/bgp/nlri/mup/t2st.go` |
+| `mup/nlri.py` | MUP base | `internal/core/bgp/nlri/mup/mup.go` |
+| `mup/isd.py` | Interwork SD | `internal/core/bgp/nlri/mup/isd.go` |
+| `mup/dsd.py` | Direct SD | `internal/core/bgp/nlri/mup/dsd.go` |
+| `mup/t1st.py` | Type 1 ST | `internal/core/bgp/nlri/mup/t1st.go` |
+| `mup/t2st.py` | Type 2 ST | `internal/core/bgp/nlri/mup/t2st.go` |
 
 ### 1.12 MVPN (`bgp/message/update/nlri/mvpn/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `mvpn/nlri.py` | MVPN base | `internal/component/bgp/nlri/mvpn/mvpn.go` |
-| `mvpn/*.py` | MVPN route types | `internal/component/bgp/nlri/mvpn/*.go` |
+| `mvpn/nlri.py` | MVPN base | `internal/core/bgp/nlri/mvpn/mvpn.go` |
+| `mvpn/*.py` | MVPN route types | `internal/core/bgp/nlri/mvpn/*.go` |
 
 ### 1.13 Qualifiers (`bgp/message/update/nlri/qualifier/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `qualifier/rd.py` | Route Distinguisher | `internal/component/bgp/nlri/rd.go` |
-| `qualifier/esi.py` | Ethernet Segment ID | `internal/component/bgp/nlri/esi.go` |
-| `qualifier/labels.py` | MPLS Label Stack | `internal/component/bgp/nlri/labels.go` |
-| `qualifier/mac.py` | MAC Address | `internal/component/bgp/nlri/mac.go` |
-| `qualifier/etag.py` | Ethernet Tag | `internal/component/bgp/nlri/etag.go` |
-| `qualifier/path_info.py` | ADD-PATH Path ID | `internal/component/bgp/nlri/pathid.go` |
+| `qualifier/rd.py` | Route Distinguisher | `internal/core/bgp/nlri/rd.go` |
+| `qualifier/esi.py` | Ethernet Segment ID | `internal/core/bgp/nlri/esi.go` |
+| `qualifier/labels.py` | MPLS Label Stack | `internal/core/bgp/nlri/labels.go` |
+| `qualifier/mac.py` | MAC Address | `internal/core/bgp/nlri/mac.go` |
+| `qualifier/etag.py` | Ethernet Tag | `internal/core/bgp/nlri/etag.go` |
+| `qualifier/path_info.py` | ADD-PATH Path ID | `internal/core/bgp/nlri/pathid.go` |
 
 ### 1.14 Neighbor (`bgp/neighbor/`)
 

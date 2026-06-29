@@ -4,7 +4,7 @@ package cbor
 import (
 	"errors"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
 )
 
 // Hex encoding errors.

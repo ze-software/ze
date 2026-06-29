@@ -18,8 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	evpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/evpn"
 	flowspec "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/flowspec"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/labeled" // blank import: registers InProcessNLRIDecoder
@@ -27,6 +25,8 @@ import (
 	vplspkg "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpls"
 	vpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpn"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 )

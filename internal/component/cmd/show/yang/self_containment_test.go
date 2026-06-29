@@ -78,7 +78,7 @@ func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 		`"ze-show:firewall-group"`:        "firewall group -> internal/component/firewall/yang",
 		`"ze-show:pki-certificates"`:      "PKI certificate list -> internal/plugins/pki-cmd/yang",
 		`"ze-show:pki-certificate"`:       "PKI certificate detail -> internal/plugins/pki-cmd/yang",
-		`"ze-show:l2tp-health"`:           "L2TP health -> internal/plugins/l2tp-cmd/yang",
+		`"ze-show:l2tp-health"`:           "L2TP health -> internal/component/l2tp/cmd/yang",
 		`"ze-show:storage-smart"`:         "storage SMART -> internal/plugins/storage-cmd/yang",
 		`"ze-show:gnmi"`:                  "gNMI server status -> internal/plugins/gnmi-cmd/yang",
 		`"ze-show:aaa-accounting"`:        "AAA accounting -> internal/plugins/aaa-cmd/yang",

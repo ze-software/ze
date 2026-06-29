@@ -6,8 +6,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 )
 
 // Wire format tests verify that UpdateBuilder produces correct wire format.

@@ -22,7 +22,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
+	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
 )
 
 var errL2tpFailedToLoadKernelModules = errors.New("l2tp: failed to load kernel modules (tried l2tp_ppp, pppol2tp)")

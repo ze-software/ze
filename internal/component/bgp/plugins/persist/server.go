@@ -19,10 +19,10 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"

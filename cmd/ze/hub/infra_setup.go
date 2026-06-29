@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )

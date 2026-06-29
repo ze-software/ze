@@ -10,7 +10,7 @@ package reactor
 import (
 	"sync"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 

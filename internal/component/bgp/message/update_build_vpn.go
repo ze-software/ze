@@ -8,8 +8,8 @@ import (
 	"net/netip"
 	"slices"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
 )
 
 // VPNParams contains parameters for building a VPN route UPDATE.

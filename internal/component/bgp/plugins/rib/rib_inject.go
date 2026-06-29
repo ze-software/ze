@@ -10,9 +10,9 @@ import (
 	"errors"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri/nlrisplit"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri/nlrisplit"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 )

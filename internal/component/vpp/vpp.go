@@ -19,8 +19,8 @@ import (
 
 	"go.fd.io/govpp/api"
 
-	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	vppevents "codeberg.org/thomas-mangin/ze/internal/core/vpp/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 

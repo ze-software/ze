@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
+	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 

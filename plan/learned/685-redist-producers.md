@@ -35,7 +35,7 @@ Ze had redistribution infrastructure (event bus, filter chain, bgp-redistribute 
 - `internal/plugins/connected/yang/{ze-connected-conf.yang,embed,register}.go` -- YANG config
 - `internal/plugins/connected/connected_test.go` -- 9 unit tests
 - `internal/component/radius/dict.go` -- AttrFramedRoute (22), AttrFramedIPv6Route (99)
-- `internal/plugins/l2tpauthradius/extract.go` -- extractFramedRoutes, parseFramedRoute
+- `internal/component/l2tp/plugins/auth_radius/extract.go` -- extractFramedRoutes, parseFramedRoute
 - `internal/component/l2tp/session_metadata.go` -- FramedRoute type, AuthMetadata.FramedRoutes
 - `internal/component/l2tp/route_observer.go` -- RouteObserver interface + tunnelID, framed route emit
 - `internal/component/l2tp/{reactor,teardown}.go` -- pass tunnelID to observer

@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/component/bgp/filter"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 

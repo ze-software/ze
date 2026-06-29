@@ -18,7 +18,7 @@ See also: `/ze-fix-alloc` (fix a specific allocation)
 3. Exclude `_test.go` files -- tests legitimately allocate for test data
 4. Exclude these legitimate uses:
    - `internal/component/bgp/attrpool/pool.go` -- pool infrastructure (manages buffers)
-   - `internal/component/bgp/wire/writer.go` -- buffer infrastructure itself
+   - `internal/core/bgp/wire/writer.go` -- buffer infrastructure itself
    - `sync.Pool` factory functions -- session buffer pools
    - `internal/component/bgp/message/open.go` parsing paths -- decoding allocates for parsed data
    - JSON marshal paths (`MarshalJSON`) -- JSON encoding is separate

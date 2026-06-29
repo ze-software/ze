@@ -29,10 +29,10 @@ Ze's RADIUS auth handler rejected L2TP sessions when the RADIUS server returned 
 
 ## Files
 
-- `internal/plugins/l2tpauthradius/extract.go` -- attribute extraction, IP validation
+- `internal/component/l2tp/plugins/auth_radius/extract.go` -- attribute extraction, IP validation
 - `internal/component/l2tp/session_metadata.go` -- per-session AuthMetadata store
 - `internal/component/l2tp/session_timeout.go` -- Session-Timeout/Idle-Timeout goroutines
 - `internal/component/l2tp/iface_stats_linux.go` / `iface_stats_other.go` -- traffic detection
-- `internal/plugins/l2tppool/register.go` -- named pools, Framed-IP bypass, sessionAddr tracking
-- `internal/plugins/l2tpshaper/filter_rate.go` -- Filter-Id rate parsing
-- `internal/plugins/l2tpauthradius/acct.go` -- per-session Acct-Interim-Interval
+- `internal/component/l2tp/plugins/pool/register.go` -- named pools, Framed-IP bypass, sessionAddr tracking
+- `internal/component/l2tp/plugins/shaper/filter_rate.go` -- Filter-Id rate parsing
+- `internal/component/l2tp/plugins/auth_radius/acct.go` -- per-session Acct-Interim-Interval

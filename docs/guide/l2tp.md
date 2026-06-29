@@ -87,7 +87,7 @@ Destructive commands live under the `clear` verb (not a top-level `l2tp`
 noun) to match ze's CLI grammar. The `clear` prefix is denied in the
 built-in read-only authz profile.
 
-<!-- source: internal/plugins/l2tp-cmd/yang/ze-l2tp-cmd.yang -->
+<!-- source: internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang -->
 
 ### Offline dispatcher
 
@@ -125,7 +125,7 @@ PPP negotiation proceeds through these phases:
    IPv4-only static pool), IPv6CP is dropped and the session stays up
    with IPv4 alone rather than being torn down.
 
-<!-- source: internal/component/ppp/ncp.go -- requestIPv6CPInterfaceID declined path -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- requestIPv6CPInterfaceID declined path -->
 
 Each phase has a configurable timeout. LCP proxy (RFC 2661 S18) is
 supported: when the LAC provides proxy LCP AVPs, ze validates them
@@ -226,8 +226,8 @@ The `reauth-interval` leaf (0 or 5-86400 seconds, default 0) enables periodic
 re-authentication when non-zero. Values 1-4 are rejected to prevent re-auth storms.
 
 <!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- authentication container -->
-<!-- source: internal/plugins/l2tpauthlocal/ -->
-<!-- source: internal/plugins/l2tpauthradius/ -->
+<!-- source: internal/component/l2tp/plugins/authlocal/ -->
+<!-- source: internal/component/l2tp/plugins/authradius/ -->
 
 ## IP address pool
 
@@ -251,14 +251,16 @@ l2tp {
 }
 ```
 
-Address allocation currently uses the configured Ze pool. RADIUS
-Access-Accept attributes that would change address selection, such as
-`Framed-IP-Address`, `Framed-IP-Netmask`, and `Framed-Pool`, are rejected
-explicitly rather than ignored.
+Address allocation prefers RADIUS metadata when present. `Framed-Pool`
+selects a named pool for gateway and DNS values; an unknown named pool rejects
+the IPCP request. `Framed-IP-Address` then bypasses bitmap allocation and uses
+the selected pool's gateway and DNS with the RADIUS-assigned peer address.
+`Framed-IP-Netmask` is parsed into session metadata, but the current IPv4 IPCP
+response has no netmask field to apply.
 
 Session-down events release allocated addresses back to the pool.
 
-<!-- source: internal/plugins/l2tppool/ -->
+<!-- source: internal/component/l2tp/plugins/pool/ -->
 
 ## Traffic shaping
 
@@ -278,12 +280,13 @@ l2tp {
 }
 ```
 
-RADIUS Access-Accept attributes that would change policy, such as
-`Filter-Id`, `Session-Timeout`, `Idle-Timeout`, and
-`Acct-Interim-Interval`, are rejected until Ze implements them exactly.
-RADIUS CoA rate updates do not tear down the session.
+RADIUS `Filter-Id` can override the default shaping rate when it contains a
+parseable rate, otherwise Ze keeps the configured default rate. `Session-Timeout`
+and `Idle-Timeout` start per-session teardown timers, and
+`Acct-Interim-Interval` overrides the accounting update cadence within the
+supported clamp range. RADIUS CoA rate updates do not tear down the session.
 
-<!-- source: internal/plugins/l2tpshaper/ -->
+<!-- source: internal/component/l2tp/plugins/shaper/ -->
 
 ## CQM (Call Quality Metrics)
 
@@ -357,7 +360,7 @@ Kernel interface stats are polled at `ze.l2tp.metrics.poll-interval`
 (default: 30s).
 
 <!-- source: internal/component/l2tp/metrics.go -->
-<!-- source: internal/plugins/l2tpauthradius/metrics.go -->
+<!-- source: internal/component/l2tp/plugins/authradius/metrics.go -->
 
 ## Web UI
 

@@ -320,7 +320,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | NTP, time sync | `internal/plugins/ntp/` (plugin), `ze-ntp-conf.yang` |
 | sysctl, kernel tuning, profile | `internal/component/sysctl/` (plugin), `ze-sysctl-conf.yang` |
 | firewall, nftables, NAT, masquerade | `internal/component/firewall/` (component), `ze-firewall-conf.yang` |
-| PPPoE, pppoe-client, access concentrator | `internal/component/pppoe/` (AC), `internal/component/iface/` (client), `ze-pppoe-conf.yang` |
+| PPPoE, pppoe-client, access concentrator | `internal/component/l2tp/pppoe/` (AC), `internal/component/iface/` (client), `ze-pppoe-conf.yang` |
 | wireguard, WireGuard, wg | `internal/component/iface/wireguard.go`, `ze-iface-conf.yang` |
 | static route, default route | `internal/plugins/static/` (plugin), `ze-static-conf.yang` |
 | conntrack, connection tracking | `internal/component/config/system/conntrack.go`, `ze-system-conf.yang` |
@@ -329,7 +329,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | IPsec, IKE, IKEv2, SA, child SA | `plan/learned/734` (data model), `plan/learned/739` (crypto), `plan/learned/740` (engine), `plan/learned/742` (child SA) |
 | EAP, NAT-T, MOBIKE | `plan/learned/744` (EAP/NAT-T), `plan/learned/737` (EAP extension) |
 | XFRM, xfrm interface, VTI | `plan/learned/735` (XFRM interfaces) |
-| subscriber, session, PPPoE, L2TP | `plan/learned/760-subscriber-session-model.md`, `internal/component/pppoe/` |
+| subscriber, session, PPPoE, L2TP | `plan/learned/760-subscriber-session-model.md`, `internal/component/l2tp/pppoe/` |
 | editor, TUI, completion, headless | `internal/component/cli/`, `test/editor/`, `ai/rules/testing.md` (Editor Tests section) |
 | diagnostic, doctor, health, readiness | `plan/learned/755-ze-doctor.md`, `ai/rules/doctor-checks.md`, `plan/learned/727-diag-core.md` |
 | EventBus, event, pub/sub, subscribe, emit | `pkg/ze/eventbus.go`, `ai/rules/plugin-design.md` (EventBus Typed Payloads), `internal/core/events/typed.go` |

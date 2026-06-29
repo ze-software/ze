@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
 )
 
 // emitBus is a minimal real in-process EventBus: Emit synchronously delivers to

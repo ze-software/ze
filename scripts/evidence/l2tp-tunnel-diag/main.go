@@ -92,7 +92,7 @@ func main() {
 
 type genlBytes [4]byte
 
-func (g *genlBytes) Len() int        { return 4 }
+func (g *genlBytes) Len() int          { return 4 }
 func (g *genlBytes) Serialize() []byte { return g[:] }
 
 func parseIPv4(s string) [4]byte {

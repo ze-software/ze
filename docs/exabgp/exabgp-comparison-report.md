@@ -354,9 +354,9 @@ Both use same RFC 4271 states:
 
 ### ZeBGP
 - Messages: `internal/component/bgp/message/`
-- Capabilities: `internal/component/bgp/capability/`
-- Attributes: `internal/component/bgp/attribute/`
-- NLRI: `internal/component/bgp/nlri/`
+- Capabilities: `internal/core/bgp/capability/`
+- Attributes: `internal/core/bgp/attribute/`
+- NLRI: `internal/core/bgp/nlri/`
 - FSM: `internal/component/bgp/fsm/`
 - Reactor: `internal/component/bgp/reactor/`
 - Config: `internal/component/config/`

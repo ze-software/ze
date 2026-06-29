@@ -6,7 +6,7 @@
 
 They are NLRI encoded as attributes - a wire format hack to carry non-IPv4 address families in the Path Attributes field (RFC 4760).
 
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrMPReachNLRI (14), AttrMPUnreachNLRI (15) -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrMPReachNLRI (14), AttrMPUnreachNLRI (15) -->
 
 ## Why This Matters
 
@@ -41,7 +41,7 @@ When building UPDATE messages:
 ```
 
 <!-- source: internal/component/bgp/message/update_build.go -- attribute ordering in UPDATE building -->
-<!-- source: internal/component/bgp/attribute/mpnlri.go -- MP_REACH_NLRI, MP_UNREACH_NLRI encoding -->
+<!-- source: internal/core/bgp/attribute/mpnlri.go -- MP_REACH_NLRI, MP_UNREACH_NLRI encoding -->
 
 **Rationale:** Withdrawals logically precede announcements. Regular path
 attributes describe the NLRI in MP_REACH, so they appear between the two.

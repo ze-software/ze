@@ -9,7 +9,7 @@ package flowspec
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

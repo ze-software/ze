@@ -15,7 +15,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
@@ -25,6 +24,7 @@ import (
 	pingcmd "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	traceroutecmd "codeberg.org/thomas-mangin/ze/internal/component/traceroute/cmd"
+	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 

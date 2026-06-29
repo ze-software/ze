@@ -118,7 +118,7 @@ RFC 4271 Section 4.2
 |-----------|------|-----|
 | 2 | Capabilities | RFC 5492 |
 
-<!-- source: internal/component/bgp/capability/capability.go -- ParseFromOptionalParams -->
+<!-- source: internal/core/bgp/capability/capability.go -- ParseFromOptionalParams -->
 
 ### Capability TLV (within Optional Parameter Type 2)
 
@@ -132,7 +132,7 @@ RFC 4271 Section 4.2
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
 
-<!-- source: internal/component/bgp/capability/capability.go -- Capability interface, Parse -->
+<!-- source: internal/core/bgp/capability/capability.go -- Capability interface, Parse -->
 
 ---
 
@@ -176,7 +176,7 @@ Prefix bytes = ceil(Length / 8)
 
 Example: 10.0.0.0/24 = `18 0A 00 00` (length=24, 3 prefix bytes)
 
-<!-- source: internal/component/bgp/wire/update_sections.go -- UpdateSections, ParseUpdateSections -->
+<!-- source: internal/core/bgp/wire/update_sections.go -- UpdateSections, ParseUpdateSections -->
 <!-- source: internal/component/bgp/message/update.go -- UPDATE message handling -->
 
 ---
@@ -287,7 +287,7 @@ When Extended Message capability is negotiated:
 Message embeds WireWriter for zero-allocation encoding:
 
 ```go
-// WireWriter in internal/component/bgp/context/context.go (not wire package due to import cycle)
+// WireWriter in internal/core/bgp/context/context.go (not wire package due to import cycle)
 type WireWriter interface {
     Len(ctx *EncodingContext) int
     WriteTo(buf []byte, off int, ctx *EncodingContext) int
@@ -356,7 +356,7 @@ func ParseHeader(data []byte) (Header, error) {
 
 <!-- source: internal/component/bgp/message/message.go -- Message interface, writeHeader -->
 <!-- source: internal/component/bgp/message/header.go -- ParseHeader, Header struct -->
-<!-- source: internal/component/bgp/context/context.go -- WireWriter interface -->
+<!-- source: internal/core/bgp/context/context.go -- WireWriter interface -->
 
 ---
 

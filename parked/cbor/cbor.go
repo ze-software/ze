@@ -12,7 +12,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
 )
 
 // CBOR major types (3 high bits of initial byte).

@@ -1,0 +1,439 @@
+// Design: docs/architecture/wire/attributes.md — path attribute encoding
+// RFC: rfc/short/rfc4271.md — path attribute wire format (Section 4.3)
+
+package attribute
+
+import (
+	"errors"
+	"fmt"
+	"sync"
+
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+)
+
+var errNilEncodingContext = errors.New("nil encoding context")
+
+// attrIndex caches attribute location and parsed value within packed bytes.
+// Built lazily on first scan, reused for subsequent lookups.
+// hdrLen is retained to locate original flags for unknown attributes.
+type attrIndex struct {
+	code   AttributeCode
+	offset uint16 // Points to value (after header)
+	length uint16
+	hdrLen uint8     // 3 or 4; flags at packed[offset-hdrLen]
+	parsed Attribute // nil until parsed on demand
+}
+
+// AttributesWire stores path attributes in wire format with lazy parsing.
+//
+// Wire bytes are the canonical representation. Parsed attributes are
+// cached in the index on demand. Thread-safe for concurrent read access.
+//
+// Memory contract: packed is NOT owned by AttributesWire. Caller must
+// ensure the underlying buffer outlives this struct and is not modified.
+type AttributesWire struct {
+	mu          sync.RWMutex
+	packed      []byte
+	sourceCtxID bgpctx.ContextID
+	index       []attrIndex // nil until first scan; parsed cached in each entry
+}
+
+// NewAttributesWire creates from raw packed bytes.
+// WARNING: packed is NOT copied. Caller retains ownership and must not modify.
+func NewAttributesWire(packed []byte, ctxID bgpctx.ContextID) *AttributesWire {
+	return &AttributesWire{
+		packed:      packed,
+		sourceCtxID: ctxID,
+	}
+}
+
+// Packed returns raw wire bytes for transmission.
+// WARNING: Do not modify the returned slice.
+func (a *AttributesWire) Packed() []byte {
+	return a.packed
+}
+
+// SourceContext returns the encoding context ID.
+func (a *AttributesWire) SourceContext() bgpctx.ContextID {
+	return a.sourceCtxID
+}
+
+// Get returns a specific attribute by code (lazy parse).
+// Returns (nil, nil) if attribute is not present.
+func (a *AttributesWire) Get(code AttributeCode) (Attribute, error) {
+	a.mu.RLock()
+	if a.index != nil {
+		for i := range a.index {
+			if a.index[i].code == code {
+				if attr := a.index[i].parsed; attr != nil {
+					a.mu.RUnlock()
+					return attr, nil
+				}
+				// Found but not parsed - need write lock
+				a.mu.RUnlock()
+				return a.getAndParse(i, code)
+			}
+		}
+		// Index exists but code not found
+		a.mu.RUnlock()
+		return nil, nil //nolint:nilnil // nil means not found
+	}
+	a.mu.RUnlock()
+
+	// Index not built yet
+	return a.getAndParse(-1, code)
+}
+
+// getAndParse acquires write lock and parses attribute.
+// If hint >= 0, it's the index position from RLock scan (still needs double-check).
+// If hint < 0, index needs to be built first.
+func (a *AttributesWire) getAndParse(hint int, code AttributeCode) (Attribute, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if err := a.ensureIndexLocked(); err != nil {
+		return nil, err
+	}
+
+	// If we have a hint, check that position first (double-check after lock upgrade)
+	if hint >= 0 && hint < len(a.index) && a.index[hint].code == code {
+		if attr := a.index[hint].parsed; attr != nil {
+			return attr, nil
+		}
+		attr, err := a.parseAtLocked(a.index[hint])
+		if err != nil {
+			return nil, err
+		}
+		a.index[hint].parsed = attr
+		return attr, nil
+	}
+
+	// Full search (hint invalid or index was rebuilt)
+	for i := range a.index {
+		if a.index[i].code != code {
+			continue
+		}
+		if attr := a.index[i].parsed; attr != nil {
+			return attr, nil
+		}
+		attr, err := a.parseAtLocked(a.index[i])
+		if err != nil {
+			return nil, err
+		}
+		a.index[i].parsed = attr
+		return attr, nil
+	}
+
+	return nil, nil //nolint:nilnil // nil means not found
+}
+
+// Has checks if attribute exists without parsing value.
+// Returns error if wire bytes are malformed.
+func (a *AttributesWire) Has(code AttributeCode) (bool, error) {
+	a.mu.RLock()
+	if a.index != nil {
+		for i := range a.index {
+			if a.index[i].code == code {
+				a.mu.RUnlock()
+				return true, nil
+			}
+		}
+		a.mu.RUnlock()
+		return false, nil
+	}
+	a.mu.RUnlock()
+
+	// Build index (upgrades to write lock)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if err := a.ensureIndexLocked(); err != nil {
+		return false, err
+	}
+
+	for i := range a.index {
+		if a.index[i].code == code {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// GetMultiple returns multiple attributes (for API output).
+func (a *AttributesWire) GetMultiple(codes []AttributeCode) (map[AttributeCode]Attribute, error) {
+	result := make(map[AttributeCode]Attribute, len(codes))
+	for _, code := range codes {
+		attr, err := a.Get(code)
+		if err != nil {
+			return nil, fmt.Errorf("getting %s: %w", code, err)
+		}
+		if attr != nil {
+			result[code] = attr
+		}
+	}
+	return result, nil
+}
+
+// GetRaw returns raw attribute value bytes without parsing.
+// Zero-copy: returns a slice into the packed buffer.
+// Returns (nil, nil) if attribute is not present.
+// Use this for attributes that need custom handling (e.g., MP_REACH_NLRI for MPReachWire).
+func (a *AttributesWire) GetRaw(code AttributeCode) ([]byte, error) {
+	a.mu.RLock()
+	if a.index != nil {
+		for i := range a.index {
+			if a.index[i].code == code {
+				result := a.packed[a.index[i].offset : a.index[i].offset+a.index[i].length]
+				a.mu.RUnlock()
+				return result, nil
+			}
+		}
+		a.mu.RUnlock()
+		return nil, nil //nolint:nilnil // nil means not found
+	}
+	a.mu.RUnlock()
+
+	// Index not built yet
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if err := a.ensureIndexLocked(); err != nil {
+		return nil, err
+	}
+
+	for i := range a.index {
+		if a.index[i].code == code {
+			return a.packed[a.index[i].offset : a.index[i].offset+a.index[i].length], nil
+		}
+	}
+
+	return nil, nil //nolint:nilnil // nil means not found
+}
+
+// All returns all attributes (full parse).
+// Attributes are returned in wire order.
+func (a *AttributesWire) All() ([]Attribute, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if err := a.ensureIndexLocked(); err != nil {
+		return nil, err
+	}
+
+	result := make([]Attribute, 0, len(a.index))
+	for i := range a.index {
+		if a.index[i].parsed != nil {
+			result = append(result, a.index[i].parsed)
+			continue
+		}
+
+		attr, err := a.parseAtLocked(a.index[i])
+		if err != nil {
+			return nil, err
+		}
+		a.index[i].parsed = attr
+		result = append(result, attr)
+	}
+
+	return result, nil
+}
+
+// ForEach iterates all attributes in wire order, calling fn for each one.
+// Unlike All(), no result slice is allocated. Attributes are parsed on demand
+// and cached for subsequent calls. If fn returns false, iteration stops early.
+func (a *AttributesWire) ForEach(fn func(AttributeCode, Attribute) bool) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if err := a.ensureIndexLocked(); err != nil {
+		return err
+	}
+
+	for i := range a.index {
+		attr := a.index[i].parsed
+		if attr == nil {
+			var err error
+			attr, err = a.parseAtLocked(a.index[i])
+			if err != nil {
+				return err
+			}
+			a.index[i].parsed = attr
+		}
+		if !fn(a.index[i].code, attr) {
+			break
+		}
+	}
+	return nil
+}
+
+// PackFor returns packed bytes for destination context.
+// Zero-copy if contexts match, otherwise re-encode.
+func (a *AttributesWire) PackFor(destCtxID bgpctx.ContextID) ([]byte, error) {
+	if a.sourceCtxID == destCtxID {
+		return a.packed, nil
+	}
+
+	// Slow path: re-encode with destination context
+	destCtx := bgpctx.Registry.Get(destCtxID)
+	if destCtx == nil {
+		return nil, fmt.Errorf("unknown context ID: %d", destCtxID)
+	}
+
+	return a.packWithContext(destCtx)
+}
+
+// ensureIndexLocked builds the attribute index if not already built.
+// Caller must hold write lock.
+// RFC 4271: Duplicate attributes are a Malformed Attribute List error.
+//
+// Index is built atomically: on error, a.index remains nil so subsequent
+// calls will retry and return the same error.
+func (a *AttributesWire) ensureIndexLocked() error {
+	if a.index != nil {
+		return nil
+	}
+
+	// Build index locally first - only assign to a.index on success
+	// This ensures parse errors leave a.index nil for retry
+	index := make([]attrIndex, 0, 8)
+	var seen [256]bool
+
+	offset := 0
+	for offset < len(a.packed) {
+		_, code, length, hdrLen, err := ParseHeader(a.packed[offset:])
+		if err != nil {
+			return fmt.Errorf("parsing header at offset %d: %w", offset, err)
+		}
+
+		// RFC 4271: duplicate attributes are malformed
+		if seen[code] {
+			return fmt.Errorf("duplicate attribute %s at offset %d", code, offset)
+		}
+		seen[code] = true
+
+		// Validate we have enough data
+		if offset+hdrLen+int(length) > len(a.packed) {
+			return fmt.Errorf("attribute %s truncated at offset %d", code, offset)
+		}
+
+		index = append(index, attrIndex{
+			code:   code,
+			offset: uint16(offset + hdrLen), //nolint:gosec // G115: bounded by packed length (max 65535)
+			length: length,
+			hdrLen: uint8(hdrLen), //nolint:gosec // G115: hdrLen is 3 or 4
+		})
+
+		offset += hdrLen + int(length)
+	}
+
+	// Success - atomically publish the index
+	a.index = index
+	return nil
+}
+
+// parseAtLocked parses the attribute at the given index.
+// Caller must hold lock.
+func (a *AttributesWire) parseAtLocked(idx attrIndex) (Attribute, error) {
+	valueBytes := a.packed[idx.offset : idx.offset+idx.length]
+
+	// Get source context for context-dependent parsing (e.g., ASN4)
+	srcCtx := bgpctx.Registry.Get(a.sourceCtxID)
+	if srcCtx == nil {
+		return nil, fmt.Errorf("unknown source context ID: %d", a.sourceCtxID)
+	}
+
+	// Try known attribute parsers first
+	attr, err := parseKnownAttribute(idx.code, valueBytes, srcCtx)
+	if err != nil {
+		return nil, err
+	}
+	if attr != nil {
+		return attr, nil
+	}
+
+	// Unknown attribute: read original flags from header for preservation
+	// Flags are at the start of the header: packed[offset - hdrLen]
+	flags := AttributeFlags(a.packed[idx.offset-uint16(idx.hdrLen)])
+	return NewOpaqueAttribute(flags, idx.code, valueBytes), nil
+}
+
+// packWithContext re-encodes all attributes with destination context.
+// Single allocation: calculates total size, then writes all attributes via WriteAttrToWithContext.
+func (a *AttributesWire) packWithContext(destCtx *bgpctx.EncodingContext) ([]byte, error) {
+	attrs, err := a.All()
+	if err != nil {
+		return nil, err
+	}
+
+	srcCtx := bgpctx.Registry.Get(a.sourceCtxID)
+	if srcCtx == nil {
+		return nil, fmt.Errorf("unknown source context ID: %d", a.sourceCtxID)
+	}
+
+	// Pass 1: calculate total size
+	total := 0
+	for _, attr := range attrs {
+		valueLen := attrLenWithContext(attr, destCtx)
+		if valueLen > 255 {
+			total += 4 + valueLen // extended length header
+		} else {
+			total += 3 + valueLen // normal header
+		}
+	}
+
+	// Pass 2: write all attributes
+	buf := make([]byte, total)
+	off := 0
+	for _, attr := range attrs {
+		off += WriteAttrToWithContext(attr, buf, off, srcCtx, destCtx)
+	}
+
+	return buf[:off], nil
+}
+
+// knownAttrParsers maps attribute type codes to parser functions.
+// nil entries mean unknown or known-without-parser — caller creates OpaqueAttribute.
+// Two parsers (AS_PATH, AGGREGATOR) use the fourByteAS parameter; the rest ignore it.
+var knownAttrParsers [256]func(data []byte, fourByteAS bool) (Attribute, error)
+
+func init() {
+	knownAttrParsers[AttrOrigin] = func(d []byte, _ bool) (Attribute, error) { return ParseOrigin(d) }
+	knownAttrParsers[AttrASPath] = func(d []byte, asn4 bool) (Attribute, error) { return ParseASPath(d, asn4) }
+	knownAttrParsers[AttrNextHop] = func(d []byte, _ bool) (Attribute, error) { return ParseNextHop(d) }
+	knownAttrParsers[AttrMED] = func(d []byte, _ bool) (Attribute, error) { return ParseMED(d) }
+	knownAttrParsers[AttrLocalPref] = func(d []byte, _ bool) (Attribute, error) { return ParseLocalPref(d) }
+	knownAttrParsers[AttrAtomicAggregate] = func(d []byte, _ bool) (Attribute, error) { return ParseAtomicAggregate(d) }
+	knownAttrParsers[AttrAggregator] = func(d []byte, asn4 bool) (Attribute, error) { return ParseAggregator(d, asn4) }
+	knownAttrParsers[AttrCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseCommunities(d) }
+	knownAttrParsers[AttrOriginatorID] = func(d []byte, _ bool) (Attribute, error) { return ParseOriginatorID(d) }
+	knownAttrParsers[AttrClusterList] = func(d []byte, _ bool) (Attribute, error) { return ParseClusterList(d) }
+	knownAttrParsers[AttrMPReachNLRI] = func(d []byte, _ bool) (Attribute, error) { return ParseMPReachNLRI(d) }
+	knownAttrParsers[AttrMPUnreachNLRI] = func(d []byte, _ bool) (Attribute, error) { return ParseMPUnreachNLRI(d) }
+	knownAttrParsers[AttrExtCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseExtendedCommunities(d) }
+	knownAttrParsers[AttrAS4Path] = func(d []byte, _ bool) (Attribute, error) { return ParseAS4Path(d) }
+	knownAttrParsers[AttrAS4Aggregator] = func(d []byte, _ bool) (Attribute, error) { return ParseAS4Aggregator(d) }
+	knownAttrParsers[AttrLargeCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseLargeCommunities(d) }
+	knownAttrParsers[AttrIPv6ExtCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseIPv6ExtendedCommunities(d) }
+	knownAttrParsers[AttrAIGP] = func(d []byte, _ bool) (Attribute, error) { return ParseAIGP(d) }
+	knownAttrParsers[AttrTunnelEncap] = func(d []byte, _ bool) (Attribute, error) { return ParseTunnelEncap(d) }
+	// Known codes without parsers yet (PMSI, BGPLS):
+	// left nil — treated as opaque, same as truly unknown codes.
+	// PrefixSID (40): stored in OtherAttrs; SRv6 SID extracted at best-path time.
+}
+
+// parseKnownAttribute parses a known attribute value by code.
+// Returns (nil, nil) for unknown attribute codes - caller handles as OpaqueAttribute.
+// Known attributes derive their flags from type; only OpaqueAttribute needs stored flags.
+// REQUIRES: ctx != nil (caller must validate context exists).
+func parseKnownAttribute(code AttributeCode, data []byte, ctx *bgpctx.EncodingContext) (Attribute, error) {
+	if ctx == nil {
+		return nil, errNilEncodingContext
+	}
+
+	fn := knownAttrParsers[code]
+	if fn == nil {
+		return nil, nil //nolint:nilnil // nil signals unknown, caller creates OpaqueAttribute
+	}
+
+	return fn(data, ctx.ASN4())
+}

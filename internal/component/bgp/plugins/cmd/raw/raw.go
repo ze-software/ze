@@ -11,10 +11,10 @@ import (
 	"net/netip"
 	"strings"
 
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/core/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

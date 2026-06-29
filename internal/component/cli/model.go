@@ -18,7 +18,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/audit"
+	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

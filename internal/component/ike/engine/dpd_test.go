@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 

@@ -13,10 +13,10 @@ import (
 	"net"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 

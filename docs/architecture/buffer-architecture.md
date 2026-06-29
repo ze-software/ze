@@ -179,7 +179,7 @@ func (it *AttrIterator) Find(typeCode uint8) ([]byte, bool)
 // Zero-alloc standalone find — no pointer receiver, no heap escape
 func AttrFind(data []byte, code AttributeCode) (hdrStart int, flags AttributeFlags, value []byte, found bool)
 ```
-<!-- source: internal/component/bgp/attribute/ -- AttrIterator -->
+<!-- source: internal/core/bgp/attribute/ -- AttrIterator -->
 
 ### NLRI Iterator
 
@@ -198,7 +198,7 @@ func NewNLRIIterator(data []byte, addPath bool) *NLRIIterator
 // Returns (nil, 0, false) when exhausted
 func (it *NLRIIterator) Next() (prefix []byte, pathID uint32, ok bool)
 ```
-<!-- source: internal/component/bgp/nlri/ -- NLRIIterator -->
+<!-- source: internal/core/bgp/nlri/ -- NLRIIterator -->
 
 ### AS-PATH Iterator
 
@@ -219,7 +219,7 @@ func (it *ASPathIterator) Next() (segType uint8, asns []byte, ok bool)
 // Convenience: iterate ASNs within current segment
 func (it *ASPathIterator) ASNIterator(asns []byte) *ASNIterator
 ```
-<!-- source: internal/component/bgp/attribute/ -- ASPathIterator -->
+<!-- source: internal/core/bgp/attribute/ -- ASPathIterator -->
 
 ### Update Builder (For Creating Messages)
 

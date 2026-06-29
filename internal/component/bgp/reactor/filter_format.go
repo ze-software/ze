@@ -7,8 +7,8 @@ package reactor
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 

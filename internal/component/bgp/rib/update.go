@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
 )
 
 // BuildGroupedUpdate creates an UPDATE message from a RouteGroup.

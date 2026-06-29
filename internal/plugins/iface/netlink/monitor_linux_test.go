@@ -11,7 +11,7 @@ import (
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
 )
 
 // emittedEvent records a single (namespace, eventType, payload) tuple as

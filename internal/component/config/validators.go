@@ -14,11 +14,11 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/core/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )

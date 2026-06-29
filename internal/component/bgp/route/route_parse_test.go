@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/parse"
 )
 

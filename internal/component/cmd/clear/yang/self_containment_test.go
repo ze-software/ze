@@ -10,7 +10,7 @@ func TestClearOwnerRemovalLeavesNoResidue(t *testing.T) {
 		`"ze-clear:vpn-ipsec-sa"`:       "IPsec clear -> internal/component/ike/yang",
 		`"ze-clear:dns-cache"`:          "DNS cache clear -> internal/plugins/resolve-cmd/yang",
 		`"ze-clear:interface-counters"`: "interface counters clear -> internal/component/iface/yang",
-		`"ze-l2tp-api:`:                 "L2TP clear -> internal/component/cmd/l2tp (already owned)",
+		`"ze-l2tp-api:`:                 "L2TP clear -> internal/component/l2tp/cmd (already owned)",
 		`"ze-clear:isis-adjacency"`:     "IS-IS adjacency clear -> internal/plugins/isis/yang",
 		`"ze-clear:isis-counters"`:      "IS-IS counters clear -> internal/plugins/isis/yang",
 		`"ze-clear:ospf-`:               "OSPF clear -> internal/plugins/ospf/yang",

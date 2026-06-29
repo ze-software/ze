@@ -28,10 +28,10 @@ BNG operators migrating from Juniper, Cisco, Nokia, Huawei, or MikroTik already 
 ## Files
 
 - `internal/component/radius/dict.go` -- vendor ID + attr type constants
-- `internal/plugins/l2tpauthradius/extract_vsa.go` -- vendor parsers
-- `internal/plugins/l2tpauthradius/extract_vsa_test.go` -- 25 unit tests
-- `internal/plugins/l2tpauthradius/extract.go` -- VSA wiring in extractAuthMetadata
-- `internal/plugins/l2tpauthradius/coa.go` -- VSA wiring in extractCoSProfile/extractRate
+- `internal/component/l2tp/plugins/auth_radius/extract_vsa.go` -- vendor parsers
+- `internal/component/l2tp/plugins/auth_radius/extract_vsa_test.go` -- 25 unit tests
+- `internal/component/l2tp/plugins/auth_radius/extract.go` -- VSA wiring in extractAuthMetadata
+- `internal/component/l2tp/plugins/auth_radius/coa.go` -- VSA wiring in extractCoSProfile/extractRate
 - `test/plugin/cos-vendor-cisco.ci` -- functional test
 - `test/plugin/cos-vendor-coexist.ci` -- functional test
 - `docs/comparison.md` -- Vendor-Specific attribute row

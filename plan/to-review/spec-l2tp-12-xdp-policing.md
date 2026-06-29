@@ -18,7 +18,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` -- workflow rules
-3. `internal/plugins/l2tpshaper/` -- reference plugin (same EventBus/lifecycle pattern)
+3. `internal/component/l2tp/plugins/shaper/` -- reference plugin (same EventBus/lifecycle pattern)
 4. `internal/plugins/trafficusage/program_linux.go` -- eBPF program reference: pure-Go `asm.Instructions`, `buildCollectionSpec`, no C/bpf2go
 5. `internal/plugins/trafficusage/attach_linux.go` -- eBPF load/attach reference: `ebpf.NewCollection`, `link.Attach*`, no bpffs pinning, `Close()` releases links+collection
 6. `internal/plugins/trafficusage/attach_other.go` -- non-Linux stub attacher shape
@@ -101,14 +101,14 @@ adds ingress/upload policing at the NIC level before kernel L2TP processing.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/l2tpshaper/shaper.go` -- TC-based egress shaping plugin
+- [ ] `internal/component/l2tp/plugins/shaper/shaper.go` -- TC-based egress shaping plugin
   -> Constraint: subscribes to SessionUp/SessionDown/SessionRateChange via EventBus
   -> Constraint: tracks sessions in sync.Map keyed by (tunnelID, sessionID)
   -> Constraint: uses traffic.GetBackend().Apply() for TC programming
-- [ ] `internal/plugins/l2tpshaper/register.go` -- plugin registration
+- [ ] `internal/component/l2tp/plugins/shaper/register.go` -- plugin registration
   -> Constraint: ConfigureEventBus callback wires EventBus into singleton
   -> Constraint: ConfigRoots: ["l2tp"], YANG schema from schema/ subpackage
-- [ ] `internal/plugins/l2tpshaper/yang/ze-l2tp-shaper-conf.yang` -- YANG config
+- [ ] `internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang` -- YANG config
   -> Constraint: nested under `container l2tp { container shaper { ... } }`
   -> Constraint: uses `zt:rate` type for rate leaves
 - [ ] `internal/component/l2tp/events/events.go` -- EventBus event definitions
@@ -269,7 +269,7 @@ unavailable.
 ## Files to Modify
 - `go.mod` / `go.sum` -- `github.com/cilium/ebpf` is ALREADY present (v0.19.0, added by `trafficusage`); no new dependency expected. Confirm during audit; only touch if a newer minor is required.
 - `internal/component/l2tp/events/events.go` -- add `PriorityRate uint64` field to `SessionRateChangePayload`
-- `internal/plugins/l2tpauthradius/` -- parse vendor-specific RADIUS attribute for priority rate; populate `PriorityRate` in `SessionRateChangePayload`
+- `internal/component/l2tp/plugins/auth_radius/` -- parse vendor-specific RADIUS attribute for priority rate; populate `PriorityRate` in `SessionRateChangePayload`
 
 ### Integration Checklist
 | Integration Point | Needed? | File |

@@ -1037,9 +1037,9 @@ Cross-reference validation runs at config load: peer IKE/ESP group references mu
 defined groups, X.509 `ca-certificate` and `certificate` names must exist in the PKI store,
 and `local-id` must match the certificate's subject CN.
 
-<!-- source: internal/component/ipsec/yang/ze-ipsec-conf.yang -- IPsec YANG schema -->
-<!-- source: internal/component/ipsec/config.go -- IPsec config parser -->
-<!-- source: internal/component/ipsec/validate.go -- cross-reference validation -->
+<!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- IPsec YANG schema -->
+<!-- source: internal/component/ike/ipsec/config.go -- IPsec config parser -->
+<!-- source: internal/component/ike/ipsec/validate.go -- cross-reference validation -->
 
 ## Interface Configuration
 
@@ -1535,7 +1535,7 @@ the local audit log. See [audit.md](audit.md) for storage and query details.
 
 <!-- source: internal/component/web/handler_config.go -- web config RBAC -->
 <!-- source: internal/component/api/engine.go -- read-only API caller enforcement -->
-<!-- source: internal/component/audit/audit.go -- audit Entry and actions -->
+<!-- source: internal/core/audit/audit.go -- audit Entry and actions -->
 
 ### TACACS+ AAA
 
@@ -2279,7 +2279,7 @@ pppoe {
     }
 }
 ```
-<!-- source: internal/component/pppoe/yang/ze-pppoe-conf.yang -- PPPoE YANG schema -->
+<!-- source: internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang -- PPPoE YANG schema -->
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
@@ -2293,8 +2293,8 @@ pppoe {
 | `interface / service-name` | leaf-list | (global) | Per-interface Service-Name filter, overrides global list. |
 | `interface / max-sessions` | uint16 | (global) | Per-interface session limit, defaults to global max-sessions. |
 
-<!-- source: internal/component/pppoe/config.go -- ExtractParameters -->
-<!-- source: internal/component/pppoe/subsystem.go -- PPPoE subsystem lifecycle -->
+<!-- source: internal/component/l2tp/pppoe/config.go -- ExtractParameters -->
+<!-- source: internal/component/l2tp/pppoe/subsystem.go -- PPPoE subsystem lifecycle -->
 
 ### L2TP Address Pool
 
@@ -2336,8 +2336,8 @@ l2tp {
 Named pools use the same settings nested under `named-pool <name> { }`.
 The gateway must not overlap the pool range.
 
-<!-- source: internal/plugins/l2tppool/register.go -- parseIPv4Pool, parseNamedPools -->
-<!-- source: internal/plugins/l2tppool/yang/ze-l2tp-pool-conf.yang -- YANG schema -->
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- parseIPv4Pool, parseNamedPools -->
+<!-- source: internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang -- YANG schema -->
 
 ## Hub Configuration
 

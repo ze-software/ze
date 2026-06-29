@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Deterministic module-tier migration tool (see ai/rules/module-tiers.md).
 
-Moves a top-level subsystem directory between internal/component/ and
-internal/plugins/ -- the component<->plugin tiers -- performing every mechanical
-edit a behaviour-preserving relocation needs, and REFUSING the moves it cannot
-make safe mechanically.
+Moves a package directory from one repo-relative internal/... path to another.
+Bare names keep the original top-level component<->plugins behavior; explicit
+source or destination paths also support core and nested domain moves. The tool
+performs every mechanical edit a behaviour-preserving relocation needs, and
+REFUSES the moves it cannot make safe mechanically.
 
 What it does (in --apply):
   1. filesystem move of the directory (shutil.move; NEVER `git mv` -- git add/rm/mv
@@ -15,7 +16,7 @@ What it does (in --apply):
   2. repo-wide rewrite of quoted, module-qualified Go import paths, boundary-safe
      (only the exact package and its subpackages; `<name>2` is never touched).
   3. edit of the generator's `pluginDirs` literal in scripts/codegen/plugin_imports.go
-     (drop the component entry when moving out; add it when moving in).
+     when a moved tree is, or was, generator-discovered.
   4. re-run the generator to regenerate internal/component/plugin/all/all.go.
   5. re-sort import groups with goimports (the move changes alphabetical order,
      which `go build` ignores but golangci-lint's goimports check enforces).
@@ -29,7 +30,7 @@ What it REFUSES / reports (cannot be fixed by a pure mover):
     the generator's `rpcRoot` scans only internal/component, so those packages would
     silently drop from all.go. --apply aborts unless --allow-rpc-drop is given
     (pass it only after the generator's discoverRPCPackages has been widened to scan
-    internal/plugins). This is the load-bearing precondition for the tiers-2 moves.
+    the destination tier). This is the load-bearing precondition for out-of-component moves.
   - residual references the import rewrite cannot fix: non-Go surfaces
     (.mk/.sh/.ci/.yang/docs/rfc) and .go comments. plan/ specs are skipped
     (owned by other work). These are reported for manual follow-up.
@@ -39,9 +40,12 @@ diff `bin/ze --plugins`, run `scripts/dev/dep_audit.py --check`, then commit via
 user-run script.
 
 Usage:
-    scripts/dev/migrate_module.py NAME [--to {plugins,component}]   # dry-run plan
-    scripts/dev/migrate_module.py NAME --to plugins --apply         # execute
-    scripts/dev/migrate_module.py --selftest                        # isolated fixtures
+    scripts/dev/migrate_module.py NAME [--to {plugins,component,core}]  # dry-run
+    scripts/dev/migrate_module.py audit --to internal/core/audit         # core move
+    scripts/dev/migrate_module.py ppp --to internal/component/l2tp/ppp   # nested move
+    scripts/dev/migrate_module.py internal/component/bgp/wire --to internal/core/bgp/wire
+    scripts/dev/migrate_module.py NAME --to plugins --apply              # execute
+    scripts/dev/migrate_module.py --selftest                             # fixtures
 
 Exit codes:
     0  dry-run plan printed, or --apply succeeded
@@ -60,6 +64,7 @@ import sys
 GENERATOR = "scripts/codegen/plugin_imports.go"
 ALL_GO = "internal/component/plugin/all/all.go"
 AREAS = ("internal/component", "internal/plugins")
+SOURCE_AREAS = ("internal/component", "internal/plugins", "internal/core")
 SKIP_DIRS = {".git", "vendor", "tmp", "node_modules"}
 # Text surfaces scanned for residual references the import rewrite does not touch
 # (.go comments, and non-Go build/test/schema/doc files). "Makefile" is matched by
@@ -101,27 +106,104 @@ def module_path(root: str) -> str:
     raise SystemExit("go.mod: no module line found")
 
 
-def find_source(root: str, name: str, to: str | None = None) -> str:
-    """Return the area ('internal/component' or 'internal/plugins') that holds NAME.
+def _clean_rel_path(path: str, label: str) -> str:
+    """Return a normalised repo-relative path, refusing absolute or parent escapes."""
+    p = os.path.normpath(path.strip().rstrip("/"))
+    if p == "." or os.path.isabs(p) or p == ".." or p.startswith("../"):
+        raise SystemExit(f"migrate_module: {label} must be repo-relative: {path!r}")
+    return p
 
-    Errors if NAME is in neither area. If NAME is in BOTH (a merge: e.g. the engine
-    lives in one area and its `cmd/` subpackage already occupies the same name in the
-    other), the move is unambiguous only when --to names the destination -- the source
-    is then the OTHER area. Without --to a both-areas name is refused.
+
+def _source_is_path(name: str) -> bool:
+    return name.startswith("internal/") or "/" in name
+
+
+def _legacy_target_area(to: str | None) -> str | None:
+    if to in ("component", "internal/component"):
+        return "internal/component"
+    if to in ("plugins", "internal/plugins"):
+        return "internal/plugins"
+    if to in ("core", "internal/core"):
+        return "internal/core"
+    return None
+
+
+def find_source(root: str, name: str, to: str | None = None) -> str:
+    """Return the repo-relative source directory for NAME.
+
+    NAME may be a legacy top-level subsystem name or an explicit repo-relative
+    source path. Bare-name lookup searches the top-level migration areas. If NAME
+    exists in both component and plugins, only the legacy --to component/plugins
+    form disambiguates it by selecting the other area as the source.
     """
-    here = [a for a in AREAS if os.path.isdir(os.path.join(root, a, name))]
+    if _source_is_path(name):
+        src_rel = _clean_rel_path(name, "source")
+        if not src_rel.startswith("internal/"):
+            raise SystemExit(
+                "migrate_module: source paths must start with internal/: " + src_rel
+            )
+        if not os.path.isdir(os.path.join(root, src_rel)):
+            raise SystemExit(f"migrate_module: source not found: {src_rel}/")
+        return src_rel
+
+    here = [
+        f"{a}/{name}"
+        for a in SOURCE_AREAS
+        if os.path.isdir(os.path.join(root, a, name))
+    ]
     if len(here) == 1:
         return here[0]
     if not here:
         raise SystemExit(
-            f"migrate_module: '{name}' not found under {' or '.join(AREAS)}/"
+            f"migrate_module: '{name}' not found under "
+            + " or ".join(f"{a}/" for a in SOURCE_AREAS)
         )
-    if to in AREAS:  # in both areas -- source is whichever is not the destination
-        return next(a for a in AREAS if a != to)
+    if to in SOURCE_AREAS:  # source is whichever top-level area is not the destination
+        dst = f"{to}/{name}"
+        candidates = [h for h in here if h != dst]
+        if len(candidates) == 1:
+            return candidates[0]
     raise SystemExit(
-        f"migrate_module: '{name}' exists in BOTH areas ({', '.join(here)}); "
-        "pass --to to disambiguate (the source is the other area)"
+        f"migrate_module: '{name}' exists in multiple top-level areas "
+        f"({', '.join(here)}); pass an explicit repo-relative source path"
     )
+
+def parse_destination(src_rel: str, to: str | None) -> str:
+    """Return the repo-relative destination directory for a source path."""
+    leaf = os.path.basename(src_rel)
+    if to is None:
+        if src_rel == f"internal/component/{leaf}":
+            return f"internal/plugins/{leaf}"
+        if src_rel == f"internal/plugins/{leaf}":
+            return f"internal/component/{leaf}"
+        raise SystemExit(
+            "migrate_module: --to is required for core or nested source paths"
+        )
+
+    raw = to.strip().rstrip("/")
+    tier_aliases = {
+        "component": "internal/component",
+        "plugins": "internal/plugins",
+        "core": "internal/core",
+    }
+    if raw in tier_aliases:
+        return f"{tier_aliases[raw]}/{leaf}"
+    if raw in SOURCE_AREAS:
+        return f"{raw}/{leaf}"
+    for short, full in tier_aliases.items():
+        if raw.startswith(short + "/"):
+            raw = full + raw[len(short) :]
+            break
+
+    dst_rel = _clean_rel_path(raw, "--to")
+    if not any(dst_rel == a or dst_rel.startswith(a + "/") for a in SOURCE_AREAS):
+        raise SystemExit(
+            "migrate_module: --to must be plugins, component, core, or a "
+            "repo-relative internal/{component,plugins,core}/... path"
+        )
+    if dst_rel in SOURCE_AREAS:
+        return f"{dst_rel}/{leaf}"
+    return dst_rel
 
 
 def merge_conflicts(src_abs: str, dst_abs: str) -> list:
@@ -201,6 +283,9 @@ def rewrite_go_imports(root: str, old: str, new: str, apply: bool) -> list:
 # generator pluginDirs edit
 # --------------------------------------------------------------------------- #
 PLUGINDIRS_RE = re.compile(r"(var pluginDirs = \[\]string\{\n)(.*?)(\n\})", re.DOTALL)
+NESTED_DOMAINS_RE = re.compile(
+    r"(var nestedPluginDomains = \[\]string\{\n)(.*?)(\n\})", re.DOTALL
+)
 
 
 def parse_plugin_dirs(text: str) -> list:
@@ -210,21 +295,61 @@ def parse_plugin_dirs(text: str) -> list:
     return re.findall(r'"([^"]+)"', m.group(2))
 
 
-def plan_plugin_dirs(entries: list, name: str, to: str) -> list:
-    """New pluginDirs set after moving NAME into area `to`.
+def parse_nested_plugin_domains(text: str) -> list:
+    m = NESTED_DOMAINS_RE.search(text)
+    if not m:
+        return []
+    return re.findall(r'"([^"]+)"', m.group(2))
 
-    Moving to plugins: drop the component entry (the package is then discovered via
-    the whole-tree `internal/plugins` entry). Moving to component: add the explicit
-    `internal/component/<name>` entry (the whole-tree plugins entry no longer covers
-    it). Result is sorted to match the existing alphabetical layout.
+
+def nested_plugin_dirs(domains: list) -> list:
+    return [f"internal/component/{domain}/plugins" for domain in domains]
+
+
+def effective_plugin_dirs(entries: list, nested_domains: list) -> list:
+    seen = set()
+    roots = []
+    for rel in [*entries, *nested_plugin_dirs(nested_domains)]:
+        if rel in seen:
+            continue
+        seen.add(rel)
+        roots.append(rel)
+    return roots
+
+
+def _covers(entry: str, path: str) -> bool:
+    return path == entry or path.startswith(entry + "/")
+
+
+def _is_generator_discoverable(path: str) -> bool:
+    return path.startswith("internal/component/") or path.startswith("internal/plugins/")
+
+
+def plan_plugin_dirs(
+    entries: list, src_rel: str, dst_rel: str, nested_domains: list | None = None
+) -> list:
+    """New literal pluginDirs set after moving src_rel to dst_rel.
+
+    The generator discovers all of internal/plugins, literal pluginDirs entries,
+    and nested roots derived from nestedPluginDomains. Use the effective roots for
+    coverage decisions, but render edits only into the literal pluginDirs list.
+    Exact source entries move or disappear; ancestor entries remain because they
+    may cover sibling packages.
     """
-    comp_entry = f"internal/component/{name}"
-    s = set(entries)
-    if to == "internal/plugins":
-        s.discard(comp_entry)
-    else:
-        s.add(comp_entry)
-    return sorted(s)
+    if nested_domains is None:
+        nested_domains = []
+    literal = set(entries)
+    before_effective = effective_plugin_dirs(entries, nested_domains)
+    source_was_discovered = any(_covers(e, src_rel) for e in before_effective)
+    literal.discard(src_rel)
+    after_effective = effective_plugin_dirs(sorted(literal), nested_domains)
+    if (
+        source_was_discovered
+        and _is_generator_discoverable(dst_rel)
+        and not any(_covers(e, dst_rel) for e in after_effective)
+    ):
+        literal.add(dst_rel)
+    return sorted(literal)
 
 
 def render_plugin_dirs(text: str, new_entries: list) -> str:
@@ -232,13 +357,14 @@ def render_plugin_dirs(text: str, new_entries: list) -> str:
     return PLUGINDIRS_RE.sub(lambda m: m.group(1) + inner + m.group(3), text, count=1)
 
 
-def edit_plugin_dirs(root: str, name: str, to: str, apply: bool) -> tuple:
+def edit_plugin_dirs(root: str, src_rel: str, dst_rel: str, apply: bool) -> tuple:
     """Return (before, after, changed). Writes plugin_imports.go when apply=True."""
     path = os.path.join(root, GENERATOR)
     with open(path, encoding="utf-8") as fh:
         text = fh.read()
     before = parse_plugin_dirs(text)
-    after = plan_plugin_dirs(before, name, to)
+    nested_domains = parse_nested_plugin_domains(text)
+    after = plan_plugin_dirs(before, src_rel, dst_rel, nested_domains)
     changed = after != before
     if apply and changed:
         with open(path, "w", encoding="utf-8") as fh:
@@ -338,8 +464,8 @@ def norm_fwd(path: str, src_rel: str, dst_rel: str) -> str:
 
 def run_goimports(root: str, module: str, plan: dict) -> None:
     """Re-sort import groups after the path rewrite. The move changes a package's
-    alphabetical position (component < plugins), which `go build` tolerates but
-    golangci-lint's goimports formatter rejects (review finding ISSUE-3)."""
+    position in goimports' module-local ordering, which `go build` tolerates but
+    golangci-lint's goimports check enforces."""
     gi = shutil.which("goimports")
     if not gi:
         print(
@@ -370,32 +496,26 @@ def run_generator(root: str) -> int:
 # plan + drive
 # --------------------------------------------------------------------------- #
 def build_plan(root: str, module: str, name: str, to: str | None) -> dict:
-    src_area = find_source(root, name, to)
-    dst_area = (
-        to
-        if to
-        else (
-            "internal/plugins"
-            if src_area == "internal/component"
-            else "internal/component"
-        )
-    )
-    if dst_area not in AREAS:
-        raise SystemExit(f"migrate_module: --to must be one of {AREAS}")
-    if dst_area == src_area:
+    src_rel = find_source(root, name, _legacy_target_area(to))
+    dst_rel = parse_destination(src_rel, to)
+    if dst_rel == src_rel:
         raise SystemExit(
-            f"migrate_module: '{name}' already in {src_area}/ (nothing to do)"
+            f"migrate_module: source and destination are both {src_rel}/ (nothing to do)"
+        )
+    if dst_rel.startswith(src_rel + "/"):
+        raise SystemExit(
+            f"migrate_module: destination is inside the source tree: {dst_rel}/"
         )
 
-    src_rel = f"{src_area}/{name}"
-    dst_rel = f"{dst_area}/{name}"
     old_prefix = f"{module}/{src_rel}"
     new_prefix = f"{module}/{dst_rel}"
 
     import_hits = rewrite_go_imports(root, old_prefix, new_prefix, apply=False)
-    before, after, pd_changed = edit_plugin_dirs(root, name, dst_area, apply=False)
+    before, after, pd_changed = edit_plugin_dirs(root, src_rel, dst_rel, apply=False)
     rpc_pkgs = detect_rpc_packages(root, src_rel)
-    rpc_hazard = bool(rpc_pkgs) and dst_area == "internal/plugins"
+    rpc_hazard = bool(rpc_pkgs) and src_rel.startswith(
+        "internal/component/"
+    ) and not dst_rel.startswith("internal/component/")
     residual = detect_residual_refs(root, module, src_rel)
     dst_abs = os.path.join(root, dst_rel)
     is_merge = os.path.isdir(dst_abs)
@@ -404,7 +524,7 @@ def build_plan(root: str, module: str, name: str, to: str | None) -> dict:
     )
 
     return {
-        "name": name,
+        "name": os.path.basename(src_rel),
         "src_rel": src_rel,
         "dst_rel": dst_rel,
         "old_prefix": old_prefix,
@@ -457,20 +577,23 @@ def print_plan(plan: dict, apply: bool) -> None:
         for e in added:
             print(f"     + {e}")
     else:
-        print("     (no change -- discovered via whole-tree scan or scanners)")
+        print(
+            "     (no change -- destination already covered or not generator-discovered)"
+        )
 
     print("\n4. regenerate internal/component/plugin/all/all.go via the generator")
+    print("5. verify all.go registration set is preserved by a forward-normalized diff")
 
     if plan["rpc_pkgs"]:
-        flag = "BLOCKING" if plan["rpc_hazard"] else "ok (moving INTO component)"
+        flag = "BLOCKING" if plan["rpc_hazard"] else "ok (stays under component)"
         print(f"\nRPC packages in the moved tree [{flag}]:")
         for d in plan["rpc_pkgs"]:
             print(f"     {d}")
         if plan["rpc_hazard"]:
             print(
                 "   The generator's rpcRoot scans only internal/component; these would\n"
-                "   drop from all.go. Widen discoverRPCPackages to scan internal/plugins\n"
-                "   FIRST, then re-run with --allow-rpc-drop to confirm."
+                "   drop from all.go. Widen discoverRPCPackages to scan the destination\n"
+                "   tier FIRST, then re-run with --allow-rpc-drop to confirm."
             )
 
     if plan["residual"]:
@@ -498,12 +621,13 @@ def apply_plan(root: str, module: str, plan: dict) -> int:
     all_go = os.path.join(root, ALL_GO)
     before = read_blank_imports(all_go)
 
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
     if plan["is_merge"]:
         do_merge(src, dst)
     else:
         shutil.move(src, dst)
     rewrite_go_imports(root, plan["old_prefix"], plan["new_prefix"], apply=True)
-    edit_plugin_dirs(root, plan["name"], os.path.dirname(plan["dst_rel"]), apply=True)
+    edit_plugin_dirs(root, plan["src_rel"], plan["dst_rel"], apply=True)
     rc = run_generator(root)
     run_goimports(root, module, plan)
 
@@ -561,6 +685,7 @@ def selftest() -> int:
             "var pluginDirs = []string{\n"
             '\t"internal/component/edgeproto",\n'
             '\t"internal/component/iface",\n'
+            '\t"internal/component/ipsec",\n'
             '\t"internal/plugins",\n}\n'
             'const rpcRoot = "internal/component"\n',
         )
@@ -669,7 +794,12 @@ def selftest() -> int:
             os.path.join(root, "internal/plugins/edgeproto"),
         )
         rewrite_go_imports(root, plan["old_prefix"], plan["new_prefix"], apply=True)
-        edit_plugin_dirs(root, "edgeproto", "internal/plugins", apply=True)
+        edit_plugin_dirs(
+            root,
+            "internal/component/edgeproto",
+            "internal/plugins/edgeproto",
+            apply=True,
+        )
 
         assert not os.path.exists(os.path.join(root, "internal/component/edgeproto"))
         assert os.path.isdir(os.path.join(root, "internal/plugins/edgeproto"))
@@ -687,6 +817,104 @@ def selftest() -> int:
             pd = parse_plugin_dirs(fh.read())
         assert "internal/component/edgeproto" not in pd, "pd entry not removed"
 
+
+        # --- core destination: a component library moves to internal/core/... ---
+        _w(root, "internal/component/audit/a.go", "package audit\n")
+        _w(root, "internal/component/audit/sub/s.go", "package sub\n")
+        _w(
+            root,
+            "internal/component/coreconsumer/c.go",
+            f'package coreconsumer\nimport _ "{mod}/internal/component/audit/sub"\n',
+        )
+        _w(root, "docs/audit.md", "see internal/component/audit/sub\n")
+        cplan = build_plan(root, mod, "internal/component/audit", "internal/core/audit")
+        assert cplan["src_rel"] == "internal/component/audit", cplan["src_rel"]
+        assert cplan["dst_rel"] == "internal/core/audit", cplan["dst_rel"]
+        assert cplan["new_prefix"] == f"{mod}/internal/core/audit", cplan[
+            "new_prefix"
+        ]
+        assert "internal/core/audit" not in cplan["pd_after"], (
+            "core move must not add pluginDirs"
+        )
+        assert ("docs/audit.md", 1) in cplan["residual"], "core residual missed"
+        os.makedirs(os.path.join(root, "internal/core"), exist_ok=True)
+        shutil.move(
+            os.path.join(root, "internal/component/audit"),
+            os.path.join(root, "internal/core/audit"),
+        )
+        rewrite_go_imports(root, cplan["old_prefix"], cplan["new_prefix"], apply=True)
+        with open(os.path.join(root, "internal/component/coreconsumer/c.go")) as fh:
+            assert f"{mod}/internal/core/audit/sub" in fh.read(), (
+                "core importer not rewritten"
+            )
+
+        # --- nested component-domain destination with generator edit planning ---
+        _w(
+            root,
+            "internal/component/ipsec/register.go",
+            f'package ipsec\nimport _ "{mod}/internal/component/ipsec/child"\n',
+        )
+        _w(root, "internal/component/ipsec/child/c.go", "package child\n")
+        _w(
+            root,
+            "internal/plugins/vpnconsumer/c.go",
+            f'package vpnconsumer\nimport _ "{mod}/internal/component/ipsec"\n',
+        )
+        _w(root, "docs/vpn.md", "see internal/component/ipsec/child\n")
+        nplan = build_plan(root, mod, "internal/component/ipsec", "internal/component/ike/ipsec")
+        assert nplan["src_rel"] == "internal/component/ipsec", nplan["src_rel"]
+        assert nplan["dst_rel"] == "internal/component/ike/ipsec", nplan["dst_rel"]
+        assert not nplan["rpc_hazard"], "nested component move must keep RPC coverage"
+        assert "internal/component/ipsec" not in nplan["pd_after"], (
+            "old pluginDirs entry not removed"
+        )
+        assert "internal/component/ike/ipsec" in nplan["pd_after"], (
+            "nested pluginDirs entry not added"
+        )
+        assert ("docs/vpn.md", 1) in nplan["residual"], "nested residual missed"
+        import io
+        import contextlib
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            print_plan(nplan, apply=False)
+        dry = out.getvalue()
+        assert "rewrite quoted import" in dry, "nested dry-run lacks import rewrite"
+        assert "+ internal/component/ike/ipsec" in dry, (
+            "nested dry-run lacks generator edit"
+        )
+        assert "Residual references to the old path" in dry, (
+            "nested dry-run lacks residual references"
+        )
+        assert "verify all.go registration set is preserved" in dry, (
+            "nested dry-run lacks registration preservation"
+        )
+        os.makedirs(os.path.join(root, "internal/component/ike"), exist_ok=True)
+        shutil.move(
+            os.path.join(root, "internal/component/ipsec"),
+            os.path.join(root, "internal/component/ike/ipsec"),
+        )
+        rewrite_go_imports(root, nplan["old_prefix"], nplan["new_prefix"], apply=True)
+        edit_plugin_dirs(
+            root,
+            "internal/component/ipsec",
+            "internal/component/ike/ipsec",
+            apply=True,
+        )
+        with open(os.path.join(root, "internal/plugins/vpnconsumer/c.go")) as fh:
+            assert f"{mod}/internal/component/ike/ipsec" in fh.read(), (
+                "nested importer not rewritten"
+            )
+        with open(
+            os.path.join(root, "internal/component/ike/ipsec/register.go")
+        ) as fh:
+            assert f"{mod}/internal/component/ike/ipsec/child" in fh.read(), (
+                "nested self-import not rewritten"
+            )
+        with open(os.path.join(root, GENERATOR)) as fh:
+            pd = parse_plugin_dirs(fh.read())
+        assert "internal/component/ipsec" not in pd, "old nested pd entry remains"
+        assert "internal/component/ike/ipsec" in pd, "new nested pd entry missing"
         # --- move INTO component: pluginDirs gains the explicit entry ---
         plan2 = build_plan(root, mod, "platform", "internal/component")
         assert not plan2["rpc_hazard"], "move-in must not flag rpc hazard"
@@ -747,12 +975,17 @@ def main() -> int:
         add_help=True, description="module-tier migration tool"
     )
     ap.add_argument(
-        "name", nargs="?", help="subsystem directory name (e.g. flowexport)"
+        "name",
+        nargs="?",
+        help="top-level subsystem name or repo-relative source directory",
     )
     ap.add_argument(
         "--to",
-        choices=("plugins", "component"),
-        help="target tier (default: the other area from where NAME currently lives)",
+        metavar="DEST",
+        help=(
+            "target tier (plugins, component, core) or repo-relative destination "
+            "under internal/{component,plugins,core}"
+        ),
     )
     ap.add_argument("--apply", action="store_true", help="execute (default: dry-run)")
     ap.add_argument(
@@ -772,7 +1005,7 @@ def main() -> int:
 
     root = repo_root()
     module = module_path(root)
-    to = None if args.to is None else f"internal/{args.to}"
+    to = args.to
     plan = build_plan(root, module, args.name, to)
 
     print_plan(plan, args.apply)
@@ -782,8 +1015,8 @@ def main() -> int:
     if plan["rpc_hazard"] and not args.allow_rpc_drop:
         print(
             "\nREFUSED: moving RPC packages out of internal/component would drop them "
-            "from all.go.\nWiden the generator's discoverRPCPackages to scan "
-            "internal/plugins, then re-run with --allow-rpc-drop.",
+            "from all.go.\nWiden the generator's discoverRPCPackages to scan the "
+            "destination tier, then re-run with --allow-rpc-drop.",
             file=sys.stderr,
         )
         return 3

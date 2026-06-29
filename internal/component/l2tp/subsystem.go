@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
+	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
-	"codeberg.org/thomas-mangin/ze/internal/component/subscriber"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"

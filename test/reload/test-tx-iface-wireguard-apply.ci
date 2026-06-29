@@ -11,8 +11,8 @@
 # wgctrl ConfigureDevice calls may succeed or fail depending on test
 # runner privileges (CAP_NET_ADMIN) and whether the wireguard kernel
 # module is loaded; failures are logged at Debug level and do not
-# crash the daemon. Kernel-state round-trips are covered by the
-# integration tests under internal/plugins/ifacenetlink.
+# crash the daemon. Kernel-state round-trips are covered by integration
+# tests under internal/plugins/iface/netlink.
 #
 # The BGP peer connection confirms the daemon is still live after the
 # reload. Base64 keys below are dummy (all-ones, all-twos, all-threes,

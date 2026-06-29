@@ -8,9 +8,9 @@ import (
 	"net/netip"
 	"sync"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 

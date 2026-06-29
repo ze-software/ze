@@ -205,7 +205,7 @@ avoids decoding into intermediate structs. When source and destination peers sha
 same encoding context (ContextID), UPDATE messages are forwarded as cached wire bytes
 with no parsing at all.
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate byte slice reference -->
-<!-- source: internal/component/bgp/context/registry.go -- ContextID matching -->
+<!-- source: internal/core/bgp/context/registry.go -- ContextID matching -->
 
 This is not zero-copy in the strictest sense: Go's TCP layer copies bytes from the
 kernel into a Go slice. True zero-copy (kernel buffer to userspace without copying)

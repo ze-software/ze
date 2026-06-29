@@ -8,7 +8,7 @@
 package message
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 )
 
 // CommonAttrs holds extracted common BGP path attributes.

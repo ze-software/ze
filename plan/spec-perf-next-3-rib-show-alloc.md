@@ -13,7 +13,7 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `internal/component/bgp/plugins/rib/rib_attr_format.go`, `rib_pipeline.go` (jsonTerminal + serializeRouteItem)
-4. `internal/component/bgp/attribute/community.go` + `text_append.go` (AppendText methods)
+4. `internal/core/bgp/attribute/community.go` + `text_append.go` (AppendText methods)
 
 ## Task
 
@@ -74,8 +74,8 @@ a hard gate (tests + pipes depend on it).
 - [ ] `internal/component/bgp/plugins/rib/rib_attr_format.go` - enrichRouteMapFromRoute (69-105) three []string blocks; enrichRouteMapFromEntry communities via pool Get + formatCommunities (58-64); formatCommunities (176-186); attrWithFlags envelope
 - [ ] `internal/component/bgp/plugins/rib/rib_pipeline.go` - serializeRouteItem (998-1018); jsonTerminal.drain (929-987) walks all routes then json.Marshal; communityFilter.Match (672) consumes formatCommunities; ApplyPipes integration (1072, 1082)
 - [ ] `internal/component/bgp/plugins/rib/rib_pipeline_best.go` - best-path terminal enrichment (452)
-- [ ] `internal/component/bgp/attribute/community.go` - Community.String (150-156, well-known name substitution); LargeCommunity.String (316-319); types Communities/LargeCommunities/ExtendedCommunities
-- [ ] `internal/component/bgp/attribute/text_append.go` - LargeCommunity.AppendText (43-49); ExtendedCommunity.AppendText (53-54); appendCommunityText (60-98, unexported); list AppendText methods (206-293)
+- [ ] `internal/core/bgp/attribute/community.go` - Community.String (150-156, well-known name substitution); LargeCommunity.String (316-319); types Communities/LargeCommunities/ExtendedCommunities
+- [ ] `internal/core/bgp/attribute/text_append.go` - LargeCommunity.AppendText (43-49); ExtendedCommunity.AppendText (53-54); appendCommunityText (60-98, unexported); list AppendText methods (206-293)
 - [ ] `internal/component/lg/render.go` - template consumer of formatCommunities (42), stays string-based
 
 **Behavior to preserve:**
@@ -158,7 +158,7 @@ a hard gate (tests + pipes depend on it).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| TestCommunityAppendText (new) | `internal/component/bgp/attribute/text_append_test.go` | AppendText == String for well-known + numeric | |
+| TestCommunityAppendText (new) | `internal/core/bgp/attribute/text_append_test.go` | AppendText == String for well-known + numeric | |
 | TestEnrichCommunityJSONByteIdentical (new) | `internal/component/bgp/plugins/rib/rib_attr_format_test.go` | Wrapper JSON == old []string JSON across corpus | |
 | TestFormatCommunities (existing) | same | String path for filter/LG unchanged | |
 | TestShowRIB / TestShowRIBReceived / TestShowRIBSent (existing) | `internal/component/bgp/plugins/rib/rib_pipeline_test.go` | Pipeline JSON unchanged | |
@@ -183,9 +183,9 @@ No new `.ci` needed: the user-visible contract is unchanged and already covered.
 Not applicable: display-layer only, no wire protocol behavior.
 
 ## Files to Modify
-- `internal/component/bgp/attribute/community.go` or `text_append.go` - exported Community.AppendText (delegating to appendCommunityText, preserving well-known names)
+- `internal/core/bgp/attribute/community.go` or `text_append.go` - exported Community.AppendText (delegating to appendCommunityText, preserving well-known names)
 - `internal/component/bgp/plugins/rib/rib_attr_format.go` - wrapper list types + MarshalJSON (+ text method per A-4); enrichRouteMapFromRoute and enrichRouteMapFromEntry switch to wrappers
-- `internal/component/bgp/attribute/text_append_test.go` - TestCommunityAppendText
+- `internal/core/bgp/attribute/text_append_test.go` - TestCommunityAppendText
 - `internal/component/bgp/plugins/rib/rib_attr_format_test.go` - golden byte-identity test
 
 ### Integration Checklist

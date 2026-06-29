@@ -120,7 +120,7 @@ flowchart TB
 Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN exchange:
 
 ```go
-// Simplified view - see internal/component/bgp/capability/ for full struct
+// Simplified view - see internal/core/bgp/capability/ for full struct
 type Negotiated struct {
     ASN4            bool                   // AS_PATH: 2-byte or 4-byte ASNs
     AddPath         map[Family]AddPathMode // NLRI: Receive/Send/Both path-id
@@ -132,7 +132,7 @@ type Negotiated struct {
     RouteRefresh    bool                   // RFC 2918 route refresh support
 }
 ```
-<!-- source: internal/component/bgp/capability/ -- Negotiated capabilities -->
+<!-- source: internal/core/bgp/capability/ -- Negotiated capabilities -->
 
 **Why it matters:**
 - Same wire bytes parse differently based on negotiated caps
@@ -144,7 +144,7 @@ type Negotiated struct {
 - Different ContextID = must re-encode for target peer's capabilities
 
 ```go
-// internal/component/bgp/context/registry.go
+// internal/core/bgp/context/registry.go
 type ContextID uint16  // Unique ID per distinct capability set (65535 max)
 
 // Zero-copy decision
@@ -154,7 +154,7 @@ if sourceCtxID == destCtxID {
     // Parse and re-encode for destination caps
 }
 ```
-<!-- source: internal/component/bgp/context/registry.go -- ContextID -->
+<!-- source: internal/core/bgp/context/registry.go -- ContextID -->
 
 ---
 
@@ -336,7 +336,7 @@ type NLRI interface {
 func LenWithContext(n NLRI, addPath bool) int
 // Returns Len() if addPath=false, Len()+4 if addPath=true
 ```
-<!-- source: internal/component/bgp/nlri/nlri.go -- NLRI interface, LenWithContext, WriteNLRI -->
+<!-- source: internal/core/bgp/nlri/nlri.go -- NLRI interface, LenWithContext, WriteNLRI -->
 
 **ADD-PATH encoding:** Use `WriteNLRI()` helper function for ADD-PATH aware encoding,
 which prepends the 4-byte path ID when needed.
@@ -515,7 +515,7 @@ func (a *Attributes) Build() []byte
 func (a *Attributes) WriteTo(buf []byte, off int) int           // pre-allocated buffer
 func (a *Attributes) CheckedWriteTo(buf []byte, off int) (int, error)
 ```
-<!-- source: internal/component/bgp/attribute/ -- AttributesWire, Builder -->
+<!-- source: internal/core/bgp/attribute/ -- AttributesWire, Builder -->
 
 ---
 
@@ -1240,7 +1240,7 @@ cleanly. The TACACS+ accountant hooks into `Dispatcher.Dispatch()` so
 START/STOP records cover SSH exec, interactive TUI, and local CLI
 commands through a single point.
 
-**Audit trail.** `internal/component/audit` owns the local structured audit
+**Audit trail.** `internal/core/audit` owns the local structured audit
 log and exposes a small `Recorder` interface. Transport components accept
 that interface for user-facing failures or direct config mutations: SSH, web,
 REST, gRPC, MCP, and the dispatcher record through it, while the hub owns log
@@ -1255,7 +1255,7 @@ This avoids bgp importing ssh, cli, or web.
 <!-- source: internal/component/authz/auth.go -- UserConfig, AuthenticateUser -->
 <!-- source: internal/component/aaa/aaa.go -- Authenticator/Authorizer/Accountant interfaces, ChainAuthenticator -->
 <!-- source: internal/component/aaa/all/all.go -- backend blank-imports (authz, tacacs) -->
-<!-- source: internal/component/audit/audit.go -- Recorder and Entry -->
+<!-- source: internal/core/audit/audit.go -- Recorder and Entry -->
 <!-- source: internal/component/cmd/show/audit.go -- RegisterAuditProvider -->
 <!-- source: internal/component/tacacs/register.go -- tacacsBackend.Build, AAA registration -->
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- atomic bundle swap on reload -->

@@ -139,7 +139,7 @@ reg := registry.Registration{
 }
 ```
 
-Reference example: `internal/plugins/l2tpauthradius/register.go`.
+Reference example: `internal/component/l2tp/plugins/authradius/register.go`.
 
 ### Non-plugin components
 

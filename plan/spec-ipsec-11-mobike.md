@@ -348,7 +348,7 @@ The `Scenario.teardown()` must also clean up the mobility network.
 - `internal/component/ike/engine/child.go` -- use current addresses for Child SA operations
 - `internal/component/ike/engine/initiator.go` -- use current addresses for all sends
 - `internal/component/ike/engine/reconcile.go` -- PeerSession MOBIKE state
-- `internal/component/ipsec/types.go` -- add Mobike bool to IKEGroup config
+- `internal/component/ike/ipsec/types.go` -- add Mobike bool to IKEGroup config
 - `internal/component/config/loader_ipsec.go` -- parse `mobike enable/disable`
 
 ### Integration Checklist
@@ -500,7 +500,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | addrwatch_linux.go | `ls engine/addrwatch_linux.go` |
 | Interop scenario 03 | `ls test/ipsec-interop/scenarios/03-mobike-responder/check.py` |
 | Interop scenario 04 | `ls test/ipsec-interop/scenarios/04-mobike-initiator/check.py` |
-| Mobike config field | `grep Mobike ipsec/types.go` |
+| Mobike config field | `grep Mobike ike/ipsec/types.go` |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |

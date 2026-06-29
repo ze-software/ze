@@ -229,7 +229,7 @@ registration, check function, and unit test.
 
 Maps BGP attribute codes to human-readable names.
 
-**Location:** `internal/component/bgp/attribute/attribute.go`
+**Location:** `internal/core/bgp/attribute/attribute.go`
 **Registration:** `attribute.RegisterName(code, name)` in plugin init()
 **Query:** `AttributeCode.String()` for display
 **Count:** 20+ pre-registered (ORIGIN, AS_PATH, NEXT_HOP, etc.) + plugin additions
@@ -241,7 +241,7 @@ hardcoded switch that was in `format/text_json.go`. The format package
 calls `GetJSONFormatter(code)`, writes the key, calls `AppendValue(buf, attr)`,
 writes flags. Returns nil = fall through to hex.
 
-**Location:** `internal/component/bgp/attribute/json.go`
+**Location:** `internal/core/bgp/attribute/json.go`
 **Registration:** `attribute.RegisterJSONFormatter(code, key, fn)` in owner's `register.go`
 **Query:** `attribute.GetJSONFormatter(code)` returns `*JSONFormatter` or nil
 **Formatter:** named function in owner's `json.go` (never inline closure)

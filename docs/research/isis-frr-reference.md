@@ -429,7 +429,7 @@ the FRR-influenced version above:
 
 | Bio-rd guide | FRR-influenced proposal | Rationale for the change |
 |---|---|---|
-| `packet/` | `wire/` | Matches ze's existing BGP terminology (`internal/component/bgp/wire/`) |
+| `packet/` | `wire/` | Matches ze's existing BGP terminology (`internal/core/bgp/wire/`) |
 | `neighbor/` merged with circuit | `adjacency/` separate from `circuit/` | FRR-proven separation of circuit FSM from adjacency FSM |
 | No explicit `flood/` | `flood/` as its own subpackage | TX queue is a non-trivial abstraction that deserves isolation and its own tests |
 | No `nb/` split | `nb/` with four files | Matches FRR's operator-tested northbound discipline |

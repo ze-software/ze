@@ -466,15 +466,15 @@ initialization (see `docs/architecture/subsystem-wiring.md`).
 engine.RegisterSubsystem(l2tp.NewSubsystem())
 ```
 
-L2TP plugins (`l2tp-auth`, `l2tp-pool`, etc.) are wired via blank imports
-in `internal/component/plugin/all/all.go`, following the same pattern as
-BGP plugins:
+L2TP runtime plugins are wired via blank imports in
+`internal/component/plugin/all/all.go`, following the same pattern as BGP
+plugins:
 
 ```go
-_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauth"
-_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tppool"
-_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpshaper"
-_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpstats"
+_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/plugins/authlocal"
+_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/plugins/authradius"
+_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/plugins/pool"
+_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/plugins/shaper"
 ```
 
 ### 6.6 Config transaction integration

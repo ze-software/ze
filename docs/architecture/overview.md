@@ -135,15 +135,15 @@ BGP message types:
 - Header parsing and validation
 <!-- source: internal/component/bgp/message/ -- BGP message types -->
 
-### 4.5 Attributes (`internal/component/bgp/attribute/`)
+### 4.5 Attributes (`internal/core/bgp/attribute/`)
 
 Path attributes:
 - ORIGIN, AS_PATH, NEXT_HOP, MED, LOCAL_PREF
 - Communities (standard, extended, large)
 - MP_REACH_NLRI, MP_UNREACH_NLRI
-<!-- source: internal/component/bgp/attribute/ -- path attribute types -->
+<!-- source: internal/core/bgp/attribute/ -- path attribute types -->
 
-### 4.6 NLRI (`internal/component/bgp/nlri/`)
+### 4.6 NLRI (`internal/core/bgp/nlri/`)
 
 Network Layer Reachability Information:
 - INET (IPv4/IPv6 unicast)
@@ -153,7 +153,7 @@ Network Layer Reachability Information:
 - BGP-LS
 - MUP (Mobile User Plane)
 
-### 4.7 Capabilities (`internal/component/bgp/capability/`)
+### 4.7 Capabilities (`internal/core/bgp/capability/`)
 
 BGP capabilities and negotiation:
 - Multiprotocol, ASN4, ADD-PATH

@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	routepkg "codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )

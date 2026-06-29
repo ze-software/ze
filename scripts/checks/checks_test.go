@@ -57,8 +57,8 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 	root := repoRoot(t)
 	moved := map[string]string{
 		"internal/component/cmd/l2tp":       "internal/component/l2tp/cmd",
-		"internal/component/cmd/pppoe":      "internal/component/pppoe/cmd",
-		"internal/component/cmd/subscriber": "internal/component/subscriber/cmd",
+		"internal/component/cmd/pppoe":      "internal/component/l2tp/pppoe/cmd",
+		"internal/component/cmd/subscriber": "internal/component/l2tp/subscriber/cmd",
 		"internal/component/cmd/bfd":        "internal/component/bfd/cmd",
 		"internal/component/cmd/archive":    "internal/component/config/archive/cmd",
 		// cache/commit handlers live in bgp/plugins/cmd/{cache,commit}; their

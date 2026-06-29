@@ -1,0 +1,285 @@
+// Design: docs/architecture/wire/nlri.md — NLRI encoding and decoding
+// RFC: rfc/short/rfc4364.md — route distinguisher types
+//
+// Package nlri implements BGP Network Layer Reachability Information types.
+package nlri
+
+import (
+	"encoding/binary"
+	"fmt"
+	"net/netip"
+	"strconv"
+	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
+
+// RDType represents Route Distinguisher type.
+//
+// RFC 4364 Section 4.2 defines the Route Distinguisher encoding:
+//   - Type Field: 2 bytes
+//   - Value Field: 6 bytes
+//
+// The interpretation of the Value field depends on the type field value.
+type RDType uint16
+
+// Route Distinguisher types per RFC 4364 Section 4.2.
+//
+// RFC 4364 Section 4.2 specifies three RD type values:
+//   - Type 0: Administrator=2-byte ASN, Assigned Number=4 bytes
+//   - Type 1: Administrator=4-byte IP, Assigned Number=2 bytes
+//   - Type 2: Administrator=4-byte ASN, Assigned Number=2 bytes
+const (
+	RDType0 RDType = 0 // RFC 4364 Section 4.2: 2-byte ASN : 4-byte assigned number
+	RDType1 RDType = 1 // RFC 4364 Section 4.2: 4-byte IP address : 2-byte assigned number
+	RDType2 RDType = 2 // RFC 4364 Section 4.2: 4-byte ASN : 2-byte assigned number
+)
+
+// RouteDistinguisher uniquely identifies a VPN route.
+//
+// RFC 4364 Section 4.1 defines VPN-IPv4 addresses as 12-byte quantities:
+//   - 8-byte Route Distinguisher (RD)
+//   - 4-byte IPv4 address
+//
+// RFC 4659 Section 2 extends this for VPN-IPv6 as 24-byte quantities:
+//   - 8-byte Route Distinguisher (RD)
+//   - 16-byte IPv6 address
+//
+// The RD itself is 8 bytes: 2-byte type field + 6-byte value field.
+// Per RFC 4364 Section 4.1, the RD's purpose is solely to allow creation
+// of distinct routes to a common IP address prefix across different VPNs.
+type RouteDistinguisher struct {
+	Type  RDType  // RFC 4364 Section 4.2: Type field (2 bytes)
+	Value [6]byte // RFC 4364 Section 4.2: Value field (6 bytes)
+}
+
+// ParseRouteDistinguisher parses an RD from 8 bytes.
+//
+// RFC 4364 Section 4.2 encoding:
+//
+//	Bytes 0-1: Type field (big-endian)
+//	Bytes 2-7: Value field (interpretation depends on Type)
+func ParseRouteDistinguisher(data []byte) (RouteDistinguisher, error) {
+	if len(data) < 8 {
+		return RouteDistinguisher{}, ErrShortRead
+	}
+
+	rd := RouteDistinguisher{
+		Type: RDType(binary.BigEndian.Uint16(data[:2])),
+	}
+	copy(rd.Value[:], data[2:8])
+	return rd, nil
+}
+
+// Bytes returns the wire format per RFC 4364 Section 4.2.
+// Hot-path callers use WriteTo(buf, off) into a pool buffer; this method
+// is for JSON/test/format callers that need a standalone 8-byte slice.
+func (rd RouteDistinguisher) Bytes() []byte {
+	buf := make([]byte, 8) // pool-fallback: result owned by caller
+	binary.BigEndian.PutUint16(buf[:2], uint16(rd.Type))
+	copy(buf[2:], rd.Value[:])
+	return buf
+}
+
+// Len returns the RD length in bytes (always 8).
+// RFC 4364 Section 4.2: RD is 8 octets (2-byte type + 6-byte value).
+func (rd RouteDistinguisher) Len() int { return 8 }
+
+// WriteTo writes the RD directly to buf at offset (zero-alloc).
+// Returns bytes written (always 8).
+func (rd RouteDistinguisher) WriteTo(buf []byte, off int) int {
+	binary.BigEndian.PutUint16(buf[off:], uint16(rd.Type))
+	copy(buf[off+2:], rd.Value[:])
+	return 8
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (rd RouteDistinguisher) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := rd.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return rd.WriteTo(buf, off), nil
+}
+
+// String returns a human-readable representation with type prefix.
+//
+// RFC 4364 Section 4.2 defines three RD types. The format includes the type
+// prefix to disambiguate between Type 0 and Type 2 (both use ASN:assigned):
+//   - Type 0: "0:ASN:assigned" (e.g., "0:65000:100") - 2-byte ASN
+//   - Type 1: "1:IP:assigned" (e.g., "1:192.0.2.1:100") - 4-byte IP
+//   - Type 2: "2:ASN:assigned" (e.g., "2:65536:100") - 4-byte ASN
+//
+// The type prefix is required for unambiguous parsing since Type 0 and Type 2
+// would otherwise be indistinguishable for ASNs <= 65535.
+func (rd RouteDistinguisher) String() string {
+	b := textbuf.Get()
+	defer b.Release()
+	switch rd.Type {
+	case RDType0:
+		asn := binary.BigEndian.Uint16(rd.Value[:2])
+		assigned := binary.BigEndian.Uint32(rd.Value[2:6])
+		return b.Str("0:").Uint16(asn).Byte(':').Uint32(assigned).String()
+	case RDType1:
+		ip := netip.AddrFrom4([4]byte(rd.Value[:4]))
+		assigned := binary.BigEndian.Uint16(rd.Value[4:6])
+		return b.Str("1:").Addr(ip).Byte(':').Uint16(assigned).String()
+	case RDType2:
+		asn := binary.BigEndian.Uint32(rd.Value[:4])
+		assigned := binary.BigEndian.Uint16(rd.Value[4:6])
+		return b.Str("2:").Uint32(asn).Byte(':').Uint16(assigned).String()
+	default:
+		return b.Str("rd-type").Uint16(uint16(rd.Type)).Byte(':').Hex(rd.Value[:]).String()
+	}
+}
+
+// ParseRDString parses a Route Distinguisher from string format.
+//
+// RFC 4364 Section 4.2 defines RD types:
+//   - Type 0: "ASN:value" (2-byte ASN, 4-byte value) e.g., "65000:100"
+//   - Type 1: "IP:value" (4-byte IP, 2-byte value) e.g., "192.0.2.1:100"
+//   - Type 2: "ASN:value" (4-byte ASN, 2-byte value) e.g., "4200000001:100"
+//
+// Detection:
+//   - If first part contains "." → Type 1 (IP:value)
+//   - If ASN > 65535 → Type 2 (4-byte ASN, 2-byte value)
+//   - Otherwise → Type 0 (2-byte ASN, 4-byte value)
+func ParseRDString(s string) (RouteDistinguisher, error) {
+	var rd RouteDistinguisher
+	parts := strings.Split(s, ":")
+
+	// Handle typed format: type:ASN:value or type:IP:value (3 parts)
+	// This format is produced by RouteDistinguisher.String()
+	// Type 0: "0:ASN:assigned" (e.g., "0:65000:100")
+	// Type 1: "1:IP:assigned" (e.g., "1:1.2.3.4:100")
+	// Type 2: "2:ASN:assigned" (e.g., "2:65000:100")
+	if len(parts) == 3 {
+		rdType, err := strconv.ParseUint(parts[0], 10, 8)
+		if err != nil || rdType > 2 {
+			return rd, fmt.Errorf("invalid RD type: %s", parts[0])
+		}
+		// For Type 1, middle part must be an IP address (contains dots)
+		if rdType == 1 && !strings.Contains(parts[1], ".") {
+			return rd, fmt.Errorf("invalid RD format: type 1 requires IP address, got %s", parts[1])
+		}
+		// For Type 0/2, middle part must be numeric (no dots)
+		if rdType != 1 && strings.Contains(parts[1], ".") {
+			return rd, fmt.Errorf("invalid RD format: type %d requires ASN, got IP %s", rdType, parts[1])
+		}
+		// Reconstruct as 2-part format for parsing below
+		rd.Type = RDType(rdType)
+		parts = parts[1:] // Now parts is [ASN/IP, value]
+	} else if len(parts) != 2 {
+		return rd, fmt.Errorf("invalid RD format: %s (expected ASN:value or IP:value)", s)
+	}
+
+	// Check if first part is an IP address (Type 1)
+	if strings.Contains(parts[0], ".") {
+		ip, err := netip.ParseAddr(parts[0])
+		if err != nil || !ip.Is4() {
+			return rd, fmt.Errorf("invalid IP in RD: %s", parts[0])
+		}
+		val, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			return rd, fmt.Errorf("invalid RD value (must be 0-65535): %s", parts[1])
+		}
+		rd.Type = RDType1
+		ip4 := ip.As4()
+		copy(rd.Value[:4], ip4[:])
+		rd.Value[4] = byte(val >> 8)
+		rd.Value[5] = byte(val)
+		return rd, nil
+	}
+
+	// Parse ASN to determine Type 0 vs Type 2
+	asn, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return rd, fmt.Errorf("invalid ASN in RD: %s", parts[0])
+	}
+
+	if asn > 65535 {
+		// Type 2: 4-byte ASN : 2-byte value
+		val, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			return rd, fmt.Errorf("invalid RD value (must be 0-65535 for 4-byte ASN): %s", parts[1])
+		}
+		rd.Type = RDType2
+		rd.Value[0] = byte(asn >> 24)
+		rd.Value[1] = byte(asn >> 16)
+		rd.Value[2] = byte(asn >> 8)
+		rd.Value[3] = byte(asn)
+		rd.Value[4] = byte(val >> 8)
+		rd.Value[5] = byte(val)
+		return rd, nil
+	}
+
+	// Type 0: 2-byte ASN : 4-byte value
+	val, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		return rd, fmt.Errorf("invalid RD value: %s", parts[1])
+	}
+	rd.Type = RDType0
+	rd.Value[0] = byte(asn >> 8)
+	rd.Value[1] = byte(asn)
+	rd.Value[2] = byte(val >> 24)
+	rd.Value[3] = byte(val >> 16)
+	rd.Value[4] = byte(val >> 8)
+	rd.Value[5] = byte(val)
+	return rd, nil
+}
+
+// ParseLabelStack parses MPLS labels from wire format.
+//
+// RFC 3107 (MPLS-BGP) specifies label encoding for BGP NLRI:
+//
+//	Each label is 3 bytes: 20-bit label value, 3-bit EXP/TC, 1-bit S (BOS)
+//
+// RFC 4364 Section 4.3.2 states PE routers distribute labeled VPN-IPv4 routes.
+// RFC 4659 Section 3.2 extends this for labeled VPN-IPv6 routes.
+//
+// Returns the label values and remaining bytes.
+func ParseLabelStack(data []byte) ([]uint32, []byte, error) {
+	var labels []uint32
+
+	for {
+		if len(data) < 3 {
+			return nil, nil, ErrShortRead
+		}
+
+		// RFC 3107: Label is in upper 20 bits of 3 bytes
+		// Byte 0: label[19:12]
+		// Byte 1: label[11:4]
+		// Byte 2: label[3:0], EXP[2:0], S (bottom-of-stack)
+		labelVal := uint32(data[0])<<12 | uint32(data[1])<<4 | uint32(data[2]>>4)
+		bos := data[2]&0x01 != 0
+
+		labels = append(labels, labelVal)
+		data = data[3:]
+
+		if bos {
+			break
+		}
+	}
+
+	return labels, data, nil
+}
+
+// EncodeLabelStack encodes labels to wire format per RFC 3107.
+//
+// RFC 3107 label encoding (3 bytes per label):
+//
+//	Byte 0: label[19:12]
+//	Byte 1: label[11:4]
+//	Byte 2: label[3:0] | EXP[2:0] | S
+//
+// The S (bottom-of-stack) bit is set on the last label only.
+//
+// Retained as a convenience wrapper for JSON / test callers that need a
+// standalone slice. Hot-path encoders should call WriteLabelStack
+// (helpers.go) directly with a pool buffer to skip the make.
+func EncodeLabelStack(labels []uint32) []byte {
+	buf := make([]byte, len(labels)*3) // pool-fallback: result owned by caller
+	WriteLabelStack(buf, 0, labels)
+	return buf
+}

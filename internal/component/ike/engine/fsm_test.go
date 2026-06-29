@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
-	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
 )
 
 func testIKEGroup() ipsec.IKEGroup {

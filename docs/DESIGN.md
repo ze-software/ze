@@ -36,7 +36,7 @@ properly -- lazy parsing, pool dedup, buffer-first encoding -- and never trades
 correctness for speed of implementation.
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate lazy-parsed byte buffer -->
 <!-- source: internal/component/bgp/attrpool/pool.go -- per-attribute-type dedup pools -->
-<!-- source: internal/component/bgp/context/registry.go -- ContextID for zero-copy decisions -->
+<!-- source: internal/core/bgp/context/registry.go -- ContextID for zero-copy decisions -->
 
 **Broad protocol coverage.** 23 address families (IPv4/IPv6 unicast, multicast, VPN,
 FlowSpec, FlowSpec VPN, EVPN, VPLS, BGP-LS, MPLS, MUP, MVPN, RTC, SR-Policy), 13 capabilities
@@ -182,7 +182,7 @@ return slices into the payload without copying. Iterator methods (`AttrIterator(
 
 No intermediate struct is ever built to iterate once.
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate struct and accessor methods -->
-<!-- source: internal/component/bgp/attribute/iterator.go -- AttrIterator -->
+<!-- source: internal/core/bgp/attribute/iterator.go -- AttrIterator -->
 
 ### Buffer-First Encoding
 
@@ -208,8 +208,8 @@ Each peer's negotiated capabilities (ASN4, ADD-PATH, Extended Next Hop) are hash
 a `ContextID` (uint16). When source and destination peers share the same ContextID, the
 engine forwards the cached wire bytes unchanged. When they differ, the engine re-encodes
 through `PackContext`.
-<!-- source: internal/component/bgp/context/registry.go -- ContextID type and hashing -->
-<!-- source: internal/component/bgp/context/context.go -- PackContext encoding rules -->
+<!-- source: internal/core/bgp/context/registry.go -- ContextID type and hashing -->
+<!-- source: internal/core/bgp/context/context.go -- PackContext encoding rules -->
 
 ### Pool-Based Deduplication
 
@@ -587,9 +587,9 @@ and registering it.
 | Software Version | 75 | draft-ietf-idr-software-version | Implemented |
 | Link-Local Next Hop | 77 | draft-ietf-idr-linklocal-capability | Implemented |
 
-<!-- source: internal/component/bgp/capability/capability.go -- capability codes and parsing -->
-<!-- source: internal/component/bgp/capability/encoding.go -- ASN4, AddPath, ExtendedMsg, ExtNH -->
-<!-- source: internal/component/bgp/capability/session.go -- GR, RouteRefresh, Role -->
+<!-- source: internal/core/bgp/capability/capability.go -- capability codes and parsing -->
+<!-- source: internal/core/bgp/capability/encoding.go -- ASN4, AddPath, ExtendedMsg, ExtNH -->
+<!-- source: internal/core/bgp/capability/session.go -- GR, RouteRefresh, Role -->
 
 ### Path Attributes
 
@@ -611,12 +611,12 @@ and registering it.
 | LARGE_COMMUNITY | 32 | RFC 8092 | `large-community` |
 | PREFIX_SID | 40 | RFC 8669 | `prefix-sid` |
 
-<!-- source: internal/component/bgp/attribute/attribute.go -- attribute code constants -->
-<!-- source: internal/component/bgp/attribute/origin.go -- ORIGIN attribute -->
-<!-- source: internal/component/bgp/attribute/aspath.go -- AS_PATH attribute -->
-<!-- source: internal/component/bgp/attribute/simple.go -- NEXT_HOP, MED, LOCAL_PREF, etc. -->
-<!-- source: internal/component/bgp/attribute/community.go -- COMMUNITY, EXT_COMMUNITY, LARGE_COMMUNITY -->
-<!-- source: internal/component/bgp/attribute/mpnlri.go -- MP_REACH_NLRI, MP_UNREACH_NLRI -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- attribute code constants -->
+<!-- source: internal/core/bgp/attribute/origin.go -- ORIGIN attribute -->
+<!-- source: internal/core/bgp/attribute/aspath.go -- AS_PATH attribute -->
+<!-- source: internal/core/bgp/attribute/simple.go -- NEXT_HOP, MED, LOCAL_PREF, etc. -->
+<!-- source: internal/core/bgp/attribute/community.go -- COMMUNITY, EXT_COMMUNITY, LARGE_COMMUNITY -->
+<!-- source: internal/core/bgp/attribute/mpnlri.go -- MP_REACH_NLRI, MP_UNREACH_NLRI -->
 
 ### Negotiated Capabilities and Encoding
 
@@ -973,8 +973,8 @@ This is not zero-copy in the kernel-bypass sense that Rust with `bytes::Bytes` o
 | `DirectBridge` | Bypasses IPC serialization for internal plugins (direct function calls) |
 
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate -->
-<!-- source: internal/component/bgp/context/context.go -- PackContext -->
-<!-- source: internal/component/bgp/context/registry.go -- ContextID -->
+<!-- source: internal/core/bgp/context/context.go -- PackContext -->
+<!-- source: internal/core/bgp/context/registry.go -- ContextID -->
 <!-- source: internal/component/bgp/attrpool/pool.go -- Pool -->
 <!-- source: internal/component/bgp/attrpool/handle.go -- Handle -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge -->

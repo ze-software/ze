@@ -52,7 +52,7 @@ recognized in `ParseASPath` and excluded from `PathLength()` per RFC 5065.
 ```
 MaxASPathTotalLength = 1000
 ```
-<!-- source: internal/component/bgp/attribute/aspath.go -- MaxASPathTotalLength -->
+<!-- source: internal/core/bgp/attribute/aspath.go -- MaxASPathTotalLength -->
 
 Any received AS_PATH with more than 1000 total ASNs (across all segments) is
 rejected as malformed during parsing. This prevents the memory-exhaustion crash

@@ -11,9 +11,9 @@ import (
 	"io"
 	"sync/atomic"
 
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/core/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"

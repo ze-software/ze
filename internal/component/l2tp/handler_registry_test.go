@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
+	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
 )
 
 func TestRegisterAuthHandler(t *testing.T) {

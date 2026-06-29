@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/subscriber"
-	subevents "codeberg.org/thomas-mangin/ze/internal/component/subscriber/events"
+	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber"
+	subevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 

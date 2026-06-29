@@ -18,7 +18,7 @@ import (
 	"time"
 
 	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
-	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
+	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 

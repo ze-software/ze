@@ -58,9 +58,9 @@
 | Link-Local Next Hop | 77 | — | IPv6 link-local as next-hop |
 | PATHS-LIMIT | 76 | draft-abraitis-idr-addpath-paths-limit | Per-family path count limit for ADD-PATH |
 
-<!-- source: internal/component/bgp/capability/capability.go -- capability code constants -->
-<!-- source: internal/component/bgp/capability/encoding.go -- ASN4, AddPath, ExtMsg, ExtNH -->
-<!-- source: internal/component/bgp/capability/session.go -- GR, RouteRefresh, Role -->
+<!-- source: internal/core/bgp/capability/capability.go -- capability code constants -->
+<!-- source: internal/core/bgp/capability/encoding.go -- ASN4, AddPath, ExtMsg, ExtNH -->
+<!-- source: internal/core/bgp/capability/session.go -- GR, RouteRefresh, Role -->
 <!-- source: internal/component/bgp/plugins/hostname/register.go -- Hostname capability plugin -->
 <!-- source: internal/component/bgp/plugins/softver/register.go -- Software Version capability plugin -->
 <!-- source: internal/component/bgp/plugins/llnh/register.go -- Link-Local NH capability plugin -->
@@ -85,7 +85,7 @@
 | LARGE_COMMUNITY | 32 | `large-community` | Large communities (RFC 8092) |
 | PREFIX_SID | 40 | `prefix-sid` | Segment Routing prefix SID |
 
-<!-- source: internal/component/bgp/attribute/attribute.go -- attribute code constants -->
-<!-- source: internal/component/bgp/attribute/origin.go -- ORIGIN -->
-<!-- source: internal/component/bgp/attribute/aspath.go -- AS_PATH -->
-<!-- source: internal/component/bgp/attribute/community.go -- COMMUNITY, EXT_COMMUNITY, LARGE_COMMUNITY -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- attribute code constants -->
+<!-- source: internal/core/bgp/attribute/origin.go -- ORIGIN -->
+<!-- source: internal/core/bgp/attribute/aspath.go -- AS_PATH -->
+<!-- source: internal/core/bgp/attribute/community.go -- COMMUNITY, EXT_COMMUNITY, LARGE_COMMUNITY -->

@@ -29,7 +29,7 @@ import (
 	zepb "codeberg.org/thomas-mangin/ze/api/proto"
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
-	"codeberg.org/thomas-mangin/ze/internal/component/audit"
+	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 

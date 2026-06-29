@@ -11,8 +11,6 @@ import (
 	"net/netip"
 	"unsafe"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -20,6 +18,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 

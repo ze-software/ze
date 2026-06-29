@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	fcyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 )
 
 func init() {

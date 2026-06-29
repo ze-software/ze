@@ -31,7 +31,7 @@
 4. `rfc/short/rfc5340.md` -- the OSPF IPv6 family transport: IPv6 protocol 89, link-local source, `ff02::5`/`ff02::6` multicast (§2.9); IP version distinguishes the IPv4 and IPv6 families for IPsec selectors (RFC 4552 §5)
 5. `internal/component/ike/dataplane/dataplane.go` -- the kernel SA/SP install seam (`Dataplane` interface, `SAParams`, `SPParams`, `SADir`, `Register`/`Load`/`Get`); the reuse target for kernel IPsec plumbing
 6. `internal/component/ike/dataplane/xfrm_linux.go` -- XFRM netlink backend (`InstallSA`/`InstallPolicy`/`RemoveSA`/`RemovePolicy`); transport mode (`Mode=1`) and IPv6 (`net.IP`) already supported; AH (`Proto=51`) and an upper-layer-protocol policy selector are the gaps
-7. `internal/component/ipsec/types.go` + `internal/component/ipsec/config.go` -- the IPsec component's SA/SP type and config model that the IKE dataplane realizes; the algorithm/key vocabulary this OSPF feature mirrors at the config surface
+7. `internal/component/ike/ipsec/types.go` + `internal/component/ike/ipsec/config.go` -- the IPsec component's SA/SP type and config model that the IKE dataplane realizes; the algorithm/key vocabulary this OSPF feature mirrors at the config surface
 8. `internal/plugins/ospf/v3/transport/transport.go` -- the OSPF IPv6-family raw IPv6 proto-89 transport orchestrator: `EnableInterface`, `OnInterfaceUp`/`OnInterfaceDown` callbacks, `SetSigner` (RFC 7166 only -- IPsec must NOT use it), `SendPacket`
 9. `internal/plugins/ospf/v3/transport/backend_linux.go` -- per-interface raw IPv6 socket open (`OpenInterface`), `SO_BINDTODEVICE`, multicast join `ff02::5`/`ff02::6`; the kernel applies AH/ESP transparently once a policy+SA is installed
 10. `internal/plugins/ospf/config.go` -- `ospfConfig`, `interfaceConfig`, `V6 *ospfConfig` (the `ospf { address-family ipv6 { ... } }` subtree); `interfaceConfig.Authentication` is the RFC 7166 key-chain seam (separate from IPsec)
@@ -67,7 +67,7 @@ must reject configuring both.
 
 The feature reuses the existing IKE dataplane abstraction
 (`internal/component/ike/dataplane`, which realizes the
-`internal/component/ipsec` SA/SP model) for the actual kernel SA/policy install
+`internal/component/ike/ipsec` SA/SP model) for the actual kernel SA/policy install
 rather than introducing a second XFRM client. Because that abstraction was built
 for IKEv2-negotiated ESP child SAs (tunnel mode, ESP only, no upper-layer-protocol
 selector), it is extended -- additively -- to also express AH (proto 51),
@@ -135,7 +135,7 @@ netlink mechanics.
 
 **Key insights:**
 - RFC 4552 is a **kernel-policy install** problem, not a packet-codec problem: once the XFRM transport-mode policy+SA for proto-89 is installed, the existing OSPF IPv6-family transport sends/receives unchanged and the kernel does the AH/ESP work both ways.
-- The reuse seam already exists (`internal/component/ike/dataplane`, realizing the `internal/component/ipsec` SA/SP model), but it was shaped for IKE ESP child SAs (tunnel mode, ESP only, no upper-layer selector). The minimum extension is: an AH proto value, transport mode in `SPParams.Mode`, and an `UpperProto` (89) policy selector. The IKE callers pass their current values and are unaffected.
+- The reuse seam already exists (`internal/component/ike/dataplane`, realizing the `internal/component/ike/ipsec` SA/SP model), but it was shaped for IKE ESP child SAs (tunnel mode, ESP only, no upper-layer selector). The minimum extension is: an AH proto value, transport mode in `SPParams.Mode`, and an `UpperProto` (89) policy selector. The IKE callers pass their current values and are unaffected.
 - Manual group keying (§7) means **one shared auth key per interface used for both the inbound and outbound SA**, not a per-neighbour SA pair -- this is exactly why IKE is unusable and why the config surface is per-interface, not per-neighbour.
 - RFC 4552 and RFC 7166 are mutually exclusive on an interface and use entirely separate code paths: 7166 uses the transport `SetSigner` hook (Ze signs the packet); 4552 installs kernel policy and leaves the packet bytes untouched. The validator must forbid both at once.
 - This is an OSPF IPv6 address-family feature, not a separate "ospfv3" product: it attaches to the `eng6` instance and the `_v6` transport leaf of the one unified OSPF engine.
@@ -149,7 +149,7 @@ netlink mechanics.
 - [ ] `internal/component/ike/dataplane/xfrm_linux.go` -- `InstallSA` builds a `netlink.XfrmState` honoring `Mode`/`Proto`/AEAD-vs-Crypt+Auth; `InstallPolicy` builds a `netlink.XfrmPolicy` with a single `XfrmPolicyTmpl{Proto,Mode,Reqid}` and `Dir`; `RemovePolicy`/`RemoveSA` by selector
   -> Constraint: `InstallSA` already supports AH-shaped state via `Crypt`+`Auth`, but AH has NO encryption -- for AH the install must set only `Auth` (the gap: today the non-AEAD branch always sets `Crypt`); `xfrmAuthName`/`xfrmAuthTruncLen` already map sha1/256/384/512
   -> Constraint: `InstallPolicy` does not set an upper-layer selector on the `XfrmPolicy` (`netlink.XfrmPolicy` has no proto field set today), so a proto-89-only match needs a new field threaded through `SPParams`
-- [ ] `internal/component/ipsec/types.go` + `internal/component/ipsec/config.go` -- the IPsec component SA/SP type and config vocabulary (algorithms, key material, modes) the dataplane realizes
+- [ ] `internal/component/ike/ipsec/types.go` + `internal/component/ike/ipsec/config.go` -- the IPsec component SA/SP type and config vocabulary (algorithms, key material, modes) the dataplane realizes
   -> Constraint: the OSPF IPv6-family config surface mirrors this algorithm/key vocabulary so operators see consistent naming; the OSPF feature does not introduce a parallel crypto vocabulary
 - [ ] `internal/component/ike/dataplane/register.go` -- `init()` registers `xfrm` and `vpp` backends; the IKE engine register calls `dataplane.Load("xfrm")` -- the backend is loaded ONLY when the IKE engine runs
   -> Constraint: the OSPF IPv6 family must ensure the xfrm backend is loaded when its IPsec is configured even if IKE is not; the installer calls `dataplane.Load("xfrm")` (idempotent) or `dataplane.Get()` and surfaces a doctor warning when unavailable
@@ -206,7 +206,7 @@ netlink mechanics.
 
 ### Integration Points
 - `internal/component/ike/dataplane` -- the SA/policy install seam (extended additively for AH, transport-mode policy, UpperProto); `Register`/`Load`/`Get`.
-- `internal/component/ipsec` -- the SA/SP type and config vocabulary the dataplane realizes; the OSPF config surface mirrors its algorithm/key naming.
+- `internal/component/ike/ipsec` -- the SA/SP type and config vocabulary the dataplane realizes; the OSPF config surface mirrors its algorithm/key naming.
 - `internal/plugins/ospf/v3/transport` -- `OnInterfaceUp`/`OnInterfaceDown` lifecycle, `LinkLocalSource`, the `AllSPFRouters`/`AllDRouters` constants.
 - `internal/plugins/ospf` (`eng6`) -- the installer constructed and hooked in `registerOSPF`/engine construction; reads `cfg.V6`.
 - `internal/plugins/ospf/config.go` + `yang/ze-ospf-conf.yang` -- the per-IPv6-family-interface `ipsec` block, parse + validate.
@@ -535,7 +535,7 @@ existing IPv6-family raw-socket transport and codecs stay untouched, and the onl
 new runtime work is installing a transport-mode XFRM policy+SA for proto-89
 traffic on each IPsec interface and letting the kernel apply/verify AH/ESP. The
 reuse seam (`internal/component/ike/dataplane`, realizing the
-`internal/component/ipsec` model) already does the netlink mechanics; the gap is
+`internal/component/ike/ipsec` model) already does the netlink mechanics; the gap is
 purely that it was shaped for IKE ESP child SAs (tunnel mode, ESP only, no
 upper-layer selector), so a small additive extension (AH proto, transport-mode
 policy, a proto-89 selector) makes it serve OSPF manual SAs too. Manual

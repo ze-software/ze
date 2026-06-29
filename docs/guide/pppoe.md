@@ -17,11 +17,11 @@ Subscriber CPE
     |
     | Ethernet (ethertype 0x8863 discovery, 0x8864 session)
     v
-PPPoE Subsystem (internal/component/pppoe/)
+PPPoE Subsystem (internal/component/l2tp/pppoe/)
     |
     | StartSession{ChanFD, UnitFD, AccessInterface, SubscriberMAC, ...}
     v
-PPP Driver (internal/component/ppp/)
+PPP Driver (internal/component/l2tp/ppp/)
     |
     v
 Auth/Pool/Shaper plugins (shared with L2TP)
@@ -76,6 +76,6 @@ PPP Driver, auth handlers, IP pools, and shaper plugins. The PPP
 component distinguishes sessions by TunnelID (ifindex for PPPoE, tunnel
 ID for L2TP) and SessionID.
 
-<!-- source: internal/component/pppoe/subsystem.go -->
-<!-- source: internal/component/pppoe/server.go -->
-<!-- source: internal/component/pppoe/discovery.go -->
+<!-- source: internal/component/l2tp/pppoe/subsystem.go -->
+<!-- source: internal/component/l2tp/pppoe/server.go -->
+<!-- source: internal/component/l2tp/pppoe/discovery.go -->

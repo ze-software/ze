@@ -27,55 +27,102 @@ test) into a placement rule that code can audit.
 
 Decision:
 
-- **not an engine** → it is **core** infra. It belongs in `internal/core/`. (Today
-  many libraries still sit under `internal/component/`; moving them is deferred —
-  see "Scope of enforcement".)
-- **engine + a feature depends on it** → **component** (`internal/component/`).
+- **core library** -> `internal/core/`. It has no config-driven lifecycle, no
+  registry side effect, and no reason to live with a component domain.
+- **framework** -> usually `internal/component/`. It provides Ze's wiring
+  substrate rather than a runnable feature: config, plugin, command, cli, doctor,
+  hub, lifecycle, and setup-feature integration.
+- **host-service** -> `internal/component/`. It is a daemon or appliance service
+  boundary such as web, ssh, gNMI, MCP, looking-glass, host APIs, or gokrazy
+  support. These packages are not pure core libraries because startup, doctor,
+  listener, or platform registration pins them to composition.
+- **domain-library** -> lives with the component domain it serves until that
+  domain is split. In this spec only BNG (`l2tp`, `ppp`, `pppoe`,
+  `pppoeclient`, `subscriber`) and VPN (`ike`, `ipsec`) are clustered. PKI stays
+  top-level because it is shared certificate infrastructure for IPsec and future TLS users.
+  AAA, traffic, firewall, and CoS stay flat unless a later spec proves a clean
+  isolated cluster.
+- **engine + a feature depends on it** -> **component** (`internal/component/`).
   It is a platform other plugins build on. BGP is the archetype: its sub-plugins
   and other code plug into it.
-- **engine + nothing depends on it** → **edge plugin** (`internal/plugins/`).
+- **engine + nothing depends on it** -> **edge plugin** (`internal/plugins/`).
   IS-IS, OSPF, LDP, RSVP-TE are edge protocols: they consume services (iface, the
   RIB) but nothing consumes them. A *gated* edge engine's blank import in the
-  generated `all_<tag>.go` (or a `cmd/ze` dispatch companion) is a registration
-  import, NOT a dependency, so it does not promote the engine to a component:
-  `dep_audit.py` treats those composition-root files as registration importers
-  (spec-feature-gate-8 -- the protocols are the first gated `sdk.NewWithConn`
-  engines).
+  generated `all_<tag>.go`, a `cmd/ze` dispatch companion, or
+  `cmd/ze/setup_features_*.go` is a registration import, NOT a dependency, so it
+  does not promote the engine to a component.
 
 The RIB stays **component** because edge protocols install routes through it.
 
+## Non-engine category manifest
+
+The source of truth for intentional non-engine placements outside
+`internal/core/` is `scripts/dev/tier_non_engine_categories.txt`. It is a
+human-readable manifest consumed by `scripts/dev/dep_audit.py --check`; do not
+hide new exceptions in Python code.
+
+Each row is:
+
+```text
+<repo-relative package dir> <category> <rationale>
+```
+
+Allowed categories:
+
+| Category | Meaning | Allowed home |
+|----------|---------|--------------|
+| `framework` | Wiring substrate or setup feature that exists to register, configure, command, audit, or orchestrate other packages. | `internal/component/` or setup packages under `internal/plugins/` |
+| `host-service` | Listener, appliance, host API, or platform service pinned to composition by startup or doctor/platform registration. | `internal/component/` |
+| `domain-library` | Non-engine package that belongs to a real domain cluster. In this spec that means BNG and VPN only. | `internal/component/` |
+| `planned-violation` | Existing known placement that is scheduled to move or disappear. New rows need a spec reference in the rationale. | `internal/component/` or `internal/plugins/` |
+
+The manifest is not a general allowlist. It classifies packages whose placement
+cannot be derived from the engine and registration mechanics alone, and the gate
+fails if a manifest row points at an engine, uses the wrong home for its category,
+goes stale, or a shared non-engine placement appears without a row.
+
 ## Authoring rule (read before creating a package)
 
-Decide the tier by the two axes BEFORE you pick a directory:
+Decide the tier by the two axes and the non-engine categories BEFORE you pick a
+directory:
 
-1. Pure library, no `sdk.NewWithConn`, no plugin lifecycle → `internal/core/<x>`.
-2. Engine that other plugins will depend on → `internal/component/<x>`.
-3. Engine that is a self-contained leaf feature → `internal/plugins/<x>`.
+1. Pure library, no `sdk.NewWithConn`, no plugin lifecycle, no component domain
+   owner -> `internal/core/<x>`.
+2. Framework or host-service infrastructure -> classify it in
+   `scripts/dev/tier_non_engine_categories.txt` and keep it under
+   `internal/component/<x>` unless this rule says setup-package placement belongs
+   under `internal/plugins/<x>`.
+3. Domain library -> keep it with the owning domain only when the manifest names
+   the domain category. Today that means BNG and VPN; AAA, traffic, firewall, and
+   CoS stay flat.
+4. Engine that other plugins will depend on -> `internal/component/<x>`.
+5. Engine that is a self-contained leaf feature -> `internal/plugins/<x>`.
 
 A **sub-plugin of an existing subsystem** (e.g. a BGP capability or NLRI codec)
 goes under that subsystem's own plugin namespace (`internal/component/bgp/plugins/<x>`),
 not at the top level. Those nested namespaces are listed in the generator's
 `pluginDirs` (`scripts/codegen/plugin_imports.go`).
 
-## Scope of enforcement (Path C)
+## Scope of enforcement
 
-Only the **engine-placement** rule is enforced today, because it is the only part
-that is fully mechanical:
+The gate enforces engine placement mechanically and enforces ambiguous
+non-engine placements through the manifest:
 
 > A config-driven engine (`sdk.NewWithConn`) at a top-level subsystem MUST be in
 > `internal/component/` if a feature depends on it, else in `internal/plugins/`.
+>
+> A non-engine package outside `internal/core/` MUST either be classified by the
+> existing registration mechanics or have a manifest row in
+> `scripts/dev/tier_non_engine_categories.txt`.
 
-The **core vs component-vs-host** distinction for non-engine libraries is REPORTED
-by `scripts/dev/dep_audit.py` (advisory) but NOT gated. The "is this wired as a
-plugin?" half of that distinction is now mechanical: the advisory reads the
-composition roots (the generated `all.go` plus `cmd/ze` dispatch) to tell a wired
-plugin from a genuine core candidate, so every plugin shape -- `*-cmd` verb
-providers, doctor checks, `RegisterBackend`, `RegisterRPCs` -- is recognized without
-a per-mechanism registration grep that used to mis-send `*-cmd` dirs to core
-(umbrella blocker B-1). What still blocks *enforcing* core/composition is structural,
-not the plugin signal: BGP fuses a codec library with its engine (B-2) and
-host-services need a tier decision (B-3) -- see `plan/spec-tiers-0-umbrella.md`
-"Phase 5 Hardening Analysis". There is **no permanent allowlist**.
+The "wired as a plugin" signal is mechanical: the advisory reads composition
+roots (generated `all.go`, gated `all_<tag>.go`, `cmd/ze` dispatch companions,
+and `cmd/ze/setup_features_*.go`) to tell registered packages from genuine core
+candidates. It catches every shape: `registry.Register`, `RegisterRPCs`,
+`RegisterBackend`, doctor checks, `*-cmd` verb providers, and setup-feature
+commands. BGP codec/type packages are being split separately; `ike/dataplane`
+stays under component until its VPP backend is split from the interface package.
+There is **no permanent allowlist**.
 
 ## Disable-ability (compile-out)
 
@@ -131,16 +178,21 @@ build-tags is edited by hand (static YAML), and `dep_audit.py --check` fails on
 its drift. Full procedure and the two registration shapes:
 `ai/rules/feature-gate-registration.md`.
 
-## The gate
-
-`scripts/dev/dep_audit.py --check` enforces the engine-placement rule AND the
-disable-ability rule, and runs in `make ze-verify` (target `ze-tier-check`). It:
+`scripts/dev/dep_audit.py --check` enforces the engine-placement rule, the
+non-engine category manifest, the disable-ability rule, and golangci build-tag
+drift. It runs in `make ze-verify` (target `ze-tier-check`). It:
 
 - parses `pluginDirs` from `scripts/codegen/plugin_imports.go` to exclude nested
   sub-plugin namespaces (so `bgp/plugins/*` are never flagged);
+- treats generated `all.go` files, gated `all_<tag>.go` files, `cmd/ze`
+  dispatch/import companions, and `cmd/ze/setup_features_*.go` as registration
+  importers, not functional dependencies;
 - fails (exit 2) on any **new** misplaced engine, naming the dir and its required
   tier, pointing here;
-- fails on a **stale** baseline entry (one no longer misplaced), forcing cleanup;
+- fails on a **stale** engine baseline entry (one no longer misplaced), forcing
+  cleanup;
+- fails (exit 2) on any illegal, stale, or missing row in
+  `scripts/dev/tier_non_engine_categories.txt`;
 - fails (exit 2) if a `DISABLEABLE` feature is imported by always-on (untagged,
   non-test) code, naming the file and the build tag it needs.
 

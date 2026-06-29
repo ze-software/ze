@@ -20,23 +20,25 @@ reference this", which is the right question for a "can this move" audit.
 
 Usage:
     scripts/dev/dep_audit.py [AREA ...] [--json] [--candidates-only]   # report
-    scripts/dev/dep_audit.py --check            # Path C engine-placement GATE
-    scripts/dev/dep_audit.py --write-baseline   # (re)generate the migration baseline
+    scripts/dev/dep_audit.py --check            # module-tier placement GATE
+    scripts/dev/dep_audit.py --write-baseline   # (re)generate the engine baseline
 
     AREA defaults to the three registries:
         internal/component  internal/plugins  internal/component/bgp/plugins
 
 Report exit code: 0 always.
 Gate (--check) exit codes: 0 = compliant (or only baselined), 2 = a new misplaced
-engine OR a stale baseline entry OR the pluginDirs parse failed.
+engine, stale baseline entry, illegal/unclassified non-engine placement, manifest
+error, or pluginDirs parse failure.
 
-Module-tier rule (Path C, see ai/rules/module-tiers.md): a config-driven engine
+Module-tier rule (see ai/rules/module-tiers.md): a config-driven engine
 (`sdk.NewWithConn`) at a top-level subsystem MUST live in internal/component/ if a
 feature depends on it, else in internal/plugins/. Nested sub-plugin namespaces
-(from the generator's pluginDirs) are excluded. core/composition tiers are reported
-but NOT enforced (advisory). The only exception list is the transitional migration
-baseline (scripts/dev/tier_migration_baseline.txt); it shrinks to zero as the
-tiers-2/3 child specs land. It is NOT a permanent allowlist.
+(from the generator's pluginDirs) are excluded. Non-engine packages that are not
+decided by the existing plugin/component/core mechanics MUST be classified in
+scripts/dev/tier_non_engine_categories.txt as framework, host-service,
+domain-library, or planned-violation. The engine baseline remains transitional and
+is NOT a permanent allowlist.
 """
 
 import json
@@ -87,7 +89,11 @@ def is_registration_importer(rel: str) -> bool:
         and base.endswith(".go")
     ):
         return True
-    if rel.startswith("cmd/ze/") and ("dispatch" in rel or rel.endswith("_imports.go")):
+    if rel.startswith("cmd/ze/") and (
+        "dispatch" in rel
+        or rel.endswith("_imports.go")
+        or re.search(r"/setup_features_[^/]+\.go$", rel)
+    ):
         return True
     return False
 
@@ -374,6 +380,17 @@ def golangci_drift_gate(root: str) -> int:
 
 GENERATOR = "scripts/codegen/plugin_imports.go"
 BASELINE = "scripts/dev/tier_migration_baseline.txt"
+NON_ENGINE_CATEGORIES = "scripts/dev/tier_non_engine_categories.txt"
+LEGAL_NON_ENGINE_CATEGORIES = {
+    "framework",
+    "host-service",
+    "domain-library",
+    "planned-violation",
+}
+DOMAIN_LIBRARY_PREFIXES = (
+    "internal/component/l2tp",
+    "internal/component/ike",
+)
 NON_FEATURE_PREFIXES = (
     "cmd/ze/",
     "internal/core/",
@@ -382,20 +399,31 @@ NON_FEATURE_PREFIXES = (
 )
 
 
+def _parse_string_list(root: str, name: str) -> list:
+    path = os.path.join(root, GENERATOR)
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    m = re.search(rf"var {name} = \[\]string\{{(.*?)\}}", text, re.DOTALL)
+    if not m:
+        return []
+    return re.findall(r'"([^"]+)"', m.group(1))
+
+
 def parse_plugin_dirs(root: str) -> list:
-    """Read the `var pluginDirs = []string{...}` literal from the generator.
+    """Read plugin search roots from the generator.
 
     The generator is the authority on where plugins (incl. nested sub-plugin
     namespaces) legitimately live. Parsing it keeps the gate consistent with the
     composition root instead of duplicating a guess (umbrella blocker B-1).
     """
-    path = os.path.join(root, GENERATOR)
-    with open(path, encoding="utf-8") as fh:
-        text = fh.read()
-    m = re.search(r"var pluginDirs = \[\]string\{(.*?)\}", text, re.DOTALL)
-    if not m:
-        return []
-    return re.findall(r'"([^"]+)"', m.group(1))
+    roots = list(_parse_string_list(root, "pluginDirs"))
+    seen = set(roots)
+    for domain in _parse_string_list(root, "nestedPluginDomains"):
+        rel = f"internal/component/{domain}/plugins"
+        if rel not in seen:
+            roots.append(rel)
+            seen.add(rel)
+    return roots
 
 
 def nested_namespaces(plugin_dirs: list) -> list:
@@ -533,13 +561,211 @@ def write_baseline(root: str, mis: dict) -> None:
         fh.write("\n".join(lines) + "\n")
 
 
+def load_non_engine_categories(root: str) -> tuple[dict, list]:
+    """Parse tier_non_engine_categories.txt.
+
+    Rows are repo-relative package dirs plus a category and free-form rationale:
+        internal/component/host  host-service  host APIs + doctor registration
+
+    The manifest is the human-readable source of truth for intentional non-engine
+    placements outside the purely mechanical plugin/component/core rules.
+    """
+    path = os.path.join(root, NON_ENGINE_CATEGORIES)
+    rows = {}
+    errors = []
+    if not os.path.exists(path):
+        return rows, [f"{NON_ENGINE_CATEGORIES}: missing non-engine category manifest"]
+    for lineno, line in enumerate(open(path, encoding="utf-8"), 1):
+        raw = line.strip()
+        if not raw or raw.startswith("#"):
+            continue
+        parts = raw.split(None, 2)
+        if len(parts) != 3 or not parts[2].strip():
+            errors.append(
+                f"{NON_ENGINE_CATEGORIES}:{lineno}: expected '<path> <category> <rationale>'"
+            )
+            continue
+        rel, category, rationale = parts[0], parts[1], parts[2].strip()
+        if rel in rows:
+            errors.append(f"{NON_ENGINE_CATEGORIES}:{lineno}: duplicate row for {rel}")
+            continue
+        if category not in LEGAL_NON_ENGINE_CATEGORIES:
+            cats = ", ".join(sorted(LEGAL_NON_ENGINE_CATEGORIES))
+            errors.append(
+                f"{NON_ENGINE_CATEGORIES}:{lineno}: unknown category {category!r}; expected one of {cats}"
+            )
+            continue
+        if category == "planned-violation" and not re.search(
+            r"\bspec-[A-Za-z0-9][A-Za-z0-9_.-]*\b", rationale
+        ):
+            errors.append(
+                f"{NON_ENGINE_CATEGORIES}:{lineno}: planned-violation rationale must cite a spec-* reference"
+            )
+            continue
+        rows[rel] = {
+            "category": category,
+            "rationale": rationale,
+            "line": lineno,
+        }
+    return rows, errors
+
+
+def non_engine_manifest_required(row: dict) -> bool:
+    """True when mechanics cannot classify this non-engine placement alone."""
+    if row["is_engine"] or row["is_registered"]:
+        return False
+    return True
+
+
+def non_engine_area(rel: str) -> str | None:
+    if rel.startswith("internal/component/"):
+        return "internal/component"
+    if rel.startswith("internal/plugins/"):
+        return "internal/plugins"
+    return None
+
+def _under(rel: str, prefix: str) -> bool:
+    return rel == prefix or rel.startswith(prefix + "/")
+
+
+def _setup_feature_registration(importer: str) -> bool:
+    return importer.startswith("cmd/ze/") and bool(
+        re.search(r"/setup_features_[^/]+\.go$", importer)
+    )
+
+
+def valid_non_engine_category(rel: str, category: str, row: dict) -> tuple[bool, str]:
+    if category == "framework":
+        if rel.startswith("internal/component/"):
+            return True, ""
+        if rel.startswith("internal/plugins/") and any(
+            _setup_feature_registration(imp) for imp in row["registration"]
+        ):
+            return True, ""
+        return (
+            False,
+            "framework rows under internal/plugins must be setup-feature registrations",
+        )
+    if category == "host-service":
+        if rel.startswith("internal/component/"):
+            return True, ""
+        return False, "host-service rows are allowed only under internal/component"
+    if category == "domain-library":
+        if any(_under(rel, prefix) for prefix in DOMAIN_LIBRARY_PREFIXES):
+            return True, ""
+        allowed = ", ".join(DOMAIN_LIBRARY_PREFIXES)
+        return False, f"domain-library rows are allowed only under {allowed}"
+    if category == "planned-violation":
+        if rel.startswith("internal/component/") or rel.startswith("internal/plugins/"):
+            return True, ""
+        return (
+            False,
+            "planned-violation rows are allowed only under internal/component or internal/plugins",
+        )
+    return False, f"unknown category {category!r}"
+
+
+def classify_rel(rel: str, module: str, edges: dict, engine_dirs: set) -> dict:
+    pkg_prefix = module + "/" + rel
+    own_rel_prefix = rel + os.sep
+    external, registration, tests = set(), set(), set()
+    for imported, importers in edges.items():
+        if imported != pkg_prefix and not imported.startswith(pkg_prefix + "/"):
+            continue
+        for imp in importers:
+            if imp.startswith(own_rel_prefix):
+                continue
+            if imp.endswith("_test.go"):
+                tests.add(imp)
+            elif is_registration_importer(imp):
+                registration.add(imp)
+            else:
+                external.add(imp)
+    is_registered = len(registration) > 0
+    is_engine = rel in engine_dirs
+    return {
+        "external": sorted(external),
+        "registration": sorted(registration),
+        "tests": sorted(tests),
+        "is_registered": is_registered,
+        "is_engine": is_engine,
+        "core_candidate": len(external) == 0 and not is_registered and not is_engine,
+    }
+
+
+def non_engine_category_errors(root: str, module: str, edges: dict) -> list:
+    manifest, errors = load_non_engine_categories(root)
+    plugin_dirs = parse_plugin_dirs(root)
+    nested_ns = nested_namespaces(plugin_dirs)
+    engine_dirs = set(find_engine_dirs(root, nested_ns))
+    engines = {top_subsystem(e) for e in engine_dirs}
+    audited = {}
+    for area in ("internal/component", "internal/plugins"):
+        for row in classify(area, root, module, edges, engines):
+            audited[f"{area}/{row['name']}"] = (area, row)
+
+    for rel, meta in sorted(manifest.items()):
+        area = non_engine_area(rel)
+        if area is None:
+            errors.append(
+                f"{NON_ENGINE_CATEGORIES}:{meta['line']}: {rel} is outside internal/component or internal/plugins"
+            )
+            continue
+        if not os.path.isdir(os.path.join(root, rel)):
+            errors.append(
+                f"{NON_ENGINE_CATEGORIES}:{meta['line']}: {rel} does not exist"
+            )
+            continue
+        row = (
+            audited[rel][1]
+            if rel in audited
+            else classify_rel(rel, module, edges, engine_dirs)
+        )
+        category = meta["category"]
+        if row["is_engine"]:
+            errors.append(
+                f"{NON_ENGINE_CATEGORIES}:{meta['line']}: {rel} is an engine; engine placement is mechanical, not a non-engine category"
+            )
+        ok, reason = valid_non_engine_category(rel, category, row)
+        if not ok:
+            errors.append(
+                f"{NON_ENGINE_CATEGORIES}:{meta['line']}: {rel} uses category {category!r}: {reason}"
+            )
+
+    for rel, (_, row) in sorted(audited.items()):
+        if non_engine_manifest_required(row) and rel not in manifest:
+            errors.append(
+                f"{rel}: unclassified non-engine placement; add a {NON_ENGINE_CATEGORIES} row or move it to the mechanical tier"
+            )
+    return errors
+
+
+def non_engine_category_gate(root: str, module: str, edges: dict) -> int:
+    errors = non_engine_category_errors(root, module, edges)
+    if errors:
+        print("FAIL: non-engine tier category manifest mismatch:", file=sys.stderr)
+        for err in errors:
+            print(f"  {err}", file=sys.stderr)
+        print(
+            "  Rule: ai/rules/module-tiers.md (non-engine categories are manifest-backed).",
+            file=sys.stderr,
+        )
+        return 2
+    manifest, _ = load_non_engine_categories(root)
+    print(
+        f"OK: non-engine placement categories clean; {len(manifest)} manifest row(s)."
+    )
+    return 0
+
+
 def run_gate(root: str, module: str, edges: dict) -> int:
-    """Combined --check gate: engine placement (Path C) + disableable imports +
-    .golangci.yml manifest drift."""
+    """Combined --check gate: engine placement, non-engine category manifest,
+    disableable imports, and .golangci.yml manifest drift."""
     engine_rc = engine_placement_gate(root, module, edges)
+    non_engine_rc = non_engine_category_gate(root, module, edges)
     dis_rc = disableable_gate(root, module, edges)
     golangci_rc = golangci_drift_gate(root)
-    return engine_rc or dis_rc or golangci_rc
+    return engine_rc or non_engine_rc or dis_rc or golangci_rc
 
 
 def engine_placement_gate(root: str, module: str, edges: dict) -> int:
@@ -583,8 +809,8 @@ def engine_placement_gate(root: str, module: str, edges: dict) -> int:
     else:
         print("OK: engine placement clean; no exceptions (baseline empty).")
     print(
-        "advisory: Path C enforces only engine placement; core/composition tiers "
-        "are reported by `dep_audit.py` (no --check) but NOT gated."
+        "advisory: engine placement is mechanical; intentional non-engine "
+        f"framework/host/domain placements are declared in {NON_ENGINE_CATEGORIES}."
     )
     return 0
 
@@ -683,6 +909,20 @@ def selftest() -> int:
             "internal/plugins/edge1/use.go",
             f'package edge1\nimport _ "{mod}/internal/plugins/sharedlib"\n',
         )
+        # setup feature packages are wired by cmd/ze/setup_features_*.go. They
+        # must classify as registered, not shared libraries.
+        w(root, "internal/plugins/setupcmd/r.go", "package setupcmd\n")
+        w(
+            root,
+            "cmd/ze/setup_features_distro.go",
+            f'package main\nimport _ "{mod}/internal/plugins/setupcmd"\n',
+        )
+        # non-engine category-manifest fixtures.
+        w(root, "internal/component/frameworklib/lib.go", "package frameworklib\n")
+        w(root, "internal/component/hostsvc/lib.go", "package hostsvc\n")
+        w(root, "internal/component/l2tp/lib.go", "package l2tp\n")
+        w(root, "internal/plugins/oldleaf/lib.go", "package oldleaf\n")
+        w(root, "internal/component/unclassified/lib.go", "package unclassified\n")
 
         edges = collect_edges(root, mod)
         mis = engine_misplacements(root, mod, edges)
@@ -712,6 +952,12 @@ def selftest() -> int:
             "wired *-cmd mis-sent to core (B-1)"
         )
         assert rows["genverb"]["is_registered"], "all.go-wired plugin not seen as wired"
+        assert rows["setupcmd"]["is_registered"], (
+            "setup_features_*.go-wired plugin not seen as wired"
+        )
+        assert not rows["setupcmd"]["core_candidate"], (
+            "setup_features_*.go-wired plugin mis-sent to core"
+        )
         assert not rows["genverb"]["core_candidate"], (
             "all.go-wired plugin mis-sent to core"
         )
@@ -768,16 +1014,43 @@ def selftest() -> int:
             "non-production (ze-chaos) importer of a disableable feature wrongly flagged"
         )
 
-        # feature-gate manifest + lint build-tags fixtures so the full --check
-        # gate (run_gate) below exercises only engine placement: no gates declared
-        # here, and build-tags carry the base tag only, so the disableable and
-        # golangci drift gates are both clean.
+        # feature-gate manifest + lint build-tags fixtures keep the disableable
+        # and golangci drift gates clean while the run_gate checks below exercise
+        # engine placement and non-engine category enforcement.
         w(root, FEATURE_GATES_MANIFEST, "# no gates in this fixture\n")
         w(root, GOLANGCI, "run:\n  build-tags:\n    - ze_core\nlinters: {}\n")
+        w(
+            root,
+            NON_ENGINE_CATEGORIES,
+            "# path category rationale\n"
+            "internal/component/frameworklib\tframework\tselftest framework package\n"
+            "internal/component/plugin\tframework\tselftest composition root\n"
+            "internal/component/hostsvc\thost-service\tselftest host service package\n"
+            "internal/component/host\thost-service\tselftest host nested plugin root\n"
+            "internal/component/l2tp\tdomain-library\tselftest domain library package\n"
+            "internal/plugins/leaflib\tplanned-violation\tspec-tiers-5 selftest misplaced leaf\n"
+            "internal/component/widget\tframework\tselftest disableable feature package\n"
+            "internal/plugins/consumer\tplanned-violation\tspec-tiers-5 selftest feature importer fixture\n"
+            "internal/plugins/oldleaf\tplanned-violation\tspec-tiers-5 selftest planned violation\n"
+            "internal/plugins/sharedlib\tplanned-violation\tspec-tiers-5 selftest shared plugin lib\n"
+            "internal/plugins/setupcmd\tframework\tselftest setup feature registration\n",
+        )
 
         assert _quiet_gate(root, mod, edges) == 2, "empty baseline should fail (new)"
         write_baseline(root, mis)
-        assert _quiet_gate(root, mod, edges) == 0, "matching baseline should pass"
+        assert _quiet_gate(root, mod, edges) == 2, (
+            "unclassified non-engine placement should fail"
+        )
+        with open(
+            os.path.join(root, NON_ENGINE_CATEGORIES), "a", encoding="utf-8"
+        ) as fh:
+            fh.write(
+                "internal/component/unclassified\tplanned-violation\t"
+                "spec-tiers-5 selftest illegal package made explicit\n"
+            )
+        assert _quiet_gate(root, mod, edges) == 0, (
+            "matching baseline and classified non-engines should pass"
+        )
         with open(os.path.join(root, BASELINE), "a", encoding="utf-8") as fh:
             fh.write("internal/component/gone\tinternal/plugins\tspec-tiers-2\n")
         assert _quiet_gate(root, mod, edges) == 2, "stale baseline entry should fail"

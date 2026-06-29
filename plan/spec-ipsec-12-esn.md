@@ -13,7 +13,7 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` -- workflow rules
 3. `rfc/short/rfc7296.md` (Section 3.3.2 Transform Type 5), `rfc/short/rfc4303.md` (Section 3.3.3 sequence numbers / anti-replay)
-4. Source files: `internal/component/ike/engine/initiator.go` (`buildWireESPProposals`), `internal/component/ike/engine/auth.go`, `internal/component/ike/engine/fsm.go`, `internal/component/ike/engine/child.go`, `internal/component/ike/dataplane/{dataplane,xfrm_linux,vpp}.go`, `internal/component/ipsec/{types,config}.go`, `internal/component/ipsec/yang/ze-ipsec-conf.yang`
+4. Source files: `internal/component/ike/engine/initiator.go` (`buildWireESPProposals`), `internal/component/ike/engine/auth.go`, `internal/component/ike/engine/fsm.go`, `internal/component/ike/engine/child.go`, `internal/component/ike/dataplane/{dataplane,xfrm_linux,vpp}.go`, `internal/component/ike/ipsec/{types,config}.go`, `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang`
 
 ## Task
 
@@ -121,14 +121,14 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
   (155-169) has NO `Flags` field; current code sets `Salt:0, UDPSrcPort:0, UDPDstPort:0`.
   -> Constraint: VPP `vl_api_ipsec_sad_entry_t` carries a `flags` field; adding it shifts the
      binary layout, which must match VPP's wire format exactly (see Risk R-1).
-- [ ] `internal/component/ipsec/types.go` -- `ESPProposal` (343-347) / `IKEProposal`
+- [ ] `internal/component/ike/ipsec/types.go` -- `ESPProposal` (343-347) / `IKEProposal`
   (358-363); enum pattern (names map + `Parse*` + `String`), e.g. `PFSMode` (116-149).
   -> Constraint: add `ESNMode` enum following the existing pattern; add `ESN ESNMode` to both
      proposal structs. Zero value MUST equal `disabled` to preserve current behavior.
-- [ ] `internal/component/ipsec/config.go` -- `parseESPProposal` (179-213), `parseIKEProposal`
+- [ ] `internal/component/ike/ipsec/config.go` -- `parseESPProposal` (179-213), `parseIKEProposal`
   (330-377) read leaves via `t.Get`.
   -> Constraint: parse `esn` leaf the same way; absent -> `ESNDisabled`.
-- [ ] `internal/component/ipsec/yang/ze-ipsec-conf.yang` -- `typedef encryption-algo` (13),
+- [ ] `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` -- `typedef encryption-algo` (13),
   `typedef hash-algo` (24); `esp-group/proposal` (70-91); `ike-group/proposal` (160-190).
   -> Constraint: add `typedef esn-mode` near other typedefs; add `leaf esn` to both proposal
      lists with `default "disabled"`.
@@ -249,10 +249,10 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestParseESNMode` | `internal/component/ipsec/types_test.go` | enum <-> string roundtrip; unknown -> false; zero value = disabled | |
-| `TestParseESPProposalESN` | `internal/component/ipsec/config_test.go` | `esn` leaf parsed; absent -> ESNDisabled | |
-| `TestParseIKEProposalESN` | `internal/component/ipsec/config_test.go` | `esn` leaf parsed into IKEProposal | |
-| `TestConfigChangedESN` | `internal/component/ipsec/types_test.go` | esn change marks peer changed (AC-10) | |
+| `TestParseESNMode` | `internal/component/ike/ipsec/types_test.go` | enum <-> string roundtrip; unknown -> false; zero value = disabled | |
+| `TestParseESPProposalESN` | `internal/component/ike/ipsec/config_test.go` | `esn` leaf parsed; absent -> ESNDisabled | |
+| `TestParseIKEProposalESN` | `internal/component/ike/ipsec/config_test.go` | `esn` leaf parsed into IKEProposal | |
+| `TestConfigChangedESN` | `internal/component/ike/ipsec/types_test.go` | esn change marks peer changed (AC-10) | |
 | `TestBuildWireESPProposalsESN` | `internal/component/ike/engine/initiator_test.go` | disabled->[0], required->[1], optional->[0,1] (AC-3/4/5) | |
 | `TestBuildWireIKEProposalsNoESN` | `internal/component/ike/engine/initiator_test.go` | IKE proposals never carry ESN (AC-9) | |
 | `TestESNNegotiate` | `internal/component/ike/engine/*_test.go` | pure helper: (localMode, offeredIDs) -> chosen/ok matrix (AC-7/7b) | |
@@ -282,11 +282,11 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 - None planned. QEMU is mandatory for the XFRM (linux-only) path per `ai/rules/qemu-testing.md`.
 
 ## Files to Modify
-- `internal/component/ipsec/yang/ze-ipsec-conf.yang` -- `typedef esn-mode`; `leaf esn` on
+- `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` -- `typedef esn-mode`; `leaf esn` on
   `esp-group/proposal` and `ike-group/proposal` (default "disabled", description notes child-SA scope)
-- `internal/component/ipsec/types.go` -- `ESNMode` enum (+names/`ParseESNMode`/`String`);
+- `internal/component/ike/ipsec/types.go` -- `ESNMode` enum (+names/`ParseESNMode`/`String`);
   `ESN ESNMode` on `ESPProposal` and `IKEProposal`; include ESN in any proposal-equality used by `Changed`
-- `internal/component/ipsec/config.go` -- parse `esn` in `parseESPProposal` + `parseIKEProposal`
+- `internal/component/ike/ipsec/config.go` -- parse `esn` in `parseESPProposal` + `parseIKEProposal`
 - `internal/component/ike/engine/initiator.go` -- `buildWireESPProposals` ESN-mode emission;
   keep `buildWireIKEProposals` ESN-free; `wireProposalsToIKE` unchanged (still ignores ESN for IKE)
 - `internal/component/ike/engine/fsm.go` -- initiator: parse responder's chosen ESN transform
@@ -304,7 +304,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new config leaf) | [ ] yes | `internal/component/ipsec/yang/ze-ipsec-conf.yang` |
+| YANG schema (new config leaf) | [ ] yes | `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` |
 | YANG validation constraints | [ ] yes | `typedef esn-mode` enumeration (required/optional/disabled), `default "disabled"` -- native enum, no custom validator needed |
 | YANG custom validators | [ ] no | enum is fully constrained natively |
 | CLI commands/flags | [ ] no | config-driven; editor autocomplete is automatic for YANG enum leaves |
@@ -384,7 +384,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `esn` leaf on both proposal lists | `grep "leaf esn" internal/component/ipsec/yang/ze-ipsec-conf.yang` (2 hits) |
+| `esn` leaf on both proposal lists | `grep "leaf esn" internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` (2 hits) |
 | ESN emission per mode | `go test ./internal/component/ike/engine/ -run BuildWireESPProposalsESN` |
 | XFRM ESN flag | QEMU: `ip xfrm state` shows `flag esn` |
 | VPP USE_ESN | `go test ./internal/component/ike/dataplane/ -run VPPSAEntryESNFlag` |

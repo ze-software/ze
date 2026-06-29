@@ -115,7 +115,7 @@ Each NLRI type plugin implements `String()` which produces the text representati
 | MVPN | `<route-type> rd set X` | rd (conditional) | `bgp-nlri-mvpn/types.go:192` |
 | RTC | `origin-as set X rt set Y` or `default` | default case has no sub-keys | `bgp-nlri-rtc/types.go:184` |
 | MUP | `<route-type> rd set X` | rd (conditional) | `bgp-nlri-mup/types.go:200` |
-<!-- source: internal/component/bgp/nlri/inet.go -- INET.String -->
+<!-- source: internal/core/bgp/nlri/inet.go -- INET.String -->
 <!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- String -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- String -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- String -->

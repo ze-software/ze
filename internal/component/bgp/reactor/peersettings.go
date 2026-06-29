@@ -9,8 +9,8 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aihelp"
-	"codeberg.org/thomas-mangin/ze/internal/component/audit"
+	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 )
 
 // maxRequestBody limits the size of MCP HTTP request bodies (1 MB).

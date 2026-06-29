@@ -17,10 +17,10 @@ import (
 	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )

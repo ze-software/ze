@@ -14,7 +14,7 @@ package message
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
 )
 
 // Update represents a BGP UPDATE message (RFC 4271 Section 4.3).

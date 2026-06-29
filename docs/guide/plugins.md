@@ -227,10 +227,10 @@ session lifecycle events via the EventBus.
 
 See [L2TP guide](l2tp.md) for configuration details.
 
-<!-- source: internal/plugins/l2tpauthlocal/register.go -->
-<!-- source: internal/plugins/l2tpauthradius/register.go -->
-<!-- source: internal/plugins/l2tppool/register.go -->
-<!-- source: internal/plugins/l2tpshaper/register.go -->
+<!-- source: internal/component/l2tp/plugins/authlocal/register.go -->
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -->
+<!-- source: internal/component/l2tp/plugins/pool/register.go -->
+<!-- source: internal/component/l2tp/plugins/shaper/register.go -->
 
 The `iface` plugin defines a `Backend` interface and loads a backend by name (YANG
 `backend` leaf, default `netlink`). The `iface-netlink` backend handles all Linux

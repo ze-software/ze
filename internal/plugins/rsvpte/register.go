@@ -22,10 +22,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	rsvpteyang "codeberg.org/thomas-mangin/ze/internal/plugins/rsvpte/yang"

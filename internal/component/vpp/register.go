@@ -11,11 +11,11 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
 	vppyang "codeberg.org/thomas-mangin/ze/internal/component/vpp/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	vppevents "codeberg.org/thomas-mangin/ze/internal/core/vpp/events"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )

@@ -99,7 +99,7 @@ The `limit` leaf on a per-family entry advertises a PATHS-LIMIT capability (code
 | No `limit` leaf | No path count limit for that family |
 | `limit 10` | Peer will send at most 10 paths per prefix |
 | `limit 1` | Effectively single-path behavior |
-<!-- source: internal/component/bgp/capability/capability.go -- PathsLimit struct -->
+<!-- source: internal/core/bgp/capability/capability.go -- PathsLimit struct -->
 
 ## How It Works
 

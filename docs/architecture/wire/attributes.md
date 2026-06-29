@@ -11,7 +11,7 @@
 | **Key Types** | `Attribute` interface, `AttributeCode`, `AttributeFlags` |
 
 **When to read full doc:** Attribute parsing, new attribute types, ASN4 encoding.
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttributeCode, AttributeFlags, Attribute interface -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttributeCode, AttributeFlags, Attribute interface -->
 
 ---
 
@@ -35,7 +35,7 @@ All path attributes share a common header:
 |  Attr. Flags  |  Attr. Type   |         Length (2 bytes)      |  (extended length)
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
-<!-- source: internal/component/bgp/attribute/attribute.go -- ParseHeader, WriteHeaderTo -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- ParseHeader, WriteHeaderTo -->
 
 ### Attribute Flags
 
@@ -53,7 +53,7 @@ All path attributes share a common header:
 | 2 | Partial | 0x20 | 1=Partial (set by non-originating AS) |
 | 3 | Extended Length | 0x10 | 1=2-byte length, 0=1-byte length |
 | 4-7 | Reserved | | Must be 0 |
-<!-- source: internal/component/bgp/attribute/attribute.go -- FlagOptional, FlagTransitive, FlagPartial, FlagExtLength -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- FlagOptional, FlagTransitive, FlagPartial, FlagExtLength -->
 
 ### Flag Combinations
 
@@ -68,7 +68,7 @@ All path attributes share a common header:
 
 ## Attribute Type Codes
 
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttributeCode constants -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttributeCode constants -->
 
 | Code | Hex | Name | Flags | RFC | Status |
 |------|-----|------|-------|-----|--------|
@@ -118,7 +118,7 @@ RFC 4271 - Origin of the path information.
 
 **Length:** 1 byte
 **Flags:** 0x40 (Well-known Mandatory)
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrOrigin -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrOrigin -->
 
 ---
 
@@ -145,7 +145,7 @@ RFC 4271 - Sequence of ASNs traversed.
 
 **AS Size:** 2 bytes without ASN4 capability, 4 bytes with ASN4
 **Max Segment Length:** 255 ASNs per segment
-<!-- source: internal/component/bgp/attribute/aspath.go -- ASPathSegmentType, ASSet, ASSequence, ASConfedSequence -->
+<!-- source: internal/core/bgp/attribute/aspath.go -- ASPathSegmentType, ASSet, ASSequence, ASConfedSequence -->
 
 ### Example
 
@@ -171,7 +171,7 @@ RFC 4271 - Next hop IP address (IPv4 only in traditional UPDATE).
 **Flags:** 0x40 (Well-known Mandatory)
 
 Note: For IPv6 and other families, next hop is in MP_REACH_NLRI.
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrNextHop -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrNextHop -->
 
 ---
 
@@ -189,7 +189,7 @@ RFC 4271 - Multi-exit discriminator for external links.
 **Flags:** 0x80 (Optional Non-transitive)
 
 Lower MED is preferred.
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrMED -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrMED -->
 
 ---
 
@@ -207,7 +207,7 @@ RFC 4271 - Local preference (IBGP only).
 **Flags:** 0x40 (Well-known Discretionary)
 
 Higher LOCAL_PREF is preferred. Default: 100.
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrLocalPref -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrLocalPref -->
 
 ---
 
@@ -223,7 +223,7 @@ RFC 4271 - Indicates route is an aggregate.
 **Flags:** 0x40 (Well-known Discretionary)
 
 Presence indicates the route is less specific than component routes.
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrAtomicAggregate -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrAtomicAggregate -->
 
 ---
 
@@ -241,7 +241,7 @@ RFC 4271 - AS and router ID that performed aggregation.
 
 **Length:** 6 bytes (2-byte AS) or 8 bytes (4-byte AS)
 **Flags:** 0xC0 (Optional Transitive)
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrAggregator -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrAggregator -->
 
 ---
 
@@ -270,7 +270,7 @@ RFC 1997 - Community values for policy.
 ### Format
 
 Communities displayed as AS:Value (e.g., 65001:100)
-<!-- source: internal/component/bgp/attribute/community.go -- CommunityNoExport, CommunityNoAdvertise, CommunityNoExportSubconfed -->
+<!-- source: internal/core/bgp/attribute/community.go -- CommunityNoExport, CommunityNoAdvertise, CommunityNoExportSubconfed -->
 
 ---
 
@@ -286,7 +286,7 @@ RFC 4456 - Router ID of route reflector client origin.
 
 **Length:** 4 bytes
 **Flags:** 0x80 (Optional Non-transitive)
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrOriginatorID -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrOriginatorID -->
 
 ---
 
@@ -304,7 +304,7 @@ RFC 4456 - List of route reflector cluster IDs.
 
 **Length:** 4 bytes per cluster ID (variable total)
 **Flags:** 0x80 (Optional Non-transitive)
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrClusterList -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrClusterList -->
 
 ---
 
@@ -342,7 +342,7 @@ RFC 4760 - Multiprotocol reachable NLRI.
 | IPv6 Unicast | 32 | IPv6 + link-local IPv6 |
 | VPNv4 | 12 | RD (8) + IPv4 (4) |
 | VPNv6 | 24 | RD (8) + IPv6 (16) |
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrMPReachNLRI -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrMPReachNLRI -->
 
 ---
 
@@ -361,7 +361,7 @@ RFC 4760 - Multiprotocol unreachable NLRI.
 **Flags:** 0x80 (Optional Non-transitive)
 
 No next hop - only withdrawn routes.
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrMPUnreachNLRI -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrMPUnreachNLRI -->
 
 ---
 
@@ -400,7 +400,7 @@ RFC 4360 - Extended community values.
 | 0x01:0x02 | Route Target (IPv4) |
 | 0x06:0x00 | EVPN MAC Mobility |
 | 0x06:0x01 | EVPN ESI Label |
-<!-- source: internal/component/bgp/attribute/community.go -- ExtendedCommunity, ExtendedCommunities -->
+<!-- source: internal/core/bgp/attribute/community.go -- ExtendedCommunity, ExtendedCommunities -->
 
 ---
 
@@ -416,8 +416,8 @@ Used when:
 1. Local speaker has 4-byte ASN
 2. Peer doesn't support ASN4 capability
 3. AS_PATH contains ASNs > 65535
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrAS4Path -->
-<!-- source: internal/component/bgp/attribute/as4.go -- AS4 path processing -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrAS4Path -->
+<!-- source: internal/core/bgp/attribute/as4.go -- AS4 path processing -->
 
 ---
 
@@ -435,7 +435,7 @@ RFC 6793 - 4-byte aggregator for non-ASN4 peers.
 
 **Length:** 8 bytes
 **Flags:** 0xC0 (Optional Transitive)
-<!-- source: internal/component/bgp/attribute/attribute.go -- AttrAS4Aggregator -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- AttrAS4Aggregator -->
 
 ---
 
@@ -457,7 +457,7 @@ RFC 8092 - Large community values (12 bytes each).
 **Flags:** 0xC0 (Optional Transitive)
 
 Format: GlobalAdmin:LocalData1:LocalData2 (e.g., 4294967295:100:200)
-<!-- source: internal/component/bgp/attribute/community.go -- LargeCommunity, LargeCommunities -->
+<!-- source: internal/core/bgp/attribute/community.go -- LargeCommunity, LargeCommunities -->
 
 ---
 
@@ -465,7 +465,7 @@ Format: GlobalAdmin:LocalData1:LocalData2 (e.g., 4294967295:100:200)
 
 ### Attribute Interface
 
-Defined in `internal/component/bgp/attribute/attribute.go`:
+Defined in `internal/core/bgp/attribute/attribute.go`:
 
 ```go
 type Attribute interface {
@@ -488,11 +488,11 @@ const (
 ```
 
 **Note:** Context-dependent attributes (AS_PATH, Aggregator) use `PackWithContext`/`WriteToWithContext` for ASN4 encoding decisions. Most attributes ignore the context parameters.
-<!-- source: internal/component/bgp/attribute/attribute.go -- Attribute interface, AttributeCode, AttributeFlags -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- Attribute interface, AttributeCode, AttributeFlags -->
 
 ### WireWriter Interface
 
-Defined in `internal/component/bgp/context/context.go` - used by messages, not directly embedded by Attribute:
+Defined in `internal/core/bgp/context/context.go` - used by messages, not directly embedded by Attribute:
 
 ```go
 type WireWriter interface {
@@ -500,11 +500,11 @@ type WireWriter interface {
     WriteTo(buf []byte, off int, ctx *EncodingContext) int
 }
 ```
-<!-- source: internal/component/bgp/context/context.go -- WireWriter interface -->
+<!-- source: internal/core/bgp/context/context.go -- WireWriter interface -->
 
 ### Attribute Parsing
 
-Parsing uses `AttributesWire` (lazy parsing, `internal/component/bgp/attribute/wire.go`) or `ParseAttributes` (`internal/component/bgp/plugins/rib/storage/attrparse.go`).
+Parsing uses `AttributesWire` (lazy parsing, `internal/core/bgp/attribute/wire.go`) or `ParseAttributes` (`internal/component/bgp/plugins/rib/storage/attrparse.go`).
 
 Simplified parsing logic (pseudocode):
 
@@ -520,8 +520,8 @@ for each attribute in packed bytes:
 ```
 
 Actual implementation uses `ParseHeader()` function in `attribute.go`.
-<!-- source: internal/component/bgp/attribute/attribute.go -- ParseHeader -->
-<!-- source: internal/component/bgp/attribute/wire.go -- AttributesWire -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- ParseHeader -->
+<!-- source: internal/core/bgp/attribute/wire.go -- AttributesWire -->
 
 ---
 
@@ -554,7 +554,7 @@ index := make([]attrIndex, 0, 8)  // 99.9% of routes fit without reallocation
 | 6 | 96% | 144 bytes |
 | 8 | 99.9% | 192 bytes |
 | 10 | 100% | 240 bytes |
-<!-- source: internal/component/bgp/attribute/wire.go -- attrIndex slice capacity -->
+<!-- source: internal/core/bgp/attribute/wire.go -- attrIndex slice capacity -->
 
 ---
 

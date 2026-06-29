@@ -8,18 +8,18 @@ An RFC implementation typically touches these areas (not all apply to every RFC)
 
 | Component | Package | When Needed |
 |-----------|---------|-------------|
-| Capability | `internal/component/bgp/capability/` | RFC introduces a capability |
-| Attribute | `internal/component/bgp/attribute/` | RFC introduces path attributes |
-| NLRI | `internal/component/bgp/nlri/` | RFC introduces new AFI/SAFI |
+| Capability | `internal/core/bgp/capability/` | RFC introduces a capability |
+| Attribute | `internal/core/bgp/attribute/` | RFC introduces path attributes |
+| NLRI | `internal/core/bgp/nlri/` | RFC introduces new AFI/SAFI |
 | Message | `internal/component/bgp/message/` | RFC modifies message format |
 | FSM | `internal/component/bgp/fsm/` | RFC affects state machine |
 | Config | `internal/component/config/` | RFC needs configuration |
 | Plugin | `internal/component/plugin/` | RFC needs plugin commands |
-| Context | `internal/component/bgp/context/` | RFC affects encoding context |
+| Context | `internal/core/bgp/context/` | RFC affects encoding context |
 
-<!-- source: internal/component/bgp/capability/capability.go -- capability codes and parsing -->
-<!-- source: internal/component/bgp/attribute/attribute.go -- attribute code constants -->
-<!-- source: internal/component/bgp/context/context.go -- PackContext encoding rules -->
+<!-- source: internal/core/bgp/capability/capability.go -- capability codes and parsing -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- attribute code constants -->
+<!-- source: internal/core/bgp/context/context.go -- PackContext encoding rules -->
 
 ## Phase 0: Preparation
 
@@ -37,9 +37,9 @@ An RFC implementation typically touches these areas (not all apply to every RFC)
 
 ```
 [ ] Search for existing partial implementation: grep -r "RFC NNNN" internal/
-[ ] Check if related capabilities exist: internal/component/bgp/capability/
-[ ] Check if related attributes exist: internal/component/bgp/attribute/
-[ ] Check if related NLRI types exist: internal/component/bgp/nlri/
+[ ] Check if related capabilities exist: internal/core/bgp/capability/
+[ ] Check if related attributes exist: internal/core/bgp/attribute/
+[ ] Check if related NLRI types exist: internal/core/bgp/nlri/
 [ ] Read architecture docs for affected areas (see planning.md keyword table)
 ```
 
@@ -78,7 +78,7 @@ See `ai/rules/compatibility.md` for architecture details.
 ### 1.1 Define Capability
 
 ```
-[ ] Add capability code constant to internal/component/bgp/capability/capability.go
+[ ] Add capability code constant to internal/core/bgp/capability/capability.go
     - Code<Name> Code = NN  // RFC NNNN
 
 [ ] Create capability struct in appropriate file (or new file)
@@ -134,7 +134,7 @@ See `ai/rules/compatibility.md` for architecture details.
 ### 2.1 Define Attribute
 
 ```
-[ ] Add attribute code constant to internal/component/bgp/attribute/attribute.go
+[ ] Add attribute code constant to internal/core/bgp/attribute/attribute.go
     - Attr<Name> AttributeCode = NN  // RFC NNNN
 
 [ ] Create attribute struct (new file if complex, or add to existing)
@@ -193,8 +193,8 @@ See `ai/rules/compatibility.md` for architecture details.
 ### 3.1 Define Family
 
 ```
-[ ] Add AFI constant if new: internal/component/bgp/nlri/constants.go
-[ ] Add SAFI constant if new: internal/component/bgp/nlri/constants.go
+[ ] Add AFI constant if new: internal/core/bgp/nlri/constants.go
+[ ] Add SAFI constant if new: internal/core/bgp/nlri/constants.go
 [ ] Add Family constant: var <Name> = Family{AFI: ..., SAFI: ...}
 [ ] Register in familyNames map for string parsing
 ```
@@ -626,12 +626,12 @@ func TestMyFeature(t *testing.T) {
 
 | RFC | Components | Good Reference |
 |-----|------------|----------------|
-| RFC 4724 (GR) | Capability, FSM | `internal/component/bgp/capability/session.go` |
-| RFC 7911 (ADD-PATH) | Capability, NLRI encoding | `internal/component/bgp/capability/encoding.go` |
-| RFC 4760 (MP) | Capability, NLRI, Attributes | `internal/component/bgp/nlri/`, `internal/component/bgp/attribute/mpnlri.go` |
+| RFC 4724 (GR) | Capability, FSM | `internal/core/bgp/capability/session.go` |
+| RFC 7911 (ADD-PATH) | Capability, NLRI encoding | `internal/core/bgp/capability/encoding.go` |
+| RFC 4760 (MP) | Capability, NLRI, Attributes | `internal/core/bgp/nlri/`, `internal/core/bgp/attribute/mpnlri.go` |
 | RFC 8955 (FlowSpec) | NLRI, UPDATE builder | `internal/component/bgp/message/update_build_flowspec.go` |
 | RFC 7432 (EVPN) | NLRI, UPDATE builder | `internal/component/bgp/message/update_build_evpn.go` |
 
-<!-- source: internal/component/bgp/capability/session.go -- GR capability -->
-<!-- source: internal/component/bgp/capability/encoding.go -- ADD-PATH capability -->
-<!-- source: internal/component/bgp/attribute/mpnlri.go -- MP_REACH/MP_UNREACH attributes -->
+<!-- source: internal/core/bgp/capability/session.go -- GR capability -->
+<!-- source: internal/core/bgp/capability/encoding.go -- ADD-PATH capability -->
+<!-- source: internal/core/bgp/attribute/mpnlri.go -- MP_REACH/MP_UNREACH attributes -->

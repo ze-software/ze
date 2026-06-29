@@ -45,7 +45,7 @@ BNG subscribers need per-session 802.1p QoS profiles assigned dynamically via RA
 - `internal/plugins/cos/handler_helpers_test.go` -- test metadata helpers
 - `internal/plugins/cos/session_state.go` -- per-session CoS state
 - `internal/plugins/cos/register.go` -- ConfigureEventBus wiring, lifecycle cleanup
-- `internal/plugins/l2tpauthradius/extract.go` -- FindAllAttr for Filter-Id, CoSProfile extraction
-- `internal/plugins/l2tpauthradius/coa.go` -- CoA CoS change path, extractCoSProfile
+- `internal/component/l2tp/plugins/auth_radius/extract.go` -- FindAllAttr for Filter-Id, CoSProfile extraction
+- `internal/component/l2tp/plugins/auth_radius/coa.go` -- CoA CoS change path, extractCoSProfile
 - `internal/component/iface/config_test.go` -- fakeBackend UpdateVLANQoSMap stub
 - `internal/component/iface/migrate_linux_test.go` -- mockMigrateBackend stub

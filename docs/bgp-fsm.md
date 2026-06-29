@@ -116,8 +116,8 @@ Next Hop.
 
 The negotiated capabilities are hashed into a `ContextID` (uint16). Peers with
 the same ContextID share the same encoding rules, enabling zero-copy forwarding.
-<!-- source: internal/component/bgp/capability/capability.go -- capability codes and parsing -->
-<!-- source: internal/component/bgp/context/registry.go -- ContextID hashing -->
+<!-- source: internal/core/bgp/capability/capability.go -- capability codes and parsing -->
+<!-- source: internal/core/bgp/context/registry.go -- ContextID hashing -->
 
 ## Collision Detection
 

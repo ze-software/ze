@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/audit"
+	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 )
 
 // newTestStreamable returns a Streamable wired with a trivial dispatcher and

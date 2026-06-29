@@ -33,19 +33,21 @@ func runGate(t *testing.T, args ...string) (int, string) {
 	return code, string(out)
 }
 
-// TestEnginePlacement asserts the engine-placement gate is clean on the real
-// tree: every misplaced engine is accounted for by the migration baseline.
-// A new engine in the wrong tier (or a stale baseline entry) makes this fail.
+// TestEnginePlacement asserts the module-tier gate is clean on the real tree:
+// misplaced engines are accounted for by the migration baseline, and intentional
+// non-engine placements are accounted for by the category manifest.
 func TestEnginePlacement(t *testing.T) {
 	code, out := runGate(t, "--check")
 	if code != 0 {
-		t.Fatalf("dep_audit.py --check failed (exit %d) -- a new misplaced engine "+
-			"or a stale baseline entry. See ai/rules/module-tiers.md.\n%s", code, out)
+		t.Fatalf("dep_audit.py --check failed (exit %d) -- a misplaced engine, "+
+			"stale baseline entry, or non-engine category issue. "+
+			"See ai/rules/module-tiers.md.\n%s", code, out)
 	}
 }
 
-// TestEnginePlacementSelftest runs the gate's fixture-based unit tests
-// (classification, nested-namespace exclusion, baseline new/stale/clean).
+// TestEnginePlacementSelftest runs the gate's fixture-based unit tests:
+// classification, setup-feature registration, category manifest enforcement,
+// nested-namespace exclusion, and baseline new/stale/clean behavior.
 func TestEnginePlacementSelftest(t *testing.T) {
 	code, out := runGate(t, "--selftest")
 	if code != 0 {

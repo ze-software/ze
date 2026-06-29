@@ -1,0 +1,43 @@
+# Non-engine module-tier categories.
+#
+# Source of truth for intentional non-engine package placements that are not
+# decided by the mechanical engine/plugin/core checks in dep_audit.py.
+#
+# Format: <repo-relative package dir> <category> <rationale>
+# Categories: framework, host-service, domain-library, planned-violation.
+# planned-violation is for already-known placements that this spec removes or
+# moves later; new rows require a spec reference in the rationale.
+
+# Framework and orchestration infrastructure.
+internal/component/cli	framework	CLI framework package used by command/plugin integration
+internal/component/cmd	framework	command implementation framework under the component tier
+internal/component/command	framework	command registry and execution framework
+internal/component/config	framework	configuration framework and schema integration
+internal/component/doctor	framework	doctor check framework registered through the plugin registry
+internal/component/engine	framework	runtime engine orchestration helpers, not a config-driven engine package
+internal/component/hub	framework	daemon service hub registration and orchestration framework
+internal/component/managed	framework	managed lifecycle helpers for daemon startup
+internal/component/plugin	framework	plugin registry and composition framework
+internal/component/support	framework	support bundle integration used by support plugin registration
+internal/plugins/connect	framework	setup feature package wired by cmd/ze/setup_features_distro.go
+internal/plugins/local	framework	setup feature package wired by cmd/ze/setup_features_distro.go
+internal/plugins/provision	framework	setup feature package wired by cmd/ze/setup_features_setup.go
+internal/plugins/systemd	framework	setup feature package wired by cmd/ze/setup_features_distro.go
+
+# Host services and appliance support.
+internal/component/gnmi	host-service	gNMI listener service with gated startup seam
+internal/component/gokrazy	host-service	appliance host support used by web service setup
+internal/component/host	host-service	host APIs and doctor platform registration pin this package to component tier
+internal/component/lg	host-service	looking-glass listener service with gated startup seam
+internal/component/mcp	host-service	MCP listener service with gated startup seam
+internal/component/ssh	host-service	SSH listener service with dedicated gated startup seam
+internal/component/web	host-service	web listener service with gated startup seam
+
+# BNG and IKE/IPsec domain libraries/components that stay grouped with their domains.
+internal/component/ike/ipsec	domain-library	VPN IPsec domain package nested under the ike domain root
+internal/component/l2tp	domain-library	BNG domain root package for l2tp and subscriber integrations
+internal/component/pki	framework	shared certificate infrastructure for IPsec today and future TLS users
+internal/component/l2tp/ppp	domain-library	BNG PPP library nested under the l2tp domain root
+internal/component/l2tp/pppoe	domain-library	BNG PPPoE domain package used by subscriber integrations
+internal/component/l2tp/pppoeclient	domain-library	BNG PPPoE client library used by daemon startup
+internal/component/l2tp/subscriber	domain-library	BNG subscriber domain package used by l2tp and command plugins

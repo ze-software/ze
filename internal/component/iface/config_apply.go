@@ -1005,7 +1005,7 @@ func reconcileOnVPPReady(activeCfg *atomic.Pointer[ifaceConfig]) {
 	// the backend from vpp to netlink would otherwise call netlink's
 	// StartMonitor on every EventConnected / EventReconnected, leaking a
 	// fresh monitor goroutine per event (netlink's StartMonitor is not
-	// idempotent -- see ifacenetlink/monitor_linux.go:364).
+	// idempotent -- see internal/plugins/iface/netlink/monitor_linux.go).
 	if cfg.Backend != vppBackendName {
 		return
 	}

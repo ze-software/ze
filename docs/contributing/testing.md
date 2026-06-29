@@ -174,7 +174,7 @@ Standard Go test output. Look for `--- FAIL: TestName` lines:
 ```
 --- FAIL: TestParseOrigin (0.00s)
     origin_test.go:42: expected 0, got 1
-FAIL	codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute	0.003s
+FAIL	codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute	0.003s
 ```
 
 ### Functional test failures

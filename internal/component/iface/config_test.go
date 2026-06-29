@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
 	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	vppevents "codeberg.org/thomas-mangin/ze/internal/core/vpp/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )

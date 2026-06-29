@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"net/netip"
 
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/core/bgp/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 

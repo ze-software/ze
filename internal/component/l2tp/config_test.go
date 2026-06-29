@@ -11,8 +11,8 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/yang"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
+	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 )
 
 // TestConfig_MissingBlockReturnsZero ensures absence of any l2tp config

@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
-	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 

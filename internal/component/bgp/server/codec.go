@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"sync"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/component/bgp/filter"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )

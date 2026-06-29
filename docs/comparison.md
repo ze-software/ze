@@ -298,7 +298,7 @@ JSON logging. The web UI automatically enriches displayed values using YANG-decl
 plugins extend policy further via the JSON event and text command protocol.
 <!-- source: internal/component/bgp/wireu/wire_update.go -- lazy-parsed WireUpdate -->
 <!-- source: internal/component/bgp/attrpool/pool.go -- pool-based attribute dedup -->
-<!-- source: internal/component/bgp/context/registry.go -- ContextID encoding context matching -->
+<!-- source: internal/core/bgp/context/registry.go -- ContextID encoding context matching -->
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- RPKI validation plugin -->
 <!-- source: internal/component/web/decorator.go -- DecoratorRegistry, YANG decorator framework -->
 <!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate -->
@@ -370,10 +370,10 @@ attributes are consumed:
 | Vendor-Specific (26) | RFC 2865 S5.26 | Extracts CoS profile names from Cisco-AVPair (`subscriber:sub-qos-policy-{in,out}`), Juniper ERX (Ingress/Egress-Policy-Name), Nokia (Alc-Subscriber-QoS-Override), and Huawei (HW-Subscriber-QoS-Profile) VSAs; extracts shaper rate from MikroTik (Mikrotik-Rate-Limit). Ze "cos:" Filter-Id takes priority over vendor VSAs. Unknown vendor IDs silently ignored. |
 | Acct-Interim-Interval (85) | RFC 2866 S5.18 | Overrides per-session accounting update interval [60,3600]s |
 
-<!-- source: internal/plugins/l2tpauthradius/extract.go -- extractAuthMetadata -->
-<!-- source: internal/plugins/l2tpauthradius/extract_vsa.go -- vendor VSA CoS/rate extraction -->
+<!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractAuthMetadata -->
+<!-- source: internal/component/l2tp/plugins/authradius/extract_vsa.go -- vendor VSA CoS/rate extraction -->
 <!-- source: internal/component/l2tp/session_timeout.go -- timeout enforcement -->
-<!-- source: internal/plugins/l2tpshaper/filter_rate.go -- Filter-Id rate parsing -->
+<!-- source: internal/component/l2tp/plugins/shaper/filter_rate.go -- Filter-Id rate parsing -->
 
 RADIUS Accounting (Interim-Update and Stop) includes real per-subscriber
 traffic counters read from the pppN kernel interface:
@@ -387,7 +387,7 @@ traffic counters read from the pppN kernel interface:
 | Acct-Input-Gigawords (52) | RFC 2869 S5.1 | Input octet counter wraps (present when >0) |
 | Acct-Output-Gigawords (53) | RFC 2869 S5.2 | Output octet counter wraps (present when >0) |
 
-<!-- source: internal/plugins/l2tpauthradius/acct.go -- buildAcctPacket, splitGigawords -->
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- buildAcctPacket, splitGigawords -->
 
 ### Scale Validation
 

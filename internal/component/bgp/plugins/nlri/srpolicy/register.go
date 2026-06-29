@@ -10,8 +10,8 @@ import (
 	"net"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri/nlrisplit"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri/nlrisplit"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 

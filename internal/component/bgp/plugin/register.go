@@ -17,11 +17,11 @@ import (
 	"strings"
 	"sync"
 
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	bgpyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
 	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/core/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/health"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"

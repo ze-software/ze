@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	zeaudit "codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	zeaudit "codeberg.org/thomas-mangin/ze/internal/core/audit"
 )
 
 var auditProvider struct {

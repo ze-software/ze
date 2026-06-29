@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	bgpcli "codeberg.org/thomas-mangin/ze/internal/component/bgp/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
@@ -32,6 +31,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
+	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/health"
 	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"

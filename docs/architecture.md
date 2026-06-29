@@ -51,7 +51,7 @@ Engine (supervisor, lifecycle, config)
 | YANG-modeled everything | Config schemas, CLI dispatch, plugin registration, and RPC discovery all flow from YANG modules. |
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate lazy-parsed byte buffer -->
 <!-- source: internal/component/bgp/attrpool/pool.go -- per-attribute-type dedup pools -->
-<!-- source: internal/component/bgp/context/registry.go -- ContextID for zero-copy decisions -->
+<!-- source: internal/core/bgp/context/registry.go -- ContextID for zero-copy decisions -->
 <!-- source: internal/component/config/yang/loader.go -- YANG-based config schema loading -->
 
 ## Key Wire Abstractions
@@ -59,12 +59,12 @@ Engine (supervisor, lifecycle, config)
 | Abstraction | Purpose | Location |
 |-------------|---------|----------|
 | `WireUpdate` | Lazy-parsed BGP UPDATE: iterators over wire bytes, no intermediate structs | `internal/component/bgp/wireu/` |
-| `PackContext` | Negotiated capabilities that determine encoding (ASN4, ADD-PATH, ExtNH) | `internal/component/bgp/context/` |
-| `ContextID` | uint16 hash of capabilities. Same ID = forward wire bytes unchanged. | `internal/component/bgp/context/` |
+| `PackContext` | Negotiated capabilities that determine encoding (ASN4, ADD-PATH, ExtNH) | `internal/core/bgp/context/` |
+| `ContextID` | uint16 hash of capabilities. Same ID = forward wire bytes unchanged. | `internal/core/bgp/context/` |
 | `Pool` / `Handle` | Per-attribute-type pools with refcounted handles and incremental compaction | `internal/component/bgp/attrpool/` |
 | `DirectBridge` | Bypasses IPC serialization for internal plugins (direct function calls) | `pkg/plugin/rpc/` |
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate -->
-<!-- source: internal/component/bgp/context/context.go -- PackContext -->
+<!-- source: internal/core/bgp/context/context.go -- PackContext -->
 <!-- source: internal/component/bgp/attrpool/handle.go -- Handle -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge -->
 

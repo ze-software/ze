@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/core/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"

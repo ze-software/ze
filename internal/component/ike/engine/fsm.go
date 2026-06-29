@@ -14,9 +14,9 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/eap"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
-	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/pki"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )

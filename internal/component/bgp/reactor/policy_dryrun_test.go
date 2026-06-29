@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 )
 
 // VALIDATES: TracePolicyFilterChain records per-filter trace entries.

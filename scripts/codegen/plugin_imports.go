@@ -140,7 +140,7 @@ func readModulePath(path string) (string, error) {
 	return "", fmt.Errorf("module directive not found in %s", path)
 }
 
-// pluginDirs lists directories (relative to repo root) that contain plugin register.go files.
+// pluginDirs lists existing plugin search roots (relative to repo root).
 var pluginDirs = []string{
 	"internal/component/bfd",
 	"internal/component/bgp/plugin",
@@ -153,6 +153,36 @@ var pluginDirs = []string{
 	"internal/component/traffic",
 	"internal/component/vpp",
 	"internal/plugins",
+}
+
+// nestedPluginDomains are component domain roots that may own a plugins/
+// subtree. Deriving internal/component/<domain>/plugins from these roots lets
+// BNG/VPN clustering move many edge plugins without naming individual plugin
+// packages here.
+var nestedPluginDomains = []string{
+	"ike",
+	"l2tp",
+}
+
+func pluginSearchRoots() []string {
+	roots := make([]string, 0, len(pluginDirs)+len(nestedPluginDomains))
+	seen := make(map[string]bool, len(pluginDirs)+len(nestedPluginDomains))
+	for _, rel := range pluginDirs {
+		if seen[rel] {
+			continue
+		}
+		seen[rel] = true
+		roots = append(roots, rel)
+	}
+	for _, domain := range nestedPluginDomains {
+		rel := path.Join("internal/component", domain, "plugins")
+		if seen[rel] {
+			continue
+		}
+		seen[rel] = true
+		roots = append(roots, rel)
+	}
+	return roots
 }
 
 // rpcRoot is the tree scanned for RPC command packages (any non-test,
@@ -243,8 +273,8 @@ func filterTagged(imps []string, byTag map[string][]string) []string {
 // component-local mechanisms (e.g. iface.RegisterBackend in iface/netlink).
 func discoverPlugins(root, module string) ([]string, error) {
 	var plugins []string
-
-	for _, rel := range pluginDirs {
+	seenPlugins := make(map[string]bool)
+	for _, rel := range pluginSearchRoots() {
 		dir := filepath.Join(root, rel)
 		err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 			if err != nil {
@@ -269,7 +299,12 @@ func discoverPlugins(root, module string) ([]string, error) {
 			if err != nil {
 				return err
 			}
-			plugins = append(plugins, module+"/"+pkgRel)
+			plugin := module + "/" + pkgRel
+			if seenPlugins[plugin] {
+				return nil
+			}
+			seenPlugins[plugin] = true
+			plugins = append(plugins, plugin)
 			return nil
 		})
 		if err != nil && !os.IsNotExist(err) {

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 )
 
 // buildUpdatePayload builds an UPDATE message body from components.

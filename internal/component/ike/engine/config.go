@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/pki"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )

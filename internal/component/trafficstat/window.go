@@ -1,4 +1,4 @@
-// Design: plan/spec-traffic-usage-monitor.md -- per-key rolling window and rate derivation
+// Design: plan/learned/1019-traffic-usage-monitor.md -- per-key rolling window and rate derivation
 
 package trafficstat
 

@@ -40,7 +40,7 @@ All capabilities share a common TLV (Type-Length-Value) format:
 | Cap. Length | 1 | Length of value (0-255) |
 | Value | Variable | Capability-specific data |
 
-<!-- source: internal/component/bgp/capability/capability.go -- Capability interface, writeCapabilityTo -->
+<!-- source: internal/core/bgp/capability/capability.go -- Capability interface, writeCapabilityTo -->
 
 ---
 
@@ -64,7 +64,7 @@ All capabilities share a common TLV (Type-Length-Value) format:
 | 128 | 0x80 | Route Refresh (Cisco) | Vendor | 0 |
 | 131 | 0x83 | Multisession (Cisco) | Vendor | Variable |
 
-<!-- source: internal/component/bgp/capability/capability.go -- Code type, Code* constants -->
+<!-- source: internal/core/bgp/capability/capability.go -- Code type, Code* constants -->
 
 ---
 
@@ -88,7 +88,7 @@ RFC 2858 - Enables support for address families beyond IPv4 unicast.
 
 **Note:** One capability TLV per address family. Multiple families = multiple capabilities.
 
-<!-- source: internal/component/bgp/capability/capability.go -- Multiprotocol struct, parseMultiprotocol -->
+<!-- source: internal/core/bgp/capability/capability.go -- Multiprotocol struct, parseMultiprotocol -->
 
 ### Common AFI/SAFI Combinations
 
@@ -105,7 +105,7 @@ RFC 2858 - Enables support for address families beyond IPv4 unicast.
 | 25 | 70 | L2VPN EVPN |
 | 16388 | 71 | BGP-LS |
 
-<!-- source: internal/component/bgp/capability/capability.go -- AFI*, SAFI* constants -->
+<!-- source: internal/core/bgp/capability/capability.go -- AFI*, SAFI* constants -->
 
 ---
 
@@ -119,7 +119,7 @@ RFC 2918 - Ability to request route refresh from peer.
 
 No value field. Presence of capability indicates support.
 
-<!-- source: internal/component/bgp/capability/capability.go -- RouteRefresh struct -->
+<!-- source: internal/core/bgp/capability/capability.go -- RouteRefresh struct -->
 
 ---
 
@@ -145,7 +145,7 @@ RFC 5549 - Advertise IPv6 next hop for IPv4 NLRI.
 
 Multiple entries concatenated.
 
-<!-- source: internal/component/bgp/capability/capability.go -- ExtendedNextHop struct, ExtendedNextHopFamily -->
+<!-- source: internal/core/bgp/capability/capability.go -- ExtendedNextHop struct, ExtendedNextHopFamily -->
 
 ---
 
@@ -159,7 +159,7 @@ RFC 8654 - Support for BGP messages > 4096 bytes.
 
 No value field. When negotiated, max message size increases to 65535 bytes.
 
-<!-- source: internal/component/bgp/capability/capability.go -- ExtendedMessage struct -->
+<!-- source: internal/core/bgp/capability/capability.go -- ExtendedMessage struct -->
 
 ---
 
@@ -193,7 +193,7 @@ RFC 4724 - Graceful restart support and state preservation.
 | SAFI | 1 | Sub Address Family |
 | Flags | 1 | Bit 7: Forwarding State preserved |
 
-<!-- source: internal/component/bgp/capability/capability.go -- GracefulRestart struct, GracefulRestartFamily -->
+<!-- source: internal/core/bgp/capability/capability.go -- GracefulRestart struct, GracefulRestartFamily -->
 
 ---
 
@@ -217,7 +217,7 @@ When this capability is negotiated:
 - AS_PATH uses 4-byte ASNs
 - My AS in OPEN can use AS_TRANS (23456) if > 65535
 
-<!-- source: internal/component/bgp/capability/capability.go -- ASN4 struct, parseASN4 -->
+<!-- source: internal/core/bgp/capability/capability.go -- ASN4 struct, parseASN4 -->
 
 ---
 
@@ -252,7 +252,7 @@ Multiple entries concatenated (4 bytes each).
 
 When ADD-PATH is enabled, NLRI includes a 4-byte Path ID before each prefix.
 
-<!-- source: internal/component/bgp/capability/capability.go -- AddPath struct, AddPathMode, AddPathFamily -->
+<!-- source: internal/core/bgp/capability/capability.go -- AddPath struct, AddPathMode, AddPathFamily -->
 
 ---
 
@@ -273,7 +273,7 @@ Variable length: sequence of 5-byte entries. Only meaningful for families with A
 - Receiver-advertised: remote's limit constrains our send, ours constrains peer's send.
 - RS fast-path peers suppress PATHS-LIMIT (no per-prefix state in forwarding).
 
-<!-- source: internal/component/bgp/capability/capability.go -- PathsLimit struct, PathsLimitEntry -->
+<!-- source: internal/core/bgp/capability/capability.go -- PathsLimit struct, PathsLimitEntry -->
 
 ---
 
@@ -287,7 +287,7 @@ RFC 7313 - Beginning/End of Route Refresh markers.
 
 Enables BoRR (1) and EoRR (2) in ROUTE-REFRESH reserved field.
 
-<!-- source: internal/component/bgp/capability/capability.go -- EnhancedRouteRefresh struct -->
+<!-- source: internal/core/bgp/capability/capability.go -- EnhancedRouteRefresh struct -->
 
 ---
 
@@ -312,7 +312,7 @@ draft-walton-bgp-hostname-capability
 | Domain Len | 1 | Length of domain name |
 | Domain Name | Variable | UTF-8 domain name |
 
-<!-- source: internal/component/bgp/capability/capability.go -- FQDN struct, parseFQDN -->
+<!-- source: internal/core/bgp/capability/capability.go -- FQDN struct, parseFQDN -->
 
 ---
 
@@ -347,7 +347,7 @@ draft-abraitis-bgp-version-capability
 
 ### Negotiated State
 
-Defined in `internal/component/bgp/capability/negotiated.go`:
+Defined in `internal/core/bgp/capability/negotiated.go`:
 
 ```go
 type Negotiated struct {
@@ -374,7 +374,7 @@ type Negotiated struct {
 }
 ```
 
-<!-- source: internal/component/bgp/capability/negotiated.go -- Negotiated struct -->
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiated struct -->
 
 ---
 
@@ -492,7 +492,7 @@ sendNotification(OpenMessageError, UnsupportedCapability, data)
 
 "Absent" means the capability is not advertised and has no enforcement — it's as if it doesn't exist. Setting it to `enable`, `require`, or `refuse` activates it.
 
-<!-- source: internal/component/bgp/capability/negotiated.go -- CheckRequiredCodes, CheckRefusedCodes -->
+<!-- source: internal/core/bgp/capability/negotiated.go -- CheckRequiredCodes, CheckRefusedCodes -->
 
 ---
 
@@ -500,7 +500,7 @@ sendNotification(OpenMessageError, UnsupportedCapability, data)
 
 ### Capability Interface
 
-Defined in `internal/component/bgp/capability/capability.go`:
+Defined in `internal/core/bgp/capability/capability.go`:
 
 ```go
 type Capability interface {
@@ -529,7 +529,7 @@ const (
 
 Parsing is done via `Parse()` in `parse.go`, returning `[]Capability`.
 
-<!-- source: internal/component/bgp/capability/capability.go -- Code, Capability interface, Parse -->
+<!-- source: internal/core/bgp/capability/capability.go -- Code, Capability interface, Parse -->
 
 ---
 

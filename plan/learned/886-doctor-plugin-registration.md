@@ -46,4 +46,4 @@ a package that `registry` cannot import:
 - `internal/component/plugin/registry/doctor.go` -- types, validation, query
 - `internal/component/doctor/checks_plugin_registry.go` -- runtime bridge
 - `internal/component/host/register.go` -- platform name registration
-- `internal/plugins/l2tpauthradius/register.go` -- reference migration
+- `internal/component/l2tp/plugins/auth_radius/register.go` -- reference migration

@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
-	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 )
 
 // dpdState tracks DPD timing for a peer session.

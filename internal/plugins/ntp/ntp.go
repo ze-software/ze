@@ -24,8 +24,8 @@ import (
 	"github.com/beevik/ntp"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
 	ntpevents "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )

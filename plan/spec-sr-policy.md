@@ -16,9 +16,9 @@
 4. `rfc/short/rfc9012.md` - Tunnel Encapsulation attribute (code 23)
 5. `rfc/short/rfc9256.md` - SR-Policy architecture (concepts)
 6. `docs/architecture/wire/nlri.md` - NLRI type hierarchy and patterns
-7. `internal/component/bgp/nlri/nlrisplit/nlrisplit.go` - splitter registry
+7. `internal/core/bgp/nlri/nlrisplit/nlrisplit.go` - splitter registry
 8. `internal/exabgp/bridge/bridge.go` - ExaBGP bridge family map
-9. `internal/component/bgp/attribute/attribute.go` - attribute code constants
+9. `internal/core/bgp/attribute/attribute.go` - attribute code constants
 
 ## Task
 
@@ -60,10 +60,10 @@ This enables Ze to negotiate, decode, encode, and forward SR-Policy UPDATEs, and
 **Source files read:**
 - [ ] `internal/core/family/family.go` - SAFI constants
 - [ ] `internal/core/family/registry.go` - family registration via MustRegister
-- [ ] `internal/component/bgp/nlri/nlrisplit/nlrisplit.go` - splitter registry
-- [ ] `internal/component/bgp/nlri/nlrisplit/register.go` - existing splitter registrations
-- [ ] `internal/component/bgp/attribute/attribute.go` - attribute codes
-- [ ] `internal/component/bgp/attribute/opaque.go` - OpaqueAttribute for unknown attributes
+- [ ] `internal/core/bgp/nlri/nlrisplit/nlrisplit.go` - splitter registry
+- [ ] `internal/core/bgp/nlri/nlrisplit/register.go` - existing splitter registrations
+- [ ] `internal/core/bgp/attribute/attribute.go` - attribute codes
+- [ ] `internal/core/bgp/attribute/opaque.go` - OpaqueAttribute for unknown attributes
 - [ ] `internal/component/bgp/plugins/nlri/mup/` - reference NLRI plugin
 - [ ] `internal/exabgp/bridge/bridge.go` - parseFamilyToAFISAFI, ValidateFamily
 - [ ] `internal/exabgp/bridge/bridge_command.go` - ExaBGP command translation
@@ -212,8 +212,8 @@ This enables Ze to negotiate, decode, encode, and forward SR-Policy UPDATEs, and
 
 ## Files to Modify
 - `internal/core/family/family.go` - SAFISRPolicy constant (already done)
-- `internal/component/bgp/attribute/attribute.go` - AttrTunnelEncap = 23
-- `internal/component/bgp/attribute/mpnlri.go` - ValidNextHopLens for SAFI 73
+- `internal/core/bgp/attribute/attribute.go` - AttrTunnelEncap = 23
+- `internal/core/bgp/attribute/mpnlri.go` - ValidNextHopLens for SAFI 73
 - `internal/exabgp/bridge/bridge.go` - parseFamilyToAFISAFI sr-policy case
 - `internal/exabgp/bridge/bridge_command.go` - sr-policy command translation
 - `docs/architecture/wire/nlri.md` - add SR-Policy to family table
@@ -225,8 +225,8 @@ This enables Ze to negotiate, decode, encode, and forward SR-Policy UPDATEs, and
 - `internal/component/bgp/plugins/nlri/srpolicy/split_test.go` - splitter tests
 - `internal/component/bgp/plugins/nlri/srpolicy/register.go` - plugin registration
 - `internal/component/bgp/plugins/nlri/srpolicy/json.go` - JSON serialization
-- `internal/component/bgp/attribute/tunnel_encap.go` - Tunnel Encapsulation attribute (code 23)
-- `internal/component/bgp/attribute/tunnel_encap_test.go` - Tunnel Encap tests
+- `internal/core/bgp/attribute/tunnel_encap.go` - Tunnel Encapsulation attribute (code 23)
+- `internal/core/bgp/attribute/tunnel_encap_test.go` - Tunnel Encap tests
 
 ## Implementation Steps
 

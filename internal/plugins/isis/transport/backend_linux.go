@@ -14,7 +14,7 @@
 // observe the stop signal on link-down (risk R-3: no goroutine leak on flap).
 //
 // This mirrors the proven PPPoE AF_PACKET pattern
-// (internal/component/pppoe/kernel_linux.go) but generalises the framing from a
+// (internal/component/l2tp/pppoe/kernel_linux.go) but generalises the framing from a
 // single ethertype to 802.3 + LLC and uses one socket per circuit (bound to the
 // ifindex) instead of one shared discovery socket.
 

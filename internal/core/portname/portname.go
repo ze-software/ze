@@ -1,4 +1,4 @@
-// Design: plan/spec-traffic-usage-monitor.md -- port-to-service-name lookup
+// Design: plan/learned/1019-traffic-usage-monitor.md -- port-to-service-name lookup
 
 package portname
 

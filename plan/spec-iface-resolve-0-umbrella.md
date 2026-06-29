@@ -65,7 +65,7 @@ migrated here.
   → Constraint: ethernet + loopback are **matched** against pre-existing kernel devices; dummy/veth/bridge/tunnel/wireguard/xfrm/VLAN-units are **created by Ze** (`zeManageable`, `config_apply.go:139-147`). Match-by-MAC/path only makes sense for matched kinds.
 - [ ] `internal/component/iface/dispatch.go` - public package API; every op takes `name string` (`SetMTU`, `SetMACAddress`, `GetInterface`, `AddRoute`, …) and resolves it in the backend. `GetInterface(name)` (L233) / `ListInterfaces()` (L218) delegate to a **live `LinkByName`** — no registry, no ifindex cache, assumes `name == os-name`. A `Monitor` (L315) with an `eventBus` already exists — the link up/down event source the resolver can build on.
 - [ ] `internal/plugins/iface/netlink/manage_linux.go` - `SetMACAddress` (L433-449, `LinkSetHardwareAddr`) and `GetMACAddress` (L451-464, reads only current `Attrs().HardwareAddr`). **No `IFLA_PERM_ADDRESS` / `ETHTOOL_GPERMADDR` anywhere in the tree.**
-- [ ] `internal/component/isis/transport/backend_linux.go:248-278` + `internal/component/pppoe/kernel_linux.go:92-125` - **duplicated** `resolveInterface` ioctl wrappers (`SIOCGIFINDEX/HWADDR/MTU`).
+- [ ] `internal/component/isis/transport/backend_linux.go:248-278` + `internal/component/l2tp/pppoe/kernel_linux.go:92-125` - **duplicated** `resolveInterface` ioctl wrappers (`SIOCGIFINDEX/HWADDR/MTU`).
 
 **Behavior to preserve:**
 - Existing configs where `name == os-name` MUST resolve unchanged (the default match is os-name == name).

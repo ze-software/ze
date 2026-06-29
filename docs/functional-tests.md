@@ -1425,12 +1425,12 @@ in the traditional sense). Run them periodically or before releases.
 | TACACS+ | 2 | `FuzzTacacsPacketUnmarshal`, `FuzzTacacsEncryptDecrypt` |
 | Other | 6 | `FuzzHandleRoundTrip`, `FuzzEncodeDecode`, `FuzzScanner`, `FuzzParseRDString` |
 <!-- source: internal/component/bgp/message/fuzz_test.go -- BGP message fuzz targets -->
-<!-- source: internal/component/bgp/attribute/builder_parse_fuzz_test.go -- attribute parser fuzz targets -->
+<!-- source: internal/core/bgp/attribute/builder_parse_fuzz_test.go -- attribute parser fuzz targets -->
 <!-- source: internal/component/bgp/wireu/prefix_fuzz_test.go -- NLRI prefix fuzz targets -->
 <!-- source: internal/component/config/fuzz_test.go -- config parser fuzz targets -->
 <!-- source: internal/component/l2tp/ -- L2TP wire fuzz targets -->
 <!-- source: internal/component/bfd/ -- BFD packet/auth fuzz targets -->
-<!-- source: internal/component/ppp/ -- PPP frame/protocol fuzz targets -->
+<!-- source: internal/component/l2tp/ppp/ -- PPP frame/protocol fuzz targets -->
 
 ### Writing a New Fuzz Target
 

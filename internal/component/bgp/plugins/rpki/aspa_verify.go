@@ -3,7 +3,7 @@
 // Related: aspa_cache.go -- ASPA cache providing check_pair lookups
 package rpki
 
-import "codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+import "codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 
 // ASPA validation states.
 // draft-ietf-sidrops-aspa-verification Section 6.

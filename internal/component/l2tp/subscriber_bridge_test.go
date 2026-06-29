@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/subscriber"
-	subevents "codeberg.org/thomas-mangin/ze/internal/component/subscriber/events"
+	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber"
+	subevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 
 	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"

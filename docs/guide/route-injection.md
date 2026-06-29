@@ -57,7 +57,7 @@ All IANA-registered well-known communities are accepted by name:
 
 Underscore variants (e.g., `no_export`, `graceful_shutdown`) and the shorthand
 `gshut` are also accepted. Tab completion in the config editor suggests all names.
-<!-- source: internal/component/bgp/attribute/text.go -- wellKnownCommunityNames map -->
+<!-- source: internal/core/bgp/attribute/text.go -- wellKnownCommunityNames map -->
 
 ### Next-Hop Self
 

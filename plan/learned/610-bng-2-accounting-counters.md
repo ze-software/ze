@@ -8,8 +8,8 @@
 | internal/component/l2tp/events/events.go | Added PppInterface field to SessionIPAssignedPayload | Accounting plugin needs pppN name to read counters |
 | internal/component/l2tp/reactor.go | Capture sess.pppInterface under lock, populate in SessionIPAssigned emission | Field available at emission time (set during kernel setup) |
 | internal/component/radius/dict.go | Added AttrAcctInputGigawords (52), AttrAcctOutputGigawords (53) | RFC 2869 Gigaword encoding |
-| internal/plugins/l2tpauthradius/acct.go | Added pppInterface to acctSession, acctGetStats var, splitGigawords func, counter read + encoding in buildAcctPacket | Core feature: real counters in Interim/Stop packets |
-| internal/plugins/l2tpauthradius/acct_test.go | 6 new tests + assertAttrUint32 helper | TDD coverage for all 10 ACs |
+| internal/component/l2tp/plugins/auth_radius/acct.go | Added pppInterface to acctSession, acctGetStats var, splitGigawords func, counter read + encoding in buildAcctPacket | Core feature: real counters in Interim/Stop packets |
+| internal/component/l2tp/plugins/auth_radius/acct_test.go | 6 new tests + assertAttrUint32 helper | TDD coverage for all 10 ACs |
 | rfc/short/rfc2869.md | Created protocol-only RFC summary | Required reading for Gigaword encoding |
 | docs/features.md | Added accounting counter mention to L2TP BNG entry | Feature documentation |
 | docs/comparison.md | Added RADIUS accounting counter attribute table | Comparison documentation |
@@ -32,4 +32,4 @@
 - Packet counts truncate at uint32 (no RFC-defined Gigapackets attribute); sessions with >4 billion packets will wrap silently. Unlikely in practice.
 - iface.GetStats returns zeros on non-Linux platforms; accounting will report zeros which is correct (no kernel pppN on non-Linux).
 
-**Verification:** `go test -race ./internal/plugins/l2tpauthradius/... -v` -- all 62 tests pass. `make ze-verify` passes (only pre-existing scripts/evidence build failure).
+**Verification:** `go test -race ./internal/component/l2tp/plugins/auth_radius/... -v` -- all 62 tests pass. `make ze-verify` passes (only pre-existing scripts/evidence build failure).

@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 

@@ -18,8 +18,8 @@ Qualifiers are reusable components used within NLRI types:
 | EthernetTag | 4 bytes | EVPN |
 | MAC | 6 bytes | EVPN |
 
-<!-- source: internal/component/bgp/nlri/rd.go -- RouteDistinguisher -->
-<!-- source: internal/component/bgp/nlri/helpers.go -- WriteLabelStack -->
+<!-- source: internal/core/bgp/nlri/rd.go -- RouteDistinguisher -->
+<!-- source: internal/core/bgp/nlri/helpers.go -- WriteLabelStack -->
 
 ---
 
@@ -79,7 +79,7 @@ Total: **8 bytes**
 
 **String format:** `ASN:Assigned` (e.g., `4200000001:100`)
 
-<!-- source: internal/component/bgp/nlri/rd.go -- RDType0, RDType1, RDType2, RouteDistinguisher struct -->
+<!-- source: internal/core/bgp/nlri/rd.go -- RDType0, RDType1, RDType2, RouteDistinguisher struct -->
 
 ### ExaBGP Implementation
 
@@ -111,7 +111,7 @@ class RouteDistinguisher:
 "rd": "65000:100"
 ```
 
-<!-- source: internal/component/bgp/nlri/rd.go -- ParseRouteDistinguisher, RouteDistinguisher.String -->
+<!-- source: internal/core/bgp/nlri/rd.go -- ParseRouteDistinguisher, RouteDistinguisher.String -->
 
 ---
 
@@ -166,7 +166,7 @@ Label 1000, Label 2000 (stack):
 00 7D 01   Label 2000, BoS=1 (2000<<4 | 1 = 0x7D01)
 ```
 
-<!-- source: internal/component/bgp/nlri/helpers.go -- WriteLabelStack -->
+<!-- source: internal/core/bgp/nlri/helpers.go -- WriteLabelStack -->
 
 ### ExaBGP Implementation
 
@@ -208,7 +208,7 @@ class Labels:
 
 Format: `[ [label_value, raw_24bit_value], ... ]`
 
-<!-- source: internal/component/bgp/nlri/nlri.go -- ParseLabelStack, EncodeLabelStack -->
+<!-- source: internal/core/bgp/nlri/nlri.go -- ParseLabelStack, EncodeLabelStack -->
 
 ---
 
@@ -261,8 +261,8 @@ class PathInfo:
 "path-information": "1.2.3.4"
 ```
 
-<!-- source: internal/component/bgp/nlri/nlri.go -- WriteNLRI, LenWithContext -->
-<!-- source: internal/component/bgp/nlri/base.go -- PrefixNLRI.PathID -->
+<!-- source: internal/core/bgp/nlri/nlri.go -- WriteNLRI, LenWithContext -->
+<!-- source: internal/core/bgp/nlri/base.go -- PrefixNLRI.PathID -->
 
 ---
 
@@ -428,7 +428,7 @@ class MAC:
 
 ### RouteDistinguisher Structure
 
-Defined in `internal/component/bgp/nlri/rd.go`:
+Defined in `internal/core/bgp/nlri/rd.go`:
 
 ```go
 type RouteDistinguisher struct {
@@ -453,7 +453,7 @@ Qualifiers compare by struct equality (value semantics):
 if rd1 == rd2 { ... }  // Direct struct comparison
 ```
 
-<!-- source: internal/component/bgp/nlri/rd.go -- RouteDistinguisher struct (value semantics) -->
+<!-- source: internal/core/bgp/nlri/rd.go -- RouteDistinguisher struct (value semantics) -->
 
 ---
 

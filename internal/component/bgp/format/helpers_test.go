@@ -1,8 +1,8 @@
 package format
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 )
 
 // testEncodingContext creates an encoding context for tests.

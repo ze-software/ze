@@ -13,7 +13,7 @@ Architecture documents describe how the current implementation is wired. Prefer 
 | Subsystem wiring | `subsystem-wiring.md` | Registered components and plugin server wiring |
 | Config design | `config/` | `internal/component/config/` and YANG modules |
 | API and IPC | `api/` | `pkg/plugin/rpc/`, `pkg/plugin/sdk/`, command schemas |
-| BGP wire format | `wire/` | `internal/component/bgp/attribute/`, `message/`, `wireu/` |
+| BGP wire format | `wire/` | `internal/core/bgp/attribute/`, `message/`, `wireu/` |
 | Route and RIB behavior | `route-selection.md`, `route-types.md`, `rib-transition.md` | `internal/core/rib/`, `internal/component/bgp/plugins/rib/` |
 | Pools and buffers | `pool-architecture.md`, `buffer-architecture.md` | `internal/component/bgp/attrpool/`, `internal/core/bufpool/` |
 | Web and UI | `web-interface.md`, `web-components.md` | `internal/component/web/` |

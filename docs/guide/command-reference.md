@@ -1941,7 +1941,7 @@ The `clear l2tp session teardown` command accepts optional keyword arguments:
 - `reason <text...>`: free-text audit reason, recorded in the per-session event ring
 - `cause <code>`: RADIUS Disconnect-Cause value (uint16), recorded alongside the reason
 
-<!-- source: internal/plugins/l2tp-cmd/yang/ze-l2tp-cmd.yang -->
+<!-- source: internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang -->
 <!-- source: internal/component/l2tp/cmd/l2tp.go -- handleSessionTeardown, parseKeywordArgs -->
 
 ### PPPoE Commands
@@ -1954,8 +1954,8 @@ The `clear l2tp session teardown` command accepts optional keyword arguments:
 | `show pppoe statistics` | run | Per-interface session counts and limits |
 | `show pppoe interfaces` | run | Configured PPPoE access interfaces |
 
-<!-- source: internal/plugins/pppoe-cmd/yang/ze-pppoe-cmd.yang -->
-<!-- source: internal/component/pppoe/cmd/pppoe.go -- RPC handlers -->
+<!-- source: internal/component/l2tp/pppoe/cmd/yang/ze-pppoe-cmd.yang -->
+<!-- source: internal/component/l2tp/pppoe/cmd/pppoe.go -- RPC handlers -->
 
 ### L2TPv2 Web UI
 

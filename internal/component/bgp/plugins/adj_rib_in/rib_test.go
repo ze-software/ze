@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"

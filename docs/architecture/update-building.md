@@ -151,10 +151,10 @@ Receive UPDATE → Parse → Route{wireBytes, sourceCtxID} → Forward
 
 **Files involved:**
 - `internal/component/bgp/rib/route.go` - Route struct with wireBytes cache
-- `internal/component/bgp/context/` - EncodingContext, ContextID, Registry
+- `internal/core/bgp/context/` - EncodingContext, ContextID, Registry
 - `ENCODING_CONTEXT.md` - Detailed context system docs
 <!-- source: internal/component/bgp/rib/route.go -- Route struct, CanForwardDirect -->
-<!-- source: internal/component/bgp/context/registry.go -- ContextID, Registry -->
+<!-- source: internal/core/bgp/context/registry.go -- ContextID, Registry -->
 
 **Flow example (route reflection):**
 ```go

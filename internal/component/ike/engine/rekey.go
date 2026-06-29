@@ -12,7 +12,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
-	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
 )
 
 // lifetimeState tracks SA lifetime for time-based and byte-based expiry.

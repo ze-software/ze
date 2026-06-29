@@ -9,9 +9,9 @@ import (
 	"net/netip"
 	"strconv"
 
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/core/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
 )
 
 // interfaceAddrPayload is the JSON payload emitted by the interface monitor

@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/source"
 )

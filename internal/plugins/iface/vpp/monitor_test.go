@@ -11,7 +11,7 @@ import (
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
 
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/core/iface/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 

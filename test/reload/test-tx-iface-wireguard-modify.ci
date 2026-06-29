@@ -9,7 +9,7 @@
 # Like the other reload tests, this validates wiring (spec-diff
 # detection, Configure dispatch) rather than kernel state. Kernel
 # round-trips are covered by the integration tests under
-# internal/plugins/ifacenetlink (gated on CAP_NET_ADMIN + wg module).
+# internal/plugins/iface/netlink (gated on CAP_NET_ADMIN + wg module).
 
 option=skip-os:value=darwin
 stdin=peer:terminator=EOF_PEER

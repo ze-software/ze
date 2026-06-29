@@ -1,4 +1,4 @@
-// Design: plan/spec-traffic-usage-monitor.md -- lazy refcounted traffic aggregation service
+// Design: plan/learned/1019-traffic-usage-monitor.md -- lazy refcounted traffic aggregation service
 
 package trafficstat
 

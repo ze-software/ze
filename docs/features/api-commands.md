@@ -29,7 +29,7 @@ Text attribute syntax: `origin set igp`, `nhop set 1.1.1.1`, `local-preference s
 
 NLRI operations: `add`, `del`, `eor` per address family.
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text_test.go -- text update parsing -->
-<!-- source: internal/component/bgp/attribute/builder_parse.go -- text attribute parsing -->
+<!-- source: internal/core/bgp/attribute/builder_parse.go -- text attribute parsing -->
 
 ### RIB Operations
 

@@ -1577,9 +1577,9 @@ See `plan/spec-plugin-rib-pool-storage.md` § "Phase 6: Per-Attribute Deduplicat
 - Wire reconstruction for route resend
 
 **Dependencies:**
-- `internal/component/bgp/attribute/iterator.go` - `AttrIterator` (exists, reuse)
+- `internal/core/bgp/attribute/iterator.go` - `AttrIterator` (exists, reuse)
 - `internal/component/bgp/attrpool/pool.go` - Pool infrastructure (exists, extend)
-<!-- source: internal/component/bgp/attribute/ -- AttrIterator -->
+<!-- source: internal/core/bgp/attribute/ -- AttrIterator -->
 <!-- source: internal/component/bgp/attrpool/pool.go -- Pool with Intern/Get/Release -->
 
 ---

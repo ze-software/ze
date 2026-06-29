@@ -15,8 +15,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
-	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 )
 
 func isXFRMUnsupported(err error) bool {

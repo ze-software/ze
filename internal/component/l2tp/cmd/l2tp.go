@@ -9,7 +9,7 @@
 // Two package-level schemas register via init():
 //
 //   - internal/component/l2tp/yang (ze-l2tp-api.yang) -- RPC definitions
-//   - internal/component/cmd/l2tp/yang (ze-l2tp-cmd.yang) -- CLI tree
+//   - internal/component/l2tp/cmd/yang (ze-l2tp-cmd.yang) -- CLI tree
 //
 // Both are imported here so a blank import of this package wires the
 // full CLI surface without touching the core dispatcher.

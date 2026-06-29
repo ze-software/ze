@@ -10,7 +10,7 @@
 
 package message
 
-import bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+import bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 
 // EncodingContext is an alias for bgpctx.EncodingContext.
 // Use this for WireWriter method signatures.
