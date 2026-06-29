@@ -83,17 +83,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-premature-stop.sh",
-            "timeout": 5,
-            "blocking": true
-          }
-        ]
-      },
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-end-summary.sh",
             "timeout": 5
           }
