@@ -7,7 +7,7 @@ module ze-traffic-stat-cmd {
 
     container show {
         config false;
-        description "Read-only commands";
+        description "Read-only commands to inspect system, protocol, and network state";
 
         container traffic-stat {
             config false;
@@ -23,7 +23,7 @@ Without arguments, shows all interfaces. With 'name <interface>', filters to one
 
     container monitor {
         config false;
-        description "Streaming monitor commands";
+        description "Continuous monitoring commands (Ctrl-C to stop)";
 
         container traffic-stat {
             config false;

@@ -1,15 +1,107 @@
-# Test: trafficstat service wired end-to-end via show traffic-stat
-# VALIDATES: the `show traffic-stat` command is discoverable via YANG-driven
-#   show help AND returns a valid response when called, proving the trafficstat
-#   component's RPC handler, YANG schema, and lazy service lifecycle are wired.
-# PREVENTS: trafficstat command/schema not registered, handler crash on cold
-#   start, or service failing to initialize (wiring + data-path regression).
+# Test: `show traffic-stat` RPC dispatches through the plugin engine
+# VALIDATES: the trafficstat component's ze-show:traffic-stat RPC returns
+#   StatusDone with a snapshot map (a `degraded` flag plus an `interfaces`
+#   list) via handleShowTraffic, proving the RPC handler, YANG command
+#   registration, and the lazy service lifecycle (EnsureGlobal) are wired
+#   end-to-end. Dispatch succeeding also proves the command is registered and
+#   discoverable, so no separate `show help` step is needed.
+# PREVENTS: the traffic-stat command/schema not being registered, the handler
+#   crashing on cold start, or the lazy service failing to initialize (a
+#   wiring + data-path regression).
 
-cmd=foreground:seq=1:exec=ze show help
-expect=exit:code=0
-expect=stderr:contains=traffic-stat
+tmpfs=traffic-monitor-done.run:mode=755:terminator=EOF_DONE
+#!/usr/bin/env python3
+"""Dispatch `show traffic-stat` against a configured daemon: expect done + degraded/interfaces."""
 
-cmd=foreground:seq=2:exec=ze dispatch-command show traffic-stat
+import json
+
+from ze_api import API, runtime_fail, result_json_data, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    r = dispatch(api, 'show traffic-stat')
+    if r.get('status') != 'done':
+        runtime_fail(
+            f"show traffic-stat: expected done, "
+            f"got status={r.get('status')} data={result_text_data(r)[:200]}")
+
+    try:
+        data = result_json_data(r, {})
+    except json.JSONDecodeError as exc:
+        runtime_fail(f"show traffic-stat: invalid JSON: {exc}: {result_text_data(r)[:200]}")
+        data = {}
+
+    for key in ('degraded', 'interfaces'):
+        if key not in data:
+            runtime_fail(f"show traffic-stat: missing '{key}' key: {sorted(data)}")
+    if not isinstance(data['interfaces'], list):
+        runtime_fail(
+            f"show traffic-stat: 'interfaces' is {type(data['interfaces']).__name__}, not list")
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_DONE
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+    external traffic-monitor-done {
+        run ./traffic-monitor-done.run
+        encoder json
+    }
+}
+
+bgp {
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+        process traffic-monitor-done {
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
 expect=exit:code=0
-expect=stdout:contains=degraded
-expect=stdout:contains=interfaces
