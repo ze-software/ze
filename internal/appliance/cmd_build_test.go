@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -62,7 +63,16 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 	}
 }
 
-func TestGokrazyConfigBuildsStrippedZeBinary(t *testing.T) {
+// TestGokrazyConfigMatchesApplianceBuildTags asserts the gokrazy image builds
+// cmd/ze with the same tag set as the Makefile ze-appliance target
+// ("ze_core ze_appliance $(ZE_FEATURES)"): the ze_core base, the ze_appliance
+// on-device mode tag, and every default-on feature gate declared in
+// feature-gates.txt -- the single source of truth from which ZE_FEATURES is
+// derived. The comparison is a set, not a fixed list, so a gate added to
+// feature-gates.txt but not to the gokrazy config fails here instead of
+// silently shipping a feature-less appliance image (the desync that left this
+// test asserting a stale "ze_core only" after SSH was gated on).
+func TestGokrazyConfigMatchesApplianceBuildTags(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("..", "..", "gokrazy", "ze", "config.json")) //nolint:gosec // repo fixture
 	if err != nil {
 		t.Fatalf("read gokrazy config: %v", err)
@@ -79,16 +89,64 @@ func TestGokrazyConfigBuildsStrippedZeBinary(t *testing.T) {
 	if !ok {
 		t.Fatal("ze package config missing")
 	}
-	tags, ok := zePkg["GoBuildTags"].([]any)
+	rawTags, ok := zePkg["GoBuildTags"].([]any)
 	if !ok {
 		t.Fatal("GoBuildTags missing for ze package")
 	}
-	if len(tags) != 1 {
-		t.Fatalf("GoBuildTags = %v, want [ze_core]", tags)
+	got := make(map[string]bool, len(rawTags))
+	for _, v := range rawTags {
+		s, ok := v.(string)
+		if !ok {
+			t.Fatalf("GoBuildTags entry %v is not a string", v)
+		}
+		got[s] = true
 	}
-	if tag, ok := tags[0].(string); !ok || tag != "ze_core" {
-		t.Fatalf("GoBuildTags[0] = %v, want ze_core", tags[0])
+
+	want := map[string]bool{"ze_core": true, "ze_appliance": true}
+	for _, tag := range readFeatureGateTags(t) {
+		want[tag] = true
 	}
+
+	for tag := range want {
+		if !got[tag] {
+			t.Errorf("gokrazy config GoBuildTags missing %q (ze_core/ze_appliance base or a feature-gates.txt gate); add it to gokrazy/ze/config.json", tag)
+		}
+	}
+	for tag := range got {
+		if !want[tag] {
+			t.Errorf("gokrazy config GoBuildTags has unexpected %q (not the appliance base and not in feature-gates.txt); remove it or declare the gate in feature-gates.txt", tag)
+		}
+	}
+}
+
+// readFeatureGateTags returns the unique build-tag column from feature-gates.txt
+// (the single source of truth; Makefile ZE_FEATURES derives from the same file).
+// Blank lines and '#' comments are ignored. Mirrors the reader in
+// internal/test/runner so both stay in sync with the manifest format.
+func readFeatureGateTags(t *testing.T) []string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("..", "..", "feature-gates.txt")) //nolint:gosec // repo fixture
+	if err != nil {
+		t.Fatalf("read feature-gates.txt: %v", err)
+	}
+	var tags []string
+	seen := make(map[string]bool)
+	for line := range strings.SplitSeq(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) == 0 || seen[fields[0]] {
+			continue
+		}
+		seen[fields[0]] = true
+		tags = append(tags, fields[0])
+	}
+	if len(tags) == 0 {
+		t.Fatal("feature-gates.txt yielded no tags")
+	}
+	return tags
 }
 
 func TestBuildNoGokBinaryCheck(t *testing.T) {
