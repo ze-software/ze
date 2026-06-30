@@ -66,7 +66,7 @@ func TestInitrdCacheHitCopiesToToolsPath(t *testing.T) {
 		t.Fatalf("resolveInitrd: %v", err)
 	}
 
-	toolsPath := filepath.Join(initrdToolsDir, "build", initrdFileName)
+	toolsPath := filepath.Join(initrdToolsDir, initrdFileName)
 	got, err := os.ReadFile(toolsPath)
 	if err != nil {
 		t.Fatalf("tools path %s not written on cache hit: %v", toolsPath, err)

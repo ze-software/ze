@@ -76,7 +76,7 @@ func resolveInitrd() (string, error) {
 		arch = runtime.GOARCH
 	}
 	cached := initrdCachePath(version, arch)
-	toolsDst := filepath.Join(initrdToolsDir, "build", initrdFileName)
+	toolsDst := filepath.Join(initrdToolsDir, initrdFileName)
 
 	if _, err := os.Stat(cached); err == nil {
 		if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
