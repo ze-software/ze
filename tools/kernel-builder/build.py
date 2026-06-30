@@ -191,7 +191,6 @@ def download_tarball(version: str, work_dir: Path) -> Path:
 
 def restore_or_extract_tree(
     version: str,
-    profile: str,
     modules: str,
     patches_dir: Path | None,
     work_dir: Path,
@@ -199,8 +198,8 @@ def restore_or_extract_tree(
     tarball: Path,
 ) -> Path:
     build_dir.mkdir(parents=True, exist_ok=True)
-    build_tree = build_dir / f"linux-{version}-{profile}-{modules}"
-    cache_tar = work_dir / f"linux-{version}-{profile}-{modules}.built.tar"
+    build_tree = build_dir / f"linux-{version}-{modules}"
+    cache_tar = work_dir / f"linux-{version}-{modules}.built.tar"
     if patches_dir is not None:
         shutil.rmtree(build_tree, ignore_errors=True)
     elif (build_tree / "scripts/Kbuild.include").is_file():
@@ -322,7 +321,7 @@ def copy_installer_outputs(
 ) -> None:
     shutil.copy2(build_tree / image_path, out_dir / "Image")
     if patches_dir is None:
-        cache_tar = work_dir / f"linux-{version}-{profile}-{modules}.built.tar"
+        cache_tar = work_dir / f"linux-{version}-{modules}.built.tar"
         print(f">>> caching build tree to {cache_tar}")
         with tarfile.open(cache_tar, "w") as tar:
             tar.add(build_tree, arcname=build_tree.name)
@@ -375,7 +374,7 @@ def main() -> int:
     work_dir.mkdir(parents=True, exist_ok=True)
     tarball = download_tarball(version, work_dir)
     build_tree = restore_or_extract_tree(
-        version, profile, modules, patches_dir, work_dir, build_dir, tarball
+        version, modules, patches_dir, work_dir, build_dir, tarball
     )
     apply_patches(build_tree, patches_dir)
     merge_config(build_tree, kernel_arch, args.arch, profile, fragments)

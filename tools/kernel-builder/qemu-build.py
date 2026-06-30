@@ -112,9 +112,9 @@ def validate_jobs(value: str) -> str:
     return value
 
 
-def build_dir(target_arch: str, profile: str) -> Path:
+def build_dir(target_arch: str) -> Path:
     root = repo_root()
-    d = root / "tmp" / "qemu" / "build" / f"{_alpine_arch(target_arch)}-{profile}"
+    d = root / "tmp" / "qemu" / "build" / _alpine_arch(target_arch)
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -395,7 +395,7 @@ def _run_build(
 ) -> int:
     ssh_port = find_free_port()
     cc_dir = ccache_dir()
-    bd_dir = build_dir(target_arch, profile)
+    bd_dir = build_dir(target_arch)
     memory = _vm_memory()
     fw_path = Path(firmware_dir) if firmware_dir else None
     args = _build_qemu_args(

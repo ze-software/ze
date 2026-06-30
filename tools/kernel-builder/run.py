@@ -270,6 +270,10 @@ def run_docker(
         f"{common_dir}:/builder/common:ro",
         "-v",
         f"{out_dir}:/out",
+        "-v",
+        "ze-kernel-build:/tmp/kbuild",
+        "-v",
+        "ze-kernel-work:/build",
     ]
     if firmware_dir is not None:
         args.extend(["-v", f"{firmware_dir}:/firmware:ro"])
