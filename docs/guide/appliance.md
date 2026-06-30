@@ -565,7 +565,7 @@ disk image. The installed disk receives the selected image bytes, including the
 `/perm/ze/database.zefs` and `/perm/ze/build.json` manifest that `build` already
 injected.
 <!-- source: internal/appliance/cmd_iso.go -- stageISO -->
-<!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
+<!-- source: internal/install/disk/run.go -- runISO -->
 <!-- source: internal/appliance/cmd_build.go -- injectZeFS -->
 
 The ISO boot path accepts an optional explicit target disk. If no target is set,
@@ -575,14 +575,14 @@ a builder-generated `ze.media-id` token before it trusts a mounted installer
 volume, so identical image filenames on multiple attached installer media do not
 confuse the source selection. With multiple fixed disks, pass a whole disk path
 such as `/dev/vda` at ISO creation time:
-<!-- source: tools/installer-initrd/init -- find_target_disk, find_iso_media, validate_media_id -->
+<!-- source: internal/install/disk/detect.go -- findTargetDisk; internal/install/disk/iso.go -- media-id match -->
 
     bin/ze-setup appliance iso --target /dev/vda lab
 
 After the installer writes the disk in ISO mode, it powers off instead of
 rebooting. Remove the installer media, then power the target back on so the
 firmware boots from the written disk.
-<!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
+<!-- source: internal/install/disk/run.go -- runISO -->
 
 The ISO contains the full provisioned appliance image, including the embedded
 ZeFS database. Handle the ISO with the same care as the `.img` file.

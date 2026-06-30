@@ -1,14 +1,16 @@
 # ze installer kernel
 
-The PXE installer boots an operator-supplied Linux kernel alongside the busybox
-initrd in `../installer-initrd` (see `docs/guide/ze-install.md`). `ze` ships no
+The PXE installer boots an operator-supplied Linux kernel alongside the pure-Go
+installer initrd (a single static `cmd/ze-installer` binary, built by
+`ze appliance initrd`; see `docs/guide/ze-install.md`). `ze` ships no
 installer kernel, because the right kernel is site-specific. This directory
 builds one suitable for the QEMU end-to-end test (`make ze-install-qemu-test`,
 `test/install/qemu-full.ci`) and for real hardware PXE/ISO deployment.
 
 ## Why a purpose-built kernel
 
-The initrd is a bare busybox cpio with **no kernel modules**. It relies on the
+The initrd is a single static Go binary packed into a cpio with **no kernel
+modules**. It relies on the
 kernel having configured the network from `ip=dhcp` before `/init` runs, and it
 mounts an ext4 `/perm` partition off a target disk. So NIC drivers, disk
 drivers, ext4, initramfs, devtmpfs and IP autoconfiguration must all be

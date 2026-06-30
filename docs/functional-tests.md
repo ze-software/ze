@@ -536,7 +536,7 @@ volatile fields removed, and `peer`/`neighbor` naming normalized.
 ### Install Tests (`test/install/`)
 
 Install functional tests cover the offline `ze install` command surface and the
-installer initrd shell helpers. The QEMU evidence entries run Python drivers
+appliance kernel/initrd/ISO build commands. The QEMU evidence entries run Python drivers
 that self-skip when external prerequisites are missing, printing either
 `INSTALL-QEMU: SKIP` or `INSTALL-ISO-QEMU: SKIP` while exiting successfully.
 Real failures exit non-zero.
@@ -554,7 +554,6 @@ Real failures exit non-zero.
 | `appliance-push-image-escape.ci` | `ze appliance push` rejects `--image` candidates that escape the appliance directory before network or TLS work |
 | `appliance-iso-default-paths.ci` | `ze appliance iso` succeeds with default kernel/initrd artifact paths and stages those files into the installer tree |
 | `appliance-iso-arm64.ci` | `ze appliance iso` emits arm64 UEFI staging assets and arm64 kernel console settings when `image.arch=arm64` |
-| `initrd-flow.ci` | Shell tests for cmdline parsing, disk selection, ISO media discovery, and checksum-protected image writes |
 | `kernel-builder-single-driver.ci` | A single shared driver (`tools/kernel-builder/run.py`) replaces the docker/qemu invocation; no Makefile or Go file invokes docker/qemu/build.py directly (AC-1) |
 | `kernel-arch-mapping-single.ci` | The arch → docker platform mapping appears exactly once, in `run.py` (AC-2) |
 | `kernel-shared-fragment.ci` | The six shared console symbols are single-sourced in `common/efi-console.config` and pulled into runtime + hardware via `# ze-include`, absent from qemu; the python resolver expands it (AC-3/AC-5) |

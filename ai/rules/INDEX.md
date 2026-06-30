@@ -50,7 +50,7 @@ Total: 77 rules
 | Hook-to-Rule Mapping | Quick reference: which checks enforce which rules, and when they trigger. Consult this BEFORE writing code to proactively comply, rather than fixing after rejection. For hook false positives and... | `ai/rules/hook-mapping.md` |
 | Impact Analysis | Before modifying a file, check what else needs to change. Changes to certain file types have predictable ripple effects. | `ai/rules/impact-analysis.md` |
 | Implementation Audit | Before marking any spec done, complete line-by-line audit comparing spec to implementation. | `ai/rules/implementation-audit.md` |
-| Initrd: Prefer Procfs/Sysfs Over External Commands | Read before modifying `tools/installer-initrd/init`. | `ai/rules/initrd-no-external-tools.md` |
+| Initrd: Prefer Procfs/Sysfs Over External Commands | Read before modifying the installer initrd (`cmd/ze-installer`, `internal/install/disk/*_linux.go`). | `ai/rules/initrd-no-external-tools.md` |
 | Feature Integration Completeness | Every new feature MUST be proven to work integrated, not just in isolation. | `ai/rules/integration-completeness.md` |
 | Interop Testing and Goal Validation | Protocol features MUST have interop tests. All features MUST have goal validation proving the feature achieves its intended purpose, not just that the code runs without error. | `ai/rules/interop-and-goal-validation.md` |
 | JSON Format | All JSON output MUST follow these conventions. | `ai/rules/json-format.md` |

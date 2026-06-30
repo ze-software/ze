@@ -166,7 +166,7 @@ target architecture:
 
 ```bash
 ze appliance kernel prod                     # reads arch + profile from appliance.json
-make -C tools/installer-initrd               # build/initrd.img.gz
+ze appliance initrd                          # build/initrd/initrd.img.gz (pure Go)
 ```
 
 Or build directly with Make:
@@ -174,7 +174,7 @@ Or build directly with Make:
 ```bash
 make -C tools/installer-kernel PROFILE=hardware ARCH=amd64   # real hardware, x86_64
 make -C tools/installer-kernel PROFILE=hardware ARCH=arm64   # real hardware, ARM
-make -C tools/installer-initrd
+ze appliance initrd                                          # initrd builds in pure Go
 ```
 
 The `PROFILE` selects the driver set: `qemu` (default, virtio only) or
@@ -282,7 +282,7 @@ The ISO installer decompresses and writes the embedded image to the target disk.
 Unlike PXE provisioning, it does not download `/install/database.zefs` or write a
 separate database after the disk image, because the appliance build already
 injected `/perm/ze/database.zefs` into the image.
-<!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
+<!-- source: internal/install/disk/run.go -- runISO -->
 <!-- source: internal/appliance/cmd_build.go -- injectZeFS -->
 
 The ISO bootloader target follows `image.arch`: amd64 images produce
@@ -296,7 +296,7 @@ If the target has more than one fixed disk, create the ISO with an explicit
 whole-disk target. The initrd rejects ambiguous implicit disk selection in ISO
 mode, excludes the ISO source media from target candidates, and requires a
 builder-generated media id match before it trusts a mounted installer volume.
-<!-- source: tools/installer-initrd/init -- find_target_disk, find_iso_media -->
+<!-- source: internal/install/disk/detect.go -- findTargetDisk; internal/install/disk/iso.go -- find ISO media -->
 
 ```bash
 ze appliance iso --target /dev/vda prod
@@ -316,7 +316,7 @@ is not supported.
 ISO installs power off after the disk write so the removable installer media can
 be removed before the next boot. They do not auto-reboot while the ISO is still
 present.
-<!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
+<!-- source: internal/install/disk/run.go -- runISO -->
 
 <!-- source: internal/appliance/cmd_iso.go -- stageISO -->
 
@@ -574,21 +574,18 @@ and the initrd's init script installs ze.
 
 ### Building the Initrd
 
-Prerequisites: `busybox-static`, `cpio`, `gzip`.
+Prerequisites: the Go toolchain only. The initrd is built in pure Go, so no
+`busybox`, `cpio`, or `gzip` host tools are required.
 
 ```bash
-make -C tools/installer-initrd
+ze appliance initrd
 ```
 
-This produces `build/initrd/initrd.img.gz`. Copy it
+This cross-compiles `cmd/ze-installer` for the target architecture and packs the
+single static binary into `build/initrd/initrd.img.gz` (the `/init` entry of a
+pure-Go newc cpio written through `compress/gzip`). Copy it
 alongside a Linux kernel to the boot directory served by the image
 server (`/var/lib/ze/install/boot/`).
-
-To use a custom busybox path:
-
-```bash
-make -C tools/installer-initrd BUSYBOX=/usr/bin/busybox-static
-```
 
 ### Kernel Command Line
 
@@ -616,10 +613,11 @@ example a corporate one) whose default route cannot reach `ze.server`. The initr
 guards against both. It trusts the kernel-provided default route only when
 `ze.server` actually answers an HTTP probe; if there is no default route, or the
 route present cannot reach the server, it brings up all non-loopback interfaces,
-waits up to 10 seconds for carrier, and runs `udhcpc` on each interface,
+waits up to 10 seconds for carrier, and runs an in-process DHCP client
+(`nclient4`) on each interface,
 verifying the server is reachable before accepting the lease. Interfaces that
 obtain a lease but cannot route to `ze.server:ze.port` are flushed and skipped.
-If no interface produces a working route, the installer drops to a debug shell.
+If no interface produces a working route, the installer drops to the recovery console.
 (A foreign DHCP server on a shared segment can still defeat this if it also wins
 the per-interface lease race, which is why the provisioning network must be
 isolated.) Even after the network is configured, the install server may not be
@@ -628,7 +626,7 @@ after a reboot). The initrd probes the server with a 2-second timeout, retrying
 up to 30 times. Each probe distinguishes "TCP unreachable" from "HTTP error
 response" so a server that returns 404 is still considered reachable. Interface
 state and routing tables are logged every 10 attempts for diagnostics.
-<!-- source: tools/installer-initrd/init -- ensure_network, server_reachable, has_default_route, wait_for_server, log_network_state -->
+<!-- source: internal/install/disk/network.go -- ensureNetwork -->
 
 The installer fans its progress and `FATAL` lines to every console listed in
 `/sys/class/tty/console/active`, not just the single `/dev/console` the kernel
@@ -639,12 +637,12 @@ client architecture via iPXE's `${buildarch}`: x86 clients get `console=tty0
 console=ttyS0`, while arm64 also keeps `console=ttyAMA0` (the ARM PL011 UART,
 which never registers on x86 and can dead-end `/dev/console` if left on an x86
 cmdline).
-<!-- source: tools/installer-initrd/init -- setup_console, emit, debug_console; internal/plugins/imageserver/handler.go -- serveBootIPXE -->
+<!-- source: internal/install/disk/console_linux.go -- setupConsoles; internal/plugins/imageserver/handler.go -- serveBootIPXE -->
 Existing `ze install remote` deployments need no `ze.source` change because the
 default source is `http`.
-<!-- source: tools/installer-initrd/init -- parse_cmdline, validate_source -->
+<!-- source: internal/install/disk/cmdline.go -- parseCmdline -->
 
-The init script selects a non-removable block device via sysfs. Virtual devices
+The installer selects a non-removable block device via sysfs. Virtual devices
 (loop, ram, dm, zram, md), optical drives (sr), floppies (fd), and firmware/CFI
 flash (`mtdblock`, the QEMU `virt` machine's pflash) are skipped.
 
@@ -656,39 +654,49 @@ to name an explicit whole disk.
 Supported target disk forms include `/dev/sda` (SATA/SCSI), `/dev/vda`
 (virtio-blk, used by QEMU/KVM), `/dev/nvme0n1` (NVMe), and `/dev/mmcblk0`
 (eMMC).
-<!-- source: tools/installer-initrd/init -- find_target_disk, validate_target_path -->
+<!-- source: internal/install/disk/detect.go -- findTargetDisk -->
 ### Error Handling
 
-If the init script encounters an error (missing server IP, no disk found,
-download failure after 3 retries), it drops to a shell for debugging
-instead of rebooting. This allows the operator to diagnose network or
-hardware issues. The rescue shell is bound to a real, working console
-(preferring a serial console, since headless installs are driven over serial)
-rather than inheriting PID 1's stdio, which may be a dead VGA tty nobody can
-drive.
-<!-- source: tools/installer-initrd/init -- fatal, debug_console -->
+If the installer encounters an error (missing server IP, no disk found,
+download failure), it does not silently reboot. It opens a Go recovery console
+on every active console (preferring a serial console, since headless installs
+are driven over serial) so the operator can diagnose network or hardware issues.
+The recovery console is a fixed menu (retry network, diagnostics, reboot, power
+off), not a shell. Its policy has three branches: with `ze.shell-auth` set the
+console is password-gated (sha256 of the typed password); with no credential on
+ISO media it opens ungated (the operator is physically present); with no
+credential on a network install it prints the error, waits ~30 seconds, and
+reboots, so an unattended box never hangs waiting for a password nobody can
+supply.
+<!-- source: internal/install/disk/rescue_linux.go -- fatalInitrd, rescueOnConsoles -->
 
 ### Running Tests
 
+The installer logic has Go unit tests alongside each source file in
+`internal/install/disk` (cmdline parsing, disk detection, the netlink lease
+apply, the stall-timeout download, the partition-node wait, and the recovery
+console / fatal policy):
+
 ```bash
-make -C tools/installer-initrd test
+go test ./internal/install/disk/...
 ```
 
-This runs the cmdline parsing, disk detection, ISO media discovery, image
-write, network fallback (`ensure_network`, including the foreign-DHCP recovery
-path), console fan-out / rescue-shell selection, and server-connectivity unit
-tests without requiring QEMU or real hardware.
+End-to-end boot and install are covered by the QEMU evidence harness, which
+boots the real Go initrd:
 
-### Busybox Applets
+```bash
+make ze-install-qemu-test       # HTTP PXE install
+make ze-install-iso-qemu-test   # ISO install
+```
 
-The initrd is a single static busybox plus symlinks. The Makefile symlinks
-every applet the init script uses (`sh cat mount umount mkdir sleep wget dd
-sync reboot poweroff blockdev basename rm mktemp mkfifo sha256sum tee losetup
-mknod` ...), and `/init`
-also runs `busybox --install -s /bin` at boot as defence in depth. A missing
-applet would otherwise surface only at install time as a `not found` error and
-a kernel panic, so the init avoids non-essential externals (for example it
-parses the checksum file with the shell `read` builtin rather than `cut`).
+### No External Binaries
+
+The initrd contains exactly one file: the `cmd/ze-installer` Go binary as
+`/init` (PID 1). There is no busybox and no shell. Every operation the old shell
+init shelled out to (mount, DHCP, HTTP download, link/address/route, reboot) is
+an in-process `golang.org/x/sys/unix` syscall or a vendored library call, so
+there is no applet that can be `not found` at install time. See
+`ai/rules/initrd-no-external-tools.md`.
 
 ## Installer Kernel
 
@@ -767,7 +775,7 @@ ZE_INSTALL_KERNEL=$PWD/build/kernel/Image make ze-install-iso-qemu-test
 
 The ISO evidence self-skips with `INSTALL-ISO-QEMU: SKIP` when QEMU, a suitable
 installer kernel, UEFI firmware, `grub-mkstandalone`/`grub2-mkstandalone`,
-`xorriso`, static busybox, or image-build tooling is unavailable.
+`xorriso`, or image-build tooling is unavailable.
 <!-- source: scripts/evidence/effective-install-iso-qemu.py -- main, skip -->
 
 The test self-skips (does not fail) when `ZE_INSTALL_KERNEL` is unset or a
