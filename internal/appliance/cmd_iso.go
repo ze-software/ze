@@ -321,7 +321,7 @@ func resolveISOInput(name string, opts isoOptions) (isoBuildInput, error) {
 	if err := verifyKernelArch(kernel, cfg.Image.Arch); err != nil {
 		return isoBuildInput{}, err
 	}
-	initrd, err := resolveISOArtifact(opts.initrdPath, "installer initrd", "make -C tools/installer-initrd or pass --initrd")
+	initrd, err := resolveISOArtifact(opts.initrdPath, "installer initrd", "run ze appliance initrd or pass --initrd")
 	if err != nil {
 		return isoBuildInput{}, err
 	}
