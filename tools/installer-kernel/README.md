@@ -95,7 +95,7 @@ python3 ../kernel-builder/build.py --src-dir /path/to/tools/installer-kernel --o
 ## Use with the QEMU install test
 
 ```sh
-ZE_INSTALL_KERNEL=$(pwd)/tools/installer-kernel/build/Image make ze-install-qemu-test
+ZE_INSTALL_KERNEL=$(pwd)/build/kernel/Image make ze-install-qemu-test
 ```
 
 Without `ZE_INSTALL_KERNEL` the test self-skips: there is no safe default kernel.

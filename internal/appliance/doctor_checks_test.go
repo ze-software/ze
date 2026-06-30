@@ -56,14 +56,14 @@ func TestDoctorKernelRejectsStaleFallback(t *testing.T) {
 	writeInstallerKernelRegistry(t)
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
-	kernelPath := filepath.Join(root, "tools", "installer-kernel", "build", "Image")
+	kernelPath := filepath.Join(root, "build", "kernel", "Image")
 	if err := os.MkdirAll(filepath.Dir(kernelPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(kernelPath, []byte("k"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	writeIsoTestFile(t, filepath.Join(root, "tools", "installer-kernel", "build", ".variant"), archAMD64+"-custom-"+defaultKernelVersion+"-docker")
+	writeIsoTestFile(t, filepath.Join(root, "build", "kernel", ".variant"), archAMD64+"-custom-"+defaultKernelVersion+"-docker")
 
 	diags := checkKernelArtifact(diagnostic.DoctorCheckContext{})
 	if len(diags) != 1 {
@@ -81,7 +81,7 @@ func TestDoctorKernelRejectsVariantWithoutImage(t *testing.T) {
 	writeInstallerKernelRegistry(t)
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
-	buildDir := filepath.Join(root, "tools", "installer-kernel", "build")
+	buildDir := filepath.Join(root, "build", "kernel")
 	if err := os.MkdirAll(buildDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

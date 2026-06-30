@@ -677,7 +677,7 @@ func TestRunBuilderArgvDocker(t *testing.T) {
 		"--arch amd64",
 		"--profile qemu",
 		"--src-dir tools/installer-kernel",
-		"--out-dir tools/installer-kernel/build",
+		"--out-dir build/kernel",
 		"--builder-dir tools/kernel-builder",
 		"--common-dir tools/kernel-builder/common",
 		"--modules no",

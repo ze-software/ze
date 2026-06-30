@@ -38,7 +38,7 @@ const (
 	kernelURLKey             = "ze.appliance.kernel.url"
 	kernelBuilderDir         = "tools/kernel-builder"
 	kernelInstallerConfigDir = "tools/installer-kernel"
-	kernelInstallerOutputDir = "tools/installer-kernel/build"
+	kernelInstallerOutputDir = "build/kernel"
 	runtimeKernelConfigDir   = "gokrazy/kernel"
 	runtimeKernelOutputDir   = "tmp/kernel/build"
 	runtimeKernelPatchesDir  = "gokrazy/kernel/patches"
@@ -89,7 +89,7 @@ type kernelTargetDesc struct {
 }
 
 // kernelTestOutputDirEnv lets a test relocate the build output dir so parallel
-// `ze appliance kernel` runs don't race on the shared tools/installer-kernel/build
+// `ze appliance kernel` runs don't race on the shared build/kernel
 // (Go writes it via run.py and reads its config back for enforcement). Unset in
 // production, where the hardcoded per-target dirs are used.
 const kernelTestOutputDirEnv = "ZE_KERNEL_TEST_OUTPUT_DIR"

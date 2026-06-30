@@ -46,7 +46,7 @@ func TestInitrdResolvesCache(t *testing.T) {
 	}
 }
 
-// VALIDATES: cache-hit branch copies initrd to tools/installer-initrd/build/ for downstream ISO.
+// VALIDATES: cache-hit branch copies initrd to build/initrd/ for downstream ISO.
 // PREVENTS: appliance iso failing with "installer initrd not found" after a cache-hit resolve.
 func TestInitrdCacheHitCopiesToToolsPath(t *testing.T) {
 	t.Chdir(t.TempDir())

@@ -22,7 +22,7 @@ import (
 const (
 	defaultInitrdVersion = "v2"
 	initrdURLKey         = "ze.appliance.initrd.url"
-	initrdToolsDir       = "tools/installer-initrd"
+	initrdToolsDir       = "build/initrd"
 )
 
 var _ = env.MustRegister(env.EnvEntry{

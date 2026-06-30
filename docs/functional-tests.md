@@ -546,9 +546,9 @@ Real failures exit non-zero.
 
 | File | What it verifies |
 |------|------------------|
-| `appliance-kernel-auto-docker.ci` | `ze appliance kernel` without `--builder` delegates to `run.py`, which prefers Docker, and writes the installer artifact into both `tools/installer-kernel/build/` and the XDG cache |
+| `appliance-kernel-auto-docker.ci` | `ze appliance kernel` without `--builder` delegates to `run.py`, which prefers Docker, and writes the installer artifact into both `build/kernel/` and the XDG cache |
 | `appliance-kernel-auto-qemu.ci` | `run.py`'s `select_builder` implements the docker-first / qemu-fallback auto-selection (moved out of Go) |
-| `appliance-kernel-docker.ci` | `ze appliance kernel --builder docker` delegates to `run.py`, which drives Docker → `build.py` with the resolved `--fragment` list, writes `tools/installer-kernel/build/{Image,config,kernel.version}`, and stores the same artifact under the XDG cache |
+| `appliance-kernel-docker.ci` | `ze appliance kernel --builder docker` delegates to `run.py`, which drives Docker → `build.py` with the resolved `--fragment` list, writes `build/kernel/{Image,config,kernel.version}`, and stores the same artifact under the XDG cache |
 | `appliance-kernel-qemu.ci` | `ze appliance kernel --builder qemu` delegates to `run.py`, which selects QEMU and invokes `qemu-build.py` with the resolved fragments (including the shared `efi-console` fragment for the hardware profile) |
 | `appliance-kernel-runtime.ci` | `ze appliance kernel --target runtime` resolves the runtime registry, enforces the runtime floor, and caches the runtime TREE (vmlinuz + lib/modules) under a `target=runtime` cache dir |
 | `appliance-push-image-escape.ci` | `ze appliance push` rejects `--image` candidates that escape the appliance directory before network or TLS work |

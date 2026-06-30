@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	defaultISOInitrd = "tools/installer-initrd/build/initrd.img.gz"
+	defaultISOInitrd = "build/initrd/initrd.img.gz"
 	isoBuildTimeout  = 10 * time.Minute
 	isoMediaIDBytes  = 16
 )
@@ -104,7 +104,7 @@ func runIso(args []string) int {
 	fs := flag.NewFlagSet("appliance iso", flag.ContinueOnError)
 	fs.StringVar(&opts.imageFile, "image", "", "Specific image file inside the appliance directory (default: most recent)")
 	fs.StringVar(&opts.outputPath, "output", "", "ISO output path (default: selected image name with .iso in appliance directory)")
-	fs.StringVar(&opts.kernelPath, "kernel", "", "Installer kernel path (default: tools/installer-kernel/build/Image)")
+	fs.StringVar(&opts.kernelPath, "kernel", "", "Installer kernel path (default: build/kernel/Image)")
 	fs.StringVar(&opts.initrdPath, "initrd", defaultISOInitrd, "Installer initrd path")
 	fs.StringVar(&opts.target, "target", "", "Optional explicit installer target disk, for example /dev/vda")
 	fs.StringVar(&opts.builderPath, "builder", "", "GRUB standalone builder binary (default: grub-mkstandalone or grub2-mkstandalone from PATH)")
@@ -311,10 +311,10 @@ func resolveISOInput(name string, opts isoOptions) (isoBuildInput, error) {
 			if !installerKernelBuildMatches(cfg.Image.Arch, profile) {
 				return isoBuildInput{}, fmt.Errorf("installer kernel for profile %q not found; run ze appliance kernel --profile %s or pass --kernel", profile, profile)
 			}
-			kernelPath = filepath.Join("tools", "installer-kernel", "build", "Image")
+			kernelPath = filepath.Join("build", "kernel", "Image")
 		}
 	}
-	kernel, err := resolveISOArtifact(kernelPath, "installer kernel", "build the installer kernel under tools/installer-kernel or pass --kernel")
+	kernel, err := resolveISOArtifact(kernelPath, "installer kernel", "build the installer kernel or pass --kernel")
 	if err != nil {
 		return isoBuildInput{}, err
 	}
@@ -404,7 +404,7 @@ func installerKernelBuildMatches(arch, profile string) bool {
 }
 
 func installerKernelFallbackPath(arch string, profiles []string) string {
-	path := filepath.Join("tools", "installer-kernel", "build", "Image")
+	path := filepath.Join("build", "kernel", "Image")
 	for _, profile := range profiles {
 		if installerKernelBuildMatches(arch, profile) {
 			if _, err := os.Stat(path); err == nil {

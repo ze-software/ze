@@ -614,7 +614,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--out-dir",
-        default=os.environ.get("OUT_DIR", "tools/installer-kernel/build"),
+        default=os.environ.get("OUT_DIR", "build/kernel"),
         help="Repo-relative output directory",
     )
     parser.add_argument(

@@ -28,7 +28,7 @@ ARCH ?= arm64
 PROFILE ?= qemu
 BUILDER ?= qemu
 JOBS ?=
-OUT := build
+OUT := ../../build/kernel
 BUILDER_DIR := ../kernel-builder
 RUN := $(BUILDER_DIR)/run.py
 VARIANT := $(OUT)/.variant
@@ -49,7 +49,7 @@ $(OUT)/Image: $(RUN) $(BUILDER_DIR)/build.py $(BUILDER_DIR)/ksource.py $(BUILDER
 		--profile $(PROFILE) \
 		--builder $(BUILDER) \
 		--src-dir tools/installer-kernel \
-		--out-dir tools/installer-kernel/$(OUT) \
+		--out-dir build/kernel \
 		--builder-dir tools/kernel-builder \
 		--common-dir tools/kernel-builder/common \
 		--modules no \

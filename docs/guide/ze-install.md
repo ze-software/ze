@@ -192,8 +192,8 @@ sudo ze install remote \
   --interface eth0 \
   --network 192.168.50.0/24 \
   --image ~/.config/ze/appliances/prod/ze-<timestamp>.img \
-  --kernel tools/installer-kernel/build/Image \
-  --initrd tools/installer-initrd/build/initrd.img.gz \
+  --kernel build/kernel/Image \
+  --initrd build/initrd/initrd.img.gz \
   --ssh-username admin \
   --ssh-password 'choose-a-strong-one'
 ```
@@ -275,7 +275,7 @@ kernel >= 7):
 
 ```bash
 ze appliance kernel --arch arm64
-ze appliance iso --kernel tools/installer-kernel/build/Image prod
+ze appliance iso --kernel build/kernel/Image prod
 ```
 
 The ISO installer decompresses and writes the embedded image to the target disk.
@@ -288,7 +288,7 @@ injected `/perm/ze/database.zefs` into the image.
 The ISO bootloader target follows `image.arch`: amd64 images produce
 `BOOTX64.EFI`, arm64 images produce `BOOTAA64.EFI`. By default the command
 checks for a cached kernel under `$XDG_CACHE_HOME/ze/installer-kernel/` then
-falls back to `tools/installer-kernel/build/Image`. Pass `--kernel` to use a
+falls back to `build/kernel/Image`. Pass `--kernel` to use a
 specific kernel path.
 <!-- source: internal/appliance/cmd_iso.go -- isoGRUBTarget, defaultISOKernelPath -->
 
@@ -580,7 +580,7 @@ Prerequisites: `busybox-static`, `cpio`, `gzip`.
 make -C tools/installer-initrd
 ```
 
-This produces `tools/installer-initrd/build/initrd.img.gz`. Copy it
+This produces `build/initrd/initrd.img.gz`. Copy it
 alongside a Linux kernel to the boot directory served by the image
 server (`/var/lib/ze/install/boot/`).
 
@@ -750,7 +750,7 @@ provisioned power user. That final login is the regression test for credential
 loading from the installed zefs.
 
 ```bash
-ZE_INSTALL_KERNEL=$PWD/tools/installer-kernel/build/Image make ze-install-qemu-test
+ZE_INSTALL_KERNEL=$PWD/build/kernel/Image make ze-install-qemu-test
 ```
 
 `make ze-install-iso-qemu-test` exercises the appliance ISO transport. It builds
@@ -762,7 +762,7 @@ ZeFS database.
 <!-- source: scripts/evidence/effective-install-iso-qemu.py -- main -->
 
 ```bash
-ZE_INSTALL_KERNEL=$PWD/tools/installer-kernel/build/Image make ze-install-iso-qemu-test
+ZE_INSTALL_KERNEL=$PWD/build/kernel/Image make ze-install-iso-qemu-test
 ```
 
 The ISO evidence self-skips with `INSTALL-ISO-QEMU: SKIP` when QEMU, a suitable

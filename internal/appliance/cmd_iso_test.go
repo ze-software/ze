@@ -348,8 +348,8 @@ func TestIsoUsesDefaultKernelAndInitrdArtifactPaths(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
 	writeInstallerKernelRegistry(t)
-	kernelPath := filepath.Join(root, "tools", "installer-kernel", "build", "Image")
-	initrdPath := filepath.Join(root, "tools", "installer-initrd", "build", "initrd.img.gz")
+	kernelPath := filepath.Join(root, "build", "kernel", "Image")
+	initrdPath := filepath.Join(root, "build", "initrd", "initrd.img.gz")
 	if err := os.MkdirAll(filepath.Dir(kernelPath), 0o755); err != nil {
 		t.Fatalf("mkdir kernel dir: %v", err)
 	}
@@ -357,7 +357,7 @@ func TestIsoUsesDefaultKernelAndInitrdArtifactPaths(t *testing.T) {
 		t.Fatalf("mkdir initrd dir: %v", err)
 	}
 	writeIsoTestKernelAny(t, kernelPath)
-	writeIsoTestFile(t, filepath.Join(root, "tools", "installer-kernel", "build", ".variant"), archAMD64+"-"+defaultKernelProfile+"-"+defaultKernelVersion+"-docker")
+	writeIsoTestFile(t, filepath.Join(root, "build", "kernel", ".variant"), archAMD64+"-"+defaultKernelProfile+"-"+defaultKernelVersion+"-docker")
 	writeIsoTestFile(t, initrdPath, "default-initrd")
 
 	appDir := setupIsoTestAppliance(t)
@@ -392,8 +392,8 @@ func TestIsoRejectsStaleFallbackForCustomProfile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, kernelInstallerConfigDir, "custom.require"), []byte("CONFIG_CUSTOM\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	kernelPath := filepath.Join(root, "tools", "installer-kernel", "build", "Image")
-	initrdPath := filepath.Join(root, "tools", "installer-initrd", "build", "initrd.img.gz")
+	kernelPath := filepath.Join(root, "build", "kernel", "Image")
+	initrdPath := filepath.Join(root, "build", "initrd", "initrd.img.gz")
 	if err := os.MkdirAll(filepath.Dir(kernelPath), 0o755); err != nil {
 		t.Fatalf("mkdir kernel dir: %v", err)
 	}
@@ -401,7 +401,7 @@ func TestIsoRejectsStaleFallbackForCustomProfile(t *testing.T) {
 		t.Fatalf("mkdir initrd dir: %v", err)
 	}
 	writeIsoTestKernelAny(t, kernelPath)
-	writeIsoTestFile(t, filepath.Join(root, "tools", "installer-kernel", "build", ".variant"), archAMD64+"-"+defaultKernelProfile+"-"+defaultKernelVersion+"-docker")
+	writeIsoTestFile(t, filepath.Join(root, "build", "kernel", ".variant"), archAMD64+"-"+defaultKernelProfile+"-"+defaultKernelVersion+"-docker")
 	writeIsoTestFile(t, initrdPath, "default-initrd")
 
 	appDir := setupIsoTestAppliance(t)

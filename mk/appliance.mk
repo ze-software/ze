@@ -18,15 +18,15 @@
 #   NAME               Appliance name (default: stem of CONFIG, or "prod")
 #   SSH_PASSWORD       SSH password (required for init)
 #   APPLIANCE_BUILDER  docker or qemu (default: docker)
-#   PXE_DIR            PXE/TFTP root (default: /var/lib/ze/install)
-#   IPXE_DIR           iPXE source checkout (default: /opt/ipxe)
+#   PXE_DIR            PXE/TFTP root (default: build/pxe)
+#   IPXE_DIR           iPXE source checkout (default: build/ipxe)
 
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe ze-installer
 
 CONFIG            ?=
 APPLIANCE_BUILDER ?= docker
-PXE_DIR           ?= /var/lib/ze/install
-IPXE_DIR          ?= /opt/ipxe
+PXE_DIR           ?= build/pxe
+IPXE_DIR          ?= build/ipxe
 
 # Derive NAME from CONFIG filename when CONFIG is set, otherwise default to prod.
 ifdef CONFIG
@@ -107,8 +107,8 @@ ze-pxe: bin/ze-setup
 	@test -d "$(APPLIANCE_DIR)" || { echo "error: appliance $(NAME) not found; run ze-iso or ze-iso-build first"; exit 1; }
 	@echo "--- Setting up PXE boot ---"
 	mkdir -p $(PXE_DIR)/tftp $(PXE_DIR)/boot
-	cp tools/installer-kernel/build/Image $(PXE_DIR)/boot/vmlinuz
-	cp tools/installer-initrd/build/initrd.img.gz $(PXE_DIR)/boot/
+	cp build/kernel/Image $(PXE_DIR)/boot/vmlinuz
+	cp build/initrd/initrd.img.gz $(PXE_DIR)/boot/
 	@img=$$(ls -1t $(APPLIANCE_DIR)/*.img 2>/dev/null | head -1 | xargs basename 2>/dev/null); \
 	test -n "$$img" || { echo "error: no .img found in $(APPLIANCE_DIR)"; exit 1; }; \
 	echo "--- Building iPXE binaries ---"; \

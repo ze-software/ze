@@ -517,9 +517,8 @@ XDG cache hit, download from a release server, and local build. Every build runs
 through the shared driver `tools/kernel-builder/run.py`, which selects Docker
 when available and falls back to QEMU; use `--builder docker` or `--builder qemu`
 to force one path. Downloaded artifacts are cached under `$XDG_CACHE_HOME/ze/`
-(default `~/.cache/ze/`) and also copied to `tools/installer-kernel/build/` and
-`tools/installer-initrd/build/` so `ze appliance iso` finds them without extra
-flags.
+(default `~/.cache/ze/`) and also copied to `build/kernel/` and
+`build/initrd/` so `ze appliance iso` finds them without extra flags.
 <!-- source: internal/appliance/cmd_kernel.go -- runKernel, kernelTargetFor -->
 <!-- source: tools/kernel-builder/run.py -- main -->
 
@@ -542,7 +541,7 @@ image. Use `--image` to select a specific image filename and `--output` to write
 the ISO elsewhere. The output path must not overwrite the selected `.img`, and
 the image filename must stay within `[A-Za-z0-9._-]` so the initrd can pass it
 on the kernel command line. By default the installer kernel path is
-`tools/installer-kernel/build/Image` or a cached download under
+`build/kernel/Image` or a cached download under
 `$XDG_CACHE_HOME/ze/`; `ze appliance kernel` and `make -C
 tools/installer-kernel` both delegate to `tools/kernel-builder/`, so build the
 matching architecture before you run `ze appliance iso`, or pass `--kernel` to
@@ -555,7 +554,7 @@ keep multiple kernels side by side.
     bin/ze-setup appliance iso lab
     bin/ze-setup appliance iso --image ze-20260601-120000.img lab
     bin/ze-setup appliance iso --output /path/to/lab.iso lab
-    bin/ze-setup appliance iso --kernel tools/installer-kernel/build/Image lab
+    bin/ze-setup appliance iso --kernel build/kernel/Image lab
 
 The ISO is an installer envelope around the existing raw gokrazy image. The image
 is gzip-compressed inside the ISO to reduce media size (a 2 GiB image with ~100

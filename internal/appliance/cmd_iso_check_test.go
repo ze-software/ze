@@ -36,15 +36,15 @@ func TestIsoCheckRejectsStaleDefaultKernelFallback(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
 	writeInstallerKernelRegistry(t)
-	kernelPath := filepath.Join(root, "tools", "installer-kernel", "build", "Image")
+	kernelPath := filepath.Join(root, "build", "kernel", "Image")
 	if err := os.MkdirAll(filepath.Dir(kernelPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(kernelPath, []byte("k"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	writeIsoTestFile(t, filepath.Join(root, "tools", "installer-kernel", "build", ".variant"), archAMD64+"-custom-"+defaultKernelVersion+"-docker")
-	initrdPath := filepath.Join(root, "tools", "installer-initrd", "build", "initrd.img.gz")
+	writeIsoTestFile(t, filepath.Join(root, "build", "kernel", ".variant"), archAMD64+"-custom-"+defaultKernelVersion+"-docker")
+	initrdPath := filepath.Join(root, "build", "initrd", "initrd.img.gz")
 	if err := os.MkdirAll(filepath.Dir(initrdPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
