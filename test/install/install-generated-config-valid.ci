@@ -27,13 +27,13 @@ service {
     tftp-server {
         enabled true;
         listen-interface eth0;
-        root-directory /var/lib/ze/install/tftp;
+        root-directory build/pxe/tftp;
     }
     image-server {
         enabled true;
         listen-interface eth0;
-        image-directory /var/lib/ze/install/images;
-        boot-directory /var/lib/ze/install/boot;
+        image-directory build/pxe/images;
+        boot-directory build/pxe/boot;
         ssh-username admin;
         ssh-password-hash "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234";
         shell-auth-sha256 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";

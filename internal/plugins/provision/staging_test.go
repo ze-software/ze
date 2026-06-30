@@ -226,3 +226,95 @@ func TestShellAuthHash(t *testing.T) {
 		t.Errorf("shellAuthHash not deterministic: %q vs %q", again, h)
 	}
 }
+
+func TestPXEDirs(t *testing.T) {
+	t.Parallel()
+
+	bootDir, tftpDir := pxeDirs("build/pxe")
+	if !filepath.IsAbs(bootDir) || !filepath.IsAbs(tftpDir) {
+		t.Fatalf("serve dirs must be absolute: boot=%q tftp=%q", bootDir, tftpDir)
+	}
+	if filepath.Base(bootDir) != "boot" {
+		t.Errorf("bootDir base = %q, want boot", filepath.Base(bootDir))
+	}
+	if filepath.Base(tftpDir) != "tftp" {
+		t.Errorf("tftpDir base = %q, want tftp", filepath.Base(tftpDir))
+	}
+	if filepath.Base(filepath.Dir(bootDir)) != "pxe" {
+		t.Errorf("bootDir parent = %q, want pxe", filepath.Base(filepath.Dir(bootDir)))
+	}
+
+	// An empty --pxe-dir resolves to the same paths as the explicit default.
+	b2, t2 := pxeDirs("")
+	if b2 != bootDir || t2 != tftpDir {
+		t.Errorf("empty pxe-dir = (%q,%q), want (%q,%q)", b2, t2, bootDir, tftpDir)
+	}
+}
+
+func TestProvisionConfigServeDirs(t *testing.T) {
+	t.Parallel()
+
+	cfg := generateConfig(configParams{
+		iface:       "eth0",
+		network:     "198.19.255.0/24",
+		image:       "/images/ze.img",
+		serverIP:    "198.19.255.1",
+		sshUsername: "admin",
+		sshPassHash: "$2a$10$hash",
+		bootDir:     "/srv/pxe/boot",
+		tftpDir:     "/srv/pxe/tftp",
+	})
+	if !strings.Contains(cfg, "boot-directory /srv/pxe/boot;") {
+		t.Errorf("config missing custom boot-directory:\n%s", cfg)
+	}
+	if !strings.Contains(cfg, "root-directory /srv/pxe/tftp;") {
+		t.Errorf("config missing custom root-directory:\n%s", cfg)
+	}
+
+	// Empty dirs fall back to the consolidated build/pxe defaults.
+	def := generateConfig(configParams{
+		iface:       "eth0",
+		network:     "198.19.255.0/24",
+		image:       "/images/ze.img",
+		serverIP:    "198.19.255.1",
+		sshUsername: "admin",
+		sshPassHash: "$2a$10$hash",
+	})
+	if !strings.Contains(def, "boot-directory build/pxe/boot;") {
+		t.Errorf("default config missing build/pxe/boot:\n%s", def)
+	}
+	if !strings.Contains(def, "root-directory build/pxe/tftp;") {
+		t.Errorf("default config missing build/pxe/tftp:\n%s", def)
+	}
+}
+
+func TestValidateFlagsPXEDir(t *testing.T) {
+	t.Parallel()
+
+	// A --pxe-dir resolving to a path with a space would corrupt the generated
+	// config and must be rejected. Other flags are left invalid on purpose; we
+	// only assert the pxe-dir error is among those reported.
+	found := false
+	for _, e := range validateFlags("", "", "", "", "", "/has space/pxe") {
+		msg := e.Error()
+		if strings.Contains(msg, "--pxe-dir") {
+			found = true
+			// The error must name the RESOLVED path, not just the flag, so a
+			// failure from the cwd-derived default is attributable to the
+			// checkout path rather than a flag the operator never set.
+			if !strings.Contains(msg, "resolves to") || !strings.Contains(msg, "/has space/pxe/boot") {
+				t.Errorf("pxe-dir error should name the resolved path, got: %q", msg)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected a --pxe-dir validation error for a path containing a space")
+	}
+
+	// A clean root produces no pxe-dir error.
+	for _, e := range validateFlags("", "", "", "", "", "build/pxe") {
+		if strings.Contains(e.Error(), "--pxe-dir") {
+			t.Errorf("unexpected --pxe-dir error for a clean root: %v", e)
+		}
+	}
+}

@@ -1,0 +1,12 @@
+# Test: ze install remote -- a --pxe-dir resolving to a config-unsafe path is
+# rejected before the servers start. Parallels install-remote-bad-network.ci:
+# an argument that cannot produce a valid generated config must fail loudly, and
+# the error must name the RESOLVED path so a cwd-derived default is diagnosable.
+#
+# '{' is rejected by safeConfigValue and survives the exec tokenizer (which splits
+# on whitespace), so it exercises the path without needing a space in the arg.
+
+cmd=foreground:seq=1:exec=ze install remote --interface lo0 --network 10.0.0.0/24 --image /dev/null --ssh-username admin --ssh-password secret --pxe-dir /bad{dir}
+expect=exit:code=1
+expect=stderr:contains=--pxe-dir
+expect=stderr:contains=resolves

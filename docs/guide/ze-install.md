@@ -198,9 +198,9 @@ sudo ze install remote \
   --ssh-password 'choose-a-strong-one'
 ```
 
-`--kernel` and `--initrd` copy the installer files to `/var/lib/ze/install/boot/`.
+`--kernel` and `--initrd` copy the installer files to `build/pxe/boot/`.
 Stock iPXE binaries from `tools/ipxe-binaries/` are copied to
-`/var/lib/ze/install/tftp/` if not already present. If the files are already
+`build/pxe/tftp/` if not already present. If the files are already
 staged from a previous run, omit `--kernel` and `--initrd`.
 <!-- source: internal/plugins/provision/staging.go -- stageArtifacts -->
 
@@ -387,6 +387,7 @@ Use `--address` to override.
 | `--address` | No | First IPv4 on interface (or from `--network` if none) | Server IP override |
 | `--kernel` | No | | Path to installer kernel (copied to boot directory) |
 | `--initrd` | No | | Path to installer initrd (copied to boot directory) |
+| `--pxe-dir` | No | `build/pxe` | PXE serve root: boot files under `<dir>/boot`, TFTP under `<dir>/tftp` |
 
 ### DHCP Pool
 
@@ -423,10 +424,17 @@ and `ze.port` (when not 80). A static `boot.ipxe` file in the boot directory
 takes precedence over dynamic generation for operator customization.
 <!-- source: internal/plugins/imageserver/handler.go -- serveBootIPXE -->
 
-Bootfiles are served from `/var/lib/ze/install/tftp/` via TFTP.
-The installer kernel and initrd are served from `/var/lib/ze/install/boot/`
+Bootfiles are served from `build/pxe/tftp/` via TFTP.
+The installer kernel and initrd are served from `build/pxe/boot/`
 via HTTP. Stock iPXE binaries are bundled in `tools/ipxe-binaries/` and
 staged automatically by `ze install remote`.
+
+The default `--pxe-dir build/pxe` is relative, resolved against the working
+directory. `make ze-pxe` stages artifacts into `build/pxe` from the repo root,
+so run `ze install remote` from the repo root too (as `pxe.sh` does), or pass an
+absolute `--pxe-dir`. Run from a different directory and the server looks for
+`build/pxe` under that directory and reports the missing artifacts by their
+resolved absolute path.
 
 ### SSH Credentials
 
@@ -498,9 +506,9 @@ the latest image installed.
   interface auto-configuration uses netlink)
 - Disk image at the path specified by `--image`
 - Installer kernel and initrd: pass `--kernel` and `--initrd` on first run,
-  or pre-stage files in `/var/lib/ze/install/boot/`
+  or pre-stage files in `build/pxe/boot/`
 - iPXE binaries: bundled in `tools/ipxe-binaries/`, auto-staged to
-  `/var/lib/ze/install/tftp/` if not present
+  `build/pxe/tftp/` if not present
 
 ### Shutdown
 
@@ -585,7 +593,7 @@ This cross-compiles `cmd/ze-installer` for the target architecture and packs the
 single static binary into `build/initrd/initrd.img.gz` (the `/init` entry of a
 pure-Go newc cpio written through `compress/gzip`). Copy it
 alongside a Linux kernel to the boot directory served by the image
-server (`/var/lib/ze/install/boot/`).
+server (`build/pxe/boot/`).
 
 ### Kernel Command Line
 

@@ -25,8 +25,8 @@ service {
         enabled true
         listen-interface ze-no-such-iface0
         listen-port 18080
-        image-directory /var/lib/ze/install/images
-        boot-directory /var/lib/ze/install/boot
+        image-directory build/pxe/images
+        boot-directory build/pxe/boot
     }
 }
 EOF_CONF

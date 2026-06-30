@@ -38,6 +38,7 @@ func Run(args []string) int {
 	address := fs.String("address", "", "Override server IP (default: first IPv4 on interface)")
 	kernel := fs.String("kernel", "", "Path to installer kernel (staged to boot directory)")
 	initrd := fs.String("initrd", "", "Path to installer initrd (staged to boot directory)")
+	pxeDir := fs.String("pxe-dir", defaultPXEDir, "PXE serve root, resolved against the working directory unless absolute: boot files served from <dir>/boot, TFTP from <dir>/tftp")
 
 	fs.Usage = func() { usage() }
 
@@ -48,7 +49,7 @@ func Run(args []string) int {
 		return 1
 	}
 
-	if errs := validateFlags(*iface, *network, *image, *sshUser, *sshPass); len(errs) > 0 {
+	if errs := validateFlags(*iface, *network, *image, *sshUser, *sshPass, *pxeDir); len(errs) > 0 {
 		for _, e := range errs {
 			fmt.Fprintf(os.Stderr, "error: %s\n", e)
 		}
@@ -64,11 +65,15 @@ func Run(args []string) int {
 		return 1
 	}
 
+	bootDir, tftpDir := pxeDirs(*pxeDir)
+
 	ipxeDir := locateIPXEDir()
 	sc := stagingConfig{
 		KernelPath: *kernel,
 		InitrdPath: *initrd,
 		IPXEDir:    ipxeDir,
+		BootDir:    bootDir,
+		TFTPDir:    tftpDir,
 	}
 	if stageErr := stageArtifacts(sc); stageErr != nil {
 		fmt.Fprintf(os.Stderr, "error: staging: %v\n", stageErr)
@@ -97,6 +102,8 @@ func Run(args []string) int {
 		sshPassHash:     hash,
 		shellAuthSHA256: shellAuthHash(*sshPass),
 		bootScriptURL:   bootScriptURL,
+		bootDir:         bootDir,
+		tftpDir:         tftpDir,
 	})
 
 	return forkAndServe(cfg)
@@ -111,11 +118,22 @@ type configParams struct {
 	sshPassHash     string
 	shellAuthSHA256 string
 	bootScriptURL   string
+	bootDir         string
+	tftpDir         string
 }
 
 func generateConfig(p configParams) string {
 	prefix, _ := netip.ParsePrefix(p.network)
 	start, stop := dhcpRange(prefix, netip.MustParseAddr(p.serverIP))
+
+	tftpRoot := p.tftpDir
+	if tftpRoot == "" {
+		tftpRoot = defaultTFTPDir
+	}
+	bootRoot := p.bootDir
+	if bootRoot == "" {
+		bootRoot = defaultBootDir
+	}
 
 	var b strings.Builder
 
@@ -163,7 +181,9 @@ func generateConfig(p configParams) string {
 	b.WriteString("        listen-interface ")
 	b.WriteString(p.iface)
 	b.WriteString(";\n")
-	b.WriteString("        root-directory /var/lib/ze/install/tftp;\n")
+	b.WriteString("        root-directory ")
+	b.WriteString(tftpRoot)
+	b.WriteString(";\n")
 	b.WriteString("    }\n")
 
 	b.WriteString("    image-server {\n")
@@ -174,7 +194,9 @@ func generateConfig(p configParams) string {
 	b.WriteString("        image-directory ")
 	b.WriteString(dirOf(p.image))
 	b.WriteString(";\n")
-	b.WriteString("        boot-directory /var/lib/ze/install/boot;\n")
+	b.WriteString("        boot-directory ")
+	b.WriteString(bootRoot)
+	b.WriteString(";\n")
 	b.WriteString("        ssh-username ")
 	b.WriteString(p.sshUsername)
 	b.WriteString(";\n")
@@ -200,8 +222,15 @@ func dirOf(path string) string {
 	return "."
 }
 
-func validateFlags(iface, network, image, sshUser, sshPass string) []error {
+func validateFlags(iface, network, image, sshUser, sshPass, pxeDir string) []error {
 	var errs []error
+
+	if bootDir, tftpDir := pxeDirs(pxeDir); !safeConfigValue(bootDir) || !safeConfigValue(tftpDir) {
+		// Name the resolved path, not just the flag: the default build/pxe is
+		// resolved against the working directory, so an unsafe character can come
+		// from the checkout path even when the operator passed no --pxe-dir.
+		errs = append(errs, fmt.Errorf("--pxe-dir %q resolves to %q, which contains characters unsafe for the generated config (no spaces, ';', '{', '}'); run from a checkout path without them or pass --pxe-dir an absolute clean path", pxeDir, bootDir))
+	}
 
 	if iface == "" {
 		errs = append(errs, errors.New("missing required flag: --interface"))
@@ -488,6 +517,7 @@ func usage() {
 				{Name: "--address", Desc: "Override server IP (default: first IPv4 on --interface)"},
 				{Name: "--kernel", Desc: "Path to installer kernel (copied to boot directory)"},
 				{Name: "--initrd", Desc: "Path to installer initrd (copied to boot directory)"},
+				{Name: "--pxe-dir", Desc: "PXE serve root, resolved against the working directory unless absolute; boot files under <dir>/boot, TFTP under <dir>/tftp (default: build/pxe, where make ze-pxe stages from the repo root)"},
 			}},
 		},
 		Examples: []string{

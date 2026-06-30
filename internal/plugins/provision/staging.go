@@ -11,8 +11,15 @@ import (
 )
 
 const (
-	defaultTFTPDir = "/var/lib/ze/install/tftp"
-	defaultBootDir = "/var/lib/ze/install/boot"
+	// defaultPXEDir is the consolidated build-output root for PXE artifacts.
+	// `make ze-pxe` (mk/appliance.mk PXE_DIR) stages the kernel, initrd, and
+	// iPXE binaries here, and provision serves boot files from <pxe-dir>/boot
+	// and TFTP from <pxe-dir>/tftp. Keep the three literals in sync with
+	// PXE_DIR in mk/appliance.mk; --pxe-dir overrides the root (e.g.
+	// /var/lib/ze/install for a system install outside the repo checkout).
+	defaultPXEDir  = "build/pxe"
+	defaultTFTPDir = "build/pxe/tftp"
+	defaultBootDir = "build/pxe/boot"
 	// stagedKernelName is the boot-directory filename the PXE kernel is staged
 	// as. It must stay "vmlinuz" so iPXE/GRUB configs and the appliance build
 	// pipeline find it; this is the provision package's own constant, distinct
@@ -45,6 +52,23 @@ func (c *stagingConfig) bootDir() string {
 		return c.BootDir
 	}
 	return defaultBootDir
+}
+
+// pxeDirs turns a --pxe-dir root into absolute boot and TFTP serve directories.
+// Absolute so the generated ze config does not depend on the forked server's
+// working directory. filepath.Abs only fails when the working directory cannot
+// be read; in that case the literal root is used so callers still get a usable
+// (relative) path rather than an empty one. validateFlags gates the result for
+// config safety before it reaches the generated config.
+func pxeDirs(pxeDir string) (bootDir, tftpDir string) {
+	if pxeDir == "" {
+		pxeDir = defaultPXEDir
+	}
+	root := pxeDir
+	if abs, err := filepath.Abs(pxeDir); err == nil {
+		root = abs
+	}
+	return filepath.Join(root, "boot"), filepath.Join(root, "tftp")
 }
 
 func stageArtifacts(cfg stagingConfig) error {

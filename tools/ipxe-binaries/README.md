@@ -1,7 +1,7 @@
 # iPXE Binaries
 
 Stock iPXE bootloader binaries for PXE provisioning. `ze install remote`
-copies these to `/var/lib/ze/install/tftp/` when not already present.
+copies these to `build/pxe/tftp/` when not already present.
 
 ## Files
 
@@ -39,4 +39,4 @@ Replace the binaries and note the iPXE commit hash in this section:
 
 ARM64 EFI (`snponly.efi` or `ipxe.efi` for aarch64) is not bundled.
 Operators targeting ARM64 PXE boot must provide their own binary and
-place it in `/var/lib/ze/install/tftp/`.
+place it in `build/pxe/tftp/`.

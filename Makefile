@@ -528,7 +528,7 @@ help-deploy:
 	@echo "                             NAME=prod APPLIANCE_BUILDER=docker"
 	@echo "    ze-iso-check             Check ISO build prerequisites"
 	@echo "    ze-pxe                   Build iPXE + TFTP for PXE boot"
-	@echo "                             NAME=prod PXE_DIR=/var/lib/ze/install"
+	@echo "                             NAME=prod PXE_DIR=build/pxe"
 	@echo ""
 	@echo "  Docker:"
 	@echo "    ze-docker                Build Docker image (ZE_DOCKER_IMAGE=ze ZE_DOCKER_TAG=...)"
