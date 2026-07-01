@@ -1,5 +1,9 @@
 # Runtime kernel fragment composition: tracked fragments must carry the required
 # gokrazy, L2TP/PPP, virtio, and module options without removed Kconfig symbols.
+#
+# Build output lives at repo-root build/kernel/ (Makefile OUT := ../../build/kernel,
+# run.py --out-dir build/kernel), consolidated from the old tools/installer-kernel/
+# build/ by commit d8d371d4d. Assertions unchanged; only the output paths follow.
 
 option=timeout:value=20s
 
@@ -23,14 +27,14 @@ cleanup() {
 	set +e
 	rm -f "$combined" tools/installer-kernel/compose-fixture.config tools/installer-kernel/compose-fixture.require
 	if [ -n "$orig_image" ]; then
-		cp "$orig_image" tools/installer-kernel/build/Image
+		cp "$orig_image" build/kernel/Image
 	else
-		rm -f tools/installer-kernel/build/Image
+		rm -f build/kernel/Image
 	fi
 	if [ -n "$orig_config" ]; then
-		cp "$orig_config" tools/installer-kernel/build/config
+		cp "$orig_config" build/kernel/config
 	else
-		rm -f tools/installer-kernel/build/config
+		rm -f build/kernel/config
 	fi
 }
 trap cleanup EXIT
@@ -103,16 +107,16 @@ for opt in \
 	require_absent "$opt"
 done
 
-mkdir -p "$work/fakebin" tools/installer-kernel/build
-if [ -f tools/installer-kernel/build/Image ]; then
+mkdir -p "$work/fakebin" build/kernel
+if [ -f build/kernel/Image ]; then
 	orig_image="$work/original-image"
-	cp tools/installer-kernel/build/Image "$orig_image"
+	cp build/kernel/Image "$orig_image"
 fi
-if [ -f tools/installer-kernel/build/config ]; then
+if [ -f build/kernel/config ]; then
 	orig_config="$work/original-config"
-	cp tools/installer-kernel/build/config "$orig_config"
+	cp build/kernel/config "$orig_config"
 fi
-rm -f tools/installer-kernel/build/Image tools/installer-kernel/build/config
+rm -f build/kernel/Image build/kernel/config
 cat > tools/installer-kernel/compose-fixture.config <<'EOF_CONFIG'
 # ze-base: qemu
 CONFIG_COMPOSE_FIXTURE=y
@@ -155,14 +159,14 @@ fi
 EOF_DOCKER
 chmod +x "$work/fakebin/docker"
 PATH="$work/fakebin:$PATH" make -C tools/installer-kernel PROFILE=qemu BUILDER=docker ARCH=amd64 > "$work/make-qemu.out"
-if grep -q '^CONFIG_COMPOSE_FIXTURE=y$' tools/installer-kernel/build/config; then
+if grep -q '^CONFIG_COMPOSE_FIXTURE=y$' build/kernel/config; then
 	echo "qemu profile unexpectedly used compose fixture" >&2
 	exit 1
 fi
 PATH="$work/fakebin:$PATH" make -C tools/installer-kernel PROFILE=compose-fixture BUILDER=docker ARCH=amd64 > "$work/make-fixture.out"
 grep -q 'profile=compose-fixture' "$work/make-fixture.out"
-grep -q '^CONFIG_COMPOSE_FIXTURE=y$' tools/installer-kernel/build/config
-rm -f tools/installer-kernel/build/Image
+grep -q '^CONFIG_COMPOSE_FIXTURE=y$' build/kernel/config
+rm -f build/kernel/Image
 if PATH="$work/fakebin:$PATH" make -q -C tools/installer-kernel PROFILE=compose-fixture BUILDER=docker ARCH=amd64; then
 	echo "missing build/Image unexpectedly considered up to date" >&2
 	exit 1

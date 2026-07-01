@@ -4,6 +4,23 @@ Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before An
 Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
 
 
+### 2026-07-01 -- kernel-runtime-deps parallel-execution flake
+
+**Open (harness artifact, unrelated to installer/BGP work).** `install/26`
+kernel-runtime-deps intermittently FAILs in the full parallel `ze-functional-test`
+with a TOCTOU race: `FileNotFoundError` / `touch: No such file` on
+`tmp/kernel/build/vmlinuz` (the real ~56M runtime kernel; `gokrazy/kernel/Makefile:19`
+`OUT := $(REPO_ROOT)/tmp/kernel/build`, so the path is correct, NOT stale). At
+`kernel-runtime-deps.ci:57-58` it does `out.exists()` then `out.stat()`; a
+concurrent kernel test rebuilding/removing that shared artifact between the two
+lines yields the race. **Passes 1/1 in isolation**
+(`ze-test install --pattern kernel-runtime-deps`, verified 2026-07-01). Same class
+as the plugin "load-induced flakiness under max parallelism" note below. Real fix:
+isolate each kernel test's `tmp/kernel/` state (per-test TMPDIR) or serialize the
+kernel tests. NOT introduced by the installer-initrd-pure-go QEMU-infra work (that
+touches `build/kernel/` + installer QEMU scripts, a disjoint subsystem).
+
+
 ### 2026-06-17 -- host `make ze-verify` re-triage (supersedes 2026-06-13)
 
 **Open (pre-existing).** Verified against current working tree.
