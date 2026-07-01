@@ -5,7 +5,7 @@
 | Status | design |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-30 |
+| Updated | 2026-07-01 |
 
 ## Post-Compaction Recovery
 
@@ -27,6 +27,20 @@ under the interface's YANG config. Generic and not AS112-specific: the API
 must not name `as112` anywhere inside `internal/component/iface`. The AS112
 DNS plugin (`spec-as112-2-dns-server.md`) is the first and, in this spec set,
 only consumer.
+
+**Registration must trigger reconciliation (review finding B1).** A registration
+that merely mutates a map is not enough: iface's reconcile runs only from
+`applyConfig` (`config_apply.go:729`) and the vpp `EventConnected`/
+`EventReconnected` handlers (`register.go:257` `subscribeReconcileOnReady`) — so
+an address registered during a plugin's config handler would NOT reach `lo`
+until some later, unrelated config commit (and plugin handler order is
+non-deterministic — `plan/learned/821-plugin-internal-keyword.md`, so we cannot
+rely on ordering as112's handler before iface's). Therefore
+`RegisterOwnedAddresses`/`UnregisterOwnedAddresses` MUST publish a
+reconcile-trigger (reusing the existing `subscribeReconcileOnReady` trigger
+path) so iface re-runs reconciliation promptly after the registry changes, in
+the same enable/disable operation. This is the crux the earlier draft left as an
+unvalidated assumption.
 
 ## Required Reading
 
@@ -55,7 +69,7 @@ N/A — this child is infrastructure, not protocol behavior. (Required by
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/iface/config_apply.go` - `desiredState()` (lines 94-107) builds a `map[string]map[string]bool` (OS interface name → CIDR → true) purely from parsed YANG `unitEntry.Addresses`; reconciliation (lines 778-813) diffs this against `currentAddrSet()` (live kernel state) and calls `AddAddress`/`RemoveAddress` for the difference — any kernel address absent from `desiredState()`'s output is removed as stray.
+- [ ] `internal/component/iface/config_apply.go` - `desiredState()` (lines 18-110) builds a `map[string]map[string]bool` (OS interface name → CIDR → true) plus a managed-name set, purely from parsed YANG `unitEntry.Addresses`; reconciliation (`reconcileOnReadyWithJournal`, lines 757-813) diffs this against `currentAddrSet()` (live kernel state) and calls `AddAddress`/`RemoveAddress` for the difference — any kernel address absent from `desiredState()`'s output is removed as stray.
 - [ ] `internal/component/iface/config.go` - `parseUnits()` (lines 875-954) is the sole current producer of per-unit `Addresses` that feeds `desiredState()`; no other source exists today.
 - [ ] `internal/component/iface/backend.go` - `RegisterBackend`/`LoadBackend`/`GetBackend` (lines 216-282): the existing precedent for a package-level, mutex-guarded registry in this exact package.
 - [ ] `internal/component/iface/yang/ze-iface-conf.yang` - `container loopback` (lines 1114-1119): "Always present; ze manages its addresses and units" — the loopback interface always exists, so a plugin registering against it never races interface creation.
@@ -84,9 +98,10 @@ N/A — this child is infrastructure, not protocol behavior. (Required by
 ### Transformation Path
 1. Plugin calls `iface.RegisterOwnedAddresses(ifaceName, owner, addrs []string)` with its fixed CIDR list and a stable owner name.
 2. The registry stores `owner → ifaceName → []string` under a package-level mutex, replacing any prior registration for that owner (idempotent re-registration).
-3. `desiredState()` is extended to, for each interface, union the YANG-derived address set with every registered owner's address set for that interface before returning.
-4. Existing reconciliation (`config_apply.go:778-813`) runs unchanged against the merged set — it cannot tell a plugin-owned address from an operator-declared one, by design.
-5. On `iface.UnregisterOwnedAddresses(owner)` (e.g. plugin disabled), the owner's entries are removed from the registry; the next reconciliation pass naturally removes the now-undesired kernel addresses (unless still present in YANG config from a different source).
+3. **The registry fires a reconcile-trigger** (the `trigger func()` iface already wires through `subscribeReconcileOnReady`, `register.go:257`) so iface re-runs `reconcileOnReady` promptly — this is what makes the address land in the same enable operation instead of a later commit (finding B1).
+4. `desiredState()` (`config_apply.go:18-110`) is extended to, for each interface, union the YANG-derived address set with every registered owner's address set for that interface before returning.
+5. Reconciliation (`reconcileOnReadyWithJournal`, `config_apply.go:757-813`) runs unchanged against the merged set — it cannot tell a plugin-owned address from an operator-declared one, by design.
+6. On `iface.UnregisterOwnedAddresses(owner)` (e.g. plugin disabled), the owner's entries are removed and the same reconcile-trigger fires, so the now-undesired kernel addresses are removed in the same disable operation (unless still present in YANG config from a different source).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -98,6 +113,7 @@ N/A — this child is infrastructure, not protocol behavior. (Required by
 ### Integration Points
 - `internal/component/iface/config_apply.go` `desiredState()` - merge point
 - `internal/component/iface/backend.go` `RegisterBackend` pattern - structural precedent for the new registry's mutex/map shape
+- `internal/component/iface/register.go:257` `subscribeReconcileOnReady(bus, trigger)` - the existing reconcile-trigger the registry reuses so registration re-runs reconciliation (finding B1)
 
 ### Architectural Verification
 - [ ] No bypassed layers (registered addresses flow through the same reconciliation path as YANG-declared ones)
@@ -110,8 +126,8 @@ N/A — this child is infrastructure, not protocol behavior. (Required by
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `desiredState()` can be extended to merge a second map without changing its existing call-site contract (still returns `map[string]map[string]bool`) | Read of `config_apply.go:94-813`; single call site at line 759 | Reconciliation call sites need wider changes than anticipated | unit test calling `desiredState()` with and without registry entries, asserting identical shape | unvalidated |
-| A-2 | A plugin registering before iface's first reconciliation pass (startup ordering) is safe — the registry is just an in-memory map read at reconciliation time, not at plugin-registration time | Plugins and iface both run in the same `ze` process for in-process plugins; reconciliation is triggered by config-apply, not by registration | A race exists between first reconciliation and first registration, causing one missed cycle | unit test registering after a `desiredState()` call and confirming the next call reflects it | unvalidated |
+| A-1 | `desiredState()` (returns `map[string]map[string]bool`, plus a managed-name set) can be extended to merge a second map without changing its existing call-site contract | Read of `config_apply.go:18-110` (desiredState) and `757-813` (reconcile; single call site at line 759) | Reconciliation call sites need wider changes than anticipated | unit test calling `desiredState()` with and without registry entries, asserting identical shape | unvalidated |
+| A-2 | **RESOLVED (finding B1) — the ordering hazard is real, so registration is NOT relied upon to be "picked up later."** A plugin registering during its own config handler cannot assume iface will reconcile again in that commit: iface reconcile runs only from `applyConfig` (`config_apply.go:729`) + the vpp event handlers (`register.go:257`), nothing re-triggers it on registration, and plugin handler order is non-deterministic (`plan/learned/821-plugin-internal-keyword.md`). The design therefore makes `RegisterOwnedAddresses`/`Unregister` publish the reconcile-trigger themselves | Read of `config_apply.go:729`, `register.go:257`; agent verification of caller set | (was: one missed cycle) — now: address never lands until an unrelated commit | AC-7 + `TestRegister_TriggersReconcile` assert the trigger fires and the address reaches the kernel within the same op | design resolves it |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -126,6 +142,7 @@ N/A — this child is infrastructure, not protocol behavior. (Required by
 |-------------|---|--------------|------|
 | `iface.RegisterOwnedAddresses("lo", "test-owner", []string{"10.99.0.1/32"})` called, then config-apply reconciliation runs | → | `desiredState()` merge logic | `TestDesiredState_IncludesRegisteredOwnerAddresses` (`internal/component/iface/config_apply_test.go`) |
 | `iface.UnregisterOwnedAddresses("test-owner")` called after registration, then reconciliation runs | → | `desiredState()` merge logic | `TestDesiredState_DropsAddressAfterUnregister` (`internal/component/iface/config_apply_test.go`) |
+| `iface.RegisterOwnedAddresses(...)` called with NO subsequent config commit | → | reconcile-trigger fires → `reconcileOnReady` runs → address applied to kernel backend | `TestRegister_TriggersReconcile` (`internal/component/iface/address_owner_test.go`, fake backend records the `AddAddress` call) |
 
 ## Acceptance Criteria
 
@@ -137,6 +154,7 @@ N/A — this child is infrastructure, not protocol behavior. (Required by
 | AC-4 | A second owner registers an address already owned by a different owner on the same interface | Registration call returns an error naming the conflicting owner; the original registration is unchanged |
 | AC-5 | A plugin re-registers the identical address set for the same owner | No error, no duplicate entries, idempotent |
 | AC-6 | Concurrent goroutines register/unregister/read simultaneously | `go test -race` passes — no data race |
+| AC-7 | `RegisterOwnedAddresses` (or `Unregister`) called with no following config commit | A reconcile-trigger fires and the address is applied to (or removed from) the kernel backend within the same operation — NOT deferred to a later unrelated commit (finding B1). Verified with a fake backend recording `AddAddress`/`RemoveAddress` |
 
 ## End-to-End User Stories
 
@@ -157,6 +175,7 @@ N/A — this child is infrastructure, not protocol behavior. (Required by
 | `TestDesiredState_DropsAddressAfterUnregister` | `internal/component/iface/config_apply_test.go` | AC-2 end-to-end through `desiredState()` | |
 | `TestDesiredState_YangAndRegistryOverlap` | `internal/component/iface/config_apply_test.go` | AC-3: dual-source address counted once, survives single-source removal | |
 | `TestAddressOwnerRegistry_Race` (`-race`) | `internal/component/iface/address_owner_test.go` | AC-6: concurrent register/unregister/read | |
+| `TestRegister_TriggersReconcile` | `internal/component/iface/address_owner_test.go` | AC-7 / B1: registration fires the reconcile-trigger and the fake backend sees `AddAddress`; unregister fires it and the backend sees `RemoveAddress` | |
 
 ### Boundary Tests
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -172,10 +191,11 @@ N/A — this child is infrastructure, not protocol behavior. (Required by
 N/A — no wire protocol behavior in this child.
 
 ## Files to Modify
-- `internal/component/iface/config_apply.go` - `desiredState()` merges registry contents (lines 94-107 area)
+- `internal/component/iface/config_apply.go` - `desiredState()` (lines 18-110 area) merges registry contents before returning
+- `internal/component/iface/register.go` - hand the registry the reconcile-trigger `func()` (the same one passed to `subscribeReconcileOnReady`, line 257) so `Register`/`Unregister` can re-run reconciliation (finding B1)
 
 ## Files to Create
-- `internal/component/iface/address_owner.go` - the registry: `RegisterOwnedAddresses`, `UnregisterOwnedAddresses`, an internal accessor `desiredState()` uses
+- `internal/component/iface/address_owner.go` - the registry: `RegisterOwnedAddresses`, `UnregisterOwnedAddresses`, an internal accessor `desiredState()` uses, and a settable reconcile-trigger callback invoked on every mutation
 - `internal/component/iface/address_owner_test.go` - unit tests above
 
 ### Integration Checklist
@@ -244,14 +264,19 @@ N/A — no wire protocol behavior in this child.
    - Tests: `TestDesiredState_IncludesRegisteredOwnerAddresses`, `TestDesiredState_DropsAddressAfterUnregister`, `TestDesiredState_YangAndRegistryOverlap`
    - Files: `internal/component/iface/config_apply.go`, `internal/component/iface/config_apply_test.go`
    - Verify: tests fail → implement → tests pass → wiring test passes
-4. **Functional tests** → joint `.ci` test deferred to spec-as112-2 (needs a real plugin consumer to exercise end-to-end).
-5. **Full verification** → `make ze-verify`
-6. **Complete spec** → fill audit tables, write learned summary, two-commit close per `ai/rules/planning.md`
+4. **Phase: reconcile-trigger (finding B1)** — give the registry a settable trigger `func()`; wire it in `register.go` to the same trigger used by `subscribeReconcileOnReady` (line 257); fire it on every Register/Unregister.
+   - Tests: `TestRegister_TriggersReconcile`
+   - Files: `internal/component/iface/address_owner.go`, `internal/component/iface/register.go`
+   - Verify: test fails (no trigger) → implement → fake backend sees `AddAddress`/`RemoveAddress` without a config commit → AC-7 passes
+5. **Functional tests** → joint `.ci` test deferred to spec-as112-2 (needs a real plugin consumer to exercise end-to-end).
+6. **Full verification** → `make ze-verify`
+7. **Complete spec** → fill audit tables, write learned summary, two-commit close per `ai/rules/planning.md`
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | AC-1..AC-6 each have file:line implementation |
+| Completeness | AC-1..AC-7 each have file:line implementation |
+| Reconcile-trigger (B1) | Register/Unregister actually re-run reconciliation without a config commit; `TestRegister_TriggersReconcile` proves the kernel backend is touched |
 | Correctness | Conflict detection actually compares CIDR strings correctly (case/format normalization matches existing `netlink.ParseAddr` behavior) |
 | Naming | Exported function/type names match Go conventions used elsewhere in `internal/component/iface` (cf. `RegisterBackend`) |
 | Data flow | `desiredState()` remains a pure function of (YANG config, registry snapshot) — no hidden global state beyond the registry itself |
@@ -290,12 +315,29 @@ N/A — no wire protocol behavior in this child.
 |----------|---------------|-------------|
 
 ## Design Insights
+- **L2 — generic registry with one consumer, on purpose.** The Design checklist
+  asks "No premature abstraction (3+ use cases?)" and this registry has exactly
+  one consumer today (as112). This is a deliberate choice of the
+  registration-over-hardcoding pattern (`ai/patterns/registration.md`) over the
+  3-use-case heuristic: the alternative is an `if owner == "as112"` special case
+  inside `internal/component/iface`, which `ai/rules/plugin-self-containment.md`
+  forbids. The registry stays plugin-name-agnostic; the cost of genericity here
+  is ~one map and one mutex, not a speculative framework.
+- **Direct Go call is well-precedented (corrects an earlier worry).** Plugins
+  already import `internal/component/iface` directly in ~72 places (e.g.
+  `iface.AddrPayload` in `internal/plugins/flowspec-firewall/localaddr.go`,
+  `internal/plugins/ospf/interface_addr.go`). An in-process plugin calling a new
+  package-level `iface` function is normal and allowed by module-tiers
+  (plugins → components). Config is *delivered* to the plugin over the SDK
+  `net.Pipe`, but the plugin's in-process engine goroutine is free to call
+  component functions — the pipe is not a sandbox.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|--------------------------|-----------|
-| Generic mutex-guarded registry mirroring `backend.go`'s `RegisterBackend` pattern | (a) reuse the existing `ze-iface:interface-addr-add` RPC at plugin startup | (a) is imperative-only and gets reconciled away on the next config-apply cycle (`config_apply.go:778-813`); a registry consulted inside `desiredState()` is the only option that survives reconciliation |
-| Restrict to in-process plugins only (R-3) | Support out-of-process (forked) plugins too via a wire RPC | Out-of-process plugins cannot call a Go function in the main binary's address space at all; a wire-RPC equivalent is a larger, separate piece of work out of proportion to this feature, and as112 is deployed in-process |
+| Generic mutex-guarded registry mirroring `backend.go`'s `RegisterBackend` pattern | (a) reuse the existing `ze-iface:interface-addr-add` RPC at plugin startup | (a) is imperative-only and gets reconciled away on the next config-apply cycle (`config_apply.go:757-813`); a registry consulted inside `desiredState()` is the only option that survives reconciliation |
+| Registry mutation fires a reconcile-trigger (finding B1) | Rely on the next config commit to pick up the registration | Nothing re-runs iface reconcile on registration (`applyConfig` + vpp events only), and plugin handler order is non-deterministic, so relying on ordering leaves `lo` unconfigured until an unrelated commit. Reusing the `subscribeReconcileOnReady` trigger (`register.go:257`) makes enable/disable atomic and needs no new machinery |
+| Restrict to in-process plugins only (R-3) | Support out-of-process (forked) plugins too via a wire RPC | An out-of-process (forked) plugin runs in a separate OS process and cannot call a package-level Go function in the main binary; a wire-RPC equivalent is a larger, separate piece of work out of proportion to this feature, and as112 is deployed in-process |
 
 ## Known Limitations
 - Only in-process (`internal` per `plan/learned/821-plugin-internal-keyword.md`) plugins can use this registry, since registration is a direct Go function call, not a wire RPC. Out-of-process plugin support is not implemented.
@@ -387,7 +429,7 @@ N/A — this child implements no RFC-mandated wire behavior.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-6 all demonstrated
+- [ ] AC-1..AC-7 all demonstrated
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)

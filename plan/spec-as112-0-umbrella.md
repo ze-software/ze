@@ -5,7 +5,7 @@
 | Status | design |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-30 |
+| Updated | 2026-07-01 |
 
 ## Post-Compaction Recovery
 
@@ -36,8 +36,16 @@ the RFC compliance mapping (every SHOULD in `rfc/short/rfc7534.md` and
 | Child | Scope | Depends |
 |-------|-------|---------|
 | `spec-as112-1-iface-address-registry.md` | Generic plugin-to-iface address-ownership registration API | - |
-| `spec-as112-2-dns-server.md` | The `internal/plugins/as112/` DNS server plugin | spec-as112-1 |
+| `spec-as112-2-dns-server.md` | The `internal/plugins/as112/` DNS server plugin | spec-as112-1, **spec-dns-server-harness** |
 | `spec-as112-3-bgp-integration.md` | BGP `update`-block wiring, healthcheck probe, worked config, end-to-end test | spec-as112-1, spec-as112-2 |
+
+**Prerequisite (runs BEFORE this umbrella):** `plan/spec-dns-server-harness.md`
+extracts geodns's generic DNS-server primitives (listener lifecycle, EDNS0/
+client-IP resolution, authoritative-answer wrapper, `IP_FREEBIND` option, CIDR
+matcher) into `internal/core/dnsserver` and migrates geodns onto it. child 2
+CONSUMES that harness rather than mirroring geodns — a plugin MUST NOT import a
+sibling plugin (`ai/rules/plugin-design.md:133`). Not a child of this umbrella
+(it also benefits geodns), but child 2 is blocked on it.
 
 ## Required Reading
 
@@ -54,7 +62,7 @@ the RFC compliance mapping (every SHOULD in `rfc/short/rfc7534.md` and
   → Constraint: exact zone list (10.in-addr.arpa, 16-31.172.in-addr.arpa, 168.192.in-addr.arpa, 254.169.in-addr.arpa, HOSTNAME.AS112.NET/ARPA) and exact anycast addresses (192.175.48.1, 192.175.48.6, 192.175.48.42, 2620:4f:8000::{1,6,42}; this spec set uses only the four addresses below, not the secondary BLACKHOLE-1/2 addresses).
   → Constraint: zones contain SOA + NS only — "There should be no other resource records included in this zone" (§3.5).
 - [ ] `rfc/short/rfc7535.md` - AS112 Redirection Using DNAME (this session; EMPTY.AS112.ARPA, the two DNAME-redirection addresses, DNAME-support-on-node-never-required)
-  → Constraint: 192.31.196.1 / 2001:4:112::1 serve only EMPTY.AS112.ARPA; the as112 node itself never needs to understand DNAME (§6).
+  → Constraint: EMPTY.AS112.ARPA is reachable at 192.31.196.1 / 2001:4:112::1; the as112 node itself never needs to understand DNAME (§6). The plugin serves ONE static zone table on every bound address (child 2) — it does not restrict which zones answer on which address. This is harmless because the reverse zones are delegated only to the Direct-Delegation prefix (192.175.48.0/24, 2620:4f:8000::/48), so no reverse-zone query is ever routed to a DNAME address; and empty.as112.arpa answering on a Direct-Delegation address is likewise never reached in practice. (Earlier drafts said the DNAME addresses "serve only EMPTY.AS112.ARPA" — that per-address zone restriction is NOT implemented and is not required; this note supersedes it. Review finding M2.)
 - [ ] `rfc/short/rfc1997.md` - BGP Communities Attribute (NO_EXPORT / NO_ADVERTISE / NO_EXPORT_SUBCONFED)
   → Constraint: well-known community semantics already implemented and named in `internal/core/bgp/attribute/community.go:36-53` (`CommunityNoExport=0xFFFFFF01`, `CommunityNoAdvertise=0xFFFFFF02`, `CommunityNoExportSubconfed=0xFFFFFF03`).
 - [ ] `rfc/short/rfc3765.md` - NOPEER Community
@@ -74,7 +82,7 @@ the RFC compliance mapping (every SHOULD in `rfc/short/rfc7534.md` and
 - `internal/component/iface/cmd/manage.go:80-94` (`handleAddrAdd`, RPC
   `ze-iface:interface-addr-add`) looks like a shortcut but is a trap: it's an
   imperative, ephemeral kernel-only action. It does not touch
-  `config_apply.go:94-107`'s `desiredState()`, so an address added this way is
+  `config_apply.go:18-110`'s `desiredState()`, so an address added this way is
   reconciled away (removed as "stray") on the very next config-apply pass
   (`config_apply.go:778-813`). This is why child 1 must be a real registry
   consulted by `desiredState()`, not a startup-time RPC call.
@@ -86,7 +94,7 @@ the RFC compliance mapping (every SHOULD in `rfc/short/rfc7534.md` and
 - [ ] `internal/plugins/geodns/server.go` - DNS server lifecycle: `bind()` opens one UDP + one TCP listener per endpoint via `net.ListenConfig` (lines 360-385); `apply()` reconciles listeners only on endpoint-set change, computed via `endpointSig()` (lines 322-358); single `dns.ServeMux` handler reads an atomically-published `resolverState` snapshot per query (lines 254-301); `stopAll()` drains in-flight handlers with a 5s timeout (lines 393-409).
 - [ ] `internal/plugins/geodns/state.go` - `resolverState` (config + matcher + SOA serial) published via `sync/atomic.Pointer`; handler reads the snapshot lock-free (lines 7-32).
 - [ ] `internal/component/iface/config.go` - `parseUnits()` merges a loopback unit's IPv4 and IPv6 leaf-list addresses into one `unitEntry.Addresses` slice (lines 875-954, merge at 908-914).
-- [ ] `internal/component/iface/config_apply.go` - `desiredState()` builds the per-OS-interface-name desired-address map purely from parsed YANG config (lines 94-107); reconciliation calls `AddAddress`/`RemoveAddress` to converge kernel state to that map — any kernel address not present in `desiredState()` is treated as stray and removed (lines 778-813).
+- [ ] `internal/component/iface/config_apply.go` - `desiredState()` builds the per-OS-interface-name desired-address map purely from parsed YANG config (lines 18-110); reconciliation (`reconcileOnReadyWithJournal`, line 757) calls `AddAddress`/`RemoveAddress` to converge kernel state to that map — any kernel address not present in `desiredState()` is treated as stray and removed (lines 778-813).
 - [ ] `internal/component/iface/cmd/manage.go` - `handleAddrAdd`/`handleAddrDel` (RPC `ze-iface:interface-addr-add`/`-del`, lines 80-110) call `iface.AddAddress`/`iface.RemoveAddress` directly — imperative only, bypasses `desiredState()` entirely.
 - [ ] `internal/component/iface/yang/ze-iface-conf.yang` - `container loopback` (lines 1114-1119): "Always present; ze manages its addresses and units," uses the shared `interface-unit` grouping (IPv4/IPv6 `leaf-list address`, lines 263-423).
 - [ ] `internal/component/bgp/yang/ze-bgp-conf.yang` - `update` block container (lines 200-266): scoped to peer, group, or global; accumulates (BGP-level + group-level + peer-level routes all apply to a given peer); `community` leaf-list (line 237) accepts well-known names or `asn:value`; `watchdog` container (lines 260-264, `name`+`withdraw` leaves) ties a route to a named watchdog group; `asn` container (lines 445-468) has `local` (override local AS for this peer/group) and `local-options` leaf-list (`no-prepend`, `replace-as`).
@@ -114,27 +122,31 @@ the RFC compliance mapping (every SHOULD in `rfc/short/rfc7534.md` and
 
 ### Entry Point
 - Config commit: `service/as112/enabled` (child 2) plus operator-authored BGP
-  `group` `update` blocks referencing the four AS112 prefixes with a `community`
-  and `watchdog` block, plus a `healthcheck` probe definition (child 3).
+  `group` `update` blocks whose NLRI are the four **covering /24,/48 service
+  prefixes** (NOT the /32,/128 host addresses — see Design Insights, finding H3),
+  each with a `community` and a `watchdog` block that includes `withdraw`
+  (finding H2), plus a `healthcheck` probe (child 3).
 
 ### Transformation Path
-1. as112 plugin config is parsed and validated (child 2); on `enabled: true` the
-   plugin registers its four fixed addresses as an owned set against the new
-   iface registry (child 1) instead of requiring operator-typed loopback config.
-2. iface's `desiredState()` (`config_apply.go:94-107`) merges the plugin-owned
-   addresses with YANG-config addresses; reconciliation adds them to the kernel
-   loopback interface (`config_apply.go:778-793`, `manage_linux.go:204-220`).
-3. The as112 DNS server (child 2) binds UDP+TCP listeners on the four addresses
-   plus loopback, port 53, and answers the AS112 zones with static SOA/NS-only
-   data (or NXDOMAIN out of zone), authoritative-only (no recursion).
-4. A `healthcheck` probe (child 3) periodically queries the as112 DNS server.
-   On reaching state UP it dispatches `request bgp watchdog announce <group>`;
-   on DOWN it dispatches withdraw (existing healthcheck/watchdog mechanism,
-   unmodified).
-5. The watchdog plugin announces/withdraws the operator's `update`-block routes
-   (carrying the chosen community and optional `asn.local 112 replace-as`
-   override) to/from the peers in the targeted group(s) — existing watchdog
-   mechanism, unmodified.
+1. On `enabled: true`, the plugin registers its four /32,/128 host addresses
+   against the iface registry (child 1) and publishes a reconcile-trigger event
+   so iface re-reconciles immediately, not on the next unrelated commit (B1).
+2. iface `desiredState()` (`config_apply.go:18-110`) merges plugin-owned and
+   YANG addresses; `reconcileOnReadyWithJournal` (`config_apply.go:757-813`)
+   adds them to `lo` and removes strays. The registration event drives the same
+   trigger path iface uses for vpp `EventConnected` (`register.go:257`
+   `subscribeReconcileOnReady`).
+3. The DNS server (child 2) binds UDP+TCP on the four host addresses + loopback,
+   port 53, answering static SOA/NS-only zones (NXDOMAIN out of zone),
+   authoritative-only. Sockets set `IP_FREEBIND` via `net.ListenConfig.Control`
+   so bind never races address presence (B2; geodns lacks this,
+   `geodns/server.go:362`).
+4. A `healthcheck` probe (child 3) queries an anycast service address (not just
+   loopback) via a `ze` health command child 2 supplies (H1/M4). UP →
+   `request bgp watchdog announce <group>`; DOWN → withdraw.
+5. The watchdog announces/withdraws the operator's `update`-block routes
+   (chosen community + optional `asn.local 112 replace-as`) to the targeted
+   group(s) — unmodified.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -142,7 +154,7 @@ the RFC compliance mapping (every SHOULD in `rfc/short/rfc7534.md` and
 | as112 plugin ↔ iface (child 1) | new Go-level address-ownership registration API, consulted by `desiredState()` | [ ] |
 | iface ↔ kernel | existing netlink `AddAddress`/`RemoveAddress` reconciliation, unchanged | [ ] |
 | DNS client ↔ as112 plugin | UDP/TCP port 53 on the four anycast addresses, miekg/dns | [ ] |
-| healthcheck probe ↔ as112 plugin | DNS query over loopback (or one of the anycast addresses), existing healthcheck probe mechanism | [ ] |
+| healthcheck probe ↔ as112 plugin | authoritative DNS query against an **anycast service address** via child 2's `ze` health command (finding H1), existing healthcheck probe mechanism | [ ] |
 | healthcheck ↔ watchdog | existing `DispatchCommandArgs` / `request bgp watchdog announce|withdraw`, unmodified | [ ] |
 | watchdog ↔ BGP peers | existing wire UPDATE/WITHDRAW via the group-scoped `update` block, unmodified | [ ] |
 
@@ -167,16 +179,16 @@ not a substitute for reading the checklists themselves.)
 
 | # | Source | Requirement | Verdict | Closed by |
 |---|--------|-------------|---------|-----------|
-| 1 | rfc7534 §3.5 | MUST answer authoritatively for each delegated zone | Met | spec-as112-2 |
+| 1 | rfc7534 §3.5 | MUST answer authoritatively for each delegated zone | Met — child 2 also pins the RFC-mandated SOA parameters (refresh 1W, retry 1M, expire 1W, min-TTL 1W, $TTL 1W) and canonical NS/MNAME names, with a test asserting them (finding M1) | spec-as112-2 |
 | 2 | rfc7534 §3.5 | MUST NOT include records beyond SOA/NS in Direct Delegation zones | Met | spec-as112-2 |
 | 3 | rfc7534 §3.5 | MUST NOT host site's own RFC1918 records on the AS112 nameserver | Met by design (plugin only ever serves the fixed static empty-zone data, never site records) | spec-as112-2 |
 | 4 | rfc7534 §3.3 | SHOULD support cloned loopback / multiple loopback addresses | Met (existing iface capability) | spec-as112-1 |
 | 5 | rfc7534 §3.3 | SHOULD dedicate the host to AS112 purpose | **Not met — not software-enforceable.** Deployment recommendation only | Documented in `docs/guide/as112.md`; listed in Known Limitations |
-| 6 | rfc7534 §3.3 | SHOULD order startup: loopback → DNS → routing | Met functionally, by a stronger mechanism — the watchdog stays withdrawn until the healthcheck probe actively confirms the DNS server is answering correctly, independent of process start order | spec-as112-3 |
-| 7 | rfc7534 §3.3 | SHOULD NOT advertise the service prefix while addresses unconfigured or DNS not running | Met (healthcheck → watchdog) | spec-as112-3 |
+| 6 | rfc7534 §3.3 | SHOULD order startup: loopback → DNS → routing | Met functionally by a stronger mechanism, **conditional on two things (findings H1/H2):** (a) the `update` block includes the `watchdog` `withdraw` marker so the route starts withdrawn — its absence defaults to *announced* (`watchdog/config.go:145,292`); and (b) the healthcheck probe queries an *anycast service address*, not loopback, so UP means the advertised path actually answers. Both are enforced in child 3's worked example + tests | spec-as112-3 |
+| 7 | rfc7534 §3.3 | SHOULD NOT advertise the service prefix while addresses unconfigured or DNS not running | Met (healthcheck → watchdog), under the same two conditions as #6 (H1/H2): `withdraw` marker present + anycast-address probe. Child 3 adds an advisory doctor check when an AS112 watchdog-gated `update` block omits `withdraw` | spec-as112-3 |
 | 8 | rfc7534 §3.4 | SHOULD restrict outbound advertisement to a prefix filter permitting only the service prefixes + an AS_PATH filter matching only locally-originated routes | **Conditionally met** — true if the operator dedicates the target peer-group to AS112 only (recommended, worked example in docs); not enforceable if the operator reuses a general-purpose/transit peer-group for other routes too (that is the operator's own BGP policy, outside this feature's scope) | spec-as112-3 (docs); flagged as R-1 below |
 | 9 | rfc7534 §3.5 | SHOULD run authoritative-only (recursion disabled) | Met by design | spec-as112-2 |
-| 10 | rfc7534 §3.5 | SHOULD keep HOSTNAME.AS112.{NET,ARPA} TXT answers within 512 octets without EDNS0 | Met — boundary-tested | spec-as112-2 |
+| 10 | rfc7534 §3.5 | SHOULD keep HOSTNAME.AS112.{NET,ARPA} TXT answers within 512 octets without EDNS0 | Met — child 2 boundary-tests the **assembled UDP response size** (hostname + facility + location TXT strings + NS + SOA) with TC=0, not any single field in isolation (finding M3) | spec-as112-2 |
 | 11 | rfc7534 §4.1 | SHOULD monitor the node as a production service | Met (Prometheus metrics + `show as112`, mirrors geodns) | spec-as112-2 |
 | 12 | rfc7534 §4.2 | SHOULD withdraw the service prefix before planned downtime | Met (manual `watchdog withdraw`, or automatic via healthcheck) | spec-as112-3 |
 | 13 | rfc7534 §4.3 | SHOULD measure usage for trend/anomaly tracking | Met (Prometheus counters) | spec-as112-2 |
@@ -200,14 +212,17 @@ meet, and are repeated in Known Limitations.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | This is deployed as a local-use AS112 mirror by default (operator's own ASN), with the global AS112 origin (AS 112) only on peer-groups where the operator explicitly applies `asn.local 112 replace-as` | User confirmed per-peer-group origin-AS choice should be a configuration knob, not a fixed mode | A peer-group accidentally leaks AS-112-origin routes to the wrong upstream | child 3 functional test asserting AS_PATH differs between an overridden and a non-overridden peer-group | unvalidated |
 | A-2 | The four addresses (192.175.48.1, 192.31.196.1, 2620:4f:8000::1, 2001:4:112::1) are sufficient — the secondary IANA addresses (.48.6/.48.42 and IPv6 equivalents) are deliberately out of scope | User confirmed "4 addresses total" earlier in this conversation | Operator expects full 3-nameserver-per-family parity with real AS112.NET hosts | re-confirm with user at spec WRITE-gate review | unvalidated |
-| A-3 | `desiredState()` (`config_apply.go:94-107`) can be extended to merge a second, plugin-sourced map without changing its existing YANG-only call sites | Read of `config_apply.go:94-813`; no other caller relies on `desiredState()` being YANG-only | child 1 needs a larger refactor than anticipated | child 1 unit test exercising `desiredState()` with both a YANG address and a registered address present simultaneously | unvalidated |
+| A-3 | `desiredState()` (`config_apply.go:18-110`) can be extended to merge a second, plugin-sourced map without changing its existing YANG-only call sites | Read of `config_apply.go:18-110` (desiredState) and `757-813` (reconcile); no other caller relies on `desiredState()` being YANG-only | child 1 needs a larger refactor than anticipated | child 1 unit test exercising `desiredState()` with both a YANG address and a registered address present simultaneously | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Operator reuses a shared/transit peer-group for the AS112 `update` block, defeating RFC 7534 §3.4's "no transit" SHOULD (item #8 above) | `show bgp` on that group shows non-AS112 prefixes alongside the AS112 routes | `docs/guide/as112.md` recommends a dedicated peer-group with a worked example; doctor check (child 3, advisory severity) warns if a watchdog-gated AS112 route shares a group with non-AS112 `update` blocks |
-| R-2 | A weak healthcheck probe (e.g. bare TCP connect) gives a false UP while the DNS server answers incorrectly or is serving stale/empty data, defeating item #7 | Functional test catches probe-content gap during review | child 3's worked example probe issues a real DNS query against a known AS112 zone, not just a port-open check |
+| R-2 | A weak healthcheck probe (bare TCP connect, or a query to loopback only) gives a false UP while the anycast address is unreachable or the DNS content is wrong, defeating items #6/#7 (findings H1/R-2) | Functional test catches probe gap during review | child 3's worked-example probe issues a real authoritative query **against an anycast service address** (not loopback) for a known AS112 zone, via child 2's `ze` health command — verifies both address reachability and content |
 | R-3 | A future plugin double-registers the same loopback address via child 1's registry, causing an ownership conflict | `go test -race` / unit test on the registry rejecting/erroring a conflicting registration | child 1 AC requires the registry to reject (not silently overwrite) a conflicting registration for an address already owned by a different registrant |
+| R-4 | **(B1)** Addresses registered during the plugin's config handler are not picked up in the same commit because iface reconcile ran earlier (plugin handler order is non-deterministic — `plan/learned/821-plugin-internal-keyword.md`), so enabling as112 leaves `lo` without the addresses until an unrelated later commit | `test/parse/as112-address-registry.ci` shows addresses absent right after enable | child 1 makes `RegisterOwnedAddresses`/`Unregister` publish a reconcile-trigger event that re-runs iface reconcile (same path as `subscribeReconcileOnReady`, `iface/register.go:257`); child 1 AC + `.ci` assert the address reaches the kernel within the enable/disable op |
+| R-5 | **(M4)** The worked-example probe uses a tool absent from the gokrazy appliance (`dig` is not shipped; `ze resolve dns` uses the local resolver and cannot target a specific server — `ze-resolve-cmd.yang:20-39`), so the probe never succeeds on the real target | Probe fails only on the appliance, not on the dev host `.ci` runs | child 2 supplies a `ze` health command (built into the always-present `ze` binary) that actively queries the anycast addresses; child 3's probe calls it |
+| R-6 | **(B2)** The DNS server binds the anycast addresses before iface has applied them to `lo`, so `bind()` fails with `EADDRNOTAVAIL` | listener-down in `show as112` / doctor at startup | child 2 sets `IP_FREEBIND` on its listener sockets via `net.ListenConfig.Control` (geodns does not — `geodns/server.go:362`), so bind succeeds regardless of address-apply timing |
 
 ## Wiring Test (MANDATORY)
 
@@ -261,15 +276,16 @@ Owned by child 3 (the only child that touches the BGP wire). N/A for the umbrell
 - `docs/features.md` - add "AS112 anycast DNS" feature row (source-anchored)
 
 ## Files to Create
-- `docs/guide/as112.md` - RFC compliance mapping, deployment guidance (dedicated peer-group recommendation, host-dedication and community-notification recommendations), worked config example
+- `docs/guide/as112.md` - RFC compliance mapping, deployment guidance (dedicated peer-group recommendation, host-dedication and community-notification recommendations), worked config example. MUST also: (a) show the four covering /24,/48 prefixes as the announced NLRI and distinguish them from the /32,/128 host addresses (finding H3); (b) carry a hard warning that `asn.local 112 replace-as` on a publicly-peered group makes this an uncoordinated global AS112 node (finding M5); (c) show the `watchdog` `withdraw` marker in the worked `update` block and explain why omitting it announces before the DNS is healthy (finding H2); (d) document the optional in-plugin `allow-from` client-source access list (child 2) as the recommended way to restrict a local-use mirror to known ranges, instead of hand-authored firewall-section rules, noting it makes the node non-public
 
 ## Implementation Steps
 
 The umbrella is closed by closing its children and writing the deployment doc.
 Recommended order (foundational/independent first):
 
-1. **spec-as112-1-iface-address-registry** — smallest, no dependencies, the foundation child 2 needs.
-2. **spec-as112-2-dns-server** — the DNS plugin itself, depends on child 1's registry being available.
+0. **spec-dns-server-harness** (PREREQUISITE, not a child) — extract geodns's DNS-server primitives to `internal/core/dnsserver` and migrate geodns; must land before child 2 so as112 consumes the harness instead of importing geodns.
+1. **spec-as112-1-iface-address-registry** — smallest, no dependencies, the foundation child 2 needs. (May run in parallel with step 0; they don't touch the same code.)
+2. **spec-as112-2-dns-server** — the DNS plugin itself, depends on child 1's registry AND the harness from step 0.
 3. **spec-as112-3-bgp-integration** — worked config + end-to-end test, depends on both prior children existing and working.
 4. **`docs/guide/as112.md`** — written last, once real examples from the closed children exist.
 
@@ -304,6 +320,25 @@ Recommended order (foundational/independent first):
   mechanisms (BGP communities, `local-as` override, watchdog/healthcheck). The
   only genuinely new code is the DNS plugin and a small generic iface registry
   — both narrowly scoped and each independently useful beyond this feature.
+- **H3 — host addresses vs covering prefixes (do not conflate).** Two distinct
+  object types:
+  - **Host addresses** bound on `lo` (child 1/child 2), each a single-host
+    prefix: 192.175.48.1/32, 192.31.196.1/32, 2620:4f:8000::1/128,
+    2001:4:112::1/128 — the anycast catcher addresses the DNS server listens on.
+  - **Covering service prefixes** announced by BGP (child 3, RFC 7534 §3.4):
+    192.175.48.0/24 and 2620:4f:8000::/48 (Direct Delegation);
+    192.31.196.0/24 and 2001:4:112::/48 (DNAME Redirection). These, NOT the
+    /32,/128 host addresses, are the NLRI in the operator's `update` blocks.
+    Announcing the /32,/128 host addresses would be wrong (widely filtered, not
+    what §3.4 originates). Child 3's worked example spells out the four /24,/48
+    prefixes explicitly; child 2 registers the four /32,/128 host addresses.
+- **M5 — `asn.local 112 replace-as` is a global-routing foot-gun.** Applied to a
+  publicly-peered group it injects this node into the *global* AS112 anycast
+  system with no RFC 7534 §3.2/§5 coordination (item #14, not enforceable in
+  software). Default is the operator's own ASN (local-use mirror, A-1); the
+  override is per-group opt-in. `docs/guide/as112.md` MUST carry a hard warning,
+  and child 3 adds an advisory doctor check when `replace-as 112` is set on a
+  group holding eBGP sessions to non-private ASNs (see child 3 R-3).
 
 ## Mistake Log
 ### Wrong Assumptions

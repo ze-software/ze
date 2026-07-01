@@ -5,7 +5,7 @@
 | Status | design |
 | Depends | spec-as112-1-iface-address-registry, spec-as112-2-dns-server |
 | Phase | - |
-| Updated | 2026-06-30 |
+| Updated | 2026-07-01 |
 
 ## Post-Compaction Recovery
 
@@ -27,6 +27,25 @@ code** — its deliverable is a proven, tested configuration pattern plus the
 end-to-end test connecting spec-as112-2's DNS correctness to actual wire-level
 BGP behavior (announce only when healthy, correct community, correct
 AS_PATH origin).
+
+**Three correctness requirements the design review pinned down — the worked
+example and its tests MUST honor all three:**
+- **H1/M4 — the healthcheck probe queries an *anycast service address*, not
+  loopback**, using child 2's `ze … as112 health` command (`dig` is absent on the
+  appliance and `ze resolve dns` cannot target a server). A loopback probe would
+  report UP even when the anycast address is unreachable, defeating RFC 7534
+  §3.3/§3.5. (If the operator sets child 2's `allow-from` access list, the probe
+  is unaffected: on-box/loopback sources are always permitted, so the health
+  query is never dropped — see spec-as112-2.)
+- **H2 — the `update` block's `watchdog` block MUST include the `withdraw`
+  marker** so the route starts withdrawn. Verified: absence of `withdraw`
+  defaults the route to *announced* (`watchdog/config.go:145,292`; the YANG has
+  no real `default "true"`), which would announce before the DNS is healthy. An
+  advisory doctor check flags an AS112 watchdog-gated `update` block missing
+  `withdraw`.
+- **H3 — the announced NLRI are the four covering /24,/48 prefixes**
+  (192.175.48.0/24, 2620:4f:8000::/48, 192.31.196.0/24, 2001:4:112::/48), NOT the
+  /32,/128 host addresses bound on `lo`. The worked example spells them out.
 
 ## Required Reading
 
@@ -74,15 +93,19 @@ AS_PATH origin).
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- Operator config: a dedicated BGP peer-group with an `update` block (AS112
-  NLRI + chosen `community` + `watchdog{name}`), optionally `asn.local 112
-  local-options [replace-as]`; a `healthcheck` probe (`group` matching the
-  watchdog name) querying the as112 DNS server from spec-as112-2.
+- Operator config: a dedicated BGP peer-group with an `update` block whose NLRI
+  are the four covering /24,/48 prefixes (H3) + chosen `community` +
+  `watchdog{name; withdraw}` (the `withdraw` marker is mandatory — H2),
+  optionally `asn.local 112 local-options [replace-as]`; a `healthcheck` probe
+  (`group` matching the watchdog name) querying the as112 service via child 2's
+  `ze … as112 health` command against an anycast address (H1/M4).
 
 ### Transformation Path
-1. Healthcheck probe issues a real DNS query (e.g. via `dig` or equivalent)
-   against one of the as112 service's own addresses for a known in-zone name,
-   on the configured `interval`.
+1. Healthcheck probe runs `ze … as112 health` (child 2, finding M4), which issues
+   a real authoritative query against an **anycast service address** (not
+   loopback — H1) for a known in-zone name, on the configured `interval`. The
+   route stays withdrawn until this succeeds because the `update` block carries
+   the `withdraw` marker (H2).
 2. FSM reaches UP after `rise` consecutive successes → `dispatchStateAction`
    sends `request bgp watchdog announce <group>`.
 3. Watchdog announces the group-scoped `update`-block routes (carrying the
@@ -95,7 +118,7 @@ AS_PATH origin).
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| healthcheck probe ↔ as112 DNS server (spec-as112-2) | DNS query over loopback/anycast address, existing healthcheck probe mechanism | [ ] |
+| healthcheck probe ↔ as112 DNS server (spec-as112-2) | `ze … as112 health` → authoritative query to an **anycast service address** (H1/M4), existing healthcheck probe mechanism | [ ] |
 | healthcheck ↔ watchdog | existing `DispatchCommandArgs`, unmodified | [ ] |
 | watchdog ↔ BGP peers | existing wire UPDATE/WITHDRAW, unmodified | [ ] |
 | operator config ↔ this spec's worked example | `docs/guide/as112.md` source-anchored example | [ ] |
@@ -116,14 +139,15 @@ AS_PATH origin).
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A single watchdog group name can be referenced by `update` blocks under multiple distinct peer-groups simultaneously, and all of them share the one announce/withdraw state | `watchdog/config.go:127-172`'s per-peer (not per-group) pool keying, read from the route's watchdog-group name across all peers it's configured on | "Send to chosen peer-group(s)" would require N independent watchdog groups instead of one shared group | functional test configuring 2 peer-groups referencing the same watchdog group name and confirming both announce/withdraw together |
-| A-2 | The healthcheck probe can reach the as112 DNS server over loopback even when the service's anycast addresses are also bound, without needing the probe to know the exact anycast IP | as112 plugin also binds `127.0.0.1`/`::1` (spec-as112-2 Data Flow step 3) | Probe command needs an anycast-address-specific query, complicating the worked example | confirm via spec-as112-2's own functional test that the loopback bind exists before writing this spec's probe example |
+| A-2 | **REVISED (finding H1) — the probe deliberately targets an anycast service address, NOT loopback.** A loopback probe would report UP while the anycast address is unreachable (freebind lets the server bind before the address lands, spec-as112-2 B2), which is exactly the false-positive RFC 7534 §3.3/§3.5 forbids. Child 2 supplies `ze … as112 health` (M4) so the worked example does not need `dig` or a hand-written anycast query | RFC 7534 §3.3/§3.5; spec-as112-2 B2 (freebind) means loopback-up ≠ anycast-reachable | (was: "loopback is fine") — a loopback probe silently defeats items #6/#7 | interop test asserts the route is withheld while the anycast address is unreachable even though the process is up | design resolves it |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Worked example reuses a general-purpose/transit peer-group instead of a dedicated one, defeating RFC 7534 §3.4's prefix/AS-PATH-filter SHOULD (umbrella item #8) | doc review catches a non-dedicated example | `docs/guide/as112.md` example explicitly uses a peer-group named for AS112 only, with a callout explaining why |
-| R-2 | A shallow healthcheck probe (TCP connect / port-open only) gives false UP while the DNS content is wrong (umbrella R-2) | functional test asserts the probe command in the worked example performs a real content-bearing DNS query | probe `command` in the example issues a real query for a known AS112 zone name and checks the answer, not just connectivity |
-| R-3 | `asn.local 112 replace-as` is set on a peer-group that also carries non-AS112 routes, unintentionally re-originating unrelated prefixes as AS112 | functional test scoped only to the AS112 watchdog-gated routes; doc explicitly warns against sharing `asn.local` overrides across mixed-purpose groups | documented as a callout in `docs/guide/as112.md`, same dedicated-group recommendation as R-1 |
+| R-2 | A shallow healthcheck probe (TCP connect / port-open only, or a query to **loopback** instead of the anycast address) gives false UP while the anycast path is down or the DNS content is wrong (umbrella R-2, finding H1) | functional test asserts the probe command queries an **anycast service address** with real content (via `ze … as112 health`), and the interop test withholds the route while the anycast address is unreachable | worked-example probe is `ze … as112 health` targeting an anycast address, not a port-open check and not loopback |
+| R-3 | `asn.local 112 replace-as` is set on a peer-group that also carries non-AS112 routes, unintentionally re-originating unrelated prefixes as AS112 — **or** set on a *publicly-peered* group, silently making this an uncoordinated global AS112 node (finding M5) | interop test scoped only to the AS112 watchdog-gated routes | Primary: `docs/guide/as112.md` callout — dedicated-group recommendation (as R-1) plus an explicit hard warning that `replace-as 112` on a public group requires RFC 7534 §3.2/§5 coordination. Optional advisory doctor check `doctor-as112-global-origin-uncoordinated` (placement per Key Design Decisions) |
+| R-4 | The worked `update` block omits the `watchdog` `withdraw` marker, so the AS112 route is announced at startup before the DNS is healthy (finding H2 — absence defaults to *announced*, `watchdog/config.go:145,292`) | `as112-healthcheck-announce.ci` asserts the route is absent before the probe reaches UP | Primary: worked example includes `withdraw`; the functional test fails if it is omitted. Optional advisory doctor check `doctor-as112-watchdog-missing-withdraw` (placement per Key Design Decisions) |
 
 ## Wiring Test (MANDATORY)
 
@@ -136,7 +160,7 @@ AS_PATH origin).
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|--------------------|
-| AC-1 | as112 DNS server unhealthy/not yet started, watchdog group in default `withdraw: true` state | AS112 routes are not announced to any peer in the targeted group(s) |
+| AC-1 | as112 DNS server unhealthy/not yet started; `update` block includes the `watchdog{ withdraw }` marker (H2) | AS112 routes are not announced to any peer in the targeted group(s) — at startup, before the first probe success. (Note H2: without the `withdraw` marker the route would default to *announced*; the worked example must include it) |
 | AC-2 | Healthcheck probe reaches UP (`rise` consecutive successes) | Watchdog announces the AS112 routes to every peer in every targeted group |
 | AC-3 | Healthcheck probe reaches DOWN (`fall` consecutive failures) after having been UP | Watchdog withdraws the AS112 routes from every peer in every targeted group, within one probe interval |
 | AC-4 | `community [ no-export ]` configured in the `update` block | The announced route carries NO_EXPORT, observable via `show bgp` / the receiving peer's RIB |
@@ -144,6 +168,9 @@ AS_PATH origin).
 | AC-6 | `asn.local 112; local-options [ replace-as ];` set on the target peer-group | AS_PATH origin for routes to that group's peers is 112, not ze's real local AS |
 | AC-7 | A second peer-group has no `asn.local` override but references the same watchdog group | That group's peers see ze's real local AS in AS_PATH, while the AS112-origin group (AC-6) sees 112 — both controlled independently |
 | AC-8 | Two distinct peer-groups both reference the same watchdog group name in their `update` blocks | Both groups announce/withdraw together, confirming "send to chosen peer-group(s)" via a single shared watchdog group (A-1) |
+| AC-9 | as112 process is running and answers on **loopback**, but the anycast address is NOT reachable/answering | The probe (querying the anycast address via `ze … as112 health`) stays DOWN, so the route is NOT announced — proving the probe validates the advertised path, not just process liveness (finding H1). Proof: functional test, no new code |
+| AC-10 | The worked-example `update` block is authored WITHOUT the `watchdog{ withdraw }` marker | `as112-healthcheck-announce.ci` catches the route being announced before the first probe success (finding H2). **Advisory (optional):** a doctor check `doctor-as112-watchdog-missing-withdraw` — see Key Design Decisions for the self-containment placement question that must be resolved before it is built |
+| AC-11 | `asn.local 112 replace-as` is set on a group with eBGP sessions to non-private ASNs | Primary proof: `docs/guide/as112.md` hard warning + the interop test scoping origin-112 to the intended group only (finding M5). **Advisory (optional):** a doctor check `doctor-as112-global-origin-uncoordinated`, subject to the same placement question |
 
 ## End-to-End User Stories
 
@@ -168,8 +195,9 @@ those plugins were originally specified).
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|---------------------|--------|
-| `as112-healthcheck-announce` | `test/plugin/as112-healthcheck-announce.ci` | AS112 routes announce only once the DNS server is confirmed healthy (AC-1, AC-2) | |
+| `as112-healthcheck-announce` | `test/plugin/as112-healthcheck-announce.ci` | AS112 routes announce only once the DNS server is confirmed healthy; route is withheld at startup with the `withdraw` marker present (AC-1, AC-2, H2) | |
 | `as112-healthcheck-withdraw` | `test/plugin/as112-healthcheck-withdraw.ci` | AS112 routes withdraw when the DNS server becomes unhealthy (AC-3) | |
+| `as112-probe-anycast-not-loopback` | `test/plugin/as112-probe-anycast-not-loopback.ci` | process up on loopback but anycast address unreachable → probe stays DOWN → route not announced (AC-9, H1) | |
 | `as112-community-choice` | `test/plugin/as112-community-choice.ci` | configured community (no-export vs nopeer) appears correctly on the announced route (AC-4, AC-5) | |
 | `as112-shared-watchdog-group` | `test/plugin/as112-shared-watchdog-group.ci` | two peer-groups referencing one watchdog group announce/withdraw together (AC-8) | |
 
@@ -180,12 +208,13 @@ those plugins were originally specified).
 | `NN-as112-community-wire` | `test/interop/scenarios/` | FRR | A real external BGP speaker observes the configured well-known community (NO_EXPORT/NOPEER) on the wire, confirming AC-4/AC-5 | |
 
 ## Files to Modify
-- `docs/guide/as112.md` - worked configuration example (dedicated peer-group, healthcheck probe, watchdog-gated update block, community/origin-AS choices), cross-referencing the umbrella's RFC Compliance Mapping
+- `docs/guide/as112.md` - worked configuration example (dedicated peer-group, healthcheck probe using `ze … as112 health` against an anycast address [H1], watchdog-gated update block **with the `withdraw` marker** [H2], the four covering **/24,/48** prefixes as NLRI [H3], community/origin-AS choices), cross-referencing the umbrella's RFC Compliance Mapping; MUST include the hard M5 warning about `replace-as 112` on public groups
 - `docs/features.md` - cross-link to the BGP-side example
 
 ## Files to Create
 - `test/plugin/as112-healthcheck-announce.ci`
 - `test/plugin/as112-healthcheck-withdraw.ci`
+- `test/plugin/as112-probe-anycast-not-loopback.ci` (finding H1)
 - `test/plugin/as112-community-choice.ci`
 - `test/plugin/as112-shared-watchdog-group.ci`
 - `test/interop/scenarios/NN-as112-origin-as/` (config + expectations, numbered per existing interop scenario convention)
@@ -203,7 +232,7 @@ those plugins were originally specified).
 | Functional test for new RPC/API | [x] Yes — new `.ci` tests listed above exercise existing RPCs in this new composition | see Files to Create |
 | Pipe completeness | [ ] No — no new command output | n/a |
 | Env var registration | [ ] No | n/a |
-| Doctor check for runtime dependencies | [ ] Optional — consider an advisory doctor check (R-1) warning when a watchdog-gated AS112 route shares a peer-group with non-AS112 `update` blocks; if added, register in `internal/core/diagnostic/codes.go` | TBD during implementation; not blocking since it's advisory, not a hard requirement |
+| Doctor check for runtime dependencies | [ ] Optional (advisory only) — up to three advisory checks: shared-group (R-1), missing-`withdraw` (H2/R-4), global-origin-uncoordinated (M5/R-3). Placement is an open question (see Key Design Decisions): they must not hardcode AS112 knowledge into BGP nor require the as112 plugin to read BGP config. If a clean home is found, register codes in `internal/core/diagnostic/codes.go`; otherwise ship tests + docs and record the deferral | TBD during implementation; advisory, not blocking — primary enforcement is tests + docs |
 | Prometheus counters/metrics | [ ] No — reuses existing `ze_watchdog_*` and healthcheck metrics, no new metric names | n/a |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -265,10 +294,10 @@ those plugins were originally specified).
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | AC-1..AC-8 each demonstrated by a named test |
+| Completeness | AC-1..AC-11 each demonstrated by a named test (AC-9 anycast-probe; AC-10/AC-11 advisory checks are optional, proven by test+doc) |
 | Correctness | Withdraw happens within one probe interval of failure, not delayed by an unrelated cycle |
 | Naming | `.ci`/interop scenario names follow existing conventions in `test/plugin/`, `test/interop/scenarios/` |
-| Data flow | No new Go code introduced; confirm via `git diff --stat` that only `docs/` and `test/` changed |
+| Data flow | No new Go code introduced EXCEPT the optional advisory doctor checks (if a clean home was found); confirm via `git diff --stat` that only `docs/`, `test/`, and (at most) the advisory doctor-check file changed |
 | Rule: no-layering | Worked example never has the as112 plugin itself touch BGP config |
 
 ### Deliverables Checklist (/implement stage 10)
@@ -302,11 +331,22 @@ those plugins were originally specified).
 |----------|---------------|-------------|
 
 ## Design Insights
+- **Probe target is the crux (H1).** The value of the watchdog→healthcheck gate
+  depends entirely on WHAT the probe queries. A loopback probe reports UP while
+  the anycast address is down (freebind, spec-as112-2 B2, lets the server bind
+  before the address lands), which is precisely the false-positive RFC 7534
+  §3.3/§3.5 forbids. The probe therefore queries an anycast service address via
+  child 2's `ze … as112 health`.
+- **`withdraw` marker is load-bearing (H2).** `watchdog/config.go:145,292` makes
+  a route start *announced* when the `withdraw` field is absent (the YANG has no
+  real `default "true"`, only a misleading description). The worked example must
+  include `withdraw`, and `as112-healthcheck-announce.ci` fails if it is missing.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|---------------------------|-----------|
-| Zero new BGP plugin code — pure composition of `update`/`community`/`asn.local`/`watchdog`/`healthcheck` | A new as112-specific BGP config subtree that the as112 plugin compiles into update blocks | Rejected at the umbrella DESIGN gate: requires new cross-component config synthesis with no precedent; the existing mechanism already does everything needed once documented |
+| Zero new BGP plugin code — pure composition of `update`/`community`/`asn.local`/`watchdog`/`healthcheck` (advisory doctor checks are the sole exception; see next row) | A new as112-specific BGP config subtree that the as112 plugin compiles into update blocks | Rejected at the umbrella DESIGN gate: requires new cross-component config synthesis with no precedent; the existing mechanism already does everything needed once documented |
+| Advisory doctor checks (missing-`withdraw` H2, global-origin M5, shared-group R-1) are OPTIONAL, and their placement is an open question | (a) put them in the BGP/watchdog plugin; (b) put them in the as112 plugin; (c) don't build them, rely on tests+docs | (a) hardcodes AS112 knowledge into BGP, violating `ai/rules/plugin-self-containment.md`; (b) the as112 plugin has no visibility into BGP `update`/`asn` config by design. So they are advisory-only, NOT the primary enforcement (tests + docs are). Build them only if a clean, self-containment-respecting home is found at implementation; otherwise ship tests + docs and record the deferral. The primary correctness guarantees (H1/H2) do NOT depend on these checks |
 | One shared watchdog group referenced by multiple peer-groups, rather than per-group watchdog groups | Per-peer-group distinct watchdog groups | Simpler operator config (one health signal, many destinations); A-1 confirms the pool keying already supports this |
 
 ## Known Limitations
@@ -404,7 +444,7 @@ next to the planned-downtime withdrawal guidance.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-8 all demonstrated
+- [ ] AC-1..AC-11 all demonstrated
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
