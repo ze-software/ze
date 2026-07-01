@@ -1,4 +1,4 @@
-// Design: plan/spec-dns-server-harness.md -- generic DNS listener lifecycle
+// Design: plan/learned/1027-dns-server-harness.md -- generic DNS listener lifecycle
 // shared by two or more authoritative-only DNS plugins.
 //
 // Package dnsserver holds the listener lifecycle, EDNS0/client-IP resolution,

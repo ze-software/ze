@@ -1,5 +1,5 @@
 // Design: plan/learned/993-geodns-2-server.md -- geodns DNS server (listener, EDNS0, answer synthesis)
-// Design: plan/spec-dns-server-harness.md -- listener lifecycle, client-IP and
+// Design: plan/learned/1027-dns-server-harness.md -- listener lifecycle, client-IP and
 // authoritative-answer shaping moved to internal/core/dnsserver; this file
 // keeps only geodns's answer policy and its thin harness wiring.
 // RFC: rfc/short/rfc7871.md -- EDNS0 client subnet; rfc/short/rfc1035.md -- DNS messages, SOA, NS
@@ -211,11 +211,14 @@ func answerQuestions(msg, r *dns.Msg, st *resolverState, client netip.Addr) {
 	}
 }
 
-// answerQuery is geodns's dnsserver.AnswerFunc. The harness has already
-// applied SetReply/Authoritative/Compress/no-recursion (RFC 1035) before
-// calling this; geodns supplies the per-request state snapshot, metrics, the
-// enabled check, client-IP resolution (RFC 7871), and answer policy.
-func answerQuery(msg, r *dns.Msg, w dns.ResponseWriter) {
+// answerQuery is geodns's dnsserver.AnswerFunc. The harness has already shaped
+// msg (SetReply/Authoritative/Compress/no-recursion, RFC 1035) and owns the
+// single wire write; geodns supplies the per-request state snapshot, metrics,
+// the enabled check, client-IP resolution (RFC 7871), and answer policy, then
+// returns whether the harness should send msg. p is the read-only transport
+// peer; the packet source is resolved lazily (dnsserver.RemoteAddr) only when
+// the answer actually depends on it, so a refused query costs nothing for it.
+func answerQuery(msg, r *dns.Msg, p dnsserver.Peer) bool {
 	start := time.Now()
 	m := gmetrics()
 
@@ -233,8 +236,7 @@ func answerQuery(msg, r *dns.Msg, w dns.ResponseWriter) {
 	if st == nil || !st.cfg.Enabled {
 		msg.SetRcode(r, dns.RcodeRefused)
 		m.requestTotal.With(zoneLabel, qLabel).Inc()
-		_ = w.WriteMsg(msg)
-		return
+		return true
 	}
 
 	if len(r.Question) > 0 {
@@ -244,15 +246,14 @@ func answerQuery(msg, r *dns.Msg, w dns.ResponseWriter) {
 	}
 	m.requestTotal.With(zoneLabel, qLabel).Inc()
 
-	client, ok := dnsserver.ClientIP(r, dnsserver.RemoteAddr(w), st.cfg.ClientIPSource)
+	client, ok := dnsserver.ClientIP(r, dnsserver.RemoteAddr(p), st.cfg.ClientIPSource)
 	if !ok {
 		// edns0-only mode with no client-subnet: answer nothing (NOERROR, empty).
-		_ = w.WriteMsg(msg)
-		return
+		return true
 	}
 
 	answerQuestions(msg, r, st, client)
-	_ = w.WriteMsg(msg)
+	return true
 }
 
 // onPanic logs a query that panicked mid-answer; the harness has already

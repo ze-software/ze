@@ -1,4 +1,4 @@
-// Design: plan/spec-dns-server-harness.md -- EDNS0/packet client-IP resolution
+// Design: plan/learned/1027-dns-server-harness.md -- EDNS0/packet client-IP resolution
 // RFC: rfc/short/rfc7871.md -- EDNS0 Client Subnet
 
 package dnsserver
@@ -39,10 +39,10 @@ func ClientIP(r *dns.Msg, packetSrc netip.Addr, mode string) (netip.Addr, bool) 
 	return netip.Addr{}, false
 }
 
-// RemoteAddr extracts the client IP from a dns.ResponseWriter's remote
-// address (the UDP/TCP packet source, before any EDNS0 client-subnet lookup).
-func RemoteAddr(w dns.ResponseWriter) netip.Addr {
-	host, _, err := net.SplitHostPort(w.RemoteAddr().String())
+// RemoteAddr extracts the client IP from a Peer's remote address (the UDP/TCP
+// packet source, before any EDNS0 client-subnet lookup).
+func RemoteAddr(p Peer) netip.Addr {
+	host, _, err := net.SplitHostPort(p.RemoteAddr().String())
 	if err != nil {
 		return netip.Addr{}
 	}

@@ -23,10 +23,26 @@ unblocking as112 without touching it.
   imminent as112), same as `internal/core/probe` did for ping+traceroute --
   the alternative to extraction was a forbidden import or a security-sensitive
   copy-paste, not "wait for a 3rd".
-- `Authoritative` explicitly sets `RecursionAvailable = false` (not just
-  relying on the zero value) since AC-5 designates it the single-source
-  recursion guard -- an explicit assignment survives future `dns.Msg`
-  construction changes that a relied-upon zero value would not.
+- `Authoritative` makes the recursion-refusal guard an *enforced invariant*,
+  not a convention (AC-5, the single-source recursion guard): `AnswerFunc`
+  receives a read-only `Peer` (RemoteAddr only, no WriteMsg), never the full
+  `dns.ResponseWriter`, so an answer func cannot write its own reply; the
+  wrapper owns the single `w.WriteMsg` and re-asserts the authoritative shape
+  via `shapeAuthoritative` (authoritative bit, no recursion, no compression)
+  both before AND after fn, so even an answer func that sets
+  `msg.RecursionAvailable = true`/`Compress = true` cannot put it on the wire.
+  `Peer` is satisfied by `dns.ResponseWriter`, so the wrapper passes it through
+  with no per-query allocation, and the packet source stays lazy
+  (`RemoteAddr(p)` only on paths whose answer needs it -- a refused query pays
+  nothing for it). Made as a post-review hardening (two review rounds) that
+  replaced the first-landed design where fn held the full ResponseWriter and
+  the guard was only a convention it had to remember; the shape lives in one
+  `shapeAuthoritative` helper, not hand-copied at the two call sites.
+- Process note: the invariant hardening above landed AFTER this spec was closed
+  and deleted, made directly in the working tree by owner direction (no spec
+  reopened). Recorded here so a later reader sees why the shipped `dnsserver`
+  API (Peer-based `AnswerFunc`, wrapper-owned write) differs from what the
+  closed spec's Current-Behavior text described.
 - Kept geodns's own `apply(cfg)`/`stopAll()` call shape via a thin
   `geodnsServer` adapter over `dnsserver.Manager`, chosen over exposing
   `dnsserver.Manager` directly to `register.go`, because it meant geodns's
@@ -50,8 +66,10 @@ unblocking as112 without touching it.
   `ClientIP`/`Matcher` directly without importing geodns; `TestManager_BindsAndServes`
   proves the harness works with zero geodns involvement.
 - The recursion-refusal guard now lives in exactly one place
-  (`dnsserver.Authoritative`); any future consumer inherits it automatically
-  instead of hand-copying the authoritative-DNS security invariant.
+  (`dnsserver.Authoritative`) and is *enforced*, not merely offered: a consumer
+  supplies an `AnswerFunc` that can only shape msg and choose send/drop, so any
+  future consumer inherits the authoritative-DNS security invariant unbypassably
+  instead of hand-copying it.
 - geodns's metric names/values, `show geodns`, doctor check, and YANG config
   are all still fully owned by geodns -- the harness is metrics-agnostic
   (`Options.OnListenerChange` callback) and policy-agnostic (`answerQuestions`

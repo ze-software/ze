@@ -1,4 +1,4 @@
-// Design: plan/spec-dns-server-harness.md -- IP_FREEBIND kernel wiring proof
+// Design: plan/learned/1027-dns-server-harness.md -- IP_FREEBIND kernel wiring proof
 
 //go:build integration && linux
 

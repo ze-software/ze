@@ -1,4 +1,4 @@
-// Design: plan/spec-dns-server-harness.md -- IP_FREEBIND opt-in bind, Linux only
+// Design: plan/learned/1027-dns-server-harness.md -- IP_FREEBIND opt-in bind, Linux only
 //
 // Mirrors internal/plugins/dhcpserver/socket_linux.go's plain-syscall Control
 // hook pattern (SO_BINDTODEVICE there, IP_FREEBIND here).

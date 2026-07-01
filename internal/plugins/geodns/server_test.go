@@ -70,7 +70,7 @@ func subnetMsg(qname string, qtype uint16, subnet string) *dns.Msg {
 }
 
 // test-relax: TestClientIPSourceModes unit-tested the package-local clientIP
-// function directly. plan/spec-dns-server-harness.md (AC-6) moves that
+// function directly. plan/learned/1027-dns-server-harness.md moved that
 // function to dnsserver.ClientIP and explicitly directs the unit test to be
 // "ported" there -- it now lives, verbatim in scenario coverage, as
 // TestClientIP_EDNS0AndPacket in internal/core/dnsserver/client_test.go.
