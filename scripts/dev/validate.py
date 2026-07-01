@@ -130,7 +130,12 @@ def check_source_anchor_stale_paths(root: Path) -> list[Finding]:
             if not m:
                 continue
             path = m.group(1)
-            if path.startswith(("http://", "https://")) or "/" not in path:
+            # External anchors point outside the repo and cannot be resolved
+            # here, so -- like http(s) URLs -- they only document provenance we
+            # cannot verify: a home-relative checkout (~/...) or an absolute
+            # path (/...) is never an in-repo anchor, which is always
+            # repo-relative. Skip bare single-token names too (no path).
+            if path.startswith(("http://", "https://", "~", "/")) or "/" not in path:
                 continue
             path_clean = re.sub(r":\d+$", "", path)
             if not (root / path_clean).exists():

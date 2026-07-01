@@ -106,6 +106,29 @@ class TestStaleAnchorPath(unittest.TestCase):
             findings = check_source_anchor_stale_paths(root)
             self.assertEqual(findings, [])
 
+    def test_skips_external_home_relative_anchors(self):
+        # Provenance for reverse-engineered external code lives outside the
+        # repo (e.g. a local checkout under ~/Code/...); it cannot be resolved
+        # here and must not be flagged as a stale in-repo path.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "docs").mkdir()
+            (root / "docs" / "test.md").write_text(
+                "<!-- source: ~/Code/github.com/Vendor/agent/agent.py -- API -->\n"
+            )
+            findings = check_source_anchor_stale_paths(root)
+            self.assertEqual(findings, [])
+
+    def test_skips_external_absolute_anchors(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "docs").mkdir()
+            (root / "docs" / "test.md").write_text(
+                "<!-- source: /opt/vendor/agent/agent.py -- API -->\n"
+            )
+            findings = check_source_anchor_stale_paths(root)
+            self.assertEqual(findings, [])
+
 
 class TestCrossPackageWiring(unittest.TestCase):
     """AC-3: Exported symbol with no cross-package non-test caller."""
