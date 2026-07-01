@@ -113,7 +113,7 @@ ze-pxe: bin/ze-setup
 	test -n "$$img" || { echo "error: no .img found in $(APPLIANCE_DIR)"; exit 1; }; \
 	echo "--- Building iPXE binaries ---"; \
 	test -d "$(IPXE_DIR)/.git" || git clone https://github.com/ipxe/ipxe.git $(IPXE_DIR); \
-	printf '#!ipxe\nkernel http://$${next-server}/install/boot/vmlinuz ze.server=$${next-server} ze.image=%s ip=dhcp panic=-1 console=ttyS0,115200n8 console=tty0\ninitrd http://$${next-server}/install/boot/initrd.img.gz\nboot\n' "$$img" > tmp/ze-install.ipxe; \
+	printf '#!ipxe\nkernel http://$${next-server}/install/boot/vmlinuz ze.server=$${next-server} ze.image=%s ze.mac=$${mac} ip=dhcp panic=-1 console=ttyS0,115200n8 console=tty0\ninitrd http://$${next-server}/install/boot/initrd.img.gz\nboot\n' "$$img" > tmp/ze-install.ipxe; \
 	$(MAKE) -C $(IPXE_DIR)/src bin/ipxe.pxe EMBED=$(CURDIR)/tmp/ze-install.ipxe; \
 	$(MAKE) -C $(IPXE_DIR)/src bin-x86_64-efi/ipxe.efi EMBED=$(CURDIR)/tmp/ze-install.ipxe; \
 	cp $(IPXE_DIR)/src/bin/ipxe.pxe $(PXE_DIR)/tftp/ipxe.pxe; \
