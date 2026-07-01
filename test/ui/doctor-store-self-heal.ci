@@ -1,0 +1,27 @@
+# Test: ze doctor self-heals a corrupt/unreadable blob store instead of wedging.
+#
+# VALIDATES: storage.NewBlob moves an unreadable database.zefs aside to
+#   <path>.replaced-<date> and recreates a valid store, so ze doctor comes up
+#   ready (exit 0) instead of failing on a doctor-store-integrity error every
+#   run. Covers the incident where a 0-byte database.zefs (left by an
+#   interrupted or concurrent write) wedged storage.
+# PREVENTS: regression of the zefs "mmap: empty file" wedge, where NewBlob chose
+#   Open vs Create by file existence (os.Stat) rather than validity, so any
+#   unreadable store broke startup permanently until manual removal.
+
+option=env:var=ZE_CONFIG_DIR:value=.
+
+# Seed an unreadable (non-zefs) database.zefs in the config dir. zefs.Open fails
+# on it exactly as it does on the 0-byte file from the original incident, so it
+# drives the same self-heal path deterministically.
+tmpfs=database.zefs:terminator=EOF_DB
+not a valid zefs store
+EOF_DB
+
+tmpfs=probe.conf:terminator=EOF_CONF
+# ze config
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json probe.conf
+expect=exit:code=0
+expect=stderr:contains=moved unreadable blob aside
