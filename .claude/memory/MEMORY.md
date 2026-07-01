@@ -19,7 +19,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
 ## Reference
 
-- [reference_discord_bot.md](reference_discord_bot.md) - Discord bot in ~/Unix/bin/discord.sh: --channel ze-news/ze-test, --text "msg"
+- [reference_discord_bot.md](reference_discord_bot.md) - Discord bot in ~/Unix/bin/discord.sh (--channel ze-news/ze-test, --text "msg"; token baked in); Zeledon weekly-update style guide + archive in ~/Unix/zeledon/ (STYLE.md, weekly/)
 - [feedback_discord_voice.md](feedback_discord_voice.md) - Discord posts as Zeledon; use third person for Thomas, not "I"
 - [reference_python_uv.md](reference_python_uv.md) - Install Python deps via `uv run --with`. No scapy dep remains; stress-test uses `test/stress/bgpgen.py` (stdlib-only RFC 4271/4760 generator)
 
