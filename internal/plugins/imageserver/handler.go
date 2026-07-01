@@ -209,7 +209,12 @@ func (h *imageHandler) serveBootIPXE(w http.ResponseWriter, r *http.Request) {
 		Str("iseq ${buildarch} arm64 && set zeconsole console=tty0 console=ttyS0,115200n8 console=ttyAMA0,115200n8 || set zeconsole console=tty0 console=ttyS0,115200n8\n").
 		Str("kernel ").Str(baseURL).Str("/install/boot/vmlinuz ze.server=").Str(h.serverAddr).
 		Str(" ze.image=").Str(imgName).Str(portArg).
-		Str(" ip=dhcp ze.mac=${mac}").Str(authArg).Str(" panic=-1 ${zeconsole}\n").
+		// loglevel=8 + earlycon match the runtime kernel's KernelExtraArgs so the
+		// installer kernel shows all boot/driver/console messages from the earliest
+		// possible moment. Without them the installer kernel defaults to the quiet
+		// loglevel and a client whose framebuffer/serial console hands over late
+		// shows a blank screen through the entire install.
+		Str(" ip=dhcp ze.mac=${mac}").Str(authArg).Str(" loglevel=8 earlycon panic=-1 ${zeconsole}\n").
 		Str("initrd ").Str(baseURL).Str("/install/boot/initrd.img.gz\n").
 		Str("boot\n").
 		String()

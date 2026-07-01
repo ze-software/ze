@@ -441,6 +441,12 @@ func TestServeDynamicBootIPXE(t *testing.T) {
 	if !strings.Contains(script, "panic=-1 ${zeconsole}\n") {
 		t.Errorf("kernel line should reference the arch-selected ${zeconsole}:\n%s", script)
 	}
+	// loglevel=8 + earlycon give the installer kernel the same verbose, early
+	// console output as the runtime kernel so an operator can watch the install
+	// on the target's screen/serial instead of a blank screen.
+	if !strings.Contains(script, "loglevel=8 earlycon panic=-1 ${zeconsole}\n") {
+		t.Errorf("kernel line should carry loglevel=8 earlycon for install visibility:\n%s", script)
+	}
 	if strings.Contains(script, "ze.port=") {
 		t.Errorf("port 80 should not include ze.port in script:\n%s", script)
 	}

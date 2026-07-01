@@ -573,9 +573,11 @@ def main() -> int:
         served = work / "served"
         served.mkdir()
         write_checksum(image, served)
-        # The initrd downloads database.zefs and writes it to /perm, overwriting
-        # the copy the build injected; serve the real credential-bearing zefs so
-        # the AC-10 SSH login works on the second boot.
+        # The initrd now KEEPS the seed `ze appliance build` baked into /perm and
+        # only downloads /install/database.zefs when the image shipped seedless.
+        # The baked seed carries the AC-10 SSH credentials, so the second-boot
+        # login is proven from the baked copy. We still serve the assembled zefs
+        # here as the seedless fallback and to keep the endpoint exercised.
         if zefs and zefs.is_file():
             shutil.copy(zefs, served / "database.zefs")
             print(
