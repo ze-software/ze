@@ -69,35 +69,15 @@ func subnetMsg(qname string, qtype uint16, subnet string) *dns.Msg {
 	return m
 }
 
-// VALIDATES: client IP comes from EDNS0 subnet, the packet source, or a
-// fallback, per client-ip-source mode.
-// PREVENTS: answering from the wrong customer view (e.g. CoreDNS's own IP).
-func TestClientIPSourceModes(t *testing.T) {
-	t.Parallel()
-	packet := netip.MustParseAddr("9.9.9.9")
-	withECS := subnetMsg("a.example.", dns.TypeA, "82.219.4.10")
-	noECS := subnetMsg("a.example.", dns.TypeA, "")
-
-	cases := []struct {
-		name   string
-		mode   string
-		msg    *dns.Msg
-		want   string
-		wantOK bool
-	}{
-		{"edns0 present", "edns0", withECS, "82.219.4.10", true},
-		{"edns0 absent", "edns0", noECS, "", false},
-		{"packet ignores ecs", "packet", withECS, "9.9.9.9", true},
-		{"edns0-then-packet uses ecs", "edns0-then-packet", withECS, "82.219.4.10", true},
-		{"edns0-then-packet falls back", "edns0-then-packet", noECS, "9.9.9.9", true},
-	}
-	for _, tc := range cases {
-		got, ok := clientIP(tc.msg, packet, tc.mode)
-		if ok != tc.wantOK || (ok && got.String() != tc.want) {
-			t.Errorf("%s: clientIP = (%v,%v), want (%q,%v)", tc.name, got, ok, tc.want, tc.wantOK)
-		}
-	}
-}
+// test-relax: TestClientIPSourceModes unit-tested the package-local clientIP
+// function directly. plan/spec-dns-server-harness.md (AC-6) moves that
+// function to dnsserver.ClientIP and explicitly directs the unit test to be
+// "ported" there -- it now lives, verbatim in scenario coverage, as
+// TestClientIP_EDNS0AndPacket in internal/core/dnsserver/client_test.go.
+// geodns has no local function left to unit-test directly; the equivalent
+// client-IP-driven source selection is still proven end-to-end over the wire
+// by TestServerResolvesPerSource below, so this is a relocation of test
+// coverage, not a removal of it.
 
 // VALIDATES: nsID recognizes ns1..nsN.<zone> within the nameserver count.
 // PREVENTS: serving glue for a non-existent nameserver index.

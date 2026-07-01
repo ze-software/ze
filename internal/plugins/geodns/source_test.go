@@ -31,7 +31,7 @@ func TestLongestPrefixMatch(t *testing.T) {
 		{"2a02:b80::1", "external6", true}, // v6 catch-all, not the v4 one
 	}
 	for _, tc := range cases {
-		got, ok := m.lookup(netip.MustParseAddr(tc.ip))
+		got, ok := m.Lookup(netip.MustParseAddr(tc.ip))
 		if ok != tc.ok || got != tc.want {
 			t.Errorf("lookup(%s) = (%q,%v), want (%q,%v)", tc.ip, got, ok, tc.want, tc.ok)
 		}
@@ -42,10 +42,10 @@ func TestLongestPrefixMatch(t *testing.T) {
 // PREVENTS: answering from an arbitrary host-set when nothing matches.
 func TestLookupNoMatch(t *testing.T) {
 	m := buildMatcher([]sourceEntry{src("10.0.0.0/8", "lan")})
-	if _, ok := m.lookup(netip.MustParseAddr("1.2.3.4")); ok {
+	if _, ok := m.Lookup(netip.MustParseAddr("1.2.3.4")); ok {
 		t.Error("expected no match for 1.2.3.4")
 	}
-	if _, ok := m.lookup(netip.MustParseAddr("2a02:b80::1")); ok {
+	if _, ok := m.Lookup(netip.MustParseAddr("2a02:b80::1")); ok {
 		t.Error("expected no match for v6 when only a v4 prefix exists")
 	}
 }

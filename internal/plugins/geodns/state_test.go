@@ -21,9 +21,9 @@ func TestBuildStateAndStore(t *testing.T) {
 	if len(st.cfg.Listeners) != 2 {
 		t.Errorf("state cfg listeners = %d, want 2", len(st.cfg.Listeners))
 	}
-	set, ok := st.matcher.lookup(netip.MustParseAddr("82.219.4.10"))
+	set, ok := st.matcher.Lookup(netip.MustParseAddr("82.219.4.10"))
 	if !ok || set != "internal" {
-		t.Errorf("lookup(82.219.4.10) = (%q,%v), want (internal,true)", set, ok)
+		t.Errorf("Lookup(82.219.4.10) = (%q,%v), want (internal,true)", set, ok)
 	}
 
 	storeState(st)

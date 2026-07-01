@@ -2,7 +2,11 @@
 
 package geodns
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
+)
 
 // resolverState is the immutable snapshot the engine publishes on each config
 // generation. The server (spec 2) and the show handler (spec 3) read it without
@@ -10,7 +14,7 @@ import "sync/atomic"
 // state. Mirrors the ntp plugin's published-state pattern.
 type resolverState struct {
 	cfg     geodnsConfig
-	matcher *matcher
+	matcher *dnsserver.Matcher
 	// serial is the SOA serial computed for this config generation (spec 2),
 	// monotonic across reloads per the configured serial-mode.
 	serial uint32

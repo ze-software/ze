@@ -1,27 +1,23 @@
 // Design: plan/learned/993-geodns-2-server.md -- geodns DNS server (listener, EDNS0, answer synthesis)
+// Design: plan/spec-dns-server-harness.md -- listener lifecycle, client-IP and
+// authoritative-answer shaping moved to internal/core/dnsserver; this file
+// keeps only geodns's answer policy and its thin harness wiring.
 // RFC: rfc/short/rfc7871.md -- EDNS0 client subnet; rfc/short/rfc1035.md -- DNS messages, SOA, NS
 
 package geodns
 
 import (
-	"context"
-	"fmt"
 	"log/slog"
-	"net"
 	"net/netip"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/miekg/dns"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
-
-// drainTimeout bounds how long we wait for in-flight handlers to finish when a
-// listener is shut down, so a wedged handler cannot block reload or exit.
-const drainTimeout = 5 * time.Second
 
 // computeSerial produces the 32-bit SOA serial for a config generation.
 //   - auto-epoch: max(Unix seconds, prev+1) — strictly increases at any rate,
@@ -48,30 +44,6 @@ func computeSerial(soa soaConfig, prevSerial uint32, now time.Time) uint32 {
 		}
 		return s
 	}
-}
-
-// clientIP resolves the client IP used for source selection, per mode.
-// RFC 7871: when present, the EDNS0 client-subnet option's network is the
-// client view; otherwise (per mode) the packet source is used.
-func clientIP(r *dns.Msg, packetSrc netip.Addr, mode string) (netip.Addr, bool) {
-	if mode != "packet" {
-		if opt := r.IsEdns0(); opt != nil {
-			for _, o := range opt.Option {
-				if ecs, ok := o.(*dns.EDNS0_SUBNET); ok {
-					if a, ok := netip.AddrFromSlice(ecs.Address); ok {
-						return a.Unmap(), true
-					}
-				}
-			}
-		}
-		if mode == "edns0" {
-			return netip.Addr{}, false
-		}
-	}
-	if packetSrc.IsValid() {
-		return packetSrc.Unmap(), true
-	}
-	return netip.Addr{}, false
 }
 
 // nsID returns the 1-based nameserver index when queried is ns<n>.<zone> within
@@ -103,7 +75,7 @@ func matchZone(name string, zones []string) string {
 func equalName(a, zone string) bool { return strings.EqualFold(fqdn(a), zone) }
 
 func resolveHost(st *resolverState, client netip.Addr, name string) []dnsRecord {
-	setName, ok := st.matcher.lookup(client)
+	setName, ok := st.matcher.Lookup(client)
 	if !ok {
 		return nil
 	}
@@ -239,27 +211,13 @@ func answerQuestions(msg, r *dns.Msg, st *resolverState, client netip.Addr) {
 	}
 }
 
-func remoteAddr(w dns.ResponseWriter) netip.Addr {
-	host, _, err := net.SplitHostPort(w.RemoteAddr().String())
-	if err != nil {
-		return netip.Addr{}
-	}
-	a, _ := netip.ParseAddr(host)
-	return a
-}
-
-// handleQuery is the single mux handler. It reads the current resolver snapshot
-// per request (so reload swaps answers without rebinding), recovers any panic so
-// one bad query cannot take the daemon down, and never recurses.
-func handleQuery(w dns.ResponseWriter, r *dns.Msg) {
+// answerQuery is geodns's dnsserver.AnswerFunc. The harness has already
+// applied SetReply/Authoritative/Compress/no-recursion (RFC 1035) before
+// calling this; geodns supplies the per-request state snapshot, metrics, the
+// enabled check, client-IP resolution (RFC 7871), and answer policy.
+func answerQuery(msg, r *dns.Msg, w dns.ResponseWriter) {
 	start := time.Now()
-	log := loggerPtr.Load()
 	m := gmetrics()
-
-	msg := new(dns.Msg)
-	msg.SetReply(r)
-	msg.Authoritative = true
-	msg.Compress = false
 
 	zoneLabel, qLabel := "none", "NONE"
 	if len(r.Question) > 0 {
@@ -267,9 +225,6 @@ func handleQuery(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	defer func() {
-		if rec := recover(); rec != nil {
-			log.Error("geodns: recovered panic handling query", "panic", rec)
-		}
 		m.responseTotal.With(zoneLabel, qLabel, dns.RcodeToString[msg.Rcode]).Inc()
 		m.latency.Observe(float64(time.Since(start).Microseconds()) / 1000.0)
 	}()
@@ -289,7 +244,7 @@ func handleQuery(w dns.ResponseWriter, r *dns.Msg) {
 	}
 	m.requestTotal.With(zoneLabel, qLabel).Inc()
 
-	client, ok := clientIP(r, remoteAddr(w), st.cfg.ClientIPSource)
+	client, ok := dnsserver.ClientIP(r, dnsserver.RemoteAddr(w), st.cfg.ClientIPSource)
 	if !ok {
 		// edns0-only mode with no client-subnet: answer nothing (NOERROR, empty).
 		_ = w.WriteMsg(msg)
@@ -300,110 +255,50 @@ func handleQuery(w dns.ResponseWriter, r *dns.Msg) {
 	_ = w.WriteMsg(msg)
 }
 
-// serverManager owns the bound UDP+TCP listeners. The mux and its handler are
-// state-independent (the handler reads loadState per request), so only an
-// endpoint change (the listener set / enabled) triggers a rebind.
-type serverManager struct {
-	log        *slog.Logger
-	mux        *dns.ServeMux
-	servers    []*dns.Server
-	boundAddrs []string
-	applied    string
+// onPanic logs a query that panicked mid-answer; the harness has already
+// recovered it and dropped the (unwritten) reply.
+func onPanic(rec any) {
+	loggerPtr.Load().Error("geodns: recovered panic handling query", "panic", rec)
 }
 
-func newServerManager(log *slog.Logger) *serverManager {
-	mux := dns.NewServeMux()
-	mux.HandleFunc(".", handleQuery)
-	return &serverManager{log: log, mux: mux, applied: "\x00unset"}
-}
-
-// endpointSig is the signature of the bound-listener set; reload rebinds only
-// when it changes.
-func endpointSig(cfg geodnsConfig) string {
-	if !cfg.Enabled {
-		return "disabled"
+// onListenerChange publishes bind/unbind transitions to geodns's own
+// listenerUp gauge; the harness never owns metrics.
+func onListenerChange(proto, addr string, up bool) {
+	v := 0.0
+	if up {
+		v = 1
 	}
-	eps := make([]string, len(cfg.Listeners))
+	gmetrics().listenerUp.With(proto, addr).Set(v)
+}
+
+// geodnsServer is a thin adapter over dnsserver.Manager, keeping geodns's own
+// apply/stopAll call shape (geodnsConfig in, no dnsserver types leaking to
+// callers) so register.go and the existing test suite are unaffected by the
+// harness's endpoint-agnostic Apply/Stop signatures.
+type geodnsServer struct {
+	mgr *dnsserver.Manager
+}
+
+// newServerManager builds the geodns DNS server on top of the shared harness:
+// the harness owns the listener lifecycle, client-IP resolution, and the
+// authoritative-answer/recursion-refusal guard; geodns supplies only
+// answerQuery (metrics + policy) and its own listener-up gauge.
+func newServerManager(log *slog.Logger) *geodnsServer {
+	handler := dnsserver.Authoritative(answerQuery, onPanic)
+	return &geodnsServer{mgr: dnsserver.New(log, handler, dnsserver.Options{
+		OnListenerChange: onListenerChange,
+	})}
+}
+
+// apply reconciles the bound listeners with cfg. A pure host-data change is a
+// no-op (answerQuery reads the new snapshot via loadState); an endpoint
+// change stops and rebinds (dnsserver.Manager.Apply's endpoint-signature check).
+func (s *geodnsServer) apply(cfg geodnsConfig) error {
+	endpoints := make([]dnsserver.Endpoint, len(cfg.Listeners))
 	for i, l := range cfg.Listeners {
-		eps[i] = net.JoinHostPort(l.IP.String(), strconv.Itoa(int(l.Port)))
+		endpoints[i] = dnsserver.Endpoint{IP: l.IP, Port: l.Port}
 	}
-	sort.Strings(eps)
-	return strings.Join(eps, ",")
+	return s.mgr.Apply(cfg.Enabled, endpoints)
 }
 
-// apply reconciles the listeners with cfg. A pure host-data change is a no-op
-// (the handler picks up the new snapshot); an endpoint change stops and rebinds.
-func (m *serverManager) apply(cfg geodnsConfig) error {
-	sig := endpointSig(cfg)
-	if sig == m.applied {
-		return nil
-	}
-	m.stopAll()
-	m.applied = sig
-	if !cfg.Enabled {
-		return nil
-	}
-	for _, l := range cfg.Listeners {
-		ep := net.JoinHostPort(l.IP.String(), strconv.Itoa(int(l.Port)))
-		if err := m.bind(ep, l.IP.String()); err != nil {
-			m.log.Error("geodns: listen failed", "endpoint", ep, "error", err)
-			continue
-		}
-	}
-	if len(m.servers) == 0 && len(cfg.Listeners) > 0 {
-		return fmt.Errorf("geodns: no listeners bound on %d endpoint(s)", len(cfg.Listeners))
-	}
-	m.log.Info("geodns: listening", "endpoints", len(m.servers)/2)
-	return nil
-}
-
-// bind opens a UDP and a TCP listener on ep (best-effort: the caller logs and
-// continues if one endpoint fails so the rest still serve).
-func (m *serverManager) bind(ep, addr string) error {
-	var lc net.ListenConfig
-	pc, err := lc.ListenPacket(context.Background(), "udp", ep)
-	if err != nil {
-		return fmt.Errorf("udp: %w", err)
-	}
-	udp := &dns.Server{PacketConn: pc, Handler: m.mux}
-	ln, err := lc.Listen(context.Background(), "tcp", ep)
-	if err != nil {
-		if cerr := pc.Close(); cerr != nil {
-			m.log.Debug("geodns: closing udp after tcp bind failure", "endpoint", ep, "error", cerr)
-		}
-		return fmt.Errorf("tcp: %w", err)
-	}
-	tcp := &dns.Server{Listener: ln, Handler: m.mux}
-	m.servers = append(m.servers, udp, tcp)
-	m.boundAddrs = append(m.boundAddrs, addr)
-	gm := gmetrics()
-	gm.listenerUp.With("udp", addr).Set(1)
-	gm.listenerUp.With("tcp", addr).Set(1)
-	go m.serve(udp, ep, "udp")
-	go m.serve(tcp, ep, "tcp")
-	return nil
-}
-
-func (m *serverManager) serve(s *dns.Server, ep, proto string) {
-	if err := s.ActivateAndServe(); err != nil {
-		m.log.Debug("geodns: server stopped", "endpoint", ep, "proto", proto, "error", err)
-	}
-}
-
-// stopAll drains and closes every bound listener with a bounded timeout.
-func (m *serverManager) stopAll() {
-	for _, s := range m.servers {
-		ctx, cancel := context.WithTimeout(context.Background(), drainTimeout)
-		if err := s.ShutdownContext(ctx); err != nil {
-			m.log.Debug("geodns: listener shutdown", "error", err)
-		}
-		cancel()
-	}
-	gm := gmetrics()
-	for _, addr := range m.boundAddrs {
-		gm.listenerUp.With("udp", addr).Set(0)
-		gm.listenerUp.With("tcp", addr).Set(0)
-	}
-	m.boundAddrs = nil
-	m.servers = nil
-}
+func (s *geodnsServer) stopAll() { s.mgr.Stop() }
