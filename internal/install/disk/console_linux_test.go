@@ -1,4 +1,4 @@
-// Design: plan/spec-installer-initrd-pure-go.md -- console fan-out tests
+// Design: plan/learned/1024-installer-initrd-pure-go.md -- console fan-out tests
 
 //go:build linux && ze_installer
 

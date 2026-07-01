@@ -1,4 +1,4 @@
-// Design: plan/spec-installer-initrd-pure-go.md -- PID-1 bootstrap: mount, console
+// Design: plan/learned/1024-installer-initrd-pure-go.md -- PID-1 bootstrap: mount, console
 
 //go:build linux && ze_installer
 

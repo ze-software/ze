@@ -1,4 +1,4 @@
-// Design: plan/spec-installer-initrd-pure-go.md -- multi-console fan-out writer
+// Design: plan/learned/1024-installer-initrd-pure-go.md -- multi-console fan-out writer
 
 //go:build linux && ze_installer
 

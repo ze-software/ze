@@ -1,4 +1,4 @@
-// Design: plan/spec-installer-initrd-pure-go.md -- single-shot DHCPv4 via nclient4
+// Design: plan/learned/1024-installer-initrd-pure-go.md -- single-shot DHCPv4 via nclient4
 
 //go:build linux
 

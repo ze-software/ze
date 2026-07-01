@@ -1,4 +1,4 @@
-// Design: plan/spec-installer-initrd-pure-go.md -- mount/umount via unix syscalls
+// Design: plan/learned/1024-installer-initrd-pure-go.md -- mount/umount via unix syscalls
 
 //go:build linux
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-installer-initrd-pure-go.md -- block device ioctls + syscall wiring
+// Design: plan/learned/1024-installer-initrd-pure-go.md -- block device ioctls + syscall wiring
 
 //go:build linux
 

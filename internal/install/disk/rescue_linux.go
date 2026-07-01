@@ -1,4 +1,4 @@
-// Design: plan/spec-installer-initrd-pure-go.md -- Go recovery console + three-branch fatal
+// Design: plan/learned/1024-installer-initrd-pure-go.md -- Go recovery console + three-branch fatal
 
 //go:build linux && ze_installer
 

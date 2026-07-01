@@ -52,5 +52,5 @@ password prompt on the monitor) was **NOT performed** — no lab hardware access
 in the closing session. This is the one open item and it is **unverified**.
 Closed by owner decision accepting that deferral, not because the field test
 passed. If the pure-Go install is later validated on the multi-homed lab target
-(or in QEMU via `spec-installer-initrd-pure-go` AC-2), that is the real proof
+(or in QEMU via `plan/learned/1024-installer-initrd-pure-go.md` AC-2), that is the real proof
 this rescue behaviour works end-to-end.

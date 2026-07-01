@@ -4,7 +4,7 @@
 The happy-path HTTP and ISO installs are covered by effective-install-qemu.py
 and effective-install-iso-qemu.py. This script adds the scenarios those two do
 not exercise, each an acceptance criterion of
-plan/spec-installer-initrd-pure-go.md:
+plan/learned/1024-installer-initrd-pure-go.md:
 
   fault    R-6      : a forced goroutine panic mid-init ends in the recovery/
                       reboot path (recover -> fatalInitrd), never an uncaught
