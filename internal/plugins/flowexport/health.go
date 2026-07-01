@@ -1,6 +1,6 @@
 // Design: plan/learned/818-flow-export-1-counter-export.md -- flow export health check
 // Related: register.go -- RegisterHealthCheck called from init()
-// Related: exporter.go -- Status() supplies per-collector send-error counts
+// Related: exporter.go -- status() supplies per-collector send-error counts
 
 package flowexport
 
@@ -17,12 +17,12 @@ func RegisterHealthCheck() {
 }
 
 func checkFlowExportHealth() (health.Status, string) {
-	exp := GetExporter()
+	exp := getExporter()
 	if exp == nil {
 		return health.StatusHealthy, "not configured"
 	}
 
-	collectors := exp.Status()
+	collectors := exp.status()
 	if len(collectors) == 0 {
 		return health.StatusHealthy, "no collectors"
 	}

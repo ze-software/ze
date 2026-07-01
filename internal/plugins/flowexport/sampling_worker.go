@@ -30,7 +30,7 @@ const (
 // SetupSampling and NewPsampleReader return errors and the worker degrades
 // to a no-op (logged once).
 type samplingWorker struct {
-	exp    *Exporter
+	exp    *exporter
 	cfgs   []SamplingConfig
 	reader *sampling.PsampleReader
 
@@ -39,7 +39,7 @@ type samplingWorker struct {
 	doneCh    chan struct{}
 }
 
-func newSamplingWorker(exp *Exporter, cfgs []SamplingConfig) *samplingWorker {
+func newSamplingWorker(exp *exporter, cfgs []SamplingConfig) *samplingWorker {
 	return &samplingWorker{
 		exp:       exp,
 		cfgs:      cfgs,
@@ -111,7 +111,7 @@ func (w *samplingWorker) run() {
 		}
 		incSamples(name)
 
-		w.exp.ExportFlowSample(FlowSample{
+		w.exp.exportFlowSample(FlowSample{
 			IfIndex:  pkt.IfIndex,
 			Rate:     pkt.Rate,
 			OrigSize: pkt.OrigSize,

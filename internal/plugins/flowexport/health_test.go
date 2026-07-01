@@ -21,7 +21,7 @@ func TestFlowExportHealthNotConfigured(t *testing.T) {
 }
 
 func TestFlowExportHealthNoCollectors(t *testing.T) {
-	exp := &Exporter{}
+	exp := &exporter{}
 	prev := activeExporter.Swap(exp)
 	defer activeExporter.Store(prev)
 

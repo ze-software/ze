@@ -22,7 +22,7 @@ const configRootFlowExport = "flow-export"
 
 var loggerPtr atomic.Pointer[slog.Logger]
 
-var activeExporter atomic.Pointer[Exporter]
+var activeExporter atomic.Pointer[exporter]
 
 var eventBusPtr atomic.Pointer[ze.EventBus]
 
@@ -39,8 +39,8 @@ func getEventBus() ze.EventBus {
 	return nil
 }
 
-// GetExporter returns the active exporter, or nil if not configured.
-func GetExporter() *Exporter {
+// getExporter returns the active exporter, or nil if not configured.
+func getExporter() *exporter {
 	return activeExporter.Load()
 }
 
@@ -110,7 +110,7 @@ func runEngine(conn net.Conn) int {
 	configure := func(cfg *Config) error {
 		if cfg == nil || cfg.IsEmpty() {
 			if prev := activeExporter.Swap(nil); prev != nil {
-				prev.Stop()
+				prev.stop()
 				log.Info("flow-export stopped (configuration removed)")
 			} else {
 				log.Debug("flow-export: no configuration, plugin idle")
@@ -118,7 +118,7 @@ func runEngine(conn net.Conn) int {
 			return nil
 		}
 
-		exp, err := NewExporter(cfg)
+		exp, err := newExporter(cfg)
 		if err != nil {
 			return fmt.Errorf("flow-export exporter: %w", err)
 		}
@@ -128,7 +128,7 @@ func runEngine(conn net.Conn) int {
 
 		prev := activeExporter.Swap(exp)
 		if prev != nil {
-			prev.Stop()
+			prev.stop()
 		}
 
 		log.Info("flow-export configured",
@@ -210,7 +210,7 @@ func runEngine(conn net.Conn) int {
 	iface.UnsubscribeCollectNotify(collectSubID)
 
 	if exp := activeExporter.Swap(nil); exp != nil {
-		exp.Stop()
+		exp.stop()
 	}
 	log.Info("flow-export plugin stopped")
 	return 0
@@ -220,7 +220,7 @@ func runEngine(conn net.Conn) int {
 // using the registered encoder factories. Each collector gets a counter
 // encoder and, where the protocol supports it, a flow-sample (sFlow) or
 // flow-record (NetFlow v9, IPFIX) encoder for spec-2 per-flow export.
-func wireEncoders(exp *Exporter, cfg *Config) {
+func wireEncoders(exp *exporter, cfg *Config) {
 	log := loggerPtr.Load()
 	for _, cc := range cfg.Collectors {
 		factory := lookupEncoderFactory(cc.Protocol)
@@ -228,13 +228,13 @@ func wireEncoders(exp *Exporter, cfg *Config) {
 			log.Warn("flow-export: no encoder for protocol", "protocol", cc.Protocol)
 			continue
 		}
-		exp.SetEncoder(cc.Name, factory(cc, exp.startTime))
+		exp.setEncoder(cc.Name, factory(cc, exp.startTime))
 
 		if fsf := lookupFlowSampleFactory(cc.Protocol); fsf != nil {
-			exp.SetFlowSampleEncoder(cc.Name, fsf(cc, exp.startTime))
+			exp.setFlowSampleEncoder(cc.Name, fsf(cc, exp.startTime))
 		}
 		if frf := lookupFlowRecordFactory(cc.Protocol); frf != nil {
-			exp.SetFlowRecordEncoder(cc.Name, frf(cc, exp.startTime))
+			exp.setFlowRecordEncoder(cc.Name, frf(cc, exp.startTime))
 		}
 	}
 }
@@ -243,25 +243,25 @@ func wireEncoders(exp *Exporter, cfg *Config) {
 // sampling, and conntrack flow records. Each is optional and gated on config;
 // all teardown is registered as an exporter stopper so a config reload (which
 // stops the previous exporter) releases them cleanly.
-func startFlowSubsystems(exp *Exporter, cfg *Config) {
+func startFlowSubsystems(exp *exporter, cfg *Config) {
 	if cfg.Enrichment.BGP {
 		enricher := enrich.NewEnricher()
-		exp.SetEnricher(enricher)
+		exp.setEnricher(enricher)
 		builder := newBGPEnrichBuilder(enricher)
 		builder.Start(getEventBus())
-		exp.AddStopper(builder.Stop)
+		exp.addStopper(builder.Stop)
 	}
 
 	if len(cfg.Sampling) > 0 {
 		sw := newSamplingWorker(exp, cfg.Sampling)
 		sw.Start()
-		exp.AddStopper(sw.Stop)
+		exp.addStopper(sw.Stop)
 	}
 
 	if cfg.Conntrack.Enabled {
 		cw := newConntrackWorker(exp, cfg.Conntrack)
 		cw.Start()
-		exp.AddStopper(cw.Stop)
+		exp.addStopper(cw.Stop)
 	}
 }
 
@@ -291,7 +291,7 @@ func notifyFromRateTracker(ifs []iface.InterfaceInfo) {
 		snap.Interfaces = append(snap.Interfaces, interfaceCountersFrom(info, speedMbps, duplex))
 	}
 
-	exp.NotifySnapshot(snap)
+	exp.notifySnapshot(snap)
 }
 
 // interfaceCountersFrom converts one iface.InterfaceInfo into the sFlow

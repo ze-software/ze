@@ -27,7 +27,7 @@ func init() {
 }
 
 func handleShowFlowExport(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	exp := GetExporter()
+	exp := getExporter()
 	if exp == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
@@ -35,7 +35,7 @@ func handleShowFlowExport(_ *pluginserver.CommandContext, args []string) (*plugi
 		}, nil
 	}
 
-	collectors := exp.Status()
+	collectors := exp.status()
 	switch len(args) {
 	case 0:
 		result := make([]plugin.Map, 0, len(collectors))
@@ -71,7 +71,7 @@ func handleShowFlowExport(_ *pluginserver.CommandContext, args []string) (*plugi
 // and carries no ingress interface, so a `name <iface>` filter is not derivable
 // from the data (see spec Deviations).
 func handleShowFlowRecent(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	exp := GetExporter()
+	exp := getExporter()
 	if exp == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
@@ -97,7 +97,7 @@ func handleShowFlowRecent(_ *pluginserver.CommandContext, args []string) (*plugi
 		return flowRecentUsage(), nil
 	}
 
-	flows := exp.RecentFlows(dst)
+	flows := exp.recentFlows(dst)
 	result := make(plugin.Slice[plugin.Map], 0, len(flows))
 	for i := range flows {
 		result = append(result, renderFlow(flows[i]))

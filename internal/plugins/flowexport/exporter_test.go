@@ -38,7 +38,7 @@ func (s *stubFlowSampleEncoder) EncodeFlowSample(sample FlowSample, _ *Sender) e
 // newTestExporter builds an exporter with one collector pointing at a live
 // loopback UDP socket (kept open so sends do not draw ICMP errors). Teardown
 // is registered via t.Cleanup (exporter stopped before the socket closes).
-func newTestExporter(t *testing.T, protocol string) *Exporter {
+func newTestExporter(t *testing.T, protocol string) *exporter {
 	t.Helper()
 	var lc net.ListenConfig
 	pc, err := lc.ListenPacket(context.Background(), "udp4", "127.0.0.1:0")
@@ -55,11 +55,11 @@ func newTestExporter(t *testing.T, protocol string) *Exporter {
 		Name: "c1", Address: "127.0.0.1", Port: addr.Port,
 		Protocol: protocol, PollingInterval: 1, TemplateRefresh: 600,
 	}}}
-	exp, err := NewExporter(cfg)
+	exp, err := newExporter(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(exp.Stop)
+	t.Cleanup(exp.stop)
 	return exp
 }
 
@@ -67,16 +67,16 @@ func TestExportFlowsAppliesEnrichment(t *testing.T) {
 	exp := newTestExporter(t, "netflow9")
 
 	stub := &stubFlowRecordEncoder{}
-	exp.SetFlowRecordEncoder("c1", stub)
+	exp.setFlowRecordEncoder("c1", stub)
 
 	tree := enrich.NewRadixTree()
 	tree.Insert(netip.MustParsePrefix("192.0.2.0/24"), enrich.ASEntry{AS: 64500})
 	tree.Insert(netip.MustParsePrefix("203.0.113.0/24"), enrich.ASEntry{AS: 64600, NextHop: netip.MustParseAddr("10.0.0.2")})
 	en := enrich.NewEnricher()
 	en.UpdateTree(tree)
-	exp.SetEnricher(en)
+	exp.setEnricher(en)
 
-	exp.ExportFlows([]ConntrackFlow{{
+	exp.exportFlows([]ConntrackFlow{{
 		SrcAddr: netip.MustParseAddr("192.0.2.5"),
 		DstAddr: netip.MustParseAddr("203.0.113.9"),
 	}})
@@ -100,9 +100,9 @@ func TestExportFlowSampleDispatch(t *testing.T) {
 	exp := newTestExporter(t, "sflow")
 
 	stub := &stubFlowSampleEncoder{}
-	exp.SetFlowSampleEncoder("c1", stub)
+	exp.setFlowSampleEncoder("c1", stub)
 
-	exp.ExportFlowSample(FlowSample{IfIndex: 5, Rate: 1024, OrigSize: 1500, Header: []byte{1, 2, 3}})
+	exp.exportFlowSample(FlowSample{IfIndex: 5, Rate: 1024, OrigSize: 1500, Header: []byte{1, 2, 3}})
 
 	if len(stub.got) != 1 {
 		t.Fatalf("encoder received %d samples, want 1", len(stub.got))
@@ -112,18 +112,18 @@ func TestExportFlowSampleDispatch(t *testing.T) {
 	}
 }
 
-// TestExporterStopRunsStoppers verifies Stop runs every registered stopper
+// TestExporterStopRunsStoppers verifies stop runs every registered stopper
 // without deadlock (stoppers execute outside e.mu) and that dispatch is a
-// no-op after Stop.
+// no-op after stop.
 func TestExporterStopRunsStoppers(t *testing.T) {
 	exp := newTestExporter(t, "netflow9")
 
 	done := make(chan struct{}, 3)
 	for range 3 {
-		exp.AddStopper(func() { done <- struct{}{} })
+		exp.addStopper(func() { done <- struct{}{} })
 	}
 
-	exp.Stop()
+	exp.stop()
 
 	for range 3 {
 		select {
@@ -133,23 +133,23 @@ func TestExporterStopRunsStoppers(t *testing.T) {
 		}
 	}
 
-	// Dispatch after Stop must be a no-op.
+	// Dispatch after stop must be a no-op.
 	stub := &stubFlowRecordEncoder{}
-	exp.SetFlowRecordEncoder("c1", stub)
-	exp.ExportFlows([]ConntrackFlow{{
+	exp.setFlowRecordEncoder("c1", stub)
+	exp.exportFlows([]ConntrackFlow{{
 		SrcAddr: netip.MustParseAddr("192.0.2.1"),
 		DstAddr: netip.MustParseAddr("192.0.2.2"),
 	}})
 	if len(stub.got) != 0 {
-		t.Errorf("ExportFlows dispatched %d flows after Stop, want 0", len(stub.got))
+		t.Errorf("exportFlows dispatched %d flows after stop, want 0", len(stub.got))
 	}
 }
 
-// VALIDATES: AC-5 — ExportFlows publishes per-flow observations to the feed.
+// VALIDATES: AC-5 -- exportFlows publishes per-flow observations to the feed.
 func TestConntrackPublishesFlowObs(t *testing.T) {
 	exp := newTestExporter(t, "netflow9")
 	stub := &stubFlowRecordEncoder{}
-	exp.SetFlowRecordEncoder("c1", stub)
+	exp.setFlowRecordEncoder("c1", stub)
 
 	feed := observation.Global()
 	var received []observation.Observation
@@ -163,7 +163,7 @@ func TestConntrackPublishesFlowObs(t *testing.T) {
 	})
 	defer feed.Unsubscribe(subID)
 
-	exp.ExportFlows([]ConntrackFlow{{
+	exp.exportFlows([]ConntrackFlow{{
 		SrcAddr:  netip.MustParseAddr("192.0.2.1"),
 		DstAddr:  netip.MustParseAddr("10.0.0.1"),
 		SrcPort:  12345,

@@ -39,7 +39,7 @@ const (
 // NetFlow v9 / IPFIX encoders carry separate IPv4 and IPv6 per-flow templates
 // (template IDs 257 and 258); each address family ships in its own datagram.
 type conntrackWorker struct {
-	exp     *Exporter
+	exp     *exporter
 	cfg     ConntrackConfig
 	reader  *conntrack.Reader
 	tracker *conntrack.DeltaTracker
@@ -56,7 +56,7 @@ type conntrackWorker struct {
 	doneCh  chan struct{}
 }
 
-func newConntrackWorker(exp *Exporter, cfg ConntrackConfig) *conntrackWorker {
+func newConntrackWorker(exp *exporter, cfg ConntrackConfig) *conntrackWorker {
 	return &conntrackWorker{
 		exp:         exp,
 		cfg:         cfg,
@@ -142,7 +142,7 @@ func (w *conntrackWorker) runDestroy() {
 			flows = append(flows, w.toFlow(d))
 		}
 		if len(flows) > 0 {
-			w.exp.ExportFlows(flows)
+			w.exp.exportFlows(flows)
 		}
 		// Reclaim flows tombstoned more than the grace window ago. Sweeping here
 		// (rather than on a timer) is self-pacing: a busy box delivers destroy
@@ -195,9 +195,9 @@ func (w *conntrackWorker) dumpAndExport() {
 		flows = append(flows, w.toFlow(d))
 	}
 
-	w.exp.ExportFlows(flows)
+	w.exp.exportFlows(flows)
 	setFlowsActive(float64(w.tracker.Len()))
-	setRecentRingDrops(float64(w.exp.RecentDrops()))
+	setRecentRingDrops(float64(w.exp.recentDrops()))
 
 	// GC delta state for flows not seen for two dump intervals.
 	w.tracker.Cleanup(2 * time.Duration(w.cfg.ActiveTimeout) * time.Second)

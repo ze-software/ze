@@ -1,5 +1,5 @@
-// Design: plan/learned/818-flow-export-1-counter-export.md -- Exporter lifecycle
-// Related: flowtypes.go -- FlowSample / ConntrackFlow dispatched by ExportFlowSample / ExportFlows
+// Design: plan/learned/818-flow-export-1-counter-export.md -- exporter lifecycle
+// Related: flowtypes.go -- FlowSample / ConntrackFlow dispatched by exportFlowSample / exportFlows
 
 package flowexport
 
@@ -40,43 +40,47 @@ type collectorState struct {
 	sequence         uint32
 }
 
-// Exporter manages flow export to all configured collectors.
-type Exporter struct {
+// exporter manages flow export to all configured collectors. It is entirely
+// package-internal: constructed via newExporter, reached through the
+// activeExporter pointer, and driven by same-package callers (the rate-tracker
+// callback, the conntrack/sampling workers, and the `show flow-*` handlers).
+// Nothing outside this package names it, so its surface stays unexported.
+type exporter struct {
 	mu         sync.Mutex
 	collectors []collectorState
 	enricher   *enrich.Enricher
-	stoppers   []func() // worker/builder teardown, run outside e.mu on Stop
+	stoppers   []func() // worker/builder teardown, run outside e.mu on stop
 	stopCh     chan struct{}
 	stopped    bool
 	startTime  time.Time
 	// recent is a bounded ring of recently exported conntrack flows, fed from
-	// ExportFlows and read by `show flow-recent` so on-box consumers (the DDoS
+	// exportFlows and read by `show flow-recent` so on-box consumers (the DDoS
 	// characterizer) can inspect the current flow mix without a packet capture.
 	// nil when conntrack export is disabled (nothing would feed it).
 	recent *recentRing
 }
 
-// AddStopper registers a teardown function (sampling/conntrack worker, BGP
+// addStopper registers a teardown function (sampling/conntrack worker, BGP
 // enrich builder) to run when the exporter stops. Stoppers run outside the
-// exporter mutex because worker goroutines call ExportFlow* which take it.
-func (e *Exporter) AddStopper(fn func()) {
+// exporter mutex because worker goroutines call exportFlow* which take it.
+func (e *exporter) addStopper(fn func()) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.stoppers = append(e.stoppers, fn)
 }
 
-// SetEnricher assigns the BGP enricher used to annotate per-flow records.
+// setEnricher assigns the BGP enricher used to annotate per-flow records.
 // May be nil (enrichment disabled).
-func (e *Exporter) SetEnricher(en *enrich.Enricher) {
+func (e *exporter) setEnricher(en *enrich.Enricher) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.enricher = en
 }
 
-// NewExporter creates an exporter from config. Opens UDP sockets
-// to all collectors. Call Stop() to release resources.
-func NewExporter(cfg *Config) (*Exporter, error) {
-	e := &Exporter{
+// newExporter creates an exporter from config. Opens UDP sockets
+// to all collectors. Call stop() to release resources.
+func newExporter(cfg *Config) (*exporter, error) {
+	e := &exporter{
 		stopCh:    make(chan struct{}),
 		startTime: time.Now(),
 	}
@@ -90,7 +94,7 @@ func NewExporter(cfg *Config) (*Exporter, error) {
 		cc := &cfg.Collectors[i]
 		sender, err := NewSender(cc.Address, cc.Port)
 		if err != nil {
-			e.Stop()
+			e.stop()
 			return nil, err
 		}
 		cs := collectorState{
@@ -103,8 +107,8 @@ func NewExporter(cfg *Config) (*Exporter, error) {
 	return e, nil
 }
 
-// SetEncoder assigns a protocol encoder to the named collector.
-func (e *Exporter) SetEncoder(collectorName string, enc ProtocolEncoder) {
+// setEncoder assigns a protocol encoder to the named collector.
+func (e *exporter) setEncoder(collectorName string, enc ProtocolEncoder) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for i := range e.collectors {
@@ -115,9 +119,9 @@ func (e *Exporter) SetEncoder(collectorName string, enc ProtocolEncoder) {
 	}
 }
 
-// SetFlowSampleEncoder assigns an sFlow flow-sample encoder to the named
+// setFlowSampleEncoder assigns an sFlow flow-sample encoder to the named
 // collector (spec 2 packet sampling).
-func (e *Exporter) SetFlowSampleEncoder(collectorName string, enc FlowSampleEncoder) {
+func (e *exporter) setFlowSampleEncoder(collectorName string, enc FlowSampleEncoder) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for i := range e.collectors {
@@ -128,9 +132,9 @@ func (e *Exporter) SetFlowSampleEncoder(collectorName string, enc FlowSampleEnco
 	}
 }
 
-// SetFlowRecordEncoder assigns a per-flow record encoder to the named
+// setFlowRecordEncoder assigns a per-flow record encoder to the named
 // collector (spec 2 conntrack flow records).
-func (e *Exporter) SetFlowRecordEncoder(collectorName string, enc FlowRecordEncoder) {
+func (e *exporter) setFlowRecordEncoder(collectorName string, enc FlowRecordEncoder) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for i := range e.collectors {
@@ -141,11 +145,11 @@ func (e *Exporter) SetFlowRecordEncoder(collectorName string, enc FlowRecordEnco
 	}
 }
 
-// NotifySnapshot is called from the iface rate tracker with fresh
+// notifySnapshot is called from the iface rate tracker with fresh
 // counter data. Non-blocking: if the exporter is busy, the snapshot
 // is dropped (counter export is best-effort like the protocols it
 // implements).
-func (e *Exporter) NotifySnapshot(snap CounterSnapshot) {
+func (e *exporter) notifySnapshot(snap CounterSnapshot) {
 	if !e.mu.TryLock() {
 		return
 	}
@@ -203,11 +207,11 @@ func (e *Exporter) NotifySnapshot(snap CounterSnapshot) {
 	}
 }
 
-// ExportFlowSample dispatches one sampled packet to every sFlow collector
+// exportFlowSample dispatches one sampled packet to every sFlow collector
 // that has a flow-sample encoder. Called from the sampling worker goroutine.
 // Non-blocking with respect to the snapshot path: takes the same mutex, so a
 // sample is encoded between counter ticks.
-func (e *Exporter) ExportFlowSample(sample FlowSample) {
+func (e *exporter) exportFlowSample(sample FlowSample) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.stopped {
@@ -234,12 +238,12 @@ func (e *Exporter) ExportFlowSample(sample FlowSample) {
 	}
 }
 
-// ExportFlows enriches and dispatches per-flow records to every NetFlow v9 /
+// exportFlows enriches and dispatches per-flow records to every NetFlow v9 /
 // IPFIX collector that has a flow-record encoder. Called from both conntrack
 // worker goroutines -- the periodic dump and the destroy-event listener -- so
 // the e.mu lock below is what serializes their concurrent fan-out. Enrichment
 // (BGP next-hop / AS) is applied once per flow before fan-out to collectors.
-func (e *Exporter) ExportFlows(flows []ConntrackFlow) {
+func (e *exporter) exportFlows(flows []ConntrackFlow) {
 	if len(flows) == 0 {
 		return
 	}
@@ -319,27 +323,22 @@ func (e *Exporter) ExportFlows(flows []ConntrackFlow) {
 	}
 }
 
-// RecentFlows returns a snapshot of the recent-flow ring in oldest-to-newest
+// recentFlows returns a snapshot of the recent-flow ring in oldest-to-newest
 // order, optionally filtered to flows destined into dst (zero-value prefix =
 // all). Empty when conntrack export (and thus the ring) is disabled. Reads only
 // the ring's own mutex, so it never contends with the exporter fan-out lock.
-func (e *Exporter) RecentFlows(dst netip.Prefix) []ConntrackFlow {
+func (e *exporter) recentFlows(dst netip.Prefix) []ConntrackFlow {
 	return e.recent.snapshot(dst)
 }
 
-// RecentDrops returns the cumulative number of recent-flow-ring entries
+// recentDrops returns the cumulative number of recent-flow-ring entries
 // overwritten before being read. Exposed for the recent-ring-drops metric.
-func (e *Exporter) RecentDrops() uint64 {
+func (e *exporter) recentDrops() uint64 {
 	return e.recent.dropCount()
 }
 
-// Uptime returns milliseconds since the exporter started.
-func (e *Exporter) Uptime() uint32 {
-	return uint32(time.Since(e.startTime).Milliseconds())
-}
-
-// Status returns per-collector export statistics.
-func (e *Exporter) Status() []map[string]any {
+// status returns per-collector export statistics.
+func (e *exporter) status() []map[string]any {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -365,9 +364,9 @@ func (e *Exporter) Status() []map[string]any {
 	return result
 }
 
-// Stop tears down workers, closes all collector senders, and marks the
+// stop tears down workers, closes all collector senders, and marks the
 // exporter stopped.
-func (e *Exporter) Stop() {
+func (e *exporter) stop() {
 	e.mu.Lock()
 	if e.stopped {
 		e.mu.Unlock()
@@ -380,7 +379,7 @@ func (e *Exporter) Stop() {
 	e.mu.Unlock()
 
 	// Run worker/builder teardown WITHOUT the lock: their goroutines call
-	// ExportFlow*, which take e.mu and now observe stopped==true and return.
+	// exportFlow*, which take e.mu and now observe stopped==true and return.
 	for _, fn := range stoppers {
 		fn()
 	}
