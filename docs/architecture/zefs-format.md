@@ -226,8 +226,14 @@ After pwrite, the backing mmap is released and re-acquired so the read path sees
 
 `zefs.Repair(src, dst)` scans a potentially corrupt store entry-by-entry, skips entries with CRC mismatches or parse errors, and writes valid entries to a new store. The source file is never modified.
 
+`zefs.MoveAside(path)` renames a store file to `<path>.replaced-<date>` (local time) and returns the backup path, preserving the original for post-mortem. It is the shared backup step used when a store must be replaced rather than repaired in place.
+
+The config storage layer self-heals on top of these. When `storage.NewBlob` opens a store that exists but is unreadable (corrupt, or a 0-byte file left by an interrupted or concurrent write), it moves the bad file aside with `MoveAside` and recreates a fresh store, so a corrupt store recovers automatically instead of wedging on every open. `ze init --force` uses the same `MoveAside` backup before writing a new database.
+
 CLI: `ze data check`, `ze data repair --output <path>`, `ze data encode`.
-<!-- source: pkg/zefs/check.go -- Check, Repair -->
+<!-- source: pkg/zefs/check.go -- Check, Repair, MoveAside -->
+<!-- source: internal/component/config/storage/blob.go -- NewBlob corrupt-store self-heal -->
+<!-- source: internal/plugins/init/main.go -- moveAsideDB uses zefs.MoveAside -->
 
 ## Implementation
 
