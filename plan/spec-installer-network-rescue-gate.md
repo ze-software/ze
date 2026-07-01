@@ -208,8 +208,13 @@ Proves the new behavior is reachable end-to-end, not just defined:
 
 ## Review Gate
 
-Status: implementation complete; all automated gates green. Hardware/QEMU PXE
-re-test pending (requires the multi-homed lab target).
+Status: CLOSED 2026-07-01 (learned: plan/learned/1023-installer-network-rescue-gate.md).
+Implementation complete; all automated gates were green. Closed by owner decision
+WITHOUT the manual multi-homed hardware/QEMU PXE re-test (AC-7): no lab hardware
+access, so that field validation is explicitly DEFERRED and UNVERIFIED, not
+passed. The client-side fix has since moved to the pure-Go installer
+(internal/install/disk/network.go ensureNetwork: probe-first reachability + MAC
+pin to ze.mac) after the busybox init was deleted (faabc1cbb).
 
 Verification run:
 - `tools/installer-initrd` unit suite (10 scripts): all pass
