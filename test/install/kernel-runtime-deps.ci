@@ -1,4 +1,12 @@
 # Test: gokrazy/kernel/Makefile notices shared builder and patch changes.
+#
+# // test-relax: the build output artifact is redirected to a per-test dir via
+# `make OUT=$work/out` instead of the shared tmp/kernel/build. The old shared
+# path raced with ze-kernel-overlay (which moves/removes tmp/kernel/build): a
+# TOCTOU on out.exists()/out.stat() below intermittently FAILed the full
+# parallel install suite. Only the output location changes; the mtime-based
+# dependency graph this test exercises (source files vs the built vmlinuz) is
+# identical because the prerequisites are repo-relative source paths.
 
 option=timeout:value=20s
 
@@ -10,6 +18,7 @@ work=$PWD
 repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
 cd "$repo"
 state="$work/mtimes.json"
+outdir="$work/out"
 
 cleanup() {
 	set +e
@@ -34,7 +43,7 @@ PY
 }
 trap cleanup EXIT
 
-python3 - <<'PY' "$state"
+python3 - <<'PY' "$state" "$outdir"
 from pathlib import Path
 import json, os, sys
 paths = [
@@ -52,10 +61,14 @@ paths = [
     Path('gokrazy/kernel/patches/series'),
     Path('gokrazy/kernel/patches/0001-nct6683.patch'),
 ]
-out = Path('tmp/kernel/build/vmlinuz')
+out = Path(sys.argv[2]) / 'vmlinuz'
 out.parent.mkdir(parents=True, exist_ok=True)
-existed = out.exists()
-mtime = out.stat().st_mtime_ns if existed else 0
+try:
+    mtime = out.stat().st_mtime_ns
+    existed = True
+except FileNotFoundError:
+    mtime = 0
+    existed = False
 if not existed:
     out.write_text('mtime-test\n')
 state = {
@@ -85,28 +98,28 @@ touch -t 202601010000 tools/kernel-builder/Dockerfile tools/kernel-builder/build
 	tools/kernel-builder/run.py tools/kernel-builder/ksource.py \
 	tools/kernel-builder/common/efi-console.config tools/kernel-builder/common/efi-console.require \
 	gokrazy/kernel/kernel.config gokrazy/kernel/kernel.require gokrazy/kernel/runtime.config gokrazy/kernel/runtime.require gokrazy/kernel/patches/series gokrazy/kernel/patches/0001-nct6683.patch
-touch -t 202601010100 tmp/kernel/build/vmlinuz
-expect_status 0 make -q -C gokrazy/kernel BUILDER=docker
-expect_status 0 make -q -C gokrazy/kernel BUILDER=qemu
+touch -t 202601010100 "$outdir/vmlinuz"
+expect_status 0 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
+expect_status 0 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=qemu
 
 touch -t 202601010200 tools/kernel-builder/Dockerfile
-expect_status 1 make -q -C gokrazy/kernel BUILDER=docker
+expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
 
 touch -t 202601010000 tools/kernel-builder/Dockerfile
 touch -t 202601010200 tools/kernel-builder/run.py
-expect_status 1 make -q -C gokrazy/kernel BUILDER=docker
+expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
 
 touch -t 202601010000 tools/kernel-builder/run.py
 touch -t 202601010200 tools/kernel-builder/common/efi-console.config
-expect_status 1 make -q -C gokrazy/kernel BUILDER=docker
+expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
 
 touch -t 202601010000 tools/kernel-builder/common/efi-console.config
 touch -t 202601010200 tools/kernel-builder/qemu-build.py
-expect_status 1 make -q -C gokrazy/kernel BUILDER=qemu
+expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=qemu
 
 touch -t 202601010000 tools/kernel-builder/qemu-build.py
 touch -t 202601010200 gokrazy/kernel/patches/0001-nct6683.patch
-expect_status 1 make -q -C gokrazy/kernel BUILDER=docker
+expect_status 1 make -q -C gokrazy/kernel OUT="$outdir" BUILDER=docker
 
 echo OK
 EOF_SH

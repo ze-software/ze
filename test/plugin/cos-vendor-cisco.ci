@@ -13,7 +13,7 @@ class-of-service {
 
 l2tp {
     enabled true
-    authentication {
+    auth {
         radius {
             server main {
                 address 127.0.0.1;

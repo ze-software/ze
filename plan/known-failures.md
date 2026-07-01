@@ -3,63 +3,68 @@
 Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before Any
 Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
 
+**Status 2026-07-01: no open failures.** Every previously tracked entry is
+resolved (see below). Three were already fixed by shipped specs (621, 887, 888)
+and merely stale in this log; the kernel flake and the cos-vendor fixtures were
+fixed 2026-07-01.
 
-### 2026-07-01 -- kernel-runtime-deps parallel-execution flake
+## Harness notes (not failures)
 
-**Open (harness artifact, unrelated to installer/BGP work).** `install/26`
-kernel-runtime-deps intermittently FAILs in the full parallel `ze-functional-test`
-with a TOCTOU race: `FileNotFoundError` / `touch: No such file` on
-`tmp/kernel/build/vmlinuz` (the real ~56M runtime kernel; `gokrazy/kernel/Makefile:19`
-`OUT := $(REPO_ROOT)/tmp/kernel/build`, so the path is correct, NOT stale). At
-`kernel-runtime-deps.ci:57-58` it does `out.exists()` then `out.stat()`; a
-concurrent kernel test rebuilding/removing that shared artifact between the two
-lines yields the race. **Passes 1/1 in isolation**
-(`ze-test install --pattern kernel-runtime-deps`, verified 2026-07-01). Same class
-as the plugin "load-induced flakiness under max parallelism" note below. Real fix:
-isolate each kernel test's `tmp/kernel/` state (per-test TMPDIR) or serialize the
-kernel tests. NOT introduced by the installer-initrd-pure-go QEMU-infra work (that
-touches `build/kernel/` + installer QEMU scripts, a disjoint subsystem).
-
-
-### 2026-06-17 -- host `make ze-verify` re-triage (supersedes 2026-06-13)
-
-**Open (pre-existing).** Verified against current working tree.
-
-#### Plugin (2/424 FAIL) -- was 8, observer/RIB resolved 2026-06-17
-
-**Exit-code mismatch** (2 tests, OPEN): `126` cos-vendor-cisco, `127`
-cos-vendor-coexist (expected 0, got 1). Config parser rejects
-`authentication { radius { ... } }` inside `l2tp {}`. A missing YANG/config
-path for L2TP RADIUS auth; unrelated to BGP.
-
-The **observer timeout / RIB visibility** group (`40` bestpath-reason, `220`
-multipath-basic, `224` nexthop-self, `225` nexthop-unchanged, `308`
-rib-forward-handle-observed, `350` rr-basic) is **resolved** -- see Resolved
-section. Same class as the exabgp suite: an establishment-time EoR race read as
-"routes never reach the RIB", not a forwarding bug.
-
-**Harness note (not bugs):** the full plugin suite shows load-induced
-flakiness under max parallelism -- e.g. `257`, `258`, `312` failed in one
-`--all` run but pass 3/3 in isolation. Running two full `--all` suites
-back-to-back melts down (resource exhaustion: ~50 timeouts, ~200 "failures").
-Triage individual tests in isolation; treat a contiguous block of failures or a
-spike of timeouts in `--all` as a harness/resource artifact, not real
-regressions.
-
-#### Parse (3/224 FAIL) -- pre-existing
-
-`116` iface-vpp-aggregates-errors, `117` iface-vpp-rejects-bridge, `121`
-iface-vpp-rejects-veth. VPP backend feature gate validation not
-implemented: `ze config validate` accepts unsupported features under
-`backend vpp`.
-
-#### L2TP (1/16 FAIL) -- pre-existing
-
-`12` reauth-interval-clamp: stderr does not contain "below safety floor;
-clamping". The clamp function was removed; validation moved to YANG range
-checks. Env var path bypasses YANG validation, leaving no safety net.
+The full plugin suite shows load-induced flakiness under max parallelism -- e.g.
+`257`, `258`, `312` failed in one `--all` run but pass 3/3 in isolation. Running
+two full `--all` suites back-to-back melts down (resource exhaustion: ~50
+timeouts, ~200 "failures"). Triage individual tests in isolation; treat a
+contiguous block of failures or a spike of timeouts in `--all` as a
+harness/resource artifact, not real regressions.
 
 ## Resolved
+
+### 2026-07-01 -- kernel-runtime-deps parallel-execution flake -> per-test isolation
+
+**Resolved 2026-07-01.** `install/26` kernel-runtime-deps TOCTOU race was a
+shared-path collision: it read/created `tmp/kernel/build/vmlinuz` while
+`ze-kernel-overlay` (which runs `make ze-kernel`) moved/removed that same dir,
+so a concurrent `out.stat()` threw `FileNotFoundError`. Fixed by redirecting the
+test's build-output artifact to a per-test dir: `make -q -C gokrazy/kernel
+OUT="$work/out"` (the Makefile's `OUT :=` at `gokrazy/kernel/Makefile:19` loses
+to a command-line override), with the fake vmlinuz created/touched there and the
+`out.stat()` hardened with try/except. The mtime dependency graph the test
+exercises is unchanged: prerequisites are repo-relative source paths, not `OUT`.
+Verified: 4 back-to-back parallel `ze-test install --pattern kernel` runs, all
+20/20 PASS with runtime-deps and overlay in the same batch.
+
+### 2026-07-01 -- Plugin cos-vendor (cisco/coexist) -> fixture fixed
+
+**Resolved 2026-07-01.** `cos-vendor-cisco`, `cos-vendor-coexist` (was ids
+126/127, now 128/129) nested `radius { server ... }` under `l2tp { authentication
+{ ... } }`. The `authentication` container (added by spec 888, l2tp-env-promote)
+holds only PPP-phase `timeout`/`reauth-interval`; the RADIUS config path is
+`l2tp { auth { radius { ... } } }`, defined by the authradius plugin
+(`internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang:11`).
+The fixtures named the wrong sibling container. Fixed both `.ci` files to `auth {}`;
+`ze config validate` now returns "configuration valid" (was `unknown field in
+authentication: radius`). Same class as the paths-limit.ci fixture fix. These
+tests are `needs-linux`; the failing part (YANG validation) is host-independent
+and was verified on darwin via `ze config validate`.
+
+### 2026-07-01 -- Parse VPP feature gate (bridge/veth/aggregates) -> already passing
+
+**Resolved 2026-07-01.** `iface-vpp-rejects-bridge`, `iface-vpp-rejects-veth`,
+`iface-vpp-aggregates-errors` were logged in the 2026-06-17 triage as "VPP backend
+feature gate not implemented". Spec 621 (backend-feature-gate) shipped the walker
+`config.ValidateBackendFeatures` (`internal/component/config/backend_gate.go`) and
+wired it into `ze config validate` (`cmd/ze/config/cmd_validate.go`). Re-run
+2026-07-01: all 7 `iface-vpp-*` parse tests PASS. The triage entry was stale.
+
+### 2026-07-01 -- L2TP reauth-interval-clamp -> replaced by YANG range
+
+**Resolved 2026-07-01.** The 2026-06-17 triage flagged the env-var path bypassing
+the reauth safety floor. Spec 888 (l2tp-env-promote) removed the L2TP env vars
+entirely and moved `reauth-interval` into YANG with `range "0 | 5..86400"`
+(`internal/component/l2tp/yang/ze-l2tp-conf.yang:172`), deleting `clampReauthInterval`
+and its test. Verified 2026-07-01: `ze config validate` rejects `reauth-interval 3`
+(`outside range 0, 5..86400`) and accepts 0/300 -- the floor is now enforced at
+commit time, a stronger guarantee than the old runtime clamp.
 
 ### 2026-06-18 -- Web suite (was 81/81 FAIL) -> harness fixed, genuine bugs fixed
 

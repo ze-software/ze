@@ -16,7 +16,7 @@ l2tp {
     shaper {
         default-rate 10mbit
     }
-    authentication {
+    auth {
         radius {
             server main {
                 address 127.0.0.1;
