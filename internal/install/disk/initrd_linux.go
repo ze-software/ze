@@ -49,6 +49,10 @@ func RunInitrd() {
 		fatalInitrd(cfg, msg)
 	}
 
+	// R-6 fault-injection evidence hook. No-op in the shipping initrd; the real
+	// hook is compiled in only under the ze_installer_fault build tag.
+	maybeInjectFault(cfg)
+
 	slog.Info("starting install", "source", cfg.Source)
 	var code int
 	switch cfg.Source {

@@ -13,6 +13,8 @@
 #   make ze-qemu-integration-test      Integration tests in QEMU VM (macOS-friendly)
 #   make ze-deployment-preflight       Check deployment tooling availability
 #   make ze-install-iso-qemu-test       Appliance ISO installer evidence (QEMU)
+#   make ze-install-scenarios-qemu-test Installer failure-path/pin/rescue evidence (QEMU)
+#   make ze-install-ventoy-qemu-test    Installer Ventoy ISO-on-FAT evidence (QEMU)
 
 .PHONY: ze-interop-test ze-ipsec-interop-test
 .PHONY: ze-stress-test ze-stress-bird-test ze-stress-profile
@@ -22,7 +24,7 @@
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-deployment-pppoe-accel-docker-test
 .PHONY: ze-docker-evidence ze-deployment-preflight
-.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-qemu-traffic-usage-test ze-install-qemu-test ze-install-iso-qemu-test ze-qemu-all-test ze-qemu-needs-linux-test
+.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-qemu-traffic-usage-test ze-install-qemu-test ze-install-iso-qemu-test ze-install-scenarios-qemu-test ze-install-ventoy-qemu-test ze-qemu-all-test ze-qemu-needs-linux-test
 
 # ─── Interop ────────────────────────────────────────────────────────────────
 
@@ -295,6 +297,24 @@ ze-install-iso-qemu-test:
 		DOCKER_HOST="unix://$$HOME/.colima/default/docker.sock" python3 scripts/evidence/effective-install-iso-qemu.py; \
 	else \
 		python3 scripts/evidence/effective-install-iso-qemu.py; \
+	fi
+
+ze-install-scenarios-qemu-test:
+	@echo "Running installer failure-path/pin/rescue QEMU evidence (R-6 fault, ze.mac pin, rescue console)..."
+	@echo "Set ZE_INSTALL_KERNEL=/path/to/vmlinuz (IP_PNP_DHCP/VIRTIO_NET/VIRTIO_BLK/EXT4 built in); self-skips otherwise."
+	@if [ "$$(uname)" = "Darwin" ] && [ -z "$$DOCKER_HOST" ] && [ -S "$$HOME/.colima/default/docker.sock" ]; then \
+		DOCKER_HOST="unix://$$HOME/.colima/default/docker.sock" python3 scripts/evidence/effective-install-scenarios-qemu.py; \
+	else \
+		python3 scripts/evidence/effective-install-scenarios-qemu.py; \
+	fi
+
+ze-install-ventoy-qemu-test:
+	@echo "Running installer Ventoy ISO-on-FAT QEMU evidence (ISO as a file on a FAT data disk)..."
+	@echo "Needs grub-mkstandalone + xorriso + mtools; set ZE_INSTALL_KERNEL (ISO9660/VFAT/BLK_DEV_LOOP built in); self-skips otherwise."
+	@if [ "$$(uname)" = "Darwin" ] && [ -z "$$DOCKER_HOST" ] && [ -S "$$HOME/.colima/default/docker.sock" ]; then \
+		DOCKER_HOST="unix://$$HOME/.colima/default/docker.sock" python3 scripts/evidence/effective-install-ventoy-qemu.py; \
+	else \
+		python3 scripts/evidence/effective-install-ventoy-qemu.py; \
 	fi
 
 ze-qemu-l2tp-ppp-test:

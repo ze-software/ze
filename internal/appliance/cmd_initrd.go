@@ -138,9 +138,17 @@ func defaultInitrdMakeBuild(destPath string) error {
 
 	initBin := filepath.Join(tmpDir, "init")
 	fmt.Fprintf(os.Stdout, "cross-compiling ze-installer for %s\n", arch) //nolint:errcheck // CLI output
+	tags := "ze_installer"
+	if os.Getenv("ZE_INITRD_FAULT") == "1" {
+		// R-6 fault-injection evidence build ONLY (used by the QEMU harness): adds
+		// the goroutine-panic hook in internal/install/disk/fault_linux.go. Never
+		// set in production; the shipping initrd packs with just ze_installer.
+		tags += ",ze_installer_fault"
+		fmt.Fprintln(os.Stdout, "ZE_INITRD_FAULT=1: adding ze_installer_fault tag (R-6 evidence build)") //nolint:errcheck // CLI output
+	}
 	goArch := tb.Str("GOARCH=").Str(arch).String()
 	goCmd := exec.CommandContext(ctx, "go", "build", //nolint:gosec // args are compile-time constants + validated arch
-		"-tags", "ze_installer",
+		"-tags", tags,
 		"-o", initBin,
 		"./cmd/ze-installer",
 	)
@@ -161,14 +169,25 @@ func defaultInitrdMakeBuild(destPath string) error {
 	}
 
 	fmt.Fprintf(os.Stdout, "packing initrd (%d bytes) to %s\n", len(initData), destPath) //nolint:errcheck // CLI output
-	out, err := os.Create(destPath)                                                      //nolint:gosec // dest from installer logic
+	return writeInitrdPack(destPath, initData)
+}
+
+// writeInitrdPack writes initData as the sole `init` entry (mode 0100755) of a
+// newc cpio stream through a gzip writer to destPath. Output is reproducible:
+// the gzip header Name/ModTime and the cpio mtime are all zeroed. Split out from
+// defaultInitrdMakeBuild so the packing is unit-testable without a real build
+// (AC-11, TestWriteInitrdPack).
+func writeInitrdPack(destPath string, initData []byte) (err error) {
+	out, err := os.Create(destPath) //nolint:gosec // dest from installer logic
 	if err != nil {
 		return fmt.Errorf("create %s: %w", destPath, err)
 	}
 	outClosed := false
 	defer func() {
 		if !outClosed {
-			out.Close() //nolint:errcheck // cleanup on error path
+			if cerr := out.Close(); cerr != nil && err == nil {
+				err = cerr
+			}
 		}
 	}()
 

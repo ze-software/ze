@@ -30,9 +30,11 @@ import sys
 import tempfile
 from pathlib import Path
 
-# The ISO builder supports amd64 and arm64 media, but the current QEMU proof is
-# still amd64 UEFI only. Set this before importing effective-install-qemu.py
-# because that module computes ARCH at import.
+# The ISO builder and this QEMU proof support both amd64 (x86_64 UEFI) and arm64
+# (aarch64 UEFI). amd64 UEFI is the proven default; arm64 is OPT-IN via
+# ZE_INSTALL_ARCH=arm64 until it has a green QEMU proof, so an arm64 host still
+# defaults to the validated amd64 path rather than the unproven arm64 one. Set
+# this before importing effective-install-qemu.py, which computes ARCH at import.
 os.environ.setdefault("ZE_INSTALL_ARCH", "amd64")
 
 
@@ -252,31 +254,76 @@ def find_x86_uefi_firmware() -> Path | None:
     return None
 
 
-def boot_iso_installer(
-    iso: Path, disk: Path, extra_disk: Path, firmware: Path, timeout: float
-) -> str:
-    cmd = [
-        base.QEMU_BIN,
-        "-smp",
-        "2",
-        "-m",
-        "1024",
-        "-nographic",
-        "-serial",
-        "mon:stdio",
-        "-machine",
-        f"accel={base.QEMU_ACCEL}",
-        "-bios",
-        str(firmware),
+def find_aarch64_uefi_firmware() -> Path | None:
+    override = os.environ.get("ZE_INSTALL_AARCH64_BIOS")
+    if override and Path(override).is_file():
+        return Path(override)
+    for candidate in (
+        "/opt/homebrew/share/qemu/edk2-aarch64-code.fd",
+        "/usr/share/AAVMF/AAVMF_CODE.fd",
+        "/usr/share/edk2/aarch64/QEMU_EFI.fd",
+        "/usr/share/qemu-efi-aarch64/QEMU_EFI.fd",
+        "/usr/share/qemu/edk2-aarch64-code.fd",
+    ):
+        path = Path(candidate)
+        if path.is_file():
+            return path
+    return None
+
+
+def find_uefi_firmware() -> tuple[Path | None, str]:
+    """Return (firmware, skip_reason) for the active arch's UEFI image."""
+    if base.ARCH == "arm64":
+        return (
+            find_aarch64_uefi_firmware(),
+            "aarch64 UEFI firmware not found (set ZE_INSTALL_AARCH64_BIOS)",
+        )
+    return (
+        find_x86_uefi_firmware(),
+        "x86_64 UEFI firmware not found (set ZE_INSTALL_X86_UEFI_BIOS)",
+    )
+
+
+def iso_cdrom_args(iso: Path) -> list[str]:
+    """Attach the install ISO as a CD-ROM appropriate to the machine type.
+
+    amd64 (q35/pc) has an IDE bus and honours -boot d. arm64 `virt` has no IDE,
+    so the ISO is attached as a virtio-scsi CD-ROM; UEFI enumerates the
+    removable media's EFI application itself, so no -boot d is needed.
+    """
+    if base.ARCH == "arm64":
+        return [
+            "-drive",
+            f"file={iso},if=none,id=cdrom,media=cdrom,readonly=on",
+            "-device",
+            "virtio-scsi-pci,id=scsi0",
+            "-device",
+            "scsi-cd,drive=cdrom,bus=scsi0.0",
+        ]
+    return [
         "-drive",
         f"file={iso},media=cdrom,readonly=on,if=ide",
-        "-drive",
-        f"file={disk},format=raw,if=virtio",
-        "-drive",
-        f"file={extra_disk},format=raw,if=virtio",
         "-boot",
         "d",
     ]
+
+
+def boot_iso_installer(
+    iso: Path, disk: Path, extra_disk: Path, firmware: Path, timeout: float
+) -> str:
+    # base.qemu_base supplies the arch-correct -machine (q35/accel on amd64,
+    # virt,highmem=off,-cpu max on arm64); we add the UEFI firmware for both.
+    cmd = (
+        base.qemu_base(needs_bios=False)
+        + ["-bios", str(firmware)]
+        + iso_cdrom_args(iso)
+        + [
+            "-drive",
+            f"file={disk},format=raw,if=virtio",
+            "-drive",
+            f"file={extra_disk},format=raw,if=virtio",
+        ]
+    )
     return base._run_capture(cmd, timeout)
 
 
@@ -318,22 +365,19 @@ def assert_partition_layout(source: Path, installed: Path) -> None:
 
 
 def main() -> int:
-    if base.ARCH != "amd64":
-        return skip(
-            "ISO QEMU proof currently supports amd64 UEFI only; set ZE_INSTALL_ARCH=amd64"
-        )
     if shutil.which(base.QEMU_BIN) is None:
         return skip(f"{base.QEMU_BIN} not found")
     if (
         shutil.which("grub-mkstandalone") is None
         and shutil.which("grub2-mkstandalone") is None
     ):
+        # arm64 additionally needs the grub arm64-efi module set installed.
         return skip("grub-mkstandalone not found")
     if shutil.which("xorriso") is None:
         return skip("xorriso not found")
-    firmware = find_x86_uefi_firmware()
+    firmware, fw_skip = find_uefi_firmware()
     if firmware is None:
-        return skip("x86_64 UEFI firmware not found (set ZE_INSTALL_X86_UEFI_BIOS)")
+        return skip(fw_skip)
     kernel = base.find_installer_kernel()
     if kernel is None:
         return skip(

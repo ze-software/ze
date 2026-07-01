@@ -2,10 +2,20 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
+| Closure | CLOSED WITHOUT QEMU VERIFICATION — user decision 2026-07-01 (see note below) |
 | Depends | spec-installer-network-rescue-gate (still `in-progress` as of 2026-06-29; the shell features landed in commit `7dc7761d9`, so the committed shell code is the ground truth for this port, but watch for further shell changes) |
-| Phase | 5/6 |
-| Updated | 2026-06-29 |
+| Phase | 6/6 (implemented; QEMU gates NOT run green) |
+| Updated | 2026-07-01 |
+
+> **CLOSURE NOTE (2026-07-01):** Closed by explicit user decision **without**
+> running the QEMU functional gates green. The dev machine has no operator
+> installer kernel and lacks grub/xorriso/mtools, so all install QEMU gates
+> self-skip here. Implementation phases 1-5 + all QEMU test infrastructure are
+> done and statically verified (build/vet/unit/lint/`/ze-review`), but the QEMU
+> acceptance criteria (AC-2/3/4/5/7/7b/7c, R-6, both-arches) are **NOT
+> green-proven**. Full record + the exact gates to run on a kernel box:
+> `plan/learned/1024-installer-initrd-pure-go.md`.
 
 ## Post-Compaction Recovery
 
@@ -374,16 +384,21 @@ in place until Phase 5 so there is always a working installer.
 
 ## Review Gate
 
-Status: spec drafted and scoped; NOT yet implemented. Run `/ze-review` after Phase 5.
+Status: `/ze-review` run on the implemented QEMU-infra changes (2026-07-01);
+0 BLOCKER, 0 ISSUE after resolution. **The QEMU acceptance criteria themselves
+were NOT green-run** (no operator kernel) — spec closed unverified per user
+decision. See `plan/learned/1024-installer-initrd-pure-go.md`.
 
-### Run 1 (initial)
+### Run 1 (QEMU test-infra changes, 2026-07-01)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | (pending implementation) | | | |
+| 1 | NOTE | ISO test default arch shifted to host on arm64 hosts | `scripts/evidence/effective-install-iso-qemu.py` | RESOLVED: restored amd64 default; arm64 opt-in via `ZE_INSTALL_ARCH=arm64` |
+| 2 | ISSUE (minor) | new evidence scripts/gates not discoverable | `ai/INDEX.md` | RESOLVED: added keyword row |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded
+- `/ze-review` shows 0 BLOCKER, 0 ISSUE on the implemented changes (both findings resolved).
+- All NOTEs recorded.
+- CAVEAT: this covers the CODE review only. The QEMU functional ACs were not exercised (no kernel).
 
 ## Checklist
 
@@ -422,9 +437,19 @@ Status: spec drafted and scoped; NOT yet implemented. Run `/ze-review` after Pha
 - [ ] Commit A: code + tests + docs + spec + learned; Commit B: `git rm` spec
 
 ## Goal Validation (BLOCKING)
+
+**Closed WITHOUT QEMU verification (user decision 2026-07-01).** The QEMU rows
+below are **NOT RUN** — the harness is ready but no operator kernel exists on the
+dev machine. Only the static-analysis goal is verified.
+
 | Goal | Evidence Type | Concrete Evidence |
 |------|---------------|-------------------|
-| Busybox-free initrd installs over PXE | QEMU functional | `make ze-install-qemu-test` on the Go initrd (pending) |
-| Busybox-free initrd installs from ISO | QEMU functional | `make ze-install-iso-qemu-test` (pending) |
-| Zero external binaries | static grep | no `exec`/`runCmd` of external tools (pending) |
-| Onsite rescue gated | QEMU forced-fatal | password prompt + menu (pending) |
+| Busybox-free initrd installs over PXE | QEMU functional | `make ze-install-qemu-test` — **NOT RUN** (no kernel); harness ready |
+| Busybox-free initrd installs from ISO | QEMU functional | `make ze-install-iso-qemu-test` — amd64 harness proven pre-session; arm64 support added but **NOT RUN** |
+| Zero external binaries | static grep | **VERIFIED**: no `exec.Command`/`runCmd` in `internal/install/disk` or `cmd/ze-installer`; pure-Go cpio/gzip packer (AC-11 unit test `TestWriteInitrdPack` green) |
+| Onsite rescue gated | QEMU forced-fatal | `make ze-install-scenarios-qemu-test` (rescue-ac7/7b/7c) — harness ready, **NOT RUN** |
+| R-6 goroutine-panic recovery | QEMU fault-injection | `ze.fault=panic-goroutine` scenario + Go hook ready, **NOT RUN** |
+| Both amd64 + arm64 | QEMU boot+install | amd64 HTTP proven pre-session; arm64 device wiring statically validated; full arm64 install **NOT RUN** |
+
+To validate on a kernel box: `ZE_INSTALL_KERNEL=… make ze-install-scenarios-qemu-test`
+(+ `ze-install-ventoy-qemu-test`, `ze-install-iso-qemu-test`). See `plan/learned/1024`.

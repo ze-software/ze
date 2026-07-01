@@ -572,8 +572,20 @@ Real failures exit non-zero.
 | `ze-kernel-overlay.ci` | `make ze-kernel` builds the runtime kernel via `run.py` and assembles it into an out-of-tree package (`tmp/kernel/pkg`) consumed via a go.mod replace, with the pinned modcache untouched |
 
 Run the install suite with `bin/ze-test install --all`. For exhaustive QEMU
-entry points, use `make ze-install-qemu-test` for PXE and
-`make ze-install-iso-qemu-test` for appliance ISO media.
+entry points:
+
+- `make ze-install-qemu-test` — PXE HTTP install.
+- `make ze-install-iso-qemu-test` — appliance ISO media (amd64 x86_64-UEFI or
+  arm64 aarch64-UEFI; arch follows `ZE_INSTALL_ARCH` or the host).
+- `make ze-install-scenarios-qemu-test` — failure-path / pin / rescue evidence
+  (R-6 goroutine-panic recovery, `ze.mac` boot-NIC pin and flush recovery, and
+  the three-branch rescue console).
+- `make ze-install-ventoy-qemu-test` — Ventoy path: the appliance ISO carried as
+  a file on a FAT data disk, located by `tryVentoyISO` and installed. Needs
+  `grub-mkstandalone` + `xorriso` + `mtools`.
+
+All self-skip with a single `SKIP` line when the operator-supplied installer
+kernel (`ZE_INSTALL_KERNEL`) or a required host tool is unavailable.
 <!-- source: test/install/appliance-kernel-auto-docker.ci -- ze appliance kernel default docker path -->
 <!-- source: test/install/appliance-kernel-auto-qemu.ci -- ze appliance kernel qemu fallback path -->
 <!-- source: test/install/appliance-kernel-docker.ci -- ze appliance kernel explicit docker path -->
@@ -589,7 +601,9 @@ entry points, use `make ze-install-qemu-test` for PXE and
 <!-- source: test/install/kernel-version-provenance.ci -- provenance sidecar + version validation -->
 <!-- source: test/install/ze-kernel-no-modcache-mutation.ci -- out-of-tree consumption -->
 <!-- source: test/install/ze-kernel-overlay.ci -- ze-kernel out-of-tree package + go.mod replace -->
-<!-- source: mk/test-integration.mk -- ze-install-qemu-test, ze-install-iso-qemu-test -->
+<!-- source: mk/test-integration.mk -- ze-install-qemu-test, ze-install-iso-qemu-test, ze-install-scenarios-qemu-test, ze-install-ventoy-qemu-test -->
+<!-- source: scripts/evidence/effective-install-scenarios-qemu.py -- R-6 fault, ze.mac pin/flush, rescue console evidence -->
+<!-- source: scripts/evidence/effective-install-ventoy-qemu.py -- Ventoy ISO-on-FAT evidence -->
 
 ### IS-IS Tests (`test/isis/`)
 
