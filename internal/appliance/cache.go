@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -118,19 +119,50 @@ func kernelCacheVariantFor(target, arch string, profile kernelProfileResolution)
 	return tb.Str(target).Byte('-').Str(arch).Byte('-').Str(profile.Name).Byte('-').Str(configHash).Byte('-').Str(builderHash).String()
 }
 
+// initrdSourceDirs are the first-party source directories the installer initrd
+// binary is compiled from: `go build ./cmd/ze-installer` (tag ze_installer)
+// pulls in all of internal/install/disk. The cache variant hashes EVERY non-test
+// .go file under these dirs, not a hand-picked subset, so any installer source
+// edit (DHCP, netlink, download, ...) invalidates the cached initrd instead of
+// silently serving a stale binary. Regression that motivated this: a
+// dhcp_linux.go fix was masked because the old 4-file hash omitted it.
+var initrdSourceDirs = []string{
+	"cmd/ze-installer",
+	"internal/install/disk",
+}
+
+// initrdSourceFiles lists every non-test .go file under initrdSourceDirs, sorted
+// so the hash is stable regardless of directory walk order. ok is false if any
+// dir cannot be read, so the caller falls back to a source-independent variant.
+func initrdSourceFiles() (paths []string, ok bool) {
+	for _, dir := range initrdSourceDirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return nil, false
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			name := e.Name()
+			if strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go") {
+				paths = append(paths, filepath.Join(dir, name))
+			}
+		}
+	}
+	sort.Strings(paths)
+	return paths, true
+}
+
 func initrdCacheVariant(version, arch string) string {
-	hash, ok := cacheFileHashPaths([]string{
-		"cmd/ze-installer/main.go",
-		"internal/install/disk/initrd_linux.go",
-		"internal/install/disk/bootstrap_linux.go",
-		"internal/install/disk/rescue_linux.go",
-	})
-	if !ok {
-		var tb textbuf.Buffer
-		return tb.Str(version).Byte('-').Str(arch).String()
+	if paths, ok := initrdSourceFiles(); ok {
+		if hash, hok := cacheFileHashPaths(paths); hok {
+			var tb textbuf.Buffer
+			return tb.Str(version).Byte('-').Str(arch).Byte('-').Str(hash).String()
+		}
 	}
 	var tb textbuf.Buffer
-	return tb.Str(version).Byte('-').Str(arch).Byte('-').Str(hash).String()
+	return tb.Str(version).Byte('-').Str(arch).String()
 }
 
 //nolint:unparam // version names the cache namespace and mirrors kernelCachePath.

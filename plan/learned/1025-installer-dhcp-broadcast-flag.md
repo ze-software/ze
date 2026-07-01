@@ -61,6 +61,28 @@ dhcpRequestModifiers...).IsBroadcast()`).
   client restored correct behaviour and matched iPXE/udhcpc; hardening the server
   is an optional separate follow-up, not required for the installer.
 
+## Follow-up: the fix did not deploy (initrd cache-key under-hashing)
+
+The first on-hardware retest still showed `Flags [none]` DISCOVERs. Cause was
+**not** the fix: `initrdCacheVariant` (`internal/appliance/cache.go`) hashed only
+4 hand-picked source files (`main.go`, `initrd_linux.go`, `bootstrap_linux.go`,
+`rescue_linux.go`). `dhcp_linux.go` was not among them, so editing it did not
+change the cache variant (`v2-amd64-52c77bd4`), `resolveInitrd` hit the stale
+cache, and the old binary was served -- even though ze-installer's source had the
+fix. Confirmed on the wire (installer DISCOVER still `Flags [none]`) and on disk
+(served `initrd.img.gz` older than the source edit).
+
+Fixed by hashing **every non-test `.go` file** under `cmd/ze-installer` and
+`internal/install/disk` (`initrdSourceFiles`), so any installer source edit moves
+the variant and forces a rebuild. Guard: `TestInitrdCacheVariantHashesAllDiskSources`.
+
+**Reusable lesson:** a build-artifact cache key must hash the artifact's *whole*
+first-party input set, not a hand-picked file list. Under-hashing fails silent --
+it serves a stale artifact with no error, and the symptom looks like "my fix
+doesn't work" rather than "the cache is stale." 1024 already flagged the initrd
+cache key as narrow; this is that trap firing. When the built thing is
+`go build ./cmd/X`, hash the package dir(s), not a subset.
+
 ## Validation done
 
 Host `ze-verify` does not cover this: the changed files are `//go:build linux`

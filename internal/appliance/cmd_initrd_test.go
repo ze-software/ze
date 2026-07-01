@@ -250,6 +250,40 @@ func TestInitrdCacheVariantChangesOnSourceEdit(t *testing.T) {
 	}
 }
 
+// TestInitrdCacheVariantHashesAllDiskSources guards the regression where the
+// cache key hashed only 4 hand-picked files, so an edit to any other installer
+// source (e.g. internal/install/disk/dhcp_linux.go) did not invalidate the
+// cache and a stale initrd was served. The variant must change when any .go
+// file under the installer source dirs changes.
+func TestInitrdCacheVariantHashesAllDiskSources(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	createInitrdCacheInputs(t, dir, "v1")
+
+	before := initrdCacheVariant(defaultInitrdVersion, runtime.GOARCH)
+
+	// dhcp_linux.go was NOT in the old 4-file hash. Adding/editing it must move
+	// the variant now that the whole disk package is hashed.
+	extra := filepath.Join(dir, "internal", "install", "disk", "dhcp_linux.go")
+	if err := os.WriteFile(extra, []byte("package disk // fix"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	after := initrdCacheVariant(defaultInitrdVersion, runtime.GOARCH)
+	if before == after {
+		t.Fatal("editing internal/install/disk/dhcp_linux.go must change the initrd cache variant (was masked by the old 4-file hash)")
+	}
+
+	// _test.go files are build-irrelevant and must NOT move the variant.
+	testFile := filepath.Join(dir, "internal", "install", "disk", "dhcp_linux_test.go")
+	if err := os.WriteFile(testFile, []byte("package disk // test only"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := initrdCacheVariant(defaultInitrdVersion, runtime.GOARCH); got != after {
+		t.Fatal("a _test.go edit must not change the initrd cache variant")
+	}
+}
+
 func createInitrdCacheInputs(t *testing.T, root, version string) {
 	t.Helper()
 	for _, rel := range []string{
