@@ -94,7 +94,8 @@ type SamplingConfig struct {
 // Per-flow records are exported via NetFlow v9 and IPFIX collectors.
 type ConntrackConfig struct {
 	Enabled       bool `json:"enabled"`
-	ActiveTimeout int  `json:"active-timeout"` // seconds between conntrack dumps
+	ActiveTimeout int  `json:"active-timeout"`   // seconds between conntrack dumps
+	RecentRing    int  `json:"recent-flow-ring"` // recent-flow ring capacity (records) for `show flow-recent`
 }
 
 // EnrichmentConfig controls BGP RIB enrichment of flow records (spec 2).
@@ -229,7 +230,7 @@ func parseSamplingEntry(name string, m map[string]any) SamplingConfig {
 }
 
 func parseConntrack(raw any) ConntrackConfig {
-	c := ConntrackConfig{ActiveTimeout: 60}
+	c := ConntrackConfig{ActiveTimeout: 60, RecentRing: 4096}
 	m, ok := raw.(map[string]any)
 	if !ok {
 		return c
@@ -239,6 +240,9 @@ func parseConntrack(raw any) ConntrackConfig {
 	}
 	if v, ok := cfgInt(m["active-timeout"]); ok {
 		c.ActiveTimeout = v
+	}
+	if v, ok := cfgInt(m["recent-flow-ring"]); ok {
+		c.RecentRing = v
 	}
 	return c
 }
@@ -308,6 +312,9 @@ func (c *Config) Validate() error {
 	if c.Conntrack.Enabled {
 		if c.Conntrack.ActiveTimeout < 1 || c.Conntrack.ActiveTimeout > 3600 {
 			errs = append(errs, fmt.Errorf("conntrack active-timeout %d out of range 1-3600", c.Conntrack.ActiveTimeout))
+		}
+		if c.Conntrack.RecentRing < 64 || c.Conntrack.RecentRing > 65536 {
+			errs = append(errs, fmt.Errorf("conntrack recent-flow-ring %d out of range 64-65536", c.Conntrack.RecentRing))
 		}
 	}
 	return errors.Join(errs...)

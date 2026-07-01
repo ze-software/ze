@@ -48,36 +48,71 @@ func newResponder(cfg *Config) *responder {
 	return &responder{cfg: cfg}
 }
 
+// blackholeAction is the flowspec traffic action for the critical-severity
+// fallback: discard everything to the victim (RTBH-style), engaged without
+// waiting for characterization.
+const blackholeAction = "discard"
+
+// onDetected does NOT announce in the normal case (AC-8): announcing upstream
+// blinds the box behind the filter, so the rule must be precise -- flowspec waits
+// for AttackCharacterized ("get it right once"). The blackhole-fallback policy is
+// the sole exception (AC-14): a critical fast signal engages an immediate discard.
 func (r *responder) onDetected(e *ddosevent.AttackDetected) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.cfg.ResponseLevel != "enforce" {
-		logger().Info("ddos-flowspec: alert mode, would announce",
-			"target", e.Target.DstPrefix, "family", e.Family)
+	if r.cfg.ResponseLevel != responseEnforce || r.active {
 		return
 	}
-
+	if !r.cfg.BlackholeFallback || e.Severity != ddosevent.SeverityCritical {
+		logger().Info("ddos-flowspec: awaiting characterization before announcing",
+			"target", e.Target.DstPrefix, "severity", e.Severity)
+		return
+	}
 	if !shouldAnnounce(e.Target, r.cfg.Allowlist) {
 		logger().Info("ddos-flowspec: target allowlisted, skipping", "target", e.Target.DstPrefix)
 		return
 	}
+	r.announce(e.Target, blackholeAction, "blackhole-fallback (critical)")
+}
 
+// onCharacterized announces exactly one precise upstream rule from the narrowed
+// vector (AC-7). If a blackhole fallback already fired we are blind behind the
+// filter and cannot refine, so the existing rule is kept.
+func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.cfg.ResponseLevel != responseEnforce {
+		logger().Info("ddos-flowspec: alert mode, would announce",
+			"target", e.Target.DstPrefix, "family", e.Family)
+		return
+	}
+	if !shouldAnnounce(e.Target, r.cfg.Allowlist) {
+		logger().Info("ddos-flowspec: target allowlisted, skipping", "target", e.Target.DstPrefix)
+		return
+	}
 	if r.active {
 		return
 	}
+	r.announce(e.Target, r.cfg.Action, "characterized")
+}
 
-	r.match = buildMatch(e.Target)
-	if err := announceFunc(r.match, r.cfg.Action); err != nil {
+// announce builds the flowspec match for target, announces it with action, and
+// starts the leak-probe. Caller holds r.mu and has already checked
+// enforce/allowlist/!active.
+func (r *responder) announce(target ddosevent.VectorTuple, action, reason string) {
+	r.match = buildMatch(target)
+	if err := announceFunc(r.match, action); err != nil {
 		logger().Error("ddos-flowspec: announce failed", "error", err)
 		return
 	}
-
 	r.active = true
-	r.target = e.Target
+	r.target = target
 	r.probe = newProbe(r.cfg.HoldDown, r.cfg.ProbeInterval, r.cfg.ProbeWindow, r.cfg.ProbeRate, r.cfg.BackoffCap)
 	r.probe.Start()
-	logger().Info("ddos-flowspec: announced", "target", e.Target.DstPrefix, "action", r.cfg.Action)
+	logger().Info("ddos-flowspec: announced",
+		"target", target.DstPrefix, "action", action, "reason", reason)
 }
 
 func (r *responder) onCleared(_ *ddosevent.AttackCleared) {

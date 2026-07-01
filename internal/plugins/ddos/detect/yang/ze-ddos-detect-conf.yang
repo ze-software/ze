@@ -45,5 +45,30 @@ module ze-ddos-detect-conf {
       default 90;
       description "Seconds after startup where only extreme spikes trigger.";
     }
+    leaf characterize-enable {
+      type boolean;
+      default true;
+      description "Run Stage-2 flow characterization (classify family + narrowest vector from the flow-export recent-flow ring, emit AttackCharacterized). When false the detector still emits the coarse AttackDetected target from traffic-usage.";
+    }
+    leaf top-n-sources {
+      type uint16 { range "1..100"; }
+      default 10;
+      description "Maximum number of attacker source addresses ranked into TopSources by packet volume.";
+    }
+    leaf characterize-window {
+      type uint16 { range "1..60"; }
+      default 10;
+      description "Seconds of recent flows to consider when characterizing; flows last seen before this window are ignored. Flows without a timestamp are always kept.";
+    }
+    leaf characterize-timeout {
+      type uint16 { range "50..5000"; }
+      default 2000;
+      description "Milliseconds budget for the on-trigger traffic-usage and flow-recent queries; on timeout the detector falls back to the best available target.";
+    }
+    leaf entropy-threshold {
+      type zt:decimal-2 { range "0.00..16.00"; }
+      default "2.00";
+      description "Source-address Shannon entropy (bits) at or above which an attack is logged as distributed/spoofed. 0 = a single source; higher = more sources.";
+    }
   }
 }

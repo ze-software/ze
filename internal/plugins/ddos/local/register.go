@@ -76,19 +76,24 @@ func runEngine(conn net.Conn) int {
 	}
 
 	var (
-		pendingCfg   *Config
-		unsubDetect  func()
-		unsubCleared func()
+		pendingCfg         *Config
+		unsubDetect        func()
+		unsubCharacterized func()
+		unsubCleared       func()
 	)
 
 	subscribe := func(bus ze.EventBus, r *responder) {
 		unsubDetect = ddosevent.Detected.Subscribe(bus, r.onDetected)
+		unsubCharacterized = ddosevent.Characterized.Subscribe(bus, r.onCharacterized)
 		unsubCleared = ddosevent.Cleared.Subscribe(bus, r.onCleared)
 	}
 
 	unsubscribe := func() {
 		if unsubDetect != nil {
 			unsubDetect()
+		}
+		if unsubCharacterized != nil {
+			unsubCharacterized()
 		}
 		if unsubCleared != nil {
 			unsubCleared()

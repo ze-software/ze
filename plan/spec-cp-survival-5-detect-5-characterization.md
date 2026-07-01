@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | cp-survival-5-detect-0 (closed), flow-export-2 (closed) |
-| Phase | 1/5 |
-| Updated | 2026-06-28 |
+| Phase | 5/5 |
+| Updated | 2026-07-01 |
 
 ## Post-Compaction Recovery
 
@@ -139,10 +139,10 @@ Locked scope decisions (SCOPE gate, 2026-06-28):
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `ze-show:traffic-usage` is reachable via `DispatchCommand` from `ddos-detect` at runtime | DispatchCommand routes by prefix to the RPC registry; trafficusage registers it (`show.go:15-17`) | characterization cannot read trafficusage | functional test: detect dispatches and parses a response | confirmed (Phase 1: `Plugin.DispatchCommand` at `pkg/plugin/sdk/sdk_engine.go:149`; live precedent bgp-gr->bgp-rib `gr/gr.go:591`; detector now injected with `p.DispatchCommand` in `register.go`) |
-| A-2 | During a volumetric flood the attacker's cumulative byte share dominates trafficusage's IPv4 map enough to rank as top sources without per-window deltas | floods dwarf baseline; counts are cumulative (`monitor.go:32`) | top-sources noisy/wrong | inject test with known attacker IPs, assert ranking | unvalidated |
-| A-3 | Conntrack periodic-dump cadence fills a recent-flow ring with attack flows within the confirm window | learned 819 (periodic dump); confirm-duration default 3 | ring empty at characterize time → fall back to trafficusage-only | timing test against active-timeout | unvalidated |
+| A-2 | During a volumetric flood the attacker's cumulative byte share dominates trafficusage's IPv4 map enough to rank as top sources without per-window deltas | floods dwarf baseline; counts are cumulative (`monitor.go:32`) | top-sources noisy/wrong | inject test with known attacker IPs, assert ranking | confirmed -- `TestTopSourcesRanking` (packet-volume ranking, tie-break) + `TestCharacterizeEmitsCharacterized` (TopSources populated end-to-end) in `detect/characterize_test.go` |
+| A-3 | Conntrack periodic-dump cadence fills a recent-flow ring with attack flows within the confirm window | learned 819 (periodic dump); confirm-duration default 3 | ring empty at characterize time → fall back to trafficusage-only | timing test against active-timeout | confirmed (mechanism): ring append + bounded snapshot unit-tested (`recent_test.go`); graceful empty-ring fallback tested (`TestCharacterizeSkipsWhenNoFlowSource`). Runtime fill-timing is QEMU-only (`ddos-flow-recent.ci`, needs-linux) |
 | A-4 | Responders act once `DstPrefix` is valid, with no other change except local `TCPFlags` | `shouldMitigate`/`shouldAnnounce` gate only on prefix validity (`match.go`) | mitigation still inert | existing responder tests + new functional test | confirmed (`local/match.go:44-46` and `flowspec/match.go:29-31` return false ONLY on invalid prefix; `local/responder.go:52-91` installs the nft drop on a valid-prefix enforce-mode event) |
-| A-5 | Operators enabling characterization also enable traffic-usage (track-ip) and/or flow-export (conntrack) | deployment guidance | characterization degrades to generic-flood (= today) | doctor check + documented requirement | unvalidated |
+| A-5 | Operators enabling characterization also enable traffic-usage (track-ip) and/or flow-export (conntrack) | deployment guidance | characterization degrades to generic-flood (= today) | doctor check + documented requirement | confirmed -- `doctor-ddos-detect-no-flow-source` warns when characterization is on with neither source (`detect/doctor.go`, `TestCheckFlowSourceWarnsWhenNoSource`); documented in the ddos guide "Flow source and observability" |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -453,6 +453,9 @@ N/A: no wire-protocol change (flowspec NLRI already exists; this spec only decid
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
 | Stage-2 used DirectBridge to trafficusage/flowexport (per learned 1011) | Plugins cannot call siblings; the path is `DispatchCommand` via the engine (`plugin-design.md:133`) | reading plugin-design.md + sdk_engine.go | corrected design seam before writing code |
+| The `flow-recent` RPC could filter by interface (`name <iface>`), per Data Flow / Control Flow | `ConntrackFlow` (`flowexport/flowtypes.go`) carries no ingress interface; conntrack is host-global | reading the conntrack reader + flow type during Phase 2 audit | RPC redesigned to `dst <prefix>` (D-9); the detector already holds the victim prefix, so this is strictly better |
+| flowexport supplies TCP header flags "from sampled headers" for SYN detection | `ConntrackFlow` has no flags; the sampling path retains nothing on-box. But netlink exposes conntrack `ProtoInfoTCP.State` | reading `conntrack_linux.go` in the netlink lib | SYN-flood detected from half-open TCP *state* instead (D-11 context); added a `TCPState` field end-to-end |
+| Fragment-flood is detectable as a volumetric vector | Conntrack runs after IP defrag; fragments never appear as flows | reading the conntrack pipeline | fragment classifies as generic (D-10, user-approved); enum kept for a future sampling classifier |
 
 ## Deviations (Phase 1)
 
@@ -466,6 +469,25 @@ N/A: no wire-protocol change (flowspec NLRI already exists; this spec only decid
 | D-6 | No `ze doctor` check / `doctor-ddos-detect-no-flow-source` for the soft trafficusage dependency (Run-2 ISSUE-2) | soft dependency with graceful fallback; daemon fully functional without it; spec assigns doctor work to Phase 5 | Phase 5 (ops) |
 | D-7 | Prometheus counters (characterization outcomes per family, fallback count) not added | spec assigns metrics to Phase 5 | Phase 5 (ops) |
 | D-8 | Characterization goroutine not awaited at shutdown; 2s dispatch ctx not tied to plugin lifecycle (Run-2 NOTE-3) | bounded (<=2s, one per attack), RPC fails gracefully after close | a later phase |
+
+### Deviations resolved / added (Phases 2-5)
+
+| Phase-1 deviation | Resolution in Phases 2-5 |
+|-------------------|--------------------------|
+| D-1 (target only, no proto/ports/flags/family) | RESOLVED -- classifier fills family + narrowest `VectorTuple` (`characterize.go:classifyFlows`) |
+| D-2 (constant timeout, no tuning leaves) | RESOLVED -- 5 tuning leaves added (`characterize-enable/-window/-timeout`, `top-n-sources`, `entropy-threshold`) |
+| D-3 (no `AttackCharacterized`/`Severity`) | RESOLVED -- both added to `ddosevent`; `GradeSeverity` grades 1x/2x/5x |
+| D-5 (IPv6 not covered) | RESOLVED -- recent-flow ring is v4+v6; victim derived from flows when trafficusage (v4-only) gives none |
+| D-6 (no doctor check) | RESOLVED -- `doctor-ddos-detect-no-flow-source` + `checkFlowSource` |
+| D-7 (no Prometheus counters) | RESOLVED -- per-family + fallback counters; `ze_flowexport_recent_ring_drops` |
+| D-8 (goroutine not awaited, ctx not lifecycle-bound) | RESOLVED -- `detector.Stop()` cancels `d.ctx` + waits `d.wg`, called at shutdown and reconfigure |
+| D-4 (`ddos-detect-mitigate.ci` runtime unverified on darwin) | STILL OPEN -- QEMU-only; joined by `ddos-flow-recent.ci` (both `needs-linux`, verified to parse + SKIP on darwin) |
+
+| New # | Deviation | Reason |
+|-------|-----------|--------|
+| D-9 | `flow-recent` RPC filters by **destination prefix** (`dst <prefix>`), not the spec's literal `name <iface>` | `ConntrackFlow` carries no ingress interface (conntrack is host-global); dst-prefix is what characterization needs and is honest to the data (Mistake Log below) |
+| D-10 | Fragment-flood classifies as **generic** (enum kept, not emitted) | No on-box conntrack signal (defrag precedes conntrack); no AC requires it (AC-6 routes to generic); user approved "accept as generic, defer sampling tap" (2026-07-01) |
+| D-11 | `flow-recent` runtime is Linux/QEMU-only | flowexport hard-depends on the `interface` plugin (Linux netlink backend); the daemon cannot start off-Linux, so the `.ci` is `needs-linux`. RPC wiring + ring mechanics are unit-tested on any platform |
 
 ## Review Gate
 
@@ -492,8 +514,25 @@ N/A: no wire-protocol change (flowspec NLRI already exists; this spec only decid
 | 1 | ISSUE | Async Detected could fire after Cleared (slow query + low `clear-consecutive`), installing a local drop with no matching Cleared; `max-mitigation-duration` is parsed but NOT enforced in ddos-local, so no backstop | `characterize.go`, `detector.go`; `local/config.go`, `local/responder.go:98` | FIXED: `attackGen` generation guard bumped on activate + clear; `characterizeAndEmit` drops the emit when the generation advanced; regression test `TestNoStaleDetectedAfterClear` (-race) |
 | 2 | NOTE | `max-mitigation-duration` is config-only in ddos-local (no timer enforces it); pre-existing, out of this diff | `local/config.go:19` | flagged for a separate fix; the generation guard removes this path's dependency on it |
 
+### Run 4 (adversarial review, 2026-07-01, Phases 2-5)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | BLOCKER | The Phase-1 generation guard was TOCTOU: `attackStale(gen)` released `d.mu` before the `Emit`, so a concurrent `emitCleared` (runs its Cleared emit under `d.mu` on the rate tick) could slip a Cleared between the check and the emit. `AttackCharacterized`/`AttackDetected` could then land after `AttackCleared`, leaving a permanent ddos-local drop (no backstop). | `characterize.go`, `detector.go` | FIXED: `emitDetected`/`emitCharacterized` hold `d.mu` across the generation check AND the (synchronous) emit, serializing with `emitCleared`. Regression tests `TestNoStaleCharacterizedAfterClear`, `TestNoStaleDetectedAfterClear` (-race, -count=5). |
+| 2 | ISSUE | `Stop()`'s `wg.Wait()` could race `wg.Go` in `onAttackStart` (a late trafficstat tick can arrive after Unsubscribe because trafficstat invokes subscribers outside its lock) -> `panic: WaitGroup reused`. `OnConfigure` also stopped the old detector before unsubscribing. | `detector.go`, `register.go` | FIXED: `stopped` flag set under `d.mu` in `Stop()` fences `onAttackStart` (also under `d.mu`) from spawning; `OnConfigure` now unsubscribes before `Stop`. Regression test `TestStopFencesCharacterization`. |
+| 3 | NOTE | ddos-local narrow-apply failure left the registry empty while the kernel kept the coarse rule and `active=true` (self-heals on next Cleared). | `local/responder.go` | FIXED: error path rolls the registry back, reconciles the kernel best-effort, and sets `active=false`. |
+| 4 | NOTE | `ddos-flow-recent.ci` runtime is QEMU-only (flowexport hard-depends on the Linux `interface` backend). | `test/plugin/ddos-flow-recent.ci` | recorded D-11; RPC + ring unit-tested on any platform; parses + SKIPs on darwin. |
+| Reviewed-clean | NOTE | Ring index/wrap math, lock ordering (`ExportFlows` e.mu->ring.mu vs RPC ring.mu-only), TCPState plumbing, classifier divide-by-zero/tie-breaks, `filterByWindow`, config default/range parity, flowspec single-announce -- all verified correct. | (multiple) | none |
+
+### Run 5 (/ze-review, 2026-07-01, post-fix fresh pass)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | ISSUE | No functional test exercised the end-to-end characterized path (real flows -> AttackCharacterized -> ddos-local narrow); only units + the flow-recent RPC `.ci`. | `test/plugin/` | FIXED: added `test/plugin/ddos-detect-characterize.ci` (needs-linux) -- UDP reflection flood on a memcached source port, pre-warms the recent-flow ring, asserts ddos-local narrows to the source port. |
+| 2 | NOTE | The ddos-local narrow-apply-failure rollback had no regression test. | `local/responder.go` | FIXED: `TestLocalApplyFailureRollsBack` injects an apply error and asserts active=false + registry rolled back to nil. |
+| 3 | NOTE | ze-validate flags `RecentFlows`/`RecentDrops` "no cross-package caller". | `flowexport/exporter.go` | NO ACTION: pre-existing exporter.go convention (all Exporter methods are package-internal; `ExportFlows` is flagged identically and predates this work); both are wired via `cmd_show.go` / `conntrack_worker.go` and reachable from `show flow-recent` / the metrics path. |
+| 4 | NOTE (design, from deep analysis) | Characterization is one-shot at confirm (`detector.go:onAttackStart`) and reads the recent-flow ring, which refreshes only at each conntrack dump (`conntrack_worker.go:run`, `active-timeout`); a long `active-timeout` leaves the ring stale for a just-started flood, so it degrades to the coarse drop. Intentional (A-3 + coarse fallback), but undocumented. | `characterize.go`, `conntrack_worker.go` | DOCUMENTED: ddos guide now tells operators to set a short `active-timeout` for responsive characterization. |
+
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE (Run 3: 0 BLOCKER; ISSUE-1 and the async-lifecycle ISSUE fixed + tested; ISSUE-2 doctor check deferred to Phase 5 by scope)
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE (Run 5: 0 BLOCKER, 0 ISSUE; the ISSUE and both NOTEs resolved with tests/docs; NOTE-3 is a pre-existing validator false positive; re-verified green -- lint 0, doc-test PASS, -race clean)
 - [ ] All NOTEs recorded above (or explicitly "none")
 
 ## Checklist

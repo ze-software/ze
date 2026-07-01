@@ -153,6 +153,7 @@ ze-show:firewall-irr-prefix
 ze-show:firewall-irr-status
 ze-show:firewall-ruleset
 ze-show:flow-export
+ze-show:flow-recent
 ze-show:geodns
 ze-show:gnmi
 ze-show:health

@@ -329,9 +329,30 @@ func TestConntrackValidateActiveTimeout(t *testing.T) {
 	if err := c.Validate(); err == nil {
 		t.Error("expected error for active-timeout=3601")
 	}
-	c = &Config{Conntrack: ConntrackConfig{Enabled: true, ActiveTimeout: 60}}
+	c = &Config{Conntrack: ConntrackConfig{Enabled: true, ActiveTimeout: 60, RecentRing: 4096}}
 	if err := c.Validate(); err != nil {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestConntrackValidateRecentRing(t *testing.T) {
+	base := func(ring int) *Config {
+		return &Config{Conntrack: ConntrackConfig{Enabled: true, ActiveTimeout: 60, RecentRing: ring}}
+	}
+	// Boundary table: 64..65536 valid, 63 and 65537 invalid.
+	for _, tc := range []struct {
+		ring    int
+		wantErr bool
+	}{
+		{63, true}, {64, false}, {65536, false}, {65537, true},
+	} {
+		err := base(tc.ring).Validate()
+		if tc.wantErr && err == nil {
+			t.Errorf("recent-flow-ring %d: expected error, got nil", tc.ring)
+		}
+		if !tc.wantErr && err != nil {
+			t.Errorf("recent-flow-ring %d: unexpected error: %v", tc.ring, err)
+		}
 	}
 }
 

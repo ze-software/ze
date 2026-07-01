@@ -44,6 +44,9 @@ func TestEventHandlesRegistered(t *testing.T) {
 	if Detected == nil {
 		t.Fatal("Detected event handle is nil")
 	}
+	if Characterized == nil {
+		t.Fatal("Characterized event handle is nil")
+	}
 	if Ongoing == nil {
 		t.Fatal("Ongoing event handle is nil")
 	}
@@ -68,11 +71,83 @@ func TestEventPayloadTypes(t *testing.T) {
 	if events.PayloadType(Namespace, "attack-detected") == nil {
 		t.Error("attack-detected not registered in type registry")
 	}
+	if events.PayloadType(Namespace, "attack-characterized") == nil {
+		t.Error("attack-characterized not registered in type registry")
+	}
 	if events.PayloadType(Namespace, "attack-ongoing") == nil {
 		t.Error("attack-ongoing not registered in type registry")
 	}
 	if events.PayloadType(Namespace, "attack-cleared") == nil {
 		t.Error("attack-cleared not registered in type registry")
+	}
+}
+
+// TestGradeSeverity pins the NetHawk 1x/2x/5x boundaries (AC-13): the grade steps
+// exactly at the ratio thresholds, and a zero/negative threshold degrades to the
+// medium floor instead of dividing by zero.
+func TestGradeSeverity(t *testing.T) {
+	const threshold = 1000.0
+	cases := []struct {
+		name   string
+		peak   float64
+		thresh float64
+		want   Severity
+	}{
+		{"just-at-1x", 1000, threshold, SeverityMedium},
+		{"below-2x", 1999, threshold, SeverityMedium},
+		{"at-2x", 2000, threshold, SeverityHigh},
+		{"below-5x", 4999, threshold, SeverityHigh},
+		{"at-5x", 5000, threshold, SeverityCritical},
+		{"well-above-5x", 50000, threshold, SeverityCritical},
+		{"zero-threshold", 5000, 0, SeverityMedium},
+		{"negative-threshold", 5000, -1, SeverityMedium},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := GradeSeverity(tc.peak, tc.thresh); got != tc.want {
+				t.Errorf("GradeSeverity(%v, %v) = %q, want %q", tc.peak, tc.thresh, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestEmitAndSubscribeCharacterized round-trips the Stage-2 event through the bus
+// with a fully-populated vector, entropy, and severity.
+func TestEmitAndSubscribeCharacterized(t *testing.T) {
+	bus := newTestBus()
+	var received *AttackCharacterized
+	unsub := Characterized.Subscribe(bus, func(e *AttackCharacterized) {
+		received = e
+	})
+	defer unsub()
+
+	sent := &AttackCharacterized{
+		Interface: "xe0",
+		Target: VectorTuple{
+			DstPrefix: netip.MustParsePrefix("10.0.0.1/32"),
+			Proto:     6,
+			TCPFlags:  0x02,
+		},
+		Family:        FamilySYNFlood,
+		TopSources:    []netip.Addr{netip.MustParseAddr("198.51.100.7")},
+		Severity:      SeverityCritical,
+		SourceEntropy: 3.5,
+		Observable:    true,
+	}
+	if _, err := Characterized.Emit(bus, sent); err != nil {
+		t.Fatalf("Emit: %v", err)
+	}
+	if received == nil {
+		t.Fatal("subscriber did not receive characterized event")
+	}
+	if received.Family != FamilySYNFlood {
+		t.Errorf("Family: got %q, want %q", received.Family, FamilySYNFlood)
+	}
+	if received.Target.TCPFlags != 0x02 {
+		t.Errorf("TCPFlags: got %#x, want 0x02", received.Target.TCPFlags)
+	}
+	if received.Severity != SeverityCritical {
+		t.Errorf("Severity: got %q, want %q", received.Severity, SeverityCritical)
 	}
 }
 

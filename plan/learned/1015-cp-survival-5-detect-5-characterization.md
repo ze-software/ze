@@ -1,10 +1,10 @@
-# 1015 -- DDoS Characterization Phase 1: fill attack target from trafficusage
+# 1015 -- DDoS Characterization: fill target, classify family, split responders
 
-> Scope: Phase 1 ("Unblock") of `spec-cp-survival-5-detect-5-characterization`, which
-> remains OPEN at `in-progress 1/5`. This entry was written immediately after the
-> Phase-1 commit while context was fresh. At spec closure, EXPAND this same file
-> (do not mint a new number) with Phases 2-5 (flowexport recent-flow tap, classifier
-> + `AttackCharacterized`, `Severity`, doctor checks).
+> Scope: the full `spec-cp-survival-5-detect-5-characterization` spec. Phase 1
+> ("Unblock", below) shipped first; Phases 2-5 (flowexport recent-flow tap,
+> classifier + `AttackCharacterized` + `Severity`, responder split, ops) landed in a
+> second pass and are captured under "Phases 2-5" further down. One learned number
+> for the whole spec, per the Phase-1 note.
 
 ## Context
 
@@ -54,3 +54,103 @@ with a graceful fallback to the prior generic-flood behavior when no source exis
 - `test/.ci-sleep-baseline` -- 425 -> 436
 - `docs/guide/ddos-mitigation.md` -- corrected match-vector overclaim; trafficusage track-ip prerequisite; source anchor
 - `plan/spec-cp-survival-5-detect-5-characterization.md` -- in-progress 1/5; deviations D-1..D-8; review gate runs
+
+---
+
+## Phases 2-5 -- recent-flow tap, classifier, responder split, ops
+
+### Context
+
+Phase 1 left responders acting on a coarse `FamilyGenericFlood` with only a
+`DstPrefix`. Phases 2-5 fill the vector: a bounded recent-flow ring on flowexport,
+a heuristic classifier producing `AttackCharacterized`, a responder split (local
+narrows in place + TCP flags; flowspec announces only on the characterized signal),
+and the ops surface (tuning YANG leaves, doctor check, metrics, lifecycle await).
+
+### Decisions
+
+- **The recent-flow RPC filters by destination prefix, not interface.** `ConntrackFlow`
+  carries no ingress interface (conntrack is host-global), so the spec's literal
+  `flow-recent name <iface>` is not derivable. `show flow-recent [dst <prefix>]`
+  filters by victim destination instead -- exactly what the characterizer needs
+  (`internal/plugins/flowexport/cmd_show.go:handleShowFlowRecent`, `recent.go:snapshot`).
+- **SYN-flood is detected from conntrack TCP *state*, not header flags.** `ConntrackFlow`
+  has no TCP flags, but the netlink lib exposes `ProtoInfoTCP.State`; a SYN flood is a
+  dominance of half-open states (SYN_SENT/SYN_RECV/SYN_SENT2). Captured a new
+  `TCPState` field through reader->FlowEntry->delta->ConntrackFlow and classify on it,
+  setting `VectorTuple.TCPFlags = SYN` for responders (`conntrack/reader_linux.go`,
+  `detect/characterize.go:classifyFlows`).
+- **Fragment-flood classifies as generic (user-approved).** Conntrack runs after IP
+  defrag, so it never sees fragments, and the sampling path retains nothing on-box. No
+  AC requires fragment classification (AC-6 routes non-{reflection,syn,icmp} to generic);
+  the `FamilyFragFlood` enum stays for a future sampling-based classifier.
+- **flowspec announces on `AttackCharacterized`, not `AttackDetected` (behavior change).**
+  Announcing upstream blinds the box behind the filter, so the rule must be precise
+  first ("get it right once"). `onDetected` now only engages the RTBH `blackhole-fallback`
+  on a `critical` severity when the policy leaf is set (AC-8/AC-14). Existing flowspec
+  responder tests moved their trigger from `onDetected` to `onCharacterized`.
+- **local narrows in place** via a shared `applyMitigation(target)` used by both
+  `onDetected` (coarse) and `onCharacterized` (narrowed + TCP flags), re-registering the
+  same nft table (`local/responder.go`, `local/match.go:buildDropTerm` gained a
+  `MatchTCPFlags` term for AC-9).
+- **Severity is derived, not stored.** `ddosevent.GradeSeverity(peak, threshold)` grades
+  1x/2x/5x -> medium/high/critical from the ratio the detector already holds; a value
+  field on both events, no wire change.
+
+### Consequences
+
+- Responders now receive a real family + vector: reflection (proto+src-port), syn-flood
+  (proto+SYN), icmp-flood (proto), udp-flood (proto+dst-port), generic (best-effort). IPv6
+  victims resolve from the flow ring (trafficusage is IPv4-only): when trafficusage gives
+  no victim, `dominantDestination` derives it from the flows.
+- The characterization goroutine is now bounded to the detector lifetime: `detector.Stop()`
+  cancels `d.ctx` and waits `d.wg`, called at shutdown and before a reconfigure replaces
+  the detector (closes Phase-1 D-8).
+- New observability: doctor `doctor-ddos-detect-no-flow-source` (warns when characterization
+  is on with no flow source), metrics `ze_ddos_detect_characterize_total{family}`,
+  `ze_ddos_detect_characterize_fallback_total`, `ze_flowexport_recent_ring_drops`.
+
+### Gotchas
+
+- **A generation guard is only sound if the check and the emit are atomic.** Phase 1's
+  `attackStale(gen)` locked `d.mu`, checked, then *released* it before `Emit` -- a TOCTOU
+  hole. Because `emitCleared` runs its `Cleared` emit under `d.mu` on the rate tick, a clear
+  could slip between the check and a late `AttackCharacterized`/`AttackDetected` emit,
+  installing a ddos-local drop with no matching `Cleared` (permanent -- ddos-local has no
+  timer backstop). Fix: `emitDetected`/`emitCharacterized` hold `d.mu` across the check AND
+  the synchronous emit. Safe because the responders take their own `r.mu`, never `d.mu`, and
+  the slow source queries already ran off the lock. Found by adversarial review, not tests.
+- **`sync.WaitGroup.Go` can race `Wait` at shutdown.** trafficstat invokes subscribers
+  *outside* its mutex, so a rate tick can still reach `onAttackStart` -> `wg.Go` after
+  `UnsubscribeRates` returns. If `Stop()` is in `wg.Wait()`, that Add-during-Wait panics
+  ("WaitGroup reused"). Fix: a `stopped` flag set under `d.mu` in `Stop()` fences
+  `onAttackStart` (also under `d.mu`); and unsubscribe before `Stop`, not after.
+- **The recent-flow ring is only allocated when conntrack export is enabled** (nothing else
+  feeds it). `NewExporter` gates on `cfg.Conntrack.Enabled`; a nil/zero-size ring is inert,
+  so `RecentFlows` returns empty off-Linux. The functional test (`ddos-flow-recent.ci`) is
+  therefore `needs-linux`: flowexport hard-depends on the `interface` plugin whose backend is
+  Linux-only, so the daemon cannot even start off-Linux.
+- **filterByWindow keeps timestamp-less flows** (`LastMs == 0`): unit-test flows carry no
+  timestamp, and absence of a timestamp is not evidence of staleness. Without this rule a
+  time-window filter using `time.Now()` would drop every synthetic flow.
+- **classifyFlows counts each flow at least once** (`p := f.Packets; if p == 0 { p = 1 }`):
+  a SYN flood's half-open conntrack entries often report zero cumulative packets, so raw
+  packet-share would hide them.
+- **Doctor checks require a non-empty `Dependencies`** or registration fails at init with
+  "invalid doctor check: missing dependencies". A config-reading check uses
+  `Dependencies: []string{"config-loaded"}`.
+- **A cross-reference hook** blocks editing a file that another file `// Related:`-points to
+  unless the back-reference exists; `characterize.go` had to add `// Related: doctor.go` /
+  `// Related: metrics.go` before an unrelated edit would apply.
+
+### Files (Phases 2-5)
+
+Created: `flowexport/recent.go`(+test), `detect/metrics.go`, `detect/doctor.go`(+test),
+`detect/config_test.go`, `flowspec/config_test.go`, `test/plugin/ddos-flow-recent.ci`.
+Modified: `ddosevent/event.go` (AttackCharacterized, Severity, GradeSeverity);
+`detect/characterize.go` (classifier, queries, window, entropy, ctx); `detect/config.go`
++ yang (5 tuning leaves); `detect/register.go` (metrics + doctor + Stop wiring);
+flowexport `exporter.go`/`config.go`/`conntrack_worker.go`/`metrics.go`/`cmd_show.go` +
+`conntrack/{flow,reader_linux}.go` (TCPState + ring + flow-recent RPC);
+`flowexport-cmd` + flowexport conf/cmd yang; local + flowspec responder/register/match/config
++ yang; `diagnostic/codes.go`; docs (`features.md`, `ddos-mitigation.md`, `ai/INDEX.md`).

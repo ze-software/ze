@@ -197,6 +197,7 @@ func (w *conntrackWorker) dumpAndExport() {
 
 	w.exp.ExportFlows(flows)
 	setFlowsActive(float64(w.tracker.Len()))
+	setRecentRingDrops(float64(w.exp.RecentDrops()))
 
 	// GC delta state for flows not seen for two dump intervals.
 	w.tracker.Cleanup(2 * time.Duration(w.cfg.ActiveTimeout) * time.Second)
@@ -223,6 +224,7 @@ func (w *conntrackWorker) toFlow(d conntrack.FlowEntry) ConntrackFlow {
 		Packets:  d.Packets,
 		FirstMs:  firstMs,
 		LastMs:   lastMs,
+		TCPState: d.TCPState,
 	}
 }
 

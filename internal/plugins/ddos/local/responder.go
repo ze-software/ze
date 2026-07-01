@@ -49,25 +49,46 @@ func newResponder(cfg *Config, bus eventBus) *responder {
 	return &responder{cfg: cfg, bus: bus}
 }
 
+// onDetected installs the fast coarse drop for the victim (all traffic to the
+// attacked destination). The box keeps observing the attack (packets are dropped
+// on ingress), so onCharacterized can narrow the rule in place while still
+// protecting.
 func (r *responder) onDetected(e *ddosevent.AttackDetected) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.applyMitigation(e.Target, e.Family, "detected")
+}
 
+// onCharacterized narrows the installed rule in place to the discriminating
+// vector (proto / ports / TCP flags). It also installs from scratch when the
+// coarse AttackDetected carried no valid prefix but characterization derived one
+// from flow data -- so mitigation still engages.
+func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.applyMitigation(e.Target, e.Family, "characterized")
+}
+
+// applyMitigation (re)installs the nft drop for target. Caller holds r.mu. Used
+// by both the coarse (onDetected) and narrowed (onCharacterized) paths so the
+// table is re-registered identically; the only difference is how surgical the
+// term is.
+func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddosevent.AttackFamily, phase string) {
 	if r.cfg.ResponseLevel != "enforce" {
 		logger().Info("ddos-local: alert mode, would mitigate",
-			"target", e.Target.DstPrefix, "family", e.Family)
+			"target", target.DstPrefix, "family", family, "phase", phase)
 		return
 	}
 
-	if !shouldMitigate(e.Target, r.cfg.Allowlist) {
-		logger().Info("ddos-local: target allowlisted, skipping", "target", e.Target.DstPrefix)
+	if !shouldMitigate(target, r.cfg.Allowlist) {
+		logger().Info("ddos-local: target allowlisted, skipping", "target", target.DstPrefix)
 		return
 	}
 
-	term := buildDropTerm("ddos-drop", e.Target)
+	term := buildDropTerm("ddos-drop", target)
 	table := firewall.Table{
 		Name:   tableName,
-		Family: familyFromPrefix(e.Target.DstPrefix),
+		Family: familyFromPrefix(target.DstPrefix),
 		Chains: []firewall.Chain{{
 			Name:     "ingress",
 			IsBase:   true,
@@ -81,14 +102,22 @@ func (r *responder) onDetected(e *ddosevent.AttackDetected) {
 
 	registerTables(tableName, []firewall.Table{table})
 	if err := applyAll(); err != nil {
+		// Roll the registry back to no ddos-local table and reconcile the kernel,
+		// so a half-applied narrow does not leave the registry empty while the
+		// kernel still holds the previous rule and r.active falsely claims a live
+		// mitigation. Best-effort: log a second failure but do not spin.
 		registerTables(tableName, nil)
-		logger().Error("ddos-local: failed to apply drop rule", "error", err)
+		if rbErr := applyAll(); rbErr != nil {
+			logger().Error("ddos-local: rollback after failed apply also failed", "error", rbErr, "phase", phase)
+		}
+		r.active = false
+		logger().Error("ddos-local: failed to apply drop rule", "error", err, "phase", phase)
 		return
 	}
 
 	r.active = true
-	r.target = e.Target
-	logger().Info("ddos-local: drop rule installed", "target", e.Target.DstPrefix)
+	r.target = target
+	logger().Info("ddos-local: drop rule installed", "target", target.DstPrefix, "phase", phase)
 }
 
 func (r *responder) onCleared(_ *ddosevent.AttackCleared) {

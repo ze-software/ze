@@ -3,6 +3,7 @@ module ze-flowexport-cmd {
     prefix flowexportcmd;
     import ze-extensions { prefix ze; }
     description "show flow-export command tree. Owned by the flow-export component so that removing it removes the command node together with the handler. See ai/rules/plugin-self-containment.md.";
+    revision 2026-07-01 { description "Add show flow-recent (recent-flow ring query for DDoS characterization)."; }
     revision 2026-06-03 { description "Relocated show flow-export out of the central show schema (plugin self-containment)."; }
 
     container show {
@@ -19,6 +20,21 @@ Returns not-configured when no exporter is active.";
             leaf name {
                 type string;
                 description "Collector name (used with 'name <name>')";
+            }
+        }
+
+        container flow-recent {
+            config false;
+            ze:command "ze-show:flow-recent";
+            description "Show recent conntrack flow records from the bounded recent-flow ring.
+Without arguments, returns every ring record (oldest to newest, up to the
+configured recent-flow-ring capacity). With 'dst <prefix>', filters to flows
+whose destination is inside that prefix. The ring is fed only while conntrack
+export is enabled; the filter is by destination prefix (conntrack is host-global
+and carries no ingress interface).";
+            leaf dst {
+                type string;
+                description "Destination prefix or address to filter by (used with 'dst <prefix>')";
             }
         }
     }

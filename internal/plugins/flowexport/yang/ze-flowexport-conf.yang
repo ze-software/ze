@@ -133,6 +133,14 @@ module ze-flowexport-conf {
                 default 60;
                 description "Seconds between conntrack table dumps";
             }
+
+            leaf recent-flow-ring {
+                type uint32 {
+                    range "64..65536";
+                }
+                default 4096;
+                description "Capacity (in flow records) of the recent-flow ring queried by 'show flow-recent'. The ring feeds on-box DDoS characterization; larger values retain more history at higher memory cost. Only allocated when conntrack export is enabled.";
+            }
         }
 
         container enrichment {

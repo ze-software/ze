@@ -6,12 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 )
 
 const (
 	Name       = "ddos-flowspec"
 	configRoot = "ddos-flowspec"
+
+	// responseEnforce is the response-level that actually announces (vs "alert").
+	responseEnforce = "enforce"
 )
 
 type Config struct {
@@ -24,6 +28,7 @@ type Config struct {
 	AnnounceRateLimit     int            `json:"announce-rate-limit"`
 	MaxMitigationDuration int            `json:"max-mitigation-duration"`
 	BackoffCap            int            `json:"backoff-cap"`
+	BlackholeFallback     bool           `json:"blackhole-fallback"`
 	Allowlist             []netip.Prefix `json:"allowlist"`
 }
 
@@ -93,6 +98,11 @@ func ParseConfig(data string) (*Config, error) {
 	if v, ok := m["backoff-cap"]; ok {
 		if n, ok := toInt(v); ok {
 			cfg.BackoffCap = n
+		}
+	}
+	if v, ok := m["blackhole-fallback"]; ok {
+		if b, ok := toBool(v); ok {
+			cfg.BlackholeFallback = b
 		}
 	}
 	if v, ok := m["allowlist"].([]any); ok {
@@ -166,4 +176,17 @@ func toFloat(v any) (float64, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// toBool coerces a config value (bool or the daemon's string form) to bool.
+func toBool(v any) (bool, bool) {
+	switch b := v.(type) {
+	case bool:
+		return b, true
+	case string:
+		if pb, err := strconv.ParseBool(strings.TrimSpace(b)); err == nil {
+			return pb, true
+		}
+	}
+	return false, false
 }

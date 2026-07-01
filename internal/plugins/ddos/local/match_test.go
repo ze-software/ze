@@ -44,6 +44,34 @@ func TestBuildTermFromVector(t *testing.T) {
 	}
 }
 
+func TestLocalTCPFlagsMatch(t *testing.T) {
+	// VALIDATES: AC-9 -- a vector carrying TCP flags (SYN) produces a
+	// MatchTCPFlags term so the drop matches only SYN packets.
+	v := ddosevent.VectorTuple{
+		DstPrefix: netip.MustParsePrefix("10.0.0.1/32"),
+		Proto:     6,
+		TCPFlags:  0x02, // SYN
+	}
+	term := buildDropTerm("syn-drop", v)
+	if !slices.ContainsFunc(term.Matches, func(m firewall.Match) bool {
+		tf, ok := m.(firewall.MatchTCPFlags)
+		return ok && tf.Flags == firewall.TCPFlagSYN && tf.Mask == firewall.TCPFlagSYN
+	}) {
+		t.Error("missing MatchTCPFlags{SYN} for a SYN-flood vector")
+	}
+
+	// A vector with no flags must not emit a MatchTCPFlags term.
+	noFlags := buildDropTerm("udp-drop", ddosevent.VectorTuple{
+		DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17,
+	})
+	if slices.ContainsFunc(noFlags.Matches, func(m firewall.Match) bool {
+		_, ok := m.(firewall.MatchTCPFlags)
+		return ok
+	}) {
+		t.Error("must not emit MatchTCPFlags when TCPFlags is zero")
+	}
+}
+
 func TestAllowlistSubtraction(t *testing.T) {
 	// VALIDATES: AC-2 -- allowlisted prefix produces no term
 	v := ddosevent.VectorTuple{

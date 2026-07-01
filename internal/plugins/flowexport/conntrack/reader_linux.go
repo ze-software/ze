@@ -88,6 +88,13 @@ func convertFlow(f *netlink.ConntrackFlow) (FlowEntry, bool) {
 		Mark:     f.Mark,
 	}
 
+	// Capture the TCP connection state where the kernel reported it
+	// (CTA_PROTOINFO_TCP_STATE). A SYN flood leaves many entries stuck in
+	// SYN_SENT/SYN_RECV; the DDoS characterizer classifies on that dominance.
+	if tcp, ok := f.ProtoInfo.(*netlink.ProtoInfoTCP); ok && tcp != nil {
+		entry.TCPState = tcp.State
+	}
+
 	if f.TimeStart > 0 {
 		entry.StartTime = time.Unix(0, int64(f.TimeStart))
 	}

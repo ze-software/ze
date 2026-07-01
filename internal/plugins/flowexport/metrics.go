@@ -9,12 +9,13 @@ import (
 )
 
 type exportMetrics struct {
-	datagramsTotal metrics.CounterVec
-	bytesTotal     metrics.CounterVec
-	errorsTotal    metrics.CounterVec
-	samplesTotal   metrics.CounterVec // per sampled interface (spec 2)
-	flowsTotal     metrics.CounterVec // per collector, per-flow records (spec 2)
-	flowsActive    metrics.Gauge      // tracked conntrack flows (spec 2)
+	datagramsTotal  metrics.CounterVec
+	bytesTotal      metrics.CounterVec
+	errorsTotal     metrics.CounterVec
+	samplesTotal    metrics.CounterVec // per sampled interface (spec 2)
+	flowsTotal      metrics.CounterVec // per collector, per-flow records (spec 2)
+	flowsActive     metrics.Gauge      // tracked conntrack flows (spec 2)
+	recentRingDrops metrics.Gauge      // recent-flow ring overwrites before read (characterization tap)
 }
 
 var metricsPtr atomic.Pointer[exportMetrics]
@@ -26,14 +27,23 @@ func BindMetrics(reg metrics.Registry) {
 	}
 	labels := []string{"collector", "protocol"}
 	m := &exportMetrics{
-		datagramsTotal: reg.CounterVec("ze_flowexport_datagrams_total", "Flow export datagrams sent", labels),
-		bytesTotal:     reg.CounterVec("ze_flowexport_bytes_total", "Flow export bytes sent", labels),
-		errorsTotal:    reg.CounterVec("ze_flowexport_errors_total", "Flow export send errors", labels),
-		samplesTotal:   reg.CounterVec("ze_flowexport_samples_total", "Packet samples received and exported", []string{"interface"}),
-		flowsTotal:     reg.CounterVec("ze_flowexport_flows_total", "Per-flow records exported", []string{"collector"}),
-		flowsActive:    reg.Gauge("ze_flowexport_flows_active", "Conntrack flows currently tracked for export"),
+		datagramsTotal:  reg.CounterVec("ze_flowexport_datagrams_total", "Flow export datagrams sent", labels),
+		bytesTotal:      reg.CounterVec("ze_flowexport_bytes_total", "Flow export bytes sent", labels),
+		errorsTotal:     reg.CounterVec("ze_flowexport_errors_total", "Flow export send errors", labels),
+		samplesTotal:    reg.CounterVec("ze_flowexport_samples_total", "Packet samples received and exported", []string{"interface"}),
+		flowsTotal:      reg.CounterVec("ze_flowexport_flows_total", "Per-flow records exported", []string{"collector"}),
+		flowsActive:     reg.Gauge("ze_flowexport_flows_active", "Conntrack flows currently tracked for export"),
+		recentRingDrops: reg.Gauge("ze_flowexport_recent_ring_drops", "Recent-flow ring entries overwritten before being read (cumulative)"),
 	}
 	metricsPtr.Store(m)
+}
+
+func setRecentRingDrops(n float64) {
+	m := metricsPtr.Load()
+	if m == nil {
+		return
+	}
+	m.recentRingDrops.Set(n)
 }
 
 func incDatagrams(collector, protocol string) {

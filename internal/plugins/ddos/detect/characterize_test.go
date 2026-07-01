@@ -4,12 +4,29 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
+	"net/netip"
+	"runtime"
+	"strings"
 	"sync"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
 )
+
+// frec builds a flowRecord (destined to the victim) for classifier tests.
+func frec(proto uint8, src string, sport, dport uint16, pkts uint64, tcpState uint8) flowRecord {
+	return flowRecord{
+		SrcAddr:  netip.MustParseAddr(src),
+		DstAddr:  netip.MustParseAddr(victimIP),
+		SrcPort:  sport,
+		DstPort:  dport,
+		Protocol: proto,
+		Packets:  pkts,
+		TCPState: tcpState,
+	}
+}
 
 // VALIDATES: parseTopDestination picks the highest-byte destination as a host
 // prefix and rejects empty/absent/malformed/bad-IP input (Phase 1 target fill).
@@ -220,6 +237,257 @@ func TestOngoingGatedUntilDetected(t *testing.T) {
 	}
 }
 
+const victimIP = "203.0.113.42"
+
+// TestClassifyFlows covers the family heuristics (AC-3..AC-6) and the narrowest
+// vector built for each (proto / discriminating ports / TCP flags). DstPrefix is
+// the caller's responsibility, so it stays zero here.
+func TestClassifyFlows(t *testing.T) {
+	cases := []struct {
+		name       string
+		flows      []flowRecord
+		wantFamily ddosevent.AttackFamily
+		wantProto  uint8
+		wantSrc    uint16
+		wantDst    uint16
+		wantFlags  uint8
+	}{
+		{
+			name: "reflection", // AC-3: UDP dominant, dominant source port is a reflector
+			flows: []flowRecord{
+				frec(protoUDP, "198.51.100.1", 53, 40000, 100, 0),
+				frec(protoUDP, "198.51.100.2", 53, 40001, 120, 0),
+				frec(protoUDP, "198.51.100.3", 53, 40002, 90, 0),
+			},
+			wantFamily: ddosevent.FamilyReflection, wantProto: protoUDP, wantSrc: 53,
+		},
+		{
+			name: "syn-flood", // AC-4: TCP dominant AND half-open majority
+			flows: []flowRecord{
+				frec(protoTCP, "198.51.100.1", 4000, 80, 1, 2), // SYN_RECV
+				frec(protoTCP, "198.51.100.2", 4001, 80, 1, 2),
+				frec(protoTCP, "198.51.100.3", 4002, 80, 1, 1), // SYN_SENT
+			},
+			wantFamily: ddosevent.FamilySYNFlood, wantProto: protoTCP, wantDst: 80, wantFlags: tcpFlagSYN,
+		},
+		{
+			name: "icmp-flood", // AC-5: ICMP dominant
+			flows: []flowRecord{
+				frec(protoICMP, "198.51.100.1", 0, 0, 200, 0),
+				frec(protoICMP, "198.51.100.2", 0, 0, 180, 0),
+				frec(protoUDP, "198.51.100.3", 1234, 5678, 10, 0),
+			},
+			wantFamily: ddosevent.FamilyICMPFlood, wantProto: protoICMP,
+		},
+		{
+			name: "udp-flood", // UDP dominant, non-reflection source port, dominant dst port
+			flows: []flowRecord{
+				frec(protoUDP, "198.51.100.1", 40000, 80, 100, 0),
+				frec(protoUDP, "198.51.100.2", 40001, 80, 100, 0),
+				frec(protoUDP, "198.51.100.3", 40002, 80, 100, 0),
+			},
+			wantFamily: ddosevent.FamilyUDPFlood, wantProto: protoUDP, wantDst: 80,
+		},
+		{
+			name: "generic", // AC-6: mixed proto, no dominance -> generic, no proto pinned
+			flows: []flowRecord{
+				frec(protoUDP, "198.51.100.1", 1111, 2222, 100, 0),
+				frec(protoTCP, "198.51.100.2", 3333, 4444, 100, 3), // ESTABLISHED
+			},
+			wantFamily: ddosevent.FamilyGenericFlood,
+		},
+		{
+			name: "tcp-non-syn-is-generic", // TCP dominant but established -> not SYN, stays generic
+			flows: []flowRecord{
+				frec(protoTCP, "198.51.100.1", 5000, 443, 100, 3),
+				frec(protoTCP, "198.51.100.2", 5001, 443, 100, 3),
+				frec(protoTCP, "198.51.100.3", 5002, 443, 100, 3),
+			},
+			wantFamily: ddosevent.FamilyGenericFlood, wantProto: protoTCP, wantDst: 443,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			family, vec, _, _ := classifyFlows(tc.flows, 10)
+			if family != tc.wantFamily {
+				t.Errorf("family: got %q want %q", family, tc.wantFamily)
+			}
+			if vec.Proto != tc.wantProto {
+				t.Errorf("proto: got %d want %d", vec.Proto, tc.wantProto)
+			}
+			if vec.SrcPort != tc.wantSrc {
+				t.Errorf("src-port: got %d want %d", vec.SrcPort, tc.wantSrc)
+			}
+			if vec.DstPort != tc.wantDst {
+				t.Errorf("dst-port: got %d want %d", vec.DstPort, tc.wantDst)
+			}
+			if vec.TCPFlags != tc.wantFlags {
+				t.Errorf("tcp-flags: got %#x want %#x", vec.TCPFlags, tc.wantFlags)
+			}
+			if vec.DstPrefix.IsValid() {
+				t.Errorf("classifyFlows must leave DstPrefix to the caller, got %s", vec.DstPrefix)
+			}
+		})
+	}
+}
+
+// TestTopSourcesRanking validates A-2: sources rank by packet volume descending,
+// capped at topN, ties broken deterministically by address.
+func TestTopSourcesRanking(t *testing.T) {
+	flows := []flowRecord{
+		frec(protoUDP, "198.51.100.10", 53, 1, 50, 0),
+		frec(protoUDP, "198.51.100.20", 53, 1, 500, 0),
+		frec(protoUDP, "198.51.100.30", 53, 1, 300, 0),
+		frec(protoUDP, "198.51.100.20", 53, 1, 100, 0), // .20 total 600
+	}
+	_, _, top, _ := classifyFlows(flows, 2)
+	if len(top) != 2 {
+		t.Fatalf("top len = %d, want 2 (capped at topN)", len(top))
+	}
+	if top[0].String() != "198.51.100.20" {
+		t.Errorf("top[0] = %s, want 198.51.100.20 (600 pkts)", top[0])
+	}
+	if top[1].String() != "198.51.100.30" {
+		t.Errorf("top[1] = %s, want 198.51.100.30 (300 pkts)", top[1])
+	}
+}
+
+// TestSourceEntropy validates the distributed/concentrated annotation: a single
+// source is 0 bits, N equal sources is log2(N).
+func TestSourceEntropy(t *testing.T) {
+	a := netip.MustParseAddr("198.51.100.1")
+	b := netip.MustParseAddr("198.51.100.2")
+	c := netip.MustParseAddr("198.51.100.3")
+	d := netip.MustParseAddr("198.51.100.4")
+
+	if h := sourceEntropy(map[netip.Addr]uint64{a: 10}, 10); h != 0 {
+		t.Errorf("single source entropy = %v, want 0", h)
+	}
+	if h := sourceEntropy(map[netip.Addr]uint64{a: 5, b: 5}, 10); math.Abs(h-1.0) > 1e-9 {
+		t.Errorf("two equal sources entropy = %v, want 1.0", h)
+	}
+	if h := sourceEntropy(map[netip.Addr]uint64{a: 1, b: 1, c: 1, d: 1}, 4); math.Abs(h-2.0) > 1e-9 {
+		t.Errorf("four equal sources entropy = %v, want 2.0", h)
+	}
+	// Concentrated (one dominant) has lower entropy than uniform.
+	concentrated := sourceEntropy(map[netip.Addr]uint64{a: 97, b: 1, c: 1, d: 1}, 100)
+	uniform := sourceEntropy(map[netip.Addr]uint64{a: 25, b: 25, c: 25, d: 25}, 100)
+	if concentrated >= uniform {
+		t.Errorf("concentrated entropy %v should be < uniform %v", concentrated, uniform)
+	}
+}
+
+// TestCharacterizeEmitsCharacterized drives the full trigger path with a dispatch
+// that answers both sources and asserts a populated AttackCharacterized reaches
+// the bus (AC-3, AC-12, AC-13, Wiring: AttackCharacterized on bus).
+func TestCharacterizeEmitsCharacterized(t *testing.T) {
+	flowJSON := `[` +
+		`{"src-addr":"198.51.100.1","dst-addr":"203.0.113.42","src-port":53,"dst-port":40000,"protocol":17,"packets":100,"tcp-state":0},` +
+		`{"src-addr":"198.51.100.2","dst-addr":"203.0.113.42","src-port":53,"dst-port":40001,"protocol":17,"packets":120,"tcp-state":0},` +
+		`{"src-addr":"198.51.100.3","dst-addr":"203.0.113.42","src-port":53,"dst-port":40002,"protocol":17,"packets":90,"tcp-state":0}]`
+
+	bus := newDTestBus()
+	d := newDetector(floodConfig(), bus, func(_ context.Context, cmd string) (string, json.RawMessage, error) {
+		switch {
+		case strings.HasPrefix(cmd, "show traffic-usage"):
+			return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.42","bytes":1000000}]}`), nil
+		case strings.HasPrefix(cmd, "show flow-recent"):
+			return statusDone, json.RawMessage(flowJSON), nil
+		}
+		return "error", nil, errors.New("unexpected command: " + cmd)
+	})
+
+	var ch *ddosevent.AttackCharacterized
+	ddosevent.Characterized.Subscribe(bus, func(e *ddosevent.AttackCharacterized) { ch = e })
+
+	floodInto(d)
+
+	if ch == nil {
+		t.Fatal("AttackCharacterized not emitted")
+	}
+	if ch.Family != ddosevent.FamilyReflection {
+		t.Errorf("family: got %q want reflection", ch.Family)
+	}
+	if ch.Target.DstPrefix.String() != "203.0.113.42/32" {
+		t.Errorf("target: got %s want 203.0.113.42/32", ch.Target.DstPrefix)
+	}
+	if ch.Target.Proto != protoUDP || ch.Target.SrcPort != 53 {
+		t.Errorf("vector: got proto=%d src-port=%d want 17/53", ch.Target.Proto, ch.Target.SrcPort)
+	}
+	if ch.Severity != ddosevent.SeverityCritical { // peak >> threshold
+		t.Errorf("severity: got %q want critical", ch.Severity)
+	}
+	if len(ch.TopSources) == 0 {
+		t.Error("expected populated TopSources")
+	}
+	if ch.SourceEntropy <= 0 {
+		t.Errorf("expected positive source entropy, got %v", ch.SourceEntropy)
+	}
+}
+
+// TestCharacterizeSkipsWhenNoFlowSource proves that with trafficusage present but
+// flow-recent absent, AttackDetected still fires (coarse) and AttackCharacterized
+// is skipped -- never worse than Phase 1.
+func TestCharacterizeSkipsWhenNoFlowSource(t *testing.T) {
+	bus := newDTestBus()
+	d := newDetector(floodConfig(), bus, func(_ context.Context, cmd string) (string, json.RawMessage, error) {
+		if strings.HasPrefix(cmd, "show traffic-usage") {
+			return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.42","bytes":1000000}]}`), nil
+		}
+		return "", nil, errors.New("ErrUnknownCommand") // flow-recent absent
+	})
+
+	var detected *ddosevent.AttackDetected
+	var ch *ddosevent.AttackCharacterized
+	ddosevent.Detected.Subscribe(bus, func(e *ddosevent.AttackDetected) { detected = e })
+	ddosevent.Characterized.Subscribe(bus, func(e *ddosevent.AttackCharacterized) { ch = e })
+
+	floodInto(d)
+
+	if detected == nil || !detected.Target.DstPrefix.IsValid() {
+		t.Fatal("AttackDetected with valid target must still fire")
+	}
+	if ch != nil {
+		t.Errorf("AttackCharacterized must be skipped when no flow source, got %+v", ch)
+	}
+}
+
+// TestCharacterizeDerivesVictimFromFlows covers the flow-only path (AC-12): with
+// trafficusage absent, the victim (here IPv6, invisible to trafficusage) is
+// derived from the dominant destination in the recent-flow ring.
+func TestCharacterizeDerivesVictimFromFlows(t *testing.T) {
+	flowJSON := `[` +
+		`{"src-addr":"2001:db8:aaaa::1","dst-addr":"2001:db8::1","src-port":123,"dst-port":40000,"protocol":17,"packets":100,"tcp-state":0},` +
+		`{"src-addr":"2001:db8:aaaa::2","dst-addr":"2001:db8::1","src-port":123,"dst-port":40001,"protocol":17,"packets":120,"tcp-state":0},` +
+		`{"src-addr":"2001:db8:aaaa::3","dst-addr":"2001:db8::1","src-port":123,"dst-port":40002,"protocol":17,"packets":90,"tcp-state":0}]`
+
+	bus := newDTestBus()
+	d := newDetector(floodConfig(), bus, func(_ context.Context, cmd string) (string, json.RawMessage, error) {
+		if strings.HasPrefix(cmd, "show flow-recent") {
+			return statusDone, json.RawMessage(flowJSON), nil
+		}
+		return "", nil, errors.New("ErrUnknownCommand") // trafficusage absent
+	})
+
+	var ch *ddosevent.AttackCharacterized
+	ddosevent.Characterized.Subscribe(bus, func(e *ddosevent.AttackCharacterized) { ch = e })
+
+	floodInto(d)
+
+	if ch == nil {
+		t.Fatal("AttackCharacterized not emitted from flow-only path")
+	}
+	if ch.Target.DstPrefix.String() != "2001:db8::1/128" {
+		t.Errorf("derived victim: got %s want 2001:db8::1/128", ch.Target.DstPrefix)
+	}
+	if ch.Family != ddosevent.FamilyReflection || ch.Target.SrcPort != 123 {
+		t.Errorf("expected reflection on NTP src-port 123, got family=%s src-port=%d", ch.Family, ch.Target.SrcPort)
+	}
+	if len(ch.TopSources) == 0 || !ch.TopSources[0].Is6() {
+		t.Errorf("expected IPv6 top sources, got %v", ch.TopSources)
+	}
+}
+
 // VALIDATES: a characterization that completes AFTER the attack has cleared does
 // not emit a stale Detected (the generation guard drops it).
 // PREVENTS: a stuck local drop installed by a late Detected with no matching
@@ -273,5 +541,91 @@ func TestNoStaleDetectedAfterClear(t *testing.T) {
 	}
 	if len(events) == 0 || events[len(events)-1] != "cleared" {
 		t.Fatalf("expected a Cleared and no Detected, got %v", events)
+	}
+}
+
+// TestNoStaleCharacterizedAfterClear is the AttackCharacterized counterpart: a slow
+// flow-recent query that returns after the attack cleared must not emit a stale
+// Characterized. This is the race the review flagged -- without holding d.mu
+// across the generation check and the emit, a Cleared could slip between them and
+// ddos-local would install a drop with no matching Cleared to remove it.
+func TestNoStaleCharacterizedAfterClear(t *testing.T) {
+	bus := newDTestBus()
+	var mu sync.Mutex
+	var ch *ddosevent.AttackCharacterized
+	var cleared bool
+	ddosevent.Characterized.Subscribe(bus, func(e *ddosevent.AttackCharacterized) {
+		mu.Lock()
+		ch = e
+		mu.Unlock()
+	})
+	ddosevent.Cleared.Subscribe(bus, func(_ *ddosevent.AttackCleared) {
+		mu.Lock()
+		cleared = true
+		mu.Unlock()
+	})
+
+	release := make(chan struct{})
+	cfg := floodConfig()
+	cfg.ClearConsecutive = 1 // clear quickly so it races the blocked flow query
+	d := newDetector(cfg, bus, func(_ context.Context, cmd string) (string, json.RawMessage, error) {
+		if strings.HasPrefix(cmd, "show traffic-usage") {
+			return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.1","bytes":1}]}`), nil
+		}
+		<-release // flow-recent blocks until the attack has cleared
+		return statusDone, json.RawMessage(`[{"src-addr":"198.51.100.1","dst-addr":"203.0.113.1","src-port":53,"dst-port":1,"protocol":17,"packets":10,"tcp-state":0}]`), nil
+	})
+
+	tick := func(p uint64) {
+		d.onRate([]iface.InterfaceInfo{{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: p}}})
+	}
+
+	var cum uint64
+	for range 20 { // baseline
+		cum += 50
+		tick(cum)
+	}
+	cum += 100000 // flood: activate; goroutine emits Detected then blocks in flow-recent
+	tick(cum)
+
+	// Wait for Detected to land (goroutine set detectedEmitted before blocking).
+	for !d.detectedEmitted.Load() {
+		runtime.Gosched()
+	}
+
+	tick(cum) // below: active -> clearing
+	tick(cum) // below: clearing -> idle -> Cleared (attackGen advanced)
+
+	close(release) // flow-recent returns now, after Cleared
+	d.wg.Wait()
+
+	mu.Lock()
+	defer mu.Unlock()
+	if !cleared {
+		t.Fatal("expected the attack to have cleared")
+	}
+	if ch != nil {
+		t.Fatalf("stale Characterized emitted after clear: %+v", ch)
+	}
+}
+
+// TestStopFencesCharacterization proves Stop() prevents a later trigger from
+// spawning a characterization goroutine (the WaitGroup Add-during-Wait fence).
+func TestStopFencesCharacterization(t *testing.T) {
+	bus := newDTestBus()
+	var detected *ddosevent.AttackDetected
+	ddosevent.Detected.Subscribe(bus, func(e *ddosevent.AttackDetected) { detected = e })
+	d := newDetector(floodConfig(), bus, func(_ context.Context, _ string) (string, json.RawMessage, error) {
+		return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.1","bytes":1}]}`), nil
+	})
+
+	d.Stop() // stop before any attack
+
+	// A flood after Stop must not spawn characterization or emit -- onAttackStart
+	// sees d.stopped and returns without wg.Go, and wg.Wait stays at zero.
+	floodInto(d)
+
+	if detected != nil {
+		t.Errorf("no Detected should be emitted after Stop, got %+v", detected)
 	}
 }

@@ -4,6 +4,7 @@
 package flowexport
 
 import (
+	"net/netip"
 	"sync"
 	"time"
 
@@ -48,6 +49,11 @@ type Exporter struct {
 	stopCh     chan struct{}
 	stopped    bool
 	startTime  time.Time
+	// recent is a bounded ring of recently exported conntrack flows, fed from
+	// ExportFlows and read by `show flow-recent` so on-box consumers (the DDoS
+	// characterizer) can inspect the current flow mix without a packet capture.
+	// nil when conntrack export is disabled (nothing would feed it).
+	recent *recentRing
 }
 
 // AddStopper registers a teardown function (sampling/conntrack worker, BGP
@@ -73,6 +79,11 @@ func NewExporter(cfg *Config) (*Exporter, error) {
 	e := &Exporter{
 		stopCh:    make(chan struct{}),
 		startTime: time.Now(),
+	}
+	// The recent-flow ring is only fed by the conntrack export path, so allocate
+	// it only when conntrack export is enabled -- otherwise it would sit empty.
+	if cfg.Conntrack.Enabled {
+		e.recent = newRecentRing(cfg.Conntrack.RecentRing)
 	}
 
 	for i := range cfg.Collectors {
@@ -247,6 +258,12 @@ func (e *Exporter) ExportFlows(flows []ConntrackFlow) {
 		}
 	}
 
+	// Tap the (enriched) flows into the recent-flow ring for `show flow-recent`.
+	// Independent of collector fan-out below: the DDoS characterizer needs the
+	// ring even when no NetFlow/IPFIX collector is configured. No-op when the
+	// ring is disabled (conntrack off).
+	e.recent.append(flows)
+
 	now := time.Now()
 	log := loggerPtr.Load()
 	for i := range e.collectors {
@@ -300,6 +317,20 @@ func (e *Exporter) ExportFlows(flows []ConntrackFlow) {
 		obs.Flow.Proto = f.Protocol
 		feed.Publish(obs)
 	}
+}
+
+// RecentFlows returns a snapshot of the recent-flow ring in oldest-to-newest
+// order, optionally filtered to flows destined into dst (zero-value prefix =
+// all). Empty when conntrack export (and thus the ring) is disabled. Reads only
+// the ring's own mutex, so it never contends with the exporter fan-out lock.
+func (e *Exporter) RecentFlows(dst netip.Prefix) []ConntrackFlow {
+	return e.recent.snapshot(dst)
+}
+
+// RecentDrops returns the cumulative number of recent-flow-ring entries
+// overwritten before being read. Exposed for the recent-ring-drops metric.
+func (e *Exporter) RecentDrops() uint64 {
+	return e.recent.dropCount()
 }
 
 // Uptime returns milliseconds since the exporter started.

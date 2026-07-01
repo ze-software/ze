@@ -3,6 +3,7 @@
 package detect
 
 import (
+	"context"
 	"log/slog"
 	"net/netip"
 	"sync"
@@ -46,10 +47,20 @@ type detector struct {
 	attackIface   string
 	justTriggered bool
 
-	wg               sync.WaitGroup
-	sourceAbsentOnce sync.Once
-	detectedEmitted  atomic.Bool
-	attackGen        uint64 // bumped on each activate and clear; guards stale async emits
+	wg                   sync.WaitGroup
+	sourceAbsentOnce     sync.Once // trafficusage (fast target) absent, logged once
+	flowSourceAbsentOnce sync.Once // flowexport recent-flow (characterization) absent, logged once
+	detectedEmitted      atomic.Bool
+	attackGen            uint64 // bumped on each activate and clear; guards stale async emits
+
+	// ctx bounds every characterization goroutine to the detector's lifetime;
+	// Stop cancels it so in-flight source queries unwind promptly at shutdown or
+	// reconfigure instead of running out their per-query timeout. stopped (under
+	// d.mu) fences onAttackStart from spawning a new goroutine once Stop has begun
+	// waiting, so wg.Go can never race wg.Wait.
+	ctx     context.Context
+	cancel  context.CancelFunc
+	stopped bool
 }
 
 func newDetector(cfg *Config, bus ze.EventBus, dispatch dispatchFunc) *detector {
@@ -65,7 +76,24 @@ func newDetector(cfg *Config, bus ze.EventBus, dispatch dispatchFunc) *detector 
 	d.sm = newStateMachine(cfg.ConfirmDuration, cfg.ClearConsecutive)
 	d.sm.OnDetected = d.onAttackStart
 	d.sm.OnCleared = d.emitCleared
+	d.ctx, d.cancel = context.WithCancel(context.Background())
 	return d
+}
+
+// Stop cancels in-flight characterization and waits for the goroutines to unwind.
+// Called at plugin shutdown and before a reconfigure replaces the detector, so a
+// slow source query cannot outlive the detector that spawned it. Setting stopped
+// under d.mu before Wait fences onAttackStart (which spawns under d.mu) from
+// adding to the WaitGroup after Wait has started -- a late trafficstat tick
+// delivered after Unsubscribe would otherwise panic "WaitGroup reused".
+func (d *detector) Stop() {
+	d.mu.Lock()
+	d.stopped = true
+	d.mu.Unlock()
+	if d.cancel != nil {
+		d.cancel()
+	}
+	d.wg.Wait()
 }
 
 // onRates accepts pre-computed per-interface rates from the trafficstat
@@ -187,12 +215,22 @@ func (d *detector) applyTick(maxPps, maxBps float64, maxIface string) {
 func (d *detector) onAttackStart() {
 	d.justTriggered = true
 	d.attackGen++
+	// Do not spawn once Stop has begun waiting on the WaitGroup (a late
+	// trafficstat tick can still reach here after Unsubscribe returns, because
+	// trafficstat invokes subscribers outside its lock). Both this and Stop run
+	// under d.mu, so the flag fences wg.Go against wg.Wait.
+	if d.stopped {
+		return
+	}
 	gen := d.attackGen
 	ifaceName := d.attackIface
 	peakPps := d.peakRxPps
 	peakBps := d.peakRxBps
+	// Snapshot the threshold under d.mu so severity grades against the baseline
+	// as it was at trigger time, not whatever it drifts to during the query.
+	threshold := d.baseline.Threshold()
 	d.wg.Go(func() {
-		d.characterizeAndEmit(gen, ifaceName, peakPps, peakBps)
+		d.characterizeAndEmit(gen, ifaceName, peakPps, peakBps, threshold)
 	})
 }
 

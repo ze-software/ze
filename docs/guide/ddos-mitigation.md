@@ -64,13 +64,56 @@ management, DNS, or other critical prefixes.
 destination from `traffic-usage` (with `track-ip` enabled on the exposed
 interfaces). Without a reachable flow source the detector still fires but emits a
 generic signal with no target, and the local responder cannot install a targeted
-rule. Today the rule matches the destination prefix (IPv4); protocol, port, and
-TCP-flag narrowing arrive in a later phase.
+rule. The coarse rule matches the destination prefix; characterization (below)
+then narrows it in place to the attack's protocol, ports, and TCP flags.
 <!-- source: internal/plugins/ddos/detect/characterize.go -- characterizeTarget fills the victim DstPrefix from traffic-usage -->
 
 The drop rule is removed automatically when the attack stops (the detector
 observes RxPps falling below threshold, which works because nftables drops occur
 after the kernel NIC RX counter).
+
+### Attack characterization (Stage 2)
+
+With `flow-export` conntrack enabled, the detector runs a second, finer pass on
+the trigger: it queries the flow-export recent-flow ring for flows to the victim,
+classifies the attack, and emits a characterized signal so responders install a
+surgical rule and then narrow the local drop in place:
+
+- **reflection** -- UDP with a dominant amplifier source port (DNS 53, NTP 123,
+  SNMP 161, CLDAP 389, SSDP 1900, Memcached 11211, ...): matches proto + source port.
+- **syn-flood** -- TCP dominated by half-open conntrack states: matches proto + SYN flag.
+- **icmp-flood** -- ICMP dominant: matches proto.
+- **udp-flood** -- UDP dominant without a reflector: matches proto (and dominant dst port).
+- **generic-flood** -- no clear signature (includes fragment floods, which have no
+  on-box conntrack signal): coarse destination-prefix drop.
+
+The recent-flow ring is IPv4 and IPv6 capable, so IPv6 victims (invisible to the
+IPv4-only `traffic-usage` map) are resolved from the ring. Characterization runs
+off the detection hot path with a bounded timeout and degrades to the coarse
+target when no flow source is reachable.
+<!-- source: internal/plugins/ddos/detect/characterize.go -- classifyFlows: family + narrowest VectorTuple from the recent-flow ring -->
+
+**Tune `active-timeout` for responsive characterization.** Characterization is
+one-shot: it queries the recent-flow ring once, when the attack is confirmed. The
+ring is refreshed only at each conntrack dump (every `flow-export` `active-timeout`
+seconds), so with the default 60s a just-started flood's flows may not be in the
+ring yet, and characterization falls back to the coarse destination drop (still
+protective, just not narrowed). Set `active-timeout` to a few seconds when you
+want the classifier to catch attacks promptly.
+<!-- source: internal/plugins/flowexport/conntrack_worker.go -- run() dumps every active-timeout, feeding the ring -->
+
+Inspect the ring directly:
+
+```
+show flow-recent                     # all recent conntrack flows (bounded to recent-flow-ring)
+show flow-recent dst 203.0.113.42    # flows to a destination prefix or address
+```
+<!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowRecent -->
+
+Each signal carries a graded **severity** from the peak-to-threshold ratio:
+`medium` (>=1x), `high` (>=2x), `critical` (>=5x). The FlowSpec responder can use
+`critical` to engage an immediate blackhole (below).
+<!-- source: internal/core/ddosevent/event.go -- GradeSeverity -->
 
 ### Upstream FlowSpec mitigation
 
@@ -87,9 +130,18 @@ ddos-flowspec {
 }
 ```
 
-On attack detection, a surgical BGP FlowSpec rule is announced to the configured
-upstream peer. The default action is `rate-limit` (non-zero rate) rather than
-`discard`, preserving legitimate traffic.
+Once the attack is characterized, a surgical BGP FlowSpec rule is announced to the
+configured upstream peer, matching the attack's protocol, ports, and flags. The
+FlowSpec responder waits for characterization by default rather than acting on the
+fast signal: announcing upstream blinds the box behind the filter, so the rule
+must be right the first time. The default action is `rate-limit` (non-zero rate)
+rather than `discard`, preserving legitimate traffic.
+
+**Blackhole fallback.** With `blackhole-fallback true`, a `critical`-severity
+attack (peak >= 5x threshold) engages an immediate upstream `discard` on the fast
+signal without waiting for characterization -- the escape hatch when local
+filtering cannot hold the flood.
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- onCharacterized announces; onDetected blackholes only on critical + policy -->
 
 **Clearing under FlowSpec mitigation:** once the upstream drops the attack
 traffic, Ze's local sensors go blind (the traffic never arrives). The responder
@@ -128,6 +180,11 @@ server-driven mitigation commands.
 | `threshold-multiplier` | `3.00` | 1.00-100.00 | Baseline p99 multiplier for the dynamic threshold |
 | `absolute-floor` | `5000` | 1+ PPS | Minimum threshold regardless of baseline |
 | `startup-grace` | `90` | 0-3600 s | Seconds after startup where only extreme spikes (>5x floor) trigger |
+| `characterize-enable` | `true` | bool | Run Stage-2 flow characterization (family + narrowest vector, `AttackCharacterized`) |
+| `top-n-sources` | `10` | 1-100 | Max attacker source addresses ranked into TopSources |
+| `characterize-window` | `10` | 1-60 s | Seconds of recent flows to consider (timestamp-less flows always kept) |
+| `characterize-timeout` | `2000` | 50-5000 ms | Budget for the on-trigger traffic-usage / flow-recent queries |
+| `entropy-threshold` | `2.00` | 0.00-16.00 bits | Source-entropy at/above which an attack is logged as distributed/spoofed |
 
 **How the threshold works:**
 ```
@@ -160,6 +217,7 @@ prevent poisoning.
 | `announce-rate-limit` | `10` | 1-600 /min | Maximum FlowSpec announcements per minute |
 | `max-mitigation-duration` | `3600` | 0-604800 s | Safety valve: force-withdraw after this many seconds |
 | `backoff-cap` | `3600` | 1-604800 s | Maximum hold-down after exponential backoff |
+| `blackhole-fallback` | `false` | bool | Engage an immediate upstream `discard` on a `critical` fast signal without waiting for characterization |
 | `allowlist` | (empty) | prefix list | Prefixes that must never be announced for mitigation |
 
 ### ddos-flowtriq (Flowtriq cloud reporter)
@@ -227,3 +285,18 @@ Detection works on both the Linux netlink dataplane and the VPP DPDK dataplane.
 The VPP iface backend populates `InterfaceInfo.Stats` from VPP's stats segment,
 so `rate.go` computes RxPps/RxBps identically for both dataplanes. No
 VPP-specific detector code is needed.
+
+### Flow source and observability
+
+Characterization needs an on-box flow source: `traffic-usage` (`track-ip`) for the
+fast IPv4 target and/or `flow-export` (`conntrack`) for the classifier (proto,
+ports, TCP flags, IPv6, top sources). If characterization is enabled with neither
+configured, `ze doctor` reports `doctor-ddos-detect-no-flow-source` and mitigation
+degrades to a coarse generic-flood drop.
+<!-- source: internal/plugins/ddos/detect/doctor.go -- checkFlowSource -->
+
+Prometheus metrics:
+- `ze_ddos_detect_characterize_total{family}` -- characterization outcomes per family.
+- `ze_ddos_detect_characterize_fallback_total` -- characterizations with no usable flow data.
+- `ze_flowexport_recent_ring_drops` -- recent-flow ring entries overwritten before being read.
+<!-- source: internal/plugins/ddos/detect/metrics.go -- ze_ddos_detect_characterize_* -->

@@ -54,6 +54,11 @@ module ze-ddos-flowspec-conf {
       default 3600;
       description "Maximum hold-down after exponential backoff.";
     }
+    leaf blackhole-fallback {
+      type boolean;
+      default false;
+      description "When true, a critical-severity AttackDetected (peak >= 5x threshold) auto-engages an immediate upstream discard (RTBH-style) without waiting for characterization. When false (default) the upstream rule is announced only from AttackCharacterized, so it is precise before the box goes blind behind the filter.";
+    }
     leaf-list allowlist {
       type string;
       description "Prefixes that must never be announced for mitigation.";

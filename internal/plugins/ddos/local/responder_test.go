@@ -1,6 +1,7 @@
 package local
 
 import (
+	"errors"
 	"net/netip"
 	"testing"
 
@@ -55,6 +56,85 @@ func TestEnforceModeActivates(t *testing.T) {
 	r.onDetected(event)
 	if !r.active {
 		t.Error("enforce mode should activate mitigation")
+	}
+}
+
+func tablesHaveTCPFlags(tables []firewall.Table) bool {
+	for _, tbl := range tables {
+		for _, ch := range tbl.Chains {
+			for _, term := range ch.Terms {
+				for _, m := range term.Matches {
+					if _, ok := m.(firewall.MatchTCPFlags); ok {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+func TestLocalNarrowsInPlace(t *testing.T) {
+	// VALIDATES: AC-7 -- on AttackCharacterized the local rule is re-registered in
+	// place with the narrowed vector (proto + TCP flags), starting from a coarse
+	// AttackDetected drop.
+	origReg := registerTables
+	origApply := applyAll
+	var lastTables []firewall.Table
+	registerTables = func(_ string, tables []firewall.Table) { lastTables = tables }
+	applyAll = func() error { return nil }
+	defer func() { registerTables = origReg; applyAll = origApply }()
+
+	r := newResponder(&Config{ResponseLevel: "enforce"}, nil)
+	victim := netip.MustParsePrefix("10.0.0.1/32")
+
+	r.onDetected(&ddosevent.AttackDetected{
+		Target: ddosevent.VectorTuple{DstPrefix: victim},
+		Family: ddosevent.FamilyGenericFlood,
+	})
+	if !r.active {
+		t.Fatal("coarse drop should be active after detect")
+	}
+	if tablesHaveTCPFlags(lastTables) {
+		t.Error("coarse rule should not carry TCP flags")
+	}
+
+	r.onCharacterized(&ddosevent.AttackCharacterized{
+		Target: ddosevent.VectorTuple{DstPrefix: victim, Proto: 6, TCPFlags: 0x02, DstPort: 80},
+		Family: ddosevent.FamilySYNFlood,
+	})
+	if !r.active {
+		t.Fatal("should stay active after narrowing")
+	}
+	if r.target.Proto != 6 || r.target.TCPFlags != 0x02 {
+		t.Errorf("responder target not narrowed in place: %+v", r.target)
+	}
+	if !tablesHaveTCPFlags(lastTables) {
+		t.Error("narrowed rule should carry the SYN TCP-flags match")
+	}
+}
+
+func TestLocalApplyFailureRollsBack(t *testing.T) {
+	// VALIDATES: on a failed nft apply the responder rolls the registry back to
+	// nil and clears active, rather than leaving a phantom active mitigation with
+	// the registry empty while the kernel keeps the last rule (review Run-4 NOTE).
+	origReg := registerTables
+	origApply := applyAll
+	var lastTables []firewall.Table
+	registerTables = func(_ string, tables []firewall.Table) { lastTables = tables }
+	applyAll = func() error { return errors.New("nft apply failed") }
+	defer func() { registerTables = origReg; applyAll = origApply }()
+
+	r := newResponder(&Config{ResponseLevel: "enforce"}, nil)
+	r.onDetected(&ddosevent.AttackDetected{
+		Target: ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32")},
+	})
+
+	if r.active {
+		t.Error("a failed apply must not leave the responder active")
+	}
+	if lastTables != nil {
+		t.Errorf("registry must be rolled back to nil on apply failure, got %v", lastTables)
 	}
 }
 

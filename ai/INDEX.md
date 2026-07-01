@@ -11,6 +11,7 @@
 | Fix a failing test, gate, demo, or user-visible problem | `ai/rules/no-workarounds-for-missing-behavior.md` | Implement the missing behavior at the source, never route around it |
 | Modify wire encoding | `ai/rules/buffer-first.md` | `docs/architecture/buffer-architecture.md` |
 | Add route processing | `ai/rules/architecture-summary.md` | `docs/architecture/core-design.md` |
+| Detect and auto-mitigate a DDoS flood | `docs/guide/ddos-mitigation.md` | `ddos-detect` characterizes the attack (family + vector) from `traffic-usage`/`flow-export`; `ddos-local`/`ddos-flowspec` install surgical rules; `show flow-recent` inspects the flow ring |
 | Implement an RFC | `ai/rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
 | Write a spec | `ai/rules/planning.md` | `plan/TEMPLATE.md` |
 | Record design risks and assumptions | `ai/rules/planning.md` (Risks & Assumptions) | A-N/R-N tables in `plan/TEMPLATE.md`; validate during /ze-implement audit |

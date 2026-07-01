@@ -160,6 +160,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json"},
 	},
 	{
+		Code:        "doctor-ddos-detect-no-flow-source",
+		Title:       "DDoS characterization has no flow source",
+		Description: "ddos-detect is enabled with characterization on, but neither traffic-usage (track-ip) nor flow-export (conntrack) is configured. Detection still works, but mitigation degrades to generic-flood with no target prefix, so responders cannot install a surgical or targeted rule. Enable traffic-usage track-ip and/or flow-export conntrack.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-ddos-detect-no-flow-source"},
+	},
+	{
 		Code:        "doctor-tls-missing",
 		Title:       "TLS certificate or key not found",
 		Description: "A TLS certificate or key file referenced in the config does not exist.",

@@ -35,6 +35,7 @@ type ConntrackFlow struct {
 	SrcAS    uint32 // BGP origin AS of SrcAddr (0 if unknown)
 	DstAS    uint32 // BGP origin AS of DstAddr (0 if unknown)
 	NextHop  netip.Addr
+	TCPState uint8 // conntrack TCP state (nf_conntrack_tcp), 0 for non-TCP; feeds SYN-flood classification
 }
 
 // FlowSampleEncoder encodes a single sFlow flow_sample datagram and sends

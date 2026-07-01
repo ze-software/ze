@@ -9,8 +9,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/trafficstat"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	detectyang "codeberg.org/thomas-mangin/ze/internal/plugins/ddos/detect/yang"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -42,6 +44,20 @@ func init() {
 				eventBusPtr.Store(&e)
 			}
 		},
+		ConfigureMetrics: func(reg any) {
+			if r, ok := reg.(metrics.Registry); ok {
+				setMetricsRegistry(r)
+			}
+		},
+		DoctorChecks: []registry.DoctorCheckDef{{
+			Name:         "ddos-detect-flow-source",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        760,
+			Dependencies: []string{"config-loaded"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-ddos-detect-no-flow-source"},
+			Check:        checkFlowSource,
+		}},
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
 	if err := registry.Register(reg); err != nil {
@@ -120,9 +136,12 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
+		unsubscribe()
+		if det != nil {
+			det.Stop()
+		}
 		det = newDetector(cfg, bus, p.DispatchCommand)
 		if cfg.Enabled {
-			unsubscribe()
 			subscribe(det)
 		}
 		return nil
@@ -147,8 +166,11 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		det = newDetector(cfg, bus, p.DispatchCommand)
 		unsubscribe()
+		if det != nil {
+			det.Stop()
+		}
+		det = newDetector(cfg, bus, p.DispatchCommand)
 		if cfg.Enabled {
 			subscribe(det)
 		}
@@ -168,10 +190,16 @@ func runEngine(conn net.Conn) int {
 	}); err != nil {
 		log.Error("ddos-detect plugin failed", "error", err)
 		unsubscribe()
+		if det != nil {
+			det.Stop()
+		}
 		return 1
 	}
 
 	unsubscribe()
+	if det != nil {
+		det.Stop()
+	}
 	log.Info("ddos-detect plugin stopped")
 	return 0
 }

@@ -34,6 +34,13 @@ func buildDropTerm(name string, v ddosevent.VectorTuple) firewall.Term {
 			Ranges: []firewall.PortRange{{Lo: v.SrcPort, Hi: v.SrcPort}},
 		})
 	}
+	if v.TCPFlags != 0 {
+		// Match packets whose set flags include the vector's flags (SYN for a
+		// SYN flood). Mask == Flags means "examine exactly these bits, require
+		// them set" -- an exact match on the discriminating flags (AC-9).
+		f := firewall.TCPFlags(v.TCPFlags)
+		matches = append(matches, firewall.MatchTCPFlags{Flags: f, Mask: f})
+	}
 	return firewall.Term{
 		Name:    name,
 		Matches: matches,

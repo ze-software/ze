@@ -22,6 +22,13 @@ type Config struct {
 	ThresholdMultiplier float64 `json:"threshold-multiplier"`
 	AbsoluteFloor       float64 `json:"absolute-floor"`
 	StartupGrace        int     `json:"startup-grace"`
+
+	// Stage-2 characterization tuning.
+	CharacterizeEnable  bool    `json:"characterize-enable"`  // run flow-based classification -> AttackCharacterized
+	TopNSources         int     `json:"top-n-sources"`        // max attacker addresses ranked into TopSources
+	CharacterizeWindow  int     `json:"characterize-window"`  // seconds of recent flows to consider (0-ts flows always kept)
+	CharacterizeTimeout int     `json:"characterize-timeout"` // ms budget for the on-trigger source queries
+	EntropyThreshold    float64 `json:"entropy-threshold"`    // source-entropy (bits) at/above which an attack is logged as distributed
 }
 
 func DefaultConfig() *Config {
@@ -34,6 +41,11 @@ func DefaultConfig() *Config {
 		ThresholdMultiplier: 3.0,
 		AbsoluteFloor:       5000,
 		StartupGrace:        90,
+		CharacterizeEnable:  true,
+		TopNSources:         10,
+		CharacterizeWindow:  10,
+		CharacterizeTimeout: 2000,
+		EntropyThreshold:    2.0,
 	}
 }
 
@@ -91,6 +103,31 @@ func ParseConfig(data string) (*Config, error) {
 			cfg.StartupGrace = n
 		}
 	}
+	if v, ok := m["characterize-enable"]; ok {
+		if b, ok := v.(bool); ok {
+			cfg.CharacterizeEnable = b
+		}
+	}
+	if v, ok := m["top-n-sources"]; ok {
+		if n, ok := toInt(v); ok {
+			cfg.TopNSources = n
+		}
+	}
+	if v, ok := m["characterize-window"]; ok {
+		if n, ok := toInt(v); ok {
+			cfg.CharacterizeWindow = n
+		}
+	}
+	if v, ok := m["characterize-timeout"]; ok {
+		if n, ok := toInt(v); ok {
+			cfg.CharacterizeTimeout = n
+		}
+	}
+	if v, ok := m["entropy-threshold"]; ok {
+		if f, ok := toFloat(v); ok {
+			cfg.EntropyThreshold = f
+		}
+	}
 	return cfg, nil
 }
 
@@ -115,6 +152,18 @@ func (c *Config) Validate() error {
 	}
 	if c.StartupGrace < 0 || c.StartupGrace > 3600 {
 		return fmt.Errorf("startup-grace %d out of range [0, 3600]", c.StartupGrace)
+	}
+	if c.TopNSources < 1 || c.TopNSources > 100 {
+		return fmt.Errorf("top-n-sources %d out of range [1, 100]", c.TopNSources)
+	}
+	if c.CharacterizeWindow < 1 || c.CharacterizeWindow > 60 {
+		return fmt.Errorf("characterize-window %d out of range [1, 60]", c.CharacterizeWindow)
+	}
+	if c.CharacterizeTimeout < 50 || c.CharacterizeTimeout > 5000 {
+		return fmt.Errorf("characterize-timeout %d out of range [50, 5000]", c.CharacterizeTimeout)
+	}
+	if c.EntropyThreshold < 0 || c.EntropyThreshold > 16 {
+		return fmt.Errorf("entropy-threshold %f out of range [0, 16]", c.EntropyThreshold)
 	}
 	return nil
 }
