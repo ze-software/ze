@@ -441,9 +441,8 @@ func daemonRunning(dbPath string) bool {
 
 // moveAsideDB renames the existing database to <path>.replaced-<date>.
 func moveAsideDB(dbPath string) error {
-	stamp := time.Now().Format("2006-01-02T150405")
-	dest := dbPath + ".replaced-" + stamp
-	if err := os.Rename(dbPath, dest); err != nil {
+	dest, err := zefs.MoveAside(dbPath)
+	if err != nil {
 		return fmt.Errorf("move database: %w", err)
 	}
 	fmt.Fprintf(os.Stderr, "moved %s to %s\n", filepath.Base(dbPath), filepath.Base(dest))

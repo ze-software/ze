@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"strconv"
+	"time"
 )
 
 // EntryStatus describes the integrity state of a single store entry.
@@ -37,6 +38,22 @@ type RepairReport struct {
 	Skipped        []EntryStatus
 	RecoveredCount int
 	SkippedCount   int
+}
+
+// MoveAside renames a store file to <path>.replaced-<date> (local time) so a
+// fresh store can replace it without destroying the old one, which is kept for
+// post-mortem. Returns the backup path. Shared by the config storage layer's
+// corrupt-store self-heal (storage.NewBlob) and the `ze init --force` path.
+func MoveAside(path string) (string, error) {
+	dst := make([]byte, 0, len(path)+len(".replaced-")+len("2006-01-02T150405"))
+	dst = append(dst, path...)
+	dst = append(dst, ".replaced-"...)
+	dst = time.Now().AppendFormat(dst, "2006-01-02T150405")
+	dest := string(dst)
+	if err := os.Rename(path, dest); err != nil {
+		return "", fmt.Errorf("zefs: move aside %s: %w", path, err)
+	}
+	return dest, nil
 }
 
 // Check verifies the integrity of a ZeFS store at the given path.

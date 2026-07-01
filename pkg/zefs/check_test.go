@@ -7,6 +7,31 @@ import (
 	"testing"
 )
 
+// VALIDATES: MoveAside renames a store file to <path>.replaced-<date>, returns
+// the backup path, and preserves the original bytes for post-mortem.
+// PREVENTS: destroying a corrupt store during self-heal / `ze init --force`.
+func TestMoveAside(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "database.zefs")
+	if err := os.WriteFile(path, []byte("corrupt"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	dest, err := MoveAside(path)
+	if err != nil {
+		t.Fatalf("MoveAside: %v", err)
+	}
+	if !strings.HasPrefix(dest, path+".replaced-") {
+		t.Errorf("backup path = %q, want %q.replaced-<date>", dest, path)
+	}
+	if _, statErr := os.Stat(path); !os.IsNotExist(statErr) {
+		t.Errorf("original still present after MoveAside: err=%v", statErr)
+	}
+	data, err := os.ReadFile(dest)
+	if err != nil || string(data) != "corrupt" {
+		t.Fatalf("backup content = %q, %v; want \"corrupt\" preserved", data, err)
+	}
+}
+
 // VALIDATES: Check returns clean report for valid store (AC-4)
 // PREVENTS: false positives on healthy stores
 

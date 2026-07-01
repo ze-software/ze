@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -60,9 +59,11 @@ func NewBlob(blobPath, configDir string) (Storage, error) {
 		// existence, not validity. Preserve the bad file for post-mortem (matching
 		// `ze init --force`'s .replaced-<date> backup) and recreate in its place.
 		slog.Warn("storage: existing blob unreadable, recreating", "path", blobPath, "error", err)
-		if aside := moveAsideCorruptBlob(blobPath); aside != nil {
+		dest, aside := zefs.MoveAside(blobPath)
+		if aside != nil {
 			return nil, fmt.Errorf("storage: blob %s: %w", blobPath, aside)
 		}
+		slog.Warn("storage: moved unreadable blob aside", "from", blobPath, "to", dest)
 		store, err = zefs.Create(blobPath)
 		if err == nil {
 			migrateExistingFiles(store, configDir)
@@ -78,19 +79,6 @@ func NewBlob(blobPath, configDir string) (Storage, error) {
 		configDir: configDir,
 		metas:     make(map[string]*fileMeta),
 	}, nil
-}
-
-// moveAsideCorruptBlob renames an unreadable blob to <path>.replaced-<date> so a
-// fresh store can replace it without destroying the corrupt file (kept for
-// post-mortem). Mirrors moveAsideDB in the init plugin's `ze init --force` path.
-func moveAsideCorruptBlob(blobPath string) error {
-	var tb textbuf.Buffer
-	dest := tb.Str(blobPath).Str(".replaced-").Str(time.Now().Format("2006-01-02T150405")).String()
-	if err := os.Rename(blobPath, dest); err != nil {
-		return fmt.Errorf("move aside corrupt blob: %w", err)
-	}
-	slog.Warn("storage: moved unreadable blob aside", "from", blobPath, "to", dest)
-	return nil
 }
 
 // Rename renames a blob key. Reads old data, writes to new key, removes old.
