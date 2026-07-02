@@ -29,7 +29,7 @@ All leaves go under `service { as112 { ... } }`.
 | `hostname` | string (0-63) | (empty) | Node-identification string surfaced in HOSTNAME.AS112.NET/ARPA TXT answers, so operators can tell which anycast instance answered a query. Empty omits the TXT string. |
 | `facility` | string (0-100) | (empty) | Facility/site name surfaced alongside `location` in the HOSTNAME TXT answer. |
 | `location` | string (0-100) | (empty) | City/country surfaced alongside `facility`. |
-| `allow-from` | leaf-list (ip-prefix) | (empty = answer all) | Optional client-source access list. Non-empty: only queries from a listed prefix are answered, others are silently dropped. Loopback/on-box sources are always permitted regardless, so `as112 health` is never blocked. Setting this makes the node non-public — correct for a local-use mirror, wrong for a globally-reachable AS112 contributor. |
+| `allow-from` | leaf-list (ip-prefix) | (empty = answer all) | Optional client-source access list. Non-empty: only queries from a listed prefix are answered, others are silently dropped. Loopback/on-box sources are always permitted regardless, so `request as112 healthcheck` is never blocked. Setting this makes the node non-public — correct for a local-use mirror, wrong for a globally-reachable AS112 contributor. |
 <!-- source: internal/plugins/as112/yang/ze-as112-conf.yang -- YANG leaves -->
 
 The combined `hostname`+`facility`+`location` TXT payload is bounded so the assembled HOSTNAME.AS112.* response always fits 512 octets with TC=0, even at every field's maximum length (RFC 7534 §3.5).
@@ -43,7 +43,7 @@ The on-box carve-out recognizes both loopback and the node's own four anycast ad
 | Command | Description |
 |---------|-------------|
 | `show as112` | Node status: enabled, address-family, hostname/facility/location, allow-from count, served zone count, current SOA serial, and the address-registry's health (`address-registry-ok`; when false, `address-registry-error`/`address-registry-error-at` explain the most recent failure to apply the anycast addresses to a kernel interface). |
-| `as112 health [target <ip>]` | One-shot authoritative query against an anycast service address (or the given target; defaults to the address-family-appropriate loopback). Exit 0 iff the expected AS112 answer comes back — the tool a healthcheck probe or monitoring script calls, since `dig` is not on the gokrazy appliance and `ze resolve dns` cannot target a specific server. |
+| `request as112 healthcheck [target <ip>]` | One-shot authoritative query against an anycast service address (or the given target; defaults to the address-family-appropriate loopback). Exit 0 iff the expected AS112 answer comes back — the tool a healthcheck probe or monitoring script calls, since `dig` is not on the gokrazy appliance and `ze resolve dns` cannot target a specific server. |
 <!-- source: internal/plugins/as112/health.go -- handleAS112Health -->
 <!-- source: internal/plugins/as112/show.go -- handleShowAS112 -->
 
@@ -74,7 +74,7 @@ bgp {
             # itself must be started with ZE_CONFIG_DIR/ZE_SSH_PASSWORD (or
             # an equivalent credential) set in its OWN environment, since the
             # probe subprocess inherits it -- see "Probe credentials" below.
-            command "ze cli -c \"as112 health target 192.175.48.1\""
+            command "ze cli -c \"request as112 healthcheck target 192.175.48.1\""
             group as112-anycast
             interval 10
             rise 2
@@ -176,7 +176,7 @@ bgp {
 
 ### Probe credentials
 
-The healthcheck probe's `command` is a plain shell command (`/bin/sh -c "..."`), executed as a child of the `ze` daemon process and inheriting its environment. For `ze cli -c "as112 health target ..."` to authenticate back into the same daemon over SSH:
+The healthcheck probe's `command` is a plain shell command (`/bin/sh -c "..."`), executed as a child of the `ze` daemon process and inheriting its environment. For `ze cli -c "request as112 healthcheck target ..."` to authenticate back into the same daemon over SSH:
 
 1. Start the daemon with `ZE_CONFIG_DIR` and `ZE_SSH_PASSWORD` (or the super-admin credential of your choice) set in its own environment.
 2. Ensure `environment { ssh { enabled true; ... } }` is configured, and a `bgp { ... }` block is present (SSH command dispatch for a healthcheck probe requires the BGP-wired executor path; a bare `ssh {}`-only config with no `bgp {}` block routes through a different, standalone SSH path that does not carry this wiring).

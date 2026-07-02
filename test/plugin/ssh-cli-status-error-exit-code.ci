@@ -32,7 +32,7 @@
 #    at ZE_SSH_PASSWORD -- the actual auth secret is supplied via
 #    ZE_SSH_PASSWORD (plaintext), matched server-side against the YANG
 #    system.authentication.user bcrypt hash baked into the config below.
-# 3. `ze cli -c "as112 health"` queries the default target 127.0.0.1:53.
+# 3. `ze cli -c "request as112 healthcheck"` queries the default target 127.0.0.1:53.
 #    Nothing binds the privileged port 53 in this unprivileged sandbox (see
 #    test/plugin/as112-health.ci's identical rationale), so the health check
 #    fails and handleAS112Health returns Status:StatusError with a nil Go
@@ -140,15 +140,15 @@ ADMIN_DIR=$(mktemp -d)
 trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
 printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
 
-# Test 1 (core regression proof): "as112 health" fails (Status:StatusError,
+# Test 1 (core regression proof): "request as112 healthcheck" fails (Status:StatusError,
 # nil Go error from handleAS112Health) -- exit code MUST be non-zero.
-if ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "as112 health" >as112.out 2>as112.err; then
-	echo "FAIL: 'as112 health' should have exited non-zero (Status:StatusError) but exited 0" >&2
+if ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "request as112 healthcheck" >as112.out 2>as112.err; then
+	echo "FAIL: 'request as112 healthcheck' should have exited non-zero (Status:StatusError) but exited 0" >&2
 	echo "STDOUT: $(cat as112.out)" >&2
 	echo "STDERR: $(cat as112.err)" >&2
 	exit 1
 fi
-echo "OK: 'as112 health' exited non-zero as expected (Status:StatusError mapped to exit code)" >&2
+echo "OK: 'request as112 healthcheck' exited non-zero as expected (Status:StatusError mapped to exit code)" >&2
 
 # Test 2 (success path not broken): "show version" returns Status:StatusDone
 # under normal conditions -- exit code MUST be 0.

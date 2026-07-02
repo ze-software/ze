@@ -1,4 +1,4 @@
-# Test: `as112 health` RPC is reachable via the real CLI/plugin dispatch path
+# Test: `request as112 healthcheck` RPC is reachable via the real CLI/plugin dispatch path
 # and returns the documented response shape. This complements
 # TestHealthCommand_ExitCodes (unit test, exercises runHealthQuery directly
 # against a real bound server on an unprivileged test port -- both the
@@ -48,31 +48,31 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        resp = dispatch(api, 'as112 health')
+        resp = dispatch(api, 'request as112 healthcheck')
         status = resp.get('status')
         if status not in ('done', 'error'):
-            runtime_fail(f'as112 health: unexpected status={status} data={resp.get("data")}')
+            runtime_fail(f'request as112 healthcheck: unexpected status={status} data={resp.get("data")}')
 
         data = result_text_data(resp)
         if isinstance(data, str) and data:
             data = json.loads(data)
         if not isinstance(data, dict) or 'healthy' not in data:
-            runtime_fail(f'as112 health: expected dict with "healthy", got {data}')
+            runtime_fail(f'request as112 healthcheck: expected dict with "healthy", got {data}')
 
-        print(f'OK: as112 health dispatched, healthy={data.get("healthy")}', file=sys.stderr)
+        print(f'OK: request as112 healthcheck dispatched, healthy={data.get("healthy")}', file=sys.stderr)
 
-        resp = dispatch(api, 'as112 health target 127.0.0.1')
+        resp = dispatch(api, 'request as112 healthcheck target 127.0.0.1')
         status = resp.get('status')
         if status not in ('done', 'error'):
-            runtime_fail(f'as112 health target 127.0.0.1: unexpected status={status} data={resp.get("data")} (a malformed-args rejection would surface differently, not as this status)')
+            runtime_fail(f'request as112 healthcheck target 127.0.0.1: unexpected status={status} data={resp.get("data")} (a malformed-args rejection would surface differently, not as this status)')
 
         data = result_text_data(resp)
         if isinstance(data, str) and data:
             data = json.loads(data)
         if not isinstance(data, dict) or data.get('target') != '127.0.0.1:53':
-            runtime_fail(f'as112 health target 127.0.0.1: expected target="127.0.0.1:53" in response, got {data}')
+            runtime_fail(f'request as112 healthcheck target 127.0.0.1: expected target="127.0.0.1:53" in response, got {data}')
 
-        print(f'OK: as112 health target 127.0.0.1 dispatched, target={data.get("target")}', file=sys.stderr)
+        print(f'OK: request as112 healthcheck target 127.0.0.1 dispatched, target={data.get("target")}', file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()

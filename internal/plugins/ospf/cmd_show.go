@@ -46,7 +46,7 @@ const (
 	cmdClearProcess            = "clear ospf process"
 	cmdClearNeighbor           = "clear ospf neighbor"
 	cmdClearCounters           = "clear ospf counters"
-	cmdGRPrepare               = "ospf graceful-restart prepare"
+	cmdGRPrepare               = "request ospf graceful-restart"
 )
 
 func init() {
@@ -221,7 +221,7 @@ func forwardClearOSPFCounters(ctx *pluginserver.CommandContext, args []string) (
 	return forwardToOSPF(ctx, cmdClearCounters, args)
 }
 
-// forwardOSPFGRPrepare proxies the operator `ospf graceful-restart prepare` action to the OSPF
+// forwardOSPFGRPrepare proxies the operator `request ospf graceful-restart` action to the OSPF
 // engine, which runs prepareRestart against its live state (RFC 3623 sec 2.1). Same forwarding
 // contract as the clear commands: the noun is fixed in the grammar, so no arguments are taken.
 func forwardOSPFGRPrepare(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

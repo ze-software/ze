@@ -87,8 +87,8 @@ module ze-as112-conf {
                      contained in one of these prefixes are answered; all
                      others are silently dropped (no response). Loopback/
                      on-box sources are always implicitly permitted regardless
-                     of this list, so the 'as112 health' probe is never
-                     blocked. Setting this makes the node non-public --
+                     of this list, so the 'request as112 healthcheck' probe is
+                     never blocked. Setting this makes the node non-public --
                      correct for a local-use mirror, wrong for a
                      globally-reachable AS112 contributor.";
             }

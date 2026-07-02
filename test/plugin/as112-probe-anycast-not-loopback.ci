@@ -1,4 +1,4 @@
-# Test: a BGP healthcheck probe wired to the REAL `ze cli -c "as112 health
+# Test: a BGP healthcheck probe wired to the REAL `ze cli -c "request as112 healthcheck
 # target <ip>"` command (not a fake `true`/`false` probe) correctly drives the
 # watchdog to keep the AS112 route withdrawn when the target anycast service
 # address is unreachable -- proving the full probe -> FSM -> watchdog -> BGP
@@ -34,7 +34,7 @@
 #
 # This test also depends on test/plugin/ssh-cli-status-error-exit-code.ci's
 # fix (cmd/ze/hub/service_ssh.go's responseExecErr): without it, `ze cli -c
-# "as112 health target ..."` would always exit 0 regardless of DNS
+# "request as112 healthcheck target ..."` would always exit 0 regardless of DNS
 # reachability, so the probe would ALWAYS report UP and the route would be
 # announced immediately at startup -- exactly backwards from RFC 7534's
 # requirement. This test is the end-to-end proof that the fix, as112's health
@@ -52,7 +52,7 @@
 # that: the healthcheck probe subprocess is spawned BY THE DAEMON (via
 # exec.CommandContext in internal/component/bgp/plugins/healthcheck/probe.go,
 # which inherits the parent process's environment when Cmd.Env is nil), so its
-# `ze cli -c "as112 health target ..."` call needs working ZE_CONFIG_DIR/
+# `ze cli -c "request as112 healthcheck target ..."` call needs working ZE_CONFIG_DIR/
 # ZE_SSH_PASSWORD. But setting ZE_CONFIG_DIR on the DAEMON's own env is a
 # correctness bug, not just a style choice: internal/core/resolve/resolve.go's
 # Storage() reads the SAME "ze.config.dir" env var for the daemon's OWN config
@@ -102,7 +102,7 @@ service {
 bgp {
 	healthcheck {
 		probe as112check {
-			command "ZE_CONFIG_DIR=$ADMIN_DIR ZE_SSH_PASSWORD=testpass ze cli -c \"as112 health target 192.0.2.1\""
+			command "ZE_CONFIG_DIR=$ADMIN_DIR ZE_SSH_PASSWORD=testpass ze cli -c \"request as112 healthcheck target 192.0.2.1\""
 			group as112-hc
 			interval 1
 			rise 1

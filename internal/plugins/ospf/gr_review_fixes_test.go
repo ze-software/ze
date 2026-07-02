@@ -4,7 +4,7 @@
 //     direct noteAdjacencyFull call.
 //   - FIX 2: exitRestart snapshots m.cfg / m.reason under the lock, so a concurrent configure()
 //     cannot race the post-unlock exit actions (run this file under -race to exercise it).
-//   - FIX 3 (NOTE-3): the `ospf graceful-restart prepare` operator command drives prepareRestart
+//   - FIX 3 (NOTE-3): the `request ospf graceful-restart` operator command drives prepareRestart
 //     on the live engine (Grace-LSAs originated + graceful-stop suppression entered), and is
 //     refused when graceful-restart is disabled.
 //   - FIX 4 (NOTE-5, RFC 3623 sec A grace clock): the IPv4 helper honors the received Grace-LSA
@@ -88,7 +88,7 @@ func grPrepareEngine(t *testing.T, now time.Time) *engine {
 	return e
 }
 
-// TestGRPrepareCommandTriggersPrepareRestart (FIX 3, NOTE-3): the `ospf graceful-restart prepare`
+// TestGRPrepareCommandTriggersPrepareRestart (FIX 3, NOTE-3): the `request ospf graceful-restart`
 // command handler runs prepareRestart on the live engine -- it originates a Grace-LSA per
 // interface and enters the graceful-stop suppression state so the FIB is retained.
 func TestGRPrepareCommandTriggersPrepareRestart(t *testing.T) {

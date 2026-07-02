@@ -1,4 +1,4 @@
-// Design: plan/learned/1033-as112-2-dns-server.md -- `ze ... as112 health` command (finding M4)
+// Design: plan/learned/1033-as112-2-dns-server.md -- `ze ... request as112 healthcheck` command (finding M4)
 // RFC: rfc/short/rfc7534.md Section 3.3 -- healthcheck ordering: DNS readiness before BGP announcement
 
 package as112
@@ -18,7 +18,7 @@ import (
 // errHealthUsage is returned for any args shape other than none or the
 // documented "target <ip>" keyword form (yang/ze-as112-cmd.yang's usage
 // string).
-var errHealthUsage = errors.New("as112 health: usage is 'as112 health [target <ip>]'")
+var errHealthUsage = errors.New("request as112 healthcheck: usage is 'request as112 healthcheck [target <ip>]'")
 
 // healthCheckTimeout bounds the one-shot query the health command and probe
 // issue, so a wedged/unreachable target never hangs the caller.
@@ -75,7 +75,7 @@ func defaultHealthTarget() string {
 
 // parseHealthArgs extracts the optional target IP from the dispatcher's raw
 // args. The CLI dispatcher does not strip keyword tokens before invoking a
-// plugin RPC handler -- "as112 health target 1.2.3.4" reaches the handler
+// plugin RPC handler -- "request as112 healthcheck target 1.2.3.4" reaches the handler
 // as args=["target","1.2.3.4"], matching every other multi-leaf command
 // handler's convention (e.g. diag's tcp-check parses "source"/"timeout"
 // keywords itself; internal/component/plugin/server/command_test.go's
@@ -92,7 +92,7 @@ func parseHealthArgs(args []string) (string, error) {
 	return args[1], nil
 }
 
-// handleAS112Health answers the `as112 health` RPC: the optional "target
+// handleAS112Health answers the `request as112 healthcheck` RPC: the optional "target
 // <ip>" arg names the anycast address to query on port 53 (the
 // address-family-appropriate loopback is used when omitted). Returns a
 // non-error Response whose Data carries the same exit-code semantics

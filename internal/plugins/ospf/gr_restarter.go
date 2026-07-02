@@ -58,7 +58,7 @@ func (m *grManager) prepareRestart(reason uint8) error {
 	return nil
 }
 
-// grPrepareResult is the JSON payload the operator `ospf graceful-restart prepare` command
+// grPrepareResult is the JSON payload the operator `request ospf graceful-restart` command
 // returns: the address family it ran on and whether the planned restart (RFC 3623 sec 2.1) was
 // prepared, or a refusal message when graceful-restart is not configured (AC-25).
 type grPrepareResult struct {
@@ -69,7 +69,7 @@ type grPrepareResult struct {
 }
 
 // grPrepare runs the operator-triggered planned graceful restart (RFC 3623 sec 2.1, reason =
-// reload) invoked by the `ospf graceful-restart prepare` command: prepareRestart originates one
+// reload) invoked by the `request ospf graceful-restart` command: prepareRestart originates one
 // Grace-LSA per interface, persists the NVS restart fact, and enters the graceful-stop
 // suppression state so the ensuing engine stop retains the FIB. A disabled restarter is reported
 // (not errored) so the CLI prints a clean refusal rather than a transport-level error.

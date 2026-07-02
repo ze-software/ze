@@ -12,7 +12,7 @@ module ze-ospf-cmd {
          docs/architecture/cli/command-namespacing.md and
          ai/rules/plugin-self-containment.md.";
     revision 2026-07-02 {
-        description "Add the `ospf graceful-restart prepare` operator action (RFC 3623 planned
+        description "Add the `request ospf graceful-restart` operator action (RFC 3623 planned
              restart trigger, spec-ospf-ext-9); add `show ospf instance` for OSPFv2
              Multi-Instance (RFC 6549, spec-ospf-ext-12).";
     }
@@ -370,19 +370,18 @@ the SPF-run log is cleared.";
         }
     }
 
-    container ospf {
+    container request {
         config false;
-        description "OSPFv2 operational actions (RFC 2328).";
 
-        container graceful-restart {
+        container ospf {
             config false;
-            description "OSPFv2 (IPv4) Graceful Restart operator actions (RFC 3623).";
+            description "OSPFv2 operational actions (RFC 2328).";
 
-            container prepare {
+            container graceful-restart {
                 config false;
                 ze:command "ze-ospf:graceful-restart-prepare";
                 description "Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).
-Usage: ospf graceful-restart prepare. The engine originates one Grace-LSA per
+Usage: request ospf graceful-restart. The engine originates one Grace-LSA per
 interface, persists the non-volatile restart fact, and suppresses route churn
 so the FIB is retained across the ensuing control-plane restart. Refused when
 graceful-restart is not configured.";
