@@ -13,13 +13,14 @@ Steps (default order, also the --only vocabulary):
     features  data/features.json -> features/index.html  (tools/render-features.py)
     cli       `ze help command --json` -> cli/index.html  (tools/render-cli-catalog.py)
     deps      ../main/go.mod -> dependencies/index.html    (tools/render-dependencies.py)
-    config    ../main/internal/**/register.go + YANG -> config-reference/index.html
-              (tools/extract-plugin-registry.py, tools/extract-yang-config-tree.py,
+    config    live YANG + ../main/internal/**/register.go -> config-reference/index.html
+              (tools/extract-yang-config-tree.py, tools/extract-plugin-registry.py,
               tools/render-config-reference.py) -- extract-yang-config-tree.py runs
               `ze yang tree --json --config` against ../main/bin/ze (same
-              bin/ze requirement as the "cli" step) so each group can show
-              a readable, command-line-shaped config tree instead of only
-              raw YANG source
+              bin/ze requirement as the "cli" step) to get the whole config
+              tree; the plugin registry only supplies which plugin owns each
+              config section. The page is the whole configuration as one
+              searchable, collapsible tree of sections, not a per-plugin list
     contribute contribute/contribute.md -> contribute/index.html (tools/render-doc.py)
     talks     data/talks.json -> talks/index.html          (tools/render-talks.py)
     index     data/audience.json -> index.html            (tools/render-index.py)
@@ -280,20 +281,17 @@ def check_cli_count_drift():
 
 def check_config_reference_drift():
     """Same drift class again, for the Configuration Reference nav item's
-    plugin/group counts -- data/plugin-registry.json is regenerated fresh
-    from ../main/internal/**/register.go every `config` step run, but the
-    grouping logic (tools/render-config-reference.py's group_key()) has to
-    also run to know the group count, so this only checks the plugin count
-    (the number before "plugins across")."""
+    section count -- data/yang-config-tree.json is regenerated fresh from
+    the live `ze yang tree` every `config` step run; the nav desc's number
+    is not. Checks the top-level section count (the number before
+    "sections")."""
     import json
 
-    registry_path = GH_PAGES / "data" / "plugin-registry.json"
-    if not registry_path.exists():
+    tree_path = GH_PAGES / "data" / "yang-config-tree.json"
+    if not tree_path.exists():
         return
-    plugins = json.loads(registry_path.read_text())
-    live_count = sum(
-        1 for p in plugins if not p["source_dir"].startswith("internal/test/")
-    )
+    tree = json.loads(tree_path.read_text())
+    live_count = len(tree)
 
     nav = json.loads((GH_PAGES / "data" / "nav.json").read_text())
     project = next(d for d in nav["dropdowns"] if d["label"] == "Project")
@@ -308,8 +306,8 @@ def check_config_reference_drift():
     if config_item and str(live_count) not in config_item["desc"]:
         print(
             "warning: data/nav.json Configuration Reference dropdown says %r "
-            "but data/plugin-registry.json has %d non-test plugins -- update "
-            "the desc text in data/nav.json" % (config_item["desc"], live_count),
+            "but data/yang-config-tree.json has %d top-level sections -- "
+            "update the desc text in data/nav.json" % (config_item["desc"], live_count),
             file=sys.stderr,
         )
 

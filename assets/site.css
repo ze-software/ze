@@ -2083,52 +2083,32 @@ footer {
     box-shadow: var(--clay);
 }
 
-.config-group {
-    margin-bottom: 1rem;
+.config-section {
+    margin-bottom: 0.6rem;
     border: 1px solid var(--header-border);
     border-radius: 0.6rem;
     background: var(--panel-strong);
     overflow: hidden;
 }
 
-.config-group summary {
+.config-section > summary {
     padding: 0.7rem 1rem;
     background: var(--bg-soft);
     color: var(--text);
-    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
-    font-weight: 700;
     cursor: pointer;
     list-style: revert;
 }
 
-.config-group summary code {
-    font-weight: 400;
-    font-size: 0.85em;
+.config-section > summary > code {
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
 }
 
-.config-group-count {
-    color: var(--muted);
-    font-weight: 400;
-    font-size: 0.8em;
-}
-
-.config-group-body {
-    padding: 0.2rem 1rem 0.8rem;
-}
-
-.config-tree {
-    margin: 0.4rem 0 1rem;
-    padding: 0.8rem 1rem;
-    background: var(--bg-soft);
-    border: 1px solid var(--header-border);
-    border-radius: 0.5rem;
-}
-
-.config-tree-hint {
-    margin: 0 0 0.6rem;
-    color: var(--muted);
-    font-size: 0.82rem;
-    font-style: italic;
+.config-section > .yang-tree,
+.config-section > .config-owner-detail,
+.config-section > .config-owners {
+    margin: 0.6rem 1rem;
 }
 
 .yang-tree,
@@ -2176,41 +2156,38 @@ footer {
     color: var(--muted);
 }
 
-.config-plugins-heading {
-    margin: 0.8rem 0 0.2rem;
-    font-size: 0.85rem;
-    color: var(--muted);
+.config-owner {
+    color: var(--blue);
+    font-size: 0.72em;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
 }
 
-.config-plugin {
-    padding: 0.9rem 0;
-    border-top: 1px solid var(--line);
-}
-
-.config-group-body .config-plugin:first-child {
-    border-top: none;
-}
-
-.config-plugin h3 {
-    margin: 0 0 0.3rem;
-    font-size: 1rem;
-}
-
-.config-plugin-src {
+.config-owner-detail {
+    margin: 0.35rem 0;
     color: var(--muted);
-    font-weight: 400;
-    font-size: 0.78em;
+    font-size: 0.82rem;
 }
 
-.config-plugin-meta {
-    color: var(--muted);
-    font-size: 0.85rem;
-}
-
-.config-plugin-meta a {
+.config-owner-detail a,
+.config-owners a {
     text-decoration: underline;
+}
+
+.config-owners {
+    font-size: 0.82rem;
+}
+
+.config-owners > summary {
+    color: var(--muted);
+    cursor: pointer;
+    list-style: revert;
+}
+
+.config-owners ul {
+    margin: 0.3rem 0 0.3rem 1.1rem;
+    padding: 0;
 }
 
 .config-yang-missing {
