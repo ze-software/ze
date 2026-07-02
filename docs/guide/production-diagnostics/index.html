@@ -3,10 +3,10 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Static Routes - Ze</title>
-        <meta name="description" content="Ze documentation: guide/static-routes.md" />
-        <meta property="og:title" content="Static Routes - Ze" />
-        <meta property="og:description" content="Ze documentation: guide/static-routes.md" />
+        <title>Production Diagnostics Guide - Ze</title>
+        <meta name="description" content="Ze documentation: guide/production-diagnostics.md" />
+        <meta property="og:title" content="Production Diagnostics Guide - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/production-diagnostics.md" />
         <meta property="og:type" content="website" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -171,212 +171,279 @@
         </header>
 
         <main id="top">
-            <section class="md-content reveal cat-routing">
-<h1>Static Routes</h1>
-<p>Ze supports static routes with ECMP, weighted load balancing, BFD-tracked
-failover, blackhole, and reject. Routes are programmed directly to the
-kernel via netlink (or VPP when available). Routes are grouped under
-named tables for policy-based routing support.</p>
-<h2>Configuration</h2>
-<p>All routes live under a named table. Use <code>default</code> for the main
-routing table:</p>
-<pre><code>static {
-    table default {
-        route 0.0.0.0/0 {
-            next { hop 10.0.0.1 { } }
-        }
-    }
-}
-</code></pre>
-<h3>Named routing tables</h3>
-<p>Define named tables via the <code>routing-table</code> config block, then
-reference them in <code>static</code>:</p>
-<pre><code>routing-table {
-    table lns {
-        id 100
-    }
-}
+            <section class="md-content reveal cat-observe">
+<!-- Design: plan/spec-diag-core.md -- symptom-based diagnostic guide -->
 
-static {
-    table lns {
-        route 0.0.0.0/0 {
-            next { interface tun100 { } }
-        }
-    }
-}
+<h1>Production Diagnostics Guide</h1>
+<p>Symptom-based troubleshooting using Ze's built-in diagnostic commands. All commands work on gokrazy appliances without external Linux tools.</p>
+<h2>Quick Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>First Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BGP session won't establish</td>
+<td><code>show tcp-check &lt;peer-ip&gt; 179</code></td>
+</tr>
+<tr>
+<td>Path/routing issue</td>
+<td><code>show traceroute &lt;dest&gt;</code> or <code>monitor traceroute &lt;dest&gt;</code></td>
+</tr>
+<tr>
+<td>BGP session flapping</td>
+<td><code>show system kernel-log level warning count 50</code></td>
+</tr>
+<tr>
+<td>High CPU</td>
+<td><code>show system profile cpu duration 10s</code></td>
+</tr>
+<tr>
+<td>Memory leak</td>
+<td><code>show system profile heap</code></td>
+</tr>
+<tr>
+<td>FD exhaustion</td>
+<td><code>show system file-descriptors summary</code></td>
+</tr>
+<tr>
+<td>Goroutine leak</td>
+<td><code>show system goroutines summary</code></td>
+</tr>
+<tr>
+<td>DNS failure</td>
+<td><code>show dns lookup &lt;name&gt; type A</code></td>
+</tr>
+<tr>
+<td>Latency/reachability</td>
+<td><code>monitor ping &lt;target&gt;</code></td>
+</tr>
+<tr>
+<td>Process killed</td>
+<td><code>show system kernel-log level err</code></td>
+</tr>
+<tr>
+<td>Route/link/addr changes</td>
+<td><code>monitor system netlink all</code></td>
+</tr>
+<tr>
+<td>Packet-level debugging</td>
+<td><code>show capture interface eth0 tcp port 179 count 10 format text</code></td>
+</tr>
+</tbody>
+</table>
+<h2>Failure Categories</h2>
+<h3>1. BGP Session Won't Establish</h3>
+<p><strong>Verify TCP connectivity:</strong></p>
+<pre><code>show tcp-check &lt;peer-ip&gt; 179
 </code></pre>
-<p>The same prefix can appear in different tables independently.
-Routes in non-default tables are not redistributed into BGP.</p>
-<p>Reserved table IDs (0, 253-255) are rejected.</p>
-<h3>Interface-only next-hops</h3>
-<p>For point-to-point links (PPPoE, GRE tunnels) where the next-hop is
-the interface itself:</p>
-<pre><code>static {
-    table default {
-        route 0.0.0.0/0 {
-            next { interface pppoe0 { } }
-        }
-    }
-}
+<p>If "refused": peer is not listening. If "timeout": firewall or routing issue.</p>
+<p><strong>Trace the path to the peer:</strong></p>
+<pre><code>show traceroute &lt;peer-ip&gt;
 </code></pre>
-<p>Interface-only next-hops do not support BFD profiles (BFD requires a
-peer address). Weight is supported for ECMP:</p>
-<pre><code>static {
-    table default {
-        route 0.0.0.0/0 {
-            next {
-                interface pppoe0 { weight 3; }
-                interface pppoe1 { weight 1; }
-            }
-        }
-    }
-}
+<p>If hops stop before the peer, there is a routing or firewall issue at that hop.</p>
+<p><strong>Check sockets for existing connections:</strong></p>
+<pre><code>show system sockets tcp state ESTABLISHED port 179
 </code></pre>
-<h3>Mixed ECMP</h3>
-<p>Gateway and interface-only next-hops can coexist in the same route:</p>
-<pre><code>static {
-    table default {
-        route 0.0.0.0/0 {
-            next {
-                hop 10.0.0.1 { weight 3; }
-                interface pppoe0 { weight 1; }
-            }
-        }
-    }
-}
+<p><strong>Check DNS resolution of peer hostname:</strong></p>
+<pre><code>show dns lookup &lt;peer-hostname&gt;
 </code></pre>
-<h3>Multiple next-hops (ECMP)</h3>
-<p>All next-hops are installed simultaneously as a multipath route:</p>
-<pre><code>static {
-    table default {
-        route 10.0.0.0/8 {
-            next {
-                hop 192.168.1.1 { }
-                hop 192.168.1.2 { }
-                hop 192.168.1.3 { }
-            }
-        }
-    }
-}
+<p><strong>Inspect raw BGP messages:</strong></p>
+<pre><code>show capture-raw start bgp
+# Wait for connection attempt, then:
+show capture-raw dump bgp
 </code></pre>
-<h3>Weighted ECMP</h3>
-<p>The <code>weight</code> field controls traffic distribution. Higher weight means
-more traffic. Default is 1 (equal distribution).</p>
-<pre><code>static {
-    table default {
-        route 0.0.0.0/0 {
-            next {
-                hop 10.0.0.1 {
-                    weight 3
-                }
-                hop 10.0.0.2 {
-                    weight 1
-                }
-            }
-        }
-    }
-}
+<h3>2. BGP Session Flapping</h3>
+<p><strong>Check kernel log for link events:</strong></p>
+<pre><code>show system kernel-log level warning count 50
 </code></pre>
-<p>This sends 75% of traffic via 10.0.0.1 and 25% via 10.0.0.2.</p>
-<h3>BFD failover</h3>
-<p>Reference a BFD profile on each next-hop. When the BFD session goes
-down, that next-hop is removed from the ECMP group and the route is
-reprogrammed with the remaining active next-hops. When the session
-recovers, the next-hop is re-added.</p>
-<pre><code>bfd {
-    profile wan-fast {
-        detect-multiplier 3
-        desired-min-tx-us 100000
-        required-min-rx-us 100000
-    }
-}
-
-static {
-    table default {
-        route 0.0.0.0/0 {
-            next {
-                hop 10.0.0.1 {
-                    weight 3
-                    bfd-profile wan-fast
-                }
-                hop 10.0.0.2 {
-                    weight 1
-                    bfd-profile wan-fast
-                }
-            }
-        }
-    }
-}
+<p><strong>Stream live link/route events to correlate with flaps:</strong></p>
+<pre><code>monitor system netlink all
 </code></pre>
-<p>If all BFD-tracked next-hops go down, the route is withdrawn entirely.</p>
-<h3>Blackhole and reject</h3>
-<p>Blackhole silently discards matching packets. Reject discards and sends
-an ICMP unreachable reply.</p>
-<pre><code>static {
-    table default {
-        route 192.0.2.0/24 {
-            blackhole { }
-        }
-        route 198.51.100.0/24 {
-            reject { }
-        }
-    }
-}
+<p><strong>Check socket state churn:</strong></p>
+<pre><code>show system sockets tcp port 179
 </code></pre>
-<h3>IPv6</h3>
-<p>IPv6 routes work the same way. For link-local next-hops, specify the
-outgoing interface:</p>
-<pre><code>static {
-    table default {
-        route 2001:db8::/32 {
-            next { hop 2001:db8::1 { } }
-        }
-        route 2001:db8:1::/48 {
-            next {
-                hop fe80::1 {
-                    interface eth0
-                }
-            }
-        }
-    }
-}
+<p><strong>Inspect raw packets during flap:</strong></p>
+<pre><code>show capture-raw start bgp
+show capture-raw dump bgp pcap
 </code></pre>
-<h3>Route attributes</h3>
-<pre><code>static {
-    table default {
-        route 172.16.0.0/12 {
-            description &quot;internal networks&quot;
-            metric 100
-            tag 42
-            next { hop 10.0.0.1 { } }
-        }
-    }
-}
+<p><strong>Live packet capture on the interface (replaces tcpdump):</strong></p>
+<pre><code>show capture interface eth0 tcp port 179 count 20 format text
+show capture interface eth0 tcp port 179 duration 10s format pcap
 </code></pre>
-<ul>
-<li><code>description</code>: operator note (not programmed to kernel)</li>
-<li><code>metric</code>: kernel route priority (lower is preferred)</li>
-<li><code>tag</code>: opaque value for route policy matching in redistribute</li>
-</ul>
-<h2>CLI</h2>
-<pre><code>ze&gt; show static
+<h3>3. BGP Routes Not Received</h3>
+<pre><code>show bgp peer &lt;selector&gt;
+show capture-raw start bgp
 </code></pre>
-<p>Shows all configured static routes with their prefixes, next-hops,
-weights, and BFD status in JSON format.</p>
-<h2>Route programming</h2>
-<p>Static routes are programmed with <code>RTPROT_ZE</code> (protocol 250), the same
-identifier used by the FIB kernel plugin. On config reload, the plugin
-computes the diff between old and new routes and applies only the
-changes.</p>
-<p>Kernel ECMP uses <code>RTA_MULTIPATH</code> with per-next-hop weight mapped from
-the <code>weight</code> field (kernel weight = weight - 1).</p>
-<h2>Redistribute</h2>
-<p>Static routes register as protocol "static" in the redistribute
-framework. BGP redistribute can import static routes:</p>
-<pre><code>redistribute {
-    import static { }
-}
+<p>Check UPDATE messages in the capture for the expected NLRI.</p>
+<h3>4. BGP Routes Not Advertised</h3>
+<pre><code>show bgp peer &lt;selector&gt;
 </code></pre>
+<p>Check advertised route counts, filter configuration, and export policy.</p>
+<h3>5. High CPU Usage</h3>
+<p><strong>Capture CPU profile:</strong></p>
+<pre><code>show system profile cpu duration 10s
+</code></pre>
+<p>Decode the base64 output with <code>go tool pprof</code>.</p>
+<p><strong>Check goroutine distribution:</strong></p>
+<pre><code>show system goroutines summary
+</code></pre>
+<p>A large count in one state (e.g., "running") suggests a hot loop.</p>
+<p><strong>Check system metrics:</strong></p>
+<pre><code>show system cpu
+</code></pre>
+<h3>6. Memory Leak / High Memory</h3>
+<p><strong>Capture heap profile:</strong></p>
+<pre><code>show system profile heap
+</code></pre>
+<p><strong>Check process memory from the kernel's perspective:</strong></p>
+<pre><code>show system memory-map
+</code></pre>
+<p>Compare VmRSS with Go's heap-in-use from <code>show system memory</code>:</p>
+<pre><code>show system memory
+</code></pre>
+<p>If VmRSS is much larger than heap-in-use, memory is held outside Go's heap (cgo, mmap).</p>
+<p><strong>Check goroutines for leaks:</strong></p>
+<pre><code>show system goroutines summary
+show system goroutines blocked
+</code></pre>
+<h3>7. File Descriptor Exhaustion</h3>
+<p><strong>Check FD usage and limits:</strong></p>
+<pre><code>show system file-descriptors summary
+</code></pre>
+<p>If total is close to soft-limit, the process is near exhaustion.</p>
+<p><strong>Inspect individual FDs:</strong></p>
+<pre><code>show system file-descriptors detail
+</code></pre>
+<p>Look for unexpected socket or pipe accumulation.</p>
+<p><strong>Cross-reference with sockets:</strong></p>
+<pre><code>show system sockets
+</code></pre>
+<h3>8. Goroutine Leak</h3>
+<p><strong>Get current count and distribution:</strong></p>
+<pre><code>show system goroutines summary
+</code></pre>
+<p>Normal count depends on configuration. A steadily increasing count indicates a leak.</p>
+<p><strong>Find blocked goroutines:</strong></p>
+<pre><code>show system goroutines blocked
+</code></pre>
+<p>Large numbers stuck in "chan receive" or "select" with the same stack suggest leaked goroutines.</p>
+<p><strong>Full stack dump for analysis:</strong></p>
+<pre><code>show system goroutines full
+</code></pre>
+<h3>9. Process Killed (OOM / Signal)</h3>
+<p><strong>Check kernel log for OOM killer or signal events:</strong></p>
+<pre><code>show system kernel-log level err
+</code></pre>
+<p>Look for "Out of memory" or "Killed process" messages.</p>
+<p><strong>Check current memory state:</strong></p>
+<pre><code>show system memory-map
+</code></pre>
+<p><strong>Review warnings and errors:</strong></p>
+<pre><code>show warnings
+show errors
+</code></pre>
+<h3>10. Interface Down / Link Flap</h3>
+<pre><code>show interface
+show system kernel-log level warning
+monitor system netlink link
+</code></pre>
+<p><code>monitor system netlink link</code> streams live link state changes (up/down/create/delete). Press Esc to stop.</p>
+<h3>11. Kernel Route Missing</h3>
+<pre><code>show route
+show system sockets
+monitor system netlink route
+</code></pre>
+<p><code>monitor system netlink route</code> streams live kernel route changes to observe additions and deletions in real time.</p>
+<h3>12. DNS Resolution Failure</h3>
+<p><strong>Test resolution directly:</strong></p>
+<pre><code>show dns lookup &lt;hostname&gt; type A
+</code></pre>
+<p><strong>Check cache state:</strong></p>
+<pre><code>show dns cache stats
+show dns cache list
+</code></pre>
+<p>High miss rate with low hit rate suggests upstream resolver issues. <code>list</code>
+shows all cached entries with remaining TTL, useful for spotting stale or
+unexpectedly short-lived records.</p>
+<p><strong>Inspect a specific cached name:</strong></p>
+<pre><code>show dns cache record &lt;hostname&gt;
+</code></pre>
+<p><strong>Flush and start fresh:</strong></p>
+<pre><code>clear dns cache
+</code></pre>
+<p><strong>Verify socket connectivity to resolver:</strong></p>
+<pre><code>show tcp-check &lt;dns-server&gt; 53
+</code></pre>
+<h3>13. Config Commit Failure</h3>
+<pre><code>show errors
+show config diff
+</code></pre>
+<h3>14. Plugin Crash / Restart Loop</h3>
+<pre><code>show errors count 20
+show warnings
+show system goroutines summary
+show system kernel-log level err count 20
+</code></pre>
+<h3>15. CLI / SSH Unresponsive</h3>
+<p><strong>If the daemon is reachable via another path (web, MCP):</strong></p>
+<pre><code>show system goroutines blocked
+show system sockets
+show system file-descriptors summary
+</code></pre>
+<p>Look for goroutines stuck in "semacquire" or "IO wait".</p>
+<h3>16. Web UI Unreachable</h3>
+<pre><code>show tcp-check &lt;router-ip&gt; 3443
+show system sockets tcp port 3443
+show system goroutines summary
+show errors
+</code></pre>
+<h3>17. Telemetry / Metrics Gaps</h3>
+<pre><code>show metrics-query ze_bgp_sessions
+show system sockets
+show system profile cpu duration 5s
+</code></pre>
+<h3>18. Latency and Reachability</h3>
+<p><strong>Continuous ping to measure latency and loss:</strong></p>
+<pre><code>monitor ping &lt;target&gt;
+monitor ping &lt;target&gt; interval 500ms
+</code></pre>
+<p>Shows live stats: Sent, Recv, Loss%, Last, Min, Avg, Max, StDev. Use <code>| log</code> for scrollback output suitable for correlation with other events.</p>
+<p><strong>Continuous traceroute to observe path changes:</strong></p>
+<pre><code>monitor traceroute &lt;target&gt;
+monitor traceroute &lt;target&gt; | log | origin
+</code></pre>
+<p>mtr-style display with per-hop loss and latency statistics. <code>| log | origin</code>
+appends one line per round and annotates hops with ASN names, useful for
+identifying which network a path change occurs in. <code>| log | resolve</code> adds
+reverse DNS hostnames instead.</p>
+<h2>Profiling Workflow</h2>
+<h3>CPU Profile</h3>
+<pre><code>show system profile cpu duration 10s
+</code></pre>
+<p>Save the base64 output, decode, and analyze:</p>
+<pre><code class="language-bash">echo '&lt;base64-data&gt;' | base64 -d &gt; cpu.pprof
+go tool pprof cpu.pprof
+</code></pre>
+<h3>Heap Profile</h3>
+<pre><code>show system profile heap
+</code></pre>
+<p>Same workflow: decode base64, analyze with <code>go tool pprof</code>.</p>
+<h3>Concurrent Profiling</h3>
+<p>CPU profiling is mutex-protected. A second concurrent request returns an error. This prevents resource contention from overlapping profiles.</p>
+<h2>Platform Detection</h2>
+<p><code>show system platform</code> reports the runtime platform type and capability flags:</p>
+<pre><code>show system platform
+show system platform | json
+</code></pre>
+<p>Detected platforms: <strong>gokrazy</strong>, <strong>systemd</strong>, <strong>container</strong>, <strong>plain-linux</strong>, <strong>darwin</strong>.</p>
+<p>Capability flags: <code>read-only-root</code>, <code>perm-available</code>, <code>systemd-available</code>, <code>gokrazy-update-socket</code>, <code>gokrazy-ui-available</code>, <code>reboot-allowed</code>, <code>persistent-storage-writable</code>, <code>fd-limit-soft-current</code>, <code>fd-limit-hard-max</code>, <code>fd-limit-raisable</code>.</p>
+<p>Platform information is also included in <code>ze doctor</code> checks (e.g. gokrazy /perm writability) and <code>ze support</code> archives (as the <code>platform</code> module).</p>
+<h2>Platform Notes</h2>
+<p>Commands that read <code>/proc</code> (sockets, kernel-log, file-descriptors, memory-map) are Linux-only. On other platforms they return "not available on this platform". The remaining commands (tcp-check, traceroute, goroutines, dns, profile) work on all platforms but traceroute requires CAP_NET_RAW.</p>
             </section>
         </main>
 

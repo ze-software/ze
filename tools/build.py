@@ -11,6 +11,7 @@ Steps (default order, also the --only vocabulary):
     activity  git history -> activity/index.html         (tools/render-activity.py)
     compare   compare/comparison.md -> compare/index.html (tools/render-doc.py)
     features  data/features.json -> features/index.html  (tools/render-features.py)
+    cli       `ze help command --json` -> cli/index.html  (tools/render-cli-catalog.py)
     index     data/audience.json -> index.html            (tools/render-index.py)
     nav       patch <div class="nav-links"> in the remaining hand-authored
               pages (zeledon, labs/*, talks, style-guide, performance) so
@@ -32,7 +33,7 @@ GH_PAGES = HERE.parent
 sys.path.insert(0, str(HERE))
 import sitelib  # noqa: E402
 
-STEPS = ["docs", "blog", "activity", "compare", "features", "index", "nav"]
+STEPS = ["docs", "blog", "activity", "compare", "features", "cli", "index", "nav"]
 
 NAV_PATCH_TARGETS = [
     ("zeledon/index.html", "../"),
@@ -96,6 +97,11 @@ def step_features():
     return render_features.main()
 
 
+def step_cli():
+    render_cli_catalog = load_module("render-cli-catalog")
+    return render_cli_catalog.main()
+
+
 def step_index():
     render_index = load_module("render-index")
     return render_index.main()
@@ -115,6 +121,7 @@ STEP_FUNCS = {
     "activity": step_activity,
     "compare": step_compare,
     "features": step_features,
+    "cli": step_cli,
     "index": step_index,
     "nav": step_nav,
 }
@@ -147,6 +154,32 @@ def check_feature_count_drift():
         )
 
 
+def check_cli_count_drift():
+    """Same drift class as check_feature_count_drift, for the CLI Reference
+    nav item's command count -- data/cli-commands.json is regenerated fresh
+    from the binary every `cli` step run, data/nav.json's copy is not."""
+    import json
+
+    cli_data_path = GH_PAGES / "data" / "cli-commands.json"
+    if not cli_data_path.exists():
+        return
+    commands = json.loads(cli_data_path.read_text())
+    live_count = len(commands)
+
+    nav = json.loads((GH_PAGES / "data" / "nav.json").read_text())
+    project = next(d for d in nav["dropdowns"] if d["label"] == "Project")
+    cli_item = next(
+        (e for e in project["columns"][0] if e.get("title") == "CLI Reference"), None
+    )
+    if cli_item and str(live_count) not in cli_item["desc"]:
+        print(
+            "warning: data/nav.json CLI Reference dropdown says %r but "
+            "data/cli-commands.json has %d commands -- update the desc text "
+            "in data/nav.json" % (cli_item["desc"], live_count),
+            file=sys.stderr,
+        )
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -166,6 +199,7 @@ def main():
         return 1
 
     check_feature_count_drift()
+    check_cli_count_drift()
 
     failures = []
     for step in steps:

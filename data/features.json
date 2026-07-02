@@ -99,6 +99,28 @@
           ]
         },
         {
+          "category": "operate",
+          "status": null,
+          "title": "System Readiness",
+          "href": "docs/features/",
+          "external": false,
+          "chips": [
+            {
+              "text": "ze doctor",
+              "mode": false
+            },
+            {
+              "text": "ze explain",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Offline **pre-start checks**: config, TLS certs, kernel modules, listeners, disk space, clock skew",
+            "**Platform-aware**: gokrazy, systemd, container, plain-Linux detection",
+            "`--json` output with stable diagnostic codes and `ze explain <code>` **remediation**"
+          ]
+        },
+        {
           "category": "routing",
           "status": null,
           "title": "Native BGP Engine",
@@ -271,7 +293,29 @@
         {
           "category": "automate",
           "status": null,
-          "title": "Easy to Explore",
+          "title": "AI-First Design",
+          "href": "docs/features/ai-first/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Self-describing",
+              "mode": false
+            },
+            {
+              "text": "Skills",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**Self-describing** command catalog generated from the live binary, never hand-written",
+            "Structured **diagnostics**: `ze explain <code>` and machine-parseable repair plans",
+            "**Version-matched skills** served by the binary for agent workflows"
+          ]
+        },
+        {
+          "category": "automate",
+          "status": null,
+          "title": "MCP Integration",
           "href": "docs/features/mcp-integration/",
           "external": false,
           "chips": [
@@ -280,14 +324,14 @@
               "mode": false
             },
             {
-              "text": "Doctor",
+              "text": "OAuth 2.1",
               "mode": false
             }
           ],
           "bullets": [
-            "**MCP server** for AI debugging",
-            "Built-in **doctor** checks",
-            "Readable **state** and errors"
+            "**Streamable HTTP** transport, OAuth 2.1 resource server",
+            "Server-initiated **elicitation**, task-augmented tool calls",
+            "**MCP Apps UI** with embedded panels"
           ]
         },
         {
@@ -478,7 +522,7 @@
           "category": "observe",
           "status": null,
           "title": "Production Diagnostics",
-          "href": "docs/features/",
+          "href": "docs/guide/production-diagnostics/",
           "external": false,
           "chips": [
             {
@@ -815,7 +859,7 @@
           "category": "services",
           "status": "experimental",
           "title": "VPP Data Plane",
-          "href": "docs/features/",
+          "href": "docs/guide/vpp/",
           "external": false,
           "chips": [
             {

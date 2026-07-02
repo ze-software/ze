@@ -35,7 +35,11 @@
                     <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../../features/">
                             <span class="nav-dropdown-icon">🧩</span>
-                            <span><strong>Features</strong><small>42 features, color-coded by category</small></span>
+                            <span><strong>Features</strong><small>44 features, color-coded by category</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../cli/">
+                            <span class="nav-dropdown-icon">⌨️</span>
+                            <span><strong>CLI Reference</strong><small>311 commands, generated from the live binary</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../performance/">
                             <span class="nav-dropdown-icon">⚡</span>
@@ -331,7 +335,7 @@
 <td>Public BGP looking glass with birdwatcher API, AS path graphs, and BMP-monitored route display</td>
 </tr>
 <tr>
-<td><a href="https://github.com/ze-software/ze/blob/main/docs/features/ai-first.md" target="_blank" rel="noopener">AI-First Design</a></td>
+<td><a href="ai-first/">AI-First Design</a></td>
 <td>Supported</td>
 <td>Self-describing CLI-as-API with MCP transport for AI assistants</td>
 </tr>
@@ -393,7 +397,7 @@
 <tr>
 <td>Core Diagnostics</td>
 <td>Supported</td>
-<td>11 built-in diagnostic commands replacing ss, dmesg, lsof, dig, nc, traceroute, mtr, ping, tcpdump, and pprof on gokrazy appliances: <code>show system sockets</code> (TCP/UDP state), <code>show system kernel-log</code> (dmesg), <code>show system goroutines</code> (dump with singleflight dedup), <code>show tcp-check</code> (port probe), <code>show traceroute</code> (ICMP path trace with per-hop RTT, IPv4/IPv6), <code>monitor traceroute</code> (live mtr-style continuous trace with <code>| log | resolve</code> and <code>| log | origin</code> enrichment), <code>monitor ping</code> (continuous ICMP ping with live stats), <code>show capture interface</code> (AF_PACKET live capture with BPF filters, pcap or text output), <code>show system file-descriptors</code> (FD counts and limits), <code>show dns lookup/cache</code> (DNS resolution, cache listing, selective delete, flush, stats reset), <code>show system profile</code> (cpu/heap pprof), <code>show system memory-map</code> (/proc/self/status). <code>monitor system netlink</code> streams kernel route/link/address change events as JSON (replaces <code>ip monitor</code>). BFD raw capture ring. Root privilege enforcement at startup. See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/production-diagnostics.md" target="_blank" rel="noopener">Production Diagnostics Guide</a>. <!-- source: internal/component/iface/cmd/monitor_netlink_linux.go -- streamNetlinkMonitor --></td>
+<td>11 built-in diagnostic commands replacing ss, dmesg, lsof, dig, nc, traceroute, mtr, ping, tcpdump, and pprof on gokrazy appliances: <code>show system sockets</code> (TCP/UDP state), <code>show system kernel-log</code> (dmesg), <code>show system goroutines</code> (dump with singleflight dedup), <code>show tcp-check</code> (port probe), <code>show traceroute</code> (ICMP path trace with per-hop RTT, IPv4/IPv6), <code>monitor traceroute</code> (live mtr-style continuous trace with <code>| log | resolve</code> and <code>| log | origin</code> enrichment), <code>monitor ping</code> (continuous ICMP ping with live stats), <code>show capture interface</code> (AF_PACKET live capture with BPF filters, pcap or text output), <code>show system file-descriptors</code> (FD counts and limits), <code>show dns lookup/cache</code> (DNS resolution, cache listing, selective delete, flush, stats reset), <code>show system profile</code> (cpu/heap pprof), <code>show system memory-map</code> (/proc/self/status). <code>monitor system netlink</code> streams kernel route/link/address change events as JSON (replaces <code>ip monitor</code>). BFD raw capture ring. Root privilege enforcement at startup. See <a href="../guide/production-diagnostics/">Production Diagnostics Guide</a>. <!-- source: internal/component/iface/cmd/monitor_netlink_linux.go -- streamNetlinkMonitor --></td>
 </tr>
 <tr>
 <td>Crash Capture</td>

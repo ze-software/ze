@@ -1150,6 +1150,14 @@ section {
     color: var(--acc-deep);
 }
 
+.card ul code {
+    padding: 0.05rem 0.3rem;
+    border-radius: 0.3rem;
+    background: var(--bg-soft);
+    color: var(--acc-deep);
+    font-size: 0.85em;
+}
+
 .card-label {
     display: inline-flex;
     width: fit-content;
@@ -1814,4 +1822,71 @@ footer {
         display: block;
         overflow-x: auto;
     }
+}
+
+#cli-search {
+    display: block;
+    width: 100%;
+    margin: 1rem 0 1.6rem;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid var(--header-border);
+    border-radius: 0.6rem;
+    background: var(--panel-strong);
+    color: var(--text);
+    font-size: 1rem;
+    box-shadow: var(--clay);
+}
+
+.cli-group {
+    margin-bottom: 1rem;
+    border: 1px solid var(--header-border);
+    border-radius: 0.6rem;
+    background: var(--panel-strong);
+    overflow: hidden;
+}
+
+.cli-group summary {
+    padding: 0.7rem 1rem;
+    background: var(--bg-soft);
+    color: var(--text);
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: revert;
+}
+
+.cli-group-count {
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 0.85em;
+}
+
+.cli-group table {
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.cli-mode {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.cli-mode-daemon {
+    background: var(--sky-tint);
+    color: var(--sky-deep);
+}
+
+.cli-mode-read-only {
+    background: var(--mint-tint);
+    color: var(--mint-deep);
+}
+
+.cli-mode-offline {
+    background: var(--bg-soft);
+    color: var(--muted);
 }

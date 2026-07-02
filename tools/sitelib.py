@@ -8,6 +8,7 @@ render-activity.py, which is how a bulk-patch bug once duplicated dropdown
 content across 82 pages: three copies to keep in sync, one code path now.
 """
 
+import html
 import json
 import pathlib
 import re
@@ -369,9 +370,15 @@ def page_foot(root):
 
 
 BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+CODE_RE = re.compile(r"`([^`]+?)`")
 
 
 def bold(text):
-    """Convert Zeledon-style **bold** markers to <strong> for card bullet
-    text pulled out of data/*.json -- avoids storing raw HTML in data."""
+    """Convert Zeledon-style **bold** and `code` markers to <strong>/<code>
+    for card bullet text pulled out of data/*.json -- avoids storing raw
+    HTML in data. Code-span content is HTML-escaped first: unescaped, a
+    literal "<code>" placeholder inside backticks (meant as display text,
+    e.g. `` `ze explain <code>` ``) gets parsed as a real opening tag by the
+    browser instead of shown as text, swallowing everything after it."""
+    text = CODE_RE.sub(lambda m: "<code>%s</code>" % html.escape(m.group(1)), text)
     return BOLD_RE.sub(r"<strong>\1</strong>", text)

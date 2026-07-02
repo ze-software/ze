@@ -250,6 +250,9 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
                         MPLS, and appliance packaging.
                     </p>
                 </div>
+                <div class="actions reveal">
+                    <a class="button" href="features/">See all {feature_count} features</a>
+                </div>
             </section>
 
 
@@ -363,9 +366,16 @@ def render(data):
     )
     head = sitelib.page_head(title, desc, root, og_title=title, og_desc=og_desc)
 
+    features = json.loads((GH_PAGES / "data" / "features.json").read_text())
+    core = next(s for s in features["sections"] if s["id"] == "core")
+    experimental = next(s for s in features["sections"] if s["id"] == "experimental")
+    feature_count = len(core["cards"]) + len(experimental["cards"])
+
     run_cards = "\n".join(render_run_card(c) for c in data["run"])
     who_cards = "\n".join(render_who_card(c) for c in data["who"])
-    body = BODY.format(run_cards=run_cards, who_cards=who_cards)
+    body = BODY.format(
+        run_cards=run_cards, who_cards=who_cards, feature_count=feature_count
+    )
 
     DEST.write_text(head + body + sitelib.page_foot(root))
     print("rendered %s -> %s" % (DATA, DEST))

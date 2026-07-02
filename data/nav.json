@@ -8,7 +8,8 @@
             "label": "Project",
             "columns": [
                 [
-                    {"href": "features/", "icon": "🧩", "title": "Features", "desc": "42 features, color-coded by category"},
+                    {"href": "features/", "icon": "🧩", "title": "Features", "desc": "44 features, color-coded by category"},
+                    {"href": "cli/", "icon": "⌨️", "title": "CLI Reference", "desc": "311 commands, generated from the live binary"},
                     {"href": "performance/", "icon": "⚡", "title": "Performance", "desc": "Measured BGP benchmarks, not claims"},
                     {"href": "compare/", "icon": "⚖️", "title": "Compare", "desc": "How Ze stacks up against BIRD, FRR, and more"},
                     {"href": "activity/", "icon": "📈", "title": "Activity", "desc": "A year of commits, at a glance"}
