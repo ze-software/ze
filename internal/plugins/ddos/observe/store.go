@@ -89,6 +89,14 @@ func (s *store) activeCount() int {
 	return count
 }
 
+// count returns the number of incidents currently held in the ring (active and
+// finalized). Cheaper than len(list()), which copies the whole ring.
+func (s *store) count() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.ring)
+}
+
 func (s *store) list() []incident {
 	s.mu.Lock()
 	defer s.mu.Unlock()

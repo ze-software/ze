@@ -37,13 +37,13 @@ func swapBackendGateSchema(t *testing.T, s *config.Schema) {
 
 // VALIDATES: init() registers the traffic plugin under Name="traffic" with
 //
-//	ConfigRoots=["traffic-control"] so the engine dispatches the
+//	ConfigRoots=["traffic/control"] so the engine dispatches the
 //	right config section to the plugin's runEngine.
 //
 // PREVENTS: A rename drift that stops the reactor from ever receiving the
 //
-//	traffic-control section. A broken ConfigRoots entry would
-//	silently leave the traffic-control block parsed but unhandled.
+//	traffic/control section. A broken ConfigRoots entry would
+//	silently leave the traffic/control block parsed but unhandled.
 func TestTrafficPluginRegistered(t *testing.T) {
 	reg := registry.Lookup("traffic")
 	require.NotNil(t, reg, "traffic plugin must be registered under Name=\"traffic\"")
@@ -53,25 +53,25 @@ func TestTrafficPluginRegistered(t *testing.T) {
 	assert.NotEmpty(t, reg.YANG, "traffic plugin must ship its YANG schema")
 }
 
-// VALIDATES: OnConfigVerify rejects a traffic-control section when the active
+// VALIDATES: OnConfigVerify rejects a traffic/control section when the active
 //
 //	backend is "" (non-Linux default). The walker's empty-backend
 //	guard fires even though no YANG annotations exist today.
 //
-// PREVENTS: A non-Linux deployment silently installing a traffic-control
+// PREVENTS: A non-Linux deployment silently installing a traffic/control
 //
 //	config that could never be programmed, with a runtime Apply
 //	failure surfacing only after commit.
 func TestTrafficBackendGateRejects_EmptyBackend(t *testing.T) {
 	// Force-load the real schema via validateBackendGate so the cache has a
 	// known-good value, then overwrite backend to "".
-	data := `{"traffic-control":{"interface":{"eth0":{"name":"eth0"}}}}`
+	data := `{"traffic":{"control":{"interface":{"eth0":{"name":"eth0"}}}}}`
 	sections := []sdk.ConfigSection{{Root: configRootTraffic, Data: data}}
 
 	err := validateBackendGate(sections, "")
 	require.Error(t, err, "empty backend must be rejected")
 	assert.Contains(t, err.Error(), backendLeafPath,
-		"rejection must name /traffic-control/backend so operators know where to set it")
+		"rejection must name /traffic/control/backend so operators know where to set it")
 }
 
 // VALIDATES: OnConfigVerify returns the aggregated error when a node carries
@@ -92,26 +92,30 @@ func TestTrafficBackendGateRejects_Synthetic(t *testing.T) {
 	list.Backend = []string{"tc"}
 
 	synthetic := config.NewSchema()
-	synthetic.Define(configRootTraffic, config.Container(
-		config.Field("backend", config.Leaf(config.TypeString)),
-		config.Field("interface", list),
+	// The gate resolves the nested "traffic/control" path, so the synthetic
+	// schema must nest control under traffic to mirror production.
+	synthetic.Define("traffic", config.Container(
+		config.Field("control", config.Container(
+			config.Field("backend", config.Leaf(config.TypeString)),
+			config.Field("interface", list),
+		)),
 	))
 
 	swapBackendGateSchema(t, synthetic)
 
-	data := `{"traffic-control":{"backend":"vpp","interface":{"eth0":{"name":"eth0"}}}}`
+	data := `{"traffic":{"control":{"backend":"vpp","interface":{"eth0":{"name":"eth0"}}}}}`
 	sections := []sdk.ConfigSection{{Root: configRootTraffic, Data: data}}
 
 	err := validateBackendGate(sections, "vpp")
 	require.Error(t, err, "synthetic schema must reject vpp backend on tc-annotated list")
 	msg := err.Error()
-	assert.True(t, strings.Contains(msg, "/traffic-control/interface"),
-		"rejection must name the /traffic-control/interface YANG path, got: %s", msg)
+	assert.True(t, strings.Contains(msg, "/traffic/control/interface"),
+		"rejection must name the /traffic/control/interface YANG path, got: %s", msg)
 	assert.Contains(t, msg, `"vpp"`, "rejection must name the active backend")
 	assert.Contains(t, msg, "tc", "rejection must list supporting backends")
 }
 
-// VALIDATES: AC-3 -- when the SDK delivers a payload with no traffic-control
+// VALIDATES: AC-3 -- when the SDK delivers a payload with no traffic/control
 //
 //	section, parseTrafficSections returns the idle default
 //	(backend=defaultBackendName, empty interfaces) and
@@ -120,7 +124,7 @@ func TestTrafficBackendGateRejects_Synthetic(t *testing.T) {
 //
 // PREVENTS: regression where the reactor loads a backend and calls Apply for
 //
-//	configs that never mention traffic-control -- wasteful at best,
+//	configs that never mention traffic/control -- wasteful at best,
 //	incorrect when the OS has no default backend.
 func TestTrafficPayloadWithoutSection_IsIdle(t *testing.T) {
 	sections := []sdk.ConfigSection{
@@ -128,7 +132,7 @@ func TestTrafficPayloadWithoutSection_IsIdle(t *testing.T) {
 		{Root: "interface", Data: `{"interface":{}}`},
 	}
 	assert.False(t, hasTrafficSection(sections),
-		"payload without traffic-control must be idle")
+		"payload without traffic/control must be idle")
 
 	cfg, err := parseTrafficSections(sections)
 	require.NoError(t, err, "idle payload must not produce a parse error")

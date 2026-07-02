@@ -8,10 +8,10 @@ package detect
 import "testing"
 
 func TestParseConfigLeaves(t *testing.T) {
-	data := `{"anomaly-detect":{"enabled":true,"deviation-threshold":4.5,` +
+	data := `{"anomaly":{"detect":{"enabled":true,"deviation-threshold":4.5,` +
 		`"min-features-to-correlate":2,"min-cohort-size":8,"corroboration-weight":0.6,` +
 		`"confirm-duration":5,"clear-consecutive":8,"baseline-window":600,` +
-		`"cohort-prefix-len-v4":24,"cohort-prefix-len-v6":48}}`
+		`"cohort-prefix-len-v4":24,"cohort-prefix-len-v6":48}}}`
 	cfg, err := ParseConfig(data)
 	if err != nil {
 		t.Fatal(err)

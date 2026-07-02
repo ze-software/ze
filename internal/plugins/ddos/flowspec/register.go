@@ -16,6 +16,10 @@ import (
 
 var eventBusPtr atomic.Pointer[ze.EventBus]
 
+// activeResponder publishes the live responder to the in-process show handler
+// (show.go). Nil when the plugin is not configured/running.
+var activeResponder atomic.Pointer[responder]
+
 func loadBus() (ze.EventBus, error) {
 	p := eventBusPtr.Load()
 	if p == nil {
@@ -56,6 +60,7 @@ func runEngine(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	var resp *responder
+	defer activeResponder.Store(nil)
 
 	parseSections := func(sections []sdk.ConfigSection) (*Config, error) {
 		for _, s := range sections {
@@ -109,6 +114,7 @@ func runEngine(conn net.Conn) int {
 			return err
 		}
 		resp = newResponder(cfg)
+		activeResponder.Store(resp)
 		subscribe(bus, resp)
 		log.Info("ddos-flowspec: configured", "response-level", cfg.ResponseLevel, "action", cfg.Action)
 		return nil
@@ -135,6 +141,7 @@ func runEngine(conn net.Conn) int {
 			return err
 		}
 		resp = newResponder(cfg)
+		activeResponder.Store(resp)
 		subscribe(bus, resp)
 		return nil
 	})

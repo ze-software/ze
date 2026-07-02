@@ -62,18 +62,37 @@ func ValidateBackendFeatures(
 	if schema == nil || tree == nil {
 		return nil
 	}
-	rootNode := schema.Get(componentRoot)
-	if rootNode == nil {
+	// componentRoot may be a nested PathSep path (e.g. "traffic/control");
+	// resolve both the schema node and the JSON subtree by walking each segment.
+	rootNode, err := schema.Lookup(componentRoot)
+	if err != nil || rootNode == nil {
 		return nil
 	}
-	subtree, ok := tree[componentRoot].(map[string]any)
+	subtree, ok := treeAtPath(tree, componentRoot)
 	if !ok {
 		return nil
 	}
 
+	var pb textbuf.Buffer
+	pb.Byte('/').Str(componentRoot)
 	var errs []error
-	walkBackendNode(rootNode, subtree, "/"+componentRoot, activeBackend, &errs)
+	walkBackendNode(rootNode, subtree, pb.String(), activeBackend, &errs)
 	return errs
+}
+
+// treeAtPath walks a parsed JSON config map along a PathSep-separated path,
+// descending one map level per segment. Returns the leaf map and true when
+// every segment resolves to a nested object; false otherwise.
+func treeAtPath(tree map[string]any, path string) (map[string]any, bool) {
+	cur := tree
+	for _, seg := range SplitPath(path) {
+		next, ok := cur[seg].(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		cur = next
+	}
+	return cur, true
 }
 
 // walkBackendNode walks node alongside data. Returns two flags used to

@@ -72,8 +72,10 @@ bgp {
 	}
 }
 
-traffic-control {
-	backend tc
+traffic {
+	control {
+		backend tc
+	}
 }
 EOF_CONF
 
@@ -108,7 +110,9 @@ bgp {
 	}
 }
 
-traffic-control {
+traffic {
+	control {
+	}
 }
 EOF_CONF2
 

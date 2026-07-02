@@ -53,6 +53,21 @@ func (c *Config) IsEmpty() bool {
 	return !c.Enabled
 }
 
+// usageSubtree unwraps the two-level section wrapping that the plugin-server
+// ExtractConfigSubtree helper produces for the "traffic/usage" config root:
+// {"traffic": {"usage": {...}}}. Returns nil when either level is absent.
+func usageSubtree(root map[string]any) map[string]any {
+	traffic, ok := root["traffic"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	usage, ok := traffic["usage"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return usage
+}
+
 // ParseConfig parses the traffic-usage JSON config section. The daemon delivers
 // leaves as JSON strings ("2000"); array-form and unit-test configs embed JSON
 // numbers and bools. Defaults are applied for absent leaves.
@@ -71,8 +86,9 @@ func ParseConfig(data string) (*Config, error) {
 		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
 
-	tu, ok := root[configRoot].(map[string]any)
-	if !ok {
+	// Section is wrapped by ExtractConfigSubtree as {"traffic":{"usage":{...}}}.
+	tu := usageSubtree(root)
+	if tu == nil {
 		return cfg, nil
 	}
 

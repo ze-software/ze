@@ -2,13 +2,15 @@
 # Validates: the YANG range "100..3600000" on interval is enforced (interval 99
 #   below the minimum is rejected at config validation).
 stdin=config:terminator=EOF_CONF
-traffic-usage {
-	enabled true
-	interfaces {
-		interface eth0 {
+traffic {
+	usage {
+		enabled true
+		interfaces {
+			interface eth0 {
+			}
 		}
+		interval 99
 	}
-	interval 99
 }
 EOF_CONF
 

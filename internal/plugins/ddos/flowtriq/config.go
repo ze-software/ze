@@ -11,8 +11,11 @@ import (
 )
 
 const (
-	Name       = "ddos-flowtriq"
-	configRoot = "ddos-flowtriq"
+	Name = "ddos-flowtriq"
+	// configRoot is the nested YANG config path (ddos/flowtriq); the plugin
+	// augments the shared `ddos` container, so the section is wrapped as
+	// {"ddos":{"flowtriq":{...}}}.
+	configRoot = "ddos/flowtriq"
 )
 
 var loggerPtr atomic.Pointer[slog.Logger]
@@ -52,7 +55,12 @@ func ParseConfig(data string) (*Config, error) {
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
-	m, ok := root[configRoot].(map[string]any)
+	// Section is wrapped by ExtractConfigSubtree as {"ddos":{"flowtriq":{...}}}.
+	ddos, ok := root["ddos"].(map[string]any)
+	if !ok {
+		return cfg, nil
+	}
+	m, ok := ddos["flowtriq"].(map[string]any)
 	if !ok {
 		return cfg, nil
 	}

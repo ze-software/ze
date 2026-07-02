@@ -80,8 +80,8 @@ func TestCharacterizeTargetQueriesAndParses(t *testing.T) {
 	if prefix.String() != "203.0.113.9/32" {
 		t.Errorf("prefix: got %s want 203.0.113.9/32", prefix)
 	}
-	if gotCmd != "show traffic-usage name xe0" {
-		t.Errorf("command: got %q want \"show traffic-usage name xe0\"", gotCmd)
+	if gotCmd != "show traffic usage name xe0" {
+		t.Errorf("command: got %q want \"show traffic usage name xe0\"", gotCmd)
 	}
 }
 
@@ -389,7 +389,7 @@ func TestCharacterizeEmitsCharacterized(t *testing.T) {
 	bus := newDTestBus()
 	d := newDetector(floodConfig(), bus, func(_ context.Context, cmd string) (string, json.RawMessage, error) {
 		switch {
-		case strings.HasPrefix(cmd, "show traffic-usage"):
+		case strings.HasPrefix(cmd, "show traffic usage"):
 			return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.42","bytes":1000000}]}`), nil
 		case strings.HasPrefix(cmd, "show flow-recent"):
 			return statusDone, json.RawMessage(flowJSON), nil
@@ -431,7 +431,7 @@ func TestCharacterizeEmitsCharacterized(t *testing.T) {
 func TestCharacterizeSkipsWhenNoFlowSource(t *testing.T) {
 	bus := newDTestBus()
 	d := newDetector(floodConfig(), bus, func(_ context.Context, cmd string) (string, json.RawMessage, error) {
-		if strings.HasPrefix(cmd, "show traffic-usage") {
+		if strings.HasPrefix(cmd, "show traffic usage") {
 			return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.42","bytes":1000000}]}`), nil
 		}
 		return "", nil, errors.New("ErrUnknownCommand") // flow-recent absent
@@ -569,7 +569,7 @@ func TestNoStaleCharacterizedAfterClear(t *testing.T) {
 	cfg := floodConfig()
 	cfg.ClearConsecutive = 1 // clear quickly so it races the blocked flow query
 	d := newDetector(cfg, bus, func(_ context.Context, cmd string) (string, json.RawMessage, error) {
-		if strings.HasPrefix(cmd, "show traffic-usage") {
+		if strings.HasPrefix(cmd, "show traffic usage") {
 			return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.1","bytes":1}]}`), nil
 		}
 		<-release // flow-recent blocks until the attack has cleared

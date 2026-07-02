@@ -146,6 +146,10 @@ ze-show:capture
 ze-show:capture-interface
 ze-show:capture-raw
 ze-show:crashes
+ze-show:ddos-flowspec
+ze-show:ddos-incidents
+ze-show:ddos-local
+ze-show:ddos-status
 ze-show:dns-cache
 ze-show:dns-lookup
 ze-show:doctor

@@ -32,7 +32,7 @@ func NewTreeCompleter(root *Node) *TreeCompleter {
 }
 
 // SetActiveBackends sets the per-component active backend map.
-// Keys are component root names (e.g. "interface", "firewall", "traffic-control"),
+// Keys are component root paths (e.g. "interface", "firewall", "traffic/control"),
 // values are backend names (e.g. "netlink", "vpp", "nft").
 func (c *TreeCompleter) SetActiveBackends(backends map[string]string) {
 	c.activeBackends = backends

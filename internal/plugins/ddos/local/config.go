@@ -10,8 +10,11 @@ import (
 )
 
 const (
-	Name       = "ddos-local"
-	configRoot = "ddos-local"
+	Name = "ddos-local"
+	// configRoot is the nested YANG config path (ddos/local); the plugin augments
+	// the shared `ddos` container, so the section is wrapped as
+	// {"ddos":{"local":{...}}}.
+	configRoot = "ddos/local"
 )
 
 type Config struct {
@@ -36,7 +39,12 @@ func ParseConfig(data string) (*Config, error) {
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
-	m, ok := root[configRoot].(map[string]any)
+	// Section is wrapped by ExtractConfigSubtree as {"ddos":{"local":{...}}}.
+	ddos, ok := root["ddos"].(map[string]any)
+	if !ok {
+		return cfg, nil
+	}
+	m, ok := ddos["local"].(map[string]any)
 	if !ok {
 		return cfg, nil
 	}

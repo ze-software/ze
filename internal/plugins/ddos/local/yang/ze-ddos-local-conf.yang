@@ -2,23 +2,31 @@ module ze-ddos-local-conf {
   namespace "urn:ze:ddos-local-conf";
   prefix ddos-local;
 
-  container ddos-local {
-    leaf response-level {
-      type enumeration {
-        enum alert;
-        enum enforce;
+  import ze-ddos-detect-conf { prefix dd; }
+
+  description "Local (drop-rule) mitigation configuration. Augments the shared `ddos`
+               container (owned by ze-ddos-detect-conf) with the `local` subtree.";
+  revision 2026-07-02 { description "Nest under ddos/local: augment /dd:ddos with container local."; }
+
+  augment "/dd:ddos" {
+    container local {
+      leaf response-level {
+        type enumeration {
+          enum alert;
+          enum enforce;
+        }
+        default alert;
+        description "Action on attack detection: alert (log only) or enforce (install drop rule).";
       }
-      default alert;
-      description "Action on attack detection: alert (log only) or enforce (install drop rule).";
-    }
-    leaf max-mitigation-duration {
-      type uint32 { range "0..86400"; }
-      default 3600;
-      description "Maximum seconds a drop rule stays installed (0 = no cap).";
-    }
-    leaf-list allowlist {
-      type string;
-      description "Prefixes that must never be blocked.";
+      leaf max-mitigation-duration {
+        type uint32 { range "0..86400"; }
+        default 3600;
+        description "Maximum seconds a drop rule stays installed (0 = no cap).";
+      }
+      leaf-list allowlist {
+        type string;
+        description "Prefixes that must never be blocked.";
+      }
     }
   }
 }

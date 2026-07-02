@@ -2,10 +2,18 @@ module ze-traffic-control-conf {
     namespace "urn:ze:traffic:conf";
     prefix tc;
 
-    description "Traffic control (tc) configuration for Ze.
-                 Configures queueing disciplines, classes, and filters
-                 per network interface.";
+    description "Traffic subsystem configuration for Ze.
+                 Owns the top-level `traffic` container. The `control`
+                 subtree configures queueing disciplines, classes, and
+                 filters per network interface. Sibling subtrees (e.g.
+                 `usage`, contributed by the traffic-usage plugin) augment
+                 the same `traffic` parent.";
 
+    revision 2026-07-02 {
+        description "Nest traffic-control under traffic/control; the container
+                     now owns the shared traffic parent that traffic-usage
+                     augments.";
+    }
     revision 2026-04-13 {
         description "Initial revision";
     }
@@ -42,85 +50,89 @@ module ze-traffic-control-conf {
         description "Traffic filter match type";
     }
 
-    container traffic-control {
-        description "Per-interface traffic control configuration";
+    container traffic {
+        description "Traffic subsystem: QoS control and byte-usage accounting.";
 
-        leaf backend {
-            type string;
-            default "tc";
-            description "Traffic control backend implementation. Default is
-                         tc (Linux iproute2 queueing disciplines). Future
-                         backends can declare themselves via
-                         traffic.RegisterBackend. The ze:backend YANG
-                         extension on feature nodes declares per-feature
-                         backend support so the commit-time gate rejects
-                         configs that try to use unsupported qdiscs or
-                         filter types.";
-        }
+        container control {
+            description "Per-interface traffic control configuration";
 
-        list interface {
-            key "name";
-            description "Traffic control for a named interface";
-
-            leaf name {
+            leaf backend {
                 type string;
-                description "Interface name (must exist in interface config)";
+                default "tc";
+                description "Traffic control backend implementation. Default is
+                             tc (Linux iproute2 queueing disciplines). Future
+                             backends can declare themselves via
+                             traffic.RegisterBackend. The ze:backend YANG
+                             extension on feature nodes declares per-feature
+                             backend support so the commit-time gate rejects
+                             configs that try to use unsupported qdiscs or
+                             filter types.";
             }
 
-            container qdisc {
-                description "Root queueing discipline";
+            list interface {
+                key "name";
+                description "Traffic control for a named interface";
 
-                leaf type {
-                    type qdisc-type;
-                    mandatory true;
-                    description "Qdisc type";
-                }
-
-                leaf default-class {
+                leaf name {
                     type string;
-                    description "Name of the default class for unclassified traffic";
+                    description "Interface name (must exist in interface config)";
                 }
 
-                list class {
-                    key "name";
-                    description "Traffic class within the qdisc";
+                container qdisc {
+                    description "Root queueing discipline";
 
-                    leaf name {
-                        type string {
-                            length "1..255";
-                        }
-                        description "Class name";
-                    }
-
-                    leaf rate {
-                        type rate-bps;
+                    leaf type {
+                        type qdisc-type;
                         mandatory true;
-                        description "Guaranteed rate";
+                        description "Qdisc type";
                     }
 
-                    leaf ceil {
-                        type rate-bps;
-                        description "Maximum rate (defaults to rate if omitted)";
+                    leaf default-class {
+                        type string;
+                        description "Name of the default class for unclassified traffic";
                     }
 
-                    leaf priority {
-                        type uint8;
-                        description "Scheduling priority (0 = highest)";
-                    }
+                    list class {
+                        key "name";
+                        description "Traffic class within the qdisc";
 
-                    list match {
-                        key "type";
-                        description "Filter to classify packets into this class";
-
-                        leaf type {
-                            type filter-type;
-                            description "Match type";
+                        leaf name {
+                            type string {
+                                length "1..255";
+                            }
+                            description "Class name";
                         }
 
-                        leaf value {
-                            type string;
+                        leaf rate {
+                            type rate-bps;
                             mandatory true;
-                            description "Match value (mark hex, dscp name, protocol name)";
+                            description "Guaranteed rate";
+                        }
+
+                        leaf ceil {
+                            type rate-bps;
+                            description "Maximum rate (defaults to rate if omitted)";
+                        }
+
+                        leaf priority {
+                            type uint8;
+                            description "Scheduling priority (0 = highest)";
+                        }
+
+                        list match {
+                            key "type";
+                            description "Filter to classify packets into this class";
+
+                            leaf type {
+                                type filter-type;
+                                description "Match type";
+                            }
+
+                            leaf value {
+                                type string;
+                                mandatory true;
+                                description "Match value (mark hex, dscp name, protocol name)";
+                            }
                         }
                     }
                 }

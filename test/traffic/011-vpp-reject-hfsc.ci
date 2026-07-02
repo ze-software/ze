@@ -54,11 +54,13 @@ bgp {
 	}
 }
 
-traffic-control {
-	backend vpp
-	interface eth0 {
-		qdisc {
-			type hfsc
+traffic {
+	control {
+		backend vpp
+		interface eth0 {
+			qdisc {
+				type hfsc
+			}
 		}
 	}
 }

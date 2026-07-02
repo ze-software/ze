@@ -12,7 +12,7 @@ import (
 
 func enabledDetectTree() *config.Tree {
 	tree := config.NewTree()
-	dd := tree.GetOrCreateContainer(configRoot)
+	dd := tree.GetOrCreateContainer("ddos").GetOrCreateContainer("detect")
 	dd.Set("enabled", "true")
 	return tree
 }
@@ -29,7 +29,7 @@ func TestCheckFlowSourceWarnsWhenNoSource(t *testing.T) {
 func TestCheckFlowSourceSilentWithSource(t *testing.T) {
 	// traffic-usage present -> no warning.
 	tu := enabledDetectTree()
-	tu.GetOrCreateContainer("traffic-usage")
+	tu.GetOrCreateContainer("traffic").GetOrCreateContainer("usage")
 	assert.Empty(t, checkFlowSource(registry.DoctorCheckContext{Tree: tu}))
 
 	// flow-export present -> no warning.
@@ -41,12 +41,12 @@ func TestCheckFlowSourceSilentWithSource(t *testing.T) {
 func TestCheckFlowSourceSilentWhenDisabled(t *testing.T) {
 	// characterize-enable=false -> no warning even with no source.
 	off := enabledDetectTree()
-	off.GetContainer(configRoot).Set("characterize-enable", "false")
+	off.GetContainerPath(configRoot).Set("characterize-enable", "false")
 	assert.Empty(t, checkFlowSource(registry.DoctorCheckContext{Tree: off}))
 
 	// detector not enabled -> no warning.
 	notEnabled := config.NewTree()
-	notEnabled.GetOrCreateContainer(configRoot).Set("enabled", "false")
+	notEnabled.GetOrCreateContainer("ddos").GetOrCreateContainer("detect").Set("enabled", "false")
 	assert.Empty(t, checkFlowSource(registry.DoctorCheckContext{Tree: notEnabled}))
 
 	// ddos-detect absent, and nil tree -> no warning.

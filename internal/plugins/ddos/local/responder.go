@@ -139,6 +139,14 @@ func (r *responder) removeMitigation() {
 	logger().Info("ddos-local: drop rule removed", "target", r.target.DstPrefix)
 }
 
+// status returns a mutex-safe snapshot for the show handler: whether an on-host
+// drop is currently installed and, if so, the target vector it covers.
+func (r *responder) status() (active bool, target ddosevent.VectorTuple) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.active, r.target
+}
+
 func familyFromPrefix(p netip.Prefix) firewall.TableFamily {
 	if p.Addr().Is4() {
 		return firewall.FamilyIP

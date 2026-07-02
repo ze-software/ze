@@ -1,0 +1,32 @@
+module ze-ddos-cmd {
+    namespace "urn:ze:ddos:cmd";
+    prefix ddoscmd;
+    import ze-extensions { prefix ze; }
+    description "show ddos command tree. Owned by the ddos-observe plugin, which holds the incident store, so removing the plugin removes the status/incidents nodes and their handlers together. The `ddos` namespace container-merges with the sibling ddos plugins (local, flowspec) that add their own mitigation views. See ai/rules/plugin-self-containment.md.";
+    revision 2026-07-02 { description "Initial: show ddos status + show ddos incidents (ddos is a pure namespace)."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container ddos {
+            config false;
+            description "Distributed denial-of-service detection and mitigation subsystem.";
+
+            container status {
+                config false;
+                ze:command "ze-show:ddos-status";
+                description "Show DDoS observation status: whether the incident store is running, the
+number of currently active attacks, and the number of incidents retained in the ring.";
+            }
+
+            container incidents {
+                config false;
+                ze:command "ze-show:ddos-incidents";
+                description "Show the recent DDoS incident ring (newest first): per incident the
+target vector (prefix/proto/port), attack family, top source addresses, peak pps/bps,
+start/end time, and whether it is still active.";
+            }
+        }
+    }
+}

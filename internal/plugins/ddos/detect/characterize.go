@@ -247,13 +247,13 @@ func (d *detector) characterizeTarget(ctx context.Context, ifaceName string) (ne
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("show traffic-usage name ").Str(ifaceName)
+	tb.Str("show traffic usage name ").Str(ifaceName)
 
 	status, data, err := d.dispatch(ctx, tb.String())
 	if err != nil || status != statusDone {
 		d.sourceAbsentOnce.Do(func() {
 			logger().Warn("ddos-detect: flow source unavailable; characterization falling back to generic-flood",
-				"command", "show traffic-usage", "status", status, "error", err)
+				"command", "show traffic usage", "status", status, "error", err)
 		})
 		return netip.Prefix{}, false
 	}

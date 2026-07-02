@@ -21,14 +21,14 @@ func checkFeatureSource(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagno
 	if !ok || tree == nil {
 		return nil
 	}
-	ad := tree.GetContainer(configRoot)
+	ad := tree.GetContainerPath(configRoot)
 	if ad == nil {
 		return nil
 	}
 	if enabled, ok := ad.Get("enabled"); !ok || enabled != "true" {
 		return nil
 	}
-	if tree.GetContainer("traffic-usage") != nil || tree.GetContainer("flow-export") != nil {
+	if tree.GetContainerPath("traffic/usage") != nil || tree.GetContainer("flow-export") != nil {
 		return nil
 	}
 	return []rpc.DoctorCheckDiagnostic{{

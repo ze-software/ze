@@ -13,8 +13,8 @@ func TestNameAndConfigRoot(t *testing.T) {
 	if Name != "traffic-usage" {
 		t.Errorf("Name = %q, want traffic-usage", Name)
 	}
-	if configRoot != "traffic-usage" {
-		t.Errorf("configRoot = %q, want traffic-usage", configRoot)
+	if configRoot != "traffic/usage" {
+		t.Errorf("configRoot = %q, want traffic/usage", configRoot)
 	}
 }
 

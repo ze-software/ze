@@ -55,7 +55,7 @@ func handleShowTrafficUsage(_ *pluginserver.CommandContext, args []string) (*plu
 	}
 	return &plugin.Response{
 		Status: plugin.StatusError,
-		Error:  "usage: show traffic-usage [name <interface>]",
+		Error:  "usage: show traffic usage [name <interface>]",
 	}, nil
 }
 

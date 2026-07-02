@@ -10,8 +10,8 @@ func TestParseBlackholeFallback(t *testing.T) {
 
 	// Accept both the array-form bool and the daemon's string form.
 	for _, data := range []string{
-		`{"ddos-flowspec":{"blackhole-fallback":true}}`,
-		`{"ddos-flowspec":{"blackhole-fallback":"true"}}`,
+		`{"ddos":{"flowspec":{"blackhole-fallback":true}}}`,
+		`{"ddos":{"flowspec":{"blackhole-fallback":"true"}}}`,
 	} {
 		cfg, err := ParseConfig(data)
 		if err != nil {

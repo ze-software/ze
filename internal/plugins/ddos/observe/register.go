@@ -17,6 +17,11 @@ import (
 
 var eventBusPtr atomic.Pointer[ze.EventBus]
 
+// activeStore publishes the live incident ring to the in-process show handlers
+// (show.go). The plugin runs as a goroutine, so the handler reads it directly.
+// Nil when the plugin is not configured/running.
+var activeStore atomic.Pointer[store]
+
 func loadBus() (ze.EventBus, error) {
 	p := eventBusPtr.Load()
 	if p == nil {
@@ -28,7 +33,7 @@ func loadBus() (ze.EventBus, error) {
 func init() {
 	reg := registry.Registration{
 		Name:        Name,
-		Description: "DDoS observability: incident store, status CLI, doctor, metrics",
+		Description: "DDoS observability: incident store and show ddos status/incidents CLI",
 		Features:    "yang",
 		YANG:        observeyang.ZeDdosObserveConfYANG,
 		ConfigRoots: []string{configRoot},
@@ -57,6 +62,7 @@ func runEngine(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	var incidentStore *store
+	defer activeStore.Store(nil)
 
 	parseSections := func(sections []sdk.ConfigSection) (*Config, error) {
 		for _, s := range sections {
@@ -115,6 +121,7 @@ func runEngine(conn net.Conn) int {
 		}
 		staleTimeout := time.Duration(cfg.StaleIncidentTimeout) * time.Second
 		incidentStore = newStore(cfg.IncidentRingSize, staleTimeout)
+		activeStore.Store(incidentStore)
 		subscribe(bus, incidentStore)
 		log.Info("ddos-observe: configured", "ring-size", cfg.IncidentRingSize)
 		return nil
@@ -142,6 +149,7 @@ func runEngine(conn net.Conn) int {
 		}
 		staleTimeout := time.Duration(cfg.StaleIncidentTimeout) * time.Second
 		incidentStore = newStore(cfg.IncidentRingSize, staleTimeout)
+		activeStore.Store(incidentStore)
 		subscribe(bus, incidentStore)
 		return nil
 	})

@@ -29,13 +29,15 @@ var (
 	errTrafficControlConfigApplyNoBackend   = errors.New("traffic-control config apply: no backend available")
 )
 
-// configRootTraffic is the top-level YANG config root that the traffic plugin
-// owns. The YANG container and this string MUST match.
-const configRootTraffic = "traffic-control"
+// configRootTraffic is the nested YANG config path that the traffic plugin
+// owns (traffic/control). The plugin-server ExtractConfigSubtree helper wraps
+// the delivered section as {"traffic":{"control":{...}}}. This string, the
+// ConfigRoots/WantsConfig entries, and the YANG container path MUST match.
+const configRootTraffic = "traffic/control"
 
 // backendLeafPath is the YANG path surfaced in backend-gate error text so
 // operators know where to change the backend leaf.
-const backendLeafPath = "/traffic-control/backend"
+const backendLeafPath = "/traffic/control/backend"
 
 // backendGateSchema caches the config schema used by validateBackendGate.
 // Built lazily on first commit/verify to avoid paying YANG load cost at
@@ -113,7 +115,8 @@ func parseTrafficSectionData(data string) (*trafficConfig, error) {
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return nil, fmt.Errorf("traffic-control config: unmarshal: %w", err)
 	}
-	if tcMap, ok := root[configRootTraffic].(map[string]any); ok {
+	// Section is wrapped by ExtractConfigSubtree as {"traffic":{"control":{...}}}.
+	if tcMap := controlSubtree(root); tcMap != nil {
 		if b, ok := tcMap["backend"].(string); ok && b != "" {
 			cfg.Backend = b
 		}

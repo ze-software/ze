@@ -16,7 +16,7 @@ import (
 func TestParseConfig(t *testing.T) {
 	// interfaces is a keyed list (OSPF/ISIS shape); eth2 is disabled and must be
 	// excluded. Map iteration order is unspecified, so assert on the set.
-	data := `{"traffic-usage":{"enabled":true,"interfaces":{"interface":{"eth0":{},"eth1":{},"eth2":{"enabled":false}}},"interval":2000,"stale-timeout":600000,"track-ip":true,"max-entries":4096}}`
+	data := `{"traffic":{"usage":{"enabled":true,"interfaces":{"interface":{"eth0":{},"eth1":{},"eth2":{"enabled":false}}},"interval":2000,"stale-timeout":600000,"track-ip":true,"max-entries":4096}}}`
 	cfg, err := ParseConfig(data)
 	if err != nil {
 		t.Fatalf("ParseConfig: %v", err)
@@ -51,7 +51,7 @@ func TestParseConfig(t *testing.T) {
 func TestParseConfigDefaults(t *testing.T) {
 	// Daemon delivers leaves as JSON strings; defaults must still apply for
 	// leaves not present. A keyed-list entry with no body is enabled by default.
-	data := `{"traffic-usage":{"enabled":"true","interfaces":{"interface":{"eth0":{}}}}}`
+	data := `{"traffic":{"usage":{"enabled":"true","interfaces":{"interface":{"eth0":{}}}}}}`
 	cfg, err := ParseConfig(data)
 	if err != nil {
 		t.Fatalf("ParseConfig: %v", err)
@@ -77,7 +77,7 @@ func TestParseConfigDefaults(t *testing.T) {
 }
 
 func TestParseConfigEmpty(t *testing.T) {
-	for _, data := range []string{``, `{}`, `{"traffic-usage":{}}`, `{"traffic-usage":{"enabled":false}}`} {
+	for _, data := range []string{``, `{}`, `{"traffic":{"usage":{}}}`, `{"traffic":{"usage":{"enabled":false}}}`} {
 		cfg, err := ParseConfig(data)
 		if err != nil {
 			t.Fatalf("ParseConfig(%q): %v", data, err)
@@ -90,7 +90,7 @@ func TestParseConfigEmpty(t *testing.T) {
 
 func TestParseConfigInterfaceDisabled(t *testing.T) {
 	// An interface present but enabled=false is not accounted on.
-	cfg, err := ParseConfig(`{"traffic-usage":{"enabled":true,"interfaces":{"interface":{"eth0":{"enabled":false}}}}}`)
+	cfg, err := ParseConfig(`{"traffic":{"usage":{"enabled":true,"interfaces":{"interface":{"eth0":{"enabled":false}}}}}}`)
 	if err != nil {
 		t.Fatalf("ParseConfig: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestParseConfigInterfaceDisabled(t *testing.T) {
 }
 
 func TestParseConfigNoInterface(t *testing.T) {
-	cfg, err := ParseConfig(`{"traffic-usage":{"enabled":true}}`)
+	cfg, err := ParseConfig(`{"traffic":{"usage":{"enabled":true}}}`)
 	if err != nil {
 		t.Fatalf("ParseConfig: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestParseConfigNoInterface(t *testing.T) {
 // oneIface returns a traffic-usage config JSON with a single enabled interface
 // (eth0) plus the given extra leaf body.
 func oneIface(extra string) string {
-	return `{"traffic-usage":{"enabled":true,"interfaces":{"interface":{"eth0":{}}}` + extra + `}}`
+	return `{"traffic":{"usage":{"enabled":true,"interfaces":{"interface":{"eth0":{}}}` + extra + `}}}`
 }
 
 func TestParseConfigIntervalTooSmall(t *testing.T) {
@@ -175,7 +175,7 @@ func TestParseConfigMaxEntriesBounds(t *testing.T) {
 func TestParseConfigPerInterfaceOverride(t *testing.T) {
 	// Globals: track-ip true, stale-timeout 600000ms (10m), max-entries 4096.
 	// eth0 inherits all of them; eth1 overrides each.
-	data := `{"traffic-usage":{"enabled":true,"track-ip":true,"stale-timeout":600000,"max-entries":4096,"interfaces":{"interface":{"eth0":{},"eth1":{"track-ip":false,"stale-timeout":120000,"max-entries":1024}}}}}`
+	data := `{"traffic":{"usage":{"enabled":true,"track-ip":true,"stale-timeout":600000,"max-entries":4096,"interfaces":{"interface":{"eth0":{},"eth1":{"track-ip":false,"stale-timeout":120000,"max-entries":1024}}}}}}`
 	cfg, err := ParseConfig(data)
 	if err != nil {
 		t.Fatalf("ParseConfig: %v", err)

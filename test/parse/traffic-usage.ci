@@ -7,21 +7,23 @@
 #   test/plugin/traffic-usage-config.ci (command surface) and the QEMU
 #   integration tests (runtime data path).
 stdin=config:terminator=EOF_CONF
-traffic-usage {
-	enabled true
-	interfaces {
-		interface eth0 {
+traffic {
+	usage {
+		enabled true
+		interfaces {
+			interface eth0 {
+			}
+			interface eth1 {
+				track-ip false
+				stale-timeout 60000
+				max-entries 1024
+			}
 		}
-		interface eth1 {
-			track-ip false
-			stale-timeout 60000
-			max-entries 1024
-		}
+		interval 1000
+		stale-timeout 300000
+		track-ip true
+		max-entries 10240
 	}
-	interval 1000
-	stale-timeout 300000
-	track-ip true
-	max-entries 10240
 }
 EOF_CONF
 

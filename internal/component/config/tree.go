@@ -249,6 +249,20 @@ func (t *Tree) GetContainer(name string) *Tree {
 	return t.containers[name]
 }
 
+// GetContainerPath resolves a PathSep-separated container path (e.g.
+// "traffic/usage"), walking one container level per segment. Returns nil if any
+// segment is absent. A single-segment path is equivalent to GetContainer.
+func (t *Tree) GetContainerPath(path string) *Tree {
+	cur := t
+	for _, seg := range SplitPath(path) {
+		if cur == nil {
+			return nil
+		}
+		cur = cur.GetContainer(seg)
+	}
+	return cur
+}
+
 // SetContainer sets a nested container.
 func (t *Tree) SetContainer(name string, child *Tree) {
 	t.mu.Lock()

@@ -2,78 +2,85 @@ module ze-traffic-usage-conf {
     namespace "urn:ze:traffic-usage:conf";
     prefix trafficusageconf;
 
-    description "eBPF TCX per-port and per-IP byte accounting configuration.";
+    import ze-traffic-control-conf { prefix tc; }
+
+    description "eBPF TCX per-port and per-IP byte accounting configuration.
+                 Augments the shared `traffic` container (owned by
+                 ze-traffic-control-conf) with the `usage` subtree.";
+    revision 2026-07-02 { description "Nest under traffic/usage: augment /tc:traffic with container usage."; }
     revision 2026-06-24 { description "Initial revision."; }
 
-    container traffic-usage {
-        description "Per-interface eBPF TCX byte accounting (port/protocol always; per-IP via track-ip).";
+    augment "/tc:traffic" {
+        container usage {
+            description "Per-interface eBPF TCX byte accounting (port/protocol always; per-IP via track-ip).";
 
-        leaf enabled {
-            type boolean;
-            default false;
-            description "Enable traffic-usage accounting.";
-        }
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Enable traffic-usage accounting.";
+            }
 
-        container interfaces {
-            description "Interfaces to account on.";
-            list interface {
-                key "name";
-                description "Per-interface traffic-usage accounting.";
-                leaf name {
-                    type string {
-                        length "1..255";
-                        pattern '[A-Za-z0-9][A-Za-z0-9._@-]*';
+            container interfaces {
+                description "Interfaces to account on.";
+                list interface {
+                    key "name";
+                    description "Per-interface traffic-usage accounting.";
+                    leaf name {
+                        type string {
+                            length "1..255";
+                            pattern '[A-Za-z0-9][A-Za-z0-9._@-]*';
+                        }
+                        description "ze interface name; resolved to its OS/kernel device (honoring the os-name / mac-match selectors) before attaching.";
                     }
-                    description "ze interface name; resolved to its OS/kernel device (honoring the os-name / mac-match selectors) before attaching.";
-                }
-                leaf enabled {
-                    type boolean;
-                    default true;
-                    description "Account traffic on this interface.";
-                }
-                leaf track-ip {
-                    type boolean;
-                    description "Override the global track-ip for this interface (inherits the global value when unset).";
-                }
-                leaf stale-timeout {
-                    type uint32;
-                    description "Override the global stale-timeout (milliseconds; 0 disables) for this interface (inherits when unset).";
-                }
-                leaf max-entries {
-                    type uint32 {
-                        range "1..4294967295";
+                    leaf enabled {
+                        type boolean;
+                        default true;
+                        description "Account traffic on this interface.";
                     }
-                    description "Override the global max-entries (per-map LRU capacity) for this interface (inherits when unset).";
+                    leaf track-ip {
+                        type boolean;
+                        description "Override the global track-ip for this interface (inherits the global value when unset).";
+                    }
+                    leaf stale-timeout {
+                        type uint32;
+                        description "Override the global stale-timeout (milliseconds; 0 disables) for this interface (inherits when unset).";
+                    }
+                    leaf max-entries {
+                        type uint32 {
+                            range "1..4294967295";
+                        }
+                        description "Override the global max-entries (per-map LRU capacity) for this interface (inherits when unset).";
+                    }
                 }
             }
-        }
 
-        leaf interval {
-            type uint32 {
-                range "100..3600000";
+            leaf interval {
+                type uint32 {
+                    range "100..3600000";
+                }
+                default 1000;
+                description "Map poll interval in milliseconds (100ms..1h).";
             }
-            default 1000;
-            description "Map poll interval in milliseconds (100ms..1h).";
-        }
 
-        leaf stale-timeout {
-            type uint32;
-            default 300000;
-            description "Remove a metric series unseen within this many milliseconds; 0 disables cleanup.";
-        }
-
-        leaf track-ip {
-            type boolean;
-            default false;
-            description "Also account bytes per source (ingress) / destination (egress) IPv4. Off by default to bound metric cardinality.";
-        }
-
-        leaf max-entries {
-            type uint32 {
-                range "1..4294967295";
+            leaf stale-timeout {
+                type uint32;
+                default 300000;
+                description "Remove a metric series unseen within this many milliseconds; 0 disables cleanup.";
             }
-            default 10240;
-            description "Per-map LRU capacity; least-recently-used entries are evicted beyond this, keeping top talkers.";
+
+            leaf track-ip {
+                type boolean;
+                default false;
+                description "Also account bytes per source (ingress) / destination (egress) IPv4. Off by default to bound metric cardinality.";
+            }
+
+            leaf max-entries {
+                type uint32 {
+                    range "1..4294967295";
+                }
+                default 10240;
+                description "Per-map LRU capacity; least-recently-used entries are evicted beyond this, keeping top talkers.";
+            }
         }
     }
 }

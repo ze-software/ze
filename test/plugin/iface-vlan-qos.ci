@@ -51,24 +51,26 @@ firewall {
 	}
 }
 
-traffic-control {
-	backend tc
-	interface eth0.100 {
-		qdisc {
-			type htb;
-			default-class default;
-			class voice {
-				rate 10mbit;
-				ceil 20mbit;
-				priority 0;
-				match dscp {
-					value 46;
+traffic {
+	control {
+		backend tc
+		interface eth0.100 {
+			qdisc {
+				type htb;
+				default-class default;
+				class voice {
+					rate 10mbit;
+					ceil 20mbit;
+					priority 0;
+					match dscp {
+						value 46;
+					}
 				}
-			}
-			class default {
-				rate 50mbit;
-				ceil 100mbit;
-				priority 1;
+				class default {
+					rate 50mbit;
+					ceil 100mbit;
+					priority 1;
+				}
 			}
 		}
 	}

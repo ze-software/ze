@@ -57,13 +57,15 @@ bgp {
 	}
 }
 
-traffic-control {
-	backend vpp
-	interface eth0 {
-		qdisc {
-			type htb
-			class rate-limit {
-				rate 10mbit
+traffic {
+	control {
+		backend vpp
+		interface eth0 {
+			qdisc {
+				type htb
+				class rate-limit {
+					rate 10mbit
+				}
 			}
 		}
 	}

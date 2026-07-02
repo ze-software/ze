@@ -11,8 +11,11 @@ import (
 )
 
 const (
-	Name       = "ddos-flowspec"
-	configRoot = "ddos-flowspec"
+	Name = "ddos-flowspec"
+	// configRoot is the nested YANG config path (ddos/flowspec); the plugin
+	// augments the shared `ddos` container, so the section is wrapped as
+	// {"ddos":{"flowspec":{...}}}.
+	configRoot = "ddos/flowspec"
 
 	// responseEnforce is the response-level that actually announces (vs "alert").
 	responseEnforce = "enforce"
@@ -55,7 +58,12 @@ func ParseConfig(data string) (*Config, error) {
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
-	m, ok := root[configRoot].(map[string]any)
+	// Section is wrapped by ExtractConfigSubtree as {"ddos":{"flowspec":{...}}}.
+	ddos, ok := root["ddos"].(map[string]any)
+	if !ok {
+		return cfg, nil
+	}
+	m, ok := ddos["flowspec"].(map[string]any)
 	if !ok {
 		return cfg, nil
 	}

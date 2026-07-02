@@ -31,7 +31,7 @@ func checkTrafficUsageBPF(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiag
 	if !ok || tree == nil {
 		return nil
 	}
-	tu := tree.GetContainer(configRoot)
+	tu := tree.GetContainerPath(configRoot)
 	if tu == nil {
 		return nil
 	}

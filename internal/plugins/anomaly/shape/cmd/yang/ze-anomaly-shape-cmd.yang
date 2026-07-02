@@ -2,18 +2,23 @@ module ze-anomaly-shape-cmd {
     namespace "urn:ze:anomaly-shape:cmd";
     prefix anomalyshapecmd;
     import ze-extensions { prefix ze; }
-    description "show anomaly-shape command tree. Owned by the anomaly-shape plugin.";
-    revision 2026-07-02 { description "Initial: shadow-first anomaly responder status."; }
+    description "show anomaly shape command tree. Owned by the anomaly-shape plugin. Container-merges onto the shared `anomaly` namespace.";
+    revision 2026-07-02 { description "Nest under show anomaly shape (was show anomaly-shape)."; }
 
     container show {
         config false;
         description "Read-only commands to inspect system, protocol, and network state";
 
-        container anomaly-shape {
+        container anomaly {
             config false;
-            ze:command "ze-show:anomaly-shape";
-            description "Show the shadow-first anomaly responder status: mode (shadow/armed), action,
+            description "Behavioral anomaly detection and response subsystem.";
+
+            container shape {
+                config false;
+                ze:command "ze-show:anomaly-shape";
+                description "Show the shadow-first anomaly responder status: mode (shadow/armed), action,
 kill-switch state, and the currently armed source entities with live firewall actions.";
+            }
         }
     }
 }

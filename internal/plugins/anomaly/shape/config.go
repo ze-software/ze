@@ -10,8 +10,13 @@ import (
 )
 
 const (
-	Name       = "anomaly-shape"
-	configRoot = "anomaly-shape"
+	Name = "anomaly-shape"
+	// configRoot is the nested YANG config path this plugin owns (anomaly/shape).
+	// The plugin augments the shared `anomaly` container with `shape`, so the
+	// delivered section is wrapped as {"anomaly":{"shape":{...}}}. This must match
+	// the augment target in yang/ze-anomaly-shape-conf.yang and the
+	// ConfigRoots/WantsConfig entries.
+	configRoot = "anomaly/shape"
 
 	// ModeShadow logs the would-be action and installs nothing (the default).
 	ModeShadow = "shadow"
@@ -49,6 +54,21 @@ func DefaultConfig() *Config {
 	}
 }
 
+// shapeSubtree unwraps the two-level section wrapping that the plugin-server
+// ExtractConfigSubtree helper produces for the "anomaly/shape" config root:
+// {"anomaly": {"shape": {...}}}. Returns nil when either level is absent.
+func shapeSubtree(root map[string]any) map[string]any {
+	anomaly, ok := root["anomaly"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	shape, ok := anomaly["shape"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return shape
+}
+
 func ParseConfig(data string) (*Config, error) {
 	cfg := DefaultConfig()
 	if strings.TrimSpace(data) == "" {
@@ -58,8 +78,9 @@ func ParseConfig(data string) (*Config, error) {
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
-	m, ok := root[configRoot].(map[string]any)
-	if !ok {
+	// Section is wrapped by ExtractConfigSubtree as {"anomaly":{"shape":{...}}}.
+	m := shapeSubtree(root)
+	if m == nil {
 		return cfg, nil
 	}
 	if v, ok := m["mode"].(string); ok {

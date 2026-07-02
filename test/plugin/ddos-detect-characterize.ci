@@ -107,28 +107,31 @@ print("OK: ddos-local narrowed the drop to the reflection source port 11211",
 EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
-ddos-detect {
-    enabled true;
-    absolute-floor 1000;
-    confirm-duration 1;
-    startup-grace 0;
-    baseline-window 10;
-    check-interval 1;
-    characterize-enable true;
-    characterize-window 60;
-    characterize-timeout 3000;
+ddos {
+    detect {
+        enabled true;
+        absolute-floor 1000;
+        confirm-duration 1;
+        startup-grace 0;
+        baseline-window 10;
+        check-interval 1;
+        characterize-enable true;
+        characterize-window 60;
+        characterize-timeout 3000;
+    }
+    local {
+        response-level enforce;
+    }
 }
 
-ddos-local {
-    response-level enforce;
-}
-
-traffic-usage {
-    enabled true;
-    track-ip true;
-    interfaces {
-        interface lo {
-            enabled true;
+traffic {
+    usage {
+        enabled true;
+        track-ip true;
+        interfaces {
+            interface lo {
+                enabled true;
+            }
         }
     }
 }

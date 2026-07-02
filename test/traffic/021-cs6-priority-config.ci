@@ -41,24 +41,26 @@ bgp {
 	}
 }
 
-traffic-control {
-	backend tc
-	interface eth0 {
-		qdisc {
-			type htb
-			default-class default
-			class control {
-				rate 10mbit
-				ceil 100mbit
-				priority 0
-				match dscp {
-					value cs6
+traffic {
+	control {
+		backend tc
+		interface eth0 {
+			qdisc {
+				type htb
+				default-class default
+				class control {
+					rate 10mbit
+					ceil 100mbit
+					priority 0
+					match dscp {
+						value cs6
+					}
 				}
-			}
-			class default {
-				rate 90mbit
-				ceil 100mbit
-				priority 1
+				class default {
+					rate 90mbit
+					ceil 100mbit
+					priority 1
+				}
 			}
 		}
 	}

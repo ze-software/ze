@@ -2,24 +2,32 @@ module ze-ddos-flowtriq-conf {
   namespace "urn:ze:ddos-flowtriq-conf";
   prefix ddos-flowtriq;
 
-  container ddos-flowtriq {
-    leaf enabled {
-      type boolean;
-      default false;
-      description "Enable reporting DDoS incidents to the Flowtriq cloud API.";
-    }
-    leaf api-key {
-      type string { length "1..512"; }
-      description "Flowtriq API bearer token.";
-    }
-    leaf node-uuid {
-      type string { length "1..128"; }
-      description "Node UUID for Flowtriq agent identification.";
-    }
-    leaf api-base {
-      type string;
-      default "https://flowtriq.com/api/v1";
-      description "Flowtriq API base URL.";
+  import ze-ddos-detect-conf { prefix dd; }
+
+  description "Flowtriq cloud reporting configuration. Augments the shared `ddos`
+               container (owned by ze-ddos-detect-conf) with the `flowtriq` subtree.";
+  revision 2026-07-02 { description "Nest under ddos/flowtriq: augment /dd:ddos with container flowtriq."; }
+
+  augment "/dd:ddos" {
+    container flowtriq {
+      leaf enabled {
+        type boolean;
+        default false;
+        description "Enable reporting DDoS incidents to the Flowtriq cloud API.";
+      }
+      leaf api-key {
+        type string { length "1..512"; }
+        description "Flowtriq API bearer token.";
+      }
+      leaf node-uuid {
+        type string { length "1..128"; }
+        description "Node UUID for Flowtriq agent identification.";
+      }
+      leaf api-base {
+        type string;
+        default "https://flowtriq.com/api/v1";
+        description "Flowtriq API base URL.";
+      }
     }
   }
 }

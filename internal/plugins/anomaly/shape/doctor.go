@@ -17,7 +17,7 @@ func checkFirewall(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic 
 	if !ok || tree == nil {
 		return nil
 	}
-	as := tree.GetContainer(configRoot)
+	as := tree.GetContainerPath(configRoot)
 	if as == nil {
 		return nil
 	}

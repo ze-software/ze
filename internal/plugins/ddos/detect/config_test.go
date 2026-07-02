@@ -3,9 +3,9 @@ package detect
 import "testing"
 
 func TestParseCharacterizeLeaves(t *testing.T) {
-	data := `{"ddos-detect":{` +
+	data := `{"ddos":{"detect":{` +
 		`"characterize-enable":false,"top-n-sources":25,` +
-		`"characterize-window":30,"characterize-timeout":500,"entropy-threshold":3.5}}`
+		`"characterize-window":30,"characterize-timeout":500,"entropy-threshold":3.5}}}`
 	cfg, err := ParseConfig(data)
 	if err != nil {
 		t.Fatal(err)

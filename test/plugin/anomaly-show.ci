@@ -38,7 +38,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        resp = dispatch(api, 'show anomaly')
+        resp = dispatch(api, 'show anomaly detect')
         status = resp.get('status')
         if status != 'done':
             runtime_fail(f'anomaly: status={status} data={resp.get("data")}')
@@ -54,7 +54,7 @@ def main():
         if data.get('enabled') is not True:
             runtime_fail(f'anomaly: enabled != true (plugin not wired): {data}')
 
-        print(f'OK: show anomaly enabled={data["enabled"]} incidents={len(data["incidents"])}', file=sys.stderr)
+        print(f'OK: show anomaly detect enabled={data["enabled"]} incidents={len(data["incidents"])}', file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
@@ -64,8 +64,10 @@ if __name__ == '__main__':
 EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
-anomaly-detect {
-	enabled true
+anomaly {
+	detect {
+		enabled true
+	}
 }
 
 plugin {

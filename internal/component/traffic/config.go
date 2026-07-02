@@ -16,18 +16,33 @@ import (
 
 var errEmptyFilterValue = errors.New("empty filter value")
 
-// ParseTrafficConfig parses the traffic-control config section JSON into a map
+// controlSubtree unwraps the two-level section wrapping that the plugin-server
+// ExtractConfigSubtree helper produces for the "traffic/control" config root:
+// {"traffic": {"control": {...}}}. Returns nil when either level is absent.
+func controlSubtree(root map[string]any) map[string]any {
+	traffic, ok := root["traffic"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	control, ok := traffic["control"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return control
+}
+
+// ParseTrafficConfig parses the traffic control config section JSON into a map
 // of interface name to InterfaceQoS. The JSON is wrapped:
-// {"traffic-control": {"interface": {...}}}.
-// Returns nil, nil if no traffic-control section is present.
+// {"traffic": {"control": {"interface": {...}}}}.
+// Returns nil, nil if no traffic/control section is present.
 func ParseTrafficConfig(data string) (map[string]InterfaceQoS, error) {
 	var root map[string]any
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return nil, fmt.Errorf("traffic config: unmarshal: %w", err)
 	}
 
-	tcMap, ok := root["traffic-control"].(map[string]any)
-	if !ok {
+	tcMap := controlSubtree(root)
+	if tcMap == nil {
 		return map[string]InterfaceQoS{}, nil
 	}
 

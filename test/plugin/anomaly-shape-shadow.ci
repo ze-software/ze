@@ -37,7 +37,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        resp = dispatch(api, 'show anomaly-shape')
+        resp = dispatch(api, 'show anomaly shape')
         status = resp.get('status')
         if status != 'done':
             runtime_fail(f'anomaly-shape: status={status} data={resp.get("data")}')
@@ -53,7 +53,7 @@ def main():
         if data.get('armed-count', -1) != 0:
             runtime_fail(f'anomaly-shape: armed-count != 0 in shadow: {data}')
 
-        print(f'OK: show anomaly-shape mode={data["mode"]} armed={data["armed-count"]}', file=sys.stderr)
+        print(f'OK: show anomaly shape mode={data["mode"]} armed={data["armed-count"]}', file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
@@ -63,8 +63,10 @@ if __name__ == '__main__':
 EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
-anomaly-shape {
-	mode shadow
+anomaly {
+	shape {
+		mode shadow
+	}
 }
 
 plugin {

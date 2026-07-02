@@ -9,8 +9,11 @@ import (
 )
 
 const (
-	Name       = "ddos-detect"
-	configRoot = "ddos-detect"
+	Name = "ddos-detect"
+	// configRoot is the nested YANG config path this plugin owns (ddos/detect).
+	// detect owns the shared `ddos` container, so the delivered section is wrapped
+	// as {"ddos":{"detect":{...}}}.
+	configRoot = "ddos/detect"
 )
 
 type Config struct {
@@ -58,7 +61,12 @@ func ParseConfig(data string) (*Config, error) {
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
-	m, ok := root[configRoot].(map[string]any)
+	// Section is wrapped by ExtractConfigSubtree as {"ddos":{"detect":{...}}}.
+	ddos, ok := root["ddos"].(map[string]any)
+	if !ok {
+		return cfg, nil
+	}
+	m, ok := ddos["detect"].(map[string]any)
 	if !ok {
 		return cfg, nil
 	}

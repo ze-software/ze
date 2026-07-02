@@ -43,24 +43,26 @@ bgp {
 	}
 }
 
-traffic-control {
-	backend vpp
-	interface eth0 {
-		qdisc {
-			type htb
-			default-class default
-			class control {
-				rate 10mbit
-				ceil 100mbit
-				priority 0
-				match dscp {
-					value 48
+traffic {
+	control {
+		backend vpp
+		interface eth0 {
+			qdisc {
+				type htb
+				default-class default
+				class control {
+					rate 10mbit
+					ceil 100mbit
+					priority 0
+					match dscp {
+						value 48
+					}
 				}
-			}
-			class default {
-				rate 90mbit
-				ceil 100mbit
-				priority 1
+				class default {
+					rate 90mbit
+					ceil 100mbit
+					priority 1
+				}
 			}
 		}
 	}

@@ -15,7 +15,9 @@
 
 option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
-traffic-control {
+traffic {
+	control {
+	}
 }
 EOF_CONF
 

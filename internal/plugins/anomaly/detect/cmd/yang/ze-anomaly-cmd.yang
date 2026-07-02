@@ -2,8 +2,8 @@ module ze-anomaly-cmd {
     namespace "urn:ze:anomaly:cmd";
     prefix anomalycmd;
     import ze-extensions { prefix ze; }
-    description "show anomaly command tree. Owned by the anomaly-detect plugin.";
-    revision 2026-07-02 { description "Initial: behavioral anomaly incident report."; }
+    description "show anomaly detect command tree. Owned by the anomaly-detect plugin. Container-merges onto the shared `anomaly` namespace.";
+    revision 2026-07-02 { description "Nest under show anomaly detect (was show anomaly); anomaly becomes a namespace shared with show anomaly shape."; }
 
     container show {
         config false;
@@ -11,10 +11,15 @@ module ze-anomaly-cmd {
 
         container anomaly {
             config false;
-            ze:command "ze-show:anomaly";
-            description "Show recent behavioral anomaly incidents (report-only): source entity, cohort,
+            description "Behavioral anomaly detection and response subsystem.";
+
+            container detect {
+                config false;
+                ze:command "ze-show:anomaly";
+                description "Show recent behavioral anomaly incidents (report-only): source entity, cohort,
 fired features with their deviation z-scores, combined score, and severity. The detector reports;
 the anomaly/shape responder (Spec 2b) acts.";
+            }
         }
     }
 }

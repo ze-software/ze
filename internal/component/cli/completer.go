@@ -64,7 +64,7 @@ func (c *Completer) setTreeInternal(tree *config.Tree) {
 var backendLeaves = map[string]string{
 	"interface":       "backend",
 	"firewall":        "backend",
-	"traffic-control": "backend",
+	"traffic/control": "backend",
 }
 
 // deriveBackends reads backend leaf values from the config tree.
@@ -74,7 +74,7 @@ func (c *Completer) deriveBackends(tree *config.Tree) map[string]string {
 	}
 	m := make(map[string]string)
 	for root, leaf := range backendLeaves {
-		container := tree.GetContainer(root)
+		container := tree.GetContainerPath(root)
 		if container == nil {
 			continue
 		}

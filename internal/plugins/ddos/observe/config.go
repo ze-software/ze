@@ -11,8 +11,11 @@ import (
 )
 
 const (
-	Name       = "ddos-observe"
-	configRoot = "ddos-observe"
+	Name = "ddos-observe"
+	// configRoot is the nested YANG config path (ddos/observe); the plugin
+	// augments the shared `ddos` container, so the section is wrapped as
+	// {"ddos":{"observe":{...}}}.
+	configRoot = "ddos/observe"
 )
 
 var loggerPtr atomic.Pointer[slog.Logger]
@@ -51,7 +54,12 @@ func ParseConfig(data string) (*Config, error) {
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
-	m, ok := root[configRoot].(map[string]any)
+	// Section is wrapped by ExtractConfigSubtree as {"ddos":{"observe":{...}}}.
+	ddos, ok := root["ddos"].(map[string]any)
+	if !ok {
+		return cfg, nil
+	}
+	m, ok := ddos["observe"].(map[string]any)
 	if !ok {
 		return cfg, nil
 	}

@@ -150,3 +150,12 @@ func (r *responder) withdraw() {
 	}
 	logger().Info("ddos-flowspec: withdrawn", "target", r.target.DstPrefix)
 }
+
+// status returns a mutex-safe snapshot for the show handler: whether an upstream
+// FlowSpec rule is currently announced, the target vector it covers, and whether
+// the leak-probe is running.
+func (r *responder) status() (active bool, target ddosevent.VectorTuple, probing bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.active, r.target, r.active && r.probe != nil
+}

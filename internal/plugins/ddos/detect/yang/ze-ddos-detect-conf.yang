@@ -4,7 +4,15 @@ module ze-ddos-detect-conf {
 
   import ze-types { prefix zt; }
 
-  container ddos-detect {
+  description "DDoS detector configuration. Owns the top-level `ddos` container;
+               the `detect` subtree configures the detector. Sibling subtrees
+               (flowtriq, observe, local, flowspec) augment the same `ddos` parent.";
+  revision 2026-07-02 { description "Nest under ddos/detect; the container now owns the shared ddos parent that the other ddos plugins augment."; }
+
+  container ddos {
+    description "Distributed denial-of-service detection and mitigation subsystem.";
+
+    container detect {
     leaf enabled {
       type boolean;
       default false;
@@ -69,6 +77,7 @@ module ze-ddos-detect-conf {
       type zt:decimal-2 { range "0.00..16.00"; }
       default "2.00";
       description "Source-address Shannon entropy (bits) at or above which an attack is logged as distributed/spoofed. 0 = a single source; higher = more sources.";
+    }
     }
   }
 }

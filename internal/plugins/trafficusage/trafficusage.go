@@ -25,9 +25,12 @@ import (
 // Name is the registered plugin name (hyphen form). The Go package is trafficusage.
 const Name = "traffic-usage"
 
-// configRoot is the YANG config container this plugin owns; it must match the
-// container name in yang/ze-traffic-usage-conf.yang and the ConfigRoots entry.
-const configRoot = "traffic-usage"
+// configRoot is the nested YANG config path this plugin owns (traffic/usage).
+// The plugin augments the shared `traffic` container with `usage`, so the
+// delivered section is wrapped as {"traffic":{"usage":{...}}}. This string must
+// match the augment target in yang/ze-traffic-usage-conf.yang and the
+// ConfigRoots/WantsConfig entries.
+const configRoot = "traffic/usage"
 
 // loggerPtr holds the package logger, primed to a discard logger so calls made
 // before ConfigureEngineLogger are safe.

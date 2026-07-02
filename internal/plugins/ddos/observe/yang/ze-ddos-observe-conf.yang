@@ -2,16 +2,24 @@ module ze-ddos-observe-conf {
   namespace "urn:ze:ddos-observe-conf";
   prefix ddos-observe;
 
-  container ddos-observe {
-    leaf incident-ring-size {
-      type uint32 { range "1..100000"; }
-      default 1000;
-      description "Maximum number of incidents to retain in memory.";
-    }
-    leaf stale-incident-timeout {
-      type uint32 { range "1..86400"; }
-      default 3600;
-      description "Seconds before an open incident without a clear event is auto-finalized.";
+  import ze-ddos-detect-conf { prefix dd; }
+
+  description "DDoS incident observation configuration. Augments the shared `ddos`
+               container (owned by ze-ddos-detect-conf) with the `observe` subtree.";
+  revision 2026-07-02 { description "Nest under ddos/observe: augment /dd:ddos with container observe."; }
+
+  augment "/dd:ddos" {
+    container observe {
+      leaf incident-ring-size {
+        type uint32 { range "1..100000"; }
+        default 1000;
+        description "Maximum number of incidents to retain in memory.";
+      }
+      leaf stale-incident-timeout {
+        type uint32 { range "1..86400"; }
+        default 3600;
+        description "Seconds before an open incident without a clear event is auto-finalized.";
+      }
     }
   }
 }

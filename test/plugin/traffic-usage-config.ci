@@ -1,10 +1,10 @@
 # Test: traffic-usage plugin command surface is wired end-to-end
-# VALIDATES: the `show traffic-usage` command is discoverable via the YANG-driven
-#   show help, proving the plugin's command schema and RPC are registered (the
-#   plugin loads with valid YANG).
+# VALIDATES: the `show traffic usage` command is discoverable via the YANG-driven
+#   show help (nested under the shared traffic namespace), proving the plugin's
+#   command schema and RPC are registered (the plugin loads with valid YANG).
 # PREVENTS: the traffic-usage command/schema not being registered, or the plugin
 #   failing to load (self-containment / wiring regression).
 
-cmd=foreground:seq=1:exec=ze show help
+cmd=foreground:seq=1:exec=ze show traffic help
 expect=exit:code=0
-expect=stderr:contains=traffic-usage
+expect=stderr:contains=usage

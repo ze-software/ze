@@ -16,7 +16,7 @@ import (
 
 func armedShapeTree() *config.Tree {
 	tree := config.NewTree()
-	tree.GetOrCreateContainer(configRoot).Set("mode", "armed")
+	tree.GetOrCreateContainer("anomaly").GetOrCreateContainer("shape").Set("mode", "armed")
 	return tree
 }
 
@@ -35,7 +35,7 @@ func TestCheckFirewallSilentWhenShadowOrFirewallPresent(t *testing.T) {
 
 	// shadow mode -> nothing to enforce, no warning.
 	shadow := config.NewTree()
-	shadow.GetOrCreateContainer(configRoot).Set("mode", "shadow")
+	shadow.GetOrCreateContainer("anomaly").GetOrCreateContainer("shape").Set("mode", "shadow")
 	assert.Empty(t, checkFirewall(registry.DoctorCheckContext{Tree: shadow}))
 
 	// absent / nil trees.

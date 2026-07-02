@@ -22,7 +22,7 @@ func checkFlowSource(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnosti
 	if !ok || tree == nil {
 		return nil
 	}
-	dd := tree.GetContainer(configRoot)
+	dd := tree.GetContainerPath(configRoot)
 	if dd == nil {
 		return nil
 	}
@@ -33,7 +33,7 @@ func checkFlowSource(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnosti
 	if ce, ok := dd.Get("characterize-enable"); ok && ce == "false" {
 		return nil
 	}
-	if tree.GetContainer("traffic-usage") != nil || tree.GetContainer("flow-export") != nil {
+	if tree.GetContainerPath("traffic/usage") != nil || tree.GetContainer("flow-export") != nil {
 		return nil
 	}
 	return []rpc.DoctorCheckDiagnostic{{

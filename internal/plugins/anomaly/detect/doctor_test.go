@@ -12,7 +12,7 @@ import (
 
 func enabledAnomalyTree() *config.Tree {
 	tree := config.NewTree()
-	tree.GetOrCreateContainer(configRoot).Set("enabled", "true")
+	tree.GetOrCreateContainer("anomaly").GetOrCreateContainer("detect").Set("enabled", "true")
 	return tree
 }
 
@@ -26,7 +26,7 @@ func TestCheckFeatureSourceWarnsWhenNoSource(t *testing.T) {
 
 func TestCheckFeatureSourceSilentWithSource(t *testing.T) {
 	tu := enabledAnomalyTree()
-	tu.GetOrCreateContainer("traffic-usage")
+	tu.GetOrCreateContainer("traffic").GetOrCreateContainer("usage")
 	assert.Empty(t, checkFeatureSource(registry.DoctorCheckContext{Tree: tu}))
 
 	fe := enabledAnomalyTree()
@@ -36,7 +36,7 @@ func TestCheckFeatureSourceSilentWithSource(t *testing.T) {
 
 func TestCheckFeatureSourceSilentWhenDisabled(t *testing.T) {
 	notEnabled := config.NewTree()
-	notEnabled.GetOrCreateContainer(configRoot).Set("enabled", "false")
+	notEnabled.GetOrCreateContainer("anomaly").GetOrCreateContainer("detect").Set("enabled", "false")
 	assert.Empty(t, checkFeatureSource(registry.DoctorCheckContext{Tree: notEnabled}))
 
 	assert.Empty(t, checkFeatureSource(registry.DoctorCheckContext{Tree: config.NewTree()}))

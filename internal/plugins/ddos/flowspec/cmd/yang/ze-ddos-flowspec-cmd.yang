@@ -1,0 +1,24 @@
+module ze-ddos-flowspec-cmd {
+    namespace "urn:ze:ddos-flowspec:cmd";
+    prefix ddosflowspeccmd;
+    import ze-extensions { prefix ze; }
+    description "show ddos flowspec command. Owned by the ddos-flowspec plugin; container-merges onto the shared show ddos namespace (owned by ddos-observe). Removing the plugin removes this node and its handler. See ai/rules/plugin-self-containment.md.";
+    revision 2026-07-02 { description "Initial: show ddos flowspec upstream mitigation status."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container ddos {
+            config false;
+            description "Distributed denial-of-service detection and mitigation subsystem.";
+
+            container flowspec {
+                config false;
+                ze:command "ze-show:ddos-flowspec";
+                description "Show the upstream FlowSpec/RTBH DDoS mitigation status: whether a rule is
+currently announced, the target vector it covers, and whether the leak-probe is running.";
+            }
+        }
+    }
+}

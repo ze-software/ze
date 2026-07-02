@@ -9,8 +9,12 @@ import (
 )
 
 const (
-	Name       = "anomaly-detect"
-	configRoot = "anomaly-detect"
+	Name = "anomaly-detect"
+	// configRoot is the nested YANG config path this plugin owns (anomaly/detect).
+	// The plugin owns the shared `anomaly` container, so the delivered section is
+	// wrapped as {"anomaly":{"detect":{...}}}. This must match the container path
+	// in yang/ze-anomaly-detect-conf.yang and the ConfigRoots/WantsConfig entries.
+	configRoot = "anomaly/detect"
 )
 
 type Config struct {
@@ -41,6 +45,21 @@ func DefaultConfig() *Config {
 	}
 }
 
+// detectSubtree unwraps the two-level section wrapping that the plugin-server
+// ExtractConfigSubtree helper produces for the "anomaly/detect" config root:
+// {"anomaly": {"detect": {...}}}. Returns nil when either level is absent.
+func detectSubtree(root map[string]any) map[string]any {
+	anomaly, ok := root["anomaly"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	detect, ok := anomaly["detect"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return detect
+}
+
 func ParseConfig(data string) (*Config, error) {
 	cfg := DefaultConfig()
 	if strings.TrimSpace(data) == "" {
@@ -50,8 +69,9 @@ func ParseConfig(data string) (*Config, error) {
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
-	m, ok := root[configRoot].(map[string]any)
-	if !ok {
+	// Section is wrapped by ExtractConfigSubtree as {"anomaly":{"detect":{...}}}.
+	m := detectSubtree(root)
+	if m == nil {
 		return cfg, nil
 	}
 
