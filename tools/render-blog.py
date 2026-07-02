@@ -250,7 +250,7 @@ def main():
         covers = meta.get("covers", f.stem.replace("..", " .. "))
         title_marker, intro, sections = split_sections(body)
         if title_marker is None:
-            print("warning: no sections found in %s, skipping" % f, file=sys.stderr)
+            sitelib.warn("no sections found in %s, skipping" % f)
             continue
 
         slug = start_date(covers)

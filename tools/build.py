@@ -421,20 +421,18 @@ def check_homepage_proof_drift():
     ]:
         stated = floor_int(stats[key])
         if stated > live:
-            print(
-                "warning: render-index.py PROOF_STATS[%r] claims %r but "
+            sitelib.warn(
+                "render-index.py PROOF_STATS[%r] claims %r but "
                 "../main currently has %d %s -- lower the stated floor"
-                % (key, stats[key], live, label),
-                file=sys.stderr,
+                % (key, stats[key], live, label)
             )
 
     if floor_int(stats["interop_targets"]) != interop_targets:
-        print(
-            "warning: render-index.py PROOF_STATS['interop_targets'] claims "
+        sitelib.warn(
+            "render-index.py PROOF_STATS['interop_targets'] claims "
             "%r but ../main/test/interop currently has %d target Dockerfiles "
             "+ FRR -- update the stated number"
-            % (stats["interop_targets"], interop_targets),
-            file=sys.stderr,
+            % (stats["interop_targets"], interop_targets)
         )
 
 
@@ -456,10 +454,9 @@ def check_llms_md_siblings():
     for href in hrefs:
         md_path = GH_PAGES / href / "index.md"
         if not md_path.exists():
-            print(
-                "warning: llms.txt links %s to an index.md that doesn't exist "
-                "(%s) -- run the step that generates it" % (href, md_path),
-                file=sys.stderr,
+            sitelib.warn(
+                "llms.txt links %s to an index.md that doesn't exist "
+                "(%s) -- run the step that generates it" % (href, md_path)
             )
 
 
@@ -498,11 +495,10 @@ def check_performance_stat_drift():
         )
         got = match.group(1).strip() if match else None
         if got != want:
-            print(
-                "warning: performance/index.html %s row says %r but "
+            sitelib.warn(
+                "performance/index.html %s row says %r but "
                 "../main/test/perf/results/ze.json's last run (%s) says %r "
-                "-- update the status-row text" % (label, got, run_date, want),
-                file=sys.stderr,
+                "-- update the status-row text" % (label, got, run_date, want)
             )
 
 
@@ -553,8 +549,25 @@ def main():
             if rc:
                 failures.append("llms")
 
-    if failures:
-        print("\nfailed step(s): %s" % ", ".join(failures), file=sys.stderr)
+    # Drift warnings (sitelib.warn) fail the build here, at the very end, so
+    # the whole site is still generated but the build goes red until every one
+    # is resolved -- a warning nobody must act on gets scrolled past. The
+    # messages already printed next to the step that emitted them; this is the
+    # consolidated list plus the non-zero exit that forces action.
+    drift = sitelib.build_warnings()
+    if drift:
+        sys.stdout.flush()  # so the summary lands after buffered step output in piped logs
+        print(
+            "\n%d drift warning(s) must be resolved before this build can "
+            "pass (repeated from above):" % len(drift),
+            file=sys.stderr,
+        )
+        for message in drift:
+            print("  - " + message, file=sys.stderr)
+
+    if failures or drift:
+        if failures:
+            print("\nfailed step(s): %s" % ", ".join(failures), file=sys.stderr)
         return 1
     print("\nbuild complete.")
     return 0

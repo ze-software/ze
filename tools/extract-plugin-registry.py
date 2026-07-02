@@ -26,6 +26,8 @@ import pathlib
 import re
 import sys
 
+import sitelib
+
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 MAIN_REPO = (GH_PAGES.parent / "main").resolve()
@@ -255,10 +257,9 @@ def main():
         if isinstance(val, str) and val.startswith("?")
     ]
     for name, field, val in unresolved:
-        print(
-            "warning: %s: could not resolve identifier %r in %s "
-            "(no matching const/var found in package dir)" % (name, val[1:], field),
-            file=sys.stderr,
+        sitelib.warn(
+            "%s: could not resolve identifier %r in %s "
+            "(no matching const/var found in package dir)" % (name, val[1:], field)
         )
 
     DEST.parent.mkdir(parents=True, exist_ok=True)

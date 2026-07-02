@@ -130,10 +130,9 @@ def build_config_records():
     YANG config tree, each deep-linked to config-reference/#<section>. Returns
     [] (with a warning) if the tree has not been generated yet."""
     if not YANG_TREE.exists():
-        print(
-            "warning: %s not found -- config sections will be missing from "
-            "search; run tools/extract-yang-config-tree.py first" % YANG_TREE,
-            file=sys.stderr,
+        sitelib.warn(
+            "%s not found -- config sections will be missing from "
+            "search; run tools/extract-yang-config-tree.py first" % YANG_TREE
         )
         return []
     tree = json.loads(YANG_TREE.read_text())

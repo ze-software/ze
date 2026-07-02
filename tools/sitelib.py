@@ -28,6 +28,38 @@ DATA_DIR = GH_PAGES / "data"
 # instead of hardcoding it a second time.
 SITE_BASE = "https://ze-software.github.io/ze/"
 
+
+# Build-time drift warnings that MUST be resolved before a build can pass.
+# A generator calls sitelib.warn(msg) -- instead of print("warning: ...") --
+# when the warning marks real drift: a page gone stale against its source, an
+# undocumented dependency, an orphaned config root. The message still prints
+# immediately (so it shows next to the step that emitted it), and it is also
+# recorded so build.py can list every one and exit non-zero at the very end.
+# The site is still fully generated either way; only the exit code goes red,
+# and it stays red until every drift is fixed -- a warning nobody has to act
+# on gets scrolled past, which is exactly how these went stale before.
+#
+# A plain print("warning: ...", file=sys.stderr) is still correct for
+# tolerable fallbacks that must NOT fail an otherwise-valid build: no network
+# (cached GitHub star count) or no built ze binary (cached CLI catalog). Those
+# are graceful degradation, not drift.
+_BUILD_WARNINGS = []
+
+
+def warn(message):
+    """Record a drift warning that fails the build at the end (see build.py).
+
+    Prints immediately so it appears next to the step that emitted it, then
+    appends it so build.py can report the full list and exit non-zero.
+    """
+    print("warning: " + message, file=sys.stderr)
+    _BUILD_WARNINGS.append(message)
+
+
+def build_warnings():
+    """Every drift warning recorded via warn() so far this process."""
+    return list(_BUILD_WARNINGS)
+
 NAV_CHEVRON = (
     '<svg viewBox="0 0 12 8" fill="none" aria-hidden="true">'
     '<path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" '

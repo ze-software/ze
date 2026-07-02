@@ -114,11 +114,10 @@ def warn_orphan_roots(tree, owner_map):
     orphans = sorted(root for root in owner_map if not path_exists(tree, root))
     for root in orphans:
         names = ", ".join(p["name"] for p in owner_map[root])
-        print(
-            "warning: config root %r (declared by %s) resolves to no node in "
+        sitelib.warn(
+            "config root %r (declared by %s) resolves to no node in "
             "the YANG config tree -- its ownership is not shown; check "
-            "../main for a ConfigRoots vs YANG container mismatch" % (root, names),
-            file=sys.stderr,
+            "../main for a ConfigRoots vs YANG container mismatch" % (root, names)
         )
     return orphans
 
