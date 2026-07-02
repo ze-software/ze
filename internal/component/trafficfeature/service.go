@@ -109,12 +109,6 @@ func NewService(feed *observation.Feed) *Service {
 	}
 }
 
-func (s *Service) Running() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.running
-}
-
 // Attach registers a consumer and starts the service on the 0->1 transition.
 func (s *Service) Attach() int {
 	s.mu.Lock()
@@ -158,16 +152,6 @@ func (s *Service) Snapshot() *Snapshot {
 		return p
 	}
 	return &Snapshot{Degraded: true, At: time.Now()}
-}
-
-// Close stops the service unconditionally.
-func (s *Service) Close() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.running {
-		s.stop()
-	}
-	s.consumers = 0
 }
 
 // start subscribes to the feed and begins the aggregation loop. Caller holds s.mu.

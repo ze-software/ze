@@ -156,22 +156,24 @@ func (a *aggregator) snapshot(now time.Time) *Snapshot {
 
 	type ranked struct {
 		fe   FeatureEntry
-		rate float64
+		sent float64
 	}
 	live := make([]ranked, 0, len(a.sources))
 
 	for addr, st := range a.sources {
-		hadTraffic := st.outBytes+st.inBytes > 0
-		rate := st.activity.Tick(dt)
+		// Emit an entity only when it acted as a SOURCE this window. The features
+		// are source-behavior signals, so a pure receiver (inbound only) would
+		// carry all-zero features and dilute the ranking; its inbound bytes are
+		// still counted for other sources' out/in ratio. Idle eviction below still
+		// tracks total (in+out) activity so quiet receivers are dropped.
+		sent := st.outBytes > 0
+		st.activity.Tick(dt) // advance idle/rate (counts in+out) for eviction
 
-		if hadTraffic {
+		if sent {
 			if st.lastActiveTick >= 0 {
 				st.pushGap(float64(a.tickNum - st.lastActiveTick))
 			}
 			st.lastActiveTick = a.tickNum
-		}
-
-		if hadTraffic {
 			live = append(live, ranked{
 				fe: FeatureEntry{
 					Addr:        addr,
@@ -182,7 +184,7 @@ func (a *aggregator) snapshot(now time.Time) *Snapshot {
 					RarePort:    rarePort(st.ports),
 					Beaconing:   stats.IntervalRegularity(st.gaps),
 				},
-				rate: rate,
+				sent: st.outBytes,
 			})
 		}
 
@@ -197,7 +199,7 @@ func (a *aggregator) snapshot(now time.Time) *Snapshot {
 		}
 	}
 
-	sort.Slice(live, func(i, j int) bool { return live[i].rate > live[j].rate })
+	sort.Slice(live, func(i, j int) bool { return live[i].sent > live[j].sent })
 	n := min(MaxTopN, len(live))
 	snap.Sources = make([]FeatureEntry, n)
 	for i := range n {

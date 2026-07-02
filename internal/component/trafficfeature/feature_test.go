@@ -63,6 +63,16 @@ func TestFeatureFanOutRatioEntropy(t *testing.T) {
 	if fe.PortEntropy <= 0 {
 		t.Errorf("port entropy = %v, want > 0 (ports 443 + 80)", fe.PortEntropy)
 	}
+	// A pure destination (only ever received) must NOT appear: the features are
+	// source-behavior signals, so emitting it would be all-zero noise under a
+	// "source" heading. d1 only ever appeared as a flow destination.
+	if _, ok := featureOf(snap, d1); ok {
+		t.Error("pure-destination d1 must not appear in the source-feature snapshot")
+	}
+	// The other sender (x sent 200 to s) SHOULD appear.
+	if _, ok := featureOf(snap, x); !ok {
+		t.Error("source x (sent 200) should appear in the snapshot")
+	}
 }
 
 func TestFeatureNewPeerRarePort(t *testing.T) {
