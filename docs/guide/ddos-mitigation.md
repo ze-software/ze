@@ -23,11 +23,13 @@ protection), detector + flowspec (upstream mitigation), or all four.
 ### Alert-only mode (monitoring, no mitigation)
 
 ```
-ddos-detect {
-    enabled true
-}
-ddos-local {
-    response-level alert
+ddos {
+    detect {
+        enabled true
+    }
+    local {
+        response-level alert
+    }
 }
 ```
 
@@ -38,19 +40,23 @@ what it would do but installs no rules. Check the logs for
 ### Local mitigation mode
 
 ```
-ddos-detect {
-    enabled true
+ddos {
+    detect {
+        enabled true
+    }
+    local {
+        response-level enforce
+        allowlist 10.0.0.0/8
+        allowlist 192.168.0.0/16
+    }
 }
-ddos-local {
-    response-level enforce
-    allowlist 10.0.0.0/8
-    allowlist 192.168.0.0/16
-}
-traffic-usage {
-    enabled true
-    track-ip true
-    interfaces {
-        interface eth0 { enabled true }
+traffic {
+    usage {
+        enabled true
+        track-ip true
+        interfaces {
+            interface eth0 { enabled true }
+        }
     }
 }
 ```
@@ -118,15 +124,17 @@ Each signal carries a graded **severity** from the peak-to-threshold ratio:
 ### Upstream FlowSpec mitigation
 
 ```
-ddos-detect {
-    enabled true
-}
-ddos-flowspec {
-    response-level enforce
-    action rate-limit
-    hold-down 300
-    probe-interval 60
-    allowlist 10.0.0.0/8
+ddos {
+    detect {
+        enabled true
+    }
+    flowspec {
+        response-level enforce
+        action rate-limit
+        hold-down 300
+        probe-interval 60
+        allowlist 10.0.0.0/8
+    }
 }
 ```
 
@@ -154,10 +162,12 @@ attack is over and the rule is withdrawn.
 ### Flowtriq cloud reporting
 
 ```
-ddos-flowtriq {
-    enabled true
-    api-key YOUR_API_KEY
-    node-uuid YOUR_NODE_UUID
+ddos {
+    flowtriq {
+        enabled true
+        api-key YOUR_API_KEY
+        node-uuid YOUR_NODE_UUID
+    }
 }
 ```
 
@@ -168,7 +178,7 @@ server-driven mitigation commands.
 
 ## Configuration Reference
 
-### ddos-detect (detector)
+### ddos detect (detector)
 
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
@@ -196,7 +206,7 @@ samples. The p99 is recalculated every 10 samples. Samples collected during an
 active attack or above the current threshold are excluded from the baseline to
 prevent poisoning.
 
-### ddos-local (local responder)
+### ddos local (local responder)
 
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
@@ -204,7 +214,7 @@ prevent poisoning.
 | `max-mitigation-duration` | `3600` | 0-86400 s | Safety valve: force-remove rule after this many seconds (0 = no cap) |
 | `allowlist` | (empty) | prefix list | Prefixes that must never be blocked (e.g. management, DNS) |
 
-### ddos-flowspec (FlowSpec/RTBH responder)
+### ddos flowspec (FlowSpec/RTBH responder)
 
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
@@ -220,7 +230,7 @@ prevent poisoning.
 | `blackhole-fallback` | `false` | bool | Engage an immediate upstream `discard` on a `critical` fast signal without waiting for characterization |
 | `allowlist` | (empty) | prefix list | Prefixes that must never be announced for mitigation |
 
-### ddos-flowtriq (Flowtriq cloud reporter)
+### ddos flowtriq (Flowtriq cloud reporter)
 
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
@@ -233,15 +243,15 @@ prevent poisoning.
 
 ### Recommended rollout
 
-1. Start with `ddos-detect` enabled and `ddos-local` in `alert` mode. Monitor
+1. Start with `ddos detect` enabled and `ddos local` in `alert` mode. Monitor
    logs for false positives. Tune `threshold-multiplier` and `absolute-floor` if
    the detector triggers on legitimate traffic spikes.
 
-2. Once confident in detection accuracy, switch `ddos-local` to `enforce` mode.
+2. Once confident in detection accuracy, switch `ddos local` to `enforce` mode.
    Always configure the `allowlist` with management, DNS, and control plane
    prefixes.
 
-3. For upstream mitigation, add `ddos-flowspec` in `alert` mode first, then
+3. For upstream mitigation, add `ddos flowspec` in `alert` mode first, then
    `enforce`. The hold-down and probe parameters control how aggressively the
    responder probes for attack end.
 
@@ -286,9 +296,31 @@ The VPP iface backend populates `InterfaceInfo.Stats` from VPP's stats segment,
 so `rate.go` computes RxPps/RxBps identically for both dataplanes. No
 VPP-specific detector code is needed.
 
+### Viewing DDoS state
+
+`show ddos` is a namespace; the subcommands are each owned by the plugin that
+holds the data, so a subcommand appears only while its plugin is loaded:
+
+- `show ddos status` (`ddos-observe`) — one-line status: whether observation is
+  running, how many attacks are currently active, and how many incidents are held
+  in the ring.
+- `show ddos incidents` (`ddos-observe`) — the incident ring, newest first: per
+  incident the target vector (prefix / proto / port), attack family, top source
+  addresses, peak pps/bps, start/end time, and whether it is still active. The
+  ring is bounded by `incident-ring-size` and fed by the detector's
+  `AttackDetected` / `AttackCleared` events.
+- `show ddos local` (`ddos-local`) — whether an on-host nft drop is installed and
+  the target vector it covers.
+- `show ddos flowspec` (`ddos-flowspec`) — whether an upstream FlowSpec rule is
+  announced, its target vector, and whether the leak-probe is running.
+
+<!-- source: internal/plugins/ddos/observe/show.go -- handleShowDdos, handleShowDdosIncidents -->
+<!-- source: internal/plugins/ddos/local/show.go -- handleShowDdosLocal -->
+<!-- source: internal/plugins/ddos/flowspec/show.go -- handleShowDdosFlowspec -->
+
 ### Flow source and observability
 
-Characterization needs an on-box flow source: `traffic-usage` (`track-ip`) for the
+Characterization needs an on-box flow source: `traffic usage` (`track-ip`) for the
 fast IPv4 target and/or `flow-export` (`conntrack`) for the classifier (proto,
 ports, TCP flags, IPv6, top sources). If characterization is enabled with neither
 configured, `ze doctor` reports `doctor-ddos-detect-no-flow-source` and mitigation

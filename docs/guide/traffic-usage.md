@@ -7,8 +7,8 @@
 
 Ze accounts per-(port, protocol) and, optionally, per-IP byte totals on
 operator-selected interfaces using eBPF programs attached via TCX. The counters
-are exported as Prometheus metrics and viewed with `show traffic-usage`. The
-`trafficusage` plugin loads only when a `traffic-usage { }` section is present in
+are exported as Prometheus metrics and viewed with `show traffic usage`. The
+`trafficusage` plugin loads only when a `traffic { usage { } }` section is present in
 the config.
 
 Traffic usage is **monitoring only**. The eBPF programs read packet headers and
@@ -49,23 +49,25 @@ the loaded programs and assert on the resulting map state.
 
 ## Configuration
 
-All traffic usage configuration lives under a single `traffic-usage { }` section.
+All traffic usage configuration lives under a single `traffic { usage { } }` section.
 
 ```
-traffic-usage {
-    enabled true
-    interfaces {
-        interface eth0 {
+traffic {
+    usage {
+        enabled true
+        interfaces {
+            interface eth0 {
+            }
+            interface wan {           // a ze interface name (resolved to its OS device)
+                track-ip false        // override the global track-ip just for wan
+                max-entries 65536     // and give it a larger top-talker map
+            }
         }
-        interface wan {           // a ze interface name (resolved to its OS device)
-            track-ip false        // override the global track-ip just for wan
-            max-entries 65536     // and give it a larger top-talker map
-        }
+        interval 1000
+        track-ip true                 // global default, inherited by eth0
+        stale-timeout 300000
+        max-entries 10240
     }
-    interval 1000
-    track-ip true                 // global default, inherited by eth0
-    stale-timeout 300000
-    max-entries 10240
 }
 ```
 
@@ -98,15 +100,15 @@ interface's `track-ip` or `max-entries` rebuilds and re-attaches its eBPF progra
 
 ## Operational Command
 
-`show traffic-usage [name <interface>]` reports the accounted byte totals. With
+`show traffic usage [name <interface>]` reports the accounted byte totals. With
 no argument it lists every monitored interface; with `name <interface>` it
 returns one interface. Output is structured per interface: `ingress-ports`,
 `egress-ports`, and (only when `track-ip` is enabled) `ingress-ips` and
 `egress-ips`, plus `map-entries` reporting per-map fill levels.
 
 ```
-ze cli -c 'show traffic-usage'
-ze cli -c 'show traffic-usage name eth0'
+ze cli -c 'show traffic usage'
+ze cli -c 'show traffic usage name eth0'
 ```
 
 The command produces JSON by default and supports the full set of pipe

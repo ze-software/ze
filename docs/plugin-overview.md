@@ -96,7 +96,7 @@ keys are kebab-case. Address families are `"afi/safi"` strings (e.g.,
 
 BGP itself is a config-driven plugin. If your config has a `bgp { }` section,
 BGP loads automatically. Remove it, and ze starts without BGP. The same mechanism
-works for `interface { }`, `firewall { }`, `traffic-control { }`, and other
+works for `interface { }`, `firewall { }`, `traffic { control { } }`, and other
 top-level sections. Plugins can be added or removed at runtime via config reload.
 
 NLRI family plugins (bgp-nlri-evpn, bgp-nlri-vpn, etc.) are loaded automatically

@@ -1,7 +1,7 @@
 # Traffic Control
 
 Ze programs per-interface queueing disciplines, classes, and filters from a single
-`traffic-control { }` YANG section. The same config is consumed by two backends;
+`traffic { control { } }` YANG section. The same config is consumed by two backends;
 the operator chooses one via the `backend` leaf.
 
 <!-- source: internal/component/traffic/register.go -- reactor wiring -->
@@ -17,14 +17,16 @@ the operator chooses one via the `backend` leaf.
 Selection:
 
 ```
-traffic-control {
-    backend tc       // or: vpp
-    interface eth0 {
-        qdisc {
-            type htb
-            class fast {
-                rate 10mbit
-                ceil 20mbit
+traffic {
+    control {
+        backend tc       // or: vpp
+        interface eth0 {
+            qdisc {
+                type htb
+                class fast {
+                    rate 10mbit
+                    ceil 20mbit
+                }
             }
         }
     }
