@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>BGP Protocol Interop - Ze</title>
+        <meta name="description" content="Ze's BGP engine against real FRR, BIRD, and GoBGP in Docker, across 68 protocol scenarios." />
+        <meta property="og:title" content="BGP Protocol Interop - Ze" />
+        <meta property="og:description" content="Ze's BGP engine against real FRR, BIRD, and GoBGP in Docker, across 68 protocol scenarios." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section aria-labelledby="lab-title">
+                <div class="section-head reveal cat-routing">
+                    <h2 id="lab-title">BGP Protocol Interop</h2>
+                    <p>
+                        Ze's BGP engine against real FRR, BIRD, and GoBGP,
+                        scenario by scenario.
+                    </p>
+                </div>
+                <div class="status-panel reveal">
+                    <div class="status-copy">
+                        <span class="tag">Daemon</span>
+                        <p>
+                            A Docker orchestrator launches Ze and one or more
+                            peer daemons on an isolated network, establishes
+                            real BGP sessions, and asserts correct behavior
+                            through each daemon's own CLI (<code>vtysh</code>,
+                            <code>birdc</code>, <code>gobgp</code>). Daemons
+                            start conditionally per scenario, so each run
+                            only spins up what it needs.
+                        </p>
+                        <p>
+                            68 scenarios: eBGP/iBGP, 4-byte ASN, IPv6, Add-Path,
+                            Route Refresh, Graceful Restart, Route Server,
+                            standard and extended communities, MD5 auth, BGP
+                            Roles, EVPN, VPN, FlowSpec, multihop, BFD, ECMP,
+                            SRv6, RPKI, BMP, max-prefix, GTSM, AS112, and
+                            OSPF/IS-IS interop with FRR.
+                        </p>
+                    </div>
+                    <div class="status-table" aria-label="Lab facts">
+                        <div class="status-row">
+                            <strong>Proves</strong>
+                            <span>Real BGP sessions against production daemon implementations, not mocks</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Peers</strong>
+                            <span>Real FRR, BIRD, and GoBGP, in Docker containers</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Requires</strong>
+                            <span>Docker, Python 3, ~1.5 GB disk for daemon images</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Source</strong>
+                            <span
+                                ><a href="../../docs/architecture/testing/interop/"
+                                    >docs/architecture/testing/interop.md</a
+                                ></span
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-panel reveal">
+                    <div class="terminal" aria-label="Run commands">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># all 68 scenarios</span>
+<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-interop-test
+
+<span class="term-comment"># single scenario, verbose</span>
+<span class="term-prompt">$</span> <span class="term-cmd">python3</span> test/interop/run.py 01-ebgp-ipv4-frr</pre>
+                        </div>
+                    </div>
+                    <div class="terminal-note">
+                        <span class="tag">Prerequisites</span>
+                        <p>
+                            Docker only, no QEMU path. Set <code>FRR_IMAGE</code>
+                            to pin a different FRR version, or
+                            <code>NO_BUILD=1</code> to skip rebuilding images
+                            on repeat runs.
+                        </p>
+                        <div class="link-list">
+                            <a
+                                href="https://github.com/ze-software/ze/tree/main/test/interop"
+                                target="_blank"
+                                rel="noopener"
+                                >test/interop/
+                                <span>lab source</span></a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

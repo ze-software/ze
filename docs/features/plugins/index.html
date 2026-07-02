@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Plugins - Ze</title>
+        <meta name="description" content="Ze documentation: features/plugins.md" />
+        <meta property="og:title" content="Plugins - Ze" />
+        <meta property="og:description" content="Ze documentation: features/plugins.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-automate">
+<h1>Plugins</h1>
+<h3>Storage &amp; Policy</h3>
+<table>
+<thead>
+<tr>
+<th>Plugin</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bgp-rib</td>
+<td>Route Information Base -- stores received/sent routes</td>
+</tr>
+<tr>
+<td>bgp-adj-rib-in</td>
+<td>Adj-RIB-In -- raw hex replay of received routes</td>
+</tr>
+<tr>
+<td>bgp-persist</td>
+<td>Route persistence across restarts</td>
+</tr>
+<tr>
+<td>bgp-rs</td>
+<td>Route server -- client-to-client route reflection (RFC 7947). Forwards via the typed <code>Plugin.ForwardCached</code> / <code>ReleaseCached</code> fast path (rs-fastpath-3): DirectBridge in-process, <code>ze-plugin-engine:forward-cached</code> over newline-framed YANG RPC for out-of-process plugins. No text-RPC tokenise on the hot path. <code>bgp-adj-rib-in</code> is an optional dep; when absent, forwarding still works and replay-on-peer-up is disabled with a WARN.</td>
+</tr>
+<tr>
+<td>bgp-watchdog</td>
+<td>Deferred route announcement with named watchdog groups</td>
+</tr>
+<tr>
+<td>bgp-healthcheck</td>
+<td>Service healthcheck with FSM-controlled route announcement/withdrawal via watchdog groups. <a href="https://github.com/ze-software/ze/blob/main/docs/guide/healthcheck.md" target="_blank" rel="noopener">Guide</a></td>
+</tr>
+</tbody>
+</table>
+<h3>Route Filters</h3>
+<p>External plugins can act as route filters on import and export. Filters are
+configured per peer/group/globally via <code>filter { import [...] export [...] }</code>
+using named filter instances or explicit <code>&lt;plugin&gt;:&lt;filter&gt;</code> references. Multiple filters chain as piped transforms
+(each sees previous filter's output). Filters respond accept/reject/modify with
+delta-only attribute changes and dirty tracking for efficient re-encoding.</p>
+<p>Three filter categories:</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Behavior</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mandatory</td>
+<td>Always on, cannot be overridden</td>
+<td><code>rfc:otc</code> (RFC 9234)</td>
+</tr>
+<tr>
+<td>Default</td>
+<td>On by default, can be overridden per-peer</td>
+<td><code>rfc:no-self-as</code> (loop prevention)</td>
+</tr>
+<tr>
+<td>User</td>
+<td>Only present when explicitly configured</td>
+<td><code>rpki:validate</code>, <code>community:scrub</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: plan/learned/479-redistribution-filter.md -- redistribution filter design -->
+
+<!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/register.go -- bgp-adj-rib-in -->
+<!-- source: internal/component/bgp/plugins/persist/register.go -- bgp-persist -->
+<!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs -->
+<!-- source: internal/component/bgp/plugins/watchdog/register.go -- bgp-watchdog -->
+<!-- source: internal/component/bgp/plugins/healthcheck/register.go -- bgp-healthcheck -->
+
+<h3>Protocol</h3>
+<table>
+<thead>
+<tr>
+<th>Plugin</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bgp-gr</td>
+<td>Graceful Restart (RFC 4724) and Long-Lived GR (RFC 9494) state machine</td>
+</tr>
+<tr>
+<td>bgp-aigp</td>
+<td>Accumulated IGP Metric (RFC 7311)</td>
+</tr>
+<tr>
+<td>bgp-rpki</td>
+<td>RPKI origin validation via RTR protocol (RFC 6811, RFC 8210). <a href="https://github.com/ze-software/ze/blob/main/docs/guide/rpki.md" target="_blank" rel="noopener">Guide</a></td>
+</tr>
+<tr>
+<td>bgp-rpki-decorator</td>
+<td>Correlates UPDATE + RPKI events into merged update-rpki events</td>
+</tr>
+<tr>
+<td>bgp-route-refresh</td>
+<td>Route Refresh handling (RFC 2918, RFC 7313)</td>
+</tr>
+<tr>
+<td>bgp-role</td>
+<td>BGP Role capability enforcement (RFC 9234)</td>
+</tr>
+<tr>
+<td>bgp-llnh</td>
+<td>Link-local next-hop for IPv6 (RFC 2545)</td>
+</tr>
+<tr>
+<td>bgp-hostname</td>
+<td>FQDN capability for peer identification</td>
+</tr>
+<tr>
+<td>bgp-softver</td>
+<td>Software version capability advertisement</td>
+</tr>
+<tr>
+<td>bgp-filter-community</td>
+<td>Community tag/strip filter (standard, large, extended)</td>
+</tr>
+<tr>
+<td>bgp-filter-irr</td>
+<td>IRR-based prefix-list filter from whois queries (replaces bgpq4 workflow)</td>
+</tr>
+<tr>
+<td>loop</td>
+<td>Route loop detection (RFC 4271 S9, RFC 4456 S8)</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr -->
+<!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki -->
+<!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator -->
+<!-- source: internal/component/bgp/plugins/route_refresh/register.go -- bgp-route-refresh -->
+<!-- source: internal/component/bgp/plugins/role/register.go -- bgp-role -->
+<!-- source: internal/component/bgp/plugins/llnh/register.go -- bgp-llnh -->
+<!-- source: internal/component/bgp/plugins/hostname/register.go -- bgp-hostname -->
+<!-- source: internal/component/bgp/plugins/softver/register.go -- bgp-softver -->
+<!-- source: internal/component/bgp/plugins/aigp/register.go -- bgp-aigp -->
+<!-- source: internal/component/bgp/plugins/filter_community/register.go -- bgp-filter-community -->
+<!-- source: internal/component/bgp/plugins/filter_irr/register.go -- bgp-filter-irr -->
+<!-- source: internal/component/bgp/reactor/filter/register.go -- loop -->
+
+<h3>Infrastructure</h3>
+<table>
+<thead>
+<tr>
+<th>Plugin</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>interface</td>
+<td>OS network interface monitoring and management via netlink or VPP. Publishes interface and address events to the bus.</td>
+</tr>
+<tr>
+<td>static</td>
+<td>Config-driven static route programming with ECMP.</td>
+</tr>
+<tr>
+<td>connected</td>
+<td>Redistributes directly connected interface prefixes.</td>
+</tr>
+<tr>
+<td>kernel</td>
+<td>Redistributes externally-installed kernel routes.</td>
+</tr>
+<tr>
+<td>rib</td>
+<td>System RIB selection by administrative distance.</td>
+</tr>
+<tr>
+<td>fib-kernel</td>
+<td>Programs OS routes from the system RIB.</td>
+</tr>
+<tr>
+<td>fib-vpp</td>
+<td>Programs VPP routes from the system RIB.</td>
+</tr>
+<tr>
+<td>sysctl</td>
+<td>Kernel tunable management with default, transient, and config layers.</td>
+</tr>
+<tr>
+<td>traffic</td>
+<td>Traffic control lifecycle and backend dispatch.</td>
+</tr>
+<tr>
+<td>vpp</td>
+<td>VPP lifecycle and telemetry.</td>
+</tr>
+<tr>
+<td>cos</td>
+<td>802.1p class-of-service profile definitions. Named QoS maps, dynamic per-subscriber CoS via RADIUS.</td>
+</tr>
+<tr>
+<td>bgp-nlri-srpolicy</td>
+<td>SR-Policy NLRI (SAFI 73) with Tunnel Encapsulation attribute.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/iface/register.go -- interface -->
+
+<h3>Plugin Health Metrics</h3>
+<p>Plugin infrastructure exposes per-plugin Prometheus metrics for operational visibility:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_plugin_status{plugin}</code></td>
+<td>Gauge</td>
+<td>Current plugin stage (0=init, 6=running). Absent when disabled.</td>
+</tr>
+<tr>
+<td><code>ze_plugin_restarts_total{plugin}</code></td>
+<td>Counter</td>
+<td>Cumulative restart count.</td>
+</tr>
+<tr>
+<td><code>ze_plugin_events_delivered_total{plugin}</code></td>
+<td>Counter</td>
+<td>Total events enqueued to plugin.</td>
+</tr>
+</tbody>
+</table>
+<p>When a plugin is disabled (respawn limit exceeded), its metrics are deleted rather than showing a stale value.</p>
+<!-- source: internal/component/plugin/process/manager.go -- pluginMetrics -->
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

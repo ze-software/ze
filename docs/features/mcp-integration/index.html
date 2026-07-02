@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>MCP Integration - Ze</title>
+        <meta name="description" content="Ze documentation: features/mcp-integration.md" />
+        <meta property="og:title" content="MCP Integration - Ze" />
+        <meta property="og:description" content="Ze documentation: features/mcp-integration.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-automate">
+<h1>MCP Integration</h1>
+<!-- source: internal/component/mcp/handler.go -- MCP HTTP handler -->
+<!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
+
+<p>Ze includes an MCP (Model Context Protocol) server that makes the BGP daemon <strong>AI-ready</strong>. Any AI assistant (Claude, GPT, or custom agents) can connect via MCP and fully control Ze -- the same operations available through the CLI are accessible programmatically through typed tools.</p>
+<h2>AI-Ready BGP Operations</h2>
+<p>The MCP server exposes typed tools with structured parameters, so AI assistants can manage BGP without parsing CLI output:</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_announce</code></td>
+<td>Announce routes with typed parameters (origin, next-hop, communities, prefixes)</td>
+</tr>
+<tr>
+<td><code>ze_withdraw</code></td>
+<td>Withdraw routes</td>
+</tr>
+<tr>
+<td><code>ze_peers</code></td>
+<td>Monitor peer state, ASN, uptime</td>
+</tr>
+<tr>
+<td><code>ze_peer_control</code></td>
+<td>Teardown, pause, resume, flush peers</td>
+</tr>
+<tr>
+<td><code>ze_execute</code></td>
+<td>Run <strong>any</strong> CLI command -- full daemon control</td>
+</tr>
+<tr>
+<td><code>ze_commands</code></td>
+<td>List all available daemon commands</td>
+</tr>
+<tr>
+<td><code>ze_reference</code></td>
+<td>Full machine-readable reference for this daemon (commands, RPC endpoints, dispatch keys, plugins, families, services); same JSON as <code>ze help ai --json</code>. Call first to discover capabilities.</td>
+</tr>
+</tbody>
+</table>
+<p>Additional tools are auto-generated from the command registry at runtime.
+Every registered YANG command and plugin command appears as a typed MCP tool
+with an <code>action</code> enum and optional <code>arguments</code> and <code>peer</code> parameters. New
+commands are exposed automatically without code changes.</p>
+<p>The <code>ze_execute</code> tool is the key to full control: anything you can do in <code>ze cli</code> (interactive or <code>ze cli -c</code> for one-shot commands), an AI can do via MCP. This includes:</p>
+<ul>
+<li><strong>Route management:</strong> <code>bgp peer * update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24</code></li>
+<li><strong>RIB queries:</strong> <code>show bgp rib received</code>, <code>show bgp rib sent</code>, <code>clear bgp rib in</code></li>
+<li><strong>Peer lifecycle:</strong> <code>bgp peer * show</code>, <code>bgp peer 10.0.0.1 teardown 6</code>, <code>delete bgp peer-peer with ...</code></li>
+<li><strong>Configuration:</strong> <code>request commit start window1</code>, route changes, <code>request commit end window1</code></li>
+<li><strong>Cache operations:</strong> <code>cache list</code>, <code>cache forward</code></li>
+<li><strong>Event subscription:</strong> <code>request subscribe bgp/update</code></li>
+<li><strong>Schema discovery:</strong> <code>command-list</code>, <code>command-help &lt;name&gt;</code></li>
+</ul>
+<h2>Starting the MCP Server</h2>
+<pre><code>ze start --mcp 8080 config.conf
+</code></pre>
+<p>Or via config:</p>
+<pre><code>environment {
+    mcp {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port 8080
+        }
+    }
+}
+</code></pre>
+<p>Environment variable overrides: <code>ze.mcp.listen=ip:port</code>, <code>ze.mcp.enabled=true</code>, <code>ze.mcp.token=&lt;secret&gt;</code>. Defaults to <code>127.0.0.1:8080</code> (security: local-only unless explicitly overridden via <code>ze.mcp.listen</code>). Bearer token auth available via <code>--mcp-token</code> flag, <code>ze.mcp.token</code> env var, or the config <code>token</code> leaf.</p>
+<h2>AI Command Reference</h2>
+<pre><code>ze help ai
+ze help ai api          # daemon API endpoints (ze-show:*, ze-set:*, ...)
+</code></pre>
+<p>Generates a machine-readable command reference from code, suitable for feeding to an AI as context. Lists all available commands with their parameters, descriptions, and examples. The legacy <code>ze help --ai</code> flag form is still accepted.</p>
+<h2>Example: AI-Driven Route Announcement</h2>
+<p>An AI assistant connected via MCP can:</p>
+<ol>
+<li>Check peer state: <code>ze_peers</code> returns structured JSON with all peer status</li>
+<li>Announce a route: <code>ze_announce</code> with origin=igp, next-hop=10.0.0.1, prefixes=[10.0.0.0/24]</li>
+<li>Verify propagation: <code>ze_execute</code> with command <code>show bgp rib sent peer peer1 family ipv4/unicast</code></li>
+<li>Withdraw if needed: <code>ze_withdraw</code> with the same prefixes</li>
+</ol>
+<p>All without parsing text output -- each tool returns structured data.</p>
+<h2>Elicitation (2025-06-18)</h2>
+<p>Tool handlers may ask the client for missing input mid-dispatch via
+<code>session.Elicit</code>. The server upgrades the POST reply to
+<code>text/event-stream</code>, sends an <code>elicitation/create</code> request over the
+same HTTP body, and resumes the handler when the client POSTs a response
+correlated by id. The client must advertise <code>capabilities.elicitation</code>
+at <code>initialize</code> for the server to prompt; otherwise handlers fail fast
+with a deterministic error. <code>ze_execute</code> illustrates the pattern:
+calling it with <code>command=""</code> on an elicit-capable client produces an
+<code>elicitation/create</code> asking which ze command to run.</p>
+<p>See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/mcp/elicitation.md" target="_blank" rel="noopener">MCP Elicitation</a> for the full flow.</p>
+<!-- source: internal/component/mcp/elicit.go -- session.Elicit, schema validator -->
+<!-- source: internal/component/mcp/handler.go -- ze_execute missing-command branch -->
+
+<h2>Testing</h2>
+<p><code>ze-test mcp</code> provides a functional test client with <code>wait-established</code>
+synchronization for CI pipelines and -- with <code>--elicit</code> plus
+<code>elicit-accept</code>/<code>elicit-decline</code>/<code>elicit-cancel</code> stdin directives --
+covers the server-initiated elicitation flow.</p>
+<p>See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/mcp/overview.md" target="_blank" rel="noopener">MCP Guide</a> for details and
+<a href="https://github.com/ze-software/ze/blob/main/docs/guide/mcp/remote-access.md" target="_blank" rel="noopener">MCP Remote Access</a> for tunneling.</p>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

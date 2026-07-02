@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2026-03-30 - Ze Blog</title>
+        <meta name="description" content="A full interface management subsystem, offline DNS/RIR resolution tooling, config-driven plugin loading, BGP healthcheck and long-lived graceful restart support, and a Looking Glass overhaul." />
+        <meta property="og:title" content="Week of 2026-03-30 - Ze Blog" />
+        <meta property="og:description" content="A full interface management subsystem, offline DNS/RIR resolution tooling, config-driven plugin loading, BGP healthcheck and long-lived graceful restart support, and a Looking Glass overhaul." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2026-03-30</h2>
+                    <p>A full interface management subsystem, offline DNS/RIR resolution tooling, config-driven plugin loading, BGP healthcheck and long-lived graceful restart support, and a Looking Glass overhaul.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🔌 Interfaces">
+                        <div class="md-content">
+                            <h3>🔌 Interfaces</h3>
+                            <p>A new interface management subsystem landed with a JunOS-style unit model.</p>
+<ul>
+<li>Netlink-backed interface monitoring, with <code>ze show interface</code> and <code>ze interface migrate</code> over SSH</li>
+<li>DHCP client, SLAAC, and migration between backends</li>
+<li>MAC discovery with descriptive interface naming</li>
+<li>Per-interface sysctl settings and traffic mirroring applied straight from config</li>
+<li>A declarative config apply/reload pipeline, with admin distance now wired into route selection</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🌐 DNS & resolution">
+                        <div class="md-content">
+                            <h3>🌐 DNS & resolution</h3>
+                            <ul>
+<li>New offline <code>ze resolve</code> command for DNS, Team Cymru ASN lookups, PeeringDB, and IRR queries, with 1-hour caching for the PeeringDB/IRR lookups</li>
+<li>DNS queries now advertise a 4096-byte EDNS0 buffer, and truncated responses log a warning instead of failing silently</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧩 Config-driven plugins">
+                        <div class="md-content">
+                            <h3>🧩 Config-driven plugins</h3>
+                            <ul>
+<li>BGP can now be loaded and unloaded at config reload time without restarting Ze, with plugin startup ordered by a dependency chain</li>
+<li>Plugins in general can be dynamically loaded and unloaded on reload</li>
+<li>The config editor now inlines single-child containers for display (<code>remote ip 192.0.2.1</code> instead of <code>remote { ip 192.0.2.1 }</code>) and flags missing required or suggested fields</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🖥️ CLI & Looking Glass">
+                        <div class="md-content">
+                            <h3>🖥️ CLI & Looking Glass</h3>
+                            <ul>
+<li>One-shot commands via <code>ze -c</code> (replacing <code>--run</code>)</li>
+<li>Structured, colored help across all commands, with dispatch-key discoverability</li>
+<li>New <code>rib inject</code>/<code>rib withdraw</code> commands for direct RIB manipulation, and a text-mode AS-path graph terminal for <code>rib show best</code></li>
+<li>Looking Glass overhaul: prefix summaries, downloads, dark mode, a next-hop graph view, and a help tab</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ Routing">
+                        <div class="md-content">
+                            <h3>🛰️ Routing</h3>
+                            <ul>
+<li>New BGP healthcheck plugin: monitors service availability via shell probes and drives route announce/withdraw (or a MED override) through watchdog groups</li>
+<li>Long-lived graceful restart (RFC 9494): stale routes are now correctly filtered or withdrawn per peer on egress, based on each peer's LLGR capability</li>
+<li>New FIB pipeline installs best-path routes from protocol RIBs into the kernel via netlink (a P4 backend is stubbed in)</li>
+<li>Fixed a VPN next-hop encoding bug where the route-distinguisher slot could carry stale bytes left over from a previous UPDATE instead of the RFC 4364-required zero padding</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="⚡ Under the hood">
+                        <div class="md-content">
+                            <h3>⚡ Under the hood</h3>
+                            <p>Forwarding to peers now defaults to zero-copy, only copying a buffer when an egress filter needs to modify the payload; the forwarding pool also auto-sizes per peer based on burst size instead of using fixed global pools. HTTP responses now carry an <code>X-Ze-Version</code> header.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

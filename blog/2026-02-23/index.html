@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2026-02-23 - Ze Blog</title>
+        <meta name="description" content="A route-server-focused week: reliability fixes for BGP Route Server under load, a new external plugin protocol option, and systematic config validation." />
+        <meta property="og:title" content="Week of 2026-02-23 - Ze Blog" />
+        <meta property="og:description" content="A route-server-focused week: reliability fixes for BGP Route Server under load, a new external plugin protocol option, and systematic config validation." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2026-02-23</h2>
+                    <p>A route-server-focused week: reliability fixes for BGP Route Server under load, a new external plugin protocol option, and systematic config validation.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🛰️ Route Server (RFC 7947)">
+                        <div class="md-content">
+                            <h3>🛰️ Route Server (RFC 7947)</h3>
+                            <p>The route-server plugin is renamed from bgp-rr to bgp-rs to match what it actually does (forward-all Route Server semantics, not Route Reflector client/non-client selection); <code>rs status</code>/<code>rs peers</code> commands replace the old <code>rr</code> names.</p>
+<ul>
+<li>Reconnecting peers now get a targeted replay of just their own routes from a dedicated adj-rib-in plugin, instead of triggering a full ROUTE-REFRESH storm across every peer and family</li>
+<li>Fixed several route-loss bugs under backpressure: an overflow buffer stops silent drops when a peer can't keep up, and per-entry cache acknowledgment prevents cumulative eviction from losing routes</li>
+<li>Plugins can now declare dependencies on each other (route-server on adj-rib-in, for example), auto-loaded and validated at startup</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔌 Plugin protocol">
+                        <div class="md-content">
+                            <h3>🔌 Plugin protocol</h3>
+                            <p>External plugins can now speak a simple line-based text protocol instead of JSON-RPC for their startup handshake and event delivery, an easier path for writing plugins in languages other than Go.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧩 Config validation">
+                        <div class="md-content">
+                            <h3>🧩 Config validation</h3>
+                            <p>YANG config trees are now validated recursively against schema (enums, ranges, patterns, mandatory fields), with an extensible <code>ze:validate</code> mechanism for custom runtime checks.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Under the hood">
+                        <div class="md-content">
+                            <h3>🛠️ Under the hood</h3>
+                            <p>Event delivery, IPC framing, and TCP session reads got a round of allocation and syscall reduction: zero-alloc text formatting, batched IPC delivery, buffered TCP reads, and RPC calls without a goroutine per request.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📊 ze-chaos">
+                        <div class="md-content">
+                            <h3>📊 ze-chaos</h3>
+                            <p>The chaos-testing dashboard got a UX pass: live convergence charts, a peer health view, and clearer sync-state visibility (peers now show Established → Syncing → Up instead of jumping straight to Up).</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

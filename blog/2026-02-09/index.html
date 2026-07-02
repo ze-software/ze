@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2026-02-09 - Ze Blog</title>
+        <meta name="description" content="A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot-path allocation cleanup." />
+        <meta property="og:title" content="Week of 2026-02-09 - Ze Blog" />
+        <meta property="og:description" content="A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot-path allocation cleanup." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2026-02-09</h2>
+                    <p>A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot-path allocation cleanup.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🌪️ Chaos testing tool">
+                        <div class="md-content">
+                            <h3>🌪️ Chaos testing tool</h3>
+                            <p>A new dedicated tool, <code>ze-bgp-chaos</code>, landed this week: a seed-based fault-injection harness for exercising Ze's BGP route propagation. It grew from a single-peer session driver into a multi-peer validation framework with scripted chaos events (drops, resets, malformed messages) and coverage for seven address families (IPv4/IPv6 unicast, IPv4/IPv6 VPN, EVPN, IPv4/IPv6 FlowSpec).</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔁 Config reload">
+                        <div class="md-content">
+                            <h3>🔁 Config reload</h3>
+                            <p>Live reload now runs through the hub/orchestrator architecture: plugins get a verify pass before an apply pass, and the reload coordinator is hardened so a crashing plugin can't corrupt the process (any plugin that dies mid-reload aborts the reload cleanly instead of applying a partial config). Committing in the config editor now triggers a live daemon reload over the API socket directly. A new <code>ze signal</code> command plus PID-file locking makes it possible to reload, stop, or query a running daemon without hunting down its PID, and prevents two instances from starting against the same config.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ Protocol correctness">
+                        <div class="md-content">
+                            <h3>🛰️ Protocol correctness</h3>
+                            <ul>
+<li>Malformed UPDATE messages are now handled per RFC 7606: depending on the error, Ze treats the route as withdrawn, discards just the bad attribute, or resets the session, instead of one blunt response for every case</li>
+<li>Early support for RFC 9234 BGP Roles: peers can declare a role, and the engine validates role pairs on OPEN, sending a NOTIFICATION on mismatch (OTC handling is still to come)</li>
+<li><code>local-address</code> is now mandatory for every peer; leaving it unset made TCP source IP selection OS-dependent and produced inconsistent next-hop-self behaviour</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔄 ExaBGP migration">
+                        <div class="md-content">
+                            <h3>🔄 ExaBGP migration</h3>
+                            <p>The migration tool now passes all 37 compatibility test configs, with L2VPN/VPLS migration completed and ExaBGP watchdog processes bridged through Ze's API socket.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="⚡ Performance">
+                        <div class="md-content">
+                            <h3>⚡ Performance</h3>
+                            <p>The BGP UPDATE encoding path had its remaining heap allocations eliminated: attribute writes, SRv6 TLVs, withdrawals, and RIB NLRI paths all now write into pooled buffers instead of allocating per message.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

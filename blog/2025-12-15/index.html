@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2025-12-15 - Ze Blog</title>
+        <meta name="description" content="The first tracked week of development on Ze. In seven days the BGP engine went from nothing to a config-driven daemon that speaks the wire protocol, holds a RIB, and tests itself against ExaBGP." />
+        <meta property="og:title" content="Week of 2025-12-15 - Ze Blog" />
+        <meta property="og:description" content="The first tracked week of development on Ze. In seven days the BGP engine went from nothing to a config-driven daemon that speaks the wire protocol, holds a RIB, and tests itself against ExaBGP." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2025-12-15</h2>
+                    <p>The first tracked week of development on Ze. In seven days the BGP engine went from nothing to a config-driven daemon that speaks the wire protocol, holds a RIB, and tests itself against ExaBGP.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🏗️ Core BGP engine">
+                        <div class="md-content">
+                            <h3>🏗️ Core BGP engine</h3>
+                            <p>The foundational pieces of a BGP speaker landed: wire-format encoding/decoding, all BGP message types, capability negotiation, path attributes, NLRI types, a RIB, the finite state machine, and the session/reactor layer that drives peer connections. A zero-copy byte-deduplication pool underpins the encoding path from the start.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧩 Config and CLI">
+                        <div class="md-content">
+                            <h3>🧩 Config and CLI</h3>
+                            <p>A schema-driven config parser landed with ExaBGP-compatible syntax (set-style blocks, arrays, serialization), wired straight through to the reactor. The CLI grew daemon and API run modes plus an interactive editor with autocomplete.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔌 API and self-check testing">
+                        <div class="md-content">
+                            <h3>🔌 API and self-check testing</h3>
+                            <p>An API layer for external processes to talk to Ze, alongside a functional self-check test harness and a testpeer package that exercises the daemon against ExaBGP for compatibility, including passive-peer handling.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📜 RFC compliance pass">
+                        <div class="md-content">
+                            <h3>📜 RFC compliance pass</h3>
+                            <p>A broad pass brought the engine's attribute and NLRI handling in line with the relevant RFCs: EVPN Type 1, Type 4, and Type 5 (RFC 7432), BGP-LS, MVPN, VPLS, and FlowSpec VPN (SAFI 134) route support, extended next-hop encoding (RFC 5549/8950), AFI/SAFI family validation (RFC 4760), VPN next-hop RD parsing (RFC 4364/4659), MP-NLRI chunking (RFC 4271), AS_CONFED handling in AS4_PATH and ASN4-aware AS_PATH encoding (RFC 6793), and path attribute ordering (RFC 4271 Appendix F.3). Fixes went in for extended community parsing, FlowSpec numeric match operators, software-version capability parsing, and IPv6 route sending with correct end-of-RIB markers.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📦 Config migration and batched updates">
+                        <div class="md-content">
+                            <h3>📦 Config migration and batched updates</h3>
+                            <p>Config syntax moved from <code>neighbor</code> to <code>peer</code>, with <code>static</code> routes migrating to <code>announce</code>, template-based <code>group</code>/<code>match</code> blocks, peer glob patterns (<code>peer 192.168.*.*</code>), and CLI commands to check and migrate older configs. Per-family negotiation now supports enable/disable/require modes plus a lenient ignore mode for UPDATE validation. On the sending side, routes are now grouped by shared attributes and packed into batched UPDATE messages per peer, with per-peer Adj-RIB-Out, transactional commits, and a CommitService that flushes and sends grouped UPDATEs as a unit.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

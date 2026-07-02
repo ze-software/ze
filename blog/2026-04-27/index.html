@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2026-04-27 - Ze Blog</title>
+        <meta name="description" content="Interface configuration now rolls back cleanly on failure, the web UI got a dedicated CLI page, and traffic-control state survives more edge cases." />
+        <meta property="og:title" content="Week of 2026-04-27 - Ze Blog" />
+        <meta property="og:description" content="Interface configuration now rolls back cleanly on failure, the web UI got a dedicated CLI page, and traffic-control state survives more edge cases." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2026-04-27</h2>
+                    <p>Interface configuration now rolls back cleanly on failure, the web UI got a dedicated CLI page, and traffic-control state survives more edge cases.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🔌 Interfaces & routing">
+                        <div class="md-content">
+                            <h3>🔌 Interfaces & routing</h3>
+                            <p>Interface configuration apply is now transactional: if any step (address changes, bridge ports, STP, mirrors, MTU, MAC, VLANs, tunnels) fails partway through, everything already applied gets rolled back instead of leaving a half-configured interface. Sysrib now accepts withdrawal batches that don't carry a specific protocol source, needed for a clean full Loc-RIB teardown, and HTB traffic shaping now uses correct kernel defaults.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🖥️ Web UI">
+                        <div class="md-content">
+                            <h3>🖥️ Web UI</h3>
+                            <p>The bottom CLI bar was replaced with a dedicated <code>/cli</code> page that matches the SSH CLI layout, with the same tab completion, history, and prompt behavior. Workbench, Finder, and CLI are all switchable at runtime from the top bar, with the choice remembered, and login now redirects back to the page you originally requested.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📶 Traffic control & telemetry">
+                        <div class="md-content">
+                            <h3>📶 Traffic control & telemetry</h3>
+                            <p>The netlink traffic-control backend now snapshots and restores the original qdisc instead of leaving it permanently replaced. Prometheus telemetry config was restructured: OS collector settings moved into their own container, HTTP Basic Auth is now available for the metrics endpoint, and a timing side-channel in the auth check was closed.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Under the hood">
+                        <div class="md-content">
+                            <h3>🛠️ Under the hood</h3>
+                            <p>REST/gRPC API streaming endpoints are now fully wired end to end, with authorization, accounting, and panic recovery. FIB startup no longer clobbers routes owned by static routing. L2TP route redistribution now emits real add/remove events instead of a stub.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

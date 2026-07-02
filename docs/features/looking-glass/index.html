@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Looking Glass - Ze</title>
+        <meta name="description" content="Ze documentation: features/looking-glass.md" />
+        <meta property="og:title" content="Looking Glass - Ze" />
+        <meta property="og:description" content="Ze documentation: features/looking-glass.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-operate">
+<h1>Looking Glass</h1>
+<p>Ze includes a built-in looking glass that exposes BGP session state and route information via both an HTMX web UI and a birdwatcher-compatible REST API. The looking glass runs as a separate HTTP server on its own port (default 8443), with no authentication (public, read-only). TLS is optional.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Peer dashboard</td>
+<td>Live peer table with state, ASN, route counts, SSE updates</td>
+</tr>
+<tr>
+<td>Route lookup</td>
+<td>Prefix and IP containment search with full attribute display</td>
+</tr>
+<tr>
+<td>AS path search</td>
+<td>Pattern-based AS path filtering</td>
+</tr>
+<tr>
+<td>Community search</td>
+<td>Standard and large community filtering</td>
+</tr>
+<tr>
+<td>AS path topology graph</td>
+<td>Server-side SVG visualization of AS path DAGs</td>
+</tr>
+<tr>
+<td>Birdwatcher REST API</td>
+<td>Alice-LG compatible JSON endpoints under <code>/api/looking-glass/</code></td>
+</tr>
+<tr>
+<td>HTMX web UI</td>
+<td>Server-rendered HTML pages under <code>/lg/</code> with fragment updates</td>
+</tr>
+<tr>
+<td>YANG configuration</td>
+<td><code>environment/looking-glass</code> block with enabled, server (ip, port), tls settings</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/lg/server.go -- LGServer, HTTP lifecycle -->
+<!-- source: internal/component/lg/handler_api.go -- Birdwatcher REST API handlers -->
+<!-- source: internal/component/lg/handler_ui.go -- HTMX UI handlers -->
+<!-- source: internal/component/lg/handler_graph.go -- AS path graph handler -->
+<!-- source: internal/component/lg/graph.go -- Graph data model -->
+<!-- source: internal/component/lg/layout.go -- Layout algorithm and SVG rendering -->
+
+<p>See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/looking-glass.md" target="_blank" rel="noopener">Looking Glass Guide</a> for configuration and usage.</p>
+<h3>AS Path Topology Graph</h3>
+<p>The looking glass includes a server-side SVG graph that visualizes AS path topology for any prefix. When looking up a route, clicking "Show topology" renders a directed acyclic graph where nodes represent autonomous systems and edges represent peering links.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Server-side SVG</td>
+<td>Rendered entirely in Go, no external dependencies (no GraphViz, no WASM, no JS graph library)</td>
+</tr>
+<tr>
+<td>Layered layout</td>
+<td>Sugiyama-inspired left-to-right layout with source ASes on the left, origin on the right</td>
+</tr>
+<tr>
+<td>AS prepending</td>
+<td>Consecutive duplicate ASNs collapsed to a single node</td>
+</tr>
+<tr>
+<td>Multi-path</td>
+<td>Multiple AS paths to the same prefix shown as a branching DAG</td>
+</tr>
+<tr>
+<td>ASN labels</td>
+<td>Each node shows AS number and organization name (when decorator is available)</td>
+</tr>
+<tr>
+<td>Node cap</td>
+<td>Graphs limited to 100 nodes to prevent resource exhaustion</td>
+</tr>
+<tr>
+<td>HTMX integration</td>
+<td>Loaded as an inline SVG fragment via <code>GET /lg/graph?prefix=X</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/lg/graph.go -- buildGraph, deduplicateASPath -->
+<!-- source: internal/component/lg/layout.go -- computeLayout, renderGraphSVG -->
+<!-- source: internal/component/lg/handler_graph.go -- handleGraph endpoint -->
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

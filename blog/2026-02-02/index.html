@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2026-02-02 - Ze Blog</title>
+        <meta name="description" content="Mostly spent on the config editor, a new capability, and a round of decode/RIB bug fixes." />
+        <meta property="og:title" content="Week of 2026-02-02 - Ze Blog" />
+        <meta property="og:description" content="Mostly spent on the config editor, a new capability, and a round of decode/RIB bug fixes." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2026-02-02</h2>
+                    <p>Mostly spent on the config editor, a new capability, and a round of decode/RIB bug fixes.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🔌 Link-local next-hop capability">
+                        <div class="md-content">
+                            <h3>🔌 Link-local next-hop capability</h3>
+                            <p>A new plugin adds the link-local-nexthop capability (code 77, draft-ietf-idr-linklocal-capability), a zero-payload flag signalling willingness to receive IPv6 link-local addresses as BGP next-hops per RFC 2545 §3.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧰 Config editor">
+                        <div class="md-content">
+                            <h3>🧰 Config editor</h3>
+                            <p>The <code>set</code> command now actually modifies config (it was a stub before), and the <code>load</code> command was redesigned with explicit syntax: <code>load &lt;file|terminal&gt; &lt;absolute|relative&gt; &lt;replace|merge&gt;</code>, including a paste-from-terminal mode. Peer names containing spaces, quotes, or backslashes are now handled correctly in <code>edit</code>/<code>set</code>, and tab completion for peer selectors shows actual configured peers instead of schema field names.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🐛 Fixes">
+                        <div class="md-content">
+                            <h3>🐛 Fixes</h3>
+                            <ul>
+<li>A plugin RPC routing bug sent commands like <code>bgp watchdog announce</code> and <code>bgp cache list</code> to the wrong handler; both now dispatch correctly</li>
+<li>Decoded IPv6 NLRI now returns plain prefix strings, matching IPv4 output instead of wrapping them in an extra object</li>
+<li>RIB event parsing now correctly reads sent UPDATE events in Ze's JSON format, fixing route replay for reconnect and graceful-restart scenarios</li>
+<li>A capability decoder bug that rejected flag-only capabilities with no payload (breaking the new link-local-nexthop plugin) is fixed</li>
+<li>Early ExaBGP migration work: automatic Extended Message capability (RFC 8654) and hostname/domain-name migration to the hostname capability block</li>
+</ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

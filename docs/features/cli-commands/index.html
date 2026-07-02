@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>CLI Commands - Ze</title>
+        <meta name="description" content="Ze documentation: features/cli-commands.md" />
+        <meta property="og:title" content="CLI Commands - Ze" />
+        <meta property="og:description" content="Ze documentation: features/cli-commands.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-operate">
+<h1>CLI Commands</h1>
+<h3>Protocol Tools</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze bgp decode</code></td>
+<td>Decode BGP message from hex to JSON</td>
+</tr>
+<tr>
+<td><code>ze bgp encode</code></td>
+<td>Encode text route command to BGP wire hex</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/cli/main.go -- bgp decode/encode dispatch -->
+
+<h3>Configuration Management</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze config validate &lt;file&gt;</code></td>
+<td>Validate configuration file</td>
+</tr>
+<tr>
+<td><code>ze config edit</code></td>
+<td>Interactive configuration editor</td>
+</tr>
+<tr>
+<td><code>ze config migrate</code></td>
+<td>Convert ExaBGP config to ze format</td>
+</tr>
+<tr>
+<td><code>ze config fmt</code></td>
+<td>Format and normalize config file</td>
+</tr>
+<tr>
+<td><code>ze config dump</code></td>
+<td>Dump parsed configuration tree</td>
+</tr>
+<tr>
+<td><code>ze config diff &lt;a&gt; &lt;b&gt;</code></td>
+<td>Compare two configuration files</td>
+</tr>
+<tr>
+<td><code>ze config set</code></td>
+<td>Set a configuration value programmatically</td>
+</tr>
+<tr>
+<td><code>ze config import</code></td>
+<td>Import a configuration file into ze</td>
+</tr>
+<tr>
+<td><code>ze config rename</code></td>
+<td>Rename a configuration element</td>
+</tr>
+<tr>
+<td><code>ze config archive &lt;name&gt;</code></td>
+<td>Archive config to a named destination (<a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-archive.md" target="_blank" rel="noopener">guide</a>)</td>
+</tr>
+<tr>
+<td><code>ze config history</code></td>
+<td>List rollback revisions</td>
+</tr>
+<tr>
+<td><code>ze config rollback &lt;N&gt;</code></td>
+<td>Restore revision N</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/config/cli/main.go -- config subcommand dispatch -->
+<!-- source: internal/component/config/cli/cmd_archive.go -- archive subcommand -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- validate command -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- migrate command -->
+<!-- source: internal/component/config/cli/cmd_dump.go -- dump command -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- diff command -->
+
+<h3>Schema Discovery</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze schema list</code></td>
+<td>List all registered YANG schemas</td>
+</tr>
+<tr>
+<td><code>ze schema show &lt;module&gt;</code></td>
+<td>Show YANG content for a module</td>
+</tr>
+<tr>
+<td><code>ze schema handlers</code></td>
+<td>List handler→module mapping</td>
+</tr>
+<tr>
+<td><code>ze schema methods [module]</code></td>
+<td>List RPCs from YANG modules</td>
+</tr>
+<tr>
+<td><code>ze schema events</code></td>
+<td>List notifications from YANG</td>
+</tr>
+<tr>
+<td><code>ze schema protocol</code></td>
+<td>Show protocol version and format info</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/config/yang/cli/main.go -- schema subcommand dispatch -->
+
+<h3>Daemon Control</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze &lt;config-file&gt;</code></td>
+<td>Start daemon with configuration</td>
+</tr>
+<tr>
+<td><code>ze signal reload</code></td>
+<td>Send SIGHUP — reload configuration</td>
+</tr>
+<tr>
+<td><code>ze signal stop</code></td>
+<td>Graceful shutdown (no GR marker)</td>
+</tr>
+<tr>
+<td><code>ze signal restart</code></td>
+<td>Graceful restart (writes GR marker, then shuts down)</td>
+</tr>
+<tr>
+<td><code>ze signal status</code></td>
+<td>Dump process status (SIGUSR1 equivalent)</td>
+</tr>
+<tr>
+<td><code>ze signal quit</code></td>
+<td>Send SIGQUIT — goroutine dump + halt</td>
+</tr>
+<tr>
+<td><code>ze status</code></td>
+<td>Check if daemon is running</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/signal/main.go -- Commands registry -->
+
+<h3>Runtime Interaction</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze cli</code></td>
+<td>Interactive CLI (with <code>-c &lt;cmd&gt;</code> for single command)</td>
+</tr>
+<tr>
+<td><code>ze show &lt;command&gt;</code></td>
+<td>Read-only daemon commands</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Live peer dashboard:</strong> <code>monitor bgp</code> in the interactive CLI enters a live dashboard showing router identity, a sortable color-coded peer table with update rates, and drill-down detail view. Auto-refreshes every 2 seconds. Navigate with j/k, sort with s/S, Enter for detail, Esc to exit.</p>
+<!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
+
+<p><strong>Commit confirmed:</strong> The editor supports <code>commit confirmed &lt;seconds&gt;</code> for safe remote changes. The config is applied immediately but auto-reverts if <code>confirm</code> is not issued within the timeout window (1-3600 seconds). Use <code>confirm abort</code> to revert manually. Modeled after Junos commit confirmed.</p>
+<!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->
+
+<p><strong>Command history persistence:</strong> Both <code>ze config edit</code> and <code>ze cli</code> persist command history to the zefs blob store. History survives application restarts, is stored per-mode (edit vs command) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Graceful degradation when no blob store is available (in-memory only).</p>
+<!-- source: internal/component/cli/history.go -- History type -->
+
+<p><strong>Login warnings:</strong> When an operator connects via SSH, ze checks for conditions requiring attention and displays warnings in the welcome area. Each warning includes a message and an actionable command. Currently checks for stale prefix data (peers with <code>prefix-updated</code> older than 6 months); run <code>update bgp peer * prefix</code> to refresh from PeeringDB.</p>
+<!-- source: internal/component/ssh/session.go -- createSessionModel login warning collection -->
+
+<p><strong>Plugin debug shell:</strong> <code>ze bgp plugin cli</code> connects to the daemon via SSH, runs the 5-stage plugin handshake, and enters interactive command mode. Developers can test plugin protocol interactions by hand -- sending dispatch-command, subscribe-events, decode-nlri, etc. Accepts defaults (Enter through Q&amp;A) or custom registration parameters (families, plugin name).</p>
+<!-- source: internal/component/bgp/cli/cmd_plugin.go -- cmdPluginCLI -->
+
+<h3>Other</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze plugin &lt;name&gt;</code></td>
+<td>Run a registered plugin</td>
+</tr>
+<tr>
+<td><code>ze exabgp plugin</code></td>
+<td>Run ExaBGP plugin with ze bridge</td>
+</tr>
+<tr>
+<td><code>ze exabgp migrate</code></td>
+<td>Convert ExaBGP config to ze</td>
+</tr>
+<tr>
+<td><code>ze completion bash/zsh/fish/nushell</code></td>
+<td>Generate shell completion scripts</td>
+</tr>
+<tr>
+<td><code>ze --plugins</code></td>
+<td>List available internal plugins</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/completion/main.go -- completion subcommand -->
+<!-- source: internal/component/plugin/cli/main.go -- plugin subcommand -->
+<!-- source: internal/plugins/exabgp/main.go -- exabgp subcommand -->
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

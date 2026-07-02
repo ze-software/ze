@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2026-01-12 - Ze Blog</title>
+        <meta name="description" content="A week focused on Graceful Restart, ExaBGP migration tooling, and logging." />
+        <meta property="og:title" content="Week of 2026-01-12 - Ze Blog" />
+        <meta property="og:description" content="A week focused on Graceful Restart, ExaBGP migration tooling, and logging." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2026-01-12</h2>
+                    <p>A week focused on Graceful Restart, ExaBGP migration tooling, and logging.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🛰️ Graceful Restart">
+                        <div class="md-content">
+                            <h3>🛰️ Graceful Restart</h3>
+                            <p>A dedicated Graceful Restart plugin now handles per-peer restart-time configuration and registers the GR capability with peers during session startup, building on the plugin system's new per-peer capability support.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔀 ExaBGP migration">
+                        <div class="md-content">
+                            <h3>🔀 ExaBGP migration</h3>
+                            <p>For anyone running ExaBGP today, Ze picked up a migration path:</p>
+<ul>
+<li><code>zebgp exabgp migrate</code> converts ExaBGP configs to Ze's format (neighbor -&gt; peer syntax, capability normalization, automatic wiring of the RIB plugin when graceful-restart or route-refresh is in use)</li>
+<li><code>zebgp exabgp plugin</code> runs existing ExaBGP process plugins under Ze via a bridge that translates JSON and commands both ways</li>
+<li>The bridge forwards negotiated capabilities and next-hop information to those plugins, including RFC 8950 extended next-hop handling</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📊 Logging">
+                        <div class="md-content">
+                            <h3>📊 Logging</h3>
+                            <p>Per-subsystem logging landed, with <code>SLOG_LEVEL</code> to control verbosity and debug logging available where needed.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧩 Config & API">
+                        <div class="md-content">
+                            <h3>🧩 Config & API</h3>
+                            <ul>
+<li>The text-based update API now covers end-of-RIB markers, VPLS, and EVPN routes</li>
+<li>EVPN Type 5 routes support the RFC 9136 gateway keyword for overlay index resolution</li>
+<li>Plugin startup timeouts are now configurable per plugin</li>
+<li>Config validation now catches route-refresh or graceful-restart enabled without a process to resend routes, instead of failing silently later</li>
+</ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

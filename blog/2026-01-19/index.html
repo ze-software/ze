@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2026-01-19 - Ze Blog</title>
+        <meta name="description" content="A big architecture week: Ze split into a hub process and a BGP child process, gained live config reload, and got a documented plugin SDK." />
+        <meta property="og:title" content="Week of 2026-01-19 - Ze Blog" />
+        <meta property="og:description" content="A big architecture week: Ze split into a hub process and a BGP child process, gained live config reload, and got a documented plugin SDK." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2026-01-19</h2>
+                    <p>A big architecture week: Ze split into a hub process and a BGP child process, gained live config reload, and got a documented plugin SDK.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🧩 Process architecture">
+                        <div class="md-content">
+                            <h3>🧩 Process architecture</h3>
+                            <p>Ze now starts as a hub/orchestrator process (<code>ze config.conf</code>) that forks BGP as a separate child process, coordinating startup with plugins over a multi-stage handshake (declare, configure, negotiate capabilities, register, ready). Config can be reloaded live with SIGHUP: the reactor re-parses the file, diffs peers, and adds or removes sessions without a restart.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔌 Plugin SDK">
+                        <div class="md-content">
+                            <h3>🔌 Plugin SDK</h3>
+                            <p>A new SDK and developer guide (protocol details, YANG schema authoring, verify/apply handlers, command registration, testing) makes it possible to write BGP plugins outside the core tree, with a working example included. Plugins now declare a load priority so verify/apply runs in a predictable order across plugins.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧰 Config validation">
+                        <div class="md-content">
+                            <h3>🧰 Config validation</h3>
+                            <p>Configuration is validated against YANG schemas (peer, peer-group, route-map, prefix-list, plugin config), with range and pattern constraints checked before anything is applied. The config editor validates as you type (debounced, with an error count in the status bar) and enforces RFC 4271's hold-time rule (0 or 3+ seconds), blocking commit while errors remain. Unsaved edits now persist between editor sessions.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧩 Config syntax">
+                        <div class="md-content">
+                            <h3>🧩 Config syntax</h3>
+                            <p>BGP configuration is now wrapped in a <code>bgp {}</code> block, with template inheritance for peer groups, laying groundwork for other protocols to sit alongside BGP in the same config file.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ CLI">
+                        <div class="md-content">
+                            <h3>🛠️ CLI</h3>
+                            <p>Daemon and peer commands moved under a <code>bgp</code> namespace (<code>bgp daemon</code>, <code>bgp peer &lt;selector&gt;</code>) for a more consistent command surface, alongside new RIB introspection and event-subscription commands.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🐛 Fixes">
+                        <div class="md-content">
+                            <h3>🐛 Fixes</h3>
+                            <ul>
+<li>VPN routes carrying an SRv6 Prefix-SID were silently dropping the attribute; it's included correctly now</li>
+<li>JSON output places next-hop consistently across all NLRI families (FlowSpec had it in a different spot than everything else)</li>
+</ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

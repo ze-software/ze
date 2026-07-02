@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2026-04-13 - Ze Blog</title>
+        <meta name="description" content="A complete L2TP/PPP access stack, TACACS+ and pluggable AAA, a VPP dataplane, and new nftables/tc firewall backends." />
+        <meta property="og:title" content="Week of 2026-04-13 - Ze Blog" />
+        <meta property="og:description" content="A complete L2TP/PPP access stack, TACACS+ and pluggable AAA, a VPP dataplane, and new nftables/tc firewall backends." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2026-04-13</h2>
+                    <p>A complete L2TP/PPP access stack, TACACS+ and pluggable AAA, a VPP dataplane, and new nftables/tc firewall backends.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🛰️ L2TP & PPP access">
+                        <div class="md-content">
+                            <h3>🛰️ L2TP & PPP access</h3>
+                            <p>Ze gained a full L2TPv2 implementation for broadband access.</p>
+<ul>
+<li>Wire layer, tunnel FSM (SCCRQ/SCCRP/SCCCN handshake with tie-breaker resolution), and session FSM (ICRQ/ICRP/ICCN, OCRQ/OCRP, CDN)</li>
+<li>Reliable delivery engine (sequencing, congestion window, reordering) and HELLO keepalives</li>
+<li>PPP authentication: PAP, CHAP-MD5, and MS-CHAPv2, with LCP auth-protocol fallback and periodic CHAP re-authentication</li>
+<li>Wired into config reload, the CLI, and route redistribution</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔐 Authentication & AAA">
+                        <div class="md-content">
+                            <h3>🔐 Authentication & AAA</h3>
+                            <ul>
+<li>TACACS+ client wired into SSH, web, and API authentication, behind a new pluggable AAA backend registry</li>
+<li>Multi-user YANG-based login, <code>ze passwd</code>, and Junos-style plaintext password import</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧱 Firewall, traffic control & VPP">
+                        <div class="md-content">
+                            <h3>🧱 Firewall, traffic control & VPP</h3>
+                            <ul>
+<li>New nftables firewall backend and tc-netlink traffic-control backend, sharing one YANG data model, plus <code>show firewall</code>/<code>show traffic-control</code> CLI commands</li>
+<li>VPP dataplane support: connection management, startup.conf generation, DPDK binding, FIB programming via GoVPP, and a VPP interface backend with MAC/monitor support</li>
+<li>VPP-backed traffic control now rejects unsupported configuration at commit time instead of failing later</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔌 Interfaces & sysctl">
+                        <div class="md-content">
+                            <h3>🔌 Interfaces & sysctl</h3>
+                            <ul>
+<li>IPv6 default routes are now managed from Router Advertisements</li>
+<li>DHCP-installed routes can carry a configurable priority (route metric), for multi-uplink setups</li>
+<li>Named sysctl profiles for interface units, with an offline <code>ze sysctl</code> CLI and three-layer precedence</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="⚡ Route-server performance">
+                        <div class="md-content">
+                            <h3>⚡ Route-server performance</h3>
+                            <p>Route-server forwarding got a fast path: a reactor-owned forwarding cache cuts allocations on the per-UPDATE hot path. RIB best-path records are packed more tightly with a shared interner, next-hops now store as typed IP addresses instead of strings, and encoding for FlowSpec/BGP-LS JSON and static/MVPN UPDATEs got zero- or low-allocation paths.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Under the hood">
+                        <div class="md-content">
+                            <h3>🛠️ Under the hood</h3>
+                            <p>New <code>show host *</code> commands surface hardware inventory. MCP now speaks Streamable HTTP transport with session management. The gokrazy appliance boots its config entirely from zefs (no static files), with first-boot bootstrap merging a template with live interface discovery, and a management proxy now exposes gokrazy's own console through Ze's web server. BFD authentication state now survives a session restart. BMP Route Monitoring was silently sending collectors headerless, malformed messages; it now emits complete RFC 4271 BGP messages. Redistribution can now filter per source family.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

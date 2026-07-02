@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>VLAN QoS Wire-Level Proof - Ze</title>
+        <meta name="description" content="Proving 802.1p PCP tagging actually happens on the wire, not just in kernel state." />
+        <meta property="og:title" content="VLAN QoS Wire-Level Proof - Ze" />
+        <meta property="og:description" content="Proving 802.1p PCP tagging actually happens on the wire, not just in kernel state." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section aria-labelledby="lab-title">
+                <div class="section-head reveal cat-services">
+                    <h2 id="lab-title">VLAN QoS Wire-Level Proof</h2>
+                    <p>
+                        Proves that VLAN 802.1p QoS maps work on the wire, not
+                        just in kernel state.
+                    </p>
+                </div>
+                <div class="status-panel reveal">
+                    <div class="status-copy">
+                        <span class="tag">Daemon</span>
+                        <p>
+                            Two network namespaces joined by a veth pair. One
+                            side has a VLAN sub-interface with egress/ingress
+                            QoS maps; the other is a raw capture/inject
+                            endpoint. Egress: send UDP with a given
+                            <code>SO_PRIORITY</code>, the egress map stamps
+                            the matching PCP bit in the 802.1Q header, and a
+                            capture on the peer side confirms it. Ingress: a
+                            raw 802.1Q frame with a given PCP arrives, the
+                            8021q module strips the tag, and the ingress map
+                            translates PCP back to <code>skb-&gt;priority</code>,
+                            verified with an nftables counter.
+                        </p>
+                        <p>
+                            <strong>Limitations, stated by the lab itself:</strong>
+                            proves behavior on veth pairs (software), not
+                            physical NICs with hardware VLAN offload. Single-tag
+                            802.1Q only -- QinQ is out of scope. No throughput
+                            or latency assertions; this proves marking
+                            correctness, not QoS scheduling behavior.
+                        </p>
+                    </div>
+                    <div class="status-table" aria-label="Lab facts">
+                        <div class="status-row">
+                            <strong>Proves</strong>
+                            <span>802.1p PCP tagging/classification actually on the wire (AF_PACKET capture + nftables counters)</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Scenarios</strong>
+                            <span>Egress (PCP on the wire), Ingress (PCP classification), Full chain (DSCP to PCP)</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Requires</strong>
+                            <span>Linux with network namespace support, root (CAP_NET_ADMIN), iproute2, tcpdump, python3</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Source</strong>
+                            <span
+                                ><a
+                                    href="https://github.com/ze-software/ze/tree/main/test/vlan-qos-lab"
+                                    target="_blank"
+                                    rel="noopener"
+                                    >test/vlan-qos-lab/</a
+                                ></span
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-panel reveal">
+                    <div class="terminal" aria-label="Run commands">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># interactive (requires Linux root)</span>
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> ./test/vlan-qos-lab/run.sh
+
+<span class="term-comment"># CI-style smoke test, exits 0 on success</span>
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> ./test/vlan-qos-lab/run.sh --selftest</pre>
+                        </div>
+                    </div>
+                    <div class="terminal-note">
+                        <span class="tag">Prerequisites</span>
+                        <p>
+                            Linux with network namespace support and root
+                            (CAP_NET_ADMIN). No Docker, no QEMU needed.
+                        </p>
+                        <div class="link-list">
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/test/vlan-qos-lab/README.md"
+                                target="_blank"
+                                rel="noopener"
+                                >test/vlan-qos-lab/README.md
+                                <span>full lab documentation</span></a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

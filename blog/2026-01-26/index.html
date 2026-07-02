@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2026-01-26 - Ze Blog</title>
+        <meta name="description" content="Config work, the ExaBGP migration path, and correctness fixes across the wire." />
+        <meta property="og:title" content="Week of 2026-01-26 - Ze Blog" />
+        <meta property="og:description" content="Config work, the ExaBGP migration path, and correctness fixes across the wire." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2026-01-26</h2>
+                    <p>Config work, the ExaBGP migration path, and correctness fixes across the wire.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🧩 Family plugins">
+                        <div class="md-content">
+                            <h3>🧩 Family plugins</h3>
+                            <p>BGP-LS, VPN, EVPN and FlowSpec are now standalone family plugins with their own CLI decode/encode mode, human-readable output by default, and JSON or text input. A two-phase startup (explicit plugins first, then auto-load by family) avoids conflicts when more than one plugin could claim the same NLRI type. Capability decoding is plugin-driven too: unknown capabilities now show as <code>code=N</code> with raw hex instead of being opaque, and a new hostname (FQDN) capability plugin injects per-peer hostname/domain into the OPEN message.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔄 ExaBGP migration">
+                        <div class="md-content">
+                            <h3>🔄 ExaBGP migration</h3>
+                            <p>The ExaBGP config migration tool now converts <code>announce</code>/<code>static</code> blocks to Ze's native <code>update {}</code> syntax across all 38 test configs (up from 2). Legacy ExaBGP config syntax (<code>announce</code>/<code>static</code>/<code>flow</code>/<code>l2vpn</code>) has been removed from Ze entirely; route announcements now go exclusively through native <code>update { attribute {} nlri {} }</code> blocks, which also gained watchdog support for route withdrawal control.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🐛 Correctness fixes">
+                        <div class="md-content">
+                            <h3>🐛 Correctness fixes</h3>
+                            <ul>
+<li>AS_PATH prepending is now RFC 4271 compliant: Ze no longer double-prepends the local AS when the configured path already starts with it</li>
+<li>Connection collision resolution (RFC 4271 §6.8) no longer risks a panic under load; it uses proper channel synchronization for session teardown instead of a timed sleep</li>
+<li>An explicit <code>hold-time 0</code> (disable keepalives, RFC 4271) is preserved instead of being silently reset to the 90s default</li>
+<li>Route Distinguisher is now parsed inline with the NLRI (as RFC 8955/4364 define it) instead of as a path attribute, consistent across API, config, and VPN families</li>
+<li>FlowSpec's OR-of-AND filter encoding now round-trips correctly</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧰 Config editor and CLI">
+                        <div class="md-content">
+                            <h3>🧰 Config editor and CLI</h3>
+                            <p>The editor gained mandatory peer-as validation with template inheritance, a prompt to resume pending edits left from a previous session, and a new <code>ze config edit</code> command. <code>config check</code>, <code>dump</code>, <code>migrate</code>, <code>validate</code> and <code>schema</code> all accept input on stdin now, useful for scripting.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Under the hood">
+                        <div class="md-content">
+                            <h3>🛠️ Under the hood</h3>
+                            <p>RIB storage moved to per-attribute deduplication, cutting memory use for peers carrying large overlapping route sets.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

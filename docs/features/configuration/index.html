@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Configuration - Ze</title>
+        <meta name="description" content="Ze documentation: features/configuration.md" />
+        <meta property="og:title" content="Configuration - Ze" />
+        <meta property="og:description" content="Ze documentation: features/configuration.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-operate">
+<h1>Configuration</h1>
+<h3>Peer Settings</h3>
+<p>Peers are keyed by name (<code>peer &lt;name&gt; { }</code>) with IP and AS in nested containers:</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Description</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>remote { ip; }</code></td>
+<td>Peer IP address</td>
+<td>Required (<code>ze:required</code>)</td>
+</tr>
+<tr>
+<td><code>remote { as; }</code></td>
+<td>Peer AS number</td>
+<td>Required (<code>ze:required</code>)</td>
+</tr>
+<tr>
+<td><code>local { as; }</code></td>
+<td>Local AS number</td>
+<td>Required (<code>ze:required</code>, inheritable from bgp level)</td>
+</tr>
+<tr>
+<td><code>local { ip; }</code></td>
+<td>Local bind address</td>
+<td>Suggested (<code>ze:suggest</code>, can be <code>auto</code>)</td>
+</tr>
+<tr>
+<td><code>router-id</code></td>
+<td>Per-peer router ID override</td>
+<td>Optional (or inherited)</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>Peer key (must start with letter)</td>
+<td>Required</td>
+</tr>
+<tr>
+<td><code>hold-time</code></td>
+<td>Hold timer (0 or 3-65535 seconds)</td>
+<td>1-2 rejected</td>
+</tr>
+<tr>
+<td><code>remote { connect; }</code></td>
+<td>Initiate outbound connections (boolean)</td>
+<td>Default: true</td>
+</tr>
+<tr>
+<td><code>local { accept; }</code></td>
+<td>Accept inbound connections (boolean)</td>
+<td>Default: true</td>
+</tr>
+<tr>
+<td><code>md5-password</code></td>
+<td>TCP MD5 authentication</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td><code>outgoing-ttl</code></td>
+<td>TTL for outgoing packets</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td><code>ttl-security</code></td>
+<td>Minimum TTL for incoming packets</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td><code>group-updates</code></td>
+<td>Enable/disable UPDATE grouping</td>
+<td>Default: enabled</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree config resolution -->
+<!-- source: internal/component/bgp/config/peers.go -- peer config parsing -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config YANG schema -->
+
+<h3>Required Field Validation</h3>
+<p>The <code>ze:required</code> and <code>ze:suggest</code> YANG extensions declare which fields must be present in a peer after config inheritance resolution (bgp -&gt; group -&gt; peer merge).</p>
+<table>
+<thead>
+<tr>
+<th>Extension</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze:required "path"</code></td>
+<td>Descendant field must have a value in each list entry after inheritance. Validated at <code>ze config validate</code>, editor commit, and daemon startup for any list (generic, not BGP-only).</td>
+</tr>
+<tr>
+<td><code>ze:suggest</code></td>
+<td>Field shown in the web creation form with inherited defaults but not mandatory.</td>
+</tr>
+</tbody>
+</table>
+<p>Peer required fields: <code>connection/remote/ip</code>, <code>session/asn/local</code>, <code>session/asn/remote</code>. Suggested: <code>connection/local/ip</code>.</p>
+<p>Fields can be satisfied by inheritance: <code>session/asn/local</code> set at bgp level satisfies the requirement for all peers; <code>session/asn/remote</code> set at group level satisfies it for group members.</p>
+<!-- source: internal/component/config/yang/modules/ze-extensions.yang -- ze:required, ze:suggest extensions -->
+<!-- source: internal/component/config/required.go -- CheckRequired (generic, any list) -->
+<!-- source: internal/component/bgp/config/resolve.go -- CheckRequiredFields (BGP-specific) -->
+
+<h3>Prefix Limits (RFC 4486)</h3>
+<p>Per-peer per-family prefix maximum enforcement. Mandatory for every negotiated family.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Scope</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prefix { maximum N; }</code></td>
+<td>Per family</td>
+<td>Hard maximum prefix count. Mandatory.</td>
+</tr>
+<tr>
+<td><code>prefix { warning N; }</code></td>
+<td>Per family</td>
+<td>Warning threshold. Default: 90% of maximum.</td>
+</tr>
+<tr>
+<td><code>prefix { teardown true/false; }</code></td>
+<td>Per peer</td>
+<td>Tear down on exceed (default: true) or warn-only.</td>
+</tr>
+<tr>
+<td><code>prefix { idle-timeout N; }</code></td>
+<td>Per peer</td>
+<td>Seconds before auto-reconnect after teardown (0 = no reconnect).</td>
+</tr>
+</tbody>
+</table>
+<p>When a peer exceeds the maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With <code>teardown false</code>, the session stays up but further NLRIs for the exceeded family are dropped.</p>
+<p>Auto-reconnect uses exponential backoff: idle-timeout x 2^(N-1), capped at 1 hour. Backoff resets on stable session.</p>
+<p><strong>PeeringDB integration:</strong> <code>resolve peeringdb max-prefix &lt;asn&gt;</code> queries PeeringDB for a peer's ASN and updates prefix maximums automatically. A configurable margin (default 10%) is added to PeeringDB values. The PeeringDB URL is configurable under <code>system { peeringdb { url; margin; } }</code> for private mirrors. Staleness warnings appear when prefix data is older than 6 months.</p>
+<p><strong>Prometheus metrics:</strong> <code>ze_bgp_prefix_count</code>, <code>ze_bgp_prefix_maximum</code>, <code>ze_bgp_prefix_warning</code>, <code>ze_bgp_prefix_warning_exceeded</code>, <code>ze_bgp_prefix_ratio</code>, <code>ze_bgp_prefix_maximum_exceeded_total</code>, <code>ze_bgp_prefix_teardown_total</code>, <code>ze_bgp_prefix_stale</code>.</p>
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement -->
+<!-- source: internal/component/bgp/reactor/peer.go -- idle-timeout and reconnect logic -->
+<!-- source: internal/component/resolve/cmd/resolve.go -- handlePeeringDBMaxPrefix -->
+
+<h3>Cross-Peer Update Groups</h3>
+<p>Peers with identical outbound encoding contexts (same ContextID, same policy) are automatically grouped. The reactor builds each UPDATE once per group and fans out the wire bytes to all members, eliminating redundant per-peer UPDATE construction. GroupKey combines the peer's <code>sendCtxID</code> (which encodes ASN4, ADD-PATH, Extended Message, Extended Next Hop, iBGP/eBGP, and ASN values) with a policy key (uniform today, extensible for per-peer export policy).</p>
+<p>Groups are maintained by the reactor: peers are added on session establishment and removed on session close. When disabled or when all peers have unique contexts, behavior is identical to per-peer building with negligible overhead (one map lookup per peer lifecycle event).</p>
+<p>Default enabled. Configurable via <code>ze.bgp.reactor.update-groups</code> (boolean, default true). ExaBGP migrated configs automatically set <code>update-groups false</code> to preserve per-peer UPDATE behavior.</p>
+<!-- source: internal/component/bgp/reactor/update_group.go -- UpdateGroupIndex, GroupKey, Add, Remove, GroupsForPeers -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- updateGroups.Add on established, Remove on closed -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- group-aware AnnounceNLRIBatch -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- group-aware ForwardUpdate with fwdBodyCache -->
+<!-- source: internal/component/config/environment.go -- ze.bgp.reactor.update-groups env var registration -->
+<!-- source: internal/exabgp/migration/migrate.go -- injectUpdateGroupsDisabled -->
+
+<h3>Session Resilience</h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TCP_NODELAY</td>
+<td>Disables Nagle's algorithm. BGP messages are application-framed; Nagle only adds latency.</td>
+</tr>
+<tr>
+<td>DSCP CS6 (RFC 4271 S5.1)</td>
+<td>Sets IP_TOS/IPV6_TCLASS to 0xC0 so network QoS policies prioritize BGP traffic.</td>
+</tr>
+<tr>
+<td>Graceful TCP close</td>
+<td>Half-close (CloseWrite) before Close sends FIN instead of RST, ensuring remote peers read pending NOTIFICATIONs.</td>
+</tr>
+<tr>
+<td>Send Hold Timer (RFC 9687)</td>
+<td>Detects when local side cannot write to peer. Duration: max(8min, 2x hold-time). Sends NOTIFICATION code 8 on expiry.</td>
+</tr>
+<tr>
+<td>Hold timer congestion extension</td>
+<td>If data was recently read when the hold timer fires, ze is CPU-congested, not the peer. Resets hold timer instead of tearing down.</td>
+</tr>
+<tr>
+<td>Write deadline</td>
+<td>Forward pool batch writes use a 30s TCP write deadline (configurable via <code>ze.fwd.write.deadline</code>) to prevent stuck peers from blocking workers.</td>
+</tr>
+<tr>
+<td>Bounded overflow pool</td>
+<td>Two-tier pool: per-peer pools (64 slots) absorb steady-state traffic, shared MixedBufMux overflow pool (auto-sized from peer prefix maximums, overridable via <code>ze.fwd.pool.size</code> byte budget) bounds overflow memory.</td>
+</tr>
+<tr>
+<td>Congestion backpressure</td>
+<td>Two-threshold enforcement: pool &gt; 80% denies buffers to the worst destination peer (natural TCP backpressure). Pool &gt; 95% with peer &gt; 2x weight share for 5s triggers forced teardown.</td>
+</tr>
+<tr>
+<td>GR-aware congestion teardown</td>
+<td>Forced teardown is GR-aware: GR peers get TCP close (route retention), non-GR peers get Cease/OutOfResources NOTIFICATION.</td>
+</tr>
+<tr>
+<td>Pool headroom</td>
+<td><code>ze.fwd.pool.headroom</code> adds extra memory beyond auto-sized baseline, trading memory for delayed teardown decisions.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Prometheus metrics:</strong> <code>ze_bgp_pool_used_ratio</code>, <code>ze_bgp_overflow_items{peer}</code>, <code>ze_bgp_overflow_ratio{source}</code>, <code>ze_forward_buffer_denied_total</code>, <code>ze_forward_congestion_teardown_total</code>.</p>
+<!-- source: internal/component/bgp/reactor/session_connection.go -- TCP_NODELAY, IP_TOS, closeConn -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- Send Hold Timer -->
+<!-- source: internal/component/bgp/reactor/session.go -- recentRead congestion extension -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- write deadline, overflow pool -->
+<!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- two-threshold enforcement -->
+
+<h3>Route Loop Detection</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>RFC</th>
+<th>Scope</th>
+<th>What it detects</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AS loop</td>
+<td>RFC 4271 Section 9</td>
+<td>All sessions</td>
+<td>Local ASN in received AS_PATH (AS_SEQUENCE or AS_SET)</td>
+</tr>
+<tr>
+<td>ORIGINATOR_ID loop</td>
+<td>RFC 4456 Section 8</td>
+<td>iBGP only</td>
+<td>ORIGINATOR_ID matches local Router ID</td>
+</tr>
+<tr>
+<td>CLUSTER_LIST loop</td>
+<td>RFC 4456 Section 8</td>
+<td>iBGP only</td>
+<td>Local Router ID found in CLUSTER_LIST</td>
+</tr>
+</tbody>
+</table>
+<p>All three checks run after RFC 7606 structural validation but before prefix limit counting.
+Routes failing any check are silently treated as withdrawn (no NOTIFICATION, session stays up).
+Cluster ID defaults to Router ID per RFC 4456 Section 7.</p>
+<!-- source: internal/component/bgp/reactor/session_validation.go -- detectLoops -->
+
+<h3>Capabilities Configuration</h3>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Config Key</th>
+<th>Values</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4-byte ASN</td>
+<td><code>asn4</code></td>
+<td>true / false</td>
+</tr>
+<tr>
+<td>Route Refresh</td>
+<td><code>route-refresh</code></td>
+<td>true / false</td>
+</tr>
+<tr>
+<td>ADD-PATH</td>
+<td><code>add-path</code></td>
+<td>Per-family send/receive/both</td>
+</tr>
+<tr>
+<td>Extended Message</td>
+<td><code>extended-message</code></td>
+<td>true / false</td>
+</tr>
+<tr>
+<td>Extended Next Hop</td>
+<td><code>nexthop</code></td>
+<td>Per-family AFI mapping</td>
+</tr>
+<tr>
+<td>Graceful Restart</td>
+<td><code>graceful-restart</code></td>
+<td>restart-time (0-4095s), long-lived-stale-time (0-16777215s)</td>
+</tr>
+<tr>
+<td>Role</td>
+<td><code>role</code></td>
+<td>provider / rs / rs-client / customer / peer</td>
+</tr>
+<tr>
+<td>Role Strict</td>
+<td><code>role-strict</code></td>
+<td>true / false</td>
+</tr>
+</tbody>
+</table>
+<h3>Route Configuration</h3>
+<p>Static routes configured per-peer with full attribute control:</p>
+<ul>
+<li>Per-family NLRI with add/del/eor operations</li>
+<li>All standard path attributes</li>
+<li>Watchdog-controlled deferred announcement</li>
+<li>MPLS labels (single and multi-label)</li>
+<li>Route Distinguisher for VPN routes</li>
+<li>Prefix-SID and SRv6 attributes</li>
+</ul>
+<h3>Process Bindings</h3>
+<p>External processes receive BGP events and send commands:</p>
+<ul>
+<li>JSON event encoding (peer-up, peer-down, route updates)</li>
+<li>Text command protocol (route announce/withdraw)</li>
+<li>Configurable message filtering (receive-update, receive-open, etc.)</li>
+<li>Neighbor change notifications</li>
+</ul>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

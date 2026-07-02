@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>PPPoE Access Concentrator - Ze</title>
+        <meta name="description" content="Ze documentation: guide/pppoe.md" />
+        <meta property="og:title" content="PPPoE Access Concentrator - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/pppoe.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-services">
+<h1>PPPoE Access Concentrator</h1>
+<p>Ze implements an RFC 2516 PPPoE access concentrator for direct-attach
+subscriber access. PPPoE is the alternative to L2TP: subscribers connect
+over Ethernet to the BNG without an intermediate LAC/LNS tunnel.</p>
+<h2>Architecture</h2>
+<p>PPPoE uses the same transport-agnostic PPP Driver as L2TP. The PPPoE
+component handles discovery (PADI/PADO/PADR/PADS/PADT) and creates
+kernel PPPoE sessions via AF_PPPOX. The resulting /dev/ppp file
+descriptors feed into the PPP Driver, which runs LCP, authentication,
+and IPCP/IPv6CP identically to L2TP sessions.</p>
+<pre><code>Subscriber CPE
+    |
+    | Ethernet (ethertype 0x8863 discovery, 0x8864 session)
+    v
+PPPoE Subsystem (internal/component/l2tp/pppoe/)
+    |
+    | StartSession{ChanFD, UnitFD, AccessInterface, SubscriberMAC, ...}
+    v
+PPP Driver (internal/component/l2tp/ppp/)
+    |
+    v
+Auth/Pool/Shaper plugins (shared with L2TP)
+</code></pre>
+<h2>Configuration</h2>
+<pre><code>pppoe {
+    enabled true
+    ac-name &quot;my-bng&quot;
+    service-name &quot;internet&quot;
+    cookie-timeout 5
+    max-sessions 65535
+    padi-rate-limit 100
+    interface eth0 {
+    }
+    interface eth0.100 {
+        service-name &quot;vlan100&quot;
+        max-sessions 1000
+    }
+}
+</code></pre>
+<p>See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/configuration.md#pppoe-access" target="_blank" rel="noopener">configuration guide</a> for all settings.</p>
+<h2>CLI Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>show pppoe</code></td>
+<td>Subsystem summary</td>
+</tr>
+<tr>
+<td><code>show pppoe sessions</code></td>
+<td>List active sessions</td>
+</tr>
+<tr>
+<td><code>show pppoe session &lt;sid&gt;</code></td>
+<td>Show one session</td>
+</tr>
+<tr>
+<td><code>show pppoe statistics</code></td>
+<td>Per-interface counters</td>
+</tr>
+<tr>
+<td><code>show pppoe interfaces</code></td>
+<td>Configured access interfaces</td>
+</tr>
+</tbody>
+</table>
+<h2>Security</h2>
+<ul>
+<li><strong>AC-Cookie</strong>: HMAC-SHA256 cookie in PADO/PADR prevents PADR flooding.
+  Cookies expire after <code>cookie-timeout</code> seconds (default 5).</li>
+<li><strong>PADI rate limiting</strong>: Per-source-MAC rate limit prevents discovery
+  flooding. Configurable via <code>padi-rate-limit</code> (default 100/s).</li>
+<li><strong>Service-Name filtering</strong>: Only PADIs matching configured service names
+  are accepted. Empty list means accept any.</li>
+<li><strong>MAC binding</strong>: Sessions are bound to the subscriber MAC from PADR.
+  PADTs from other MACs are rejected.</li>
+</ul>
+<h2>Concurrent Operation</h2>
+<p>PPPoE and L2TP run concurrently on the same daemon. Both share the same
+PPP Driver, auth handlers, IP pools, and shaper plugins. The PPP
+component distinguishes sessions by TunnelID (ifindex for PPPoE, tunnel
+ID for L2TP) and SessionID.</p>
+<!-- source: internal/component/l2tp/pppoe/subsystem.go -->
+<!-- source: internal/component/l2tp/pppoe/server.go -->
+<!-- source: internal/component/l2tp/pppoe/discovery.go -->
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

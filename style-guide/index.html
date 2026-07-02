@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Style Guide - Ze</title>
+        <meta name="description" content="The palette, components, and content rules this site follows." />
+        <meta property="og:title" content="Style Guide - Ze" />
+        <meta property="og:description" content="The palette, components, and content rules this site follows." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../index.html#top" aria-label="Ze home">
+                    <img src="../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../index.html#status">Status</a>
+                    <a href="../index.html#try">Try</a>
+                    <a href="../features/">Features</a>
+                    <a href="../activity/">Activity</a>
+                    <a href="../performance/">Performance</a>
+                    <a href="../labs/">Labs</a>
+                    <a href="../compare/">Compare</a>
+                    <a href="../blog/">Blog</a>
+                    <a href="../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section aria-labelledby="sg-title">
+                <div class="section-head reveal">
+                    <h2 id="sg-title">Style guide.</h2>
+                    <p>
+                        The palette, components, and content rules this site
+                        follows -- so new pages stay consistent without
+                        re-deriving them from scratch.
+                    </p>
+                </div>
+            </section>
+
+            <section aria-labelledby="sg-palette">
+                <div class="section-head reveal">
+                    <h2 id="sg-palette">Palette: vivid candy claymation</h2>
+                    <p>Seven candy hues on a calm blush base.</p>
+                </div>
+                <div class="section-note reveal">
+                    <p>
+                        Each hue ships four tones in
+                        <code>assets/site.css</code>: <code>-base</code> (the
+                        vivid candy color), <code>-deep</code> (text-safe
+                        dark), <code>-chip</code> (pill background), and
+                        <code>-tint</code> (card surface), plus a
+                        <code>-glow</code> for hue-tinted shadows. Never mix
+                        tones across hues on one component.
+                    </p>
+                </div>
+                <div class="cards reveal">
+                    <article class="card cat-operate">
+                        <span class="cat">Operate</span>
+                        <h3>Sky</h3>
+                        <div class="chips"><span class="chip">--sky-*</span></div>
+                        <p>Operator surfaces: SSH CLI, YANG configuration, web workbench, looking glass.</p>
+                    </article>
+                    <article class="card cat-routing">
+                        <span class="cat">Routing</span>
+                        <h3>Tangerine</h3>
+                        <div class="chips"><span class="chip">--tangerine-*</span></div>
+                        <p>Control plane: BGP engine, static routes, BFD, MRT, MPLS signaling.</p>
+                    </article>
+                    <article class="card cat-services">
+                        <span class="cat">Services</span>
+                        <h3>Teal</h3>
+                        <div class="chips"><span class="chip">--teal-*</span></div>
+                        <p>Network services and data plane: VPN, BNG, firewall, interfaces, VPP, DNS.</p>
+                    </article>
+                    <article class="card cat-automate">
+                        <span class="cat">Automate</span>
+                        <h3>Grape</h3>
+                        <div class="chips"><span class="chip">--grape-*</span></div>
+                        <p>Programmability: plugins, APIs, MCP, ExaBGP migration, fleet management.</p>
+                    </article>
+                    <article class="card cat-observe">
+                        <span class="cat">Observe</span>
+                        <h3>Mint</h3>
+                        <div class="chips"><span class="chip">--mint-*</span></div>
+                        <p>Visibility and evidence: telemetry, health, diagnostics, testing proof.</p>
+                    </article>
+                    <article class="card cat-secure">
+                        <span class="cat">Secure</span>
+                        <h3>Pink</h3>
+                        <div class="chips"><span class="chip">--pink-*</span></div>
+                        <p>Security: SSH and RBAC, RPKI, TACACS+, audit trail, PKI store.</p>
+                    </article>
+                    <article class="card cat-platform">
+                        <span class="cat">Platform</span>
+                        <h3>Lemon</h3>
+                        <div class="chips"><span class="chip">--lemon-*</span></div>
+                        <p>Packaging and lifecycle: appliance and daemon targets, install, Docker, tunables.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Neutrals and brand</h3>
+                        <div class="chips"><span class="chip">--bg / --text / --purple</span></div>
+                        <p>A flat dimmed-blush page background, deep plum text, grape-violet headings. Surfaces stay lighter than the page so cards float. Cards without a category stay blush-white.</p>
+                    </article>
+                </div>
+            </section>
+
+            <section aria-labelledby="sg-category">
+                <div class="section-head reveal">
+                    <h2 id="sg-category">Color means category</h2>
+                    <p>
+                        On feature cards, color is information, never
+                        decoration.
+                    </p>
+                </div>
+                <div class="section-note reveal">
+                    <p>
+                        A <code>cat-*</code> class on the card sets one accent
+                        hue for everything on it: the category chip, the
+                        title, the tech chips, the bullet markers, the bold
+                        words, and the hover glow. Do not color cards by
+                        position (<code>nth-child</code> cycling is banned for
+                        cards) and do not mix hues within one card. Decorative
+                        variety is fine only where order carries no meaning --
+                        the homepage proof strip and audience trio.
+                    </p>
+                </div>
+                <div class="cards reveal">
+                    <article class="card cat-routing">
+                        <span class="cat">Routing</span>
+                        <h3>A well-formed card</h3>
+                        <div class="chips">
+                            <span class="chip">RFC 0000</span>
+                            <span class="chip">Tech</span>
+                        </div>
+                        <ul>
+                            <li>One hue, <strong>every element</strong></li>
+                            <li>Chips name <strong>technologies</strong></li>
+                            <li>Bullets state <strong>facts</strong></li>
+                        </ul>
+                    </article>
+                    <article class="card cat-platform">
+                        <span class="cat">Platform</span>
+                        <h3>Mode chips</h3>
+                        <div class="chips">
+                            <span class="chip mode">Daemon only</span>
+                            <span class="chip">Example</span>
+                        </div>
+                        <p>Features run in both daemon and appliance modes by default; a solid mode chip flags the exception. No "Both" pill on every card.</p>
+                    </article>
+                </div>
+            </section>
+
+            <section aria-labelledby="sg-clay">
+                <div class="section-head reveal">
+                    <h2 id="sg-clay">The clay look</h2>
+                    <p>Molded, not just rounded with a drop shadow.</p>
+                </div>
+                <div class="section-note reveal">
+                    <p>
+                        Every card-like surface (<code>.card</code>,
+                        <code>.button</code>, <code>.proof</code>,
+                        <code>.audience-card</code>, <code>.bird-card</code>,
+                        <code>.status-panel</code>, <code>.terminal-note</code>,
+                        <code>.closing</code>, the <code>.eyebrow</code> badge)
+                        carries <code>box-shadow: var(--clay)</code> plus a
+                        2px white "sugar coat" border: an inset top highlight,
+                        a soft inset bottom shade, and a diffuse outer shadow.
+                        Hovers lift with a bouncy cubic-bezier and a
+                        hue-tinted glow. Add all of it to any new card-like
+                        component; don't invent a one-off shadow.
+                    </p>
+                </div>
+                <div class="cards reveal">
+                    <article class="card">
+                        <h3>With clay</h3>
+                        <p>This card. Notice the white coat, soft top highlight, and bottom depth even before hover.</p>
+                    </article>
+                    <article class="card" style="box-shadow:none;border:1px solid var(--line);background:#fdf6f8">
+                        <h3>Without clay</h3>
+                        <p>Flat by comparison -- a plain bordered rectangle, no material feel.</p>
+                    </article>
+                </div>
+            </section>
+
+            <section aria-labelledby="sg-components">
+                <div class="section-head reveal">
+                    <h2 id="sg-components">Component patterns to reuse</h2>
+                    <p>Don't invent new components for new pages -- these cover almost everything.</p>
+                </div>
+                <div class="cards reveal">
+                    <article class="card">
+                        <h3>.status-panel / .status-table</h3>
+                        <p>Two-column fact panel: prose on the left, labeled rows on the right. Used for lab pages' "Proves / Requires / Source" facts.</p>
+                    </article>
+                    <article class="card">
+                        <h3>.terminal-panel</h3>
+                        <p>Terminal (exact commands, candy traffic-light dots) + terminal-note (prerequisites, links) side by side. Used on every lab page and the homepage Try section.</p>
+                    </article>
+                    <article class="card">
+                        <h3>.cards / .card + cat-*</h3>
+                        <p>The feature-grid unit. A cat-* class sets the hue, .cat names the category, .chip pills tag technologies, .chip.mode flags Daemon/Appliance exceptions.</p>
+                    </article>
+                    <article class="card">
+                        <h3>.legend</h3>
+                        <p>Category filter buttons carrying the same cat-* classes as the cards they filter. One active category at a time; pressing again clears.</p>
+                    </article>
+                    <article class="card">
+                        <h3>.section-note</h3>
+                        <p>Full-width prose under a section head for anything longer than a sentence or two. The head's side text stays short so it never pushes the section's content down.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Maturity tiers on cards</h3>
+                        <p>Shipped cards are solid clay. .card.experimental adds a dashed border and an "Experimental" status chip. .card.aspiration is a flat dashed blueprint whose title links to its pending spec in the main repo's plan/ directory.</p>
+                    </article>
+                    <article class="card">
+                        <h3>.md-content</h3>
+                        <p>Wraps markdown rendered by tools/render-doc.py -- headings, tables, blockquotes, code, all styled to match the rest of the site.</p>
+                    </article>
+                </div>
+            </section>
+
+            <section aria-labelledby="sg-content">
+                <div class="section-head reveal">
+                    <h2 id="sg-content">Content rules</h2>
+                    <p>Agreed while building this site. Apply them to anything added later.</p>
+                </div>
+                <div class="cards reveal">
+                    <article class="card">
+                        <h3>Honesty about shortcomings</h3>
+                        <p>State where Ze is behind plainly and up front (see Compare) -- not buried in a table, not omitted.</p>
+                    </article>
+                    <article class="card">
+                        <h3>No fabrication</h3>
+                        <p>Every claim about what a feature or lab does traces to a real source file, doc, or script. If it can't be cited, don't state it as fact.</p>
+                    </article>
+                    <article class="card">
+                        <h3>No naming other network OSes</h3>
+                        <p>The BGP-daemon comparison table is an established, separate category. Beyond that, don't name competing full network operating systems in Ze's own copy.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Daemon / Appliance labeling</h3>
+                        <p>Features run in both modes unless a .chip.mode says otherwise. Labs cards still tag modes explicitly with card-label pills, since labs are mode-specific.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Write little in section heads</h3>
+                        <p>The text beside a title is one or two sentences, max. Longer verbiage moves to a .section-note under the head.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Dedicated pages over a single page</h3>
+                        <p>New substantial content gets its own page and a nav/footer link, not another section bolted onto index.html.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Markdown-sourced where it can be</h3>
+                        <p>Content that changes often (like Compare) lives in a .md file rendered by tools/render-doc.py, so updating it doesn't mean hand-editing HTML tables.</p>
+                    </article>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

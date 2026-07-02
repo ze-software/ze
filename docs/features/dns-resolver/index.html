@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>DNS Resolver - Ze</title>
+        <meta name="description" content="Ze documentation: features/dns-resolver.md" />
+        <meta property="og:title" content="DNS Resolver - Ze" />
+        <meta property="og:description" content="Ze documentation: features/dns-resolver.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-services">
+<h1>DNS Resolver</h1>
+<!-- source: internal/component/resolve/dns/resolver.go -- miekg/dns resolver with cache -->
+<!-- source: internal/component/resolve/dns/cache.go -- O(1) LRU cache with TTL -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system DNS config -->
+
+<p>Built-in DNS resolver component providing cached DNS queries to all Ze components.
+Uses <code>github.com/miekg/dns</code> (the library CoreDNS is built on).</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Static name servers</td>
+<td><code>system { name-server [8.8.8.8 1.1.1.1]; }</code> sets upstream DNS servers</td>
+</tr>
+<tr>
+<td>resolv.conf writer</td>
+<td>Writes configured servers to resolv-conf-path at startup</td>
+</tr>
+<tr>
+<td>DHCP integration</td>
+<td>Static servers take priority over DHCP-discovered DNS</td>
+</tr>
+<tr>
+<td>Query types</td>
+<td>A, AAAA, TXT, PTR, CNAME, MX, NS, SRV</td>
+</tr>
+<tr>
+<td>LRU cache</td>
+<td>O(1) operations, configurable size and max TTL</td>
+</tr>
+<tr>
+<td>TTL-aware</td>
+<td>Respects response TTL, caps at configured maximum, honors TTL=0 (do not cache)</td>
+</tr>
+<tr>
+<td>Concurrent safe</td>
+<td>Mutex-protected cache, safe for multi-goroutine use</td>
+</tr>
+<tr>
+<td>System fallback</td>
+<td class="cell-no">No configured servers uses <code>/etc/resolv.conf</code>; if that is missing or empty, queries fail closed with <code>no DNS server configured</code></td>
+</tr>
+<tr>
+<td>Timeout control</td>
+<td>Per-resolver configurable timeout (1-60 seconds)</td>
+</tr>
+<tr>
+<td>Cache management</td>
+<td>List entries, inspect by name, selective delete by name/type, flush all, reset counters</td>
+</tr>
+<tr>
+<td><code>\| resolve</code> pipe</td>
+<td>Reverse DNS enrichment for IP addresses in any command's JSON output</td>
+</tr>
+<tr>
+<td><code>\| origin</code> pipe</td>
+<td>ASN/network enrichment for IP addresses via Team Cymru DNS queries</td>
+</tr>
+</tbody>
+</table>
+<h2>Configuration</h2>
+<pre><code>system {
+    name-server [8.8.8.8 1.1.1.1]
+    dns {
+        resolv-conf-path /tmp/resolv.conf
+        timeout 5
+        cache-size 10000
+        cache-ttl 86400
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name-server</code></td>
+<td>(none)</td>
+<td>Static DNS servers. First server used by ze internal resolver. All written to resolv.conf.</td>
+</tr>
+<tr>
+<td><code>resolv-conf-path</code></td>
+<td><code>/tmp/resolv.conf</code></td>
+<td>Path for resolv.conf. Default suits gokrazy (read-only rootfs). Empty disables writing.</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td>5</td>
+<td>Query timeout in seconds (1-60)</td>
+</tr>
+<tr>
+<td><code>cache-size</code></td>
+<td>10000</td>
+<td>Maximum cached entries (0 disables caching)</td>
+</tr>
+<tr>
+<td><code>cache-ttl</code></td>
+<td>86400</td>
+<td>Maximum cache TTL in seconds (0 uses response TTL only)</td>
+</tr>
+</tbody>
+</table>
+<h2>DHCP interaction</h2>
+<p>When <code>name-server</code> is configured, DHCP-discovered DNS servers do not overwrite
+resolv.conf. When no static servers are configured, DHCP writes DNS servers to
+resolv-conf-path as before (last-writer-wins across interfaces).</p>
+<h2>Cache management</h2>
+<p>The DNS cache can be inspected and managed at runtime via CLI commands.</p>
+<p><strong>Inspection:</strong></p>
+<pre><code>show dns cache stats                            # Hit/miss/eviction counters + rates
+show dns cache list                             # All non-expired entries (sorted by TTL)
+show dns cache record example.com               # Entries for a specific name
+</code></pre>
+<p><strong>Clearing:</strong></p>
+<pre><code>clear dns cache                                 # Flush all entries and reset counters
+clear dns cache stats                           # Zero counters without removing entries
+clear dns cache record example.com              # Delete entries for a name (all types)
+clear dns cache record example.com type AAAA    # Delete a single name+type entry
+</code></pre>
+<h2>Pipe operators</h2>
+<p>Two pipe operators enrich JSON output from any command with DNS-based lookups:</p>
+<table>
+<thead>
+<tr>
+<th>Pipe</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>\| resolve</code></td>
+<td>Adds a <code>&lt;key&gt;-name</code> field with the PTR (reverse DNS) hostname for each IP address value in the JSON output. Uses the system DNS resolver with cache. 500ms timeout per lookup.</td>
+</tr>
+<tr>
+<td><code>\| origin</code></td>
+<td>Adds <code>&lt;key&gt;-asn</code>, <code>&lt;key&gt;-as-name</code>, and <code>&lt;key&gt;-prefix</code> fields for each IP address value via Team Cymru DNS queries. 2s timeout.</td>
+</tr>
+</tbody>
+</table>
+<p>Both pipes walk JSON values, detect IP addresses, and add sibling fields.
+They work on any command output, including <code>show traceroute</code>, <code>show bgp summary</code>, etc.
+In <code>monitor traceroute | log</code> mode, they enrich the hop legend.</p>
+<h2>Reload behavior</h2>
+<p>DNS resolver settings and resolv.conf are applied at startup. Changing
+<code>name-server</code> or <code>dns</code> settings via config reload requires a process restart
+to take effect.</p>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

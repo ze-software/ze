@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Web Interface - Ze</title>
+        <meta name="description" content="Ze documentation: features/web-interface.md" />
+        <meta property="og:title" content="Web Interface - Ze" />
+        <meta property="og:description" content="Ze documentation: features/web-interface.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-operate">
+<h1>Web Interface</h1>
+<p>Ze includes an HTTPS web interface for configuration viewing, editing, and runtime command execution through a browser.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>YANG-driven UI</td>
+<td>Config tree navigation generated from YANG schemas</td>
+</tr>
+<tr>
+<td>Finder navigation</td>
+<td>macOS-style column browser; named containers above unnamed with separator</td>
+</tr>
+<tr>
+<td>List table view</td>
+<td>Lists with YANG <code>unique</code> constraints shown as interactive tables with inline editing</td>
+</tr>
+<tr>
+<td>Config viewing</td>
+<td>Browse the config tree with breadcrumb navigation</td>
+</tr>
+<tr>
+<td>Config editing</td>
+<td>Set and delete leaf values with per-user draft sessions</td>
+</tr>
+<tr>
+<td>Inline diff</td>
+<td>Review pending changes before committing</td>
+</tr>
+<tr>
+<td>Session authentication</td>
+<td>Login page with session cookies; same user database as SSH</td>
+</tr>
+<tr>
+<td>JSON API</td>
+<td>Content negotiation via <code>Accept</code> header or <code>?format=json</code> query parameter; Basic Auth for API clients</td>
+</tr>
+<tr>
+<td>CLI bar</td>
+<td>Integrated command bar with the same grammar as the SSH CLI (edit, set, delete, show, commit, discard)</td>
+</tr>
+<tr>
+<td>Terminal mode</td>
+<td>Full terminal mode in the browser with scrollback and prompt</td>
+</tr>
+<tr>
+<td>Tab completion</td>
+<td>Autocomplete candidates served via JSON endpoint</td>
+</tr>
+<tr>
+<td>Live updates</td>
+<td>SSE notifications when another user commits config changes</td>
+</tr>
+<tr>
+<td>HTTPS only</td>
+<td>TLS 1.2 minimum; auto-generated ECDSA P-256 self-signed certificate when no cert is provided</td>
+</tr>
+<tr>
+<td>Security headers</td>
+<td>HSTS, CSP, X-Frame-Options DENY, no-store cache on all authenticated responses</td>
+</tr>
+<tr>
+<td>YANG decorators</td>
+<td>Leaves with <code>ze:decorate</code> extension show enriched display text (e.g., ASN numbers annotated with organization name via Team Cymru DNS)</td>
+</tr>
+<tr>
+<td>Workbench UI (default)</td>
+<td>RouterOS-style operator workbench (default since Phase 2); row-level related-tool buttons declared via <code>ze:related</code> YANG extension dispatch through the standard CommandDispatcher; CLI available as separate <code>/cli</code> tab</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/web/server.go -- WebServer, TLS config, cert generation -->
+<!-- source: internal/component/web/decorator.go -- Decorator registry and interface -->
+<!-- source: internal/component/web/decorator_asn.go -- ASN name decorator via Team Cymru DNS -->
+<!-- source: internal/component/web/auth.go -- SessionStore, AuthMiddleware, LoginHandler -->
+<!-- source: internal/component/web/handler.go -- URL routing, content negotiation, three-tier scheme -->
+<!-- source: internal/component/web/handler_config.go -- Config view and edit handlers -->
+<!-- source: internal/component/web/handler_admin.go -- Admin command handlers -->
+<!-- source: internal/component/web/cli.go -- CLI bar and terminal mode -->
+<!-- source: internal/component/web/sse.go -- EventBroker SSE broadcast -->
+<!-- source: internal/component/web/editor.go -- EditorManager per-user sessions -->
+
+<p>See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/web-interface.md" target="_blank" rel="noopener">Web Interface Guide</a> for usage instructions.</p>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

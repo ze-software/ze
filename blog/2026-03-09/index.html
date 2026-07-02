@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2026-03-09 - Ze Blog</title>
+        <meta name="description" content="A big week for access, config safety, and BGP session security." />
+        <meta property="og:title" content="Week of 2026-03-09 - Ze Blog" />
+        <meta property="og:description" content="A big week for access, config safety, and BGP session security." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2026-03-09</h2>
+                    <p>A big week for access, config safety, and BGP session security.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🔒 Security & session hardening">
+                        <div class="md-content">
+                            <h3>🔒 Security & session hardening</h3>
+                            <ul>
+<li>TCP MD5 authentication for BGP sessions (RFC 2385), with platform-specific handling on Linux, FreeBSD, and macOS</li>
+<li>An SSH server component (built on Charm Wish) with password auth and a per-session command UI, now the primary way to reach the CLI</li>
+<li>RBAC authorization wired end to end: profile-based access control with validation, CLI testing support, and enforced deny/allow rules</li>
+<li>A round of hardening across wire parsing, IPC, and config: path-traversal checks, tighter default bind addresses (SSH and metrics now default to localhost), message size limits, and closed timing windows on socket setup</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧩 Config editing & safety">
+                        <div class="md-content">
+                            <h3>🧩 Config editing & safety</h3>
+                            <ul>
+<li>Config storage moved onto a dedicated blob-store backend (zefs), with atomic writes and path-traversal protection, backing config history, rollback, and diff</li>
+<li>Concurrent config editing: sessions, conflict detection, and a set+meta format so multiple operators can edit safely</li>
+<li>Commit confirmed, VyOS-style: commit with a countdown timer that auto-reverts unless confirmed</li>
+<li>Config archive support for keeping named snapshots</li>
+<li>Editor UX rounded out: auto-save on quit, auto-restore of a pending edit on restart, inline hints, a diff marker, split warnings, and a save command</li>
+<li>Semicolons are now optional in config syntax, auto-inserted by the tokenizer</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ CLI & operations">
+                        <div class="md-content">
+                            <h3>🛰️ CLI & operations</h3>
+                            <ul>
+<li>New <code>bgp log show/set</code> and <code>bgp metrics show/list</code> commands for runtime control and visibility</li>
+<li><code>rib show</code> gained community and AS-path regex filters, and output now supports yaml/json/table formats</li>
+<li>Pipe operators in the interactive CLI, now with table as the default output</li>
+<li>Per-peer and global RIB route metrics, plus per-type BGP counters (replacing the old generic message counters), exported to Prometheus</li>
+<li>Graceful Restart now tracks staleness per route (RFC 4724), not just per peer</li>
+<li><code>ze status</code> promoted to a top-level command</li>
+<li>Fish shell completion joins bash and zsh</li>
+</ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

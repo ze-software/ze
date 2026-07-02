@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Fleet Management - Ze</title>
+        <meta name="description" content="Ze documentation: features/fleet-management.md" />
+        <meta property="og:title" content="Fleet Management - Ze" />
+        <meta property="og:description" content="Ze documentation: features/fleet-management.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-automate">
+<h1>Fleet Management</h1>
+<p>Ze supports centralized configuration for multi-node deployments. A central hub
+serves configuration to remote ze instances over TLS.</p>
+<ul>
+<li>Named hub blocks: <code>server &lt;name&gt; { ip; port; secret; }</code> for listeners, <code>client &lt;name&gt; { host; port; secret; }</code> for outbound</li>
+<li>Per-client secrets: each managed client authenticates with its own token</li>
+<li>Config fetch with version hashing: clients only download when config changes</li>
+<li>Two-phase config change: hub notifies, client fetches when ready</li>
+<li>Partition resilience: clients cache config locally and start from cache when hub is unreachable</li>
+<li>Exponential backoff reconnect with jitter (1s to 60s cap)</li>
+<li>Heartbeat liveness detection (30s interval, 90s timeout)</li>
+<li>CLI overrides: <code>--server</code>, <code>--name</code>, <code>--token</code> flags for troubleshooting</li>
+<li>Managed mode toggle: <code>meta/instance/managed</code> blob flag controls hub connection</li>
+</ul>
+<!-- source: internal/component/managed/client.go -- RunManagedClient lifecycle -->
+<!-- source: internal/component/plugin/server/managed.go -- hub-side config handlers -->
+<!-- source: pkg/fleet/ -- version hash and RPC envelope types -->
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

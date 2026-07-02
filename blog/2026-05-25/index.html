@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2026-05-25 - Ze Blog</title>
+        <meta name="description" content="MPLS grew a full label-switching stack, flow export and gNMI landed, and config commits became transactional." />
+        <meta property="og:title" content="Week of 2026-05-25 - Ze Blog" />
+        <meta property="og:description" content="MPLS grew a full label-switching stack, flow export and gNMI landed, and config commits became transactional." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2026-05-25</h2>
+                    <p>MPLS grew a full label-switching stack, flow export and gNMI landed, and config commits became transactional.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🛰️ MPLS">
+                        <div class="md-content">
+                            <h3>🛰️ MPLS</h3>
+                            <p>Label switching across three layers, verified live in QEMU against FRR:</p>
+<ul>
+<li>Kernel MPLS dataplane: push, swap, and pop programmed via netlink, with relabel support that updates a route ze already owns without clobbering another writer's</li>
+<li>LDP (RFC 5036): per-interface Hello discovery, a TCP session FSM, a label information base, and downstream-unsolicited distribution</li>
+<li>RSVP-TE with FRR interop</li>
+<li>Per-interface MPLS input and MPLS sysctl keys on interfaces</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📊 Observability & telemetry">
+                        <div class="md-content">
+                            <h3>📊 Observability & telemetry</h3>
+                            <ul>
+<li>Flow export: sFlow v5, NetFlow v9 (RFC 3954), and IPFIX (RFC 7011), with per-flow records and interface counter export to external collectors</li>
+<li>A new gNMI component (Capabilities, Get, Set, Subscribe over gRPC) for YANG-modeled config management</li>
+<li><code>show bgp peer</code> output enriched to NOS-grade detail, and all IANA well-known BGP community names are now recognised</li>
+<li><code>ze support</code> generates a tech-support bundle, and SMART disk health reporting moved to a pure-Go ioctl reader (no more shelling out to smartctl)</li>
+<li><code>ze doctor</code> picked up more readiness checks: BGP MD5 support detection, VPP socket path validation, NTP/RPKI/BMP checks, and a semantic validation bridge</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🖥️ CLI">
+                        <div class="md-content">
+                            <h3>🖥️ CLI</h3>
+                            <p>All plugin-owned commands were renamed to a consistent verb-first grammar. Command arguments are now declared as typed YANG leaves, driving completion, validation, and docs from one source. Other additions: <code>ze help command</code> for a self-documenting command catalog, <code>| first N</code> and <code>| last N</code> pipe operators, session transcript recording (so a crash or dropped SSH session still leaves a local record), a configurable default output format, and ANSI color support in the terminal buffer library.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔒 Config & commit reliability">
+                        <div class="md-content">
+                            <h3>🔒 Config & commit reliability</h3>
+                            <p>Config commits are now transactional: changes go through candidate/active/rollback versions and are only promoted after a runtime reload actually succeeds, with automatic cleanup of failed candidates. A new operation-graph solver orders config changes correctly across components (so, for example, an address and the peer that depends on it apply in the right sequence). Config schemas now carry a release-based stamp with an evolution framework for future migrations, and YANG <code>type empty</code> leaves can be used as simple presence flags. Separately, a real auth bug was fixed: PXE and bootstrap-provisioned appliances were never loading the zefs "power user," which silently broke SSH login and the web/API per-user auth path on freshly provisioned boxes.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ BGP policy & RIB efficiency">
+                        <div class="md-content">
+                            <h3>🛰️ BGP policy & RIB efficiency</h3>
+                            <p>New policy actions: an AS-PATH-length filter, increment/decrement on numeric attributes (local-preference, MED, AIGP), community add/remove, and an RFC 6996 remove-private-as filter. Policy chains can now use plain, operator-facing filter names instead of <code>&lt;plugin&gt;:&lt;filter&gt;</code> refs, and <code>show policy test</code> runs a chain against a supplied UPDATE without touching live state. On the RIB side, peer reconnect replay and <code>bgp rib clear out</code> now use cursor-based grouped resend instead of per-route sends, cutting reconnect replay time on large tables from seconds to roughly 100-200ms.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="💿 Appliance & provisioning">
+                        <div class="md-content">
+                            <h3>💿 Appliance & provisioning</h3>
+                            <p>PXE boot option support (RFC 4578) rounds out last week's DHCP/TFTP/image-server work. A busybox-based initrd now handles bare-metal PXE installs end to end (fetch, verify, write, reboot), and a first-boot bootstrap mode brings up DHCP and SSH automatically when a box has zefs but no config yet. Elsewhere: OTA image push via a vendored gokrazy updater, a unified update backend with platform-aware dispatch, and <code>ze service</code> for installing Ze as a systemd service on standard (non-gokrazy) Linux hosts.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,2232 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>How Ze compares - Ze</title>
+        <meta name="description" content="How Ze compares to mature BGP daemon implementations, honestly, including where it's still behind." />
+        <meta property="og:title" content="How Ze compares - Ze" />
+        <meta property="og:description" content="How Ze compares to mature BGP daemon implementations, honestly, including where it's still behind." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../index.html#top" aria-label="Ze home">
+                    <img src="../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../index.html#status">Status</a>
+                    <a href="../index.html#try">Try</a>
+                    <a href="../features/">Features</a>
+                    <a href="../activity/">Activity</a>
+                    <a href="../performance/">Performance</a>
+                    <a href="../labs/">Labs</a>
+                    <a href="../compare/">Compare</a>
+                    <a href="../blog/">Blog</a>
+                    <a href="../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal">
+<h1>How Ze compares</h1>
+<blockquote>
+<p>This page mirrors <a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/docs/comparison.md"><code>docs/comparison.md</code></a>
+in the main repository as of <strong>2026-07-02</strong>. That file is the source of truth;
+edit it there and re-run <code>tools/render-doc.py</code> to refresh this page.</p>
+<p><strong>Disclaimer:</strong> this comparison was generated with AI assistance (partially based on
+<a href="https://github.com/lance0/rustbgpd/blob/main/docs/COMPARISON.md">rustbgpd's comparison</a>)
+and is provided for informational purposes only. All listed projects are under active
+development and their capabilities change over time. Verify current features against each
+project's own documentation before making decisions. Corrections and updates are welcome
+via the <a href="https://codeberg.org/thomas-mangin/ze/issues">issue tracker</a>.</p>
+</blockquote>
+<h2>Overview</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Ze</th>
+<th>rustbgpd</th>
+<th>BIRD 3</th>
+<th>BIRD 2</th>
+<th>bio-rd</th>
+<th>RustyBGP</th>
+<th>FRR</th>
+<th>GoBGP</th>
+<th>ExaBGP</th>
+<th>OpenBGPd</th>
+<th>freeRtr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Language</td>
+<td>Go</td>
+<td>Rust</td>
+<td>C</td>
+<td>C</td>
+<td>Go</td>
+<td>Rust</td>
+<td>C</td>
+<td>Go</td>
+<td>Python</td>
+<td>C</td>
+<td>Java</td>
+</tr>
+<tr>
+<td>License</td>
+<td>AGPL-3.0</td>
+<td>MIT</td>
+<td>GPL-2.0+</td>
+<td>GPL-2.0+</td>
+<td>Apache-2.0</td>
+<td>Apache-2.0</td>
+<td>GPL-2.0</td>
+<td>Apache-2.0</td>
+<td>BSD-3-Clause</td>
+<td>ISC</td>
+<td>Free</td>
+</tr>
+<tr>
+<td>Primary interface</td>
+<td>CLI + SSH + REST/gRPC</td>
+<td>gRPC</td>
+<td>CLI (birdc)</td>
+<td>CLI (birdc)</td>
+<td>gRPC</td>
+<td>gRPC</td>
+<td>CLI (vtysh)</td>
+<td>gRPC</td>
+<td>CLI + API</td>
+<td>CLI (bgpctl)</td>
+<td>CLI (telnet/SSH)</td>
+</tr>
+<tr>
+<td>First release</td>
+<td>2026</td>
+<td>2026</td>
+<td>2024</td>
+<td>1998</td>
+<td>2018</td>
+<td>2019</td>
+<td>2017</td>
+<td>2014</td>
+<td>2010</td>
+<td>2004</td>
+<td>2012</td>
+</tr>
+<tr>
+<td>Maturity</td>
+<td>Pre-release</td>
+<td>Pre-release</td>
+<td>Production</td>
+<td>Production</td>
+<td>Niche</td>
+<td>Experimental</td>
+<td>Production</td>
+<td>Production</td>
+<td>Production</td>
+<td>Production</td>
+<td>Production</td>
+</tr>
+<tr>
+<td>Multithreaded</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Multithread model</td>
+<td>Goroutines</td>
+<td>Tokio</td>
+<td>Cooperative threads</td>
+<td>--</td>
+<td>Goroutines</td>
+<td>Multi-core</td>
+<td>--</td>
+<td>Goroutines</td>
+<td>--</td>
+<td>3-process</td>
+<td>Per-peer</td>
+</tr>
+<tr>
+<td>Plugin architecture</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>YANG-modeled config</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+</tbody>
+</table>
+<h2>Address Families</h2>
+<table>
+<thead>
+<tr>
+<th>AFI/SAFI</th>
+<th>Ze</th>
+<th>rustbgpd</th>
+<th>BIRD 3</th>
+<th>BIRD 2</th>
+<th>bio-rd</th>
+<th>RustyBGP</th>
+<th>FRR</th>
+<th>GoBGP</th>
+<th>ExaBGP</th>
+<th>OpenBGPd</th>
+<th>freeRtr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IPv4 Unicast</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>IPv6 Unicast</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>IPv4 Multicast</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>IPv6 Multicast</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>IPv4 Labeled Unicast</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>IPv6 Labeled Unicast</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>VPNv4 (RFC 4364)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>VPNv6</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>L2VPN EVPN (RFC 7432)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>L2VPN VPLS</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>IPv4 FlowSpec (RFC 8955)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>IPv6 FlowSpec</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>VPN FlowSpec</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>BGP-LS (RFC 7752)</td>
+<td>Decode (40 TLVs)</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td>Decode</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>SR Policy</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+</tr>
+<tr>
+<td>IPv4/IPv6 MUP</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>IPv4/IPv6 MVPN</td>
+<td>Decode</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>IPv4 RTC (RFC 4684)</td>
+<td>Decode</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+</tbody>
+</table>
+<h2>Core Protocol</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Ze</th>
+<th>rustbgpd</th>
+<th>BIRD 3</th>
+<th>BIRD 2</th>
+<th>bio-rd</th>
+<th>RustyBGP</th>
+<th>FRR</th>
+<th>GoBGP</th>
+<th>ExaBGP</th>
+<th>OpenBGPd</th>
+<th>freeRtr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 4271 FSM</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>4-byte ASN (RFC 6793)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Capability negotiation</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Route Refresh (RFC 2918)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Enhanced Route Refresh (RFC 7313)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Graceful Restart (RFC 4724)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Long-Lived GR (RFC 9494)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Notification GR (RFC 8538)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Add-Path (RFC 7911)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td>Rx only</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Paths-Limit (draft-abraitis)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Extended Messages (RFC 8654)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Extended Nexthop (RFC 8950)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Route Reflector (RFC 4456)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Confederation (RFC 5065)</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Admin Shutdown (RFC 8203)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-partial">Partial</td>
+</tr>
+<tr>
+<td>BGP Roles (RFC 9234)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-partial">Partial</td>
+</tr>
+<tr>
+<td>Prefix Limit (RFC 4486)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+</tbody>
+</table>
+<h2>Cross-Protocol Redistribute</h2>
+<p>Ze advertises locally-originated routes from non-BGP protocols (connected,
+static, L2TP, IS-IS, OSPF) into BGP via the <code>redistribute-orchestrator</code>
+plugin. Operators enable it per-destination and per-source via
+<code>redistribute { destination &lt;proto&gt; { import &lt;source&gt; { family [...]; } } }</code>.
+The same config block also drives the intra-BGP <code>IngressFilter</code> ACL when the
+source is <code>ibgp</code> / <code>ebgp</code>. Per-peer NEXT_HOP substitution (<code>nhop self</code>) is
+automatic; explicit producer-supplied NEXT_HOP is passed through verbatim.</p>
+<p>IS-IS meshes with BGP in <strong>both</strong> directions, matching the vendor
+IGP-BGP mutual-redistribution operators expect. IPv6 rides the same
+single-topology SPF tree — matching one other implementation's single-topology
+IS-IS default (that implementation also offers RFC 5120 Multi-Topology, which
+Ze does not yet implement).</p>
+<p>OSPFv2 meshes with BGP in both directions like IS-IS, exports OSPF routes
+into BGP, and injects connected/static/BGP routes as Type 5 AS-External LSAs.
+Ze also implements stub, totally-stubby, and NSSA areas (RFC 3101) with
+Type 7 origination, translator election, and Type 7 to Type 5 translation.
+Per-interface authentication covers simple password, keyed-MD5 (RFC 2328),
+HMAC-SHA (RFC 5709), and the RFC 7474 extended-sequence variant, with key
+chains for hitless rotation and sequence-number replay protection.</p>
+<h2>Policy &amp; Route Manipulation</h2>
+<p>Ze takes a programmable approach to policy: external plugin filters
+manipulate routes via <code>filter { import [...] export [...] }</code> chains using
+named filter instances or explicit <code>&lt;plugin&gt;:&lt;filter&gt;</code> references. Filters
+chain as piped transforms (accept/reject/modify) with delta-only output.
+RFC-mandated checks run as default filters that can be selectively
+overridden. Built-in filter plugins shipped with Ze include prefix-list
+matching (ge/le bounds), AS-path regex filtering, community presence
+matching (standard/large/extended), route attribute modification
+(local-preference, MED, origin, next-hop, AS-path prepend), community
+tag/strip, and RFC 9234 role enforcement.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Ze</th>
+<th>rustbgpd</th>
+<th>BIRD 3</th>
+<th>BIRD 2</th>
+<th>bio-rd</th>
+<th>RustyBGP</th>
+<th>FRR</th>
+<th>GoBGP</th>
+<th>ExaBGP</th>
+<th>OpenBGPd</th>
+<th>freeRtr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prefix matching (ge/le)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>AS-path regex</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Standard communities</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Extended communities</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Large communities (RFC 8092)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Community add/remove/replace</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td>API</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>MED manipulation (set/inc/dec)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td>API</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>LOCAL_PREF set/inc/dec</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td>API</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>AS-path length filter</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>AS-path prepend</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td>API</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Next-hop set/self</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td>API</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>RPKI validation match</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Neighbor/peer matching</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Named policy definitions</td>
+<td>Plugin</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Policy chaining</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Custom filter language</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>External process policy</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Plugin-based policy</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+</tbody>
+</table>
+<h2>Security</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Ze</th>
+<th>rustbgpd</th>
+<th>BIRD 3</th>
+<th>BIRD 2</th>
+<th>bio-rd</th>
+<th>RustyBGP</th>
+<th>FRR</th>
+<th>GoBGP</th>
+<th>ExaBGP</th>
+<th>OpenBGPd</th>
+<th>freeRtr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TCP MD5 (RFC 2385)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>TCP-AO (RFC 5925)</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>GTSM / TTL Security</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>RPKI/RTR (RFC 6810/8210)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>ASPA verification</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Private AS removal</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Privilege separation</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>TACACS+ AAA (RFC 8907)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Memory-safe language</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+</tbody>
+</table>
+<h2>Monitoring &amp; Observability</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Ze</th>
+<th>rustbgpd</th>
+<th>BIRD 3</th>
+<th>BIRD 2</th>
+<th>bio-rd</th>
+<th>RustyBGP</th>
+<th>FRR</th>
+<th>GoBGP</th>
+<th>ExaBGP</th>
+<th>OpenBGPd</th>
+<th>freeRtr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prometheus metrics</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Structured logging (JSON)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>BMP (RFC 7854)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>MRT dump (RFC 6396)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Flow export (sFlow/NetFlow/IPFIX)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Streaming route events</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>JSON event protocol</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Built-in DNS resolver</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Static DNS name-servers</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Built-in PeeringDB/IRR/Cymru</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Unified operational reports</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-partial">Partial</td>
+</tr>
+<tr>
+<td>SNMP agent (AgentX/MIB)</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+</tbody>
+</table>
+<p>Most BGP daemons expose operational issues through a mix of per-command
+output rather than a single aggregated view. Ze provides a cross-subsystem
+report bus: any subsystem can push warnings (state-based) or errors
+(event-based) onto a single place, and <code>ze show warnings</code> / <code>ze show errors</code>
+return the aggregate as structured JSON. The login banner reads the same
+source, so nothing is silently hidden.</p>
+<p>SNMP is a deliberate non-goal, not a gap: FRR and freeRtr both expose
+legacy AgentX/MIB agents, but Ze's operational surface (Prometheus, gNMI,
+gRPC, structured JSON events) already covers what those MIBs would carry,
+without maintaining a second protocol stack to do it.</p>
+<h2>API &amp; Programmability</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Ze</th>
+<th>rustbgpd</th>
+<th>BIRD 3</th>
+<th>BIRD 2</th>
+<th>bio-rd</th>
+<th>RustyBGP</th>
+<th>FRR</th>
+<th>GoBGP</th>
+<th>ExaBGP</th>
+<th>OpenBGPd</th>
+<th>freeRtr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gNMI</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>gRPC API</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>REST API</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>YANG model</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>CLI tool</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>CLI JSON output</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Runtime route injection</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Hot reconfiguration (no restart)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Embeddable library</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Plugin SDK</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>External process protocol</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>MCP (Model Context Protocol) server</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>SSH CLI access</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+</tbody>
+</table>
+<h2>Operations</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Ze</th>
+<th>rustbgpd</th>
+<th>BIRD 3</th>
+<th>BIRD 2</th>
+<th>bio-rd</th>
+<th>RustyBGP</th>
+<th>FRR</th>
+<th>GoBGP</th>
+<th>ExaBGP</th>
+<th>OpenBGPd</th>
+<th>freeRtr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Crash capture (syslog + file)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Config error diagnostics</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+</tr>
+<tr>
+<td>Runtime health monitoring</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Pre-start readiness checks</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Docker image</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Fuzz testing</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Interop test suite</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Static routes (ECMP+BFD)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Policy-based routing (PBR)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>FIB/kernel integration</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Sysctl management</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+</tr>
+<tr>
+<td>Route server mode</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Dynamic neighbors</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Looking glass</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>BFD integration</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Firewall (nftables)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Config commit/rollback (candidate + active)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Update groups:</strong> Ze automatically groups peers by encoding context and
+builds each UPDATE once per group, fanning out the wire bytes to all
+members. No configuration needed — one other implementation in this table
+requires explicit peer-group assignment for the same optimization.</p>
+<h2>Best-Path Selection</h2>
+<p>ExaBGP does not perform best-path selection — it forwards all received
+routes to external processes and injects routes from them. It is a route
+injector/receiver, not a router.</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Ze</th>
+<th>rustbgpd</th>
+<th>BIRD 3</th>
+<th>BIRD 2</th>
+<th>bio-rd</th>
+<th>RustyBGP</th>
+<th>FRR</th>
+<th>GoBGP</th>
+<th>ExaBGP</th>
+<th>OpenBGPd</th>
+<th>freeRtr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LOCAL_PREF</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-na">N/A</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>AS-path length</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-na">N/A</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>ORIGIN</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-na">N/A</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>MED</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-na">N/A</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>eBGP over iBGP</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-na">N/A</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>CLUSTER_LIST length</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-na">N/A</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>ORIGINATOR_ID</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-na">N/A</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Stale route demotion (GR)</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-na">N/A</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>RPKI preference</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-na">N/A</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>AIGP</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-na">N/A</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>IGP cost to next-hop</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-na">N/A</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Recursive next-hop</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-na">N/A</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+<tr>
+<td>Multipath/ECMP</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-partial">Partial</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-no">No</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-na">N/A</td>
+<td class="cell-yes">Yes</td>
+<td class="cell-yes">Yes</td>
+</tr>
+</tbody>
+</table>
+<h2>BNG Capabilities</h2>
+<p>Ze includes a production BNG stack with two access methods: L2TPv2
+(RFC 2661) and PPPoE (RFC 2516), both with RADIUS integration
+(RFC 2865/2866). Most BGP daemons in the comparison table have no BNG
+functionality at all. L2TP and PPPoE run concurrently on the same daemon and
+share the same auth, pool, and shaper plugins through a transport-agnostic
+PPP driver. RADIUS accounting includes real per-subscriber traffic counters
+read from the kernel PPP interface. Control-plane scale test infrastructure
+validates 2000 concurrent L2TP sessions across 10 tunnels without requiring
+root, kernel modules, or Docker.</p>
+<h2>Where Ze is behind today</h2>
+<p>After the detail tables above: the gaps, stated plainly, not buried in a
+"No" cell thirteen tables deep.</p>
+<ul>
+<li><strong>No BGP confederations (RFC 5065)</strong> — BIRD 3, bio-rd (partial), FRR, GoBGP, BIRD 2, and freeRtr all support it.</li>
+<li><strong>No privilege separation</strong> — a signature feature of at least one other implementation in this table.</li>
+<li><strong>BFD integration is "Partial"</strong> — several other implementations here have full support.</li>
+<li><strong>No embeddable library mode</strong> — at least two other implementations in this table offer one.</li>
+<li><strong>No custom filter language</strong> — several implementations here have their own filter DSL; Ze relies on plugin chains instead.</li>
+<li><strong>No SR Policy support.</strong></li>
+<li><strong>No Confederation, no Multi-Topology IS-IS (RFC 5120)</strong> — Ze's IS-IS matches the single-topology default other implementations ship, but not their optional multi-topology extension.</li>
+<li><strong>Pre-release, first release 2026</strong> — sitting in the same table as implementations with years to decades of production hardening (one dates to 1998).</li>
+<li><strong>Performance is not yet benchmarked at scale.</strong> Go carries an estimated 10-15% CPU overhead versus C/Rust implementations; this has not been measured under load. See <a href="../performance/">Performance</a>.</li>
+</ul>
+<p>None of this is hidden in the tables above — it's restated here because a
+visitor shouldn't have to hunt for it.</p>
+<h2>Positioning</h2>
+<p><strong>Ze</strong> is an open-source network operating system and the successor to
+ExaBGP. It runs as a daemon on any Linux (systemd or any process manager) or
+as a dedicated appliance image built with gokrazy for purpose-built
+hardware — same binary, same config. It speaks BGP, manages network
+interfaces, installs routes into the kernel FIB or VPP data plane, and
+serves a config editor over SSH and a web UI. A plugin architecture with
+YANG-modeled schemas allows extending the engine without modifying it.</p>
+<p>It is also pre-release, first released in 2026, sitting in this table next
+to implementations with years to decades of production hardening — one
+dates to 1998. Its Go runtime carries an estimated 10-15% CPU overhead
+versus the C/Rust implementations in this table, and that estimate has not
+yet been benchmarked at scale. It does not yet support BGP confederations,
+dynamic/passive neighbors, privilege separation, or a custom filter
+language, all of which at least one other implementation here has shipped
+for years. Where it is strong — plugin architecture, YANG-modeled
+configuration end to end, MCP integration, a production BNG stack alongside
+BGP — it is strong because the project chose to build fewer things more
+deeply rather than match every implementation's full breadth on day one.</p>
+<p><strong>ExaBGP</strong> is the automation specialist. It pioneered the external-process
+model where BGP events are delivered as JSON to stdin/stdout of user scripts
+in any language. Deployed worldwide for traffic engineering, DDoS
+mitigation, route injection, and SDN integration. Broad address family
+support. Single-threaded Python, no RIB, no best-path selection, no route
+reflection — by design. It is a route injector and event source, not a
+router.</p>
+<p><strong>rustbgpd</strong> is an API-first BGP daemon targeting IX route server and SDN
+controller use cases. It trades address family breadth for modern
+operational tooling (gRPC, Prometheus, structured logging, TUI, config
+diagnostics) and memory safety guarantees.</p>
+<p><strong>bio-rd</strong> is a Go BGP library and daemon originating from DE-CIX. Designed
+as an embeddable library for building route servers and SDN controllers.
+Strong route server support with RFC 9234 (BGP Roles), BMP, and ECMP.
+IPv4/IPv6 unicast only — no VPN, EVPN, FlowSpec, or other address families.
+No Graceful Restart or Route Refresh. Apache-2.0 license.</p>
+<p><strong>RustyBGP</strong> is an experimental Rust BGP daemon by the GoBGP team (OSRG). It
+offers a GoBGP-compatible gRPC API and multi-core design with low memory
+usage. Explicitly described as "very basic BGP features" — limited address
+family and policy support. Useful for research and multi-core
+experimentation, not yet production-ready.</p>
+<p><strong>FRR</strong> is the most feature-complete open-source routing suite, covering
+BGP plus OSPF, IS-IS, PIM, and more. Best choice when you need a full
+routing stack with broad AFI/SAFI coverage and kernel FIB integration.</p>
+<p><strong>BIRD 2/3</strong> dominates IXP route server deployments. Best-in-class memory
+efficiency and a powerful filter language. BIRD 3 (stable Dec 2024) adds
+multithreading for 5000+ peer scale. Lacks a programmatic API — management
+is CLI/config-file only.</p>
+<p><strong>GoBGP</strong> pioneered the API-first model with gRPC as its primary interface.
+Broadest AFI/SAFI coverage. Higher memory and CPU usage than C
+implementations at scale. Best as an SDN controller or route injector
+rather than a high-performance router.</p>
+<p><strong>OpenBGPd</strong> is security-focused with privilege separation and OpenBSD
+heritage. Deployed at major IXPs. Lean, reliable, and standards-compliant
+with strong RFC coverage including BGP Roles and Extended Messages. No
+programmatic API beyond the CLI socket.</p>
+<p><strong>freeRtr</strong> is a comprehensive router OS written entirely in Java. It
+implements the full routing stack with its own TCP/IP forwarding plane that
+can be backed by DPDK, XDP, or P4 dataplanes. Broadest AFI/SAFI coverage of
+any implementation in this table, including MUP, MVPN, RTC, and VPN
+FlowSpec. Actively developed since 2012 with 4000+ functional test cases. No
+programmatic API (CLI-only), no YANG model, no structured logging.</p>
+<h2>FAQ</h2>
+<p><strong>Ze is pre-release — why should I trust it yet?</strong></p>
+<p>Don't take that on faith: it's backed by 13,700+ unit tests, 1,200+ end-to-end
+tests, 55+ fuzz targets, and interop testing against seven independent BGP
+implementations. That's evidence you can check, not a promise. What it
+doesn't have yet is operational mileage — real deployments, over real time,
+on real networks. Use it in labs first.</p>
+<p><strong>Why no BGP confederations yet?</strong></p>
+<p>Not implemented yet. It's a real gap against implementations that have had
+it for years, and it's listed as one plainly above rather than left for you
+to find in a table.</p>
+<p><strong>Why no custom filter language?</strong></p>
+<p>Ze doesn't have a bespoke filter DSL like some implementations here do.
+Instead, filters are external plugins chained per peer/group: JSON events in,
+text commands out, over a TLS connect-back socket, in any language that can
+read lines. That trades a purpose-built mini-language for the full power of
+a real programming language -- write a filter in Go, Python, or whatever you
+already know, instead of learning a new syntax.</p>
+<p><strong>Is Ze's performance actually competitive with C/Rust implementations?</strong></p>
+<p>Unknown at scale. The current estimate is 10-15% CPU overhead from the Go
+runtime, but that number has not been benchmarked under real load. Treat it
+as an open question, not a claim. See <a href="../performance/">Performance</a> for the
+actual convergence and throughput numbers measured so far.</p>
+<p><strong>Does Ze support everything FRR or freeRtr does?</strong></p>
+<p>No. Both have broader AFI/SAFI coverage — FRR as the most feature-complete
+open-source routing suite, freeRtr with the broadest coverage of any
+implementation in this table, including MUP, MVPN, RTC, and VPN FlowSpec.
+Ze chose depth in fewer areas (BGP, BNG, plugin architecture, YANG
+configuration) over matching every implementation's full breadth on day one.</p>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

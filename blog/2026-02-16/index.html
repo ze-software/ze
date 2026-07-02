@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2026-02-16 - Ze Blog</title>
+        <meta name="description" content="A hard round of route reflector hardening, a live web dashboard for the chaos tool, and a batch of BGP protocol and config improvements." />
+        <meta property="og:title" content="Week of 2026-02-16 - Ze Blog" />
+        <meta property="og:description" content="A hard round of route reflector hardening, a live web dashboard for the chaos tool, and a batch of BGP protocol and config improvements." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2026-02-16</h2>
+                    <p>A hard round of route reflector hardening, a live web dashboard for the chaos tool, and a batch of BGP protocol and config improvements.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🔀 Route reflector hardening">
+                        <div class="md-content">
+                            <h3>🔀 Route reflector hardening</h3>
+                            <p>The route reflector had a rough week of bug-hunting and came out solid. Fixes landed for routes being dropped under a slow consumer, deadlocks from subscribing to both directions of a session, incorrect per-family filtering, and log spam during backpressure. The UPDATE cache is now refcounted with configurable size and TTL, out-of-order acknowledgements are treated as no-ops instead of protocol violations, and forwarding moved to per-source and per-destination worker pools so one slow peer no longer stalls the others. Shutdown got faster too: sequential per-component timeouts that used to compound are now parallel waits under a single deadline, making daemon stop near-instant.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🌪️ Chaos tool dashboard">
+                        <div class="md-content">
+                            <h3>🌪️ Chaos tool dashboard</h3>
+                            <p>The chaos testing tool (now renamed <code>ze-chaos</code>) gained a live web dashboard (<code>--web :8080</code>) with real-time SSE event streaming, a peer status grid, a route matrix heatmap, and pause/resume/rate controls. Underneath it: an in-process simulation mode with virtual time that runs over 100x faster than driving real TCP connections, a set of composable RFC property assertions (route consistency, convergence deadlines, no duplicate routes, hold-timer enforcement, message ordering) checked against every run, and a shrink engine that reduces a failing run down to a minimal reproduction automatically. Chaos fault injection can now also be wired directly into a running Ze process via CLI flag, environment variable, or config.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📄 A new IETF draft: ATTR_TOMBSTONE">
+                        <div class="md-content">
+                            <h3>📄 A new IETF draft: ATTR_TOMBSTONE</h3>
+                            <p>RFC 7606's "attribute discard" action says a malformed attribute MUST be
+removed and the UPDATE continues to be processed. The conventional way to do
+that is to rebuild the whole path attributes section: shift every attribute
+after the bad one down to close the gap, then recompute the path attributes
+length, the UPDATE's total length, and any offsets an implementation cached
+while parsing.</p>
+<p>There's a cheaper trick: overwrite the malformed attribute in place with an
+unused attribute code instead of removing it. Nothing moves, no length field
+changes, and any offsets already computed for the rest of the message stay
+valid. This already works against any conformant BGP speaker today, no new
+RFC required, because RFC 4271 already specifies safe handling of attributes
+a speaker doesn't recognize.</p>
+<p>Ze started enforcing RFC 7606 error handling this week and implemented
+exactly this: attribute-discard markers written in place, first under the
+name ATTR_DISCARD (and a first draft, <code>draft-mangin-idr-attr-discard-00</code>).
+A few days later both got renamed to ATTR_TOMBSTONE, with the draft revised
+to match: a specific, reserved code point with a defined value format
+(which attribute got discarded, and why), so implementations that adopt it
+are speaking the same language instead of each inventing their own
+incompatible version of the same trick. It's the same principle behind Ze's
+own wire encoding: operate on the buffer in place instead of copying it.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ Protocol and config">
+                        <div class="md-content">
+                            <h3>🛰️ Protocol and config</h3>
+                            <ul>
+<li>Duplicate router IDs within the same AS are now rejected on OPEN per RFC 4271 §4.2</li>
+<li>All BGP capabilities (ASN4, route refresh, extended message, add-path, graceful restart, extended next-hop) now share the same four enforcement modes as address families: enable, disable, require, refuse</li>
+<li>Peers can each bind a dedicated listen port, so multiple peers can run on 127.0.0.1 without loopback aliases</li>
+<li>The <code>passive</code> boolean peer option was replaced with a <code>connection</code> mode (<code>both</code>/<code>passive</code>/<code>active</code>) for clearer intent</li>
+<li>Config gained presence containers, inline list syntax, and an extended-community length suffix</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Under the hood">
+                        <div class="md-content">
+                            <h3>🛠️ Under the hood</h3>
+                            <p>BGP capability handling (route refresh, graceful restart, hostname, software version) moved out of the core engine into independent plugins, and a lightweight "summary" subscription format was added for consumers that only need announce/withdraw and family information rather than fully decoded attributes.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

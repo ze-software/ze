@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>API Commands - Ze</title>
+        <meta name="description" content="Ze documentation: features/api-commands.md" />
+        <meta property="og:title" content="API Commands - Ze" />
+        <meta property="og:description" content="Ze documentation: features/api-commands.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-automate">
+<h1>API Commands</h1>
+<p>Commands sent through <code>ze cli</code>, <code>ze cli -c</code>, <code>ze show</code>, or process stdin.</p>
+<h3>Peer Management</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp peer * list</code></td>
+<td>List peers (brief)</td>
+</tr>
+<tr>
+<td><code>bgp peer * show</code></td>
+<td>Show peer details and statistics</td>
+</tr>
+<tr>
+<td><code>bgp peer &lt;addr&gt; teardown &lt;code&gt;</code></td>
+<td>Graceful session closure with NOTIFICATION</td>
+</tr>
+<tr>
+<td><code>delete bgp peer &lt;name&gt;</code></td>
+<td>Remove peer</td>
+</tr>
+<tr>
+<td><code>bgp peer &lt;addr&gt; pause</code></td>
+<td>Pause reading from peer (flow control)</td>
+</tr>
+<tr>
+<td><code>bgp peer &lt;addr&gt; resume</code></td>
+<td>Resume reading from peer</td>
+</tr>
+<tr>
+<td><code>bgp peer &lt;addr&gt; capabilities</code></td>
+<td>Show negotiated capabilities</td>
+</tr>
+<tr>
+<td><code>bgp summary</code></td>
+<td>BGP summary table with statistics</td>
+</tr>
+</tbody>
+</table>
+<p>Peer selector supports: <code>*</code> (all), exact IP, peer name, ASN (<code>as65001</code>), glob patterns (<code>192.168.*.*</code>), exclusion (<code>!addr</code>, <code>!as65001</code>). Tab completion for peer selectors in <code>ze show</code> and <code>ze cli</code> when daemon is running.</p>
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer management RPC handlers -->
+
+<h3>Route Updates</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp peer * update text &lt;attrs&gt; nlri &lt;family&gt; &lt;op&gt; &lt;prefix&gt;</code></td>
+<td>Text-format UPDATE</td>
+</tr>
+<tr>
+<td><code>bgp peer * update hex &lt;hex&gt;</code></td>
+<td>Hex-format UPDATE</td>
+</tr>
+</tbody>
+</table>
+<p>Text attribute syntax: <code>origin set igp</code>, <code>nhop set 1.1.1.1</code>, <code>local-preference set 100</code>, <code>med set 50</code>, <code>as-path set [65000 65001]</code>, <code>community set [no-export]</code>, <code>large-community set [65000:1:1]</code>.</p>
+<p>NLRI operations: <code>add</code>, <code>del</code>, <code>eor</code> per address family.</p>
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_test.go -- text update parsing -->
+<!-- source: internal/core/bgp/attribute/builder_parse.go -- text attribute parsing -->
+
+<h3>RIB Operations</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>show bgp rib received [peer] [family]</code></td>
+<td>Show Adj-RIB-In</td>
+</tr>
+<tr>
+<td><code>show bgp rib sent [peer] [family]</code></td>
+<td>Show Adj-RIB-Out</td>
+</tr>
+<tr>
+<td><code>clear bgp rib in [peer] [family]</code></td>
+<td>Clear Adj-RIB-In</td>
+</tr>
+<tr>
+<td><code>clear bgp rib out [peer] [family]</code></td>
+<td>Clear Adj-RIB-Out</td>
+</tr>
+<tr>
+<td><code>request bgp rib inject &lt;peer&gt; &lt;family&gt; &lt;prefix&gt; [attrs...]</code></td>
+<td>Insert route into Adj-RIB-In (no live session needed)</td>
+</tr>
+<tr>
+<td><code>request bgp rib withdraw &lt;peer&gt; &lt;family&gt; &lt;prefix&gt;</code></td>
+<td>Remove route from Adj-RIB-In</td>
+</tr>
+</tbody>
+</table>
+<p>Inject attributes: <code>origin &lt;igp|egp|incomplete&gt;</code>, <code>nhop|nexthop &lt;ip&gt;</code>, <code>aspath &lt;asn,asn,...&gt;</code>, <code>localpref &lt;n&gt;</code>, <code>med &lt;n&gt;</code>. Peer address is a label (valid IP, no session required). Only simple prefix families (IPv4/IPv6 unicast/multicast).</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
+<!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB command handlers -->
+
+<h3>Cache Management</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cache list</code></td>
+<td>List cached messages</td>
+</tr>
+<tr>
+<td><code>cache retain</code></td>
+<td>Retain message in cache</td>
+</tr>
+<tr>
+<td><code>cache release</code></td>
+<td>Release from cache</td>
+</tr>
+<tr>
+<td><code>cache expire</code></td>
+<td>Set cache expiration</td>
+</tr>
+<tr>
+<td><code>cache forward</code></td>
+<td>Forward cached message to peer(s)</td>
+</tr>
+</tbody>
+</table>
+<h3>Event Subscription</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>request subscribe &lt;filter&gt;</code></td>
+<td>Subscribe to BGP events</td>
+</tr>
+<tr>
+<td><code>request unsubscribe &lt;filter&gt;</code></td>
+<td>Unsubscribe from events</td>
+</tr>
+</tbody>
+</table>
+<h3>Commit Workflow</h3>
+<p>Named update windows for atomic route changes:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>request commit start &lt;name&gt;</code></td>
+<td>Begin named update window</td>
+</tr>
+<tr>
+<td><code>request commit end &lt;name&gt;</code></td>
+<td>End window and send updates</td>
+</tr>
+<tr>
+<td><code>request commit eor &lt;name&gt;</code></td>
+<td>Send End-of-RIB for window</td>
+</tr>
+<tr>
+<td><code>request commit rollback &lt;name&gt;</code></td>
+<td>Discard changes</td>
+</tr>
+<tr>
+<td><code>request commit show &lt;name&gt;</code></td>
+<td>Show commit status</td>
+</tr>
+<tr>
+<td><code>request commit withdraw &lt;name&gt;</code></td>
+<td>Withdraw all routes in window</td>
+</tr>
+<tr>
+<td><code>request commit list</code></td>
+<td>List named commits</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/cmd/commit/commit.go -- commit workflow handlers -->
+
+<h3>Raw &amp; Introspection</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp peer * raw &lt;hex&gt;</code></td>
+<td>Send raw BGP message bytes</td>
+</tr>
+<tr>
+<td><code>route-refresh &lt;family&gt;</code></td>
+<td>Send route refresh request</td>
+</tr>
+<tr>
+<td><code>help</code></td>
+<td>Show available commands</td>
+</tr>
+<tr>
+<td><code>command-list</code></td>
+<td>List all commands with descriptions</td>
+</tr>
+<tr>
+<td><code>command-help &lt;name&gt;</code></td>
+<td>Detailed help for command</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw BGP message handler -->
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

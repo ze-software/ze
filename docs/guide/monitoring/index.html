@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Monitoring - Ze</title>
+        <meta name="description" content="Ze documentation: guide/monitoring.md" />
+        <meta property="og:title" content="Monitoring - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/monitoring.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-observe">
+<h1>Monitoring</h1>
+<p>Ze provides real-time BGP event monitoring and a live peer dashboard through the CLI. Commands follow verb-first syntax: <code>monitor &lt;module&gt;</code>.</p>
+<!-- source: internal/component/bgp/plugins/cmd/monitor/ -- monitor streaming RPCs -->
+
+<h2>Live Peer Dashboard</h2>
+<pre><code>ze cli monitor bgp
+</code></pre>
+<p>Auto-refreshing dashboard showing router identity, sortable color-coded peer table with update rates. Navigate with j/k, sort with s/S, Enter for detail, Esc to exit. Refreshes every 2 seconds.</p>
+<!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
+
+<h2>Event Streaming</h2>
+<pre><code>ze cli monitor event
+</code></pre>
+<h3>Filters</h3>
+<table>
+<thead>
+<tr>
+<th>Filter</th>
+<th>Example</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>peer</code></td>
+<td><code>peer upstream1</code></td>
+<td>Show events for one peer</td>
+</tr>
+<tr>
+<td><code>include</code></td>
+<td><code>include update,state</code></td>
+<td>Filter by event type (comma-separated)</td>
+</tr>
+<tr>
+<td><code>exclude</code></td>
+<td><code>exclude keepalive</code></td>
+<td>Exclude event types</td>
+</tr>
+<tr>
+<td><code>direction</code></td>
+<td><code>direction received</code></td>
+<td>Only received or sent events</td>
+</tr>
+</tbody>
+</table>
+<p>Combine filters:</p>
+<pre><code>ze cli monitor event peer upstream1 include update direction received
+</code></pre>
+<h3>Event Types</h3>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Has Direction</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>update</code></td>
+<td class="cell-yes">Yes</td>
+<td>Route announcements and withdrawals</td>
+</tr>
+<tr>
+<td><code>open</code></td>
+<td class="cell-yes">Yes</td>
+<td>OPEN message exchange</td>
+</tr>
+<tr>
+<td><code>notification</code></td>
+<td class="cell-yes">Yes</td>
+<td>Session error notifications</td>
+</tr>
+<tr>
+<td><code>keepalive</code></td>
+<td class="cell-yes">Yes</td>
+<td>Keepalive exchanges</td>
+</tr>
+<tr>
+<td><code>refresh</code></td>
+<td class="cell-yes">Yes</td>
+<td>Route refresh requests</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td class="cell-no">No</td>
+<td>Peer state changes (up/down)</td>
+</tr>
+<tr>
+<td><code>negotiated</code></td>
+<td class="cell-no">No</td>
+<td>Capability negotiation results</td>
+</tr>
+<tr>
+<td><code>eor</code></td>
+<td class="cell-yes">Yes</td>
+<td>End-of-RIB markers</td>
+</tr>
+<tr>
+<td><code>rpki</code></td>
+<td class="cell-yes">Yes</td>
+<td>RPKI validation results</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/event.go -- event type definitions -->
+
+<h3>Output Formats</h3>
+<p>Pipe the output through format operators:</p>
+<pre><code>ze cli monitor event | json      # Full JSON envelope
+ze cli monitor event | table     # Tabular format
+ze cli monitor event | match rx  # Regex filter on output
+</code></pre>
+<!-- source: internal/component/command/ -- ApplyJSON, ApplyTable pipe operators -->
+
+<h2>JSON Event Format</h2>
+<p>All events follow the ze-bgp JSON envelope:</p>
+<pre><code class="language-json">{
+  &quot;type&quot;: &quot;bgp&quot;,
+  &quot;bgp&quot;: {
+    &quot;peer&quot;: {
+      &quot;address&quot;: &quot;10.0.0.1&quot;,
+      &quot;local&quot;: {&quot;address&quot;: &quot;10.0.0.2&quot;, &quot;as&quot;: 65000},
+      &quot;remote&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;as&quot;: 65001}
+    },
+    &quot;message&quot;: {
+      &quot;id&quot;: 42,
+      &quot;direction&quot;: &quot;received&quot;,
+      &quot;type&quot;: &quot;update&quot;
+    }
+  }
+}
+</code></pre>
+<h3>UPDATE Event</h3>
+<pre><code class="language-json">{
+  &quot;type&quot;: &quot;bgp&quot;,
+  &quot;bgp&quot;: {
+    &quot;peer&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;local&quot;: {&quot;address&quot;: &quot;10.0.0.2&quot;, &quot;as&quot;: 65000}, &quot;remote&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;as&quot;: 65001}},
+    &quot;message&quot;: {&quot;id&quot;: 1, &quot;direction&quot;: &quot;received&quot;, &quot;type&quot;: &quot;update&quot;},
+    &quot;update&quot;: {
+      &quot;ipv4/unicast&quot;: [
+        {
+          &quot;next-hop&quot;: &quot;10.0.0.1&quot;,
+          &quot;action&quot;: &quot;add&quot;,
+          &quot;nlri&quot;: [&quot;10.0.0.0/24&quot;, &quot;10.0.1.0/24&quot;]
+        }
+      ]
+    },
+    &quot;origin&quot;: &quot;igp&quot;,
+    &quot;as-path&quot;: [65001, 65002],
+    &quot;local-preference&quot;: 100
+  }
+}
+</code></pre>
+<h3>State Event</h3>
+<pre><code class="language-json">{
+  &quot;type&quot;: &quot;bgp&quot;,
+  &quot;bgp&quot;: {
+    &quot;peer&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;local&quot;: {&quot;address&quot;: &quot;10.0.0.2&quot;, &quot;as&quot;: 65000}, &quot;remote&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;as&quot;: 65001}},
+    &quot;message&quot;: {&quot;type&quot;: &quot;state&quot;},
+    &quot;state&quot;: &quot;up&quot;
+  }
+}
+</code></pre>
+<h2>Programmatic Access</h2>
+<p>Plugins can subscribe to events via the SDK:</p>
+<pre><code>process my-plugin {
+    receive [ update state ]
+}
+</code></pre>
+<p>The plugin receives events through its <code>OnEvent</code> callback. See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/plugins.md" target="_blank" rel="noopener">Plugins guide</a> for details.</p>
+<!-- source: internal/component/plugin/server/ -- event dispatch to plugins -->
+
+<h2>Prometheus Metrics</h2>
+<p>Ze exposes Prometheus metrics when <code>telemetry { prometheus { ... } }</code> is configured. BGP metrics are refreshed every 10 seconds. By default the HTTP listener binds to <code>127.0.0.1:9273</code>; configure an explicit server address to expose it to remote scrapers.</p>
+<p>The <code>netdata</code> block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as <code>ze_bgp_*</code>, <code>ze_bfd_*</code>, or <code>ze_l2tp_*</code>.</p>
+<pre><code>telemetry {
+    prometheus {
+        enabled true;
+        server main {
+            ip 0.0.0.0;
+            port 9273;
+        }
+        path /metrics;
+        basic-auth {
+            enabled true;
+            username prometheus;
+            plaintext-password &quot;secret&quot;;
+        }
+        netdata {
+            enabled true;
+            prefix netdata;
+            interval 1;
+            collector diskspace {
+                enabled false;
+            }
+            collector snmp6 {
+                interval 10;
+            }
+        }
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>false</td>
+<td>Enable Prometheus HTTP endpoint</td>
+</tr>
+<tr>
+<td><code>server</code></td>
+<td><code>127.0.0.1:9273</code></td>
+<td>Listener list. Explicit <code>0.0.0.0</code> binds all interfaces</td>
+</tr>
+<tr>
+<td><code>path</code></td>
+<td><code>/metrics</code></td>
+<td>HTTP metrics path</td>
+</tr>
+<tr>
+<td><code>basic-auth/enabled</code></td>
+<td>false</td>
+<td>Require HTTP Basic Authentication for metrics and health endpoints</td>
+</tr>
+<tr>
+<td><code>basic-auth/realm</code></td>
+<td><code>ze prometheus</code></td>
+<td>Basic Auth realm</td>
+</tr>
+<tr>
+<td><code>basic-auth/username</code></td>
+<td>unset</td>
+<td>Basic Auth username</td>
+</tr>
+<tr>
+<td><code>basic-auth/password</code></td>
+<td>unset</td>
+<td>Bcrypt-hashed Basic Auth password</td>
+</tr>
+<tr>
+<td><code>basic-auth/plaintext-password</code></td>
+<td>unset</td>
+<td>Write-only password input, hashed on commit</td>
+</tr>
+<tr>
+<td><code>netdata/enabled</code></td>
+<td>true</td>
+<td>Enable Netdata-compatible OS collectors</td>
+</tr>
+<tr>
+<td><code>netdata/prefix</code></td>
+<td><code>netdata</code></td>
+<td>Prefix for Netdata-compatible OS collector metrics only</td>
+</tr>
+<tr>
+<td><code>netdata/interval</code></td>
+<td>1</td>
+<td>Netdata-compatible OS collector sampling interval (1-60s)</td>
+</tr>
+<tr>
+<td><code>netdata/collector</code></td>
+<td>--</td>
+<td>Per-Netdata-collector enable and interval overrides</td>
+</tr>
+</tbody>
+</table>
+<p>Deprecated compatibility aliases remain accepted: <code>prefix</code>, <code>interval</code>, and <code>collector</code> directly under <code>prometheus</code>. Prefer <code>netdata/prefix</code>, <code>netdata/interval</code>, and <code>netdata/collector</code> in new config.</p>
+<h3>HTTP Basic Authentication</h3>
+<p>When <code>basic-auth/enabled</code> is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both <code>/metrics</code> and <code>/health</code>. The password is stored as a bcrypt hash in the persisted config. Use <code>plaintext-password</code> when editing the config and the commit hook will replace it with <code>password</code>. If automation already has a hash from <code>ze passwd</code>, set <code>password</code> directly.</p>
+<p>Prometheus scrape configuration:</p>
+<pre><code class="language-yaml">scrape_configs:
+  - job_name: ze
+    static_configs:
+      - targets: [&quot;router.example.net:9273&quot;]
+    basic_auth:
+      username: prometheus
+      password: secret
+</code></pre>
+<p>Basic Auth does not provide transport encryption. Keep the listener on loopback, use a trusted management network, or put TLS in front of the service if the scrape crosses an untrusted network.</p>
+<p>Per-collector overrides:</p>
+<pre><code>netdata {
+    collector diskspace { enabled false; }
+    collector snmp6 { interval 10; }
+}
+</code></pre>
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics, metricsUpdateLoop -->
+<!-- source: internal/component/telemetry/exporter/yang/ze-telemetry-conf.yang -->
+
+<h3>OS Metrics (Netdata-compatible)</h3>
+<p>Ze exports 138 OS metrics matching Netdata's Prometheus format exactly (same names, labels, values), acting as a drop-in replacement for Netdata's <code>/api/v1/allmetrics?format=prometheus</code> endpoint. Existing Grafana dashboards built against Netdata continue to work unchanged.</p>
+<p>Metric name format: <code>{prefix}_{context}_{units}_average{chart="...",dimension="...",family="..."}</code>, where <code>{prefix}</code> is <code>telemetry.prometheus.netdata.prefix</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Collector</th>
+<th>/proc or /sys source</th>
+<th>Charts exposed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU</td>
+<td>/proc/stat</td>
+<td><code>system.cpu</code>, <code>cpu.cpu&lt;N&gt;</code></td>
+</tr>
+<tr>
+<td>cpufreq</td>
+<td>/sys/devices/system/cpu/cpu*/cpufreq</td>
+<td><code>cpufreq.cpufreq</code>, <code>cpu.core_throttling</code></td>
+</tr>
+<tr>
+<td>cpuidle</td>
+<td>/sys/devices/system/cpu/cpu*/cpuidle</td>
+<td><code>cpuidle.cpu&lt;N&gt;_cpuidle</code></td>
+</tr>
+<tr>
+<td>Memory</td>
+<td>/proc/meminfo</td>
+<td><code>system.ram</code>, <code>system.swap</code>, <code>mem.available</code>, <code>mem.committed</code>, <code>mem.kernel</code>, <code>mem.slab</code>, <code>mem.thp</code>, <code>mem.writeback</code>, <code>mem.hugepages</code>, <code>mem.reclaiming</code>, <code>mem.swap_cached</code>, <code>mem.cma</code>, <code>mem.directmaps</code>, <code>mem.hwcorrupt</code>, <code>mem.zswap</code></td>
+</tr>
+<tr>
+<td>Load</td>
+<td>/proc/loadavg</td>
+<td><code>system.load</code></td>
+</tr>
+<tr>
+<td>Processes</td>
+<td>/proc/stat</td>
+<td><code>system.processes</code>, <code>system.forks</code>, <code>system.ctxt</code>, <code>system.intr</code></td>
+</tr>
+<tr>
+<td>Interrupts</td>
+<td>/proc/softirqs</td>
+<td><code>system.softirqs</code></td>
+</tr>
+<tr>
+<td>Pressure (PSI)</td>
+<td>/proc/pressure/*</td>
+<td><code>system.{cpu,memory,io}_{some,full}_pressure</code></td>
+</tr>
+<tr>
+<td>Network (per-iface)</td>
+<td>/proc/net/dev, /sys/class/net</td>
+<td><code>net.net</code>, <code>net.packets</code>, <code>net.errors</code>, <code>net.drops</code>, <code>net.fifo</code>, <code>net.compressed</code>, <code>net.events</code>, <code>net.speed</code>, <code>net.duplex</code>, <code>net.operstate</code>, <code>net.carrier</code>, <code>net.mtu</code></td>
+</tr>
+<tr>
+<td>Network (aggregate)</td>
+<td>/proc/net/dev, snmp, snmp6</td>
+<td><code>system.net</code>, <code>system.ipv4</code>, <code>system.ipv6</code></td>
+</tr>
+<tr>
+<td>IPv4</td>
+<td>/proc/net/snmp</td>
+<td><code>ipv4.packets</code>, <code>ipv4.errors</code>, <code>ipv4.tcppackets</code>, <code>ipv4.tcperrors</code>, <code>ipv4.tcphandshake</code>, <code>ipv4.tcpsock</code>, <code>ipv4.udppackets</code>, <code>ipv4.udperrors</code>, <code>ipv4.icmp</code>, <code>ipv4.icmpmsg</code>, <code>ipv4.fragsout</code>, <code>ipv4.fragsin</code></td>
+</tr>
+<tr>
+<td>IPv4 netstat</td>
+<td>/proc/net/netstat</td>
+<td><code>ipv4.mcast</code>, <code>ipv4.mcastpkts</code>, <code>ipv4.bcast</code>, <code>ipv4.bcastpkts</code>, <code>ipv4.ecnpkts</code>, <code>ip.tcpconnaborts</code>, <code>ip.tcpmemorypressures</code>, <code>ip.tcpreorders</code>, <code>ip.tcpofo</code></td>
+</tr>
+<tr>
+<td>IPv6</td>
+<td>/proc/net/snmp6</td>
+<td><code>ipv6.packets</code>, <code>ipv6.errors</code>, <code>ipv6.udppackets</code>, <code>ipv6.udperrors</code>, <code>ipv6.mcast</code>, <code>ipv6.fragsout</code>, <code>ipv6.fragsin</code></td>
+</tr>
+<tr>
+<td>Sockets</td>
+<td>/proc/net/sockstat, sockstat6</td>
+<td><code>ip.sockstat_sockets</code>, <code>ipv4.sockstat_tcp_sockets</code>, <code>ipv4.sockstat_tcp_mem</code>, <code>ipv4.sockstat_udp_sockets</code>, <code>ipv4.sockstat_udp_mem</code>, <code>ipv6.sockstat6_*</code></td>
+</tr>
+<tr>
+<td>Conntrack</td>
+<td>/proc/net/stat/nf_conntrack</td>
+<td><code>netfilter.conntrack_sockets</code>, <code>_new</code>, <code>_changes</code>, <code>_errors</code>, <code>_search</code>, <code>_expect</code></td>
+</tr>
+<tr>
+<td>Softnet</td>
+<td>/proc/net/softnet_stat</td>
+<td><code>system.softnet_stat</code>, <code>cpu.cpu&lt;N&gt;_softnet_stat</code></td>
+</tr>
+<tr>
+<td>Disk I/O</td>
+<td>/proc/diskstats</td>
+<td><code>disk.io</code>, <code>disk.ops</code>, <code>disk.mops</code>, <code>disk.iotime</code>, <code>disk.busy</code>, <code>disk.backlog</code>, <code>disk.await</code>, <code>disk.svctm</code>, <code>disk.avgsz</code>, <code>disk.qops</code>, <code>system.io</code></td>
+</tr>
+<tr>
+<td>Disk space</td>
+<td>/proc/mounts + statfs</td>
+<td><code>disk_space.&lt;mount&gt;</code></td>
+</tr>
+<tr>
+<td>mdstat</td>
+<td>/proc/mdstat</td>
+<td><code>md.health</code>, <code>md.disks</code>, <code>md.mismatch_cnt</code></td>
+</tr>
+<tr>
+<td>ZFS</td>
+<td>/proc/spl/kstat/zfs/arcstats</td>
+<td><code>zfs.arc_size</code>, <code>zfs.reads</code>, <code>zfs.hits</code>, <code>zfs.hits_rate</code>, <code>zfs.l2_size</code>, <code>zfs.l2_hits_rate</code>, <code>zfs.memory_ops</code></td>
+</tr>
+<tr>
+<td>btrfs</td>
+<td>/sys/fs/btrfs/*/allocation</td>
+<td><code>btrfs.disk</code>, <code>btrfs.data</code>, <code>btrfs.metadata</code>, <code>btrfs.system</code></td>
+</tr>
+<tr>
+<td>VMstat</td>
+<td>/proc/vmstat</td>
+<td><code>mem.pgfaults</code>, <code>system.pgpgio</code>, <code>mem.swapio</code>, <code>mem.oom_kill</code>, <code>mem.numa</code>, <code>mem.balloon</code>, <code>mem.zswapio</code>, <code>mem.ksm_cow</code>, <code>mem.thp_faults</code>, <code>mem.thp_collapse</code></td>
+</tr>
+<tr>
+<td>SCTP</td>
+<td>/proc/net/sctp/snmp</td>
+<td><code>sctp.snmp</code></td>
+</tr>
+<tr>
+<td>IPVS</td>
+<td>/proc/net/ip_vs_stats</td>
+<td><code>ipvs.net</code></td>
+</tr>
+<tr>
+<td>Wireless</td>
+<td>/proc/net/wireless</td>
+<td><code>net_wireless.*</code></td>
+</tr>
+<tr>
+<td>Other</td>
+<td>/proc/uptime, /proc/sys/kernel/random/entropy_avail, /proc/sys/fs/file-nr</td>
+<td><code>system.uptime</code>, <code>system.entropy</code>, <code>system.file_nr_used</code></td>
+</tr>
+</tbody>
+</table>
+<p>Collectors whose data sources are absent (no ZFS loaded, no btrfs mounts, no wireless NICs, etc.) skip silently.</p>
+<p>Side-by-side validation against Netdata:</p>
+<pre><code>curl -s http://localhost:9273/api/v1/allmetrics?format=prometheus | grep &quot;^netdata_&quot; | sed 's/ .*//' | sort -u &gt; nd.txt
+curl -s http://localhost:9274/metrics | grep &quot;^netdata_&quot; | sed 's/ .*//' | sort -u &gt; ze.txt
+diff nd.txt ze.txt
+</code></pre>
+<!-- source: internal/component/telemetry/collector/ -- Netdata-compatible OS collectors -->
+
+<h3>Host Inventory Metrics</h3>
+<!-- source: internal/component/host/metrics.go -- RegisterMetrics, collectFrom -->
+
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_host_memory_total_bytes</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Total physical memory in bytes</td>
+</tr>
+<tr>
+<td><code>ze_host_memory_available_bytes</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Available physical memory in bytes</td>
+</tr>
+<tr>
+<td><code>ze_host_cpu_logical_count</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Number of logical CPUs</td>
+</tr>
+<tr>
+<td><code>ze_host_cpu_physical_cores</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Number of physical CPU cores</td>
+</tr>
+<tr>
+<td><code>ze_host_uptime_seconds</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Host uptime in seconds</td>
+</tr>
+<tr>
+<td><code>ze_host_ecc_correctable_errors_total</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>ECC correctable error count</td>
+</tr>
+<tr>
+<td><code>ze_host_ecc_uncorrectable_errors_total</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>ECC uncorrectable error count</td>
+</tr>
+<tr>
+<td><code>ze_host_nic_link_speed_mbps</code></td>
+<td>gauge</td>
+<td><code>name</code></td>
+<td>NIC link speed in Mbps</td>
+</tr>
+<tr>
+<td><code>ze_host_nic_carrier</code></td>
+<td>gauge</td>
+<td><code>name</code></td>
+<td>NIC carrier state (1=up, 0=down)</td>
+</tr>
+<tr>
+<td><code>ze_host_storage_size_bytes</code></td>
+<td>gauge</td>
+<td><code>name</code></td>
+<td>Block device size in bytes</td>
+</tr>
+<tr>
+<td><code>ze_host_thermal_temp_mc</code></td>
+<td>gauge</td>
+<td><code>name</code>, <code>device</code></td>
+<td>Thermal sensor reading in millicelsius</td>
+</tr>
+</tbody>
+</table>
+<p>Host metrics are refreshed on a configurable interval (default 60 seconds). Linux only; on other platforms no host metrics are registered.</p>
+<h3>BGP Metrics</h3>
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
+
+<h4>Instance</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_info</code></td>
+<td>gauge</td>
+<td>Instance info (labels: <code>version</code>, <code>router_id</code>, <code>local_as</code>)</td>
+</tr>
+<tr>
+<td><code>ze_uptime_seconds</code></td>
+<td>gauge</td>
+<td>Seconds since reactor started</td>
+</tr>
+<tr>
+<td><code>ze_peers_configured</code></td>
+<td>gauge</td>
+<td>Number of configured peers</td>
+</tr>
+<tr>
+<td><code>ze_cache_entries</code></td>
+<td>gauge</td>
+<td>UPDATE cache entry count</td>
+</tr>
+</tbody>
+</table>
+<h4>Per-Peer</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_peer_state</code></td>
+<td>gauge</td>
+<td><code>peer</code></td>
+<td>FSM state (0=stopped, 1=connecting, 2=active, 3=established)</td>
+</tr>
+<tr>
+<td><code>ze_peer_messages_received_total</code></td>
+<td>counter</td>
+<td><code>peer</code>, <code>type</code></td>
+<td>Messages received (type: update, keepalive, open, notification, refresh, eor)</td>
+</tr>
+<tr>
+<td><code>ze_peer_messages_sent_total</code></td>
+<td>counter</td>
+<td><code>peer</code>, <code>type</code></td>
+<td>Messages sent (type: update, keepalive, open, notification, refresh, eor)</td>
+</tr>
+</tbody>
+</table>
+<h4>Startup and Connection Timing</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_plugin_startup_seconds</code></td>
+<td>histogram</td>
+<td>-</td>
+<td>WaitForPluginStartupComplete duration</td>
+</tr>
+<tr>
+<td><code>ze_api_ready_seconds</code></td>
+<td>histogram</td>
+<td>-</td>
+<td>WaitForAPIReady duration</td>
+</tr>
+<tr>
+<td><code>ze_peer_dial_seconds</code></td>
+<td>histogram</td>
+<td><code>peer</code>, <code>result</code></td>
+<td>TCP dial duration (result: ok, fail)</td>
+</tr>
+<tr>
+<td><code>ze_peer_connect_attempt_seconds</code></td>
+<td>histogram</td>
+<td><code>peer</code></td>
+<td>Full connection attempt (runOnce) duration</td>
+</tr>
+<tr>
+<td><code>ze_peer_connect_attempts_total</code></td>
+<td>counter</td>
+<td><code>peer</code></td>
+<td>Connection attempts</td>
+</tr>
+<tr>
+<td><code>ze_peer_backoff_seconds</code></td>
+<td>histogram</td>
+<td><code>peer</code></td>
+<td>Backoff wait duration before retry</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
+
+<h4>Forward Pool / Congestion</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_forward_workers_active</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Active forward pool workers</td>
+</tr>
+<tr>
+<td><code>ze_bgp_pool_used_ratio</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Global overflow pool utilization (0.0 = empty, 1.0 = full)</td>
+</tr>
+<tr>
+<td><code>ze_bgp_overflow_items</code></td>
+<td>gauge</td>
+<td><code>peer</code></td>
+<td>Items in per-destination overflow buffer</td>
+</tr>
+<tr>
+<td><code>ze_bgp_overflow_ratio</code></td>
+<td>gauge</td>
+<td><code>source</code></td>
+<td>Per-source overflow ratio: overflowed / (forwarded + overflowed)</td>
+</tr>
+</tbody>
+</table>
+<h4>Prefix Limits (RFC 4486)</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_bgp_prefix_count</code></td>
+<td>gauge</td>
+<td><code>peer</code>, <code>family</code></td>
+<td>Current prefix count</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_maximum</code></td>
+<td>gauge</td>
+<td><code>peer</code>, <code>family</code></td>
+<td>Configured hard maximum</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_warning</code></td>
+<td>gauge</td>
+<td><code>peer</code>, <code>family</code></td>
+<td>Warning threshold</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_warning_exceeded</code></td>
+<td>gauge</td>
+<td><code>peer</code>, <code>family</code></td>
+<td>1 if count &gt;= warning</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_ratio</code></td>
+<td>gauge</td>
+<td><code>peer</code>, <code>family</code></td>
+<td>count / maximum (0.0 to 1.0+)</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_maximum_exceeded_total</code></td>
+<td>counter</td>
+<td><code>peer</code>, <code>family</code></td>
+<td>Times maximum exceeded</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_teardown_total</code></td>
+<td>counter</td>
+<td><code>peer</code></td>
+<td>Sessions torn down for prefix limit</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_stale</code></td>
+<td>gauge</td>
+<td><code>peer</code></td>
+<td>1 if prefix data older than 6 months</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>Single Command</h2>
+<p>For scripting, use <code>-c</code> to execute a single command and exit:</p>
+<pre><code>ze cli -c &quot;bgp summary&quot;
+ze cli -c &quot;show bgp rib received&quot;
+ze cli -c &quot;show bgp rpki status&quot;
+</code></pre>
+<!-- source: internal/component/cli/client/main.go -- Run, Execute, StreamMonitor -->
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

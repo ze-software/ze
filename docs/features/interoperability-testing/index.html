@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Interoperability Testing - Ze</title>
+        <meta name="description" content="Ze documentation: features/interoperability-testing.md" />
+        <meta property="og:title" content="Interoperability Testing - Ze" />
+        <meta property="og:description" content="Ze documentation: features/interoperability-testing.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-observe">
+<h1>Interoperability Testing</h1>
+<!-- source: test/interop/run.py -- interop test runner -->
+<!-- source: test/interop/interop.py -- scenario framework -->
+
+<p>Ze ships a Docker-based interoperability test suite that verifies protocol correctness
+against real third-party BGP implementations. Tests are not mocks -- they launch actual
+daemon instances in containers and exchange real BGP messages.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Target daemons</td>
+<td>FRR, BIRD, GoBGP (tested), rustbgpd, RustyBGP, freeRtr (Dockerfiles ready)</td>
+</tr>
+<tr>
+<td>Scenario count</td>
+<td>37 scenarios covering core protocol and extensions</td>
+</tr>
+<tr>
+<td>Runner</td>
+<td><code>make ze-interop-test</code> (all) or <code>make ze-interop-test INTEROP_SCENARIO=name</code> (single)</td>
+</tr>
+<tr>
+<td>Container images</td>
+<td>Customizable via env vars (e.g., <code>FRR_IMAGE=quay.io/frrouting/frr:10.3</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2>Scenarios</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Scenario</th>
+<th>Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>01</td>
+<td>eBGP IPv4</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>02</td>
+<td>eBGP IPv4</td>
+<td>BIRD</td>
+</tr>
+<tr>
+<td>03</td>
+<td>iBGP</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>04</td>
+<td>4-byte ASN</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>05</td>
+<td>Routes from</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>06</td>
+<td>Routes from</td>
+<td>BIRD</td>
+</tr>
+<tr>
+<td>07</td>
+<td>Routes to</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>08</td>
+<td>Triangle topology</td>
+<td>multi</td>
+</tr>
+<tr>
+<td>09</td>
+<td>Route withdrawal</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>10</td>
+<td>IPv6 eBGP</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Add-Path</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Route Refresh</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Graceful Restart</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Route Server</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Standard communities</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>16</td>
+<td>Extended communities</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>17</td>
+<td>MD5 authentication</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>18</td>
+<td>eBGP</td>
+<td>GoBGP</td>
+</tr>
+<tr>
+<td>19</td>
+<td>Routes</td>
+<td>GoBGP</td>
+</tr>
+<tr>
+<td>20</td>
+<td>BGP Roles</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>21</td>
+<td>BGP Roles</td>
+<td>GoBGP</td>
+</tr>
+<tr>
+<td>22</td>
+<td>EVPN</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>23</td>
+<td>VPN</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>24</td>
+<td>FlowSpec</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>25</td>
+<td>IPv6 eBGP</td>
+<td>BIRD</td>
+</tr>
+<tr>
+<td>26</td>
+<td>IPv6 eBGP</td>
+<td>GoBGP</td>
+</tr>
+<tr>
+<td>27</td>
+<td>Multihop eBGP</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>28</td>
+<td>EVPN</td>
+<td>GoBGP</td>
+</tr>
+<tr>
+<td>29</td>
+<td>VPN</td>
+<td>GoBGP</td>
+</tr>
+<tr>
+<td>30</td>
+<td>FlowSpec</td>
+<td>GoBGP</td>
+</tr>
+<tr>
+<td>31</td>
+<td>Multihop eBGP</td>
+<td>BIRD</td>
+</tr>
+<tr>
+<td>32</td>
+<td>Multihop eBGP</td>
+<td>GoBGP</td>
+</tr>
+<tr>
+<td>33</td>
+<td>BFD failover</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>34</td>
+<td>ECMP</td>
+<td>FRR + GoBGP</td>
+</tr>
+<tr>
+<td>35</td>
+<td>SRv6 VPNv6</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>36</td>
+<td>Remove private AS</td>
+<td>FRR</td>
+</tr>
+<tr>
+<td>37</td>
+<td>Remove private AS via AS4_PATH</td>
+<td>FRR + BIRD</td>
+</tr>
+</tbody>
+</table>
+<p>Only Ze and rustbgpd ship cross-implementation interop test suites among open-source
+BGP daemons. Ze's suite has more scenarios and tests against more target implementations.</p>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

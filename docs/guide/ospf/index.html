@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>OSPF - Ze</title>
+        <meta name="description" content="Ze documentation: guide/ospf.md" />
+        <meta property="og:title" content="OSPF - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/ospf.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-routing">
+<h1>OSPF</h1>
+<p>Ze includes an experimental native OSPF engine under the <code>ospf</code> config root. The same engine drives OSPFv2 for IPv4 and OSPFv3 for the <code>address-family ipv6</code> subsection: interface and neighbor state, LSDB flooding, SPF, ABR/NSSA policy, redistribution, and route installation are shared; the wire codec, raw transport, and prefix strategy are address-family specific.</p>
+<!-- source: internal/plugins/ospf/register.go -- registerOSPF -->
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- ospf config root -->
+<!-- source: internal/plugins/ospf/codec_v6.go -- v6Codec -->
+<!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6Strategy -->
+<!-- source: internal/plugins/ospf/v3/transport/transport.go -- Transport -->
+
+<p>SPF builds one graph per area from Router-LSAs and Network-LSAs, enforces the RFC 2328 two-way check, derives next-hops from Router-LSA link data, merges equal-cost next-hops, and inserts one <code>locrib.Path</code> per next-hop with OSPF admin distance 110. The kernel FIB path is Loc-RIB -&gt; sysrib -&gt; fibkernel, not redistribution events.</p>
+<!-- source: internal/plugins/ospf/spf/graph.go -- BuildGraph -->
+<!-- source: internal/plugins/ospf/spf/spf.go -- Compute -->
+<!-- source: internal/plugins/ospf/spf/route.go -- BuildRoutes -->
+<!-- source: internal/plugins/ospf/spf/install.go -- Installer Apply -->
+
+<p>ABR support treats a router as area-border only when it is active in the backbone and at least one other area. It originates Type 3 Summary-Network LSAs and Type 4 Summary-ASBR LSAs, applies configured area ranges with optional cost or <code>not-advertise</code>, withdraws stale self-originated summaries, accepts backbone summaries when calculating on an ABR, and computes inter-area costs as cost-to-advertising-ABR plus the summary metric.</p>
+<!-- source: internal/plugins/ospf/spf/interarea.go -- IsABR and ComputeInterArea -->
+<!-- source: internal/plugins/ospf/spf/summary.go -- OriginateSummaries -->
+<!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateSummary and FlushStaleSummaryLSAs -->
+
+<h2>AS-External routes and redistribution</h2>
+<p>A router becomes an AS Boundary Router (ASBR) when it originates external LSAs, either by redistributing routes from another protocol or through <code>default-information originate</code>. OSPFv2 uses Type 5 AS-External-LSAs; OSPFv3 uses AS-External-LSAs (<code>0x4005</code>) in normal areas and NSSA-LSAs (<code>0x2007</code>) in attached NSSA areas. The ASBR sets the E-bit in its Router-LSA; the ABR and ASBR roles are independent. AS-scoped Type 5 / <code>0x4005</code> LSAs live in the AS-wide store, separate from per-area LSDBs.</p>
+<!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateExternal, PurgeExternal -->
+<!-- source: internal/plugins/ospf/origination_v6_external.go -- v6InjectExternal, v6OriginateExternalLSA -->
+<!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA -->
+
+<p>Redistribution uses the shared <code>redistribute</code> orchestrator. <code>redistribute { destination ospf { import connected static bgp } }</code> injects each accepted route as an external LSA in the configured address family; <code>redistribute { destination bgp { import ospf } }</code> exports OSPF-selected routes back out. OSPF self-import is a runtime no-op (loop prevention: the import source <code>ospf</code> equals the importing protocol). The per-source metric, metric-type (E1/E2), and route tag come from the <code>ospf</code> container's <code>redistribute</code> list; an unenrolled source falls back to metric 20, type-2.</p>
+<!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute, WithdrawRoute -->
+<!-- source: internal/plugins/ospf/redistribute/source.go -- Source OnSPFChange exports OSPF routes -->
+<!-- source: internal/plugins/ospf/redist_wiring.go -- engine InjectExternal, externalParams -->
+
+<p>Received external LSAs are resolved by the external SPF stage, which runs after the intra-area and inter-area route tables are built. Each external is resolved against its ASBR (or a non-zero forwarding address, re-resolved through the route table; unreachable externals are skipped). Type 1 (E1) cost is the distance to the forwarding target plus the advertised metric; type 2 (E2) cost is the advertised metric only, tie-broken by the forwarding distance. A type 1 external always wins over a type 2 regardless of cost, and any external ranks below an intra-area or inter-area route for the same prefix. The winning path installs as one <code>locrib.Path</code> with admin distance 110.</p>
+<!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternal, ComputeExternalWith, betterExternal -->
+<!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6ExternalReader -->
+
+<p><code>default-information originate</code> advertises a Type 5 default (<code>0.0.0.0/0</code>). With <code>always</code> it originates unconditionally; otherwise it originates only while a non-OSPF default route exists in the Loc-RIB (OSPF's own default does not satisfy the condition). The engine re-evaluates the condition at config-apply and live on Loc-RIB default-route changes, withdrawing the Type 5 when the condition lapses.</p>
+<!-- source: internal/plugins/ospf/default.go -- applyDefaultInformation, hasNonOSPFDefault, watchDefaultRoute -->
+
+<h2>Stub and NSSA areas</h2>
+<p>A stub area (<code>area-type stub</code>) carries no AS-External information: the E-bit is clear in every Hello and Router-LSA originated within it (a Hello whose E-bit does not match is dropped and no adjacency forms), Type 4 ASBR-Summary and Type 5 AS-External LSAs are neither accepted from nor flooded into the area, and each attached ABR injects a single Type 3 default (<code>0.0.0.0/0</code>; OSPFv3 injects the equivalent <code>::/0</code> as an Inter-Area-Prefix-LSA) at the configured <code>default-cost</code>. A totally-stubby area (<code>no-summary true</code>) additionally suppresses every inter-area Type 3 summary except that default, so a spoke holds only intra-area routes plus one default.</p>
+<!-- source: internal/plugins/ospf/spf/area_type.go -- applyAreaTypePolicy -->
+<!-- source: internal/plugins/ospf/origination_v6_stub.go -- v6ApplyAreaTypePolicy -->
+<!-- source: internal/plugins/ospf/lsdb/flooding.go -- shouldDropByArea, eligibleInterface -->
+<!-- source: internal/plugins/ospf/iface/iface.go -- validateHelloLocked E/N-bit match -->
+
+<p>An NSSA (<code>area-type nssa</code>, RFC 3101) is stub-like but permits local external redistribution. The N-bit must match between neighbours (the E-bit stays clear as in a stub). An NSSA ASBR originates Type 7/NSSA LSAs for the routes it redistributes; in OSPFv3 the P-bit lives in the prefix options and a non-zero IPv6 forwarding address is carried in the external body. A router that cannot inject a Type 5 directly (no normal-area attachment) sets the P-bit so its Type 7 is translatable; one that can originate a Type 5 directly clears it. The ABR may also originate a Type 7 default (<code>nssa { default-originate true }</code>).</p>
+<!-- source: internal/plugins/ospf/lsdb/nssa.go -- OriginateNSSA, PurgeNSSA -->
+<!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA -->
+<!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults -->
+
+<p>Among the ABRs attached to an NSSA, exactly one is elected the Type 7 to Type 5 translator (RFC 3101 §3.5): the translator-candidate ABR with the highest Router ID. Each ABR whose role is not <code>never</code> advertises the Nt-bit in its Router-LSA to stand as a candidate; a <code>never</code> ABR clears the Nt-bit and is excluded from the election, so it cannot wedge translation off for a willing lower-Router-ID candidate. The role is configurable per area (<code>nssa { translate-role candidate|always|never }</code>), sticky across a <code>stability-interval</code>. The elected translator re-originates each P=1, non-zero-FA Type 7 as a Type 5 onto the backbone (P cleared, Advertising Router set to the translator, forwarding address / metric / tag preserved), counted by <code>ze_ospf_nssa_translations_total{area}</code>. A non-elected ABR does not translate, so no duplicate Type 5 reaches the backbone. When the same external prefix is known via a Type 7 (P=1), a Type 5, and a Type 7 (P=0), the external route computation prefers them in that order (RFC 3101 §2.5) ahead of the §16.4 cost.</p>
+<!-- source: internal/plugins/ospf/nssa.go -- electNSSATranslator, translateNSSA, translatorEffective -->
+<!-- source: internal/plugins/ospf/spf/external_nssa.go -- RFC 3101 sec 2.5 source preference -->
+<!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternal Type 7 candidates, betterExternal -->
+
+<h2>OSPFv3 Link-LSAs</h2>
+<p>OSPFv3 Link-LSAs (<code>0x0008</code>) are stored in a link-scoped LSDB keyed by the receiving interface, not in the area or AS-wide stores. Ze originates one self Link-LSA per active OSPFv3 interface, carrying the interface link-local address and routable IPv6 prefixes, floods it only on that link, and releases the link store when the interface is removed. During database exchange, link-scoped LSAs participate in DD summaries and LS Request lookup using the interface context.</p>
+<!-- source: internal/plugins/ospf/lsdb/link_scope.go -- installLink, LookupLinkLSA, ReleaseLink -->
+<!-- source: internal/plugins/ospf/origination_v6_link.go -- v6OriginateLinkLSA -->
+
+<h2>Opaque LSAs (RFC 5250)</h2>
+<p>Ze implements the OSPFv2 opaque-LSA carrier framework (RFC 5250, which obsoletes RFC 2370): the substrate that later extensions (Traffic Engineering, Router-Information, Segment Routing, Grace-LSA) build on. The framework is a carrier only; it ships no opaque consumer and interprets no opaque body. It provides scope-correct storage and flooding for the three opaque scopes, the Opaque Type / Opaque ID split of the Link State ID, the O-bit capability negotiation, generic 4-byte-aligned TLV helpers, and a consumer registry.</p>
+<p>The three opaque scopes map onto three stores: a Type 9 link-local opaque LSA lives in the per-interface link store and floods only on its arrival link; a Type 10 area opaque LSA lives in the per-area store; a Type 11 AS-wide opaque LSA lives in a dedicated AS-wide opaque store, parallel to the Type 5 AS-External store, and floods AS-wide but never into a stub or NSSA area. The 32-bit Link State ID splits into an 8-bit Opaque Type (an IANA registry selector) and a 24-bit Opaque ID (an application instance identifier). An opaque LSA never becomes an SPF vertex.</p>
+<p>Opaque capability is negotiated with the O-bit in the OSPF Options field. Enable it with <code>ospf { opaque true }</code>: Ze then sets the O-bit in its Database Description packets and floods opaque LSAs only to neighbours that likewise set the O-bit in their DD. The O-bit is a DD-only signal (it is not part of the Hello E/N option match), so enabling it does not break adjacency with a non-opaque peer. Received opaque LSAs are stored and re-flooded per scope regardless of the <code>opaque</code> leaf and regardless of whether a consumer is registered; disabling the leaf only stops advertising opaque capability and originating opaque LSAs. A received Type-11 opaque LSA is treated as usable only while its originating router is reachable (RFC 5250 §5, reusing the ASBR reachability computed for Type 5). Opaque activity is counted by <code>ze_ospf_opaque_lsas{scope,opaque_type}</code>, <code>ze_ospf_opaque_originations_total{opaque_type}</code>, <code>ze_ospf_opaque_received_total{opaque_type,registered}</code>, <code>ze_ospf_opaque_consumer_errors_total{opaque_type}</code>, and <code>ze_ospf_opaque_capable_neighbors{interface}</code>.</p>
+<!-- source: internal/plugins/ospf/lsdb/opaque_as.go -- OriginateOpaque, OpaqueDelivery, OpaqueLSACounts -->
+<!-- source: internal/plugins/ospf/opaque_registry.go -- RegisterOpaqueConsumer, OpaqueScope -->
+<!-- source: internal/plugins/ospf/opaque.go -- deliverOpaque, originateOpaqueLSAs, routerReachable -->
+
+<h2>Traffic Engineering (RFC 3630, RFC 5392)</h2>
+<p>Ze implements the OSPFv2 Traffic Engineering LSA as a consumer of the opaque carrier: it registers Opaque type 1 (RFC 3630 intra-area TE) and Opaque type 6 (RFC 5392 Inter-AS-TE-v2) and codes the TE LSA body (the Router-Address TLV, the Link TLV, and the link sub-TLVs). It requires <code>opaque true</code>. TE is not a routing change: the carrier floods the LSAs by scope, and the parsed topology feeds a passive Traffic Engineering Database (TED) that never triggers SPF (RFC 3630 §1).</p>
+<p>Enable TE per interface with a <code>traffic-engineering</code> block plus a stable TE <code>router-address</code>:</p>
+<pre><code>ospf {
+    router-id 10.0.0.1
+    opaque true
+    router-address 10.0.0.1
+    interfaces {
+        interface eth0 {
+            area 0.0.0.0
+            network-type point-to-point
+            cost 10
+            traffic-engineering {
+                enable true
+                te-metric 100
+                max-bandwidth 1250000000            # bytes/second
+                max-reservable-bandwidth 1000000000 # bytes/second
+                admin-group 5                        # 32-bit mask, LSB = group 0
+            }
+        }
+    }
+}
+</code></pre>
+<p>Each enabled interface with a usable Link ID (a Full neighbour on point-to-point, a known DR on multi-access) originates one Link TE LSA at a distinct Instance; the Router-Address TLV is advertised once per router at Instance 0. The TE metric is independent of the OSPF cost and defaults to it when unset (RFC 3630 §2.5.5). Bandwidths are carried on the wire as 32-bit IEEE-754 bytes/second and stored as <code>float64</code> in the TED. A link that goes down or is de-configured is MaxAge-withdrawn, and its TED entry is removed.</p>
+<p>An inter-AS TE link (RFC 5392) is a proxied advertisement with no OSPF adjacency on the link. Configure it with an <code>inter-as</code> sub-block; it originates an Opaque-type-6 LSA carrying the Remote AS Number (required) and at least one Remote ASBR ID (IPv4 sub-TLV 22 or IPv6 sub-TLV 24), omitting the Link ID sub-TLV (RFC 5392 §3.2.1). The <code>scope</code> selects the flooding scope per RFC 5392 §3.1.1: <code>area</code> (Type 10) or <code>as</code> (Type 11, AS-wide). A Type-11 inter-AS entry is held usable only while its originator is reachable (RFC 5250 §5).</p>
+<pre><code>traffic-engineering {
+    enable true
+    inter-as {
+        remote-as 65001
+        remote-asbr-ipv4 203.0.113.9
+        scope as        # Type 11 (AS-wide); &quot;area&quot; for Type 10
+    }
+}
+</code></pre>
+<p><code>show ospf te-database</code> renders the TED: router addresses and links with their Link ID, local/remote address, link type, TE metric, bandwidths, admin group, and (for inter-AS links) remote AS and ASBR. <code>show ospf database opaque-area</code> and <code>opaque-as</code> decode any TE LSA body inline. TE activity is counted by <code>ze_ospf_te_lsas{scope,kind}</code>, <code>ze_ospf_te_database_links{area}</code>, <code>ze_ospf_te_originations_total{kind}</code>, <code>ze_ospf_te_received_total{kind,usable}</code>, <code>ze_ospf_te_parse_errors_total{opaque_type}</code>, and <code>ze_ospf_te_unreachable_originators</code>. The read-only TED snapshot is available for a future RSVP-TE admission consumer; CSPF and RSVP-TE signalling are out of scope.</p>
+<!-- source: internal/plugins/ospf/te.go -- registerTEConsumer, teOnReceive, teMetrics -->
+<!-- source: internal/plugins/ospf/te_originate.go -- teOriginateType1, teOriginateType6 -->
+<!-- source: internal/plugins/ospf/te_ted.go -- ted, TEDSnapshot, LookupLink -->
+<!-- source: internal/plugins/ospf/packet/te_lsa.go -- TELSA, DecodeTELSA, TELink -->
+
+<h2>Authentication</h2>
+<p>OSPFv2 packets can be authenticated per interface with a key chain (RFC 2328 Appendix D, RFC 5709, RFC 7474). Four schemes are supported, selected by the key algorithm and the chain's <code>extended-sequence</code> flag: AuType 0 (none), AuType 1 (<code>simple</code> 8-byte cleartext password), AuType 2 (<code>md5</code> keyed-MD5 or HMAC-SHA-1/256/384/512), and AuType 3 (the same HMAC-SHA algorithms with a 64-bit extended cryptographic sequence number). Every outgoing packet is signed and every incoming packet is verified before it reaches the ISM/NSM/LSDB; a packet that fails is dropped before any protocol processing and increments <code>ze_ospf_auth_failures_total{interface,reason}</code>.</p>
+<!-- source: internal/plugins/ospf/packet/auth_verify.go -- Sign, Verify -->
+<!-- source: internal/plugins/ospf/auth_wiring.go -- signPacket (TX), verifyPacket (RX) -->
+
+<p>For cryptographic auth the OSPF common-header Checksum is zero (the appended digest provides integrity) and the OSPF Packet Length covers only the header and body; the digest (and, for AuType 3, a leading 64-bit sequence number) is appended after the body and counted only in the IP length. All digest and password comparisons are constant-time. The cryptographic sequence number is non-decreasing per neighbour, key-id, and packet type, so a replayed packet is rejected; the send counter is seeded from a monotonic clock so it does not regress across a restart (a peer enforcing a strictly-increasing sequence keeps the adjacency, RFC 7474). For AuType 3 the IP source address is bound into the digest (RFC 7474 §5 initialises the first four octets of Apad to the source address) so a spoofed source fails verification.</p>
+<!-- source: internal/plugins/ospf/auth_keystore.go -- verify replay check, signKey sequence -->
+
+<p>Keys are organised as named chains for hitless rotation: a chain holds multiple keys, the first is used to sign, and any chain key is accepted on receive during an overlap window. A chain is bound per interface, or an interface set to <code>authentication { mode inherit }</code> uses the area-level default chain. Secrets are stored <code>$9$</code>-encoded and never appear in plaintext in <code>show configuration</code> or backups.</p>
+<!-- source: internal/plugins/ospf/auth_keystore.go -- configure, inherit resolution, decodeSecret -->
+
+<p>Operational state is available through the <code>show ospf</code> command tree:</p>
+<pre><code class="language-text">show ospf
+show ospf neighbor
+show ospf interface
+show ospf database [router|network|summary|asbr-summary|external|nssa-external]
+show ospf database [opaque-link|opaque-area|opaque-as]
+show ospf te-database
+show ospf route
+show ospf spf
+show ospf border-routers
+</code></pre>
+<p><code>show ospf database opaque-link|opaque-area|opaque-as</code> filter the LSDB to the RFC 5250 opaque LSAs of Type 9 (link), Type 10 (area), and Type 11 (AS) respectively. <code>show ospf te-database</code> renders the RFC 3630 / RFC 5392 Traffic Engineering Database (see Traffic Engineering above).</p>
+<p><code>show ospf</code> is the process summary (router-id, ABR/ASBR status, areas, and the active stub-router / max-metric state). <code>show ospf database</code> lists every LSA; the per-type subviews filter to one LS Type (1/2/3/4/5/7). <code>show ospf route</code> reports area, prefix, metric, route type, origin router, and next-hop set. <code>show ospf spf</code> reports per-area last run, duration, node count, pending state, and current throttle delay. <code>show ospf border-routers</code> reports reachable ABRs and ASBRs with their area, metric, and next-hop set.</p>
+<!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
+<!-- source: internal/plugins/ospf/cmd_show.go -- ze-show:ospf-* RPC proxies -->
+<!-- source: internal/plugins/ospf/show_summary.go -- processSummary -->
+
+<p>The runtime can be reset without reconfiguring via <code>clear ospf process</code> (tear down adjacencies and re-run SPF), <code>clear ospf neighbor</code> (re-form adjacencies), and <code>clear ospf counters</code> (reset the SPF-run log). The neighbor and database views are also available in the web UI at <code>/ospf</code> and <code>/ospf/database</code>, with live updates over SSE.</p>
+<!-- source: internal/plugins/ospf/clear.go -- clearProcess/clearNeighbors/clearCounters -->
+<!-- source: internal/component/web/handler_ospf.go -- OSPF neighbor/database web views -->
+<!-- source: internal/plugins/ospf/spf/computer.go -- SPFSnapshot -->
+<!-- source: internal/plugins/ospf/spf/route.go -- Snapshot -->
+<!-- source: internal/plugins/ospf/spf/interarea.go -- BorderRouterSnapshot -->
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

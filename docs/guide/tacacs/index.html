@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>TACACS+ AAA - Ze</title>
+        <meta name="description" content="Ze documentation: guide/tacacs.md" />
+        <meta property="og:title" content="TACACS+ AAA - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/tacacs.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-secure">
+<h1>TACACS+ AAA</h1>
+<p>Ze authenticates SSH logins against TACACS+ servers (RFC 8907) when the
+<code>system.authentication.tacacs</code> block is present. Local bcrypt users keep
+working as the fallback so an unreachable server cannot lock you out of the
+device.</p>
+<h2>What it does</h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Authentication</td>
+<td>Production</td>
+<td>PAP (login over the SSH password callback). RFC 8907 §5.</td>
+</tr>
+<tr>
+<td>Accounting</td>
+<td>Production</td>
+<td>START + STOP records around every dispatched CLI command.</td>
+</tr>
+<tr>
+<td>Authorization</td>
+<td>Production</td>
+<td><code>authorization true</code> switches per-command authorization on. By default the bridge falls back to local profiles on TACACS+ ERROR; <code>strict-fallback true</code> denies instead.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/tacacs/authenticator.go -- TacacsAuthenticator.Authenticate -->
+<!-- source: internal/component/tacacs/accounting.go -- TacacsAccountant.CommandStart/Stop -->
+<!-- source: internal/component/tacacs/authorizer.go -- TacacsAuthorizer.Authorize -->
+
+<h2>Minimal config</h2>
+<pre><code>system {
+    authentication {
+        tacacs {
+            server 10.0.0.1 { port 49; key &quot;$9$encrypted-key&quot;; }
+            server 10.0.0.2 { port 49; key &quot;$9$encrypted-key&quot;; }
+            timeout 5
+        }
+        tacacs-profile 15 { profile [ admin ]; }
+        tacacs-profile 1  { profile [ read-only ]; }
+    }
+    authorization {
+        profile admin     { run { default-action allow; } edit { default-action allow; } }
+        profile read-only { run { default-action allow; } edit { default-action deny;  } }
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tacacs.server &lt;ip&gt;</code></td>
+<td>list, ordered-by-user</td>
+<td>-</td>
+<td>Tried in declaration order on connection failure</td>
+</tr>
+<tr>
+<td><code>tacacs.server &lt;ip&gt;.port</code></td>
+<td>uint16</td>
+<td>49</td>
+<td>TCP</td>
+</tr>
+<tr>
+<td><code>tacacs.server &lt;ip&gt;.key</code></td>
+<td>string (<code>ze:sensitive</code>)</td>
+<td>required</td>
+<td>Shared secret, stored as <code>$9$</code> ciphertext</td>
+</tr>
+<tr>
+<td><code>tacacs.timeout</code></td>
+<td>uint16 (1-300)</td>
+<td>5</td>
+<td>Per-server connection timeout in seconds</td>
+</tr>
+<tr>
+<td><code>tacacs.source-address</code></td>
+<td>ip-address</td>
+<td>none</td>
+<td>Local source IP for outbound TACACS+ TCP</td>
+</tr>
+<tr>
+<td><code>tacacs.authorization</code></td>
+<td>boolean</td>
+<td>false</td>
+<td>Enable per-command TACACS+ authorization</td>
+</tr>
+<tr>
+<td><code>tacacs.strict-fallback</code></td>
+<td>boolean</td>
+<td>false</td>
+<td>Deny authorization when TACACS+ is unavailable instead of falling back to local RBAC</td>
+</tr>
+<tr>
+<td><code>tacacs.accounting</code></td>
+<td>boolean</td>
+<td>false</td>
+<td>Enable START/STOP accounting records</td>
+</tr>
+<tr>
+<td><code>tacacs-profile &lt;N&gt;.profile</code></td>
+<td>leaf-list</td>
+<td>required</td>
+<td>Maps priv-lvl <code>N</code> (0-15) to one or more local authz profiles</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs -->
+
+<h2>Authentication flow</h2>
+<ol>
+<li>SSH client connects with username + password.</li>
+<li>Daemon's AAA chain calls <code>TacacsAuthenticator</code> first (priority 100; local
+   bcrypt is priority 200).</li>
+<li>The client opens TCP to the first configured server and sends a PAP
+   AUTHEN START. The body is XOR-encrypted with the MD5 pseudo-pad keyed
+   on the shared secret.</li>
+<li><strong>PASS</strong> -- the server's reply data byte is the priv-lvl. The
+   authenticator looks up <code>tacacs-profile &lt;priv-lvl&gt;.profile</code>. A matching
+   entry yields the authz profiles attached to the SSH session. An
+   unmapped priv-lvl rejects the login (AC-18) so adding new TACACS+
+   levels in the upstream server does not accidentally grant access.</li>
+<li><strong>FAIL</strong> -- explicit rejection. The chain stops here. Local bcrypt is
+   NOT tried. This prevents a wrong password against TACACS+ from
+   succeeding via a stale local hash.</li>
+<li><strong>Connection error / ERROR status</strong> -- the next server in the list is
+   tried. When every server is unreachable (or all return ERROR) the
+   chain falls through to the local bcrypt authenticator.</li>
+</ol>
+<!-- source: internal/component/aaa/aaa.go -- ChainAuthenticator, ErrAuthRejected -->
+<!-- source: internal/component/tacacs/authenticator.go -- handlePass, AuthenStatusFail handling -->
+
+<h2>Privilege level mapping</h2>
+<p>TACACS+ servers send a numeric priv-lvl (0-15) in the AUTHEN REPLY. Ze's
+internal authorization model is name-based, so each priv-lvl must be
+mapped to one or more locally-defined <code>system.authorization.profile</code>
+entries.</p>
+<table>
+<thead>
+<tr>
+<th>priv-lvl</th>
+<th>Common convention</th>
+<th>Example mapping</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>15</td>
+<td>full administrator</td>
+<td><code>profile [ admin ]</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>site operator</td>
+<td><code>profile [ operator ]</code></td>
+</tr>
+<tr>
+<td>1</td>
+<td>read-only / NOC</td>
+<td><code>profile [ read-only ]</code></td>
+</tr>
+<tr>
+<td>0</td>
+<td>minimal access</td>
+<td>rarely used; map only if the upstream server returns it</td>
+</tr>
+<tr>
+<td>2-14</td>
+<td>site-defined</td>
+<td>only map the levels your TACACS+ server actually returns</td>
+</tr>
+</tbody>
+</table>
+<p>Levels not present in <code>tacacs-profile</code> reject the login. Look for
+<code>TACACS+ unmapped privilege level</code> in the daemon log when extending the
+upstream config.</p>
+<!-- source: internal/component/tacacs/authenticator.go -- handlePass priv-lvl lookup -->
+
+<h2>Accounting</h2>
+<p>When <code>accounting true</code> is set, every command dispatched through the CLI
+emits two records:</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>When</th>
+<th>Args</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>START (0x02)</td>
+<td>Just after authorization passes, before the handler runs</td>
+<td><code>task_id</code>, <code>service=shell</code>, <code>cmd=&lt;input&gt;</code>, <code>start_time</code></td>
+</tr>
+<tr>
+<td>STOP (0x04)</td>
+<td>After the handler returns, regardless of outcome</td>
+<td><code>task_id</code>, <code>service=shell</code>, <code>cmd=&lt;input&gt;</code>, <code>stop_time</code></td>
+</tr>
+</tbody>
+</table>
+<p>Records are queued to a single long-lived background worker. The worker
+sends one record at a time over the same TACACS+ client used for
+authentication, with the same server failover. Accounting failures are
+logged (<code>TACACS+ accounting failed</code>) and never block the command. Records
+that cannot be queued increment the local drop counter.</p>
+<p>Use <code>ze show aaa accounting</code> to inspect the counter:</p>
+<pre><code>ze show aaa accounting
+</code></pre>
+<p>The response includes <code>dropped-records</code>. A non-zero value means at least one
+START/STOP record was lost locally before the TACACS+ client could send it.</p>
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher accountant hook -->
+<!-- source: internal/component/tacacs/accounting.go -- worker, processOne, enqueue -->
+
+<h2>Verification</h2>
+<p>The <code>.ci</code> tests in <code>test/plugin/</code> cover the main behaviours:</p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Asserts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tacacs-auth.ci</code></td>
+<td>TACACS+ PASS + priv-lvl 15 -&gt; admin profile, no local fallback consulted</td>
+</tr>
+<tr>
+<td><code>tacacs-author.ci</code></td>
+<td>TACACS+ command authorization PASS/FAIL with local fallback</td>
+</tr>
+<tr>
+<td><code>tacacs-fallback.ci</code></td>
+<td>Server unreachable -&gt; local bcrypt accepted, log shows <code>source=local</code></td>
+</tr>
+<tr>
+<td><code>tacacs-local-only.ci</code></td>
+<td class="cell-no">No <code>tacacs</code> block -&gt; existing local-only auth path unchanged</td>
+</tr>
+<tr>
+<td><code>tacacs-readonly.ci</code></td>
+<td>Read-only profile restricts write commands</td>
+</tr>
+<tr>
+<td><code>tacacs-acct.ci</code></td>
+<td><code>accounting true</code> -&gt; mock receives ACCT START followed by STOP</td>
+</tr>
+<tr>
+<td><code>tacacs-singleconnect.ci</code></td>
+<td>Single-connect mode TCP reuse</td>
+</tr>
+<tr>
+<td><code>tacacs-show.ci</code></td>
+<td><code>ze tacacs show</code> offline config display</td>
+</tr>
+</tbody>
+</table>
+<p>Strict fallback is covered by <code>TestExtractConfigStrictFallback</code> and
+<code>TestTacacsAuthorizerStrictFallbackDeniesUnreachable</code> in the TACACS+ unit tests.</p>
+<p>For ad-hoc verification, point the daemon at a real TACACS+ server and
+run any command via <code>ze cli -c "show bgp summary"</code> -- the daemon log tags the
+satisfying backend on every login, e.g.:</p>
+<pre><code>INFO SSH auth success subsystem=ssh username=alice remote=10.0.0.1:51408 source=tacacs
+</code></pre>
+<p><code>source=tacacs</code> confirms the chain consulted TACACS+ and returned PASS.
+<code>source=local</code> means TACACS+ was unreachable (or unconfigured) and the
+local bcrypt user accepted the credentials.</p>
+<!-- source: internal/test/mock/tacacs/tacacs.go -- ze-test tacacs-mock for .ci tests -->
+
+<h2>Operational notes</h2>
+<ul>
+<li><strong>Shared secrets</strong> are stored as <code>$9$</code>-encoded ciphertext, never as
+  plaintext. The CLI never echoes them; <code>ze config dump --strip-secrets</code>
+  replaces them with <code>/* SECRET-DATA */</code>.</li>
+<li><strong>VRF</strong>: when the SSH server runs in a non-default VRF, TACACS+ TCP
+  connections inherit the same VRF context.</li>
+<li><strong>Single-connect mode</strong> (RFC 8907 §4.4) is tested via <code>tacacs-singleconnect.ci</code>.</li>
+<li><strong>Operational tooling</strong>: <code>ze tacacs show &lt;config&gt;</code> displays the parsed
+  TACACS+ configuration offline. Runtime <code>ze show aaa accounting</code> exposes
+  local accounting queue drops. Per-server reachability remains tracked in
+  <code>plan/deferrals.md</code>.</li>
+</ul>
+<h2>RFC reference</h2>
+<ul>
+<li>RFC 8907 -- The TACACS+ Protocol (formalises the original Cisco draft).
+  Local summary: <code>rfc/short/rfc8907.md</code>.</li>
+</ul>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

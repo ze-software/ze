@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Self-Documenting System - Ze</title>
+        <meta name="description" content="Ze documentation: features/introspection.md" />
+        <meta property="og:title" content="Self-Documenting System - Ze" />
+        <meta property="og:description" content="Ze documentation: features/introspection.md" />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../index.html#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../../index.html#status">Status</a>
+                    <a href="../../../index.html#try">Try</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../activity/">Activity</a>
+                    <a href="../../../performance/">Performance</a>
+                    <a href="../../../labs/">Labs</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../blog/">Blog</a>
+                    <a href="../../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="md-content reveal cat-observe">
+<h1>Self-Documenting System</h1>
+<!-- source: internal/component/config/yang/cli/main.go -- ze schema subcommands -->
+<!-- source: internal/plugins/env/env.go -- ze env subcommands -->
+<!-- source: cmd/ze/help_ai.go -- ze help ai output -->
+<!-- source: scripts/inventory/inventory.go -- make ze-inventory -->
+<!-- source: scripts/inventory/commands.go -- make ze-command-list -->
+<!-- source: scripts/docvalid/commands.go -- make ze-validate-commands -->
+<!-- source: scripts/docvalid/doc_drift.go -- make ze-doc-drift -->
+
+<p>Ze is self-documenting: every plugin, environment variable, RPC, event type, and CLI command
+is registered at startup and discoverable at runtime. Nothing exists unregistered -- the
+system enforces this with compile-time registration (<code>init()</code>) and runtime abort on
+unregistered access (<code>env.MustRegister()</code>).</p>
+<h2>Runtime Introspection</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze schema list</code></td>
+<td>All registered YANG modules (52 modules)</td>
+</tr>
+<tr>
+<td><code>ze schema show &lt;module&gt;</code></td>
+<td>Full YANG content for a module</td>
+</tr>
+<tr>
+<td><code>ze schema methods [module]</code></td>
+<td>All RPCs with parameters from YANG</td>
+</tr>
+<tr>
+<td><code>ze schema events</code></td>
+<td>All notification/event types from YANG</td>
+</tr>
+<tr>
+<td><code>ze schema handlers</code></td>
+<td>Which handler serves which YANG module</td>
+</tr>
+<tr>
+<td><code>ze schema protocol</code></td>
+<td>Protocol version and wire format info</td>
+</tr>
+<tr>
+<td><code>ze env list</code></td>
+<td>All registered environment variables with types and defaults</td>
+</tr>
+<tr>
+<td><code>ze env list -v</code></td>
+<td>Same, plus current values</td>
+</tr>
+<tr>
+<td><code>ze env get &lt;key&gt;</code></td>
+<td>Details for a single environment variable</td>
+</tr>
+<tr>
+<td><code>ze --plugins</code></td>
+<td>All registered plugins with families, capabilities, dependencies</td>
+</tr>
+<tr>
+<td><code>ze help command [filter]</code></td>
+<td>Full command catalog, filterable, with descriptions</td>
+</tr>
+<tr>
+<td><code>ze help command --json</code></td>
+<td>Command catalog as JSON (for wiki generation, tooling)</td>
+</tr>
+<tr>
+<td><code>ze help ai</code></td>
+<td>Machine-readable command reference generated from live binary</td>
+</tr>
+<tr>
+<td><code>ze help ai api</code></td>
+<td>Daemon API endpoints (<code>ze-show:*</code>, <code>ze-set:*</code>, ...) with parameters</td>
+</tr>
+</tbody>
+</table>
+<h2>Build-Time Verification</h2>
+<table>
+<thead>
+<tr>
+<th>Make target</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>make ze-inventory</code></td>
+<td>Full project inventory: plugins, YANG modules, RPCs, families, tests, packages</td>
+</tr>
+<tr>
+<td><code>make ze-inventory-json</code></td>
+<td>Same as above, machine-readable JSON</td>
+</tr>
+<tr>
+<td><code>make ze-command-list</code></td>
+<td>Every CLI command with wire method, help text, read-only flag, source</td>
+</tr>
+<tr>
+<td><code>make ze-validate-commands</code></td>
+<td>Cross-check YANG command tree against registered handlers</td>
+</tr>
+<tr>
+<td><code>make ze-doc-drift</code></td>
+<td>Detect documentation that no longer matches code</td>
+</tr>
+</tbody>
+</table>
+<h2>Design Principle</h2>
+<p>The self-documenting property emerges from the registration architecture:</p>
+<ul>
+<li><strong>Plugins</strong> register via <code>registry.Register()</code> in <code>init()</code> -- name, families, capabilities,
+  YANG schema, dependencies, event types, send types, features</li>
+<li><strong>Environment variables</strong> register via <code>env.MustRegister()</code> -- calling <code>env.Get()</code> with an
+  unregistered key aborts the process</li>
+<li><strong>RPCs</strong> are defined in YANG schemas -- no command handler exists without a schema definition</li>
+<li><strong>CLI dispatch</strong> is auto-generated from registrations -- no hand-wired dispatch tables</li>
+<li><strong>Tab completion</strong> is driven by YANG schemas -- new config leaves appear automatically</li>
+<li><strong>Web UI</strong> is generated from YANG schemas -- no hardcoded forms</li>
+</ul>
+<p>The result: adding a plugin with a YANG schema automatically updates the CLI, web UI, tab
+completion, schema discovery, inventory, and environment variable listing. No manual wiring.</p>
+<p>No other open-source BGP daemon provides runtime introspection of its own capabilities.</p>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

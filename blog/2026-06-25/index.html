@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Week of 2026-06-25 - Ze Blog</title>
+        <meta name="description" content="Shipped across security, the appliance, routing, and observability this week." />
+        <meta property="og:title" content="Week of 2026-06-25 - Ze Blog" />
+        <meta property="og:description" content="Shipped across security, the appliance, routing, and observability this week." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../../labs/">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="section-head reveal">
+                    <h2 id="post-title">Week of 2026-06-25</h2>
+                    <p>Shipped across security, the appliance, routing, and observability this week.</p>
+                </div>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🔒 Control-plane survival">
+                        <div class="md-content">
+                            <h3>🔒 Control-plane survival</h3>
+                            <p>A big push to keep the control plane alive under attack:</p>
+<ul>
+<li>GTSM / TTL-security (RFC 5082) for BGP</li>
+<li>CoPP policing on TCP/179</li>
+<li>Egress CS6 scheduling</li>
+<li>On-demand flowspec route origination with a tag registry</li>
+<li>Automatic DDoS detection and auto-mitigation, with a Flowtriq reporter, attack-target prefixes pulled from live traffic stats, and attack characterization feeding a surgical responder</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧩 Feature gates">
+                        <div class="md-content">
+                            <h3>🧩 Feature gates</h3>
+                            <p>Ze can now compile subsystems out at build time: gNMI, MCP, REST/gRPC APIs, the Prometheus exporter, and each of ISIS / LDP / OSPF / RSVP-TE. Smaller images, less attack surface.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="💿 Appliance & installer">
+                        <div class="md-content">
+                            <h3>💿 Appliance & installer</h3>
+                            <p>The installer's old busybox shell initrd is gone, replaced by a single pure-Go PID-1 binary that boots the same way over PXE or off USB/ISO media. Along with it: boot-NIC pinning, DHCP recovery, MAC-pinned recovery, a gated rescue shell, SSH enabled on the appliance, and consolidated build outputs with faster incremental kernel builds.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ Routing & access">
+                        <div class="md-content">
+                            <h3>🛰️ Routing & access</h3>
+                            <ul>
+<li>Per-family import/export filtering with an egress gate</li>
+<li>Fixed an AS_PATH rewrite panic</li>
+<li>L2TP dead-peer detection and route withdrawal on teardown</li>
+<li>PPP now keeps IPv4 up when IPv6CP is declined</li>
+<li>Leaner ISIS/OSPF hot paths</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📊 Observability">
+                        <div class="md-content">
+                            <h3>📊 Observability</h3>
+                            <ul>
+<li>New GeoDNS per-source-IP server plugin</li>
+<li>Lazy traffic-stat aggregation and a multi-subscriber observation feed</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Under the hood">
+                        <div class="md-content">
+                            <h3>🛠️ Under the hood</h3>
+                            <p>Storage now self-heals a corrupt blob store on open, the internal module layout got tidied up, and there's a unified dev bootstrap.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔭 Coming up">
+                        <div class="md-content">
+                            <h3>🔭 Coming up</h3>
+                            <p>Design work started on AS112 anycast DNS and kernel lockdown / hardening.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

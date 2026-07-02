@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>VPP Dataplane Evidence - Ze</title>
+        <meta name="description" content="Ze programming FIB, traffic, and firewall state into a real VPP daemon." />
+        <meta property="og:title" content="VPP Dataplane Evidence - Ze" />
+        <meta property="og:description" content="Ze programming FIB, traffic, and firewall state into a real VPP daemon." />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../activity/">Activity</a>
+                    <a href="../../performance/">Performance</a>
+                    <a href="../">Labs</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section aria-labelledby="lab-title">
+                <div class="section-head reveal cat-services">
+                    <h2 id="lab-title">VPP Dataplane Evidence</h2>
+                    <p>
+                        Ze programs FIB, traffic, and firewall state into a
+                        real VPP daemon over GoVPP -- the evidence behind the
+                        production numbers quoted in the VPP guide.
+                    </p>
+                </div>
+                <div class="status-panel reveal">
+                    <div class="status-copy">
+                        <span class="tag">Daemon</span>
+                        <p>
+                            Runs a real VPP (FD.io Vector Packet Processor)
+                            daemon in Docker and proves Ze's
+                            <code>fib-vpp</code> plugin programs routes from
+                            Ze's system RIB directly into VPP's FIB via the
+                            GoVPP binary API, that per-interface and
+                            system-wide stats come back through the VPP stats
+                            segment, and that firewall state applies
+                            correctly.
+                        </p>
+                        <p>
+                            This is the evidence behind the numbers already
+                            published in the VPP guide: on the reference
+                            hardware IPng Networks runs in production on
+                            AS8298, VPP forwards at roughly 35 Mpps on a
+                            4-core Xeon D-1518 -- line rate where the default
+                            kernel-FIB path would be dropping packets.
+                        </p>
+                    </div>
+                    <div class="status-table" aria-label="Lab facts">
+                        <div class="status-row">
+                            <strong>Proves</strong>
+                            <span>Real FIB/traffic/firewall programming into VPP via GoVPP, not a mocked binary API</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Peer</strong>
+                            <span>Real VPP daemon in a Docker container</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Requires</strong>
+                            <span>Docker with a privileged container</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Source</strong>
+                            <span
+                                ><a
+                                    href="https://github.com/ze-software/ze/blob/main/docs/guide/vpp.md"
+                                    target="_blank"
+                                    rel="noopener"
+                                    >docs/guide/vpp.md</a
+                                ></span
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-panel reveal">
+                    <div class="terminal" aria-label="Run commands">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># real VPP daemon in Docker, privileged container</span>
+<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-deployment-vpp-test</pre>
+                        </div>
+                    </div>
+                    <div class="terminal-note">
+                        <span class="tag">Prerequisites</span>
+                        <p>
+                            Docker with a privileged container (VPP needs
+                            DPDK-class access to devices).
+                        </p>
+                        <div class="link-list">
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/research/vpp-deployment-reference.md"
+                                target="_blank"
+                                rel="noopener"
+                                >VPP deployment reference
+                                <span>IPng Networks production numbers</span></a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.01 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>
