@@ -9,6 +9,7 @@ Built for people who want a network stack they can inspect, automate, and extend
 - [Features](https://ze-software.github.io/ze/features/): 44 features, color-coded by category
 - [CLI Reference](https://ze-software.github.io/ze/cli/): 350 commands, generated from the live binary
 - [Dependencies](https://ze-software.github.io/ze/dependencies/): 39 direct packages, generated from go.mod
+- [Configuration Reference](https://ze-software.github.io/ze/config-reference/): 86 plugins across 38 groups, generated from Go + YANG
 - [Performance](https://ze-software.github.io/ze/performance/): Measured BGP benchmarks, not claims
 - [Compare](https://ze-software.github.io/ze/compare/): How Ze stacks up against BIRD, FRR, and more
 - [Activity](https://ze-software.github.io/ze/activity/): A year of commits, at a glance

@@ -13,6 +13,8 @@ Steps (default order, also the --only vocabulary):
     features  data/features.json -> features/index.html  (tools/render-features.py)
     cli       `ze help command --json` -> cli/index.html  (tools/render-cli-catalog.py)
     deps      ../main/go.mod -> dependencies/index.html    (tools/render-dependencies.py)
+    config    ../main/internal/**/register.go + YANG -> config-reference/index.html
+              (tools/extract-plugin-registry.py, tools/render-config-reference.py)
     contribute contribute/contribute.md -> contribute/index.html (tools/render-doc.py)
     index     data/audience.json -> index.html            (tools/render-index.py)
     llms      data/nav.json + live counts -> llms.txt      (tools/render-llms-txt.py)
@@ -47,6 +49,7 @@ STEPS = [
     "features",
     "cli",
     "deps",
+    "config",
     "contribute",
     "index",
     "llms",
@@ -130,6 +133,15 @@ def step_deps():
     return render_dependencies.main()
 
 
+def step_config():
+    extract_plugin_registry = load_module("extract-plugin-registry")
+    rc = extract_plugin_registry.main()
+    if rc:
+        return rc
+    render_config_reference = load_module("render-config-reference")
+    return render_config_reference.main()
+
+
 def step_contribute():
     render_doc = load_module("render-doc")
     render_doc.render(
@@ -169,6 +181,7 @@ STEP_FUNCS = {
     "features": step_features,
     "cli": step_cli,
     "deps": step_deps,
+    "config": step_config,
     "contribute": step_contribute,
     "index": step_index,
     "llms": step_llms,
@@ -229,6 +242,42 @@ def check_cli_count_drift():
         )
 
 
+def check_config_reference_drift():
+    """Same drift class again, for the Configuration Reference nav item's
+    plugin/group counts -- data/plugin-registry.json is regenerated fresh
+    from ../main/internal/**/register.go every `config` step run, but the
+    grouping logic (tools/render-config-reference.py's group_key()) has to
+    also run to know the group count, so this only checks the plugin count
+    (the number before "plugins across")."""
+    import json
+
+    registry_path = GH_PAGES / "data" / "plugin-registry.json"
+    if not registry_path.exists():
+        return
+    plugins = json.loads(registry_path.read_text())
+    live_count = sum(
+        1 for p in plugins if not p["source_dir"].startswith("internal/test/")
+    )
+
+    nav = json.loads((GH_PAGES / "data" / "nav.json").read_text())
+    project = next(d for d in nav["dropdowns"] if d["label"] == "Project")
+    config_item = next(
+        (
+            e
+            for e in project["columns"][0]
+            if e.get("title") == "Configuration Reference"
+        ),
+        None,
+    )
+    if config_item and str(live_count) not in config_item["desc"]:
+        print(
+            "warning: data/nav.json Configuration Reference dropdown says %r "
+            "but data/plugin-registry.json has %d non-test plugins -- update "
+            "the desc text in data/nav.json" % (config_item["desc"], live_count),
+            file=sys.stderr,
+        )
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -249,6 +298,7 @@ def main():
 
     check_feature_count_drift()
     check_cli_count_drift()
+    check_config_reference_drift()
 
     failures = []
     for step in steps:

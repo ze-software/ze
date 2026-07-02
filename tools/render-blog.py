@@ -89,6 +89,42 @@ def render_post(meta, intro, sections, covers):
     return "\n".join(parts)
 
 
+def render_post_markdown(meta, intro, sections, covers):
+    title = "Week of %s" % start_date(covers)
+    if meta.get("status", "").upper().startswith("DRAFT"):
+        title += " (Draft -- pending review)"
+    parts = ["# %s" % title, ""]
+    if intro:
+        parts.append(intro.strip())
+        parts.append("")
+    for header, section_body in sections:
+        parts.append("## %s" % header)
+        parts.append("")
+        parts.append(ensure_blank_line_before_lists(section_body).strip())
+        parts.append("")
+    return "\n".join(parts).strip() + "\n"
+
+
+def render_index_markdown(posts):
+    posts_sorted = sorted(posts, key=lambda p: p["start"], reverse=True)
+    parts = [
+        "# Ze weekly updates",
+        "",
+        "%d weeks of shipped work, in Zeledon's voice, mined from git "
+        "history. New weeks are also posted to Discord's `ze-news`." % len(posts_sorted),
+        "",
+    ]
+    for p in posts_sorted:
+        title = "Week of %s" % start_date(p["covers"])
+        if p["is_draft"]:
+            title += " (Draft)"
+        line = "- [%s](%s/index.md)" % (title, p["slug"])
+        if p["intro"]:
+            line += ": %s" % " ".join(p["intro"].split())
+        parts.append(line)
+    return "\n".join(parts).strip() + "\n"
+
+
 def render_index(posts):
     # posts: list of dict(slug, covers, intro, is_draft)
     posts_sorted = sorted(posts, key=lambda p: p["start"], reverse=True)
@@ -168,7 +204,10 @@ def main():
             + "\n"
             + sitelib.page_foot("../../")
         )
-        print("rendered %s -> %s" % (f.name, dest))
+        sitelib.write_markdown_sibling(
+            dest, render_post_markdown(meta, intro, sections, covers)
+        )
+        print("rendered %s -> %s (+ index.md)" % (f.name, dest))
 
         index_entries.append(
             {
@@ -195,7 +234,8 @@ def main():
         + "\n"
         + sitelib.page_foot("../")
     )
-    print("rendered index -> %s (%d posts)" % (index_dest, len(index_entries)))
+    sitelib.write_markdown_sibling(index_dest, render_index_markdown(index_entries))
+    print("rendered index -> %s (%d posts, + index.md)" % (index_dest, len(index_entries)))
     return 0
 
 

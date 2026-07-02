@@ -45,6 +45,10 @@
                             <span class="nav-dropdown-icon">📦</span>
                             <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="../../../config-reference/">
+                            <span class="nav-dropdown-icon">🧬</span>
+                            <span><strong>Configuration Reference</strong><small>86 plugins across 38 groups, generated from Go + YANG</small></span>
+                        </a>
                         <a class="nav-dropdown-item" href="../../../performance/">
                             <span class="nav-dropdown-icon">⚡</span>
                             <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
@@ -178,6 +182,12 @@
         <main id="top">
             <section class="md-content reveal cat-operate">
 <h1>Configuration</h1>
+<p>This page walks through BGP peer configuration specifically, since it is
+the most-configured surface. For every other subsystem's config syntax
+(interfaces, firewall, L2TP, DHCP, and the rest of Ze's 38 plugin groups),
+see the generated <a href="https://ze-software.github.io/ze/config-reference/">Configuration
+Reference</a>, built
+straight from each plugin's own YANG module.</p>
 <h3>Peer Settings</h3>
 <p>Peers are keyed by name (<code>peer &lt;name&gt; { }</code>) with IP and AS in nested containers:</p>
 <table>

@@ -28,6 +28,48 @@ STATUS_LABELS = {
 }
 
 
+def render_markdown(data, feature_count):
+    """Straight from the same data dict as render() (HTML) -- card bullets
+    already carry Zeledon-style **bold**/`code` markers, which are valid
+    Markdown as-is, so no HTML round-trip is needed here."""
+    parts = [
+        "# Every feature Ze ships.",
+        "",
+        "%d features plus a spec'd roadmap, color-coded by category. A "
+        "card's category is how the feature fits into the system: operate, "
+        "routing, services, automate, observe, secure, or platform. "
+        "Everything shipped runs in both daemon and appliance modes unless "
+        "a card says otherwise." % feature_count,
+        "",
+    ]
+    for section in data["sections"]:
+        parts.append("## %s" % section["heading"])
+        parts.append("")
+        parts.append(section["lead"])
+        parts.append("")
+        if section["note"]:
+            parts.append("> %s" % section["note"])
+            parts.append("")
+        for card in section["cards"]:
+            parts.append("### %s" % card["title"])
+            parts.append("")
+            meta_bits = [card["category"]]
+            if card["status"]:
+                meta_bits.append(STATUS_LABELS[card["status"]])
+            line = "*%s*" % " / ".join(meta_bits)
+            if card["chips"]:
+                line += " -- " + " ".join("`%s`" % c["text"] for c in card["chips"])
+            parts.append(line)
+            parts.append("")
+            for bullet in card["bullets"]:
+                parts.append("- %s" % bullet)
+            href = card["href"] if card["external"] else sitelib.SITE_BASE + card["href"]
+            parts.append("")
+            parts.append("[Learn more](%s)" % href)
+            parts.append("")
+    return "\n".join(parts).strip() + "\n"
+
+
 def render_chip(chip):
     cls = "chip mode" if chip["mode"] else "chip"
     return '<span class="%s">%s</span>' % (cls, chip["text"])
@@ -196,8 +238,9 @@ def render(data):
     body = "\n".join(out)
     dest_text = body + "\n" + FILTER_SCRIPT + "\n" + sitelib.page_foot(root)
     DEST.write_text(dest_text)
+    sitelib.write_markdown_sibling(DEST, render_markdown(data, feature_count))
     print(
-        "rendered %s -> %s (%d cards)"
+        "rendered %s -> %s (%d cards, + index.md)"
         % (
             DATA,
             DEST,

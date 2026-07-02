@@ -1941,6 +1941,70 @@ footer {
     color: var(--muted);
 }
 
+.cli-search-wrap {
+    position: relative;
+}
+
+.cli-suggestions {
+    position: absolute;
+    z-index: 20;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: -1rem;
+    max-height: 22rem;
+    overflow-y: auto;
+    border: 1px solid var(--header-border);
+    border-radius: 0.6rem;
+    background: var(--panel-strong);
+    box-shadow: var(--clay);
+}
+
+.cli-suggestions[hidden] {
+    display: none;
+}
+
+.cli-suggestions button {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.5rem 0.9rem;
+    border: none;
+    border-bottom: 1px solid var(--header-border);
+    background: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.9rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.cli-suggestions button:last-child {
+    border-bottom: none;
+}
+
+.cli-suggestions button:hover,
+.cli-suggestions button:focus-visible {
+    background: var(--bg-soft);
+}
+
+.cli-suggestion-group {
+    flex: none;
+    color: var(--muted);
+    font-size: 0.8em;
+    white-space: nowrap;
+}
+
+.cli-group tbody tr {
+    transition: background-color 0.4s ease;
+}
+
+.cli-row-highlight {
+    background: var(--sky-tint);
+}
+
 #dep-search {
     display: block;
     width: 100%;
@@ -1982,4 +2046,104 @@ footer {
     margin: 0;
     border-radius: 0;
     box-shadow: none;
+}
+
+#config-search {
+    display: block;
+    width: 100%;
+    margin: 1rem 0 1.6rem;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid var(--header-border);
+    border-radius: 0.6rem;
+    background: var(--panel-strong);
+    color: var(--text);
+    font-size: 1rem;
+    box-shadow: var(--clay);
+}
+
+.config-group {
+    margin-bottom: 1rem;
+    border: 1px solid var(--header-border);
+    border-radius: 0.6rem;
+    background: var(--panel-strong);
+    overflow: hidden;
+}
+
+.config-group summary {
+    padding: 0.7rem 1rem;
+    background: var(--bg-soft);
+    color: var(--text);
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: revert;
+}
+
+.config-group summary code {
+    font-weight: 400;
+    font-size: 0.85em;
+}
+
+.config-group-count {
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 0.8em;
+}
+
+.config-group-body {
+    padding: 0.2rem 1rem 0.8rem;
+}
+
+.config-plugin {
+    padding: 0.9rem 0;
+    border-top: 1px solid var(--line);
+}
+
+.config-group-body .config-plugin:first-child {
+    border-top: none;
+}
+
+.config-plugin h3 {
+    margin: 0 0 0.3rem;
+    font-size: 1rem;
+}
+
+.config-plugin-src {
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 0.78em;
+}
+
+.config-plugin-meta {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.config-yang {
+    margin-top: 0.6rem;
+    border: 1px solid var(--header-border);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.config-yang summary {
+    padding: 0.5rem 0.8rem;
+    background: var(--bg-soft);
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    cursor: pointer;
+    list-style: revert;
+}
+
+.config-yang pre {
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.config-yang-missing {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-style: italic;
 }

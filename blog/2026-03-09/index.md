@@ -1,0 +1,29 @@
+# Week of 2026-03-09
+
+A big week for access, config safety, and BGP session security.
+
+## 🔒 Security & session hardening
+
+- TCP MD5 authentication for BGP sessions (RFC 2385), with platform-specific handling on Linux, FreeBSD, and macOS
+- An SSH server component (built on Charm Wish) with password auth and a per-session command UI, now the primary way to reach the CLI
+- RBAC authorization wired end to end: profile-based access control with validation, CLI testing support, and enforced deny/allow rules
+- A round of hardening across wire parsing, IPC, and config: path-traversal checks, tighter default bind addresses (SSH and metrics now default to localhost), message size limits, and closed timing windows on socket setup
+
+## 🧩 Config editing & safety
+
+- Config storage moved onto a dedicated blob-store backend (zefs), with atomic writes and path-traversal protection, backing config history, rollback, and diff
+- Concurrent config editing: sessions, conflict detection, and a set+meta format so multiple operators can edit safely
+- Commit confirmed, VyOS-style: commit with a countdown timer that auto-reverts unless confirmed
+- Config archive support for keeping named snapshots
+- Editor UX rounded out: auto-save on quit, auto-restore of a pending edit on restart, inline hints, a diff marker, split warnings, and a save command
+- Semicolons are now optional in config syntax, auto-inserted by the tokenizer
+
+## 🛰️ CLI & operations
+
+- New `bgp log show/set` and `bgp metrics show/list` commands for runtime control and visibility
+- `rib show` gained community and AS-path regex filters, and output now supports yaml/json/table formats
+- Pipe operators in the interactive CLI, now with table as the default output
+- Per-peer and global RIB route metrics, plus per-type BGP counters (replacing the old generic message counters), exported to Prometheus
+- Graceful Restart now tracks staleness per route (RFC 4724), not just per peer
+- `ze status` promoted to a top-level command
+- Fish shell completion joins bash and zsh

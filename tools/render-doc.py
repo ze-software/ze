@@ -65,6 +65,37 @@ def colorcode_cells(body_html):
 
 
 HREF_RE = re.compile(r'href="([^"]*)"')
+MD_LINK_RE = re.compile(r'\[([^\]]*)\]\(([^)\s]+)\)')
+
+
+def rewrite_doc_links_markdown(md_text, doc_rel, manifest, dest_rel_dir):
+    """Markdown-flavored twin of rewrite_doc_links: rewrites [text](target.md)
+    links in the *source* markdown (not the rendered HTML) so the published
+    index.md sibling points at another page's index.md when that page is
+    also published, or falls back to a GitHub blob link otherwise -- same
+    resolution rule, just emitting Markdown link syntax instead of an href
+    attribute."""
+    source_dir = posixpath.dirname(doc_rel)
+
+    def repl(m):
+        label, target = m.group(1), m.group(2)
+        if target.startswith(("http://", "https://", "mailto:", "#")):
+            return m.group(0)
+        path_part, sep, fragment = target.partition("#")
+        if not path_part.endswith(".md"):
+            return m.group(0)
+        target_doc_rel = posixpath.normpath(posixpath.join(source_dir, path_part))
+        if target_doc_rel in manifest:
+            target_dest_dir = manifest[target_doc_rel]
+            rel = posixpath.relpath(target_dest_dir, dest_rel_dir)
+            new_target = rel + "/index.md" + (("#" + fragment) if sep else "")
+            return "[%s](%s)" % (label, new_target)
+        new_target = "https://github.com/ze-software/ze/blob/main/docs/%s" % target_doc_rel
+        if sep:
+            new_target += "#" + fragment
+        return "[%s](%s)" % (label, new_target)
+
+    return MD_LINK_RE.sub(repl, md_text)
 
 
 def rewrite_doc_links(body_html, doc_rel, manifest, dest_rel_dir):
@@ -113,8 +144,10 @@ def render(
         md_text, extensions=["tables", "fenced_code", "sane_lists"]
     )
     body_html = colorcode_cells(body_html)
+    md_out = md_text
     if manifest is not None:
         body_html = rewrite_doc_links(body_html, doc_rel, manifest, dest_rel_dir)
+        md_out = rewrite_doc_links_markdown(md_text, doc_rel, manifest, dest_rel_dir)
     section_class = "md-content reveal cat-%s" % cat if cat else "md-content reveal"
     full_title = "%s - Ze" % title
     head = sitelib.page_head(full_title, desc, root, og_title=full_title, og_desc=desc)
@@ -123,7 +156,8 @@ def render(
     dest.write_text(
         head + body_html + "\n            </section>\n" + sitelib.page_foot(root)
     )
-    print("rendered %s -> %s" % (source, dest))
+    sitelib.write_markdown_sibling(dest, md_out)
+    print("rendered %s -> %s (+ index.md)" % (source, dest))
 
 
 def main():

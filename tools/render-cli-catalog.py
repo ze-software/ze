@@ -18,6 +18,7 @@ re-run this, to pick up new or changed commands.
 import html
 import json
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -36,6 +37,12 @@ MODE_LABELS = {
 }
 
 MAX_GROUP_SIZE = 20
+
+SLUG_RE = re.compile(r"[^a-z0-9]+")
+
+
+def slugify(prefix, text):
+    return prefix + SLUG_RE.sub("-", text.lower()).strip("-")
 
 
 def fetch_commands():
@@ -78,10 +85,19 @@ def load_commands():
     sys.exit(1)
 
 
+MIN_SUBGROUP_SIZE = 4
+
+
 def group_commands(commands):
     """Group by top-level verb; split verbs with more than MAX_GROUP_SIZE
-    entries (e.g. "show" alone has 180+) into verb+subject subgroups so no
-    single table is unwieldy."""
+    entries (e.g. "show" alone has 200+) into verb+subject subgroups so no
+    single table is unwieldy. A verb+subject pair below MIN_SUBGROUP_SIZE
+    doesn't get its own group -- "show" has 67 distinct subjects and most
+    of them are a single command, so splitting naively produces dozens of
+    one-row groups (e.g. "show arp", "show cache", ...). Those fold into a
+    single "<verb> (other)" catch-all instead, so the group list stays
+    scannable: frequent subjects (show bgp, show ospf, ...) keep their own
+    group, the long tail shares one."""
     by_verb = {}
     for c in commands:
         verb = c["path"].split(" ")[0]
@@ -98,9 +114,18 @@ def group_commands(commands):
             parts = c["path"].split(" ")
             subject = parts[1] if len(parts) > 1 else ""
             by_subject.setdefault(subject, []).append(c)
+        other = []
         for subject in sorted(by_subject):
+            bucket = by_subject[subject]
+            if len(bucket) < MIN_SUBGROUP_SIZE:
+                other.extend(bucket)
+                continue
             label = "%s %s" % (verb, subject) if subject else verb
-            groups.append((label, sorted(by_subject[subject], key=lambda c: c["path"])))
+            groups.append((label, sorted(bucket, key=lambda c: c["path"])))
+        if other:
+            groups.append(
+                ("%s (other)" % verb, sorted(other, key=lambda c: c["path"]))
+            )
     return groups
 
 
@@ -109,15 +134,15 @@ def render_row(c):
     mode = c.get("mode", "")
     mode_label = MODE_LABELS.get(mode, mode)
     return (
-        "<tr><td><code>%s</code></td>"
+        '<tr id="%s"><td><code>%s</code></td>'
         '<td><span class="cli-mode cli-mode-%s">%s</span></td>'
         "<td>%s</td></tr>"
-    ) % (html.escape(c["path"]), mode, mode_label, desc_html)
+    ) % (slugify("cmd-", c["path"]), html.escape(c["path"]), mode, mode_label, desc_html)
 
 
 def render_group(label, entries):
     parts = [
-        '<details class="cli-group" open>',
+        '<details class="cli-group" id="%s" open>' % slugify("cli-group-", label),
         '<summary>%s <span class="cli-group-count">%d</span></summary>'
         % (html.escape(label), len(entries)),
         "<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>",
@@ -127,13 +152,75 @@ def render_group(label, entries):
     return "\n".join(parts)
 
 
+def render_markdown(commands, groups):
+    """Full grouped listing, same data and same grouping as render() --
+    group_commands() runs once in main() and both renderers consume its
+    result, so the human page and this Markdown mirror can never disagree
+    about how commands are organized."""
+    parts = [
+        "# CLI Reference",
+        "",
+        "%d commands across %d groups, generated straight from `ze help "
+        "command --json` -- the same live command registry the binary "
+        "itself uses, so this list cannot drift from what the binary "
+        "actually supports. Full machine-readable list (path, mode, "
+        "description for every command, one JSON array): "
+        "[data/cli-commands.json](%sdata/cli-commands.json)."
+        % (len(commands), len(groups), sitelib.SITE_BASE),
+        "",
+    ]
+    for label, entries in groups:
+        parts.append("## %s (%d)" % (label, len(entries)))
+        parts.append("")
+        parts.append("| Command | Mode | Description |")
+        parts.append("| --- | --- | --- |")
+        for c in entries:
+            mode_label = MODE_LABELS.get(c.get("mode", ""), c.get("mode", ""))
+            path = c["path"].replace("|", "\\|")
+            desc = " ".join(c["description"].split()).replace("|", "\\|")
+            parts.append("| `%s` | %s | %s |" % (path, mode_label, desc))
+        parts.append("")
+    return "\n".join(parts).strip() + "\n"
+
+
 FILTER_SCRIPT = """        <script>
             document.addEventListener("DOMContentLoaded", function () {
                 var input = document.getElementById("cli-search");
+                var suggestions = document.getElementById("cli-suggestions");
                 var groups = document.querySelectorAll(".cli-group");
                 if (!input) return;
-                input.addEventListener("input", function () {
-                    var q = input.value.trim().toLowerCase();
+
+                var commands = [];
+                groups.forEach(function (group) {
+                    var label = group.querySelector("summary").firstChild.textContent.trim();
+                    group.querySelectorAll("tbody tr").forEach(function (row) {
+                        commands.push({
+                            id: row.id,
+                            path: row.cells[0].textContent.trim(),
+                            desc: row.cells[2].textContent.trim(),
+                            group: label,
+                            row: row,
+                            details: group,
+                        });
+                    });
+                });
+
+                function highlight(row) {
+                    row.classList.add("cli-row-highlight");
+                    window.setTimeout(function () {
+                        row.classList.remove("cli-row-highlight");
+                    }, 2000);
+                }
+
+                function jumpTo(c) {
+                    c.details.open = true;
+                    if (suggestions) suggestions.hidden = true;
+                    history.replaceState(null, "", "#" + c.id);
+                    c.row.scrollIntoView({ block: "center" });
+                    highlight(c.row);
+                }
+
+                function applyRowFilter(q) {
                     groups.forEach(function (group) {
                         var rows = group.querySelectorAll("tbody tr");
                         var anyVisible = false;
@@ -147,15 +234,83 @@ FILTER_SCRIPT = """        <script>
                             group.open = anyVisible;
                         }
                     });
+                }
+
+                function renderSuggestions(q) {
+                    if (!suggestions) return;
+                    if (q === "") {
+                        suggestions.hidden = true;
+                        suggestions.innerHTML = "";
+                        return;
+                    }
+                    var matches = commands.filter(function (c) {
+                        return (
+                            c.path.toLowerCase().indexOf(q) !== -1 ||
+                            c.desc.toLowerCase().indexOf(q) !== -1
+                        );
+                    }).slice(0, 20);
+                    suggestions.innerHTML = "";
+                    if (!matches.length) {
+                        suggestions.hidden = true;
+                        return;
+                    }
+                    matches.forEach(function (c) {
+                        var btn = document.createElement("button");
+                        btn.type = "button";
+                        var code = document.createElement("code");
+                        code.textContent = c.path;
+                        var group = document.createElement("span");
+                        group.className = "cli-suggestion-group";
+                        group.textContent = c.group;
+                        btn.appendChild(code);
+                        btn.appendChild(group);
+                        btn.addEventListener("click", function () {
+                            jumpTo(c);
+                        });
+                        suggestions.appendChild(btn);
+                    });
+                    suggestions.hidden = false;
+                }
+
+                input.addEventListener("input", function () {
+                    var q = input.value.trim().toLowerCase();
+                    applyRowFilter(q);
+                    renderSuggestions(q);
                 });
+
+                input.addEventListener("keydown", function (e) {
+                    if (e.key === "Escape" && suggestions) suggestions.hidden = true;
+                });
+
+                document.addEventListener("click", function (e) {
+                    if (
+                        suggestions &&
+                        !suggestions.hidden &&
+                        e.target !== input &&
+                        !suggestions.contains(e.target)
+                    ) {
+                        suggestions.hidden = true;
+                    }
+                });
+
+                if (location.hash) {
+                    var target = document.getElementById(location.hash.slice(1));
+                    if (target && target.tagName === "TR") {
+                        var details = target.closest(".cli-group");
+                        if (details) details.open = true;
+                        window.setTimeout(function () {
+                            target.scrollIntoView({ block: "center" });
+                            highlight(target);
+                        }, 50);
+                    }
+                }
             });
         </script>
 """
 
 
-def render(commands):
+def render(commands, groups):
     root = "../"
-    groups = group_commands(commands)
     title = "CLI Reference - Ze"
     desc = (
         "Every ze command, generated live from the binary's own command "
@@ -170,12 +325,20 @@ def render(commands):
         "                <p>%d commands across %d groups, generated straight from "
         "<code>ze help command --json</code> -- the same live command registry the "
         "binary itself uses, so this page cannot drift from what the binary actually "
-        "supports the way a hand-maintained list can.</p>"
+        "supports the way a hand-maintained list can. Full machine-readable list: "
+        '<a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>'
         % (len(commands), len(groups))
     )
+    out.append('                <div class="cli-search-wrap">')
     out.append(
-        '                <input id="cli-search" type="search" placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." aria-label="Filter commands" />'
+        '                    <input id="cli-search" type="search" autocomplete="off" '
+        'placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." '
+        'aria-label="Filter commands" />'
     )
+    out.append(
+        '                    <div id="cli-suggestions" class="cli-suggestions" hidden></div>'
+    )
+    out.append("                </div>")
     for label, entries in groups:
         out.append(render_group(label, entries))
     out.append("            </section>")
@@ -183,12 +346,17 @@ def render(commands):
     body = "\n".join(out)
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_text(body + "\n" + FILTER_SCRIPT + "\n" + sitelib.page_foot(root))
-    print("rendered %d commands (%d groups) -> %s" % (len(commands), len(groups), DEST))
+    sitelib.write_markdown_sibling(DEST, render_markdown(commands, groups))
+    print(
+        "rendered %d commands (%d groups) -> %s (+ index.md)"
+        % (len(commands), len(groups), DEST)
+    )
 
 
 def main():
     commands = load_commands()
-    render(commands)
+    groups = group_commands(commands)
+    render(commands, groups)
     return 0
 
 

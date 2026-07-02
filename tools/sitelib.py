@@ -14,10 +14,18 @@ import pathlib
 import re
 import sys
 import urllib.request
+from html.parser import HTMLParser
+from urllib.parse import urljoin
 
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 DATA_DIR = GH_PAGES / "data"
+
+# Published site root -- every render-*.py that needs to turn a page-relative
+# href into an absolute URL (llms.txt entries, Markdown mirrors whose links
+# must resolve outside the site's own relative-path structure) imports this
+# instead of hardcoding it a second time.
+SITE_BASE = "https://ze-software.github.io/ze/"
 
 NAV_CHEVRON = (
     '<svg viewBox="0 0 12 8" fill="none" aria-hidden="true">'
@@ -538,3 +546,281 @@ def latest_blog_posts(n):
         )
     posts.sort(key=lambda p: p["slug"], reverse=True)
     return posts[:n]
+
+
+# ---------------------------------------------------------------------------
+# Markdown mirrors
+#
+# llms.txt (tools/render-llms-txt.py) links every page to a sibling index.md
+# instead of its index.html, so an LLM fetching the site never has to parse
+# HTML tags/CSS/JS to get at the content. Pages with a real Markdown source
+# (docs, compare, contribute, blog posts) publish that source directly --
+# see render-doc.py / render-blog.py. Pages built from JSON data (features,
+# CLI, dependencies) render Markdown straight from the same data dict as the
+# HTML -- see render-features.py etc. Pages with neither (labs/*, talks/,
+# style-guide/, performance/, zeledon/ -- hand-authored HTML using this
+# site's own component classes rather than plain tags) fall back to the
+# functions below: extract_main() pulls the <main> content out of the
+# rendered HTML, html_to_markdown() converts it. Wired into tools/build.py's
+# "nav" step, so it can never drift from whatever HTML the page currently
+# has -- same zero-drift philosophy as the rest of the build.
+
+MAIN_START_RE = re.compile(r'<main id="top">')
+
+
+def extract_main(html_text):
+    """The page content between <main id="top"> and </main> -- excludes the
+    mega-menu header and footer sitemap, which every page carries and which
+    add nothing for an LLM already holding llms.txt itself."""
+    m = MAIN_START_RE.search(html_text)
+    if not m:
+        raise ValueError('no <main id="top"> found')
+    start = m.end()
+    end = html_text.index("</main>", start)
+    return html_text[start:end]
+
+
+def write_markdown_sibling(dest_html_path, md_text):
+    """Write index.md next to dest_html_path's index.html, same directory --
+    the site's directory-per-page structure (features/index.html) means the
+    sibling is reachable at the exact same URL with .md swapped in for the
+    trailing slash (features/index.md)."""
+    dest_md = dest_html_path.with_name("index.md")
+    dest_md.write_text(md_text)
+    return dest_md
+
+
+_MD_SKIP_TAGS = {
+    "script",
+    "style",
+    "svg",
+    "button",
+    "input",
+    "select",
+    "defs",
+    "path",
+    "textarea",
+    "form",
+    "noscript",
+}
+_MD_WS_RE = re.compile(r"\s+")
+_MD_TRAILING_WS_RE = re.compile(r"[ \t]+\n")
+_MD_BLANK_RUN_RE = re.compile(r"\n{3,}")
+_MD_MULTI_SPACE_RE = re.compile(r"[ \t]{2,}")
+
+
+def _collapse_spaces_outside_code(text):
+    """Adjacent whitespace-only text nodes between sibling tags (pretty-
+    printed HTML indentation) each collapse to a single space independently,
+    so runs of 2+ spaces can appear at tag boundaries -- collapse those, but
+    never inside a fenced code block, where meaningful indentation (e.g. a
+    second shell command on its own line) must survive verbatim."""
+    parts = text.split("```")
+    for i in range(0, len(parts), 2):
+        parts[i] = _MD_MULTI_SPACE_RE.sub(" ", parts[i])
+    return "```".join(parts)
+
+
+class _MDNode:
+    __slots__ = ("tag", "attrs", "text")
+
+    def __init__(self, tag, attrs):
+        self.tag = tag
+        self.attrs = dict(attrs)
+        self.text = []
+
+    def raw(self):
+        return "".join(self.text)
+
+
+def _render_table(rows):
+    if not rows:
+        return ""
+    header = [text for _is_th, text in rows[0]]
+    body = rows[1:]
+    cols = len(header)
+    lines = ["| " + " | ".join(header) + " |", "| " + " | ".join(["---"] * cols) + " |"]
+    for row in body:
+        cells = [text for _is_th, text in row]
+        cells = (cells + [""] * cols)[:cols]
+        lines.append("| " + " | ".join(cells) + " |")
+    return "\n\n" + "\n".join(lines) + "\n\n"
+
+
+class _HTMLToMarkdown(HTMLParser):
+    """Converts an HTML fragment into Markdown. Not a general-purpose
+    converter -- built against exactly the tags and component classes this
+    site's own render-*.py scripts and hand-authored pages emit (plain
+    headings/paragraphs/lists/tables/links/code, plus status-row, stat,
+    chip/tag/card-label, and details/summary)."""
+
+    def __init__(self, base_url):
+        super().__init__(convert_charrefs=True)
+        self.base_url = base_url
+        self.root = _MDNode("root", {})
+        self.stack = [self.root]
+        self.skip_depth = 0
+        self.list_stack = []
+        self.pre_depth = 0
+        self.table_stack = []
+        self.row_stack = []
+
+    def handle_starttag(self, tag, attrs):
+        self._start(tag, attrs)
+
+    def handle_startendtag(self, tag, attrs):
+        # Self-closing tags (<path d="..." />, <input />, <br/>) never get a
+        # matching handle_endtag, so they must never touch skip_depth --
+        # only handle_starttag/handle_endtag pairs are allowed to.
+        if self.skip_depth:
+            return
+        if tag in ("br", "hr", "img"):
+            self._start(tag, attrs)
+            return
+        # Other bare self-closed tags (meta, link, path, defs children,
+        # standalone <input/>) have no content of their own and contribute
+        # nothing to the Markdown output.
+
+    def _start(self, tag, attrs):
+        if self.skip_depth:
+            # Any nested open tag while skipping must be matched by exactly
+            # one handle_endtag before skip mode ends, regardless of its
+            # name -- balanced-depth counting, not a name check, so an
+            # unrelated tag nested inside e.g. <svg> can't close it early.
+            self.skip_depth += 1
+            return
+        attrs_d = dict(attrs)
+        classes = (attrs_d.get("class") or "").split()
+        if tag in _MD_SKIP_TAGS or "terminal-dots" in classes:
+            self.skip_depth = 1
+            return
+        if tag == "br":
+            self.stack[-1].text.append("  \n")
+            return
+        if tag == "hr":
+            self.stack[-1].text.append("\n\n---\n\n")
+            return
+        if tag == "img":
+            src = attrs_d.get("src", "")
+            if src and not src.startswith(("http://", "https://", "data:")):
+                src = urljoin(self.base_url, src)
+            self.stack[-1].text.append("![%s](%s)" % (attrs_d.get("alt", ""), src))
+            return
+        if tag in ("ul", "ol"):
+            self.list_stack.append({"type": tag, "n": 0})
+        elif tag == "pre":
+            self.pre_depth += 1
+        elif tag == "table":
+            self.table_stack.append([])
+        elif tag == "tr":
+            self.row_stack.append([])
+        self.stack.append(_MDNode(tag, attrs))
+
+    def handle_endtag(self, tag):
+        if self.skip_depth:
+            self.skip_depth -= 1
+            return
+        if tag in ("br", "hr", "img"):
+            return
+        if len(self.stack) <= 1:
+            return
+        node = self.stack.pop()
+        if tag in ("ul", "ol") and self.list_stack:
+            self.list_stack.pop()
+        if tag == "pre":
+            self.pre_depth -= 1
+        if tag in ("td", "th"):
+            cell = node.raw().strip().replace("\n", " ").replace("|", "\\|")
+            if self.row_stack:
+                self.row_stack[-1].append((tag == "th", cell))
+            return
+        if tag == "tr":
+            row = self.row_stack.pop() if self.row_stack else []
+            if row and self.table_stack:
+                self.table_stack[-1].append(row)
+            return
+        if tag == "table":
+            rows = self.table_stack.pop() if self.table_stack else []
+            self.stack[-1].text.append(_render_table(rows))
+            return
+        if tag in ("thead", "tbody", "tfoot"):
+            return
+        self.stack[-1].text.append(self._render_node(tag, node))
+
+    def handle_data(self, data):
+        if self.skip_depth:
+            return
+        if self.pre_depth:
+            self.stack[-1].text.append(data)
+            return
+        self.stack[-1].text.append(_MD_WS_RE.sub(" ", data))
+
+    def _render_node(self, tag, node):
+        inner = node.raw()
+        if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
+            text = inner.strip()
+            return "\n\n%s %s\n\n" % ("#" * int(tag[1]), text) if text else ""
+        if tag == "p":
+            text = inner.strip()
+            return "\n\n%s\n\n" % text if text else ""
+        if tag == "a":
+            href = node.attrs.get("href", "")
+            label = inner.strip() or href
+            if not href or href.startswith("#"):
+                return label
+            url = href
+            if not href.startswith(("http://", "https://", "mailto:")):
+                url = urljoin(self.base_url, href)
+            return "[%s](%s)" % (label, url)
+        if tag in ("strong", "b"):
+            text = inner.strip()
+            return "**%s**" % text if text else ""
+        if tag in ("em", "i"):
+            text = inner.strip()
+            return "*%s*" % text if text else ""
+        if tag == "code":
+            return "`%s`" % inner.strip()
+        if tag == "pre":
+            code = inner.strip("\n")
+            return "\n\n```\n%s\n```\n\n" % code if code else ""
+        if tag in ("ul", "ol"):
+            text = inner.strip("\n")
+            return "\n\n%s\n\n" % text if text else ""
+        if tag == "li":
+            marker = "-"
+            if self.list_stack and self.list_stack[-1]["type"] == "ol":
+                self.list_stack[-1]["n"] += 1
+                marker = "%d." % self.list_stack[-1]["n"]
+            text = inner.strip().replace("\n", "\n  ")
+            return "%s %s\n" % (marker, text) if text else ""
+        if tag == "summary":
+            text = inner.strip()
+            return "\n\n**%s**\n\n" % text if text else ""
+        if tag == "blockquote":
+            text = inner.strip()
+            if not text:
+                return ""
+            quoted = "\n".join("> " + line for line in text.splitlines())
+            return "\n\n%s\n\n" % quoted
+        classes = (node.attrs.get("class") or "").split()
+        if tag == "div" and ("status-row" in classes or "stat" in classes):
+            text = inner.strip()
+            return "- %s\n" % text if text else ""
+        if "chip" in classes or "tag" in classes or "card-label" in classes:
+            text = inner.strip()
+            return "`%s` " % text if text else ""
+        # Transparent containers (div, span, section, article, details, and
+        # any other unrecognized tag/class): pass children through as-is
+        # rather than dropping content the converter has no special case for.
+        return inner
+
+
+def html_to_markdown(fragment_html, base_url=SITE_BASE):
+    parser = _HTMLToMarkdown(base_url)
+    parser.feed(fragment_html)
+    parser.close()
+    text = parser.root.raw()
+    text = _collapse_spaces_outside_code(text)
+    text = _MD_TRAILING_WS_RE.sub("\n", text)
+    text = _MD_BLANK_RUN_RE.sub("\n\n", text)
+    return text.strip() + "\n"
