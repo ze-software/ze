@@ -50,7 +50,7 @@ IPv4/IPv6 unicast and multicast are built into the engine. See [Feature Inventor
 
 Existing ExaBGP plugins work unchanged via a bridge. `ze config migrate` converts ExaBGP configs.
 
-If you are an ExaBGP user, we would love your feedback on the migration experience. Please try `ze config migrate` with your configs and let us know what works and what does not -- even at this early stage, that feedback shapes the project. File issues or reach out on [Discord](https://discord.gg/ykJb8meS4).
+If you are an ExaBGP user, we would love your feedback on the migration experience. Please try `ze config migrate` with your configs and let us know what works and what does not -- even at this early stage, that feedback shapes the project. File issues or reach out on [Discord](https://discord.gg/T8s7CjPDne).
 
 ### Testing
 
@@ -133,5 +133,5 @@ Contributions are welcome if they follow the [contribution process](CONTRIBUTING
 | **Official repo** | [github.com/ze-software/ze](https://github.com/ze-software/ze) |
 | **Development** | [codeberg.org/thomas-mangin/ze](https://codeberg.org/thomas-mangin/ze) |
 | **Issues** | [github.com/ze-software/ze/issues](https://github.com/ze-software/ze/issues) |
-| **Discord** | [discord.gg/ykJb8meS4](https://discord.gg/ykJb8meS4) |
+| **Discord** | [discord.gg/T8s7CjPDne](https://discord.gg/T8s7CjPDne) |
 | **ExaBGP** | [github.com/Exa-Networks/exabgp](https://github.com/Exa-Networks/exabgp) |
