@@ -82,7 +82,7 @@ func TestOSPFv6OriginateStubDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeInterAreaPrefix: %v", err)
 	}
-	if gotPfx, _ := v6PrefixToNetip(iap.Prefix); gotPfx != netip.MustParsePrefix("::/0") {
+	if gotPfx, _ := v6PrefixToNetip(iap.Prefix, afIPv6Unicast); gotPfx != netip.MustParsePrefix("::/0") {
 		t.Errorf("stub default prefix = %s, want ::/0", gotPfx)
 	}
 	if iap.Metric != 10 {

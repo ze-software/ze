@@ -2,6 +2,8 @@ package authz
 
 import (
 	"testing"
+
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
 // VALIDATES: Profile evaluation returns correct action for matching entries.
@@ -656,6 +658,9 @@ func TestBuiltinReadOnlyProfile(t *testing.T) {
 		{"clear denied", "clear", true, Deny},
 		{"clear l2tp denied", "clear l2tp session teardown 42", true, Deny},
 		{"show l2tp allowed", "show l2tp sessions", true, Allow},
+		{"debug denied", "debug", true, Deny},
+		{"debug ip ospf inject denied", "debug ip ospf inject opaque scope area id 1", true, Deny},
+		{"debug ipv6 ospf inject denied", "debug ipv6 ospf inject lsa scope area type 0x2009 id 1", true, Deny},
 		{"edit denied", "router bgp", false, Deny},
 		{"edit any denied", "anything", false, Deny},
 	}
@@ -665,6 +670,68 @@ func TestBuiltinReadOnlyProfile(t *testing.T) {
 				t.Errorf("Authorize(%q, %v) = %v, want %v", tt.command, tt.readOnly, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestInjectDeniedReadOnly / TestV3InjectDeniedReadOnly: spec-ospf-ext-14 AC-16, R-1 -- the
+// read-only profile denies the OSPF debug LSA-injection commands (both families) before the
+// engine is reached.
+//
+// Fidelity: the original assertion used Authorize(cmd, isReadOnly=true), which exercises the
+// Run section's `deny "debug"` rule. But production dispatches inject with isReadOnly=FALSE
+// (IsReadOnlyPath cuts on the first word and "debug" is not a read-only verb), so the denial
+// that actually fires is the Edit section default (Deny), NOT the Run rule. These tests pin
+// IsReadOnlyPath(inject)==false and assert the isReadOnly=false Store path also denies, so a
+// future Edit.Default change cannot silently open inject while the true-path assertion stays green.
+func TestInjectDeniedReadOnly(t *testing.T) {
+	const (
+		v4 = "debug ip ospf inject opaque scope area id 1 hex 00"
+		v6 = "debug ipv6 ospf inject lsa scope area type 0x2009 id 1 hex 00"
+	)
+	ro := BuiltinReadOnlyProfile()
+	// Original assertion: the Run-section `deny "debug"` rule (isReadOnly=true path).
+	if got := ro.Authorize(v4, true); got != Deny {
+		t.Fatalf("IPv4 inject Authorize(readOnly=true) = %v, want Deny", got)
+	}
+
+	// Pin the premise: inject dispatches with isReadOnly=false, so the true path is the Edit section.
+	if pluginserver.IsReadOnlyPath(v4) {
+		t.Fatalf("IsReadOnlyPath(%q) = true, want false (inject dispatches with isReadOnly=false)", v4)
+	}
+	if pluginserver.IsReadOnlyPath(v6) {
+		t.Fatalf("IsReadOnlyPath(%q) = true, want false", v6)
+	}
+
+	// Guard the ACTUAL production path: a user under the read-only profile is denied inject on
+	// the isReadOnly=false (Edit) path for both address families.
+	s := NewStore()
+	s.AddProfile(BuiltinReadOnlyProfile())
+	s.AssignProfiles("ro-user", []string{"read-only"})
+	if got := s.Authorize("ro-user", v4, false); got != Deny {
+		t.Fatalf("Store.Authorize(v4 inject, isReadOnly=false) = %v, want Deny", got)
+	}
+	if got := s.Authorize("ro-user", v6, false); got != Deny {
+		t.Fatalf("Store.Authorize(v6 inject, isReadOnly=false) = %v, want Deny", got)
+	}
+}
+
+func TestV3InjectDeniedReadOnly(t *testing.T) {
+	const v6 = "debug ipv6 ospf inject lsa scope area type 0x2009 id 1 hex 00"
+	ro := BuiltinReadOnlyProfile()
+	// Original assertion: the Run-section `deny "debug"` rule (isReadOnly=true path).
+	if got := ro.Authorize(v6, true); got != Deny {
+		t.Fatalf("IPv6 inject Authorize(readOnly=true) = %v, want Deny", got)
+	}
+
+	// Pin the premise and guard the true (isReadOnly=false / Edit) production path.
+	if pluginserver.IsReadOnlyPath(v6) {
+		t.Fatalf("IsReadOnlyPath(%q) = true, want false (inject dispatches with isReadOnly=false)", v6)
+	}
+	s := NewStore()
+	s.AddProfile(BuiltinReadOnlyProfile())
+	s.AssignProfiles("ro-user", []string{"read-only"})
+	if got := s.Authorize("ro-user", v6, false); got != Deny {
+		t.Fatalf("Store.Authorize(v6 inject, isReadOnly=false) = %v, want Deny", got)
 	}
 }
 

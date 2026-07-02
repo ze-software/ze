@@ -1,6 +1,7 @@
 //go:build linux
 
 // Design: plan/learned/957-ospf-3-ip-transport.md -- Linux AF_INET/SOCK_RAW backend
+// Related: transport.go -- orchestrator; SendPacketRouted uses SendRouted for virtual links
 
 package transport
 
@@ -11,8 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"golang.org/x/sys/unix"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
 const (
@@ -79,7 +81,7 @@ func (linuxBackend) OpenInterface(name string, recordDrop dropRecorder) (Interfa
 		closeFD(txFD)
 		return nil, err
 	}
-	li := &linuxInterface{rxFD: rxFD, txFD: txFD, ifindex: resolved.ifindex, local: resolved.local, recvCh: make(chan RawPacket, 64), stop: make(chan struct{}), recordDrop: recordDrop}
+	li := &linuxInterface{rxFD: rxFD, txFD: txFD, osName: resolved.osName, ifindex: resolved.ifindex, local: resolved.local, recvCh: make(chan RawPacket, 64), stop: make(chan struct{}), recordDrop: recordDrop}
 	go li.readLoop()
 	return li, nil
 }
@@ -87,6 +89,8 @@ func (linuxBackend) OpenInterface(name string, recordDrop dropRecorder) (Interfa
 type linuxInterface struct {
 	rxFD       int
 	txFD       int
+	routedFD   int // lazily-opened TX socket with TTL > 1 for virtual-link (routed) sends; 0 = none
+	osName     string
 	ifindex    int
 	local      [4]byte
 	recvCh     chan RawPacket
@@ -94,6 +98,48 @@ type linuxInterface struct {
 	recordDrop dropRecorder
 	sendMu     sync.Mutex
 	closed     sync.Once
+}
+
+// routedTTL is the TTL applied to virtual-link packets. Unlike the TTL-1 link-local socket,
+// virtual-link packets are routed across the transit area (RFC 2328 section 8.1), so they
+// need a TTL large enough to traverse it.
+const routedTTL = 64
+
+// SendRouted sends a unicast packet on a routed TX socket (TTL routedTTL), distinct from the
+// TTL-1 link-local txFD, so a virtual-link packet is routed across the transit area rather
+// than dropped at the first hop. The routed socket is opened on first use.
+func (li *linuxInterface) SendRouted(dst netip.Addr, payload []byte) error {
+	if !dst.Is4() {
+		return ErrInvalidDestination
+	}
+	li.sendMu.Lock()
+	defer li.sendMu.Unlock()
+	if li.routedFD == 0 {
+		fd, err := openRoutedSocket(li.osName)
+		if err != nil {
+			return err
+		}
+		li.routedFD = fd
+	}
+	sa := &unix.SockaddrInet4{Addr: dst.As4()}
+	if err := unix.Sendto(li.routedFD, payload, 0, sa); err != nil {
+		return fmt.Errorf("ospf/transport: routed sendto %s: %w", dst, err)
+	}
+	return nil
+}
+
+// openRoutedSocket opens an AF_INET/SOCK_RAW proto-89 TX socket bound to the transit egress
+// with TTL routedTTL, so virtual-link packets are routed rather than link-local.
+func openRoutedSocket(name string) (int, error) {
+	fd, err := openInterfaceSocket(name)
+	if err != nil {
+		return -1, err
+	}
+	if err := unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_TTL, routedTTL); err != nil {
+		closeFD(fd)
+		return -1, fmt.Errorf("ospf/transport: setsockopt routed IP_TTL: %w", err)
+	}
+	return fd, nil
 }
 
 func (li *linuxInterface) IfIndex() int             { return li.ifindex }
@@ -126,6 +172,11 @@ func (li *linuxInterface) Close() error {
 		err = unix.Close(li.rxFD)
 		if txErr := unix.Close(li.txFD); err == nil {
 			err = txErr
+		}
+		if li.routedFD != 0 {
+			if rErr := unix.Close(li.routedFD); err == nil {
+				err = rErr
+			}
 		}
 	})
 	return err

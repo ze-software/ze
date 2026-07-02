@@ -415,6 +415,46 @@ func (t *Transport) SendPacket(name string, dst netip.Addr, payload []byte) erro
 	return nil
 }
 
+// routedSender is the optional capability of an InterfaceHandle to send a unicast packet
+// ROUTED (TTL > 1) instead of on the TTL-1 link-local socket. The Linux backend implements
+// it; a handle without it falls back to the ordinary Send.
+type routedSender interface {
+	SendRouted(dst netip.Addr, payload []byte) error
+}
+
+// SendPacketRouted sends OSPF bytes to a unicast dst on name with a routed TTL (> 1), for
+// virtual links whose packets must traverse a transit area rather than a single link (RFC
+// 2328 section 8.1 / section 15). src is unused for IPv4 (the kernel selects the source
+// from the routed egress); it exists so the engine's address-family-neutral Transport
+// interface can also carry the OSPFv3 global source.
+func (t *Transport) SendPacketRouted(name string, dst, _ netip.Addr, payload []byte) error {
+	if !dst.Is4() {
+		return ErrInvalidDestination
+	}
+	t.mu.Lock()
+	st, open := t.interfaces[name]
+	signer := t.signer
+	t.mu.Unlock()
+	if !open {
+		return ErrInterfaceNotOpen
+	}
+	if signer != nil {
+		payload = signer(name, payload)
+	}
+	var err error
+	if rs, ok := st.handle.(routedSender); ok {
+		err = rs.SendRouted(dst, payload)
+	} else {
+		err = st.handle.Send(dst, payload)
+	}
+	if err != nil {
+		t.metrics.packetsDropped.With(name, "send-error").Inc()
+		return err
+	}
+	t.metrics.packetsSent.With(name, packetTypeLabel(payload)).Inc()
+	return nil
+}
+
 func (t *Transport) JoinAllDRouters(name string) error {
 	t.mu.Lock()
 	st, open := t.interfaces[name]

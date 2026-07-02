@@ -27,7 +27,7 @@
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test
 .PHONY: ze-ui-test ze-editor-test ze-web-test ze-managed-test
 .PHONY: ze-l2tp-test ze-firewall-test ze-policy-test
-.PHONY: ze-static-test ze-traffic-test ze-flow-export-test ze-vpp-test ze-l2tp-wire-test ze-isis-wire-test ze-ospf-wire-test ze-isis-test ze-ospf-test
+.PHONY: ze-static-test ze-traffic-test ze-flow-export-test ze-vpp-test ze-l2tp-wire-test ze-isis-wire-test ze-ospf-wire-test ze-isis-test ze-ospf-test ze-ospfv3-test
 
 # Per-suite wall-clock cap. A stuck subprocess that holds an output pipe open
 # can make ze-test's own cmd.Wait() block indefinitely after SIGKILL; `timeout`
@@ -51,7 +51,7 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 ZE_SKIP_SUITES ?=
 ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
 	@failed=0; failed_names=""; skipped_names=""; total=0; suite_index=0; \
-	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ldp rsvpte isis ospf web install"; \
+	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ldp rsvpte isis ospf ospfv3 web install"; \
 	suite_total=0; \
 	for suite in $$all_suites; do \
 		case ",$(ZE_SKIP_SUITES)," in *,$$suite,*) ;; *) suite_total=$$((suite_total + 1));; esac; \
@@ -80,6 +80,7 @@ ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
 	run_suite rsvpte $(SUITE_RUN) bin/ze-test rsvpte --all; \
 	run_suite isis $(SUITE_RUN) bin/ze-test isis --all; \
 	run_suite ospf $(SUITE_RUN) bin/ze-test ospf --all; \
+	run_suite ospfv3 $(SUITE_RUN) bin/ze-test ospfv3 --all; \
 	run_suite web $(SUITE_RUN) bin/ze-test web --all; \
 	run_suite install $(SUITE_RUN) bin/ze-test install --all; \
 	if [ -n "$$skipped_names" ]; then \
@@ -174,3 +175,6 @@ ze-isis-test: bin/ze-test
 
 ze-ospf-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test ospf --all
+
+ze-ospfv3-test: bin/ze-test
+	@$(SUITE_RUN) bin/ze-test ospfv3 --all

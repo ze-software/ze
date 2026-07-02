@@ -43,6 +43,27 @@ func TestLSSequenceWraparound(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-5 - LSSequenceNumber.String renders the RFC 2328 SIGNED value, so
+// InitialSequenceNumber (0x80000001) shows as a negative number below MaxSequenceNumber.
+// PREVENTS: an unsigned rendering that would make the initial sequence look larger than the max.
+func TestLSSequenceString(t *testing.T) {
+	cases := []struct {
+		s    LSSequenceNumber
+		want string
+	}{
+		{LSSequenceNumber(0), "0"},
+		{LSSequenceNumber(1), "1"},
+		{MaxSequenceNumber, "2147483647"},
+		{InitialSequenceNumber, "-2147483647"},
+		{ReservedSequenceNumber, "-2147483648"},
+	}
+	for _, tc := range cases {
+		if got := tc.s.String(); got != tc.want {
+			t.Errorf("LSSequenceNumber(%#x).String() = %q, want %q", uint32(tc.s), got, tc.want)
+		}
+	}
+}
+
 // VALIDATES: AC-12 - LSSequenceNumber parses and serializes exactly four big-endian bytes.
 // PREVENTS: wire codec endian drift for the LSA version field.
 func TestLSSequenceBytesRoundTrip(t *testing.T) {

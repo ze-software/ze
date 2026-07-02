@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-ospf-ext-1-opaque-framework.md |
 | Phase | - |
-| Updated | 2026-06-24 |
+| Updated | 2026-07-02 |
 
 ## Post-Compaction Recovery
 
@@ -595,41 +595,83 @@ Add `// RFC 5250 Section X` where RI relies on the ext-1 carrier (the LS-ID spli
 ## Implementation Summary
 
 ### What Was Implemented
-- [filled at implementation time]
+- RI TLV codec (`packet/ri_tlv.go`): `RITLV`, `EncodeRITLVs`/`RITLVsEncodedLen`, `DecodeRITLVStream`, the type-1/type-2 constants, the §2.5 bit indices, `RIInfoBitMask` (MSB=bit0), `RICapabilitiesValue`/`RIReadCapabilities`, `RIOpaqueType=4` -- all over the ext-1 generic 4-byte-aligned TLV helpers (no second codec).
+- Shared RI consumer (`ri.go`): capability derivation from live state (`deriveRICapabilities` -> §2.5 bits 0-3), the single shared body builder (`buildRIInstances` -> type-1 first, empty type-2, registered TLVs, instance overflow via `packRIInstances`), the OSPFv2 opaque `OnOriginate`/`OnReceive` (`riOriginate`/`riOnReceive`, pull-model withdraw diff), and the five `ze_ospf_ri_*` metrics with a gauge-reset tracker.
+- RI-TLV registry (`ri_registry.go`): the UNEXPORTED `registerRITLV(tlvType uint16, scope OpaqueScope, build riTLVBuildFunc)` hook, ascending-type ordering, reserved-type/duplicate/invalid-scope rejection, and panic-recover isolation.
+- OSPFv3 native carriage (`origination_v6_ri.go`, `v3/types/lsa.go`): `LSTypeRouterInformation{Link,Area,AS}` (U-bit set: 0x800C/0xA00C/0xC00C), RI recognized in `Known()` by function code regardless of U-bit, `v6OriginateRI`/`v6OriginateRIScope` through `OriginateSelf`, and the RI types in `v6ManagedSelfTypes` for stale-flush withdraw.
+- Config (`config.go`, `yang/ze-ospf-conf.yang`): the `router-information` container (`enabled`, `scope` leaf-list), default area+AS, inheritance into the OSPFv3 sub-config.
+- CLI (`ri_show.go`, `cmd_show.go`, `register.go`, `yang/ze-ospf-cmd.yang`): `show ospf database router-information` rendering both AFs with decoded bits + TLVs + smallest-Instance-ID selection.
+- Wiring: `registerRIConsumer(eng)` for the v4 engine; `shareRIMetrics(eng)` for the v6 engine; the RI originator called from `originateSelfLSAs` (v2 via the opaque pass) and `v6OriginateSelf` (v3).
+- Tests: unit (packet/ri_tlv, v3/types/lsa_ri, ri, ri_v2, ri_registry, ri_show, spf/ri_exclusion, origination_v6_ri), functional (`ri_functional_test.go` + 6 `.ci`), interop (`ospf-ri-frr`, `ospf6-ri-frr`, authored, QEMU-pending).
 
 ### Bugs Found/Fixed
-- [filled at implementation time]
+- The AS-wide LSDB store is shared: an OSPFv3 AS-scope RI LSA (0xC00C) has the AS scope bits, so the broad `ASExternal()` predicate (used by SPF external computation, `selfIsASBRLocked`, `SelfExternalCount`, and the OSPFv3 external reader) would have mis-treated it as an AS-External route and made the router a false ASBR (E-bit). Fixed by splitting the predicate: `ASExternal()` is now precise (function code 5 only) and a new `ASWide()` carries the AS-wide-scope semantics for store routing / flooding / stub-suppression. Behavior-preserving for every pre-existing LS type; RI is correctly AS-wide but never an external route or SPF vertex (AC-17).
 
 ### Documentation Updates
-- [filled at implementation time]
+- `docs/guide/ospf.md` (Router Information section + CLI list), `docs/guide/configuration.md`, `docs/guide/command-reference.md`, `docs/architecture/wire/ospf.md`, `docs/features.md`, `docs/comparison.md`, `docs/functional-tests.md`, `docs/DESIGN.md` (interop count 67->69), `rfc/short/rfc7770.md` (compliance items flipped). `make ze-doc-test` passes (source anchors valid, drift clean).
 
 ### Deviations from Plan
-- [filled at implementation time]
+- **OSPFv3 RI wire type**: the spec/RFC-summary literals "0x200C area / 0x400C AS" have the U-bit CLEAR, which contradicts RFC 7770 §2.2's "U-bit set" (and would confine a non-supporting router's flooding to link-local, RFC 5340 §4.4.1). Implemented the RFC-correct U=1 values 0x800C/0xA00C/0xC00C, and made `Known()` recognize RI by function code regardless of the U-bit so a peer's either-encoding LSA is still recognized. Flagged for QEMU/FRR validation.
+- **`ASExternal()` split** (see Bugs) -- a behavior-preserving refactor the spec did not anticipate; assumption A-4 held (AS-scope routes to the AS store) but only after this split kept RI out of the external/ASBR paths.
+- OSPFv3 link-scope RI is not originated (area+AS cover the deployment and all ACs); the link wire type exists at the type layer. OSPFv2 link scope is fully supported via the ext-1 Type-9 path.
+- Interop scenarios authored but NOT run (QEMU/FRR only, per task); functional `.ci` run natively (all pass).
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| OSPFv2 RI as ext-1 opaque consumer (type 4) | Done | `ri.go` registerRIConsumer/riOriginate | carrier owns LS-ID/scope/O-bit/§5 |
+| OSPFv3 RI native function code 12 | Done | `origination_v6_ri.go`, `v3/types/lsa.go` | U-bit set, per-scope, in v6ManagedSelfTypes |
+| One shared RI TLV body builder | Done | `ri.go` buildRIInstances | AC-11 identical bytes |
+| type-1 Informational Capabilities TLV first, from live state | Done | `ri.go` deriveRICapabilities/buildRIInstances | §2.4 MUST |
+| `registerRITLV` hook (unexported) | Done | `ri_registry.go` | ext-5 consumes it |
+| Configurable scope (default area+AS) | Done | `config.go` parseRouterInformation, yang | |
+| `show ospf database router-information` | Done | `ri_show.go`, `cmd_show.go`, yang cmd | action-before-identifier |
+| 5 `ze_ospf_ri_*` metrics | Done | `ri.go` riMetrics | shared v4/v6 handles, af label |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRIv2OriginateArea`, `TestRIv2InstanceIDIsOpaqueID`, `ospf-ri-originate.ci` | Opaque type 4, LS ID 4.0.0.0, type-1 first |
+| AC-2 | Done | `TestRIv2OriginateAS` | Type-11 AS-wide via ext-1 |
+| AC-3 | Done | `TestRIv3OriginateArea`, `TestRIv3UBitSet`, `ospf6-ri-originate.ci` | fc 12, 0xA00C, U-bit |
+| AC-4 | Done | `TestRIv3OriginateASRouting` | 0xC00C to AS store via ASWide() |
+| AC-5 | Done | `TestRIDefaultScopeAreaAndAS` | default area + AS |
+| AC-6 | Done | `TestRICapabilityBitsFromState`, `TestRICapabilityTEBitFromConfig` | bits from live state |
+| AC-7 | Done | `TestRITLVRegistered`, `TestRITLVRegisteredOrder`, `TestRITLVAlignment` | type-1 first, 4-byte pad |
+| AC-8 | Done | `TestRITLVBuilderPanicIsolated` | panic isolated + counted |
+| AC-9 | Done | `TestRIWithdrawFlushes`, `TestRIv3WithdrawFlushes`, `ospf-ri-withdraw.ci` | v2/v3 MaxAge flush |
+| AC-10 | Done | `TestRIOriginateIdempotent` | unchanged body no re-flood |
+| AC-11 | Done | `TestRIBodyIdenticalAcrossAF` | byte-identical v2/v3 |
+| AC-12 | Done | `TestRIShowRender`, `ospf-ri-show.ci` | both AFs, bits + TLVs |
+| AC-13 | Done | `TestOSPFRIReceiveFunctional`, `ospf-ri-receive.ci` | received stored/rendered |
+| AC-14 | Done | `TestRIShowMalformedTLV`, `TestRITLVDecodeMalformed` | partial render, no panic |
+| AC-15 | Done | `TestRIMultiInstanceSmallestID` | smallest instance wins |
+| AC-16 | Done | `TestRIInstanceOverflow` | overflow into Instance 1+ |
+| AC-17 | Done | `TestRINotInSPFGraph` | never SPF vertex / route |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|-----------|-------|
+| All 22 planned unit tests | Done | mapped in the AC table; renamed a few (TestRIv3OriginateAS -> TestRIv3OriginateASRouting; iterator tests -> DecodeRITLVStream) | slice-decode API replaced the exported iterator (ze-validate) |
+| 6 functional `.ci` + 7 `*Functional` Go tests | Done | `ri_functional_test.go`, `test/ospf/ospf-ri-*.ci`, `ospf6-ri-originate.ci` | all pass natively |
+| 2 interop scenarios | Authored (QEMU-pending) | `test/interop/scenarios/ospf-ri-frr`, `ospf6-ri-frr` | not run per task |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| packet/ri_tlv.go, ri.go, ri_registry.go, origination_v6_ri.go, v3/types/lsa.go | Done | + `ri_show.go` (render, spec-permitted extra) |
+| instance.go, config.go, origination_v6.go, cmd_show.go, register.go, yang conf/cmd | Done | wiring |
+| lsdb/native_view.go, lsdb ASBR/count/routing, types/lstype.go | Done (extra) | native-view accessor + ASExternal/ASWide split |
+| all planned `_test.go` + 6 `.ci` + 2 interop dirs | Done | (interop authored, not run) |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 17 ACs + 8 task requirements + planned tests/files
+- **Done:** all 17 ACs, all requirements, all unit + functional tests passing; interop authored
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** OSPFv3 RI wire type (U-bit set), ASExternal()/ASWide() split, OSPFv3 link-scope not originated, exported iterator -> DecodeRITLVStream (see Deviations)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
@@ -646,14 +688,19 @@ Add `// RFC 5250 Section X` where RI relies on the ext-1 carrier (the LS-ID spli
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE |  | file:line |  |
+| 1 | ISSUE | OSPFv3 AS-scope RI (0xC00C) would be mis-treated as an AS-External route/ASBR by the broad `ASExternal()` | spf/external.go, lsdb/origination.go | Split into precise `ASExternal()` (fc 5) + `ASWide()` (scope); RI excluded from SPF/ASBR (AC-17) |
+| 2 | ISSUE | 5 new exported symbols (NativeLSAView, RITLVIterator, FunctionCode, UBit, IsRouterInformation) had no cross-package caller (ze-validate) | ospf tree | Removed/inlined FunctionCode/UBit/IsRouterInformation into Known(); replaced exported iterator with `DecodeRITLVStream`; spelled NativeLSAView cross-package |
+| 3 | NOTE | Spec/RFC-summary OSPFv3 RI wire types (0x200C/0x400C) contradict "U-bit set" | v3/types/lsa.go | Implemented RFC-correct U=1 (0x800C/0xA00C/0xC00C); recognize RI by function code regardless of U-bit; flagged for QEMU |
 
 ### Fixes applied
--
+- Split `ASExternal()`/`ASWide()`; filtered ASBR/external-count scans to true externals; SPF external reader uses precise `ASExternal()`.
+- Reduced exported surface to satisfy ze-validate (0 new findings from RI).
+- U-bit-set OSPFv3 RI wire types + function-code-based recognition.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+|   | (none) | go vet clean, golangci-lint 0 issues, ze-validate 0 new findings, all OSPF tests pass | ./internal/plugins/ospf/... | clean |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
@@ -664,22 +711,47 @@ Add `// RFC 5250 Section X` where RI relies on the ext-1 carrier (the LS-ID spli
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| internal/plugins/ospf/{ri.go,ri_registry.go,ri_show.go,origination_v6_ri.go} | yes | created |
+| internal/plugins/ospf/packet/ri_tlv.go, lsdb/native_view.go | yes | created |
+| test/ospf/ospf-ri-{originate,register-tlv,receive,show,withdraw}.ci, ospf6-ri-originate.ci | yes | created |
+| test/interop/scenarios/{ospf-ri-frr,ospf6-ri-frr}/{ze.conf,frr.conf,check.py} | yes | created |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1..17 | all pass | `go test ./internal/plugins/ospf/... -run 'RI\|RouterInformation'` -> 34 tests PASS; full `go test ./internal/plugins/ospf/...` all ok |
+| metrics | 5 series present | `grep -rn 'ze_ospf_ri_' internal/plugins/ospf/ri.go` -> lsas, originations_total, received_total, tlv_builder_errors_total, capability_bits |
+| hook | registerRITLV present | `grep -rn 'func registerRITLV' internal/plugins/ospf` |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| RI enabled -> originateSelfLSAs (v2 opaque) | ospf-ri-originate.ci | yes (TestOSPFRIOriginateFunctional) |
+| RI enabled -> v6OriginateSelf (v3 native) | ospf6-ri-originate.ci | yes (TestOSPFRI6OriginateFunctional) |
+| registerRITLV -> body | ospf-ri-register-tlv.ci | yes (TestOSPFRIRegisterTLVFunctional) |
+| received RI -> stored/rendered | ospf-ri-receive.ci | yes (TestOSPFRIReceiveFunctional) |
+| show ospf database router-information | ospf-ri-show.ci | yes (TestOSPFRIShowFunctional) |
+| disable -> withdraw | ospf-ri-withdraw.ci | yes (TestOSPFRIWithdrawFunctional) |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | RI registers Opaque type 4, originates via ext-1 (`TestRIOpaqueConsumerRegistered`, `TestRIv2OriginateArea`) |
+| A-2 | confirmed | Instance 0 -> LS ID 4.0.0.0 (`TestRIv2InstanceIDIsOpaqueID`) |
+| A-3 | confirmed | OSPFv3 via OriginateSelf + v6ManagedSelfTypes (`TestRIv3OriginateArea`, `TestRIv3WithdrawFlushes`) |
+| A-4 | confirmed (with fix) | AS-scope routes to AS store via `ASWide()` after the ASExternal split (`TestRIv3OriginateASRouting`) |
+| A-5 | confirmed | codec reuses ext-1 helpers (`TestRITLVRoundTrip`, `TestRITLVAlignment`) |
+| A-6 | confirmed | bits from live state; GR via injectable seam (`TestRICapabilityBitsFromState`) |
+| A-7 | confirmed (impl) | U-bit set on the OSPFv3 RI LSA (`TestRIv3UBitSet`); interop QEMU-pending |
+| A-8 | confirmed | default area+AS (`TestRIDefaultScopeAreaAndAS`); user default per spec |
+| A-9 | confirmed | RI never SPF vertex/route (`TestRINotInSPFGraph`) |
+| A-10 | confirmed | overflow into Instance 1+ (`TestRIInstanceOverflow`) |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| OSPF guide RI section + CLI | docs/guide/ospf.md source anchors | `make ze-doc-test` pass |
+| config, command-reference, wire, features, comparison, functional-tests, DESIGN, rfc7770 | respective files | `make ze-doc-test` pass (drift clean, anchors valid) |
 
 ## Checklist
 

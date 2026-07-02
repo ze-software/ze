@@ -26,6 +26,10 @@ type OSPFHandlers struct {
 var (
 	ospfNeighborView = viewSpec{command: "show ospf neighbor", title: "OSPF Neighbors", streamPath: "/ospf/neighbors/stream", eventName: "neighbors"}
 	ospfDatabaseView = viewSpec{command: "show ospf database", title: "OSPF Database", streamPath: "/ospf/database/stream", eventName: "database"}
+	// spec-ospf-ext-14: read-only opaque (IPv4) and OSPFv3 (IPv6) database views. The inject
+	// path is NEVER surfaced on the web (R-6) -- only read-only `show` commands are wired here.
+	ospfOpaqueDatabaseView = viewSpec{command: "show ospf database opaque-area", title: "OSPF Opaque Database", streamPath: "/ospf/database/opaque/stream", eventName: "opaque"}
+	ospfV3DatabaseView     = viewSpec{command: "show ospf ipv6 database", title: "OSPFv3 Database", streamPath: "/ospfv3/database/stream", eventName: "ospfv3-database"}
 )
 
 // views builds the generic snapshot handler configured for OSPF.
@@ -58,4 +62,24 @@ func (h *OSPFHandlers) HandleOSPFNeighborsSSE() http.HandlerFunc {
 // HandleOSPFDatabaseSSE serves GET /ospf/database/stream.
 func (h *OSPFHandlers) HandleOSPFDatabaseSSE() http.HandlerFunc {
 	return h.views().sse(ospfDatabaseView)
+}
+
+// HandleOSPFOpaqueDatabase serves GET /ospf/database/opaque: the read-only IPv4 opaque LSDB.
+func (h *OSPFHandlers) HandleOSPFOpaqueDatabase() http.HandlerFunc {
+	return h.views().handleView(ospfOpaqueDatabaseView)
+}
+
+// HandleOSPFOpaqueDatabaseSSE serves GET /ospf/database/opaque/stream.
+func (h *OSPFHandlers) HandleOSPFOpaqueDatabaseSSE() http.HandlerFunc {
+	return h.views().sse(ospfOpaqueDatabaseView)
+}
+
+// HandleOSPFv3Database serves GET /ospfv3/database: the read-only OSPFv3 (IPv6) LSDB.
+func (h *OSPFHandlers) HandleOSPFv3Database() http.HandlerFunc {
+	return h.views().handleView(ospfV3DatabaseView)
+}
+
+// HandleOSPFv3DatabaseSSE serves GET /ospfv3/database/stream.
+func (h *OSPFHandlers) HandleOSPFv3DatabaseSSE() http.HandlerFunc {
+	return h.views().sse(ospfV3DatabaseView)
 }

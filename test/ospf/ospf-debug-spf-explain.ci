@@ -1,0 +1,13 @@
+# Test: OSPFv2 SPF-explain (why a route won).
+#
+# VALIDATES: spec-ospf-ext-14 -- `show ospf spf detail` lists candidate paths + the RFC 2328 section 16.4 tie-break, read-only (route table + run count unchanged) (AC-9).
+# PREVENTS: a regression in the OSPF debug/introspection surface.
+#
+# Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf -run 'TestSPFExplainCandidateList|TestSPFExplainTieBreak|TestSPFExplainNoRecompute' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=TestSPFExplainCandidateList
+expect=stdout:contains=TestSPFExplainTieBreak
+expect=stdout:contains=TestSPFExplainNoRecompute
+expect=stdout:contains=PASS

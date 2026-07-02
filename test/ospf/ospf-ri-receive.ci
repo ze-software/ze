@@ -1,0 +1,10 @@
+# Test: OSPFv2 Router Information LSA reception (RFC 7770 / RFC 5250 sec 3, spec-ospf-ext-3).
+#
+# VALIDATES: a received Opaque type-4 RI LSA from a peer is delivered through the carrier,
+# stored, and rendered by `show ospf database router-information` with its capability bits
+# decoded; no protocol behavior changes from the received informational bits.
+# PREVENTS: a received RI LSA that is stored by the carrier but never rendered/decoded.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFRIReceiveFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

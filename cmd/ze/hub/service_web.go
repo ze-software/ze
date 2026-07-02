@@ -523,6 +523,12 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	srv.Handle("GET /ospf/neighbors/stream", authWrap(ospfHandlers.HandleOSPFNeighborsSSE()))
 	srv.Handle("GET /ospf/database", authWrap(ospfHandlers.HandleOSPFDatabase()))
 	srv.Handle("GET /ospf/database/stream", authWrap(ospfHandlers.HandleOSPFDatabaseSSE()))
+	// spec-ospf-ext-14: read-only opaque (IPv4) + OSPFv3 (IPv6) database views. Inject is
+	// NEVER surfaced on the web (R-6): only read-only show commands are routed here.
+	srv.Handle("GET /ospf/database/opaque", authWrap(ospfHandlers.HandleOSPFOpaqueDatabase()))
+	srv.Handle("GET /ospf/database/opaque/stream", authWrap(ospfHandlers.HandleOSPFOpaqueDatabaseSSE()))
+	srv.Handle("GET /ospfv3/database", authWrap(ospfHandlers.HandleOSPFv3Database()))
+	srv.Handle("GET /ospfv3/database/stream", authWrap(ospfHandlers.HandleOSPFv3DatabaseSSE()))
 
 	// Portal: iframe wrapper for embedded services (gokrazy, etc.).
 	if env.IsEnabled("ze.gokrazy.enabled") {

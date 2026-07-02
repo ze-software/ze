@@ -134,6 +134,17 @@ func v6RouterLinks(in []ospfv3packet.RouterLink, netID map[v6NetKey]types.LinkSt
 				LinkID: types.LinkStateID(l.NeighborRouterID),
 				Metric: types.Metric(l.Metric),
 			})
+		case ospfv3packet.RouterLinkTypeVirtual:
+			// RFC 5340 App A.4.3: a virtual link keys the neighbor by its Router ID, exactly
+			// like a p2p link. The shared Dijkstra already treats RouterLinkTypeVirtual as
+			// p2p (spf.transitEdges), so the backbone graph reaches the virtual neighbor as a
+			// router vertex. The virtual next hop (transit-area next hop) is resolved in the
+			// RFC 2328 sec 16.3 transit-area pass, not here.
+			out = append(out, packet.RouterLink{
+				Type:   packet.RouterLinkTypeVirtual,
+				LinkID: types.LinkStateID(l.NeighborRouterID),
+				Metric: types.Metric(l.Metric),
+			})
 		case ospfv3packet.RouterLinkTypeTransit:
 			syn, ok := netID[v6NetKey{dr: types.RouterID(l.NeighborRouterID), ifaceID: uint32(l.NeighborInterfaceID)}]
 			if !ok {
@@ -174,12 +185,13 @@ func (s v6Strategy) BuildRoutes(res *ospfspf.Result, _ int, _ ospfspf.InterfaceR
 	if s.eng == nil {
 		return nil
 	}
-	return v6BuildRoutes(s.eng.lsdb, res)
+	return v6BuildRoutes(s.eng.lsdb, res, s.prefixAF())
 }
 
 // v6BuildRoutes is BuildRoutes over an explicit Source (the engine's LSDB), split out
-// so the prefix attachment is unit-testable without a full engine.
-func v6BuildRoutes(src ospfspf.Source, res *ospfspf.Result) []ospfspf.RouteEntry {
+// so the prefix attachment is unit-testable without a full engine. af selects the prefix
+// address width (RFC 5838: 4 bytes for IPv4 families, 16 for IPv6).
+func v6BuildRoutes(src ospfspf.Source, res *ospfspf.Result, af addressFamily) []ospfspf.RouteEntry {
 	if res == nil || src == nil {
 		return nil
 	}
@@ -215,7 +227,7 @@ func v6BuildRoutes(src ospfspf.Source, res *ospfspf.Result) []ospfspf.RouteEntry
 			continue
 		}
 		for _, p := range body.Prefixes {
-			pfx, ok := v6PrefixToNetip(p)
+			pfx, ok := v6PrefixToNetip(p, af)
 			if !ok {
 				continue
 			}
@@ -237,9 +249,19 @@ func v6BuildRoutes(src ospfspf.Source, res *ospfspf.Result) []ospfspf.RouteEntry
 }
 
 // v6PrefixToNetip converts an OSPFv3 prefix (RFC 5340 App A.4.1: prefix length +
-// word-padded address) to a netip.Prefix.
-func v6PrefixToNetip(p ospfv3packet.Prefix) (netip.Prefix, bool) {
+// word-padded address) to a netip.Prefix at the address family's width: 4 bytes for the
+// RFC 5838 IPv4 families (a 0..32-bit prefix in one 32-bit word, §2.7), 16 bytes for IPv6.
+// A prefix length wider than the AF's address rejects the LSA.
+func v6PrefixToNetip(p ospfv3packet.Prefix, af addressFamily) (netip.Prefix, bool) {
 	bits := int(p.Length)
+	if af.isIPv4() {
+		if bits > 32 {
+			return netip.Prefix{}, false
+		}
+		var a [4]byte
+		copy(a[:], p.Address)
+		return netip.PrefixFrom(netip.AddrFrom4(a), bits).Masked(), true
+	}
 	if bits > 128 {
 		return netip.Prefix{}, false
 	}
@@ -248,18 +270,40 @@ func v6PrefixToNetip(p ospfv3packet.Prefix) (netip.Prefix, bool) {
 	return netip.PrefixFrom(netip.AddrFrom16(a), bits).Masked(), true
 }
 
+// v6ForwardingAddr renders an OSPFv3 AS-External/NSSA forwarding address at the AF's address
+// width (RFC 5838 §2.7): an IPv4-unicast/multicast AF carries a 4-byte IPv4 forwarding
+// address in the leading octets of the 128-bit field; every other AF carries a full IPv6
+// address. Benign when the FA is zero, but load-bearing for a peer that sets an IPv4 FA.
+func v6ForwardingAddr(fa [16]byte, af addressFamily) netip.Addr {
+	if af.isIPv4() {
+		var a [4]byte
+		copy(a[:], fa[:4])
+		return netip.AddrFrom4(a)
+	}
+	return netip.AddrFrom16(fa)
+}
+
+// prefixAF returns the address family whose width v6PrefixToNetip must use. A strategy
+// without an engine (direct unit tests) defaults to IPv6-unicast (16-byte).
+func (s v6Strategy) prefixAF() addressFamily {
+	if s.eng == nil {
+		return afIPv6Unicast
+	}
+	return s.eng.af
+}
+
 // ComputeInterArea computes OSPFv3 inter-area routes by reading the area's
 // Inter-Area-Prefix-LSAs (0x2003, RFC 5340 App A.4.10) and Inter-Area-Router-LSAs (0x2004,
 // App A.4.11) through the v6 summary reader; the shared SPF computation handles ABR
 // reachability, metric composition, area-range suppression and border-router selection.
-func (v6Strategy) ComputeInterArea(in ospfspf.InterAreaInput) ([]ospfspf.RouteEntry, []ospfspf.BorderRouterEntry) {
-	return ospfspf.ComputeInterAreaWith(in, v6SummaryReader(in.Source))
+func (s v6Strategy) ComputeInterArea(in ospfspf.InterAreaInput) ([]ospfspf.RouteEntry, []ospfspf.BorderRouterEntry) {
+	return ospfspf.ComputeInterAreaWith(in, v6SummaryReader(in.Source, s.prefixAF()))
 }
 
 // v6SummaryReader decodes the OSPFv3 inter-area summaries an ABR advertises into an area:
 // Inter-Area-Prefix-LSAs carry a network prefix + metric; Inter-Area-Router-LSAs carry a
 // summarized ASBR + metric. Both are area-scoped and address-free (RFC 5340 App A.4.10/11).
-func v6SummaryReader(src ospfspf.Source) ospfspf.SummaryReader {
+func v6SummaryReader(src ospfspf.Source, af addressFamily) ospfspf.SummaryReader {
 	return func(area types.AreaID) []ospfspf.InterAreaSummary {
 		if src == nil {
 			return nil
@@ -283,7 +327,7 @@ func v6SummaryReader(src ospfspf.Source) ospfspf.SummaryReader {
 				if err != nil || uint64(body.Metric) >= ospfspf.LSInfinity {
 					continue
 				}
-				pfx, ok := v6PrefixToNetip(body.Prefix)
+				pfx, ok := v6PrefixToNetip(body.Prefix, af)
 				if !ok {
 					continue
 				}
@@ -310,8 +354,8 @@ func v6SummaryReader(src ospfspf.Source) ospfspf.SummaryReader {
 // RFC 5340 App A.4.7) and, for the attached NSSA areas, NSSA-LSAs (0x2007, App A.4.8) through
 // the v6 external reader; the shared SPF computation handles ASBR / forwarding-address
 // reachability, the E1/E2 cost (RFC 2328 sec 16.4) and the RFC 3101 source-preference selection.
-func (v6Strategy) ComputeExternal(in ospfspf.ExternalInput) []ospfspf.RouteEntry {
-	return ospfspf.ComputeExternalWith(in, v6ExternalReader(in.Source))
+func (s v6Strategy) ComputeExternal(in ospfspf.ExternalInput) []ospfspf.RouteEntry {
+	return ospfspf.ComputeExternalWith(in, v6ExternalReader(in.Source, s.prefixAF()))
 }
 
 // v6ExternalReader decodes an OSPFv3 AS-External-LSA (0x4005) or NSSA-LSA (0x2007) into an
@@ -319,7 +363,7 @@ func (v6Strategy) ComputeExternal(in ospfspf.ExternalInput) []ospfspf.RouteEntry
 // optional 128-bit forwarding address (RFC 5340 App A.4.7/A.4.8 -- the two bodies are
 // identical). For an NSSA-LSA the RFC 3101 sec 2.5 source preference is set from the prefix's
 // P-bit (OptPrefixP); an AS-External is always the Type-5 preference.
-func v6ExternalReader(src ospfspf.Source) ospfspf.ExternalReader {
+func v6ExternalReader(src ospfspf.Source, af addressFamily) ospfspf.ExternalReader {
 	return func(area types.AreaID, h packet.LSAHeader) (ospfspf.ExternalRecord, bool) {
 		isNSSA := h.Type.NSSA()
 		if !h.Type.ASExternal() && !isNSSA {
@@ -337,13 +381,13 @@ func v6ExternalReader(src ospfspf.Source) ospfspf.ExternalReader {
 		if err != nil || uint64(body.Metric) >= ospfspf.LSInfinity {
 			return ospfspf.ExternalRecord{}, false
 		}
-		pfx, ok := v6PrefixToNetip(body.Prefix)
+		pfx, ok := v6PrefixToNetip(body.Prefix, af)
 		if !ok {
 			return ospfspf.ExternalRecord{}, false
 		}
 		var fa netip.Addr
 		if body.HasForwardingAddr {
-			fa = netip.AddrFrom16(body.ForwardingAddr)
+			fa = v6ForwardingAddr(body.ForwardingAddr, af)
 		}
 		pref := ospfspf.ExternalPrefType5
 		if isNSSA {
@@ -407,6 +451,13 @@ func (n v6NextHop) TransitNextHop(_ *ospfspf.Graph, router types.RouterID, _ typ
 		return netip.Addr{}, false
 	}
 	return n.neighbors.AddressOf(router)
+}
+
+// SummaryReader supplies the OSPFv3 inter-area summary decode for the RFC 2328 sec 16.3
+// transit-area pass (the same reader ComputeInterArea uses, including the RFC 5838 address
+// family so the summary prefixes decode for this engine's AF).
+func (s v6Strategy) SummaryReader(src ospfspf.Source) ospfspf.SummaryReader {
+	return v6SummaryReader(src, s.prefixAF())
 }
 
 var (

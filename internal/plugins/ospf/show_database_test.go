@@ -1,6 +1,7 @@
-// VALIDATES: spec-ospf-13 AC-4 -- the database subview filter keeps only LSAs of the
-// requested LS Type, and the subview map covers all six types (router/network/summary/
-// asbr-summary/external/nssa-external).
+// VALIDATES: spec-ospf-13 AC-4 + spec-ospf-ext-1 -- the database subview filter keeps
+// only LSAs of the requested LS Type, and the subview map covers the six base types
+// (router/network/summary/asbr-summary/external/nssa-external) plus the three RFC 5250
+// opaque subviews (opaque-link/opaque-area/opaque-as).
 // PREVENTS: a subview that leaks other LS types or a missing subview mapping.
 package ospf
 
@@ -31,6 +32,9 @@ func TestDatabaseSubviewMapCovers6Types(t *testing.T) {
 		"show ospf database asbr-summary":  "summary-asbr",
 		"show ospf database external":      "as-external",
 		"show ospf database nssa-external": "nssa",
+		"show ospf database opaque-link":   "opaque-link", // Type 9 (RFC 5250)
+		"show ospf database opaque-area":   "opaque-area", // Type 10 (RFC 5250)
+		"show ospf database opaque-as":     "opaque-as",   // Type 11 (RFC 5250)
 	}
 	assert.Equal(t, want, dbSubviewType)
 }

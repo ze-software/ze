@@ -1,0 +1,8 @@
+# Test: OSPFv2 Extended Prefix/Link sub-TLV registration hook (RFC 7684 sec 2, spec-ospf-ext-4).
+#
+# VALIDATES: a downstream consumer registers a sub-TLV codec via registerPrefixSubTLV and a received sub-TLV of that type is dispatched to it; an unknown sub-TLV is skipped without error.
+# PREVENTS: a registered sub-TLV that never reaches its codec, or an unknown sub-TLV crashing decode.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFExtSubTLVHookFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

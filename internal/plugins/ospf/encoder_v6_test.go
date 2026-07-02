@@ -10,7 +10,48 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
 )
+
+// TestAFBitInHelloAndDD pins AC-4/R-8: a multi-AF instance sets the RFC 5838 §2.4 AF-bit in
+// BOTH Hello and DD Options, and a lone default instance (emitAF=false) sets it in neither
+// (preserving the IPv6-base wire bytes, AC-11).
+func TestAFBitInHelloAndDD(t *testing.T) {
+	h := packet.Hello{InterfaceID: 1, HelloInterval: 10, DeadInterval: 40}
+	dd := packet.DBDesc{InterfaceMTU: 1500, Flags: 0x07, DDSequence: 1}
+
+	// emitAF=true -> AF-bit set in Hello and DD.
+	helloWith := v6Encoder{instanceID: 64, emitAF: true}.EncodeHello(types.RouterID{1, 1, 1, 1}, types.AreaID{}, h)
+	got, err := v6Codec{}.DecodeHello(helloWith)
+	if err != nil || !got.AFBit {
+		t.Fatalf("Hello with emitAF: AFBit=%v err=%v, want AF-bit set", got.AFBit, err)
+	}
+	ddWith := v6Encoder{instanceID: 64, emitAF: true}.EncodeDBDesc(types.RouterID{1, 1, 1, 1}, types.AreaID{}, dd)
+	if !ddAFBit(t, ddWith) {
+		t.Error("DD with emitAF: AF-bit not set in DD Options")
+	}
+
+	// emitAF=false -> AF-bit absent in both (default lone IPv6-unicast instance).
+	helloNo := v6Encoder{instanceID: 0, emitAF: false}.EncodeHello(types.RouterID{1, 1, 1, 1}, types.AreaID{}, h)
+	gotNo, _ := v6Codec{}.DecodeHello(helloNo)
+	if gotNo.AFBit {
+		t.Error("Hello without emitAF: AF-bit wrongly set")
+	}
+	ddNo := v6Encoder{instanceID: 0, emitAF: false}.EncodeDBDesc(types.RouterID{1, 1, 1, 1}, types.AreaID{}, dd)
+	if ddAFBit(t, ddNo) {
+		t.Error("DD without emitAF: AF-bit wrongly set")
+	}
+}
+
+// ddAFBit decodes an OSPFv3 DD packet and reports its AF-bit.
+func ddAFBit(t *testing.T, buf []byte) bool {
+	t.Helper()
+	p, err := ospfv3packet.DecodePacket(buf)
+	if err != nil || p.DBDesc == nil {
+		t.Fatalf("DecodePacket(DD): %v", err)
+	}
+	return p.DBDesc.Options.AF()
+}
 
 func TestOSPFv6EncodeHelloRoundTrip(t *testing.T) {
 	var opts types.Options

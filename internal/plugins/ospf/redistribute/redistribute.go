@@ -39,3 +39,13 @@ type ExternalInjector interface {
 	// existed. Returning false (never injected) is not an error.
 	WithdrawExternal(prefix netip.Prefix) (bool, error)
 }
+
+// OptionalInjector is an ExternalInjector whose backing engine may be absent (e.g. an RFC
+// 5838 IPv4-over-OSPFv3 AF that is not configured). injectorFor treats an inactive optional
+// injector as "not present" and falls back to the base injector, so IPv4 redistribution
+// still originates an OSPFv2 Type 5 rather than being silently swallowed (ext-15 review).
+type OptionalInjector interface {
+	ExternalInjector
+	// Active reports whether the injector currently has a backing engine to inject into.
+	Active() bool
+}

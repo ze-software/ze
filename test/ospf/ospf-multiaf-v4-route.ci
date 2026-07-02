@@ -1,0 +1,89 @@
+# Test: IPv4 route over OSPFv3 originates on the IPv4-unicast instance (spec-ospf-ext-15).
+#
+# VALIDATES: spec-ospf-ext-15 AC-8/AC-13 -- with an IPv4-unicast-over-OSPFv3 instance
+# (Instance ID 64) configured and IPv4 redistribution enabled, the daemon runs the
+# IPv4-unicast AF engine so a redistributed IPv4 prefix originates an OSPFv3 AS-External-LSA
+# on that instance (and, in the interop scenario, installs into the IPv4 FIB on the peer).
+# PREVENTS: the IPv4-over-OSPFv3 instance not starting, or IPv4 redistribution being routed
+# to the IPv6-unicast instance instead of the IPv4-unicast one.
+
+# Raw IPv6 sockets + FIB install are Linux-only; the peer-side route install is proven by
+# the ospf-multiaf-v4-frr interop scenario. This single-node smoke test runs under QEMU
+# (authored-pending-QEMU).
+option=skip-os:value=darwin
+
+tmpfs=ospf-multiaf-v4-route.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert the IPv4-unicast-over-OSPFv3 instance runs when IPv4 redistribution is configured."""
+
+import sys
+
+from ze_api import API, runtime_fail, result_json_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    rows = result_json_data(dispatch(api, 'show ospf ipv6'), None) or []
+    v4u = next((r for r in rows if isinstance(r, dict) and r.get('address-family') == 'ipv4-unicast'), None)
+    if v4u is None or v4u.get('instance-id') != 64:
+        runtime_fail(f"IPv4-unicast-over-OSPFv3 instance not running at instance 64: {rows!r}")
+
+    print('OK: IPv4-unicast-over-OSPFv3 instance running for redistribution', file=sys.stderr)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external ospf-multiaf-v4-route {
+		run ./ospf-multiaf-v4-route.run
+		encoder json
+	}
+}
+
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv4-unicast {
+			instance-id 64
+			areas {
+				area 0.0.0.0 {
+					area-type normal
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					network-type point-to-point
+				}
+			}
+		}
+	}
+	redistribute connected {
+		metric 20
+		metric-type type-2
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=OK: IPv4-unicast-over-OSPFv3 instance running for redistribution

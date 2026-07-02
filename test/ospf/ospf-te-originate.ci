@@ -1,0 +1,11 @@
+# Test: OSPFv2 TE LSA origination from config (RFC 3630, spec-ospf-ext-2).
+#
+# VALIDATES: a configured traffic-engineering link originates a Router-Address TE LSA
+# (Instance 0) plus a Link TE LSA via the carrier, both appear in `show ospf database
+# opaque-area`, and the opaque-area view decodes the TE bodies inline.
+# PREVENTS: origination that never reaches the LSDB or an opaque-area view that shows TE
+# LSAs only as raw hex.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFTEOriginateFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

@@ -41,6 +41,158 @@ func v6P2PInterface(area types.AreaID, self, neighbor types.RouterID) ospflsdb.I
 	}
 }
 
+// v6VirtualInterface is a synthetic OSPFv3 virtual-link interface in the backbone with a
+// Full neighbor. InterfaceID 42 is the local virtual-interface ID; the neighbor advertises
+// Interface ID 99.
+func v6VirtualInterface(area types.AreaID, self, neighbor types.RouterID, cost uint16) ospflsdb.InterfaceInfo {
+	return ospflsdb.InterfaceInfo{
+		Name:               "*vlink-0.0.0.1-" + neighbor.String(),
+		AreaID:             area,
+		NetworkType:        ospflsdb.NetworkVirtual,
+		State:              "point-to-point",
+		VirtualTransitArea: types.AreaID{0, 0, 0, 1},
+		Cost:               cost,
+		RouterID:           self,
+		InterfaceID:        42,
+		Neighbors: []ospflsdb.NeighborInfo{{
+			RouterID:    neighbor,
+			Address:     netip.MustParseAddr("2001:db8:cafe::2"),
+			State:       ospflsdb.NeighborStateFull,
+			InterfaceID: 99,
+		}},
+	}
+}
+
+func v6VirtualRecord(t *testing.T, links []ospfv3packet.RouterLink) (ospfv3packet.RouterLink, bool) {
+	t.Helper()
+	for _, l := range links {
+		if l.Type == ospfv3packet.RouterLinkTypeVirtual {
+			return l, true
+		}
+	}
+	return ospfv3packet.RouterLink{}, false
+}
+
+func v6DecodeBackboneRouter(t *testing.T, e *engine, area types.AreaID, router types.RouterID) ospfv3packet.RouterLSA {
+	t.Helper()
+	lsa, ok := e.lsdb.LookupLSA(area, v6RouterKey(router))
+	if !ok {
+		t.Fatalf("Router-LSA not installed")
+	}
+	if !ospfv3packet.VerifyLSAChecksum(lsa.RawBytes) {
+		t.Fatalf("v6 Router-LSA Fletcher checksum invalid")
+	}
+	decoded, err := ospfv3packet.DecodeLSA(lsa.RawBytes)
+	if err != nil {
+		t.Fatalf("DecodeLSA: %v", err)
+	}
+	body, err := decoded.DecodeRouter()
+	if err != nil {
+		t.Fatalf("DecodeRouter: %v", err)
+	}
+	return body
+}
+
+// VALIDATES: spec-ospf-ext-7 AC-9 / R-5 -- a Full virtual link adds a RouterLinkTypeVirtual
+// record (Interface ID, Neighbor Interface ID, Neighbor Router ID, transit metric) to the
+// BACKBONE Router-LSA, WITHOUT the V-bit there (the V-bit belongs to the transit area's
+// Router-LSA per RFC 5340 App A.4.3 / RFC 2328 App A.4.2).
+func TestVirtualRecordInBackboneRouterLSA(t *testing.T) {
+	e := newV6OriginEngine()
+	router := types.RouterID{172, 30, 0, 2}
+	neighbor := types.RouterID{172, 30, 0, 1}
+	opts := ospfv3types.OptV6 | ospfv3types.OptR
+	ifaces := []ospflsdb.InterfaceInfo{v6VirtualInterface(types.BackboneArea, router, neighbor, 25)}
+	if _, ok := e.v6OriginateRouter(types.BackboneArea, router, opts, ifaces, false, true, false, false); !ok {
+		t.Fatalf("v6OriginateRouter returned false")
+	}
+	body := v6DecodeBackboneRouter(t, e, types.BackboneArea, router)
+	if body.Flags&ospfv3packet.RouterFlagV != 0 {
+		t.Fatalf("V-bit must NOT be set on the backbone Router-LSA: flags = %#x", body.Flags)
+	}
+	link, ok := v6VirtualRecord(t, body.Links)
+	if !ok {
+		t.Fatalf("no RouterLinkTypeVirtual record in %+v", body.Links)
+	}
+	if link.NeighborRouterID != ospfv3types.RouterID(neighbor) {
+		t.Fatalf("virtual neighbor = %v, want %v", link.NeighborRouterID, neighbor)
+	}
+	if link.InterfaceID != ospfv3types.InterfaceID(42) || link.NeighborInterfaceID != ospfv3types.InterfaceID(99) {
+		t.Fatalf("virtual interface IDs = (%d,%d), want (42,99)", link.InterfaceID, link.NeighborInterfaceID)
+	}
+}
+
+// VALIDATES: spec-ospf-ext-7 AC-9 -- the V-bit is set in the TRANSIT area's Router-LSA
+// (virtualEndpoint), the signal a far ABR reads to set TransitCapability (RFC 2328 section
+// 16.3); no virtual record appears in the transit-area Router-LSA.
+func TestV6VirtualLinkVBitInTransitArea(t *testing.T) {
+	e := newV6OriginEngine()
+	router := types.RouterID{172, 30, 0, 2}
+	transit := types.AreaID{0, 0, 0, 1}
+	opts := ospfv3types.OptV6 | ospfv3types.OptR
+	// The transit area's Router-LSA is built from its real interfaces (no virtual iface),
+	// with virtualEndpoint=true.
+	realIface := v6P2PInterface(transit, router, types.RouterID{172, 30, 0, 3})
+	if _, ok := e.v6OriginateRouter(transit, router, opts, []ospflsdb.InterfaceInfo{realIface}, false, true, false, true); !ok {
+		t.Fatalf("v6OriginateRouter returned false")
+	}
+	lsa, ok := e.lsdb.LookupLSA(transit, v6RouterKey(router))
+	if !ok {
+		t.Fatalf("transit Router-LSA missing")
+	}
+	decoded, err := ospfv3packet.DecodeLSA(lsa.RawBytes)
+	if err != nil {
+		t.Fatalf("DecodeLSA: %v", err)
+	}
+	body, err := decoded.DecodeRouter()
+	if err != nil {
+		t.Fatalf("DecodeRouter: %v", err)
+	}
+	if body.Flags&ospfv3packet.RouterFlagV == 0 {
+		t.Fatalf("V-bit not set in the transit-area Router-LSA: flags = %#x", body.Flags)
+	}
+	if _, ok := v6VirtualRecord(t, body.Links); ok {
+		t.Fatalf("virtual record leaked into the transit-area Router-LSA: %+v", body.Links)
+	}
+}
+
+// VALIDATES: spec-ospf-ext-7 AC-14 / A-13 -- the advertised virtual-link metric equals the
+// transit-area path cost, never a configured cost.
+func TestVirtualLinkCostEqualsTransitCost(t *testing.T) {
+	e := newV6OriginEngine()
+	router := types.RouterID{172, 30, 0, 2}
+	neighbor := types.RouterID{172, 30, 0, 1}
+	ifaces := []ospflsdb.InterfaceInfo{v6VirtualInterface(types.BackboneArea, router, neighbor, 33)}
+	if _, ok := e.v6OriginateRouter(types.BackboneArea, router, ospfv3types.OptV6|ospfv3types.OptR, ifaces, false, true, false, false); !ok {
+		t.Fatalf("v6OriginateRouter returned false")
+	}
+	body := v6DecodeBackboneRouter(t, e, types.BackboneArea, router)
+	link, ok := v6VirtualRecord(t, body.Links)
+	if !ok {
+		t.Fatalf("no virtual record")
+	}
+	if link.Metric != 33 {
+		t.Fatalf("virtual metric = %d, want the transit cost 33", link.Metric)
+	}
+}
+
+// VALIDATES: spec-ospf-ext-7 AC-5 -- a virtual link whose adjacency is not Full originates
+// no virtual record (the record is withdrawn when the link is down / re-forming).
+func TestVirtualLinkWithdrawnWhenDown(t *testing.T) {
+	e := newV6OriginEngine()
+	router := types.RouterID{172, 30, 0, 2}
+	neighbor := types.RouterID{172, 30, 0, 1}
+	iface := v6VirtualInterface(types.BackboneArea, router, neighbor, 25)
+	iface.Neighbors[0].State = ospflsdb.NeighborStateExchange
+	if _, ok := e.v6OriginateRouter(types.BackboneArea, router, ospfv3types.OptV6|ospfv3types.OptR, []ospflsdb.InterfaceInfo{iface}, false, true, false, false); !ok {
+		t.Fatalf("v6OriginateRouter returned false")
+	}
+	body := v6DecodeBackboneRouter(t, e, types.BackboneArea, router)
+	if _, ok := v6VirtualRecord(t, body.Links); ok {
+		t.Fatalf("virtual record originated for a non-Full link: %+v", body.Links)
+	}
+}
+
 func TestOSPFv6OriginateRouterLSA(t *testing.T) {
 	e := newV6OriginEngine()
 	router := types.RouterID{172, 30, 0, 2}
@@ -49,7 +201,7 @@ func TestOSPFv6OriginateRouterLSA(t *testing.T) {
 	opts := ospfv3types.OptV6 | ospfv3types.OptR
 	ifaces := []ospflsdb.InterfaceInfo{v6P2PInterface(area, router, neighbor)}
 
-	h, ok := e.v6OriginateRouter(area, router, opts, ifaces, false, false, false)
+	h, ok := e.v6OriginateRouter(area, router, opts, ifaces, false, false, false, false)
 	if !ok {
 		t.Fatalf("v6OriginateRouter returned false")
 	}
@@ -99,7 +251,7 @@ func TestOSPFv6OriginateRouterLSA(t *testing.T) {
 	}
 
 	// An unchanged topology must re-originate nothing (idempotent, no needless flood).
-	if _, ok := e.v6OriginateRouter(area, router, opts, ifaces, false, false, false); ok {
+	if _, ok := e.v6OriginateRouter(area, router, opts, ifaces, false, false, false, false); ok {
 		t.Errorf("second v6OriginateRouter re-originated an unchanged Router-LSA")
 	}
 }
@@ -113,7 +265,7 @@ func TestOSPFv6OriginateRouterLSAABRNtBits(t *testing.T) {
 	area := types.AreaID{0, 0, 0, 9}
 	opts := ospfv3types.OptV6 | ospfv3types.OptR | ospfv3types.OptN
 
-	h, ok := e.v6OriginateRouter(area, router, opts, nil, false, true, true)
+	h, ok := e.v6OriginateRouter(area, router, opts, nil, false, true, true, false)
 	if !ok {
 		t.Fatal("v6OriginateRouter returned false")
 	}
@@ -147,7 +299,7 @@ func TestOSPFv6OriginateRouterLSAMaxMetric(t *testing.T) {
 	area := types.BackboneArea
 	ifaces := []ospflsdb.InterfaceInfo{v6P2PInterface(area, router, types.RouterID{172, 30, 0, 1})}
 
-	h, ok := e.v6OriginateRouter(area, router, ospfv3types.OptV6|ospfv3types.OptR, ifaces, true, false, false)
+	h, ok := e.v6OriginateRouter(area, router, ospfv3types.OptV6|ospfv3types.OptR, ifaces, true, false, false, false)
 	if !ok {
 		t.Fatalf("v6OriginateRouter returned false")
 	}
@@ -174,7 +326,7 @@ func TestOSPFv6OriginateRouterLSANoFullNeighbor(t *testing.T) {
 	iface := v6P2PInterface(area, router, types.RouterID{172, 30, 0, 1})
 	iface.Neighbors[0].State = ospflsdb.NeighborStateExchange
 
-	h, ok := e.v6OriginateRouter(area, router, ospfv3types.OptV6|ospfv3types.OptR, []ospflsdb.InterfaceInfo{iface}, false, false, false)
+	h, ok := e.v6OriginateRouter(area, router, ospfv3types.OptV6|ospfv3types.OptR, []ospflsdb.InterfaceInfo{iface}, false, false, false, false)
 	if !ok {
 		t.Fatalf("v6OriginateRouter returned false")
 	}
@@ -244,7 +396,7 @@ func TestOSPFv6OriginateIntraAreaPrefix(t *testing.T) {
 	if len(iap.Prefixes) != 1 {
 		t.Fatalf("prefixes = %d, want 1", len(iap.Prefixes))
 	}
-	gotPfx, ok := v6PrefixToNetip(iap.Prefixes[0])
+	gotPfx, ok := v6PrefixToNetip(iap.Prefixes[0], afIPv6Unicast)
 	if !ok || gotPfx != netip.MustParsePrefix("2001:db8:2::/64") {
 		t.Errorf("prefix = %s, want 2001:db8:2::/64", gotPfx)
 	}
@@ -262,7 +414,7 @@ func TestOSPFv6OriginateFlushesStale(t *testing.T) {
 	area := types.BackboneArea
 	ifaces := []ospflsdb.InterfaceInfo{v6P2PInterface(area, router, types.RouterID{172, 30, 0, 1})}
 
-	if _, ok := e.v6OriginateRouter(area, router, ospfv3types.OptV6|ospfv3types.OptR, ifaces, false, false, false); !ok {
+	if _, ok := e.v6OriginateRouter(area, router, ospfv3types.OptV6|ospfv3types.OptR, ifaces, false, false, false, false); !ok {
 		t.Fatalf("v6OriginateRouter returned false")
 	}
 	p, _ := netipToV6Prefix(netip.MustParsePrefix("2001:db8:2::/64"), 10)
@@ -312,7 +464,7 @@ func TestOSPFv6NetipToV6PrefixRoundTrip(t *testing.T) {
 		if len(p.Address) != p.Length.ByteLen() {
 			t.Errorf("%s: address length = %d, want word-padded %d", cidr, len(p.Address), p.Length.ByteLen())
 		}
-		got, ok := v6PrefixToNetip(p)
+		got, ok := v6PrefixToNetip(p, afIPv6Unicast)
 		if !ok || got != pfx.Masked() {
 			t.Errorf("%s: round-trip = %s, want %s", cidr, got, pfx.Masked())
 		}

@@ -28,12 +28,16 @@ func NewMetric(cost uint32) (Metric, error) {
 	return Metric(cost), nil
 }
 
-// MetricFromBytes decodes a two-octet big-endian interface metric.
+// MetricFromBytes decodes a two-octet big-endian Router-LSA link metric. Unlike
+// NewMetric (which validates a configured interface output cost as 1..65535), the wire
+// metric spans the full 16-bit range: a stub/host-route link legitimately carries cost
+// 0 (RFC 2328 sec 12.4.1.4 point-to-multipoint host route), and FRR emits such links, so
+// the decoder must accept 0 rather than reject the whole LSA.
 func MetricFromBytes(b []byte) (Metric, error) {
 	if len(b) != MetricLen {
 		return 0, ErrWrongLength
 	}
-	return NewMetric(uint32(b[0])<<8 | uint32(b[1]))
+	return Metric(uint32(b[0])<<8 | uint32(b[1])), nil
 }
 
 // DefaultMetric derives the default cost as referenceBandwidth/interfaceBandwidth, floored at 1.

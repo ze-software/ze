@@ -66,6 +66,22 @@ type Path struct {
 	// (Source, Instance) cannot change its eBGP/iBGP class because a peer's
 	// ASN relationship is fixed.
 	IsEBGP bool
+
+	// BackupNextHop is a pre-computed fast-reroute backup next-hop the FIB
+	// programs alongside NextHop as a link-down/backup path (an IP fast-reroute
+	// alternate). It is generic carry-through metadata: an invalid Addr means "no
+	// backup". Like Labels it is EXCLUDED from key() and from best-path
+	// arbitration (arbitration stays AdminDistance then Metric), so a source's
+	// backup can never change which path wins. It IS compared by Equal so a
+	// backup-only change re-programs the FIB (the same contract as Labels: a
+	// change the FIB must observe is in Equal, not in the arbitration key).
+	BackupNextHop netip.Addr
+
+	// BackupRepairLabels is the MPLS repair label stack to impose toward
+	// BackupNextHop (outermost first), for a Segment-Routing repair tunnel
+	// (TI-LFA). Empty for a plain IP backup. Built once per best-path change and
+	// shared, not mutated, exactly like Labels.
+	BackupRepairLabels []uint32
 }
 
 // Valid reports whether p can be selected as a best path. An invalid Path is
@@ -84,7 +100,9 @@ func (p Path) Equal(q Path) bool {
 		p.NextHop == q.NextHop &&
 		p.AdminDistance == q.AdminDistance &&
 		p.Metric == q.Metric &&
-		slices.Equal(p.Labels, q.Labels)
+		p.BackupNextHop == q.BackupNextHop &&
+		slices.Equal(p.Labels, q.Labels) &&
+		slices.Equal(p.BackupRepairLabels, q.BackupRepairLabels)
 }
 
 // key returns the (Source, Instance) identity used to dedup a Path within an

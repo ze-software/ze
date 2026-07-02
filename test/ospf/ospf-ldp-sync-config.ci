@@ -1,0 +1,102 @@
+# Test: OSPFv2 LDP-IGP sync (RFC 5443/6138) per-interface config surface.
+#
+# VALIDATES: spec-ospf-ext-11 -- the per-interface `ldp-sync { enable; holddown; }`
+# container reaches the OSPF YANG schema and in-process verifier: a valid ldp-sync
+# block validates, the holddown boundary (65535) is accepted and out-of-range (65536)
+# is rejected by the YANG uint16 range, and an interface without ldp-sync validates
+# unchanged (the feature is off by default).
+# PREVENTS: the ldp-sync container not being wired into the schema, or the holddown
+# range not being enforced.
+
+# --- Valid ldp-sync on a point-to-point interface. ----------------------------
+stdin=ldpsync-valid:terminator=EOF_VALID
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			network-type point-to-point
+			cost 100
+			ldp-sync {
+				enable true
+				holddown 10
+			}
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ldpsync-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Boundary: holddown 65535 (the 16-bit max) is accepted. -------------------
+stdin=ldpsync-holddown-max:terminator=EOF_MAX
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			ldp-sync {
+				enable true
+				holddown 65535
+			}
+		}
+	}
+}
+EOF_MAX
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ldpsync-holddown-max
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Boundary: holddown 65536 is out of range (YANG uint16 range 0..65535). ----
+stdin=ldpsync-holddown-over:terminator=EOF_OVER
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			ldp-sync {
+				enable true
+				holddown 65536
+			}
+		}
+	}
+}
+EOF_OVER
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ldpsync-holddown-over
+expect=exit:code=1
+expect=stdout:contains=holddown
+
+# --- An interface without ldp-sync validates unchanged (feature off by default). --
+stdin=ldpsync-absent:terminator=EOF_ABSENT
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			cost 5
+		}
+	}
+}
+EOF_ABSENT
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ldpsync-absent
+expect=exit:code=0
+expect=stdout:contains=configuration valid

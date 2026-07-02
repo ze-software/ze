@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-ospf-0-umbrella.md (delivered) |
 | Phase | - |
-| Updated | 2026-06-24 |
+| Updated | 2026-07-01 |
 
 ## Post-Compaction Recovery
 
@@ -191,14 +191,14 @@ intact.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The codec already round-trips opaque LSAs (9/10/11) verbatim and `VerifyChecksum` validates the Fletcher checksum unchanged | `packet/lsa.go` `WriteTo` re-emits `RawBytes`; `lsa_opaque.go`; `DecodeLSAHeader` accepts `Known()` types | the carrier must add codec work; scope creep | `TestOpaqueLSARoundTrip`, decode an FRR opaque-LSA capture | unvalidated |
-| A-2 | The three opaque scopes map onto the existing link / per-area / (new) AS-wide stores with no new LSDB key type | `lsdb.go` `dbForLocked`, `link_scope.go` Type-8 precedent | a new key/store abstraction is needed; larger change | `TestOpaqueScopeRouting` (9->link, 10->area, 11->as-opaque) | unvalidated |
-| A-3 | `OriginateSelf` (area/AS) and `OriginateLinkSelf` (link) can originate an opaque LSA via a `SelfLSAEncoder` without new sequencing/flooding code | `origination.go` `OriginateSelf`/`SelfLSAEncoder`; `OriginateExternal` precedent | a new origination path is needed | `TestOpaqueOriginateArea`, `TestOpaqueOriginateAS`, `TestOpaqueOriginateLink` | unvalidated |
-| A-4 | Per-neighbour DD Options already carry through to a structure flooding can read (so the O-bit gate is a read, not new plumbing) | `neighbor/dd.go` `n.Options = dd.Options`; `NeighborInfo` in `flooding.go` | new neighbour->flooding plumbing for capability | `TestOpaqueFloodOnlyToOpaqueNeighbor` | unvalidated |
-| A-5 | Type-11 originator reachability is available from the SPF route table without recomputation (reused from Type-5 handling) | umbrella "Route preference"; `spf/` external route computation | the §5 gate needs new reachability tracking | `TestOpaqueType11UnreachableOriginatorNotUsable` | unvalidated |
-| A-6 | Setting `OptionO` in DD does not break adjacency with non-opaque peers (the O-bit is not part of the Hello E/N match) | `iface.go` `expectedOptionsLocked` checks only E and N/P; §3.1 "ignore O outside DD" | adjacencies fail against legacy peers; interop regression | `ospf-p2p-frr` still forms full adjacency; new `ospf-opaque-frr` interop | unvalidated |
-| A-7 | `IsOpaque()` and `OptionO` as defined are sufficient; no types-leaf change needed | `lstype.go`, `options.go` | a types-leaf edit widens the blast radius | package builds; `IsOpaque()` covers 9/10/11 | unvalidated |
-| A-8 | Opaque LSAs must never enter SPF; the existing SPF graph build ignores types outside 1-5/7 | umbrella ("opaque LSAs are not SPF vertices"); §3 | opaque bodies corrupt the topology graph | `TestOpaqueLSANotInSPFGraph` | unvalidated |
+| A-1 | The codec already round-trips opaque LSAs (9/10/11) verbatim and `VerifyChecksum` validates the Fletcher checksum unchanged | `packet/lsa.go` `WriteTo` re-emits `RawBytes`; `lsa_opaque.go`; `DecodeLSAHeader` accepts `Known()` types | the carrier must add codec work; scope creep | `TestOpaqueLSARoundTrip`, decode an FRR opaque-LSA capture | confirmed |
+| A-2 | The three opaque scopes map onto the existing link / per-area / (new) AS-wide stores with no new LSDB key type | `lsdb.go` `dbForLocked`, `link_scope.go` Type-8 precedent | a new key/store abstraction is needed; larger change | `TestOpaqueScopeRouting` (9->link, 10->area, 11->as-opaque) | confirmed |
+| A-3 | `OriginateSelf` (area/AS) and `OriginateLinkSelf` (link) can originate an opaque LSA via a `SelfLSAEncoder` without new sequencing/flooding code | `origination.go` `OriginateSelf`/`SelfLSAEncoder`; `OriginateExternal` precedent | a new origination path is needed | `TestOpaqueOriginateArea`, `TestOpaqueOriginateAS`, `TestOpaqueOriginateLink` | confirmed |
+| A-4 | Per-neighbour DD Options already carry through to a structure flooding can read (so the O-bit gate is a read, not new plumbing) | `neighbor/dd.go` `n.Options = dd.Options`; `NeighborInfo` in `flooding.go` | new neighbour->flooding plumbing for capability | `TestOpaqueFloodOnlyToOpaqueNeighbor` | broken (see Mistake Log) |
+| A-5 | Type-11 originator reachability is available from the SPF route table without recomputation (reused from Type-5 handling) | umbrella "Route preference"; `spf/` external route computation | the §5 gate needs new reachability tracking | `TestOpaqueType11UnreachableOriginatorNotUsable` | confirmed |
+| A-6 | Setting `OptionO` in DD does not break adjacency with non-opaque peers (the O-bit is not part of the Hello E/N match) | `iface.go` `expectedOptionsLocked` checks only E and N/P; §3.1 "ignore O outside DD" | adjacencies fail against legacy peers; interop regression | `ospf-p2p-frr` still forms full adjacency; new `ospf-opaque-frr` interop | confirmed |
+| A-7 | `IsOpaque()` and `OptionO` as defined are sufficient; no types-leaf change needed | `lstype.go`, `options.go` | a types-leaf edit widens the blast radius | package builds; `IsOpaque()` covers 9/10/11 | confirmed |
+| A-8 | Opaque LSAs must never enter SPF; the existing SPF graph build ignores types outside 1-5/7 | umbrella ("opaque LSAs are not SPF vertices"); §3 | opaque bodies corrupt the topology graph | `TestOpaqueLSANotInSPFGraph` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -495,10 +495,12 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| A-4: per-neighbour DD Options already carry through to a structure flooding reads, so the O-bit gate is a pure read | `neighbor.FloodNeighbor`, `neighbor.Snapshot`, and `lsdb.NeighborInfo` did NOT carry Options; only `Neighbor.Options` (recorded at ExStart) held it | pre-implementation audit of `neighbor/table.go` `FloodNeighbors` and `flooding.go` `NeighborInfo` | new plumbing added: `OpaqueCapable bool` threaded `Neighbor.Options -> FloodNeighbor.OpaqueCapable -> NeighborInfo.OpaqueCapable` (also surfaced in `Snapshot`); the approved Files-to-Modify already listed these edits, so no design change |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
 |----------|---------------|-------------|
+| (none) | | |
 
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
@@ -539,16 +541,21 @@ Add `// RFC 5250 Section X.Y: "<quoted requirement>"` above the enforcing code:
 ## Implementation Summary
 
 ### What Was Implemented
-- [filled at implementation time]
+- Codec: `packet.OpaqueType()`/`OpaqueID()` accessors + `OpaqueTypeOf`/`OpaqueIDOf`/`OpaqueLinkStateID` (LS-ID split); `packet/opaque_tlv.go` (4-byte-aligned TLV builder + zero-copy bound-checked iterator).
+- LSDB: new AS-wide opaque store (`asOpaque`) with scope routing in `dbForLocked`/`dbForReadLocked`, `MaxOpaqueASLSAs` cap; `isLinkLSAType` broadened to Type 9; §3.1 discards (Type 11 stub/NSSA via `shouldDropByArea`, Type 9 link containment); per-neighbour O-bit gate in `floodExcept`/`floodLink`; opaque-scope `eligibleInterface`; opaque delivery hook (`SetOpaqueDelivery`/`deliverOpaqueOnNewer`); `OriginateOpaque`; `Summary` and aging (`Tick`/`RefreshSelf`) include the AS-opaque store.
+- Neighbor: `FloodNeighbor.OpaqueCapable` + `Snapshot.OpaqueCapable` from `n.Options.Has(OptionO)`; O-bit set in outgoing DD via `neighborInterfaceConfig` when `opaque` enabled.
+- Engine: `opaque_registry.go` (`RegisterOpaqueConsumer`, `OpaqueScope`, callback types, duplicate/invalid-scope rejection, panic-recover wrapper); `opaque.go` (consumer origination trigger, reception delivery, §5 reachability seam, 5 `ze_ospf_opaque_*` metrics); `spf.Computer.RouterReachable` (§5, reuses ASBR reachability, read-only, opaque never a vertex).
+- Config/CLI: `opaque` boolean YANG leaf (default false) + `config.go` parse; `show ospf database opaque-link|opaque-area|opaque-as` (YANG + RPC + dispatch + subview filter).
 
 ### Bugs Found/Fixed
-- [filled at implementation time]
+- Pre-existing: Type-11 opaque LSAs (no scope bits, `ASExternal()` false) routed to the per-area store; now routed to the dedicated AS-wide opaque store (R-1).
 
 ### Documentation Updates
-- [filled at implementation time]
+- `docs/guide/ospf.md` (opaque section + command list), `docs/guide/command-reference.md` (opaque subviews), `docs/architecture/wire/ospf.md` (opaque LSA, LS-ID split, TLV helpers, DD O-bit), `rfc/short/rfc5250.md` (scope note + compliance checklist flipped), `docs/DESIGN.md` (interop scenario count 63->64).
 
 ### Deviations from Plan
-- [filled at implementation time]
+- A-4 was broken (see Mistake Log): the O-bit gate required new `OpaqueCapable` plumbing, not a pure read. The approved Files-to-Modify already covered these edits, so no scope change.
+- The `ospf-opaque-decode` user story is covered by a codec-level functional test (`TestOSPFOpaqueDecodeFunctional`); no new `ze` decode CLI verb was added (none was in Files-to-Modify).
 
 ## Implementation Audit
 
@@ -559,44 +566,84 @@ Add `// RFC 5250 Section X.Y: "<quoted requirement>"` above the enforcing code:
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | done | `TestOpaqueConsumerRegistered`, `TestOpaqueConsumerDuplicateRejected` | registry stores; duplicate type + invalid scope rejected |
+| AC-2 | done | `TestOpaqueScopeRouting`, `TestOpaqueType9WrongInterfaceDiscarded` | Type 9 -> link store, link-local containment |
+| AC-3 | done | `TestOpaqueScopeRouting` | Type 10 -> per-area store (area-bound install + eligibleInterface) |
+| AC-4 | done | `TestOpaqueScopeRouting`, `TestOpaqueType11StubDiscarded` | Type 11 -> AS-opaque store; discarded on/into stub/NSSA |
+| AC-5 | done | `TestOpaqueFloodOnlyToOpaqueNeighbor` | O-bit per-neighbour flood gate |
+| AC-6 | done | `TestDDSetsOpaqueBit`, `TestOpaqueBitIgnoredOutsideDD` | O set in DD; ignored in Hello |
+| AC-7 | done | `TestOpaqueLinkStateIDSplit` | high byte = type, low 24 = id, both ways |
+| AC-8 | done | `TestOpaqueOriginate{Area,AS,Link}`, `TestOpaqueOriginateIdempotent` | originate per scope; idempotent |
+| AC-9 | done | `TestOpaqueWithdrawFlushes` | withdraw MaxAge-flushes via purge path |
+| AC-10 | done | `TestOpaqueDeliveryOnNewerOnly` | OnReceive on Newer only |
+| AC-11 | done | `TestOpaqueType11UnreachableOriginatorNotUsable`, `TestOpaqueType10AlwaysReachable` | §5 reachability flag |
+| AC-12 | done | `TestUnregisteredOpaqueReflooded` | unregistered stored + reflooded, not delivered |
+| AC-13 | done | `TestOpaqueTLVAlignment` | TLV 4-byte pad + iterator round-trip 0..7 |
+| AC-14 | done | `TestOpaqueLSANotInSPFGraph` | opaque never an SPF vertex |
+| AC-15 | done | `TestOpaqueConsumerPanicIsolated` | consumer panic recovered + counted |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|-----------|-------|
+| `TestOpaqueLinkStateIDSplit` | pass | `packet/lsa_opaque_test.go` | |
+| `TestOpaqueLSARoundTrip` | pass | `packet/lsa_opaque_test.go` | |
+| `TestOpaqueTLVAlignment` | pass | `packet/opaque_tlv_test.go` | |
+| `TestOpaqueTLVIteratorMalformed` | pass | `packet/opaque_tlv_test.go` | + `TestOpaqueTLVMultipleRoundTrip` |
+| `TestOpaqueScopeRouting` | pass | `lsdb/opaque_scope_test.go` | |
+| `TestOpaqueType9WrongInterfaceDiscarded` | pass | `lsdb/opaque_scope_test.go` | |
+| `TestOpaqueType11StubDiscarded` | pass | `lsdb/opaque_scope_test.go` | |
+| `TestOpaqueFloodOnlyToOpaqueNeighbor` | pass | `lsdb/opaque_flood_test.go` | |
+| `TestOpaqueOriginate{Area,AS,Link}` | pass | `lsdb/opaque_originate_test.go` | |
+| `TestOpaqueOriginateIdempotent` | pass | `lsdb/opaque_originate_test.go` | |
+| `TestOpaqueWithdrawFlushes` | pass | `lsdb/opaque_originate_test.go` | |
+| `TestOpaqueDeliveryOnNewerOnly` | pass | `lsdb/opaque_receive_test.go` | |
+| `TestUnregisteredOpaqueReflooded` | pass | `lsdb/opaque_receive_test.go` | |
+| `TestOpaqueType11UnreachableOriginatorNotUsable` | pass | `opaque_reachability_test.go` | + `TestOpaqueType10AlwaysReachable` |
+| `TestOpaqueConsumerRegistered` / `TestOpaqueConsumerDuplicateRejected` | pass | `opaque_registry_test.go` | |
+| `TestOpaqueConsumerPanicIsolated` | pass | `opaque_registry_test.go` | |
+| `TestDDSetsOpaqueBit` / `TestOpaqueBitIgnoredOutsideDD` | pass | `neighbor/dd_opaque_test.go` | |
+| `TestOpaqueLSANotInSPFGraph` | pass | `spf/opaque_exclusion_test.go` | |
+| `TestOSPFOpaque{Register,Originate,Receive,Decode,Scope}Functional` | pass | `opaque_functional_test.go` | back the 5 `.ci` |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| Files to Modify (12) | done | packet/lsa_opaque.go, lsdb/{lsdb,link_scope,flooding,origination,aging}.go, neighbor/{neighbor,table,dd}.go, instance.go, config.go, register.go, cmd_show.go, show_database.go, yang/{conf,cmd} |
+| Files to Create (all) | done | packet/opaque_tlv.go, lsdb/opaque_as.go, opaque_registry.go, opaque.go, all unit tests, 5 `.ci`, `ospf-opaque-frr` interop |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 15 ACs, ~20 unit tests, 5 functional `.ci`, 1 interop scenario
+- **Done:** all 15 ACs; all unit + functional tests pass; interop authored (Linux/QEMU-only, not run on darwin)
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** A-4 broken (new OpaqueCapable plumbing); decode user story covered at codec level (Deviations)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Scope-correct flooding for Type 9/10/11 | functional + interop | `ospf-opaque-scope.ci`, `ospf-opaque-frr` |
-| Registration API for consumers | unit + functional | `TestOpaqueConsumerRegistered`, `ospf-opaque-register.ci` |
-| O-bit negotiation gates opaque flooding | unit + interop | `TestOpaqueFloodOnlyToOpaqueNeighbor`, `ospf-opaque-frr` |
-| Verbatim re-flood of unregistered opaque LSAs | unit | `TestUnregisteredOpaqueReflooded` |
-| §5 Type-11 reachability gate | unit | `TestOpaqueType11UnreachableOriginatorNotUsable` |
+| Scope-correct flooding for Type 9/10/11 | functional + interop | `ospf-opaque-scope.ci` (TestOSPFOpaqueScopeFunctional PASS); `ospf-opaque-frr` (authored, QEMU-only) |
+| Registration API for consumers | unit + functional | `TestOpaqueConsumerRegistered` PASS, `ospf-opaque-register.ci` (TestOSPFOpaqueRegisterFunctional PASS) |
+| O-bit negotiation gates opaque flooding | unit + interop | `TestOpaqueFloodOnlyToOpaqueNeighbor` PASS, `TestDDSetsOpaqueBit` PASS; `ospf-opaque-frr` (authored, QEMU-only) |
+| Verbatim re-flood of unregistered opaque LSAs | unit | `TestUnregisteredOpaqueReflooded` PASS |
+| §5 Type-11 reachability gate | unit | `TestOpaqueType11UnreachableOriginatorNotUsable` PASS |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE |  | file:line |  |
+| 1 | NOTE | `ze_ospf_lsdb_lsas` reported link/opaque-AS counts under an area/"as" label pre-fix | `lsdb/lsdb.go` publishSizeMetricLocked | added an opaque-AS branch; link stays consistent with the Type-8 precedent |
+| 2 | NOTE | ASOpaque JSON tag is kebab (`as-opaque`) while sibling `as_external` is snake | `lsdb/lsdb.go` Snapshot | new field follows the enforced kebab rule (json-format hook); pre-existing snake tags grandfathered |
+| 3 | NOTE | interop `ospf-opaque-frr` depends on FRR `mpls-te` originating a Type-10 opaque LSA | `test/interop/scenarios/ospf-opaque-frr/frr.conf` | check.py falls back to the O-bit-adjacency assertion if FRR originates none |
 
 ### Fixes applied
--
+- Broadened `publishSizeMetricLocked`/`publishAllSizeMetrics` to count the AS-opaque store.
+- Gated `linkLocalFromRaw` rendering to Type-8 so a Type-9 opaque body is not misread as a link-local address.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | 0 BLOCKER, 0 ISSUE | - | - |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
@@ -607,22 +654,43 @@ Add `// RFC 5250 Section X.Y: "<quoted requirement>"` above the enforcing code:
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/plugins/ospf/opaque_registry.go` | yes | `grep -rln RegisterOpaqueConsumer internal/plugins/ospf` |
+| `internal/plugins/ospf/opaque.go` | yes | 5 `ze_ospf_opaque_*` series registered here |
+| `internal/plugins/ospf/lsdb/opaque_as.go` | yes | AS-opaque store + OriginateOpaque |
+| `internal/plugins/ospf/packet/opaque_tlv.go` | yes | TLV builder + iterator |
+| `test/ospf/ospf-opaque-*.ci` (5) | yes | `ls test/ospf/ospf-opaque-*.ci` |
+| `test/interop/scenarios/ospf-opaque-frr/` | yes | ze.conf, frr.conf, check.py |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1..15 | all opaque unit tests pass | `go test ./internal/plugins/ospf/... -run Opaque` PASS |
+| AC-7/13 | LS-ID split + TLV align | `go test ./internal/plugins/ospf/packet -run Opaque` PASS |
+| AC-6 | DD O-bit | `go test ./internal/plugins/ospf/neighbor -run TestDDSetsOpaqueBit` PASS |
+| metrics | 5 series registered | `grep -rln ze_ospf_opaque_ internal/plugins/ospf`; `TestOSPFMetricsNamespaced` PASS |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| RegisterOpaqueConsumer -> engine discovery | `ospf-opaque-register.ci` | yes (TestOSPFOpaqueRegisterFunctional) |
+| OnOriginate -> OriginateSelf -> install + flood | `ospf-opaque-originate.ci` | yes (TestOSPFOpaqueOriginateFunctional) |
+| ReceiveUpdate -> scope route + OnReceive | `ospf-opaque-receive.ci` | yes (TestOSPFOpaqueReceiveFunctional) |
+| DD O-bit set when opaque enabled | (interop) | authored; unit `TestDDSetsOpaqueBit` PASS |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1,A-2,A-3,A-5,A-6,A-7,A-8 | confirmed | tests above |
+| A-4 | broken | new OpaqueCapable plumbing (Mistake Log) |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| ospf.md opaque section + command list | `docs/guide/ospf.md` | `make ze-doc-test` PASS |
+| command-reference opaque subviews | `docs/guide/command-reference.md` | `make ze-doc-test` PASS |
+| wire/ospf.md opaque LSA + O-bit | `docs/architecture/wire/ospf.md` | anchors valid |
+| rfc5250 compliance checklist flipped | `rfc/short/rfc5250.md` | ze-doc-test PASS |
+| interop count 63->64 | `docs/DESIGN.md` | ze-doc-drift PASS |
 
 ## Checklist
 

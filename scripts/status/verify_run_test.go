@@ -323,6 +323,31 @@ func TestExabgpVerifyModeSummaryUsesNewlinesAndExactReproducers(t *testing.T) {
 	}
 }
 
+// VALIDATES: stagesForMode's stage list is the ACTUAL source of truth for
+// `make ze-verify`/`ze-verify-changed` (Makefile:263-270 invoke this program,
+// not the Makefile's own _ze-verify-impl/_ze-verify-changed-impl targets,
+// which have zero callers anywhere in the repo and had silently drifted out
+// of sync with this list -- ze-tier-check, ze-iface-resolution-check, and
+// ze-plugin-boundary-check were all listed in the dead _impl targets but
+// never actually ran).
+// PREVENTS: a verification gate added to _ze-verify-impl/_ze-verify-changed-impl
+// (the natural-looking place, since ze-tier-check/ze-iface-resolution-check
+// already lived there) silently never executing under `make ze-verify`.
+func TestStagesForModeIncludesStaticAnalysisGates(t *testing.T) {
+	requiredStages := []string{"ze-tier-check", "ze-iface-resolution-check", "ze-plugin-boundary-check"}
+	for _, mode := range []string{"ze-verify", "ze-verify-changed"} {
+		names := map[string]bool{}
+		for _, st := range stagesForMode(mode, "make") {
+			names[st.Name] = true
+		}
+		for _, want := range requiredStages {
+			if !names[want] {
+				t.Errorf("stagesForMode(%q) missing stage %q", mode, want)
+			}
+		}
+	}
+}
+
 func fixedNow() time.Time {
 	return time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
 }

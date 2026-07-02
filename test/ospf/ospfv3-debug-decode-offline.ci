@@ -1,0 +1,11 @@
+# Test: OSPFv3 offline LSA decode.
+#
+# VALIDATES: spec-ospf-ext-14 -- the offline `ze ospf-decode --v3` path renders the scope-aware LS Type + header + typed/generic body with no running engine (AC-21).
+# PREVENTS: a regression in the OSPF debug/introspection surface.
+#
+# Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/cli -run 'TestV3OfflineDecode' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=TestV3OfflineDecode
+expect=stdout:contains=PASS

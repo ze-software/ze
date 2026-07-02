@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 77 rules
+Total: 78 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -71,6 +71,7 @@ Total: 77 rules
 | Pipe Completeness | Every command that produces output MUST support all pipe operators. | `ai/rules/pipe-completeness.md` |
 | Planning | Complete before implementing any non-trivial feature. | `ai/rules/planning.md` |
 | Plugin Design | All plugins MUST follow these patterns. | `ai/rules/plugin-design.md` |
+| Plugin Process Boundary | Writing or reviewing a plugin that calls another in-process package's plain exported function directly (not through DirectBridge/DispatchCommand) to register a callback, fetch a live backend handle,... | `ai/rules/plugin-process-boundary.md` |
 | Plugin Self-Containment (BLOCKING) | This is the load-bearing invariant of the registration architecture. It is the "delete the folder" test from `ai/rules/plugin-design.md` (Proximity Principle), stated for the full user-facing... | `ai/rules/plugin-self-containment.md` |
 | Ze Project Knowledge | One-line lesson + rule pointer. Full root-cause in the linked learned summary. | `ai/rules/project-knowledge.md` |
 | QEMU Integration Testing | Linux-only code (`//go:build linux`) MUST ship with integration tests that run in the QEMU Alpine VM. "Needs real hardware" is never a valid reason to skip tests. Virtual substitutes exist for every... | `ai/rules/qemu-testing.md` |

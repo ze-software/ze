@@ -1,0 +1,8 @@
+# Test: OSPFv2 Extended Link LSA origination (RFC 7684 sec 3.1, spec-ospf-ext-4).
+#
+# VALIDATES: enabling extended-link originates exactly one Opaque Type 8 area LSA per point-to-point link whose Link Type/ID/Data mirror the Router-LSA link.
+# PREVENTS: an Extended Link LSA FRR cannot correlate to a Router-LSA link, or more than one per LSA.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFExtLinkOriginateFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

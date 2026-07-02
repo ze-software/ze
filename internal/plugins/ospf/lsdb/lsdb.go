@@ -21,6 +21,11 @@ const MaxLSAsPerArea = 16384
 // the public API in a test -- can be exercised by lowering it; production never mutates it.
 var MaxASExternalLSAs = 16384
 
+// MaxOpaqueASLSAs bounds the AS-wide Type 11 opaque store against a hostile flood of
+// distinct opaque keys (RFC 5250 §8 DoS bound). A var for the same test reason as
+// MaxASExternalLSAs; production never mutates it.
+var MaxOpaqueASLSAs = 16384
+
 type areaDB struct {
 	entries map[types.LSAKey]*Entry
 	sorted  []types.LSAKey
@@ -45,9 +50,13 @@ type LSDB struct {
 
 	areas      map[types.AreaID]*areaDB
 	asExternal *areaDB
-	links      map[string]*areaDB
-	linkAreas  map[string]types.AreaID
-	areaTypes  map[types.AreaID]string
+	// asOpaque is the AS-wide (Type 11) opaque-LSA store, parallel to asExternal.
+	// RFC 5250 §3.1: Type-11 opaque LSAs flood AS-wide like Type-5 AS-External-LSAs, so
+	// they live once in a single AS-wide store, not per-area.
+	asOpaque  *areaDB
+	links     map[string]*areaDB
+	linkAreas map[string]types.AreaID
+	areaTypes map[types.AreaID]string
 	// nssaTranslator[area] is true when this router advertises the RFC 3101 Nt-bit for
 	// that NSSA (it is an attached NSSA whose translate role is not `never`); combined
 	// with ABR status at origination time to set the Router-LSA Nt-bit.
@@ -60,6 +69,17 @@ type LSDB struct {
 	tx         TxFunc
 	encoder    PacketEncoder
 	onChange   func(types.AreaID)
+	// selfFlushSuppress (OSPF Graceful Restart, RFC 3623 sec 2) suppresses the fight-back
+	// flush of received self-LSAs while the restarting router is in-restart, so its
+	// pre-restart LSAs are kept. contentChangeObserver notifies OSPF GR of each content-
+	// changing install for the helper's sec 3.2 strict-LSA-checking exit. Both nil until the
+	// engine wires them; the store/flood path never depends on them.
+	selfFlushSuppress     func() bool
+	contentChangeObserver func(types.AreaID, types.LSType)
+	// opaqueDelivery is invoked (outside the lock) on every newer opaque-LSA install so
+	// the engine can deliver it to the registered consumer (RFC 5250 §3). nil until the
+	// engine wires it; the store/flood path never depends on it.
+	opaqueDelivery func(OpaqueDelivery)
 
 	retransmit  map[NeighborKey]map[types.LSAKey]*retransmitEntry
 	delayedAck  map[string]map[types.LSAKey]packet.LSAHeader
@@ -103,6 +123,7 @@ func New(now func() time.Time) *LSDB {
 	return &LSDB{
 		areas:            make(map[types.AreaID]*areaDB),
 		asExternal:       newAreaDB(),
+		asOpaque:         newAreaDB(),
 		links:            make(map[string]*areaDB),
 		linkAreas:        make(map[string]types.AreaID),
 		areaTypes:        make(map[types.AreaID]string),
@@ -221,6 +242,42 @@ func (d *LSDB) notifyChange(area types.AreaID) {
 	}
 }
 
+// SetSelfFlushSuppress wires the OSPF Graceful Restart self-flush suppression predicate
+// (RFC 3623 sec 2): while it returns true, a received self-originated LSA the restarting
+// router holds no local record of is NOT fight-back-flushed; it is accepted as valid so the
+// router keeps its pre-restart LSAs across the restart.
+func (d *LSDB) SetSelfFlushSuppress(fn func() bool) {
+	d.mu.Lock()
+	d.selfFlushSuppress = fn
+	d.mu.Unlock()
+}
+
+// selfFlushSuppressed reports whether the GR self-flush suppression is active.
+func (d *LSDB) selfFlushSuppressed() bool {
+	d.mu.RLock()
+	fn := d.selfFlushSuppress
+	d.mu.RUnlock()
+	return fn != nil && fn()
+}
+
+// SetContentChangeObserver wires an observer invoked (outside the lock) on every content-
+// changing (Newer) LSA install with the changed LSA's area and type. OSPF Graceful Restart
+// uses it to drive the helper's RFC 3623 sec 3.2 strict-LSA-checking exit.
+func (d *LSDB) SetContentChangeObserver(fn func(types.AreaID, types.LSType)) {
+	d.mu.Lock()
+	d.contentChangeObserver = fn
+	d.mu.Unlock()
+}
+
+func (d *LSDB) notifyContentChange(area types.AreaID, lsType types.LSType) {
+	d.mu.RLock()
+	fn := d.contentChangeObserver
+	d.mu.RUnlock()
+	if fn != nil {
+		fn(area, lsType)
+	}
+}
+
 // SetMetrics registers the OSPF LSDB/flooding series owned by spec ospf-7.
 func (d *LSDB) SetMetrics(reg metrics.Registry) {
 	if reg == nil {
@@ -239,18 +296,32 @@ func (d *LSDB) SetMetrics(reg metrics.Registry) {
 	d.publishAllSizeMetrics()
 }
 
+// dbForLocked routes an LSA key to its store by flooding scope. RFC 5250 §3.1: a
+// Type-11 opaque LSA is AS-wide (its own store, parallel to Type-5 AS-External); a
+// Type-10 opaque LSA is area-scoped (the per-area store, the default branch); a Type-9
+// opaque LSA is link-scoped and never reaches here -- it routes through installLink like
+// the OSPFv3 Type-8 Link-LSA. Type-11 has no scope bits, so ASExternal() is false for it
+// and the explicit opaque-AS branch must precede the default per-area routing.
 func (d *LSDB) dbForLocked(area types.AreaID, key types.LSAKey) *areaDB {
-	if key.Type.ASExternal() {
+	switch {
+	case key.Type == types.LSTypeOpaqueAS:
+		return d.asOpaque
+	case key.Type.ASWide():
 		return d.asExternal
+	default:
+		return d.areaForLocked(area)
 	}
-	return d.areaForLocked(area)
 }
 
 func (d *LSDB) dbForReadLocked(area types.AreaID, key types.LSAKey) *areaDB {
-	if key.Type.ASExternal() {
+	switch {
+	case key.Type == types.LSTypeOpaqueAS:
+		return d.asOpaque
+	case key.Type.ASWide():
 		return d.asExternal
+	default:
+		return d.areas[area]
 	}
-	return d.areas[area]
 }
 
 func (d *LSDB) areaTypeLocked(area types.AreaID) string {
@@ -328,7 +399,10 @@ func (d *LSDB) installLocked(area types.AreaID, raw []byte, h packet.LSAHeader, 
 		return installResult{Freshness: Newer, Stored: true, Entry: entry, Previous: existing}, true
 	}
 	limit := MaxLSAsPerArea
-	if key.Type.ASExternal() {
+	switch {
+	case key.Type == types.LSTypeOpaqueAS:
+		limit = MaxOpaqueASLSAs
+	case key.Type.ASWide():
 		limit = MaxASExternalLSAs
 	}
 	if len(store.entries) >= limit {
@@ -391,7 +465,7 @@ func (d *LSDB) noteArrivalLocked(area types.AreaID, key types.LSAKey, now time.T
 func (d *LSDB) Lookup(area types.AreaID, key types.LSAKey) (packet.LSAHeader, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	if key.Type.ASExternal() && shouldDropByArea(d.areaTypeLocked(area), key.Type) {
+	if key.Type.ASWide() && shouldDropByArea(d.areaTypeLocked(area), key.Type) {
 		return packet.LSAHeader{}, false
 	}
 	store := d.dbForReadLocked(area, key)
@@ -409,7 +483,7 @@ func (d *LSDB) Lookup(area types.AreaID, key types.LSAKey) (packet.LSAHeader, bo
 func (d *LSDB) LookupLSA(area types.AreaID, key types.LSAKey) (packet.LSA, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	if key.Type.ASExternal() && shouldDropByArea(d.areaTypeLocked(area), key.Type) {
+	if key.Type.ASWide() && shouldDropByArea(d.areaTypeLocked(area), key.Type) {
 		return packet.LSA{}, false
 	}
 	store := d.dbForReadLocked(area, key)
@@ -424,16 +498,24 @@ func (d *LSDB) LookupLSA(area types.AreaID, key types.LSAKey) (packet.LSA, bool)
 }
 
 // Summary returns sorted LSA headers visible to the given area. Type 5 AS-wide
-// LSAs are appended after area-scoped entries.
+// LSAs, then Type 11 AS-wide opaque LSAs, are appended after area-scoped entries.
+// Type 10 opaque LSAs already live in the per-area store, so they appear in the
+// area-scoped section; Type 9 opaque LSAs are link-scoped and summarized per interface.
 func (d *LSDB) Summary(area types.AreaID) []packet.LSAHeader {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	now := d.now()
 	areaDB := d.areas[area]
 	includeExternal := !shouldDropByArea(d.areaTypeLocked(area), types.LSTypeASExternal)
+	// RFC 5250 §3.1: Type-11 opaque LSAs share Type-5's AS-wide scope, so they are
+	// excluded from a stub/NSSA area's database summary exactly as Type 5 is.
+	includeOpaqueAS := !shouldDropByArea(d.areaTypeLocked(area), types.LSTypeOpaqueAS)
 	capacity := 0
 	if includeExternal {
 		capacity += len(d.asExternal.entries)
+	}
+	if includeOpaqueAS {
+		capacity += len(d.asOpaque.entries)
 	}
 	if areaDB != nil {
 		capacity += len(areaDB.entries)
@@ -447,6 +529,11 @@ func (d *LSDB) Summary(area types.AreaID) []packet.LSAHeader {
 	if includeExternal {
 		for _, key := range d.asExternal.sorted {
 			out = append(out, d.asExternal.entries[key].Header(now))
+		}
+	}
+	if includeOpaqueAS {
+		for _, key := range d.asOpaque.sorted {
+			out = append(out, d.asOpaque.entries[key].Header(now))
 		}
 	}
 	return out
@@ -491,7 +578,12 @@ func (d *LSDB) Snapshot() Snapshot {
 	for _, name := range linkNames {
 		links = append(links, LinkSnapshot{Interface: name, LSAs: snapshotEntries(d.links[name], now, name, true)})
 	}
-	return Snapshot{Areas: areas, ASExternal: snapshotEntries(d.asExternal, now, "", false), Links: links}
+	return Snapshot{
+		Areas:      areas,
+		ASExternal: snapshotEntries(d.asExternal, now, "", false),
+		ASOpaque:   snapshotEntries(d.asOpaque, now, "", false),
+		Links:      links,
+	}
 }
 
 func snapshotEntries(store *areaDB, now time.Time, iface string, linkScope bool) []LSASnapshot {
@@ -510,8 +602,13 @@ func snapshotEntries(store *areaDB, now time.Time, iface string, linkScope bool)
 		}
 		if linkScope {
 			row.Interface = iface
-			if ll, ok := linkLocalFromRaw(entry.raw); ok {
-				row.LinkLocalAddress = ll.String()
+			// Only the OSPFv3 Type-8 Link-LSA carries a link-local address at this
+			// offset; a Type-9 opaque LSA shares the per-interface store but its body is
+			// an opaque payload, so do not misread its bytes as an address.
+			if h.Type == types.LSTypeLink {
+				if ll, ok := linkLocalFromRaw(entry.raw); ok {
+					row.LinkLocalAddress = ll.String()
+				}
 			}
 		}
 		out = append(out, row)
@@ -523,7 +620,9 @@ func snapshotEntries(store *areaDB, now time.Time, iface string, linkScope bool)
 type Snapshot struct {
 	Areas      []AreaSnapshot `json:"areas"`
 	ASExternal []LSASnapshot  `json:"as_external"`
-	Links      []LinkSnapshot `json:"links,omitempty"`
+	// ASOpaque holds the AS-wide (Type 11) opaque LSAs (RFC 5250 §3.1).
+	ASOpaque []LSASnapshot  `json:"as-opaque,omitempty"`
+	Links    []LinkSnapshot `json:"links,omitempty"`
 }
 
 // AreaSnapshot is one area-scoped LSDB snapshot.
@@ -563,7 +662,16 @@ func (d *LSDB) publishAllSizeMetrics() {
 			areas[area] = append(areas[area], typ)
 		}
 	}
-	asCount := len(d.asExternal.entries)
+	// The AS-wide store holds AS-External-LSAs (function code 5) and now also any other
+	// AS-scope native LSA (the RFC 7770 Router Information LSA, function code 12), so count
+	// only the true externals for the as-external gauge; RI has its own ze_ospf_ri_lsas series.
+	asCount := 0
+	for key := range d.asExternal.entries {
+		if key.Type.ASExternal() {
+			asCount++
+		}
+	}
+	opaqueASCount := len(d.asOpaque.entries)
 	d.mu.RUnlock()
 	for area, typesForArea := range areas {
 		for _, typ := range typesForArea {
@@ -573,19 +681,31 @@ func (d *LSDB) publishAllSizeMetrics() {
 	if asCount > 0 {
 		d.mLSAs.With("as", types.LSTypeASExternal.String()).Set(float64(asCount))
 	}
+	if opaqueASCount > 0 {
+		d.mLSAs.With("as", types.LSTypeOpaqueAS.String()).Set(float64(opaqueASCount))
+	}
 }
 
 func (d *LSDB) publishSizeMetricLocked(area types.AreaID, typ types.LSType) {
 	areaLabel := area.String()
 	count := 0
-	if typ == types.LSTypeASExternal {
+	switch typ {
+	case types.LSTypeASExternal:
 		areaLabel = "as"
 		for key := range d.asExternal.entries {
 			if key.Type == typ {
 				count++
 			}
 		}
-	} else {
+	case types.LSTypeOpaqueAS:
+		// Type-11 opaque LSAs live in the AS-wide opaque store, counted under the "as" label.
+		areaLabel = "as"
+		for key := range d.asOpaque.entries {
+			if key.Type == typ {
+				count++
+			}
+		}
+	default:
 		for key := range d.areaForLocked(area).entries {
 			if key.Type == typ {
 				count++

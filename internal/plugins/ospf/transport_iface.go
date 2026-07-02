@@ -23,6 +23,11 @@ import (
 // transport.
 type Transport interface {
 	SendPacket(name string, dst netip.Addr, payload []byte) error
+	// SendPacketRouted sends a virtual-link packet ROUTED across a transit area (RFC 2328
+	// section 8.1 / RFC 5340 section 2.9): IPv4 uses a TTL > 1 path distinct from the
+	// TTL-1 link-local socket; IPv6 uses the global source src and a hop limit > 1 (src is
+	// ignored by the IPv4 transport, which lets the kernel pick the source).
+	SendPacketRouted(name string, dst, src netip.Addr, payload []byte) error
 	Receive() <-chan transport.RawPacket
 	EnableInterface(name string)
 	DisableInterface(name string)

@@ -1,0 +1,11 @@
+# Test: OSPFv3 SPF-explain (AF-tagged, read-only).
+#
+# VALIDATES: spec-ospf-ext-14 -- `show ospf ipv6 spf detail` explains the winner + tie-break, AF/Instance-ID tagged, without a recompute (AC-9).
+# PREVENTS: a regression in the OSPF debug/introspection surface.
+#
+# Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf -run 'TestSPFExplainCandidateList|TestSPFExplainNoRecompute' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=TestSPFExplainNoRecompute
+expect=stdout:contains=PASS

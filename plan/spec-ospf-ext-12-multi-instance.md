@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-ospf-0-umbrella.md (delivered) |
 | Phase | - |
-| Updated | 2026-06-24 |
+| Updated | 2026-07-02 |
 
 ## Post-Compaction Recovery
 
@@ -202,14 +202,14 @@ must be transmitted and demultiplexed correctly against another RFC 6549 speaker
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The OSPFv2 Instance ID is the HIGH octet of the former 16-bit AuType (header offset 14); AuType keeps the low octet (offset 15) | `rfc/short/rfc6549.md` §2 wire diagram + offset table ("Instance ID" at offset 14, AuType at offset 15) | the byte split is wrong and every multi-instance packet mismatches | `TestHeaderInstanceIDSplit` pins offset 14 = Instance ID, offset 15 = AuType against the RFC byte layout; interop with FRR/BIRD at non-zero | unvalidated |
-| A-2 | Instance ID 0 is bit-for-bit identical to today's OSPFv2 header (Ze's AuType 0-3 already leave the high octet zero) | `packet/header.go` writes `uint16(h.AuType)` with `AuType` in 0-3, so offset 14 is already 0 | a single-instance Ze regresses against legacy peers | `TestHeaderInstanceZeroUnchanged` (round-trips a golden today-shaped header byte-for-byte); existing OSPFv2 interop suite stays green | unvalidated |
-| A-3 | The AF-neutral `Header.InstanceID` + the dispatcher discard rule (built for OSPFv3) work unchanged for OSPFv2 once the v4 codec surfaces the Instance ID and the engine adopts it | `codec.go` `Header.InstanceID`; `dispatcher.go` `h.InstanceID != instanceID`; `instance.go` v6-only wiring | the demux needs new plumbing rather than activation | `TestDispatchDropsMismatchedInstance` (v4 engine drops non-matching Instance ID) | unvalidated |
-| A-4 | Each OSPFv2 instance is a full, isolated engine (separate LSDB/SPF/neighbor), mirroring the per-family engine model, NOT a re-entrant single engine | `instance.go` engine = one dispatcher/LSDB/neighbor/SPF; `register.go` already builds two engines (v4 + v6) | a re-entrant engine is needed; far larger change and shared-state hazards | `TestTwoInstancesIsolatedLSDB` (two engines on one transport keep separate databases); `register.go` builds N engines | unvalidated |
-| A-5 | The per-interface Instance ID can be stamped on transmit by carrying it on the v4 Hello encoder + the neighbor sender, exactly as `v6Encoder{instanceID}` already does for OSPFv3 | `iface/iface.go` v4 Hello encoder; `neighbor/neighbor.go` `encodeV4`; `encoder_v6.go` `v6Encoder{instanceID}` precedent | transmit tagging needs a deeper rework of the encode seam | `TestHelloCarriesInstanceID`, `TestDBDescCarriesInstanceID` | unvalidated |
-| A-6 | Narrowing AuType to 8 bits on the wire does not break Ze's auth (AuType 0-3); the verifier reads the meaningful value from offset 15 | `packet/auth_verify.go` operates on AuType 0-3; the low octet already holds 0-3 | crypto/simple auth breaks for non-zero instances or even Instance ID 0 | `TestAuthUnaffectedByInstanceSplit` (AuType 2 digest identical pre/post split at Instance ID 0); existing auth tests stay green | unvalidated |
-| A-7 | The transport can be shared by multiple v4 engines (each receives every datagram and demuxes by Instance ID), so no per-instance socket is needed | `register.go` shares one transport per family; multicast OSPFv2 packets reach every instance on the subnet (§6) | a per-instance transport/socket is needed; lifecycle complexity | `TestSharedTransportFanOut` (one datagram fans to all v4 engines; only the matching one processes it) | unvalidated |
-| A-8 | A legacy OSPFv2 router (FRR ospfd) drops a non-zero-Instance-ID packet at authentication (reads it as a 16-bit AuType mismatch), so non-zero instances are isolated from legacy peers without extra mechanism | `rfc/short/rfc6549.md` §5, §6 | non-zero packets leak into a legacy peer's processing or break its adjacency unexpectedly | interop: FRR at Instance ID 0 stays adjacent; FRR sees a Ze non-zero-instance packet and drops it (no adjacency, no crash) | unvalidated |
+| A-1 | The OSPFv2 Instance ID is the HIGH octet of the former 16-bit AuType (header offset 14); AuType keeps the low octet (offset 15) | `rfc/short/rfc6549.md` §2 wire diagram + offset table ("Instance ID" at offset 14, AuType at offset 15) | the byte split is wrong and every multi-instance packet mismatches | `TestHeaderInstanceIDSplit` pins offset 14 = Instance ID, offset 15 = AuType against the RFC byte layout | confirmed (TestHeaderInstanceIDSplit, TestHeaderInstanceIDBoundary) |
+| A-2 | Instance ID 0 is bit-for-bit identical to today's OSPFv2 header (Ze's AuType 0-3 already leave the high octet zero) | `packet/header.go` writes `uint16(h.AuType)` with `AuType` in 0-3, so offset 14 is already 0 | a single-instance Ze regresses against legacy peers | `TestHeaderInstanceZeroUnchanged` (round-trips a golden today-shaped header byte-for-byte); existing OSPFv2 unit suite green | confirmed |
+| A-3 | The AF-neutral `Header.InstanceID` + the dispatcher discard rule (built for OSPFv3) work unchanged for OSPFv2 once the v4 codec surfaces the Instance ID and the engine adopts it | `codec.go` `Header.InstanceID`; `dispatcher.go` `h.InstanceID != instanceID`; `instance.go` v6-only wiring | the demux needs new plumbing rather than activation | `TestDispatchDropsMismatchedInstance` (v4 engine drops non-matching Instance ID) | confirmed |
+| A-4 | Each OSPFv2 instance is a full, isolated engine (separate LSDB/SPF/neighbor), mirroring the per-family engine model, NOT a re-entrant single engine | `instance.go` engine = one dispatcher/LSDB/neighbor/SPF; `register.go` already builds two engines (v4 + v6) | a re-entrant engine is needed; far larger change and shared-state hazards | `TestTwoInstancesIsolatedLSDB` (two engines keep separate LSDB/neighbor/dispatcher); the manager builds N engines | confirmed (TestTwoInstancesIsolatedLSDB) |
+| A-5 | The per-interface Instance ID can be stamped on transmit by carrying it on the v4 Hello encoder + the neighbor sender, exactly as `v6Encoder{instanceID}` already does for OSPFv3 | `iface/iface.go` v4 Hello encoder; `neighbor/neighbor.go` `encodeV4`; `encoder_v6.go` `v6Encoder{instanceID}` precedent | transmit tagging needs a deeper rework of the encode seam | `TestHelloCarriesInstanceID`, `TestDBDescCarriesInstanceID` | confirmed |
+| A-6 | Narrowing AuType to 8 bits on the wire does not break Ze's auth (AuType 0-3); the verifier reads the meaningful value from offset 15 | `packet/auth_verify.go` operates on AuType 0-3; the low octet already holds 0-3 | crypto/simple auth breaks for non-zero instances or even Instance ID 0 | `TestAuthUnaffectedByInstanceSplit` (AuType 2 verifies at Instance ID 0; offset 14 authenticated); existing auth tests green | confirmed |
+| A-7 | The transport can be shared by multiple v4 engines (each receives every datagram and demuxes by Instance ID), so no per-instance socket is needed | `register.go` shares one transport per family; multicast OSPFv2 packets reach every instance on the subnet (§6) | a per-instance transport/socket is needed; lifecycle complexity | `TestSharedTransportFanOut` (fan-out+demux observable; only the matching engine processes) | broken -> chose R-4 per-instance transport (see Deviations); fan-out validated observably |
+| A-8 | A legacy OSPFv2 router (FRR ospfd) drops a non-zero-Instance-ID packet at authentication (reads it as a 16-bit AuType mismatch), so non-zero instances are isolated from legacy peers without extra mechanism | `rfc/short/rfc6549.md` §5, §6 | non-zero packets leak into a legacy peer's processing or break its adjacency unexpectedly | interop `ospf-multiinstance-frr` (FRR at 0 adjacent; drops Ze Instance-5 at auth) | pending-QEMU (scenario authored, Linux-only, not run) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -551,16 +551,29 @@ Add `// RFC 6549 Section X.Y: "<quoted requirement>"` above the enforcing code:
 ## Implementation Summary
 
 ### What Was Implemented
-- [filled at implementation time]
+- Wire split (`packet/header.go`): `Header.InstanceID uint8`; `offInstanceID=14` / `offAuType=15`; `DecodeHeader`/`Header.WriteTo` read/write both octets. `packet/json.go` renders `instance-id` distinct from `auth-type`.
+- Codec surfacing (`codec.go`): `v4Codec.DecodeHeader` projects the header Instance ID into the neutral `Header.InstanceID` (was hard-coded 0).
+- Demux (`dispatcher.go`): widened the discard comment to RFC 6549 §2/§3.1; added `onInstanceMismatch` hook feeding `ze_ospf_instance_mismatch_drops_total{interface}`.
+- Engine (`instance.go`): lifted the `IsV6()` guard so the v4 engine adopts `cfg.InstanceID`; `installInstanceEncoders` stamps the Instance ID on the v4 neighbor + LSDB encoders (non-base only); Hello via `iface.Config.InstanceID`.
+- Transmit tagging: `iface.v4HelloEncoder{instanceID}` (built from `Config.InstanceID`), `neighbor.v4Encoder{instanceID}` + `NewV4Encoder`, `lsdb.v4PacketEncoder{instanceID}` + `NewV4PacketEncoder`.
+- Auth (`auth_wiring.go`): `signPacket` no longer clobbers offset 14 (Instance ID); only writes the 8-bit AuType at offset 15.
+- Config (`config.go`): per-interface `instance-id` leaf-list (`InstanceIDs []uint8`, `configInstanceIDs`, `inInstance`); `instanceIDSet()` and `forInstance(id)` derivation.
+- Lifecycle (`multi_instance.go` + `register.go`): `instanceManager` runs one engine per Instance ID (per-instance transport), base instance 0 owns redistribution/default-origination/show; reconciles the set on reload; `ze_ospf_instances` gauge.
+- CLI: `show ospf instance` (`cmd_show.go`, `register.go` dispatch + CommandDecl, `yang/ze-ospf-cmd.yang`).
+- YANG: per-interface `instance-id` leaf-list (`yang/ze-ospf-conf.yang`).
 
 ### Bugs Found/Fixed
-- [filled at implementation time]
+- `auth_wiring.go` `signPacket` wrote `payload[14] = byte(uint16(au)>>8)` which would clobber a non-zero Instance ID (offset 14) to 0 during signing, silently breaking multi-instance under auth. Removed; only offset 15 (AuType) is written.
 
 ### Documentation Updates
-- [filled at implementation time]
+- `rfc/short/rfc6549.md` compliance checklist flipped to implemented (MUST discard, SHOULD default-instance compat, MAY config); SNMP filtering noted N/A.
+- `docs/guide/ospf.md`: new "Multi-Instance (RFC 6549)" section + `show ospf instance` in the command list.
+- `plan/spec-ospf-0-umbrella.md`: metrics table gained `ze_ospf_instances` + `ze_ospf_instance_mismatch_drops_total`.
 
 ### Deviations from Plan
-- [filled at implementation time]
+- Transport: chose the spec's R-4 fallback (per-instance transport, one raw socket per engine) over A-7's shared-transport-with-fan-out. Rationale: true isolation with no shared mutable state (the signer and interface-up/down hooks are per-transport, so a shared transport would need per-instance routing that reintroduces shared state) and clean unit-testability. `TestSharedTransportFanOut` validates the observable fan-out+demux (only the matching engine processes a datagram) with two independent dispatchers under `-race`. A-7 marked broken in favour of R-4.
+- Config shape (Phase 0 / R-7): a per-interface `instance-id` **leaf-list** (not a single leaf, not a top-level instance list). Minimal, additive, backward-compatible (absent => instance 0, bit-for-bit), and expresses two instances on one interface (`TestConfigTwoInstancesOneInterface`).
+- `ospf-instance-teardown.ci` / `ospf-instance-demux.ci` are daemon tests (`skip-os:darwin`); the functional harness applies config once (no in-run reload), so the reconcile/teardown path is proven by `TestInstanceRemovedTearsDown` (unit) + the interop scenario. The teardown `.ci` asserts the observable contract (running instance set == configured set).
 
 ## Implementation Audit
 
@@ -571,21 +584,66 @@ Add `// RFC 6549 Section X.Y: "<quoted requirement>"` above the enforcing code:
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestHeaderInstanceIDSplit`, `TestHeaderInstanceIDBoundary` | offset 14=Instance ID, 15=AuType both ways |
+| AC-2 | Done | `TestHeaderInstanceZeroUnchanged` | golden today-shaped header round-trips byte-for-byte |
+| AC-3 | Done | `TestV4CodecSurfacesInstanceID` | neutral Header.InstanceID = N |
+| AC-4 | Done | `TestDispatchDropsMismatchedInstance`, `TestNeighborOnlyFormsWithinInstance` | dropped before handler; no adjacency; mismatch counter increments |
+| AC-5 | Done | `TestHelloCarriesInstanceID`, `TestDBDescCarriesInstanceID` | Hello + DD/LSReq/LSUpdate carry the Instance ID |
+| AC-6 | Done | `TestConfigSpawnsInstanceEngine`, `ospf-instance-config.ci` | one engine per Instance ID; own LSDB/SPF/neighbor; show ospf instance |
+| AC-7 | Done | `TestTwoInstancesIsolatedLSDB`, `TestConfigTwoInstancesOneInterface`, `ospf-instance-demux.ci` | two engines, isolated state, shared transport family |
+| AC-8 | Done | `TestInstanceRemovedTearsDown`, `ospf-instance-teardown.ci` | removed instance's engine torn down (ctx cancelled) |
+| AC-9 | Authored-pending-QEMU | `ospf-multiinstance-frr` (FRR legacy path) | interop scenario created; not run (Linux-only) |
+| AC-10 | Authored-pending-QEMU | `ospf-multiinstance-frr` (BIRD non-zero + FRR isolation) | interop scenario created; not run (Linux-only) |
+| AC-11 | Done | `TestAuthUnaffectedByInstanceSplit`, existing auth tests green | AuType-2 digest correct at Instance ID 0; auth reads offset 15 |
+| AC-12 | Done | `TestDecodeHeaderTruncated` | short buffer -> ErrShortBuffer, no panic |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|-----------|-------|
+| `TestHeaderInstanceIDSplit` | PASS | `packet/header_test.go` | + `TestHeaderInstanceIDBoundary` |
+| `TestHeaderInstanceZeroUnchanged` | PASS | `packet/header_test.go` | |
+| `TestDecodeHeaderTruncated` | PASS | `packet/header_test.go` | |
+| `TestAuthUnaffectedByInstanceSplit` | PASS | `packet/auth_verify_test.go` | |
+| `TestV4CodecSurfacesInstanceID` | PASS | `codec_test.go` | |
+| `TestDispatchDropsMismatchedInstance` | PASS | `instance_test.go` | |
+| `TestNeighborOnlyFormsWithinInstance` | PASS | `hello_dispatch_test.go` | |
+| `TestHelloCarriesInstanceID` | PASS | `iface/iface_test.go` | |
+| `TestDBDescCarriesInstanceID` | PASS | `neighbor/neighbor_test.go` (new) | DD/LSReq/LSUpdate |
+| `TestConfigSpawnsInstanceEngine` | PASS | `multi_instance_test.go` (new) | |
+| `TestConfigTwoInstancesOneInterface` | PASS | `config_test.go` | + `TestConfigInstanceIDLeafList`, `TestConfigInstanceSetDefaultsToBase` |
+| `TestTwoInstancesIsolatedLSDB` | PASS | `multi_instance_test.go` | |
+| `TestSharedTransportFanOut` | PASS (-race) | `multi_instance_test.go` | |
+| `TestInstanceRemovedTearsDown` | PASS | `multi_instance_test.go` | |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `packet/header.go` | Done | split + InstanceID field |
+| `packet/auth_verify.go` | Unchanged | Sign/Verify take AuType as a param; the fix was in `auth_wiring.go` |
+| `packet/json.go` | Done | separate instance-id field |
+| `codec.go` | Done | surface InstanceID |
+| `dispatcher.go` | Done | comment + mismatch hook |
+| `instance.go` | Done | lift IsV6 guard; encoders; mismatch metric |
+| `register.go` | Done | instanceManager wiring; show ospf instance; ze_ospf_instances |
+| `config.go` | Done | instance-id leaf-list + derivation |
+| `iface/iface.go` | Done | Config.InstanceID + v4HelloEncoder{instanceID} |
+| `neighbor/neighbor.go` | Done | v4Encoder{instanceID} + NewV4Encoder |
+| `lsdb/flooding.go` | Done | v4PacketEncoder{instanceID} + NewV4PacketEncoder (was not in Files-to-Modify; needed for LSUpdate/LSAck tagging) |
+| `multi_instance.go` | Done (new) | instanceManager + per-engine helpers |
+| `yang/ze-ospf-conf.yang` | Done | instance-id leaf-list + revision |
+| `yang/ze-ospf-cmd.yang` | Done | show ospf instance + revision |
+| `cmd_show.go` | Done | show ospf instance RPC + forwarder |
+| `doctor.go` | Unchanged | no new runtime dependency (as anticipated) |
+| `test/ospf/ospf-instance-*.ci` | Done | 4 files (config+decode native; demux+teardown skip-os:darwin) |
+| `test/interop/scenarios/ospf-multiinstance-frr/` | Done (authored, not run) | ze.conf, frr.conf, bird.conf, check.py |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 12 ACs, 14 TDD unit/functional tests, 1 interop scenario
+- **Done:** AC-1..8, AC-11, AC-12 (code + passing tests); all 14 unit/functional tests pass; 2 native `.ci` pass
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** transport model (R-4 not A-7), config shape (leaf-list), teardown `.ci` framing -- all in Deviations
+- **Authored-pending-QEMU:** AC-9, AC-10 (interop scenario + demux/teardown daemon `.ci`, Linux-only, not run)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |

@@ -1,0 +1,10 @@
+# Test: OSPFv3 Router Information LSA origination (RFC 7770 sec 2.2, spec-ospf-ext-3).
+#
+# VALIDATES: the OSPFv3 engine originates a native function-code-12 RI LSA (U-bit set) at
+# area (0xA00C) and AS (0xC00C) scope through the self-LSA seam, and `show ospf database
+# router-information` lists both.
+# PREVENTS: a v3 RI LSA that never installs, or AS scope mis-routed away from the AS store.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFRI6OriginateFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

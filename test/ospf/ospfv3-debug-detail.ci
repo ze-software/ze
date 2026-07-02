@@ -1,0 +1,12 @@
+# Test: OSPFv3 neighbor + interface deep dump.
+#
+# VALIDATES: spec-ospf-ext-14 -- `show ospf ipv6 neighbor detail` / `... interface detail` surface link-local identity, Interface ID, Instance ID, and the R/V6/E/N/AF option bits (AC-11).
+# PREVENTS: a regression in the OSPF debug/introspection surface.
+#
+# Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf ./internal/plugins/ospf/iface -run 'TestNeighborDetailOptionBits|TestInterfaceDetailSnapshot|TestV3NewCommandsPipeComplete' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=TestInterfaceDetailSnapshot
+expect=stdout:contains=TestV3NewCommandsPipeComplete
+expect=stdout:contains=PASS

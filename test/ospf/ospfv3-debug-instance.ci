@@ -1,0 +1,12 @@
+# Test: OSPFv3 AF-aware instance listing.
+#
+# VALIDATES: spec-ospf-ext-14 -- `show ospf ipv6 instance` enumerates each AF instance (AF, Instance ID, areas, neighbors); a single base AF yields one row (AC-12).
+# PREVENTS: a regression in the OSPF debug/introspection surface.
+#
+# Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestV3InstanceListingSingleAF|TestV3InstanceListingMultiAF' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=TestV3InstanceListingSingleAF
+expect=stdout:contains=TestV3InstanceListingMultiAF
+expect=stdout:contains=PASS

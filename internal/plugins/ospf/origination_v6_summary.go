@@ -75,7 +75,7 @@ func (e *engine) v6OriginateSummaries(in ospfspf.SummaryInput) ospfspf.SummaryOr
 	asbrs := make(map[types.AreaID][]v6SummaryRouter, len(in.Areas))
 	for _, area := range in.Areas {
 		res := in.Results[area]
-		networks[area] = v6ApplyRanges(v6SummaryNetworks(e.lsdb, res), in.Ranges[area])
+		networks[area] = v6ApplyRanges(v6SummaryNetworks(e.lsdb, res, e.af), in.Ranges[area])
 		asbrs[area] = v6SummaryASBRs(res, in.Root)
 	}
 
@@ -98,7 +98,7 @@ func (e *engine) v6OriginateSummaries(in ospfspf.SummaryInput) ospfspf.SummaryOr
 // directly-connected networks into other areas). The cost is the SPF cost to the referenced
 // vertex plus the per-prefix metric; duplicate prefixes keep the lowest cost. This differs
 // from v6BuildRoutes only in admitting the root vertex (whose next-hop set is empty).
-func v6SummaryNetworks(src ospfspf.Source, res *ospfspf.Result) []v6SummaryNet {
+func v6SummaryNetworks(src ospfspf.Source, res *ospfspf.Result, af addressFamily) []v6SummaryNet {
 	if src == nil || res == nil {
 		return nil
 	}
@@ -134,7 +134,7 @@ func v6SummaryNetworks(src ospfspf.Source, res *ospfspf.Result) []v6SummaryNet {
 			continue
 		}
 		for _, p := range body.Prefixes {
-			pfx, ok := v6PrefixToNetip(p)
+			pfx, ok := v6PrefixToNetip(p, af)
 			if !ok {
 				continue
 			}

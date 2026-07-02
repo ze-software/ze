@@ -176,7 +176,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_ospf_retransmissions_total` | CounterVec | area | ospf (lsdb) |
 | `ze_ospf_spf_runs_total` | CounterVec | area | ospf (spf) |
 | `ze_ospf_spf_duration_seconds` | HistogramVec | area | ospf (spf) |
-| `ze_ospf_routes_installed` | GaugeVec | type | ospf (spf) |
+| `ze_ospf_routes_installed` | GaugeVec | type, af | ospf (spf) |
 | `ze_ospf_abr` | Gauge | | ospf (spf) |
 | `ze_ospf_summary_lsas` | GaugeVec | area | ospf (spf) |
 | `ze_ospf_asbr` | Gauge | | ospf (engine) |
@@ -185,6 +185,8 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_ospf_redist_withdrawn_total` | CounterVec | source | ospf (redistribute) |
 | `ze_ospf_nssa_translations_total` | CounterVec | area | ospf (engine) |
 | `ze_ospf_auth_failures_total` | CounterVec | interface, reason | ospf (engine) |
+| `ze_ospf_af_instances` | GaugeVec | af | ospf (RFC 5838 multi-AF) |
+| `ze_ospf_af_bit_mismatch_total` | CounterVec | af | ospf (RFC 5838 multi-AF) |
 | `ze_traffic_usage_ingress_port_bytes_total` | GaugeVec | interface, dst_port, protocol | traffic-usage |
 | `ze_traffic_usage_egress_port_bytes_total` | GaugeVec | interface, src_port, protocol | traffic-usage |
 | `ze_traffic_usage_ingress_bytes_total` | GaugeVec | interface, src_ip | traffic-usage (track-ip) |
@@ -229,8 +231,8 @@ self-LSA lifecycle events, `ze_ospf_lsupdates_sent_total{interface}` and
 
 The five `ospf (spf)` series track route computation and install state:
 `ze_ospf_spf_runs_total{area}` and `ze_ospf_spf_duration_seconds{area}` report
-SPF scheduling and runtime, `ze_ospf_routes_installed{type}` reports the current
-Loc-RIB-owned route count by OSPF path type, `ze_ospf_abr` is 1 only while this
+SPF scheduling and runtime, `ze_ospf_routes_installed{type,af}` reports the current
+Loc-RIB-owned route count by OSPF path type and address family (RFC 5838), `ze_ospf_abr` is 1 only while this
 router has an active backbone attachment and at least one other active area, and
 `ze_ospf_summary_lsas{area}` reports current self-originated Summary-LSA count by
 area.

@@ -1,5 +1,9 @@
 // Design: plan/learned/956-ospf-2-wire.md -- common OSPFv2 packet header and dispatch
 // RFC 2328 Appendix A.3.1: OSPF packet header.
+// RFC 6549 Section 2 / 3.1: OSPFv2 Multi-Instance splits the former 16-bit
+// Authentication Type field into an 8-bit Instance ID (the high octet, offset 14) and
+// an 8-bit AuType (the low octet, offset 15); the header total size is unchanged.
+// RFC: rfc/short/rfc2328.md, rfc/short/rfc6549.md
 
 package packet
 
@@ -20,7 +24,10 @@ const (
 	PacketTypeLSAck    PacketType = 5
 )
 
-// AuType is the 2-octet authentication type field from the common header.
+// AuType is the authentication type field from the common header. RFC 6549 Section 2
+// reduces it to 8 bits on the wire "without any change in meaning"; the Go type stays
+// uint16 so the existing AuType constants and callers are unchanged, but DecodeHeader
+// and Header.WriteTo now read/write only the low octet (offset 15).
 type AuType uint16
 
 const (
@@ -38,14 +45,15 @@ const (
 )
 
 const (
-	offVersion  = 0
-	offType     = 1
-	offLength   = 2
-	offRouterID = 4
-	offAreaID   = 8
-	offChecksum = 12
-	offAuType   = 14
-	offAuth     = 16
+	offVersion    = 0
+	offType       = 1
+	offLength     = 2
+	offRouterID   = 4
+	offAreaID     = 8
+	offChecksum   = 12
+	offInstanceID = 14 // RFC 6549 Section 2: Instance ID (high octet of the former AuType)
+	offAuType     = 15 // RFC 6549 Section 2: AuType reduced to the low octet
+	offAuth       = 16
 )
 
 var (
@@ -83,8 +91,12 @@ type Header struct {
 	RouterID types.RouterID
 	AreaID   types.AreaID
 	Checksum uint16
-	AuType   AuType
-	Auth     AuthField
+	// InstanceID is the RFC 6549 OSPFv2 Instance ID (offset 14): it demultiplexes
+	// coexisting OSPFv2 instances on one subnet and has local subnet significance only
+	// (never carried in an LSA). Default 0 is bit-for-bit compatible with base OSPFv2.
+	InstanceID uint8
+	AuType     AuType
+	Auth       AuthField
 }
 
 func (t PacketType) known() bool {
@@ -153,8 +165,12 @@ func DecodeHeader(buf []byte) (Header, int, error) {
 		RouterID: router,
 		AreaID:   area,
 		Checksum: readUint16(buf, offChecksum),
-		AuType:   AuType(readUint16(buf, offAuType)),
-		Auth:     auth,
+		// RFC 6549 Section 2 / 3.1: offset 14 is the 8-bit Instance ID and offset 15 is
+		// the 8-bit AuType (formerly one 16-bit AuType). A legacy router reads the two as a
+		// single 16-bit AuType, so a non-zero Instance ID appears as a mismatched auth type.
+		InstanceID: buf[offInstanceID],
+		AuType:     AuType(buf[offAuType]),
+		Auth:       auth,
 	}, CommonHeaderLen, nil
 }
 
@@ -167,7 +183,11 @@ func (h Header) WriteTo(buf []byte, off int) int {
 	h.RouterID.WriteTo(buf, off+offRouterID)
 	h.AreaID.WriteTo(buf, off+offAreaID)
 	writeUint16(buf, off+offChecksum, h.Checksum)
-	writeUint16(buf, off+offAuType, uint16(h.AuType))
+	// RFC 6549 Section 2 / 3.1: write the Instance ID (offset 14) and the 8-bit AuType
+	// (offset 15) as two single octets. Section 5 / 6: Instance ID 0 leaves offset 14 zero,
+	// so the 24 octets are bit-for-bit identical to base OSPFv2 (legacy interop preserved).
+	buf[off+offInstanceID] = h.InstanceID
+	buf[off+offAuType] = byte(h.AuType)
 	h.Auth.WriteTo(buf, off+offAuth)
 	return off + CommonHeaderLen
 }

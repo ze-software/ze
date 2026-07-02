@@ -507,3 +507,24 @@ func TestOSPFv6InterfaceSkipsNetworkMaskCheck(t *testing.T) {
 		t.Fatalf("v4 broadcast interface must drop a mismatched Network Mask, got %q", reason)
 	}
 }
+
+// TestHelloCarriesInstanceID proves AC-5 / A-5 (RFC 6549 sec 3 on transmit): the default
+// OSPFv2 Hello encoder built from Config.InstanceID stamps the engine's Instance ID into
+// the common header (offset 14) of every Hello; the base instance 0 leaves it zero.
+func TestHelloCarriesInstanceID(t *testing.T) {
+	for _, id := range []uint8{0, 5, 255} {
+		cfg := baseConfig(t)
+		cfg.InstanceID = id
+		i := New(cfg, &fakeSender{}, NopMetrics())
+		h, _, err := packet.DecodeHeader(i.buildHelloPacket())
+		if err != nil {
+			t.Fatalf("id %d: DecodeHeader: %v", id, err)
+		}
+		if h.InstanceID != id {
+			t.Fatalf("Hello Instance ID = %d, want %d", h.InstanceID, id)
+		}
+		if h.Type != packet.PacketTypeHello {
+			t.Fatalf("id %d: decoded type = %v, want Hello", id, h.Type)
+		}
+	}
+}

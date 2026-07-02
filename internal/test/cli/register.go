@@ -20,6 +20,7 @@ func init() {
 	registerCIRoot("isis-wire", "isis-wire", "isis-wire", "Run IS-IS wire-level functional tests (.ci files in test/isis-wire/).\nCovers offline PDU decode: ze isis-decode parses a hex IS-IS PDU to JSON.", 0)
 	registerCIRoot("ospf-wire", "ospf-wire", "ospf-wire", "Run OSPFv2 wire-level functional tests (.ci files in test/ospf-wire/).\nCovers offline packet decode: ze ospf-decode parses hex OSPFv2 packets to JSON.", 0)
 	registerCIRoot("ospf", "ospf", "OSPF", "Run OSPF functional tests (.ci files in test/ospf/).\nCovers config parse -> YANG -> router-id/area validation, OSPF doctor diagnostics, and later daemon runtime scenarios.", 0)
+	registerCIRoot("ospfv3", "ospfv3", "OSPFv3", "Run OSPFv3 (IPv6 family) functional tests (.ci files in test/ospfv3/).\nCovers RFC 5340 raw-socket and RFC 4552 IPsec config/doctor diagnostics.", 0)
 	registerCIRoot("l2tp", "l2tp", "l2tp", "Run L2TPv2 functional tests (.ci files in test/l2tp/).\nCovers listener binding, control-connection handshake, challenge/response, hello keepalive, tie-breaker, and teardown.", 0)
 	registerCIRoot("l2tp-wire", "l2tp-wire", "l2tp-wire", "Run L2TP wire-level functional tests (.ci files in test/l2tp-wire/).\nCovers control message decode (SCCRQ) and truncated packet handling.", 0)
 	registerCIRoot("ldp", "ldp", "LDP", "Run LDP functional tests (.ci files in test/ldp/).\nCovers single-daemon boot: config parse -> YANG -> engine startup -> show ldp neighbor/binding.", 0)
@@ -50,5 +51,6 @@ func init() {
 	registerRoot("l2tp-scale", cmdL2tpScale, "L2TP scale test: LAC simulator + mock RADIUS")
 	registerRoot("mcp", cmdMcp, "MCP client (send commands to daemon via MCP endpoint)")
 	registerRoot("peer", cmdPeer, "BGP test peer (sink/echo/check modes)")
+	registerRoot("plugin-external", cmdPluginExternal, "Run a registered engine plugin's RunEngine externally (TLS connect-back) -- proves IsInternal()-guarded refuse/warn behavior; not a production plugin launcher")
 	registerRoot("text-plugin", cmdTextPlugin, "Run minimal text-mode plugin (for .ci tests)")
 }

@@ -1,0 +1,12 @@
+# Test: OSPFv3 inject double-gate (authz + debug-enablement).
+#
+# VALIDATES: spec-ospf-ext-14 -- a read-only user is denied `debug` and a debug-disabled router rejects the v3 inject (AC-16/AC-17).
+# PREVENTS: a regression in the OSPF debug/introspection surface.
+#
+# Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/component/authz ./internal/plugins/ospf -run 'TestV3InjectDeniedReadOnly|TestV3InjectRequiresDebugEnabled' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=TestV3InjectDeniedReadOnly
+expect=stdout:contains=TestV3InjectRequiresDebugEnabled
+expect=stdout:contains=PASS

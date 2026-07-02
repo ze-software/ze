@@ -1,0 +1,92 @@
+# Test: flow-export refuses to start as an external plugin process
+# VALIDATES: plan/learned/1045-plugin-process-boundary.md -- flow-export's
+# IsInternal() guard (internal/plugins/flowexport/register.go) refuses to
+# start when it runs as a genuine external subprocess, since
+# iface.SubscribeCollectNotify is a same-process call (registers into
+# internal/component/iface's package-level subscriber list) that would
+# silently no-op across the process boundary -- it is flow-export's only
+# counter data source, unconditional, no fallback.
+# Uses `ze-test plugin-external flow-export`
+# (internal/test/cli/cmd_plugin_external.go) to launch the real plugin's own
+# RunEngine via a real TLS connect-back, exercising the guard through the
+# actual external-plugin transport, not a mocked conn.
+# PREVENTS: an operator configuring `plugin { external flow-export { ... } }`
+# getting a plugin that "succeeds" at every config commit while silently
+# never exporting any counters.
+#
+# STATUS: flow-export declares Dependencies: []string{"interface"}
+# (register.go), so the daemon also starts the interface plugin, which has
+# no OS-default backend on darwin ("no backend configured and no OS default
+# available") -- the daemon fails before the external flow-export subprocess
+# ever gets a chance to run. option=needs-linux below; not executable on the
+# darwin dev host, but confirmed PASSING under
+# `make ze-qemu-needs-linux-test` (real QEMU Linux VM, plan/learned/1045).
+
+option=needs-linux
+
+stdin=ze-bgp:terminator=EOF_CONF
+flow-export {
+	collector c1 {
+		address 127.0.0.1
+		port 2055
+		protocol netflow9
+		polling-interval 1
+	}
+}
+
+plugin {
+	external flow-export {
+		run "ze-test plugin-external flow-export"
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=wait.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Hold the test open long enough for the external flow-export subprocess to
+start, log its refuse message, and exit -- observable via the daemon's
+relayed stderr (default relay level is WARN; the refuse message logs at
+ERROR, which is always at or above WARN)."""
+import time
+
+time.sleep(4.0)
+EOF_PY
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 wait.py:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=refusing to start as an external plugin process

@@ -1,0 +1,8 @@
+# Test: OSPFv2 Extended Prefix LSA reception (RFC 7684 sec 2/5, spec-ospf-ext-4).
+#
+# VALIDATES: a received Extended Prefix Opaque LSA is decoded, resolved into the receive store, and shown decoded under show ospf database opaque-area.
+# PREVENTS: a received Extended Prefix LSA silently dropped or not decoded.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFExtPrefixReceiveFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

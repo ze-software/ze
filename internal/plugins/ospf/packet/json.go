@@ -1,4 +1,6 @@
 // Design: plan/learned/956-ospf-2-wire.md -- offline decode JSON rendering
+// RFC: rfc/short/rfc7684.md -- Extended Prefix (Opaque Type 7) / Extended Link (Opaque Type 8)
+// body decode into the opaque JSON view (spec-ospf-ext-4).
 
 package packet
 
@@ -16,8 +18,11 @@ type JSONView struct {
 	AreaID        string `json:"area-id"`
 	Checksum      uint16 `json:"checksum"`
 	ChecksumValid bool   `json:"checksum-valid"`
-	AuType        uint16 `json:"auth-type"`
-	Auth          string `json:"auth"`
+	// InstanceID is the RFC 6549 OSPFv2 Instance ID (header offset 14), rendered as a
+	// field distinct from AuType (offset 15) so a decoded multi-instance packet shows both.
+	InstanceID uint8  `json:"instance-id"`
+	AuType     uint16 `json:"auth-type"`
+	Auth       string `json:"auth"`
 
 	Hello    *helloJSON    `json:"hello,omitempty"`
 	DBDesc   *dbDescJSON   `json:"dbdesc,omitempty"`
@@ -117,6 +122,68 @@ type externalLSAJSON struct {
 
 type opaqueLSAJSON struct {
 	Data string `json:"data"`
+	// ExtendedPrefix / ExtendedLink decode the RFC 7684 Opaque Type 7 / 8 bodies inline
+	// (spec-ospf-ext-4) so `ze` decode shows structured fields, not just hex.
+	ExtendedPrefix []extPrefixJSON `json:"extended-prefix,omitempty"`
+	ExtendedLink   *extLinkJSON    `json:"extended-link,omitempty"`
+}
+
+type extSubTLVJSON struct {
+	Type   uint16 `json:"type"`
+	Length int    `json:"length"`
+	Data   string `json:"data"`
+}
+
+type extPrefixJSON struct {
+	RouteType     uint8           `json:"route-type"`
+	PrefixLength  uint8           `json:"prefix-length"`
+	AF            uint8           `json:"af"`
+	Flags         uint8           `json:"flags"`
+	AddressPrefix string          `json:"address-prefix"`
+	SubTLVs       []extSubTLVJSON `json:"sub-tlvs,omitempty"`
+}
+
+type extLinkJSON struct {
+	LinkType uint8           `json:"link-type"`
+	LinkID   string          `json:"link-id"`
+	LinkData string          `json:"link-data"`
+	SubTLVs  []extSubTLVJSON `json:"sub-tlvs,omitempty"`
+}
+
+// extSubTLVsToJSON renders decoded RFC 7684 sub-TLVs as type/length/hex rows.
+func extSubTLVsToJSON(subs []ExtSubTLV) []extSubTLVJSON {
+	if len(subs) == 0 {
+		return nil
+	}
+	out := make([]extSubTLVJSON, 0, len(subs))
+	for _, s := range subs {
+		out = append(out, extSubTLVJSON{Type: s.Type, Length: len(s.Value), Data: hex.EncodeToString(s.Value)})
+	}
+	return out
+}
+
+// opaqueBodyToJSON decodes a stored opaque body into its structured extended view when the
+// Opaque Type is 7 (Extended Prefix) or 8 (Extended Link); otherwise the body is left as hex
+// only. A malformed body (RFC 7684 sec 5) leaves the extended fields empty and keeps the hex.
+func opaqueBodyToJSON(lsa LSA, out *opaqueLSAJSON) {
+	switch lsa.OpaqueType() {
+	case ExtPrefixOpaqueType:
+		if body, err := DecodeExtPrefixLSA(lsa.Body); err == nil {
+			for _, p := range body.Prefixes {
+				out.ExtendedPrefix = append(out.ExtendedPrefix, extPrefixJSON{
+					RouteType: p.RouteType, PrefixLength: p.PrefixLength, AF: p.AF, Flags: p.Flags,
+					AddressPrefix: ipv4String(p.AddressPrefix), SubTLVs: extSubTLVsToJSON(p.SubTLVs),
+				})
+			}
+		}
+	case ExtLinkOpaqueType:
+		if body, err := DecodeExtLinkLSA(lsa.Body); err == nil && body.HasLink {
+			out.ExtendedLink = &extLinkJSON{
+				LinkType: body.Link.LinkType, LinkID: ipv4String(body.Link.LinkID),
+				LinkData: ipv4String(body.Link.LinkData), SubTLVs: extSubTLVsToJSON(body.Link.SubTLVs),
+			}
+		}
+	}
 }
 
 // ToJSON renders a decoded packet to a stable JSON view.
@@ -127,6 +194,7 @@ func (p Packet) ToJSON() JSONView {
 		AreaID:        p.Header.AreaID.String(),
 		Checksum:      p.Header.Checksum,
 		ChecksumValid: p.VerifyChecksum(),
+		InstanceID:    p.Header.InstanceID,
 		AuType:        uint16(p.Header.AuType),
 		Auth:          hex.EncodeToString(p.Header.Auth[:]),
 	}
@@ -227,6 +295,8 @@ func lsaToJSON(lsa LSA) lsaJSON {
 		}
 	case types.LSTypeOpaqueLink, types.LSTypeOpaqueArea, types.LSTypeOpaqueAS:
 		out.Opaque = &opaqueLSAJSON{Data: hex.EncodeToString(lsa.Body)}
+		// RFC 7684 (spec-ospf-ext-4): decode Extended Prefix (7) / Extended Link (8) bodies.
+		opaqueBodyToJSON(lsa, out.Opaque)
 	default:
 		return out
 	}

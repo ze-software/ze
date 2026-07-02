@@ -1,7 +1,9 @@
 package flowexport
 
 import (
+	"net"
 	"testing"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
@@ -82,6 +84,44 @@ func TestInterfaceCountersFromUnknownSpeed(t *testing.T) {
 	}
 	if ic.IfStatus != IfStatusAdminUp {
 		t.Errorf("IfStatus = %d, want %d (admin up, oper down)", ic.IfStatus, IfStatusAdminUp)
+	}
+}
+
+// VALIDATES: runEngine refuses to start (nonzero exit) when conn is not a
+// same-process (DirectBridge-carrying) connection -- iface.SubscribeCollectNotify
+// (register.go) registers a callback into iface's package-level subscriber
+// list as a plain Go function call, which only reaches the engine's real
+// rate tracker when this plugin shares process memory with it. It is
+// flow-export's only counter data source, unconditional, no fallback, so an
+// external flow-export would silently never export a single datagram, with
+// no error anywhere. A plain net.Pipe() end matches exactly what an external
+// plugin's non-bridged conn looks like from the SDK's perspective (see
+// sdk.Plugin.IsInternal).
+//
+// The elapsed-time assertion matters: without the guard, runEngine falls
+// through to p.Run(ctx, ...), which also eventually returns a nonzero exit
+// against a non-responsive plain net.Pipe() end -- but only after the SDK's
+// handshake/registration protocol times out (tens of seconds), not because
+// external mode was detected. A refuse-immediately guard must return well
+// under that timeout.
+// PREVENTS: flow-export configured `plugin { external flow-export { ... } }`
+// silently accepting every config commit while never exporting any counters.
+func TestRunEngine_RefusesExternalProcess(t *testing.T) {
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() {
+		pluginEnd.Close() //nolint:errcheck // test cleanup
+		engineEnd.Close() //nolint:errcheck // test cleanup
+	})
+
+	start := time.Now()
+	code := runEngine(pluginEnd)
+	elapsed := time.Since(start)
+
+	if code != 1 {
+		t.Fatalf("runEngine(external conn) = %d, want 1", code)
+	}
+	if elapsed > 2*time.Second {
+		t.Fatalf("runEngine(external conn) took %s, want an immediate refusal (< 2s) -- suggests it fell through to p.Run()'s handshake timeout instead of refusing at the IsInternal() guard", elapsed)
 	}
 }
 

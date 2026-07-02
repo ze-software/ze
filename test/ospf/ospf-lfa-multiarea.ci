@@ -1,0 +1,15 @@
+# Test: OSPF multi-area LFA suppression (RFC 5286 Section 6.3).
+#
+# VALIDATES: spec-ospf-ext-6 -- intra-area prefixes always get a backup;
+# inter-area routes with more than one alternate ABR, external routes with more
+# than one ASBR, and backbone inter-area/external routes with virtual links are
+# suppressed (left unprotected) to avoid a micro-loop where the real path leaves
+# the area.
+# PREVENTS: an inter-area/external LFA micro-looping in a leakage topology.
+#
+# Live multi-area FRR failover is owned by the ospf-lfa-frr interop scenario.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf -run 'Test(LFASuppressedMultiAreaLeakage|LFAEligibilityByRouteType)$' -count=1:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=TestLFASuppressedMultiAreaLeakage
+expect=stdout:contains=TestLFAEligibilityByRouteType

@@ -1,0 +1,10 @@
+# Test: OSPFv2 Segment Routing Adj-SID lifecycle (spec-ospf-ext-5 AC-12/AC-13, RFC 8665 §7.4.1).
+#
+# VALIDATES: an Adj-SID is allocated from the SRLB when a neighbor reaches Full and installs a
+# pop/forward mpls-fib entry toward that neighbor; dropping below 2-Way withdraws the entry and
+# frees the SRLB label.
+# PREVENTS: a stale pop entry to a dead neighbor, or an SRLB label leak.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestSRAdjSIDAllocatedAtFull|TestSRAdjSIDWithdrawnBelow2Way|TestSRLANAdjSIDCarriesNeighborID' -count=1:timeout=90s
+expect=exit:code=0
+expect=stdout:contains=PASS

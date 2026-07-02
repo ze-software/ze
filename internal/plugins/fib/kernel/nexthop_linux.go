@@ -78,7 +78,46 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 		route.Encap = buildSEG6Encap(r.SRv6SID)
 	}
 
+	// Fast-reroute backup (RFC 5286 / TI-LFA): program the backup next-hop(s) as
+	// link-down-flagged multipath next-hops carrying the repair MPLS encap, so the
+	// kernel forwards to a backup only when the primary link is down. A backup
+	// requires a multipath route to hold both primary and backup, so a single-path
+	// route is promoted to multipath first (its primary label stack moves onto the
+	// primary next-hop).
+	if len(r.Backup) > 0 {
+		if route.MultiPath == nil {
+			route.MultiPath = buildMultiPath(r.NextHop, nil)
+			if route.Encap != nil && len(route.MultiPath) > 0 {
+				route.MultiPath[0].Encap = route.Encap
+				route.Encap = nil
+			}
+			route.Gw = nil
+		}
+		route.MultiPath = append(route.MultiPath, buildBackupNexthops(r.Backup)...)
+	}
+
 	return route, nil
+}
+
+// buildBackupNexthops builds the link-down/backup multipath next-hops for a
+// fast-reroute backup: each carries the RTNH_F_LINKDOWN flag (used only when the
+// primary link is down) and, for a TI-LFA repair, the SR repair MPLS encap.
+func buildBackupNexthops(backup []events.ECMPPath) []*netlink.NexthopInfo {
+	out := make([]*netlink.NexthopInfo, 0, len(backup))
+	for _, b := range backup {
+		if !b.NextHop.IsValid() {
+			continue
+		}
+		nhi := &netlink.NexthopInfo{
+			Gw:    b.NextHop.AsSlice(),
+			Flags: int(unix.RTNH_F_LINKDOWN),
+		}
+		if len(b.Labels) > 0 {
+			nhi.Encap = buildMPLSEncap(b.Labels)
+		}
+		out = append(out, nhi)
+	}
+	return out
 }
 
 func routeTypeToLinux(rt events.RouteType) int {

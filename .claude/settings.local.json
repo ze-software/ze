@@ -114,7 +114,8 @@
       "Bash(./scripts/dev/worktree_update.sh:*)",
       "Bash(gh issue:*)",
       "Bash(zellij setup:*)",
-      "Bash(mkdir -p tmp/session)"
+      "Bash(mkdir -p tmp/session)",
+      "Bash(uv run *)"
     ],
     "deny": [
       "Bash(git commit:*)",

@@ -42,9 +42,23 @@ type Computer struct {
 
 	mu sync.Mutex
 
-	last         []RouteEntry
-	lastBorder   []BorderRouterEntry
+	last       []RouteEntry
+	lastBorder []BorderRouterEntry
+	// lastCandidates retains every per-prefix candidate route considered by the most
+	// recent Run (intra/inter/external), BEFORE selectBestRoutes collapsed them to one
+	// winner. The read-only SPF-explain view (spec-ospf-ext-14) reads it to show why a
+	// route won WITHOUT a recompute. It never feeds the installed table.
+	lastCandidates []RouteEntry
+	// runs counts completed SPF computations. The explain view reads it read-only so a
+	// test can assert an explain call did NOT trigger a recompute (R-3).
+	runs uint64
+	// lastGraphs retains the per-area transit graph built by the most recent Run so
+	// RFC 6138 cut-edge queries can be answered from the last SPF result without a
+	// second Dijkstra pass (Appendix A: "a cut-edge computation should not require any
+	// extra SPF runs"). Read-only after assignment; IsCutEdge only traverses it.
+	lastGraphs   map[types.AreaID]*Graph
 	onChange     func(RouteDelta)
+	postRun      func()
 	delay        time.Duration
 	hold         time.Duration
 	maxHold      time.Duration
@@ -60,10 +74,30 @@ type Computer struct {
 
 	state map[types.AreaID]spfState
 
+	// virtualLinks are the configured virtual links resolved against their transit
+	// area's SPF result each run (RFC 2328 sec 16.1). onVirtual fires with the resolved
+	// set when it changes (drives the engine's synthetic virtual interface); lastVirtual
+	// is the previous resolution, so an unchanged cost/reachability does not flap.
+	virtualLinks []VirtualLinkRequest
+	onVirtual    func([]VirtualNeighborResult)
+	lastVirtual  map[VirtualLinkRequest]VirtualNeighborResult
+
 	mRuns     metrics.CounterVec
 	mDuration metrics.HistogramVec
 	mABR      metrics.Gauge
 	mSummary  metrics.GaugeVec
+	mTransit  metrics.CounterVec
+
+	// frr is the resolved fast-reroute config; srResolver reads ext-5's SR label
+	// maps for a TI-LFA repair list (nil for base-LFA-only, e.g. the v6 engine).
+	frr        FastRerouteConfig
+	srResolver SRResolver
+
+	mFRRProtected    metrics.GaugeVec
+	mFRRUnprotected  metrics.GaugeVec
+	mFRRInstalled    metrics.GaugeVec
+	mFRRCompute      metrics.HistogramVec
+	mFRRRepairLabels metrics.GaugeVec
 }
 
 // Config configures one SPF Computer. A nil Source yields empty graphs; a nil
@@ -119,30 +153,54 @@ func NewComputer(cfg Config) *Computer {
 	nop := metrics.NopRegistry{}
 	areaOptions, areaRanges, areaPolicies := areaConfigMaps(cfg.AreaConfigs)
 	return &Computer{
-		src:          cfg.Source,
-		resolver:     cfg.Resolver,
-		root:         cfg.Root,
-		areas:        areas,
-		maxPaths:     maxPaths,
-		areaOptions:  areaOptions,
-		areaRanges:   areaRanges,
-		areaPolicies: areaPolicies,
-		summarySink:  cfg.SummarySink,
-		strategy:     strategy,
-		installer:    inst,
-		delay:        delay,
-		hold:         hold,
-		maxHold:      maxHold,
-		currentDelay: delay,
-		dirty:        make(map[types.AreaID]struct{}),
-		afterFunc:    func(d time.Duration, f func()) timerHandle { return time.AfterFunc(d, f) },
-		now:          time.Now,
-		state:        make(map[types.AreaID]spfState),
-		mRuns:        nop.CounterVec("", "", nil),
-		mDuration:    nop.HistogramVec("", "", nil, nil),
-		mABR:         nop.Gauge("", ""),
-		mSummary:     nop.GaugeVec("", "", nil),
+		src:              cfg.Source,
+		resolver:         cfg.Resolver,
+		root:             cfg.Root,
+		areas:            areas,
+		maxPaths:         maxPaths,
+		areaOptions:      areaOptions,
+		areaRanges:       areaRanges,
+		areaPolicies:     areaPolicies,
+		summarySink:      cfg.SummarySink,
+		strategy:         strategy,
+		installer:        inst,
+		delay:            delay,
+		hold:             hold,
+		maxHold:          maxHold,
+		currentDelay:     delay,
+		dirty:            make(map[types.AreaID]struct{}),
+		afterFunc:        func(d time.Duration, f func()) timerHandle { return time.AfterFunc(d, f) },
+		now:              time.Now,
+		state:            make(map[types.AreaID]spfState),
+		lastVirtual:      make(map[VirtualLinkRequest]VirtualNeighborResult),
+		mRuns:            nop.CounterVec("", "", nil),
+		mDuration:        nop.HistogramVec("", "", nil, nil),
+		mABR:             nop.Gauge("", ""),
+		mSummary:         nop.GaugeVec("", "", nil),
+		mTransit:         nop.CounterVec("", "", nil),
+		mFRRProtected:    nop.GaugeVec("", "", nil),
+		mFRRUnprotected:  nop.GaugeVec("", "", nil),
+		mFRRInstalled:    nop.GaugeVec("", "", nil),
+		mFRRCompute:      nop.HistogramVec("", "", nil, nil),
+		mFRRRepairLabels: nop.GaugeVec("", "", nil),
 	}
+}
+
+// SetFastReroute installs the resolved fast-reroute config. When Enabled is false
+// the LFA/TI-LFA pass is skipped and the route set is byte-for-byte as before.
+func (c *Computer) SetFastReroute(cfg FastRerouteConfig) {
+	c.mu.Lock()
+	c.frr = cfg
+	c.mu.Unlock()
+}
+
+// SetSRResolver installs the ext-5 SR label resolver a TI-LFA repair list is
+// built from. A nil resolver disables TI-LFA (base LFA still runs); the v6 engine
+// leaves it nil because OSPFv3 SR carriage (RFC 8666) is out of scope.
+func (c *Computer) SetSRResolver(r SRResolver) {
+	c.mu.Lock()
+	c.srResolver = r
+	c.mu.Unlock()
 }
 
 func normaliseTimers(delay, hold, maxHold time.Duration) (time.Duration, time.Duration, time.Duration) {
@@ -194,9 +252,45 @@ func (c *Computer) SetMetrics(reg metrics.Registry) {
 		"Current OSPF self-originated Summary-LSAs, by area.",
 		[]string{"area"},
 	)
+	c.mTransit = reg.CounterVec(
+		"ze_ospf_transit_area_passes_total",
+		"Total OSPF RFC 2328 section 16.3 transit-area summary passes, by transit area.",
+		[]string{"transit_area"},
+	)
+	c.mFRRProtected = reg.GaugeVec(
+		"ze_ospf_fast_reroute_protected_prefixes",
+		"Current OSPF prefixes with a fast-reroute backup, by area and protection class.",
+		[]string{"area", "class"},
+	)
+	c.mFRRUnprotected = reg.GaugeVec(
+		"ze_ospf_fast_reroute_unprotected_prefixes",
+		"Current OSPF prefixes with no fast-reroute backup, by area and reason.",
+		[]string{"area", "reason"},
+	)
+	c.mFRRInstalled = reg.GaugeVec(
+		"ze_ospf_fast_reroute_backups_installed",
+		"Current OSPF fast-reroute backups installed, by kind (lfa/ti-lfa).",
+		[]string{"kind"},
+	)
+	c.mFRRCompute = reg.HistogramVec(
+		"ze_ospf_fast_reroute_compute_seconds",
+		"OSPF fast-reroute (LFA/TI-LFA) compute duration in seconds, by area.",
+		spfDurationBuckets,
+		[]string{"area"},
+	)
+	c.mFRRRepairLabels = reg.GaugeVec(
+		"ze_ospf_fast_reroute_ti_lfa_repair_labels",
+		"Current OSPF TI-LFA repair labels pushed, by area.",
+		[]string{"area"},
+	)
 	c.mu.Unlock()
 	c.installer.SetMetrics(reg)
 }
+
+// SetInstallSuppress installs the graceful-restart route-install suppression predicate on the
+// underlying Installer (RFC 3623 sec 2/2.1). While it returns true, SPF still computes but the
+// FIB is neither churned nor withdrawn.
+func (c *Computer) SetInstallSuppress(fn func() bool) { c.installer.setSuppress(fn) }
 
 // SetRoot updates the local Router ID used as the SPF root.
 func (c *Computer) SetRoot(root types.RouterID) {
@@ -230,6 +324,20 @@ func (c *Computer) SetAreaConfigs(configs []AreaConfig) {
 func (c *Computer) SetOnChange(fn func(RouteDelta)) {
 	c.mu.Lock()
 	c.onChange = fn
+	c.mu.Unlock()
+}
+
+// SetPostRun registers a read-only callback invoked after EVERY SPF run, AFTER the
+// Installer has applied the IP route delta. It is the seam Segment Routing uses to
+// (re)compute MPLS label entries that ride on top of the just-installed IP routes,
+// so an SR push can never be emitted before its underlying IP route exists
+// (spec-ospf-ext-5 R-8). Unlike SetOnChange it fires on every run, not only when the
+// route set changed, because a remote SR LSA change with an unchanged IP route table
+// must still be reflected. A nil callback disables it. The callback MUST NOT mutate
+// SPF state; it reads Routes()/Snapshot() only.
+func (c *Computer) SetPostRun(fn func()) {
+	c.mu.Lock()
+	c.postRun = fn
 	c.mu.Unlock()
 }
 
@@ -316,7 +424,10 @@ func (c *Computer) Run() RouteDelta {
 	}
 	root := c.root
 	areas := append([]types.AreaID(nil), c.areas...)
+	virtualLinks := append([]VirtualLinkRequest(nil), c.virtualLinks...)
 	maxPaths := c.maxPaths
+	frr := c.frr
+	srResolver := c.srResolver
 	areaOptions := copyAreaOptions(c.areaOptions)
 	areaRanges := copyAreaRanges(c.areaRanges)
 	areaPolicies := copyAreaPolicies(c.areaPolicies)
@@ -329,9 +440,11 @@ func (c *Computer) Run() RouteDelta {
 	activeAreas := make([]types.AreaID, 0, len(areas))
 	results := make(map[types.AreaID]*Result, len(areas))
 	states := make(map[types.AreaID]spfState, len(areas))
+	graphs := make(map[types.AreaID]*Graph, len(areas))
 	for _, area := range areas {
 		start := time.Now()
 		g := c.strategy.BuildGraph(c.src, area)
+		graphs[area] = g
 		res := computeWithNextHop(g, root, maxPaths, c.strategy.NextHopSource())
 		results[area] = res
 		if isActiveResult(res, root) {
@@ -347,8 +460,22 @@ func (c *Computer) Run() RouteDelta {
 	}
 	activeAreas = canonicalAreas(activeAreas)
 	summaryAreas := canonicalAreas(append(append([]types.AreaID(nil), areas...), previousSummaryAreas...))
+	// RFC 2328 sec 16.1 / RFC 5340 sec 3.5: resolve each configured virtual link from its
+	// transit area's intra-area result and, when the endpoint is a Full virtual link (its
+	// backbone Router-LSA carries the V-bit), treat the backbone as an active area so the
+	// endpoint participates as backbone-attached in the inter-area computation below.
+	virtualResults := resolveVirtualNeighbors(virtualLinks, results)
+	if len(virtualLinks) > 0 && rootVirtualBackboneAttached(results, root) {
+		activeAreas = canonicalAreas(append(activeAreas, types.BackboneArea))
+	}
 	inter, border := c.strategy.ComputeInterArea(InterAreaInput{Source: c.src, Root: root, Areas: activeAreas, Results: results, Ranges: areaRanges, Resolver: c.resolver, MaxPaths: maxPaths})
 	candidates = append(candidates, inter...)
+	// RFC 2328 sec 16.3: on a transit area (TransitCapability TRUE) re-examine its
+	// Summary-LSAs to IMPROVE already-reachable backbone routes and resolve the real
+	// transit next hop for any route whose next hop is a virtual link.
+	if len(virtualLinks) > 0 {
+		candidates = c.transitAreaPass(results, candidates, virtualResults, maxPaths)
+	}
 	summary := c.strategy.OriginateSummaries(SummaryInput{Sink: summarySink, Root: root, Areas: activeAreas, FlushAreas: summaryAreas, Options: areaOptions, Ranges: areaRanges, Results: results, InterRoutes: inter, BorderRouters: border, Policies: areaPolicies})
 	if IsABR(activeAreas) {
 		c.mABR.Set(1)
@@ -369,6 +496,29 @@ func (c *Computer) Run() RouteDelta {
 	}
 	external := c.strategy.ComputeExternal(ExternalInput{Source: c.src, Root: root, BorderRouters: border, Routes: internal, Resolver: c.resolver, MaxPaths: maxPaths, NSSAAreas: nssaAreas})
 	selected := selectBestRoutes(append(internal, external...), maxPaths)
+	// spec-ospf-ext-14: retain every candidate route (raw intra/inter + external, before
+	// the per-prefix collapse) so the read-only explain view can show what each winner beat.
+	rawCandidates := append(append([]RouteEntry(nil), candidates...), external...)
+
+	// RFC 5286 / TI-LFA fast reroute: attach a per-primary loop-free backup to each
+	// route AFTER selection and BEFORE install, gated on the fast-reroute config.
+	// Disabled leaves `selected` untouched (byte-for-byte as today).
+	if frr.Enabled {
+		frrStart := c.now()
+		frrStats := attachAllBackups(selected, fastRerouteInput{
+			root:         root,
+			maxPaths:     maxPaths,
+			nh:           c.strategy.NextHopSource(),
+			resolver:     c.resolver,
+			results:      results,
+			graphs:       graphs,
+			border:       border,
+			virtualLinks: len(virtualLinks) > 0,
+			cfg:          frr,
+			sr:           srResolver,
+		})
+		c.publishFRRMetrics(frrStats, c.now().Sub(frrStart))
+	}
 
 	c.mu.Lock()
 	if c.stopped {
@@ -377,7 +527,10 @@ func (c *Computer) Run() RouteDelta {
 	}
 	delta := c.installer.Apply(selected)
 	c.last = selected
+	c.lastCandidates = rawCandidates
+	c.runs++
 	c.lastBorder = border
+	c.lastGraphs = graphs
 	c.summaryAreas = activeAreas
 	for area, st := range states {
 		st.Pending = c.pending
@@ -386,12 +539,27 @@ func (c *Computer) Run() RouteDelta {
 		c.state[area] = st
 	}
 	onChange := c.onChange
+	postRun := c.postRun
+	onVirtual, virtualChanged := c.updateVirtualLocked(virtualResults)
 	c.mu.Unlock()
 
 	// Redistribution producer trigger (OSPF -> BGP), outside the lock so the
 	// emit cannot deadlock against an SPF re-entry. A separate path from FIB install.
 	if onChange != nil && !delta.Empty() {
 		onChange(delta)
+	}
+	// Segment Routing post-run hook: fires after the IP-route Installer.Apply so SR
+	// label pushes ride the just-installed IP routes (spec-ospf-ext-5 R-8). It fires
+	// on every run, outside the lock, because a remote SR LSA change must be reflected
+	// even when the IP route table is unchanged.
+	if postRun != nil {
+		postRun()
+	}
+	// Virtual-link resolution change (drives the engine's synthetic interface up/down and
+	// cost), outside the lock. Fires only when the resolved set changed, so an unchanged
+	// transit cost does not flap the virtual link (spec-ospf-ext-7 R-7).
+	if onVirtual != nil && virtualChanged {
+		onVirtual(virtualResults)
 	}
 	return delta
 }
@@ -403,12 +571,50 @@ func (c *Computer) Routes() []RouteEntry {
 	return append([]RouteEntry(nil), c.last...)
 }
 
+// RouterReachable reports whether an originating router is reachable in the last SPF
+// computation, for the RFC 5250 §5 Type-11 opaque-LSA reachability gate. It reuses the
+// reachability the SPF run already produced: the local root is always reachable; a border
+// router (ABR/ASBR) with a finite metric and a resolved next-hop is reachable (the same
+// ASBR reachability used to validate Type-5 AS-External LSAs); and any router that
+// originates an installed route is reachable. An unreachable originator's Type-11 opaque
+// LSAs must not be used (RFC 5250 §5).
+func (c *Computer) RouterReachable(id types.RouterID) bool {
+	if id == (types.RouterID{}) {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if id == c.root {
+		return true
+	}
+	for _, b := range c.lastBorder {
+		if b.RouterID == id && b.Metric < LSInfinity && len(b.NextHops) > 0 {
+			return true
+		}
+	}
+	for _, r := range c.last {
+		if r.Origin == id && len(r.NextHops) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // Snapshot returns the `show ospf route` snapshot.
 func (c *Computer) Snapshot() []RouteSnapshotEntry {
 	c.mu.Lock()
 	routes := append([]RouteEntry(nil), c.last...)
 	c.mu.Unlock()
 	return Snapshot(routes)
+}
+
+// FastRerouteSnapshot returns the `show ospf route fast-reroute` snapshot: each
+// prefix's primary next-hops with their RFC 5286 / TI-LFA backups.
+func (c *Computer) FastRerouteSnapshot() []FastRerouteSnapshotEntry {
+	c.mu.Lock()
+	routes := append([]RouteEntry(nil), c.last...)
+	c.mu.Unlock()
+	return FastRerouteSnapshot(routes)
 }
 
 // BorderRouterSnapshot returns the `show ospf border-routers` snapshot.

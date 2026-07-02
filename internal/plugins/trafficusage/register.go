@@ -57,6 +57,20 @@ func runEngine(conn net.Conn) int {
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
 
+	// iface.SubscribeCollectNotify below registers a callback into iface's
+	// package-level subscriber list as a plain Go function call, not through
+	// DirectBridge/DispatchCommand -- that only reaches the engine's real
+	// rate tracker (internal/component/iface's own background collect loop)
+	// when this plugin shares process memory with it. It is the monitor's
+	// only attach/detach mechanism, so an external traffic-usage would
+	// silently never attach to any interface, with ze_traffic_usage_*
+	// permanently empty and no error anywhere. Refuse to start rather than
+	// degrade silently.
+	if !p.IsInternal() {
+		log.Error("traffic-usage: refusing to start as an external plugin process -- the interface rate-tracker subscription (iface.SubscribeCollectNotify) is a same-process call and would silently no-op across a process boundary; configure traffic-usage to run internal")
+		return 1
+	}
+
 	mon := newMonitor(att, resolveBinding)
 	activeMonitor.Store(mon)
 

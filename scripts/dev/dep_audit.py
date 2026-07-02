@@ -104,7 +104,9 @@ def collect_edges(root: str, module: str) -> dict:
     imp_re = re.compile(r'"(' + re.escape(module) + r'/[^"]+)"')
     for dirpath, dirs, files in os.walk(root):
         dirs[:] = [
-            d for d in dirs if d not in (".git", "vendor", "tmp", "node_modules")
+            d
+            for d in dirs
+            if d not in (".git", ".claude", "vendor", "tmp", "node_modules")
         ]
         for f in files:
             if not f.endswith(".go"):
@@ -624,6 +626,7 @@ def non_engine_area(rel: str) -> str | None:
         return "internal/plugins"
     return None
 
+
 def _under(rel: str, prefix: str) -> bool:
     return rel == prefix or rel.startswith(prefix + "/")
 
@@ -1000,6 +1003,17 @@ def selftest() -> int:
             "internal/chaos/orchestrator/use.go",
             f'package orchestrator\nimport _ "{mod}/internal/component/widget"\n',
         )
+        # a sibling Claude agent worktree nested under .claude/worktrees/ (a real
+        # concurrent-session layout, not hypothetical -- collect_edges previously
+        # walked from repo root with no exclusion for it, so this same violation
+        # committed by ANOTHER session's own in-progress worktree got reported
+        # against THIS repo's tier-check gate the first time ze-plugin-boundary-check
+        # was wired into the live `make ze-verify` path, plan/learned/1045).
+        w(
+            root,
+            ".claude/worktrees/agent-fake/internal/app/use2.go",
+            f'package app\nimport _ "{mod}/internal/component/widget"\n',
+        )
         dis_edges = collect_edges(root, mod)
         dmap = {"internal/component/widget": "ze_widget"}
         dfiles = {v[0] for v in disableable_violations(root, mod, dis_edges, dmap)}
@@ -1012,6 +1026,9 @@ def selftest() -> int:
         assert "internal/app/use_test.go" not in dfiles, "test importer wrongly flagged"
         assert "internal/chaos/orchestrator/use.go" not in dfiles, (
             "non-production (ze-chaos) importer of a disableable feature wrongly flagged"
+        )
+        assert not any(".claude" in f for f in dfiles), (
+            f"a sibling agent worktree under .claude/worktrees/ was scanned and flagged: {dfiles}"
         )
 
         # feature-gate manifest + lint build-tags fixtures keep the disableable

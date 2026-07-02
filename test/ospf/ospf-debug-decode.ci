@@ -1,0 +1,13 @@
+# Test: OSPFv2 opaque LSA deep decode (typed + generic + malformed).
+#
+# VALIDATES: spec-ospf-ext-14 -- `show ospf database opaque-* detail` decodes each opaque body via its typed decoder or the ext-1 generic TLV iterator; a malformed body renders as raw hex without panic (AC-1/AC-3/AC-24).
+# PREVENTS: a regression in the OSPF debug/introspection surface.
+#
+# Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestDecodeFallbackNoDecoder|TestOpaqueDecodeTypedDecoder|TestOpaqueDecodeMalformed' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=TestDecodeFallbackNoDecoder
+expect=stdout:contains=TestOpaqueDecodeTypedDecoder
+expect=stdout:contains=TestOpaqueDecodeMalformed
+expect=stdout:contains=PASS

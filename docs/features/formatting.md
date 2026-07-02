@@ -31,7 +31,7 @@ also be set permanently through YANG config.
 
 ### Piping inline
 
-Append `| <operator>` to any command, VyOS-style:
+Append `| <operator>` to any command, shell-like:
 
 ```
 show bgp peer list | table

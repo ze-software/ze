@@ -43,12 +43,16 @@ type Encoder interface {
 	EncodeHello(routerID types.RouterID, areaID types.AreaID, h packet.Hello) []byte
 }
 
-// v4HelloEncoder is the OSPFv2 Hello encoder (the default), behavior-identical to
-// the prior direct ospf/packet encode.
-type v4HelloEncoder struct{}
+// v4HelloEncoder is the OSPFv2 Hello encoder (the default). instanceID is the interface's
+// RFC 6549 OSPFv2 Instance ID, stamped into the common header (offset 14) so every Hello
+// carries the engine's Instance ID; instanceID 0 is the base instance and its bytes are
+// identical to base OSPFv2.
+type v4HelloEncoder struct {
+	instanceID uint8
+}
 
-func (v4HelloEncoder) EncodeHello(routerID types.RouterID, areaID types.AreaID, h packet.Hello) []byte {
-	p := packet.Packet{Header: packet.Header{RouterID: routerID, AreaID: areaID}, Hello: &h}
+func (e v4HelloEncoder) EncodeHello(routerID types.RouterID, areaID types.AreaID, h packet.Hello) []byte {
+	p := packet.Packet{Header: packet.Header{RouterID: routerID, AreaID: areaID, InstanceID: e.instanceID}, Hello: &h}
 	buf := make([]byte, p.EncodedLen())
 	p.WriteTo(buf, 0)
 	return buf
@@ -57,13 +61,25 @@ func (v4HelloEncoder) EncodeHello(routerID types.RouterID, areaID types.AreaID, 
 type Metrics struct {
 	InterfaceUp metrics.GaugeVec
 	DRElections metrics.CounterVec
+	// NBMANeighbors is the configured NBMA neighbor count by interface, af, and poll
+	// state (attempt = silent/polled, heard = a Hello has been received).
+	NBMANeighbors metrics.GaugeVec
+	// NBMAPolls counts poll-rate (slow) Hellos sent to silent NBMA neighbors by
+	// interface and af.
+	NBMAPolls metrics.CounterVec
+	// PTMPHostRoutes is the number of point-to-multipoint host routes this interface
+	// contributes (1 when a PtMP interface is up), by interface and af.
+	PTMPHostRoutes metrics.GaugeVec
 }
 
 func NopMetrics() Metrics {
 	nop := metrics.NopRegistry{}
 	return Metrics{
-		InterfaceUp: nop.GaugeVec("", "", nil),
-		DRElections: nop.CounterVec("", "", nil),
+		InterfaceUp:    nop.GaugeVec("", "", nil),
+		DRElections:    nop.CounterVec("", "", nil),
+		NBMANeighbors:  nop.GaugeVec("", "", nil),
+		NBMAPolls:      nop.CounterVec("", "", nil),
+		PTMPHostRoutes: nop.GaugeVec("", "", nil),
 	}
 }
 
@@ -92,6 +108,62 @@ type Config struct {
 	// OSPFv3-only: the OSPFv2 wire carries a Network Mask in its place, so the v2 encoder
 	// ignores it.
 	InterfaceID uint32
+	// InstanceID is the RFC 6549 OSPFv2 Interface Instance ID stamped into every packet
+	// this interface transmits (header offset 14). The default v4 Hello encoder is built
+	// with it in New; 0 is the base instance. It is distinct from the OSPFv3 Instance ID,
+	// which the engine threads through the v6 encoder instead.
+	InstanceID uint8
+	// PollInterval is the RFC 2328 App C.5 NBMA poll rate (seconds): a configured but
+	// currently silent NBMA neighbor is sent a Hello at this slower rate rather than at
+	// HelloInterval. It applies only when NetworkType is NetworkNBMA.
+	PollInterval uint16
+	// NBMANeighbors is the statically configured neighbor list for a non-broadcast
+	// interface (RFC 2328 App C.6): NBMA always, and the non-broadcast point-to-multipoint
+	// variant. Hellos are unicast to these neighbors instead of a multicast group.
+	NBMANeighbors []NBMANeighbor
+	// BFD (RFC 5880 / RFC 5881) per-interface single-hop failure detection. AF-neutral:
+	// the engine opens a session per Full neighbor when BFDEnabled and the BFD plugin is
+	// loaded. Timers are microseconds (the api.SessionRequest unit); multiplier is Detect
+	// Mult. Zero-value = BFD off (the interface runs on Hello/Dead timers alone).
+	BFDEnabled    bool
+	BFDMinTxUs    uint32
+	BFDMinRxUs    uint32
+	BFDMultiplier uint8
+}
+
+// Detail is the full per-interface state for `show ospf interface detail`
+// (spec-ospf-ext-14): the ISM state, DR/BDR, all three timers, and (OSPFv3) the local
+// Interface ID + Instance ID. Additive over Snapshot; the summary shape is unchanged.
+type Detail struct {
+	Name               string `json:"name"`
+	Area               string `json:"area"`
+	State              string `json:"state"`
+	NetworkType        string `json:"network-type"`
+	Cost               uint16 `json:"cost"`
+	Priority           uint8  `json:"priority"`
+	Passive            bool   `json:"passive"`
+	DR                 string `json:"dr"`
+	BDR                string `json:"bdr"`
+	HelloInterval      uint16 `json:"hello-interval"`
+	DeadInterval       uint16 `json:"dead-interval"`
+	RetransmitInterval uint16 `json:"retransmit-interval"`
+	InterfaceID        uint32 `json:"interface-id,omitempty"`
+	InstanceID         uint8  `json:"instance-id"`
+	IsV6               bool   `json:"ipv6"`
+	NeighborCount      int    `json:"neighbor-count"`
+}
+
+// NBMANeighbor is one statically configured neighbor on a non-broadcast interface
+// (RFC 2328 App C.6). Address is the IPv4 unicast Hello destination (OSPFv2).
+// RouterID and LinkLocal identify the OSPFv3 neighbor; LinkLocal is the unicast
+// destination (configured, or learned from the neighbor's first Hello). Priority 0
+// marks the neighbor ineligible for the DR/BDR election (RFC 2328 sec 9.4 step 6
+// still sends it a Start Hello once this router becomes DR/BDR).
+type NBMANeighbor struct {
+	Address   netip.Addr
+	RouterID  types.RouterID
+	LinkLocal netip.Addr
+	Priority  uint8
 }
 
 type Neighbor struct {
@@ -113,18 +185,35 @@ type Neighbor struct {
 }
 
 type Snapshot struct {
-	Name          string `json:"name"`
-	Area          string `json:"area"`
-	State         string `json:"state"`
-	NetworkType   string `json:"network_type"`
-	Cost          uint16 `json:"cost"`
-	Priority      uint8  `json:"priority"`
-	Passive       bool   `json:"passive"`
+	Name        string `json:"name"`
+	Area        string `json:"area"`
+	State       string `json:"state"`
+	NetworkType string `json:"network_type"`
+	Cost        uint16 `json:"cost"`
+	Priority    uint8  `json:"priority"`
+	Passive     bool   `json:"passive"`
+	// BFD reports whether RFC 5880 single-hop BFD is enabled on this interface, so
+	// `show ospf interface` can surface it (AC-1).
+	BFD           bool   `json:"bfd,omitempty"`
 	DR            string `json:"dr"`
 	BDR           string `json:"bdr"`
 	HelloInterval uint16 `json:"hello_interval"`
 	DeadInterval  uint16 `json:"dead_interval"`
 	NeighborCount int    `json:"neighbor_count"`
+	// PollInterval and NBMANeighbors are populated only for an NBMA interface (RFC
+	// 2328 App C.5/C.6); omitempty keeps every other network type's snapshot
+	// byte-for-byte as before.
+	PollInterval  uint16                 `json:"poll-interval,omitempty"`
+	NBMANeighbors []NBMANeighborSnapshot `json:"nbma-neighbors,omitempty"`
+}
+
+// NBMANeighborSnapshot renders one configured NBMA neighbor for `show ospf interface`:
+// its identity (IPv4 address or IPv6 Router ID), election priority, and whether a Hello
+// has been heard (heard) or it is still being polled (attempt), RFC 2328 sec 10.1.
+type NBMANeighborSnapshot struct {
+	Neighbor string `json:"neighbor"`
+	Priority uint8  `json:"priority"`
+	State    string `json:"state"`
 }
 
 type EventSink interface {
@@ -211,17 +300,20 @@ type Interface struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	wg        sync.WaitGroup
+	// nbmaLastPoll records, per configured NBMA neighbor unicast destination, when a
+	// poll-rate Hello was last sent to it while silent (RFC 2328 sec 10.1 Attempt).
+	nbmaLastPoll map[netip.Addr]time.Time
 }
 
 func New(cfg Config, sender Sender, m Metrics) *Interface {
-	if m.InterfaceUp == nil || m.DRElections == nil {
+	if m.InterfaceUp == nil || m.DRElections == nil || m.NBMANeighbors == nil || m.NBMAPolls == nil || m.PTMPHostRoutes == nil {
 		m = NopMetrics()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Interface{
 		cfg:          cfg,
 		sender:       sender,
-		encoder:      v4HelloEncoder{},
+		encoder:      v4HelloEncoder{instanceID: cfg.InstanceID},
 		metrics:      m,
 		sink:         nopEventSink{},
 		neighborSink: nopNeighborSink{},
@@ -229,6 +321,7 @@ func New(cfg Config, sender Sender, m Metrics) *Interface {
 		neighbors:    make(map[types.RouterID]Neighbor),
 		ctx:          ctx,
 		cancel:       cancel,
+		nbmaLastPoll: make(map[netip.Addr]time.Time),
 	}
 }
 
@@ -274,10 +367,16 @@ func (i *Interface) Start() {
 			i.state = StateLoopback
 			i.setUpLocked(false)
 			startTimers = false
-		case NetworkPointToPoint:
+		case NetworkPointToPoint, NetworkPointToMultipoint:
+			// RFC 2328 sec 9.5: point-to-multipoint is treated as a collection of
+			// point-to-point links -- the point-to-point ISM state, no Waiting, no
+			// DR/BDR election.
 			i.state = StatePointToPoint
 			i.setUpLocked(true)
+			i.setPTMPHostRouteLocked(i.cfg.NetworkType == NetworkPointToMultipoint)
 		default:
+			// Broadcast and NBMA (RFC 2328 sec 9.3): an eligible interface waits for the
+			// election; a priority-0 interface goes straight to DROther.
 			if i.cfg.Priority == 0 {
 				i.state = StateDROther
 			} else {
@@ -304,7 +403,7 @@ func (i *Interface) Start() {
 	if deadInterval > 0 {
 		i.wg.Go(func() { i.inactivityLoop(time.Duration(deadInterval) * time.Second) })
 	}
-	if networkType == NetworkBroadcast && priority > 0 && deadInterval > 0 {
+	if (networkType == NetworkBroadcast || networkType == NetworkNBMA) && priority > 0 && deadInterval > 0 {
 		i.wg.Go(func() { i.waitTimer(time.Duration(deadInterval) * time.Second) })
 	}
 }
@@ -472,6 +571,14 @@ func (i *Interface) expireNeighbors(now time.Time) int {
 func (i *Interface) buildHelloPacket() []byte {
 	i.mu.Lock()
 	defer i.mu.Unlock()
+	return i.buildHelloPacketLocked()
+}
+
+// buildHelloPacketLocked encodes one Hello for the interface. The same packet is
+// sent to the multicast group (broadcast / point-to-point / PtMP broadcast variant)
+// or reused verbatim for each unicast neighbor (NBMA / non-broadcast PtMP), so the
+// unicast fan-out allocates one buffer, not one per neighbor.
+func (i *Interface) buildHelloPacketLocked() []byte {
 	ids := make([]types.RouterID, 0, len(i.neighbors))
 	for id := range i.neighbors {
 		ids = append(ids, id)
@@ -532,8 +639,33 @@ func (i *Interface) Snapshot() Snapshot {
 	return i.snapshotLocked()
 }
 
+// DetailSnapshot returns the full interface state (ISM, DR/BDR by Router ID, timers,
+// OSPFv3 Interface ID / Instance ID).
+func (i *Interface) DetailSnapshot() Detail {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	return Detail{
+		Name:               i.cfg.Name,
+		Area:               i.cfg.AreaID.String(),
+		State:              i.state.String(),
+		NetworkType:        i.cfg.NetworkType,
+		Cost:               i.cfg.Cost,
+		Priority:           i.cfg.Priority,
+		Passive:            i.cfg.Passive,
+		DR:                 i.dr.String(),
+		BDR:                i.bdr.String(),
+		HelloInterval:      i.cfg.HelloInterval,
+		DeadInterval:       i.cfg.DeadInterval,
+		RetransmitInterval: i.cfg.RetransmitInterval,
+		InterfaceID:        i.cfg.InterfaceID,
+		InstanceID:         i.cfg.InstanceID,
+		IsV6:               i.cfg.IsV6,
+		NeighborCount:      len(i.neighbors),
+	}
+}
+
 func (i *Interface) snapshotLocked() Snapshot {
-	return Snapshot{
+	snap := Snapshot{
 		Name:          i.cfg.Name,
 		Area:          i.cfg.AreaID.String(),
 		State:         i.state.String(),
@@ -546,7 +678,13 @@ func (i *Interface) snapshotLocked() Snapshot {
 		DeadInterval:  i.cfg.DeadInterval,
 		NeighborCount: len(i.neighbors),
 		Passive:       i.cfg.Passive,
+		BFD:           i.cfg.BFDEnabled,
 	}
+	if i.cfg.NetworkType == NetworkNBMA {
+		snap.PollInterval = i.cfg.PollInterval
+		snap.NBMANeighbors = i.nbmaNeighborSnapshotsLocked()
+	}
+	return snap
 }
 
 func (i *Interface) eventsLocked(dr, neighbor bool) interfaceEvents {
@@ -611,14 +749,38 @@ func (i *Interface) waitTimer(delay time.Duration) {
 }
 
 func (i *Interface) SendHello() error {
+	return i.sendHelloAt(time.Now())
+}
+
+// sendHelloAt sends this interface's Hello(s) as of now. Broadcast, point-to-point,
+// and the point-to-multipoint broadcast variant send one packet to the all-routers
+// multicast group. NBMA and the non-broadcast point-to-multipoint variant unicast a
+// Hello to each configured neighbor (RFC 2328 sec 9.5), at HelloInterval to neighbors
+// heard from and at PollInterval to silent ones. now is a parameter so the poll
+// cadence is testable.
+func (i *Interface) sendHelloAt(now time.Time) error {
+	i.mu.Lock()
 	if i.sender == nil || i.cfg.Passive || i.cfg.NetworkType == NetworkLoopback {
+		i.mu.Unlock()
 		return nil
+	}
+	if i.nonBroadcastLocked() {
+		targets := i.helloTargetsLocked(now)
+		payload := i.buildHelloPacketLocked()
+		sender := i.sender
+		name := i.cfg.Name
+		i.mu.Unlock()
+		return sendUnicast(sender, name, targets, payload)
 	}
 	dst := allSPFRouters
 	if i.cfg.IsV6 {
 		dst = allSPFRoutersV6
 	}
-	return i.sender.SendPacket(i.cfg.Name, dst, i.buildHelloPacket())
+	payload := i.buildHelloPacketLocked()
+	sender := i.sender
+	name := i.cfg.Name
+	i.mu.Unlock()
+	return sender.SendPacket(name, dst, payload)
 }
 
 func (i *Interface) runElection() {
@@ -629,7 +791,19 @@ func (i *Interface) runElection() {
 	dr := i.dr
 	bdr := i.bdr
 	sink := i.sink
+	// RFC 2328 sec 9.4 step 6: when this NBMA router becomes DR or BDR it must start
+	// sending Hellos to its priority-0 (ineligible) neighbors so they begin the
+	// adjacency. Capture the send inputs under the lock; send outside it.
+	startTargets := i.startHelloTargetsLocked(ev.dr)
+	var startPayload []byte
+	if len(startTargets) > 0 {
+		startPayload = i.buildHelloPacketLocked()
+	}
+	sender := i.sender
 	i.mu.Unlock()
+	if len(startTargets) > 0 {
+		_ = sendUnicast(sender, interfaceName, startTargets, startPayload)
+	}
 	if ev.dr {
 		neighborSink.AdjOK(interfaceName, dr, bdr)
 	}
@@ -637,7 +811,10 @@ func (i *Interface) runElection() {
 }
 
 func (i *Interface) runElectionLocked() interfaceEvents {
-	if i.cfg.Passive || i.cfg.NetworkType != NetworkBroadcast {
+	// RFC 2328 sec 9.4: the DR/BDR election runs on broadcast AND NBMA (the same
+	// election over a manually configured neighbor set); point-to-point,
+	// point-to-multipoint, loopback, and passive interfaces never elect.
+	if i.cfg.Passive || (i.cfg.NetworkType != NetworkBroadcast && i.cfg.NetworkType != NetworkNBMA) {
 		return interfaceEvents{}
 	}
 	candidates := make([]Candidate, 0, len(i.neighbors)+1)
@@ -678,10 +855,17 @@ func (i *Interface) runElectionLocked() interfaceEvents {
 }
 
 func (i *Interface) validateHelloLocked(h packet.Hello) string {
-	// The Network Mask match is OSPFv2-only (RFC 2328 sec 10.5); OSPFv3 carries an Interface ID
-	// in the Hello instead of a Network Mask, so the v6 path skips this check.
-	if !i.cfg.IsV6 && i.cfg.NetworkType == NetworkBroadcast && h.NetworkMask != i.cfg.NetworkMask {
-		return "network-mask"
+	// The Network Mask match is OSPFv2-only (RFC 2328 sec 10.5) and applies to every
+	// multi-access-style link (broadcast, NBMA, point-to-multipoint); it is skipped on
+	// point-to-point and loopback. OSPFv3 carries an Interface ID in the Hello instead
+	// of a Network Mask, so the v6 path skips it entirely.
+	if !i.cfg.IsV6 {
+		switch i.cfg.NetworkType {
+		case NetworkBroadcast, NetworkNBMA, NetworkPointToMultipoint:
+			if h.NetworkMask != i.cfg.NetworkMask {
+				return DropReasonNetworkMask
+			}
+		}
 	}
 	if h.HelloInterval != i.cfg.HelloInterval {
 		return "hello-interval"
@@ -704,8 +888,9 @@ func (i *Interface) validateHelloLocked(h packet.Hello) string {
 // DropReasonOptionsE / DropReasonOptionsN are the Hello option-mismatch drop reasons
 // (E-bit external-capability and N-bit NSSA-capability).
 const (
-	DropReasonOptionsE = "options-e"
-	DropReasonOptionsN = "options-n"
+	DropReasonOptionsE    = "options-e"
+	DropReasonOptionsN    = "options-n"
+	DropReasonNetworkMask = "network-mask"
 )
 
 func (i *Interface) expectedOptionsLocked() types.Options {

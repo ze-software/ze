@@ -20,6 +20,12 @@ type SessionEvent struct {
 	SessionState  string `json:"session-state"`
 	HoldTime      uint16 `json:"hold-time"`
 	KeepaliveTime uint16 `json:"keepalive-time"`
+	// Interface is the local interface the LDP adjacency was discovered on (the
+	// discovering interface name). It lets an IGP LDP-IGP-sync consumer (RFC 5443 /
+	// RFC 6138) map a session event to one of its interfaces without reverse-mapping
+	// a transport address. Empty for any emitter that has no interface context (e.g.
+	// a targeted session); such an event is a no-op for interface-scoped consumers.
+	Interface string `json:"interface"`
 }
 
 // LabelBindEvent carries label binding information on the event bus.

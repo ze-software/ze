@@ -85,7 +85,7 @@ func TestOSPFv6OriginateLinkLSA(t *testing.T) {
 	if len(link.Prefixes) != 1 {
 		t.Fatalf("link prefixes = %d, want 1 global prefix", len(link.Prefixes))
 	}
-	pfx, ok := v6PrefixToNetip(link.Prefixes[0])
+	pfx, ok := v6PrefixToNetip(link.Prefixes[0], afIPv6Unicast)
 	if !ok || pfx != netip.MustParsePrefix("2001:db8:1::/64") {
 		t.Fatalf("link prefix = %v ok=%v", pfx, ok)
 	}
@@ -148,7 +148,7 @@ func TestOSPFv6DRAggregatesLinkPrefixes(t *testing.T) {
 	}
 	got := map[netip.Prefix]bool{}
 	for _, p := range iap.Prefixes {
-		pfx, ok := v6PrefixToNetip(p)
+		pfx, ok := v6PrefixToNetip(p, afIPv6Unicast)
 		if ok {
 			got[pfx] = true
 		}

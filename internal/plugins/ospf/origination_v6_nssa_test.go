@@ -21,7 +21,7 @@ func newV6RedistEngine(t *testing.T, cfgJSON string) (*engine, types.RouterID) {
 	t.Helper()
 	cfg, err := parseOSPFConfig(ospfSec(cfgJSON), nil)
 	require.NoError(t, err)
-	eng := newEngineWithCodec(transport.New(&fakeBackend{}), v6Codec{})
+	eng := newEngineWithCodecAF(transport.New(&fakeBackend{}), v6Codec{}, afIPv6Unicast)
 	eng.setConfig(cfg)
 	return eng, cfg.RouterID
 }
@@ -49,7 +49,7 @@ func TestOSPFv6InjectExternalNSSAType7(t *testing.T) {
 	lsid := eng.redistV6[prefix.Masked()]
 	body, ok := decodeV6External(t, eng, nssa, v6NSSAKey(rid, lsid))
 	require.True(t, ok, "pure NSSA ASBR must originate an OSPFv3 NSSA-LSA")
-	got, ok := v6PrefixToNetip(body.Prefix)
+	got, ok := v6PrefixToNetip(body.Prefix, afIPv6Unicast)
 	require.True(t, ok)
 	assert.Equal(t, prefix, got)
 	_, type5 := eng.lsdb.LookupLSA(types.BackboneArea, v6ExternalKey(rid, lsid))
@@ -64,7 +64,7 @@ func TestOSPFv6InjectExternalNormalType5(t *testing.T) {
 	lsid := eng.redistV6[prefix.Masked()]
 	body, ok := decodeV6External(t, eng, types.BackboneArea, v6ExternalKey(rid, lsid))
 	require.True(t, ok, "non-NSSA ASBR keeps AS-wide Type-5 origination")
-	got, ok := v6PrefixToNetip(body.Prefix)
+	got, ok := v6PrefixToNetip(body.Prefix, afIPv6Unicast)
 	require.True(t, ok)
 	assert.Equal(t, prefix, got)
 }

@@ -67,8 +67,56 @@ func TestOSPFHelloDispatchFormsNeighbor(t *testing.T) {
 	}
 }
 
+// TestNeighborOnlyFormsWithinInstance proves AC-4 / R-6 (RFC 6549 §2/§3.1): an engine
+// configured for Instance ID 5 forms no neighbor from a Hello carrying a different Instance
+// ID (it is discarded at the demux before the FSM runs), and forms one from a matching Hello.
+func TestNeighborOnlyFormsWithinInstance(t *testing.T) {
+	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0","network-type":"point-to-point","instance-id":"5"}}}}}`), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig: %v", err)
+	}
+	fb := &fakeBackend{}
+	eng := newEngine(transport.New(fb))
+	eng.setConfig(cfg.forInstance(5))
+	if err := eng.openInterfaces(); err != nil {
+		t.Fatalf("openInterfaces: %v", err)
+	}
+	defer eng.shutdown()
+	if eng.dispatch.instanceID != 5 {
+		t.Fatalf("engine dispatch.instanceID = %d, want 5", eng.dispatch.instanceID)
+	}
+
+	fb.mu.Lock()
+	handle := fb.handles["eth0"]
+	fb.mu.Unlock()
+	if handle == nil {
+		t.Fatal("eth0 transport handle missing")
+	}
+
+	peer := ridOf("10.0.0.2")
+	helloFor := func(instanceID uint8) []byte {
+		hello := packet.Hello{HelloInterval: DefaultHelloInterval, Options: types.OptionE, Priority: 1, DeadInterval: uint32(DefaultDeadInterval)}
+		p := packet.Packet{Header: packet.Header{Type: packet.PacketTypeHello, RouterID: peer, AreaID: cfg.Areas[0].AreaID, InstanceID: instanceID}, Hello: &hello}
+		buf := make([]byte, p.EncodedLen())
+		p.WriteTo(buf, 0)
+		return buf
+	}
+
+	// A Hello for Instance 0 must be dropped by the demux: no neighbor forms.
+	eng.dispatch.dispatch(transport.RawPacket{IfIndex: handle.ifindex, Src: netip.AddrFrom4([4]byte(peer)), Payload: helloFor(0)})
+	if rows := eng.neighborSnapshot(); len(rows) != 0 {
+		t.Fatalf("neighbor rows after mismatched-instance Hello = %d, want 0 (no cross-instance adjacency)", len(rows))
+	}
+
+	// A Hello for the engine's Instance ID 5 forms the neighbor.
+	eng.dispatch.dispatch(transport.RawPacket{IfIndex: handle.ifindex, Src: netip.AddrFrom4([4]byte(peer)), Payload: helloFor(5)})
+	if rows := eng.neighborSnapshot(); len(rows) != 1 {
+		t.Fatalf("neighbor rows after matching-instance Hello = %d, want 1", len(rows))
+	}
+}
+
 // TestOSPFEngineIPv6HelloFormsNeighbor proves the unified engine forms a Hello adjacency over
-// the OSPFv3 codec: a v6 engine instance (newEngineWithCodec with v6Codec) receives a real
+// the OSPFv3 codec: a v6 engine instance (newEngineWithCodecAF with v6Codec) receives a real
 // OSPFv3 Hello (16-byte header, IPv6 upper-layer checksum, no Network Mask) and the shared
 // FSM creates the neighbor. The transport here is plumbing (it delivers the v6 payload +
 // ifindex + IPv6 src/dst); the OSPFv3 raw socket / multicast is covered by ospfv3/transport's
@@ -80,7 +128,7 @@ func TestOSPFEngineIPv6HelloFormsNeighbor(t *testing.T) {
 		t.Fatalf("parseOSPFConfig: %v", err)
 	}
 	fb := &fakeBackend{}
-	eng := newEngineWithCodec(transport.New(fb), v6Codec{})
+	eng := newEngineWithCodecAF(transport.New(fb), v6Codec{}, afIPv6Unicast)
 	eng.setConfig(cfg)
 	if err := eng.openInterfaces(); err != nil {
 		t.Fatalf("openInterfaces: %v", err)
@@ -164,7 +212,7 @@ func TestOSPFEngineIPv6InstanceIDMismatchDropped(t *testing.T) {
 		t.Fatalf("parseOSPFConfig: %v", err)
 	}
 	fb := &fakeBackend{}
-	eng := newEngineWithCodec(transport.New(fb), v6Codec{})
+	eng := newEngineWithCodecAF(transport.New(fb), v6Codec{}, afIPv6Unicast)
 	eng.setConfig(cfg)
 	if err := eng.openInterfaces(); err != nil {
 		t.Fatalf("openInterfaces: %v", err)
@@ -222,7 +270,7 @@ func bringV6NeighborFull(t *testing.T) (eng *engine, ifindex int, peer types.Rou
 		t.Fatalf("parseOSPFConfig: %v", err)
 	}
 	fb := &fakeBackend{}
-	eng = newEngineWithCodec(transport.New(fb), v6Codec{})
+	eng = newEngineWithCodecAF(transport.New(fb), v6Codec{}, afIPv6Unicast)
 	eng.setConfig(cfg)
 	if err := eng.openInterfaces(); err != nil {
 		t.Fatalf("openInterfaces: %v", err)

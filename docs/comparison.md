@@ -105,10 +105,22 @@ matches FRR's Traffic Engineering LSA (RFC 3630/5392) and Router Information LSA
 (RFC 7770): it advertises the informational capability bits (graceful restart,
 stub router, TE) in an Opaque type-4 LSA for OSPFv2 and a function-code-12 LSA for
 OSPFv3, and exposes a consumer-neutral TLV hook that a later Segment Routing module
-plugs into -- the same extensibility FRR's RI implementation provides. Per-interface
+plugs into -- the same extensibility FRR's RI implementation provides. Ze also matches
+FRR's RFC 7684 Extended Prefix/Link Opaque LSAs (Opaque type 7/8): it originates and
+decodes the prefix/link attribute containers, associating each with the Route Type / link
+identity of the base LSA FRR sees, and offers a generic sub-TLV registration hook for the
+SID values a Segment Routing module (RFC 8665) fills -- Ze ships the RFC-7684 containers,
+which are conformant on their own since RFC 7684 defines no sub-TLV values. Per-interface
 authentication covers simple password, keyed-MD5 (RFC 2328), HMAC-SHA (RFC 5709), and
 the RFC 7474 extended-sequence variant, with key chains for hitless rotation and
-sequence-number replay protection.
+sequence-number replay protection. Ze also matches FRR's OSPF Graceful Restart
+(RFC 3623 for IPv4 `ospfd`, RFC 5187 for IPv6 `ospf6d`) in both roles: as a restarter it
+floods Grace-LSAs (the IPv4 Opaque type 3 / IPv6 native LS type 0x000B), suppresses self-LSA
+origination and route churn while keeping the RTPROT_ZE FIB programmed, and re-installs
+before the sweep deadline; as a helper it holds the adjacency and suppresses LSDB churn with
+strict-LSA-checking and the stub-area exception. Unlike FRR, Ze drives both address families
+through one shared control plane with a single family-neutral `graceful-restart` config.
+<!-- source: internal/plugins/ospf/gr.go -- grManager, registerGraceConsumer -->
 <!-- source: internal/plugins/ospf/packet/auth_verify.go -- Sign, Verify -->
 <!-- source: internal/plugins/ospf/spf/install.go -- Installer Apply -->
 <!-- source: internal/plugins/ospf/spf/computer.go -- Computer Run -->

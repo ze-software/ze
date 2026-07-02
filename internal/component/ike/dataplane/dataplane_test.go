@@ -32,6 +32,11 @@ func (m *mockDataplane) RemovePolicy(_, _ *net.IPNet, _ SADir) error {
 	return nil
 }
 
+func (m *mockDataplane) RemovePolicyParams(_ SPParams) error {
+	m.removedPols++
+	return nil
+}
+
 func (m *mockDataplane) ListSAs(_ uint32) ([]SAInfo, error) {
 	return nil, nil
 }
@@ -130,6 +135,66 @@ func TestRegisterAndLoad(t *testing.T) {
 	}
 	if Get() != nil {
 		t.Fatal("Get should return nil after Close")
+	}
+}
+
+// VALIDATES: spec-ospf-ext-16 AC-2 / A-6 -- an AH SA carries an integrity
+// transform only and never an encryption transform (RFC 4302).
+// PREVENTS: an AH SA install that sets a Crypt transform and installs a
+// malformed state.
+func TestSAParamsAHNoEncryption(t *testing.T) {
+	plan := planStateAlgos(SAParams{Proto: ProtoAH, AuthAlgo: "sha256", AuthKey: make([]byte, 32)})
+	if !plan.Auth {
+		t.Error("AH plan must set the Auth transform")
+	}
+	if plan.Crypt {
+		t.Error("AH plan must NOT set a Crypt (encryption) transform (RFC 4302)")
+	}
+	if plan.AEAD {
+		t.Error("AH plan must NOT set an AEAD transform")
+	}
+}
+
+// VALIDATES: spec-ospf-ext-16 -- the UpperProto selector defaults to 0 (any,
+// today's IKE behavior) and accepts 89 (OSPF, RFC 4552 §5/§6).
+func TestSPParamsUpperProtoSelector(t *testing.T) {
+	if (SPParams{}).UpperProto != 0 {
+		t.Error("zero-value SPParams.UpperProto must be 0 (any)")
+	}
+	p := SPParams{UpperProto: 89}
+	if p.UpperProto != 89 {
+		t.Errorf("UpperProto = %d, want 89", p.UpperProto)
+	}
+}
+
+// VALIDATES: spec-ospf-ext-16 R-3 / AC-14 -- the additive AH/UpperProto changes
+// leave the IKE ESP callers byte-identical: zero-value new fields reproduce the
+// tunnel-mode ESP algorithm plan (Crypt+Auth) and the AEAD plan.
+func TestDataplaneIKEUnaffected(t *testing.T) {
+	esp := planStateAlgos(SAParams{Proto: ProtoESP, EncAlgo: "aes256", AuthAlgo: "sha256"})
+	if !esp.Crypt || !esp.Auth || esp.AEAD {
+		t.Errorf("ESP plan = %+v, want Crypt+Auth", esp)
+	}
+	aead := planStateAlgos(SAParams{Proto: ProtoESP, IsAEAD: true, EncAlgo: "aes256gcm"})
+	if !aead.AEAD || aead.Crypt || aead.Auth {
+		t.Errorf("AEAD plan = %+v, want AEAD only", aead)
+	}
+	// The IKE child SA builds an SPParams with no UpperProto/IfIndex: they must
+	// default to 0 (any / node-wide), the historical selector, so installed IKE
+	// policies are byte-identical. IfID (the XFRM if_id) is still set by IKE and is
+	// a distinct field from the new IfIndex (the policy selector oif).
+	ikePolicy := SPParams{Dir: SADirOut, Proto: ProtoESP, Mode: ModeTunnel, IfID: 7, ReqID: 3}
+	if ikePolicy.UpperProto != 0 {
+		t.Errorf("IKE SPParams.UpperProto = %d, want 0", ikePolicy.UpperProto)
+	}
+	if ikePolicy.IfIndex != 0 {
+		t.Errorf("IKE SPParams.IfIndex = %d, want 0 (node-wide; distinct from IfID)", ikePolicy.IfIndex)
+	}
+	// The IKE child SA builds an SAParams with no Sel: it must default to nil so the
+	// XFRM state selector stays the zero value (no x->sel), byte-identical to before.
+	ikeSA := SAParams{Proto: ProtoESP, Mode: ModeTunnel, IfID: 7, ReqID: 3, EncAlgo: "aes256", AuthAlgo: "sha256"}
+	if ikeSA.Sel != nil {
+		t.Errorf("IKE SAParams.Sel = %v, want nil (no explicit state selector)", ikeSA.Sel)
 	}
 }
 

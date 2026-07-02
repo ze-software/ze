@@ -16,6 +16,10 @@ const (
 	OptE  Options = 0x000002 // E-bit: AS-external LSAs flooded (not a stub area)
 	OptN  Options = 0x000008 // N-bit: NSSA support
 	OptR  Options = 0x000010 // R-bit: router is an active participant (forwards transit)
+	// OptAF is the AF-bit (RFC 5838 §2.4): a router that supports multiple address
+	// families sets it in the Hello and DD Options. Bit 8 (0x000100) per the IANA
+	// "OSPFv3 Options (24 bits)" registry; it does not collide with V6/E/N/R.
+	OptAF Options = 0x000100
 )
 
 // OptionsFromBytes reads 3 big-endian octets from b[off:] into Options.
@@ -48,3 +52,9 @@ func (o Options) Router() bool { return o.Has(OptR) }
 
 // NSSA reports the N-bit (NSSA support).
 func (o Options) NSSA() bool { return o.Has(OptN) }
+
+// AF reports the AF-bit (RFC 5838 §2.4: address-family support).
+func (o Options) AF() bool { return o.Has(OptAF) }
+
+// SetAF returns o with the AF-bit set (RFC 5838 §2.4).
+func (o Options) SetAF() Options { return o | OptAF }

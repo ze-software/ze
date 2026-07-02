@@ -1,0 +1,14 @@
+# Test: the RFC 4552 OSPFv3 IPsec doctor diagnostic is registered and explainable.
+#
+# VALIDATES: spec-ospf-ext-16 AC-12 -- the doctor-ospfv3-ipsec code (warns when an
+# OSPFv3 interface configures IPsec but the kernel XFRM dataplane is unavailable) is
+# registered by the ospf component and explainable. The check-execution logic is covered
+# by internal/plugins/ospf/doctor_ipsec_test.go (TestOSPFIPsecDoctorWarnsWhenXFRMUnavailable);
+# the live XFRM install/drop path is exercised by the QEMU integration test
+# internal/plugins/ospf/ipsec_integration_linux_test.go.
+# PREVENTS: the IPsec doctor code regressing to unregistered/unexplainable.
+
+cmd=foreground:seq=1:exec=ze explain doctor-ospfv3-ipsec
+expect=exit:code=0
+expect=stdout:contains=doctor-ospfv3-ipsec
+expect=stdout:contains=CAP_NET_ADMIN

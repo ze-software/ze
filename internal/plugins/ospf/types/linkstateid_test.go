@@ -42,3 +42,18 @@ func TestLinkStateIDFromBytesRejectsWrongLength(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: AC-12 - LinkStateID.Equal reports value identity for the comparable 4-byte array
+// that participates in the LSDB key.
+// PREVENTS: LSDB lookups treating two equal Link State IDs as different keys.
+func TestLinkStateIDEqual(t *testing.T) {
+	a := LinkStateID{192, 0, 2, 7}
+	same := LinkStateID{192, 0, 2, 7}
+	diff := LinkStateID{192, 0, 2, 8}
+	if !a.Equal(same) {
+		t.Errorf("LinkStateID.Equal(identical) = false, want true")
+	}
+	if a.Equal(diff) {
+		t.Errorf("LinkStateID.Equal(%v,%v) = true, want false", a, diff)
+	}
+}

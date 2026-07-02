@@ -10,12 +10,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
 )
 
-// RFC 2328 Section 10.4: point-to-point neighbors always become adjacent; broadcast neighbors become adjacent only when either router is DR or Backup DR.
+// RFC 2328 Section 10.4: point-to-point and point-to-multipoint neighbors always become
+// adjacent; broadcast and NBMA neighbors become adjacent only when either router is DR or
+// Backup DR. The predicate is address-family-neutral: it keys on the network type, so both
+// the OSPFv2 and OSPFv3 families share it.
 func shouldAdj(cfg InterfaceConfig, n *Neighbor) bool {
 	switch cfg.NetworkType {
-	case NetworkPointToPoint:
+	case NetworkPointToPoint, NetworkPointToMultipoint:
 		return true
-	case NetworkBroadcast, "":
+	case NetworkBroadcast, NetworkNBMA, "":
 		return cfg.RouterID == cfg.LocalDR || cfg.RouterID == cfg.LocalBDR || n.RouterID == cfg.LocalDR || n.RouterID == cfg.LocalBDR
 	default:
 		return false

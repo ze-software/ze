@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-ospf-ext-5-segment-routing.md |
 | Phase | - |
-| Updated | 2026-06-24 |
+| Updated | 2026-07-02 |
 
 ## Post-Compaction Recovery
 
@@ -629,6 +629,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code:
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-9 | Done | `internal/plugins/ospf/sr_tilfa.go:82` (`srTILFAResolver.AdjSIDLabel`) + `internal/plugins/ospf/sr_tilfa.go:114` (`(*engine).srRemoteAdjSID`); tests `TestSRTILFAResolverRemoteAdjSIDPointToPoint` / `...LAN` / `...IndexFormSkipped` (`internal/plugins/ospf/sr_tilfa_test.go`), `TestTILFARepairListFromSRMaps` + `TestTILFARemoteAdjSegmentResolvesUnderProductionContract` (`internal/plugins/ospf/spf/`); functional `test/ospf/ospf-ti-lfa-compute.ci` seq=1/seq=2 | The reachable Q-segment is always a REMOTE-node Adj-SID (a directly S-adjacent Q-node is a base LFA and preempts TI-LFA; see `internal/plugins/ospf/spf/zz_empirical_test.go`). Resolved from the P-node's RFC 7684 Extended Link Opaque LSA: P2P matched by Link ID, transit by the LAN-Adj-SID Neighbor ID; the advertising router's absolute local label (V=1/L=1, 20-bit) is returned verbatim. OSPFv3 remote Adj-SID (RFC 8666) stays out of scope (A-13). |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |

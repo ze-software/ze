@@ -58,6 +58,11 @@ type BestChangeEntry struct {
 	TableID   uint32               `json:"table-id,omitempty"`
 	SRv6SID   netip.Addr           `json:"srv6-sid,omitzero"`
 	ECMPPaths []ECMPPath           `json:"ecmp-paths,omitempty"`
+	// Backup carries pre-computed fast-reroute backup next-hop(s) (an IP FRR
+	// alternate + optional MPLS repair label stack). Each is programmed by the FIB
+	// as a link-down/backup next-hop, DISTINCT from ECMPPaths (which load-share):
+	// the kernel forwards to a backup only when the primary link is down.
+	Backup []ECMPPath `json:"backup,omitempty"`
 }
 
 // BestChangeBatch is the payload of (system-rib, best-change). One batch is

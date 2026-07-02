@@ -8,7 +8,7 @@
 // to the datagram src/dst and is finalized by the v6 transport at send time, so the
 // packet encoded here carries a zero checksum (mirrors the ospfv3 transport path).
 //
-// RFC: rfc/short/rfc5340.md (App A.2 Options, A.3.2 Hello)
+// RFC: rfc/short/rfc5340.md (App A.2 Options, A.3.2 Hello), rfc/short/rfc5838.md (§2.4 AF-bit)
 
 package ospf
 
@@ -22,9 +22,22 @@ import (
 )
 
 // v6Encoder is the OSPFv3 (IPv6) Hello encoder for a v6 interface. instanceID is the
-// interface's OSPFv3 Instance ID (RFC 5340 sec 2.5), surfaced in the common header.
+// interface's OSPFv3 Instance ID (RFC 5340 sec 2.5), surfaced in the common header. emitAF
+// sets the RFC 5838 §2.4 AF-bit in the Hello and DD Options for a multi-AF instance.
 type v6Encoder struct {
 	instanceID uint8
+	emitAF     bool
+}
+
+// packetOptions applies the RFC 5838 §2.4 AF-bit to the Hello/DD Options for a multi-AF
+// instance. The AF-bit is a Hello/DD signal only, so it is applied here and NOT in the
+// LSA-origination Options paths.
+func (e v6Encoder) packetOptions(o types.Options) ospfv3types.Options {
+	v6 := neutralToV6Options(o)
+	if e.emitAF {
+		v6 = v6.SetAF()
+	}
+	return v6
 }
 
 // EncodeHello serializes the neutral Hello as an OSPFv3 Hello (RFC 5340 sec A.3.2).
@@ -32,7 +45,7 @@ func (e v6Encoder) EncodeHello(routerID types.RouterID, areaID types.AreaID, h p
 	hello := ospfv3packet.Hello{
 		InterfaceID:        ospfv3types.InterfaceID(h.InterfaceID),
 		Priority:           h.Priority,
-		Options:            neutralToV6Options(h.Options),
+		Options:            e.packetOptions(h.Options),
 		HelloInterval:      h.HelloInterval,
 		RouterDeadInterval: uint16(h.DeadInterval),
 		DR:                 ospfv3types.RouterID(h.DR),
@@ -76,7 +89,7 @@ func neutralToV6Options(o types.Options) ospfv3types.Options {
 // (RFC 5340 sec A.3.3): the carried LSA headers use the 20-octet OSPFv3 header.
 func (e v6Encoder) EncodeDBDesc(routerID types.RouterID, areaID types.AreaID, dd packet.DBDesc) []byte {
 	out := ospfv3packet.DBDesc{
-		Options:      neutralToV6Options(dd.Options),
+		Options:      e.packetOptions(dd.Options),
 		InterfaceMTU: dd.InterfaceMTU,
 		Flags:        dd.Flags,
 		DDSequence:   dd.DDSequence,
@@ -98,7 +111,7 @@ func (e v6Encoder) EncodeLSReq(routerID types.RouterID, areaID types.AreaID, r p
 		out.Requests = make([]ospfv3packet.LSRequestEntry, len(r.Requests))
 		for i, e := range r.Requests {
 			out.Requests[i] = ospfv3packet.LSRequestEntry{
-				Type:              ospfv3types.LSType(e.Type),
+				Type:              v6WireLSType(e.Type),
 				LinkStateID:       ospfv3types.LinkStateID(e.LinkStateID),
 				AdvertisingRouter: ospfv3types.RouterID(e.AdvertisingRouter),
 			}
@@ -161,7 +174,7 @@ func (v6Encoder) encode(_ types.RouterID, _ types.AreaID, p ospfv3packet.Packet)
 func neutralToV6LSAHeader(h types.LSAHeader) ospfv3packet.LSAHeader {
 	return ospfv3packet.LSAHeader{
 		Age:               ospfv3types.LSAge(h.Age),
-		Type:              ospfv3types.LSType(h.Type),
+		Type:              v6WireLSType(h.Type),
 		LinkStateID:       ospfv3types.LinkStateID(h.LinkStateID),
 		AdvertisingRouter: ospfv3types.RouterID(h.AdvertisingRouter),
 		Sequence:          ospfv3types.LSSequenceNumber(int32(uint32(h.Sequence))),

@@ -133,6 +133,71 @@ demultiplexing.
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- address-family ipv6 -->
 <!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig, parseV6Config -->
 
+The `router-information` container advertises this router's optional capabilities
+in the RFC 7770 Router Information LSA. `enabled true` originates it; the `scope`
+leaf-list (`link` / `area` / `as`, multiple allowed) selects the flooding scope and
+defaults to area + AS when enabled with no scope listed. It applies to both address
+families (a top-level container drives the OSPFv3 family unless that family sets its
+own); OSPFv2 additionally requires `opaque true`, since the OSPFv2 RI LSA is an opaque
+LSA. See the OSPF guide's Router Information section for the advertised capability bits.
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- router-information, scope -->
+<!-- source: internal/plugins/ospf/config.go -- parseRouterInformation -->
+
+The `extended-prefix` and `extended-link` boolean leaves gate origination of the RFC 7684
+Extended Prefix (Opaque type 7) and Extended Link (Opaque type 8) Opaque LSAs. Both default
+false and require `opaque true`; they are the prefix/link attribute containers a Segment
+Routing (or other prefix/link-attribute) application fills, so they stay off until such a
+producer needs them. Reception and decode of a peer's Extended Prefix/Link LSAs is always on
+once the plugin is built, regardless of these leaves. See the OSPF guide's Extended
+Prefix/Link Attributes section.
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- extended-prefix, extended-link -->
+<!-- source: internal/plugins/ospf/config.go -- cfg.ExtendedPrefix, cfg.ExtendedLink -->
+
+The `segment-routing` container enables OSPF Segment Routing over the MPLS data plane
+(RFC 8665 for the IPv4 family, RFC 8666 for the IPv6 family under `address-family ipv6`).
+It carries an `enable` toggle, an `srgb` and `srlb` range (each `lower-bound`/`upper-bound`
+MPLS labels), a `prefix-sid` list (keyed by prefix, with an `index` into the SRGB plus the
+`node-sid`, `no-php`, and `explicit-null` flags), and an optional `srms-preference`. The
+SRGB and SRLB must be disjoint contiguous ranges within 16..1048575 and must not overlap the
+LDP or RSVP-TE label space; the `ze doctor` check `doctor-ospf-segment-routing-overlap`
+reports an unsound range. When enabled the RI LSA advertises SR-Algorithm 0 plus the SRGB/SRLB,
+the Extended Prefix LSA carries the node Prefix-SIDs, and the Extended Link LSA carries the
+Adjacency-SIDs. See the OSPF guide's Segment Routing section.
+
+```
+ospf {
+    opaque true;
+    segment-routing {
+        enable true;
+        srgb { lower-bound 16000; upper-bound 23999; }
+        srlb { lower-bound 40000; upper-bound 40999; }
+        prefix-sid 10.0.0.1/32 { index 1; node-sid true; }
+    }
+}
+```
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- segment-routing grouping -->
+<!-- source: internal/plugins/ospf/sr_config.go -- parseSegmentRouting, applySRConfig -->
+
+The `fast-reroute` container enables RFC 5286 LFA / TI-LFA IP fast reroute: SPF
+pre-computes a loop-free backup next-hop per primary and programs it into the FIB
+as a link-down backup. `enable` (default `false`) turns it on; `mode` selects
+`lfa` (default, base loop-free alternates only) or `ti-lfa` (adds a Segment-Routing
+repair-list fallback, which requires `segment-routing` and carries repair labels on
+IPv4 only); `node-protection` (default `true`) prefers node-protecting alternates.
+It is a router-wide policy that also drives the OSPFv3 family (base-LFA selection).
+
+```
+ospf {
+    fast-reroute {
+        enable true
+        mode ti-lfa
+        node-protection true
+    }
+}
+```
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- fast-reroute container -->
+<!-- source: internal/plugins/ospf/config.go -- parseFastReroute -->
+
 At the root IPv4 level, `area-type` selects `normal`, `stub`, or `nssa`. A stub
 or NSSA area sets `default-cost` (the injected default metric) and may set
 `no-summary true` for a totally-stubby/totally-NSSA area. An NSSA area takes an
@@ -1219,13 +1284,13 @@ is part of the `interface-l2` YANG grouping, not `interface-common`).
 
 ### Backend Capability Errors
 
-The `interface`, `traffic-control`, and `firewall` components carry a `backend`
+The `interface`, `traffic/control`, and `firewall` components carry a `backend`
 leaf. The YANG schema annotates feature nodes
 with a list of supporting backends via the `ze:backend` extension. When the
 config selects a backend that does not implement a used feature, commit and
 `ze config validate` reject the config before any Apply call runs.
 
-For `traffic-control` today the gate enforces only the "no backend configured"
+For `traffic/control` today the gate enforces only the "no backend configured"
 case (non-Linux startup, or an explicit empty `backend` leaf); per-feature
 annotations for tc-specific qdiscs and filter types land with
 `spec-fw-7-traffic-vpp` when a second backend exists to reject against.
@@ -1749,24 +1814,26 @@ management VLAN. Per-flow records are IPv4-only; sampling requires Linux with
 
 Account per-(port, protocol) and, optionally, per-IP byte totals on selected
 interfaces using eBPF programs attached via TCX. Configured under a single
-`traffic-usage { }` section. The plugin loads only when this section is present
+`traffic { usage { } }` section. The plugin loads only when this section is present
 and is Linux only (no-op elsewhere). See the
 [Traffic Usage guide](traffic-usage.md) for the full reference.
 
 ```
-traffic-usage {
-    enabled true
-    interfaces {             // keyed list, like ospf/isis; names are ze
-        interface eth0 {     // interface names, resolved to the OS device
+traffic {
+    usage {
+        enabled true
+        interfaces {             // keyed list, like ospf/isis; names are ze
+            interface eth0 {     // interface names, resolved to the OS device
+            }
+            interface wan {
+                track-ip false   // per-interface override of the global default
+                max-entries 65536 // ... and a larger top-talker map for the WAN
+            }
         }
-        interface wan {
-            track-ip false   // per-interface override of the global default
-            max-entries 65536 // ... and a larger top-talker map for the WAN
-        }
+        interval 1000            // map poll interval ms (global), default 1000, 100..3600000
+        track-ip true            // global default, inherited per interface
+        max-entries 10240        // global default per-map LRU capacity
     }
-    interval 1000            // map poll interval ms (global), default 1000, 100..3600000
-    track-ip true            // global default, inherited per interface
-    max-entries 10240        // global default per-map LRU capacity
 }
 ```
 
@@ -1776,7 +1843,7 @@ that long, bounding `/metrics` cardinality. `track-ip`, `stale-timeout`, and
 `interface { }` block, inheriting the global value when unset. See the
 [Traffic Usage guide](traffic-usage.md) for the full reference.
 
-**Operational:** `show traffic-usage [name <interface>]` reports per-interface
+**Operational:** `show traffic usage [name <interface>]` reports per-interface
 ingress/egress port totals (and per-IP totals when `track-ip` is on) plus map
 fill levels. Prometheus metrics use the `ze_traffic_usage_*` prefix.
 

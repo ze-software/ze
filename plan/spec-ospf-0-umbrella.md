@@ -272,6 +272,13 @@ assigned rows.
 | `ze_ospf_redist_withdrawn_total` | counter | `source` | ospf-10 |
 | `ze_ospf_nssa_translations_total` | counter | `area` | ospf-11 |
 | `ze_ospf_auth_failures_total` | counter | `interface`, `reason` | ospf-12 |
+| `ze_ospf_opaque_lsas` | gauge | `scope`, `opaque_type` | ospf-ext-1 |
+| `ze_ospf_opaque_originations_total` | counter | `opaque_type` | ospf-ext-1 |
+| `ze_ospf_opaque_received_total` | counter | `opaque_type`, `registered` | ospf-ext-1 |
+| `ze_ospf_opaque_consumer_errors_total` | counter | `opaque_type` | ospf-ext-1 |
+| `ze_ospf_opaque_capable_neighbors` | gauge | `interface` | ospf-ext-1 |
+| `ze_ospf_instances` | gauge | (none) | ospf-ext-12 |
+| `ze_ospf_instance_mismatch_drops_total` | counter | `interface` | ospf-ext-12 |
 
 ### Test + interop wiring (mandatory)
 - The `test/ospf` suite is registered in `internal/test/cli/register.go` and `mk/test-functional.mk` (ospf-4 adds the suite; later specs add cases). Raw-IP / multicast tests are Linux-only and run as QEMU integration tests (`ai/rules/qemu-testing.md`), not plain `.ci`. FRR `ospfd` interop is MANDATORY (not deferrable), owned by ospf-13: P2P, broadcast/DR, multi-area, stub, NSSA, redistribution, authentication, and failover/convergence. ospf-13 Goal Validation must be filled with these scenarios.

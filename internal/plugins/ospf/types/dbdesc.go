@@ -13,4 +13,9 @@ type DBDesc struct {
 	Flags        uint8
 	DDSequence   uint32
 	Headers      []LSAHeader
+	// AFBit carries the OSPFv3 AF-bit (RFC 5838 §2.4), which the neutral 8-bit Options
+	// superset cannot represent. OSPFv3-only: the v6 codec sets it from the received
+	// 24-bit Options; the OSPFv2 codec leaves it false. The engine's AF-bit adjacency
+	// gate (§2.5/§2.6) reads it for non-default address families, mirroring Hello.AFBit.
+	AFBit bool
 }

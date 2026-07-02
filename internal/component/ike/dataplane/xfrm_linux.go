@@ -32,20 +32,40 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 		state.ReplayWindow = int(p.ReplayWin)
 	}
 
-	if p.IsAEAD {
+	// RFC 4552 OSPFv3: an explicit state selector (x->sel) lets one wildcard-address
+	// SA (Src=Dst=::) be resolved for any OSPF flow (ff02::5, ff02::6, neighbor
+	// unicast) instead of only flows whose daddr equals p.Dst. IKE child SAs leave
+	// p.Sel nil, so msg.Sel stays the zero value (byte-identical to before).
+	if p.Sel != nil {
+		state.Selector = &netlink.XfrmPolicy{
+			Src:   p.Sel.Src,
+			Dst:   p.Sel.Dst,
+			Proto: netlink.Proto(p.Sel.UpperProto), // 0 = any, 89 = OSPF
+		}
+	}
+
+	// RFC 4302 (AH) vs RFC 4303 (ESP): AH sets an integrity transform only, ESP
+	// sets encryption + integrity, and a combined-mode algorithm sets a single
+	// AEAD transform. planStateAlgos isolates that decision from netlink so it is
+	// unit-testable on any platform.
+	plan := planStateAlgos(p)
+	if plan.AEAD {
 		state.Aead = &netlink.XfrmStateAlgo{
 			Name:   xfrmAEADName(p.EncAlgo),
 			Key:    p.EncKey,
 			ICVLen: 128,
 		}
-	} else {
+	}
+	if plan.Crypt {
 		state.Crypt = &netlink.XfrmStateAlgo{
 			Name: xfrmEncName(p.EncAlgo),
 			Key:  p.EncKey,
 		}
+	}
+	if plan.Auth {
 		state.Auth = &netlink.XfrmStateAlgo{
 			Name:        xfrmAuthName(p.AuthAlgo),
-			Key:         p.AuthKey, //nolint:gosec // ESP integrity key, not a credential
+			Key:         p.AuthKey, //nolint:gosec // AH/ESP integrity key, not a credential
 			TruncateLen: xfrmAuthTruncLen(p.AuthAlgo),
 		}
 	}
@@ -78,18 +98,7 @@ func (b *xfrmBackend) RemoveSA(spi uint32, dst net.IP, proto uint8) error {
 }
 
 func (b *xfrmBackend) InstallPolicy(p SPParams) error {
-	pol := &netlink.XfrmPolicy{
-		Src: p.Src,
-		Dst: p.Dst,
-		Dir: netlink.Dir(p.Dir - 1),
-		Tmpls: []netlink.XfrmPolicyTmpl{{
-			Proto: netlink.Proto(p.Proto),
-			Mode:  netlink.Mode(p.Mode),
-			Reqid: int(p.ReqID),
-		}},
-		Ifid: int(p.IfID),
-	}
-	if err := netlink.XfrmPolicyAdd(pol); err != nil {
+	if err := netlink.XfrmPolicyAdd(xfrmPolicyFromParams(p)); err != nil {
 		return fmt.Errorf("xfrm: policy add: %w", err)
 	}
 	return nil
@@ -105,6 +114,32 @@ func (b *xfrmBackend) RemovePolicy(src, dst *net.IPNet, dir SADir) error {
 		return fmt.Errorf("xfrm: policy del: %w", err)
 	}
 	return nil
+}
+
+func (b *xfrmBackend) RemovePolicyParams(p SPParams) error {
+	if err := netlink.XfrmPolicyDel(xfrmPolicyFromParams(p)); err != nil {
+		return fmt.Errorf("xfrm: policy del: %w", err)
+	}
+	return nil
+}
+
+// xfrmPolicyFromParams builds the netlink policy shared by install and delete so
+// the delete selector (Src, Dst, Dir, upper-layer Proto, Ifid) matches the
+// installed policy exactly; the kernel identifies a policy by its whole selector.
+func xfrmPolicyFromParams(p SPParams) *netlink.XfrmPolicy {
+	return &netlink.XfrmPolicy{
+		Src:     p.Src,
+		Dst:     p.Dst,
+		Dir:     netlink.Dir(p.Dir - 1),
+		Proto:   netlink.Proto(p.UpperProto), // upper-layer selector (0 = any, 89 = OSPF)
+		Ifindex: p.IfIndex,                   // RFC 4552 §6 interface-based selector (0 = node-wide)
+		Tmpls: []netlink.XfrmPolicyTmpl{{
+			Proto: netlink.Proto(p.Proto),
+			Mode:  netlink.Mode(p.Mode),
+			Reqid: int(p.ReqID),
+		}},
+		Ifid: int(p.IfID),
+	}
 }
 
 func (b *xfrmBackend) ListSAs(ifID uint32) ([]SAInfo, error) {
@@ -136,6 +171,13 @@ func xfrmEncName(algo string) string {
 		return "cbc(aes)"
 	case "3des":
 		return "cbc(des3_ede)"
+	case "null":
+		// RFC 4552 §3 / RFC 2410: ESP with NULL encryption (authentication-only ESP).
+		// NOTE: verify against target kernel -- the kernel's ealg registry names this
+		// transform "cipher_null" (net/xfrm/xfrm_algo.c: ealg_list "cipher_null"), and
+		// some kernels/iproute2 reject the "ecb(cipher_null)" spelling. Validate the
+		// accepted string on the appliance kernel in QEMU (cannot be exercised here).
+		return "ecb(cipher_null)"
 	default:
 		return "cbc(aes)"
 	}

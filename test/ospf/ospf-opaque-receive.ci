@@ -1,0 +1,11 @@
+# Test: OSPFv2 opaque-LSA reception and consumer delivery (RFC 5250, spec-ospf-ext-1).
+#
+# VALIDATES: a received area-scope opaque LSA is scope-routed, installed, delivered to its
+# registered consumer's OnReceive (with the reachability flag), and listed by
+# `show ospf database opaque-area`.
+# PREVENTS: a received opaque LSA that is stored but never delivered, or delivered without
+# the RFC 5250 §5 reachability determination.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFOpaqueReceiveFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

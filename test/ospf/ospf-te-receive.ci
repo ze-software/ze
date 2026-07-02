@@ -1,0 +1,9 @@
+# Test: OSPFv2 TE LSA reception into the TED (RFC 3630, spec-ospf-ext-2).
+#
+# VALIDATES: a received Type-10 Opaque-type-1 TE LSA is delivered through the carrier to the
+# TE consumer, parsed into the link-keyed TED, and listed by `show ospf te-database`.
+# PREVENTS: a received TE LSA that is stored by the carrier but never parsed into the TED.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFTEReceiveFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

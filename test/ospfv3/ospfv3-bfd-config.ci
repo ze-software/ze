@@ -1,0 +1,75 @@
+# Test: OSPFv3 per-interface BFD config validation (spec-ospf-ext-10 AC-1b, AC-14).
+#
+# VALIDATES: the `bfd { ... }` container under `address-family ipv6 { interface { ... } }`
+# reaches the YANG schema and the in-process verifier from the SAME parseInterface path as
+# the IPv4 family: a valid block validates, 0 / out-of-range values are rejected.
+# PREVENTS: the BFD block being silently ignored on the OSPFv3 interface list.
+
+# --- Valid v6 BFD block validates. -------------------------------------------
+stdin=ospfv3-bfd-valid:terminator=EOF_VALID
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+	address-family ipv6 {
+		areas {
+			area 0.0.0.0 { }
+		}
+		interfaces {
+			interface eth0 {
+				area 0.0.0.0
+				network-type point-to-point
+				bfd {
+					enabled true
+					min-tx 50
+					min-rx 50
+					multiplier 3
+				}
+			}
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospfv3-bfd-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- multiplier 256 is rejected on the v6 interface list (uint8 range 1..255). ---
+stdin=ospfv3-bfd-mult-wide:terminator=EOF_MULT
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+	address-family ipv6 {
+		areas {
+			area 0.0.0.0 { }
+		}
+		interfaces {
+			interface eth0 {
+				area 0.0.0.0
+				bfd {
+					enabled true
+					multiplier 256
+				}
+			}
+		}
+	}
+}
+EOF_MULT
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospfv3-bfd-mult-wide
+expect=exit:code=1
+expect=stdout:contains=multiplier

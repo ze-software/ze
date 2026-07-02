@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-ospf-ext-0-umbrella.md (umbrella); spec-ospf-ext-1-opaque-framework.md (IPv4 opaque carrier); spec-ospf-ext-3-router-information.md + spec-ospf-ext-4-extended-link-prefix.md + spec-ospf-ext-5-segment-routing.md (IPv4 SR carriers, optional decoders) |
 | Phase | - |
-| Updated | 2026-06-24 |
+| Updated | 2026-07-02 |
 
 ## Post-Compaction Recovery
 

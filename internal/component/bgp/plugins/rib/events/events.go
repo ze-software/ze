@@ -73,6 +73,13 @@ type BestChangeEntry struct {
 	// (cross-process) event-bus path has no Loc-RIB and leaves it nil; json:"-"
 	// because it is an in-process hint only, never part of the wire contract.
 	ECMPNextHops []netip.Addr `json:"-"`
+
+	// BackupNextHop and BackupRepairLabels carry a pre-computed fast-reroute
+	// backup next-hop (an IP fast-reroute alternate) plus its optional MPLS repair
+	// label stack, from locrib.Path. In-process hint only (json:"-"): sysrib
+	// forwards it as a DEDICATED backup next-hop, never an ECMP sibling.
+	BackupNextHop      netip.Addr `json:"-"`
+	BackupRepairLabels []uint32   `json:"-"`
 }
 
 // BestChangeBatch is the payload of (bgp-rib, best-change). One batch is

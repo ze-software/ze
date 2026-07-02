@@ -3,6 +3,7 @@
 // in the codec. OSPFv2 uses NetworkMask + IP-address DR/BDR; OSPFv3 uses InterfaceID +
 // Router-ID DR/BDR (RFC 5340 sec A.3.2). The engine's neighbor FSM reads the common fields
 // and applies AF-aware checks (the Network Mask match is OSPFv2-only).
+// RFC: rfc/short/rfc5340.md (§A.3.2 Hello), rfc/short/rfc5838.md (§2.4 AF-bit)
 
 package types
 
@@ -19,4 +20,9 @@ type Hello struct {
 	DR            [4]byte
 	BDR           [4]byte
 	Neighbors     []RouterID
+	// AFBit carries the OSPFv3 AF-bit (RFC 5838 §2.4), which the neutral 8-bit Options
+	// superset cannot represent. OSPFv3-only: the v6 codec sets it from the received
+	// 24-bit Options; the OSPFv2 codec leaves it false. The engine's AF-bit adjacency
+	// gate (§2.5/§2.6) reads it for non-default address families.
+	AFBit bool
 }

@@ -48,8 +48,9 @@ func (v6Codec) VerifyChecksum(payload []byte, src, dst netip.Addr) bool {
 // DecodeHello decodes the OSPFv3 Hello body and projects it onto the neutral types.Hello
 // superset: the Interface ID replaces the (absent) OSPFv2 Network Mask, and the 24-bit Options
 // map to the bits the shared neighbor FSM checks. DR/BDR are Router IDs in OSPFv3 (RFC 5340 sec
-// A.3.2), carried in the 4-byte DR/BDR fields. Unmapped v6 option bits (V6/R/DC/AF) are not
-// consulted by the AF-neutral FSM and are intentionally dropped.
+// A.3.2), carried in the 4-byte DR/BDR fields. The RFC 5838 §2.4 AF-bit is surfaced in the
+// neutral Hello.AFBit (the AF-neutral Options superset cannot carry it) for the engine's
+// AF-bit adjacency gate; the remaining unmapped v6 option bits (V6/R/DC) are not consulted.
 func (v6Codec) DecodeHello(payload []byte) (types.Hello, error) {
 	p, err := ospfv3packet.DecodePacket(payload)
 	if err != nil {
@@ -63,6 +64,7 @@ func (v6Codec) DecodeHello(payload []byte) (types.Hello, error) {
 		InterfaceID:   uint32(h.InterfaceID),
 		HelloInterval: h.HelloInterval,
 		Options:       v6OptionsToNeutral(h.Options),
+		AFBit:         h.Options.AF(),
 		Priority:      h.Priority,
 		DeadInterval:  uint32(h.RouterDeadInterval),
 		DR:            [4]byte(h.DR),
@@ -108,6 +110,9 @@ func (v6Codec) DecodeDBDesc(payload []byte) (types.DBDesc, error) {
 		Options:      v6OptionsToNeutral(d.Options),
 		Flags:        d.Flags,
 		DDSequence:   d.DDSequence,
+		// RFC 5838 §2.4: surface the AF-bit so the engine's AF-bit adjacency gate also
+		// applies to the DBDesc path (not just Hello), mirroring DecodeHello.
+		AFBit: d.Options.AF(),
 	}
 	if len(d.Headers) > 0 {
 		out.Headers = make([]types.LSAHeader, len(d.Headers))
@@ -200,13 +205,35 @@ func (v6Codec) DecodeLSUpdate(payload []byte) (packet.LSUpdate, error) {
 func v6LSAHeaderToNeutral(h ospfv3packet.LSAHeader) types.LSAHeader {
 	return types.LSAHeader{
 		Age:               types.LSAge(h.Age),
-		Type:              types.LSType(h.Type),
+		Type:              v6NeutralLSType(h.Type),
 		LinkStateID:       types.LinkStateID(h.LinkStateID),
 		AdvertisingRouter: types.RouterID(h.AdvertisingRouter),
 		Sequence:          types.LSSequenceNumber(uint32(h.Sequence)),
 		Checksum:          h.Checksum,
 		Length:            h.Length,
 	}
+}
+
+// v6NeutralLSType maps an OSPFv3 wire LS Type to the shared types.LSType used as the LSDB
+// key. It is the identity cast for every type EXCEPT the RFC 5187 Grace-LSA (wire 0x000B):
+// that value numerically equals the OSPFv2 Opaque-AS Type 11, so it maps to the distinct
+// internal sentinel types.LSTypeGraceV6 (never emitted on the wire) so a link-scoped Grace
+// LSA routes through the link store instead of the AS-wide opaque store. v6WireLSType is the
+// inverse used by the OSPFv3 encoder.
+func v6NeutralLSType(t ospfv3types.LSType) types.LSType {
+	if t == ospfv3types.LSTypeGrace {
+		return types.LSTypeGraceV6
+	}
+	return types.LSType(t)
+}
+
+// v6WireLSType is the inverse of v6NeutralLSType: it maps the shared LSDB key type back to
+// the OSPFv3 wire LS Type, restoring 0x000B for the Grace-LSA sentinel.
+func v6WireLSType(t types.LSType) ospfv3types.LSType {
+	if t == types.LSTypeGraceV6 {
+		return ospfv3types.LSTypeGrace
+	}
+	return ospfv3types.LSType(t)
 }
 
 // IsV6 reports true: this is the OSPFv3 (IPv6) codec.

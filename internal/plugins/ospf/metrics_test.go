@@ -64,7 +64,38 @@ func TestOSPFMetricsNamespaced(t *testing.T) {
 		"ze_ospf_external_lsas",           // ospf-10
 		"ze_ospf_nssa_translations_total", // ospf-11
 		"ze_ospf_auth_failures_total",     // ospf-12
+		"ze_ospf_opaque_lsas",             // ospf-ext-1
+		"ze_ospf_opaque_originations_total",
+		"ze_ospf_opaque_received_total",
+		"ze_ospf_opaque_consumer_errors_total",
+		"ze_ospf_opaque_capable_neighbors",
+		"ze_ospf_ext_prefix_lsas", // ospf-ext-4
+		"ze_ospf_ext_link_lsas",
+		"ze_ospf_ext_originations_total",
+		"ze_ospf_ext_malformed_total",
+		"ze_ospf_ext_subtlv_errors_total",
+		"ze_ospf_ldp_sync_state", // ospf-ext-11 (LDP-IGP sync)
 	} {
 		assert.Containsf(t, rec.names, want, "canonical series %q must be registered", want)
+	}
+}
+
+// TestOSPFBFDMetrics checks the three BFD series (spec-ospf-ext-10) register under the unified
+// ze_ospf_ namespace, never a ze_ospfv3_bfd_* fork (learned 970).
+func TestOSPFBFDMetrics(t *testing.T) {
+	eng, _ := newRedistEngine(t, `{"ospf":{"router-id":"10.0.0.1"}}`)
+	rec := &recordingRegistry{}
+	eng.setBFDMetrics(rec)
+
+	for _, want := range []string{
+		"ze_ospf_bfd_sessions",
+		"ze_ospf_bfd_session_down_total",
+		"ze_ospf_bfd_register_failures_total",
+	} {
+		assert.Containsf(t, rec.names, want, "BFD series %q must be registered", want)
+	}
+	for _, n := range rec.names {
+		assert.Truef(t, strings.HasPrefix(n, "ze_ospf_"), "metric %q must be ze_ospf_ namespaced", n)
+		assert.Falsef(t, strings.HasPrefix(n, "ze_ospfv3_"), "metric %q must not fork a ze_ospfv3_ namespace (learned 970)", n)
 	}
 }

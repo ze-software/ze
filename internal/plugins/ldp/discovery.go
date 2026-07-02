@@ -27,6 +27,10 @@ type Adjacency struct {
 	HoldTime       time.Duration
 	Targeted       bool
 	LastSeen       time.Time
+	// Interface is the local interface this adjacency was discovered on. It is
+	// carried onto the SessionEvent so an IGP LDP-IGP-sync consumer can key its
+	// per-interface sync state (RFC 5443 / RFC 6138). Empty for a targeted adjacency.
+	Interface string
 }
 
 // Expired returns true if the adjacency hold timer has elapsed.
@@ -62,9 +66,14 @@ func NewAdjacencyTable() *AdjacencyTable {
 	}
 }
 
-// Update processes an incoming Hello and creates or refreshes the adjacency.
-// Returns the adjacency and true if this is a new neighbor.
-func (t *AdjacencyTable) Update(pduHeader PDUHeader, hello HelloMessage) (*Adjacency, bool) {
+// Update processes an incoming Hello and creates or refreshes the adjacency,
+// tagging it with the local interface (ifName) the Hello arrived on. Returns the
+// adjacency and true if this is a new neighbor.
+//
+// ifName is written under the table lock alongside the other adjacency fields so
+// a concurrent All()/Get() snapshot cannot observe a torn write; the discovering
+// interface flows onto the SessionEvent for LDP-IGP sync (RFC 5443 / RFC 6138).
+func (t *AdjacencyTable) Update(pduHeader PDUHeader, hello HelloMessage, ifName string) (*Adjacency, bool) {
 	key := AdjacencyKey(pduHeader.LSRID, pduHeader.LabelSpace)
 	holdTime := time.Duration(hello.HoldTime) * time.Second
 	if holdTime == 0 {
@@ -86,6 +95,7 @@ func (t *AdjacencyTable) Update(pduHeader PDUHeader, hello HelloMessage) (*Adjac
 	adj.TransportAddr = hello.TransportAddr
 	adj.HoldTime = holdTime
 	adj.LastSeen = time.Now()
+	adj.Interface = ifName
 	return adj, !exists
 }
 

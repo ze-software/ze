@@ -6,16 +6,95 @@
 package ospf
 
 import (
+	"context"
 	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
+	ospfredistribute "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
 )
+
+// recordingInjector records the prefixes injected/withdrawn, standing in for the OSPFv2
+// engine so a test can assert IPv4 redistribution did NOT reach it.
+type recordingInjector struct {
+	injected []netip.Prefix
+}
+
+func (r *recordingInjector) InjectExternal(p netip.Prefix, _ string) error {
+	r.injected = append(r.injected, p)
+	return nil
+}
+func (r *recordingInjector) WithdrawExternal(netip.Prefix) (bool, error) { return false, nil }
+
+// selfV6ExternalCount counts self-originated OSPFv3 AS-External-LSAs (type 0x4005).
+func selfV6ExternalCount(eng *engine, router types.RouterID) int {
+	count := 0
+	for _, h := range eng.lsdb.Summary(types.BackboneArea) {
+		if h.Type == types.LSType(ospfv3types.LSTypeASExternal) && h.AdvertisingRouter == router && !h.Age.IsMaxAge() {
+			count++
+		}
+	}
+	return count
+}
+
+// TestRedistTargetsAFEngine pins AC-13/A-10: with an IPv4-unicast-over-OSPFv3 instance
+// present, IPv4 redistribution originates an OSPFv3 AS-External-LSA on THAT instance and does
+// not reach the OSPFv2 injector.
+func TestRedistTargetsAFEngine(t *testing.T) {
+	// A running IPv4-over-OSPFv3 engine (v6 codec, af ipv4-unicast).
+	eng4, if4 := v4uEngine(t)
+	defer eng4.shutdown()
+	_ = if4
+
+	v2 := &recordingInjector{}
+	consumer := ospfredistribute.NewConsumer(v2)
+	consumer.SetV4OverV3Injector(eng4)
+
+	consumer.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Prefix: "10.5.0.0/24", Source: "connected"})
+
+	if len(v2.injected) != 0 {
+		t.Fatalf("IPv4 redistribution reached the OSPFv2 injector: %v (want it diverted to the v4-over-v3 engine)", v2.injected)
+	}
+	if n := selfV6ExternalCount(eng4, eng4.cfg.RouterID); n != 1 {
+		t.Fatalf("v4-over-v3 engine originated %d OSPFv3 AS-External-LSA(s); want 1 for the redistributed IPv4 prefix", n)
+	}
+}
+
+// TestRedistFallsBackToOSPFv2WhenNoV4AF is the ext-15 review-fix-1 regression guard: with an
+// OSPFv2-only config (no address-family block, so no IPv4-unicast-over-OSPFv3 engine), the
+// IPv4-over-v3 injector is wired but INACTIVE, so IPv4 redistribution must fall back to the
+// base OSPFv2 engine and still originate a Type 5 AS-External-LSA -- never a silent no-op.
+func TestRedistFallsBackToOSPFv2WhenNoV4AF(t *testing.T) {
+	eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.0.1","redistribute":{"connected":{"source":"connected"}}}}`)
+
+	// An empty v6 engine set: the ipv4-unicast AF is NOT configured, so v6InjectorAF{af:
+	// afIPv4Unicast}.Active() is false and injectorFor must skip it for the base injector.
+	v6set := newV6EngineSet()
+	inj := v6InjectorAF{set: v6set, af: afIPv4Unicast}
+	if inj.Active() {
+		t.Fatal("v6InjectorAF reports active with no IPv4-unicast AF engine configured")
+	}
+
+	consumer := ospfredistribute.NewConsumer(eng)
+	consumer.SetV4OverV3Injector(inj)
+
+	consumer.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Prefix: "10.5.0.0/24", Source: "connected"})
+
+	if got := eng.lsdb.SelfExternalCount(rid); got != 1 {
+		t.Fatalf("base OSPFv2 engine originated %d Type 5 AS-External-LSA(s); want 1 (IPv4 redistribution must fall back to OSPFv2 when no IPv4-over-v3 AF exists)", got)
+	}
+	if _, ok := externalBody(t, eng, rid, "10.5.0.0/24"); !ok {
+		t.Fatal("no OSPFv2 Type 5 originated for the redistributed IPv4 prefix (silent no-op regression)")
+	}
+}
 
 func newRedistEngine(t *testing.T, cfgJSON string) (*engine, types.RouterID) {
 	t.Helper()

@@ -59,3 +59,41 @@ func TestAreaIDFromBytesRejectsWrongLength(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: AC-2 - AreaIDFromBytes copies exactly the 4 supplied big-endian octets.
+// PREVENTS: an off-by-one copy that drops or reorders an Area ID octet on decode.
+func TestAreaIDFromBytesCopies(t *testing.T) {
+	src := []byte{192, 168, 1, 254}
+	id, err := AreaIDFromBytes(src)
+	if err != nil {
+		t.Fatalf("AreaIDFromBytes returned error: %v", err)
+	}
+	if id != (AreaID{192, 168, 1, 254}) {
+		t.Fatalf("AreaIDFromBytes = %v, want [192 168 1 254]", id)
+	}
+	// The value must not alias the source slice.
+	src[0] = 0
+	if id[0] != 192 {
+		t.Fatalf("AreaIDFromBytes aliased source slice")
+	}
+}
+
+// VALIDATES: AC-3 - AreaID.Equal reports value identity, and IsBackbone matches the all-zero area.
+// PREVENTS: two equal Area IDs comparing unequal, or a non-zero area reporting as backbone.
+func TestAreaIDEqualAndBackbone(t *testing.T) {
+	a := AreaID{0, 0, 0, 5}
+	same := AreaID{0, 0, 0, 5}
+	diff := AreaID{0, 0, 0, 6}
+	if !a.Equal(same) {
+		t.Errorf("AreaID.Equal(identical) = false, want true")
+	}
+	if a.Equal(diff) {
+		t.Errorf("AreaID.Equal(%v,%v) = true, want false", a, diff)
+	}
+	if a.IsBackbone() {
+		t.Errorf("non-zero AreaID %v reported IsBackbone", a)
+	}
+	if !BackboneArea.Equal(AreaID{}) || !BackboneArea.IsBackbone() {
+		t.Errorf("BackboneArea not equal to the all-zero area")
+	}
+}

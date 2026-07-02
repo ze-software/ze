@@ -99,6 +99,95 @@ func TestLSTypeNSSA(t *testing.T) {
 // (0x4005), and Intra-Area-Prefix (0x2009).
 // PREVENTS: OSPFv3 LSDB snapshots showing every v3 LSA as "unknown" and making
 // `show ospf database <type>` miss v3 entries.
+// VALIDATES: spec-ospf-af-unify -- ASWide is the LSDB store-routing / flooding-scope test:
+// the OSPFv2 Type 5 or ANY OSPFv3 AS-scope LS Type (S2/S1=0b10), which INCLUDES the RFC 7770
+// AS-scope Router Information LSA (0xC00C) even though it is not an AS-External.
+// PREVENTS: an AS-scope RI LSA being routed to a per-area store, or an area/link-scope LSA
+// (or the Opaque-AS Type 11, which carries no scope bits) being mis-routed to the AS-wide store.
+func TestLSTypeASWide(t *testing.T) {
+	asWide := []LSType{
+		LSTypeASExternal, // OSPFv2 Type 5
+		0x4005,           // OSPFv3 AS-External (AS scope)
+		0xC00C,           // OSPFv3 AS-scope Router Information LSA (U-bit set, AS scope) -- AS-wide but not AS-External
+		0x4025,           // OSPFv3 E-AS-External (AS scope)
+	}
+	for _, typ := range asWide {
+		if !typ.ASWide() {
+			t.Errorf("LSType %#x ASWide() = false, want true", uint16(typ))
+		}
+	}
+	notASWide := []LSType{
+		LSTypeRouter, LSTypeNetwork, LSTypeSummaryNetwork, LSTypeSummaryASBR, LSTypeNSSA,
+		LSTypeOpaqueLink, LSTypeOpaqueArea, LSTypeOpaqueAS, // Opaque-AS (Type 11) has no scope bits
+		0x2001, 0x2004, 0x2007, 0x2009, 0x0008, // OSPFv3 area/link-scope types
+		0x6001, // reserved scope (S2/S1=0b11) is not AS scope
+	}
+	for _, typ := range notASWide {
+		if typ.ASWide() {
+			t.Errorf("LSType %#x ASWide() = true, want false", uint16(typ))
+		}
+	}
+	// ASWide is strictly WIDER than ASExternal: 0xC00C is AS-wide but must not be AS-External.
+	if LSType(0xC00C).ASExternal() {
+		t.Errorf("LSType 0xC00C ASExternal() = true, want false (RI LSA is not AS-External)")
+	}
+}
+
+// VALIDATES: spec-ospf-af-unify -- InterAreaRouter identifies the ASBR-summary LSA suppressed
+// from stub/NSSA areas: OSPFv2 Type 4 or OSPFv3 area-scoped Inter-Area-Router-LSA 0x2004.
+// PREVENTS: an OSPFv3 Inter-Area-Router-LSA being treated as a plain summary, or any other
+// type being mis-classified as an ASBR summary.
+func TestLSTypeInterAreaRouter(t *testing.T) {
+	iar := []LSType{LSTypeSummaryASBR, 0x2004}
+	for _, typ := range iar {
+		if !typ.InterAreaRouter() {
+			t.Errorf("LSType %#x InterAreaRouter() = false, want true", uint16(typ))
+		}
+	}
+	notIAR := []LSType{
+		LSTypeRouter, LSTypeNetwork, LSTypeSummaryNetwork, LSTypeASExternal, LSTypeNSSA,
+		LSTypeOpaqueLink, LSTypeOpaqueArea, LSTypeOpaqueAS,
+		0x2001, 0x2003, 0x2007, 0x4005, 0x0008,
+	}
+	for _, typ := range notIAR {
+		if typ.InterAreaRouter() {
+			t.Errorf("LSType %#x InterAreaRouter() = true, want false", uint16(typ))
+		}
+	}
+}
+
+// VALIDATES: spec-ospfv3-4-link-lsa -- String renders every named branch, including the
+// internal Grace-LSA sentinel (0x800B) and the three RFC 5250 opaque scopes, and returns
+// "unknown" for an unrecognized type code.
+// PREVENTS: `show ospf database <type>` rendering a Grace or Opaque LSA as "unknown" or a
+// stale label, and a partial switch silently mislabeling one scope.
+func TestLSTypeStringAllNames(t *testing.T) {
+	tests := []struct {
+		typ  LSType
+		want string
+	}{
+		{LSTypeRouter, "router"},
+		{LSTypeNetwork, "network"},
+		{LSTypeSummaryNetwork, "summary-network"},
+		{LSTypeSummaryASBR, "summary-asbr"},
+		{LSTypeASExternal, "as-external"},
+		{LSTypeNSSA, "nssa"},
+		{LSTypeLink, "link"},
+		{LSTypeGraceV6, "grace"},                            // 0x800B internal sentinel
+		{areaScope | LSTypeOpaqueLink, "intra-area-prefix"}, // 0x2009
+		{LSTypeOpaqueLink, "opaque-link"},                   // Type 9
+		{LSTypeOpaqueArea, "opaque-area"},                   // Type 10
+		{LSTypeOpaqueAS, "opaque-as"},                       // Type 11
+		{LSType(0x1234), "unknown"},                         // unrecognized
+		{LSType(0), "unknown"},
+	}
+	for _, tt := range tests {
+		if got := tt.typ.String(); got != tt.want {
+			t.Errorf("LSType %#x String() = %q, want %q", uint16(tt.typ), got, tt.want)
+		}
+	}
+}
+
 func TestLSTypeStringOSPFv3(t *testing.T) {
 	tests := []struct {
 		typ  LSType

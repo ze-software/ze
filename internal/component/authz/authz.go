@@ -256,6 +256,10 @@ func BuiltinReadOnlyProfile() Profile {
 			{Number: 10, Action: Deny, Match: "restart"},
 			{Number: 20, Action: Deny, Match: "kill"},
 			{Number: 30, Action: Deny, Match: "clear"},
+			// spec-ospf-ext-14 AC-16: deny every `debug` command (both OSPF address
+			// families' inject paths start with `debug`). This is the first of two
+			// independent gates; the engine debug-enablement is the second.
+			{Number: 40, Action: Deny, Match: "debug"},
 		}},
 		Edit: Section{Default: Deny},
 	}

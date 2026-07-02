@@ -44,6 +44,11 @@ type AFPrefixStrategy interface {
 	// NextHopSource resolves the SPF next-hop per address family: OSPFv2 from the
 	// Router-LSA link data, OSPFv3 from the neighbor adjacency table (link-local).
 	NextHopSource() NextHopSource
+	// SummaryReader decodes an area's inter-area summaries (the same reader
+	// ComputeInterArea uses). The RFC 2328 sec 16.3 transit-area pass reuses it to
+	// re-examine a transit area's summaries; OSPFv2 reads Type 3/4 Summary-LSAs,
+	// OSPFv3 reads Inter-Area-Prefix / Inter-Area-Router LSAs.
+	SummaryReader(src Source) SummaryReader
 }
 
 // v4Strategy is the OSPFv2 AFPrefixStrategy. Each method delegates to the package
@@ -69,6 +74,8 @@ func (v4Strategy) OriginateSummaries(in SummaryInput) SummaryOriginResult {
 }
 
 func (v4Strategy) NextHopSource() NextHopSource { return v4NextHop{} }
+
+func (v4Strategy) SummaryReader(src Source) SummaryReader { return v4SummaryReader(src) }
 
 // The OSPFv2 strategy satisfies the seam.
 var _ AFPrefixStrategy = v4Strategy{}

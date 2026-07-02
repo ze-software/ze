@@ -1,0 +1,102 @@
+# Test: OSPFv2 NBMA + point-to-multipoint config validation (spec-ospf-ext-8).
+#
+# VALIDATES: the IPv4 interface network-type enum accepts nbma and
+# point-to-multipoint, the nbma-neighbor list (keyed by address, with priority) and
+# the poll-interval leaf validate through YANG, and an out-of-range poll-interval is
+# rejected.
+# PREVENTS: the new network types or the NBMA neighbor/poll config surface not being
+# wired into the OSPF YANG schema and verifier.
+
+# --- Valid NBMA config: enum + nbma-neighbor list + poll-interval. -------------
+stdin=ospf-nbma:terminator=EOF_NBMA
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			network-type nbma
+			poll-interval 90
+			nbma-neighbor 10.0.0.2 {
+				priority 5
+			}
+			nbma-neighbor 10.0.0.3 {
+				priority 0
+			}
+		}
+	}
+}
+EOF_NBMA
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-nbma
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Valid point-to-multipoint config. ----------------------------------------
+stdin=ospf-ptmp:terminator=EOF_PTMP
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			network-type point-to-multipoint
+		}
+	}
+}
+EOF_PTMP
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-ptmp
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Invalid poll-interval 0: YANG range is 1..65535. -------------------------
+stdin=ospf-bad-poll:terminator=EOF_BAD_POLL
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			network-type nbma
+			poll-interval 0
+		}
+	}
+}
+EOF_BAD_POLL
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-bad-poll
+expect=exit:code=1
+expect=stdout:contains=poll-interval
+
+# --- Invalid nbma-neighbor address: the address key must be a valid IPv4. ------
+stdin=ospf-bad-nbr:terminator=EOF_BAD_NBR
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			network-type nbma
+			nbma-neighbor not-an-ip {
+				priority 1
+			}
+		}
+	}
+}
+EOF_BAD_NBR
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-bad-nbr
+expect=exit:code=1

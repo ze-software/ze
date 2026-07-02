@@ -1,0 +1,11 @@
+# Test: OSPFv3 Segment Routing reception -> install (spec-ospf-ext-5, RFC 8666 §6).
+#
+# VALIDATES: a received IPv6 Prefix-SID (Intra-Area Prefix TLV / Extended Prefix Range TLV) is
+# parsed from the RFC 8362 Extended prefix LSA, keyed by prefix, and drives the shared install
+# to the right mpls-fib push/swap label (originator SRGB base + index) with the OSPFv3 SR source
+# tag and the IPv6 Explicit NULL label 2; conflicting duplicates are ignored.
+# PREVENTS: a v6 Prefix-SID that never installs, a wrong SRGB label, or a duplicate installing.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestOSPFv3PrefixSIDInstallsPush|TestOSPFv3PrefixSIDExplicitNull|TestOSPFv3PrefixSIDPHP|TestOSPFv3ReceivedRangeTLV|TestOSPFv3ReceivedPrefixSIDsFromLSDB|TestOSPFv3ReceptionDuplicateIgnored|TestOSPFv3ReceptionSameSIDNotDuplicate|TestOSPFv3ReceptionMalformedNoPanic' -count=1:timeout=90s
+expect=exit:code=0
+expect=stdout:contains=PASS

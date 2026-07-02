@@ -25,14 +25,41 @@ func (e *engine) initSPF() {
 		// through the v6 strategy instead of the OSPFv2 default.
 		strategy = v6Strategy{eng: e}
 	}
+	// RFC 5838: each address family installs into its own Loc-RIB family; the family is
+	// derived from the engine's AF (Instance-ID range). This also corrects the IPv6-base
+	// hardcode where the IPv6-unicast engine installed under family.IPv4Unicast.
 	e.spf = ospfspf.NewComputer(ospfspf.Config{
 		Source:      e.lsdb,
 		Resolver:    (*ospfNextHopResolver)(e),
-		Installer:   ospfspf.NewInstaller(locrib.Default()),
+		Installer:   ospfspf.NewInstallerFamily(locrib.Default(), e.installFamily()),
 		SummarySink: e.lsdb,
 		Strategy:    strategy,
 	})
+	// Graceful Restart (spec-ospf-ext-9): suppress FIB install/removal while the restarter is
+	// in-restart or performing a graceful stop, so SPF still computes but the pre-restart FIB
+	// is retained (RFC 3623 sec 2/2.1).
+	e.spf.SetInstallSuppress(e.gr.suppressInstall)
 	e.lsdb.SetOnChange(e.triggerSPF)
+	// Segment Routing (spec-ospf-ext-5): install SR MPLS labels from the post-SPF hook,
+	// AFTER the IP-route Installer applied, so a label push rides an existing IP route
+	// (R-8). The mpls-fib Source tag and the Explicit NULL label are address-family
+	// specific; the install decision is shared.
+	srFib := newSRFIB(getEventBus(), e.srSourceTag())
+	e.srInstaller = newSRInstaller(srFib, e.srAF(), e.srExplicitNull())
+	e.spf.SetPostRun(e.srInstallFromRoutes)
+	// Adj-SID lifecycle (spec-ospf-ext-5 AC-12/AC-13): allocate from the SRLB on Full,
+	// withdraw below. The allocator is seeded lazily from the resolved SRLB config.
+	e.srAdj = &srAdjManager{fib: srFib, store: srWire, self: e.cfg.RouterID, labels: map[srAdjKey]srAdjRecord{}}
+	// spec-ospf-ext-7: the SPF computer resolves each configured virtual link against its
+	// transit area's intra-area result every run and calls back with the resolved set,
+	// which drives the synthetic virtual interface up/down (RFC 2328 sec 16.1).
+	e.spf.SetOnVirtualLinks(e.onVirtualLinksResolved)
+	// spec-ospf-ext-6 TI-LFA: the IPv4 family resolves repair-list SR labels from ext-5's
+	// Prefix-SID / Adj-SID maps. OSPFv3 SR label carriage (RFC 8666) is out of scope, so the
+	// v6 engine gets base-LFA next-hop selection only (a nil resolver disables TI-LFA there).
+	if e.dispatch == nil || !e.dispatch.codec.IsV6() {
+		e.spf.SetSRResolver(srTILFAResolver{e: e})
+	}
 }
 
 func (e *engine) configureSPF(cfg ospfConfig) {
@@ -56,6 +83,18 @@ func (e *engine) configureSPF(cfg ospfConfig) {
 	e.spf.SetAreas(areas)
 	e.spf.SetAreaConfigs(areaConfigs)
 	e.spf.SetMaxPaths(int(cfg.MaximumPaths))
+	// spec-ospf-ext-6: thread the RFC 5286 / TI-LFA fast-reroute policy into the SPF
+	// computer. Disabled leaves the route set + install byte-for-byte as today.
+	mode := ospfspf.FastRerouteLFA
+	if cfg.FastReroute.TILFA {
+		mode = ospfspf.FastRerouteTILFA
+	}
+	e.spf.SetFastReroute(ospfspf.FastRerouteConfig{
+		Enabled:        cfg.FastReroute.Enabled,
+		Mode:           mode,
+		NodeProtection: cfg.FastReroute.NodeProtection,
+	})
+	e.configureVirtualLinks(cfg)
 	e.spf.SetTimers(
 		time.Duration(cfg.Timers.SPFDelayMS)*time.Millisecond,
 		time.Duration(cfg.Timers.SPFHoldMS)*time.Millisecond,
@@ -69,6 +108,25 @@ func (e *engine) triggerSPF(area types.AreaID) {
 		return
 	}
 	e.spf.TriggerArea(area)
+}
+
+// triggerAllSPF recomputes SPF for every configured area. Used on graceful-restart exit:
+// once route install is no longer suppressed, SPF re-runs and the Installer re-programs the
+// FIB, refreshing the retained RTPROT_ZE kernel routes (see gr_restarter.go exitRestart).
+func (e *engine) triggerAllSPF() {
+	if e.spf == nil {
+		return
+	}
+	e.mu.Lock()
+	areas := make([]types.AreaID, 0, len(e.areas))
+	for id := range e.areas {
+		areas = append(areas, id)
+	}
+	e.mu.Unlock()
+	e.spf.Trigger() // backbone
+	for _, id := range areas {
+		e.spf.TriggerArea(id)
+	}
 }
 
 func spfRanges(in []rangeConfig) []ospfspf.AreaRange {
@@ -93,9 +151,10 @@ func (r *ospfNextHopResolver) ResolveInterface(addr netip.Addr) (string, bool) {
 		return "", false
 	}
 	want := addr.String()
-	for _, row := range e.neighbors.Snapshot() {
-		if row.Address == want && row.State == "full" {
-			return row.Interface, true
+	rows := e.neighbors.Snapshot()
+	for i := range rows {
+		if rows[i].Address == want && rows[i].State == neighborStateFull {
+			return rows[i].Interface, true
 		}
 	}
 	return "", false

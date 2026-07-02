@@ -1,0 +1,10 @@
+# Test: OSPFv2 opaque-LSA flooding scope boundaries (RFC 5250 §3.1, spec-ospf-ext-1).
+#
+# VALIDATES: a self-originated Type-11 (AS-wide) opaque LSA floods out a normal interface
+# but is never flooded into a stub area, exercising the AS-wide eligibility rule and the
+# stub/NSSA suppression through the live engine LSDB.
+# PREVENTS: a Type-11 opaque LSA leaking into a stub/NSSA area, or failing to flood AS-wide.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFOpaqueScopeFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

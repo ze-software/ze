@@ -1,0 +1,10 @@
+# Test: OSPFv2 opaque-LSA decode -- LS-ID split + TLV iteration (RFC 5250, spec-ospf-ext-1).
+#
+# VALIDATES: an encoded opaque LSA decodes with a valid Fletcher checksum, its Link State
+# ID splits into the correct Opaque Type (high 8 bits) and Opaque ID (low 24 bits), and
+# its body iterates as 4-byte-aligned TLVs (the codec path the CLI decode uses).
+# PREVENTS: a byte-order slip in the LS-ID split or a mis-padded TLV body.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFOpaqueDecodeFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

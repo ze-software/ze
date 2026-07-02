@@ -21,10 +21,16 @@ const LSInfinity uint64 = 0x00ff_ffff
 // DefaultMaxPaths is the umbrella committed ECMP cap.
 const DefaultMaxPaths = 8
 
-// NextHop is one resolved equal-cost OSPF next-hop.
+// NextHop is one resolved equal-cost OSPF next-hop. Router is the Router ID at
+// the far end of the FIRST hop toward the destination (the SPF next-hop router):
+// for a vertex reached directly from root it is the neighbor; for a deeper vertex
+// it is inherited from the first hop. It is a deterministic function of Addr (the
+// router owning that interface address) and drives the RFC 8665 §5 / RFC 8666 §6
+// SR-MPLS label source (the next-hop router's SRGB, not the SID originator's).
 type NextHop struct {
 	Addr      netip.Addr
 	Interface string
+	Router    types.RouterID
 }
 
 // InterfaceResolver optionally maps a next-hop address to an outgoing interface
@@ -317,8 +323,10 @@ func twoWayRouterNetworkLink(g *Graph, router types.RouterID, network types.Link
 // Deeper vertices inherit the parent's next-hop set.
 func nextHopsForP2P(g *Graph, cur *tent, from, rootID VertexID, to types.RouterID, nh NextHopSource) []NextHop {
 	if from == rootID {
+		// Directly-reached neighbor: the next-hop router IS `to`. Record it so the SR
+		// installer can source the label from this neighbor's SRGB (RFC 8665 §5).
 		if addr, ok := nh.P2PNextHop(g, to, rootID.Router); ok {
-			return []NextHop{{Addr: addr}}
+			return []NextHop{{Addr: addr, Router: to}}
 		}
 		return nil
 	}
@@ -330,8 +338,10 @@ func nextHopsForP2P(g *Graph, cur *tent, from, rootID VertexID, to types.RouterI
 // carried in the router's transit Router-LSA link data. Deeper vertices inherit.
 func nextHopsForNetwork(g *Graph, cur *tent, from VertexID, to types.RouterID, nh NextHopSource) []NextHop {
 	if from.Kind == VertexNetwork && len(cur.nextHops) == 0 {
+		// Router reached through a root-attached transit network: the next-hop router
+		// IS `to` (the attached router). Record it for the SR label source (RFC 8665 §5).
 		if addr, ok := nh.TransitNextHop(g, to, from.Network); ok {
-			return []NextHop{{Addr: addr}}
+			return []NextHop{{Addr: addr, Router: to}}
 		}
 		return nil
 	}

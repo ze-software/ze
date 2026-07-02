@@ -1,11 +1,13 @@
 // Design: plan/learned/962-ospf-8-spf-rib.md -- OSPF route table, preference, and diff.
 // RFC 2328 Section 11 gives the route preference order. The OSPF package
 // resolves that order before publishing one Loc-RIB path set per prefix.
+// RFC: rfc/short/rfc5286.md (Section 3.6 fast-reroute backup protection classes)
 
 package spf
 
 import (
 	"net/netip"
+	"slices"
 	"sort"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
@@ -53,8 +55,81 @@ func routeTypeRank(t RouteType) int {
 	}
 }
 
+// BackupKind distinguishes a directly-connected loop-free alternate (RFC 5286)
+// from a Segment-Routing repair-tunnel backup (TI-LFA).
+type BackupKind uint8
+
+const (
+	// BackupNone is the zero value: the primary next-hop has no fast-reroute backup.
+	BackupNone BackupKind = iota
+	// BackupLFA is a directly-connected loop-free alternate (RFC 5286 base LFA):
+	// forward to the alternate neighbor, no label imposition.
+	BackupLFA
+	// BackupTILFA is a TI-LFA repair: forward to the first hop of the
+	// post-convergence path and impose the SR repair label stack.
+	BackupTILFA
+)
+
+// Backup is the pre-computed fast-reroute alternate protecting ONE primary
+// next-hop of a prefix (RFC 5286 / TI-LFA). It is keyed per primary next-hop,
+// never a route scalar and never an ECMP sibling: it is used only when the
+// primary link goes down. RepairLabels is the TI-LFA SR label stack (outermost
+// first, each a 20-bit MPLS label) built once per best-path change and shared,
+// not mutated, exactly like the primary Labels contract; it is nil for a base
+// LFA. LinkProtect / NodeProtect / Downstream are the non-mutually-exclusive
+// RFC 5286 Section 3.6 protection characteristics.
+type Backup struct {
+	NextHop      netip.Addr
+	Interface    string
+	RepairLabels []uint32
+	LinkProtect  bool
+	NodeProtect  bool
+	Downstream   bool
+	Kind         BackupKind
+}
+
+// Valid reports whether the backup carries a usable next-hop.
+func (b Backup) Valid() bool { return b.Kind != BackupNone && b.NextHop.IsValid() }
+
+// Class renders the RFC 5286 Section 3.6 protection class for `show` output:
+// node-and-link (NP+LP), node, link, or downstream. An unprotected backup
+// renders the empty string.
+func (b Backup) Class() string {
+	if !b.Valid() {
+		return ""
+	}
+	switch {
+	case b.NodeProtect && b.LinkProtect:
+		return "node+link"
+	case b.NodeProtect:
+		return "node"
+	case b.LinkProtect:
+		return "link"
+	case b.Downstream:
+		return "downstream"
+	default:
+		return "loop-free"
+	}
+}
+
+// backupEqual reports whether two backups are identical for change detection so
+// a backup-only delta re-installs (RFC 5286: a stale backup after a topology
+// change that did not move the primary must be re-programmed).
+func backupEqual(a, b Backup) bool {
+	return a.NextHop == b.NextHop &&
+		a.Interface == b.Interface &&
+		a.LinkProtect == b.LinkProtect &&
+		a.NodeProtect == b.NodeProtect &&
+		a.Downstream == b.Downstream &&
+		a.Kind == b.Kind &&
+		slices.Equal(a.RepairLabels, b.RepairLabels)
+}
+
 // RouteEntry is one OSPF route selected for installation. It carries the path
-// type because locrib.Path does not.
+// type because locrib.Path does not. Backups, when fast-reroute is enabled, is a
+// per-primary parallel slice: Backups[i] protects NextHops[i]. It is nil (never
+// allocated) when fast-reroute is disabled, so the route set, diff and snapshot
+// are byte-for-byte identical to a router without fast-reroute.
 type RouteEntry struct {
 	AreaID   types.AreaID
 	Prefix   netip.Prefix
@@ -62,6 +137,7 @@ type RouteEntry struct {
 	Type     RouteType
 	Origin   types.RouterID
 	NextHops []NextHop
+	Backups  []Backup
 }
 
 // BuildRoutes performs RFC 2328 Section 16.1 stage 2: attach stub-network links
@@ -287,6 +363,16 @@ func routeEqual(a, b RouteEntry) bool {
 			return false
 		}
 	}
+	// RFC 5286: a backup-only change (same primary, new backup) MUST re-install so
+	// the forwarding plane never fails over onto a stale alternate.
+	if len(a.Backups) != len(b.Backups) {
+		return false
+	}
+	for i := range a.Backups {
+		if !backupEqual(a.Backups[i], b.Backups[i]) {
+			return false
+		}
+	}
 	return true
 }
 
@@ -324,6 +410,67 @@ func Snapshot(routes []RouteEntry) []RouteSnapshotEntry {
 			hops = append(hops, RouteSnapshotHop{NextHop: nh.Addr.String(), Interface: nh.Interface})
 		}
 		out = append(out, RouteSnapshotEntry{
+			Area:     r.AreaID.String(),
+			Prefix:   r.Prefix.String(),
+			Metric:   r.Metric,
+			Type:     r.Type.String(),
+			Origin:   r.Origin.String(),
+			NextHops: hops,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Area != out[j].Area {
+			return out[i].Area < out[j].Area
+		}
+		return out[i].Prefix < out[j].Prefix
+	})
+	return out
+}
+
+// FastRerouteSnapshotEntry is one `show ospf route fast-reroute` row. It is a
+// dedicated type (not RouteSnapshotEntry) so the base `show ospf route` output
+// is untouched by the fast-reroute surface.
+type FastRerouteSnapshotEntry struct {
+	Area     string                   `json:"area"`
+	Prefix   string                   `json:"prefix"`
+	Metric   uint64                   `json:"metric"`
+	Type     string                   `json:"type"`
+	Origin   string                   `json:"origin"`
+	NextHops []FastRerouteSnapshotHop `json:"next-hops"`
+}
+
+// FastRerouteSnapshotHop is one primary next-hop with its RFC 5286 / TI-LFA
+// backup. Protected is false and the backup fields empty when the primary has no
+// loop-free alternate (RFC 5286 topology-dependent coverage) and no TI-LFA
+// repair. BackupClass is the RFC 5286 Section 3.6 protection class
+// (node+link/node/link/downstream); RepairLabels is the TI-LFA SR repair stack.
+type FastRerouteSnapshotHop struct {
+	NextHop      string   `json:"next-hop"`
+	Interface    string   `json:"interface,omitempty"`
+	Protected    bool     `json:"protected"`
+	Backup       string   `json:"backup,omitempty"`
+	BackupClass  string   `json:"backup-class,omitempty"`
+	RepairLabels []uint32 `json:"repair-labels,omitempty"`
+}
+
+// FastRerouteSnapshot renders `show ospf route fast-reroute`: each primary
+// next-hop with its backup next-hop, protection class and repair label stack.
+func FastRerouteSnapshot(routes []RouteEntry) []FastRerouteSnapshotEntry {
+	out := make([]FastRerouteSnapshotEntry, 0, len(routes))
+	for _, r := range routes {
+		hops := make([]FastRerouteSnapshotHop, 0, len(r.NextHops))
+		for i, nh := range r.NextHops {
+			hop := FastRerouteSnapshotHop{NextHop: nh.Addr.String(), Interface: nh.Interface}
+			if i < len(r.Backups) && r.Backups[i].Valid() {
+				b := r.Backups[i]
+				hop.Protected = true
+				hop.Backup = b.NextHop.String()
+				hop.BackupClass = b.Class()
+				hop.RepairLabels = b.RepairLabels
+			}
+			hops = append(hops, hop)
+		}
+		out = append(out, FastRerouteSnapshotEntry{
 			Area:     r.AreaID.String(),
 			Prefix:   r.Prefix.String(),
 			Metric:   r.Metric,

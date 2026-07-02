@@ -108,15 +108,17 @@ The systemd unit sets `XDG_RUNTIME_DIR=/run/ze`, so the daemon socket is
 
 ## Uninstalling
 
-`ze uninstall local` removes the binary and optionally the config directory.
-`ze uninstall systemd` removes the systemd service.
+`ze uninstall systemd` removes the systemd service; `ze uninstall local`
+removes the binary and optionally the config directory. Always remove the
+service before the binary, so nothing is left running (or trying to restart)
+a binary that is gone.
 
 ```bash
+ze uninstall systemd            # stop, disable, and remove the systemd unit
+ze uninstall systemd --purge    # also remove the ze user and group
 ze uninstall local              # remove binary
 ze uninstall local --purge      # also remove config directory and database
 ze uninstall local --dry-run    # preview what would be removed
-ze uninstall systemd            # stop, disable, and remove the systemd unit
-ze uninstall systemd --purge    # also remove the ze user and group
 ```
 
 ### Flags

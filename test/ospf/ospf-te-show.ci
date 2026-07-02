@@ -1,0 +1,10 @@
+# Test: OSPFv2 `show ospf te-database` (RFC 3630, spec-ospf-ext-2).
+#
+# VALIDATES: `show ospf te-database` renders the received router addresses plus TE links
+# with their Link ID, local/remote address, link type, and attributes (TE metric,
+# bandwidths).
+# PREVENTS: a te-database view that omits router addresses or link attributes.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFTEShowFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

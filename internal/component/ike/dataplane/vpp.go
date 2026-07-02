@@ -134,6 +134,14 @@ func (b *vppBackend) RemovePolicy(src, dst *net.IPNet, dir SADir) error {
 	return nil
 }
 
+// RemovePolicyParams removes a policy by its full selector. The VPP SPD is keyed
+// by local/remote address, protocol, and direction, so it reuses RemovePolicy;
+// the upper-layer selector is not distinct in the VPP model (RFC 4552 IPsec for
+// OSPF targets the XFRM backend, not VPP -- see spec-ospf-ext-16 out-of-scope).
+func (b *vppBackend) RemovePolicyParams(p SPParams) error {
+	return b.RemovePolicy(p.Src, p.Dst, p.Dir)
+}
+
 func (b *vppBackend) ListSAs(_ uint32) ([]SAInfo, error) {
 	return nil, nil
 }

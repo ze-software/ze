@@ -100,6 +100,19 @@ func runEngine(conn net.Conn) int {
 	p := sdk.NewWithConn("flow-export", conn)
 	defer func() { _ = p.Close() }()
 
+	// iface.SubscribeCollectNotify below registers a callback into iface's
+	// package-level subscriber list as a plain Go function call, not through
+	// DirectBridge/DispatchCommand -- that only reaches the engine's real
+	// rate tracker (internal/component/iface's own background collect loop)
+	// when this plugin shares process memory with it. It is flow-export's
+	// only counter data source, unconditional, no fallback, so an external
+	// flow-export would silently never export a single datagram, with no
+	// error anywhere. Refuse to start rather than degrade silently.
+	if !p.IsInternal() {
+		log.Error("flow-export: refusing to start as an external plugin process -- the interface rate-tracker subscription (iface.SubscribeCollectNotify) is a same-process call and would silently no-op across a process boundary; configure flow-export to run internal")
+		return 1
+	}
+
 	collectSubID := iface.SubscribeCollectNotify(notifyFromRateTracker)
 
 	// configure builds (or tears down) the exporter from a parsed config.

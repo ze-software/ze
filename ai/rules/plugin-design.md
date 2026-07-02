@@ -391,6 +391,14 @@ no return channel. Emitting a request event and subscribing for a response event
 adds complexity (correlation IDs, timeouts, two event registrations) that a
 direct function call avoids entirely.
 
+**Anti-pattern:** A plugin calling a plain exported function in another
+`internal/component/*` package directly, instead of through DirectBridge/
+DispatchCommand, to register a callback or reach shared engine state. This
+compiles and works when the plugin happens to run internal, then silently
+no-ops when it runs external (the call mutates the subprocess's own
+disconnected copy of that package's state). See
+`ai/rules/plugin-process-boundary.md`, gated by `make ze-plugin-boundary-check`.
+
 ## Structured Event Delivery (DirectBridge)
 
 Internal plugins that register `OnStructuredEvent` receive `*rpc.StructuredEvent` instead of formatted text. The engine delivers pre-extracted peer metadata + `RawMessage` pointer, eliminating JSON formatting on the engine side and `ParseEvent` on the plugin side.

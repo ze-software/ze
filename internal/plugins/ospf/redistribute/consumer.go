@@ -38,6 +38,10 @@ type Consumer struct {
 	// injV6 originates OSPFv3 AS-External-LSAs for redistributed IPv6 routes (the v6 engine).
 	// Nil until SetV6Injector wires it; IPv6 redistribution is a no-op while nil.
 	injV6 ExternalInjector
+	// injV4OverV3 originates OSPFv3 AS-External-LSAs for redistributed IPv4 routes when an
+	// RFC 5838 IPv4-unicast-over-OSPFv3 instance is configured (AC-13). When set, IPv4
+	// redistribution is diverted to it instead of the OSPFv2 injector; nil otherwise.
+	injV4OverV3 ExternalInjector
 
 	// metrics owned by this spec (umbrella canonical Metrics table, owner ospf-10).
 	// no-ops until SetMetrics wires a registry. The umbrella assigns exactly these
@@ -74,6 +78,13 @@ func NewConsumer(inj ExternalInjector) *Consumer {
 // routes. Until set, IPv6 redistribution is skipped (IPv4-only behavior).
 func (c *Consumer) SetV6Injector(inj ExternalInjector) {
 	c.injV6 = inj
+}
+
+// SetV4OverV3Injector wires the RFC 5838 IPv4-unicast-over-OSPFv3 engine as the injector for
+// redistributed IPv4 routes (AC-13). When set, IPv4 redistribution originates an OSPFv3
+// AS-External-LSA on that instance instead of an OSPFv2 Type 5; unset restores OSPFv2.
+func (c *Consumer) SetV4OverV3Injector(inj ExternalInjector) {
+	c.injV4OverV3 = inj
 }
 
 // SetMetrics registers the two redistribution counters this spec OWNS (umbrella
@@ -138,10 +149,20 @@ func unmap4in6Prefix(p netip.Prefix) netip.Prefix {
 	return p
 }
 
-// injectorFor selects the address-family injector and whether it expects IPv6.
+// injectorFor selects the address-family injector and whether it expects IPv6. RFC 5838:
+// an IPv4-over-OSPFv3 instance, when its AF engine is actually running, takes IPv4
+// redistribution ahead of the OSPFv2 injector so the route originates an OSPFv3
+// AS-External-LSA (AC-13). If the IPv4-over-v3 injector is wired but inactive (no AF engine
+// configured), it is skipped so IPv4 redistribution falls back to the OSPFv2 injector and
+// still originates a Type 5 rather than silently no-op'ing (ext-15 review fix 1).
 func (c *Consumer) injectorFor(fam family.Family) (ExternalInjector, bool) {
 	switch fam.AFI {
 	case family.AFIIPv4:
+		if c.injV4OverV3 != nil {
+			if opt, ok := c.injV4OverV3.(OptionalInjector); !ok || opt.Active() {
+				return c.injV4OverV3, false
+			}
+		}
 		return c.inj, false
 	case family.AFIIPv6:
 		return c.injV6, true

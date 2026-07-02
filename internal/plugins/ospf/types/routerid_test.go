@@ -42,3 +42,25 @@ func TestRouterIDFromBytesRejectsWrongLength(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: AC-1 - RouterID.Equal reports value identity for the comparable 4-byte array.
+// PREVENTS: a byte-level or pointer comparison that treats two equal Router IDs as distinct.
+func TestRouterIDEqual(t *testing.T) {
+	a := RouterID{10, 0, 0, 1}
+	same := RouterID{10, 0, 0, 1}
+	diff := RouterID{10, 0, 0, 2}
+	if !a.Equal(same) {
+		t.Errorf("RouterID.Equal(identical) = false, want true")
+	}
+	if a.Equal(diff) {
+		t.Errorf("RouterID.Equal(%v,%v) = true, want false", a, diff)
+	}
+	// Every octet position must matter.
+	for i := range a {
+		other := a
+		other[i] ^= 0xff
+		if a.Equal(other) {
+			t.Errorf("RouterID.Equal ignored octet %d: %v vs %v", i, a, other)
+		}
+	}
+}

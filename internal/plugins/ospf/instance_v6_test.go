@@ -61,7 +61,7 @@ func TestOSPFEngineIPv6FamilyStarts(t *testing.T) {
 	}
 
 	// The engine's Transport interface is satisfied by the real ospfv3 transport.
-	eng := newEngineWithCodec(ospfv3transport.New(&fakeV6Backend{}), v6Codec{})
+	eng := newEngineWithCodecAF(ospfv3transport.New(&fakeV6Backend{}), v6Codec{}, afIPv6Unicast)
 	eng.setConfig(*cfg.V6)
 	if err := eng.openInterfaces(); err != nil {
 		t.Fatalf("openInterfaces: %v", err)

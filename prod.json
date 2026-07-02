@@ -1,0 +1,13 @@
+{
+    "credentials": {
+        "username": "exa",
+        "admin-enabled": true
+    },
+    "ssh":   { "host": "0.0.0.0", "port": "21982" },
+    "web":   { "enabled": true, "host": "0.0.0.0", "port": "8080" },
+    "tls":   { "cert-name": "router.local", "validity-years": 10 },
+    "identity": { "hostname": "ze-prod" },
+    "device": { "address": "10.12.104.10", "update-port": 443 },
+    "image": { "arch": "amd64", "size-bytes": 2147483648, "kernel-profile": "hardware" },
+    "qemu":  { "ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080 }
+}

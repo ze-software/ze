@@ -1,0 +1,121 @@
+# Test: OSPFv3 (IPv6 family) NBMA + point-to-multipoint config validation (spec-ospf-ext-8).
+#
+# VALIDATES: the address-family ipv6 interface network-type enum accepts nbma and
+# point-to-multipoint, the v6 nbma-neighbor list (keyed by router-id, optional
+# link-local) and poll-interval validate through YANG, and the IPv6 leaf is
+# independent of the IPv4 leaf (a value on one does not bleed into the other).
+# PREVENTS: the v6 family network types or the NBMA config surface not being wired.
+
+# --- Valid v6 NBMA config: router-id key + link-local + priority + poll. -------
+stdin=ospfv3-nbma:terminator=EOF_NBMA
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6 {
+			areas {
+				area 0.0.0.0 {
+					area-type normal
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					network-type nbma
+					poll-interval 60
+					nbma-neighbor 2.2.2.2 {
+						link-local fe80::2
+						priority 3
+					}
+				}
+			}
+		}
+	}
+}
+EOF_NBMA
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospfv3-nbma
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Valid v6 point-to-multipoint config. -------------------------------------
+stdin=ospfv3-ptmp:terminator=EOF_PTMP
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6 {
+			areas {
+				area 0.0.0.0 { }
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					network-type point-to-multipoint
+				}
+			}
+		}
+	}
+}
+EOF_PTMP
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospfv3-ptmp
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Dual family: IPv4 nbma + IPv6 point-to-multipoint coexist, leaves independent.
+stdin=ospf-dual:terminator=EOF_DUAL
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			network-type nbma
+			nbma-neighbor 10.0.0.2 {
+				priority 1
+			}
+		}
+	}
+	address-family {
+		ipv6 {
+			areas {
+				area 0.0.0.0 { }
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					network-type point-to-multipoint
+				}
+			}
+		}
+	}
+}
+EOF_DUAL
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-dual
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Isolation: loopback is IPv4-only; the IPv6 network-type enum rejects it. ---
+stdin=ospf-v6-loopback:terminator=EOF_V6LO
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6 {
+			areas {
+				area 0.0.0.0 { }
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					network-type loopback
+				}
+			}
+		}
+	}
+}
+EOF_V6LO
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-v6-loopback
+expect=exit:code=1

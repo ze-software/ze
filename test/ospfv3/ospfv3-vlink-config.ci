@@ -1,0 +1,102 @@
+# Test: OSPFv3 (IPv6) virtual-link config validation (spec-ospf-ext-7, RFC 5340 section 4.2).
+#
+# VALIDATES: spec-ospf-ext-7 AC-1/AC-2/AC-3 -- a `virtual-link` nested under an IPv6 transit
+# area parses and validates; a stub, NSSA, or backbone transit area, a non-ABR router, or a
+# self remote-router-id are rejected by the in-process verifier.
+# PREVENTS: an OSPFv3 virtual link being accepted through a stub/NSSA/backbone transit area,
+# on a non-ABR, or pointing at this router's own Router ID.
+
+# --- Valid: IPv6 ABR with a virtual link through the normal transit area 0.0.0.1. --------
+stdin=v6vl-valid:terminator=EOF_VALID
+ospf {
+	router-id 10.0.0.1
+	address-family ipv6 {
+		areas {
+			area 0.0.0.1 {
+				area-type normal
+				virtual-link 10.0.0.2 {
+					hello-interval 10
+					dead-interval 40
+				}
+			}
+			area 0.0.0.2 {
+				area-type normal
+			}
+		}
+		interfaces {
+			interface eth0 {
+				area 0.0.0.1
+			}
+			interface eth1 {
+				area 0.0.0.2
+			}
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=v6vl-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- NSSA transit area: a virtual link MUST NOT transit an NSSA (RFC 5340 section 4.2). ---
+stdin=v6vl-nssa:terminator=EOF_NSSA
+ospf {
+	router-id 10.0.0.1
+	address-family ipv6 {
+		areas {
+			area 0.0.0.1 {
+				area-type nssa
+				virtual-link 10.0.0.2 {
+				}
+			}
+			area 0.0.0.2 {
+				area-type normal
+			}
+		}
+		interfaces {
+			interface eth0 {
+				area 0.0.0.1
+			}
+			interface eth1 {
+				area 0.0.0.2
+			}
+		}
+	}
+}
+EOF_NSSA
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=v6vl-nssa
+expect=exit:code=1
+expect=stdout:contains=stub
+
+# --- Self remote-router-id under the IPv6 family. ---------------------------------------
+stdin=v6vl-self:terminator=EOF_SELF
+ospf {
+	router-id 10.0.0.1
+	address-family ipv6 {
+		areas {
+			area 0.0.0.1 {
+				area-type normal
+				virtual-link 10.0.0.1 {
+				}
+			}
+			area 0.0.0.2 {
+				area-type normal
+			}
+		}
+		interfaces {
+			interface eth0 {
+				area 0.0.0.1
+			}
+			interface eth1 {
+				area 0.0.0.2
+			}
+		}
+	}
+}
+EOF_SELF
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=v6vl-self
+expect=exit:code=1
+expect=stdout:contains=remote-router-id

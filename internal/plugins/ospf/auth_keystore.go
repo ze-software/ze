@@ -212,20 +212,7 @@ func (s *authStore) configure(cfg ospfConfig) {
 		if !ok || name == "" {
 			continue
 		}
-		keys := make([]resolvedKey, 0, len(kc.Keys))
-		for _, k := range kc.Keys {
-			// Lifetimes are validated by validateConfig before configure runs, so a parse
-			// failure here is impossible; the zero window means "always valid" (unset).
-			start, stop, _ := lifetimeBounds(k.SendLifetime)
-			keys = append(keys, resolvedKey{
-				keyID:     k.KeyID,
-				auType:    authAuType(k.Algorithm, kc.ExtendedSequence),
-				algo:      k.Algorithm,
-				secret:    decodeSecret(k.Secret),
-				sendStart: start,
-				sendStop:  stop,
-			})
-		}
+		keys := resolveChainKeys(kc)
 		if len(keys) > 0 {
 			chains[ic.Name] = keys
 			// RFC 7474 §5: AuType 3 binds the interface's IPv4 source address into the
@@ -234,10 +221,35 @@ func (s *authStore) configure(cfg ospfConfig) {
 			srcByIface[ic.Name] = interfaceIPv4Address(ic.Name)
 		}
 	}
+	// spec-ospf-ext-7 AC-18: a virtual link inherits its TRANSIT area's authentication with
+	// NO synthetic-interface key registration. Its routed sends go out the transit egress
+	// interface (signed against that interface's chain, which is the transit area's) and its
+	// receives arrive on the transit ifindex (verified against the same interface). The
+	// synthetic virtual interface has no OS ifindex, so a name-keyed entry for it would be
+	// dead: both signing and verification key on the real transit interface.
 	s.mu.Lock()
 	s.chains = chains
 	s.srcByIface = srcByIface
 	s.mu.Unlock()
+}
+
+// resolveChainKeys resolves a key chain's keys into the send-key form the store holds.
+// Lifetimes are validated by validateConfig before configure runs, so a parse failure here
+// is impossible; a zero window means "always valid" (unset).
+func resolveChainKeys(kc keyChainConfig) []resolvedKey {
+	keys := make([]resolvedKey, 0, len(kc.Keys))
+	for _, k := range kc.Keys {
+		start, stop, _ := lifetimeBounds(k.SendLifetime)
+		keys = append(keys, resolvedKey{
+			keyID:     k.KeyID,
+			auType:    authAuType(k.Algorithm, kc.ExtendedSequence),
+			algo:      k.Algorithm,
+			secret:    decodeSecret(k.Secret),
+			sendStart: start,
+			sendStop:  stop,
+		})
+	}
+	return keys
 }
 
 // selectSendKey picks the key that signs at time now. RFC 5709 §X / RFC 7210: the

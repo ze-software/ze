@@ -45,6 +45,147 @@ func originTopology() []InterfaceInfo {
 	}
 }
 
+// virtualLinkTopology is an ABR (areas 0.0.0.0 + 0.0.0.1) with a Full virtual link through
+// the transit area presented as a synthetic NetworkVirtual interface in the BACKBONE. Its
+// local (transit) address is 172.16.0.1 and the virtual neighbor is 9.9.9.9 at cost 15.
+func virtualLinkTopology() []InterfaceInfo {
+	return []InterfaceInfo{
+		{
+			Name: "eth0", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal,
+			NetworkType: NetworkBroadcast, State: InterfaceStateDR,
+			Address: ip4("10.0.0.1"), NetworkMask: ip4("255.255.255.0"),
+			Cost: 10, RouterID: rid("1.1.1.1"), Options: types.OptionE,
+			DR: rid("1.1.1.1"), BDR: rid("2.2.2.2"), RetransmitInterval: 5, TransmitDelay: 1,
+			Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull}},
+		},
+		{
+			Name: "eth2", AreaID: area("0.0.0.1"), AreaType: AreaTypeNormal,
+			NetworkType: NetworkPointToPoint, State: "point-to-point",
+			Address: ip4("198.51.100.1"), NetworkMask: ip4("255.255.255.252"),
+			Cost: 5, RouterID: rid("1.1.1.1"), Options: types.OptionE, RetransmitInterval: 5, TransmitDelay: 1,
+			Neighbors: []NeighborInfo{{RouterID: rid("4.4.4.4"), Address: naddr4("198.51.100.2"), State: NeighborStateFull}},
+		},
+		{
+			Name: "*vlink-0.0.0.1-9.9.9.9", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal,
+			NetworkType: NetworkVirtual, State: "point-to-point", VirtualTransitArea: area("0.0.0.1"),
+			Address: ip4("172.16.0.1"), Cost: 15, RouterID: rid("1.1.1.1"), Options: types.OptionE,
+			RetransmitInterval: 5, TransmitDelay: 1,
+			Neighbors: []NeighborInfo{{RouterID: rid("9.9.9.9"), Address: naddr4("172.16.0.2"), State: NeighborStateFull}},
+		},
+	}
+}
+
+func virtualLink(t *testing.T, links []packet.RouterLink) (packet.RouterLink, bool) {
+	t.Helper()
+	for _, l := range links {
+		if l.Type == packet.RouterLinkTypeVirtual {
+			return l, true
+		}
+	}
+	return packet.RouterLink{}, false
+}
+
+// VALIDATES: spec-ospf-ext-7 AC-8 -- routerLinks emits a Type-4 virtual-link record for a
+// Full virtual link with Link ID = neighbor Router ID, Link Data = the local transit
+// address, and Metric = the transit cost (RFC 2328 App A.4.2).
+func TestRouterLinksEmitsVirtualType4(t *testing.T) {
+	clock := &fakeClock{now: time.Unix(0, 0)}
+	db := newTestDB(clock)
+	vif := virtualLinkTopology()[2]
+	in := OriginInput{AreaID: area("0.0.0.0"), RouterID: rid("1.1.1.1"), Options: types.OptionE, ABR: true, VirtualLinkEndpoint: true, Interfaces: []InterfaceInfo{vif}}
+	h, ok := db.OriginateRouter(in)
+	if !ok {
+		t.Fatalf("OriginateRouter false")
+	}
+	lsa, _ := db.LookupLSA(in.AreaID, h.Key())
+	body, err := lsa.DecodeRouter()
+	if err != nil {
+		t.Fatalf("DecodeRouter: %v", err)
+	}
+	link, ok := virtualLink(t, body.Links)
+	if !ok {
+		t.Fatalf("no Type-4 virtual link in %+v", body.Links)
+	}
+	if link.LinkID != types.LinkStateID(rid("9.9.9.9")) {
+		t.Fatalf("virtual LinkID = %s, want 9.9.9.9", link.LinkID)
+	}
+	if link.LinkData != ip4("172.16.0.1") {
+		t.Fatalf("virtual LinkData = %v, want 172.16.0.1", link.LinkData)
+	}
+	if link.Metric != types.Metric(15) {
+		t.Fatalf("virtual Metric = %d, want 15", link.Metric)
+	}
+	// No stub link (the virtual interface carries no NetworkMask).
+	for _, l := range body.Links {
+		if l.Type == packet.RouterLinkTypeStub {
+			t.Fatalf("virtual link produced a stub link: %+v", l)
+		}
+	}
+}
+
+func decodeAreaRouter(t *testing.T, db *LSDB, a types.AreaID) packet.RouterLSA {
+	t.Helper()
+	lsa, ok := db.LookupLSA(a, types.LSAKey{Type: types.LSTypeRouter, LinkStateID: types.LinkStateID(rid("1.1.1.1")), AdvertisingRouter: rid("1.1.1.1")})
+	if !ok {
+		t.Fatalf("router LSA missing in area %s", a)
+	}
+	body, err := lsa.DecodeRouter()
+	if err != nil {
+		t.Fatalf("DecodeRouter area %s: %v", a, err)
+	}
+	return body
+}
+
+// VALIDATES: spec-ospf-ext-7 AC-8 / A-4 -- RFC 2328 App A.4.2 / section 16.3 splits the two
+// signals of a Full virtual link: the Type-4 record lives in the BACKBONE Router-LSA (the
+// virtual link belongs to Area 0), while the V-bit is set in the TRANSIT area's Router-LSA
+// (marking it a transit area, which drives the far ABR's TransitCapability).
+func TestBackboneRouterLSAHasVBitWhenVLFull(t *testing.T) {
+	clock := &fakeClock{now: time.Unix(0, 0)}
+	db := newTestDB(clock)
+	db.SetTopology(virtualLinkTopology)
+	if count := db.OriginateFromTopology(rid("1.1.1.1"), false); count == 0 {
+		t.Fatalf("originated count = 0")
+	}
+	backbone := decodeAreaRouter(t, db, area("0.0.0.0"))
+	if backbone.Flags&packet.RouterFlagV != 0 {
+		t.Fatalf("V-bit must NOT be set on the backbone Router-LSA: flags = %#x", backbone.Flags)
+	}
+	link, ok := virtualLink(t, backbone.Links)
+	if !ok {
+		t.Fatalf("backbone Router-LSA missing Type-4 link: %+v", backbone.Links)
+	}
+	if link.LinkID != types.LinkStateID(rid("9.9.9.9")) {
+		t.Fatalf("backbone virtual LinkID = %s, want 9.9.9.9", link.LinkID)
+	}
+	transit := decodeAreaRouter(t, db, area("0.0.0.1"))
+	if transit.Flags&packet.RouterFlagV == 0 {
+		t.Fatalf("V-bit not set on the transit-area Router-LSA: flags = %#x", transit.Flags)
+	}
+}
+
+// VALIDATES: spec-ospf-ext-7 R-5 -- the Type-4 virtual link RECORD appears only in the
+// backbone Router-LSA, never in a non-backbone (transit) Router-LSA (RFC 2328 App A.4.2).
+func TestVirtualLinkBackboneOnly(t *testing.T) {
+	clock := &fakeClock{now: time.Unix(0, 0)}
+	db := newTestDB(clock)
+	db.SetTopology(virtualLinkTopology)
+	if count := db.OriginateFromTopology(rid("1.1.1.1"), false); count == 0 {
+		t.Fatalf("originated count = 0")
+	}
+	transit := decodeAreaRouter(t, db, area("0.0.0.1"))
+	if _, ok := virtualLink(t, transit.Links); ok {
+		t.Fatalf("Type-4 record leaked into non-backbone Router-LSA: %+v", transit.Links)
+	}
+	if transit.Flags&packet.RouterFlagV == 0 {
+		t.Fatalf("transit-area Router-LSA should carry the V-bit: flags = %#x", transit.Flags)
+	}
+	backbone := decodeAreaRouter(t, db, area("0.0.0.0"))
+	if _, ok := virtualLink(t, backbone.Links); !ok {
+		t.Fatalf("backbone Router-LSA missing the Type-4 record: %+v", backbone.Links)
+	}
+}
+
 func TestOSPFOriginateRouterLSA(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)

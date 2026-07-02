@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-ospf-ext-0-umbrella.md, spec-ospf-ext-3-router-information.md (IPv4 RI carrier), spec-ospf-ext-4-extended-link-prefix.md (IPv4 Extended-Prefix/Link carriers) |
 | Phase | - |
-| Updated | 2026-06-24 |
+| Updated | 2026-07-02 |
 
 > Single feature across BOTH OSPF address families. Ze implements OSPF as ONE
 > unified engine (`internal/plugins/ospf/`), exactly as `bgp` is one engine across

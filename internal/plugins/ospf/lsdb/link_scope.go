@@ -20,7 +20,19 @@ type LinkLSARef struct {
 	Key       types.LSAKey
 }
 
-func isLinkLSAType(t types.LSType) bool { return t == types.LSTypeLink }
+// isLinkLSAType reports whether t is a link-local-scope LSA that lives in the
+// per-interface link store: the OSPFv3 Type-8 Link-LSA (RFC 5340) or the RFC 5250
+// Type-9 link-local opaque LSA. Both are bound to the single interface they arrive
+// on and are flooded only out that interface (floodLink), never area- or AS-wide.
+// RFC 5250 Section 3.1: a Type-9 opaque LSA "is not flooded beyond the local
+// (sub)network" -- routing it through installLink/floodLink enforces that bound.
+// The OSPFv3 Grace-LSA (RFC 5187 sec 2.1, wire LS Type 0x000B, function code 11,
+// link-local scope) is likewise link-scoped; the OSPFv3 codec maps it to the internal
+// LSTypeGraceV6 sentinel (0x000B numerically collides with the OSPFv2 Type-11 Opaque-AS,
+// so a distinct sentinel keeps the two apart), and it too routes through the link store.
+func isLinkLSAType(t types.LSType) bool {
+	return t == types.LSTypeLink || t == types.LSTypeOpaqueLink || t == types.LSTypeGraceV6
+}
 
 func (d *LSDB) linkForLocked(iface string) *areaDB {
 	store := d.links[iface]
@@ -286,6 +298,13 @@ func (d *LSDB) floodLink(ifaceName string, area types.AreaID, key types.LSAKey) 
 		if !isFloodEligibleNeighborState(nbr.State) || nbr.RouterID == (types.RouterID{}) {
 			continue
 		}
+		// RFC 5250 Section 3.1: Opaque LSAs are flooded only to opaque-capable neighbors
+		// (those that set the O-bit in their DD). A Type-9 link-local opaque LSA queued for a
+		// non-opaque neighbor would waste its LSDB and provoke acks; the area/AS flood path
+		// (floodExcept) applies the same gate.
+		if lsa.Header.Type.IsOpaque() && !nbr.OpaqueCapable {
+			continue
+		}
 		if d.queueRetransmit(area, NeighborKey{Interface: iface.Name, RouterID: nbr.RouterID}, lsa.Header, raw) {
 			queued = true
 		}
@@ -341,6 +360,11 @@ func (d *LSDB) sendDirectLinkLSUpdate(iface string, dst netip.Addr, area types.A
 // re-encode, which misparses an OSPFv3 Link-LSA -- so the link path reclaims via the next
 // origination instead.) Returns true so the caller does not install the received self-LSA.
 func (d *LSDB) handleSelfLinkReceived(iface string, lsa packet.LSA) bool {
+	// RFC 3623 sec 2: during graceful restart the restarting router keeps (does not flush) its
+	// received self-originated link-scope LSAs, including its own pre-restart Grace-LSAs.
+	if d.selfFlushSuppressed() {
+		return false
+	}
 	d.mu.RLock()
 	self := d.selfRouter
 	d.mu.RUnlock()

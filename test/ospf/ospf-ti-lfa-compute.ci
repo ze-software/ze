@@ -1,0 +1,31 @@
+# Test: OSPF TI-LFA repair-list computation from Segment Routing labels.
+#
+# VALIDATES: spec-ospf-ext-6 -- the post-convergence graph clone drops the
+# protected resource (A-5); P-space/Q-space select the P-node and Q-node; the
+# repair list is a Prefix-SID resolved through the P-node's SRGB (RFC 8665
+# Section 3.2/5) plus an Adj-SID Q-segment (Section 6.1), each a 20-bit MPLS
+# label; and with no SR resolver the prefix is left unprotected. AC-9: the
+# remote-node Adj-SID Q-segment (the only reachable Adj-SID repair) resolves from
+# the P-node's advertised Extended Link Adj-SID (RFC 7684 Section 3 / RFC 8665
+# Section 6.1-6.2) on the production srTILFAResolver path.
+# PREVENTS: pushing a SID index instead of a resolved label, a repair crossing
+# the protected resource, or leaving the remote Adj-SID Q-segment unresolved.
+#
+# Live SR label capture and kernel failover is owned by the ospf-ti-lfa-frr interop
+# scenario.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf -run 'Test(PostConvergenceSPFExcludesResource|TILFAPQSpace|TILFARepairListFromSRMaps|TILFANoSRNoRepair|TILFARemoteAdjSegmentResolvesUnderProductionContract)$' -count=1:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=TestPostConvergenceSPFExcludesResource
+expect=stdout:contains=TestTILFAPQSpace
+expect=stdout:contains=TestTILFARepairListFromSRMaps
+expect=stdout:contains=TestTILFANoSRNoRepair
+expect=stdout:contains=TestTILFARemoteAdjSegmentResolvesUnderProductionContract
+
+# AC-9 production path: the engine's srTILFAResolver resolves a remote router's
+# Adj-SID (point-to-point Link ID match and transit LAN-Adj-SID Neighbor ID match)
+# from its Extended Link Opaque LSA in a real LSDB, returning the advertised label.
+cmd=foreground:seq=2:exec=go test -v ./internal/plugins/ospf -run 'TestSRTILFAResolver(RemoteAdjSIDPointToPoint|RemoteAdjSIDLAN|RemoteAdjSIDIndexFormSkipped|LocalAdjStillResolves)$' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=TestSRTILFAResolverRemoteAdjSIDPointToPoint
+expect=stdout:contains=TestSRTILFAResolverRemoteAdjSIDLAN

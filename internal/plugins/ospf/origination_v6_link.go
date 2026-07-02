@@ -1,3 +1,5 @@
+// Design: plan/learned/972-ospf-af-unify.md -- OSPFv3 (IPv6) Link-LSA + Network Intra-Area-Prefix origination.
+// RFC: rfc/short/rfc5340.md (App A.4.9 Link-LSA, A.4.10 Intra-Area-Prefix-LSA)
 package ospf
 
 import (
@@ -23,7 +25,15 @@ func v6ShouldOriginateLinkLSA(iface ospflsdb.InterfaceInfo) bool {
 	if !iface.IsV6 || iface.Name == "" || !v6AdvertiseInterface(iface) {
 		return false
 	}
-	return iface.NetworkType == ospflsdb.NetworkBroadcast || iface.NetworkType == ospflsdb.NetworkPointToPoint
+	// Every OSPFv3 interface type originates a Link-LSA so neighbors learn the
+	// link-local (the SPF next-hop) and the on-link prefixes (RFC 5340 sec 4.4.3.8),
+	// including NBMA and point-to-multipoint.
+	switch iface.NetworkType {
+	case ospflsdb.NetworkBroadcast, ospflsdb.NetworkPointToPoint, ospflsdb.NetworkNBMA, ospflsdb.NetworkPointToMultipoint:
+		return true
+	default:
+		return false
+	}
 }
 
 // RFC 5340 §4.4.3.8: a router originates one Link-LSA per attached link carrying
@@ -85,8 +95,8 @@ func v6PrefixesForLinkLSA(prefixes []netip.Prefix) []ospfv3packet.Prefix {
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
-		pi, _ := v6PrefixToNetip(out[i])
-		pj, _ := v6PrefixToNetip(out[j])
+		pi, _ := v6PrefixToNetip(out[i], afIPv6Unicast)
+		pj, _ := v6PrefixToNetip(out[j], afIPv6Unicast)
 		return pi.String() < pj.String()
 	})
 	return out
@@ -139,7 +149,7 @@ func (e *engine) v6AggregatedLinkPrefixes(iface string) []ospfv3packet.Prefix {
 			if p.Options.NoUnicast() || p.Options.LocalAddress() {
 				continue
 			}
-			pfx, ok := v6PrefixToNetip(p)
+			pfx, ok := v6PrefixToNetip(p, afIPv6Unicast)
 			if !ok || pfx.Addr().IsLinkLocalUnicast() {
 				continue
 			}
@@ -153,8 +163,8 @@ func (e *engine) v6AggregatedLinkPrefixes(iface string) []ospfv3packet.Prefix {
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
-		pi, _ := v6PrefixToNetip(out[i])
-		pj, _ := v6PrefixToNetip(out[j])
+		pi, _ := v6PrefixToNetip(out[i], afIPv6Unicast)
+		pj, _ := v6PrefixToNetip(out[j], afIPv6Unicast)
 		return pi.String() < pj.String()
 	})
 	return out

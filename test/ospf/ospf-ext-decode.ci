@@ -1,0 +1,8 @@
+# Test: OSPFv2 Extended Prefix LSA decode (RFC 7684, spec-ospf-ext-4).
+#
+# VALIDATES: an Extended Prefix opaque LSA (Opaque Type 7) encodes, decodes with a valid Fletcher checksum, splits its Link State ID to Opaque Type 7, and its body decodes to an Extended Prefix TLV (the CLI decode path).
+# PREVENTS: a byte-order slip in the LS-ID split or a mis-padded Extended Prefix TLV body.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFExtDecodeFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

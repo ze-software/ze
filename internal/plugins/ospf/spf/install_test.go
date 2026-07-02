@@ -55,6 +55,51 @@ func TestOSPFInstallPath(t *testing.T) {
 	}
 }
 
+// TestInstallerFamilyPerAF pins the RFC 5838 per-AF install family: an installer built
+// with NewInstallerFamily(fam) inserts into fam's Loc-RIB, one AF per RFC 5838 §2.1.
+func TestInstallerFamilyPerAF(t *testing.T) {
+	cases := []struct {
+		fam family.Family
+		pfx netip.Prefix
+		nh  netip.Addr
+	}{
+		{family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/64"), netip.MustParseAddr("fe80::2")},
+		{family.IPv4Unicast, netip.MustParsePrefix("10.20.0.0/24"), netip.MustParseAddr("fe80::2")},
+		{family.IPv6Multicast, netip.MustParsePrefix("2001:db8:1::/64"), netip.MustParseAddr("fe80::2")},
+		{family.IPv4Multicast, netip.MustParsePrefix("10.30.0.0/24"), netip.MustParseAddr("fe80::2")},
+	}
+	for _, c := range cases {
+		loc := locrib.NewRIB()
+		in := NewInstallerFamily(loc, c.fam)
+		in.Apply([]RouteEntry{{
+			AreaID: testArea(), Prefix: c.pfx, Metric: 10, Type: RouteIntraArea,
+			Origin: testRID(t, "2.2.2.2"), NextHops: []NextHop{{Addr: c.nh}},
+		}})
+		g, ok := loc.Lookup(c.fam, c.pfx)
+		if !ok || len(g.Paths) != 1 || g.Paths[0].Source != ProtocolID() {
+			t.Fatalf("%s: route %s not installed into %s (got %+v, ok=%v)", c.fam, c.pfx, c.fam, g, ok)
+		}
+	}
+}
+
+// TestV6UnicastInstallsIPv6Family pins the IPv6-base fix (RFC 5838): the IPv6-unicast
+// instance installs into family.IPv6Unicast, NOT the old family.IPv4Unicast hardcode.
+func TestV6UnicastInstallsIPv6Family(t *testing.T) {
+	loc := locrib.NewRIB()
+	in := NewInstallerFamily(loc, family.IPv6Unicast)
+	pfx := netip.MustParsePrefix("2001:db8:abcd::/48")
+	in.Apply([]RouteEntry{{
+		AreaID: testArea(), Prefix: pfx, Metric: 10, Type: RouteIntraArea,
+		Origin: testRID(t, "2.2.2.2"), NextHops: []NextHop{{Addr: netip.MustParseAddr("fe80::2")}},
+	}})
+	if g, ok := loc.Lookup(family.IPv6Unicast, pfx); !ok || len(g.Paths) != 1 {
+		t.Fatalf("route not in IPv6Unicast: got %+v ok=%v", g, ok)
+	}
+	if g, ok := loc.Lookup(family.IPv4Unicast, pfx); ok && len(g.Paths) > 0 {
+		t.Fatalf("route wrongly present in IPv4Unicast: %+v", g)
+	}
+}
+
 func TestOSPFSPFRoute(t *testing.T) {
 	area := testArea()
 	loc := locrib.NewRIB()

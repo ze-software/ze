@@ -169,13 +169,13 @@ const (
 	DefaultPluginPort = "12700"
 )
 
-// NewFromTLSEnv creates a plugin by reading ze.plugin.hub.host, ze.plugin.hub.port,
-// ze.plugin.hub.token, and ze.plugin.cert.fp env vars (dot or underscore notation).
-// Connects to the engine via TLS, authenticates, and returns a single-conn plugin.
-// ze.plugin.hub.host defaults to 127.0.0.1, ze.plugin.hub.port defaults to 12700.
-// ze.plugin.hub.token is required.
-// If ze.plugin.cert.fp is set, the TLS handshake verifies the server cert fingerprint.
-func NewFromTLSEnv(name string) (*Plugin, error) {
+// dialAndAuth reads the ze.plugin.hub.* env vars, dials the engine hub via
+// TLS, and sends the auth request -- the portion of the TLS bootstrap shared
+// by NewFromTLSEnv (which wraps the result in rpc.Conn for immediate SDK
+// use) and DialTLSEnvRaw (which hands back the still-unwrapped net.Conn for
+// a caller that builds its own rpc.Conn later). The auth RESPONSE is not
+// read here; each caller reads it its own way.
+func dialAndAuth(ctx context.Context, name string) (net.Conn, error) {
 	host := env.Get("ze.plugin.hub.host")
 	if host == "" {
 		host = DefaultPluginHost
@@ -193,9 +193,6 @@ func NewFromTLSEnv(name string) (*Plugin, error) {
 
 	addr := net.JoinHostPort(host, port)
 	tlsConf := ipc.TLSConfigWithFingerprint(certFP)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 
 	conn, err := (&tls.Dialer{Config: tlsConf}).DialContext(ctx, "tcp", addr)
 	if err != nil {
@@ -217,6 +214,24 @@ func NewFromTLSEnv(name string) (*Plugin, error) {
 		return nil, fmt.Errorf("auth: %w", authErr)
 	}
 
+	return conn, nil
+}
+
+// NewFromTLSEnv creates a plugin by reading ze.plugin.hub.host, ze.plugin.hub.port,
+// ze.plugin.hub.token, and ze.plugin.cert.fp env vars (dot or underscore notation).
+// Connects to the engine via TLS, authenticates, and returns a single-conn plugin.
+// ze.plugin.hub.host defaults to 127.0.0.1, ze.plugin.hub.port defaults to 12700.
+// ze.plugin.hub.token is required.
+// If ze.plugin.cert.fp is set, the TLS handshake verifies the server cert fingerprint.
+func NewFromTLSEnv(name string) (*Plugin, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	conn, err := dialAndAuth(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create ONE rpc.Conn for this connection. ReadRequest starts the
 	// persistent reader. MuxConn reuses the same reader via sync.Once
 	// -- no competing goroutines.
@@ -232,6 +247,62 @@ func NewFromTLSEnv(name string) (*Plugin, error) {
 	}
 
 	return newPlugin(name, engineConn), nil
+}
+
+// DialTLSEnvRaw performs the same TLS dial + auth handshake as
+// NewFromTLSEnv (same env vars, same defaults) but returns the raw,
+// still-unwrapped net.Conn instead of an already-initialized *Plugin. The
+// auth response is read via ipc.ReadLineRaw (byte-by-byte, no bufio
+// buffering-ahead -- see ipc.Authenticate's doc comment for why this
+// matters) instead of wrapping the connection in rpc.Conn, so the returned
+// conn is left perfectly clean for a caller that builds its own *Plugin via
+// NewWithConn later (e.g. a registry.Registration.RunEngine(conn net.Conn)
+// func, which every plugin already implements this way for its INTERNAL
+// invocation path).
+//
+// Test-only today: internal/test/cli's `ze-test plugin-external <name>`
+// command is the only caller, launching a registered engine plugin's own
+// RunEngine as a genuine external subprocess to prove its
+// IsInternal()-guarded refuse/warn behavior actually fires outside a
+// synthetic net.Pipe() unit test (plan/learned/1045-plugin-process-boundary.md).
+// Production external plugins should be built as standalone binaries using
+// pkg/plugin (see examples/plugin/go/main.go), not this generic launcher.
+func DialTLSEnvRaw(name string) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	conn, err := dialAndAuth(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
+	if deadline, ok := ctx.Deadline(); ok {
+		if derr := conn.SetReadDeadline(deadline); derr != nil {
+			conn.Close() //nolint:errcheck,gosec // cleanup on error path
+			return nil, fmt.Errorf("set auth-response deadline: %w", derr)
+		}
+	}
+	line, err := ipc.ReadLineRaw(conn, ipc.MaxAuthFrameSize)
+	if err != nil {
+		conn.Close() //nolint:errcheck,gosec // cleanup on read failure
+		return nil, fmt.Errorf("read auth response: %w", err)
+	}
+	if clearErr := conn.SetReadDeadline(time.Time{}); clearErr != nil {
+		conn.Close() //nolint:errcheck,gosec // cleanup on error path
+		return nil, fmt.Errorf("clear auth-response deadline: %w", clearErr)
+	}
+
+	_, verb, payload, parseErr := rpc.ParseLine(line)
+	if parseErr != nil {
+		conn.Close() //nolint:errcheck,gosec // cleanup on parse failure
+		return nil, fmt.Errorf("parse auth response: %w", parseErr)
+	}
+	if verb == "error" {
+		conn.Close() //nolint:errcheck,gosec // cleanup on auth rejection
+		return nil, fmt.Errorf("auth rejected: %s", rpc.ExtractErrorMessage(payload))
+	}
+
+	return conn, nil
 }
 
 // Close closes the underlying connections, unblocking any goroutines waiting

@@ -1,0 +1,93 @@
+# Test: ddos-detect warns when running as an external plugin process
+# VALIDATES: plan/learned/1045-plugin-process-boundary.md -- ddos-detect's
+# warnIfExternal (internal/plugins/ddos/detect/register.go) logs a warning
+# when it runs as a genuine external subprocess, since both its subscribe
+# paths (trafficstat.EnsureGlobal/SubscribeRates, and the
+# iface.SubscribeCollectNotify fallback when trafficstat is unavailable)
+# register a callback into a package-level subscriber list as a same-process
+# call that would silently no-op across the process boundary -- the detector
+# would never receive a rate signal either way. Warns rather than refuses,
+# consistent with ddos-detect's existing trafficstat-unavailable graceful
+# degradation framing.
+# Uses `ze-test plugin-external ddos-detect`
+# (internal/test/cli/cmd_plugin_external.go) to launch the real plugin's own
+# RunEngine via a real TLS connect-back, exercising the warning through the
+# actual external-plugin transport, not a mocked conn.
+# PREVENTS: an operator running `plugin { external ddos-detect { ... } }`
+# getting no indication that detection is permanently starved of input.
+#
+# STATUS: ddos-detect declares Dependencies: []string{"interface"}
+# (register.go), so the daemon also starts the interface plugin, which has
+# no OS-default backend on darwin ("no backend configured and no OS default
+# available") -- the daemon fails before the external ddos-detect subprocess
+# ever gets a chance to run. option=needs-linux below; not executable on the
+# darwin dev host, but confirmed PASSING under
+# `make ze-qemu-needs-linux-test` (real QEMU Linux VM, plan/learned/1045).
+
+option=needs-linux
+
+stdin=ze-bgp:terminator=EOF_CONF
+ddos {
+	detect {
+		enabled true
+	}
+}
+
+plugin {
+	external ddos-detect {
+		run "ze-test plugin-external ddos-detect"
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=wait.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Hold the test open long enough for the external ddos-detect subprocess
+to start and log its external-mode warning -- observable via the daemon's
+relayed stderr (default relay level is WARN, and warnIfExternal logs at
+WARN). Unlike the refuse cases, ddos-detect keeps running after the
+warning, so this test tears the daemon down via the sleep timeout rather
+than waiting for the plugin's own exit."""
+import time
+
+time.sleep(4.0)
+EOF_PY
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 wait.py:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=will never receive a rate signal

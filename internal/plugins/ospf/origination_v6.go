@@ -37,9 +37,18 @@ const v6MaxLinkMetric uint16 = 0xffff
 // sweeps only these (Router, Network for DR segments, Intra-Area-Prefix), leaving any other
 // self LSA (e.g. the inter-area summaries) untouched.
 var v6ManagedSelfTypes = map[types.LSType]struct{}{
-	types.LSType(ospfv3types.LSTypeRouter):          {},
-	types.LSType(ospfv3types.LSTypeNetwork):         {},
-	types.LSType(ospfv3types.LSTypeIntraAreaPrefix): {},
+	types.LSType(ospfv3types.LSTypeRouter):                {},
+	types.LSType(ospfv3types.LSTypeNetwork):               {},
+	types.LSType(ospfv3types.LSTypeIntraAreaPrefix):       {},
+	types.LSType(ospfv3types.LSTypeRouterInformationArea): {},
+	types.LSType(ospfv3types.LSTypeRouterInformationAS):   {},
+	// Segment Routing (spec-ospf-ext-5): the RFC 8362 Extended LSAs SR rides on are
+	// self-managed so the stale flush refreshes them while SR is enabled and MaxAge-purges
+	// them when SR is disabled or a SID goes away (AC-13/AC-20). With SR off nothing is
+	// originated for these types and the flush confirms no residue lingers.
+	types.LSType(ospfv3types.LSTypeERouter):          {},
+	types.LSType(ospfv3types.LSTypeEIntraAreaPrefix): {},
+	types.LSType(ospfv3types.LSTypeEInterAreaPrefix): {},
 }
 
 // v6NetworkKey is the LSDB key for this router's OSPFv3 Network-LSA on a broadcast segment it
@@ -89,6 +98,9 @@ func (e *engine) v6OriginateSelf(router types.RouterID, maxMetric bool) int {
 		}
 	}
 	abr := v6IsAreaBorderRouter(activeAreas)
+	// RFC 2328 App A.4.2 / section 16.3: the V-bit is set in the TRANSIT area's Router-LSA
+	// of a Full virtual link, not the backbone Router-LSA that carries the virtual record.
+	fullTransitAreas := v6FullVirtualTransitAreas(topology)
 	count := 0
 	linkKeep := make(map[ospflsdb.LinkLSARef]struct{})
 	for _, ifaces := range byArea {
@@ -112,7 +124,7 @@ func (e *engine) v6OriginateSelf(router types.RouterID, maxMetric bool) int {
 		if len(ifaces) > 0 {
 			opts = neutralToV6Options(ifaces[0].Options)
 		}
-		if _, ok := e.v6OriginateRouter(area, router, opts, ifaces, maxMetric, abr, v6NSSATranslatorArea(cfg, area) && abr); ok {
+		if _, ok := e.v6OriginateRouter(area, router, opts, ifaces, maxMetric, abr, v6NSSATranslatorArea(cfg, area) && abr, fullTransitAreas[area]); ok {
 			count++
 		}
 		keep[ospflsdb.SelfLSARef{Area: area, Key: v6RouterKey(router)}] = struct{}{}
@@ -131,7 +143,7 @@ func (e *engine) v6OriginateSelf(router types.RouterID, maxMetric bool) int {
 		// the transit link in the Router-LSA above.
 		for idx := range ifaces {
 			iface := &ifaces[idx]
-			if iface.NetworkType != ospflsdb.NetworkBroadcast || iface.DR != router || !v6AdvertiseInterface(*iface) {
+			if !v6OriginatesNetworkLSA(*iface, router) {
 				continue
 			}
 			key, changed := e.v6OriginateNetwork(area, router, opts, *iface)
@@ -147,6 +159,14 @@ func (e *engine) v6OriginateSelf(router types.RouterID, maxMetric bool) int {
 			}
 		}
 	}
+	// RFC 7770: (re)originate the Router Information LSA(s) on the same self-LSA pass, adding
+	// their keys to keep so the stale flush retains them while enabled and purges them when RI
+	// is disabled or a scope is removed. Done before the flush so a disabled RI is withdrawn.
+	count += e.v6OriginateRI(router, activeAreas, keep)
+	// Segment Routing (spec-ospf-ext-5): originate the RFC 8362 SR Extended LSAs (E-Router
+	// Adj-SIDs, E-Intra-Area-Prefix node Prefix-SIDs, and ABR inter-area propagation) on the
+	// same pass. With SR disabled this originates nothing and the flush purges any residue.
+	count += e.v6OriginateSR(router, byArea, abr, activeAreas, keep)
 	count += e.lsdb.FlushStaleLinkSelfLSAs(router, linkKeep)
 	count += e.lsdb.FlushStaleSelfLSAs(router, v6ManagedSelfTypes, keep)
 	return count
@@ -155,12 +175,13 @@ func (e *engine) v6OriginateSelf(router types.RouterID, maxMetric bool) int {
 // v6OriginateRouter builds and originates this router's OSPFv3 Router-LSA for one area.
 // The Link State ID of an OSPFv3 Router-LSA is a fragment number (0 for the single
 // fragment), not the Router ID as in OSPFv2 (RFC 5340 App A.4.3).
-func (e *engine) v6OriginateRouter(area types.AreaID, router types.RouterID, opts ospfv3types.Options, ifaces []ospflsdb.InterfaceInfo, maxMetric, abr, nssaTranslator bool) (packet.LSAHeader, bool) {
+func (e *engine) v6OriginateRouter(area types.AreaID, router types.RouterID, opts ospfv3types.Options, ifaces []ospflsdb.InterfaceInfo, maxMetric, abr, nssaTranslator, virtualEndpoint bool) (packet.LSAHeader, bool) {
 	// RFC 5340 App A.4.3: set B when this router is an ABR, E when it is an
 	// ASBR, and Nt in directly attached NSSAs where Ze participates in Type-7
 	// translation. SelfIsASBR is AF-neutral, so v6 Type-7 originators also set E.
+	// virtualEndpoint sets the V-bit for a TRANSIT area (RFC 2328 App A.4.2).
 	asbr := e.lsdb != nil && e.lsdb.SelfIsASBR(router)
-	body := v6RouterLSABody(opts, ifaces, maxMetric, asbr, abr, nssaTranslator)
+	body := v6RouterLSABody(opts, ifaces, maxMetric, asbr, abr, nssaTranslator, virtualEndpoint)
 	bodyBytes := make([]byte, body.EncodedLen())
 	body.WriteTo(bodyBytes, 0)
 	key := v6RouterKey(router)
@@ -229,7 +250,7 @@ func (e *engine) v6OriginateNetwork(area types.AreaID, router types.RouterID, op
 // interface advertises in its Hellos (RFC 5340 sec 3.4.3) -- and the Neighbor Interface ID
 // is the Interface ID that neighbor advertised in its Hellos (tracked through the adjacency
 // table); the point-to-point two-way check keys on the Neighbor Router ID.
-func v6RouterLSABody(opts ospfv3types.Options, ifaces []ospflsdb.InterfaceInfo, maxMetric, asbr, abr, nssaTranslator bool) ospfv3packet.RouterLSA {
+func v6RouterLSABody(opts ospfv3types.Options, ifaces []ospflsdb.InterfaceInfo, maxMetric, asbr, abr, nssaTranslator, virtualEndpoint bool) ospfv3packet.RouterLSA {
 	body := ospfv3packet.RouterLSA{Options: opts}
 	if abr {
 		body.Flags |= ospfv3packet.RouterFlagB
@@ -240,6 +261,12 @@ func v6RouterLSABody(opts ospfv3types.Options, ifaces []ospflsdb.InterfaceInfo, 
 	if nssaTranslator {
 		body.Flags |= ospfv3packet.RouterFlagNt
 	}
+	// RFC 5340 App A.4.3 / RFC 2328 App A.4.2: the V-bit is set in the Router-LSA for the
+	// TRANSIT area (this area is a transit area for a Full virtual link), not the backbone
+	// Router-LSA that carries the RouterLinkTypeVirtual record.
+	if virtualEndpoint {
+		body.Flags |= ospfv3packet.RouterFlagV
+	}
 	for idx := range ifaces {
 		iface := &ifaces[idx]
 		if !v6AdvertiseInterface(*iface) {
@@ -249,11 +276,36 @@ func v6RouterLSABody(opts ospfv3types.Options, ifaces []ospflsdb.InterfaceInfo, 
 		if metric == 0 {
 			metric = 1
 		}
-		if maxMetric {
+		// RFC 6987 router-wide max-metric OR RFC 5443 §2 per-interface LDP-sync cost-out
+		// raises this interface's non-stub (p2p/transit) link metric to the max. The
+		// OSPFv3 Router-LSA carries no stub links (prefixes live in the Intra-Area-Prefix-
+		// LSA), so this touches only the p2p/transit link, consistent with the OSPFv2 path.
+		if maxMetric || iface.LDPSyncMaxMetric {
 			metric = v6MaxLinkMetric
 		}
 		switch iface.NetworkType {
-		case ospflsdb.NetworkPointToPoint:
+		case ospflsdb.NetworkVirtual:
+			// RFC 5340 App A.4.3: a virtual link is a RouterLinkTypeVirtual record (no IP
+			// address) carrying the local virtual-interface ID, the neighbor's Interface ID,
+			// the neighbor Router ID, and the transit-area path cost. It sets the V-bit
+			// (App A.4.3) and is only ever present in the backbone Router-LSA.
+			for _, nbr := range iface.Neighbors {
+				if nbr.State != ospflsdb.NeighborStateFull {
+					continue
+				}
+				body.Links = append(body.Links, ospfv3packet.RouterLink{
+					Type:                ospfv3packet.RouterLinkTypeVirtual,
+					Metric:              metric,
+					InterfaceID:         ospfv3types.InterfaceID(iface.InterfaceID),
+					NeighborInterfaceID: ospfv3types.InterfaceID(nbr.InterfaceID),
+					NeighborRouterID:    ospfv3types.RouterID(nbr.RouterID),
+				})
+			}
+		case ospflsdb.NetworkPointToPoint, ospflsdb.NetworkPointToMultipoint:
+			// RFC 5340 App A.4.3: point-to-multipoint contributes one address-free
+			// Type-1 link per Full neighbor, exactly like point-to-point. The link's
+			// prefixes (and the PtMP /128 host route) live in the Intra-Area-Prefix-LSA,
+			// never here.
 			for _, nbr := range iface.Neighbors {
 				if nbr.State != ospflsdb.NeighborStateFull {
 					continue
@@ -266,7 +318,15 @@ func v6RouterLSABody(opts ospfv3types.Options, ifaces []ospflsdb.InterfaceInfo, 
 					NeighborRouterID:    ospfv3types.RouterID(nbr.RouterID),
 				})
 			}
-		case ospflsdb.NetworkBroadcast:
+		case ospflsdb.NetworkBroadcast, ospflsdb.NetworkNBMA:
+			// RFC 6138 Section 4: withhold the transit (Link Type 2) link for a
+			// non-cut-edge broadcast segment until LDP is synchronized with all peers.
+			// The AF-neutral LDP-sync state is applied to both address families through
+			// the shared InterfaceInfo model.
+			if iface.LDPSyncWithholdTransit {
+				continue
+			}
+			// NBMA uses the same DR-elected transit link as broadcast (RFC 5340 App A.4.3).
 			if link, ok := v6TransitLink(*iface, metric); ok {
 				body.Links = append(body.Links, link)
 			}
@@ -323,6 +383,23 @@ func v6InterfacePrefixes(ifaces []ospflsdb.InterfaceInfo) []ospfv3packet.Prefix 
 		if metric == 0 {
 			metric = 1
 		}
+		// RFC 5340 App A.4.10/A.4.1: a point-to-multipoint interface advertises its own
+		// global address as a /128 host route with the LA-bit, not the subnet prefix, so
+		// remote routers reach the interface directly.
+		if iface.NetworkType == ospflsdb.NetworkPointToMultipoint {
+			for _, p := range v6HostPrefixes(*iface) {
+				pfx, ok := v6PrefixToNetip(p, afIPv6Unicast)
+				if !ok {
+					continue
+				}
+				if _, dup := seen[pfx.String()]; dup {
+					continue
+				}
+				seen[pfx.String()] = struct{}{}
+				out = append(out, p)
+			}
+			continue
+		}
 		for _, pfx := range interfaceIPv6Prefixes(iface.Name) {
 			if _, ok := seen[pfx.String()]; ok {
 				continue
@@ -338,6 +415,60 @@ func v6InterfacePrefixes(ifaces []ospflsdb.InterfaceInfo) []ospfv3packet.Prefix 
 	return out
 }
 
+// v6HostPrefixes returns the interface's global addresses as /128 prefixes with the
+// LA-bit set (RFC 5340 App A.4.1.1) and metric 0: the point-to-multipoint host routes.
+// It prefers the injected IPv6Addresses (tests) and falls back to the live OS
+// addresses, mirroring v6LinkLSAPrefixes.
+func v6HostPrefixes(iface ospflsdb.InterfaceInfo) []ospfv3packet.Prefix {
+	addrs := iface.IPv6Addresses
+	if addrs == nil {
+		addrs = interfaceIPv6Addresses(iface.Name)
+	}
+	out := make([]ospfv3packet.Prefix, 0, len(addrs))
+	seen := make(map[string]struct{})
+	for _, a := range addrs {
+		if !a.Is6() || a.Is4In6() || a.IsLinkLocalUnicast() || a.IsLoopback() || a.IsUnspecified() || a.IsMulticast() {
+			continue
+		}
+		if _, ok := seen[a.String()]; ok {
+			continue
+		}
+		seen[a.String()] = struct{}{}
+		p, ok := netipToV6Prefix(netip.PrefixFrom(a, ospfv3types.MaxPrefixLength), 0)
+		if !ok {
+			continue
+		}
+		p.Options = ospfv3types.OptPrefixLA
+		out = append(out, p)
+	}
+	return out
+}
+
+// interfaceIPv6Addresses returns the interface's global unmasked IPv6 addresses (the
+// PtMP host-route source), the counterpart of interfaceIPv6Prefixes which masks to the
+// subnet.
+func interfaceIPv6Addresses(name string) []netip.Addr {
+	addrs, err := ifcomp.Addresses(name)
+	if err != nil {
+		return nil
+	}
+	var out []netip.Addr
+	for _, addr := range addrs {
+		if addr.Family != interfaceFamilyIPv6 {
+			continue
+		}
+		parsed, err := netip.ParseAddr(addr.Address)
+		if err != nil || !parsed.Is6() || parsed.Is4In6() {
+			continue
+		}
+		if parsed.IsLinkLocalUnicast() || parsed.IsLoopback() || parsed.IsUnspecified() || parsed.IsMulticast() {
+			continue
+		}
+		out = append(out, parsed)
+	}
+	return out
+}
+
 // v6AdvertiseInterface mirrors the OSPFv2 advertiseInterfaceLinks rule: an interface
 // contributes to origination unless it is administratively down (a passive interface
 // still advertises its prefix).
@@ -345,8 +476,57 @@ func v6AdvertiseInterface(iface ospflsdb.InterfaceInfo) bool {
 	return iface.State != ospflsdb.InterfaceStateDown || iface.Passive
 }
 
+// v6OriginatesNetworkLSA reports whether this router originates the OSPFv3 Network-LSA
+// for the segment: only the DR of a broadcast OR NBMA link does (RFC 5340 App A.4.4). A
+// point-to-multipoint interface has no DR and originates none.
+func v6OriginatesNetworkLSA(iface ospflsdb.InterfaceInfo, router types.RouterID) bool {
+	if iface.NetworkType != ospflsdb.NetworkBroadcast && iface.NetworkType != ospflsdb.NetworkNBMA {
+		return false
+	}
+	return iface.DR == router && v6AdvertiseInterface(iface)
+}
+
 func v6AreaHasAdvertisedLinks(ifaces []ospflsdb.InterfaceInfo) bool {
-	return slices.ContainsFunc(ifaces, v6AdvertiseInterface)
+	for idx := range ifaces {
+		if ifaces[idx].NetworkType == ospflsdb.NetworkVirtual {
+			// RFC 5340 section 3.5: a virtual link makes its area (the backbone) active for
+			// ABR/backbone-attachment only when the adjacency is fully adjacent.
+			if v6VirtualLinkFull(ifaces[idx]) {
+				return true
+			}
+			continue
+		}
+		if v6AdvertiseInterface(ifaces[idx]) {
+			return true
+		}
+	}
+	return false
+}
+
+// v6VirtualLinkFull reports whether a synthetic virtual interface has a Full neighbor.
+func v6VirtualLinkFull(iface ospflsdb.InterfaceInfo) bool {
+	for _, nbr := range iface.Neighbors {
+		if nbr.State == ospflsdb.NeighborStateFull {
+			return true
+		}
+	}
+	return false
+}
+
+// v6FullVirtualTransitAreas returns the transit areas carrying a Full virtual link, so the
+// V-bit is set in each such transit area's Router-LSA (RFC 2328 App A.4.2 / section 16.3).
+func v6FullVirtualTransitAreas(ifaces []ospflsdb.InterfaceInfo) map[types.AreaID]bool {
+	var out map[types.AreaID]bool
+	for idx := range ifaces {
+		if ifaces[idx].NetworkType != ospflsdb.NetworkVirtual || !v6VirtualLinkFull(ifaces[idx]) {
+			continue
+		}
+		if out == nil {
+			out = make(map[types.AreaID]bool)
+		}
+		out[ifaces[idx].VirtualTransitArea] = true
+	}
+	return out
 }
 
 func v6IsAreaBorderRouter(areas []types.AreaID) bool {
@@ -405,20 +585,39 @@ func interfaceIPv6LinkLocal(name string) netip.Addr {
 	return netip.Addr{}
 }
 
-// netipToV6Prefix converts a netip.Prefix to the OSPFv3 word-padded wire prefix (RFC
-// 5340 App A.4.1) with metric in the 16-bit field. It is the inverse of v6PrefixToNetip.
+// netipToV6Prefix converts a netip.Prefix to the OSPFv3 word-padded wire prefix (RFC 5340
+// App A.4.1) with metric in the 16-bit field. It is the inverse of v6PrefixToNetip. An IPv4
+// prefix (RFC 5838 §2.7 IPv4-over-OSPFv3) encodes as a 0..32-bit prefix in a single 32-bit
+// word; an IPv6 prefix uses its 128-bit address.
 func netipToV6Prefix(pfx netip.Prefix, metric uint16) (ospfv3packet.Prefix, bool) {
-	if !pfx.Addr().Is6() || pfx.Bits() < 0 || pfx.Bits() > 128 {
+	if !pfx.IsValid() || pfx.Bits() < 0 {
+		return ospfv3packet.Prefix{}, false
+	}
+	addr := pfx.Masked().Addr()
+	if addr.Is4() {
+		if pfx.Bits() > 32 {
+			return ospfv3packet.Prefix{}, false
+		}
+		plen, err := ospfv3types.NewPrefixLength(uint8(pfx.Bits()))
+		if err != nil {
+			return ospfv3packet.Prefix{}, false
+		}
+		full := addr.As4()
+		out := make([]byte, plen.ByteLen())
+		copy(out, full[:min(plen.ByteLen(), len(full))])
+		return ospfv3packet.Prefix{Length: plen, Field16: metric, Address: out}, true
+	}
+	if !addr.Is6() || pfx.Bits() > 128 {
 		return ospfv3packet.Prefix{}, false
 	}
 	plen, err := ospfv3types.NewPrefixLength(uint8(pfx.Bits()))
 	if err != nil {
 		return ospfv3packet.Prefix{}, false
 	}
-	full := pfx.Masked().Addr().As16()
-	addr := make([]byte, plen.ByteLen())
-	copy(addr, full[:plen.ByteLen()])
-	return ospfv3packet.Prefix{Length: plen, Field16: metric, Address: addr}, true
+	full := addr.As16()
+	out := make([]byte, plen.ByteLen())
+	copy(out, full[:plen.ByteLen()])
+	return ospfv3packet.Prefix{Length: plen, Field16: metric, Address: out}, true
 }
 
 // v6OriginHeader builds the OSPFv3 LSA header for a self-originated LSA: age 0 (or MaxAge

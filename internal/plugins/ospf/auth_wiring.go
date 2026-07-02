@@ -30,7 +30,10 @@ func (e *engine) signPacket(name string, payload []byte) []byte {
 	if !ok || au == packet.AuTypeNull || len(payload) < packet.CommonHeaderLen {
 		return payload
 	}
-	payload[14] = byte(uint16(au) >> 8)
+	// RFC 6549 sec 2: offset 14 is the Instance ID (already stamped by the encoder), offset
+	// 15 is the 8-bit AuType. Write only the AuType octet so the Instance ID is preserved --
+	// the encoders default AuType 0, so this rewrites it to the configured value. Offset 14
+	// must NOT be touched here (a clobber would drop a non-zero instance's packets on peers).
 	payload[15] = byte(uint16(au))
 	payload[12], payload[13] = 0, 0
 	if au == packet.AuTypeSimple {

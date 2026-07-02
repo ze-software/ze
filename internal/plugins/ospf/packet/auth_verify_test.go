@@ -79,6 +79,47 @@ func TestOSPFAuthSignVerifyCrypto(t *testing.T) {
 	}
 }
 
+// TestAuthUnaffectedByInstanceSplit proves AC-11 / A-6 / R-3 (RFC 6549): narrowing the
+// on-wire AuType to the low octet (offset 15) leaves cryptographic authentication correct.
+// At Instance ID 0 the header offset 14 stays zero (AuType still read from offset 15) and
+// the AuType-2 digest verifies; the digest covers offset 14, so a non-zero Instance ID is
+// bound into the digest (a flip of offset 14 fails verification), exactly as a peer at the
+// same Instance ID would compute it.
+func TestAuthUnaffectedByInstanceSplit(t *testing.T) {
+	key := AuthKey{KeyID: 7, Algorithm: AuthHMACSHA256, Secret: []byte("instance-split-auth-key")}
+
+	// Instance ID 0: today's bytes. Sign, then confirm offset 14 is zero, offset 15 is the
+	// AuType, and the digest verifies (bit-for-bit compatible auth path).
+	wire0 := helloWire(t, AuTypeCryptographic)
+	require.Equal(t, byte(0), wire0[offInstanceID], "Instance ID 0: offset 14 zero before signing")
+	require.Equal(t, byte(AuTypeCryptographic), wire0[offAuType], "AuType in the low octet (offset 15)")
+	signed0, err := Sign(wire0, AuTypeCryptographic, key, 11, [4]byte{})
+	require.NoError(t, err)
+	require.Equal(t, byte(0), signed0[offInstanceID], "signing must not disturb the Instance ID octet")
+	_, ok := Verify(signed0, AuTypeCryptographic, key, [4]byte{})
+	assert.True(t, ok, "AuType 2 at Instance ID 0 verifies unchanged")
+
+	// The digest covers offset 14, so flipping the Instance ID octet on the wire breaks it.
+	tampered := bytes.Clone(signed0)
+	tampered[offInstanceID] = 0x05
+	_, bad := Verify(tampered, AuTypeCryptographic, key, [4]byte{})
+	assert.False(t, bad, "a mutated Instance ID octet fails the digest (Instance ID is authenticated)")
+
+	// A packet built at a non-zero Instance ID signs and verifies internally-consistently.
+	p := Packet{
+		Header: Header{Type: PacketTypeHello, InstanceID: 0x05, AuType: AuTypeCryptographic},
+		Hello:  &Hello{NetworkMask: [4]byte{255, 255, 255, 0}, HelloInterval: 10, DeadInterval: 40, Priority: 1},
+	}
+	wire5 := make([]byte, p.EncodedLen())
+	p.WriteTo(wire5, 0)
+	require.Equal(t, byte(0x05), wire5[offInstanceID], "non-zero Instance ID stamped at offset 14")
+	signed5, err := Sign(wire5, AuTypeCryptographic, key, 12, [4]byte{})
+	require.NoError(t, err)
+	require.Equal(t, byte(0x05), signed5[offInstanceID], "signing preserves the non-zero Instance ID")
+	_, ok5 := Verify(signed5, AuTypeCryptographic, key, [4]byte{})
+	assert.True(t, ok5, "AuType 2 at a non-zero Instance ID verifies")
+}
+
 func TestApadSrcBoundaries(t *testing.T) {
 	src := [4]byte{10, 20, 30, 40}
 	// l >= 4: the first four octets are the source address, the remainder keeps the fill.

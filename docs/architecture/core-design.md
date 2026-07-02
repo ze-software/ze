@@ -849,6 +849,7 @@ a pluggable backend architecture. It is cross-cutting infrastructure, not BGP-sp
 | **Events** | `interface/created`, `interface/deleted`, `interface/up`, `interface/down`, `interface/addr/*`, `interface/dhcp/*` |
 | **Unit model** | JunOS-style two-layer: physical interface + logical units (VLANs) |
 | **VLAN mapping** | VLAN units create Linux VLAN subinterfaces (`eth0.100`); non-VLAN units share parent |
+| **Plugin-owned address registry** | `RegisterOwnedAddresses`/`UnregisterOwnedAddresses` in `address_owner.go`: an in-process plugin (e.g. as112) declares addresses it owns on an interface; `desiredState()` merges them with YANG-declared addresses so reconciliation adds/removes them without duplicated operator config. Mutations fire a reconcile-trigger so the change lands in the same operation, not a later commit |
 
 BGP subscribes to `interface/` events and reacts: starting listeners when addresses appear,
 draining sessions when addresses disappear. The component never imports BGP code and BGP never
@@ -858,6 +859,8 @@ imports the component -- all communication flows through the Bus.
 <!-- source: internal/component/iface/iface.go -- topic constants and payload types -->
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go -- netlink monitor -->
 <!-- source: internal/component/iface/register.go -- plugin registration -->
+<!-- source: internal/component/iface/address_owner.go -- plugin-owned address registry -->
+<!-- source: internal/component/iface/config_apply.go -- desiredState() registry merge, reconcileOnRegistryChange -->
 
 ---
 
@@ -909,7 +912,7 @@ modify tables owned by other software (e.g., Lachesis). Apply receives the full 
 and reconciles against the kernel atomically.
 
 The traffic component also has its own reactor (`internal/component/traffic/register.go`, spec-fw-9):
-`init()` calls `registry.Register(Name="traffic", ConfigRoots=["traffic-control"])`, and `runEngine`
+`init()` calls `registry.Register(Name="traffic", ConfigRoots=["traffic/control"])`, and `runEngine`
 uses the SDK 5-stage protocol (`OnConfigure`, `OnConfigVerify`, `OnConfigApply`, `OnConfigRollback`)
 to drive the active backend's `Apply` on boot and on every SIGHUP reload, with `sdk.Journal` recording
 a rollback Apply when the reload fails. The backend feature gate (`config.ValidateBackendFeaturesJSON`)

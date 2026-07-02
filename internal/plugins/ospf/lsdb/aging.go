@@ -52,6 +52,23 @@ func (d *LSDB) Tick(now time.Time) TickResult {
 			d.mPurges.With(key.Type.String()).Inc()
 		}
 	}
+	// RFC 5250 §3.1: Type-11 opaque LSAs live in the AS-wide opaque store, keyed under the
+	// backbone area like Type 5; age and purge them on the same path.
+	for key, entry := range d.asOpaque.entries {
+		if entry.purged {
+			continue
+		}
+		if entry.Header(now).Age.IsMaxAge() {
+			entry.markPurged(now)
+			purges = append(purges, struct {
+				area  types.AreaID
+				iface string
+				key   types.LSAKey
+				link  bool
+			}{area: types.BackboneArea, key: key})
+			d.mPurges.With(key.Type.String()).Inc()
+		}
+	}
 	for iface, store := range d.links {
 		area := d.linkAreas[iface]
 		for key, entry := range store.entries {
@@ -127,6 +144,17 @@ func (d *LSDB) RefreshSelf(now time.Time) int {
 	// MaxAge and Tick purges it ~LSRefreshTime after the last topology change, blackholing
 	// the routes domain-wide even though the redistribution is still active.
 	for key, entry := range d.asExternal.entries {
+		if !entry.self || entry.purged || entry.Header(now).Age.Age() < types.LSRefreshTime {
+			continue
+		}
+		lsa, ok := entry.LSA(now)
+		if ok {
+			todo = append(todo, refresh{area: types.BackboneArea, key: key, lsa: lsa})
+		}
+	}
+	// Self-originated Type-11 opaque LSAs live in the AS-wide opaque store; refresh them
+	// on the same backbone-keyed path as Type 5 so they do not age to MaxAge and purge.
+	for key, entry := range d.asOpaque.entries {
 		if !entry.self || entry.purged || entry.Header(now).Age.Age() < types.LSRefreshTime {
 			continue
 		}

@@ -1,0 +1,10 @@
+# Test: OSPFv3 Segment Routing disabled is inert (spec-ospf-ext-5 AC-20).
+#
+# VALIDATES: with SR disabled, the IPv6 SR origination pass originates no RFC 8362 SR Extended
+# LSAs and keeps no self-LSA refs (so the stale flush MaxAge-purges any residue); the E-Router /
+# E-Intra-Area-Prefix / E-Inter-Area-Prefix types are registered as self-managed for the flush.
+# PREVENTS: an SR Extended LSA originated or left lingering when SR is off; base OSPFv3 unaffected.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestOSPFv3SRDisabledOriginatesNothing|TestOSPFv3ManagedSelfTypesIncludeSR' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

@@ -1,0 +1,11 @@
+# Test: OSPFv2 inter-AS TE LSA (RFC 5392 Opaque type 6, spec-ospf-ext-2).
+#
+# VALIDATES: a configured inter-as link with scope=as originates a Type-11 (AS-wide) opaque
+# TE LSA, and a received inter-AS TE LSA (Remote AS 21, IPv4 ASBR ID 22, no Link ID) is
+# parsed into the TED with its remote AS and ASBR.
+# PREVENTS: inter-AS TE flooded at the wrong scope or an inter-AS body that never reaches the
+# TED.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFTEInterASFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

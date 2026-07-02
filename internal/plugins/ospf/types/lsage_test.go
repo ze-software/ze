@@ -50,6 +50,24 @@ func TestLSAgeAddSaturates(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-7 - LSAge.String renders the masked age in seconds, ignoring the DoNotAge bit.
+// PREVENTS: a frozen (DoNotAge) LSA rendering as 32768+ seconds instead of its real age.
+func TestLSAgeString(t *testing.T) {
+	if got := LSAge(0).String(); got != "0" {
+		t.Errorf("LSAge(0).String() = %q, want 0", got)
+	}
+	if got := LSAge(MaxAge).String(); got != "3600" {
+		t.Errorf("LSAge(MaxAge).String() = %q, want 3600", got)
+	}
+	frozen, err := LSAgeFromRaw(DoNotAgeBit | 42)
+	if err != nil {
+		t.Fatalf("LSAgeFromRaw returned error: %v", err)
+	}
+	if got := frozen.String(); got != "42" {
+		t.Errorf("DoNotAge LSAge.String() = %q, want 42 (masked age)", got)
+	}
+}
+
 // VALIDATES: AC-12 - LSAge parses and serializes exactly two big-endian bytes.
 // PREVENTS: LSA header wire drift for the mutable LS Age field.
 func TestLSAgeBytesRoundTrip(t *testing.T) {

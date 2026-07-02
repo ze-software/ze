@@ -82,7 +82,7 @@ func TestOSPFv6OriginateSummaries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeInterAreaPrefix: %v", err)
 	}
-	gotPfx, ok := v6PrefixToNetip(iap.Prefix)
+	gotPfx, ok := v6PrefixToNetip(iap.Prefix, afIPv6Unicast)
 	if !ok || gotPfx != netip.MustParsePrefix("2001:db8:1::/64") {
 		t.Errorf("summarized prefix = %s, want 2001:db8:1::/64", gotPfx)
 	}
@@ -186,7 +186,7 @@ func TestOSPFv6OriginateSummariesRange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeInterAreaPrefix: %v", err)
 	}
-	if gotPfx, _ := v6PrefixToNetip(iap.Prefix); gotPfx != netip.MustParsePrefix("2001:db8:1::/48") {
+	if gotPfx, _ := v6PrefixToNetip(iap.Prefix, afIPv6Unicast); gotPfx != netip.MustParsePrefix("2001:db8:1::/48") {
 		t.Errorf("aggregated prefix = %s, want 2001:db8:1::/48", gotPfx)
 	}
 	if iap.Metric != 8 {

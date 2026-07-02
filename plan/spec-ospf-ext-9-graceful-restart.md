@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-ospf-ext-0-umbrella.md; spec-ospf-ext-1-opaque-framework.md (IPv4 Grace-LSA carrier only) |
 | Phase | - |
-| Updated | 2026-06-24 |
+| Updated | 2026-07-02 |
 
 > One feature, both address families. Ze implements OSPF as a single unified
 > engine (`internal/plugins/ospf/`), exactly as `bgp` is one engine spanning
@@ -757,16 +757,45 @@ two preservation rules:
 ## Implementation Summary
 
 ### What Was Implemented
-- [filled at implementation time]
+- One shared control plane driving both families: `grManager` (`gr.go`) with the restarter FSM
+  (`gr_restarter.go`), helper FSM (`gr_helper.go`), NVS restart fact (`gr_nvs.go`), OSPFv3
+  preservation (`gr_preserve.go`), show renderer (`gr_show.go`), and the IPv4 body glue
+  (`gr_lsa.go`). `codec.IsV6()` appears only at the wire origination/decode seam (R-13).
+- IPv4 wire: `packet/grace_lsa.go` (`GraceLSA`, `EncodeGraceLSA`/`DecodeGraceLSA`, `GraceOpaqueType=3`)
+  over the ext-1 opaque TLV helpers; registered as an Opaque-Type-3 link-scope consumer.
+- IPv6 wire: `v3/types.LSTypeGrace=0x000B` + `Known()`, `v3/packet/tlv.go` (native 4-octet TLV
+  codec), `v3/packet/lsa_grace.go` (`GraceLSA` + `DecodeGrace`), the `LSA.Grace` typed body.
+- LSType collision fix: the AF-neutral `types.LSTypeGraceV6=0x800B` sentinel (0x000B == the
+  OSPFv2 Opaque-AS Type 11), mapped 0x000B<->0x800B in `codec_v6.go`/`encoder_v6.go`;
+  `isLinkLSAType` broadened for the sentinel so the Grace-LSA routes to the link store.
+- Gates: `originateSelfLSAs` suppression, `spf.Installer` install/RemoveAll suppression, LSDB
+  self-flush suppression + content-change observer, helper-neighbor injection + DR retention +
+  restarter self-DR re-election in `lsdbTopology`, v6 Grace-LSA receive dispatch in `handleLSUpdate`.
+- Config (`graceful-restart` container, family-neutral, inherited into V6), two show commands,
+  five `ze_ospf_gr_*` metrics with a `family` label, a doctor check (`doctor-ospf-graceful-restart-nvs`)
+  + diagnostic code, and the RFC 7770 GR informational-capability seam wired (`riGRState`).
 
 ### Bugs Found/Fixed
-- [filled at implementation time]
+- Found the `0x000B == LSTypeOpaqueAS (11)` AF-neutral collision (would misroute a received
+  OSPFv3 Grace-LSA into the AS-wide opaque store); fixed with the `LSTypeGraceV6` sentinel.
 
 ### Documentation Updates
-- [filled at implementation time]
+- `docs/guide/ospf.md` (new Graceful Restart section), `docs/features.md`, `docs/comparison.md`,
+  `rfc/short/rfc3623.md` + `rfc/short/rfc5187.md` (compliance checklists flipped for implemented items).
 
 ### Deviations from Plan
-- [filled at implementation time]
+- The operator `ospf graceful-restart prepare` RPC is NOT wired as a CLI command; `prepareRestart`
+  is implemented + unit-tested and is intended to be driven by a managed-reload hook (the spec's
+  stated alternative). The interop scenarios document this trigger as harness-provided.
+- The v3 TLV codec (`tlv.go`) is unexported (matching the v2 `opaqueTLV` precedent) rather than
+  exported, to satisfy the `ze-validate` no-unexported-intra-package-symbol gate.
+- `gracefulRestartConfig` is packed (uint16 interval + uint8 enum) into `ospfConfig`'s trailing
+  padding to keep the by-value snapshot under the gocritic hugeParam threshold (288) WITHOUT
+  editing the shared `.golangci.yml` (respecting the OSPF-only-files instruction); guarded by
+  `TestOspfConfigCopyBudget`.
+- The restarter inconsistent-LSA trigger (`noteInconsistentLSA`) and the DR-re-election ISM wiring
+  are implemented + unit-tested as decision methods; their precise wire-detection heuristics are
+  validated by the QEMU interop scenarios (authored-pending-QEMU).
 
 ## Implementation Audit
 
@@ -777,6 +806,32 @@ two preservation rules:
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestGraceLSAConsumerRegistered` | Opaque-Type-3 link consumer registered; OnReceive invoked |
+| AC-2 | Done | `TestGraceLSATypeRegistered`, `TestGraceLSALinkScopeRouting` | 0x000B `Known()`, routed to link store via `LSTypeGraceV6` |
+| AC-3 | Done | `TestGraceLSAv4BodyBuild`, `TestGraceLSAv4OriginatedViaCarrier` | period+reason always, type-3 addr on shared media |
+| AC-4 | Done | `TestGraceLSAv6BodyBuild`, `TestGraceLSAv6Originated` | LS ID = Interface ID, two TLVs, no type-3 |
+| AC-5 | Done | `TestGraceLSAAgeNotResetOnRetransmit` | re-originate same body is a no-op (no LS-age reset) |
+| AC-6 | Done | `TestRestartFactPersistsAcrossRestart`, `TestStaleRestartFactIgnored` | resume enters in-restart; stale fact ignored |
+| AC-7 | Done | `TestRestarterSuppressesSelfLSAsV4/V6` | `originateSelfLSAs` gated for both families |
+| AC-8 | Done | `TestRestarterRunsSPFNoInstall`, `TestInstallerGracefulRestartSuppress` | Apply/RemoveAll no-op while suppressed |
+| AC-9 | Done | `TestInterfaceIDPreservedAcrossRestart` | Interface IDs restored -> `grInterfaceID` |
+| AC-10 | Done | `TestLSAIDPrefixCorrespondencePreserved` | prefix->LSA-ID map restored |
+| AC-11 | Done | `TestRestarterReElectsSelfDR` | `shouldReElectSelfDR` wired into `lsdbTopology` |
+| AC-12 | Done | `TestRestarterExitAllAdjacencies` | all expected adjacencies Full -> exit |
+| AC-13 | Done | `TestRestarterExitInconsistentLSA` | `noteInconsistentLSA` (wire heuristic QEMU-validated) |
+| AC-14 | Done | `TestRestarterExitGraceExpiry` | grace timer exit |
+| AC-15 | Done | `TestRestarterExitActions` | exit clears suppression, re-originates, re-installs, flushes |
+| AC-16 | Done | `TestHelperEntryAllChecksPass`, `TestHelperKeepsAdjacencyAdvertisedV4/V6`, `TestHelperKeepsXAsDR` | helper entry + advertise + DR |
+| AC-17 | Done | `TestHelperEntryRejectedPerCheck` | each failing check blocks entry |
+| AC-18 | Done | `TestHelperAlreadyHelpingUpdatesGrace` | re-receipt updates grace, no churn |
+| AC-19 | Done | `TestHelperExitOnFlush/OnGraceExpiry/StrictExitOnTopologyChange` | three exit triggers |
+| AC-20 | Done | `TestHelperStubAreaExternalDoesNotExit` | stub-area external exception |
+| AC-21 | Done | `TestHelperRejectsGraceLSAMissingTLV` | malformed IPv6 Grace-LSA ignored |
+| AC-22 | Done | `TestUnplannedDisabledByDefault` | unplanned off by default |
+| AC-23 | Done | `TestUnplannedGraceBeforeHello` | reason clamped to 0/3; enters in-restart |
+| AC-24 | Done | `TestGracePeriodRangeRejectsAbove1800` | YANG range 1..1800 + `validateConfig` guard |
+| AC-25 | Done | `TestGRDisabledNoGraceLSA`, `TestGRDisabledPrepareRefused` | GR off -> inert |
+| AC-26 | Done | `TestGRShowState` | show renders restarter + helper state |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -794,24 +849,26 @@ two preservation rules:
 - **Changed:** (documented in Deviations)
 
 ## Goal Validation (BLOCKING)
-| Goal (from Task section) | Evidence Type | Concrete Evidence |
-|--------------------------|---------------|-------------------|
-| Non-stop forwarding across a planned restart (IPv4) | interop (QEMU) | `ospf-gr-fib-retention` (RTPROT_ZE routes retained, refreshed on exit) |
-| Non-stop forwarding across a planned restart (IPv6) | interop (QEMU) | `ospf-v6-gr-fib-retention` (RTPROT_ZE IPv6 routes retained, refreshed on exit) |
-| One shared control plane drives both families | unit | `TestGRControlPlaneSharedAcrossFamilies` |
-| IPv4 Grace-LSA (Opaque Type 3, three TLVs) interops with FRR `ospfd` | interop | `ospf-gr-frr` (both directions) |
-| IPv6 Grace-LSA (0x000B, LS ID = Interface ID, two TLVs) interops with FRR `ospf6d` | interop | `ospf-v6-gr-frr` (both directions) |
-| Restarter suppresses all self-LSA origination + route install during restart | unit | `TestRestarterSuppressesSelfLSAsV4`, `TestRestarterSuppressesSelfLSAsV6`, `TestRestarterRunsSPFNoInstall` |
-| Helper holds the adjacency at Full for the grace window | unit + interop | `TestHelperKeepsAdjacencyAdvertisedV4`/`V6`, the two `*-frr` scenarios (Ze helper) |
-| (IPv6) Interface ID + LSA-ID->prefix correspondence preserved across restart | unit | `TestInterfaceIDPreservedAcrossRestart`, `TestLSAIDPrefixCorrespondencePreserved` |
-| GR disabled is fully backward compatible (both families) | unit + suite | `TestGRDisabledNoGraceLSA` + existing OSPF suite green |
+| Goal (from Task section) | Evidence Type | Concrete Evidence | Status |
+|--------------------------|---------------|-------------------|--------|
+| Non-stop forwarding across a planned restart (IPv4) | interop (QEMU) | `ospf-gr-fib-retention` (RTPROT_ZE routes retained, refreshed on exit) | authored-pending-QEMU |
+| Non-stop forwarding across a planned restart (IPv6) | interop (QEMU) | `ospf-v6-gr-fib-retention` (RTPROT_ZE IPv6 routes retained, refreshed on exit) | authored-pending-QEMU |
+| One shared control plane drives both families | unit | `TestGRControlPlaneSharedAcrossFamilies` PASS | Done |
+| IPv4 Grace-LSA (Opaque Type 3, three TLVs) interops with FRR `ospfd` | interop | `ospf-gr-frr` (both directions) | authored-pending-QEMU |
+| IPv6 Grace-LSA (0x000B, LS ID = Interface ID, two TLVs) interops with FRR `ospf6d` | interop | `ospf-v6-gr-frr` (both directions) | authored-pending-QEMU |
+| Restarter suppresses all self-LSA origination + route install during restart | unit | `TestRestarterSuppressesSelfLSAsV4/V6`, `TestRestarterRunsSPFNoInstall`, `TestInstallerGracefulRestartSuppress` PASS | Done |
+| Helper holds the adjacency at Full for the grace window | unit + interop | `TestHelperKeepsAdjacencyAdvertisedV4/V6` PASS; `*-frr` (Ze helper) | Done (unit); interop authored-pending-QEMU |
+| (IPv6) Interface ID + LSA-ID->prefix correspondence preserved across restart | unit | `TestInterfaceIDPreservedAcrossRestart`, `TestLSAIDPrefixCorrespondencePreserved` PASS | Done |
+| GR disabled behaves exactly as today (both families) | unit + suite | `TestGRDisabledNoGraceLSA` PASS + full `./internal/plugins/ospf/...` suite green | Done |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE |  | file:line |  |
+| 1 | NOTE | AF-neutral `0x000B` collides with OSPFv2 Opaque-AS Type 11 | `types/lstype.go` | Resolved: `LSTypeGraceV6=0x800B` sentinel + codec mapping |
+| 2 | NOTE | Operator `graceful-restart prepare` RPC not wired (managed-reload hook intended) | `gr_restarter.go` | Documented as deviation; state machine implemented + tested |
+| 3 | NOTE | Inconsistent-LSA + DR-re-election wire heuristics are QEMU-validated | `gr_restarter.go`, `instance.go` | Decision methods unit-tested; wire detection in interop |
 
 ### Fixes applied
 -

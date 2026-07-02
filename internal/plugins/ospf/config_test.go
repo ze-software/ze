@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
 )
 
@@ -23,6 +24,97 @@ func (s staticRouterIDSource) Interfaces() ([]iface.InterfaceInfo, error) {
 }
 
 func ospfSec(data string) []configSection { return []configSection{{Root: "ospf", Data: data}} }
+
+// multiAFConfig builds an ospf config JSON with one non-default address family at the
+// given instance-id, for the RFC 5838 Instance-ID range validation test.
+func multiAFConfig(afName string, instanceID int) string {
+	return `{"ospf":{"router-id":"10.0.0.1",` +
+		`"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}},` +
+		`"address-family":{"` + afName + `":{"instance-id":` + itoa(instanceID) +
+		`,"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth1":{"area":"0","network-type":"point-to-point"}}}}}}}`
+}
+
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	var b [4]byte
+	i := len(b)
+	for n > 0 {
+		i--
+		b[i] = byte('0' + n%10)
+		n /= 10
+	}
+	return string(b[i:])
+}
+
+// TestInstanceIDRangeValidation pins RFC 5838 §2.1: a configured Instance ID must fall in
+// the declared address family's range; an ID in a foreign range or above 127 is rejected.
+func TestInstanceIDRangeValidation(t *testing.T) {
+	cases := []struct {
+		afName     string
+		instanceID int
+		ok         bool
+	}{
+		{afNameIPv6Unicast, 31, true}, {afNameIPv6Unicast, 32, false},
+		{afNameIPv6Multicast, 32, true}, {afNameIPv6Multicast, 31, false}, {afNameIPv6Multicast, 63, true}, {afNameIPv6Multicast, 64, false},
+		{afNameIPv4Unicast, 64, true}, {afNameIPv4Unicast, 63, false}, {afNameIPv4Unicast, 95, true}, {afNameIPv4Unicast, 96, false},
+		{afNameIPv4Multicast, 96, true}, {afNameIPv4Multicast, 95, false}, {afNameIPv4Multicast, 127, true}, {afNameIPv4Multicast, 128, false},
+	}
+	for _, c := range cases {
+		cfg, err := parseOSPFConfig(ospfSec(multiAFConfig(c.afName, c.instanceID)), nil)
+		if err != nil {
+			t.Fatalf("%s/%d: parse: %v", c.afName, c.instanceID, err)
+		}
+		gotErr := validateConfig(cfg)
+		if c.ok && gotErr != nil {
+			t.Errorf("%s/%d: validate rejected a valid config: %v", c.afName, c.instanceID, gotErr)
+		}
+		if !c.ok && gotErr == nil {
+			t.Errorf("%s/%d: validate accepted an out-of-range Instance ID", c.afName, c.instanceID)
+		}
+		if !c.ok && !errors.Is(gotErr, ErrInstanceIDRange) {
+			t.Errorf("%s/%d: want ErrInstanceIDRange, got %v", c.afName, c.instanceID, gotErr)
+		}
+	}
+}
+
+// TestMultiAFConfigParse pins that two address families parse into distinct sub-configs,
+// each with its own Instance ID and interfaces, and the default IPv6-unicast stays in V6.
+func TestMultiAFConfigParse(t *testing.T) {
+	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1",`+
+		`"address-family":{`+
+		`"ipv6":{"instance-id":0,"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}},`+
+		`"ipv4-unicast":{"instance-id":64,"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth1":{"area":"0"}}}}`+
+		`}}}`), nil)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if cfg.V6 == nil || cfg.V6.InstanceID != 0 {
+		t.Fatalf("default IPv6-unicast AF not parsed into V6 at instance 0: %+v", cfg.V6)
+	}
+	fams := cfg.v6Families()
+	if len(fams) != 2 {
+		t.Fatalf("v6Families() = %d, want 2 (ipv6-unicast + ipv4-unicast)", len(fams))
+	}
+	var sawV6U, sawV4U bool
+	for _, f := range fams {
+		switch f.af {
+		case afIPv6Unicast:
+			sawV6U = f.cfg.InstanceID == 0
+		case afIPv4Unicast:
+			sawV4U = f.cfg.InstanceID == 64
+		case afIPv6Multicast, afIPv4Multicast:
+			// not configured in this case
+		}
+	}
+	if !sawV6U || !sawV4U {
+		t.Fatalf("v6Families() missing an AF: v6u=%v v4u=%v (%+v)", sawV6U, sawV4U, fams)
+	}
+	if err := validateConfig(cfg); err != nil {
+		t.Fatalf("validate rejected a valid two-AF config: %v", err)
+	}
+}
 
 func TestOSPFConfigRejectsInvalidEnumsAndCost(t *testing.T) {
 	// The parser validates the area-type/network-type YANG enums and the 16-bit interface cost
@@ -44,6 +136,165 @@ func TestOSPFConfigRejectsInvalidEnumsAndCost(t *testing.T) {
 	// The full YANG-valid set still parses: a loopback network-type and the boundary cost.
 	if _, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","interfaces":{"interface":{"eth0":{"area":"0.0.0.0","network-type":"loopback","cost":"65535"}}}}}`), nil); err != nil {
 		t.Errorf("valid loopback network-type / boundary cost rejected: %v", err)
+	}
+}
+
+// VALIDATES: spec-ospf-ext-7 AC-1 -- a nested `virtual-link` entry (transit area +
+// remote-router-id + optional p2p timers) resolves onto ospfConfig.VirtualLinks (IPv4)
+// and the V6 family, with the RFC 2328 App C.4 / RFC 5340 App C.2 timer defaults.
+func TestParseVirtualLinkConfig(t *testing.T) {
+	const j = `{"ospf":{"router-id":"10.0.0.1",
+		"areas":{"area":{
+			"0.0.0.1":{"area-id":"0.0.0.1","virtual-link":{"10.0.0.2":{"hello-interval":"5","dead-interval":"20"}}},
+			"0.0.0.2":{"area-id":"0.0.0.2"}}},
+		"interfaces":{"interface":{"eth0":{"area":"0.0.0.1"},"eth1":{"area":"0.0.0.2"}}},
+		"address-family":{"ipv6":{
+			"areas":{"area":{
+				"0.0.0.1":{"area-id":"0.0.0.1","virtual-link":{"10.0.0.2":{}}},
+				"0.0.0.2":{"area-id":"0.0.0.2"}}},
+			"interfaces":{"interface":{"eth0":{"area":"0.0.0.1"},"eth1":{"area":"0.0.0.2"}}}}}}}`
+	cfg, err := parseOSPFConfig(ospfSec(j), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig: %v", err)
+	}
+	if err := validateConfig(cfg); err != nil {
+		t.Fatalf("validateConfig: %v", err)
+	}
+	if len(cfg.VirtualLinks) != 1 {
+		t.Fatalf("IPv4 VirtualLinks = %d, want 1", len(cfg.VirtualLinks))
+	}
+	vl := cfg.VirtualLinks[0]
+	wantArea, _ := types.ParseAreaID("0.0.0.1")
+	wantRID, _ := types.ParseRouterID("10.0.0.2")
+	if vl.TransitArea != wantArea || vl.RemoteRouterID != wantRID {
+		t.Fatalf("IPv4 vlink = transit %s remote %s, want %s / %s", vl.TransitArea, vl.RemoteRouterID, wantArea, wantRID)
+	}
+	if vl.HelloInterval != 5 || vl.DeadInterval != 20 || vl.RetransmitInterval != 5 || vl.TransmitDelay != 1 {
+		t.Fatalf("IPv4 vlink timers = %+v, want hello 5 dead 20 rxmt 5 delay 1", vl)
+	}
+	if cfg.V6 == nil || len(cfg.V6.VirtualLinks) != 1 {
+		t.Fatalf("V6 VirtualLinks not resolved: %+v", cfg.V6)
+	}
+	v6 := cfg.V6.VirtualLinks[0]
+	if v6.TransitArea != wantArea || v6.RemoteRouterID != wantRID {
+		t.Fatalf("V6 vlink = transit %s remote %s", v6.TransitArea, v6.RemoteRouterID)
+	}
+	if v6.HelloInterval != 10 || v6.DeadInterval != 40 || v6.RetransmitInterval != 5 || v6.TransmitDelay != 1 {
+		t.Fatalf("V6 vlink defaults = %+v, want hello 10 dead 40 rxmt 5 delay 1", v6)
+	}
+}
+
+// VALIDATES: spec-ospf-ext-7 AC-2 -- a virtual link whose transit area is a stub, an NSSA,
+// the backbone, or absent is rejected at config validation (RFC 2328 section 15 / RFC 5340
+// section 4.2).
+func TestVirtualLinkRejectStubTransit(t *testing.T) {
+	abrIfaces := `"interfaces":{"interface":{"eth0":{"area":"0.0.0.1"},"eth1":{"area":"0.0.0.2"}}}`
+	cases := []struct {
+		name, json string
+		wantErr    error
+	}{
+		{"stub", `{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0.0.0.1":{"area-id":"0.0.0.1","area-type":"stub","virtual-link":{"10.0.0.2":{}}},"0.0.0.2":{"area-id":"0.0.0.2"}}},` + abrIfaces + `}}`, ErrVirtualLinkTransitStub},
+		{"nssa", `{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0.0.0.1":{"area-id":"0.0.0.1","area-type":"nssa","virtual-link":{"10.0.0.2":{}}},"0.0.0.2":{"area-id":"0.0.0.2"}}},` + abrIfaces + `}}`, ErrVirtualLinkTransitStub},
+		{"backbone", `{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0.0.0.0":{"area-id":"0.0.0.0","virtual-link":{"10.0.0.2":{}}},"0.0.0.2":{"area-id":"0.0.0.2"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.0"},"eth1":{"area":"0.0.0.2"}}}}}`, ErrVirtualLinkTransitBackbone},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			cfg, err := parseOSPFConfig(ospfSec(c.json), nil)
+			if err != nil {
+				t.Fatalf("parseOSPFConfig: %v", err)
+			}
+			if err := validateConfig(cfg); !errors.Is(err, c.wantErr) {
+				t.Fatalf("validateConfig = %v, want %v", err, c.wantErr)
+			}
+		})
+	}
+	// The v6 family rejects the same way (NSSA transit under address-family ipv6).
+	v6nssa := `{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0.0.0.0":{"area-id":"0.0.0.0"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.0"}}},` +
+		`"address-family":{"ipv6":{"areas":{"area":{"0.0.0.1":{"area-id":"0.0.0.1","area-type":"nssa","virtual-link":{"10.0.0.2":{}}},"0.0.0.2":{"area-id":"0.0.0.2"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.1"},"eth1":{"area":"0.0.0.2"}}}}}}}`
+	cfg, err := parseOSPFConfig(ospfSec(v6nssa), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig v6: %v", err)
+	}
+	if err := validateConfig(cfg); !errors.Is(err, ErrVirtualLinkTransitStub) {
+		t.Fatalf("v6 nssa transit validateConfig = %v, want %v", err, ErrVirtualLinkTransitStub)
+	}
+	// An undeclared transit area is rejected (defensive; structurally impossible from the
+	// nested config, so exercised via a directly-built config).
+	built := ospfConfig{
+		present:  true,
+		RouterID: mustRouterID(t, "10.0.0.1"),
+		Areas:    []areaConfig{{AreaID: mustAreaID(t, "0.0.0.1"), AreaType: areaTypeNormal, NSSATranslateRole: translateRoleCandidate}, {AreaID: mustAreaID(t, "0.0.0.2"), AreaType: areaTypeNormal, NSSATranslateRole: translateRoleCandidate}},
+		Interfaces: []interfaceConfig{
+			{Name: "eth0", AreaID: mustAreaID(t, "0.0.0.1"), Enabled: true},
+			{Name: "eth1", AreaID: mustAreaID(t, "0.0.0.2"), Enabled: true},
+		},
+		VirtualLinks: []virtualLinkConfig{{TransitArea: mustAreaID(t, "0.0.0.9"), RemoteRouterID: mustRouterID(t, "10.0.0.2")}},
+	}
+	if err := validateConfig(built); !errors.Is(err, ErrVirtualLinkTransitMissing) {
+		t.Fatalf("absent transit validateConfig = %v, want %v", err, ErrVirtualLinkTransitMissing)
+	}
+}
+
+// VALIDATES: spec-ospf-ext-7 AC-3 -- a virtual link on a router that is not an area border
+// router (fewer than two attached areas) is rejected at config validation.
+func TestVirtualLinkRejectNonABR(t *testing.T) {
+	j := `{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0.0.0.1":{"area-id":"0.0.0.1","virtual-link":{"10.0.0.2":{}}}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.1"}}}}}`
+	cfg, err := parseOSPFConfig(ospfSec(j), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig: %v", err)
+	}
+	if err := validateConfig(cfg); !errors.Is(err, ErrVirtualLinkNotABR) {
+		t.Fatalf("validateConfig = %v, want %v", err, ErrVirtualLinkNotABR)
+	}
+}
+
+// VALIDATES: spec-ospf-ext-7 AC-2 -- a virtual link whose remote-router-id equals this
+// router's own Router ID is rejected.
+func TestVirtualLinkRejectsSelfRouterID(t *testing.T) {
+	j := `{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0.0.0.1":{"area-id":"0.0.0.1","virtual-link":{"10.0.0.1":{}}},"0.0.0.2":{"area-id":"0.0.0.2"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.1"},"eth1":{"area":"0.0.0.2"}}}}}`
+	cfg, err := parseOSPFConfig(ospfSec(j), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig: %v", err)
+	}
+	if err := validateConfig(cfg); !errors.Is(err, ErrVirtualLinkSelfRouterID) {
+		t.Fatalf("validateConfig = %v, want %v", err, ErrVirtualLinkSelfRouterID)
+	}
+}
+
+func mustAreaID(t *testing.T, s string) types.AreaID {
+	t.Helper()
+	id, err := types.ParseAreaID(s)
+	if err != nil {
+		t.Fatalf("ParseAreaID(%q): %v", s, err)
+	}
+	return id
+}
+
+// VALIDATES: spec-ospf-ext-7 Boundary Tests -- the virtual-link p2p timers parse at their
+// last-valid boundary (hello/dead/retransmit 65535, transmit-delay 3600) and a zero or
+// absent value falls back to the RFC 2328 App C.4 default rather than becoming 0.
+func TestVirtualLinkTimerBoundaries(t *testing.T) {
+	parse := func(t *testing.T, body string) virtualLinkConfig {
+		t.Helper()
+		j := `{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0.0.0.1":{"area-id":"0.0.0.1","virtual-link":{"10.0.0.2":{` + body + `}}},"0.0.0.2":{"area-id":"0.0.0.2"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.1"},"eth1":{"area":"0.0.0.2"}}}}}`
+		cfg, err := parseOSPFConfig(ospfSec(j), nil)
+		if err != nil {
+			t.Fatalf("parseOSPFConfig: %v", err)
+		}
+		if len(cfg.VirtualLinks) != 1 {
+			t.Fatalf("VirtualLinks = %d, want 1", len(cfg.VirtualLinks))
+		}
+		return cfg.VirtualLinks[0]
+	}
+	max := parse(t, `"hello-interval":"65535","dead-interval":"65535","retransmit-interval":"65535","transmit-delay":"3600"`)
+	if max.HelloInterval != 65535 || max.DeadInterval != 65535 || max.RetransmitInterval != 65535 || max.TransmitDelay != 3600 {
+		t.Fatalf("boundary timers = %+v, want all-max", max)
+	}
+	// A zero (invalid-below) value keeps the default; YANG range enforcement rejects it at
+	// `ze config validate` time, but the Go resolver must never resolve a 0 timer.
+	zero := parse(t, `"hello-interval":"0","dead-interval":"0","retransmit-interval":"0","transmit-delay":"0"`)
+	if zero.HelloInterval != DefaultHelloInterval || zero.DeadInterval != DefaultDeadInterval || zero.RetransmitInterval != DefaultRetransmitInterval || zero.TransmitDelay != DefaultTransmitDelay {
+		t.Fatalf("zero timers = %+v, want defaults", zero)
 	}
 }
 
@@ -384,5 +635,112 @@ func TestParseAddressFamilyV6(t *testing.T) {
 	}
 	if err := validateConfig(cfg); err != nil {
 		t.Fatalf("validateConfig(dual-family): %v", err)
+	}
+}
+
+// TestConfigInstanceIDLeafList proves the RFC 6549 per-interface `instance-id` leaf-list
+// parses to a sorted, de-duplicated []uint8: absent means the base instance 0 only, a
+// single value renders as a scalar, and several values as a list. Boundary values 0 and
+// 255 are accepted; a value above 255 is rejected (never truncated).
+func TestConfigInstanceIDLeafList(t *testing.T) {
+	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{
+		"eth0":{"area":"0"},
+		"eth1":{"area":"0","instance-id":"255"},
+		"eth2":{"area":"0","instance-id":["5","0","5","2"]}
+	}}}}`), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig: %v", err)
+	}
+	byName := map[string]interfaceConfig{}
+	for _, ic := range cfg.Interfaces {
+		byName[ic.Name] = ic
+	}
+	if ids := byName["eth0"].InstanceIDs; ids != nil {
+		t.Fatalf("eth0 InstanceIDs = %v, want nil (base instance 0)", ids)
+	}
+	if !byName["eth0"].inInstance(0) || byName["eth0"].inInstance(5) {
+		t.Fatal("eth0 (no leaf) must be in instance 0 only")
+	}
+	if got := byName["eth1"].InstanceIDs; len(got) != 1 || got[0] != 255 {
+		t.Fatalf("eth1 InstanceIDs = %v, want [255]", got)
+	}
+	if got := byName["eth2"].InstanceIDs; len(got) != 3 || got[0] != 0 || got[1] != 2 || got[2] != 5 {
+		t.Fatalf("eth2 InstanceIDs = %v, want sorted deduped [0 2 5]", got)
+	}
+
+	if _, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","interfaces":{"interface":{"eth0":{"area":"0","instance-id":"256"}}}}}`), nil); !errors.Is(err, errInstanceIDRange) {
+		t.Fatalf("instance-id 256 err = %v, want errInstanceIDRange", err)
+	}
+}
+
+// TestConfigTwoInstancesOneInterface proves AC-7 / R-7: the chosen config shape (a
+// per-interface instance-id leaf-list) can enroll one physical interface in two OSPFv2
+// instances, and the per-instance derivation gives each engine that interface.
+func TestConfigTwoInstancesOneInterface(t *testing.T) {
+	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0","instance-id":["0","5"]}}}}}`), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig: %v", err)
+	}
+	if ids := cfg.instanceIDSet(); len(ids) != 2 || ids[0] != 0 || ids[1] != 5 {
+		t.Fatalf("instanceIDSet = %v, want [0 5]", ids)
+	}
+	for _, id := range []uint8{0, 5} {
+		sub := cfg.forInstance(id)
+		if sub.InstanceID != id {
+			t.Fatalf("forInstance(%d).InstanceID = %d", id, sub.InstanceID)
+		}
+		if len(sub.Interfaces) != 1 || sub.Interfaces[0].Name != "eth0" {
+			t.Fatalf("forInstance(%d).Interfaces = %+v, want [eth0]", id, sub.Interfaces)
+		}
+		if sub.V6 != nil {
+			t.Fatalf("forInstance(%d) must drop the OSPFv3 sub-config", id)
+		}
+	}
+}
+
+// TestConfigInstanceSetDefaultsToBase proves a config with no instance-id anywhere yields
+// exactly the base instance {0}, so single-instance OSPFv2 keeps one engine (unchanged).
+func TestConfigInstanceSetDefaultsToBase(t *testing.T) {
+	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0"},"eth1":{"area":"0"}}}}}`), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig: %v", err)
+	}
+	if ids := cfg.instanceIDSet(); len(ids) != 1 || ids[0] != 0 {
+		t.Fatalf("instanceIDSet = %v, want [0]", ids)
+	}
+	if got := cfg.forInstance(0); len(got.Interfaces) != 2 {
+		t.Fatalf("forInstance(0).Interfaces = %d, want 2 (all interfaces are base instance 0)", len(got.Interfaces))
+	}
+}
+
+// TestExtConfigEnableLeaf proves the RFC 7684 extended-prefix / extended-link boolean leaves
+// resolve into the engine config (default off) and gate Extended Prefix origination
+// (spec-ospf-ext-4 A-8).
+func TestExtConfigEnableLeaf(t *testing.T) {
+	on, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"1.1.1.1","opaque":true,"extended-prefix":true,"extended-link":true}}`), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig(on): %v", err)
+	}
+	if !on.ExtendedPrefix || !on.ExtendedLink {
+		t.Fatalf("extended-prefix/extended-link not resolved: %+v", on)
+	}
+	def, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"1.1.1.1","opaque":true}}`), nil)
+	if err != nil {
+		t.Fatalf("parseOSPFConfig(default): %v", err)
+	}
+	if def.ExtendedPrefix || def.ExtendedLink {
+		t.Fatalf("extended-prefix/extended-link must default off: %+v", def)
+	}
+
+	// Gating: with extended-prefix disabled, a connected prefix originates nothing.
+	eng, router := newRedistEngine(t, `{"ospf":{"router-id":"1.1.1.1","opaque":true,"areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"name":"eth0","area":"0"}}}}}`)
+	eng.lsdb.SetTopology(func() []ospflsdb.InterfaceInfo {
+		return []ospflsdb.InterfaceInfo{extStubIface("eth0", [4]byte{10, 0, 0, 1}, [4]byte{255, 255, 255, 0})}
+	})
+	eng.lsdb.OriginateFromTopology(router, false)
+	for _, o := range eng.extPrefixOnOriginate(router) {
+		if !o.Withdraw {
+			t.Fatalf("extended-prefix disabled but an Extended Prefix LSA was originated")
+		}
 	}
 }

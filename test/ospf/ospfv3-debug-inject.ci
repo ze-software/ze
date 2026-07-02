@@ -1,0 +1,13 @@
+# Test: OSPFv3 guarded native LSA inject + observe + withdraw.
+#
+# VALIDATES: spec-ospf-ext-14 -- `debug ipv6 ospf inject lsa ...` originates a v3 LSA via the base seam (scope from S2/S1, reserved rejected), it appears in the database, and withdraw MaxAge-flushes it (AC-14/AC-15/AC-18).
+# PREVENTS: a regression in the OSPF debug/introspection surface.
+#
+# Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestDebugInjectV3LSAFloods|TestV3InjectWithdrawFlushes|TestV3InjectReservedScopeRejected|TestV3InjectBodyOverflowRejected' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=TestDebugInjectV3LSAFloods
+expect=stdout:contains=TestV3InjectWithdrawFlushes
+expect=stdout:contains=TestV3InjectReservedScopeRejected
+expect=stdout:contains=PASS

@@ -31,7 +31,7 @@ type LSDB interface {
 	Summary(types.AreaID) []packet.LSAHeader
 }
 
-type LinkScopeLSDB interface {
+type linkScopeLSDB interface {
 	LookupLink(string, types.LSAKey) (packet.LSAHeader, bool)
 	LookupLinkLSA(string, types.LSAKey) (packet.LSA, bool)
 	LinkLSAs(string) []packet.LSA
@@ -155,12 +155,12 @@ func (t *Table) hello(in HelloInput) (eventEmission, string) {
 		t.setStateLocked(n, stateInit)
 	}
 	if !in.TwoWay {
-		t.recordEventLocked("1-way-received")
+		t.recordNeighborEventLocked(n, "1-way-received")
 		n.RequestList = nil
 		n.hasLastDD = false
 		return t.setStateLocked(n, stateInit), ""
 	}
-	t.recordEventLocked("2-way-received")
+	t.recordNeighborEventLocked(n, "2-way-received")
 	if n.State == stateInit {
 		t.setStateLocked(n, stateTwoWay)
 	}
@@ -174,8 +174,8 @@ func (t *Table) hello(in HelloInput) (eventEmission, string) {
 
 func (t *Table) AdjOK(interfaceName string, dr, bdr types.RouterID) {
 	emits := t.adjOK(interfaceName, dr, bdr)
-	for _, emit := range emits {
-		t.emit(emit)
+	for i := range emits {
+		t.emit(emits[i])
 	}
 }
 
@@ -194,7 +194,7 @@ func (t *Table) adjOK(interfaceName string, dr, bdr types.RouterID) []eventEmiss
 		if n.InterfaceName != interfaceName || n.State < stateTwoWay {
 			continue
 		}
-		t.recordEventLocked("adj-ok")
+		t.recordNeighborEventLocked(n, "adj-ok")
 		if shouldAdj(cfg, n) {
 			if n.State == stateTwoWay {
 				t.startExchangeLocked(cfg, n)
@@ -224,7 +224,7 @@ func (t *Table) neighborDown(interfaceName string, id types.RouterID) eventEmiss
 	if !ok {
 		return eventEmission{}
 	}
-	t.recordEventLocked("kill-nbr")
+	t.recordNeighborEventLocked(n, "kill-nbr")
 	n.RequestList = nil
 	n.hasLastDD = false
 	return t.setStateLocked(n, stateDown)
@@ -232,8 +232,8 @@ func (t *Table) neighborDown(interfaceName string, id types.RouterID) eventEmiss
 
 func (t *Table) InterfaceDown(interfaceName string) {
 	emits := t.interfaceDown(interfaceName)
-	for _, emit := range emits {
-		t.emit(emit)
+	for i := range emits {
+		t.emit(emits[i])
 	}
 }
 
@@ -245,7 +245,7 @@ func (t *Table) interfaceDown(interfaceName string) []eventEmission {
 		if n.InterfaceName != interfaceName {
 			continue
 		}
-		t.recordEventLocked("ll-down")
+		t.recordNeighborEventLocked(n, "ll-down")
 		n.RequestList = nil
 		n.hasLastDD = false
 		emits = append(emits, t.setStateLocked(n, stateDown))
@@ -258,8 +258,8 @@ func (t *Table) interfaceDown(interfaceName string) []eventEmission {
 // emissions under the lock, emit outside it). Returns the number of neighbors reset.
 func (t *Table) ResetAll() int {
 	emits, n := t.resetAll()
-	for _, emit := range emits {
-		t.emit(emit)
+	for i := range emits {
+		t.emit(emits[i])
 	}
 	return n
 }
@@ -273,7 +273,7 @@ func (t *Table) resetAll() ([]eventEmission, int) {
 		if n.State == stateDown {
 			continue
 		}
-		t.recordEventLocked("kill-nbr")
+		t.recordNeighborEventLocked(n, "kill-nbr")
 		n.RequestList = nil
 		n.hasLastDD = false
 		emits = append(emits, t.setStateLocked(n, stateDown))
@@ -284,8 +284,8 @@ func (t *Table) resetAll() ([]eventEmission, int) {
 
 func (t *Table) Expire(now time.Time) int {
 	emits, n := t.expire(now)
-	for _, emit := range emits {
-		t.emit(emit)
+	for i := range emits {
+		t.emit(emits[i])
 	}
 	return n
 }
@@ -299,7 +299,7 @@ func (t *Table) expire(now time.Time) ([]eventEmission, int) {
 		if n.State == stateDown || n.InactivityDeadline.IsZero() || now.Before(n.InactivityDeadline) {
 			continue
 		}
-		t.recordEventLocked("inactivity-timer")
+		t.recordNeighborEventLocked(n, "inactivity-timer")
 		n.RequestList = nil
 		n.hasLastDD = false
 		emits = append(emits, t.setStateLocked(n, stateDown))
@@ -315,6 +315,25 @@ func (t *Table) Snapshot() []Snapshot {
 	out := make([]Snapshot, 0, len(t.neighbors))
 	for _, n := range t.neighbors {
 		out = append(out, snapshotOf(n, now))
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Interface != out[j].Interface {
+			return out[i].Interface < out[j].Interface
+		}
+		return out[i].RouterID < out[j].RouterID
+	})
+	return out
+}
+
+// DetailSnapshot returns the full per-neighbor state (spec-ospf-ext-14 `... neighbor
+// detail`). It is additive over Snapshot; the summary shape is unchanged.
+func (t *Table) DetailSnapshot() []Detail {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	now := t.now()
+	out := make([]Detail, 0, len(t.neighbors))
+	for _, n := range t.neighbors {
+		out = append(out, detailOf(n, now))
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Interface != out[j].Interface {
@@ -351,6 +370,21 @@ func (t *Table) AddressOf(id types.RouterID) (netip.Addr, bool) {
 	return netip.Addr{}, false
 }
 
+// NeighborAddress returns the raw reachable source address of the neighbor identified by
+// (interfaceName, id): the IPv4 address for OSPFv2, the IPv6 link-local for OSPFv3. It is
+// the BFD session Peer. Unlike Snapshot.Address (a string), this returns the raw netip.Addr
+// so an IPv6 zone is never lost to a parse round-trip (spec R-2). The second return is false
+// when the neighbor is absent or has no valid address yet.
+func (t *Table) NeighborAddress(interfaceName string, id types.RouterID) (netip.Addr, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	n, ok := t.neighbors[tableKey{iface: interfaceName, router: id}]
+	if !ok || !n.Address.IsValid() {
+		return netip.Addr{}, false
+	}
+	return n.Address, true
+}
+
 // FloodNeighbors returns Exchange, Loading, and Full neighbors on interfaceName.
 func (t *Table) FloodNeighbors(interfaceName string) []FloodNeighbor {
 	t.mu.RLock()
@@ -360,7 +394,7 @@ func (t *Table) FloodNeighbors(interfaceName string) []FloodNeighbor {
 		if key.iface != interfaceName || n.State < stateExchange {
 			continue
 		}
-		out = append(out, FloodNeighbor{RouterID: n.RouterID, Address: n.Address, State: n.State.String(), InterfaceID: n.InterfaceID})
+		out = append(out, FloodNeighbor{RouterID: n.RouterID, Address: n.Address, State: n.State.String(), InterfaceID: n.InterfaceID, OpaqueCapable: n.Options.Has(types.OptionO)})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].RouterID.String() < out[j].RouterID.String() })
 	return out
@@ -423,7 +457,7 @@ func (t *Table) startExchangeLocked(cfg InterfaceConfig, n *Neighbor) {
 
 func (t *Table) databaseSummaryLocked(cfg InterfaceConfig) []packet.LSAHeader {
 	out := t.lsdb.Summary(cfg.AreaID)
-	linkDB, ok := t.lsdb.(LinkScopeLSDB)
+	linkDB, ok := t.lsdb.(linkScopeLSDB)
 	if !ok {
 		return out
 	}
@@ -534,6 +568,13 @@ func (t *Table) countStateLocked(area types.AreaID, interfaceName string, st sta
 
 func (t *Table) recordEventLocked(event string) {
 	t.metrics.NSMEvents.With(event).Inc()
+}
+
+// recordNeighborEventLocked records the last NSM event on the neighbor (for the ext-14
+// `show ospf neighbor detail` last-event field) and the process-wide event counter.
+func (t *Table) recordNeighborEventLocked(n *Neighbor, event string) {
+	n.LastEvent = event
+	t.recordEventLocked(event)
 }
 
 func (t *Table) emit(ev eventEmission) {

@@ -349,7 +349,7 @@ func TestOSPFPacketDispatch(t *testing.T) {
 func TestOSPFPacketDispatchAreaFilter(t *testing.T) {
 	backbone, _ := types.ParseAreaID("0")
 	d := newDispatcher(v4Codec{})
-	d.areaOK = func(ifindex int, id types.AreaID) bool { return ifindex == 7 && id == backbone }
+	d.areaOK = func(ifindex int, h Header) bool { return ifindex == 7 && h.AreaID == backbone }
 	called := false
 	d.register(PacketTypeHello, func(transport.RawPacket, Header) { called = true })
 	d.dispatch(transport.RawPacket{IfIndex: 8, Payload: minimalOSPFPacket(t, packet.PacketTypeHello, "0")})
@@ -379,6 +379,11 @@ func snapshotByName(t *testing.T, rows []any, name string) ospfiface.Snapshot {
 
 func minimalOSPFPacket(t *testing.T, pt packet.PacketType, areaText string) []byte {
 	t.Helper()
+	return minimalOSPFInstancePacket(t, pt, areaText, 0)
+}
+
+func minimalOSPFInstancePacket(t *testing.T, pt packet.PacketType, areaText string, instanceID uint8) []byte {
+	t.Helper()
 	rid, err := types.ParseRouterID("10.0.0.1")
 	if err != nil {
 		t.Fatal(err)
@@ -387,8 +392,40 @@ func minimalOSPFPacket(t *testing.T, pt packet.PacketType, areaText string) []by
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := packet.Packet{Header: packet.Header{Type: pt, RouterID: rid, AreaID: areaID}}
+	p := packet.Packet{Header: packet.Header{Type: pt, RouterID: rid, AreaID: areaID, InstanceID: instanceID}}
 	buf := make([]byte, packet.CommonHeaderLen)
 	p.WriteTo(buf, 0)
 	return buf
+}
+
+// TestDispatchDropsMismatchedInstance proves AC-4 / A-3 / R-6 (RFC 6549 §2/§3.1): an
+// engine configured for Instance ID 5 drops a received packet carrying a different Instance
+// ID before any handler runs, and accepts one carrying its own Instance ID.
+func TestDispatchDropsMismatchedInstance(t *testing.T) {
+	d := newDispatcher(v4Codec{})
+	d.instanceID = 5
+	var handled int
+	d.register(PacketTypeHello, func(transport.RawPacket, Header) { handled++ })
+	mismatches := 0
+	d.onInstanceMismatch = func(transport.RawPacket) { mismatches++ }
+
+	// Instance IDs that do not match 5 are discarded (before the handler).
+	for _, id := range []uint8{0, 1, 4, 6, 255} {
+		d.dispatch(transport.RawPacket{IfIndex: 1, Payload: minimalOSPFInstancePacket(t, packet.PacketTypeHello, "0", id)})
+	}
+	if handled != 0 {
+		t.Fatalf("handler ran %d times for mismatched Instance IDs, want 0", handled)
+	}
+	if mismatches != 5 {
+		t.Fatalf("instance-mismatch hook fired %d times, want 5", mismatches)
+	}
+
+	// The matching Instance ID (5) is delivered to the handler.
+	d.dispatch(transport.RawPacket{IfIndex: 1, Payload: minimalOSPFInstancePacket(t, packet.PacketTypeHello, "0", 5)})
+	if handled != 1 {
+		t.Fatalf("handler ran %d times for the matching Instance ID, want 1", handled)
+	}
+	if mismatches != 5 {
+		t.Fatalf("instance-mismatch hook fired %d times after a match, want 5", mismatches)
+	}
 }

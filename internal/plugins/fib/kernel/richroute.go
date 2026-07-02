@@ -21,6 +21,11 @@ type RichRoute struct {
 	Labels    []uint32
 	SRv6SID   netip.Addr
 	ECMPPaths []sysribevents.ECMPPath
+	// Backup is the fast-reroute backup next-hop set: programmed as link-down /
+	// backup multipath next-hop(s) with the repair MPLS encap, so the kernel
+	// forwards to a backup only when the primary next-hop's link is down. Distinct
+	// from ECMPPaths (which load-share in steady state).
+	Backup []sysribevents.ECMPPath
 }
 
 // richRouteBackend extends routeBackend with rich route programming.

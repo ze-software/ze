@@ -9,6 +9,30 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
 )
 
+// VALIDATES: spec-ospf-ext-7 A-1 -- the OSPFv2 Router-LSA round-trips the V-bit and a
+// Type-4 virtual link record (Link ID = neighbor Router ID, Link Data = local address,
+// Metric = transit cost) byte-for-byte (RFC 2328 App A.4.2).
+func TestRouterLSAVirtualLinkRoundTrip(t *testing.T) {
+	want := RouterLSA{
+		Flags: RouterFlagV | RouterFlagB,
+		Links: []RouterLink{
+			{LinkID: mustLSID(t, "9.9.9.9"), LinkData: [4]byte{172, 16, 0, 1}, Type: RouterLinkTypeVirtual, Metric: mustMetric(t, 15)},
+		},
+	}
+	buf := make([]byte, want.EncodedLen())
+	want.WriteTo(buf, 0)
+	got, err := DecodeRouterLSA(buf)
+	if err != nil {
+		t.Fatalf("DecodeRouterLSA: %v", err)
+	}
+	if got.Flags&RouterFlagV == 0 {
+		t.Fatalf("V-bit lost: flags = %#x", got.Flags)
+	}
+	if len(got.Links) != 1 || got.Links[0] != want.Links[0] {
+		t.Fatalf("virtual link record = %+v, want %+v", got.Links, want.Links)
+	}
+}
+
 // VALIDATES: AC-5 - LSA header fields and LSDB key round-trip.
 // PREVENTS: sequence/checksum/age becoming part of LSA identity.
 func TestOSPFLSAHeaderRoundTrip(t *testing.T) {
@@ -122,6 +146,49 @@ func TestOSPFUnknownLSAPassthrough(t *testing.T) {
 	decoded.WriteTo(out, 0)
 	if !bytes.Equal(out, wire) {
 		t.Fatalf("opaque passthrough changed bytes:\n got % x\nwant % x", out, wire)
+	}
+}
+
+// VALIDATES: spec-ospf-af-unify -- RefreshLSAInPlace re-stamps an already-encoded LSA's LS Age
+// and LS Sequence Number in place and returns a checksum the decoder then accepts. The other
+// header/body bytes are untouched, and a buffer shorter than a 20-byte LSA header returns
+// (0, false) instead of panicking.
+// PREVENTS: a MaxAge self-flush re-stamp that corrupts the LSA or leaves a stale checksum.
+func TestRefreshLSAInPlace(t *testing.T) {
+	wire := encodeLSA(t, sampleRouterLSA(t))
+
+	newAge := types.LSAge(types.MaxAge)
+	newSeq := types.InitialSequenceNumber.Next()
+	cksum, ok := RefreshLSAInPlace(wire, newAge, newSeq)
+	if !ok {
+		t.Fatalf("RefreshLSAInPlace returned ok=false on a full LSA")
+	}
+
+	lsa, err := DecodeLSA(wire)
+	if err != nil {
+		t.Fatalf("DecodeLSA after refresh: %v", err)
+	}
+	if lsa.Header.Age != newAge {
+		t.Errorf("re-stamped Age = %d, want %d", uint16(lsa.Header.Age), uint16(newAge))
+	}
+	if lsa.Header.Sequence != newSeq {
+		t.Errorf("re-stamped Sequence = %#x, want %#x", uint32(lsa.Header.Sequence), uint32(newSeq))
+	}
+	if lsa.Header.Checksum != cksum {
+		t.Errorf("decoded checksum %#x != returned checksum %#x", lsa.Header.Checksum, cksum)
+	}
+	if !lsa.VerifyChecksum() {
+		t.Errorf("re-stamped LSA fails checksum verification")
+	}
+	// The Router-LSA body must still decode with the original links intact.
+	body, err := lsa.DecodeRouter()
+	if err != nil || len(body.Links) != 4 {
+		t.Errorf("re-stamp corrupted body: err=%v links=%d, want 4 links", err, len(body.Links))
+	}
+
+	// A buffer shorter than a 20-byte LSA header is rejected, not a panic.
+	if c, ok := RefreshLSAInPlace(make([]byte, types.LSAHeaderLen-1), newAge, newSeq); ok || c != 0 {
+		t.Errorf("RefreshLSAInPlace(short) = (%#x, %v), want (0, false)", c, ok)
 	}
 }
 

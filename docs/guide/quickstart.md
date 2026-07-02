@@ -5,12 +5,25 @@ Get Ze running with two BGP peers in under 5 minutes.
 ## Build
 
 ```bash
-git clone https://codeberg.org/thomas-mangin/ze.git
+git clone https://github.com/ze-software/ze.git
 cd ze
 make build    # produces bin/ze, bin/ze-test, bin/ze-chaos
 ```
 
 Requires **Go 1.26+** on a macOS or Linux development host. Windows is not a supported development platform.
+
+### Or: go install
+
+To just get a `ze` binary without cloning the repo, `go install` with the same
+build tags `make build` uses:
+<!-- source: Makefile -- build target, "ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)" -->
+
+```bash
+go install -tags 'ze_core ze_distro ze_gnmi ze_grpc ze_isis ze_ldp ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh ze_telemetry ze_web' codeberg.org/thomas-mangin/ze/cmd/ze@latest
+```
+
+This tracks the module's default branch (development version), not a
+tagged release -- there are no tagged releases yet.
 
 ## Initialize
 

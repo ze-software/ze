@@ -1,0 +1,10 @@
+# Test: RI-TLV registration hook (RFC 7770 sec 2.3/2.4, spec-ospf-ext-3).
+#
+# VALIDATES: a downstream consumer (standing in for Segment Routing / ext-5) registers a TLV
+# via registerRITLV; the RI originator emits the type-1 Informational Capabilities TLV FIRST
+# and then the registered TLV in the same RI LSA.
+# PREVENTS: a registered TLV that never reaches the RI LSA, or one emitted before type-1.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFRIRegisterTLVFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

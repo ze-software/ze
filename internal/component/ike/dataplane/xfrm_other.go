@@ -32,6 +32,10 @@ func (b *xfrmBackend) RemovePolicy(_, _ *net.IPNet, _ SADir) error {
 	return fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
 }
 
+func (b *xfrmBackend) RemovePolicyParams(_ SPParams) error {
+	return fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
+}
+
 func (b *xfrmBackend) ListSAs(_ uint32) ([]SAInfo, error) {
 	return nil, fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
 }

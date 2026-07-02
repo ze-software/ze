@@ -246,6 +246,106 @@ func TestOSPFv6ComputeExternalNSSA(t *testing.T) {
 	}
 }
 
+// TestV6PrefixToNetipAFWidth pins RFC 5838 §2.7: v6PrefixToNetip decodes into a 4-byte
+// address for an IPv4 AF and a 16-byte address for an IPv6 AF.
+func TestV6PrefixToNetipAFWidth(t *testing.T) {
+	v4 := ospfv3packet.Prefix{Length: 24, Address: []byte{10, 20, 30, 0}}
+	got, ok := v6PrefixToNetip(v4, afIPv4Unicast)
+	if !ok || got != netip.MustParsePrefix("10.20.30.0/24") {
+		t.Fatalf("IPv4 AF: got %v ok=%v, want 10.20.30.0/24", got, ok)
+	}
+	if !got.Addr().Is4() {
+		t.Errorf("IPv4 AF produced a non-4-byte address: %v", got.Addr())
+	}
+	v6 := ospfv3packet.Prefix{Length: 64, Address: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 2, 0, 0}}
+	got6, ok := v6PrefixToNetip(v6, afIPv6Unicast)
+	if !ok || got6 != netip.MustParsePrefix("2001:db8:2::/64") {
+		t.Fatalf("IPv6 AF: got %v ok=%v, want 2001:db8:2::/64", got6, ok)
+	}
+	if !got6.Addr().Is6() {
+		t.Errorf("IPv6 AF produced a non-16-byte address: %v", got6.Addr())
+	}
+	// A prefix length wider than IPv4 rejects the LSA under an IPv4 AF.
+	if _, ok := v6PrefixToNetip(ospfv3packet.Prefix{Length: 64, Address: make([]byte, 8)}, afIPv4Unicast); ok {
+		t.Error("IPv4 AF accepted a 64-bit prefix length")
+	}
+}
+
+// TestIPv4OverV3BuildRoutes pins AC-8/AC-9: an IPv4 prefix carried in an OSPFv3
+// Intra-Area-Prefix-LSA on an IPv4-unicast instance decodes to a 4-byte netip.Prefix and
+// inherits the SPF next-hop resolved from the adjacency (RFC 5838 §2.7).
+func TestIPv4OverV3BuildRoutes(t *testing.T) {
+	wire, ok := netipToV6Prefix(netip.MustParsePrefix("10.4.0.0/24"), 5)
+	if !ok {
+		t.Fatal("netipToV6Prefix rejected an IPv4 prefix")
+	}
+	if wire.Length.ByteLen() != 4 {
+		t.Fatalf("IPv4 /24 encoded in %d bytes, want 4 (one word)", wire.Length.ByteLen())
+	}
+	iap := ospfv3packet.LSA{
+		Header: ospfv3packet.LSAHeader{
+			Age: 1, Type: ospfv3types.LSTypeIntraAreaPrefix,
+			LinkStateID: ospfv3types.LinkStateID{0, 0, 0, 1}, AdvertisingRouter: ospfv3types.RouterID{2, 2, 2, 2},
+			Sequence: ospfv3types.InitialSequenceNumber,
+		},
+		IntraAreaPfx: &ospfv3packet.IntraAreaPrefixLSA{
+			ReferencedLSType:    ospfv3types.LSTypeRouter,
+			ReferencedAdvRouter: ospfv3types.RouterID{2, 2, 2, 2},
+			Prefixes:            []ospfv3packet.Prefix{wire},
+		},
+	}
+	raw := make([]byte, (&iap).EncodedLen())
+	(&iap).WriteTo(raw, 0)
+	hdr := v6LSAHeaderToNeutral(iap.Header)
+	src := fakeV6Source{
+		headers: []packet.LSAHeader{hdr},
+		lsas:    map[types.LSAKey]packet.LSA{hdr.Key(): {Header: hdr, RawBytes: raw}},
+	}
+	nh := netip.MustParseAddr("fe80::2")
+	res := &ospfspf.Result{
+		Area: types.BackboneArea,
+		Nodes: map[ospfspf.VertexID]*ospfspf.NodeResult{
+			{Kind: ospfspf.VertexRouter, Router: types.RouterID{2, 2, 2, 2}}: {Metric: 10, NextHops: []ospfspf.NextHop{{Addr: nh}}},
+		},
+	}
+	routes := v6BuildRoutes(src, res, afIPv4Unicast)
+	if len(routes) != 1 {
+		t.Fatalf("routes = %d, want 1", len(routes))
+	}
+	r := routes[0]
+	if r.Prefix != netip.MustParsePrefix("10.4.0.0/24") || !r.Prefix.Addr().Is4() {
+		t.Errorf("prefix = %s, want 10.4.0.0/24 (4-byte IPv4)", r.Prefix)
+	}
+	if len(r.NextHops) != 1 || r.NextHops[0].Addr != nh {
+		t.Errorf("next-hops = %v, want [fe80::2] (adjacency link-local, RFC 5838 §2.7)", r.NextHops)
+	}
+}
+
+// TestIPv4OverV3NextHop pins AC-8/A-7: the IPv4-over-OSPFv3 next-hop is resolved from the
+// adjacency table, exactly like IPv6 (OSPFv3 forms adjacencies over IPv6 link-local). The
+// v6NextHop bound to an IPv4-unicast engine resolves a neighbor's address by Router ID.
+func TestIPv4OverV3NextHop(t *testing.T) {
+	engV4u := newEngineWithCodecAF(nil, v6Codec{}, afIPv4Unicast)
+	if engV4u.af != afIPv4Unicast {
+		t.Fatalf("engine af = %s, want ipv4-unicast", engV4u.af)
+	}
+	if engV4u.installFamily().AFI != afIPv4Unicast.family().AFI {
+		t.Fatalf("installFamily AFI = %v, want IPv4", engV4u.installFamily().AFI)
+	}
+	src := v6Strategy{eng: engV4u}.NextHopSource()
+	nh, ok := src.(v6NextHop)
+	if !ok {
+		t.Fatalf("NextHopSource = %T, want v6NextHop (adjacency-resolved)", src)
+	}
+	if nh.neighbors != engV4u.neighbors {
+		t.Error("v6NextHop is not bound to the engine's neighbor table")
+	}
+	// An unknown neighbor resolves to no next-hop (no adjacency yet).
+	if _, ok := nh.P2PNextHop(nil, types.RouterID{9, 9, 9, 9}, types.RouterID{}); ok {
+		t.Error("resolved a next-hop for an unknown neighbor")
+	}
+}
+
 func TestOSPFv6BuildRoutes(t *testing.T) {
 	// An Intra-Area-Prefix-LSA from 2.2.2.2 referencing its own Router-LSA, advertising
 	// 2001:db8:2::/64 with prefix-metric 5.
@@ -284,7 +384,7 @@ func TestOSPFv6BuildRoutes(t *testing.T) {
 		},
 	}
 
-	routes := v6BuildRoutes(src, res)
+	routes := v6BuildRoutes(src, res, afIPv6Unicast)
 	if len(routes) != 1 {
 		t.Fatalf("routes = %d, want 1", len(routes))
 	}
@@ -423,7 +523,7 @@ func TestOSPFv6InstallNetworkReferencedPrefix(t *testing.T) {
 		},
 	}
 
-	routes := v6BuildRoutes(src, res)
+	routes := v6BuildRoutes(src, res, afIPv6Unicast)
 	if len(routes) != 1 {
 		t.Fatalf("routes = %d, want 1", len(routes))
 	}

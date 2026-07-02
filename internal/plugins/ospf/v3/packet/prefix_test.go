@@ -48,6 +48,42 @@ func TestOSPFv3WirePrefixBoundaries(t *testing.T) {
 	}
 }
 
+// TestIPv4OverV3PrefixRoundTrip pins RFC 5838 §2.7 / RFC 5340 §A.4.1: an IPv4 prefix (0..32
+// bits) rides the OSPFv3 prefix codec as a single 32-bit word and decodes back byte-exact.
+func TestIPv4OverV3PrefixRoundTrip(t *testing.T) {
+	cases := []struct {
+		bits      uint8
+		addr      []byte // ByteLen-padded IPv4 address bytes
+		wantBytes int
+	}{
+		{0, nil, 0},
+		{8, []byte{10, 0, 0, 0}, 4},
+		{24, []byte{10, 20, 30, 0}, 4},
+		{32, []byte{192, 0, 2, 1}, 4},
+	}
+	for _, tc := range cases {
+		plen := mustPrefixLen(t, tc.bits)
+		if plen.ByteLen() != tc.wantBytes {
+			t.Fatalf("/%d ByteLen = %d, want %d (one word for an IPv4 prefix)", tc.bits, plen.ByteLen(), tc.wantBytes)
+		}
+		addr := make([]byte, plen.ByteLen())
+		copy(addr, tc.addr)
+		p := Prefix{Length: plen, Field16: 20, Address: addr}
+		buf := make([]byte, p.encodedLen())
+		if n := p.writeTo(buf, 0); n != prefixHeaderLen+tc.wantBytes {
+			t.Fatalf("/%d writeTo = %d, want %d", tc.bits, n, prefixHeaderLen+tc.wantBytes)
+		}
+		got, consumed, err := decodePrefix(buf, 0)
+		if err != nil {
+			t.Fatalf("/%d decodePrefix: %v", tc.bits, err)
+		}
+		if consumed != prefixHeaderLen+tc.wantBytes {
+			t.Fatalf("/%d consumed %d, want %d", tc.bits, consumed, prefixHeaderLen+tc.wantBytes)
+		}
+		assertPrefixEqual(t, got, p)
+	}
+}
+
 func TestOSPFv3WirePrefixRejectsNonZeroPadding(t *testing.T) {
 	// A /33 carries 8 address bytes; bits 33..63 must be zero. Flip a bit in the
 	// padding region and confirm decode rejects it.

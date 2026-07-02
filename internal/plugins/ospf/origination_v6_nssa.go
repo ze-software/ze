@@ -16,6 +16,23 @@ type nssaAttachmentV6 struct {
 	hasFA bool
 }
 
+// forwardingAddressForAF returns interface name's NSSA/AS-External forwarding address at this
+// engine's address family (RFC 5838 §2.7): an IPv4 AF carries the interface's IPv4 address in
+// the leading 4 octets of the 128-bit field (symmetric with v6ExternalReader's read), while an
+// IPv6 AF carries a global IPv6 forwarding address. ok is false when no usable address exists.
+func (e *engine) forwardingAddressForAF(name string) ([16]byte, bool) {
+	if e.af.isIPv4() {
+		v4 := interfaceIPv4Address(name)
+		if v4 == ([4]byte{}) {
+			return [16]byte{}, false
+		}
+		var fa [16]byte
+		copy(fa[:4], v4[:])
+		return fa, true
+	}
+	return interfaceIPv6ForwardingAddress(name)
+}
+
 func (e *engine) externalScopeV6() (nssas []nssaAttachmentV6, canType5 bool) {
 	e.mu.Lock()
 	cfg := e.cfg
@@ -31,7 +48,7 @@ func (e *engine) externalScopeV6() (nssas []nssaAttachmentV6, canType5 bool) {
 		case areaTypeNSSA:
 			if !seen[ic.AreaID] {
 				seen[ic.AreaID] = true
-				fa, ok := interfaceIPv6ForwardingAddress(ic.Name)
+				fa, ok := e.forwardingAddressForAF(ic.Name)
 				nssas = append(nssas, nssaAttachmentV6{area: ic.AreaID, fa: fa, hasFA: ok})
 			}
 		case areaTypeStub:

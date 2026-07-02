@@ -1,0 +1,22 @@
+# Test: OSPF base LFA (RFC 5286) backup computation.
+#
+# VALIDATES: spec-ospf-ext-6 -- per-neighbor SPF (A-1), Inequality 1 loop-free
+# (strict), downstream against D_opt(S,D) (Errata 2323), Inequality 3 node
+# protection (strict), the Section 3.5 cost/reverse-cost gate, the Section 3.6
+# preference order, the Section 3.3 broadcast pseudo-node rule, and per-primary
+# backup keying on an ECMP prefix.
+# PREVENTS: a looping backup (<= vs <), a misclassified alternate, or a costed-out
+# neighbor being used.
+#
+# Live FRR/QEMU kernel failover is owned by the ospf-lfa-frr interop scenario.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf -run 'Test(PerNeighborSPFDistances|LoopFreeStrictInequality|DownstreamCriterionAgainstS|NodeProtectionStrictInequality|CostOverloadGate|BroadcastPseudoNodeRule|SelectionPreferenceOrder|BackupPerPrimaryNextHop)$' -count=1:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=TestPerNeighborSPFDistances
+expect=stdout:contains=TestLoopFreeStrictInequality
+expect=stdout:contains=TestDownstreamCriterionAgainstS
+expect=stdout:contains=TestNodeProtectionStrictInequality
+expect=stdout:contains=TestCostOverloadGate
+expect=stdout:contains=TestBroadcastPseudoNodeRule
+expect=stdout:contains=TestSelectionPreferenceOrder
+expect=stdout:contains=TestBackupPerPrimaryNextHop

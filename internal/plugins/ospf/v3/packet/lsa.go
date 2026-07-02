@@ -104,13 +104,15 @@ type LSA struct {
 	External     *ExternalLSA
 	Link         *LinkLSA
 	IntraAreaPfx *IntraAreaPrefixLSA
+	Grace        *GraceLSA
 }
 
 // hasTypedBody reports whether a typed body is attached (so encode must
 // re-marshal rather than re-emit RawBytes).
 func (l *LSA) hasTypedBody() bool {
 	return l.Router != nil || l.Network != nil || l.InterAreaPfx != nil ||
-		l.InterAreaRtr != nil || l.External != nil || l.Link != nil || l.IntraAreaPfx != nil
+		l.InterAreaRtr != nil || l.External != nil || l.Link != nil || l.IntraAreaPfx != nil ||
+		l.Grace != nil
 }
 
 // DecodeLSA parses one LSA from the front of buf, driven by the Length field. The
@@ -155,6 +157,8 @@ func (l *LSA) bodyLen() int {
 		return l.Link.EncodedLen()
 	case l.IntraAreaPfx != nil:
 		return l.IntraAreaPfx.EncodedLen()
+	case l.Grace != nil:
+		return l.Grace.EncodedLen()
 	default:
 		return len(l.Body)
 	}
@@ -189,6 +193,8 @@ func (l *LSA) WriteTo(buf []byte, off int) int {
 		off = l.Link.WriteTo(buf, off)
 	case l.IntraAreaPfx != nil:
 		off = l.IntraAreaPfx.WriteTo(buf, off)
+	case l.Grace != nil:
+		off = l.Grace.WriteTo(buf, off)
 	default:
 		copy(buf[off:off+len(l.Body)], l.Body)
 		off += len(l.Body)
@@ -241,6 +247,9 @@ func (l *LSA) DecodeLink() (LinkLSA, error) { return decodeLinkLSA(l.Body) }
 func (l *LSA) DecodeIntraAreaPrefix() (IntraAreaPrefixLSA, error) {
 	return decodeIntraAreaPrefixLSA(l.Body)
 }
+
+// DecodeGrace parses a Grace-LSA body (RFC 5187 §2.2) on demand.
+func (l *LSA) DecodeGrace() (GraceLSA, error) { return decodeGraceLSA(l.Body) }
 
 // LSAIterator walks a region of consecutive LSAs using each LSA's Length field.
 // It never panics on malformed input; Err reports truncation or a bad length.

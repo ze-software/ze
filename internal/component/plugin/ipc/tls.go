@@ -53,8 +53,8 @@ func setTCPNoDelay(conn net.Conn) {
 	}
 }
 
-// maxAuthFrameSize is the maximum size of an auth RPC frame (4 KB).
-const maxAuthFrameSize = 4096
+// MaxAuthFrameSize is the maximum size of an auth RPC frame (4 KB).
+const MaxAuthFrameSize = 4096
 
 // authMethod is the RPC method name for the auth handshake.
 const authMethod = "auth"
@@ -87,7 +87,7 @@ func Authenticate(ctx context.Context, conn net.Conn, expectedToken string) (str
 
 	// Read auth frame byte-by-byte to avoid buffering ahead.
 	// No bufio.Scanner -- prevents stealing data from the production reader.
-	line, err := readLineRaw(conn, maxAuthFrameSize)
+	line, err := ReadLineRaw(conn, MaxAuthFrameSize)
 	if err != nil {
 		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
 		return "", fmt.Errorf("read auth request: %w", err)
@@ -156,7 +156,7 @@ func AuthenticateWithLookup(ctx context.Context, conn net.Conn, sharedSecret str
 		}
 	}
 
-	line, err := readLineRaw(conn, maxAuthFrameSize)
+	line, err := ReadLineRaw(conn, MaxAuthFrameSize)
 	if err != nil {
 		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
 		return "", fmt.Errorf("read auth request: %w", err)
@@ -217,9 +217,9 @@ func AuthenticateWithLookup(ctx context.Context, conn net.Conn, sharedSecret str
 	return params.Name, nil
 }
 
-// readLineRaw reads bytes one at a time until newline or maxSize.
+// ReadLineRaw reads bytes one at a time until newline or maxSize.
 // Avoids bufio.Scanner to prevent buffering ahead into the connection.
-func readLineRaw(conn net.Conn, maxSize int) ([]byte, error) {
+func ReadLineRaw(conn net.Conn, maxSize int) ([]byte, error) {
 	buf := make([]byte, 0, 256)
 	b := make([]byte, 1)
 	for {
@@ -275,7 +275,7 @@ func AuthenticateWithName(ctx context.Context, conn net.Conn, expectedToken, exp
 		}
 	}
 
-	line, err := readLineRaw(conn, maxAuthFrameSize)
+	line, err := ReadLineRaw(conn, MaxAuthFrameSize)
 	if err != nil {
 		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
 		return "", fmt.Errorf("read auth request: %w", err)

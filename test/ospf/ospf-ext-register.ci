@@ -1,0 +1,8 @@
+# Test: OSPFv2 Extended Prefix/Link consumer registration (RFC 7684, spec-ospf-ext-4).
+#
+# VALIDATES: the Extended Prefix (Opaque Type 7) and Extended Link (Opaque Type 8) consumers register with the ext-1 opaque carrier and the engine discovers both at startup.
+# PREVENTS: an Extended Prefix/Link consumer that compiles but is never invoked.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFExtRegisterFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

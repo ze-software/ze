@@ -1,0 +1,149 @@
+# Test: OSPFv2 per-interface BFD config validation (spec-ospf-ext-10 AC-1, AC-14).
+#
+# VALIDATES: the `bfd { enabled; min-tx; min-rx; multiplier }` container on an OSPF
+# interface reaches the YANG schema and the in-process verifier: a valid block validates,
+# and 0 / out-of-range timers and multipliers are rejected before runtime.
+# PREVENTS: the OSPF interface `bfd` container going unwired, or an unusable session from
+# a 0 timer/multiplier reaching the engine.
+
+# --- Valid BFD block validates. ----------------------------------------------
+stdin=ospf-bfd-valid:terminator=EOF_VALID
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			network-type point-to-point
+			bfd {
+				enabled true
+				min-tx 50
+				min-rx 50
+				multiplier 3
+			}
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-bfd-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- multiplier 0 is rejected (YANG range 1..255). ---------------------------
+stdin=ospf-bfd-mult-zero:terminator=EOF_MULT
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			bfd {
+				enabled true
+				multiplier 0
+			}
+		}
+	}
+}
+EOF_MULT
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-bfd-mult-zero
+expect=exit:code=1
+expect=stdout:contains=multiplier
+
+# --- min-tx 0 is rejected (YANG range 1..10000). -----------------------------
+stdin=ospf-bfd-mintx-zero:terminator=EOF_MINTX
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			bfd {
+				enabled true
+				min-tx 0
+			}
+		}
+	}
+}
+EOF_MINTX
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-bfd-mintx-zero
+expect=exit:code=1
+expect=stdout:contains=min-tx
+
+# --- The SAME bfd block parses under address-family ipv6 (one parseInterface path). ---
+stdin=ospf-bfd-v6-valid:terminator=EOF_V6
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+	address-family ipv6 {
+		areas {
+			area 0.0.0.0 { }
+		}
+		interfaces {
+			interface eth0 {
+				area 0.0.0.0
+				bfd {
+					enabled true
+					min-tx 50
+					min-rx 50
+					multiplier 3
+				}
+			}
+		}
+	}
+}
+EOF_V6
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-bfd-v6-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- multiplier 0 is rejected under address-family ipv6 too. -----------------
+stdin=ospf-bfd-v6-mult-zero:terminator=EOF_V6MULT
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+	address-family ipv6 {
+		areas {
+			area 0.0.0.0 { }
+		}
+		interfaces {
+			interface eth0 {
+				area 0.0.0.0
+				bfd {
+					enabled true
+					multiplier 0
+				}
+			}
+		}
+	}
+}
+EOF_V6MULT
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ospf-bfd-v6-mult-zero
+expect=exit:code=1
+expect=stdout:contains=multiplier

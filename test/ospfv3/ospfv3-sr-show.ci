@@ -1,0 +1,9 @@
+# Test: show ospf ipv6 segment-routing renders the IPv6 SR snapshot (spec-ospf-ext-5 AC-17).
+#
+# VALIDATES: the `show ospf ipv6 segment-routing` snapshot renders SR-Algorithm 0, the configured
+# SRGB/SRLB ranges and the node Prefix-SIDs for the IPv6 family, keyed to the engine Router ID.
+# PREVENTS: the IPv6 SR show dispatch rendering an empty or IPv4-shaped snapshot.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestOSPFv3SRSnapshot' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

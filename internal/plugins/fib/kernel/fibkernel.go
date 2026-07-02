@@ -191,7 +191,7 @@ func newFIBKernel(backend routeBackend) *fibKernel {
 // hasRichFields reports whether a change carries attributes beyond prefix+next-hop.
 func hasRichFields(c *incomingChange) bool {
 	return c.RouteType != 0 || c.Metric != 0 || c.TableID != 0 ||
-		len(c.ECMPPaths) > 0 || len(c.Labels) > 0 || c.SRv6SID.IsValid()
+		len(c.ECMPPaths) > 0 || len(c.Labels) > 0 || c.SRv6SID.IsValid() || len(c.Backup) > 0
 }
 
 func changeToRichRoute(c *incomingChange) RichRoute {
@@ -204,6 +204,7 @@ func changeToRichRoute(c *incomingChange) RichRoute {
 		Labels:    c.Labels,
 		SRv6SID:   c.SRv6SID,
 		ECMPPaths: c.ECMPPaths,
+		Backup:    c.Backup,
 	}
 }
 

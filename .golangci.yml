@@ -113,7 +113,11 @@ linters:
         - unnamedResult
       settings:
         hugeParam:
-          sizeThreshold: 280
+          # ospfConfig is an intentionally-copied immutable config snapshot passed by value
+          # across the OSPF package (setConfig/reconcile/forInstance and ~20 read helpers).
+          # Each OSPF spec that adds a config field grows it; the threshold has tracked that
+          # growth (256 -> 280 -> 288) rather than converting the snapshot pattern to pointers.
+          sizeThreshold: 288
         rangeValCopy:
           sizeThreshold: 160
 

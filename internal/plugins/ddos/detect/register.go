@@ -66,11 +66,34 @@ func init() {
 	}
 }
 
+// warnIfExternal logs a warning when ddos-detect is not running in-process.
+// Both subscribe paths below (trafficstat.EnsureGlobal/SubscribeRates, and
+// the iface.SubscribeCollectNotify fallback when trafficstat is unavailable)
+// register a callback into a package-level subscriber list as a plain Go
+// function call, not through DirectBridge/DispatchCommand -- that only
+// reaches the real background tracker when this plugin shares process
+// memory with it. An external ddos-detect would silently never receive a
+// rate signal on either path, with no error anywhere.
+//
+// Unlike traffic-usage/flow-export (which refuse to start entirely when
+// external, since their whole purpose depends on the same-process call
+// succeeding), ddos-detect already frames the trafficstat-unavailable case
+// as graceful degradation rather than a hard failure, so this warns rather
+// than refuses -- consistent with that existing severity framing, even
+// though the fallback path has the identical process-boundary problem.
+func warnIfExternal(isInternal bool) {
+	if isInternal {
+		return
+	}
+	logger().Warn("ddos-detect: running as an external plugin process -- neither the trafficstat subscription nor the iface rate-tracker fallback can reach the engine's real background tracker (both are same-process calls), so the detector will never receive a rate signal; configure ddos-detect to run internal")
+}
+
 func runEngine(conn net.Conn) int {
 	log := logger()
 	log.Debug("ddos-detect plugin starting")
 
 	p := sdk.NewWithConn(Name, conn)
+	warnIfExternal(p.IsInternal())
 	defer func() { _ = p.Close() }()
 
 	var det *detector

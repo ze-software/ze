@@ -18,7 +18,7 @@ func TestAdjacencyTableUpdate(t *testing.T) {
 		TransportAddr: netip.MustParseAddr("10.0.0.1"),
 	}
 
-	adj, isNew := table.Update(pdu, hello)
+	adj, isNew := table.Update(pdu, hello, "")
 	if !isNew {
 		t.Fatal("first Update should return isNew=true")
 	}
@@ -29,7 +29,7 @@ func TestAdjacencyTableUpdate(t *testing.T) {
 		t.Errorf("HoldTime = %v, want 15s", adj.HoldTime)
 	}
 
-	_, isNew2 := table.Update(pdu, hello)
+	_, isNew2 := table.Update(pdu, hello, "")
 	if isNew2 {
 		t.Fatal("second Update should return isNew=false")
 	}
@@ -47,7 +47,7 @@ func TestAdjacencyTableDefaultHoldTime(t *testing.T) {
 		TransportAddr: netip.MustParseAddr("10.0.0.1"),
 	}
 
-	adj, _ := table.Update(pdu, hello)
+	adj, _ := table.Update(pdu, hello, "")
 	if adj.HoldTime != DefaultHelloHoldTime {
 		t.Errorf("HoldTime = %v, want %v (default)", adj.HoldTime, DefaultHelloHoldTime)
 	}
@@ -75,7 +75,7 @@ func TestAdjacencyTableExpireSweep(t *testing.T) {
 		HoldTime:      1,
 		TransportAddr: netip.MustParseAddr("10.0.0.1"),
 	}
-	table.Update(pdu, hello)
+	table.Update(pdu, hello, "")
 
 	key := AdjacencyKey(pdu.LSRID, pdu.LabelSpace)
 	adj, _ := table.Get(key)
@@ -101,7 +101,7 @@ func TestAdjacencyTableRemove(t *testing.T) {
 		HoldTime:      15,
 		TransportAddr: netip.MustParseAddr("10.0.0.1"),
 	}
-	table.Update(pdu, hello)
+	table.Update(pdu, hello, "")
 
 	key := AdjacencyKey(pdu.LSRID, pdu.LabelSpace)
 	table.Remove(key)
@@ -118,7 +118,7 @@ func TestAdjacencyTableAll(t *testing.T) {
 			HoldTime:      15,
 			TransportAddr: netip.AddrFrom4([4]byte{10, 0, 0, i}),
 		}
-		table.Update(pdu, hello)
+		table.Update(pdu, hello, "")
 	}
 	all := table.All()
 	if len(all) != 3 {

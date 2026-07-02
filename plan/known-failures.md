@@ -3,13 +3,35 @@
 Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before Any
 Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
 
-**Status 2026-07-02: two open failures (below), unrelated to spec-as112/cos work.**
+**Status 2026-07-02: two open failures (below), unrelated to spec-as112/cos/plugin-process-boundary work.**
+`internal/component/plugin/all`'s golden-snapshot tests
+(`TestRegisteredPluginNames`/`TestRegisteredWireMethods`/`TestYANGSchemaProviders`)
+also intermittently fail during the plugin-process-boundary work session --
+confirmed under both an untagged `go test` (reports isis/ldp/ospf/rsvp-te as
+"missing", a build-tag-scoping artifact of not passing the full tag set) and
+the full tagged build (reports new OSPF wire-methods -- graceful-restart,
+instance, ipv6, segment-routing -- as "unexpected," i.e. not yet in the
+checked-in `testdata/*.snapshot`). `git status` confirms
+`internal/component/plugin/all/all.go` and all 3 snapshot files are
+modified by the same concurrent OSPF session tracked below, not this
+session (which never touched `internal/component/plugin/all/`).
 Every previously tracked entry from 2026-07-01 is resolved (see below). Three
 were already fixed by shipped specs (621, 887, 888) and merely stale in this
 log; the kernel flake and the cos-vendor fixtures were fixed 2026-07-01. The
 `ddos/detect` build break (concurrent cp-survival session) that briefly
 blocked `go build ./...` and `go test ./internal/component/doctor/...` on
 2026-07-02 during the AS112 doctor-check review cycle is now resolved --
+`make ze-validate` run 2026-07-02 during the plugin-process-boundary work
+(traffic-usage/flow-export/ddos-detect fixes + new ze-plugin-boundary-check)
+shows 39 unwired-symbol issues, entirely in `internal/component/ike/dataplane/**`,
+`internal/component/trafficstat/service.go`, `internal/core/stats/**`,
+`internal/plugins/ldp/**`, and `internal/plugins/ospf/**` -- confirmed via
+`git status` that every one of those paths is modified/untracked by other
+concurrent sessions (VPP IKE dataplane, an EWMA/stats package, LDP adjacency
+work, and the same ongoing OSPF extension work already tracked below), none
+touched by this session; `make ze-lint-changed`, `go vet`, and
+`go test ./internal/plugins/{trafficusage,flowexport,ddos/detect}/... ./scripts/checks/...`
+all pass clean for every file this session changed.
 `go build ./...`'s only remaining failure is the OSPF entry below, which has
 since moved to a different symbol (`gr.go:282`), consistent with the same
 concurrent OSPF session continuing to iterate.

@@ -36,6 +36,12 @@ type fakeSend struct {
 	payload []byte
 }
 
+type routedSendRecord struct {
+	dst, src netip.Addr
+	payload  []byte
+	hopLimit int
+}
+
 type fakeHandle struct {
 	ifindex int
 	src     netip.Addr
@@ -44,6 +50,7 @@ type fakeHandle struct {
 	joins   []netip.Addr
 	leaves  []netip.Addr
 	sends   []fakeSend
+	routed  []routedSendRecord
 }
 
 func (h *fakeHandle) IfIndex() int                { return h.ifindex }
@@ -64,6 +71,14 @@ func (h *fakeHandle) LeaveAllDRouters() error {
 func (h *fakeHandle) Send(dst, src netip.Addr, payload []byte) error {
 	cp := append([]byte(nil), payload...)
 	h.sends = append(h.sends, fakeSend{dst: dst, src: src, payload: cp})
+	return nil
+}
+
+// SendRouted records a routed send (global source + hop limit > 1), satisfying the
+// routedSenderV6 capability so SendPacketRouted takes the routed path.
+func (h *fakeHandle) SendRouted(dst, src netip.Addr, payload []byte, hopLimit int) error {
+	cp := append([]byte(nil), payload...)
+	h.routed = append(h.routed, routedSendRecord{dst: dst, src: src, payload: cp, hopLimit: hopLimit})
 	return nil
 }
 func (h *fakeHandle) Close() error {
@@ -159,6 +174,42 @@ func TestOSPFv3TransportOpenOnLinkUp(t *testing.T) {
 	}
 	if j := fb.handles["eth0"].joins; len(j) != 1 || j[0] != AllSPFRouters {
 		t.Fatalf("AllSPFRouters not joined: %+v", j)
+	}
+}
+
+// VALIDATES: spec-ospf-ext-7 AC-7 / A-8 / R-1 / R-2 -- a routed OSPFv3 virtual-link send
+// uses the local GLOBAL source (not the interface link-local fe80::1) and a hop limit > 1,
+// distinct from the link-local hop-limit-1 path.
+func TestRoutedSendUsesGlobalSourceAndHopLimit(t *testing.T) {
+	fb := newFakeBackend()
+	tr := New(fb)
+	mustUp(t, tr, 0)
+	global := netip.MustParseAddr("2001:db8::1")
+	dst := netip.MustParseAddr("2001:db8:cafe::2")
+	pkt := ospfv3Packet(1, 0)
+	if err := tr.SendPacketRouted("eth0", dst, global, pkt); err != nil {
+		t.Fatalf("SendPacketRouted: %v", err)
+	}
+	h := fb.handles["eth0"]
+	if len(h.routed) != 1 {
+		t.Fatalf("routed send not used: %+v", h.routed)
+	}
+	rs := h.routed[0]
+	if rs.src != global {
+		t.Fatalf("routed src = %v, want the GLOBAL source %v", rs.src, global)
+	}
+	if rs.src == h.src {
+		t.Fatalf("routed send used the link-local source, not the global one")
+	}
+	if rs.hopLimit <= 1 {
+		t.Fatalf("routed hop limit = %d, want > 1", rs.hopLimit)
+	}
+	if len(h.sends) != 0 {
+		t.Fatalf("routed packet leaked onto the link-local hop-limit-1 path: %+v", h.sends)
+	}
+	// A missing global source is rejected (the checksum pseudo-header would not match).
+	if err := tr.SendPacketRouted("eth0", dst, netip.Addr{}, pkt); !errors.Is(err, ErrInvalidDestination) {
+		t.Fatalf("routed send without a global source err = %v, want ErrInvalidDestination", err)
 	}
 }
 

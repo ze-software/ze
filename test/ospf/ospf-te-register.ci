@@ -1,0 +1,10 @@
+# Test: OSPFv2 TE opaque-consumer registration (RFC 3630 / RFC 5392, spec-ospf-ext-2).
+#
+# VALIDATES: registerTEConsumer registers Opaque type 1 (RFC 3630 TE) and type 6 (RFC 5392
+# inter-AS TE) with the ext-1 carrier; the engine discovers both; the `opaque` leaf parses.
+# PREVENTS: the TE consumer compiling but never registering with or being discovered by the
+# opaque carrier.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFTERegisterFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

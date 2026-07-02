@@ -1,0 +1,100 @@
+# Test: OSPFv3 (IPv6) virtual-link daemon wiring (spec-ospf-ext-7, RFC 5340 sec 4.2).
+#
+# VALIDATES: the real OSPF plugin boots a top-level `ospf { address-family ipv6 { ... } }`
+# config carrying a `virtual-link`, the IPv6 engine instance starts (opens its raw proto-89
+# socket), and the config -> engine -> virtual-link manager wiring does not panic when a
+# virtual link is present with no reachable neighbour (the link stays down, no synthetic
+# interface).
+# PREVENTS: a crash / unwired virtual-link manager on a real daemon booting a v6 vlink config.
+#
+# The two-router adjacency Full + `show ipv6 ospf6 neighbor` assertion is owned by the
+# ospfv3-vlink-frr QEMU interop lab (no `show ipv6 ospf6` surface exists to assert natively);
+# the FSM + endpoint resolution are unit-tested (TestV6VirtualAdjacencyReachesFull). This
+# boots a real daemon and applies IPv6 OSPFv3 config, so it is Linux-only (raw proto-89).
+option=needs-linux
+
+tmpfs=ospfv3-vlink.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert the OSPF plugin stays alive after booting a v6 virtual-link config."""
+
+import sys
+
+from ze_api import API, runtime_fail, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    # The plugin RPC is alive after booting the v6 virtual-link config (no crash on the
+    # virtual-link manager wiring).
+    r = dispatch(api, 'show ospf')
+    if r.get('status') != 'done':
+        runtime_fail(
+            f"show ospf: expected done after booting a v6 vlink config, got "
+            f"status={r.get('status')} data={result_text_data(r)[:200]}")
+
+    print('OK: OSPFv3 virtual-link config booted the daemon cleanly', file=sys.stderr)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external ospfv3-vlink {
+		run ./ospfv3-vlink.run
+		encoder json
+	}
+}
+
+ospf {
+	router-id 10.0.0.1
+	address-family ipv6 {
+		areas {
+			area 0.0.0.0 {
+				area-type normal
+			}
+			area 0.0.0.1 {
+				area-type normal
+				virtual-link 10.0.0.2 {
+					hello-interval 10
+					dead-interval 40
+				}
+			}
+		}
+		interfaces {
+			interface eth0 {
+				area 0.0.0.1
+				network-type point-to-point
+			}
+			interface lo {
+				area 0.0.0.0
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=OSPFv3 virtual-link config booted the daemon cleanly
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ospf engine failed

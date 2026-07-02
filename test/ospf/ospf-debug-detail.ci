@@ -1,0 +1,12 @@
+# Test: OSPFv2 neighbor + interface deep dump.
+#
+# VALIDATES: spec-ospf-ext-14 -- `show ospf neighbor detail` / `... interface detail` surface full per-neighbor and per-interface state incl. the O-bit (AC-10).
+# PREVENTS: a regression in the OSPF debug/introspection surface.
+#
+# Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf ./internal/plugins/ospf/neighbor ./internal/plugins/ospf/iface -run 'TestNeighborDetailSnapshot|TestNeighborDetailSnapshotEngine|TestNeighborDetailOptionBits|TestInterfaceDetailSnapshot' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=TestNeighborDetailSnapshotEngine
+expect=stdout:contains=TestInterfaceDetailSnapshot
+expect=stdout:contains=PASS

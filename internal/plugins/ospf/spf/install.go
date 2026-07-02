@@ -29,41 +29,74 @@ const DefaultAdminDistance uint8 = 110
 type Installer struct {
 	loc      *locrib.RIB
 	fam      family.Family
+	afLabel  string
 	distance uint8
 
 	installed map[netip.Prefix]installedRoute
 
+	// suppress, when set and true, makes Apply and RemoveAll no-ops. OSPF Graceful Restart
+	// (RFC 3623 sec 2/2.1) sets it so the restarting router neither churns routes while in
+	// restart nor withdraws them on the graceful stop, retaining the pre-restart FIB.
+	suppress func() bool
+
 	metricsMu       sync.RWMutex
 	routesInstalled metrics.GaugeVec
 }
+
+// setSuppress installs the graceful-restart install-suppression predicate (RFC 3623). A nil
+// predicate (the default) never suppresses.
+func (in *Installer) setSuppress(fn func() bool) { in.suppress = fn }
+
+// suppressed reports whether route install/removal is currently suppressed.
+func (in *Installer) suppressed() bool { return in.suppress != nil && in.suppress() }
 
 type installedRoute struct {
 	entry     RouteEntry
 	instances []uint32
 }
 
-// NewInstaller constructs an IPv4-unicast OSPF installer. loc may be nil in a
-// forked plugin subprocess, in which case install/remove are no-ops but snapshots
+// NewInstaller constructs an IPv4-unicast OSPF installer (the OSPFv2 family). loc may be
+// nil in a forked plugin subprocess, in which case install/remove are no-ops but snapshots
 // still track the computed route table.
 func NewInstaller(loc *locrib.RIB) *Installer {
+	return NewInstallerFamily(loc, family.IPv4Unicast)
+}
+
+// NewInstallerFamily constructs an OSPF installer that inserts into fam's Loc-RIB. RFC 5838
+// maps each OSPFv3 address family to its own Loc-RIB family (IPv6-unicast, IPv4-unicast,
+// IPv6-multicast, IPv4-multicast); the family-parameterised constructor routes each AF's
+// SPF routes to the right family and fixes the IPv6-base hardcode to family.IPv4Unicast.
+func NewInstallerFamily(loc *locrib.RIB, fam family.Family) *Installer {
 	return &Installer{
 		loc:             loc,
-		fam:             family.IPv4Unicast,
+		fam:             fam,
+		afLabel:         famAFLabel(fam),
 		distance:        DefaultAdminDistance,
 		installed:       make(map[netip.Prefix]installedRoute),
 		routesInstalled: metrics.NopRegistry{}.GaugeVec("", "", nil),
 	}
 }
 
-// SetMetrics registers ze_ospf_routes_installed{type}. A nil registry is ignored.
+// famAFLabel renders a family as the "<afi>-<safi>" label used by the per-AF metric
+// series (e.g. "ipv6-unicast", "ipv4-unicast"), matching the RFC 5838 AF names.
+func famAFLabel(fam family.Family) string {
+	buf := make([]byte, 0, 16)
+	buf = fam.AFI.AppendTo(buf)
+	buf = append(buf, '-')
+	buf = fam.SAFI.AppendTo(buf)
+	return string(buf)
+}
+
+// SetMetrics registers ze_ospf_routes_installed{type,af}. A nil registry is ignored. The
+// `af` label (RFC 5838) distinguishes per-address-family install counts on the shared series.
 func (in *Installer) SetMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
 	gv := reg.GaugeVec(
 		"ze_ospf_routes_installed",
-		"Current number of OSPF routes installed into the Loc-RIB, by path type.",
-		[]string{"type"},
+		"Current number of OSPF routes installed into the Loc-RIB, by path type and address family.",
+		[]string{"type", "af"},
 	)
 	in.metricsMu.Lock()
 	in.routesInstalled = gv
@@ -79,6 +112,11 @@ func (in *Installer) gauge() metrics.GaugeVec {
 // Apply diffs cur against the previous installed set, inserts added/changed
 // routes, and forward-removes lost prefixes or shrunk ECMP instances.
 func (in *Installer) Apply(cur []RouteEntry) RouteDelta {
+	// Graceful restart: skip route programming while suppressed so the pre-restart FIB is
+	// retained without churn (RFC 3623 sec 2). The installed set is left unchanged.
+	if in.suppressed() {
+		return RouteDelta{}
+	}
 	curIdx := IndexByPrefix(cur)
 	prevIdx := make(map[netip.Prefix]RouteEntry, len(in.installed))
 	for pfx, ir := range in.installed {
@@ -110,14 +148,26 @@ func (in *Installer) insert(r RouteEntry) {
 		if in.loc == nil {
 			continue
 		}
+		// RFC 5286 / TI-LFA: carry this primary's pre-computed backup (address +
+		// optional SR repair label stack) as carry-through metadata on the Path. It
+		// is excluded from arbitration and installed by the FIB as a link-down/backup
+		// next-hop. Shared, never mutated, mirroring the primary Labels contract.
+		var backupNH netip.Addr
+		var repair []uint32
+		if i < len(r.Backups) && r.Backups[i].Valid() {
+			backupNH = r.Backups[i].NextHop
+			repair = r.Backups[i].RepairLabels
+		}
 		// Mirror BGP rib_bestchange.go: InsertForward with a value-typed Path and no
 		// ForwardHandle. redistevents is not on the FIB install path.
 		in.loc.InsertForward(in.fam, r.Prefix, locrib.Path{
-			Source:        ospfProtocolID,
-			Instance:      instance,
-			NextHop:       nh.Addr,
-			AdminDistance: in.distance,
-			Metric:        metric,
+			Source:             ospfProtocolID,
+			Instance:           instance,
+			NextHop:            nh.Addr,
+			AdminDistance:      in.distance,
+			Metric:             metric,
+			BackupNextHop:      backupNH,
+			BackupRepairLabels: repair,
 		}, nil)
 	}
 	if prev, ok := in.installed[r.Prefix]; ok && in.loc != nil {
@@ -139,8 +189,13 @@ func (in *Installer) remove(pfx netip.Prefix) {
 	delete(in.installed, pfx)
 }
 
-// RemoveAll withdraws every OSPF path this installer inserted.
+// RemoveAll withdraws every OSPF path this installer inserted, unless graceful-restart
+// suppression is active (RFC 3623 sec 2.1: a graceful stop must NOT withdraw routes -- the
+// FIB is retained across the restart).
 func (in *Installer) RemoveAll() {
+	if in.suppressed() {
+		return
+	}
 	for pfx, prev := range in.installed {
 		if in.loc != nil {
 			for _, inst := range prev.instances {
@@ -167,10 +222,10 @@ func (in *Installer) publishCounts() {
 		byType[ir.entry.Type]++
 	}
 	gv := in.gauge()
-	gv.With(RouteIntraArea.String()).Set(float64(byType[RouteIntraArea]))
-	gv.With(RouteInterArea.String()).Set(float64(byType[RouteInterArea]))
-	gv.With(RouteExternalType1.String()).Set(float64(byType[RouteExternalType1]))
-	gv.With(RouteExternalType2.String()).Set(float64(byType[RouteExternalType2]))
+	gv.With(RouteIntraArea.String(), in.afLabel).Set(float64(byType[RouteIntraArea]))
+	gv.With(RouteInterArea.String(), in.afLabel).Set(float64(byType[RouteInterArea]))
+	gv.With(RouteExternalType1.String(), in.afLabel).Set(float64(byType[RouteExternalType1]))
+	gv.With(RouteExternalType2.String(), in.afLabel).Set(float64(byType[RouteExternalType2]))
 }
 
 func metricToUint32(m uint64) uint32 {

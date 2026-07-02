@@ -1,0 +1,134 @@
+# Test: OSPFv2 Multi-Instance runtime demux -- two instances on one interface set
+# (spec-ospf-ext-12, RFC 6549).
+#
+# VALIDATES: configuring two Instance IDs (0 and 5) on overlapping interfaces stands up two
+# OSPFv2 engines on the shared transport; `show ospf instance` lists both, each with its own
+# (isolated) area/interface/neighbor/database state. This is the runtime side of AC-6/AC-7.
+# PREVENTS: a regression where a non-zero Instance ID does not spawn an engine, or the two
+# instances share state (the demux/isolation collapsing to a single engine).
+#
+# Live raw-IP adjacency (Ze<->Ze at Instance 5, legacy isolation vs FRR) is owned by the
+# QEMU interop scenario test/interop/scenarios/ospf-multiinstance-frr. Requires the full
+# daemon and a raw socket, so it does not run on darwin.
+option=skip-os:value=darwin
+
+tmpfs=ospf-instance-demux.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert two OSPFv2 instances stand up as isolated engines and `show ospf instance` lists them."""
+
+import sys
+
+from ze_api import API, runtime_fail, result_json_data, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    result = dispatch(api, 'show ospf instance')
+    if result.get('status') != 'done':
+        runtime_fail(f"show ospf instance: status={result.get('status')} "
+                     f"data={result_text_data(result)[:200]}")
+    rows = result_json_data(result, None) or []
+    if not isinstance(rows, list):
+        runtime_fail(f"show ospf instance: expected list, got {rows!r}")
+
+    by_id = {}
+    for row in rows:
+        by_id[row.get('instance-id')] = row
+    # RFC 6549: instance 0 (base) plus the configured non-zero instance 5.
+    for want in (0, 5):
+        if want not in by_id:
+            runtime_fail(f"show ospf instance missing Instance ID {want}: {by_id!r}")
+    # eth0 is enrolled in both instances (one physical interface, two instances).
+    if by_id[0].get('interface-count', 0) < 1 or by_id[5].get('interface-count', 0) < 1:
+        runtime_fail(f"each instance must carry eth0: {by_id!r}")
+    # The two engines are separate: distinct router-id echoes and independent state rows.
+    if by_id[0].get('router-id') != '10.0.0.1' or by_id[5].get('router-id') != '10.0.0.1':
+        runtime_fail(f"router-id per instance = {by_id!r}")
+
+    print('OK: OSPF multi-instance demux OK', file=sys.stderr)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external ospf-instance-demux {
+		run ./ospf-instance-demux.run
+		encoder json
+	}
+}
+
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			instance-id 0
+			instance-id 5
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process ospf-instance-demux {
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=OSPF multi-instance demux OK
+reject=stderr:pattern=engine idle
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

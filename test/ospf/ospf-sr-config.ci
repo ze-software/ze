@@ -1,0 +1,45 @@
+# Test: OSPFv2 Segment Routing config validation (spec-ospf-ext-5, RFC 8665).
+#
+# VALIDATES: a top-level `ospf { segment-routing { ... } }` block reaches the OSPF YANG schema
+# and validates (SRGB range, node prefix-SID index), and the SR label-overlap doctor diagnostic
+# (doctor-ospf-segment-routing-overlap) is registered and explainable for the IPv4 family.
+# PREVENTS: the IPv4 segment-routing config surface not being wired.
+
+stdin=ospf-sr-valid:terminator=EOF_V4SR
+ospf {
+	router-id 10.0.0.1
+	segment-routing {
+		enable true
+		srgb {
+			lower-bound 16000
+			upper-bound 23999
+		}
+		srlb {
+			lower-bound 15000
+			upper-bound 15999
+		}
+		prefix-sid 10.0.0.1/32 {
+			index 1
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			network-type point-to-point
+		}
+	}
+}
+EOF_V4SR
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-sr-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze explain doctor-ospf-segment-routing-overlap
+expect=exit:code=0
+expect=stdout:contains=doctor-ospf-segment-routing-overlap

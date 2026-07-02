@@ -121,6 +121,9 @@ func stagesForMode(mode, makeCmd string) []stage {
 	case "ze-verify-changed":
 		return []stage{
 			mk("ze-lint-changed"),
+			mk("ze-tier-check"),
+			mk("ze-iface-resolution-check"),
+			mk("ze-plugin-boundary-check"),
 			mk("ze-verify-wiring-docs"),
 			mk("ze-unit-test-changed"),
 			mk("ze-functional-test"),
@@ -129,6 +132,9 @@ func stagesForMode(mode, makeCmd string) []stage {
 	default:
 		return []stage{
 			mk("ze-lint"),
+			mk("ze-tier-check"),
+			mk("ze-iface-resolution-check"),
+			mk("ze-plugin-boundary-check"),
 			mk("ze-verify-wiring-docs"),
 			mk("ze-vet-evidence"),
 			mk("ze-unit-test-cached"),

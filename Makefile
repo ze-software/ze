@@ -3,7 +3,7 @@
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test
 .PHONY: ze-test ze-verify ze-verify-changed ze-validate ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp
-.PHONY: _ze-verify-impl _ze-verify-changed-impl ze-tier-check ze-iface-resolution-check
+.PHONY: _ze-verify-impl _ze-verify-changed-impl ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
 .PHONY: ze-plugin-imports-check ze-yang-glue-check ze-regen ze-regen-check
@@ -263,13 +263,22 @@ ZE_VERIFY_LOG ?= tmp/ze-verify.log
 ze-verify:
 	@scripts/dev/verify-lock.sh ze-verify env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify
 
-_ze-verify-impl: ze-lint ze-tier-check ze-iface-resolution-check ze-verify-wiring-docs ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
+# NOT the live verify path: `ze-verify` above runs scripts/status/verify_run.go,
+# which has its OWN hardcoded stage list in stagesForMode() -- these two _impl
+# targets have zero callers anywhere in the repo (confirmed via grep across
+# Makefile, mk/*.mk, scripts/, .woodpecker/) and silently drifted out of sync
+# with stagesForMode for an unknown period before a /ze-review pass caught it
+# (plan/learned/1045-plugin-process-boundary.md). A new gate added HERE will
+# NOT run under `make ze-verify`/`ze-verify-changed` or CI -- add it to
+# scripts/status/verify_run.go's stagesForMode() instead, in BOTH branches.
+_ze-verify-impl: ze-lint ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-verify-wiring-docs ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
 
 ze-verify-changed:
 	@scripts/dev/verify-lock.sh ze-verify-changed env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify-changed
 
-_ze-verify-changed-impl: ze-lint-changed ze-tier-check ze-iface-resolution-check ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
+# See the _ze-verify-impl comment above: not the live path either.
+_ze-verify-changed-impl: ze-lint-changed ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification (changed) passed"
 
 # Module-tier placement gate (ai/rules/module-tiers.md): a config-driven engine
@@ -286,6 +295,16 @@ ze-tier-check:
 # owns the allowlist of legitimate direct-resolution sites.
 ze-iface-resolution-check:
 	@$(GO) run scripts/checks/iface_resolution.go
+
+# Plugin process-boundary gate (ai/rules/plugin-process-boundary.md): a
+# plugin calling another in-process package's same-process-effect function
+# directly (bypassing DirectBridge/DispatchCommand) must guard with
+# IsInternal()/warnIfExternal() so it does not silently no-op when run as an
+# external subprocess. scripts/checks/plugin_process_boundary.go owns the
+# dangerous-pattern list and allowlist.
+ze-plugin-boundary-check:
+	@$(GO) run scripts/checks/plugin_process_boundary.go --selftest
+	@$(GO) run scripts/checks/plugin_process_boundary.go
 
 ze-validate:
 	@python3 scripts/dev/validate.py --root .

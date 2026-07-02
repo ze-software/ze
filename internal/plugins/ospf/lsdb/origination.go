@@ -68,6 +68,11 @@ func (d *LSDB) OriginateFromTopology(router types.RouterID, maxMetric bool) int 
 	sort.Slice(activeAreas, func(i, j int) bool { return compareAreaID(activeAreas[i], activeAreas[j]) < 0 })
 	count := 0
 	abr := isAreaBorderRouter(activeAreas)
+	// RFC 2328 App A.4.2 / section 16.3: the V-bit is set in the Router-LSA for the TRANSIT
+	// area of a fully adjacent virtual link (it marks that area as a transit area, driving
+	// the far ABR's TransitCapability), NOT in the backbone Router-LSA that carries the
+	// Type-4 virtual link record itself.
+	fullTransitAreas := fullVirtualTransitAreas(ifs)
 	// RFC 2328 Section 3.3 / 12.4.4: the node is an ASBR (Router-LSA E-bit) exactly
 	// when it currently originates at least one non-purged Type 5 AS-External-LSA.
 	// This clears the E-bit automatically when the last external is withdrawn (AC-6).
@@ -78,7 +83,11 @@ func (d *LSDB) OriginateFromTopology(router types.RouterID, maxMetric bool) int 
 			opts = byArea[area][0].Options
 		}
 		nt := abr && d.isNSSATranslatorArea(area)
-		if _, ok := d.OriginateRouter(OriginInput{AreaID: area, RouterID: router, Options: opts, ABR: abr, ASBR: asbr, NSSATranslator: nt, MaxMetric: maxMetric, Interfaces: byArea[area]}); ok {
+		// RFC 2328 App A.4.2 / section 16.3: set the V-bit in the Router-LSA for a TRANSIT
+		// area (an area a Full virtual link runs through), never in the backbone Router-LSA
+		// that carries the Type-4 virtual link record.
+		vle := fullTransitAreas[area]
+		if _, ok := d.OriginateRouter(OriginInput{AreaID: area, RouterID: router, Options: opts, ABR: abr, ASBR: asbr, VirtualLinkEndpoint: vle, NSSATranslator: nt, MaxMetric: maxMetric, Interfaces: byArea[area]}); ok {
 			count++
 		}
 		desiredNetworks := make(map[types.LSAKey]struct{})
@@ -141,11 +150,53 @@ func (d *LSDB) OriginateRouter(in OriginInput) (packet.LSAHeader, bool) {
 }
 
 func areaHasAdvertisedLinks(ifaces []InterfaceInfo) bool {
-	return slices.ContainsFunc(ifaces, advertiseInterfaceLinks)
+	for idx := range ifaces {
+		if ifaces[idx].NetworkType == NetworkVirtual {
+			// RFC 2328 section 15 / RFC 5340 section 3.5: a virtual link makes its area (the
+			// backbone) active for ABR/backbone-attachment only when the adjacency is Full.
+			if virtualLinkFull(ifaces[idx]) {
+				return true
+			}
+			continue
+		}
+		if advertiseInterfaceLinks(ifaces[idx]) {
+			return true
+		}
+	}
+	return false
 }
 
 func advertiseInterfaceLinks(iface InterfaceInfo) bool {
 	return iface.State != InterfaceStateDown || iface.Passive
+}
+
+// fullVirtualTransitAreas returns the set of transit areas that carry a fully adjacent
+// virtual link. The Router-LSA V-bit is set in each such TRANSIT area's Router-LSA (RFC
+// 2328 App A.4.2 / section 16.3): it marks the area as a transit area for a virtual link,
+// which is what a far ABR reads to set TransitCapability. The Type-4 record itself is
+// emitted in the backbone Router-LSA (routerLinks), so the two placements differ.
+func fullVirtualTransitAreas(ifaces []InterfaceInfo) map[types.AreaID]bool {
+	var out map[types.AreaID]bool
+	for idx := range ifaces {
+		if ifaces[idx].NetworkType != NetworkVirtual || !virtualLinkFull(ifaces[idx]) {
+			continue
+		}
+		if out == nil {
+			out = make(map[types.AreaID]bool)
+		}
+		out[ifaces[idx].VirtualTransitArea] = true
+	}
+	return out
+}
+
+// virtualLinkFull reports whether a synthetic virtual interface has a Full neighbor.
+func virtualLinkFull(iface InterfaceInfo) bool {
+	for _, nbr := range iface.Neighbors {
+		if nbr.State == NeighborStateFull {
+			return true
+		}
+	}
+	return false
 }
 
 func routerLinks(in OriginInput) []packet.RouterLink {
@@ -160,7 +211,11 @@ func routerLinks(in OriginInput) []packet.RouterLink {
 			metric = 1
 		}
 		local := iface.Address
-		if iface.NetworkType == NetworkPointToPoint {
+		// RFC 2328 App A.4.2: a virtual link is a Type-4 link record with Link ID = the
+		// neighbor Router ID, Link Data = the local transit interface address, and Metric =
+		// the transit-area path cost. It has no stub/transit link, so `continue` after
+		// emitting the record. Only emitted when the adjacency is Full.
+		if iface.NetworkType == NetworkVirtual {
 			for _, nbr := range iface.Neighbors {
 				if nbr.State != NeighborStateFull {
 					continue
@@ -169,10 +224,44 @@ func routerLinks(in OriginInput) []packet.RouterLink {
 				if in.MaxMetric {
 					m = LSInfinity
 				}
+				links = append(links, packet.RouterLink{LinkID: types.LinkStateID(nbr.RouterID), LinkData: local, Type: packet.RouterLinkTypeVirtual, Metric: m})
+			}
+			continue
+		}
+		// Point-to-multipoint is a collection of point-to-point links (RFC 2328 sec
+		// 12.4.1.4): one Type-1 link per Full neighbor, exactly like point-to-point.
+		isPtMP := iface.NetworkType == NetworkPointToMultipoint
+		if iface.NetworkType == NetworkPointToPoint || isPtMP {
+			for _, nbr := range iface.Neighbors {
+				if nbr.State != NeighborStateFull {
+					continue
+				}
+				m := metric
+				// RFC 6987 router-wide max-metric OR RFC 5443 §2 per-interface LDP-sync
+				// cost-out raises the p2p link to LSInfinity; the connected-subnet stub
+				// (below) keeps the configured cost either way.
+				if in.MaxMetric || iface.LDPSyncMaxMetric {
+					m = LSInfinity
+				}
 				links = append(links, packet.RouterLink{LinkID: types.LinkStateID(nbr.RouterID), LinkData: local, Type: packet.RouterLinkTypeP2P, Metric: m})
 			}
 		}
-		if iface.NetworkType == NetworkBroadcast && iface.DR != (types.RouterID{}) {
+		// PtMP advertises a host route (its own interface address, mask 255.255.255.255,
+		// cost 0) instead of a subnet stub so other routers can reach the interface; it
+		// never advertises a transit/subnet prefix (RFC 2328 sec 12.4.1.4).
+		if isPtMP {
+			if iface.Address != ([4]byte{}) {
+				links = append(links, packet.RouterLink{LinkID: types.LinkStateID(iface.Address), LinkData: [4]byte{255, 255, 255, 255}, Type: packet.RouterLinkTypeStub, Metric: 0})
+			}
+			continue
+		}
+		// RFC 6138 Section 4: "the Router-LSA is not updated with a 'Link Type 2' (link
+		// to transit network) for that subnet until LDP is operational with all
+		// neighboring routers on that subnet." The engine sets LDPSyncWithholdTransit
+		// only for a non-cut-edge broadcast interface not yet LDP-synchronized; a
+		// cut-edge is advertised immediately (the RFC 6138 MUST NOT-delay rule) and so
+		// never carries this flag. The stub link (below) for the subnet is unaffected.
+		if (iface.NetworkType == NetworkBroadcast || iface.NetworkType == NetworkNBMA) && iface.DR != (types.RouterID{}) && !iface.LDPSyncWithholdTransit {
 			drAddr := iface.Address
 			if iface.DR != in.RouterID {
 				for _, nbr := range iface.Neighbors {
@@ -185,7 +274,7 @@ func routerLinks(in OriginInput) []packet.RouterLink {
 				}
 			}
 			m := metric
-			if in.MaxMetric {
+			if in.MaxMetric || iface.LDPSyncMaxMetric {
 				m = LSInfinity
 			}
 			links = append(links, packet.RouterLink{LinkID: types.LinkStateID(drAddr), LinkData: local, Type: packet.RouterLinkTypeTransit, Metric: m})
@@ -378,7 +467,9 @@ func (d *LSDB) SelfExternalCount(router types.RouterID) int {
 	defer d.mu.RUnlock()
 	n := 0
 	for key, e := range d.asExternal.entries {
-		if key.AdvertisingRouter == router && e.self && !e.purged {
+		// The AS-wide store also holds non-external AS-scope LSAs (the RFC 7770 Router
+		// Information LSA, function code 12); count only true AS-External-LSAs.
+		if key.Type.ASExternal() && key.AdvertisingRouter == router && e.self && !e.purged {
 			n++
 		}
 	}
@@ -394,10 +485,12 @@ func (d *LSDB) SelfExternalCount(router types.RouterID) int {
 // per-second origination path. AF-agnostic: the .ASExternal()/.NSSA() classifiers match both
 // OSPFv2 (0x0005/0x0007) and OSPFv3 (0x4005/0x2007). Caller holds d.mu.
 func (d *LSDB) selfIsASBRLocked(router types.RouterID) bool {
-	// Type 5 AS-External: scan the AS-wide store directly (it holds only the externals routers
-	// originate -- small, and not all are self).
+	// Type 5 AS-External: scan the AS-wide store directly (small). It also holds non-external
+	// AS-scope LSAs now (the RFC 7770 Router Information LSA, function code 12), which do NOT
+	// make the router an ASBR, so filter to true AS-External-LSAs (ai/rules/no-fabrication:
+	// only a real external/NSSA LSA sets the E-bit).
 	for key, e := range d.asExternal.entries {
-		if key.AdvertisingRouter == router && e.self && !e.purged {
+		if key.Type.ASExternal() && key.AdvertisingRouter == router && e.self && !e.purged {
 			return true
 		}
 	}
@@ -516,6 +609,22 @@ func (d *LSDB) flushReceivedSelfLSA(area types.AreaID, lsa packet.LSA) bool {
 		d.notifyChange(area)
 	}
 	return true
+}
+
+// WithdrawSelf MaxAge-flushes a self-originated area/AS-scope LSA identified by key and
+// returns its flushed header. It is the ext-14 debug-inject withdraw path for OSPFv3 native
+// LSAs (RFC 2328 Section 14 purge), mirroring OriginateOpaque's opaque withdraw.
+func (d *LSDB) WithdrawSelf(area types.AreaID, key types.LSAKey) (packet.LSAHeader, bool) {
+	ok := d.flushSelfLSA(area, key)
+	h, _ := d.Lookup(area, key)
+	return h, ok
+}
+
+// WithdrawLinkSelf MaxAge-flushes a self-originated link-local LSA (RFC 5340 Link-LSA scope)
+// identified by key on iface. It reuses the same in-place re-stamp path as the opaque
+// link-scope withdraw, valid for any self-originated link LSA.
+func (d *LSDB) WithdrawLinkSelf(iface string, key types.LSAKey) (packet.LSAHeader, bool) {
+	return d.flushSelfLinkOpaque(iface, key)
 }
 
 func (d *LSDB) flushSelfLSA(area types.AreaID, key types.LSAKey) bool {
@@ -662,6 +771,13 @@ func (d *LSDB) installOriginated(area types.AreaID, lsa packet.LSA, key types.LS
 }
 
 func (d *LSDB) handleSelfReceived(area types.AreaID, lsa packet.LSA) bool {
+	// RFC 3623 sec 2: while in graceful restart the restarting router MUST NOT modify or
+	// flush received self-originated LSAs; it accepts them as valid (they are its pre-restart
+	// LSAs, held by neighbors). Return false so the normal install path stores the LSA
+	// instead of the fight-back MaxAge flush below.
+	if d.selfFlushSuppressed() {
+		return false
+	}
 	d.mu.RLock()
 	self := d.selfRouter
 	d.mu.RUnlock()

@@ -1,0 +1,85 @@
+# Test: cos warns when running as an external plugin process
+# VALIDATES: plan/learned/1045-plugin-process-boundary.md -- cos's
+# warnIfExternal (internal/plugins/cos/register.go) logs a warning when it
+# runs as a genuine external subprocess, since iface.GetBackend is a
+# same-process call that would silently no-op across the process boundary --
+# ConfigureEventBus (the only place dynamicHandler is set) is never invoked
+# for an external plugin at all, so dynamic per-interface QoS map updates
+# silently never fire. Unlike as112/traffic-usage/flow-export, cos still
+# provides real value external (static profile config and
+# `show class-of-service` both work unaffected), so it warns rather than
+# refuses -- the plugin keeps running.
+# Uses `ze-test plugin-external cos` (internal/test/cli/cmd_plugin_external.go)
+# to launch the real plugin's own RunEngine via a real TLS connect-back,
+# exercising the warning through the actual external-plugin transport, not a
+# mocked conn.
+# PREVENTS: an operator running `plugin { external cos { ... } }` getting no
+# indication that dynamic QoS updates are disabled.
+
+stdin=ze-bgp:terminator=EOF_CONF
+class-of-service {
+	ieee-802.1p residential {
+		ingress {
+			pcp 0 { priority 0; }
+		}
+	}
+}
+
+plugin {
+	external cos {
+		run "ze-test plugin-external cos"
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=wait.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Hold the test open long enough for the external cos subprocess to start
+and log its external-mode warning -- observable via the daemon's relayed
+stderr (default relay level is WARN, and warnIfExternal logs at WARN).
+Unlike the refuse cases, cos keeps running after the warning, so this test
+tears the daemon down via the sleep timeout rather than waiting for cos's
+own exit."""
+import time
+
+time.sleep(4.0)
+EOF_PY
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 wait.py:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=dynamic per-interface QoS map updates

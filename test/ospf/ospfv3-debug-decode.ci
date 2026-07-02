@@ -1,0 +1,14 @@
+# Test: OSPFv3 native LSA scope-aware deep decode.
+#
+# VALIDATES: spec-ospf-ext-14 -- `show ospf ipv6 database <type> detail` decodes each native body typed or via the generic scope-aware view; a malformed body renders raw without panic; the per-scope filter keys on S2/S1 (AC-2/AC-4/AC-8).
+# PREVENTS: a regression in the OSPF debug/introspection surface.
+#
+# Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestV3DecodeTypedDecoder|TestV3DecodeFallbackNoDecoder|TestV3DecodeMalformed|TestV3DatabaseScopeFilter' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=TestV3DecodeTypedDecoder
+expect=stdout:contains=TestV3DecodeFallbackNoDecoder
+expect=stdout:contains=TestV3DecodeMalformed
+expect=stdout:contains=TestV3DatabaseScopeFilter
+expect=stdout:contains=PASS

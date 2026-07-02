@@ -447,9 +447,11 @@ func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, l
 		PeerAddress:   adj.TransportAddr.String(),
 		LDPIdentifier: key,
 		SessionState:  StateOperational.String(),
+		Interface:     adj.Interface,
 	})
 
 	peerAddr := adj.TransportAddr
+	ifName := adj.Interface
 	go runSession(ctx, log, sess, lib, key, fib, func() {
 		sessionsMu.Lock()
 		delete(sessions, key)
@@ -467,6 +469,7 @@ func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, l
 			PeerAddress:   peerAddr.String(),
 			LDPIdentifier: key,
 			SessionState:  StateNonExistent.String(),
+			Interface:     ifName,
 		})
 		for _, b := range removed {
 			emitLabelEvent(eb, log, &LabelBindEvent{
@@ -592,11 +595,16 @@ func discoverOnInterface(ctx context.Context, log *slog.Logger, cfg ldpConfig, l
 			continue
 		}
 
-		processDiscoveryPacket(recvBuf[:n], lsrID, adjTable, onNewAdj, log)
+		processDiscoveryPacket(recvBuf[:n], lsrID, ifName, adjTable, onNewAdj, log)
 	}
 }
 
-func processDiscoveryPacket(data []byte, localLSRID [4]byte, adjTable *AdjacencyTable, onNewAdj func(*Adjacency), log *slog.Logger) {
+// processDiscoveryPacket decodes one received Hello and creates/refreshes the
+// adjacency, tagging it with the local interface it arrived on (ifName) so the
+// emitted SessionEvent carries the discovering interface for LDP-IGP sync
+// consumers (RFC 5443 / RFC 6138). ifName is set inside AdjacencyTable.Update
+// under the table lock, so a concurrent All()/Get() snapshot never sees a torn write.
+func processDiscoveryPacket(data []byte, localLSRID [4]byte, ifName string, adjTable *AdjacencyTable, onNewAdj func(*Adjacency), log *slog.Logger) {
 	if len(data) < ldpHeaderLen+ldpMsgHdrLen {
 		return
 	}
@@ -637,7 +645,7 @@ func processDiscoveryPacket(data []byte, localLSRID [4]byte, adjTable *Adjacency
 		return
 	}
 
-	adj, isNew := adjTable.Update(pdu, hello)
+	adj, isNew := adjTable.Update(pdu, hello, ifName)
 	if isNew && onNewAdj != nil {
 		onNewAdj(adj)
 	}

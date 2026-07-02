@@ -22,7 +22,7 @@ func TestExpireAdjacenciesStopsSession(t *testing.T) {
 	key := AdjacencyKey(lsrID, labelSpace)
 
 	adjTable := NewAdjacencyTable()
-	adj, _ := adjTable.Update(PDUHeader{LSRID: lsrID, LabelSpace: labelSpace}, HelloMessage{})
+	adj, _ := adjTable.Update(PDUHeader{LSRID: lsrID, LabelSpace: labelSpace}, HelloMessage{}, "")
 	adj.LastSeen = time.Now().Add(-time.Hour) // force the adjacency past its hold time
 
 	c1, c2 := net.Pipe()

@@ -136,6 +136,13 @@ type protocolRoute struct {
 	labels           []uint32   // MPLS label stack (nil for unlabeled routes)
 	srv6SID          netip.Addr // SRv6 SID from PrefixSID attribute (zero if absent)
 
+	// backupNextHop and backupLabels are the fast-reroute alternate for this
+	// route's primary next-hop (an IP FRR backup + optional MPLS repair stack).
+	// They ride the winner into BestChangeEntry.Backup as a DEDICATED backup
+	// next-hop, never folded into the ECMP group.
+	backupNextHop netip.Addr
+	backupLabels  []uint32
+
 	// ecmpNextHops are INTRA-protocol equal-cost sibling next-hops for this
 	// prefix from the SAME protocol source, excluding nextHop (the winner).
 	//
@@ -317,6 +324,8 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 				metric:           c.Metric,
 				labels:           c.Labels,
 				srv6SID:          c.SRv6SID,
+				backupNextHop:    c.BackupNextHop,
+				backupLabels:     c.BackupRepairLabels,
 				// Intra-protocol equal-cost siblings (isis-9 ECMP, umbrella A-2)
 				// are now carried on the Loc-RIB Change (computed at emit while the
 				// PathGroup is in hand under the shard lock), so there is no
@@ -462,6 +471,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 			SRv6SID:   winner.srv6SID,
 			Metric:    winner.metric,
 			ECMPPaths: ecmpPaths,
+			Backup:    backupPaths(winner),
 		}
 	}
 
@@ -511,6 +521,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		SRv6SID:   winner.srv6SID,
 		Metric:    winner.metric,
 		ECMPPaths: ecmpPaths,
+		Backup:    backupPaths(winner),
 	}
 }
 
@@ -596,6 +607,7 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 				SRv6SID:   best.srv6SID,
 				Metric:    best.metric,
 				ECMPPaths: remaining,
+				Backup:    backupPaths(best),
 			}
 		}
 		if prevResolved.IsValid() {
@@ -643,6 +655,7 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 		SRv6SID:   best.srv6SID,
 		Metric:    best.metric,
 		ECMPPaths: ecmpPaths,
+		Backup:    backupPaths(best),
 	}
 }
 
@@ -789,6 +802,7 @@ func (s *sysRIB) replayBest() {
 			SRv6SID:   route.srv6SID,
 			Metric:    route.metric,
 			ECMPPaths: s.lastECMP[key],
+			Backup:    backupPaths(route),
 		})
 	}
 	s.mu.RUnlock()
@@ -1072,6 +1086,10 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 			// builds the ECMP group from these instead of re-looking-up the RIB.
 			// Always nil on ChangeRemove (locrib leaves Change.ECMP nil there).
 			ECMPNextHops: c.ECMP,
+			// Fast-reroute backup (carry-through, never an ECMP sibling). Zero on
+			// ChangeRemove because c.Best is the zero Path there.
+			BackupNextHop:      c.Best.BackupNextHop,
+			BackupRepairLabels: c.Best.BackupRepairLabels,
 		}},
 	}
 }

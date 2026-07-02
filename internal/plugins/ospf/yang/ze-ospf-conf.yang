@@ -7,7 +7,207 @@ module ze-ospf-conf {
     description
         "Native OSPFv2 link-state IGP configuration (RFC 2328, RFC 9129 shape).
          Presence of the ospf container enables the component.";
+    revision 2026-07-02 { description "Add per-interface instance-id leaf-list for OSPFv2 Multi-Instance (RFC 6549, spec-ospf-ext-12)."; }
+    revision 2026-06-24 { description "RFC 5838 multiple address families (spec-ospf-ext-15)."; }
     revision 2026-06-20 { description "Initial revision (spec-ospf-4)."; }
+
+    // ospf-af-topology is the per-address-family areas + interfaces shape (RFC 5838): every
+    // OSPFv3 address family reuses the same area/interface model, distinguished only by its
+    // Instance-ID range. The Instance-ID leaf is declared per AF container (its native range
+    // is the AF's RFC 5838 §2.1 sub-range), so it is NOT part of this grouping.
+    grouping ospf-af-topology {
+        container areas {
+            description "OSPFv3 areas for this address family.";
+            list area {
+                key "area-id";
+                description "Per-area OSPFv3 configuration.";
+                leaf area-id {
+                    type string {
+                        pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
+                    }
+                    ze:validate "ospf-area-id";
+                    description "Area identifier as uint32 or dotted quad; 0.0.0.0 is the backbone.";
+                }
+                leaf area-type {
+                    type enumeration {
+                        enum normal;
+                        enum stub;
+                        enum nssa;
+                    }
+                    default "normal";
+                    description "Area type.";
+                }
+                list virtual-link {
+                    key "remote-router-id";
+                    description
+                        "Virtual link through this (transit) area to a backbone
+                         area-border router (RFC 5340 section 4.2). It belongs to the
+                         backbone; its cost is the transit-area SPF path cost, never
+                         configured. The transit area must not be the backbone, a stub,
+                         or an NSSA.";
+                    leaf remote-router-id {
+                        type string {
+                            pattern "([0-9]{1,3}\\.){3}[0-9]{1,3}";
+                        }
+                        ze:validate "ospf-router-id";
+                        description "Router ID of the far virtual-link endpoint (a 32-bit OSPFv3 Router ID, RFC 5340 section 2.11).";
+                    }
+                    leaf hello-interval { type uint16 { range "1..65535"; } default 10; units seconds; description "Hello interval on the virtual link."; }
+                    leaf dead-interval { type uint16 { range "1..65535"; } default 40; units seconds; description "Router-dead interval on the virtual link."; }
+                    leaf retransmit-interval { type uint16 { range "1..65535"; } default 5; units seconds; description "LSA retransmit interval on the virtual link."; }
+                    leaf transmit-delay { type uint16 { range "1..3600"; } default 1; units seconds; description "Estimated LSA transmission delay (RFC 5340 / RFC 2328 InfTransDelay must be > 0)."; }
+                }
+            }
+        }
+        container interfaces {
+            description "OSPFv3-enabled interfaces for this address family.";
+            list interface {
+                key "name";
+                description "Per-interface OSPFv3 configuration.";
+                leaf name { type string { length "1..255"; } description "Interface name."; }
+                leaf area {
+                    type string {
+                        pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
+                    }
+                    ze:validate "ospf-area-id";
+                    description "Declared area this interface belongs to.";
+                }
+                leaf enabled { type boolean; default true; description "OSPFv3 enabled on this interface."; }
+                leaf network-type {
+                    type enumeration {
+                        enum broadcast;
+                        enum point-to-point;
+                        enum nbma;
+                        enum point-to-multipoint;
+                    }
+                    default "broadcast";
+                    description "Interface network type. nbma elects a DR/BDR over a configured neighbor list with unicast/poll Hellos (RFC 5340); point-to-multipoint treats the link as a collection of point-to-point links with per-neighbor /128 host routes and no DR.";
+                }
+                leaf cost { type uint16 { range "1..65535"; } description "Interface output cost."; }
+                leaf hello-interval { type uint16 { range "1..65535"; } default 10; units seconds; description "Hello interval."; }
+                leaf dead-interval { type uint16 { range "1..65535"; } default 40; units seconds; description "Router-dead interval."; }
+                leaf poll-interval { type uint16 { range "1..65535"; } default 120; units seconds; description "NBMA poll interval: the slower Hello rate sent to a configured but silent neighbor (RFC 2328 App C.5)."; }
+                leaf priority { type uint8 { range "0..255"; } default 1; description "DR/BDR election priority; 0 means ineligible."; }
+                list nbma-neighbor {
+                    key "router-id";
+                    description "Statically configured NBMA neighbor (RFC 2328 App C.6); required for network-type nbma or the non-broadcast point-to-multipoint variant. The IPv6 neighbor is keyed by Router ID; the link-local (the unicast Hello destination) may be configured or learned from the first Hello.";
+                    leaf router-id { type string { pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})"; } ze:validate "ospf-router-id"; description "Neighbor OSPFv3 Router ID."; }
+                    leaf link-local { type string; ze:validate "ipv6-address"; description "Neighbor IPv6 link-local address (the unicast Hello destination); learned from the neighbor's first Hello when omitted."; }
+                    leaf priority { type uint8 { range "0..255"; } default 0; description "Neighbor DR/BDR eligibility; 0 means ineligible (polled, never elected)."; }
+                }
+                leaf passive { type boolean; default false; description "Advertise the interface but form no adjacency."; }
+                container ldp-sync {
+                    description
+                        "LDP-IGP synchronization (RFC 5443, RFC 6138) for the IPv6
+                         family; reuses the AF-neutral state machine on the shared
+                         interface model.";
+                    leaf enable { type boolean; default false; description "Enable LDP-IGP synchronization on this interface."; }
+                    leaf holddown {
+                        type uint16 { range "0..65535"; }
+                        default 0;
+                        units seconds;
+                        description "Seconds to wait after the LDP session is established before declaring the link synchronized (RFC 5443 section 2).";
+                    }
+                }
+                container ipsec {
+                    description
+                        "RFC 4552 manual IPsec (AH/ESP) for this OSPFv3 interface. A transport-mode
+                         kernel Security Association plus a proto-89 policy is installed on interface
+                         up; the kernel applies AH/ESP below the socket and silently discards
+                         unprotected or failed-integrity OSPF packets (RFC 4552 §3/§4). This is a
+                         DISTINCT auth path from the RFC 7166 authentication trailer and is mutually
+                         exclusive with a per-interface authentication key-chain. Manual keying only
+                         (RFC 4552 §7: IKE cannot key the multicast group); the key is shared by the
+                         inbound and outbound SA.";
+                    leaf spi {
+                        type uint32 { range "256..4294967295"; }
+                        description "Security Parameters Index (RFC 4303 §2.1 reserves 0..255).";
+                    }
+                    leaf protocol {
+                        type enumeration {
+                            enum ah;
+                            enum esp;
+                        }
+                        default "esp";
+                        description "IPsec protocol: esp (RFC 4303; authentication MUST be supported) or ah (RFC 4302; MAY).";
+                    }
+                    leaf algorithm {
+                        type enumeration {
+                            enum sha1;
+                            enum sha256;
+                            enum sha384;
+                            enum sha512;
+                        }
+                        default "sha256";
+                        description "HMAC-SHA integrity algorithm.";
+                    }
+                    leaf key {
+                        type string {
+                            pattern "[0-9a-fA-F]+";
+                            length "40..128";
+                        }
+                        ze:sensitive;
+                        description "Hex integrity key; length must match the algorithm (sha1=40, sha256=64, sha384=96, sha512=128 hex characters).";
+                    }
+                    leaf encryption-algorithm {
+                        type enumeration {
+                            enum null;
+                            enum aes128;
+                            enum aes256;
+                        }
+                        description "ESP confidentiality algorithm (RFC 4552 §4: only ESP, never AH). Omit or null for authentication-only ESP.";
+                    }
+                    leaf encryption-key {
+                        type string {
+                            pattern "[0-9a-fA-F]+";
+                            length "32..64";
+                        }
+                        ze:sensitive;
+                        description "Hex ESP encryption key; length must match encryption-algorithm (aes128=32, aes256=64 hex characters).";
+                    }
+                }
+                container bfd {
+                    description "RFC 5880 / RFC 5881 single-hop BFD for this OSPFv3 interface. When enabled, a Full adjacency opens an IPv6 single-hop BFD session (link-local pair); a BFD-detected failure declares the neighbor down far faster than the router-dead interval.";
+                    leaf enabled { type boolean; default false; description "Enable single-hop BFD failure detection on this interface."; }
+                    leaf min-tx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval)."; }
+                    leaf min-rx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Required minimum BFD receive interval (RFC 5880 Required Min RX Interval)."; }
+                    leaf multiplier { type uint8 { range "1..255"; } default 3; description "BFD detection multiplier (RFC 5880 Detect Mult)."; }
+                }
+            }
+        }
+        uses ospf-segment-routing;
+    }
+
+    // ospf-segment-routing is the per-address-family Segment Routing config (RFC 8665
+    // OSPFv2 / RFC 8666 OSPFv3): the SRGB/SRLB label ranges this node owns, the node
+    // Prefix-SIDs it advertises, and the SR Mapping-Server preference. Used by the
+    // top-level ospf container (IPv4) and every OSPFv3 address family (spec-ospf-ext-5).
+    grouping ospf-segment-routing {
+        container segment-routing {
+            description "RFC 8665 (OSPFv2) / RFC 8666 (OSPFv3) Segment Routing over the MPLS data plane. Advertises SR-Algorithm 0, the SRGB/SRLB label ranges, and per-prefix Prefix-SIDs; installs label-switched forwarding through the shared mpls-fib. Off by default.";
+            leaf enable { type boolean; default false; description "Enable Segment Routing for this address family. When true the RI LSA advertises SR-Algorithm 0 and the configured SRGB/SRLB."; }
+            container srgb {
+                description "Segment Routing Global Block: the contiguous global MPLS label range this node owns, mapped by Prefix-SID index (RFC 8665 sec 3.2). MUST NOT overlap the SRLB or the LDP/RSVP-TE label space.";
+                leaf lower-bound { type uint32 { range "16..1048575"; } description "First MPLS label of the SRGB (inclusive)."; }
+                leaf upper-bound { type uint32 { range "16..1048575"; } description "Last MPLS label of the SRGB (inclusive). Must be >= lower-bound."; }
+            }
+            container srlb {
+                description "Segment Routing Local Block: the local MPLS label range Adjacency-SIDs are allocated from (RFC 8665 sec 3.3). MUST NOT overlap the SRGB or the LDP/RSVP-TE label space.";
+                leaf lower-bound { type uint32 { range "16..1048575"; } description "First MPLS label of the SRLB (inclusive)."; }
+                leaf upper-bound { type uint32 { range "16..1048575"; } description "Last MPLS label of the SRLB (inclusive). Must be >= lower-bound."; }
+            }
+            list prefix-sid {
+                key "prefix";
+                description "Prefix-SIDs advertised for local prefixes (typically the loopback). Each carries a SID index into this node's SRGB (RFC 8665 sec 5).";
+                leaf prefix { type zt:ip-prefix; description "The local prefix (host loopback for a node-SID)."; }
+                leaf index { type uint32; description "The SID index into the SRGB; the label is SRGB-base + index. Must be within the total SRGB size."; }
+                leaf node-sid { type boolean; default true; description "Mark this as a node Prefix-SID (sets the N-Flag on the Extended Prefix TLV)."; }
+                leaf no-php { type boolean; default false; description "Set the NP-Flag: the penultimate hop keeps the label rather than popping it (no penultimate-hop-popping)."; }
+                leaf explicit-null { type boolean; default false; description "Set the E-Flag: the upstream neighbor uses the Explicit NULL label (0 IPv4 / 2 IPv6). Requires no-php."; }
+            }
+            leaf srms-preference { type uint8; description "SR Mapping-Server preference advertised in the SRMS-Preference TLV (RFC 8665 sec 3.4). Absent when unset."; }
+        }
+    }
 
     container ospf {
         description "OSPFv2 routing instance configuration.";
@@ -35,6 +235,80 @@ module ze-ospf-conf {
             type uint8 { range "1..32"; }
             default 8;
             description "Maximum ECMP paths per prefix.";
+        }
+
+        leaf opaque {
+            type boolean;
+            default false;
+            description
+                "Enable the RFC 5250 opaque-LSA capability. When true, this router sets
+                 the O-bit in its Database Description packets (advertising it will
+                 receive and forward opaque LSAs) and originates opaque LSAs for any
+                 registered consumer. Received opaque LSAs are stored and reflooded by
+                 their scope regardless of this leaf; disabling it only stops advertising
+                 opaque capability and originating opaque LSAs.";
+        }
+
+        leaf extended-prefix {
+            type boolean;
+            default false;
+            description
+                "Originate RFC 7684 Extended Prefix Opaque LSAs (Opaque Type 7) that associate
+                 attributes with this router's advertised prefixes. Requires opaque true. The
+                 LSA is a container a prefix-attribute application (e.g. Segment Routing) fills
+                 with sub-TLVs; it is off by default until such a producer needs it. Received
+                 Extended Prefix LSAs are decoded and shown regardless of this leaf.";
+        }
+
+        leaf extended-link {
+            type boolean;
+            default false;
+            description
+                "Originate RFC 7684 Extended Link Opaque LSAs (Opaque Type 8) that associate
+                 attributes with this router's links (one LSA per point-to-point/transit link,
+                 mirroring the Router-LSA link). Requires opaque true. The LSA is a container a
+                 link-attribute application (e.g. Segment Routing) fills with sub-TLVs; it is
+                 off by default until such a producer needs it. Received Extended Link LSAs are
+                 decoded and shown regardless of this leaf.";
+        }
+
+        leaf router-address {
+            type zt:ipv4-address;
+            description
+                "RFC 3630 sec 2.4.1 Traffic Engineering Router Address: a stable,
+                 always-reachable IPv4 address (typically a loopback) advertised once per
+                 router in its Router-Address TE LSA. Defaults to the Router ID when unset.
+                 Requires opaque and at least one traffic-engineering interface to take
+                 effect.";
+        }
+
+        container fast-reroute {
+            description
+                "RFC 5286 Loop-Free Alternate (LFA) and TI-LFA IP fast reroute. When
+                 enabled, SPF pre-computes a loop-free backup next-hop alongside each
+                 primary and programs it into the FIB, so a single local link or node
+                 failure is repaired locally before the IGP reconverges. TI-LFA mode adds
+                 a Segment-Routing repair-list fallback where no directly-connected LFA
+                 exists (requires segment-routing). Applies to OSPFv2 and OSPFv3; OSPFv3
+                 gets base-LFA next-hop selection (SR repair labels are IPv4 only).";
+            leaf enable {
+                type boolean;
+                default false;
+                description "Enable LFA / TI-LFA fast-reroute backup computation and install.";
+            }
+            leaf mode {
+                type enumeration {
+                    enum lfa { description "Base loop-free alternates only (RFC 5286)."; }
+                    enum ti-lfa { description "Add the Segment-Routing repair-list fallback (TI-LFA)."; }
+                }
+                default lfa;
+                description "Backup computation mode: base LFA, or LFA with a TI-LFA SR-repair fallback.";
+            }
+            leaf node-protection {
+                type boolean;
+                default true;
+                description "Prefer node-protecting alternates over link-only alternates (RFC 5286 Section 3.6).";
+            }
         }
 
         container default-information {
@@ -69,6 +343,48 @@ module ze-ospf-conf {
                 leaf on-shutdown { type uint32 { range "0..86400"; } units seconds; description "Advertise as a stub router for N seconds during a graceful shutdown (0 disables)."; }
             }
         }
+
+        container router-information {
+            description "RFC 7770 Router Information (RI) LSA: advertise this router's optional capabilities (OSPFv2 opaque type 4, OSPFv3 function code 12). Applies to both address families; a top-level container drives the OSPFv3 family unless it configures its own.";
+            leaf enabled { type boolean; default false; description "Originate the Router Information LSA advertising this router's informational capabilities. OSPFv2 also requires 'opaque true' (the RI LSA is an opaque LSA)."; }
+            leaf-list scope {
+                type enumeration {
+                    enum link { description "Link-local (OSPFv2 opaque type 9)."; }
+                    enum area { description "Area (OSPFv2 opaque type 10, OSPFv3 0xA00C)."; }
+                    enum as { description "AS-wide (OSPFv2 opaque type 11, OSPFv3 0xC00C)."; }
+                }
+                description "Flooding scope(s) at which the RI LSA is advertised (RFC 7770 sec 2.7). When enabled with no scope listed, defaults to area + as.";
+            }
+        }
+
+        container graceful-restart {
+            description "RFC 3623 (OSPFv2) / RFC 5187 (OSPFv3) Graceful Restart: keep forwarding across a control-plane restart. Family-neutral: this container drives both address families (the OSPFv3 family inherits it unless it configures its own).";
+            container restarter {
+                description "This router's restarting-router role: originate Grace-LSAs and preserve the FIB across a restart.";
+                leaf support {
+                    type enumeration {
+                        enum disabled { description "Never originate a Grace-LSA; restart normally (default)."; }
+                        enum planned { description "Originate Grace-LSAs on an operator-triggered (planned) restart only."; }
+                        enum planned-and-unplanned { description "Originate Grace-LSAs on planned and on unplanned (cold) restarts (RFC 3623 sec 5); the unplanned reason is restricted to unknown/redundant-cp."; }
+                    }
+                    default "disabled";
+                    description "RFC 3623 Appendix B.1 RestartSupport.";
+                }
+                leaf restart-interval {
+                    type uint16 { range "1..1800"; }
+                    units seconds;
+                    default 120;
+                    description "RFC 3623 Appendix B.1 RestartInterval: the grace period neighbors keep advertising this router as fully adjacent. Should not exceed LSRefreshTime (1800 s) or this router's own LSAs age out mid-restart.";
+                }
+            }
+            container helper {
+                description "This router's helper role: hold an adjacency to a restarting neighbor and suppress LSDB churn for its grace period.";
+                leaf support { type boolean; default true; description "RFC 3623 Appendix B.2 RestartHelperSupport: act as a helper for a restarting neighbor."; }
+                leaf strict-lsa-checking { type boolean; default true; description "RFC 3623 Appendix B.2 RestartHelperStrictLSAChecking (sec 3.2): terminate helper mode when a changed LSA that would flood to the restarting router is installed."; }
+            }
+        }
+
+        uses ospf-segment-routing;
 
         list redistribute {
             key "source";
@@ -158,6 +474,25 @@ module ze-ospf-conf {
                         leaf cost { type uint32 { range "0..16777215"; } description "Override cost for the aggregate Type 3 LSA."; }
                     }
                 }
+                list virtual-link {
+                    key "remote-router-id";
+                    description
+                        "Virtual link through this (transit) area to a backbone area-border
+                         router (RFC 2328 section 15). The virtual link belongs to the backbone;
+                         its output cost is computed from the transit-area SPF, never configured.
+                         The transit area must not be the backbone, a stub, or an NSSA.";
+                    leaf remote-router-id {
+                        type string {
+                            pattern "([0-9]{1,3}\\.){3}[0-9]{1,3}";
+                        }
+                        ze:validate "ospf-router-id";
+                        description "Router ID of the far virtual-link endpoint (the other area-border router).";
+                    }
+                    leaf hello-interval { type uint16 { range "1..65535"; } default 10; units seconds; description "Hello interval on the virtual link."; }
+                    leaf dead-interval { type uint16 { range "1..65535"; } default 40; units seconds; description "Router-dead interval on the virtual link."; }
+                    leaf retransmit-interval { type uint16 { range "1..65535"; } default 5; units seconds; description "LSA retransmit interval on the virtual link."; }
+                    leaf transmit-delay { type uint16 { range "1..3600"; } default 1; units seconds; description "Estimated LSA transmission delay (RFC 2328 InfTransDelay must be > 0)."; }
+                }
             }
         }
 
@@ -179,19 +514,37 @@ module ze-ospf-conf {
                     type enumeration {
                         enum broadcast;
                         enum point-to-point;
+                        enum nbma;
+                        enum point-to-multipoint;
                         enum loopback;
                     }
                     default "broadcast";
-                    description "Interface network type.";
+                    description "Interface network type. nbma elects a DR/BDR over a configured neighbor list with unicast/poll Hellos (RFC 2328); point-to-multipoint treats the link as a collection of point-to-point links with per-neighbor host routes and no DR.";
                 }
                 leaf cost { type uint16 { range "1..65535"; } description "Interface output cost."; }
                 leaf hello-interval { type uint16 { range "1..65535"; } default 10; units seconds; description "Hello interval."; }
                 leaf dead-interval { type uint16 { range "1..65535"; } default 40; units seconds; description "Router-dead interval."; }
+                leaf poll-interval { type uint16 { range "1..65535"; } default 120; units seconds; description "NBMA poll interval: the slower Hello rate sent to a configured but silent neighbor (RFC 2328 App C.5)."; }
                 leaf priority { type uint8 { range "0..255"; } default 1; description "DR/BDR election priority; 0 means ineligible."; }
+                list nbma-neighbor {
+                    key "address";
+                    description "Statically configured NBMA neighbor (RFC 2328 App C.6); required for network-type nbma or the non-broadcast point-to-multipoint variant.";
+                    leaf address { type string; ze:validate "ipv4-address"; description "Neighbor IPv4 interface address (the unicast Hello destination)."; }
+                    leaf priority { type uint8 { range "0..255"; } default 0; description "Neighbor DR/BDR eligibility; 0 means ineligible (polled, never elected)."; }
+                }
                 leaf passive { type boolean; default false; description "Advertise the interface but form no adjacency."; }
                 leaf mtu-ignore { type boolean; default false; description "Skip DD MTU mismatch rejection."; }
                 leaf retransmit-interval { type uint16 { range "1..65535"; } default 5; units seconds; description "LSA retransmit interval."; }
                 leaf transmit-delay { type uint16 { range "1..3600"; } default 1; units seconds; description "Estimated LSA transmission delay (RFC 2328 InfTransDelay must be > 0)."; }
+                leaf-list instance-id {
+                    type uint8 { range "0..255"; }
+                    description
+                        "OSPFv2 Multi-Instance Instance ID(s) this interface participates in
+                         (RFC 6549 section 3). Absent means the base instance 0 only, which is
+                         bit-for-bit compatible with base OSPFv2. Each listed value runs a
+                         separate OSPFv2 instance demultiplexed on this subnet; a received packet
+                         whose Instance ID matches none of them is discarded (section 2/3.1).";
+                }
                 container authentication {
                     description "Per-interface authentication settings.";
                     leaf mode {
@@ -209,6 +562,78 @@ module ze-ospf-conf {
                         description "Authentication mode; inherit uses the area default.";
                     }
                     leaf key-chain { type string { length "1..63"; } description "Key chain reference."; }
+                }
+                container ldp-sync {
+                    description
+                        "LDP-IGP synchronization (RFC 5443, RFC 6138): hold the link at
+                         maximum cost (point-to-point) or withhold its transit link
+                         (broadcast, non-cut-edge) until LDP is synchronized, so transit
+                         traffic is not black-holed before the label bindings exist.";
+                    leaf enable { type boolean; default false; description "Enable LDP-IGP synchronization on this interface."; }
+                    leaf holddown {
+                        type uint16 { range "0..65535"; }
+                        default 0;
+                        units seconds;
+                        description
+                            "Seconds to wait after the LDP session is established before
+                             declaring the link synchronized (RFC 5443 section 2 estimation
+                             that all label bindings are exchanged; the RFC defines no
+                             universal default). 0 restores the cost immediately once the
+                             session is up (allowed but discouraged).";
+                    }
+                }
+                container traffic-engineering {
+                    description
+                        "RFC 3630 / RFC 5392 Traffic Engineering link attributes advertised
+                         in a Type 10 (or, for inter-as, Type 10/11) opaque TE LSA. Requires
+                         the top-level opaque leaf. The TE metric is independent of cost.";
+                    leaf enable { type boolean; default false; description "Advertise a TE Link LSA for this interface."; }
+                    leaf te-metric {
+                        type uint32 { range "0..4294967295"; }
+                        description "RFC 3630 sec 2.5.5 Traffic Engineering metric; independent of the OSPF cost, defaulting to it when unset.";
+                    }
+                    leaf max-bandwidth {
+                        type uint64;
+                        units bytes/second;
+                        description "RFC 3630 sec 2.5.6 Maximum Bandwidth (true link capacity) in bytes/second.";
+                    }
+                    leaf max-reservable-bandwidth {
+                        type uint64;
+                        units bytes/second;
+                        description "RFC 3630 sec 2.5.7 Maximum Reservable Bandwidth in bytes/second; defaults to max-bandwidth.";
+                    }
+                    leaf admin-group {
+                        type uint32;
+                        description "RFC 3630 sec 2.5.9 Administrative Group (Resource Class/Color) 32-bit mask; LSB is group 0.";
+                    }
+                    container inter-as {
+                        presence "Advertise this as an RFC 5392 inter-AS TE link (Opaque type 6).";
+                        description
+                            "RFC 5392 inter-AS TE link. No OSPF adjacency is formed on the link
+                             (sec 4); the ASBR proxies the link into its own AS. Requires
+                             remote-as and at least one remote-asbr address.";
+                        leaf remote-as {
+                            type zt:asn;
+                            mandatory true;
+                            description "RFC 5392 sec 3.3.1 Remote AS Number of the neighboring AS the link connects to.";
+                        }
+                        leaf remote-asbr-ipv4 {
+                            type zt:ipv4-address;
+                            description "RFC 5392 sec 3.3.2 IPv4 Remote ASBR ID (sub-TLV 22); recommended to be the remote TE Router ID.";
+                        }
+                        leaf remote-asbr-ipv6 {
+                            type zt:ipv6-address;
+                            description "RFC 5392 sec 3.3.3 IPv6 Remote ASBR ID (sub-TLV 24, not 23); a stable global IPv6 address.";
+                        }
+                        leaf scope {
+                            type enumeration {
+                                enum area;
+                                enum as;
+                            }
+                            default "area";
+                            description "RFC 5392 sec 3.1.1 flooding scope policy: area (Type 10, limited to the ASBR's area) or as (Type 11, AS-wide).";
+                        }
+                    }
                 }
             }
         }
@@ -249,6 +674,13 @@ module ze-ospf-conf {
                     leaf start { type string { length "1..64"; } description "RFC3339 start timestamp."; }
                     leaf end { type string { length "1..64"; } description "RFC3339 end timestamp."; }
                 }
+                container bfd {
+                    description "RFC 5880 / RFC 5881 single-hop BFD for this OSPF interface. When enabled, a Full adjacency opens a single-hop BFD session; a BFD-detected failure declares the neighbor down far faster than the router-dead interval.";
+                    leaf enabled { type boolean; default false; description "Enable single-hop BFD failure detection on this interface."; }
+                    leaf min-tx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval)."; }
+                    leaf min-rx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Required minimum BFD receive interval (RFC 5880 Required Min RX Interval)."; }
+                    leaf multiplier { type uint8 { range "1..255"; } default 3; description "BFD detection multiplier (RFC 5880 Detect Mult)."; }
+                }
             }
         }
 
@@ -258,64 +690,53 @@ module ze-ospf-conf {
                  second engine instance over the ospfv3 transport (ff02::5/6), sharing the
                  FSM/flooding/SPF machinery with the IPv4 family.";
             container ipv6 {
-                description "OSPFv3 (IPv6) address family; presence enables the v6 instance.";
+                description "Default IPv6-unicast OSPFv3 address family (RFC 5340); the bare
+                    `ipv6` spelling is the IPv6-unicast AF. Presence enables the v6 instance.";
                 leaf instance-id {
-                    type uint8 { range "0..255"; }
+                    type uint8 { range "0..31"; }
                     default 0;
-                    description "OSPFv3 Instance ID for per-interface demultiplexing (RFC 5340 section 2.5).";
+                    description "OSPFv3 Instance ID (RFC 5340 §2.5); the RFC 5838 §2.1 IPv6-unicast range is 0-31.";
                 }
-                container areas {
-                    description "OSPFv3 areas.";
-                    list area {
-                        key "area-id";
-                        description "Per-area OSPFv3 configuration.";
-                        leaf area-id {
-                            type string {
-                                pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
-                            }
-                            ze:validate "ospf-area-id";
-                            description "Area identifier as uint32 or dotted quad; 0.0.0.0 is the backbone.";
-                        }
-                        leaf area-type {
-                            type enumeration {
-                                enum normal;
-                                enum stub;
-                                enum nssa;
-                            }
-                            default "normal";
-                            description "Area type.";
-                        }
-                    }
+                uses ospf-af-topology;
+            }
+            container ipv6-unicast {
+                description "IPv6-unicast OSPFv3 address family (RFC 5838 §2.1: Instance ID 0-31).";
+                leaf instance-id {
+                    type uint8 { range "0..31"; }
+                    default 0;
+                    description "OSPFv3 Instance ID; the RFC 5838 §2.1 IPv6-unicast range is 0-31.";
                 }
-                container interfaces {
-                    description "OSPFv3-enabled interfaces.";
-                    list interface {
-                        key "name";
-                        description "Per-interface OSPFv3 configuration.";
-                        leaf name { type string { length "1..255"; } description "Interface name."; }
-                        leaf area {
-                            type string {
-                                pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
-                            }
-                            ze:validate "ospf-area-id";
-                            description "Declared area this interface belongs to.";
-                        }
-                        leaf enabled { type boolean; default true; description "OSPFv3 enabled on this interface."; }
-                        leaf network-type {
-                            type enumeration {
-                                enum broadcast;
-                                enum point-to-point;
-                            }
-                            default "broadcast";
-                            description "Interface network type.";
-                        }
-                        leaf cost { type uint16 { range "1..65535"; } description "Interface output cost."; }
-                        leaf hello-interval { type uint16 { range "1..65535"; } default 10; units seconds; description "Hello interval."; }
-                        leaf dead-interval { type uint16 { range "1..65535"; } default 40; units seconds; description "Router-dead interval."; }
-                        leaf priority { type uint8 { range "0..255"; } default 1; description "DR/BDR election priority; 0 means ineligible."; }
-                        leaf passive { type boolean; default false; description "Advertise the interface but form no adjacency."; }
-                    }
+                uses ospf-af-topology;
+            }
+            container ipv6-multicast {
+                description "IPv6-multicast OSPFv3 address family (RFC 5838 §2.1: Instance ID 32-63).
+                    Reachability is computed unicast-shaped; MOSPF tree computation is not implemented.";
+                leaf instance-id {
+                    type uint8 { range "32..63"; }
+                    default 32;
+                    description "OSPFv3 Instance ID; the RFC 5838 §2.1 IPv6-multicast range is 32-63.";
                 }
+                uses ospf-af-topology;
+            }
+            container ipv4-unicast {
+                description "IPv4-unicast over OSPFv3 (RFC 5838 §2.1/§2.7: Instance ID 64-95). Carries
+                    IPv4 prefixes in the address-free OSPFv3 LSA model; routes install into the IPv4 RIB.";
+                leaf instance-id {
+                    type uint8 { range "64..95"; }
+                    default 64;
+                    description "OSPFv3 Instance ID; the RFC 5838 §2.1 IPv4-unicast range is 64-95.";
+                }
+                uses ospf-af-topology;
+            }
+            container ipv4-multicast {
+                description "IPv4-multicast over OSPFv3 (RFC 5838 §2.1: Instance ID 96-127).
+                    Reachability is computed unicast-shaped; MOSPF tree computation is not implemented.";
+                leaf instance-id {
+                    type uint8 { range "96..127"; }
+                    default 96;
+                    description "OSPFv3 Instance ID; the RFC 5838 §2.1 IPv4-multicast range is 96-127.";
+                }
+                uses ospf-af-topology;
             }
         }
     }

@@ -1,0 +1,11 @@
+# Test: OSPFv3 Segment Routing origination (spec-ospf-ext-5, RFC 8666 / RFC 8362).
+#
+# VALIDATES: with SR enabled on the IPv6 family, the engine originates an E-Router-LSA (0x2021)
+# carrying an Adj-SID (sub-TLV 5) under a Router-Link TLV and an E-Intra-Area-Prefix-LSA (0x2029)
+# carrying a Prefix-SID (sub-TLV 4) under an Intra-Area-Prefix TLV, round-tripping through the
+# real RFC 8362 framing + RFC 8666 value codecs.
+# PREVENTS: a v6 SR Extended LSA that never carries the SID, or a node Prefix-SID lost in carriage.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestOSPFv3ERouterBodyCarriesAdjSID|TestOSPFv3ERouterBodyEmptyWithoutAdjSID|TestOSPFv3EIntraAreaPrefixRoundTrip' -count=1:timeout=90s
+expect=exit:code=0
+expect=stdout:contains=PASS

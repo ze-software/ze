@@ -1,0 +1,148 @@
+# Test: OSPFv2 virtual-link config validation (spec-ospf-ext-7, RFC 2328 section 15).
+#
+# VALIDATES: spec-ospf-ext-7 AC-1/AC-2/AC-3 -- a `virtual-link` nested under a transit area
+# parses and validates; a stub or backbone transit area, a non-ABR router, or a self
+# remote-router-id are rejected by the in-process verifier before any runtime state changes.
+# PREVENTS: a virtual link being accepted through a stub/backbone transit area, on a
+# non-ABR, or pointing at this router's own Router ID.
+
+# --- Valid virtual link: ABR (areas 0.0.0.1 + 0.0.0.2) with a virtual link through the
+# --- normal transit area 0.0.0.1 to the far endpoint 10.0.0.2. --------------------------
+stdin=vl-valid:terminator=EOF_VALID
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.1 {
+			area-type normal
+			virtual-link 10.0.0.2 {
+				hello-interval 10
+				dead-interval 40
+			}
+		}
+		area 0.0.0.2 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.1
+		}
+		interface eth1 {
+			area 0.0.0.2
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=vl-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Stub transit area: a virtual link MUST NOT transit a stub area (RFC 2328 section 15).
+stdin=vl-stub:terminator=EOF_STUB
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.1 {
+			area-type stub
+			virtual-link 10.0.0.2 {
+			}
+		}
+		area 0.0.0.2 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.1
+		}
+		interface eth1 {
+			area 0.0.0.2
+		}
+	}
+}
+EOF_STUB
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=vl-stub
+expect=exit:code=1
+expect=stdout:contains=stub
+
+# --- Backbone transit area: a virtual link MUST NOT transit the backbone 0.0.0.0. --------
+stdin=vl-backbone:terminator=EOF_BB
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			virtual-link 10.0.0.2 {
+			}
+		}
+		area 0.0.0.2 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+		interface eth1 {
+			area 0.0.0.2
+		}
+	}
+}
+EOF_BB
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=vl-backbone
+expect=exit:code=1
+expect=stdout:contains=backbone
+
+# --- Non-ABR: a router attached to a single area cannot host a virtual link. -------------
+stdin=vl-nonabr:terminator=EOF_NONABR
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.1 {
+			area-type normal
+			virtual-link 10.0.0.2 {
+			}
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.1
+		}
+	}
+}
+EOF_NONABR
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=vl-nonabr
+expect=exit:code=1
+expect=stdout:contains=area border router
+
+# --- Self remote-router-id: a virtual link's far endpoint must not be this router. -------
+stdin=vl-self:terminator=EOF_SELF
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.1 {
+			area-type normal
+			virtual-link 10.0.0.1 {
+			}
+		}
+		area 0.0.0.2 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.1
+		}
+		interface eth1 {
+			area 0.0.0.2
+		}
+	}
+}
+EOF_SELF
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=vl-self
+expect=exit:code=1
+expect=stdout:contains=remote-router-id

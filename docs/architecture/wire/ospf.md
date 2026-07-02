@@ -52,8 +52,24 @@ Authentication field. The checksum field is zero while computing.
 
 `DecodeLSA` reads the 20-byte LSA header and uses the Length field to retain the
 raw LSA span. Body parsing is on demand through `DecodeRouter`, `DecodeNetwork`,
-`DecodeSummary`, and `DecodeExternal`. Opaque LSA types 9, 10, and 11 are retained
-as raw bytes for verbatim re-flooding.
+`DecodeSummary`, and `DecodeExternal`. Opaque LSA types 9, 10, and 11 (RFC 5250)
+are retained as raw bytes for verbatim re-flooding. For an opaque LSA the 32-bit
+Link State ID splits into an 8-bit Opaque Type and a 24-bit Opaque ID, read with
+`LSA.OpaqueType()` / `LSA.OpaqueID()` (or `packet.OpaqueTypeOf` / `OpaqueIDOf`), and
+composed with `packet.OpaqueLinkStateID`; the split lives in the codec, never in the
+LSDB key. `packet.OpaqueTLV` / `OpaqueTLVIterator` carry a consumer's opaque body as
+4-byte-aligned type-length-value triples (buffer-first emit, zero-copy bound-checked
+iteration). On top of that iterator, the RFC 7684 Extended Prefix (Opaque type 7) and
+Extended Link (Opaque type 8) bodies are coded by `packet.EncodeExtPrefixLSA` /
+`DecodeExtPrefixLSA` and `EncodeExtLinkLSA` / `DecodeExtLinkLSA`: an Extended Prefix TLV is
+an 8-octet fixed header (Route Type, Prefix Length, AF, Flags, then a 32-bit Address Prefix
+for AF 0 regardless of Prefix Length) followed by nested sub-TLVs; an Extended Link TLV is a
+12-octet fixed header (Link Type, 3-octet Reserved, Link ID, Link Data mirrored from the
+Router-LSA link) followed by nested sub-TLVs. A TLV or sub-TLV overrunning its parent, or
+trailing data smaller than a header, is reported as an error (RFC 7684 §5), never a panic.
+Opaque capability is advertised with the O-bit (`types.OptionO`) in the
+OSPF Options field of Database Description packets only; a router floods opaque LSAs
+only to neighbours whose DD carried the O-bit and ignores the O-bit outside DD.
 
 `LSA.WriteTo` recomputes Length and the RFC 905 Fletcher checksum for constructed
 LSAs. The Fletcher checksum covers `lsa[2:]`, excluding LS Age and including the
@@ -72,6 +88,54 @@ In-scope bodies:
 
 The Type 2 Network-LSA Link State ID remains the raw DR interface address in the
 common LSA header. The codec does not reinterpret it as a network prefix.
+
+## Traffic Engineering LSA body (RFC 3630, RFC 5392)
+
+`packet.TELSA` / `DecodeTELSA` code the Traffic Engineering LSA body carried inside a
+Type 10 (or, for inter-AS, Type 10/11) opaque LSA, built on the `OpaqueTLV` framing.
+A TE LSA carries exactly one top-level TLV: the Router Address TLV (type 1, a 4-octet
+IPv4 address) or the Link TLV (type 2). The Link TLV nests the RFC 3630 §2.5 sub-TLVs:
+Link Type (1, one octet: 1 point-to-point, 2 multi-access), Link ID (2, 4 octets),
+Local (3) and Remote (4) Interface IP (4N octets), TE Metric (5, uint32), Maximum (6)
+and Maximum-Reservable (7) Bandwidth, Unreserved Bandwidth (8, eight values priority 0
+first through 7 last), and Administrative Group (9, a 32-bit mask, LSB = group 0). The
+three bandwidth sub-TLVs encode 32-bit IEEE-754 single-precision **bytes per second**
+(not bits/sec, not integers); `TELink` stores them as `float64`. Every TLV is padded to
+a 4-octet boundary with the pad excluded from the Length field (RFC 3630 §2.3.2).
+
+RFC 5392 (Opaque type 6) adds no top-level TLV: the Link TLV carries the Remote AS
+Number sub-TLV (21, 4 octets, a 2-byte ASN zero-extended into the high 16 bits), the
+IPv4 Remote ASBR ID (22, 4 octets), and the IPv6 Remote ASBR ID (24 -- **not** 23 --
+16 octets); the Link ID sub-TLV is prohibited (§3.2.1). `DecodeTELSA` uses the
+bound-checked `OpaqueTLVIterator` and never panics on a malformed body or sub-TLV,
+returning an error instead (fuzzed by `FuzzOSPFTEBody`).
+<!-- source: internal/plugins/ospf/packet/te_lsa.go -- TELSA, TELink, DecodeTELSA, Encode -->
+<!-- source: internal/plugins/ospf/packet/te_interas.go -- appendInterAsSubTLVs, parseInterAsSubTLV -->
+
+## Router Information LSA body (RFC 7770)
+
+The Router Information (RI) LSA carries the same 4-byte-aligned TLV stream in both address
+families; `packet.EncodeRITLVs` / `DecodeRITLVStream` code it over the generic `OpaqueTLV`
+framing. Its carriage differs: OSPFv2 uses an Opaque LSA with Opaque type 4 (the 24-bit
+Opaque ID is the RI Instance ID, Instance 0 = LS ID `4.0.0.0`); OSPFv3 uses a native LSA
+with function code 12 and the U-bit set, so the 16-bit LS Type is `0x800C` link, `0xA00C`
+area, `0xC00C` AS (`ospfv3/types.LSTypeRouterInformation*`). The U-bit (RFC 5340 §A.4.2.1)
+makes a non-supporting router still flood the area/AS LSA rather than confine it to link-local
+scope; Ze recognizes a received RI LSA by function code regardless of the U-bit.
+
+The body's first TLV in Instance 0 is the Router Informational Capabilities TLV (type 1, a
+4-octet capability word, bits numbered MSB = bit 0: 0 GR-capable, 1 GR-helper, 2 stub-router,
+3 TE); a Functional Capabilities TLV (type 2) is carried empty. `RICapabilitiesValue` /
+`RIReadCapabilities` encode and decode the word. Registered downstream TLVs follow in
+ascending TLV-type order and overflow into subsequent Instance IDs (RFC 7770 §3); a receiver
+uses the smallest Instance ID for an unspecified-multi-instance TLV. `DecodeRITLVStream` uses
+the bound-checked iterator and returns an error on a malformed body rather than panicking. An
+AS-scope OSPFv3 RI LSA (0xC00C) shares the AS-wide store with AS-External LSAs but is
+distinguished by function code: `LSType.ASWide()` routes it AS-wide while `LSType.ASExternal()`
+(function code 5 only) keeps it out of SPF and the route table.
+<!-- source: internal/plugins/ospf/packet/ri_tlv.go -- RITLV, EncodeRITLVs, DecodeRITLVStream, RICapabilitiesValue, RIReadCapabilities -->
+<!-- source: internal/plugins/ospf/v3/types/lsa.go -- LSTypeRouterInformationArea, RIFunctionCode, Known -->
+<!-- source: internal/plugins/ospf/types/lstype.go -- ASWide, ASExternal -->
 
 ## LSDB, origination, and flooding
 

@@ -46,6 +46,35 @@ func TestOSPFv3RouterLSARoundTrip(t *testing.T) {
 	}
 }
 
+// VALIDATES: spec-ospf-ext-7 A-1 -- the OSPFv3 Router-LSA round-trips the V-bit and a
+// RouterLinkTypeVirtual record (Interface ID, Neighbor Interface ID, Neighbor Router ID,
+// metric) byte-for-byte (RFC 5340 App A.4.3).
+func TestV6RouterLSAVirtualRecordRoundTrip(t *testing.T) {
+	want := RouterLSA{
+		Flags:   RouterFlagV | RouterFlagB,
+		Options: mustOptions(t, uint32(types.OptV6|types.OptR)),
+		Links: []RouterLink{{
+			Type:                RouterLinkTypeVirtual,
+			Metric:              25,
+			InterfaceID:         types.InterfaceID(42),
+			NeighborInterfaceID: types.InterfaceID(99),
+			NeighborRouterID:    types.RouterID{172, 30, 0, 1},
+		}},
+	}
+	buf := make([]byte, want.EncodedLen())
+	want.WriteTo(buf, 0)
+	got, err := DecodeRouterLSA(buf)
+	if err != nil {
+		t.Fatalf("DecodeRouterLSA: %v", err)
+	}
+	if got.Flags&RouterFlagV == 0 {
+		t.Fatalf("V-bit lost: flags = %#x", got.Flags)
+	}
+	if len(got.Links) != 1 || got.Links[0] != want.Links[0] {
+		t.Fatalf("virtual link record = %+v, want %+v", got.Links, want.Links)
+	}
+}
+
 func TestOSPFv3RouterLSARejectsMisalignedLinks(t *testing.T) {
 	// A body that is the fixed 4 octets plus a partial (non-16) link record must be
 	// rejected, not silently truncated.

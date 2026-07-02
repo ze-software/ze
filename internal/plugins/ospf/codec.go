@@ -44,8 +44,9 @@ const (
 // It carries only the fields the shared engine reads -- Type (dispatch), AreaID (area
 // check), RouterID (neighbor identity), Length/Checksum (validation). Version-specific
 // header details stay inside the codec: OSPFv2's AuType/Auth (RFC 2328 App D) are read
-// from the raw payload by the auth path, and OSPFv3's Instance ID (RFC 5340 sec 2.5) is
-// surfaced here as InstanceID (zero for v2) for the engine's per-interface demux.
+// from the raw payload by the auth path, and the Instance ID (OSPFv3 RFC 5340 sec 2.5,
+// OSPFv2 RFC 6549 sec 2) is surfaced here as InstanceID for the engine's per-interface
+// demux -- one header location per family, one shared demux rule.
 type Header struct {
 	Type       PacketType
 	Length     uint16
@@ -90,18 +91,21 @@ type v4Codec struct{}
 
 // DecodeHeader wraps packet.DecodeHeader and projects the OSPFv2 common header onto the
 // neutral Header (the v2 AuType/Auth fields are left to the auth path, which reads them
-// from the raw payload). InstanceID is zero: OSPFv2 has no Instance ID.
+// from the raw payload). InstanceID surfaces the RFC 6549 OSPFv2 Instance ID (header
+// offset 14) so the shared dispatcher demux sees it the same way it sees the OSPFv3 one;
+// it is 0 for a base (single-instance) OSPFv2 router.
 func (v4Codec) DecodeHeader(payload []byte) (Header, error) {
 	h, _, err := packet.DecodeHeader(payload)
 	if err != nil {
 		return Header{}, err
 	}
 	return Header{
-		Type:     PacketType(h.Type),
-		Length:   h.Length,
-		RouterID: h.RouterID,
-		AreaID:   h.AreaID,
-		Checksum: h.Checksum,
+		Type:       PacketType(h.Type),
+		Length:     h.Length,
+		RouterID:   h.RouterID,
+		AreaID:     h.AreaID,
+		Checksum:   h.Checksum,
+		InstanceID: h.InstanceID,
 	}, nil
 }
 

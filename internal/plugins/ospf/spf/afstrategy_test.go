@@ -56,6 +56,10 @@ func (s *recordingStrategy) NextHopSource() NextHopSource {
 	return s.inner.NextHopSource()
 }
 
+func (s *recordingStrategy) SummaryReader(src Source) SummaryReader {
+	return s.inner.SummaryReader(src)
+}
+
 func TestOSPFAFPrefixStrategyV4(t *testing.T) {
 	area := testArea()
 	pfx := netip.MustParsePrefix("192.0.2.0/24")

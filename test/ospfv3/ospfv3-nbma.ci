@@ -1,0 +1,97 @@
+# Test: OSPFv3 (IPv6 family) NBMA interface boots at runtime (spec-ospf-ext-8).
+#
+# VALIDATES: the daemon starts the OSPFv3 engine with an NBMA IPv6 interface and a
+# static neighbor list (keyed by router-id, with a link-local) and reaches post-startup
+# without a panic, exercising the v6 NBMA config -> engine -> iface Start (Waiting +
+# poll) path.
+# PREVENTS: the v6 NBMA config crashing the engine at startup.
+#
+# NOTE: `show ospf ipv6 interface` is not yet wired (the OSPFv3 engine is not attached
+# to the CLI dispatch), so this test asserts a clean boot rather than an interface
+# snapshot; the NBMA election/Network-LSA/Link-LSA behavior is covered by the Go unit
+# tests.
+#
+# PLATFORM: needs-linux -- the OSPFv3 raw IPv6 socket and interface backend are
+# Linux-only, so this is validated in the QEMU Alpine VM.
+option=needs-linux
+
+tmpfs=ospfv3-nbma.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert the OSPFv3 NBMA config boots the engine cleanly."""
+
+import sys
+
+from ze_api import API
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+    print('OK: OSPFv3 NBMA engine started', file=sys.stderr)
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
+    _ = resp
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external ospfv3-nbma {
+		run ./ospfv3-nbma.run
+		encoder json
+	}
+}
+
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6 {
+			areas {
+				area 0.0.0.0 { }
+			}
+			interfaces {
+				interface nbma0 {
+					area 0.0.0.0
+					network-type nbma
+					poll-interval 90
+					nbma-neighbor 2.2.2.2 {
+						link-local fe80::2
+						priority 1
+					}
+				}
+			}
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1 }
+			local { ip 127.0.0.1 accept false }
+		}
+		session {
+			asn { local 65000 remote 65000 }
+			router-id 10.0.0.1
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable }
+		}
+		behavior { group-updates disable }
+		process ospfv3-nbma { }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=OSPFv3 NBMA engine started
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

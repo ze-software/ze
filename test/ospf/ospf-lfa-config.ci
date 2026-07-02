@@ -1,0 +1,17 @@
+# Test: OSPF fast-reroute (LFA / TI-LFA) configuration acceptance and wiring.
+#
+# VALIDATES: spec-ospf-ext-6 -- the `fast-reroute { enable; mode; node-protection }`
+# YANG container is accepted, resolved into the engine config, inherited into the
+# OSPFv3 address family, and threaded into the SPF Computer so enabling it runs the
+# LFA pass in Run.
+# PREVENTS: fast-reroute config being silently dropped or not reaching the Computer.
+#
+# Live FRR/QEMU kernel failover is owned by the ospf-lfa-frr interop scenario.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf ./internal/plugins/ospf/spf -run 'TestFastReroute(ConfigParse|DisabledByDefault|ModeDefaultsToLFA|ConfigEnablesLFAPass|DisabledNoBackup)$' -count=1:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=TestFastRerouteConfigParse
+expect=stdout:contains=TestFastRerouteDisabledByDefault
+expect=stdout:contains=TestFastRerouteModeDefaultsToLFA
+expect=stdout:contains=TestFastRerouteConfigEnablesLFAPass
+expect=stdout:contains=TestFastRerouteDisabledNoBackup

@@ -1,0 +1,99 @@
+# Test: OSPFv2 Multi-Instance per-interface instance-id config (spec-ospf-ext-12, RFC 6549).
+#
+# VALIDATES: the per-interface `instance-id` leaf-list validates through the OSPF YANG
+# schema and in-process verifier: a single Instance ID, several Instance IDs on one
+# interface (two coexisting instances on one subnet, RFC 6549 section 3), and the boundary
+# values 0 and 255 all validate; an Instance ID above 255 is rejected by the uint8 range.
+# PREVENTS: a regression where the instance-id leaf is not wired into the schema, or an
+# out-of-range Instance ID is silently accepted / truncated.
+
+# --- Valid: a single non-zero Instance ID on an interface. --------------------
+stdin=ospf-instance-single:terminator=EOF_SINGLE
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			instance-id 5
+		}
+	}
+}
+EOF_SINGLE
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-instance-single
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Valid: two Instance IDs on ONE interface (RFC 6549 multi-instance subnet). -
+stdin=ospf-instance-multi:terminator=EOF_MULTI
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			instance-id 0
+			instance-id 5
+		}
+	}
+}
+EOF_MULTI
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-instance-multi
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Valid: boundary Instance IDs 0 and 255. ----------------------------------
+stdin=ospf-instance-boundary:terminator=EOF_BOUND
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			instance-id 255
+		}
+		interface eth1 {
+			area 0.0.0.0
+			instance-id 0
+		}
+	}
+}
+EOF_BOUND
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-instance-boundary
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Invalid: an Instance ID above 255 is rejected (uint8 range 0..255). -------
+stdin=ospf-instance-oob:terminator=EOF_OOB
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			instance-id 256
+		}
+	}
+}
+EOF_OOB
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-instance-oob
+expect=exit:code=1
+expect=stdout:contains=instance-id

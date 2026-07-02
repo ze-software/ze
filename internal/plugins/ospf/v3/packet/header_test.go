@@ -91,6 +91,50 @@ func TestOSPFv3DecodeHeaderBounds(t *testing.T) {
 	}
 }
 
+// VALIDATES: spec-ospfv3-2-wire -- PacketType.String renders a stable lowercase token for the
+// five OSPFv3 packet types and "unknown" for any other value.
+// PREVENTS: a diagnostic view mislabeling a known OSPFv3 packet type.
+func TestOSPFv3PacketTypeString(t *testing.T) {
+	cases := map[PacketType]string{
+		PacketTypeHello:    "hello",
+		PacketTypeDBDesc:   "dbdesc",
+		PacketTypeLSReq:    "ls-request",
+		PacketTypeLSUpdate: "ls-update",
+		PacketTypeLSAck:    "ls-ack",
+		PacketType(0):      "unknown",
+		PacketType(6):      "unknown",
+	}
+	for typ, want := range cases {
+		if got := typ.String(); got != want {
+			t.Errorf("PacketType(%d).String() = %q, want %q", typ, got, want)
+		}
+	}
+}
+
+// VALIDATES: spec-ospfv3-2-wire -- packetType prefers an explicit Header.Type and otherwise
+// derives the type from whichever body pointer is set, returning 0 for an empty packet.
+// PREVENTS: WriteTo stamping the wrong type octet when Header.Type is left unset.
+func TestOSPFv3PacketTypeDerivation(t *testing.T) {
+	cases := []struct {
+		name string
+		p    Packet
+		want PacketType
+	}{
+		{"explicit-header-type-wins", Packet{Header: Header{Type: PacketTypeLSAck}, Hello: &Hello{}}, PacketTypeLSAck},
+		{"derive-hello", Packet{Hello: &Hello{}}, PacketTypeHello},
+		{"derive-dbdesc", Packet{DBDesc: &DBDesc{}}, PacketTypeDBDesc},
+		{"derive-lsreq", Packet{LSReq: &LSReq{}}, PacketTypeLSReq},
+		{"derive-lsupdate", Packet{LSUpdate: &LSUpdate{}}, PacketTypeLSUpdate},
+		{"derive-lsack", Packet{LSAck: &LSAck{}}, PacketTypeLSAck},
+		{"empty-packet", Packet{}, PacketType(0)},
+	}
+	for _, tc := range cases {
+		if got := tc.p.packetType(); got != tc.want {
+			t.Errorf("%s: packetType() = %d, want %d", tc.name, got, tc.want)
+		}
+	}
+}
+
 // TestOSPFv3HeaderHasNoAuType asserts the OSPFv2 AuType/Authentication octets are
 // gone: a 16-octet header is the entire header, and the reclaimed octets are
 // Instance ID + Reserved.

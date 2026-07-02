@@ -1,0 +1,96 @@
+# Test: adding/removing an OSPFv3 address family starts/stops its engine (spec-ospf-ext-15).
+#
+# VALIDATES: spec-ospf-ext-15 AC-12 -- a config that adds an OSPFv3 address family brings up
+# its engine; the other AF is unaffected. (Runtime removal + clean shutdown of a removed AF's
+# engine is proven at the unit level by TestAFReconcileAddRemove; this daemon test confirms
+# the add path end-to-end.)
+# PREVENTS: an added AF never opening its instance, or one AF's engine disturbing another.
+
+# Raw IPv6 sockets are Linux-only; runs under QEMU (authored-pending-QEMU).
+option=skip-os:value=darwin
+
+tmpfs=ospf-multiaf-reconcile.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert both AF engines are up after configuring two address families."""
+
+import sys
+
+from ze_api import API, runtime_fail, result_json_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    rows = result_json_data(dispatch(api, 'show ospf ipv6'), None) or []
+    afs = {r.get('address-family') for r in rows if isinstance(r, dict)}
+    if 'ipv6-unicast' not in afs or 'ipv4-unicast' not in afs:
+        runtime_fail(f"expected both AF engines up after configuring two AFs, got {sorted(afs)}")
+
+    print('OK: added OSPFv3 address family engine is up', file=sys.stderr)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external ospf-multiaf-reconcile {
+		run ./ospf-multiaf-reconcile.run
+		encoder json
+	}
+}
+
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6-unicast {
+			instance-id 0
+			areas {
+				area 0.0.0.0 {
+					area-type normal
+				}
+			}
+			interfaces {
+				interface eth0 {
+					area 0.0.0.0
+					network-type point-to-point
+				}
+			}
+		}
+		ipv4-unicast {
+			instance-id 64
+			areas {
+				area 0.0.0.0 {
+					area-type normal
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					network-type point-to-point
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=OK: added OSPFv3 address family engine is up

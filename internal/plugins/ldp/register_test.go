@@ -4,12 +4,87 @@ package ldp
 import (
 	"context"
 	"log/slog"
+	"net/netip"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+// VALIDATES: spec-ospf-ext-11 AC-11, A-4, R-4 -- a discovered adjacency (and hence
+// the emitted SessionUp/SessionDown event) carries the local interface it was
+// discovered on, so an LDP-IGP-sync consumer can key its per-interface state
+// (RFC 5443 §2) instead of reverse-mapping a transport address.
+func TestLDPSessionEventCarriesInterface(t *testing.T) {
+	const ifName = "eth7"
+	adjTable := NewAdjacencyTable()
+
+	// Build a valid discovery Hello from a peer LSR (mirrors sendHello), addressed
+	// from a different LSR-ID than the local one so it is not self-filtered.
+	var buf [128]byte
+	bodyLen := EncodeHello(buf[ldpHeaderLen:], HelloMessage{
+		MessageID:     1,
+		HoldTime:      15,
+		TransportAddr: netip.MustParseAddr("10.0.0.2"),
+	})
+	pduLen := uint16(bodyLen + 6)
+	EncodePDUHeader(buf[:], PDUHeader{
+		Version:    ldpVersion,
+		PDULength:  pduLen,
+		LSRID:      [4]byte{10, 0, 0, 2},
+		LabelSpace: 0,
+	})
+	data := buf[:ldpHeaderLen+bodyLen]
+
+	var got *Adjacency
+	processDiscoveryPacket(data, [4]byte{10, 0, 0, 1}, ifName, adjTable, func(a *Adjacency) { got = a }, slogutil.DiscardLogger())
+
+	if got == nil {
+		t.Fatal("onNewAdj was not called for a new peer Hello")
+	}
+	if got.Interface != ifName {
+		t.Errorf("adjacency Interface = %q, want %q (the discovering interface tags the SessionEvent)", got.Interface, ifName)
+	}
+}
+
+// VALIDATES: spec-ospf-ext-11 review FIX 1 (DATA RACE) -- the discovering interface
+// name must be written inside AdjacencyTable.Update under the table lock, never as an
+// unlocked field write on the returned *Adjacency after Update returns. This test
+// hammers Update (received-Hello path) concurrently with All() (the read-side
+// snapshot) on the SAME adjacency; run under -race it must report no data race on
+// Adjacency.Interface. It fails (races) if Interface is set outside the lock.
+func TestAdjacencyInterfaceNoRace(t *testing.T) {
+	adjTable := NewAdjacencyTable()
+	pdu := PDUHeader{Version: ldpVersion, LSRID: [4]byte{10, 0, 0, 2}, LabelSpace: 0}
+	hello := HelloMessage{HoldTime: 15, TransportAddr: netip.MustParseAddr("10.0.0.2")}
+
+	const iterations = 2000
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Writer: refresh the same adjacency (as a repeated received Hello would),
+	// each time setting the discovering interface under the lock.
+	go func() {
+		defer wg.Done()
+		for range iterations {
+			adjTable.Update(pdu, hello, "eth0")
+		}
+	}()
+
+	// Reader: snapshot all adjacencies (reads every field, incl. Interface).
+	go func() {
+		defer wg.Done()
+		for range iterations {
+			for _, adj := range adjTable.All() {
+				_ = adj.Interface
+			}
+		}
+	}()
+
+	wg.Wait()
+}
 
 // test-relax: TestWaitForInterfaceFound moved to resolve_integration_linux_test.go
 // (TestWaitForInterfaceFoundResolves). waitForInterface now resolves through the

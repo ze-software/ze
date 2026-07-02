@@ -53,6 +53,31 @@ func TestOSPFCodecInterfaceV4Adapter(t *testing.T) {
 	}
 }
 
+// TestV4CodecSurfacesInstanceID proves AC-3 / A-3 (RFC 6549): the v4 codec projects the
+// OSPFv2 header Instance ID (offset 14) into the neutral Header.InstanceID instead of the
+// old hard-coded 0, so the shared dispatcher demux can act on it for the IPv4 family.
+func TestV4CodecSurfacesInstanceID(t *testing.T) {
+	for _, id := range []uint8{0, 5, 255} {
+		src := packet.Header{
+			Type:       packet.PacketTypeHello,
+			Length:     packet.CommonHeaderLen,
+			RouterID:   types.RouterID{1, 1, 1, 1},
+			AreaID:     types.AreaID{0, 0, 0, 0},
+			InstanceID: id,
+		}
+		buf := make([]byte, packet.CommonHeaderLen)
+		src.WriteTo(buf, 0)
+
+		got, err := v4Codec{}.DecodeHeader(buf)
+		if err != nil {
+			t.Fatalf("id %d: DecodeHeader: %v", id, err)
+		}
+		if got.InstanceID != id {
+			t.Fatalf("id %d: neutral Header.InstanceID = %d, want %d", id, got.InstanceID, id)
+		}
+	}
+}
+
 func TestOSPFCodecDecodeHelloV4(t *testing.T) {
 	hello := packet.Hello{
 		NetworkMask:   [4]byte{255, 255, 255, 0},

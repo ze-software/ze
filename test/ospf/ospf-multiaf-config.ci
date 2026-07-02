@@ -1,0 +1,98 @@
+# Test: OSPFv3 multiple-address-family config validation (spec-ospf-ext-15, RFC 5838).
+#
+# VALIDATES: spec-ospf-ext-15 AC-1 -- a config with several OSPFv3 address families
+# (ipv6-unicast, ipv4-unicast) validates; a per-AF instance-id inside its RFC 5838 §2.1
+# range is accepted; an instance-id in a foreign range or above 127 is rejected (by the
+# native YANG per-container range and the in-process verifier).
+# PREVENTS: an out-of-range Instance ID slipping through and mis-classifying the address
+# family, or the address-family containers not reaching the OSPF YANG schema.
+
+# --- Valid multi-AF config: two OSPFv3 address families validate. -------------
+stdin=ospf-multiaf-valid:terminator=EOF_VALID
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6-unicast {
+			instance-id 0
+			areas {
+				area 0.0.0.0 {
+					area-type normal
+				}
+			}
+			interfaces {
+				interface eth0 {
+					area 0.0.0.0
+					network-type point-to-point
+				}
+			}
+		}
+		ipv4-unicast {
+			instance-id 64
+			areas {
+				area 0.0.0.0 {
+					area-type normal
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					network-type point-to-point
+				}
+			}
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-multiaf-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Instance ID in the wrong AF range: ipv4-unicast at 32 (an IPv6-multicast id). --
+# The native YANG range (64..95) on ipv4-unicast/instance-id rejects 32.
+stdin=ospf-multiaf-wrong-range:terminator=EOF_WRONG
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv4-unicast {
+			instance-id 32
+			areas {
+				area 0.0.0.0 {
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+				}
+			}
+		}
+	}
+}
+EOF_WRONG
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-multiaf-wrong-range
+expect=exit:code=1
+
+# --- Instance ID above the RFC 5838 AF space (>127): rejected. ----------------
+stdin=ospf-multiaf-over-127:terminator=EOF_OVER
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv4-multicast {
+			instance-id 200
+			areas {
+				area 0.0.0.0 {
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+				}
+			}
+		}
+	}
+}
+EOF_OVER
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-multiaf-over-127
+expect=exit:code=1

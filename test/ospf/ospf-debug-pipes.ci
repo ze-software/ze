@@ -1,0 +1,11 @@
+# Test: OSPFv2 new commands honour all pipe operators.
+#
+# VALIDATES: spec-ospf-ext-14 -- every new IPv4 command's snapshot marshals to JSON so ApplyPipes can render json/ndjson/table/text/yaml/count and resolve/origin (AC-19).
+# PREVENTS: a regression in the OSPF debug/introspection surface.
+#
+# Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestNewCommandsPipeComplete' -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=TestNewCommandsPipeComplete
+expect=stdout:contains=PASS

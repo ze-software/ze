@@ -35,6 +35,24 @@ func TestMetricRangeAndCost(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-8 - Metric.String renders the decimal cost across the valid range.
+// PREVENTS: metric display drifting from the numeric wire value.
+func TestMetricString(t *testing.T) {
+	cases := []struct {
+		m    Metric
+		want string
+	}{
+		{Metric(MetricMin), "1"},
+		{Metric(10), "10"},
+		{Metric(MetricMax), "65535"},
+	}
+	for _, tc := range cases {
+		if got := tc.m.String(); got != tc.want {
+			t.Errorf("Metric(%d).String() = %q, want %q", uint16(tc.m), got, tc.want)
+		}
+	}
+}
+
 // VALIDATES: AC-8 - default cost uses reference bandwidth divided by interface bandwidth, floored at 1.
 // PREVENTS: high-speed interfaces deriving an invalid zero metric.
 func TestDefaultMetric(t *testing.T) {

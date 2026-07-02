@@ -1,0 +1,8 @@
+# OSPFv3 helper enters on a received Grace-LSA, keeps the adjacency advertised, ignores a malformed one
+#
+# VALIDATES: OSPF Graceful Restart (spec-ospf-ext-9, RFC 3623 / RFC 5187) via the runner.
+# PREVENTS: a GR behavior compiling but never exercised end-to-end through the test gate.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestHelperKeepsAdjacencyAdvertisedV6|TestHelperRejectsGraceLSAMissingTLV|TestHelperStubAreaExternalDoesNotExit' -count=1:timeout=90s
+expect=exit:code=0
+expect=stdout:contains=PASS

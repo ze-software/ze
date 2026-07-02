@@ -113,3 +113,49 @@ func TestOSPFLSUpdateRejectsHugeCountBeforeAllocation(t *testing.T) {
 		t.Fatalf("DecodeLSUpdate huge count err = %v, want %v", err, ErrLength)
 	}
 }
+
+// VALIDATES: AC-15 - DecodeLSAck rejects a body that is not a whole number of 20-octet LSA
+// headers with ErrLength, and propagates a malformed inner header (unknown LS type) instead of
+// returning a partial ack; a valid multiple-of-20 body decodes.
+// PREVENTS: an LS Ack decoder desyncing on a truncated header or accepting an unknown LSA type.
+func TestDecodeLSAckRejectsMalformed(t *testing.T) {
+	if _, err := DecodeLSAck(make([]byte, types.LSAHeaderLen+1)); !errors.Is(err, ErrLength) {
+		t.Errorf("DecodeLSAck(non-multiple) err = %v, want ErrLength", err)
+	}
+	// A full-width but all-zero header: LS type 0 is not a known LSA type.
+	if _, err := DecodeLSAck(make([]byte, types.LSAHeaderLen)); !errors.Is(err, ErrUnknownLSAType) {
+		t.Errorf("DecodeLSAck(zero header) err = %v, want ErrUnknownLSAType", err)
+	}
+	// A well-formed two-header body decodes to two acknowledged keys.
+	h := sampleLSAHeader(t, types.LSTypeRouter, "10.0.0.1")
+	h.Length = types.LSAHeaderLen
+	body := make([]byte, 2*types.LSAHeaderLen)
+	writeLSAHeader(h, body, 0)
+	writeLSAHeader(h, body, types.LSAHeaderLen)
+	ack, err := DecodeLSAck(body)
+	if err != nil || len(ack.Headers) != 2 {
+		t.Fatalf("DecodeLSAck(valid) = %d headers err=%v, want 2 headers", len(ack.Headers), err)
+	}
+}
+
+// VALIDATES: AC-14 - DecodeLSReq rejects a body that is not a whole number of 12-octet entries
+// (ErrLength), an LS type wider than one octet (ErrUnknownLSAType), and an in-range but unknown
+// LS type (ErrUnknownLSAType).
+// PREVENTS: an LS Request decoder mis-framing entries or accepting an unimplemented LSA type.
+func TestDecodeLSReqRejectsMalformed(t *testing.T) {
+	if _, err := DecodeLSReq(make([]byte, types.LSRequestEntryLen-1)); !errors.Is(err, ErrLength) {
+		t.Errorf("DecodeLSReq(non-multiple) err = %v, want ErrLength", err)
+	}
+	// LS type field 0x00000100 > 0xff: the OSPFv2 type octet cannot exceed one octet.
+	wide := make([]byte, types.LSRequestEntryLen)
+	writeUint32(wide, 0, 0x0100)
+	if _, err := DecodeLSReq(wide); !errors.Is(err, ErrUnknownLSAType) {
+		t.Errorf("DecodeLSReq(wide type) err = %v, want ErrUnknownLSAType", err)
+	}
+	// LS type 6 fits one octet but is not a known OSPFv2 LSA type.
+	unknown := make([]byte, types.LSRequestEntryLen)
+	writeUint32(unknown, 0, 6)
+	if _, err := DecodeLSReq(unknown); !errors.Is(err, ErrUnknownLSAType) {
+		t.Errorf("DecodeLSReq(unknown type 6) err = %v, want ErrUnknownLSAType", err)
+	}
+}

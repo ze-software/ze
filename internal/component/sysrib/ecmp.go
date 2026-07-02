@@ -70,6 +70,16 @@ func ecmpCollect(protocols map[string]*protocolRoute, winner *protocolRoute) []s
 	return paths
 }
 
+// backupPaths returns the winner's fast-reroute backup as a DEDICATED next-hop
+// list (never merged into ecmpCollect). A backup is used only on primary
+// failure; ECMP siblings load-share. Nil when the route has no backup.
+func backupPaths(route *protocolRoute) []sysribevents.ECMPPath {
+	if route == nil || !route.backupNextHop.IsValid() {
+		return nil
+	}
+	return []sysribevents.ECMPPath{{NextHop: route.backupNextHop, Weight: 1, Labels: route.backupLabels}}
+}
+
 // dedupECMP removes duplicate next-hops from an address-sorted ECMP slice,
 // keeping the first occurrence. A next-hop can appear both as an inter-protocol
 // route and an intra-protocol sibling; the kernel multipath must list it once.

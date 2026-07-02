@@ -1,0 +1,84 @@
+# Test: as112 refuses to start as an external plugin process
+# VALIDATES: plan/learned/1045-plugin-process-boundary.md -- as112's
+# IsInternal() guard (internal/plugins/as112/register.go) refuses to start
+# when as112 runs as a genuine external subprocess (not the synthetic
+# net.Pipe() unit test), since iface.RegisterOwnedAddresses is a
+# same-process call that would silently no-op across the process boundary.
+# PREVENTS: an operator configuring `plugin { external as112 { ... } }`
+# getting a plugin that "succeeds" at every config commit while silently
+# never landing its anycast addresses on any real kernel interface.
+
+stdin=ze-bgp:terminator=EOF_CONF
+service {
+	as112 {
+		enabled true
+	}
+}
+
+plugin {
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret as112-external-refuse-test-secret-01;
+		}
+	}
+	external as112 {
+		# "ze plugin" is an unrelated CLI verb, not a plugin launcher --
+		# ze-test plugin-external (internal/test/cli/cmd_plugin_external.go,
+		# plan/learned/1045-plugin-process-boundary.md) launches a registered
+		# plugin's own RunEngine via a real TLS connect-back.
+		run "ze-test plugin-external as112"
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=wait.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Hold the test open long enough for the external as112 subprocess to
+start, log its refuse message, and exit -- observable via the daemon's
+relayed stderr (default relay level is WARN; the refuse message logs at
+ERROR, which is always at or above WARN)."""
+import time
+
+time.sleep(4.0)
+EOF_PY
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 wait.py:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=refusing to start as an external plugin process

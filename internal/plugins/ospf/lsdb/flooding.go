@@ -1,4 +1,5 @@
 // Design: plan/learned/961-ospf-7-lsdb-flooding.md -- RFC 2328 Section 13 flooding.
+// RFC: rfc/short/rfc2328.md -- Section 13 flooding; rfc/short/rfc5250.md -- opaque scope.
 // RFC 2328 Section 13.3: flood out eligible interfaces and retransmit until acked.
 
 package lsdb
@@ -17,8 +18,15 @@ const (
 	AreaTypeStub   = "stub"
 	AreaTypeNSSA   = "nssa"
 
-	NetworkBroadcast    = "broadcast"
-	NetworkPointToPoint = "point-to-point"
+	NetworkBroadcast         = "broadcast"
+	NetworkPointToPoint      = "point-to-point"
+	NetworkNBMA              = "nbma"
+	NetworkPointToMultipoint = "point-to-multipoint"
+	// NetworkVirtual marks a synthetic virtual-link interface (RFC 2328 section 15 / RFC 5340
+	// section 4.2). It is a backbone point-to-point interface whose Router-LSA link is a
+	// Type-4 virtual record (IPv4) / RouterLinkTypeVirtual record (IPv6); it carries no
+	// Network-LSA/stub link and its packets are routed, not link-local.
+	NetworkVirtual = "virtual"
 
 	InterfaceStateDown   = "down"
 	InterfaceStateDR     = "dr"
@@ -68,6 +76,30 @@ type InterfaceInfo struct {
 	IsV6          bool
 	IPv6LinkLocal netip.Addr
 	IPv6Prefixes  []netip.Prefix
+	// IPv6Addresses are the interface's global unmasked IPv6 addresses. A
+	// point-to-multipoint interface advertises each as a /128 LA-bit host route in its
+	// Intra-Area-Prefix-LSA (RFC 5340 App A.4.10); other network types use the masked
+	// IPv6Prefixes subnet.
+	IPv6Addresses []netip.Addr
+	// LDPSyncWithholdTransit, when set, suppresses this interface's transit (Link
+	// Type 2) link in the Router-LSA: RFC 6138 §4 withholds the link-to-pseudonode
+	// advertisement for a broadcast segment until LDP is synchronized with all peers,
+	// unless the interface is a cut-edge. The stub link for the subnet is unaffected.
+	// The engine sets this only for a non-cut-edge broadcast interface whose LDP-sync
+	// state is not yet synchronized; P2P interfaces instead set LDPSyncMaxMetric.
+	LDPSyncWithholdTransit bool
+	// LDPSyncMaxMetric, when set, advertises this interface's point-to-point / transit
+	// link at LSInfinity (RFC 5443 §2 cost-out while LDP is not yet synchronized),
+	// mirroring the router-wide RFC 6987 max-metric path. Only the p2p/transit link is
+	// raised; the connected-subnet stub link keeps the configured cost (unlike a blanket
+	// InterfaceInfo.Cost override, which would also cost out the stub). The engine sets
+	// this only for a P2P interface whose LDP-sync state is not yet synchronized.
+	LDPSyncMaxMetric bool
+	// VirtualTransitArea is the transit area a NetworkVirtual interface runs through (RFC
+	// 2328 section 15). The virtual link's Type-4 record is emitted into the backbone
+	// Router-LSA, but the Router-LSA V-bit is set in the TRANSIT area's Router-LSA (RFC
+	// 2328 App A.4.2 / section 16.3 TransitCapability). Zero for non-virtual interfaces.
+	VirtualTransitArea types.AreaID
 }
 
 // NeighborInfo is the flooding view of one neighbor.
@@ -80,6 +112,10 @@ type NeighborInfo struct {
 	// InterfaceID is the neighbor's advertised OSPFv3 Interface ID (zero for OSPFv2),
 	// used as the Neighbor Interface ID in the address-free Router-LSA p2p link.
 	InterfaceID uint32
+	// OpaqueCapable is true when the neighbor set the O-bit in its Database Description
+	// packets (RFC 5250 §3.1). Opaque LSAs (types 9/10/11) are flooded ONLY to
+	// opaque-capable neighbors; a non-opaque neighbor is never queued for one.
+	OpaqueCapable bool
 }
 
 // NeighborKey identifies one retransmit list.
@@ -142,6 +178,12 @@ func (d *LSDB) ReceiveUpdate(in ReceiveInput) string {
 				d.removeFromAllRetransmit(in.AreaID, lsa.Header.Key())
 				d.ackForReceive(in, lsa.Header, false, false, false)
 				d.notifyChange(in.AreaID)
+				// OSPF Graceful Restart (RFC 3623 sec 3.2): surface the content change to the
+				// helper's strict-LSA-checking exit.
+				d.notifyContentChange(in.AreaID, lsa.Header.Type)
+				// RFC 5250 Section 3: deliver a Type-9 opaque LSA to its consumer on a
+				// newer install only; the store + flood above already ran for every LSA.
+				d.deliverOpaqueOnNewer(in, lsa)
 			case Equal:
 				implied := d.clearRetransmit(NeighborKey{Interface: in.Interface, RouterID: in.RouterID}, in.AreaID, lsa.Header)
 				d.ackForReceive(in, lsa.Header, true, implied, false)
@@ -175,6 +217,12 @@ func (d *LSDB) ReceiveUpdate(in ReceiveInput) string {
 			floodedBack := d.floodExcept(in.Interface, in.RouterID, in.AreaID, lsa.Header.Key())
 			d.ackForReceive(in, lsa.Header, false, false, floodedBack)
 			d.notifyChange(in.AreaID)
+			// OSPF Graceful Restart (RFC 3623 sec 3.2): surface the content change to the
+			// helper's strict-LSA-checking exit.
+			d.notifyContentChange(in.AreaID, lsa.Header.Type)
+			// RFC 5250 Section 3: deliver a Type-10/11 opaque LSA to its consumer on a
+			// newer install only; the store + flood above already ran for every LSA.
+			d.deliverOpaqueOnNewer(in, lsa)
 		case Equal:
 			implied := d.clearRetransmit(NeighborKey{Interface: in.Interface, RouterID: in.RouterID}, in.AreaID, lsa.Header)
 			d.ackForReceive(in, lsa.Header, true, implied, false)
@@ -205,6 +253,15 @@ func (d *LSDB) ReceiveAck(in AckInput) string {
 	return ""
 }
 
+// isASWideType reports whether an LSA type floods AS-wide (no area match): a Type-5
+// AS-External-LSA or a Type-11 (AS-scope) opaque LSA. RFC 5250 Section 3.1: Type-11's
+// flooding scope equals Type-5, but Type-11 carries no scope bits, so ASExternal() is false
+// for it and it must be named explicitly. Retransmit bookkeeping keyed by area treats these
+// as "matches any area", since one AS-wide instance is flooded into every area at once.
+func isASWideType(t types.LSType) bool {
+	return t.ASWide() || t == types.LSTypeOpaqueAS
+}
+
 // shouldDropByArea is the RFC 2328 sec 3.6 / RFC 3101 receive-side area filter: a stub or
 // NSSA area accepts neither AS-External nor ASBR-Summary / Inter-Area-Router LSAs, and an
 // NSSA-LSA is valid ONLY inside an NSSA. The type classification is address-family-neutral
@@ -213,7 +270,10 @@ func (d *LSDB) ReceiveAck(in AckInput) string {
 func shouldDropByArea(areaType string, typ types.LSType) bool {
 	stubLike := areaType == AreaTypeStub || areaType == AreaTypeNSSA
 	switch {
-	case typ.ASExternal() || typ.InterAreaRouter():
+	// RFC 5250 Section 3.1: a Type-11 (AS-scope) opaque LSA MUST NOT be flooded into a
+	// stub or NSSA area, and one received on such an interface MUST be discarded --
+	// the same rule as a Type-5 AS-External LSA (isASWideType covers both).
+	case isASWideType(typ) || typ.InterAreaRouter():
 		return stubLike
 	case typ.NSSA():
 		return areaType != AreaTypeNSSA
@@ -274,9 +334,13 @@ func (d *LSDB) floodExcept(incoming string, sender types.RouterID, area types.Ar
 	for idx := range ifs {
 		iface := &ifs[idx]
 		onReceiving := incoming != "" && iface.Name == incoming
-		if onReceiving {
+		nonBroadcast := isNonBroadcastNetwork(iface.NetworkType)
+		if onReceiving && !nonBroadcast {
 			// Re-flood out the receiving interface only as the DR receiving from a DROther
 			// (not from the BDR); the BDR and DROthers never re-flood back (RFC 2328 §13.3).
+			// NBMA and point-to-multipoint have no multicast DR relay, so the per-neighbor
+			// unicast fan-out below reaches every OTHER adjacent neighbor (RFC 2328 §13.3
+			// Table 19); there is no DR-relay suppression to apply.
 			if iface.State != InterfaceStateDR || sender == iface.BDR {
 				continue
 			}
@@ -290,6 +354,7 @@ func (d *LSDB) floodExcept(incoming string, sender types.RouterID, area types.Ar
 		}
 		raw := lsa.RawBytes
 		queued := false
+		var unicast []netip.Addr
 		for _, nbr := range iface.Neighbors {
 			if !isFloodEligibleNeighborState(nbr.State) || nbr.RouterID == (types.RouterID{}) {
 				continue
@@ -298,12 +363,29 @@ func (d *LSDB) floodExcept(incoming string, sender types.RouterID, area types.Ar
 			if onReceiving && nbr.RouterID == sender {
 				continue
 			}
+			// RFC 5250 Section 3.1: opaque LSAs are flooded ONLY to opaque-capable
+			// neighbors (those that set the O-bit in their DD packets). Skip a
+			// non-opaque neighbor for any opaque LSA (types 9/10/11).
+			if key.Type.IsOpaque() && !nbr.OpaqueCapable {
+				continue
+			}
 			if d.queueRetransmit(iface.AreaID, NeighborKey{Interface: iface.Name, RouterID: nbr.RouterID}, lsa.Header, raw) {
 				queued = true
 			}
+			if nonBroadcast && nbr.Address.IsValid() {
+				unicast = append(unicast, nbr.Address)
+			}
 		}
 		if queued {
-			d.sendLSUpdate(iface.Name, floodDestination(*iface), iface.AreaID, []packet.LSA{lsa})
+			if nonBroadcast {
+				// Fan out one unicast copy per Flood-eligible neighbor (RFC 2328 §13.3);
+				// the built LSA buffer is reused for each send.
+				for _, dst := range unicast {
+					d.sendLSUpdate(iface.Name, dst, iface.AreaID, []packet.LSA{lsa})
+				}
+			} else {
+				d.sendLSUpdate(iface.Name, floodDestination(*iface), iface.AreaID, []packet.LSA{lsa})
+			}
 			if onReceiving {
 				floodedBack = true
 			}
@@ -319,7 +401,11 @@ func (d *LSDB) floodExcept(incoming string, sender types.RouterID, area types.Ar
 func eligibleInterface(iface InterfaceInfo, area types.AreaID, typ types.LSType) bool {
 	stubLike := iface.AreaType == AreaTypeStub || iface.AreaType == AreaTypeNSSA
 	switch {
-	case typ.ASExternal():
+	// RFC 5250 Section 3.1: Type-11 opaque flooding scope equals Type-5 AS-External --
+	// AS-wide (no area match) but never out a stub/NSSA interface (isASWideType covers both).
+	// Type-10 opaque is area-scoped and Type-9 opaque is link-scoped (floodLink), so only the
+	// AS-wide types take this branch; Type-10 falls to the area-scoped default below.
+	case isASWideType(typ):
 		return !stubLike
 	case typ.InterAreaRouter():
 		return iface.AreaID == area && !stubLike
@@ -406,7 +492,7 @@ func (d *LSDB) removeFromAllRetransmit(area types.AreaID, key types.LSAKey) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	for nbr, lst := range d.retransmit {
-		if entry := lst[key]; entry != nil && (key.Type.ASExternal() || entry.area == area) {
+		if entry := lst[key]; entry != nil && (isASWideType(key.Type) || entry.area == area) {
 			delete(lst, key)
 		}
 		if len(lst) == 0 {
@@ -497,7 +583,7 @@ func (d *LSDB) hasExchangeOrLoadingForKey(area types.AreaID, key types.LSAKey) b
 	topology := d.topologySnapshot()
 	for idx := range topology {
 		iface := &topology[idx]
-		if key.Type.ASExternal() {
+		if isASWideType(key.Type) {
 			if !eligibleInterface(*iface, area, key.Type) {
 				continue
 			}
@@ -584,8 +670,24 @@ func (d *LSDB) FlushDelayedAcks(ifaceName string) int {
 	if !ok {
 		return 0
 	}
+	if isNonBroadcastNetwork(iface.NetworkType) {
+		// NBMA / non-broadcast point-to-multipoint: acknowledge to each Flood-eligible
+		// neighbor by unicast rather than to a multicast group (RFC 2328 §13.3).
+		for _, nbr := range iface.Neighbors {
+			if isFloodEligibleNeighborState(nbr.State) && nbr.Address.IsValid() {
+				d.sendAck(ifaceName, nbr.Address, iface.AreaID, headers)
+			}
+		}
+		return len(headers)
+	}
 	d.sendAck(ifaceName, floodDestination(iface), iface.AreaID, headers)
 	return len(headers)
+}
+
+// isNonBroadcastNetwork reports whether an interface floods by per-neighbor unicast
+// (NBMA and point-to-multipoint) rather than to a multicast group.
+func isNonBroadcastNetwork(networkType string) bool {
+	return networkType == NetworkNBMA || networkType == NetworkPointToMultipoint
 }
 
 // PacketEncoder encodes the LSDB's outgoing flooded LSUpdate and LSAck packets for the
@@ -597,19 +699,29 @@ type PacketEncoder interface {
 	EncodeLSAck(routerID types.RouterID, areaID types.AreaID, a packet.LSAck) []byte
 }
 
-// v4PacketEncoder is the OSPFv2 LSDB packet encoder (the default), behavior-identical to the
-// prior direct ospf/packet encode.
-type v4PacketEncoder struct{}
+// v4PacketEncoder is the OSPFv2 LSDB packet encoder (the default). instanceID is the
+// engine's RFC 6549 OSPFv2 Instance ID, stamped into the flooded LSUpdate/LSAck common
+// header (offset 14); 0 is the base instance and its bytes are identical to base OSPFv2.
+type v4PacketEncoder struct {
+	instanceID uint8
+}
 
-func (v4PacketEncoder) EncodeLSUpdate(routerID types.RouterID, areaID types.AreaID, u packet.LSUpdate) []byte {
-	p := packet.Packet{Header: packet.Header{RouterID: routerID, AreaID: areaID}, LSUpdate: &u}
+// NewV4PacketEncoder returns the OSPFv2 LSDB packet encoder for the given Instance ID
+// (RFC 6549). The engine installs it via SetPacketEncoder for a non-base instance; the
+// base instance uses the zero-value default.
+func NewV4PacketEncoder(instanceID uint8) PacketEncoder {
+	return v4PacketEncoder{instanceID: instanceID}
+}
+
+func (e v4PacketEncoder) EncodeLSUpdate(routerID types.RouterID, areaID types.AreaID, u packet.LSUpdate) []byte {
+	p := packet.Packet{Header: packet.Header{RouterID: routerID, AreaID: areaID, InstanceID: e.instanceID}, LSUpdate: &u}
 	buf := make([]byte, p.EncodedLen())
 	p.WriteTo(buf, 0)
 	return buf
 }
 
-func (v4PacketEncoder) EncodeLSAck(routerID types.RouterID, areaID types.AreaID, a packet.LSAck) []byte {
-	p := packet.Packet{Header: packet.Header{RouterID: routerID, AreaID: areaID}, LSAck: &a}
+func (e v4PacketEncoder) EncodeLSAck(routerID types.RouterID, areaID types.AreaID, a packet.LSAck) []byte {
+	p := packet.Packet{Header: packet.Header{RouterID: routerID, AreaID: areaID, InstanceID: e.instanceID}, LSAck: &a}
 	buf := make([]byte, p.EncodedLen())
 	p.WriteTo(buf, 0)
 	return buf
@@ -679,7 +791,7 @@ func (d *LSDB) deletePurgedIfAcked(area types.AreaID, key types.LSAKey) {
 		return
 	}
 	for _, lst := range d.retransmit {
-		if entry := lst[key]; entry != nil && (key.Type.ASExternal() || entry.area == area) {
+		if entry := lst[key]; entry != nil && (isASWideType(key.Type) || entry.area == area) {
 			d.mu.Unlock()
 			return
 		}

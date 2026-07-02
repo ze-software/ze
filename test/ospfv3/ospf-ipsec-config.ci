@@ -1,0 +1,162 @@
+# Test: RFC 4552 OSPFv3 IPsec config surface (spec-ospf-ext-16).
+#
+# VALIDATES: spec-ospf-ext-16 AC-1/AC-3/AC-4/AC-5 -- a well-formed IPv6-family `ipsec`
+# block (ESP auth-only, and ESP + AES-256 confidentiality) validates; an AH block with
+# confidentiality is rejected (§4); an integrity key whose length does not match the
+# algorithm is rejected; and an `ipsec` block on the IPv4 family is rejected (§5, the
+# IPv4-family interface schema has no `ipsec` container). AC-6 (mutual exclusion with a
+# RFC 7166 key-chain) is enforced by construction -- the IPv6-family interface schema has
+# no `authentication` container -- plus the Go validator, unit-tested by
+# TestIPsecAnd7166MutuallyExclusive. The live kernel install/drop path is exercised by the
+# QEMU integration test internal/plugins/ospf/ipsec_integration_linux_test.go.
+# PREVENTS: a malformed or misplaced IPsec block being accepted and reaching the kernel.
+
+# --- Valid: ESP transport-mode authentication-only IPsec on an IPv6-family interface. ---
+stdin=ipsec-valid:terminator=EOF_VALID
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6 {
+			areas {
+				area 0.0.0.0 {
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					ipsec {
+						protocol esp
+						spi 256
+						algorithm sha256
+						key 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+					}
+				}
+			}
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ipsec-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Valid: ESP with AES-256 confidentiality (RFC 4552 §4: ESP only). -----------
+stdin=ipsec-esp-enc:terminator=EOF_ENC
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6 {
+			areas {
+				area 0.0.0.0 {
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					ipsec {
+						protocol esp
+						spi 256
+						algorithm sha256
+						key 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+						encryption-algorithm aes256
+						encryption-key fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+					}
+				}
+			}
+		}
+	}
+}
+EOF_ENC
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ipsec-esp-enc
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Invalid: AH cannot provide confidentiality (RFC 4552 §4). ------------------
+stdin=ipsec-ah-enc:terminator=EOF_AHENC
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6 {
+			areas {
+				area 0.0.0.0 {
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					ipsec {
+						protocol ah
+						spi 256
+						algorithm sha256
+						key 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+						encryption-algorithm aes256
+						encryption-key fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+					}
+				}
+			}
+		}
+	}
+}
+EOF_AHENC
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ipsec-ah-enc
+expect=exit:code=1
+expect=stdout:contains=confidentiality
+
+# --- Invalid: key length must match the algorithm (sha256 = 64 hex chars). ------
+stdin=ipsec-badkeylen:terminator=EOF_KEYLEN
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6 {
+			areas {
+				area 0.0.0.0 {
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					ipsec {
+						protocol esp
+						spi 256
+						algorithm sha256
+						key 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+					}
+				}
+			}
+		}
+	}
+}
+EOF_KEYLEN
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ipsec-badkeylen
+expect=exit:code=1
+expect=stdout:contains=does not match the algorithm
+
+# --- Invalid: RFC 4552 is IPv6-family only; the IPv4-family interface has no ipsec block. ---
+stdin=ipsec-v4:terminator=EOF_V4
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			ipsec {
+				protocol esp
+				spi 256
+				algorithm sha256
+				key 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+			}
+		}
+	}
+}
+EOF_V4
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ipsec-v4
+expect=exit:code=1
+expect=stdout:contains=unknown field in interface: ipsec

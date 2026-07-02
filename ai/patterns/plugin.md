@@ -11,6 +11,7 @@ Rules: `ai/rules/plugin-design.md`. Architecture: `docs/architecture/core-design
 | `ai/rules/plugin-design.md` (Cross-Boundary Value Types) | Any data crossing plugin boundaries |
 | `ai/rules/plugin-design.md` (DirectBridge) | Sync request/response to/from engine |
 | `ai/rules/plugin-design.md` (EventBus Typed Payloads) | Async broadcast events |
+| `ai/rules/plugin-process-boundary.md` | Calling another `internal/component/*` package's function directly instead of through DirectBridge/DispatchCommand |
 | `ai/rules/naming.md` | Plugin name, YANG prefix, log subsystem |
 | Full navigation: `ai/INDEX.md` | |
 

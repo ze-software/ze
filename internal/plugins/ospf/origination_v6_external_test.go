@@ -46,12 +46,12 @@ func TestOSPFv6OriginateExternal(t *testing.T) {
 	if !body.ExternalType2 || body.Metric != 40 {
 		t.Errorf("type2/metric = %v/%d, want true/40", body.ExternalType2, body.Metric)
 	}
-	if gp, _ := v6PrefixToNetip(body.Prefix); gp != netip.MustParsePrefix("2001:db8:e::/64") {
+	if gp, _ := v6PrefixToNetip(body.Prefix, afIPv6Unicast); gp != netip.MustParsePrefix("2001:db8:e::/64") {
 		t.Errorf("prefix = %s, want 2001:db8:e::/64", gp)
 	}
 
 	// The Router-LSA must now carry the E-bit (this router is an ASBR).
-	h, ok := e.v6OriginateRouter(types.BackboneArea, router, ospfv3types.OptV6|ospfv3types.OptR, nil, false, false, false)
+	h, ok := e.v6OriginateRouter(types.BackboneArea, router, ospfv3types.OptV6|ospfv3types.OptR, nil, false, false, false, false)
 	if !ok {
 		t.Fatal("v6OriginateRouter returned false")
 	}

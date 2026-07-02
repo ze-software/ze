@@ -221,6 +221,24 @@ func (li *linuxInterface) Send(dst, src netip.Addr, payload []byte) error {
 	return nil
 }
 
+// SendRouted transmits a routed virtual-link packet to the neighbor's GLOBAL address dst
+// from the local GLOBAL source src with hop limit > 1 (RFC 5340 §2.9). Unlike Send it does
+// NOT set a zone/scope on dst (the packet is routed, not link-scoped) and leaves the
+// outgoing interface to the kernel's route lookup rather than pinning IfIndex.
+func (li *linuxInterface) SendRouted(dst, src netip.Addr, payload []byte, hopLimit int) error {
+	if !dst.Is6() || !src.Is6() {
+		return ErrInvalidDestination
+	}
+	li.sendMu.Lock()
+	defer li.sendMu.Unlock()
+	cm := &ipv6.ControlMessage{HopLimit: hopLimit, Src: src.AsSlice()}
+	d := &net.IPAddr{IP: dst.AsSlice()}
+	if _, err := li.pc.WriteTo(payload, cm, d); err != nil {
+		return fmt.Errorf("ospfv3/transport: routed writeto %s: %w", dst, err)
+	}
+	return nil
+}
+
 func (li *linuxInterface) Close() error {
 	var err error
 	li.closed.Do(func() {

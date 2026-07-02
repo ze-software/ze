@@ -128,7 +128,7 @@ func (t *Table) shouldRequestLocked(cfg InterfaceConfig, h packet.LSAHeader) boo
 
 func (t *Table) lookupLSAHeaderLocked(interfaceName string, area types.AreaID, key types.LSAKey) (packet.LSAHeader, bool) {
 	if key.Type == types.LSTypeLink {
-		if linkDB, ok := t.lsdb.(LinkScopeLSDB); ok {
+		if linkDB, ok := t.lsdb.(linkScopeLSDB); ok {
 			return linkDB.LookupLink(interfaceName, key)
 		}
 		return packet.LSAHeader{}, false
@@ -138,7 +138,7 @@ func (t *Table) lookupLSAHeaderLocked(interfaceName string, area types.AreaID, k
 
 func (t *Table) lookupLSALocked(interfaceName string, area types.AreaID, key types.LSAKey) (packet.LSA, bool) {
 	if key.Type == types.LSTypeLink {
-		if linkDB, ok := t.lsdb.(LinkScopeLSDB); ok {
+		if linkDB, ok := t.lsdb.(linkScopeLSDB); ok {
 			return linkDB.LookupLinkLSA(interfaceName, key)
 		}
 		return packet.LSA{}, false

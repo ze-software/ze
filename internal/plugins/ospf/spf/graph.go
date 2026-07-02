@@ -1,10 +1,13 @@
 // Design: plan/learned/962-ospf-8-spf-rib.md -- OSPFv2 SPF graph build from the synced LSDB.
 // RFC 2328 Section 16.1 builds the intra-area shortest-path tree over router
 // vertices and transit-network vertices before stub networks are attached.
+// RFC: rfc/short/rfc5286.md (post-convergence graph clone for TI-LFA repair)
 
 package spf
 
 import (
+	"slices"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
 )
@@ -124,6 +127,89 @@ func BuildGraph(src Source, area types.AreaID) *Graph {
 		}
 	}
 	return g
+}
+
+// Clone returns a deep copy of the graph: the router and network vertex maps and
+// their per-vertex Links / AttachedRouters slices are copied, so a subsequent
+// excludeLink / excludeRouter mutation for a TI-LFA post-convergence SPF never
+// touches the live graph the Computer retains.
+func (g *Graph) Clone() *Graph {
+	out := NewGraph(g.Area)
+	for id, r := range g.Routers {
+		if r == nil {
+			continue
+		}
+		links := make([]packet.RouterLink, len(r.Links))
+		copy(links, r.Links)
+		out.Routers[id] = &RouterVertex{ID: r.ID, Flags: r.Flags, Links: links}
+	}
+	for id, n := range g.Networks {
+		if n == nil {
+			continue
+		}
+		attached := make([]types.RouterID, len(n.AttachedRouters))
+		copy(attached, n.AttachedRouters)
+		out.Networks[id] = &NetworkVertex{
+			ID:              n.ID,
+			AdvertisingDR:   n.AdvertisingDR,
+			DRInterfaceID:   n.DRInterfaceID,
+			NetworkMask:     n.NetworkMask,
+			AttachedRouters: attached,
+		}
+	}
+	return out
+}
+
+// excludeLink removes the point-to-point / virtual adjacency between routers a
+// and b in BOTH directions so a post-convergence SPF (TI-LFA link protection)
+// cannot cross the protected link. The two-way check in Compute then treats the
+// link as down. Mutates the receiver; call on a Clone.
+func (g *Graph) excludeLink(a, b types.RouterID) {
+	dropLink(g.Routers[a], b)
+	dropLink(g.Routers[b], a)
+}
+
+func dropLink(v *RouterVertex, to types.RouterID) {
+	if v == nil {
+		return
+	}
+	want := linkStateIDFromRouterID(to)
+	out := v.Links[:0]
+	for _, l := range v.Links {
+		if (l.Type == packet.RouterLinkTypeP2P || l.Type == packet.RouterLinkTypeVirtual) && l.LinkID == want {
+			continue
+		}
+		out = append(out, l)
+	}
+	v.Links = out
+}
+
+// excludeRouter removes router r entirely: its vertex, every point-to-point link
+// pointing at it, and its membership in every transit network, so a
+// post-convergence SPF (TI-LFA node protection) routes around the protected
+// node. Mutates the receiver; call on a Clone.
+func (g *Graph) excludeRouter(r types.RouterID) {
+	delete(g.Routers, r)
+	want := linkStateIDFromRouterID(r)
+	for _, v := range g.Routers {
+		if v == nil {
+			continue
+		}
+		out := v.Links[:0]
+		for _, l := range v.Links {
+			if (l.Type == packet.RouterLinkTypeP2P || l.Type == packet.RouterLinkTypeVirtual) && l.LinkID == want {
+				continue
+			}
+			out = append(out, l)
+		}
+		v.Links = out
+	}
+	for _, n := range g.Networks {
+		if n == nil {
+			continue
+		}
+		n.AttachedRouters = slices.DeleteFunc(n.AttachedRouters, func(id types.RouterID) bool { return id == r })
+	}
 }
 
 func routerBody(lsa packet.LSA) (packet.RouterLSA, error) {

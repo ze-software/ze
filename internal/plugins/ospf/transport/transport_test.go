@@ -44,6 +44,7 @@ type fakeHandle struct {
 	joins   []netip.Addr
 	leaves  []netip.Addr
 	sends   []fakeSend
+	routed  []fakeSend
 }
 
 type fakeSend struct {
@@ -68,6 +69,14 @@ func (h *fakeHandle) LeaveAllDRouters() error {
 func (h *fakeHandle) Send(dst netip.Addr, payload []byte) error {
 	cp := append([]byte(nil), payload...)
 	h.sends = append(h.sends, fakeSend{dst: dst, payload: cp})
+	return nil
+}
+
+// SendRouted records a routed (TTL > 1) send, satisfying the routedSender capability so
+// SendPacketRouted takes the routed path rather than the TTL-1 link-local Send.
+func (h *fakeHandle) SendRouted(dst netip.Addr, payload []byte) error {
+	cp := append([]byte(nil), payload...)
+	h.routed = append(h.routed, fakeSend{dst: dst, payload: cp})
 	return nil
 }
 func (h *fakeHandle) Close() error {
@@ -199,6 +208,33 @@ func TestOSPFTransportSendUnicastDoesNotAlterPayload(t *testing.T) {
 	got := fb.handles["eth0"].sends[0]
 	if got.dst != dst || !bytes.Equal(got.payload, payload) {
 		t.Fatalf("send = dst %v payload % x", got.dst, got.payload)
+	}
+}
+
+// VALIDATES: spec-ospf-ext-7 AC-6 / A-7 / R-1 -- a virtual-link send takes the routed path
+// (SendRouted, TTL > 1), distinct from the TTL-1 link-local Send used for normal OSPF.
+func TestVirtualLinkSendUsesRoutedTTL(t *testing.T) {
+	fb := newFakeBackend()
+	tr := New(fb)
+	tr.EnableInterface("eth0")
+	if err := tr.HandleLinkUp("eth0"); err != nil {
+		t.Fatalf("HandleLinkUp: %v", err)
+	}
+	dst := netip.MustParseAddr("172.16.0.2")
+	payload := []byte{1, 2, 3, 4}
+	if err := tr.SendPacketRouted("eth0", dst, netip.Addr{}, payload); err != nil {
+		t.Fatalf("SendPacketRouted: %v", err)
+	}
+	h := fb.handles["eth0"]
+	if len(h.routed) != 1 || h.routed[0].dst != dst || !bytes.Equal(h.routed[0].payload, payload) {
+		t.Fatalf("routed send not used: routed=%+v", h.routed)
+	}
+	if len(h.sends) != 0 {
+		t.Fatalf("virtual-link packet leaked onto the TTL-1 link-local path: %+v", h.sends)
+	}
+	// An IPv6 destination is rejected by the IPv4 routed path.
+	if err := tr.SendPacketRouted("eth0", netip.MustParseAddr("2001:db8::1"), netip.Addr{}, payload); !errors.Is(err, ErrInvalidDestination) {
+		t.Fatalf("IPv6 dst on IPv4 routed send err = %v, want ErrInvalidDestination", err)
 	}
 }
 

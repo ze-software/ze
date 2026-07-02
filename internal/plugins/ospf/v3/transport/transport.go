@@ -347,6 +347,16 @@ func (t *Transport) HandleLinkUp(name string) error {
 	if err != nil {
 		return err
 	}
+	// NOTE (RFC 4552 residual startup gap, spec-ospf-ext-16 FIX-3): the socket is
+	// opened and joins ff02::5 here, but the inbound IPsec require-policy is installed
+	// later, in the onUp callback below (engine.onInterfaceUp -> ipsecInstaller). Until
+	// that policy exists, the kernel has no reason to drop unprotected inbound OSPF, so
+	// a neighbor's unprotected Hello arriving in this brief window could be delivered.
+	// The outbound path is safe (onUp installs the SA/policy before the interface FSM
+	// sends the first Hello). Closing the inbound window requires installing the inbound
+	// policy before the group join, which means splitting the single onUp callback into
+	// a pre-join "secure" hook and a post-open "start FSM" hook across the shared engine
+	// Transport seam (the v4 engine has no IPsec) -- deferred as a larger refactor.
 	if err := handle.JoinAllSPFRouters(); err != nil {
 		if cerr := handle.Close(); cerr != nil {
 			logger().Warn("ospfv3/transport: close after join failure", "interface", name, "err", cerr)
@@ -498,6 +508,53 @@ func (t *Transport) SendPacket(name string, dst netip.Addr, payload []byte) erro
 	return nil
 }
 
+// routedHopLimit is the hop limit for a routed OSPFv3 virtual-link packet: unlike the
+// hop-limit-1 link-local path, a virtual-link packet is routed across the transit area (RFC
+// 5340 §2.9), so it needs a hop limit large enough to traverse it.
+const routedHopLimit = 64
+
+// routedSenderV6 is the optional capability of an InterfaceHandle to send a routed unicast
+// packet from an explicit GLOBAL source with a hop limit > 1.
+type routedSenderV6 interface {
+	SendRouted(dst, src netip.Addr, payload []byte, hopLimit int) error
+}
+
+// SendPacketRouted sends an OSPFv3 virtual-link packet ROUTED across a transit area (RFC
+// 5340 §2.9): unicast to the neighbor's GLOBAL address dst from the local GLOBAL source src
+// with a hop limit > 1 (not the link-local source / hop-limit-1 path). The IPv6 upper-layer
+// checksum pseudo-header is finalized against the GLOBAL src (RFC 5340 §A.3.1), so it must
+// match the on-wire source. name is a real transit egress interface (the packet is routed,
+// not bound to the synthetic virtual interface).
+func (t *Transport) SendPacketRouted(name string, dst, src netip.Addr, payload []byte) error {
+	if !dst.Is6() || !src.Is6() {
+		return ErrInvalidDestination
+	}
+	t.mu.Lock()
+	st, open := t.interfaces[name]
+	signer := t.signer
+	t.mu.Unlock()
+	if !open {
+		return ErrInterfaceNotOpen
+	}
+	if signer != nil {
+		payload = signer(name, payload)
+	} else {
+		packet.FinalizePacketChecksum(src, dst, payload)
+	}
+	var err error
+	if rs, ok := st.handle.(routedSenderV6); ok {
+		err = rs.SendRouted(dst, src, payload, routedHopLimit)
+	} else {
+		err = st.handle.Send(dst, src, payload)
+	}
+	if err != nil {
+		t.metrics.packetsDropped.With(name, dropSendError).Inc()
+		return err
+	}
+	t.metrics.packetsSent.With(name, packetTypeLabel(payload)).Inc()
+	return nil
+}
+
 // JoinAllDRouters joins ff02::6 on the interface (RFC 5340 §2.9: only the DR/BDR).
 func (t *Transport) JoinAllDRouters(name string) error {
 	t.mu.Lock()
@@ -518,6 +575,20 @@ func (t *Transport) LeaveAllDRouters(name string) error {
 		return ErrInterfaceNotOpen
 	}
 	return st.handle.LeaveAllDRouters()
+}
+
+// InterfaceSource returns the bound link-local source and kernel ifindex of an open
+// interface, or ok=false when the interface is not open. The RFC 4552 IPsec installer
+// uses it to scope the transport-mode SA/policy selectors to the exact on-wire source
+// (RFC 5340 §A.3.1) and to derive a per-interface reqid.
+func (t *Transport) InterfaceSource(name string) (netip.Addr, int, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	st, ok := t.interfaces[name]
+	if !ok {
+		return netip.Addr{}, 0, false
+	}
+	return st.handle.LinkLocalSource(), st.handle.IfIndex(), true
 }
 
 // InterfaceOpen reports whether the interface socket is currently open.

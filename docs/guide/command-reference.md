@@ -479,15 +479,15 @@ whose `RxErrors`, `RxDropped`, `TxErrors`, `TxDropped` counters are all
 zero. The response includes only the four counter fields per interface
 for compact diffing across snapshots.
 
-### show traffic
+### show traffic control
 
 Traffic control (TC) state. Queries the active TC backend for qdisc, class,
 and filter state per interface. Returns "traffic control not available on
 this platform" when no TC backend is loaded (e.g. on macOS).
 
 ```
-ze show traffic                   # Summary of all interfaces with qdiscs
-ze show traffic <ifname>          # Detail for one interface
+ze show traffic control            # Summary of all interfaces with qdiscs
+ze show traffic control <ifname>   # Detail for one interface
 ```
 
 ### show flow-export
@@ -551,7 +551,7 @@ show traffic-feature                  # Top source entities
 show traffic-feature name <address>   # One source by address
 ```
 
-### show anomaly
+### show anomaly detect
 <!-- source: internal/plugins/anomaly/detect/show.go -- handleShowAnomaly, ze-show:anomaly -->
 
 Recent behavioral anomaly incidents from the report-only `anomaly-detect` plugin.
@@ -561,10 +561,10 @@ correlated deviation confirms. The detector reports only; the `anomaly/shape`
 responder acts on these incidents.
 
 ```
-show anomaly                          # Recent anomaly incidents
+show anomaly detect                   # Recent anomaly incidents
 ```
 
-### show anomaly-shape
+### show anomaly shape
 <!-- source: internal/plugins/anomaly/shape/show.go -- handleShowAnomalyShape, ze-show:anomaly-shape -->
 
 Status of the shadow-first anomaly responder. Returns `{"enabled": bool, "mode":
@@ -573,18 +573,18 @@ Status of the shadow-first anomaly responder. Returns `{"enabled": bool, "mode":
 sources carry a live rate-limit with a timed auto-revert.
 
 ```
-show anomaly-shape                    # Responder mode + armed sources
+show anomaly shape                    # Responder mode + armed sources
 ```
 
-### show traffic-usage
+### show traffic usage
 
 Per-interface eBPF byte accounting for the `traffic-usage` plugin (TCX
 per-port/protocol, and per-IP when `track-ip` is enabled). Returns
-`{"status": "not-configured"}` when no `traffic-usage { }` section is present.
+`{"status": "not-configured"}` when no `traffic { usage { } }` section is present.
 
 ```
-ze show traffic-usage                 # All monitored interfaces
-ze show traffic-usage name <interface># One interface by name
+ze show traffic usage                 # All monitored interfaces
+ze show traffic usage name <interface># One interface by name
 ```
 
 Each entry reports `ingress-ports`, `egress-ports`, `map-entries`, and (only
@@ -624,6 +624,9 @@ preferred-source IP when the kernel reports one.
 
 **`show ospf route`** returns the OSPF SPF route table: area, prefix,
 metric, path type, advertising router, and equal-cost next-hop set. **`show ospf
+route fast-reroute`** returns each prefix's primary next-hops with their RFC 5286
+LFA / TI-LFA backup next-hop, protection class (node/link/downstream), and
+TI-LFA repair label stack; unprotected primaries are shown as unprotected. **`show ospf
 spf`** returns per-area SPF run state: last run time, duration, node count,
 pending state, and current throttle delay. **`show ospf border-routers`**
 returns reachable ABRs and ASBRs with area, metric, and next-hop set. **`show
@@ -1372,10 +1375,10 @@ subnet size. Requires root on Linux.
 Remove ze binary or systemd service.
 
 ```
-ze uninstall local                   # remove binary
-ze uninstall local --purge           # also remove config directory and database
 sudo ze uninstall systemd            # stop, disable, and remove the unit
 sudo ze uninstall systemd --purge    # also remove the ze user and group
+ze uninstall local                   # remove binary
+ze uninstall local --purge           # also remove config directory and database
 ```
 <!-- source: cmd/ze/uninstall/dispatch.go -- dispatch -->
 <!-- source: internal/plugins/local/ -- binary removal -->
