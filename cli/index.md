@@ -1,6 +1,6 @@
 # CLI Reference
 
-375 commands across 45 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.github.io/ze/data/cli-commands.json).
+380 commands across 47 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.github.io/ze/data/cli-commands.json).
 
 ## announce (1)
 
@@ -86,6 +86,21 @@
 | Command | Mode | Description |
 | --- | --- | --- |
 | `explain` | Offline | Print the meaning, likely cause, and recommended fix for a Ze diagnostic code. Pass the code you saw in a log or error message. |
+
+## fakel2tp (2)
+
+| Command | Mode | Description |
+| --- | --- | --- |
+| `fakel2tp emit` | Daemon | Emit one synthetic L2TP route-change batch |
+| `fakel2tp help` | Daemon | Print the fakel2tp command surface |
+
+## fakeredist (3)
+
+| Command | Mode | Description |
+| --- | --- | --- |
+| `fakeredist emit` | Daemon | Emit one synthetic route-change batch |
+| `fakeredist emit-burst` | Daemon | Emit N synthetic batches sequentially |
+| `fakeredist help` | Daemon | Print the fakeredist command surface |
 
 ## generate (1)
 

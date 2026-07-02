@@ -172,7 +172,8 @@ def render_index_markdown(posts):
         "# Ze weekly updates",
         "",
         "%d weeks of shipped work, in Zeledon's voice, mined from git "
-        "history. New weeks are also posted to Discord's `ze-news`." % len(posts_sorted),
+        "history. New weeks are also posted to Discord's `ze-news`."
+        % len(posts_sorted),
         "",
     ]
     for p in posts_sorted:
@@ -212,7 +213,7 @@ def render_index(posts):
             "cat-services",
             "cat-platform",
         ][i % 7]
-        parts.append('                    <article class="card %s">' % cat)
+        parts.append('                    <article class="card card-post %s">' % cat)
         if p["is_draft"]:
             parts.append('                        <span class="chip mode">Draft</span>')
         parts.append(
@@ -222,6 +223,10 @@ def render_index(posts):
         if p["intro"]:
             excerpt = markdown.markdown(p["intro"])[3:-4]
             parts.append("                        <p>%s</p>" % excerpt)
+        parts.append(
+            '                        <a class="post-more" href="%s/">Read the update</a>'
+            % p["slug"]
+        )
         parts.append("                    </article>")
     parts.append("                </div>")
     parts.append("            </section>")
@@ -299,7 +304,9 @@ def main():
         + sitelib.page_foot("../")
     )
     sitelib.write_markdown_sibling(index_dest, render_index_markdown(index_entries))
-    print("rendered index -> %s (%d posts, + index.md)" % (index_dest, len(index_entries)))
+    print(
+        "rendered index -> %s (%d posts, + index.md)" % (index_dest, len(index_entries))
+    )
     render_feed(index_entries)
     return 0
 

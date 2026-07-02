@@ -40,7 +40,7 @@
     --mint-glow: rgba(34, 181, 115, 0.38);
 
     --teal-base: #1abc9c;
-    --teal-mid: #0f8a72;
+    --teal-mid: #0aa88c;
     --teal-deep: #0a6b58;
     --teal-chip: #abeee7;
     --teal-tint: #e2faf8;
@@ -679,9 +679,14 @@ a.hl:hover {
 
 .button:hover {
     border-color: #fff;
-    background: #fff;
-    transform: translateY(-3px);
-    box-shadow: var(--clay), 0 1rem 2rem -0.6rem var(--sky-glow);
+    background: linear-gradient(
+        105deg,
+        var(--sky-base),
+        var(--teal-base) 55%,
+        var(--mint-base)
+    );
+    color: #fff;
+    box-shadow: var(--clay);
 }
 
 .button:active {
@@ -695,7 +700,7 @@ a.hl:hover {
         var(--pink-deep) 55%,
         var(--tangerine-deep)
     );
-    box-shadow: var(--clay), 0 0.9rem 2rem -0.4rem var(--grape-glow);
+    box-shadow: var(--clay), 0 0.6rem 1.4rem -0.4rem var(--grape-glow);
 }
 
 .bird-card {
@@ -980,23 +985,92 @@ section {
         box-shadow 220ms ease;
 }
 
+/*
+ * Hover affordance rule: a card lifts on hover ONLY if it links somewhere
+ * (has an <a> -- a title/primary link that leads to a page). Purely
+ * informational cards with no link get a flat accent-border cue and stay
+ * put. Motion is reserved for "this tile leads somewhere", the same reason
+ * the action buttons no longer lift. (Only the title is the click target
+ * today; a stretched-link would make the whole tile clickable to match.)
+ */
 .card:hover {
     border-color: var(--card-hover-border);
-    transform: translateY(-5px) scale(1.015);
-    box-shadow: var(--clay), 0 1.5rem 2.8rem -0.8rem var(--acc-glow);
 }
 
 .card[class*="cat-"]:hover {
     border-color: var(--acc);
 }
 
-/*
- * A card whose actual click target is an inner link (lab cards, anything
- * with a nested <a>) shouldn't lift on hover -- that affordance implies the
- * whole card is clickable. Keep the shadow/border cue, drop the transform.
- */
 .card:has(a):hover {
-    transform: none;
+    transform: translateY(-5px) scale(1.015);
+    box-shadow: var(--clay), 0 1.5rem 2.8rem -0.8rem var(--acc-glow);
+}
+
+/*
+ * Blog "Ze weekly updates" cards (blog index + homepage teaser). Same base
+ * card, but dressed as posts: the rotating category hue shows as a top
+ * accent bar and a faint tinted wash, the date headline takes the accent
+ * colour, and a "Read the update ->" affordance slides on hover. Re-enables
+ * the hover lift that .card:has(a):hover cancels, since the whole tile reads
+ * as one clickable post.
+ */
+.card-post {
+    display: flex;
+    flex-direction: column;
+    border-top-color: var(--acc);
+    background: #fffafc;
+    overflow: hidden;
+}
+
+/*
+ * Coloured "week" header, cleanly cut from a plain white body by an accent
+ * divider: the date carries the category hue on a tinted band, the excerpt
+ * stays on white so title and text read as two zones instead of blending.
+ */
+.card-post h3 {
+    margin: 0 -1.25rem 0.95rem;
+    padding: 0.8rem 1.25rem;
+    background: linear-gradient(180deg, var(--acc-tint), #fff);
+    border-bottom: 2px solid var(--acc);
+}
+
+.card-post > h3:first-child {
+    margin-top: -1.25rem;
+}
+
+.card-post h3 a {
+    color: var(--acc-deep);
+}
+
+.card-post > p {
+    flex: 1 1 auto;
+}
+
+.card-post .post-more {
+    align-self: flex-start;
+    margin-top: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--acc-deep);
+    font-weight: 800;
+    font-size: 0.82rem;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+}
+
+.card-post .post-more::after {
+    content: "\2192";
+    transition: transform 200ms ease;
+}
+
+.card-post:hover .post-more {
+    text-decoration: underline;
+    text-underline-offset: 0.2rem;
+}
+
+.card-post:hover .post-more::after {
+    transform: translateX(0.35rem);
 }
 
 /*
@@ -1070,7 +1144,7 @@ section {
     gap: 0.4rem;
     margin-bottom: 0.65rem;
     padding: 0.3rem 0.65rem;
-    border-radius: 999px;
+    border-radius: 0.6rem;
     background: var(--acc-deep);
     color: #fff;
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
@@ -1294,7 +1368,7 @@ section {
     padding: 0.5rem 0.95rem;
     border: 2px solid transparent;
     border-radius: 0.6rem;
-    background: linear-gradient(135deg, var(--acc), var(--acc-deep));
+    background: var(--acc);
     color: #fff;
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.74rem;
@@ -1302,38 +1376,32 @@ section {
     letter-spacing: 0.09em;
     text-transform: uppercase;
     text-decoration: none;
-    box-shadow: var(--clay);
+    box-shadow: none;
     cursor: pointer;
     transition:
-        transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
-        box-shadow 200ms ease,
+        filter 200ms ease,
         border-color 200ms ease;
 }
 
-.legend button::before,
-.legend a::before {
-    width: 0.55rem;
-    height: 0.55rem;
-    border-radius: 999px;
-    background: #fff;
-    box-shadow: 0 0 0.45rem rgba(255, 255, 255, 0.7);
-    content: "";
+/* Gold's vivid base is too light for legible white text; use the richer
+   amber so the Services chip reads as clearly as the others. */
+.legend .cat-services {
+    background: var(--acc-mid);
 }
 
 .legend button:hover,
 .legend a:hover {
-    transform: translateY(-2px);
+    filter: brightness(1.08);
     color: #fff;
 }
 
 .legend button:active {
-    transform: scale(0.96);
+    filter: brightness(0.96);
 }
 
 .legend button[aria-pressed="true"] {
-    border-color: var(--acc-deep);
-    transform: scale(1.05);
-    box-shadow: var(--clay), 0 0.8rem 1.8rem -0.6rem var(--acc-glow);
+    border-color: #fff;
+    box-shadow: 0 0 0 2px var(--acc-deep);
 }
 
 .card.filtered-out {
@@ -1526,12 +1594,11 @@ pre {
 
 .audience-card:hover {
     border-color: var(--card-hover-border);
-    transform: translateY(-4px) scale(1.01);
-    box-shadow: var(--clay), 0 1.2rem 2.6rem -0.8rem var(--card-hover-shadow);
 }
 
 .audience-card:has(a):hover {
-    transform: none;
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: var(--clay), 0 1.2rem 2.6rem -0.8rem var(--card-hover-shadow);
 }
 
 .audience-card:nth-child(1) {

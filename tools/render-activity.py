@@ -93,7 +93,7 @@ PAGE = """<!doctype html>
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css" />
+        <link rel="stylesheet" href="{site_css}" />
         <style>
 {style}
         </style>
@@ -133,7 +133,7 @@ PAGE = """<!doctype html>
 
 {script}
 
-        <script src="../assets/site.js" defer></script>
+        <script src="{site_js}" defer></script>
 
 {footer}
     </body>
@@ -443,6 +443,8 @@ def main():
 
     page = PAGE.format(
         style=STYLE,
+        site_css=sitelib.asset_url("../", "assets/site.css"),
+        site_js=sitelib.asset_url("../", "assets/site.js"),
         navblock=sitelib.build_navblock("../"),
         stats=stats_html,
         chart=chart_html,

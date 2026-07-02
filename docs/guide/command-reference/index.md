@@ -1375,10 +1375,10 @@ subnet size. Requires root on Linux.
 Remove ze binary or systemd service.
 
 ```
-ze uninstall local                   # remove binary
-ze uninstall local --purge           # also remove config directory and database
 sudo ze uninstall systemd            # stop, disable, and remove the unit
 sudo ze uninstall systemd --purge    # also remove the ze user and group
+ze uninstall local                   # remove binary
+ze uninstall local --purge           # also remove config directory and database
 ```
 <!-- source: cmd/ze/uninstall/dispatch.go -- dispatch -->
 <!-- source: internal/plugins/local/ -- binary removal -->

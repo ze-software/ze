@@ -9,7 +9,7 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 ## Project
 
 - [Features](https://ze-software.github.io/ze/features/index.md): 46 features, color-coded by category (web: https://ze-software.github.io/ze/features/)
-- [CLI Reference](https://ze-software.github.io/ze/cli/index.md): 375 commands, generated from the live binary (web: https://ze-software.github.io/ze/cli/)
+- [CLI Reference](https://ze-software.github.io/ze/cli/index.md): 380 commands, generated from the live binary (web: https://ze-software.github.io/ze/cli/)
 - [Configuration Reference](https://ze-software.github.io/ze/config-reference/index.md): The whole config as a searchable index: 35 sections from live YANG (web: https://ze-software.github.io/ze/config-reference/)
 - [Dependencies](https://ze-software.github.io/ze/dependencies/index.md): 39 direct packages, generated from go.mod (web: https://ze-software.github.io/ze/dependencies/)
 - [Performance](https://ze-software.github.io/ze/performance/index.md): Measured BGP benchmarks, not claims (web: https://ze-software.github.io/ze/performance/)
@@ -17,17 +17,6 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 - [Roadmap](https://ze-software.github.io/ze/roadmap/index.md): The path to a first release you can trust (web: https://ze-software.github.io/ze/roadmap/)
 - [Changes](https://ze-software.github.io/ze/changes/index.md): What shipped, week by week (web: https://ze-software.github.io/ze/changes/)
 - [Activity](https://ze-software.github.io/ze/activity/index.md): A year of commits, at a glance (web: https://ze-software.github.io/ze/activity/)
-
-## Labs
-
-- [BGP Protocol Interop](https://ze-software.github.io/ze/labs/bgp-interop/index.md): Real FRR, BIRD, and GoBGP sessions (web: https://ze-software.github.io/ze/labs/bgp-interop/)
-- [L2TP PPP/NCP Interop](https://ze-software.github.io/ze/labs/l2tp-interop/index.md): Ze as LNS vs real xl2tpd (web: https://ze-software.github.io/ze/labs/l2tp-interop/)
-- [PPPoE Interop](https://ze-software.github.io/ze/labs/pppoe-interop/index.md): vs real accel-ppp access concentrator (web: https://ze-software.github.io/ze/labs/pppoe-interop/)
-- [IPsec / IKEv2 Interop](https://ze-software.github.io/ze/labs/ipsec-interop/index.md): Ze as IKE initiator vs strongSwan (web: https://ze-software.github.io/ze/labs/ipsec-interop/)
-- [VLAN QoS Wire-Level Proof](https://ze-software.github.io/ze/labs/vlan-qos/index.md): 802.1p PCP tagging, actually on the wire (web: https://ze-software.github.io/ze/labs/vlan-qos/)
-- [Looking Glass Graph Demo](https://ze-software.github.io/ze/labs/looking-glass-graph/index.md): Realistic UK topology, real external ASNs (web: https://ze-software.github.io/ze/labs/looking-glass-graph/)
-- [Appliance Installer Evidence](https://ze-software.github.io/ze/labs/appliance-install/index.md): HTTP/PXE, ISO, Ventoy, real boots (web: https://ze-software.github.io/ze/labs/appliance-install/)
-- [VPP Dataplane Evidence](https://ze-software.github.io/ze/labs/vpp-dataplane/index.md): FIB, traffic, and firewall in a real VPP daemon (web: https://ze-software.github.io/ze/labs/vpp-dataplane/)
 
 ## Docs
 
@@ -45,14 +34,25 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 - [Benchmarking](https://ze-software.github.io/ze/docs/guide/benchmarking/index.md): ze-perf architecture, flags, JSON output (web: https://ze-software.github.io/ze/docs/guide/benchmarking/)
 - [Migrating from ExaBGP](https://ze-software.github.io/ze/docs/guide/exabgp-migration/index.md): Convert configs and bridge process scripts (web: https://ze-software.github.io/ze/docs/guide/exabgp-migration/)
 
+## Labs
+
+- [BGP Protocol Interop](https://ze-software.github.io/ze/labs/bgp-interop/index.md): Real FRR, BIRD, and GoBGP sessions (web: https://ze-software.github.io/ze/labs/bgp-interop/)
+- [L2TP PPP/NCP Interop](https://ze-software.github.io/ze/labs/l2tp-interop/index.md): Ze as LNS vs real xl2tpd (web: https://ze-software.github.io/ze/labs/l2tp-interop/)
+- [PPPoE Interop](https://ze-software.github.io/ze/labs/pppoe-interop/index.md): vs real accel-ppp access concentrator (web: https://ze-software.github.io/ze/labs/pppoe-interop/)
+- [IPsec / IKEv2 Interop](https://ze-software.github.io/ze/labs/ipsec-interop/index.md): Ze as IKE initiator vs strongSwan (web: https://ze-software.github.io/ze/labs/ipsec-interop/)
+- [VLAN QoS Wire-Level Proof](https://ze-software.github.io/ze/labs/vlan-qos/index.md): 802.1p PCP tagging, actually on the wire (web: https://ze-software.github.io/ze/labs/vlan-qos/)
+- [Looking Glass Graph Demo](https://ze-software.github.io/ze/labs/looking-glass-graph/index.md): Realistic UK topology, real external ASNs (web: https://ze-software.github.io/ze/labs/looking-glass-graph/)
+- [Appliance Installer Evidence](https://ze-software.github.io/ze/labs/appliance-install/index.md): HTTP/PXE, ISO, Ventoy, real boots (web: https://ze-software.github.io/ze/labs/appliance-install/)
+- [VPP Dataplane Evidence](https://ze-software.github.io/ze/labs/vpp-dataplane/index.md): FIB, traffic, and firewall in a real VPP daemon (web: https://ze-software.github.io/ze/labs/vpp-dataplane/)
+
 ## Blog
 
+- [All posts](https://ze-software.github.io/ze/blog/index.md): Every weekly update, newest first (web: https://ze-software.github.io/ze/blog/)
 - [Week of 2026-06-25](https://ze-software.github.io/ze/blog/2026-06-25/index.md): Shipped across security, the appliance, routing, and observability thi… (web: https://ze-software.github.io/ze/blog/2026-06-25/)
 - [Week of 2026-06-22](https://ze-software.github.io/ze/blog/2026-06-22/index.md): Focused on trimming attack surface and rounding out OSPF. (web: https://ze-software.github.io/ze/blog/2026-06-22/)
 - [Week of 2026-06-15](https://ze-software.github.io/ze/blog/2026-06-15/index.md): Native IS-IS landed, MPLS gained fast reroute, and firewall rules can … (web: https://ze-software.github.io/ze/blog/2026-06-15/)
 - [Week of 2026-06-08](https://ze-software.github.io/ze/blog/2026-06-08/index.md): A week of operator-facing polish: a real Web Workbench UI, SR-Policy a… (web: https://ze-software.github.io/ze/blog/2026-06-08/)
 - [Week of 2026-06-01](https://ze-software.github.io/ze/blog/2026-06-01/index.md): The CLI grammar rollout finished, MRT tooling arrived, and a handful o… (web: https://ze-software.github.io/ze/blog/2026-06-01/)
-- [All posts](https://ze-software.github.io/ze/blog/index.md): Every weekly update, newest first (web: https://ze-software.github.io/ze/blog/)
 
 ## More
 

@@ -77,13 +77,17 @@ BLOG_TEASER_CATEGORIES = [
 
 def render_blog_teaser_card(post, i):
     cat = BLOG_TEASER_CATEGORIES[i % len(BLOG_TEASER_CATEGORIES)]
-    parts = ['                    <article class="card %s">' % cat]
+    parts = ['                    <article class="card card-post %s">' % cat]
     parts.append(
         '                        <h3><a href="blog/%s/">Week of %s</a></h3>'
         % (post["slug"], post["slug"])
     )
     if post["intro"]:
         parts.append("                        <p>%s</p>" % post["intro"])
+    parts.append(
+        '                        <a class="post-more" href="blog/%s/">Read the update</a>'
+        % post["slug"]
+    )
     parts.append("                    </article>")
     return "\n".join(parts)
 
@@ -125,9 +129,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                     <div class="actions">
                         <a
                             class="button primary"
-                            href="https://github.com/ze-software/ze#quick-start"
-                            target="_blank"
-                            rel="noopener"
+                            href="docs/guide/quickstart/"
                             >Quick Start</a
                         >
                         <a

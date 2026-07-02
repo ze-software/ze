@@ -23,23 +23,6 @@
             ]
         },
         {
-            "label": "Labs",
-            "columns": [
-                [
-                    {"href": "labs/bgp-interop/", "icon": "🌐", "title": "BGP Protocol Interop", "desc": "Real FRR, BIRD, and GoBGP sessions"},
-                    {"href": "labs/l2tp-interop/", "icon": "🔌", "title": "L2TP PPP/NCP Interop", "desc": "Ze as LNS vs real xl2tpd"},
-                    {"href": "labs/pppoe-interop/", "icon": "📡", "title": "PPPoE Interop", "desc": "vs real accel-ppp access concentrator"},
-                    {"href": "labs/ipsec-interop/", "icon": "🔒", "title": "IPsec / IKEv2 Interop", "desc": "Ze as IKE initiator vs strongSwan"}
-                ],
-                [
-                    {"href": "labs/vlan-qos/", "icon": "🏷️", "title": "VLAN QoS Wire-Level Proof", "desc": "802.1p PCP tagging, actually on the wire"},
-                    {"href": "labs/looking-glass-graph/", "icon": "🔭", "title": "Looking Glass Graph Demo", "desc": "Realistic UK topology, real external ASNs"},
-                    {"href": "labs/appliance-install/", "icon": "💿", "title": "Appliance Installer Evidence", "desc": "HTTP/PXE, ISO, Ventoy, real boots"},
-                    {"href": "labs/vpp-dataplane/", "icon": "🚀", "title": "VPP Dataplane Evidence", "desc": "FIB, traffic, and firewall in a real VPP daemon"}
-                ]
-            ]
-        },
-        {
             "label": "Docs",
             "columns": [
                 [
@@ -60,6 +43,23 @@
                     {"href": "docs/guide/vpp/", "icon": "📦", "title": "VPP Dataplane", "desc": "FIB, traffic, and firewall via VPP"},
                     {"href": "docs/guide/benchmarking/", "icon": "📊", "title": "Benchmarking", "desc": "ze-perf architecture, flags, JSON output"},
                     {"href": "docs/guide/exabgp-migration/", "icon": "🔀", "title": "Migrating from ExaBGP", "desc": "Convert configs and bridge process scripts"}
+                ]
+            ]
+        },
+        {
+            "label": "Labs",
+            "columns": [
+                [
+                    {"href": "labs/bgp-interop/", "icon": "🌐", "title": "BGP Protocol Interop", "desc": "Real FRR, BIRD, and GoBGP sessions"},
+                    {"href": "labs/l2tp-interop/", "icon": "🔌", "title": "L2TP PPP/NCP Interop", "desc": "Ze as LNS vs real xl2tpd"},
+                    {"href": "labs/pppoe-interop/", "icon": "📡", "title": "PPPoE Interop", "desc": "vs real accel-ppp access concentrator"},
+                    {"href": "labs/ipsec-interop/", "icon": "🔒", "title": "IPsec / IKEv2 Interop", "desc": "Ze as IKE initiator vs strongSwan"}
+                ],
+                [
+                    {"href": "labs/vlan-qos/", "icon": "🏷️", "title": "VLAN QoS Wire-Level Proof", "desc": "802.1p PCP tagging, actually on the wire"},
+                    {"href": "labs/looking-glass-graph/", "icon": "🔭", "title": "Looking Glass Graph Demo", "desc": "Realistic UK topology, real external ASNs"},
+                    {"href": "labs/appliance-install/", "icon": "💿", "title": "Appliance Installer Evidence", "desc": "HTTP/PXE, ISO, Ventoy, real boots"},
+                    {"href": "labs/vpp-dataplane/", "icon": "🚀", "title": "VPP Dataplane Evidence", "desc": "FIB, traffic, and firewall in a real VPP daemon"}
                 ]
             ]
         },

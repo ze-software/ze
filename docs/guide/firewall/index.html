@@ -15,7 +15,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=63457d2ce0" />
     </head>
     <body>
         <header class="site-header">
@@ -70,49 +70,6 @@
                         <a class="nav-dropdown-item" href="../../../activity/">
                             <span class="nav-dropdown-icon">📈</span>
                             <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Labs
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../labs/bgp-interop/">
-                            <span class="nav-dropdown-icon">🌐</span>
-                            <span><strong>BGP Protocol Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../labs/l2tp-interop/">
-                            <span class="nav-dropdown-icon">🔌</span>
-                            <span><strong>L2TP PPP/NCP Interop</strong><small>Ze as LNS vs real xl2tpd</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../labs/pppoe-interop/">
-                            <span class="nav-dropdown-icon">📡</span>
-                            <span><strong>PPPoE Interop</strong><small>vs real accel-ppp access concentrator</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../labs/ipsec-interop/">
-                            <span class="nav-dropdown-icon">🔒</span>
-                            <span><strong>IPsec / IKEv2 Interop</strong><small>Ze as IKE initiator vs strongSwan</small></span>
-                        </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../labs/vlan-qos/">
-                            <span class="nav-dropdown-icon">🏷️</span>
-                            <span><strong>VLAN QoS Wire-Level Proof</strong><small>802.1p PCP tagging, actually on the wire</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../labs/looking-glass-graph/">
-                            <span class="nav-dropdown-icon">🔭</span>
-                            <span><strong>Looking Glass Graph Demo</strong><small>Realistic UK topology, real external ASNs</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../labs/appliance-install/">
-                            <span class="nav-dropdown-icon">💿</span>
-                            <span><strong>Appliance Installer Evidence</strong><small>HTTP/PXE, ISO, Ventoy, real boots</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../labs/vpp-dataplane/">
-                            <span class="nav-dropdown-icon">🚀</span>
-                            <span><strong>VPP Dataplane Evidence</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
                         </a>
                     </div>
                     </div>
@@ -177,11 +134,58 @@
                     </div>
                     </div>
                     <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Labs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../../../labs/bgp-interop/">
+                            <span class="nav-dropdown-icon">🌐</span>
+                            <span><strong>BGP Protocol Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/l2tp-interop/">
+                            <span class="nav-dropdown-icon">🔌</span>
+                            <span><strong>L2TP PPP/NCP Interop</strong><small>Ze as LNS vs real xl2tpd</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/pppoe-interop/">
+                            <span class="nav-dropdown-icon">📡</span>
+                            <span><strong>PPPoE Interop</strong><small>vs real accel-ppp access concentrator</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/ipsec-interop/">
+                            <span class="nav-dropdown-icon">🔒</span>
+                            <span><strong>IPsec / IKEv2 Interop</strong><small>Ze as IKE initiator vs strongSwan</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../../../labs/vlan-qos/">
+                            <span class="nav-dropdown-icon">🏷️</span>
+                            <span><strong>VLAN QoS Wire-Level Proof</strong><small>802.1p PCP tagging, actually on the wire</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/looking-glass-graph/">
+                            <span class="nav-dropdown-icon">🔭</span>
+                            <span><strong>Looking Glass Graph Demo</strong><small>Realistic UK topology, real external ASNs</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/appliance-install/">
+                            <span class="nav-dropdown-icon">💿</span>
+                            <span><strong>Appliance Installer Evidence</strong><small>HTTP/PXE, ISO, Ventoy, real boots</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/vpp-dataplane/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>VPP Dataplane Evidence</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
                     <button class="nav-dropdown-trigger" type="button">Blog
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
                     <div class="nav-dropdown-panel">
                     <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../../../blog/">
+                            <span class="nav-dropdown-icon">📚</span>
+                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
+                        </a>
                         <a class="nav-dropdown-item" href="../../../blog/2026-06-25/">
                             <span class="nav-dropdown-icon">🗓️</span>
                             <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
@@ -201,10 +205,6 @@
                         <a class="nav-dropdown-item" href="../../../blog/2026-06-01/">
                             <span class="nav-dropdown-icon">🗓️</span>
                             <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
                         </a>
                     </div>
                     </div>
@@ -806,7 +806,7 @@ loads the selected backend, and calls <code>Apply([]Table)</code>. On failure,
             </section>
         </main>
 
-        <script src="../../../assets/site.js" defer></script>
+        <script src="../../../assets/site.js?v=009147356b" defer></script>
 
         <footer>
             <div class="footer-inner">

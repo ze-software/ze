@@ -8,6 +8,7 @@ render-activity.py, which is how a bulk-patch bug once duplicated dropdown
 content across 82 pages: three copies to keep in sync, one code path now.
 """
 
+import hashlib
 import html
 import json
 import pathlib
@@ -344,10 +345,13 @@ def rooted_href(root, path):
 def blog_dropdown_columns(n=5):
     """The Blog dropdown is populated live from the newest posts (via
     latest_blog_posts) rather than a hand-maintained nav.json list, so it can
-    never fall behind blog/posts/. One column of recent weeks plus an
-    all-posts link; entries are pre-root tuples (href, icon, title, desc,
-    feature) that nav_dropdown_rooted then prefixes with the page's root."""
-    col = []
+    never fall behind blog/posts/. An all-posts link first, then a column of
+    the most recent weeks; entries are pre-root tuples (href, icon, title,
+    desc, feature) that nav_dropdown_rooted then prefixes with the page's
+    root."""
+    col = [
+        ("blog/", "\U0001f4da", "All posts", "Every weekly update, newest first", False)
+    ]
     for post in latest_blog_posts(n):
         title = "Week of %s" % post["slug"]
         if post.get("is_draft"):
@@ -355,9 +359,6 @@ def blog_dropdown_columns(n=5):
         intro = " ".join((post.get("intro") or "").split())
         desc = (intro[:70] + "…") if len(intro) > 70 else (intro or "Weekly update")
         col.append(("blog/%s/" % post["slug"], "\U0001f5d3️", title, desc, False))
-    col.append(
-        ("blog/", "\U0001f4da", "All posts", "Every weekly update, newest first", False)
-    )
     return [col]
 
 
@@ -532,6 +533,47 @@ def patch_footer(html_text, root):
     return html_text[: m.start()] + footer_html(root) + html_text[end:]
 
 
+_ASSET_VERSIONS = {}
+
+
+def asset_query(relpath):
+    """The ?v=<short content hash> cache-busting suffix for a site asset
+    (site.css, site.js), or "" if the file can't be read. Computed once per
+    asset per build and memoised."""
+    if relpath not in _ASSET_VERSIONS:
+        try:
+            digest = hashlib.sha1((GH_PAGES / relpath).read_bytes()).hexdigest()[:10]
+        except OSError:
+            digest = None
+        _ASSET_VERSIONS[relpath] = digest
+    digest = _ASSET_VERSIONS[relpath]
+    return ("?v=%s" % digest) if digest else ""
+
+
+def asset_url(root, relpath):
+    """Cache-busting URL for a site asset (site.css, site.js).
+
+    Appends ?v=<short content hash> so a browser never serves a stale copy
+    after a rebuild: change the file, the hash changes, the URL changes, the
+    browser refetches. Without this, plain http.server / GitHub Pages caching
+    can pin an old site.js and CSS/JS edits silently don't show up."""
+    return "%s%s%s" % (root, relpath, asset_query(relpath))
+
+
+_ASSET_REF_RE = re.compile(r"assets/site\.(css|js)(?:\?v=[0-9a-f]+)?")
+
+
+def patch_asset_versions(html_text):
+    """Refresh (or add) the ?v=<hash> cache-buster on site.css/site.js links
+    in an already hand-authored / previously rendered page, so nav-patched
+    pages get the same cache-busting as freshly rendered ones."""
+    return _ASSET_REF_RE.sub(
+        lambda m: "assets/site.%s%s"
+        % (m.group(1), asset_query("assets/site." + m.group(1))),
+        html_text,
+    )
+
+
 PAGE_HEAD = """<!doctype html>
 <html lang="en">
     <head>
@@ -549,7 +591,7 @@ PAGE_HEAD = """<!doctype html>
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="{root}assets/site.css" />
+        <link rel="stylesheet" href="{site_css}" />
 {extra_head}    </head>
     <body>
         <header class="site-header">
@@ -567,7 +609,7 @@ PAGE_HEAD = """<!doctype html>
 
 PAGE_FOOT = """        </main>
 
-        <script src="{root}assets/site.js" defer></script>
+        <script src="{site_js}" defer></script>
 
 {footer}
     </body>
@@ -582,6 +624,7 @@ def page_head(title, desc, root, og_title=None, og_desc=None, extra_head=""):
         og_title=og_title if og_title is not None else title,
         og_desc=og_desc if og_desc is not None else desc,
         root=root,
+        site_css=asset_url(root, "assets/site.css"),
         brand_href=rooted_href(root, "index.html#top"),
         navblock=build_navblock(root),
         extra_head=extra_head,
@@ -589,7 +632,11 @@ def page_head(title, desc, root, og_title=None, og_desc=None, extra_head=""):
 
 
 def page_foot(root):
-    return PAGE_FOOT.format(root=root, footer=footer_html(root))
+    return PAGE_FOOT.format(
+        root=root,
+        site_js=asset_url(root, "assets/site.js"),
+        footer=footer_html(root),
+    )
 
 
 BOLD_RE = re.compile(r"\*\*(.+?)\*\*")

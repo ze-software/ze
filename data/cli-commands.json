@@ -416,6 +416,41 @@
     "mode": "offline"
   },
   {
+    "path": "fakel2tp emit",
+    "description": "Emit one synthetic L2TP route-change batch",
+    "mode": "daemon",
+    "wire-method": "ze-fakel2tp-api:fakel2tp-emit",
+    "global-pipes": true
+  },
+  {
+    "path": "fakel2tp help",
+    "description": "Print the fakel2tp command surface",
+    "mode": "daemon",
+    "wire-method": "ze-fakel2tp-api:fakel2tp-help",
+    "global-pipes": true
+  },
+  {
+    "path": "fakeredist emit",
+    "description": "Emit one synthetic route-change batch",
+    "mode": "daemon",
+    "wire-method": "ze-fakeredist-api:fakeredist-emit",
+    "global-pipes": true
+  },
+  {
+    "path": "fakeredist emit-burst",
+    "description": "Emit N synthetic batches sequentially",
+    "mode": "daemon",
+    "wire-method": "ze-fakeredist-api:fakeredist-emit-burst",
+    "global-pipes": true
+  },
+  {
+    "path": "fakeredist help",
+    "description": "Print the fakeredist command surface",
+    "mode": "daemon",
+    "wire-method": "ze-fakeredist-api:fakeredist-help",
+    "global-pipes": true
+  },
+  {
     "path": "generate wireguard keypair",
     "description": "Generate a WireGuard keypair. Prints private and public keys to stdout for use in your config.",
     "mode": "offline"

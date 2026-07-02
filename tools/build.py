@@ -321,6 +321,7 @@ def step_nav():
         path = GH_PAGES / rel
         text = sitelib.patch_navblock(path.read_text(), root)
         text = sitelib.patch_footer(text, root)
+        text = sitelib.patch_asset_versions(text)
         path.write_text(text)
         base_url = sitelib.SITE_BASE + str(pathlib.PurePosixPath(rel).parent) + "/"
         md_text = sitelib.html_to_markdown(
