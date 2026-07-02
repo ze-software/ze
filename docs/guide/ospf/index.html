@@ -39,7 +39,11 @@
                         </a>
                         <a class="nav-dropdown-item" href="../../../cli/">
                             <span class="nav-dropdown-icon">⌨️</span>
-                            <span><strong>CLI Reference</strong><small>311 commands, generated from the live binary</small></span>
+                            <span><strong>CLI Reference</strong><small>349 commands, generated from the live binary</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../dependencies/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../../performance/">
                             <span class="nav-dropdown-icon">⚡</span>
@@ -146,6 +150,7 @@
                     </div>
                     <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
+                    <a href="../../../contribute/">Contribute</a>
                     <a
                         class="nav-badge"
                         href="https://discord.gg/T8s7CjPDne"
@@ -394,6 +399,53 @@ ipv6</code> lists each running AF instance with its address family and Instance 
 <!-- source: internal/plugins/ospf/ext.go -- registerExtConsumers, extMetrics, extReceiver -->
 <!-- source: internal/plugins/ospf/packet/ext_prefix.go -- ExtPrefixTLV, EncodeExtPrefixLSA, DecodeExtPrefixLSA -->
 <!-- source: internal/plugins/ospf/packet/ext_link.go -- ExtLinkTLV, EncodeExtLinkLSA, DecodeExtLinkLSA -->
+
+<h2>Segment Routing (RFC 8665, RFC 8666)</h2>
+<p>Ze implements OSPF Segment Routing over the MPLS data plane as one feature spanning both address families, exactly as OSPF itself is one engine across IPv4 and IPv6. The control plane is shared and written once: the SRGB (Segment Routing Global Block) and SRLB (Segment Routing Local Block) label ranges, the multi-range index-to-label arithmetic (<code>label = SRGB-base + index</code>, resolved across the originator's ranges in advertised order), the NP/E/M push/swap/PHP truth table, and the install through the existing <code>mpls-fib</code> bus. Only the wire carriage differs by address family: the IPv4 family (OSPFv2, RFC 8665) rides SR TLVs in the Router Information (RFC 7770) and Extended Prefix/Link (RFC 7684) opaque LSAs, while the IPv6 family (OSPFv3, RFC 8666) rides them in the OSPFv3 RI Opaque LSA and the RFC 8362 Extended LSAs. The RFC 8666 sub-TLV type codes (Prefix-SID 4, Adj-SID 5, LAN-Adj-SID 6, SID/Label 7, Extended Prefix Range 9) are the OSPFv3 Extended-LSA registry values and are deliberately different from the OSPFv2 RFC 8665 numbers.</p>
+<p>SR is off by default. Enable it per address family:</p>
+<pre><code>ospf {
+    router-id 10.0.0.1;
+    opaque true;
+    segment-routing {
+        enable true;
+        srgb { lower-bound 16000; upper-bound 23999; }
+        srlb { lower-bound 40000; upper-bound 40999; }
+        prefix-sid 10.0.0.1/32 { index 1; node-sid true; }
+    }
+    address-family {
+        ipv6 {
+            segment-routing {
+                enable true;
+                srgb { lower-bound 16000; upper-bound 23999; }
+            }
+        }
+    }
+}
+</code></pre>
+<p>When enabled, the RI LSA advertises SR-Algorithm 0 (SPF) plus the SRGB, SRLB, and optional SR Mapping-Server preference TLVs (area-scoped); the Extended Prefix LSA carries a Prefix-SID sub-TLV for each configured node prefix; and the Extended Link LSA carries an Adjacency-SID (and a LAN-Adjacency-SID on broadcast/NBMA) allocated from the SRLB for each adjacency in state 2-Way or higher. The same registered RI capability builders emit into both the OSPFv2 and the OSPFv3 RI LSA, so the SR-Algorithm/SRGB/SRLB advertisement is shared across the two families (RFC 8666 §4). On reception Ze records each remote router's SR-Algorithm and ordered SRGB, computes the outgoing MPLS label for a reachable Prefix-SID, and applies the next-hop router's NP/E/M flags: NP=0 means penultimate-hop popping (forward as plain IP), NP=1/E=0 keeps the label, NP=1/E=1 uses the Explicit NULL label (0 for IPv4, 2 for IPv6), and the M-Flag makes NP and E ignored. A Prefix-SID for an algorithm the originator did not advertise, or a duplicate Prefix-SID for the same prefix/topology/algorithm, is recorded but not installed; an Adjacency-SID is withdrawn (and its SRLB label freed) when the adjacency drops below 2-Way (RFC 8665 §7.4.1 / RFC 8666 §8.4.1). Only V=0/L=0 (4-octet index) and V=1/L=1 (3-octet local label) are valid SID encodings; any other combination causes the SID advertisement to be ignored, and a malformed TLV/sub-TLV makes the whole LSA malformed and is counted, never crashing the parser.</p>
+<p>MPLS forwarding is programmed through the shared <code>mpls-fib</code> bus with two SR source tags (OSPF-SR for IPv4, OSPFv3-SR for IPv6), the third producer alongside RSVP-TE and LDP; <code>fib-kernel</code> remains the single owner of kernel forwarding state. Prefix-SIDs install a push (ingress) or swap (transit) entry toward the SPF next-hop; Adjacency-SIDs install a pop/forward entry keyed by the local SRLB label. SR reads the shared SPF route table (read-only) through a post-run hook that fires after the IP-route Installer has applied, so an SR label push always rides an already-installed IP route. SR LSAs are never SPF vertices and never change the route table directly.</p>
+<p><code>show ospf segment-routing</code> and <code>show ospf ipv6 segment-routing</code> render the configured SRGB/SRLB, the advertised algorithm, this node's Prefix-SIDs, and the allocated Adjacency-SIDs. The <code>ze doctor</code> check <code>doctor-ospf-segment-routing-overlap</code> reports an SRGB/SRLB overlap or other unsound range before runtime install. SR activity is exposed by the <code>ze_ospf_sr_*</code> metric series, all carrying an <code>af</code> label: <code>ze_ospf_sr_enabled</code>, <code>ze_ospf_sr_prefix_sids{direction}</code>, <code>ze_ospf_sr_adj_sids</code>, <code>ze_ospf_sr_labels_installed{op}</code>, <code>ze_ospf_sr_label_compute_errors_total{reason}</code>, <code>ze_ospf_sr_srlb_labels_in_use</code>, and <code>ze_ospf_sr_malformed_tlvs_total{tlv}</code>.</p>
+<!-- source: internal/plugins/ospf/sr/srgb.go -- SRGB multi-range index-to-label arithmetic -->
+<!-- source: internal/plugins/ospf/sr/srlb.go -- bounded SRLB local-label allocator -->
+<!-- source: internal/plugins/ospf/sr/codec.go -- RFC 8665 IPv4 SR TLV/sub-TLV codec -->
+<!-- source: internal/plugins/ospf/sr/codec_v6.go -- RFC 8666 IPv6 SR TLV/sub-TLV codec -->
+<!-- source: internal/plugins/ospf/sr/install.go -- NP/E/M forwarding truth table -->
+<!-- source: internal/plugins/ospf/sr.go -- RI + Extended Prefix/Link SR TLV builders + reception -->
+<!-- source: internal/plugins/ospf/sr_fib.go -- mpls-fib push/swap/pop install -->
+
+<h2>Graceful Restart (RFC 3623, RFC 5187)</h2>
+<p>Graceful Restart lets Ze restart or reload its OSPF control software while staying on the forwarding path ("non-stop forwarding"). It is one feature with one control plane spanning both address families: the restarter and helper state machines, the FIB-retention coupling, the non-volatile restart fact, and the config / CLI / metrics surface are shared, because the OSPF engine's FSM, flooding, DR election, SPF, and LSDB sequencing are address-family-neutral. Only the Grace-LSA wire object differs: the IPv4 family (OSPFv2, RFC 3623) carries it as a link-local Type-9 Opaque LSA (Opaque Type 3, Opaque ID 0, three TLVs) through the opaque carrier, and the IPv6 family (OSPFv3, RFC 5187) carries it as a native link-scope LSA (LS Type 0x000B, function code 11, two TLVs, Link State ID = the originating interface's Interface ID). Both encode the grace period as the Grace-LSA's LS age against the Grace Period TLV: LS age starts at 0, is never reset on retransmit, and DoNotAge is never set, so the grace clock cannot be extended indefinitely.</p>
+<p>It is configured under a single family-neutral <code>graceful-restart</code> container (a top-level container drives both families; the OSPFv3 family inherits it unless it sets its own). The <code>restarter</code> sub-container sets <code>support</code> (<code>disabled</code> default, <code>planned</code>, or <code>planned-and-unplanned</code>) and <code>restart-interval</code> (1..1800 s, default 120); the <code>helper</code> sub-container sets <code>support</code> (default true) and <code>strict-lsa-checking</code> (default true). With GR disabled (the default) Ze originates no Grace-LSA, never enters helper mode, and restarts exactly as a router without the feature.</p>
+<p>As the restarting router (RFC 3623 §2), Ze ensures the FIB is current, originates one Grace-LSA per interface, persists the restart fact (grace deadline, reason, and the OSPFv3 §3.1 LSA-ID -&gt; prefix and §3.2 Interface-ID preservation maps) to the ZeFS non-volatile store, and stops without withdrawing routes. On resume it re-reads the fact; if the grace window is still open it enters in-restart mode: self-LSA origination is suppressed at the shared <code>originateSelfLSAs</code> chokepoint (both families), route install is suppressed at the SPF <code>Installer</code> (SPF still computes, e.g. for virtual-link restore, but neither installs nor withdraws), and the pre-restart RTPROT_ZE kernel routes are retained by the fib-kernel stale-mark-then-sweep. Ze exits on the earliest of the three RFC 3623 §2.2 triggers (all pre-restart adjacencies re-reach Full, an inconsistent LSA is received, or the grace period expires), then re-originates its self-LSAs (OSPFv3 with the preserved Interface IDs / LSA-IDs), re-installs routes (refreshing the retained kernel routes before the sweep deadline), flushes stale self-LSAs, and flushes its own Grace-LSAs. A stale restart fact whose grace window already closed is ignored, so an unrelated cold boot starts normally. The unplanned-outage path (RFC 3623 §5) is off by default and, when enabled, originates Grace-LSAs before any Hello with the reason restricted to unknown or switch-to-redundant-control-processor.</p>
+<p>As a helper (RFC 3623 §3), on receiving a Grace-LSA that passes every §3.1 check (a Full adjacency with the restarting router X, the LSDB unchanged since X restarted, the grace period not expired, the helper policy permits, and this router not itself restarting) Ze enters helper mode: it keeps advertising the adjacency to X in its Router-LSA (and Network-LSA if DR) regardless of the neighbour's synchronisation state, and keeps X as DR if X was DR. It exits when the Grace-LSA is flushed, the grace period expires, or (with strict LSA checking) an installed LSA with changed content would have flooded to X, with the §3.2 stub-area exception (a changed AS-external LSA in a stub/NSSA area, which would never flood to X, does not terminate helping). A re-received Grace-LSA while already helping just updates the grace period.</p>
+<p><code>show ospf graceful-restart</code> and <code>show ospf ipv6 graceful-restart</code> report the per-family restarter state (in-restart or not, grace deadline, reason) and the active helper sessions (which neighbours are helped and their remaining grace). Graceful Restart activity is counted by <code>ze_ospf_gr_restarter_active{family}</code>, <code>ze_ospf_gr_restarter_exits_total{family,reason}</code>, <code>ze_ospf_gr_helper_sessions{family,interface}</code>, <code>ze_ospf_gr_helper_exits_total{family,reason}</code>, and <code>ze_ospf_gr_grace_lsas{family,direction}</code>. A <code>ze doctor</code> check (<code>doctor-ospf-graceful-restart-nvs</code>) warns when the restarter is enabled but the non-volatile restart-fact store is unwritable.</p>
+<!-- source: internal/plugins/ospf/gr.go -- grManager, registerGraceConsumer, grFamilyLabel -->
+<!-- source: internal/plugins/ospf/gr_restarter.go -- prepareRestart, enterRestart, exitRestart, resumeFromNVS -->
+<!-- source: internal/plugins/ospf/gr_helper.go -- onGraceReceived, helperEntryAllowed, helperExit, helperShouldExitOnChange -->
+<!-- source: internal/plugins/ospf/gr_nvs.go -- restartFact, writeRestartFact, readRestartFact -->
+<!-- source: internal/plugins/ospf/gr_preserve.go -- capturePrefixLSIDs, restoreInterfaceIDs, v6OriginateGraceLSA -->
+<!-- source: internal/plugins/ospf/packet/grace_lsa.go -- GraceLSA, EncodeGraceLSA, DecodeGraceLSA -->
+<!-- source: internal/plugins/ospf/v3/packet/lsa_grace.go -- GraceLSA, decodeGraceLSA -->
 
 <h2>Multi-Instance (RFC 6549)</h2>
 <p>Several independent OSPFv2 instances can coexist on one physical interface / subnet. RFC 6549 carves an 8-bit Instance ID out of the OSPFv2 common header by splitting the former 16-bit Authentication Type field into an Instance ID (header offset 14) and an 8-bit AuType (offset 15); the header size is unchanged. Ze runs one full OSPFv2 engine per configured Instance ID (its own LSDB, SPF, and neighbour table), each demultiplexed by the Instance ID: a received packet whose Instance ID does not match the receiving engine's is discarded before any handler runs, so neighbours only form within a matching instance.</p>

@@ -186,7 +186,7 @@ STYLE = """
             border: 2px solid rgba(255, 255, 255, 0.9);
             border-radius: 1rem;
             padding: 0.8rem;
-            background: var(--mint-tint);
+            background: var(--sky-tint);
             box-shadow: var(--clay);
         }
         .activity-widget .stat span {
@@ -196,7 +196,7 @@ STYLE = """
         .activity-widget .stat strong {
             display: block;
             margin-top: 0.2rem;
-            color: var(--mint-deep);
+            color: var(--sky-deep);
             font-size: clamp(1.15rem, 2vw, 1.6rem);
             font-weight: 800;
             letter-spacing: -0.02em;
@@ -223,7 +223,7 @@ STYLE = """
         }
         .activity-widget .metric-switch button[aria-pressed="true"] {
             color: #fff;
-            background: var(--mint-base);
+            background: var(--sky-base);
         }
         .activity-widget .pill {
             width: fit-content;
@@ -333,8 +333,13 @@ STYLE = """
         .activity-widget .legend .day-cell { display: inline-block; }
         .activity-widget .panel h2 {
             margin: 0 0 0.6rem;
-            color: var(--mint-deep);
             font-size: 1.1rem;
+        }
+        .activity-widget .go-panel h2 {
+            color: var(--grape-deep);
+        }
+        .activity-widget .right-stack .panel h2 {
+            color: var(--tangerine-deep);
         }
         .activity-widget .go-breakdown {
             display: grid;
@@ -345,11 +350,11 @@ STYLE = """
             border: 2px solid rgba(255, 255, 255, 0.9);
             border-radius: 1rem;
             padding: 0.8rem;
-            background: var(--mint-tint);
+            background: var(--grape-tint);
         }
         .activity-widget .go-bucket h3 {
             margin: 0 0 0.55rem;
-            color: var(--mint-deep);
+            color: var(--grape-deep);
             font-size: 0.92rem;
         }
         .activity-widget .go-stats {

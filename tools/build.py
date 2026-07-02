@@ -12,6 +12,8 @@ Steps (default order, also the --only vocabulary):
     compare   compare/comparison.md -> compare/index.html (tools/render-doc.py)
     features  data/features.json -> features/index.html  (tools/render-features.py)
     cli       `ze help command --json` -> cli/index.html  (tools/render-cli-catalog.py)
+    deps      ../main/go.mod -> dependencies/index.html    (tools/render-dependencies.py)
+    contribute contribute/contribute.md -> contribute/index.html (tools/render-doc.py)
     index     data/audience.json -> index.html            (tools/render-index.py)
     nav       patch <div class="nav-links"> and the footer Discord link in
               the remaining hand-authored pages (zeledon, labs/*, talks,
@@ -35,7 +37,18 @@ GH_PAGES = HERE.parent
 sys.path.insert(0, str(HERE))
 import sitelib  # noqa: E402
 
-STEPS = ["docs", "blog", "activity", "compare", "features", "cli", "index", "nav"]
+STEPS = [
+    "docs",
+    "blog",
+    "activity",
+    "compare",
+    "features",
+    "cli",
+    "deps",
+    "contribute",
+    "index",
+    "nav",
+]
 
 NAV_PATCH_TARGETS = [
     ("zeledon/index.html", "../"),
@@ -56,6 +69,10 @@ NAV_PATCH_TARGETS = [
 COMPARE_DESC = (
     "How Ze compares to mature BGP daemon implementations, honestly, "
     "including where it's still behind."
+)
+
+CONTRIBUTE_DESC = (
+    "How to contribute to Ze: the CLA, how the project is funded, and where to start."
 )
 
 
@@ -105,6 +122,22 @@ def step_cli():
     return render_cli_catalog.main()
 
 
+def step_deps():
+    render_dependencies = load_module("render-dependencies")
+    return render_dependencies.main()
+
+
+def step_contribute():
+    render_doc = load_module("render-doc")
+    render_doc.render(
+        GH_PAGES / "contribute" / "contribute.md",
+        GH_PAGES / "contribute" / "index.html",
+        "../",
+        CONTRIBUTE_DESC,
+    )
+    return 0
+
+
 def step_index():
     render_index = load_module("render-index")
     return render_index.main()
@@ -127,6 +160,8 @@ STEP_FUNCS = {
     "compare": step_compare,
     "features": step_features,
     "cli": step_cli,
+    "deps": step_deps,
+    "contribute": step_contribute,
     "index": step_index,
     "nav": step_nav,
 }

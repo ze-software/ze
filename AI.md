@@ -43,17 +43,25 @@ gh-pages/
                                               status, chips, bullets
     audience.json                         -- the "Two ways to run Ze" and "Who should look now"
                                               cards on index.html
+    dependencies.json                     -- every direct Go dependency's "why", grouped by
+                                              category, keyed to ../main/go.mod
   tools/
     sitelib.py                            -- shared nav/head/foot chrome, imported by every
                                               render-*.py; also the navblock patcher for pages
                                               with no dedicated generator
     build.py                              -- regenerates the entire site in one command
     render-docs.py / render-doc.py        -- ../main/docs/*.md -> docs/**/index.html (also used
-                                              directly for compare/comparison.md -> compare/index.html)
+                                              directly for compare/comparison.md -> compare/index.html
+                                              and contribute/contribute.md -> contribute/index.html)
     render-blog.py                        -- blog/posts/*.md -> blog/**/index.html
     render-activity.py                    -- git history -> activity/index.html
     render-features.py                    -- data/features.json -> features/index.html
+    render-cli-catalog.py                 -- `ze help command --json` -> cli/index.html
+    render-dependencies.py                -- ../main/go.mod + data/dependencies.json -> dependencies/index.html
     render-index.py                       -- data/audience.json + template -> index.html
+  update-website.sh                       -- thin wrapper at the repo root: `./update-website.sh`
+                                              regenerates everything, same as `tools/build.py`.
+                                              Forwards args, e.g. `./update-website.sh --only cli`
 ```
 
 Pages with no dedicated generator (`zeledon/`, `labs/*/`, `talks/`,
@@ -62,12 +70,14 @@ but their nav block is still patched from `data/nav.json` by `tools/build.py`
 (the `nav` step) so they can never drift from the mega-menu on every other
 page.
 
-Run `tools/build.py` (or `tools/build.py --only <docs,blog,activity,compare,
-features,index,nav>` for a subset) to regenerate everything. It warns on
-stderr if `data/nav.json`'s Features-dropdown card count falls out of sync
-with `data/features.json`'s actual card count -- the class of bug that
-motivated data-driving this in the first place (a hand-typed "41 features"
-count silently went stale when a card moved between sections).
+Run `./update-website.sh` (repo root) or `tools/build.py` directly -- same
+thing, the script is just a short, obvious name to reach for. Pass `--only
+<docs,blog,activity,compare,features,cli,deps,contribute,index,nav>` to
+regenerate a subset. It warns on stderr if `data/nav.json`'s Features-dropdown
+card count falls out of sync with `data/features.json`'s actual card count,
+or its CLI Reference command count with `data/cli-commands.json` -- the class
+of bug that motivated data-driving this in the first place (a hand-typed "41
+features" count silently went stale when a card moved between sections).
 
 To add, remove, or re-categorize a feature card: edit `data/features.json`,
 then run `tools/build.py --only features` (or the full build). Same for
@@ -123,7 +133,7 @@ update). Work through this before considering the update done.
 4. **Check Performance for drift.** Did `../main/docs/performance.md` get a
    fresh benchmark run this week? If so, update the headline stat-row on
    `performance/index.html` (Convergence/Throughput/Withdrawal) to match.
-5. **Run `tools/build.py`.** One command regenerates everything: the new
+5. **Run `./update-website.sh`.** One command regenerates everything: the new
    blog post and blog index, the activity heatmap from fresh git history,
    `compare/index.html` from `compare/comparison.md`, `features/index.html`
    from `data/features.json`, `index.html` from `data/audience.json`, every

@@ -82,9 +82,10 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                         configuration model.
                     </p>
                     <p class="sublead">
-                        Successor to <strong class="hl blue">ExaBGP</strong>.
                         Built for people who want a network stack they can
                         inspect, automate, and extend.
+                        <strong class="hl blue">ExaBGP</strong> users get a
+                        migration path to a more performant codebase.
                     </p>
                     <div class="actions">
                         <a

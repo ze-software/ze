@@ -38,7 +38,7 @@
             border: 2px solid rgba(255, 255, 255, 0.9);
             border-radius: 1rem;
             padding: 0.8rem;
-            background: var(--mint-tint);
+            background: var(--sky-tint);
             box-shadow: var(--clay);
         }
         .activity-widget .stat span {
@@ -48,7 +48,7 @@
         .activity-widget .stat strong {
             display: block;
             margin-top: 0.2rem;
-            color: var(--mint-deep);
+            color: var(--sky-deep);
             font-size: clamp(1.15rem, 2vw, 1.6rem);
             font-weight: 800;
             letter-spacing: -0.02em;
@@ -75,7 +75,7 @@
         }
         .activity-widget .metric-switch button[aria-pressed="true"] {
             color: #fff;
-            background: var(--mint-base);
+            background: var(--sky-base);
         }
         .activity-widget .pill {
             width: fit-content;
@@ -185,8 +185,13 @@
         .activity-widget .legend .day-cell { display: inline-block; }
         .activity-widget .panel h2 {
             margin: 0 0 0.6rem;
-            color: var(--mint-deep);
             font-size: 1.1rem;
+        }
+        .activity-widget .go-panel h2 {
+            color: var(--grape-deep);
+        }
+        .activity-widget .right-stack .panel h2 {
+            color: var(--tangerine-deep);
         }
         .activity-widget .go-breakdown {
             display: grid;
@@ -197,11 +202,11 @@
             border: 2px solid rgba(255, 255, 255, 0.9);
             border-radius: 1rem;
             padding: 0.8rem;
-            background: var(--mint-tint);
+            background: var(--grape-tint);
         }
         .activity-widget .go-bucket h3 {
             margin: 0 0 0.55rem;
-            color: var(--mint-deep);
+            color: var(--grape-deep);
             font-size: 0.92rem;
         }
         .activity-widget .go-stats {
@@ -295,7 +300,11 @@
                         </a>
                         <a class="nav-dropdown-item" href="../cli/">
                             <span class="nav-dropdown-icon">⌨️</span>
-                            <span><strong>CLI Reference</strong><small>311 commands, generated from the live binary</small></span>
+                            <span><strong>CLI Reference</strong><small>349 commands, generated from the live binary</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../dependencies/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../performance/">
                             <span class="nav-dropdown-icon">⚡</span>
@@ -402,6 +411,7 @@
                     </div>
                     <a href="../blog/">Blog</a>
                     <a href="../talks/">Talks</a>
+                    <a href="../contribute/">Contribute</a>
                     <a
                         class="nav-badge"
                         href="https://discord.gg/T8s7CjPDne"
@@ -434,7 +444,7 @@
                 </div>
                 <div class="activity-widget reveal" aria-label="Activity heatmap">
 <section class="stats" aria-label="Summary">
-        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">1,712,819</strong></div>
+        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">1,714,409</strong></div>
         <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">194</strong></div>
         <div class="stat"><span id="peak-label">Peak line day (2026-06-20)</span><strong id="peak-value">48,805</strong></div>
         <div class="stat"><span>Days shown</span><strong>365</strong></div>
@@ -876,7 +886,7 @@
 <div class="day-cell" data-date="2026-06-29" data-date-label="Mon 29 Jun 2026" data-lines="32230" data-lines-display="32,230" data-lines-level="4" data-commits="14" data-commits-display="14" data-commits-level="1" data-level="4" aria-label="Mon 29 Jun 2026: 32,230 lines added, 14 commits" tabindex="0"></div>
 <div class="day-cell" data-date="2026-06-30" data-date-label="Tue 30 Jun 2026" data-lines="991" data-lines-display="991" data-lines-level="1" data-commits="14" data-commits-display="14" data-commits-level="1" data-level="1" aria-label="Tue 30 Jun 2026: 991 lines added, 14 commits" tabindex="0"></div>
 <div class="day-cell" data-date="2026-07-01" data-date-label="Wed 01 Jul 2026" data-lines="5203" data-lines-display="5,203" data-lines-level="1" data-commits="24" data-commits-display="24" data-commits-level="2" data-level="1" aria-label="Wed 01 Jul 2026: 5,203 lines added, 24 commits" tabindex="0"></div>
-<div class="day-cell" data-date="2026-07-02" data-date-label="Thu 02 Jul 2026" data-lines="6612" data-lines-display="6,612" data-lines-level="1" data-commits="5" data-commits-display="5" data-commits-level="1" data-level="1" aria-label="Thu 02 Jul 2026: 6,612 lines added, 5 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-07-02" data-date-label="Thu 02 Jul 2026" data-lines="8202" data-lines-display="8,202" data-lines-level="1" data-commits="8" data-commits-display="8" data-commits-level="1" data-level="1" aria-label="Thu 02 Jul 2026: 8,202 lines added, 8 commits" tabindex="0"></div>
 <div class="day-cell outside" data-date="2026-07-03" data-date-label="Fri 03 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 03 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell outside" data-date="2026-07-04" data-date-label="Sat 04 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 04 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
                     </div>
@@ -890,33 +900,33 @@
 <div class="go-bucket">
             <h3>Total Code</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>4,941</strong></div>
-<div class="stat"><span>Total lines</span><strong>1,093,332</strong></div>
-<div class="stat"><span>Code</span><strong>814,320</strong></div>
-<div class="stat"><span>Blank</span><strong>126,895</strong></div>
-<div class="stat"><span>Comments</span><strong>152,117</strong></div>
+<div class="stat"><span>Files</span><strong>4,959</strong></div>
+<div class="stat"><span>Total lines</span><strong>1,094,946</strong></div>
+<div class="stat"><span>Code</span><strong>815,374</strong></div>
+<div class="stat"><span>Blank</span><strong>127,033</strong></div>
+<div class="stat"><span>Comments</span><strong>152,539</strong></div>
             </div>
             
         </div>
 <div class="go-bucket">
             <h3>Production</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>2,949</strong></div>
-<div class="stat"><span>Total lines</span><strong>573,927</strong></div>
-<div class="stat"><span>Code</span><strong>429,284</strong></div>
-<div class="stat"><span>Blank</span><strong>61,839</strong></div>
-<div class="stat"><span>Comments</span><strong>82,804</strong></div>
+<div class="stat"><span>Files</span><strong>2,960</strong></div>
+<div class="stat"><span>Total lines</span><strong>574,954</strong></div>
+<div class="stat"><span>Code</span><strong>429,921</strong></div>
+<div class="stat"><span>Blank</span><strong>61,922</strong></div>
+<div class="stat"><span>Comments</span><strong>83,111</strong></div>
             </div>
             
         </div>
 <div class="go-bucket">
             <h3>Test</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>1,992</strong></div>
-<div class="stat"><span>Total lines</span><strong>519,405</strong></div>
-<div class="stat"><span>Code</span><strong>385,036</strong></div>
-<div class="stat"><span>Blank</span><strong>65,056</strong></div>
-<div class="stat"><span>Comments</span><strong>69,313</strong></div>
+<div class="stat"><span>Files</span><strong>1,999</strong></div>
+<div class="stat"><span>Total lines</span><strong>519,992</strong></div>
+<div class="stat"><span>Code</span><strong>385,453</strong></div>
+<div class="stat"><span>Blank</span><strong>65,111</strong></div>
+<div class="stat"><span>Comments</span><strong>69,428</strong></div>
             </div>
             
         </div>
@@ -980,7 +990,7 @@
         </main>
 
 <script>
-const metricSummaries = {"lines":{"totalLabel":"Total added lines","totalValue":"1,712,819","activeLabel":"Days with added lines","activeValue":"194","peakLabel":"Peak line day (2026-06-20)","peakValue":"48,805","topHeading":"Top Added-Line Days","topColumn":"Added lines","thresholdLabel":"Line thresholds","thresholdValue":"9,761, 19,522, 29,283, 39,044"},"commits":{"totalLabel":"Total commits","totalValue":"4,364","activeLabel":"Days with commits","activeValue":"194","peakLabel":"Peak commit day (2026-04-11)","peakValue":"93","topHeading":"Top Commit Days","topColumn":"Commits","thresholdLabel":"Commit thresholds","thresholdValue":"19, 38, 56, 75"}};
+const metricSummaries = {"lines":{"totalLabel":"Total added lines","totalValue":"1,714,409","activeLabel":"Days with added lines","activeValue":"194","peakLabel":"Peak line day (2026-06-20)","peakValue":"48,805","topHeading":"Top Added-Line Days","topColumn":"Added lines","thresholdLabel":"Line thresholds","thresholdValue":"9,761, 19,522, 29,283, 39,044"},"commits":{"totalLabel":"Total commits","totalValue":"4,367","activeLabel":"Days with commits","activeValue":"194","peakLabel":"Peak commit day (2026-04-11)","peakValue":"93","topHeading":"Top Commit Days","topColumn":"Commits","thresholdLabel":"Commit thresholds","thresholdValue":"19, 38, 56, 75"}};
 let currentMetric = "lines";
 const cells = Array.from(document.querySelectorAll(".activity-grid .day-cell"));
 const buttons = Array.from(document.querySelectorAll(".metric-switch button"));

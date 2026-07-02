@@ -43,6 +43,11 @@
     "global-pipes": true
   },
   {
+    "path": "clear debug",
+    "description": "Clear the default debug profile.",
+    "mode": "offline"
+  },
+  {
     "path": "clear dns cache",
     "description": "Clear the DNS cache.\nWith no argument, flushes everything. Use 'record <name>' to evict\none entry, or 'stats' to see hit/miss rates without flushing.",
     "mode": "daemon",
@@ -113,6 +118,27 @@
     "global-pipes": true
   },
   {
+    "path": "clear ospf counters",
+    "description": "Reset the OSPF SPF-run history.\nUsage: clear ospf counters. Monotonic Prometheus series are not reset;\nthe SPF-run log is cleared.",
+    "mode": "daemon",
+    "wire-method": "ze-clear:ospf-counters",
+    "global-pipes": true
+  },
+  {
+    "path": "clear ospf neighbor",
+    "description": "Tear down every OSPF adjacency so neighbors re-form.\nUsage: clear ospf neighbor. Adjacencies re-learn from the next Hello.",
+    "mode": "daemon",
+    "wire-method": "ze-clear:ospf-neighbor",
+    "global-pipes": true
+  },
+  {
+    "path": "clear ospf process",
+    "description": "Full OSPF reset: tear down every adjacency and re-run SPF.\nUsage: clear ospf process. Adjacencies re-form from the next Hello;\nthe configuration is unchanged.",
+    "mode": "daemon",
+    "wire-method": "ze-clear:ospf-process",
+    "global-pipes": true
+  },
+  {
     "path": "clear vpn ipsec sa",
     "description": "Tear down IKE Security Associations.\nWithout arguments, terminates all SAs. Use 'peer <name>' to clear\njust one peer. The tunnel will renegotiate automatically if the\nconfig is still active.",
     "mode": "daemon",
@@ -146,16 +172,6 @@
     "mode": "daemon",
     "wire-method": "ze-config-archive:trigger",
     "global-pipes": true
-  },
-  {
-    "path": "crashes",
-    "description": "View saved crash reports from panics (offline)",
-    "mode": "offline"
-  },
-  {
-    "path": "crashes show",
-    "description": "Show a crash report. Use 'latest' for the most recent, or pass a filename. Contains the goroutine stack trace at the time of panic.",
-    "mode": "offline"
   },
   {
     "path": "create interface address",
@@ -313,26 +329,6 @@
     "global-pipes": true
   },
   {
-    "path": "debug clear",
-    "description": "Clear default debug profile.",
-    "mode": "offline"
-  },
-  {
-    "path": "debug profile",
-    "description": "Manage named debug profiles (save/list/delete).",
-    "mode": "offline"
-  },
-  {
-    "path": "debug restore",
-    "description": "Load and apply saved debug profile.",
-    "mode": "offline"
-  },
-  {
-    "path": "debug show",
-    "description": "Show active debug state (module, level, flags, scopes).",
-    "mode": "offline"
-  },
-  {
     "path": "delete bgp peer",
     "description": "Remove a peer from the running config.\nTears down the TCP session and deletes the peer from the running\nconfiguration. Does not modify the config file on disk.",
     "mode": "daemon",
@@ -345,6 +341,16 @@
       }
     ],
     "global-pipes": true
+  },
+  {
+    "path": "delete debug module",
+    "description": "Disable debug for a subsystem, or remove one of its flags/scopes.",
+    "mode": "offline"
+  },
+  {
+    "path": "delete debug profile name",
+    "description": "Delete a named debug profile.",
+    "mode": "offline"
   },
   {
     "path": "delete interface",
@@ -398,16 +404,44 @@
     "mode": "offline"
   },
   {
-    "path": "event list",
-    "description": "List every event type you can subscribe to.\nShows event name, category, and payload structure. Use this to\ndiscover what events are available before subscribing.",
-    "mode": "read-only",
-    "wire-method": "ze-bgp:event-list",
-    "global-pipes": true
-  },
-  {
     "path": "explain",
     "description": "Print the meaning, likely cause, and recommended fix for a Ze diagnostic code. Pass the code you saw in a log or error message.",
     "mode": "offline"
+  },
+  {
+    "path": "fakel2tp emit",
+    "description": "Emit one synthetic L2TP route-change batch",
+    "mode": "daemon",
+    "wire-method": "ze-fakel2tp-api:fakel2tp-emit",
+    "global-pipes": true
+  },
+  {
+    "path": "fakel2tp help",
+    "description": "Print the fakel2tp command surface",
+    "mode": "daemon",
+    "wire-method": "ze-fakel2tp-api:fakel2tp-help",
+    "global-pipes": true
+  },
+  {
+    "path": "fakeredist emit",
+    "description": "Emit one synthetic route-change batch",
+    "mode": "daemon",
+    "wire-method": "ze-fakeredist-api:fakeredist-emit",
+    "global-pipes": true
+  },
+  {
+    "path": "fakeredist emit-burst",
+    "description": "Emit N synthetic batches sequentially",
+    "mode": "daemon",
+    "wire-method": "ze-fakeredist-api:fakeredist-emit-burst",
+    "global-pipes": true
+  },
+  {
+    "path": "fakeredist help",
+    "description": "Print the fakeredist command surface",
+    "mode": "daemon",
+    "wire-method": "ze-fakeredist-api:fakeredist-help",
+    "global-pipes": true
   },
   {
     "path": "generate wireguard keypair",
@@ -429,16 +463,6 @@
   {
     "path": "help command",
     "description": "List every command with its description. Use a filter to narrow the list.",
-    "mode": "offline"
-  },
-  {
-    "path": "host",
-    "description": "Show hardware inventory for this box (offline)",
-    "mode": "offline"
-  },
-  {
-    "path": "host show",
-    "description": "Show hardware details by section (cpu, nic, dmi, memory, thermal, storage, kernel). JSON by default, --text for human-readable.",
     "mode": "offline"
   },
   {
@@ -515,6 +539,13 @@
     "mode": "read-only",
     "wire-method": "ze-monitor:vpn-ipsec",
     "task-support": "required",
+    "global-pipes": true
+  },
+  {
+    "path": "ospf graceful-restart prepare",
+    "description": "Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).\nUsage: ospf graceful-restart prepare. The engine originates one Grace-LSA per\ninterface, persists the non-volatile restart fact, and suppresses route churn\nso the FIB is retained across the ensuing control-plane restart. Refused when\ngraceful-restart is not configured.",
+    "mode": "daemon",
+    "wire-method": "ze-ospf:graceful-restart-prepare",
     "global-pipes": true
   },
   {
@@ -942,7 +973,7 @@
   },
   {
     "path": "request subscribe",
-    "description": "Start receiving events of one or more types.\nEvents are delivered asynchronously to your plugin session until\nyou unsubscribe. Use 'event list' to see available event types.",
+    "description": "Start receiving events of one or more types.\nEvents are delivered asynchronously to your plugin session until\nyou unsubscribe. Use 'show event list' to see available event types.",
     "mode": "daemon",
     "wire-method": "ze-bgp:subscribe",
     "task-support": "required",
@@ -1033,6 +1064,26 @@
     "global-pipes": true
   },
   {
+    "path": "set debug active name",
+    "description": "Load a named debug profile and apply it to the running daemon.",
+    "mode": "offline"
+  },
+  {
+    "path": "set debug module",
+    "description": "Enable debug for a subsystem; optionally set level/flag/scope. E.g. 'set debug module bgp.reactor level debug'.",
+    "mode": "offline"
+  },
+  {
+    "path": "set debug profile name",
+    "description": "Save the current debug state as a named profile.",
+    "mode": "offline"
+  },
+  {
+    "path": "set debug timeout",
+    "description": "Set the debug auto-disable timer (e.g. 30m, 1h, 90s; 0 disables).",
+    "mode": "offline"
+  },
+  {
     "path": "set system file-descriptors",
     "description": "Raise the file descriptor limit for the daemon process.\nPass a number or 'max' to go to the hard limit. Takes effect\nimmediately. Check current limits with 'show system file-descriptors'.",
     "mode": "daemon",
@@ -1060,6 +1111,13 @@
     "description": "List active on-demand announcements.\nUsage: show announcements [tag <key>] [selector <pattern>] [family <fam>]",
     "mode": "read-only",
     "wire-method": "ze-bgp:show-announcements",
+    "global-pipes": true
+  },
+  {
+    "path": "show anomaly",
+    "description": "Show recent behavioral anomaly incidents (report-only): source entity, cohort,\nfired features with their deviation z-scores, combined score, and severity. The detector reports;\nthe anomaly/shape responder (Spec 2b) acts.",
+    "mode": "read-only",
+    "wire-method": "ze-show:anomaly",
     "global-pipes": true
   },
   {
@@ -1761,6 +1819,11 @@
     "global-pipes": true
   },
   {
+    "path": "show debug profile",
+    "description": "Show stored debug profiles (list, or 'name <name>' for one).",
+    "mode": "offline"
+  },
+  {
     "path": "show dns cache",
     "description": "Inspect the DNS cache.\n'stats' shows hit/miss/eviction counters. 'list' shows all cached\nentries. 'record <name>' shows one specific entry. Requires the DNS\ncomponent to be active.",
     "mode": "read-only",
@@ -1841,6 +1904,13 @@
     "description": "Show recent errors across all subsystems, newest first.\nThis is the first place to look when something goes wrong. Filter\nwith source <name> to narrow to one subsystem, count <N> to limit\noutput.",
     "mode": "read-only",
     "wire-method": "ze-show:errors",
+    "global-pipes": true
+  },
+  {
+    "path": "show event list",
+    "description": "List every event type you can subscribe to.\nShows event name, category, and payload structure. Use this to\ndiscover what events are available before subscribing.",
+    "mode": "read-only",
+    "wire-method": "ze-bgp:event-list",
     "global-pipes": true
   },
   {
@@ -2396,6 +2466,227 @@
     "global-pipes": true
   },
   {
+    "path": "show ospf",
+    "description": "OSPFv2 process summary: router-id, areas, ABR/ASBR status, and stub-router (max-metric) state (RFC 2328).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf",
+    "global-pipes": true,
+    "subcommands": [
+      "border-routers",
+      "database",
+      "graceful-restart",
+      "instance",
+      "interface",
+      "ipv6",
+      "ldp-sync",
+      "neighbor",
+      "route",
+      "segment-routing",
+      "spf",
+      "te-database",
+      "virtual-links"
+    ]
+  },
+  {
+    "path": "show ospf border-routers",
+    "description": "Show routes to OSPF area-border and AS-boundary routers.\nLists each reachable ABR/ASBR with its router-id, cost, next-hops, and\narea.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-border-routers",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf database",
+    "description": "Show the OSPF link-state database.\nLists each LSA with its LS Type, Link State ID, Advertising Router,\nsequence number, age, and checksum.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database",
+    "global-pipes": true,
+    "subcommands": [
+      "asbr-summary",
+      "external",
+      "network",
+      "nssa-external",
+      "opaque-area",
+      "opaque-as",
+      "opaque-link",
+      "router",
+      "router-information",
+      "summary"
+    ]
+  },
+  {
+    "path": "show ospf database asbr-summary",
+    "description": "Show only ASBR-Summary-LSAs (Type 4).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database-asbr-summary",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf database external",
+    "description": "Show only AS-external-LSAs (Type 5).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database-external",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf database network",
+    "description": "Show only Network-LSAs (Type 2).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database-network",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf database nssa-external",
+    "description": "Show only NSSA-external-LSAs (Type 7, RFC 3101).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database-nssa-external",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf database opaque-area",
+    "description": "Show only area-scope opaque-LSAs (Type 10, RFC 5250).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database-opaque-area",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf database opaque-as",
+    "description": "Show only AS-scope opaque-LSAs (Type 11, RFC 5250).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database-opaque-as",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf database opaque-link",
+    "description": "Show only link-local opaque-LSAs (Type 9, RFC 5250).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database-opaque-link",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf database router",
+    "description": "Show only Router-LSAs (Type 1).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database-router",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf database router-information",
+    "description": "Show the Router Information LSAs (RFC 7770) for both address\nfamilies -- OSPFv2 opaque type 4 and OSPFv3 function code 12 -- decoded into the\nadvertised informational capability bits and the TLV list.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database-router-information",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf database summary",
+    "description": "Show only Summary-LSAs (Type 3, inter-area network).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database-summary",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf graceful-restart",
+    "description": "Show OSPFv2 (IPv4) Graceful Restart state (RFC 3623): the restarter\nstate (in-restart or not, grace end, reason) and the per-neighbor helper\nsessions (which neighbors are being helped and their remaining grace).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-graceful-restart",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf instance",
+    "description": "Show the configured OSPFv2 instances (RFC 6549 Multi-Instance).\nLists each Instance ID with its router-id and the size of its isolated\narea, interface, neighbor, and link-state database state.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-instance",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf interface",
+    "description": "Show OSPF-enabled interfaces.\nReturns area, network-type, cost, ISM state, DR/BDR, hello/dead\nintervals, priority, and passive flag per interface.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-interface",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf ipv6",
+    "description": "Show the OSPFv3 (IPv6) address-family instances (RFC 5838).\nLists each configured address family (ipv6-unicast, ipv6-multicast,\nipv4-unicast, ipv4-multicast) with its Instance ID, router-id, and\nneighbor/interface counts, so multiple AF instances on a link are\ndistinguishable.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-ipv6",
+    "global-pipes": true,
+    "subcommands": [
+      "graceful-restart",
+      "interface",
+      "segment-routing"
+    ]
+  },
+  {
+    "path": "show ospf ipv6 graceful-restart",
+    "description": "Show OSPFv3 (IPv6) Graceful Restart state (RFC 5187): the restarter\nstate (in-restart or not, grace end, reason) and the per-neighbor helper\nsessions (which neighbors are being helped and their remaining grace).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-ipv6-graceful-restart",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf ipv6 interface",
+    "description": "Show OSPFv3 (IPv6-family) interfaces and their RFC 4552 IPsec status.\nReturns per interface whether IPsec is configured, the protocol (ah/esp) and\nSPI, and whether the kernel SA is installed. The key is never shown.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-ipv6-interface",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf ipv6 segment-routing",
+    "description": "Show OSPFv3 (IPv6) Segment Routing state (RFC 8666): the configured\nSRGB/SRLB label ranges, the advertised SR-Algorithm, this node's node\nPrefix-SIDs, and the Adjacency-SIDs allocated per adjacency.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-ipv6-segment-routing",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf ldp-sync",
+    "description": "Show OSPF LDP-IGP synchronization state (RFC 5443, RFC 6138).\nLists each ldp-sync interface with its state (not-synchronized /\nhold-down / synchronized), remaining hold-down, effective metric, and\nwhether it is stuck not-synchronized after having been synchronized.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-ldp-sync",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf neighbor",
+    "description": "Show OSPF neighbors.\nReturns each neighbor's router-id, interface, adjacency state, DR/BDR,\npriority, dead time, and address.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-neighbor",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf route",
+    "description": "Show OSPF-computed routes.\nLists each prefix with its path type (intra/inter/external-1/2), cost,\nnext-hops, and area.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-route",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf segment-routing",
+    "description": "Show OSPFv2 (IPv4) Segment Routing state (RFC 8665): the configured\nSRGB/SRLB label ranges, the advertised SR-Algorithm, this node's node\nPrefix-SIDs, and the Adjacency-SIDs allocated per adjacency.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-segment-routing",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf spf",
+    "description": "Show recent OSPF SPF runs.\nReturns the most recent per-area SPF runs with their timestamp,\nduration, node count, and pending state.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-spf",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf te-database",
+    "description": "Show the OSPF Traffic Engineering Database (RFC 3630 / RFC 5392):\nrouter addresses plus TE links with their Link ID, local/remote address, link\ntype, TE metric, bandwidths, admin group, and (for inter-AS links) remote AS and\nremote ASBR.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-te-database",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf virtual-links",
+    "description": "Show OSPF virtual links (RFC 2328 section 15).\nLists each configured virtual link with its transit area, remote\nrouter-id, adjacency state, computed cost, and transit next hop.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-virtual-links",
+    "global-pipes": true
+  },
+  {
     "path": "show ping",
     "description": "Ping a target from the router itself.\nSends ICMP echo requests to <dest> (IP or hostname). Default count\nis 5. Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms\nreachability from this box, not from your workstation.",
     "mode": "read-only",
@@ -2940,6 +3231,19 @@
     "description": "Show traffic control (QoS) configuration per interface.\nWithout arguments, lists every interface with its qdisc type and\nclass/filter counts. With an interface name, shows the full qdisc\nand class breakdown. Use this to verify your shaping is applied.",
     "mode": "read-only",
     "wire-method": "ze-show:traffic",
+    "global-pipes": true
+  },
+  {
+    "path": "show traffic-feature",
+    "description": "Show neutral per-source traffic feature signals: fan-out (distinct destinations),\nout/in byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto, and coarse beaconing.\nWithout arguments, shows the top source entities. With 'name <address>', filters to one source.",
+    "mode": "read-only",
+    "wire-method": "ze-show:traffic-feature",
+    "args": [
+      {
+        "name": "name",
+        "type": "string"
+      }
+    ],
     "global-pipes": true
   },
   {

@@ -129,7 +129,7 @@ def render_index(posts):
     parts.append('                <div class="section-head reveal">')
     parts.append('                    <h2 id="blog-title">Ze weekly updates.</h2>')
     parts.append(
-        "                    <p>%d weeks of shipped work, in Zeledon's voice, "
+        '                    <p>%d weeks of shipped work, in <a href="../zeledon/">Zeledon</a>\'s voice, '
         "mined from git history. New weeks are also posted to Discord's "
         "<code>ze-news</code>.</p>" % len(posts_sorted)
     )

@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>CLI Reference - Ze</title>
-        <meta name="description" content="Every ze command, generated live from the binary's own command registry -- 311 commands across 102 groups." />
+        <meta name="description" content="Every ze command, generated live from the binary's own command registry -- 349 commands across 104 groups." />
         <meta property="og:title" content="CLI Reference - Ze" />
-        <meta property="og:description" content="Every ze command, generated live from the binary's own command registry -- 311 commands across 102 groups." />
+        <meta property="og:description" content="Every ze command, generated live from the binary's own command registry -- 349 commands across 104 groups." />
         <meta property="og:type" content="website" />
         <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -39,7 +39,11 @@
                         </a>
                         <a class="nav-dropdown-item" href="../cli/">
                             <span class="nav-dropdown-icon">⌨️</span>
-                            <span><strong>CLI Reference</strong><small>311 commands, generated from the live binary</small></span>
+                            <span><strong>CLI Reference</strong><small>349 commands, generated from the live binary</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../dependencies/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../performance/">
                             <span class="nav-dropdown-icon">⚡</span>
@@ -146,6 +150,7 @@
                     </div>
                     <a href="../blog/">Blog</a>
                     <a href="../talks/">Talks</a>
+                    <a href="../contribute/">Contribute</a>
                     <a
                         class="nav-badge"
                         href="https://discord.gg/T8s7CjPDne"
@@ -174,7 +179,7 @@
 
             <section aria-labelledby="cli-title" class="md-content reveal cat-operate">
                 <h1 id="cli-title">CLI Reference</h1>
-                <p>311 commands across 102 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can.</p>
+                <p>349 commands across 104 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can.</p>
                 <input id="cli-search" type="search" placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." aria-label="Filter commands" />
 <details class="cli-group" open>
 <summary>announce <span class="cli-group-count">1</span></summary>
@@ -187,10 +192,11 @@
 <tr><td><code>as112 health</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>One-shot authoritative query against an anycast service<br>address (or the given target), exit 0 iff the expected<br>AS112 answer comes back. Finding M4: the tool child 3&#x27;s<br>healthcheck probe calls, since dig is not on the gokrazy<br>appliance and &#x27;ze resolve dns&#x27; cannot target a specific<br>server. Usage: as112 health [target &lt;ip&gt;].</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
-<summary>clear <span class="cli-group-count">12</span></summary>
+<summary>clear <span class="cli-group-count">16</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>clear bgp rib in</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove all routes received from a peer.<br>Wipes the Adj-RIB-In for matched peers. They will need to<br>re-advertise everything (or you can send a route-refresh).<br>Selector: IP, name, AS pattern, glob, or *.</td></tr>
 <tr><td><code>clear bgp rib out</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Re-advertise all routes to a peer.<br>Triggers a full Adj-RIB-Out replay to the selected peers. Useful<br>after a policy change to push updated attributes without tearing<br>down the session. Selector: IP, name, AS pattern, glob, or *.</td></tr>
+<tr><td><code>clear debug</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Clear the default debug profile.</td></tr>
 <tr><td><code>clear dns cache</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Clear the DNS cache.<br>With no argument, flushes everything. Use &#x27;record &lt;name&gt;&#x27; to evict<br>one entry, or &#x27;stats&#x27; to see hit/miss rates without flushing.</td></tr>
 <tr><td><code>clear interface counters</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Zero the Rx/Tx counters for every managed interface.<br>Usage: clear interface counters.</td></tr>
 <tr><td><code>clear interface name counters</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Zero the Rx/Tx counters for one interface.<br>Usage: clear interface name &lt;name&gt; counters.</td></tr>
@@ -200,6 +206,9 @@
 <tr><td><code>clear l2tp session teardown-all</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Disconnect every L2TP session on this box.<br>Sends CDN for all sessions across all tunnels. Tunnels themselves<br>stay up. Use with care.</td></tr>
 <tr><td><code>clear l2tp tunnel teardown</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Gracefully tear down one L2TP tunnel.<br>Sends a StopCCN to the peer. All sessions on this tunnel will be<br>disconnected. Pass the local tunnel ID.</td></tr>
 <tr><td><code>clear l2tp tunnel teardown-all</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Tear down every L2TP tunnel on this box.<br>Sends StopCCN for all tunnels. Every subscriber session will be<br>disconnected. Use with care during maintenance.</td></tr>
+<tr><td><code>clear ospf counters</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Reset the OSPF SPF-run history.<br>Usage: clear ospf counters. Monotonic Prometheus series are not reset;<br>the SPF-run log is cleared.</td></tr>
+<tr><td><code>clear ospf neighbor</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Tear down every OSPF adjacency so neighbors re-form.<br>Usage: clear ospf neighbor. Adjacencies re-learn from the next Hello.</td></tr>
+<tr><td><code>clear ospf process</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Full OSPF reset: tear down every adjacency and re-run SPF.<br>Usage: clear ospf process. Adjacencies re-form from the next Hello;<br>the configuration is unchanged.</td></tr>
 <tr><td><code>clear vpn ipsec sa</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Tear down IKE Security Associations.<br>Without arguments, terminates all SAs. Use &#x27;peer &lt;name&gt;&#x27; to clear<br>just one peer. The tunnel will renegotiate automatically if the<br>config is still active.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
@@ -215,12 +224,6 @@
 <tr><td><code>config archive</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Save a snapshot of the current running configuration.<br>Captures the config into the store for later rollback or comparison.<br>Optional name labels the snapshot; defaults to a timestamp.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
-<summary>crashes <span class="cli-group-count">2</span></summary>
-<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>crashes</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>View saved crash reports from panics (offline)</td></tr>
-<tr><td><code>crashes show</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Show a crash report. Use &#x27;latest&#x27; for the most recent, or pass a filename. Contains the goroutine stack trace at the time of panic.</td></tr>
-</tbody></table></details>
-<details class="cli-group" open>
 <summary>create <span class="cli-group-count">9</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>create interface address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add an IP address to an interface.<br>Usage: create interface &lt;name&gt; address &lt;prefix&gt;. Interface must already exist.</td></tr>
@@ -234,17 +237,11 @@
 <tr><td><code>create interface veth</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a veth pair (two linked virtual Ethernet interfaces).<br>Usage: create interface veth &lt;name&gt; &lt;peer&gt;.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
-<summary>debug <span class="cli-group-count">4</span></summary>
-<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>debug clear</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Clear default debug profile.</td></tr>
-<tr><td><code>debug profile</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Manage named debug profiles (save/list/delete).</td></tr>
-<tr><td><code>debug restore</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Load and apply saved debug profile.</td></tr>
-<tr><td><code>debug show</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Show active debug state (module, level, flags, scopes).</td></tr>
-</tbody></table></details>
-<details class="cli-group" open>
-<summary>delete <span class="cli-group-count">4</span></summary>
+<summary>delete <span class="cli-group-count">6</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>delete bgp peer</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove a peer from the running config.<br>Tears down the TCP session and deletes the peer from the running<br>configuration. Does not modify the config file on disk.</td></tr>
+<tr><td><code>delete debug module</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Disable debug for a subsystem, or remove one of its flags/scopes.</td></tr>
+<tr><td><code>delete debug profile name</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Delete a named debug profile.</td></tr>
 <tr><td><code>delete interface</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Delete an interface from the kernel.<br>Usage: delete interface &lt;name&gt;.</td></tr>
 <tr><td><code>delete interface address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove an IP address from an interface.<br>Usage: delete interface &lt;name&gt; address &lt;prefix&gt;.</td></tr>
 <tr><td><code>delete interface unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove a VLAN sub-interface.<br>Usage: delete interface &lt;name&gt; unit.</td></tr>
@@ -255,14 +252,22 @@
 <tr><td><code>doctor</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Verify kernel features, file descriptor limits, sockets, and required dependencies. Run this before first start or after platform changes.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
-<summary>event <span class="cli-group-count">1</span></summary>
-<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>event list</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List every event type you can subscribe to.<br>Shows event name, category, and payload structure. Use this to<br>discover what events are available before subscribing.</td></tr>
-</tbody></table></details>
-<details class="cli-group" open>
 <summary>explain <span class="cli-group-count">1</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>explain</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Print the meaning, likely cause, and recommended fix for a Ze diagnostic code. Pass the code you saw in a log or error message.</td></tr>
+</tbody></table></details>
+<details class="cli-group" open>
+<summary>fakel2tp <span class="cli-group-count">2</span></summary>
+<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>fakel2tp emit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Emit one synthetic L2TP route-change batch</td></tr>
+<tr><td><code>fakel2tp help</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Print the fakel2tp command surface</td></tr>
+</tbody></table></details>
+<details class="cli-group" open>
+<summary>fakeredist <span class="cli-group-count">3</span></summary>
+<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>fakeredist emit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Emit one synthetic route-change batch</td></tr>
+<tr><td><code>fakeredist emit-burst</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Emit N synthetic batches sequentially</td></tr>
+<tr><td><code>fakeredist help</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Print the fakeredist command surface</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
 <summary>generate <span class="cli-group-count">1</span></summary>
@@ -275,12 +280,6 @@
 <tr><td><code>help</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show available commands at this level.<br>Lists every registered command verb with a brief description.</td></tr>
 <tr><td><code>help ai</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json).</td></tr>
 <tr><td><code>help command</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>List every command with its description. Use a filter to narrow the list.</td></tr>
-</tbody></table></details>
-<details class="cli-group" open>
-<summary>host <span class="cli-group-count">2</span></summary>
-<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>host</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Show hardware inventory for this box (offline)</td></tr>
-<tr><td><code>host show</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Show hardware details by section (cpu, nic, dmi, memory, thermal, storage, kernel). JSON by default, --text for human-readable.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
 <summary>metrics <span class="cli-group-count">1</span></summary>
@@ -298,6 +297,11 @@
 <tr><td><code>monitor traceroute</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Live mtr-style traceroute that updates continuously.<br>Shows each hop with running RTT statistics. Keeps probing so you<br>can watch path changes and latency shifts over time.</td></tr>
 <tr><td><code>monitor traffic-stat</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Start streaming traffic monitor (per-second snapshots).<br>Without arguments, shows all interfaces. With &#x27;name &lt;interface&gt;&#x27;, filters to one interface.</td></tr>
 <tr><td><code>monitor vpn ipsec</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Watch IPsec SA events as they happen.<br>Streams sa-up, sa-down, child-up, child-down, and child-rekey<br>events. Useful for debugging tunnel flaps or rekey issues.</td></tr>
+</tbody></table></details>
+<details class="cli-group" open>
+<summary>ospf <span class="cli-group-count">1</span></summary>
+<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>ospf graceful-restart prepare</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).<br>Usage: ospf graceful-restart prepare. The engine originates one Grace-LSA per<br>interface, persists the non-volatile restart fact, and suppresses route churn<br>so the FIB is retained across the ensuing control-plane restart. Refused when<br>graceful-restart is not configured.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
 <summary>peer <span class="cli-group-count">2</span></summary>
@@ -388,7 +392,7 @@
 <details class="cli-group" open>
 <summary>request subscribe <span class="cli-group-count">1</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>request subscribe</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Start receiving events of one or more types.<br>Events are delivered asynchronously to your plugin session until<br>you unsubscribe. Use &#x27;event list&#x27; to see available event types.</td></tr>
+<tr><td><code>request subscribe</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Start receiving events of one or more types.<br>Events are delivered asynchronously to your plugin session until<br>you unsubscribe. Use &#x27;show event list&#x27; to see available event types.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
 <summary>request unsubscribe <span class="cli-group-count">1</span></summary>
@@ -411,8 +415,12 @@
 <tr><td><code>resolve traceroute</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Traceroute from the router with optional source binding.<br>Usage: resolve traceroute &lt;target&gt; [source &lt;ip&gt;] [max-hops N] [timeout D] [probes N].</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
-<summary>set <span class="cli-group-count">1</span></summary>
+<summary>set <span class="cli-group-count">5</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>set debug active name</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Load a named debug profile and apply it to the running daemon.</td></tr>
+<tr><td><code>set debug module</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Enable debug for a subsystem; optionally set level/flag/scope. E.g. &#x27;set debug module bgp.reactor level debug&#x27;.</td></tr>
+<tr><td><code>set debug profile name</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Save the current debug state as a named profile.</td></tr>
+<tr><td><code>set debug timeout</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Set the debug auto-disable timer (e.g. 30m, 1h, 90s; 0 disables).</td></tr>
 <tr><td><code>set system file-descriptors</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Raise the file descriptor limit for the daemon process.<br>Pass a number or &#x27;max&#x27; to go to the hard limit. Takes effect<br>immediately. Check current limits with &#x27;show system file-descriptors&#x27;.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
@@ -424,6 +432,11 @@
 <summary>show announcements <span class="cli-group-count">1</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>show announcements</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List active on-demand announcements.<br>Usage: show announcements [tag &lt;key&gt;] [selector &lt;pattern&gt;] [family &lt;fam&gt;]</td></tr>
+</tbody></table></details>
+<details class="cli-group" open>
+<summary>show anomaly <span class="cli-group-count">1</span></summary>
+<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>show anomaly</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show recent behavioral anomaly incidents (report-only): source entity, cohort,<br>fired features with their deviation z-scores, combined score, and severity. The detector reports;<br>the anomaly/shape responder (Spec 2b) acts.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
 <summary>show arp <span class="cli-group-count">1</span></summary>
@@ -518,9 +531,10 @@
 <tr><td><code>show data registered</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List the key patterns registered by all subsystems.<br>Shows you what types of data ZeFS knows about.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
-<summary>show debug <span class="cli-group-count">1</span></summary>
+<summary>show debug <span class="cli-group-count">2</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>show debug</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show live debug state from the running daemon.<br>Lists every registered subsystem with its current log level and any<br>active flag or scope filters. Unlike &#x27;debug show&#x27; (which reads the<br>stored profile), this reflects actual runtime state.</td></tr>
+<tr><td><code>show debug profile</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Show stored debug profiles (list, or &#x27;name &lt;name&gt;&#x27; for one).</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
 <summary>show dns <span class="cli-group-count">2</span></summary>
@@ -546,8 +560,9 @@
 <tr><td><code>show errors</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show recent errors across all subsystems, newest first.<br>This is the first place to look when something goes wrong. Filter<br>with source &lt;name&gt; to narrow to one subsystem, count &lt;N&gt; to limit<br>output.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
-<summary>show event <span class="cli-group-count">2</span></summary>
+<summary>show event <span class="cli-group-count">3</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>show event list</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List every event type you can subscribe to.<br>Shows event name, category, and payload structure. Use this to<br>discover what events are available before subscribing.</td></tr>
 <tr><td><code>show event namespaces</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List all event namespaces and how many events each has logged.<br>Tells you which subsystems are generating events and how active<br>they are.</td></tr>
 <tr><td><code>show event recent</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show recent events, newest first.<br>Each event includes timestamp, namespace, and type. Filter with<br>namespace &lt;name&gt; to focus on one area, count &lt;N&gt; to limit output.<br>Useful for reconstructing what happened before an incident.</td></tr>
 </tbody></table></details>
@@ -679,6 +694,37 @@
 <tr><td><code>show neighbor</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the ARP and neighbor discovery table.<br>Lists IPv4 ARP and IPv6 ND entries with MAC addresses and states.<br>Pass ipv4 or ipv6 to filter by address family; no argument shows both.<br>For the IPv4-only view, &#x27;show arp&#x27; is a shortcut.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
+<summary>show ospf <span class="cli-group-count">27</span></summary>
+<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>show ospf</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>OSPFv2 process summary: router-id, areas, ABR/ASBR status, and stub-router (max-metric) state (RFC 2328).</td></tr>
+<tr><td><code>show ospf border-routers</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show routes to OSPF area-border and AS-boundary routers.<br>Lists each reachable ABR/ASBR with its router-id, cost, next-hops, and<br>area.</td></tr>
+<tr><td><code>show ospf database</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the OSPF link-state database.<br>Lists each LSA with its LS Type, Link State ID, Advertising Router,<br>sequence number, age, and checksum.</td></tr>
+<tr><td><code>show ospf database asbr-summary</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show only ASBR-Summary-LSAs (Type 4).</td></tr>
+<tr><td><code>show ospf database external</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show only AS-external-LSAs (Type 5).</td></tr>
+<tr><td><code>show ospf database network</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show only Network-LSAs (Type 2).</td></tr>
+<tr><td><code>show ospf database nssa-external</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show only NSSA-external-LSAs (Type 7, RFC 3101).</td></tr>
+<tr><td><code>show ospf database opaque-area</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show only area-scope opaque-LSAs (Type 10, RFC 5250).</td></tr>
+<tr><td><code>show ospf database opaque-as</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show only AS-scope opaque-LSAs (Type 11, RFC 5250).</td></tr>
+<tr><td><code>show ospf database opaque-link</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show only link-local opaque-LSAs (Type 9, RFC 5250).</td></tr>
+<tr><td><code>show ospf database router</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show only Router-LSAs (Type 1).</td></tr>
+<tr><td><code>show ospf database router-information</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the Router Information LSAs (RFC 7770) for both address<br>families -- OSPFv2 opaque type 4 and OSPFv3 function code 12 -- decoded into the<br>advertised informational capability bits and the TLV list.</td></tr>
+<tr><td><code>show ospf database summary</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show only Summary-LSAs (Type 3, inter-area network).</td></tr>
+<tr><td><code>show ospf graceful-restart</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show OSPFv2 (IPv4) Graceful Restart state (RFC 3623): the restarter<br>state (in-restart or not, grace end, reason) and the per-neighbor helper<br>sessions (which neighbors are being helped and their remaining grace).</td></tr>
+<tr><td><code>show ospf instance</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the configured OSPFv2 instances (RFC 6549 Multi-Instance).<br>Lists each Instance ID with its router-id and the size of its isolated<br>area, interface, neighbor, and link-state database state.</td></tr>
+<tr><td><code>show ospf interface</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show OSPF-enabled interfaces.<br>Returns area, network-type, cost, ISM state, DR/BDR, hello/dead<br>intervals, priority, and passive flag per interface.</td></tr>
+<tr><td><code>show ospf ipv6</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the OSPFv3 (IPv6) address-family instances (RFC 5838).<br>Lists each configured address family (ipv6-unicast, ipv6-multicast,<br>ipv4-unicast, ipv4-multicast) with its Instance ID, router-id, and<br>neighbor/interface counts, so multiple AF instances on a link are<br>distinguishable.</td></tr>
+<tr><td><code>show ospf ipv6 graceful-restart</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show OSPFv3 (IPv6) Graceful Restart state (RFC 5187): the restarter<br>state (in-restart or not, grace end, reason) and the per-neighbor helper<br>sessions (which neighbors are being helped and their remaining grace).</td></tr>
+<tr><td><code>show ospf ipv6 interface</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show OSPFv3 (IPv6-family) interfaces and their RFC 4552 IPsec status.<br>Returns per interface whether IPsec is configured, the protocol (ah/esp) and<br>SPI, and whether the kernel SA is installed. The key is never shown.</td></tr>
+<tr><td><code>show ospf ipv6 segment-routing</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show OSPFv3 (IPv6) Segment Routing state (RFC 8666): the configured<br>SRGB/SRLB label ranges, the advertised SR-Algorithm, this node&#x27;s node<br>Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.</td></tr>
+<tr><td><code>show ospf ldp-sync</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show OSPF LDP-IGP synchronization state (RFC 5443, RFC 6138).<br>Lists each ldp-sync interface with its state (not-synchronized /<br>hold-down / synchronized), remaining hold-down, effective metric, and<br>whether it is stuck not-synchronized after having been synchronized.</td></tr>
+<tr><td><code>show ospf neighbor</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show OSPF neighbors.<br>Returns each neighbor&#x27;s router-id, interface, adjacency state, DR/BDR,<br>priority, dead time, and address.</td></tr>
+<tr><td><code>show ospf route</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show OSPF-computed routes.<br>Lists each prefix with its path type (intra/inter/external-1/2), cost,<br>next-hops, and area.</td></tr>
+<tr><td><code>show ospf segment-routing</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show OSPFv2 (IPv4) Segment Routing state (RFC 8665): the configured<br>SRGB/SRLB label ranges, the advertised SR-Algorithm, this node&#x27;s node<br>Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.</td></tr>
+<tr><td><code>show ospf spf</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show recent OSPF SPF runs.<br>Returns the most recent per-area SPF runs with their timestamp,<br>duration, node count, and pending state.</td></tr>
+<tr><td><code>show ospf te-database</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the OSPF Traffic Engineering Database (RFC 3630 / RFC 5392):<br>router addresses plus TE links with their Link ID, local/remote address, link<br>type, TE metric, bandwidths, admin group, and (for inter-AS links) remote AS and<br>remote ASBR.</td></tr>
+<tr><td><code>show ospf virtual-links</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show OSPF virtual links (RFC 2328 section 15).<br>Lists each configured virtual link with its transit area, remote<br>router-id, adjacency state, computed cost, and transit next hop.</td></tr>
+</tbody></table></details>
+<details class="cli-group" open>
 <summary>show ping <span class="cli-group-count">1</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>show ping</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Ping a target from the router itself.<br>Sends ICMP echo requests to &lt;dest&gt; (IP or hostname). Default count<br>is 5. Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms<br>reachability from this box, not from your workstation.</td></tr>
@@ -799,6 +845,11 @@
 <summary>show traffic <span class="cli-group-count">1</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>show traffic</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show traffic control (QoS) configuration per interface.<br>Without arguments, lists every interface with its qdisc type and<br>class/filter counts. With an interface name, shows the full qdisc<br>and class breakdown. Use this to verify your shaping is applied.</td></tr>
+</tbody></table></details>
+<details class="cli-group" open>
+<summary>show traffic-feature <span class="cli-group-count">1</span></summary>
+<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>show traffic-feature</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show neutral per-source traffic feature signals: fan-out (distinct destinations),<br>out/in byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto, and coarse beaconing.<br>Without arguments, shows the top source entities. With &#x27;name &lt;address&gt;&#x27;, filters to one source.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
 <summary>show traffic-stat <span class="cli-group-count">1</span></summary>
