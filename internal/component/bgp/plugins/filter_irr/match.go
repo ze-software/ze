@@ -1,4 +1,4 @@
-// Design: plan/spec-filter-irr.md -- prefix matching for IRR-derived filter lists
+// Design: plan/learned/896-filter-irr.md -- prefix matching for IRR-derived filter lists
 
 package filter_irr
 

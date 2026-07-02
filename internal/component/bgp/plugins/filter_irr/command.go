@@ -1,4 +1,4 @@
-// Design: plan/spec-filter-irr.md -- IRR plugin command handlers (show/update bgp irr)
+// Design: plan/learned/896-filter-irr.md -- IRR plugin command handlers (show/update bgp irr)
 
 package filter_irr
 

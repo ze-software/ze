@@ -1,4 +1,4 @@
-// Design: plan/spec-filter-irr.md -- IRR prefix-list filter plugin entry point
+// Design: plan/learned/896-filter-irr.md -- IRR prefix-list filter plugin entry point
 
 package filter_irr
 

@@ -547,8 +547,17 @@ asynchronously.
 | 3 | ISSUE | Manual refresh was fire-and-forget; could not report failure and a failed refresh risked clobbering last-known-good state | `filter_irr.go` `updateASN`/`updateASSet`/all | Fixed: synchronous, errors when AS-SET undetermined, preserves existing prefix-list; unit tests added |
 | 4 | BLOCKER | Multi-NLRI UPDATE with one out-of-list prefix rejected the whole update, dropping legitimate routes (no modify path) | `match.go` `evaluateUpdate` | Fixed: added `partitionUpdate` + `FilterModify` (mirrors filter_prefix); unit tests + deterministic functional test |
 
+### Run 2 (closure review, 2026-07-03)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+Fresh read-only closure review of the committed implementation (wiring end-to-end
+via `register.go` -> `all.go` + both YANG modules + 6 RPCs; three real functional
+tests; fail-closed + atomic-swap logic at `filter_irr.go:329-366,496`; AS-SET
+validation + `maxPrefixEntries=500_000`; no wire-encoding change so no interop
+test required): **0 BLOCKER, 0 ISSUE**. Run 1 findings all verified fixed.
+
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE  (formal gate still to run before closing)
+- [x] Closure review shows 0 BLOCKER, 0 ISSUE (committed-implementation review, 2026-07-03)
 
 ## Pre-Commit Verification
 
