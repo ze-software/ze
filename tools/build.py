@@ -14,7 +14,12 @@ Steps (default order, also the --only vocabulary):
     cli       `ze help command --json` -> cli/index.html  (tools/render-cli-catalog.py)
     deps      ../main/go.mod -> dependencies/index.html    (tools/render-dependencies.py)
     config    ../main/internal/**/register.go + YANG -> config-reference/index.html
-              (tools/extract-plugin-registry.py, tools/render-config-reference.py)
+              (tools/extract-plugin-registry.py, tools/extract-yang-config-tree.py,
+              tools/render-config-reference.py) -- extract-yang-config-tree.py runs
+              `ze yang tree --json --config` against ../main/bin/ze (same
+              bin/ze requirement as the "cli" step) so each group can show
+              a readable, command-line-shaped config tree instead of only
+              raw YANG source
     contribute contribute/contribute.md -> contribute/index.html (tools/render-doc.py)
     talks     data/talks.json -> talks/index.html          (tools/render-talks.py)
     index     data/audience.json -> index.html            (tools/render-index.py)
@@ -152,6 +157,10 @@ def step_deps():
 def step_config():
     extract_plugin_registry = load_module("extract-plugin-registry")
     rc = extract_plugin_registry.main()
+    if rc:
+        return rc
+    extract_yang_config_tree = load_module("extract-yang-config-tree")
+    rc = extract_yang_config_tree.main()
     if rc:
         return rc
     render_config_reference = load_module("render-config-reference")

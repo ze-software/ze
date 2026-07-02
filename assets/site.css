@@ -2116,6 +2116,63 @@ footer {
     padding: 0.2rem 1rem 0.8rem;
 }
 
+.config-tree {
+    margin: 0.4rem 0 1rem;
+    padding: 0.8rem 1rem;
+    background: var(--bg-soft);
+    border: 1px solid var(--header-border);
+    border-radius: 0.5rem;
+}
+
+.config-tree-hint {
+    margin: 0 0 0.6rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-style: italic;
+}
+
+.yang-tree,
+.yang-tree ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.yang-tree ul {
+    margin-left: 1.1rem;
+    padding-left: 0.8rem;
+    border-left: 1px solid var(--header-border);
+}
+
+.yang-tree li {
+    margin: 0.15rem 0;
+}
+
+.yang-node code {
+    font-size: 0.85rem;
+}
+
+.yang-type {
+    color: var(--muted);
+    font-size: 0.75em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.yang-desc {
+    margin: 0.1rem 0 0.2rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+.config-plugins-heading {
+    margin: 0.8rem 0 0.2rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
 .config-plugin {
     padding: 0.9rem 0;
     border-top: 1px solid var(--line);
