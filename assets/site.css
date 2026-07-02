@@ -60,6 +60,13 @@
     --grape-tint: #f3edfe;
     --grape-glow: rgba(157, 100, 245, 0.38);
 
+    --gold-base: #f0b429;
+    --gold-mid: #c98a1a;
+    --gold-deep: #8a5a00;
+    --gold-chip: #ffe7ad;
+    --gold-tint: #fff6e0;
+    --gold-glow: rgba(240, 180, 41, 0.4);
+
     /* Legacy accent names still used by inline highlights across pages. */
     --purple: #7a2fd6;
     --cyan: #1fc9c0;
@@ -318,7 +325,7 @@ a {
     display: none;
     gap: 2rem;
     width: max-content;
-    max-width: 32rem;
+    max-width: 46rem;
     padding: 1.1rem;
     transform: translateX(-50%);
     border: 1px solid var(--header-border);
@@ -392,6 +399,50 @@ a {
     line-height: 1.35;
 }
 
+/* Dropdown items are rounded cards, not pills: .nav-links a's 999px pill
+ * radius (for the top-level nav links) would otherwise shape every item's
+ * hover highlight as a pill. The .nav-dropdown-panel prefix out-ranks it so
+ * every item, and the feature card below, share one corner radius. */
+.nav-dropdown-panel .nav-dropdown-item {
+    border-radius: 0.6rem;
+}
+
+/* A prominent hub item that sits alone in the first dropdown column
+ * (e.g. Docs -> Documentation): a filled card, icon-over-text. The
+ * .nav-dropdown-item.<x> double-class beats .nav-links a's 999px pill
+ * radius, which would otherwise turn this tall card into an oval. */
+.nav-dropdown-item.nav-dropdown-feature {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    height: 100%;
+    padding: 1rem;
+    border: 1px solid var(--sky-chip);
+    border-radius: 0.6rem;
+    background: var(--sky-tint);
+}
+
+.nav-dropdown-item.nav-dropdown-feature:hover {
+    background: var(--sky-chip);
+}
+
+.nav-dropdown-feature .nav-dropdown-icon {
+    width: 2.4rem;
+    height: 2.4rem;
+    margin-bottom: 0.35rem;
+    background: var(--panel-strong);
+    font-size: 1.4rem;
+}
+
+.nav-dropdown-feature strong {
+    font-size: 1rem;
+}
+
+/* Search is an icon-only badge (no count), alongside Discord/GitHub. */
+.nav-badge-search .nav-badge-icon {
+    padding: 0.45rem 0.55rem;
+}
+
 @media (max-width: 900px) {
     .nav-dropdown-panel {
         left: 0;
@@ -442,7 +493,12 @@ main {
     border: 2px solid rgba(255, 255, 255, 0.9);
     border-radius: 999px;
     color: #fff;
-    background: var(--mint-deep);
+    background: linear-gradient(
+        105deg,
+        var(--grape-base),
+        var(--pink-base) 55%,
+        var(--tangerine-base)
+    );
     box-shadow: var(--clay);
     font-size: 0.78rem;
     font-weight: 800;
@@ -454,8 +510,8 @@ main {
     width: 0.55rem;
     height: 0.55rem;
     border-radius: 999px;
-    background: var(--mint-base);
-    box-shadow: 0 0 0.8rem rgba(51, 205, 133, 0.7);
+    background: #fff;
+    box-shadow: 0 0 0.8rem rgba(255, 255, 255, 0.85);
     content: "";
     animation: pulse 2.4s ease-in-out infinite;
 }
@@ -463,10 +519,10 @@ main {
 @keyframes pulse {
     0%,
     100% {
-        box-shadow: 0 0 0.6rem rgba(51, 205, 133, 0.45);
+        box-shadow: 0 0 0.5rem rgba(255, 255, 255, 0.5);
     }
     50% {
-        box-shadow: 0 0 1.2rem rgba(51, 205, 133, 0.9);
+        box-shadow: 0 0 1.1rem rgba(255, 255, 255, 0.95);
     }
 }
 
@@ -611,9 +667,14 @@ a.hl:hover {
 
 .button.primary {
     border-color: rgba(255, 255, 255, 0.9);
-    background: var(--sky-deep);
+    background: linear-gradient(
+        105deg,
+        var(--grape-base),
+        var(--pink-base) 55%,
+        var(--tangerine-base)
+    );
     color: #fff;
-    box-shadow: var(--clay), 0 0.6rem 1.4rem -0.4rem var(--sky-glow);
+    box-shadow: var(--clay), 0 0.6rem 1.4rem -0.4rem var(--grape-glow);
 }
 
 .button:hover {
@@ -628,8 +689,13 @@ a.hl:hover {
 }
 
 .button.primary:hover {
-    background: #084677;
-    box-shadow: var(--clay), 0 0.9rem 2rem -0.4rem var(--sky-glow);
+    background: linear-gradient(
+        105deg,
+        var(--grape-deep),
+        var(--pink-deep) 55%,
+        var(--tangerine-deep)
+    );
+    box-shadow: var(--clay), 0 0.9rem 2rem -0.4rem var(--grape-glow);
 }
 
 .bird-card {
@@ -978,20 +1044,20 @@ section {
     --acc-glow: var(--pink-glow);
 }
 .cat-services {
+    --acc: var(--gold-base);
+    --acc-mid: var(--gold-mid);
+    --acc-deep: var(--gold-deep);
+    --acc-chip: var(--gold-chip);
+    --acc-tint: var(--gold-tint);
+    --acc-glow: var(--gold-glow);
+}
+.cat-platform {
     --acc: var(--teal-base);
     --acc-mid: var(--teal-mid);
     --acc-deep: var(--teal-deep);
     --acc-chip: var(--teal-chip);
     --acc-tint: var(--teal-tint);
     --acc-glow: var(--teal-glow);
-}
-.cat-platform {
-    --acc: var(--lemon-base);
-    --acc-mid: var(--lemon-mid);
-    --acc-deep: var(--lemon-deep);
-    --acc-chip: var(--lemon-chip);
-    --acc-tint: var(--lemon-tint);
-    --acc-glow: var(--lemon-glow);
 }
 
 .card h3 {
@@ -1226,9 +1292,9 @@ section {
     align-items: center;
     gap: 0.45rem;
     padding: 0.5rem 0.95rem;
-    border: 2px solid rgba(255, 255, 255, 0.9);
-    border-radius: 999px;
-    background: var(--acc-deep);
+    border: 2px solid transparent;
+    border-radius: 0.6rem;
+    background: linear-gradient(135deg, var(--acc), var(--acc-deep));
     color: #fff;
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.74rem;
@@ -1249,8 +1315,8 @@ section {
     width: 0.55rem;
     height: 0.55rem;
     border-radius: 999px;
-    background: var(--acc);
-    box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.2);
+    background: #fff;
+    box-shadow: 0 0 0.45rem rgba(255, 255, 255, 0.7);
     content: "";
 }
 
@@ -1967,6 +2033,149 @@ footer {
     position: relative;
 }
 
+/* Site-wide search page (search/) */
+#site-search {
+    width: 100%;
+    padding: 0.85rem 1.1rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 0.6rem;
+    background: rgba(255, 255, 255, 0.75);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 1.05rem;
+    box-shadow: inset 0 1px 3px rgba(80, 30, 110, 0.06);
+}
+
+#site-search:focus {
+    outline: none;
+    border-color: var(--acc-deep, var(--line-strong));
+    box-shadow: 0 0 0 3px var(--line);
+}
+
+.search-status {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 0.75rem 0 0;
+}
+
+.search-results {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0;
+    display: grid;
+    gap: 0.75rem;
+}
+
+.search-result {
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.7rem;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.search-result > a {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    text-decoration: none;
+}
+
+.search-result-title {
+    font-weight: 700;
+    color: var(--text);
+}
+
+.search-result > a:hover .search-result-title {
+    text-decoration: underline;
+}
+
+.search-result-snippet {
+    margin: 0.4rem 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.search-result-snippet mark {
+    background: var(--tangerine-chip);
+    color: inherit;
+    border-radius: 0.2rem;
+    padding: 0 0.1rem;
+}
+
+/* Search overlay: the same index/results as the /search/ page, shown as an
+ * in-page modal opened from the nav search icon (site.js) on any page. */
+body.search-open {
+    overflow: hidden;
+}
+
+.search-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 8vh 1rem 1rem;
+}
+
+.search-overlay[hidden] {
+    display: none;
+}
+
+.search-overlay-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(30, 17, 45, 0.45);
+    backdrop-filter: blur(3px);
+}
+
+.search-overlay-panel {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    width: min(40rem, 100%);
+    max-height: 80vh;
+    padding: 1rem;
+    border: 1px solid var(--header-border);
+    border-radius: 0.9rem;
+    background: var(--panel-strong);
+    box-shadow: 0 1.5rem 3.5rem rgba(40, 20, 55, 0.28);
+}
+
+.search-overlay-input {
+    width: 100%;
+    padding: 0.85rem 1.1rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 0.6rem;
+    background: rgba(255, 255, 255, 0.75);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 1.05rem;
+}
+
+.search-overlay-input:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px var(--line);
+}
+
+.search-overlay-status {
+    margin: 0.6rem 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.search-overlay-results {
+    display: grid;
+    gap: 0.6rem;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
 .cli-suggestions {
     position: absolute;
     z-index: 20;
@@ -2073,19 +2282,22 @@ footer {
 /* ============================================================
  * Configuration Reference
  *
- * The whole config as a searchable index of sections (the
- * landing table), each drilling into its own config tree. One
- * column, two states -- index and detail -- swapped by the
- * explorer script; without JS every section renders stacked.
- * Ordered: search, views, index table, detail header, config
- * tree, ownership annotations, then the no-JS fallback.
+ * A breadcrumb-navigated browser: every level -- the top-level
+ * sections and every container inside them -- is the same table
+ * of children (setting / provided-by / description). A child
+ * with children is a link that steps in; the breadcrumb steps
+ * back. The whole tree is embedded as JSON and each level is
+ * rendered on demand by the browser script; without JS the
+ * <noscript> points at the plain-text index.md.
+ * Ordered: search, breadcrumb, level table, header, ownership,
+ * hints, no-JS fallback.
  * ============================================================ */
 
 /* -- Search -- */
 #config-search {
     display: block;
     width: 100%;
-    margin: 1rem 0 1.6rem;
+    margin: 1rem 0 1.4rem;
     padding: 0.65rem 0.9rem;
     border: 1px solid var(--header-border);
     border-radius: 0.6rem;
@@ -2095,42 +2307,44 @@ footer {
     box-shadow: var(--clay);
 }
 
-/* -- Views: index (landing) and one detail view per section -- */
 .config-explorer {
     margin-top: 0.5rem;
 }
 
-.config-view {
-    display: none;
+/* -- Breadcrumb -- */
+.config-crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 1.1rem;
+    font-size: 0.9rem;
 }
 
-.config-view.is-active {
-    display: block;
+.config-crumbs a {
+    color: var(--blue);
 }
 
-/* -- Index: the section table (this is the navigation) -- */
-.config-index-hint {
+.config-crumb-sep {
     color: var(--muted);
 }
 
-.config-index-count {
-    min-height: 1.2em;
-    margin: 0.2rem 0 1rem;
-    color: var(--blue);
-    font-size: 0.9rem;
+.config-crumb-current code {
+    color: var(--text);
     font-weight: 600;
 }
 
+/* -- Level table (the same presentation at every level) -- */
 .config-index {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.92rem;
 }
 
-/* The index lives inside .md-content, whose comparison-table rules
+/* The table lives inside .md-content, whose comparison-table rules
  * (.md-content th, .md-content th:first-child) would paint it blue. The
- * .md-content prefix here out-ranks those so the index keeps its own
- * light look, with <th scope="row"> for the section column. */
+ * .md-content prefix here out-ranks those so it keeps its own light look,
+ * with <th scope="row"> for the setting-name column. */
 .md-content .config-index thead th {
     padding: 0.5rem 0.7rem;
     border-bottom: 2px solid var(--line-strong);
@@ -2155,11 +2369,11 @@ footer {
     vertical-align: top;
 }
 
-.config-index tbody tr {
+.config-index tbody tr.is-drillable {
     cursor: pointer;
 }
 
-.config-index tbody tr:hover {
+.config-index tbody tr.is-drillable:hover {
     background: var(--bg-soft);
 }
 
@@ -2172,137 +2386,15 @@ footer {
     font-style: italic;
 }
 
+/* -- Ownership annotations -- */
 .config-owner-tag {
     display: inline-block;
     padding: 0.05rem 0.55rem;
     border-radius: 1rem;
-    font-size: 0.78rem;
-    white-space: nowrap;
-}
-
-.config-owner-tag.is-plugin {
     background: rgba(29, 124, 214, 0.12);
     color: var(--blue);
-}
-
-.config-owner-tag.is-core {
-    background: var(--bg-soft);
-    color: var(--muted);
-}
-
-/* -- Detail: back link, prev/next pager, section header -- */
-.config-detail-bar {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.8rem;
-    margin-bottom: 1.2rem;
-}
-
-.config-back {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    color: var(--blue);
-    font-size: 0.9rem;
-    font-weight: 600;
-}
-
-.config-back::before {
-    content: "\2190";
-}
-
-.config-pager {
-    display: flex;
-    gap: 1rem;
-    font-size: 0.85rem;
-}
-
-.config-pager a {
-    color: var(--muted);
-}
-
-.config-pager a:hover {
-    color: var(--text);
-}
-
-.config-pager-prev::before {
-    content: "\2190\00a0";
-}
-
-.config-pager-next::after {
-    content: "\00a0\2192";
-}
-
-.config-detail-head {
-    margin-bottom: 1rem;
-    padding-bottom: 0.8rem;
-    border-bottom: 1px solid var(--line);
-}
-
-.config-detail-head h2 {
-    margin: 0 0 0.3rem;
-}
-
-.config-detail-desc {
-    margin: 0.3rem 0 0;
-    color: var(--muted);
-}
-
-/* -- Config tree: a section's YANG structure -- */
-.yang-tree,
-.yang-tree ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.yang-tree ul {
-    margin-left: 1.1rem;
-    padding-left: 0.8rem;
-    border-left: 1px solid var(--header-border);
-}
-
-.yang-tree li {
-    margin: 0.15rem 0;
-}
-
-.yang-tree code {
-    font-size: 0.85rem;
-}
-
-.yang-type {
-    color: var(--muted);
-    font-size: 0.75em;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-.yang-desc {
-    color: var(--muted);
-    font-size: 0.82rem;
-}
-
-.yang-branch {
-    display: block;
-}
-
-.yang-branch > summary {
-    cursor: pointer;
-    list-style: revert;
-}
-
-.yang-branch > summary::marker {
-    color: var(--muted);
-}
-
-/* -- Ownership annotations -- */
-.config-owner {
-    color: var(--blue);
-    font-size: 0.72em;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+    font-size: 0.78rem;
+    white-space: nowrap;
 }
 
 .config-owner-detail {
@@ -2331,23 +2423,54 @@ footer {
     text-decoration: underline;
 }
 
-.config-yang-missing {
+/* -- Current-node header -- */
+.config-detail-head {
+    margin-bottom: 1rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.config-detail-head h2 {
+    margin: 0 0 0.3rem;
+}
+
+.config-detail-desc {
+    margin: 0.3rem 0 0;
     color: var(--muted);
-    font-size: 0.85rem;
+}
+
+.yang-type {
+    color: var(--muted);
+    font-size: 0.75em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* -- Hints, empty and no-JS states -- */
+.config-index-hint,
+.config-noscript {
+    color: var(--muted);
+}
+
+.config-index-count {
+    min-height: 1.2em;
+    margin: 0.2rem 0 1rem;
+    color: var(--blue);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.config-empty {
+    margin: 0.5rem 0;
+    color: var(--muted);
     font-style: italic;
 }
 
-/* -- Fallback: without JS, show every section stacked and hide the
- *    index table and the back/pager controls (they need the script). -- */
-html:not(.config-js) .config-view {
-    display: block;
-    margin-bottom: 2.5rem;
-}
-
-html:not(.config-js) .config-view[data-view="overview"] {
+/* Without JS the browser can't render; show only the noscript pointer.
+ * #config-search needs its own ID-specificity rule to beat #config-search. */
+html:not(.config-js) .config-explorer > :not(noscript) {
     display: none;
 }
 
-html:not(.config-js) .config-detail-bar {
+html:not(.config-js) #config-search {
     display: none;
 }

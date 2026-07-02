@@ -45,23 +45,33 @@
                         </a>
                         <a class="nav-dropdown-item" href="../cli/">
                             <span class="nav-dropdown-icon">⌨️</span>
-                            <span><strong>CLI Reference</strong><small>376 commands, generated from the live binary</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../dependencies/">
-                            <span class="nav-dropdown-icon">📦</span>
-                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
+                            <span><strong>CLI Reference</strong><small>380 commands, generated from the live binary</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../config-reference/">
                             <span class="nav-dropdown-icon">🧬</span>
                             <span><strong>Configuration Reference</strong><small>The whole config as a searchable index: 35 sections from live YANG</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="../dependencies/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
+                        </a>
                         <a class="nav-dropdown-item" href="../performance/">
                             <span class="nav-dropdown-icon">⚡</span>
                             <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
                         </a>
+                    </div>
+                    <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../compare/">
                             <span class="nav-dropdown-icon">⚖️</span>
                             <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../roadmap/">
+                            <span class="nav-dropdown-icon">🗺️</span>
+                            <span><strong>Roadmap</strong><small>The path to a first release you can trust</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../changes/">
+                            <span class="nav-dropdown-icon">🧾</span>
+                            <span><strong>Changes</strong><small>What shipped, week by week</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../activity/">
                             <span class="nav-dropdown-icon">📈</span>
@@ -119,6 +129,12 @@
                     </button>
                     <div class="nav-dropdown-panel">
                     <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../docs/">
+                            <span class="nav-dropdown-icon">📚</span>
+                            <span><strong>Documentation</strong><small>All docs, organised by what you want to do</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
                         <span class="nav-dropdown-label">Getting started</span>
                         <a class="nav-dropdown-item" href="../docs/guide/quickstart/">
                             <span class="nav-dropdown-icon">🚀</span>
@@ -159,12 +175,56 @@
                             <span class="nav-dropdown-icon">📊</span>
                             <span><strong>Benchmarking</strong><small>ze-perf architecture, flags, JSON output</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="../docs/guide/exabgp-migration/">
+                            <span class="nav-dropdown-icon">🔀</span>
+                            <span><strong>Migrating from ExaBGP</strong><small>Convert configs and bridge process scripts</small></span>
+                        </a>
                     </div>
                     </div>
                     </div>
-                    <a href="../blog/">Blog</a>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Blog
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../blog/2026-06-25/">
+                            <span class="nav-dropdown-icon">🗓️</span>
+                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../blog/2026-06-22/">
+                            <span class="nav-dropdown-icon">🗓️</span>
+                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../blog/2026-06-15/">
+                            <span class="nav-dropdown-icon">🗓️</span>
+                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../blog/2026-06-08/">
+                            <span class="nav-dropdown-icon">🗓️</span>
+                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../blog/2026-06-01/">
+                            <span class="nav-dropdown-icon">🗓️</span>
+                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../blog/">
+                            <span class="nav-dropdown-icon">📚</span>
+                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
                     <a href="../talks/">Talks</a>
+                    <a href="../faq/">FAQ</a>
                     <a href="../contribute/">Contribute</a>
+                    <a
+                        class="nav-badge nav-badge-search"
+                        href="../search/"
+                        aria-label="Search the site"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/></svg></span>
+                    </a>
                     <a
                         class="nav-badge"
                         href="https://discord.gg/T8s7CjPDne"
@@ -331,27 +391,33 @@
                         <a href="../dependencies/">Dependencies</a>
                         <a href="../performance/">Performance</a>
                         <a href="../compare/">Compare</a>
+                        <a href="../roadmap/">Roadmap</a>
+                        <a href="../changes/">Changes</a>
                         <a href="../activity/">Activity</a>
                     </div>
                     <div class="footer-col">
                         <h3>Learn</h3>
+                        <a href="../docs/">Documentation</a>
                         <a href="../docs/guide/quickstart/">Quickstart</a>
                         <a href="../docs/architecture/">Architecture</a>
                         <a href="../labs/">Labs</a>
                         <a href="../blog/">Blog</a>
                         <a href="../talks/">Talks</a>
+                        <a href="../faq/">FAQ</a>
                     </div>
                     <div class="footer-col">
                         <h3>Community</h3>
                         <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>
                         <a href="../contribute/">Contribute</a>
+                        <a href="../security/">Security</a>
+                        <a href="../code-of-conduct/">Code of Conduct</a>
                         <a href="https://github.com/ze-software/ze" target="_blank" rel="noopener">GitHub</a>
                         <a href="https://codeberg.org/thomas-mangin/ze" target="_blank" rel="noopener">Codeberg</a>
                         <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">Issues</a>
                     </div>
                 </div>
                 <div class="footer-bottom">
-                    <span>Ze is AGPLv3 open source.</span>
+                    <a href="../license/">Ze is AGPLv3 open source.</a>
                     <a href="../style-guide/">Style Guide</a>
                 </div>
             </div>

@@ -132,9 +132,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                         >
                         <a
                             class="button"
-                            href="https://github.com/ze-software/ze/tree/main/docs"
-                            target="_blank"
-                            rel="noopener"
+                            href="docs/"
                             >Read Docs</a
                         >
                         <a
@@ -220,6 +218,14 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
                             and configuration may change. Upgrade paths will be
                             provided after the first release. Use it in labs,
                             break it, read the code, and tell us what is wrong.
+                        </p>
+                        <p class="status-links">
+                            Ze is free software under the
+                            <a href="license/">AGPLv3</a>. See the
+                            <a href="roadmap/">roadmap</a> for the path to a
+                            release, and the
+                            <a href="security/">security policy</a> to report an
+                            issue.
                         </p>
                     </div>
                     <div class="status-table" aria-label="Feature status">
@@ -310,7 +316,7 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
                         </div>
                         <div class="terminal-body">
                             <pre><span class="term-comment"># build from source</span>
-<span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://codeberg.org/thomas-mangin/ze.git
+<span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://github.com/ze-software/ze.git
 <span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze && <span class="term-cmd">make</span> build
 
 <span class="term-comment"># set up credentials and configure</span>

@@ -58,7 +58,7 @@
           "external": false,
           "chips": [
             {
-              "text": "VyOS-style pipes",
+              "text": "Shell-like pipes",
               "mode": false
             },
             {

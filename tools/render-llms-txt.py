@@ -97,6 +97,15 @@ def nav_entry_line(entry):
 
 def render_dropdown_section(dropdown):
     lines = ["## %s" % dropdown["label"], ""]
+    if dropdown.get("dynamic") == "blog":
+        # Same live entries as the nav's Blog dropdown (newest posts + index).
+        for column in sitelib.blog_dropdown_columns():
+            for href, _icon, title, desc, _feature in column:
+                lines.append(
+                    nav_entry_line({"href": href, "title": title, "desc": desc})
+                )
+        lines.append("")
+        return "\n".join(lines)
     for column in dropdown["columns"]:
         for entry in column:
             if "label_only" in entry:

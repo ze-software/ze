@@ -10,10 +10,14 @@
                 [
                     {"href": "features/", "icon": "🧩", "title": "Features", "desc": "%(features)s features, color-coded by category"},
                     {"href": "cli/", "icon": "⌨️", "title": "CLI Reference", "desc": "%(cli_commands)s commands, generated from the live binary"},
-                    {"href": "dependencies/", "icon": "📦", "title": "Dependencies", "desc": "%(dependencies)s direct packages, generated from go.mod"},
                     {"href": "config-reference/", "icon": "🧬", "title": "Configuration Reference", "desc": "The whole config as a searchable index: %(config_sections)s sections from live YANG"},
-                    {"href": "performance/", "icon": "⚡", "title": "Performance", "desc": "Measured BGP benchmarks, not claims"},
+                    {"href": "dependencies/", "icon": "📦", "title": "Dependencies", "desc": "%(dependencies)s direct packages, generated from go.mod"},
+                    {"href": "performance/", "icon": "⚡", "title": "Performance", "desc": "Measured BGP benchmarks, not claims"}
+                ],
+                [
                     {"href": "compare/", "icon": "⚖️", "title": "Compare", "desc": "How Ze stacks up against BIRD, FRR, and more"},
+                    {"href": "roadmap/", "icon": "🗺️", "title": "Roadmap", "desc": "The path to a first release you can trust"},
+                    {"href": "changes/", "icon": "🧾", "title": "Changes", "desc": "What shipped, week by week"},
                     {"href": "activity/", "icon": "📈", "title": "Activity", "desc": "A year of commits, at a glance"}
                 ]
             ]
@@ -39,6 +43,9 @@
             "label": "Docs",
             "columns": [
                 [
+                    {"href": "docs/", "icon": "📚", "title": "Documentation", "desc": "All docs, organised by what you want to do", "feature": true}
+                ],
+                [
                     {"label_only": "Getting started"},
                     {"href": "docs/guide/quickstart/", "icon": "🚀", "title": "Quickstart", "desc": "Two BGP peers in under 5 minutes"},
                     {"href": "docs/features/configuration/", "icon": "⚙️", "title": "Configuration", "desc": "YANG-modeled, one model for everything"},
@@ -51,14 +58,19 @@
                     {"href": "docs/features/mcp-integration/", "icon": "🤖", "title": "MCP Integration", "desc": "AI-assisted operations"},
                     {"href": "docs/features/web-interface/", "icon": "🖥️", "title": "Web Interface", "desc": "HTMX config editor and admin panel"},
                     {"href": "docs/guide/vpp/", "icon": "📦", "title": "VPP Dataplane", "desc": "FIB, traffic, and firewall via VPP"},
-                    {"href": "docs/guide/benchmarking/", "icon": "📊", "title": "Benchmarking", "desc": "ze-perf architecture, flags, JSON output"}
+                    {"href": "docs/guide/benchmarking/", "icon": "📊", "title": "Benchmarking", "desc": "ze-perf architecture, flags, JSON output"},
+                    {"href": "docs/guide/exabgp-migration/", "icon": "🔀", "title": "Migrating from ExaBGP", "desc": "Convert configs and bridge process scripts"}
                 ]
             ]
+        },
+        {
+            "label": "Blog",
+            "dynamic": "blog"
         }
     ],
     "trailing_links": [
-        {"href": "blog/", "label": "Blog"},
         {"href": "talks/", "label": "Talks"},
+        {"href": "faq/", "label": "FAQ"},
         {"href": "contribute/", "label": "Contribute"}
     ]
 }

@@ -138,6 +138,15 @@ GITHUB_ICON_PATH = (
 )
 
 
+# Magnifying glass (Font Awesome "magnifying-glass"), viewBox 0 0 512 512.
+SEARCH_ICON_PATH = (
+    "M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3"
+    "s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 "
+    "0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 "
+    "0 1 0 0 288z"
+)
+
+
 def _nav_badge(href, aria_label, icon_path, icon_viewbox, count_text):
     return (
         "                    <a\n"
@@ -155,9 +164,24 @@ def _nav_badge(href, aria_label, icon_path, icon_viewbox, count_text):
     ) % (href, aria_label, icon_viewbox, icon_path, count_text)
 
 
-def build_nav_badges():
+def _nav_search_badge(root):
+    return (
+        "                    <a\n"
+        '                        class="nav-badge nav-badge-search"\n'
+        '                        href="%ssearch/"\n'
+        '                        aria-label="Search the site"\n'
+        "                    >\n"
+        '                        <span class="nav-badge-icon">'
+        '<svg viewBox="0 0 512 512" fill="currentColor" aria-hidden="true">'
+        '<path d="%s"/></svg>'
+        "</span>\n"
+        "                    </a>\n"
+    ) % (root, SEARCH_ICON_PATH)
+
+
+def build_nav_badges(root=""):
     stars = get_github_stars()
-    out = []
+    out = [_nav_search_badge(root)]
     out.append(
         _nav_badge(
             DISCORD_INVITE, "Ze Discord", DISCORD_ICON_PATH, "0 0 640 512", "Discord"
@@ -175,13 +199,14 @@ def build_nav_badges():
     return "".join(out)
 
 
-def nav_item(root, href, icon, title, desc):
+def nav_item(root, href, icon, title, desc, feature=False):
+    cls = "nav-dropdown-item nav-dropdown-feature" if feature else "nav-dropdown-item"
     return (
-        '                        <a class="nav-dropdown-item" href="%s%s">\n'
+        '                        <a class="%s" href="%s%s">\n'
         '                            <span class="nav-dropdown-icon">%s</span>\n'
         "                            <span><strong>%s</strong><small>%s</small></span>\n"
         "                        </a>\n"
-    ) % (root, href, icon, title, desc)
+    ) % (cls, root, href, icon, title, desc)
 
 
 def nav_dropdown(label, columns):
@@ -276,7 +301,7 @@ def load_nav_data():
         data = json.loads((DATA_DIR / "nav.json").read_text())
         counts = live_counts()
         for dropdown in data.get("dropdowns", []):
-            for column in dropdown["columns"]:
+            for column in dropdown.get("columns", []):
                 for entry in column:
                     desc = entry.get("desc")
                     if desc and "%(" in desc:
@@ -293,7 +318,15 @@ def _columns_from_data(columns):
             if "label_only" in entry:
                 c.append(entry["label_only"])
             else:
-                c.append((entry["href"], entry["icon"], entry["title"], entry["desc"]))
+                c.append(
+                    (
+                        entry["href"],
+                        entry["icon"],
+                        entry["title"],
+                        entry["desc"],
+                        entry.get("feature", False),
+                    )
+                )
         out.append(c)
     return out
 
@@ -308,6 +341,26 @@ def rooted_href(root, path):
     return root + path
 
 
+def blog_dropdown_columns(n=5):
+    """The Blog dropdown is populated live from the newest posts (via
+    latest_blog_posts) rather than a hand-maintained nav.json list, so it can
+    never fall behind blog/posts/. One column of recent weeks plus an
+    all-posts link; entries are pre-root tuples (href, icon, title, desc,
+    feature) that nav_dropdown_rooted then prefixes with the page's root."""
+    col = []
+    for post in latest_blog_posts(n):
+        title = "Week of %s" % post["slug"]
+        if post.get("is_draft"):
+            title += " (draft)"
+        intro = " ".join((post.get("intro") or "").split())
+        desc = (intro[:70] + "…") if len(intro) > 70 else (intro or "Weekly update")
+        col.append(("blog/%s/" % post["slug"], "\U0001f5d3️", title, desc, False))
+    col.append(
+        ("blog/", "\U0001f4da", "All posts", "Every weekly update, newest first", False)
+    )
+    return [col]
+
+
 def build_navblock(root):
     data = load_nav_data()
     out = ['                <div class="nav-links">\n']
@@ -317,17 +370,17 @@ def build_navblock(root):
             % (rooted_href(root, link["href"]), link["label"])
         )
     for dropdown in data["dropdowns"]:
-        out.append(
-            nav_dropdown_rooted(
-                root, dropdown["label"], _columns_from_data(dropdown["columns"])
-            )
-        )
+        if dropdown.get("dynamic") == "blog":
+            columns = blog_dropdown_columns()
+        else:
+            columns = _columns_from_data(dropdown["columns"])
+        out.append(nav_dropdown_rooted(root, dropdown["label"], columns))
     for link in data["trailing_links"]:
         out.append(
             '                    <a href="%s">%s</a>\n'
             % (rooted_href(root, link["href"]), link["label"])
         )
-    out.append(build_nav_badges())
+    out.append(build_nav_badges(root))
     out.append("                </div>")
     return "".join(out)
 
@@ -385,17 +438,21 @@ FOOTER_LOCAL_COLUMNS = [
             ("dependencies/", "Dependencies"),
             ("performance/", "Performance"),
             ("compare/", "Compare"),
+            ("roadmap/", "Roadmap"),
+            ("changes/", "Changes"),
             ("activity/", "Activity"),
         ],
     ),
     (
         "Learn",
         [
+            ("docs/", "Documentation"),
             ("docs/guide/quickstart/", "Quickstart"),
             ("docs/architecture/", "Architecture"),
             ("labs/", "Labs"),
             ("blog/", "Blog"),
             ("talks/", "Talks"),
+            ("faq/", "FAQ"),
         ],
     ),
 ]
@@ -428,6 +485,11 @@ def footer_html(root):
     out.append(
         '                        <a href="%scontribute/">Contribute</a>\n' % root
     )
+    out.append('                        <a href="%ssecurity/">Security</a>\n' % root)
+    out.append(
+        '                        <a href="%scode-of-conduct/">Code of Conduct</a>\n'
+        % root
+    )
     out.append(
         '                        <a href="https://github.com/%s" target="_blank" rel="noopener">GitHub</a>\n'
         % GITHUB_REPO
@@ -443,7 +505,10 @@ def footer_html(root):
     out.append("                    </div>\n")
     out.append("                </div>\n")
     out.append('                <div class="footer-bottom">\n')
-    out.append("                    <span>Ze is AGPLv3 open source.</span>\n")
+    out.append(
+        '                    <a href="%slicense/">Ze is AGPLv3 open source.</a>\n'
+        % root
+    )
     out.append('                    <a href="%sstyle-guide/">Style Guide</a>\n' % root)
     out.append("                </div>\n")
     out.append("            </div>\n")
@@ -485,7 +550,7 @@ PAGE_HEAD = """<!doctype html>
             rel="stylesheet"
         />
         <link rel="stylesheet" href="{root}assets/site.css" />
-    </head>
+{extra_head}    </head>
     <body>
         <header class="site-header">
             <nav class="nav" aria-label="Main navigation">
@@ -510,7 +575,7 @@ PAGE_FOOT = """        </main>
 """
 
 
-def page_head(title, desc, root, og_title=None, og_desc=None):
+def page_head(title, desc, root, og_title=None, og_desc=None, extra_head=""):
     return PAGE_HEAD.format(
         title=title,
         desc=desc,
@@ -519,6 +584,7 @@ def page_head(title, desc, root, og_title=None, og_desc=None):
         root=root,
         brand_href=rooted_href(root, "index.html#top"),
         navblock=build_navblock(root),
+        extra_head=extra_head,
     )
 
 

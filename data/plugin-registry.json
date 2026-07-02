@@ -849,7 +849,7 @@
   },
   {
     "name": "ddos-observe",
-    "description": "DDoS observability: incident store, status CLI, doctor, metrics",
+    "description": "DDoS observability: incident store and show ddos status/incidents CLI",
     "config_roots": [
       "ddos/observe"
     ],
@@ -1181,6 +1181,15 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/test/plugins/fakefib",
+    "yang_files": []
+  },
+  {
+    "name": "fakeflow",
+    "description": "Test-only synthetic flow-observation injector (use ze.fakeflow; publishes only when invoked)",
+    "config_roots": [],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/test/plugins/fakeflow",
     "yang_files": []
   },
   {

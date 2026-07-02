@@ -17,6 +17,8 @@ everything workflow as tools/render-docs.py.
 import pathlib
 import re
 import sys
+from datetime import date
+from xml.sax.saxutils import escape
 
 import markdown
 
@@ -26,8 +28,67 @@ HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 POSTS_DIR = GH_PAGES / "blog" / "posts"
 OUT_DIR = GH_PAGES / "blog"
+BLOG_URL = sitelib.SITE_BASE + "blog/"
+FEED_URL = BLOG_URL + "feed.xml"
+RSS_HEAD = (
+    '        <link rel="alternate" type="application/rss+xml" '
+    'title="Ze weekly updates" href="feed.xml" />\n'
+)
 
 LIST_ITEM_RE = re.compile(r"^[-*]\s")
+
+
+def rfc822(slug):
+    """slug is a YYYY-MM-DD start date; format it as an RSS pubDate. Derived
+    from the date itself, never the wall clock, so rebuilds are stable."""
+    y, m, d = (int(x) for x in slug.split("-"))
+    return date(y, m, d).strftime("%a, %d %b %Y 00:00:00 +0000")
+
+
+def render_feed(entries):
+    posts = sorted(
+        (e for e in entries if not e["is_draft"]),
+        key=lambda p: p["start"],
+        reverse=True,
+    )
+    items = []
+    for p in posts:
+        slug = p["slug"]
+        link = "%s%s/" % (BLOG_URL, slug)
+        desc = " ".join(p["intro"].split()) if p["intro"] else "Ze weekly update."
+        items.append(
+            "\n".join(
+                [
+                    "        <item>",
+                    "            <title>Week of %s</title>" % slug,
+                    "            <link>%s</link>" % link,
+                    '            <guid isPermaLink="true">%s</guid>' % link,
+                    "            <pubDate>%s</pubDate>" % rfc822(slug),
+                    "            <description>%s</description>" % escape(desc),
+                    "        </item>",
+                ]
+            )
+        )
+    built = rfc822(posts[0]["slug"]) if posts else rfc822("2026-01-01")
+    feed = "\n".join(
+        [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<rss version="2.0">',
+            "    <channel>",
+            "        <title>Ze weekly updates</title>",
+            "        <link>%s</link>" % BLOG_URL,
+            "        <description>What shipped in Ze each week, in Zeledon's "
+            "voice, mined from git history.</description>",
+            "        <language>en</language>",
+            "        <lastBuildDate>%s</lastBuildDate>" % built,
+            "".join(items),
+            "    </channel>",
+            "</rss>",
+            "",
+        ]
+    )
+    (OUT_DIR / "feed.xml").write_text(feed)
+    print("rendered feed -> %s (%d items)" % (OUT_DIR / "feed.xml", len(posts)))
 
 
 def ensure_blank_line_before_lists(text):
@@ -135,7 +196,9 @@ def render_index(posts):
     parts.append(
         '                    <p>%d weeks of shipped work, in <a href="../zeledon/">Zeledon</a>\'s voice, '
         "mined from git history. New weeks are also posted to Discord's "
-        "<code>ze-news</code>.</p>" % len(posts_sorted)
+        "<code>ze-news</code>. Subscribe by "
+        '<a href="feed.xml">RSS</a>, or scan the terser '
+        '<a href="../changes/">changelog</a>.</p>' % len(posts_sorted)
     )
     parts.append("                </div>")
     parts.append('                <div class="cards reveal">')
@@ -229,6 +292,7 @@ def main():
             "../",
             og_title="Blog - Ze Blog",
             og_desc=index_desc,
+            extra_head=RSS_HEAD,
         )
         + index_content
         + "\n"
@@ -236,6 +300,7 @@ def main():
     )
     sitelib.write_markdown_sibling(index_dest, render_index_markdown(index_entries))
     print("rendered index -> %s (%d posts, + index.md)" % (index_dest, len(index_entries)))
+    render_feed(index_entries)
     return 0
 
 

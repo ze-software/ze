@@ -416,41 +416,6 @@
     "mode": "offline"
   },
   {
-    "path": "fakel2tp emit",
-    "description": "Emit one synthetic L2TP route-change batch",
-    "mode": "daemon",
-    "wire-method": "ze-fakel2tp-api:fakel2tp-emit",
-    "global-pipes": true
-  },
-  {
-    "path": "fakel2tp help",
-    "description": "Print the fakel2tp command surface",
-    "mode": "daemon",
-    "wire-method": "ze-fakel2tp-api:fakel2tp-help",
-    "global-pipes": true
-  },
-  {
-    "path": "fakeredist emit",
-    "description": "Emit one synthetic route-change batch",
-    "mode": "daemon",
-    "wire-method": "ze-fakeredist-api:fakeredist-emit",
-    "global-pipes": true
-  },
-  {
-    "path": "fakeredist emit-burst",
-    "description": "Emit N synthetic batches sequentially",
-    "mode": "daemon",
-    "wire-method": "ze-fakeredist-api:fakeredist-emit-burst",
-    "global-pipes": true
-  },
-  {
-    "path": "fakeredist help",
-    "description": "Print the fakeredist command surface",
-    "mode": "daemon",
-    "wire-method": "ze-fakeredist-api:fakeredist-help",
-    "global-pipes": true
-  },
-  {
     "path": "generate wireguard keypair",
     "description": "Generate a WireGuard keypair. Prints private and public keys to stdout for use in your config.",
     "mode": "offline"
@@ -1844,6 +1809,34 @@
     "description": "List the key patterns registered by all subsystems.\nShows you what types of data ZeFS knows about.",
     "mode": "read-only",
     "wire-method": "ze-show:data-registered",
+    "global-pipes": true
+  },
+  {
+    "path": "show ddos flowspec",
+    "description": "Show the upstream FlowSpec/RTBH DDoS mitigation status: whether a rule is\ncurrently announced, the target vector it covers, and whether the leak-probe is running.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ddos-flowspec",
+    "global-pipes": true
+  },
+  {
+    "path": "show ddos incidents",
+    "description": "Show the recent DDoS incident ring (newest first): per incident the\ntarget vector (prefix/proto/port), attack family, top source addresses, peak pps/bps,\nstart/end time, and whether it is still active.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ddos-incidents",
+    "global-pipes": true
+  },
+  {
+    "path": "show ddos local",
+    "description": "Show the on-host DDoS mitigation status: whether an nft drop rule is\ncurrently installed and the target vector (prefix / proto / port) it covers.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ddos-local",
+    "global-pipes": true
+  },
+  {
+    "path": "show ddos status",
+    "description": "Show DDoS observation status: whether the incident store is running, the\nnumber of currently active attacks, and the number of incidents retained in the ring.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ddos-status",
     "global-pipes": true
   },
   {

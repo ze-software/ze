@@ -19,8 +19,9 @@ Steps (default order, also the --only vocabulary):
               `ze yang tree --json --config` against ../main/bin/ze (same
               bin/ze requirement as the "cli" step) to get the whole config
               tree; the plugin registry only supplies which plugin owns each
-              config section. The page is the whole configuration as one
-              searchable, collapsible tree of sections, not a per-plugin list
+              config path. The page embeds the tree as JSON and browses it
+              level by level (breadcrumb + a table of each node's children),
+              the same presentation at every depth, not a per-plugin list
     contribute contribute/contribute.md -> contribute/index.html (tools/render-doc.py)
     talks     data/talks.json -> talks/index.html          (tools/render-talks.py)
     index     data/audience.json -> index.html            (tools/render-index.py)
@@ -73,9 +74,18 @@ STEPS = [
     "deps",
     "config",
     "contribute",
+    "contribguide",
     "talks",
     "index",
+    "docshub",
+    "faq",
+    "roadmap",
+    "license",
+    "coc",
+    "security",
+    "changes",
     "nav",
+    "search",
     "llms",
 ]
 
@@ -102,6 +112,30 @@ COMPARE_DESC = (
 CONTRIBUTE_DESC = (
     "How to contribute to Ze: the CLA, how the project is funded, and where to start."
 )
+
+CONTRIB_GUIDE_DESC = (
+    "The practical side of contributing to Ze: how work gets in, how to build, "
+    "and what a good change looks like."
+)
+
+DOCSHUB_DESC = (
+    "All Ze documentation, organised by what you are trying to do: learn, do, "
+    "look up, and understand."
+)
+
+FAQ_DESC = "The questions people ask before they spend time on Ze, answered honestly."
+
+ROADMAP_DESC = (
+    "The work between here and a first release of Ze you can trust in production."
+)
+
+LICENSE_DESC = "Ze is free software under the GNU Affero General Public License v3."
+
+COC_DESC = "The code of conduct for the Ze community."
+
+SECURITY_DESC = "How to report a security vulnerability in Ze, what is in scope, and what to expect."
+
+MAIN_REPO = (GH_PAGES.parent / "main").resolve()
 
 
 def load_module(stem):
@@ -179,6 +213,94 @@ def step_contribute():
     return 0
 
 
+def step_contribguide():
+    render_doc = load_module("render-doc")
+    render_doc.render(
+        GH_PAGES / "contribute" / "guide.md",
+        GH_PAGES / "contribute" / "guide" / "index.html",
+        "../../",
+        CONTRIB_GUIDE_DESC,
+    )
+    return 0
+
+
+def step_docshub():
+    render_doc = load_module("render-doc")
+    render_doc.render(
+        GH_PAGES / "docs" / "docs.md",
+        GH_PAGES / "docs" / "index.html",
+        "../",
+        DOCSHUB_DESC,
+    )
+    return 0
+
+
+def step_faq():
+    render_doc = load_module("render-doc")
+    render_doc.render(
+        GH_PAGES / "faq" / "faq.md",
+        GH_PAGES / "faq" / "index.html",
+        "../",
+        FAQ_DESC,
+    )
+    return 0
+
+
+def step_roadmap():
+    render_doc = load_module("render-doc")
+    render_doc.render(
+        GH_PAGES / "roadmap" / "roadmap.md",
+        GH_PAGES / "roadmap" / "index.html",
+        "../",
+        ROADMAP_DESC,
+    )
+    return 0
+
+
+def step_license():
+    render_doc = load_module("render-doc")
+    render_doc.render(
+        GH_PAGES / "license" / "license.md",
+        GH_PAGES / "license" / "index.html",
+        "../",
+        LICENSE_DESC,
+    )
+    return 0
+
+
+def step_coc():
+    render_doc = load_module("render-doc")
+    render_doc.render(
+        MAIN_REPO / "CODE_OF_CONDUCT.md",
+        GH_PAGES / "code-of-conduct" / "index.html",
+        "../",
+        COC_DESC,
+    )
+    return 0
+
+
+def step_security():
+    render_doc = load_module("render-doc")
+    render_doc.render(
+        MAIN_REPO / "SECURITY.md",
+        GH_PAGES / "security" / "index.html",
+        "../",
+        SECURITY_DESC,
+        cat="secure",
+    )
+    return 0
+
+
+def step_changes():
+    render_changes = load_module("render-changes")
+    return render_changes.main()
+
+
+def step_search():
+    render_search_index = load_module("render-search-index")
+    return render_search_index.main()
+
+
 def step_talks():
     render_talks = load_module("render-talks")
     return render_talks.main()
@@ -219,10 +341,19 @@ STEP_FUNCS = {
     "deps": step_deps,
     "config": step_config,
     "contribute": step_contribute,
+    "contribguide": step_contribguide,
     "talks": step_talks,
     "index": step_index,
+    "docshub": step_docshub,
+    "faq": step_faq,
+    "roadmap": step_roadmap,
+    "license": step_license,
+    "coc": step_coc,
+    "security": step_security,
+    "changes": step_changes,
     "llms": step_llms,
     "nav": step_nav,
+    "search": step_search,
 }
 
 
@@ -316,7 +447,9 @@ def check_llms_md_siblings():
     nav = json.loads((GH_PAGES / "data" / "nav.json").read_text())
     hrefs = [link["href"] for link in nav["trailing_links"]]
     for dropdown in nav["dropdowns"]:
-        for column in dropdown["columns"]:
+        # Dynamic dropdowns (e.g. Blog) have no static "columns" -- their
+        # entries are generated at render time, so there is nothing to check.
+        for column in dropdown.get("columns", []):
             hrefs.extend(e["href"] for e in column if "href" in e)
 
     for href in hrefs:

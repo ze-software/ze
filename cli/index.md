@@ -1,6 +1,6 @@
 # CLI Reference
 
-376 commands across 46 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.github.io/ze/data/cli-commands.json).
+375 commands across 45 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.github.io/ze/data/cli-commands.json).
 
 ## announce (1)
 
@@ -86,21 +86,6 @@
 | Command | Mode | Description |
 | --- | --- | --- |
 | `explain` | Offline | Print the meaning, likely cause, and recommended fix for a Ze diagnostic code. Pass the code you saw in a log or error message. |
-
-## fakel2tp (2)
-
-| Command | Mode | Description |
-| --- | --- | --- |
-| `fakel2tp emit` | Daemon | Emit one synthetic L2TP route-change batch |
-| `fakel2tp help` | Daemon | Print the fakel2tp command surface |
-
-## fakeredist (3)
-
-| Command | Mode | Description |
-| --- | --- | --- |
-| `fakeredist emit` | Daemon | Emit one synthetic route-change batch |
-| `fakeredist emit-burst` | Daemon | Emit N synthetic batches sequentially |
-| `fakeredist help` | Daemon | Print the fakeredist command surface |
 
 ## generate (1)
 
@@ -288,6 +273,15 @@
 | `show config graph` | Offline | Show how components and peers depend on each other (DOT graph format). |
 | `show config history` | Read-only | List available configuration rollback points. Shows revisions with timestamps and commit metadata. Pair with 'show config diff' to review changes before rolling back. |
 | `show config ls` | Read-only | List all configuration files stored in the database. Shows archived snapshots and the active config. |
+
+## show ddos (4)
+
+| Command | Mode | Description |
+| --- | --- | --- |
+| `show ddos flowspec` | Read-only | Show the upstream FlowSpec/RTBH DDoS mitigation status: whether a rule is currently announced, the target vector it covers, and whether the leak-probe is running. |
+| `show ddos incidents` | Read-only | Show the recent DDoS incident ring (newest first): per incident the target vector (prefix/proto/port), attack family, top source addresses, peak pps/bps, start/end time, and whether it is still active. |
+| `show ddos local` | Read-only | Show the on-host DDoS mitigation status: whether an nft drop rule is currently installed and the target vector (prefix / proto / port) it covers. |
+| `show ddos status` | Read-only | Show DDoS observation status: whether the incident store is running, the number of currently active attacks, and the number of incidents retained in the ring. |
 
 ## show firewall (4)
 

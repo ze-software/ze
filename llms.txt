@@ -9,11 +9,13 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 ## Project
 
 - [Features](https://ze-software.github.io/ze/features/index.md): 46 features, color-coded by category (web: https://ze-software.github.io/ze/features/)
-- [CLI Reference](https://ze-software.github.io/ze/cli/index.md): 376 commands, generated from the live binary (web: https://ze-software.github.io/ze/cli/)
-- [Dependencies](https://ze-software.github.io/ze/dependencies/index.md): 39 direct packages, generated from go.mod (web: https://ze-software.github.io/ze/dependencies/)
+- [CLI Reference](https://ze-software.github.io/ze/cli/index.md): 375 commands, generated from the live binary (web: https://ze-software.github.io/ze/cli/)
 - [Configuration Reference](https://ze-software.github.io/ze/config-reference/index.md): The whole config as a searchable index: 35 sections from live YANG (web: https://ze-software.github.io/ze/config-reference/)
+- [Dependencies](https://ze-software.github.io/ze/dependencies/index.md): 39 direct packages, generated from go.mod (web: https://ze-software.github.io/ze/dependencies/)
 - [Performance](https://ze-software.github.io/ze/performance/index.md): Measured BGP benchmarks, not claims (web: https://ze-software.github.io/ze/performance/)
 - [Compare](https://ze-software.github.io/ze/compare/index.md): How Ze stacks up against BIRD, FRR, and more (web: https://ze-software.github.io/ze/compare/)
+- [Roadmap](https://ze-software.github.io/ze/roadmap/index.md): The path to a first release you can trust (web: https://ze-software.github.io/ze/roadmap/)
+- [Changes](https://ze-software.github.io/ze/changes/index.md): What shipped, week by week (web: https://ze-software.github.io/ze/changes/)
 - [Activity](https://ze-software.github.io/ze/activity/index.md): A year of commits, at a glance (web: https://ze-software.github.io/ze/activity/)
 
 ## Labs
@@ -29,6 +31,7 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 
 ## Docs
 
+- [Documentation](https://ze-software.github.io/ze/docs/index.md): All docs, organised by what you want to do (web: https://ze-software.github.io/ze/docs/)
 ### Getting started
 - [Quickstart](https://ze-software.github.io/ze/docs/guide/quickstart/index.md): Two BGP peers in under 5 minutes (web: https://ze-software.github.io/ze/docs/guide/quickstart/)
 - [Configuration](https://ze-software.github.io/ze/docs/features/configuration/index.md): YANG-modeled, one model for everything (web: https://ze-software.github.io/ze/docs/features/configuration/)
@@ -40,11 +43,21 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 - [Web Interface](https://ze-software.github.io/ze/docs/features/web-interface/index.md): HTMX config editor and admin panel (web: https://ze-software.github.io/ze/docs/features/web-interface/)
 - [VPP Dataplane](https://ze-software.github.io/ze/docs/guide/vpp/index.md): FIB, traffic, and firewall via VPP (web: https://ze-software.github.io/ze/docs/guide/vpp/)
 - [Benchmarking](https://ze-software.github.io/ze/docs/guide/benchmarking/index.md): ze-perf architecture, flags, JSON output (web: https://ze-software.github.io/ze/docs/guide/benchmarking/)
+- [Migrating from ExaBGP](https://ze-software.github.io/ze/docs/guide/exabgp-migration/index.md): Convert configs and bridge process scripts (web: https://ze-software.github.io/ze/docs/guide/exabgp-migration/)
+
+## Blog
+
+- [Week of 2026-06-25](https://ze-software.github.io/ze/blog/2026-06-25/index.md): Shipped across security, the appliance, routing, and observability thi… (web: https://ze-software.github.io/ze/blog/2026-06-25/)
+- [Week of 2026-06-22](https://ze-software.github.io/ze/blog/2026-06-22/index.md): Focused on trimming attack surface and rounding out OSPF. (web: https://ze-software.github.io/ze/blog/2026-06-22/)
+- [Week of 2026-06-15](https://ze-software.github.io/ze/blog/2026-06-15/index.md): Native IS-IS landed, MPLS gained fast reroute, and firewall rules can … (web: https://ze-software.github.io/ze/blog/2026-06-15/)
+- [Week of 2026-06-08](https://ze-software.github.io/ze/blog/2026-06-08/index.md): A week of operator-facing polish: a real Web Workbench UI, SR-Policy a… (web: https://ze-software.github.io/ze/blog/2026-06-08/)
+- [Week of 2026-06-01](https://ze-software.github.io/ze/blog/2026-06-01/index.md): The CLI grammar rollout finished, MRT tooling arrived, and a handful o… (web: https://ze-software.github.io/ze/blog/2026-06-01/)
+- [All posts](https://ze-software.github.io/ze/blog/index.md): Every weekly update, newest first (web: https://ze-software.github.io/ze/blog/)
 
 ## More
 
-- [Blog](https://ze-software.github.io/ze/blog/index.md): 29 weekly updates, mined from git history (web: https://ze-software.github.io/ze/blog/)
 - [Talks](https://ze-software.github.io/ze/talks/index.md) (web: https://ze-software.github.io/ze/talks/)
+- [FAQ](https://ze-software.github.io/ze/faq/index.md) (web: https://ze-software.github.io/ze/faq/)
 - [Contribute](https://ze-software.github.io/ze/contribute/index.md) (web: https://ze-software.github.io/ze/contribute/)
 - [Discord](https://discord.gg/T8s7CjPDne): community and support
 - [GitHub](https://github.com/ze-software/ze): mirror, issues

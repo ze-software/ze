@@ -28,7 +28,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 
 ### Output Formatting
 
-*operate* -- `VyOS-style pipes` `Offline`
+*operate* -- `Shell-like pipes` `Offline`
 
 - **table**, **json**, **yaml**, **ndjson**
 - **match**, **count**, **first**/**last**

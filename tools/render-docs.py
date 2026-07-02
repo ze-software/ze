@@ -54,6 +54,7 @@ MANIFEST = {
     "guide/as112.md": "services",
     "guide/audit.md": "secure",
     "guide/benchmarking.md": "observe",
+    "guide/exabgp-migration.md": "automate",
     "guide/command-reference.md": "operate",
     "guide/firewall.md": "services",
     "guide/flow-export.md": "observe",
