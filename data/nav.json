@@ -9,7 +9,7 @@
             "columns": [
                 [
                     {"href": "features/", "icon": "🧩", "title": "Features", "desc": "44 features, color-coded by category"},
-                    {"href": "cli/", "icon": "⌨️", "title": "CLI Reference", "desc": "349 commands, generated from the live binary"},
+                    {"href": "cli/", "icon": "⌨️", "title": "CLI Reference", "desc": "350 commands, generated from the live binary"},
                     {"href": "dependencies/", "icon": "📦", "title": "Dependencies", "desc": "39 direct packages, generated from go.mod"},
                     {"href": "performance/", "icon": "⚡", "title": "Performance", "desc": "Measured BGP benchmarks, not claims"},
                     {"href": "compare/", "icon": "⚖️", "title": "Compare", "desc": "How Ze stacks up against BIRD, FRR, and more"},

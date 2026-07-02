@@ -1,0 +1,47 @@
+# Ze
+
+> Open, programmable network OS for Linux. Ze speaks BGP, IS-IS, and OSPF, manages interfaces, programs the FIB, and gives operators a CLI, web UI, telemetry, looking glass, API, and plugin system around one coherent configuration model.
+
+Built for people who want a network stack they can inspect, automate, and extend. ExaBGP users get a migration path to a more performant codebase. Pre-release: no tagged versions yet, built continuously from the main branch. AGPLv3 open source.
+
+## Project
+
+- [Features](https://ze-software.github.io/ze/features/): 44 features, color-coded by category
+- [CLI Reference](https://ze-software.github.io/ze/cli/): 350 commands, generated from the live binary
+- [Dependencies](https://ze-software.github.io/ze/dependencies/): 39 direct packages, generated from go.mod
+- [Performance](https://ze-software.github.io/ze/performance/): Measured BGP benchmarks, not claims
+- [Compare](https://ze-software.github.io/ze/compare/): How Ze stacks up against BIRD, FRR, and more
+- [Activity](https://ze-software.github.io/ze/activity/): A year of commits, at a glance
+
+## Labs
+
+- [BGP Protocol Interop](https://ze-software.github.io/ze/labs/bgp-interop/): Real FRR, BIRD, and GoBGP sessions
+- [L2TP PPP/NCP Interop](https://ze-software.github.io/ze/labs/l2tp-interop/): Ze as LNS vs real xl2tpd
+- [PPPoE Interop](https://ze-software.github.io/ze/labs/pppoe-interop/): vs real accel-ppp access concentrator
+- [IPsec / IKEv2 Interop](https://ze-software.github.io/ze/labs/ipsec-interop/): Ze as IKE initiator vs strongSwan
+- [VLAN QoS Wire-Level Proof](https://ze-software.github.io/ze/labs/vlan-qos/): 802.1p PCP tagging, actually on the wire
+- [Looking Glass Graph Demo](https://ze-software.github.io/ze/labs/looking-glass-graph/): Realistic UK topology, real external ASNs
+- [Appliance Installer Evidence](https://ze-software.github.io/ze/labs/appliance-install/): HTTP/PXE, ISO, Ventoy, real boots
+- [VPP Dataplane Evidence](https://ze-software.github.io/ze/labs/vpp-dataplane/): FIB, traffic, and firewall in a real VPP daemon
+
+## Docs
+
+### Getting started
+- [Quickstart](https://ze-software.github.io/ze/docs/guide/quickstart/): Two BGP peers in under 5 minutes
+- [Configuration](https://ze-software.github.io/ze/docs/features/configuration/): YANG-modeled, one model for everything
+- [CLI Commands](https://ze-software.github.io/ze/docs/features/cli-commands/): SSH CLI with diff, commit, and history
+- [Architecture](https://ze-software.github.io/ze/docs/architecture/): How the pieces fit together
+### Deep dives
+- [MCP Integration](https://ze-software.github.io/ze/docs/features/mcp-integration/): AI-assisted operations
+- [Web Interface](https://ze-software.github.io/ze/docs/features/web-interface/): HTMX config editor and admin panel
+- [VPP Dataplane](https://ze-software.github.io/ze/docs/guide/vpp/): FIB, traffic, and firewall via VPP
+- [Benchmarking](https://ze-software.github.io/ze/docs/guide/benchmarking/): ze-perf architecture, flags, JSON output
+
+## More
+
+- [Blog](https://ze-software.github.io/ze/blog/): 29 weekly updates, mined from git history
+- [Talks](https://ze-software.github.io/ze/talks/)
+- [Contribute](https://ze-software.github.io/ze/contribute/)
+- [Discord](https://discord.gg/T8s7CjPDne): community and support
+- [GitHub](https://github.com/ze-software/ze): mirror, issues
+- [Codeberg](https://codeberg.org/thomas-mangin/ze): canonical repository

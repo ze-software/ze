@@ -15,11 +15,13 @@ Steps (default order, also the --only vocabulary):
     deps      ../main/go.mod -> dependencies/index.html    (tools/render-dependencies.py)
     contribute contribute/contribute.md -> contribute/index.html (tools/render-doc.py)
     index     data/audience.json -> index.html            (tools/render-index.py)
-    nav       patch <div class="nav-links"> and the footer Discord link in
-              the remaining hand-authored pages (zeledon, labs/*, talks,
-              style-guide, performance) so they stay in sync with
-              data/nav.json / tools/sitelib.py's DISCORD_INVITE without a
-              full rewrite
+    llms      data/nav.json + live counts -> llms.txt      (tools/render-llms-txt.py)
+              -- always runs; there is no way to regenerate the site without
+              also regenerating llms.txt, so it can never silently go stale
+    nav       patch <div class="nav-links"> and <footer> in the remaining
+              hand-authored pages (zeledon, labs/*, talks, style-guide,
+              performance) so they stay in sync with data/nav.json /
+              tools/sitelib.py without a full rewrite
 
 Replaces the old workflow of remembering to run four separate scripts (see
 AI.md) -- every page on the site, generated or hand-authored, reads its nav
@@ -47,6 +49,7 @@ STEPS = [
     "deps",
     "contribute",
     "index",
+    "llms",
     "nav",
 ]
 
@@ -143,6 +146,11 @@ def step_index():
     return render_index.main()
 
 
+def step_llms():
+    render_llms_txt = load_module("render-llms-txt")
+    return render_llms_txt.main()
+
+
 def step_nav():
     for rel, root in NAV_PATCH_TARGETS:
         path = GH_PAGES / rel
@@ -163,6 +171,7 @@ STEP_FUNCS = {
     "deps": step_deps,
     "contribute": step_contribute,
     "index": step_index,
+    "llms": step_llms,
     "nav": step_nav,
 }
 
@@ -252,6 +261,19 @@ def main():
             continue
         if rc:
             failures.append(step)
+
+    if "llms" not in steps:
+        # Runs even when --only excludes it: llms.txt must never go stale
+        # relative to whatever this invocation just changed.
+        print("=== llms (always runs) ===")
+        try:
+            rc = step_llms()
+        except Exception as exc:
+            print("error: step llms raised %r" % exc, file=sys.stderr)
+            failures.append("llms")
+        else:
+            if rc:
+                failures.append("llms")
 
     if failures:
         print("\nfailed step(s): %s" % ", ".join(failures), file=sys.stderr)
