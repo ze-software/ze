@@ -1,12 +1,15 @@
 package cos
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -112,4 +115,25 @@ func TestVerifyCoSConfigClearsOnNoSection(t *testing.T) {
 	assert.NoError(t, err)
 	_, ok := coreCos.Lookup("ghost")
 	assert.False(t, ok, "profiles must be cleared even with no sections")
+}
+
+// VALIDATES: warnIfExternal logs a warning exactly when cos is not running
+// in-process -- ConfigureEventBus (the only place dynamicHandler is set) is
+// wired through plugin.GetInternalPluginRunner and never invoked for an
+// external plugin, so an external cos silently never pushes EventBus-
+// triggered VLAN QoS map updates with no error anywhere until this warning.
+// PREVENTS: an operator running `plugin { external cos { ... } }` getting no
+// indication that dynamic QoS updates are disabled (fork round-2 finding 4).
+func TestWarnIfExternal(t *testing.T) {
+	t.Cleanup(func() { setLogger(slogutil.DiscardLogger()) })
+
+	var buf bytes.Buffer
+	setLogger(slog.New(slog.NewTextHandler(&buf, nil)))
+	warnIfExternal(false)
+	assert.Contains(t, buf.String(), "dynamic per-interface QoS map updates")
+
+	buf.Reset()
+	setLogger(slog.New(slog.NewTextHandler(&buf, nil)))
+	warnIfExternal(true)
+	assert.Empty(t, buf.String(), "internal cos must not log the external-mode warning")
 }

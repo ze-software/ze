@@ -120,10 +120,33 @@ func verifyCoSConfig(sections []sdk.ConfigSection) error {
 	return nil
 }
 
+// warnIfExternal logs a warning when cos is not running in-process.
+// ConfigureEventBus (this file's init(), the only place that sets
+// dynamicHandler) is wired exclusively through
+// plugin.GetInternalPluginRunner, which is never used for an external
+// plugin -- so an external cos never has ConfigureEventBus called at all,
+// dynamicHandler stays nil for the plugin's entire lifetime, and every
+// EventBus-triggered VLAN QoS map push (updateFn's iface.GetBackend().
+// UpdateVLANQoSMap) silently never fires, with no error anywhere.
+//
+// Unlike as112 (which refuses to start entirely when external -- see
+// sdk.Plugin.IsInternal's doc comment -- because its whole purpose depends
+// on the same-process call succeeding), cos still provides real value
+// external: static profile config (OnConfigure/parseAndRegisterProfiles)
+// and `show class-of-service` both work unaffected. So this warns rather
+// than refuses.
+func warnIfExternal(isInternal bool) {
+	if isInternal {
+		return
+	}
+	logger().Warn("cos: running as an external plugin process -- dynamic per-interface QoS map updates require in-process wiring (ConfigureEventBus is never invoked for external plugins) and will not apply; configure cos to run internal for dynamic updates. Static profile config and 'show class-of-service' are unaffected.")
+}
+
 func runPlugin(conn net.Conn) int {
 	logger().Debug("cos plugin starting")
 
 	p := sdk.NewWithConn(Name, conn)
+	warnIfExternal(p.IsInternal())
 	defer func() {
 		if dynamicHandler != nil {
 			dynamicHandler.stop()
