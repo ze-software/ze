@@ -2148,7 +2148,7 @@ footer {
     margin: 0.15rem 0;
 }
 
-.yang-node code {
+.yang-tree code {
     font-size: 0.85rem;
 }
 
@@ -2159,10 +2159,21 @@ footer {
 }
 
 .yang-desc {
-    margin: 0.1rem 0 0.2rem;
     color: var(--muted);
     font-size: 0.82rem;
-    line-height: 1.4;
+}
+
+.yang-branch {
+    display: block;
+}
+
+.yang-branch > summary {
+    cursor: pointer;
+    list-style: revert;
+}
+
+.yang-branch > summary::marker {
+    color: var(--muted);
 }
 
 .config-plugins-heading {
@@ -2198,27 +2209,8 @@ footer {
     font-size: 0.85rem;
 }
 
-.config-yang {
-    margin-top: 0.6rem;
-    border: 1px solid var(--header-border);
-    border-radius: 0.5rem;
-    overflow: hidden;
-}
-
-.config-yang summary {
-    padding: 0.5rem 0.8rem;
-    background: var(--bg-soft);
-    color: var(--muted);
-    font-size: 0.82rem;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    cursor: pointer;
-    list-style: revert;
-}
-
-.config-yang pre {
-    margin: 0;
-    border-radius: 0;
-    box-shadow: none;
+.config-plugin-meta a {
+    text-decoration: underline;
 }
 
 .config-yang-missing {
