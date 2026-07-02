@@ -536,6 +536,22 @@ monitor traffic-stat                  # All interfaces
 monitor traffic-stat name <interface> # One interface by name
 ```
 
+### show traffic-feature
+<!-- source: internal/component/trafficfeature/cmd/traffic_feature.go -- handleShowTrafficFeature, ze-show:traffic-feature -->
+
+Neutral per-source traffic feature signals (facts, not verdicts): fan-out
+(distinct destinations), out/in byte ratio (exfiltration), destination-port
+entropy, new-peer, rare-port/proto, and coarse beaconing. Returns
+`{"degraded": bool, "top-source-ips": [{address, fan-out, out-in-ratio,
+port-entropy, new-peer, rare-port, beaconing}]}`; `out-in-ratio` is the string
+`"inf"` when a source has no inbound bytes. Optional `name <address>` filters to
+one source.
+
+```
+show traffic-feature                  # Top source entities
+show traffic-feature name <address>   # One source by address
+```
+
 ### show traffic-usage
 
 Per-interface eBPF byte accounting for the `traffic-usage` plugin (TCX
@@ -586,9 +602,25 @@ preferred-source IP when the kernel reports one.
 metric, path type, advertising router, and equal-cost next-hop set. **`show ospf
 spf`** returns per-area SPF run state: last run time, duration, node count,
 pending state, and current throttle delay. **`show ospf border-routers`**
-returns reachable ABRs and ASBRs with area, metric, and next-hop set.
+returns reachable ABRs and ASBRs with area, metric, and next-hop set. **`show
+ospf virtual-links`** returns each configured OSPF virtual link (RFC 2328 §15)
+with its transit area, remote router-id, adjacency state, transit-area-computed
+cost, and transit next hop.
+**`show ospf database opaque-link`**, **`show ospf database opaque-area`**, and
+**`show ospf database opaque-as`** filter the LSDB to the RFC 5250 opaque LSAs of
+Type 9 (link-local), Type 10 (area), and Type 11 (AS) respectively; the opaque-area
+and opaque-as views decode any RFC 3630 / RFC 5392 Traffic Engineering body inline.
+**`show ospf te-database`** renders the Traffic Engineering Database: router addresses
+plus TE links with their Link ID, local/remote address, link type, TE metric,
+bandwidths, admin group, and (for inter-AS links) remote AS and remote ASBR.
+**`show ospf database router-information`** decodes the RFC 7770 Router Information
+LSAs for both address families (OSPFv2 Opaque type 4 and OSPFv3 function code 12) into
+the advertised informational capability bits and the TLV list.
 
 <!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
+<!-- source: internal/plugins/ospf/te_show.go -- teDatabaseSnapshot, teDecodeOpaqueLSA -->
+<!-- source: internal/plugins/ospf/ri_show.go -- riDatabaseSnapshot, decodeRIBody -->
+<!-- source: internal/plugins/ospf/show_database.go -- dbSubviewType opaque-link/opaque-area/opaque-as -->
 <!-- source: internal/plugins/ospf/spf/route.go -- RouteSnapshotEntry -->
 <!-- source: internal/plugins/ospf/spf/interarea.go -- BorderRouterSnapshotEntry -->
 <!-- source: internal/plugins/ospf/spf/computer.go -- spfSnapshotEntry and BorderRouterSnapshot -->

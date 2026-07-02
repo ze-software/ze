@@ -36,17 +36,13 @@ const (
 	tickInterval  = time.Second
 )
 
-type Severity uint8
-
-const (
-	SeverityNormal  Severity = iota
-	SeverityCaution          // rate >2x recent average
-	SeverityDanger           // rate >5x recent average
-)
-
 type TalkerEntry struct {
 	Addr netip.Addr
 	Bps  float64
+	// History is the source's recent per-tick rate samples (newest last), used
+	// by the behavioral detector to baseline a source against itself. Populated
+	// for per-source/per-dest talkers; nil for ports/protocols.
+	History []float64
 }
 
 type PortEntry struct {
@@ -77,7 +73,6 @@ type Snapshot struct {
 	TopPorts     []PortEntry
 	Protocols    []ProtocolMix
 	History      []float64
-	Severity     Severity
 	Degraded     bool
 	At           time.Time
 }

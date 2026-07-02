@@ -202,10 +202,13 @@ ze-show:ospf-database-opaque-link
 ze-show:ospf-database-router
 ze-show:ospf-database-summary
 ze-show:ospf-interface
+ze-show:ospf-ipv6-interface
+ze-show:ospf-ldp-sync
 ze-show:ospf-neighbor
 ze-show:ospf-route
 ze-show:ospf-spf
 ze-show:ospf-te-database
+ze-show:ospf-virtual-links
 ze-show:ping
 ze-show:pki-certificate
 ze-show:pki-certificates
@@ -243,6 +246,7 @@ ze-show:system-update-history
 ze-show:tcp-check
 ze-show:traceroute
 ze-show:traffic
+ze-show:traffic-feature
 ze-show:traffic-stat
 ze-show:traffic-usage
 ze-show:uptime

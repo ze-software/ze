@@ -12,6 +12,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/trafficstat"
 	"codeberg.org/thomas-mangin/ze/internal/core/portname"
+	"codeberg.org/thomas-mangin/ze/internal/core/stats"
 )
 
 func init() {
@@ -107,7 +108,7 @@ func streamTraffic(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ s
 func snapshotToMap(snap *trafficstat.Snapshot, filterName string) plugin.Map {
 	m := plugin.Map{
 		"at":       snap.At.Format(time.RFC3339),
-		"severity": severityString(snap.Severity),
+		"severity": displaySeverity(snap.History),
 		"degraded": snap.Degraded,
 	}
 
@@ -176,13 +177,25 @@ func snapshotToMap(snap *trafficstat.Snapshot, filterName string) plugin.Map {
 	return m
 }
 
-func severityString(s trafficstat.Severity) string {
-	switch s {
-	case trafficstat.SeverityCaution:
-		return "caution"
-	case trafficstat.SeverityDanger:
-		return "danger"
-	default:
-		return "normal"
+// displaySeverity computes a display-only severity from the neutral Snapshot
+// History facts. The trafficstat layer holds no verdict (that moved out of the
+// aggregator); the monitor view reproduces the historical ">2x recent-average
+// caution / >5x danger" thresholds so operators see no change. History's last
+// element is the current total rate; its mean is the rolling average.
+func displaySeverity(history []float64) string {
+	sev := "normal"
+	if len(history) < 5 {
+		return sev
 	}
+	avg := stats.Mean(history)
+	if avg <= 0 {
+		return sev
+	}
+	switch ratio := history[len(history)-1] / avg; {
+	case ratio > 5:
+		sev = "danger"
+	case ratio > 2:
+		sev = "caution"
+	}
+	return sev
 }

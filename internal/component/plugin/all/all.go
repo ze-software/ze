@@ -85,6 +85,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/sysrib/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/tacacs/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/trafficfeature/cmd/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/trafficstat/cmd/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/vpp/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/yang"
@@ -279,6 +280,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/storage"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traceroute/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/cmd"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/trafficfeature/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/trafficstat/cmd"
 )
 

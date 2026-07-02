@@ -88,6 +88,58 @@ func TestAggregatorCumulativeRate(t *testing.T) {
 	}
 }
 
+func histOf(list []TalkerEntry, addr netip.Addr) []float64 {
+	for i := range list {
+		if list[i].Addr == addr {
+			return list[i].History
+		}
+	}
+	return nil
+}
+
+// TestAggregatorPerSourceHistory proves per-source rolling history is exposed on
+// TalkerEntry (AC-1) and bounded to sourceHistoryLen samples (AC-10), so the
+// behavioral detector can baseline a source against its own recent rate.
+func TestAggregatorPerSourceHistory(t *testing.T) {
+	a := newAggregator()
+	t0 := time.Now()
+	a.snapshot(t0, nil)
+
+	src := netip.MustParseAddr("198.51.100.42")
+	cumul := 0.0
+	feed := func(sec int) *Snapshot {
+		a.ingest(observation.Observation{
+			Kind:    observation.KindSourceIP,
+			Feature: observation.FeatureRxBytes,
+			Flow:    observation.FlowKey{Src: src},
+			Value:   cumul, // cumulative counter
+			At:      t0,
+		})
+		return a.snapshot(t0.Add(time.Duration(sec)*time.Second), nil)
+	}
+
+	feed(0) // primes lastCumul
+	var snap *Snapshot
+	for i := 1; i <= 3; i++ {
+		cumul += 1000
+		snap = feed(i)
+	}
+	if h := histOf(snap.TopSourceIPs, src); len(h) < 3 {
+		t.Fatalf("history len = %d, want >= 3", len(h))
+	} else if last := h[len(h)-1]; last != 1000 {
+		t.Errorf("newest history sample = %v, want 1000 (current bps)", last)
+	}
+
+	// Drive well past the cap; history must stay bounded.
+	for i := 4; i <= sourceHistoryLen+20; i++ {
+		cumul += 1000
+		snap = feed(i)
+	}
+	if h := histOf(snap.TopSourceIPs, src); len(h) != sourceHistoryLen {
+		t.Fatalf("history len = %d, want capped at %d", len(h), sourceHistoryLen)
+	}
+}
+
 // TestAggregatorEvictsIdleKeys proves a key that goes quiet is dropped after
 // evictIdleTicks, bounding memory (AC-10).
 func TestAggregatorEvictsIdleKeys(t *testing.T) {
