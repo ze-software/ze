@@ -166,6 +166,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-ddos-detect-no-flow-source"},
 	},
 	{
+		Code:        "doctor-anomaly-detect-no-feature-source",
+		Title:       "Anomaly detector has no feature source",
+		Description: "anomaly-detect is enabled, but neither traffic-usage nor flow-export is configured. The trafficfeature layer is fed by the observation feed from these sources; with neither configured it produces no per-source features, so the behavioral detector observes nothing and emits no incidents. Enable traffic-usage and/or flow-export.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-anomaly-detect-no-feature-source"},
+	},
+	{
 		Code:        "doctor-tls-missing",
 		Title:       "TLS certificate or key not found",
 		Description: "A TLS certificate or key file referenced in the config does not exist.",
@@ -332,6 +338,24 @@ var builtinCodes = []CodeMeta{
 		Title:       "OSPFv3 raw IPv6 socket unavailable",
 		Description: "OSPFv3 is configured but a raw IPv6 socket for protocol 89 (RFC 5340) cannot be opened. This requires CAP_NET_RAW or root; without it OSPFv3 cannot send or receive Hello, DD, LS Request, LS Update, or LS Ack packets.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-ospfv3-raw-socket"},
+	},
+	{
+		Code:        "doctor-ospfv3-ipsec",
+		Title:       "OSPFv3 IPsec (RFC 4552) kernel unavailable",
+		Description: "An OSPFv3 (IPv6-family) interface configures RFC 4552 manual IPsec (AH/ESP), but the kernel XFRM dataplane cannot be reached to install the transport-mode Security Associations and policies. This needs CAP_NET_ADMIN and kernel IPsec support; without it the interface would form an UNPROTECTED adjacency, so Ze warns instead of silently claiming protection.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-ospfv3-ipsec"},
+	},
+	{
+		Code:        "doctor-ospf-graceful-restart-nvs",
+		Title:       "OSPF Graceful Restart NVS path unwritable",
+		Description: "OSPF Graceful Restart is enabled (restarter support planned or planned-and-unplanned, RFC 3623 / RFC 5187), which requires a writable non-volatile store to persist the restart fact (RFC 3623 Section 2.1) across a planned restart, but the ZeFS blob store directory cannot be resolved or written. Without it a planned restart cannot record its grace deadline, so the resumed engine boots normally instead of staying on the forwarding path, defeating non-stop forwarding. Ensure a persistent config directory is configured and writable.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-ospf-graceful-restart-nvs"},
+	},
+	{
+		Code:        "doctor-ospf-segment-routing-overlap",
+		Title:       "OSPF Segment Routing label range overlap or unsound",
+		Description: "OSPF Segment Routing is enabled (RFC 8665 / RFC 8666) but the configured SRGB (global) and SRLB (local) label ranges overlap each other, overlap another range, sit outside the 20-bit MPLS label space, carry a zero Range Size, or a Prefix-SID index falls outside the total SRGB size. A double-claimed label maps two SIDs onto one forwarding entry and blackholes traffic. Make the SRGB and SRLB disjoint contiguous ranges within 16..1048575, each with Range Size greater than zero, not overlapping the LDP or RSVP-TE label space, and keep every node Prefix-SID index within the SRGB.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-ospf-segment-routing-overlap"},
 	},
 	// doctor-isis-net-missing and doctor-isis-system-id-mismatch are NOT listed
 	// here: they are owned and registered by the IS-IS component

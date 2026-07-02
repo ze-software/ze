@@ -1,0 +1,118 @@
+# Test: show anomaly reaches the enabled anomaly-detect plugin
+# Exercises: config anomaly-detect{enabled} -> RunEngine -> setGlobalDetector,
+#            then dispatch-command -> ze-show:anomaly -> handleShowAnomaly.
+# Verifies AC-9 (the wire method resolves) and that enabling the plugin wires the
+# detector to the process-global the show handler reads (enabled=true, empty ring
+# with no traffic). The emit/score/confirm path is covered by the unit lifecycle
+# test (TestConfirmClearLifecycle) since the .ci harness cannot synthesize
+# per-source feature deviations without a traffic generator.
+
+# ze-peer: accepts connection
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=asn:value=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=anomaly-show-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+from ze_api import API, runtime_fail, result_text_data
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        resp = dispatch(api, 'show anomaly')
+        status = resp.get('status')
+        if status != 'done':
+            runtime_fail(f'anomaly: status={status} data={resp.get("data")}')
+
+        data = result_text_data(resp)
+        if isinstance(data, str) and data:
+            data = json.loads(data)
+
+        if 'incidents' not in data:
+            runtime_fail(f'anomaly: missing "incidents" in {data}')
+        if not isinstance(data['incidents'], list):
+            runtime_fail(f'anomaly: incidents not a list: {data["incidents"]!r}')
+        if data.get('enabled') is not True:
+            runtime_fail(f'anomaly: enabled != true (plugin not wired): {data}')
+
+        print(f'OK: show anomaly enabled={data["enabled"]} incidents={len(data["incidents"])}', file=sys.stderr)
+    finally:
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+anomaly-detect {
+	enabled true
+}
+
+plugin {
+	external anomaly-show-test {
+		run ./anomaly-show-test.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process anomaly-show-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

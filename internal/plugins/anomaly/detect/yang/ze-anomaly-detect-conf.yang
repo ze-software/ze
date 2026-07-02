@@ -1,0 +1,59 @@
+module ze-anomaly-detect-conf {
+  namespace "urn:ze:anomaly-detect-conf";
+  prefix anomaly-detect;
+
+  import ze-types { prefix zt; }
+
+  container anomaly-detect {
+    leaf enabled {
+      type boolean;
+      default false;
+      description "Enable the behavioral anomaly detector (report-only; emits incidents, takes no action).";
+    }
+    leaf deviation-threshold {
+      type zt:decimal-2 { range "1.00..100.00"; }
+      default "3.00";
+      description "Sigma at or above which a per-entity feature deviation fires.";
+    }
+    leaf min-features-to-correlate {
+      type uint8 { range "1..6"; }
+      default 2;
+      description "Minimum distinct features that must fire on one entity/window before an incident is scored (weak-signal correlation gate).";
+    }
+    leaf min-cohort-size {
+      type uint16 { range "2..1024"; }
+      default 4;
+      description "Minimum cohort (source-prefix bucket) members before peer-group rarity is scored; smaller cohorts fall back to self-deviation only.";
+    }
+    leaf corroboration-weight {
+      type zt:decimal-2 { range "0.00..1.00"; }
+      default "0.50";
+      description "Discount applied to corroborating features when combining scores, so correlated features do not double-count.";
+    }
+    leaf confirm-duration {
+      type uint16 { range "1..3600"; }
+      default 3;
+      description "Consecutive above-threshold ticks before an incident is confirmed and emitted.";
+    }
+    leaf clear-consecutive {
+      type uint8 { range "1..100"; }
+      default 10;
+      description "Consecutive below-threshold ticks before an active incident clears.";
+    }
+    leaf baseline-window {
+      type uint32 { range "10..86400"; }
+      default 300;
+      description "Per-entity baseline horizon in ticks (the EWMA smoothing factor is derived from it).";
+    }
+    leaf cohort-prefix-len-v4 {
+      type uint8 { range "8..32"; }
+      default 24;
+      description "Source-prefix length that buckets IPv4 entities into peer-group cohorts.";
+    }
+    leaf cohort-prefix-len-v6 {
+      type uint8 { range "16..64"; }
+      default 48;
+      description "Source-prefix length that buckets IPv6 entities into peer-group cohorts.";
+    }
+  }
+}
