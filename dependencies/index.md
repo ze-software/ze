@@ -66,11 +66,11 @@ Ze is Go, and Go code leans on packages. 39 direct dependencies, read straight f
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
-| `golang.org/x/crypto` | `v0.50.0` | SSH protocol primitives and certificate signing for the SSH server, plus password hashing. |
-| `golang.org/x/net` | `v0.52.0` | Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. |
-| `golang.org/x/sys` | `v0.43.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
-| `golang.org/x/term` | `v0.42.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |
-| `golang.org/x/tools` | `v0.43.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
+| `golang.org/x/crypto` | `v0.53.0` | SSH protocol primitives and certificate signing for the SSH server, plus password hashing. |
+| `golang.org/x/net` | `v0.56.0` | Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. |
+| `golang.org/x/sys` | `v0.46.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
+| `golang.org/x/term` | `v0.44.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |
+| `golang.org/x/tools` | `v0.45.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
 
 ## Testing & Build Tooling (4)
 
