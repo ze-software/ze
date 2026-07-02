@@ -129,7 +129,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
     Cold paths (startup, config load, CLI one-shot) are exempt. Focus on hot paths as defined in `no-sprintf-alloc.md`.
 
-15. **Plugin traversal check:** If config structure changed, grep for all code reading the old structure.
+15. **Plugin traversal + config-surface check:** If config structure changed, grep for all code reading the old structure. When the diff nests a config container, adds a plugin `show`/RPC command, registers a wire method, or adds a plugin-loading `.ci`, also apply the **Config-Surface & Command-Tree Checks** section (golden-snapshot sync, merged-node description parity, nested-ConfigRoot unwrap, needs-linux for dependency-pulling `.ci`).
 16. **Altitude check:** For each change, ask: is this fix at the right depth? A special case layered on shared infrastructure is a sign the underlying mechanism should be generalized instead. Prefer deepening the shared abstraction over adding per-caller workarounds. Report bandaid fixes as ISSUE with the deeper alternative named.
 17. **Project rules cross-check:** For each changed file, verify compliance with applicable rules (steps 13-14 above cover logic and performance specifically; this step covers structural and convention rules):
 
@@ -238,6 +238,21 @@ When the config structure changes (new container, new nesting level):
 2. For each hit: does it also handle the new path?
 3. For each plugin with multi-level handling: does per-item config correctly override parent defaults?
 4. Check for the "both-set" test for each plugin
+
+## Config-Surface & Command-Tree Checks
+
+Failure modes seen building nested config surfaces and cross-module command
+trees (the traffic / anomaly / ddos nesting). Apply whenever the diff adds or
+nests a config container, adds a plugin `show`/RPC command, registers a new wire
+method, or adds a `.ci` that loads a plugin. Each one broke silently or only
+surfaced at daemon startup / on another OS -- not at compile time.
+
+| Check | What to verify | Failure it prevents |
+|-------|----------------|---------------------|
+| **New wire method in the golden** | Every new `RegisterRPCs` WireMethod / `ze:command` is present (sorted) in `internal/component/plugin/all/testdata/wire-methods.snapshot`; a new plugin in `plugins.snapshot`; a new YANG provider in `yang-providers.snapshot`. | `TestRegisteredWireMethods` fails `unexpected wire-methods: ...`. The golden is hand-maintained -- `make generate` does NOT update it (learned 1046). |
+| **Merged-node description parity** | When more than one module contributes the same container node (container-merge on a shared `show` parent, or `augment` into a shared config parent), the node's `description` is byte-identical across every contributing module. | `YANG command description mismatch node=X` warns on every startup. Fix: make the shared parent a pure namespace with one agreed description; put per-command text on the leaf command node. |
+| **Nested ConfigRoot fully unwrapped** | A `ConfigRoot`/`WantsConfig` containing `/` (e.g. `traffic/usage`) is delivered as `{"traffic":{"usage":{...}}}`. The section reader unwraps EVERY segment -- never `root[configRoot]`, which looks up a literal `"traffic/usage"` key and silently yields an empty config. Doctors/completers use a path-aware lookup (`Tree.GetContainerPath`), never `GetContainer("<a/b>")`. | Config parses to empty with no error (plugin inert); a doctor/completer silently sees no container. |
+| **needs-linux for dependency-pulling `.ci`** | A `test/plugin/*.ci` (or `reload`/`parse`) that configures a plugin whose `Registration.Dependencies` include `interface`/`firewall`/`vpp` (directly or transitively) sets `option=needs-linux`, or supplies a working backend. | The daemon starts the dependency plugin, which has no OS-default backend on darwin (`no backend configured and no OS default available`), so the test fails on macOS before the behavior under test runs. |
 
 ## Review Integrity
 
