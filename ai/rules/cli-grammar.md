@@ -119,6 +119,40 @@ First identify the owning module from source:
 Then edit that module. Grammar cleanup is not permission to reshuffle
 command ownership across components.
 
+## Migrating a Built-in Command's Path (dispatch key = YANG path)
+
+The daemon dispatcher registers each built-in handler under its **YANG path**, not
+its wire method: `LoadBuiltins` does `d.RegisterWithOptions(wireToPath[wireMethod], ...)`
+(`internal/component/plugin/server/command.go`). So **moving a `ze:command` container
+in the YANG tree changes the command's dispatch key.** Relocating `command list` to
+`show command list` deletes the old `command list` key entirely.
+
+That is fine for a command an operator types. It is a **wire break** for any command a
+plugin or script sends by its bare path — over the plugin CLI protocol
+(`dispatch-command` / `dispatch-command-args`) or an interactive `ze <subsystem> plugin cli`
+session. A verb-first "rename" of such a command is a protocol break, not a cosmetic
+change.
+
+Before migrating any noun-first built-in to verb-first:
+
+1. **Grep for programmatic senders of the bare path** — `.ci` tests, `DispatchCommand`
+   / `DispatchCommandArgs` calls, `printf ... | ze ... plugin cli`, `SendCommand`. Update
+   every one in the same change. (In-tree these are greppable; external plugins/scripts
+   are not, so a hard cut with no deprecation carries that residual risk.)
+2. The **programmatic plugin SDK is not affected** — it uses structured RPC wire methods
+   (`ze-plugin-callback:*`, `pkg/plugin/sdk/sdk_dispatch.go`), not command-path strings.
+   Only the interactive plugin CLI and `dispatch-command` carry command-path strings, and
+   in-tree those are already verb-first (e.g. `bmp.go` sends `show bgp rib protocol`).
+3. Some noun-first forms are a deliberate **namespace**, not un-migrated legacy. Keep
+   them: `plugin encoding/format/ack` group plugin-session directives under `plugin`, and
+   `set plugin` would collide with the config-tree `plugin` node (see Engine-Owned Tree
+   Mutation). `command list/help/complete` (engine introspection) migrated cleanly to
+   `show command …`; `plugin …` stayed.
+
+When you migrate, also drop the command's verb from `IsReadOnlyPath`
+(`internal/component/plugin/server/command.go`) if it was only there as a legacy
+noun-first form.
+
 ## Identifiers Are Strings
 
 Use string-typed identifiers even when the conventional representation is numeric.

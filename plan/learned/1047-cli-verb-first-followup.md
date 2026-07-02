@@ -34,13 +34,18 @@ directive "follow docs.vyos.io" (VyOS models per-subsystem debug log level as
   `event list` programmatically (grep-verified). The now-dead `event` entry in
   `command.go:IsReadOnlyPath` (legacy noun-first list) was removed -- no command
   resolves to verb `event` anymore (all are `show event`/`monitor event`).
-- **`command list/help/complete` and `plugin encoding/format/ack` deliberately
-  NOT converted.** They are plugin-wire-protocol commands sent by plugins over the
-  plugin CLI protocol via the BARE path (`plugin-cli-debug.ci` sends `command list`),
-  not operator commands. Moving them under `show`/`set` breaks the bare path (see
-  Gotchas). `command` is also flagged as a legacy noun-first form in
-  `command.go:IsReadOnlyPath`. Both `set plugin` (config-tree node) and `set session`
-  (ze-plugin-cmd.yang) additionally collide. Leaving them noun-first is correct.
+- **`command list/help/complete` -> `show command list/help/complete`** (hard cut,
+  no deprecation). First attempt reverted after review caught a wire break; second
+  attempt did it right by fixing the sender. The programmatic plugin protocol uses
+  structured RPC wiremethods (sdk_dispatch.go), inter-plugin dispatch is already
+  verb-first (`bmp.go:493` sends "show bgp rib protocol"), and the interactive editor
+  completes from the local tree (completer_command.go), so the ONLY sender of the bare
+  path was the `ze bgp plugin cli` debug session -- `plugin-cli-debug.ci`, updated to
+  `show command list`. The dead `command` entry in `IsReadOnlyPath` removed.
+- **`plugin encoding/format/ack` stay noun-first.** They are plugin-session directives
+  (handlers take a plugin session ctx), and both `set plugin` (config-tree `plugin`
+  node, ze-plugin-conf.yang) and `set session` (ze-plugin-cmd.yang) collide -- keeping
+  the `plugin` session namespace is the right call, not a deferral.
 
 ## Consequences
 
@@ -73,7 +78,9 @@ directive "follow docs.vyos.io" (VyOS models per-subsystem debug log level as
   (`plugin-cli-debug.ci`). Before moving any noun-first command that a plugin or
   script sends by its bare path, grep for programmatic senders -- a "verb-first
   rename" of a protocol command is a wire break, not a cosmetic change. `event`
-  was safe only because nothing sent it bare.
+  was safe (nothing sent it bare); `command` had exactly one sender
+  (`plugin-cli-debug.ci`), so it was migrated too once that sender was updated -- the
+  fix is grep-and-update-senders, not "leave it noun-first forever".
 - YANG container-merge across modules warns on a **description mismatch**: when merging
   `show event list` onto the central `show event` container, do NOT redeclare the
   `event` container's description (the central schema owns it) or the loader warns.

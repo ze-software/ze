@@ -92,10 +92,10 @@ printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$CRED_DIR
 # Pipe Q&A answers + commands to the debug shell.
 # Line 1: empty = accept default plugin name
 # Line 2: empty = accept default registration (yes)
-# Line 3: "command list" = dispatch engine command (returns JSON with registered commands)
+# Line 3: "show command list" = dispatch engine command (returns JSON with registered commands)
 # Line 4: "help" = dispatch help command (returns command list with descriptions)
 # Line 5: "bye" = disconnect after handshake
-OUTPUT=$(printf '\n\ncommand list\nhelp\nbye\n' | ZE_CONFIG_DIR="$CRED_DIR" ZE_SSH_PASSWORD="testpass" ze bgp plugin cli 2>cli-debug-stderr.log) || {
+OUTPUT=$(printf '\n\nshow command list\nhelp\nbye\n' | ZE_CONFIG_DIR="$CRED_DIR" ZE_SSH_PASSWORD="testpass" ze bgp plugin cli 2>cli-debug-stderr.log) || {
 	echo "FAIL: ze bgp plugin cli exited with error" >&2
 	cat cli-debug-stderr.log >&2
 	exit 1
@@ -111,7 +111,7 @@ else
 fi
 
 # Verify dispatch-command returned data (stdout captures command output).
-# "command list" returns JSON with a "commands" array containing registered commands.
+# "show command list" returns JSON with a "commands" array containing registered commands.
 echo "OUTPUT: $OUTPUT" >&2
 if echo "$OUTPUT" | grep -q '"commands"'; then
 	echo "OK: dispatch-command returned command data" >&2
@@ -123,7 +123,7 @@ else
 fi
 
 # Verify the help command also returned data (commands with descriptions).
-if echo "$OUTPUT" | grep -q 'command list'; then
+if echo "$OUTPUT" | grep -q 'show command list'; then
 	echo "OK: help command returned command descriptions" >&2
 else
 	echo "FAIL: help command did not return expected data" >&2

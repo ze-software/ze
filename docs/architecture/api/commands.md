@@ -83,6 +83,34 @@ produce continuously-updating output.
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
 <!-- source: internal/plugins/ospf/register.go -- sdk.CommandDecl show ospf commands -->
 
+### Dispatch keys are YANG paths
+
+The daemon registers each built-in handler under its **YANG command path**, derived
+from the tree (`LoadBuiltins`: `d.RegisterWithOptions(wireToPath[wireMethod], ...)`).
+The path — not the wire method — is the dispatch key. Moving a `ze:command` container
+in the YANG tree therefore renames the command and breaks anything that sends the old
+path. Operator commands are safe to migrate; commands a plugin sends by their bare
+path (over `dispatch-command` or an interactive plugin CLI session) are a wire break.
+Before a verb-first migration of a noun-first built-in, grep for senders. See
+`ai/rules/cli-grammar.md` "Migrating a Built-in Command's Path".
+<!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, IsReadOnlyPath -->
+
+### Offline fallback (read-only commands without a daemon)
+
+Some read-only `show` commands must work with **no daemon reachable** — `show crashes`
+(you inspect a crash precisely when the daemon has died) and `show host` (hardware
+inventory before the daemon is up). Their owner registers an in-process handler with
+`registry.RegisterOfflineFallback(path, handler)`. The CLI serves the command from the
+daemon when it is reachable and calls the fallback **only after a connection failure**,
+so the fallback never shadows the daemon. Because `cmdutil.RunCommand` rejects commands
+absent from the CLI binary's tree before reaching the daemon path, it makes an exception
+for paths that have a registered fallback, routing them through so the fallback is
+reachable. Output is identical to the daemon RPC (both read the same detection library
+/ crash files), so online and offline results match.
+<!-- source: internal/component/command/registry/registry.go -- RegisterOfflineFallback, LookupOfflineFallback -->
+<!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
+<!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
+
 ---
 
 ## Operational Report Bus (ze-show:warnings, ze-show:errors)
