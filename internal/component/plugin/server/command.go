@@ -107,8 +107,9 @@ func IsReadOnlyPath(path string) bool {
 	verb, _, _ := strings.Cut(path, " ")
 	switch verb {
 	case "show", "monitor", "resolve", "validate",
-		// Legacy noun-first forms still in YANG tree (not yet migrated).
-		"help", "command", "event",
+		// Legacy noun-first forms still in the YANG tree. `event` was migrated to
+		// `show event list`, so it is no longer a top-level verb here.
+		"help", "command",
 		"system", "plugin", verbRIB:
 		return true
 	}

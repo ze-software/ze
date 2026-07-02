@@ -120,7 +120,7 @@ Other software adds an API endpoint and hopes someone wraps it for AI. Ze expose
 entire command surface through a self-describing interface that AI can discover and use
 without external documentation. `ze help command` lists every command with its description.
 `ze help ai` adds context (recipes, families, update syntax). The MCP tools have typed
-parameters. The command list is queryable at runtime (`command-list`, `command-help <name>`).
+parameters. The command list is queryable at runtime (`command list`, `command help <name>`).
 
 No other network daemon -- BGP or otherwise -- is designed this way.
 

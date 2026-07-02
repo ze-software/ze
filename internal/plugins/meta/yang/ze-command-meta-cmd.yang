@@ -4,6 +4,7 @@ module ze-command-meta-cmd {
     import ze-extensions { prefix ze; }
     description "Command discovery, help, completion, event listing, and plugin session configuration. Owned by the command component because these handlers read the cross-plugin command registry and event registry through the command/pluginserver layer. See ai/rules/plugin-self-containment.md.";
     revision 2026-06-06 { description "Relocated help/command/event/plugin out of the central meta schema (plugin self-containment)."; }
+    revision 2026-07-02 { description "Verb-first: event list -> show event list. command/plugin stay noun-first: they are plugin-wire-protocol introspection/session directives sent by plugins via the bare path, not operator commands."; }
 
     container help {
         config false;
@@ -12,6 +13,11 @@ module ze-command-meta-cmd {
 Lists every registered command verb with a brief description.";
     }
 
+    // command list/help/complete stay noun-first: plugins send the bare
+    // `command list` path programmatically over the plugin CLI protocol (the
+    // dispatcher keys handlers on the YANG path, so moving it under `show` would
+    // break bare `command list`). See internal/component/plugin/server/command.go
+    // IsReadOnlyPath, which classifies `command` as a legacy noun-first form.
     container command {
         config false;
         description "Command discovery and completion";

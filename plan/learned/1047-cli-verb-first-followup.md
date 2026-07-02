@@ -28,11 +28,19 @@ directive "follow docs.vyos.io" (VyOS models per-subsystem debug log level as
   the CLI serves the daemon when reachable and the in-process handler only after a
   connection failure. Essential for crashes (you inspect a crash when the daemon has
   died). The noun-first `host show`/`crashes show` were removed.
-- `event list` -> `show event list` merged onto the existing `show event` container
-  (recent/namespaces), kept owned by the meta plugin module (grammar rule: cleanup
-  is not permission to move ownership). WireMethod `ze-bgp:event-list` kept (label).
-- `command`/`plugin` left out of scope: `command` is a cohesive Meta group; operational
-  `set plugin` would collide with the config-tree `plugin` node.
+- `event list` -> `show event list`, merged onto the meta plugin's own `show`
+  container (grammar rule: cleanup is not permission to move ownership).
+  WireMethod `ze-bgp:event-list` kept as a label. Safe because nothing sends bare
+  `event list` programmatically (grep-verified). The now-dead `event` entry in
+  `command.go:IsReadOnlyPath` (legacy noun-first list) was removed -- no command
+  resolves to verb `event` anymore (all are `show event`/`monitor event`).
+- **`command list/help/complete` and `plugin encoding/format/ack` deliberately
+  NOT converted.** They are plugin-wire-protocol commands sent by plugins over the
+  plugin CLI protocol via the BARE path (`plugin-cli-debug.ci` sends `command list`),
+  not operator commands. Moving them under `show`/`set` breaks the bare path (see
+  Gotchas). `command` is also flagged as a legacy noun-first form in
+  `command.go:IsReadOnlyPath`. Both `set plugin` (config-tree node) and `set session`
+  (ze-plugin-cmd.yang) additionally collide. Leaving them noun-first is correct.
 
 ## Consequences
 
@@ -53,6 +61,15 @@ directive "follow docs.vyos.io" (VyOS models per-subsystem debug log level as
   `registry.LookupOfflineFallback(cmdWords)` finds a handler, routing it to the daemon
   path (daemon when up, fallback when down). Caught only by end-to-end smoke test, not
   by build/unit tests.
+- **Moving a YANG `ze:command` container changes its dispatch key.** The daemon
+  dispatcher registers each builtin handler under its YANG *path*
+  (`LoadBuiltins`: `d.RegisterWithOptions(wireToPath[wireMethod], ...)`,
+  command.go:59). So relocating `command list` under `show` deletes the bare
+  `command list` dispatch key that plugins send over the plugin CLI protocol
+  (`plugin-cli-debug.ci`). Before moving any noun-first command that a plugin or
+  script sends by its bare path, grep for programmatic senders -- a "verb-first
+  rename" of a protocol command is a wire break, not a cosmetic change. `event`
+  was safe only because nothing sent it bare.
 - YANG container-merge across modules warns on a **description mismatch**: when merging
   `show event list` onto the central `show event` container, do NOT redeclare the
   `event` container's description (the central schema owns it) or the loader warns.
