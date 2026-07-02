@@ -1184,15 +1184,6 @@
     "yang_files": []
   },
   {
-    "name": "fakeflow",
-    "description": "Test-only synthetic flow-observation injector (use ze.fakeflow; publishes only when invoked)",
-    "config_roots": [],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/test/plugins/fakeflow",
-    "yang_files": []
-  },
-  {
     "name": "fakel2tp",
     "description": "Test-only synthetic L2TP route producer (use ze.fakel2tp; harmless when not invoked)",
     "config_roots": [],

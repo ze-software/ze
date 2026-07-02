@@ -2,45 +2,45 @@
 
 A year of commits, at a glance.
 
-- Total added lines:** 1,774,264**
- - Days with added lines:** 194**
+- Total added lines:** 1,775,399**
+ - Days with added lines:** 195**
  - Peak line day (2026-07-02):** 68,057**
  - Days shown:** 365**
- 2025-07-03 to 2026-07-02
+ 2025-07-04 to 2026-07-03
 
 ## Go Code Stats
 
 ### Total Code
 
- - Files:** 5,259**
- - Total lines:** 1,137,675**
- - Code:** 847,845**
- - Blank:** 130,562**
- - Comments:** 159,268**
+ - Files:** 5,257**
+ - Total lines:** 1,137,449**
+ - Code:** 847,668**
+ - Blank:** 130,543**
+ - Comments:** 159,238**
 
 ### Production
 
- - Files:** 3,086**
- - Total lines:** 595,959**
- - Code:** 445,018**
- - Blank:** 63,619**
- - Comments:** 87,322**
+ - Files:** 3,084**
+ - Total lines:** 595,752**
+ - Code:** 444,860**
+ - Blank:** 63,597**
+ - Comments:** 87,295**
 
 ### Test
 
  - Files:** 2,173**
- - Total lines:** 541,716**
- - Code:** 402,827**
- - Blank:** 66,943**
- - Comments:** 71,946**
+ - Total lines:** 541,697**
+ - Code:** 402,808**
+ - Blank:** 66,946**
+ - Comments:** 71,943**
 
 ### Dependencies
 
- - Files:** 2,765**
- - Total lines:** 847,348**
- - Code:** 644,763**
- - Blank:** 81,970**
- - Comments:** 120,615**
+ - Files:** 2,764**
+ - Total lines:** 832,224**
+ - Code:** 630,533**
+ - Blank:** 82,313**
+ - Comments:** 119,378**
  - Modules:** 93**
 
 ## Top Added-Line Days
