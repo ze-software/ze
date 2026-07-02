@@ -27,8 +27,6 @@ GH_PAGES = HERE.parent
 POSTS_DIR = GH_PAGES / "blog" / "posts"
 OUT_DIR = GH_PAGES / "blog"
 
-HEADER_RE = re.compile(r"^\*\*(.+?)\*\*\s*$", re.MULTILINE)
-FRONT_MATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
 LIST_ITEM_RE = re.compile(r"^[-*]\s")
 
 
@@ -47,39 +45,9 @@ def ensure_blank_line_before_lists(text):
     return "\n".join(out)
 
 
-def parse_front_matter(text):
-    m = FRONT_MATTER_RE.match(text)
-    if not m:
-        return {}, text
-    raw, body = m.group(1), m.group(2)
-    meta = {}
-    for line in raw.splitlines():
-        if ":" not in line:
-            continue
-        key, _, value = line.partition(":")
-        meta[key.strip()] = value.strip()
-    return meta, body.strip()
-
-
-def split_sections(body):
-    """Return (title_marker, intro, [(header, section_body), ...])."""
-    parts = HEADER_RE.split(body)
-    # parts[0] is stray text before the first header (should be blank)
-    if len(parts) < 2:
-        return None, body, []
-    title_marker = parts[1]
-    intro = parts[2].strip() if len(parts) > 2 else ""
-    sections = []
-    i = 3
-    while i < len(parts) - 1:
-        sections.append((parts[i], parts[i + 1].strip()))
-        i += 2
-    return title_marker, intro, sections
-
-
-def start_date(covers):
-    # "2026-06-08 .. 2026-06-14" or "2026-06-25 21:10 .. 2026-07-01"
-    return covers.split("..")[0].strip().split(" ")[0]
+parse_front_matter = sitelib.parse_blog_front_matter
+split_sections = sitelib.split_blog_sections
+start_date = sitelib.blog_start_date
 
 
 def render_post(meta, intro, sections, covers):

@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>CLI Reference - Ze</title>
-        <meta name="description" content="Every ze command, generated live from the binary's own command registry -- 349 commands across 104 groups." />
+        <meta name="description" content="Every ze command, generated live from the binary's own command registry -- 350 commands across 105 groups." />
         <meta property="og:title" content="CLI Reference - Ze" />
-        <meta property="og:description" content="Every ze command, generated live from the binary's own command registry -- 349 commands across 104 groups." />
+        <meta property="og:description" content="Every ze command, generated live from the binary's own command registry -- 350 commands across 105 groups." />
         <meta property="og:type" content="website" />
         <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -179,7 +179,7 @@
 
             <section aria-labelledby="cli-title" class="md-content reveal cat-operate">
                 <h1 id="cli-title">CLI Reference</h1>
-                <p>349 commands across 104 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can.</p>
+                <p>350 commands across 105 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can.</p>
                 <input id="cli-search" type="search" placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." aria-label="Filter commands" />
 <details class="cli-group" open>
 <summary>announce <span class="cli-group-count">1</span></summary>
@@ -439,6 +439,11 @@
 <tr><td><code>show anomaly</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show recent behavioral anomaly incidents (report-only): source entity, cohort,<br>fired features with their deviation z-scores, combined score, and severity. The detector reports;<br>the anomaly/shape responder (Spec 2b) acts.</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
+<summary>show anomaly-shape <span class="cli-group-count">1</span></summary>
+<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>show anomaly-shape</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the shadow-first anomaly responder status: mode (shadow/armed), action,<br>kill-switch state, and the currently armed source entities with live firewall actions.</td></tr>
+</tbody></table></details>
+<details class="cli-group" open>
 <summary>show arp <span class="cli-group-count">1</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>show arp</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the IPv4 ARP table (shortcut for &#x27;show neighbor ipv4&#x27;).<br>Lists IPv4 ARP entries with MAC address and state. ARP is IPv4-only;<br>use &#x27;show neighbor&#x27; for both families or &#x27;show neighbor ipv6&#x27; for the<br>IPv6 ND table.</td></tr>
@@ -534,7 +539,7 @@
 <summary>show debug <span class="cli-group-count">2</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>show debug</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show live debug state from the running daemon.<br>Lists every registered subsystem with its current log level and any<br>active flag or scope filters. Unlike &#x27;debug show&#x27; (which reads the<br>stored profile), this reflects actual runtime state.</td></tr>
-<tr><td><code>show debug profile</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Show stored debug profiles (list, or &#x27;name &lt;name&gt;&#x27; for one).</td></tr>
+<tr><td><code>show debug profile</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Show stored debug profiles (list, &#x27;name &lt;name&gt;&#x27; for one, add &#x27;module &lt;prefix&gt;&#x27; to filter).</td></tr>
 </tbody></table></details>
 <details class="cli-group" open>
 <summary>show dns <span class="cli-group-count">2</span></summary>
@@ -977,32 +982,35 @@
 
         <footer>
             <div class="footer-inner">
-                <span>Ze is AGPLv3 open source.</span>
-                <div class="footer-links">
-                    <a
-                        href="https://github.com/ze-software/ze"
-                        target="_blank"
-                        rel="noopener"
-                        >GitHub</a
-                    >
-                    <a
-                        href="https://codeberg.org/thomas-mangin/ze"
-                        target="_blank"
-                        rel="noopener"
-                        >Codeberg</a
-                    >
-                    <a
-                        href="https://github.com/ze-software/ze/issues"
-                        target="_blank"
-                        rel="noopener"
-                        >Issues</a
-                    >
-                    <a
-                        href="https://discord.gg/T8s7CjPDne"
-                        target="_blank"
-                        rel="noopener"
-                        >Discord</a
-                    >
+                <div class="footer-columns">
+                    <div class="footer-col">
+                        <h3>Project</h3>
+                        <a href="../features/">Features</a>
+                        <a href="../cli/">CLI Reference</a>
+                        <a href="../dependencies/">Dependencies</a>
+                        <a href="../performance/">Performance</a>
+                        <a href="../compare/">Compare</a>
+                        <a href="../activity/">Activity</a>
+                    </div>
+                    <div class="footer-col">
+                        <h3>Learn</h3>
+                        <a href="../docs/guide/quickstart/">Quickstart</a>
+                        <a href="../docs/architecture/">Architecture</a>
+                        <a href="../labs/">Labs</a>
+                        <a href="../blog/">Blog</a>
+                        <a href="../talks/">Talks</a>
+                    </div>
+                    <div class="footer-col">
+                        <h3>Community</h3>
+                        <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>
+                        <a href="../contribute/">Contribute</a>
+                        <a href="https://github.com/ze-software/ze" target="_blank" rel="noopener">GitHub</a>
+                        <a href="https://codeberg.org/thomas-mangin/ze" target="_blank" rel="noopener">Codeberg</a>
+                        <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">Issues</a>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <span>Ze is AGPLv3 open source.</span>
                     <a href="../style-guide/">Style Guide</a>
                 </div>
             </div>

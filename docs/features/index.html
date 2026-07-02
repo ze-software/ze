@@ -287,7 +287,7 @@
 <tr>
 <td><a href="../guide/ospf/">OSPF</a></td>
 <td>Experimental</td>
-<td>Native OSPF engine with one <code>ospf</code> config root for OSPFv2 IPv4 and OSPFv3 IPv6 (<code>address-family ipv6</code>): raw protocol 89 transports, interface and neighbor state machines, LSDB flooding/aging, intra-area SPF, ABR summary origination, inter-area route calculation with area ranges, ASBR external origination and redistribution, OSPFv3 Link-LSAs and Intra-Area-Prefix-LSAs, stub / totally-stubby / NSSA areas (RFC 3101: Type 7/NSSA origination, translator election, Type 7 to Type 5 translation, §2.5 preference), virtual links through a transit area (RFC 2328 §15 / RFC 5340 §4.2: config-validated transit-area/ABR/self rules, transit-area-SPF-computed cost, backbone Router-LSA virtual record + transit-area V-bit, §16.3 transit pass, routed transport), the RFC 5250 opaque-LSA carrier with RFC 3630/5392 Traffic Engineering and the RFC 7770 Router Information LSA (OSPFv2 Opaque type 4, OSPFv3 function code 12, informational capability bits, a consumer-neutral TLV hook), the RFC 7684 Extended Prefix/Link Opaque LSAs (Opaque type 7/8, prefix/link attribute containers with a generic sub-TLV registration hook for Segment Routing), Graceful Restart (RFC 3623 IPv4 + RFC 5187 IPv6, one shared restarter + helper control plane: the IPv4 Grace-LSA rides the opaque carrier as Opaque type 3, the IPv6 Grace-LSA is a native link-scope LS type 0x000B, non-stop forwarding via the RTPROT_ZE FIB retention, an NVS restart fact, and a family-neutral <code>graceful-restart</code> config), per-interface OSPFv2 authentication with key chains and replay protection, ECMP, and FIB install through the shared Loc-RIB -&gt; sysrib -&gt; fibkernel path. <code>show ospf</code> exposes process, neighbor, interface, database (including opaque, te-database, and router-information views), route, SPF, and border-router views. <!-- source: internal/plugins/ospf/register.go -- registerOSPF --> <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6Strategy --> The OSPF plugin is compile-out-able with the <code>ze_ospf</code> build tag: <code>make ze</code> and <code>ze-appliance</code> include it (default-on in <code>ZE_FEATURES</code>), while <code>ze-stripped</code> and bare <code>ze_core</code> builds drop <code>internal/plugins/ospf</code> (engine, codec, transport, v3, cli, schema) from both composition roots and reject the <code>ospf {}</code> config block as unknown. <!-- source: feature-gates.txt -- ze_ospf --> <!-- source: internal/component/plugin/all/all_ze_ospf.go -- gated OSPF imports --> <!-- source: cmd/ze/dispatch_ospf.go -- gated OSPF CLI dispatch root --></td>
+<td>Native OSPF engine with one <code>ospf</code> config root for OSPFv2 IPv4 and OSPFv3 IPv6 (<code>address-family ipv6</code>): raw protocol 89 transports, interface and neighbor state machines, LSDB flooding/aging, intra-area SPF, ABR summary origination, inter-area route calculation with area ranges, ASBR external origination and redistribution, OSPFv3 Link-LSAs and Intra-Area-Prefix-LSAs, stub / totally-stubby / NSSA areas (RFC 3101: Type 7/NSSA origination, translator election, Type 7 to Type 5 translation, §2.5 preference), virtual links through a transit area (RFC 2328 §15 / RFC 5340 §4.2: config-validated transit-area/ABR/self rules, transit-area-SPF-computed cost, backbone Router-LSA virtual record + transit-area V-bit, §16.3 transit pass, routed transport), the RFC 5250 opaque-LSA carrier with RFC 3630/5392 Traffic Engineering and the RFC 7770 Router Information LSA (OSPFv2 Opaque type 4, OSPFv3 function code 12, informational capability bits, a consumer-neutral TLV hook), the RFC 7684 Extended Prefix/Link Opaque LSAs (Opaque type 7/8, prefix/link attribute containers with a generic sub-TLV registration hook for Segment Routing), Graceful Restart (RFC 3623 IPv4 + RFC 5187 IPv6, one shared restarter + helper control plane: the IPv4 Grace-LSA rides the opaque carrier as Opaque type 3, the IPv6 Grace-LSA is a native link-scope LS type 0x000B, non-stop forwarding via the RTPROT_ZE FIB retention, an NVS restart fact, and a family-neutral <code>graceful-restart</code> config), Segment Routing over the MPLS data plane (RFC 8665 IPv4 + RFC 8666 IPv6, one shared control plane: SRGB/SRLB label ranges, the multi-range index-to-label arithmetic, the NP/E/M push/swap/PHP truth table, node Prefix-SIDs and SRLB-allocated Adjacency-SIDs, install through the shared <code>mpls-fib</code> bus as the third producer alongside LDP and RSVP-TE; the IPv4 family rides RFC 7770/7684 opaque LSAs and the IPv6 family the RFC 8362 Extended LSAs), per-interface OSPFv2 authentication with key chains and replay protection, ECMP, and FIB install through the shared Loc-RIB -&gt; sysrib -&gt; fibkernel path. <code>show ospf</code> exposes process, neighbor, interface, database (including opaque, te-database, and router-information views), route, SPF, and border-router views. <!-- source: internal/plugins/ospf/register.go -- registerOSPF --> <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6Strategy --> The OSPF plugin is compile-out-able with the <code>ze_ospf</code> build tag: <code>make ze</code> and <code>ze-appliance</code> include it (default-on in <code>ZE_FEATURES</code>), while <code>ze-stripped</code> and bare <code>ze_core</code> builds drop <code>internal/plugins/ospf</code> (engine, codec, transport, v3, cli, schema) from both composition roots and reject the <code>ospf {}</code> config block as unknown. <!-- source: feature-gates.txt -- ze_ospf --> <!-- source: internal/component/plugin/all/all_ze_ospf.go -- gated OSPF imports --> <!-- source: cmd/ze/dispatch_ospf.go -- gated OSPF CLI dispatch root --></td>
 </tr>
 <tr>
 <td>MPLS / LDP / RSVP-TE</td>
@@ -542,7 +542,12 @@
 <tr>
 <td>Behavioral Anomaly Detection</td>
 <td>Experimental</td>
-<td>Darktrace-style SECURITY anomaly detector (report-only), a domain separate from volumetric DDoS. Consumes the neutral <code>trafficfeature</code> signals and learns each source entity's own pattern-of-life via a per-(entity,feature) EWMA baseline (<code>internal/core/stats</code>), scores self-deviation plus peer-group rarity (source-prefix cohorts), and correlates multiple weak feature deviations on one entity into a single incident (capped/discounted combine, not naive sum). A confirm/clear state machine debounces; confirmed incidents emit on the <code>anomaly-detect</code> event bus and land in a bounded recent-incident ring viewed via <code>show anomaly</code>. It takes NO action (the future <code>anomaly/shape</code> responder acts); scoring is bounded per-entity with idle eviction. A <code>ze doctor</code> check (<code>doctor-anomaly-detect-no-feature-source</code>) warns when enabled without a flow source. Prometheus: <code>ze_anomaly_incidents_total</code>, <code>ze_anomaly_active</code>, <code>ze_anomaly_tracked_entities</code>. <!-- source: internal/core/anomalyevent/event.go -- source-oriented event contract --> <!-- source: internal/plugins/anomaly/detect/detector.go -- per-entity baseline, confirm/clear, emit --> <!-- source: internal/plugins/anomaly/detect/score.go -- pinned scoring and correlation rule --> <!-- source: internal/plugins/anomaly/detect/show.go -- ze-show:anomaly handler --> <!-- source: internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang -- detector config --></td>
+<td>Darktrace-style SECURITY anomaly detector (report-only), a domain separate from volumetric DDoS. Consumes the neutral <code>trafficfeature</code> signals and learns each source entity's own pattern-of-life via a per-(entity,feature) EWMA baseline (<code>internal/core/stats</code>), scores self-deviation plus peer-group rarity (source-prefix cohorts), and correlates multiple weak feature deviations on one entity into a single incident (capped/discounted combine, not naive sum). A confirm/clear state machine debounces; confirmed incidents emit on the <code>anomaly-detect</code> event bus and land in a bounded recent-incident ring viewed via <code>show anomaly</code>. It takes NO action (the <code>anomaly/shape</code> responder acts); scoring is bounded per-entity with idle eviction. A <code>ze doctor</code> check (<code>doctor-anomaly-detect-no-feature-source</code>) warns when enabled without a flow source. Prometheus: <code>ze_anomaly_incidents_total</code>, <code>ze_anomaly_active</code>, <code>ze_anomaly_tracked_entities</code>. <!-- source: internal/core/anomalyevent/event.go -- source-oriented event contract --> <!-- source: internal/plugins/anomaly/detect/detector.go -- per-entity baseline, confirm/clear, emit --> <!-- source: internal/plugins/anomaly/detect/score.go -- pinned scoring and correlation rule --> <!-- source: internal/plugins/anomaly/detect/show.go -- ze-show:anomaly handler --> <!-- source: internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang -- detector config --></td>
+</tr>
+<tr>
+<td>Autonomous Anomaly Response</td>
+<td>Experimental</td>
+<td>Shadow-first responder (<code>anomaly/shape</code>) that subscribes to <code>anomaly-detect</code> incidents and installs a surgical per-SOURCE firewall action (rate-limit via <code>firewall.MatchSourceAddress</code>+<code>Limit</code>, drop fallback). SHADOW is the default: it logs the would-be action and installs nothing. In armed mode each anomalous source gets its own live nft rule with a mandatory timed AUTO-REVERT (withdraws after a TTL regardless of any clear event), a global BLAST-RADIUS cap (refuses to arm beyond N), a KILL-SWITCH (reverts all + forces shadow), and an ALLOWLIST (protected sources are never armed). One mutex guards the armed map; a per-timer generation guard makes a superseded timer a no-op. Status via <code>show anomaly-shape</code>. Separate firewall owner key isolates it from <code>ddos/local</code>. A <code>ze doctor</code> check (<code>doctor-anomaly-shape-armed-no-firewall</code>) warns when armed without a firewall. Prometheus: <code>ze_anomaly_shape_armed</code>, <code>ze_anomaly_shape_reverted_total</code>, <code>ze_anomaly_shape_arm_refused_total</code>, <code>ze_anomaly_shape_killswitch_total</code>. <!-- source: internal/plugins/anomaly/shape/responder.go -- pinned responder state machine --> <!-- source: internal/plugins/anomaly/shape/match.go -- source term + per-family tables --> <!-- source: internal/plugins/anomaly/shape/show.go -- ze-show:anomaly-shape handler --> <!-- source: internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang -- responder config --></td>
 </tr>
 <tr>
 <td><a href="https://github.com/ze-software/ze/blob/main/docs/guide/traffic-usage.md" target="_blank" rel="noopener">Traffic Usage</a></td>
@@ -683,32 +688,35 @@
 
         <footer>
             <div class="footer-inner">
-                <span>Ze is AGPLv3 open source.</span>
-                <div class="footer-links">
-                    <a
-                        href="https://github.com/ze-software/ze"
-                        target="_blank"
-                        rel="noopener"
-                        >GitHub</a
-                    >
-                    <a
-                        href="https://codeberg.org/thomas-mangin/ze"
-                        target="_blank"
-                        rel="noopener"
-                        >Codeberg</a
-                    >
-                    <a
-                        href="https://github.com/ze-software/ze/issues"
-                        target="_blank"
-                        rel="noopener"
-                        >Issues</a
-                    >
-                    <a
-                        href="https://discord.gg/T8s7CjPDne"
-                        target="_blank"
-                        rel="noopener"
-                        >Discord</a
-                    >
+                <div class="footer-columns">
+                    <div class="footer-col">
+                        <h3>Project</h3>
+                        <a href="../../features/">Features</a>
+                        <a href="../../cli/">CLI Reference</a>
+                        <a href="../../dependencies/">Dependencies</a>
+                        <a href="../../performance/">Performance</a>
+                        <a href="../../compare/">Compare</a>
+                        <a href="../../activity/">Activity</a>
+                    </div>
+                    <div class="footer-col">
+                        <h3>Learn</h3>
+                        <a href="../../docs/guide/quickstart/">Quickstart</a>
+                        <a href="../../docs/architecture/">Architecture</a>
+                        <a href="../../labs/">Labs</a>
+                        <a href="../../blog/">Blog</a>
+                        <a href="../../talks/">Talks</a>
+                    </div>
+                    <div class="footer-col">
+                        <h3>Community</h3>
+                        <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>
+                        <a href="../../contribute/">Contribute</a>
+                        <a href="https://github.com/ze-software/ze" target="_blank" rel="noopener">GitHub</a>
+                        <a href="https://codeberg.org/thomas-mangin/ze" target="_blank" rel="noopener">Codeberg</a>
+                        <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">Issues</a>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <span>Ze is AGPLv3 open source.</span>
                     <a href="../../style-guide/">Style Guide</a>
                 </div>
             </div>

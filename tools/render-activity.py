@@ -135,38 +135,7 @@ PAGE = """<!doctype html>
 
         <script src="../assets/site.js" defer></script>
 
-        <footer>
-            <div class="footer-inner">
-                <span>Ze is AGPLv3 open source.</span>
-                <div class="footer-links">
-                    <a
-                        href="https://github.com/ze-software/ze"
-                        target="_blank"
-                        rel="noopener"
-                        >GitHub</a
-                    >
-                    <a
-                        href="https://codeberg.org/thomas-mangin/ze"
-                        target="_blank"
-                        rel="noopener"
-                        >Codeberg</a
-                    >
-                    <a
-                        href="https://github.com/ze-software/ze/issues"
-                        target="_blank"
-                        rel="noopener"
-                        >Issues</a
-                    >
-                    <a
-                        href="https://discord.gg/T8s7CjPDne"
-                        target="_blank"
-                        rel="noopener"
-                        >Discord</a
-                    >
-                    <a href="../style-guide/">Style Guide</a>
-                </div>
-            </div>
-        </footer>
+{footer}
     </body>
 </html>
 """
@@ -460,6 +429,7 @@ def main():
         tables=tables_html,
         tooltip=tooltip_html,
         script=script_html,
+        footer=sitelib.footer_html("../"),
     )
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_text(page)

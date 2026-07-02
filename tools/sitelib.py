@@ -302,16 +302,99 @@ def patch_navblock(html_text, root):
     return html_text[: m.start()] + build_navblock(root) + html_text[end:]
 
 
-DISCORD_HREF_RE = re.compile(r'href="https://discord\.gg/[A-Za-z0-9]+"')
+# (heading, [(path relative to site root, label), ...]) -- local links only,
+# rooted through `root` at render time. External links (Discord, GitHub,
+# Codeberg, Issues) are appended separately since they never take a root
+# prefix.
+FOOTER_LOCAL_COLUMNS = [
+    (
+        "Project",
+        [
+            ("features/", "Features"),
+            ("cli/", "CLI Reference"),
+            ("dependencies/", "Dependencies"),
+            ("performance/", "Performance"),
+            ("compare/", "Compare"),
+            ("activity/", "Activity"),
+        ],
+    ),
+    (
+        "Learn",
+        [
+            ("docs/guide/quickstart/", "Quickstart"),
+            ("docs/architecture/", "Architecture"),
+            ("labs/", "Labs"),
+            ("blog/", "Blog"),
+            ("talks/", "Talks"),
+        ],
+    ),
+]
 
 
-def patch_footer_discord_link(html_text):
-    """Hand-authored pages' <footer> is static HTML, not built from
-    PAGE_FOOT -- their nav gets refreshed by patch_navblock, but a footer
-    Discord link would otherwise silently keep pointing at a rotated-out
-    invite code forever. Matches by URL pattern, not by the previous
-    invite's exact code, so this keeps working on the next rotation too."""
-    return DISCORD_HREF_RE.sub('href="%s"' % DISCORD_INVITE, html_text)
+def footer_html(root):
+    """Full <footer> markup: a three-column sitemap (Project / Learn /
+    Community) plus a bottom bar (license, Style Guide) -- replaces the
+    single flat row of five links every page used to carry. Used both by
+    page_foot() for generated pages and by patch_footer() to refresh the
+    same markup inside hand-authored pages, so the two can never drift
+    apart the way nav content once did before data/nav.json existed."""
+    out = ["        <footer>\n", '            <div class="footer-inner">\n']
+    out.append('                <div class="footer-columns">\n')
+    for heading, links in FOOTER_LOCAL_COLUMNS:
+        out.append('                    <div class="footer-col">\n')
+        out.append("                        <h3>%s</h3>\n" % heading)
+        for path, label in links:
+            out.append(
+                '                        <a href="%s">%s</a>\n'
+                % (rooted_href(root, path), label)
+            )
+        out.append("                    </div>\n")
+    out.append('                    <div class="footer-col">\n')
+    out.append("                        <h3>Community</h3>\n")
+    out.append(
+        '                        <a href="%s" target="_blank" rel="noopener">Discord</a>\n'
+        % DISCORD_INVITE
+    )
+    out.append(
+        '                        <a href="%scontribute/">Contribute</a>\n' % root
+    )
+    out.append(
+        '                        <a href="https://github.com/%s" target="_blank" rel="noopener">GitHub</a>\n'
+        % GITHUB_REPO
+    )
+    out.append(
+        '                        <a href="%s" target="_blank" rel="noopener">Codeberg</a>\n'
+        % CODEBERG_REPO
+    )
+    out.append(
+        '                        <a href="https://github.com/%s/issues" target="_blank" rel="noopener">Issues</a>\n'
+        % GITHUB_REPO
+    )
+    out.append("                    </div>\n")
+    out.append("                </div>\n")
+    out.append('                <div class="footer-bottom">\n')
+    out.append("                    <span>Ze is AGPLv3 open source.</span>\n")
+    out.append('                    <a href="%sstyle-guide/">Style Guide</a>\n' % root)
+    out.append("                </div>\n")
+    out.append("            </div>\n")
+    out.append("        </footer>")
+    return "".join(out)
+
+
+FOOTER_START_RE = re.compile(r"[ \t]*<footer>")
+
+
+def patch_footer(html_text, root):
+    """Replace the <footer>...</footer> block in an already hand-authored
+    page with a freshly built one, the same way patch_navblock() refreshes
+    <div class="nav-links">. Footer markup never nests another <footer>, so
+    a plain first-match pair is enough (no balanced-tag counting needed)."""
+    m = FOOTER_START_RE.search(html_text)
+    if not m:
+        raise ValueError("no <footer> found")
+    start = html_text.index("<footer>", m.start())
+    end = html_text.index("</footer>", start) + len("</footer>")
+    return html_text[: m.start()] + footer_html(root) + html_text[end:]
 
 
 PAGE_HEAD = """<!doctype html>
@@ -351,38 +434,7 @@ PAGE_FOOT = """        </main>
 
         <script src="{root}assets/site.js" defer></script>
 
-        <footer>
-            <div class="footer-inner">
-                <span>Ze is AGPLv3 open source.</span>
-                <div class="footer-links">
-                    <a
-                        href="https://github.com/{github_repo}"
-                        target="_blank"
-                        rel="noopener"
-                        >GitHub</a
-                    >
-                    <a
-                        href="{codeberg_repo}"
-                        target="_blank"
-                        rel="noopener"
-                        >Codeberg</a
-                    >
-                    <a
-                        href="https://github.com/{github_repo}/issues"
-                        target="_blank"
-                        rel="noopener"
-                        >Issues</a
-                    >
-                    <a
-                        href="{discord_invite}"
-                        target="_blank"
-                        rel="noopener"
-                        >Discord</a
-                    >
-                    <a href="{root}style-guide/">Style Guide</a>
-                </div>
-            </div>
-        </footer>
+{footer}
     </body>
 </html>
 """
@@ -401,12 +453,7 @@ def page_head(title, desc, root, og_title=None, og_desc=None):
 
 
 def page_foot(root):
-    return PAGE_FOOT.format(
-        root=root,
-        github_repo=GITHUB_REPO,
-        codeberg_repo=CODEBERG_REPO,
-        discord_invite=DISCORD_INVITE,
-    )
+    return PAGE_FOOT.format(root=root, footer=footer_html(root))
 
 
 BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
@@ -422,3 +469,72 @@ def bold(text):
     browser instead of shown as text, swallowing everything after it."""
     text = CODE_RE.sub(lambda m: "<code>%s</code>" % html.escape(m.group(1)), text)
     return BOLD_RE.sub(r"<strong>\1</strong>", text)
+
+
+# Blog post parsing, shared by render-blog.py (full post + index rendering)
+# and render-index.py (homepage "Latest from the blog" teaser) -- one parser
+# for Zeledon's Discord-style weekly-update format instead of two copies
+# drifting apart.
+BLOG_HEADER_RE = re.compile(r"^\*\*(.+?)\*\*\s*$", re.MULTILINE)
+BLOG_FRONT_MATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
+POSTS_DIR = GH_PAGES / "blog" / "posts"
+
+
+def parse_blog_front_matter(text):
+    m = BLOG_FRONT_MATTER_RE.match(text)
+    if not m:
+        return {}, text
+    raw, body = m.group(1), m.group(2)
+    meta = {}
+    for line in raw.splitlines():
+        if ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        meta[key.strip()] = value.strip()
+    return meta, body.strip()
+
+
+def split_blog_sections(body):
+    """Return (title_marker, intro, [(header, section_body), ...])."""
+    parts = BLOG_HEADER_RE.split(body)
+    # parts[0] is stray text before the first header (should be blank)
+    if len(parts) < 2:
+        return None, body, []
+    title_marker = parts[1]
+    intro = parts[2].strip() if len(parts) > 2 else ""
+    sections = []
+    i = 3
+    while i < len(parts) - 1:
+        sections.append((parts[i], parts[i + 1].strip()))
+        i += 2
+    return title_marker, intro, sections
+
+
+def blog_start_date(covers):
+    # "2026-06-08 .. 2026-06-14" or "2026-06-25 21:10 .. 2026-07-01"
+    return covers.split("..")[0].strip().split(" ")[0]
+
+
+def latest_blog_posts(n):
+    """The N most recent blog posts (by covers' start date), each as
+    {slug, covers, intro, is_draft} -- same shape render-blog.py's index
+    entries use. Used by render-index.py's homepage teaser so the two never
+    disagree about what "latest" means."""
+    posts = []
+    for f in sorted(POSTS_DIR.glob("*.md")):
+        meta, body = parse_blog_front_matter(f.read_text())
+        covers = meta.get("covers", f.stem.replace("..", " .. "))
+        _title_marker, intro, sections = split_blog_sections(body)
+        if not sections:
+            continue
+        slug = blog_start_date(covers)
+        posts.append(
+            {
+                "slug": slug,
+                "covers": covers,
+                "intro": intro,
+                "is_draft": meta.get("status", "").upper().startswith("DRAFT"),
+            }
+        )
+    posts.sort(key=lambda p: p["slug"], reverse=True)
+    return posts[:n]

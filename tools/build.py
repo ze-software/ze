@@ -147,9 +147,9 @@ def step_nav():
     for rel, root in NAV_PATCH_TARGETS:
         path = GH_PAGES / rel
         text = sitelib.patch_navblock(path.read_text(), root)
-        text = sitelib.patch_footer_discord_link(text)
+        text = sitelib.patch_footer(text, root)
         path.write_text(text)
-        print("patched nav -> %s" % rel)
+        print("patched nav+footer -> %s" % rel)
     return 0
 
 

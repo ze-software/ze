@@ -1121,6 +1121,13 @@
     "global-pipes": true
   },
   {
+    "path": "show anomaly-shape",
+    "description": "Show the shadow-first anomaly responder status: mode (shadow/armed), action,\nkill-switch state, and the currently armed source entities with live firewall actions.",
+    "mode": "read-only",
+    "wire-method": "ze-show:anomaly-shape",
+    "global-pipes": true
+  },
+  {
     "path": "show arp",
     "description": "Show the IPv4 ARP table (shortcut for 'show neighbor ipv4').\nLists IPv4 ARP entries with MAC address and state. ARP is IPv4-only;\nuse 'show neighbor' for both families or 'show neighbor ipv6' for the\nIPv6 ND table.",
     "mode": "read-only",
@@ -1820,7 +1827,7 @@
   },
   {
     "path": "show debug profile",
-    "description": "Show stored debug profiles (list, or 'name <name>' for one).",
+    "description": "Show stored debug profiles (list, 'name <name>' for one, add 'module <prefix>' to filter).",
     "mode": "offline"
   },
   {

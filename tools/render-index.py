@@ -53,6 +53,30 @@ def render_who_card(card):
                     </article>""".format(title=card["title"], body=card["body"])
 
 
+BLOG_TEASER_CATEGORIES = [
+    "cat-operate",
+    "cat-routing",
+    "cat-automate",
+    "cat-observe",
+    "cat-secure",
+    "cat-services",
+    "cat-platform",
+]
+
+
+def render_blog_teaser_card(post, i):
+    cat = BLOG_TEASER_CATEGORIES[i % len(BLOG_TEASER_CATEGORIES)]
+    parts = ['                    <article class="card %s">' % cat]
+    parts.append(
+        '                        <h3><a href="blog/%s/">Week of %s</a></h3>'
+        % (post["slug"], post["slug"])
+    )
+    if post["intro"]:
+        parts.append("                        <p>%s</p>" % post["intro"])
+    parts.append("                    </article>")
+    return "\n".join(parts)
+
+
 BODY = """            <section class="hero" aria-labelledby="hero-title">
                 <div>
                     <div class="hero-brand">
@@ -351,6 +375,22 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
                     </p>
                 </div>
             </section>
+
+            <section aria-labelledby="blog-teaser-title">
+                <div class="section-head reveal">
+                    <h2 id="blog-teaser-title">Latest from the blog.</h2>
+                    <p>
+                        Weekly updates, mined from git history and posted to
+                        Discord's <code>ze-news</code>.
+                    </p>
+                </div>
+                <div class="cards reveal">
+{blog_teaser_cards}
+                </div>
+                <div class="link-list reveal">
+                    <a href="blog/">See all updates</a>
+                </div>
+            </section>
 """
 
 
@@ -376,8 +416,15 @@ def render(data):
 
     run_cards = "\n".join(render_run_card(c) for c in data["run"])
     who_cards = "\n".join(render_who_card(c) for c in data["who"])
+    blog_teaser_cards = "\n".join(
+        render_blog_teaser_card(p, i)
+        for i, p in enumerate(sitelib.latest_blog_posts(3))
+    )
     body = BODY.format(
-        run_cards=run_cards, who_cards=who_cards, category_links=category_links
+        run_cards=run_cards,
+        who_cards=who_cards,
+        category_links=category_links,
+        blog_teaser_cards=blog_teaser_cards,
     )
 
     DEST.write_text(head + body + sitelib.page_foot(root))
