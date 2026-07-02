@@ -28,6 +28,52 @@ gh-pages/
 
 Each presentation is self-contained: its `index.html` loads assets from its own directory.
 
+## Site build tooling
+
+The published site (everything except `presentations/`) is generated from
+data and Markdown, not hand-edited HTML. Structure:
+
+```
+gh-pages/
+  data/
+    nav.json                              -- single source for the mega-menu (Project/Labs/Docs
+                                              dropdowns, top links, badges) -- every page reads
+                                              this, generated or hand-authored
+    features.json                         -- every card on features/index.html: section, category,
+                                              status, chips, bullets
+    audience.json                         -- the "Two ways to run Ze" and "Who should look now"
+                                              cards on index.html
+  tools/
+    sitelib.py                            -- shared nav/head/foot chrome, imported by every
+                                              render-*.py; also the navblock patcher for pages
+                                              with no dedicated generator
+    build.py                              -- regenerates the entire site in one command
+    render-docs.py / render-doc.py        -- ../main/docs/*.md -> docs/**/index.html (also used
+                                              directly for compare/comparison.md -> compare/index.html)
+    render-blog.py                        -- blog/posts/*.md -> blog/**/index.html
+    render-activity.py                    -- git history -> activity/index.html
+    render-features.py                    -- data/features.json -> features/index.html
+    render-index.py                       -- data/audience.json + template -> index.html
+```
+
+Pages with no dedicated generator (`zeledon/`, `labs/*/`, `talks/`,
+`style-guide/`, `performance/`) are hand-authored HTML for their body content,
+but their nav block is still patched from `data/nav.json` by `tools/build.py`
+(the `nav` step) so they can never drift from the mega-menu on every other
+page.
+
+Run `tools/build.py` (or `tools/build.py --only <docs,blog,activity,compare,
+features,index,nav>` for a subset) to regenerate everything. It warns on
+stderr if `data/nav.json`'s Features-dropdown card count falls out of sync
+with `data/features.json`'s actual card count -- the class of bug that
+motivated data-driving this in the first place (a hand-typed "41 features"
+count silently went stale when a card moved between sections).
+
+To add, remove, or re-categorize a feature card: edit `data/features.json`,
+then run `tools/build.py --only features` (or the full build). Same for
+`data/audience.json` and `--only index`, or `data/nav.json` and `--only nav`
+(plus regenerate anything else the nav change should also touch).
+
 ## Presentation tooling
 
 Tools live at `presentations/tools/`.
@@ -59,37 +105,36 @@ Do not edit presentation content on main.
 Trigger: a new `blog/posts/<start-date>.md` lands (the week's Discord `ze-news`
 update). Work through this before considering the update done.
 
-1. **Render the blog.** `tools/render-blog.py` -- regenerates the new post,
-   the blog index, and the (calculated, not hardcoded) week count.
-2. **Check Features for drift.** Did the week ship something with no card
-   yet, or move a feature from Experimental to shipped? Cross-check
-   `../main/docs/features.md` / `docs/features/*.md` maturity against
-   `features/index.html`. Adding or removing a card changes the count in
-   its intro paragraph -- update that number too.
-3. **Regenerate Activity.** `tools/render-activity.py` -- pulls fresh commit
-   and added-line data from `main` (never touches any `presentations/*/`
-   snapshot, those are historic and frozen).
-4. **Check Compare for drift.** Did the week close one of the
+1. **Check Features for drift.** Did the week ship something with no card
+   yet, or move a feature from Experimental to shipped? Add/move/edit its
+   entry in `data/features.json` -- the intro paragraph's count is computed
+   from the data at render time, nothing to hand-update.
+2. **Check Compare for drift.** Did the week close one of the
    "Where Ze is behind today" gaps, or change a Yes/No/Partial cell? Edit
-   `../main/docs/comparison.md` first (the source of truth), then re-run
-   `tools/render-doc.py compare/comparison.md compare/index.html --root ../
-   --desc "..." --cat routing` to refresh the copy here. Bump the
-   `Last updated:` date in main's file and the "as of" date in this file's
-   disclaimer when real content changes -- never let this page carry content
-   main doesn't also have.
-5. **Check Labs for drift.** Did the week add new interop/QEMU evidence
+   `../main/docs/comparison.md` first (the source of truth), then copy the
+   change into `compare/comparison.md` here (or re-run whatever produced
+   that mirror). Bump the `Last updated:` date in main's file and the "as
+   of" date in this file's disclaimer when real content changes -- never let
+   this page carry content main doesn't also have.
+3. **Check Labs for drift.** Did the week add new interop/QEMU evidence
    substantial enough for its own lab page (see `labs/bgp-interop/` as the
-   template)?
-6. **Check Performance for drift.** Did `../main/docs/performance.md` get a
+   template)? A new lab also needs an entry in `data/nav.json`'s Labs
+   dropdown.
+4. **Check Performance for drift.** Did `../main/docs/performance.md` get a
    fresh benchmark run this week? If so, update the headline stat-row on
    `performance/index.html` (Convergence/Throughput/Withdrawal) to match.
-7. **Re-render docs if any `../main/docs/*.md` changed.**
-   `tools/render-docs.py` (batch) or `tools/render-doc.py` (single file) --
-   see each script's own docstring.
-8. **Link-check before calling it done.** Every `href`/`src` across the
+5. **Run `tools/build.py`.** One command regenerates everything: the new
+   blog post and blog index, the activity heatmap from fresh git history,
+   `compare/index.html` from `compare/comparison.md`, `features/index.html`
+   from `data/features.json`, `index.html` from `data/audience.json`, every
+   `../main/docs/*.md` -> `docs/**/index.html`, and the nav block on every
+   hand-authored page (labs, talks, style guide, performance, zeledon).
+   Watch stderr for the feature-count drift warning and any per-step
+   failures.
+6. **Link-check before calling it done.** Every `href`/`src` across the
    published site (excluding `presentations/`) should resolve to a real
    local file or an external URL. Write a quick script that walks all
    `*.html` files and resolves relative links via `pathlib`, or reuse one
    from a prior session if still on disk.
-9. **Never edit `presentations/*/` content** as part of this checklist --
+7. **Never edit `presentations/*/` content** as part of this checklist --
    those decks are historic snapshots frozen at the time they were given.

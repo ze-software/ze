@@ -1,0 +1,59 @@
+{
+    "top_links": [
+        {"href": "index.html#status", "label": "Status"},
+        {"href": "index.html#try", "label": "Try"}
+    ],
+    "dropdowns": [
+        {
+            "label": "Project",
+            "columns": [
+                [
+                    {"href": "features/", "icon": "🧩", "title": "Features", "desc": "42 features, color-coded by category"},
+                    {"href": "performance/", "icon": "⚡", "title": "Performance", "desc": "Measured BGP benchmarks, not claims"},
+                    {"href": "compare/", "icon": "⚖️", "title": "Compare", "desc": "How Ze stacks up against BIRD, FRR, and more"},
+                    {"href": "activity/", "icon": "📈", "title": "Activity", "desc": "A year of commits, at a glance"}
+                ]
+            ]
+        },
+        {
+            "label": "Labs",
+            "columns": [
+                [
+                    {"href": "labs/bgp-interop/", "icon": "🌐", "title": "BGP Protocol Interop", "desc": "Real FRR, BIRD, and GoBGP sessions"},
+                    {"href": "labs/l2tp-interop/", "icon": "🔌", "title": "L2TP PPP/NCP Interop", "desc": "Ze as LNS vs real xl2tpd"},
+                    {"href": "labs/pppoe-interop/", "icon": "📡", "title": "PPPoE Interop", "desc": "vs real accel-ppp access concentrator"},
+                    {"href": "labs/ipsec-interop/", "icon": "🔒", "title": "IPsec / IKEv2 Interop", "desc": "Ze as IKE initiator vs strongSwan"}
+                ],
+                [
+                    {"href": "labs/vlan-qos/", "icon": "🏷️", "title": "VLAN QoS Wire-Level Proof", "desc": "802.1p PCP tagging, actually on the wire"},
+                    {"href": "labs/looking-glass-graph/", "icon": "🔭", "title": "Looking Glass Graph Demo", "desc": "Realistic UK topology, real external ASNs"},
+                    {"href": "labs/appliance-install/", "icon": "💿", "title": "Appliance Installer Evidence", "desc": "HTTP/PXE, ISO, Ventoy, real boots"},
+                    {"href": "labs/vpp-dataplane/", "icon": "🚀", "title": "VPP Dataplane Evidence", "desc": "FIB, traffic, and firewall in a real VPP daemon"}
+                ]
+            ]
+        },
+        {
+            "label": "Docs",
+            "columns": [
+                [
+                    {"label_only": "Getting started"},
+                    {"href": "docs/guide/quickstart/", "icon": "🚀", "title": "Quickstart", "desc": "Two BGP peers in under 5 minutes"},
+                    {"href": "docs/features/configuration/", "icon": "⚙️", "title": "Configuration", "desc": "YANG-modeled, one model for everything"},
+                    {"href": "docs/features/cli-commands/", "icon": "⌨️", "title": "CLI Commands", "desc": "SSH CLI with diff, commit, and history"},
+                    {"href": "docs/architecture/", "icon": "🏗️", "title": "Architecture", "desc": "How the pieces fit together"}
+                ],
+                [
+                    {"label_only": "Deep dives"},
+                    {"href": "docs/features/mcp-integration/", "icon": "🤖", "title": "MCP Integration", "desc": "AI-assisted operations"},
+                    {"href": "docs/features/web-interface/", "icon": "🖥️", "title": "Web Interface", "desc": "HTMX config editor and admin panel"},
+                    {"href": "docs/guide/vpp/", "icon": "📦", "title": "VPP Dataplane", "desc": "FIB, traffic, and firewall via VPP"},
+                    {"href": "docs/guide/benchmarking/", "icon": "📊", "title": "Benchmarking", "desc": "ze-perf architecture, flags, JSON output"}
+                ]
+            ]
+        }
+    ],
+    "trailing_links": [
+        {"href": "blog/", "label": "Blog"},
+        {"href": "talks/", "label": "Talks"}
+    ]
+}

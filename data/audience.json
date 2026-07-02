@@ -1,0 +1,28 @@
+{
+    "run": [
+        {
+            "title": "As a Daemon",
+            "body": "Runs on any existing Linux distro, managed by systemd or your process manager of choice. The easier on-ramp if you're fitting Ze into infrastructure you already run.",
+            "link": {"href": "docs/guide/quickstart/", "label": "Quickstart", "sublabel": "daemon install"}
+        },
+        {
+            "title": "As an Appliance",
+            "body": "A dedicated bootable image built with gokrazy for purpose-built hardware: read-only rootfs, no shell, no package manager, automatic process supervision.",
+            "link": {"href": "docs/guide/ze-install/", "label": "Install guide", "sublabel": "PXE, ISO, or Ventoy"}
+        }
+    ],
+    "who": [
+        {
+            "title": "BGP Operators",
+            "body": "People who understand peering, route servers, policy, RPKI, and the pain of debugging control-plane state."
+        },
+        {
+            "title": "Network Builders",
+            "body": "People building Linux appliances, labs, automation systems, test harnesses, or routing experiments."
+        },
+        {
+            "title": "ExaBGP Users",
+            "body": "People with existing ExaBGP workflows who want a path toward a fuller programmable network stack."
+        }
+    ]
+}

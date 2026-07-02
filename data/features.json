@@ -1,0 +1,1159 @@
+{
+  "sections": [
+    {
+      "id": "core",
+      "heading": "Built for demanding operators.",
+      "lead": "Ze owns its BGP engine, configuration model, plugin system, and operator surfaces, all designed together.",
+      "note": null,
+      "cards": [
+        {
+          "category": "operate",
+          "status": null,
+          "title": "SSH CLI",
+          "href": "docs/features/cli-commands/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Autocomplete",
+              "mode": false
+            },
+            {
+              "text": "History",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**commit** and commit **confirmed**",
+            "**rollback** and **diff**",
+            "**Command** mode"
+          ]
+        },
+        {
+          "category": "operate",
+          "status": null,
+          "title": "YANG Configuration",
+          "href": "docs/features/configuration/",
+          "external": false,
+          "chips": [
+            {
+              "text": "YANG",
+              "mode": false
+            },
+            {
+              "text": "ExaBGP",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Schema-driven **validation**",
+            "**One model** for everything",
+            "**Plugin** defined"
+          ]
+        },
+        {
+          "category": "operate",
+          "status": null,
+          "title": "Web Workbench",
+          "href": "docs/features/web-interface/",
+          "external": false,
+          "chips": [
+            {
+              "text": "HTMX",
+              "mode": false
+            },
+            {
+              "text": "SSE",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "No SPA, **server-rendered**",
+            "Config editor, **admin** panel",
+            "**Live updates** via SSE"
+          ]
+        },
+        {
+          "category": "operate",
+          "status": null,
+          "title": "Looking Glass",
+          "href": "docs/features/looking-glass/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Routes",
+              "mode": false
+            },
+            {
+              "text": "Topology",
+              "mode": false
+            },
+            {
+              "text": "Birdwatcher",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Peer and **route viewer**",
+            "**Topology** graph",
+            "SSE streaming for **live state**"
+          ]
+        },
+        {
+          "category": "routing",
+          "status": null,
+          "title": "Native BGP Engine",
+          "href": "docs/features/bgp-protocol/",
+          "external": false,
+          "chips": [
+            {
+              "text": "BGP",
+              "mode": false
+            },
+            {
+              "text": "IPv4/IPv6",
+              "mode": false
+            },
+            {
+              "text": "FlowSpec",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Full implementation in **Go**",
+            "**Lazy parsing**, buffer-first encoding",
+            "Negotiated **capabilities**"
+          ]
+        },
+        {
+          "category": "routing",
+          "status": null,
+          "title": "Static Routes",
+          "href": "docs/guide/static-routes/",
+          "external": false,
+          "chips": [
+            {
+              "text": "ECMP",
+              "mode": false
+            },
+            {
+              "text": "BFD",
+              "mode": false
+            },
+            {
+              "text": "PBR",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Named tables, **policy routing**",
+            "**BFD**-tracked failover",
+            "Multi-path **ECMP** groups"
+          ]
+        },
+        {
+          "category": "routing",
+          "status": null,
+          "title": "BFD",
+          "href": "docs/features/bgp-protocol/",
+          "external": false,
+          "chips": [
+            {
+              "text": "RFC 5880",
+              "mode": false
+            },
+            {
+              "text": "Auth",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**Single-hop** and **multi-hop**",
+            "GTSM, jitter, **BGP** integration",
+            "SHA1/MD5 **auth**, echo mode"
+          ]
+        },
+        {
+          "category": "routing",
+          "status": null,
+          "title": "MRT Recording",
+          "href": "docs/guide/mrt-analysis/",
+          "external": false,
+          "chips": [
+            {
+              "text": "RFC 6396",
+              "mode": false
+            },
+            {
+              "text": "Analysis",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Updates, messages, **RIB snapshots**",
+            "**Strftime** file rotation",
+            "Show, inject, replay, **filter**"
+          ]
+        },
+        {
+          "category": "services",
+          "status": null,
+          "title": "DNS Resolver",
+          "href": "docs/features/dns-resolver/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Cache",
+              "mode": false
+            },
+            {
+              "text": "Pipes",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Built-in **cached** resolver",
+            "**| resolve** and **| origin** pipe operators",
+            "No external **daemon** needed"
+          ]
+        },
+        {
+          "category": "automate",
+          "status": null,
+          "title": "Plugin System",
+          "href": "docs/features/plugins/",
+          "external": false,
+          "chips": [
+            {
+              "text": "ExaBGP",
+              "mode": false
+            },
+            {
+              "text": "RPKI",
+              "mode": false
+            },
+            {
+              "text": "Policy",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Route-server, **graceful restart**",
+            "**Persistence**, NLRI families",
+            "Independent, **composable**"
+          ]
+        },
+        {
+          "category": "automate",
+          "status": null,
+          "title": "Programmable",
+          "href": "docs/features/api-commands/",
+          "external": false,
+          "chips": [
+            {
+              "text": "REST",
+              "mode": false
+            },
+            {
+              "text": "gRPC",
+              "mode": false
+            },
+            {
+              "text": "gNMI",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**REST API**, **gRPC**, **gNMI**",
+            "External **process plugins**",
+            "Automate from **any language**"
+          ]
+        },
+        {
+          "category": "automate",
+          "status": null,
+          "title": "Easy to Explore",
+          "href": "docs/features/mcp-integration/",
+          "external": false,
+          "chips": [
+            {
+              "text": "MCP",
+              "mode": false
+            },
+            {
+              "text": "Doctor",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**MCP server** for AI debugging",
+            "Built-in **doctor** checks",
+            "Readable **state** and errors"
+          ]
+        },
+        {
+          "category": "automate",
+          "status": null,
+          "title": "ExaBGP Compatibility",
+          "href": "docs/features/exabgp-compatibility/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Migration",
+              "mode": false
+            },
+            {
+              "text": "Bridge",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Automatic config **migration**",
+            "**Plugin bridge** for existing workflows",
+            "Smooth **transition** path"
+          ]
+        },
+        {
+          "category": "observe",
+          "status": null,
+          "title": "Evidence Over Claims",
+          "href": "docs/features/interoperability-testing/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Fuzz",
+              "mode": false
+            },
+            {
+              "text": "Interop",
+              "mode": false
+            },
+            {
+              "text": "Docker",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Unit, functional, **fuzz**, chaos",
+            "Performance **benchmarks**",
+            "**Interop** vs FRR, BIRD, GoBGP"
+          ]
+        },
+        {
+          "category": "observe",
+          "status": null,
+          "title": "Development Activity",
+          "href": "activity/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Heatmap",
+              "mode": false
+            },
+            {
+              "text": "Live data",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "A year of **commits** and added lines, at a glance",
+            "Regenerated from git history, not curated",
+            "Top commit and line days, ranked"
+          ]
+        },
+        {
+          "category": "observe",
+          "status": null,
+          "title": "Prometheus Telemetry",
+          "href": "docs/guide/monitoring/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Netdata",
+              "mode": false
+            },
+            {
+              "text": "Prometheus",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**138 metrics** from /proc and /sys",
+            "**Netdata** naming, drop-in replacement",
+            "Existing **Grafana** dashboards keep working"
+          ]
+        },
+        {
+          "category": "observe",
+          "status": null,
+          "title": "Health Registry",
+          "href": "docs/features/",
+          "external": false,
+          "chips": [
+            {
+              "text": "HTTP",
+              "mode": false
+            },
+            {
+              "text": "503",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**/health** HTTP endpoint",
+            "Per-component **status** checks",
+            "BGP, FIB, IPsec, L2TP, **VPP**"
+          ]
+        },
+        {
+          "category": "observe",
+          "status": null,
+          "title": "Host Inventory",
+          "href": "docs/features/",
+          "external": false,
+          "chips": [
+            {
+              "text": "CPU",
+              "mode": false
+            },
+            {
+              "text": "NIC",
+              "mode": false
+            },
+            {
+              "text": "SMART",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**CPU**, NIC, DMI, memory, thermal",
+            "**SMART** disk health and self-tests",
+            "**JSON** output for pipelines"
+          ]
+        },
+        {
+          "category": "observe",
+          "status": null,
+          "title": "Crash Capture",
+          "href": "docs/features/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Panic",
+              "mode": false
+            },
+            {
+              "text": "Syslog",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Automatic **panic** stack traces",
+            "Ring buffer **context** (last 64 entries)",
+            "**show crashes** CLI command"
+          ]
+        },
+        {
+          "category": "observe",
+          "status": null,
+          "title": "Tech-Support Bundle",
+          "href": "docs/features/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Offline",
+              "mode": false
+            },
+            {
+              "text": "JSON",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**20 modules**, pure Go, no shell-outs",
+            "Structured **JSON** per module",
+            "Privacy-by-default, **gokrazy**-safe"
+          ]
+        },
+        {
+          "category": "observe",
+          "status": null,
+          "title": "Production Diagnostics",
+          "href": "docs/features/",
+          "external": false,
+          "chips": [
+            {
+              "text": "CLI",
+              "mode": false
+            },
+            {
+              "text": "MCP",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "11 built-in tools replacing **ss, dmesg, lsof**",
+            "**tcpdump**, traceroute, ping, mtr",
+            "All exposed via **MCP** for AI debugging"
+          ]
+        },
+        {
+          "category": "secure",
+          "status": null,
+          "title": "Secure by Default",
+          "href": "docs/features/plugins/",
+          "external": false,
+          "chips": [
+            {
+              "text": "SSH",
+              "mode": false
+            },
+            {
+              "text": "RBAC",
+              "mode": false
+            },
+            {
+              "text": "RPKI",
+              "mode": false
+            },
+            {
+              "text": "ASPA",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**SSH** access to the CLI",
+            "**RPKI** route origin validation",
+            "No **other daemons** needed"
+          ]
+        },
+        {
+          "category": "secure",
+          "status": null,
+          "title": "TACACS+ AAA",
+          "href": "docs/guide/tacacs/",
+          "external": false,
+          "chips": [
+            {
+              "text": "RFC 8907",
+              "mode": false
+            },
+            {
+              "text": "Accounting",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "SSH login via **TACACS+**",
+            "Command **accounting** START/STOP",
+            "Server failover, **local** fallback"
+          ]
+        },
+        {
+          "category": "secure",
+          "status": null,
+          "title": "Audit Trail",
+          "href": "docs/guide/audit/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Commits",
+              "mode": false
+            },
+            {
+              "text": "Auth",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Config **commit**, discard, reload",
+            "Failed **auth** across all surfaces",
+            "Filter by action, actor, **time**"
+          ]
+        },
+        {
+          "category": "secure",
+          "status": null,
+          "title": "PKI Store",
+          "href": "docs/features/",
+          "external": false,
+          "chips": [
+            {
+              "text": "X.509",
+              "mode": false
+            },
+            {
+              "text": "TLS",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "YANG-modeled **certificate** management",
+            "Chain validation, **expiry** checks",
+            "Shared by IPsec, **TLS**, mutual auth"
+          ]
+        },
+        {
+          "category": "platform",
+          "status": null,
+          "title": "Two Targets",
+          "href": "docs/features/interfaces/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Appliance",
+              "mode": false
+            },
+            {
+              "text": "Server",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Lean **bootable appliance**",
+            "Linux server with **systemd**",
+            "Single **static binary**",
+            "Ideal for **virtual networking**"
+          ]
+        },
+        {
+          "category": "platform",
+          "status": null,
+          "title": "Runs Itself",
+          "href": "docs/features/introspection/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Update",
+              "mode": false
+            },
+            {
+              "text": "Systemd",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Binary **self-update**",
+            "Built-in **readiness** checks",
+            "No **orchestrator** needed"
+          ]
+        },
+        {
+          "category": "platform",
+          "status": null,
+          "title": "Docker Support",
+          "href": "docs/features/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Daemon only",
+              "mode": true
+            },
+            {
+              "text": "Scratch",
+              "mode": false
+            },
+            {
+              "text": "Compose",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**Static binary** on scratch base",
+            "**Compose** support included",
+            "Optional **build tags**"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "experimental",
+      "heading": "Experimental and growing.",
+      "lead": "Implemented and tested, not yet production-proven.",
+      "note": "These still need deployment evidence or hardening before production claims. Configuration may change.",
+      "cards": [
+        {
+          "category": "services",
+          "status": "experimental",
+          "title": "IPsec VPN",
+          "href": "docs/features/",
+          "external": false,
+          "chips": [
+            {
+              "text": "IKEv2",
+              "mode": false
+            },
+            {
+              "text": "X.509",
+              "mode": false
+            },
+            {
+              "text": "EAP",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Full **IKEv2** engine, rekeying, DPD",
+            "**NAT-T**, keepalive, XFRM interfaces",
+            "EAP-MSCHAPv2, **EAP-TLS**, road warrior"
+          ]
+        },
+        {
+          "category": "services",
+          "status": "experimental",
+          "title": "L2TPv2 BNG",
+          "href": "docs/guide/l2tp/",
+          "external": false,
+          "chips": [
+            {
+              "text": "PPP",
+              "mode": false
+            },
+            {
+              "text": "RADIUS",
+              "mode": false
+            },
+            {
+              "text": "CQM",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "RFC 2661 LNS with **PPP** negotiation",
+            "**RADIUS** auth, accounting, CoA",
+            "CQM monitoring, **shaping**, web UI"
+          ]
+        },
+        {
+          "category": "services",
+          "status": "experimental",
+          "title": "PPPoE Access",
+          "href": "docs/guide/pppoe/",
+          "external": false,
+          "chips": [
+            {
+              "text": "RFC 2516",
+              "mode": false
+            },
+            {
+              "text": "PPP",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**Access concentrator** with discovery FSM",
+            "Shared **PPP driver** with L2TP",
+            "HMAC-SHA256 **cookie**, rate limiting"
+          ]
+        },
+        {
+          "category": "services",
+          "status": "experimental",
+          "title": "Interface Management",
+          "href": "docs/features/interfaces/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Netlink",
+              "mode": false
+            },
+            {
+              "text": "DHCP",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Ethernet, VLAN, bridge, **WireGuard**",
+            "8 tunnel kinds, **DHCP** client",
+            "NTP sync, **offload** tuning, mirroring"
+          ]
+        },
+        {
+          "category": "services",
+          "status": "experimental",
+          "title": "Firewall",
+          "href": "docs/guide/firewall/",
+          "external": false,
+          "chips": [
+            {
+              "text": "nftables",
+              "mode": false
+            },
+            {
+              "text": "NAT",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**15 match** types, 19 actions",
+            "SNAT, DNAT, **masquerade**",
+            "FlowSpec-to-firewall **bridge**"
+          ]
+        },
+        {
+          "category": "services",
+          "status": "experimental",
+          "title": "Policy Routing",
+          "href": "docs/guide/policy-routing/",
+          "external": false,
+          "chips": [
+            {
+              "text": "nftables",
+              "mode": false
+            },
+            {
+              "text": "PBR",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**L3/L4 match** criteria",
+            "Table steering, **next-hop** actions",
+            "TCP-MSS clamping, **interface** wildcards"
+          ]
+        },
+        {
+          "category": "services",
+          "status": "experimental",
+          "title": "VPP Data Plane",
+          "href": "docs/features/",
+          "external": false,
+          "chips": [
+            {
+              "text": "DPDK",
+              "mode": false
+            },
+            {
+              "text": "GoVPP",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**FIB** programming via GoVPP",
+            "MPLS **label** operations",
+            "Per-interface **Prometheus** metrics"
+          ]
+        },
+        {
+          "category": "routing",
+          "status": "experimental",
+          "title": "MPLS / LDP / RSVP-TE",
+          "href": "docs/features/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Labels",
+              "mode": false
+            },
+            {
+              "text": "Signaling",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Kernel MPLS FIB, **push/swap/pop**",
+            "LDP **discovery** and sessions",
+            "RSVP-TE **ERO**, bandwidth admission"
+          ]
+        },
+        {
+          "category": "routing",
+          "status": "experimental",
+          "title": "OSPF",
+          "href": "docs/guide/ospf/",
+          "external": false,
+          "chips": [
+            {
+              "text": "RFC 3101",
+              "mode": false
+            },
+            {
+              "text": "ECMP",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**OSPFv2** and **OSPFv3**, one config root",
+            "Stub, totally-stubby, **NSSA** areas",
+            "Redistributes with **BGP** both ways"
+          ]
+        },
+        {
+          "category": "routing",
+          "status": "experimental",
+          "title": "IS-IS",
+          "href": "docs/guide/isis/",
+          "external": false,
+          "chips": [
+            {
+              "text": "ISO 10589",
+              "mode": false
+            },
+            {
+              "text": "Dual-stack",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**L1/L2** link-state IGP over Layer 2",
+            "RFC 5304/5310 **authentication**, key chains",
+            "Dual-stack **IPv6**, redistributes with BGP"
+          ]
+        },
+        {
+          "category": "observe",
+          "status": "experimental",
+          "title": "Flow Export",
+          "href": "docs/guide/flow-export/",
+          "external": false,
+          "chips": [
+            {
+              "text": "sFlow",
+              "mode": false
+            },
+            {
+              "text": "NetFlow",
+              "mode": false
+            },
+            {
+              "text": "IPFIX",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**sFlow v5**, NetFlow v9, IPFIX",
+            "Packet sampling, **conntrack** flows",
+            "BGP **next-hop** enrichment"
+          ]
+        },
+        {
+          "category": "platform",
+          "status": "experimental",
+          "title": "Install and Provision",
+          "href": "docs/guide/ze-install/",
+          "external": false,
+          "chips": [
+            {
+              "text": "PXE",
+              "mode": false
+            },
+            {
+              "text": "ISO",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**PXE** bare-metal provisioning",
+            "Bootable **ISO** builder",
+            "systemd install, **uninstall**"
+          ]
+        },
+        {
+          "category": "platform",
+          "status": "experimental",
+          "title": "Kernel Tunables",
+          "href": "docs/features/",
+          "external": false,
+          "chips": [
+            {
+              "text": "Sysctl",
+              "mode": false
+            },
+            {
+              "text": "Profiles",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Three-layer **precedence**",
+            "Named **profiles** (DSR, router, hardened)",
+            "Originals **restored** on stop"
+          ]
+        },
+        {
+          "category": "services",
+          "status": "experimental",
+          "title": "AS112 Anycast DNS",
+          "href": "docs/guide/as112/",
+          "external": false,
+          "chips": [
+            {
+              "text": "AS112",
+              "mode": false
+            },
+            {
+              "text": "Anycast",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Authoritative **sink zones** on four fixed anycast addresses (RFC 7534/7535)",
+            "Conditional **BGP origination** via healthcheck-gated watchdog",
+            "Anycast IPs bound on **lo** automatically, never operator-typed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "roadmap",
+      "heading": "Spec'd, not built.",
+      "lead": "Aspirations with written, reviewed specs. Nothing here is usable today.",
+      "note": "Every card links to a pending spec in the main repo's <code>plan/</code> directory, where captured intent moves from skeleton to design to ready to in-progress, and a spec is deleted only when the work ships.",
+      "cards": [
+        {
+          "category": "routing",
+          "status": "aspiration",
+          "title": "OSPFv2",
+          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-0-umbrella.md",
+          "external": true,
+          "chips": [
+            {
+              "text": "OSPF",
+              "mode": false
+            },
+            {
+              "text": "IGP",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Full **link-state IGP**: SPF, areas, flooding",
+            "16 extension specs: **TE, SR, TI-LFA**",
+            "**Graceful restart**, BFD, multi-AF"
+          ]
+        },
+        {
+          "category": "routing",
+          "status": "aspiration",
+          "title": "Segment Routing",
+          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-sr-policy.md",
+          "external": true,
+          "chips": [
+            {
+              "text": "SAFI 73",
+              "mode": false
+            },
+            {
+              "text": "SRv6",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**SR-Policy** NLRI, tunnel encapsulation",
+            "**ExaBGP bridge** for SR-Policy",
+            "SRv6 **labeled unicast** family"
+          ]
+        },
+        {
+          "category": "routing",
+          "status": "aspiration",
+          "title": "VRF",
+          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-vrf-0-umbrella.md",
+          "external": true,
+          "chips": [
+            {
+              "text": "VRF",
+              "mode": false
+            },
+            {
+              "text": "L3VPN",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "VRF as a **first-class** concept",
+            "Per-VRF **BGP stacks**, YANG config",
+            "Kernel **VRF devices**, table binding"
+          ]
+        },
+        {
+          "category": "automate",
+          "status": "aspiration",
+          "title": "Fleet Management",
+          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-fleet-0-umbrella.md",
+          "external": true,
+          "chips": [
+            {
+              "text": "Registry",
+              "mode": false
+            },
+            {
+              "text": "Rollout",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Device **registry**, config templates",
+            "**Staged rollout**, config freeze",
+            "Fleet **audit trail**, inventory health"
+          ]
+        },
+        {
+          "category": "secure",
+          "status": "aspiration",
+          "title": "IRR Route Filtering",
+          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-filter-irr.md",
+          "external": true,
+          "chips": [
+            {
+              "text": "IRR",
+              "mode": false
+            },
+            {
+              "text": "as-set",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**Prefix-lists** from IRR data",
+            "bgpq4-style, **live in the engine**",
+            "Automatic from the peer's **remote ASN**"
+          ]
+        },
+        {
+          "category": "secure",
+          "status": "aspiration",
+          "title": "Kernel Lockdown",
+          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-kernel-lockdown-hardening.md",
+          "external": true,
+          "chips": [
+            {
+              "text": "Lockdown",
+              "mode": false
+            },
+            {
+              "text": "Integrity",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Kernel **lockdown** integrity mode",
+            "Blocks unsigned **modules**, kexec, /dev/mem",
+            "Design **reviewed**, not yet scheduled"
+          ]
+        },
+        {
+          "category": "platform",
+          "status": "aspiration",
+          "title": "Cloud-Init Provisioning",
+          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-install-9-cloud-init.md",
+          "external": true,
+          "chips": [
+            {
+              "text": "Cloud-init",
+              "mode": false
+            },
+            {
+              "text": "User-data",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "Appliance identity from **cloud metadata**",
+            "SSH keys and config via **user-data**",
+            "No **pre-baked** seed image needed"
+          ]
+        }
+      ]
+    }
+  ]
+}
