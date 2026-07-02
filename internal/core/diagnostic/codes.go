@@ -172,6 +172,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-anomaly-detect-no-feature-source"},
 	},
 	{
+		Code:        "doctor-anomaly-shape-armed-no-firewall",
+		Title:       "Anomaly responder armed without a firewall",
+		Description: "anomaly-shape is in armed mode but no firewall is configured. The responder installs live per-source rate-limit rules via the firewall component; with no firewall the armed actions cannot be applied to the kernel, so autonomous mitigation silently does nothing. Configure a firewall, or keep the responder in shadow mode.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-anomaly-shape-armed-no-firewall"},
+	},
+	{
 		Code:        "doctor-tls-missing",
 		Title:       "TLS certificate or key not found",
 		Description: "A TLS certificate or key file referenced in the config does not exist.",

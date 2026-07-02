@@ -564,6 +564,18 @@ responder acts on these incidents.
 show anomaly                          # Recent anomaly incidents
 ```
 
+### show anomaly-shape
+<!-- source: internal/plugins/anomaly/shape/show.go -- handleShowAnomalyShape, ze-show:anomaly-shape -->
+
+Status of the shadow-first anomaly responder. Returns `{"enabled": bool, "mode":
+"shadow"|"armed", "action": "limit"|"drop", "kill-switch": bool, "armed-count": N,
+"armed": [source, ...]}`. In shadow mode (default) nothing is installed; armed
+sources carry a live rate-limit with a timed auto-revert.
+
+```
+show anomaly-shape                    # Responder mode + armed sources
+```
+
 ### show traffic-usage
 
 Per-interface eBPF byte accounting for the `traffic-usage` plugin (TCX

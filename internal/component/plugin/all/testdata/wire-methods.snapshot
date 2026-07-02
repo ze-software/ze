@@ -133,6 +133,7 @@ ze-rib-api:withdraw
 ze-set:system-file-descriptors
 ze-show:aaa-accounting
 ze-show:anomaly
+ze-show:anomaly-shape
 ze-show:arp
 ze-show:as112
 ze-show:audit

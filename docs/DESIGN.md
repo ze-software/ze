@@ -384,6 +384,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `ospf` | Native OSPFv2 config root, validators, event namespace, raw IPv4 transport, Interface State Machine, Neighbor State Machine, and LSDB flooding |
 | `ike` | IKEv2 engine for native IPsec VPN |
 | `anomaly-detect` | Behavioral security anomaly detector (report-only): per-entity pattern-of-life over trafficfeature |
+| `anomaly-shape` | Shadow-first anomaly responder: per-source firewall rate-limit with arm/auto-revert/kill-switch |
 | `copp` | Control-plane policing: rate-limit new TCP connections to the BGP listen port |
 | `ddos-detect` | Automatic DDoS attack detector with two-stage detection |
 | `ddos-flowspec` | DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear |

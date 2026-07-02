@@ -1,0 +1,53 @@
+module ze-anomaly-shape-conf {
+  namespace "urn:ze:anomaly-shape-conf";
+  prefix anomaly-shape;
+
+  import ze-types { prefix zt; }
+
+  container anomaly-shape {
+    leaf mode {
+      type enumeration { enum shadow; enum armed; }
+      default shadow;
+      description "shadow (default): log the would-be action, install nothing. armed: install live per-source firewall actions.";
+    }
+    leaf action {
+      type enumeration { enum limit; enum drop; }
+      default limit;
+      description "Armed action: rate-limit the source (surgical) or drop it (fallback).";
+    }
+    leaf limit-rate {
+      type uint64 { range "1..max"; }
+      default 1000;
+      description "Rate for the limit action, in packets per limit-unit.";
+    }
+    leaf limit-unit {
+      type enumeration { enum second; enum minute; enum hour; enum day; }
+      default second;
+      description "Time unit for limit-rate.";
+    }
+    leaf limit-burst {
+      type uint32;
+      default 0;
+      description "Burst allowance for the limit action.";
+    }
+    leaf auto-revert-ttl {
+      type uint16 { range "5..3600"; }
+      default 300;
+      description "Seconds after the last signal before an armed action auto-reverts, regardless of any clear event (safety ceiling).";
+    }
+    leaf blast-radius-cap {
+      type uint16 { range "1..1024"; }
+      default 16;
+      description "Maximum concurrently-armed live actions; further arm attempts are refused.";
+    }
+    leaf kill-switch {
+      type boolean;
+      default false;
+      description "When true, revert every armed action and force the responder to shadow.";
+    }
+    leaf-list allowlist {
+      type zt:ip-prefix;
+      description "Protected source prefixes that are never armed (self-lockout guard for management / control-plane sources).";
+    }
+  }
+}
