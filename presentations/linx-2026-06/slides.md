@@ -561,7 +561,7 @@ If you want to discuss Ze, ask for a change, report something wrong, or influenc
 
 Contributions do not have to be code. Ideas, questions, operational feedback, and real weird deployment scenarios are all useful.
 
-**Discord** https://discord.gg/ykJb8meS4
+**Discord** https://discord.gg/T8s7CjPDne
 
 ### Thank you
 
