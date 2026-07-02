@@ -226,90 +226,11 @@ STEP_FUNCS = {
 }
 
 
-def check_feature_count_drift():
-    """The Features nav-dropdown description repeats a card count that
-    tools/render-features.py computes fresh every run; data/nav.json can't
-    compute anything, so warn instead of shipping a stale number silently --
-    this is exactly the class of bug that motivated this data-driven build
-    (the "41 features" copy went stale when AS112 moved to experimental)."""
-    import json
-
-    features = json.loads((GH_PAGES / "data" / "features.json").read_text())
-    core = next(s for s in features["sections"] if s["id"] == "core")
-    experimental = next(s for s in features["sections"] if s["id"] == "experimental")
-    live_count = len(core["cards"]) + len(experimental["cards"])
-
-    nav = json.loads((GH_PAGES / "data" / "nav.json").read_text())
-    project = next(d for d in nav["dropdowns"] if d["label"] == "Project")
-    features_item = next(
-        e for e in project["columns"][0] if e.get("title") == "Features"
-    )
-    if str(live_count) not in features_item["desc"]:
-        print(
-            "warning: data/nav.json Features dropdown says %r but "
-            "data/features.json has %d shipped+experimental cards -- update "
-            "the desc text in data/nav.json" % (features_item["desc"], live_count),
-            file=sys.stderr,
-        )
-
-
-def check_cli_count_drift():
-    """Same drift class as check_feature_count_drift, for the CLI Reference
-    nav item's command count -- data/cli-commands.json is regenerated fresh
-    from the binary every `cli` step run, data/nav.json's copy is not."""
-    import json
-
-    cli_data_path = GH_PAGES / "data" / "cli-commands.json"
-    if not cli_data_path.exists():
-        return
-    commands = json.loads(cli_data_path.read_text())
-    live_count = len(commands)
-
-    nav = json.loads((GH_PAGES / "data" / "nav.json").read_text())
-    project = next(d for d in nav["dropdowns"] if d["label"] == "Project")
-    cli_item = next(
-        (e for e in project["columns"][0] if e.get("title") == "CLI Reference"), None
-    )
-    if cli_item and str(live_count) not in cli_item["desc"]:
-        print(
-            "warning: data/nav.json CLI Reference dropdown says %r but "
-            "data/cli-commands.json has %d commands -- update the desc text "
-            "in data/nav.json" % (cli_item["desc"], live_count),
-            file=sys.stderr,
-        )
-
-
-def check_config_reference_drift():
-    """Same drift class again, for the Configuration Reference nav item's
-    section count -- data/yang-config-tree.json is regenerated fresh from
-    the live `ze yang tree` every `config` step run; the nav desc's number
-    is not. Checks the top-level section count (the number before
-    "sections")."""
-    import json
-
-    tree_path = GH_PAGES / "data" / "yang-config-tree.json"
-    if not tree_path.exists():
-        return
-    tree = json.loads(tree_path.read_text())
-    live_count = len(tree)
-
-    nav = json.loads((GH_PAGES / "data" / "nav.json").read_text())
-    project = next(d for d in nav["dropdowns"] if d["label"] == "Project")
-    config_item = next(
-        (
-            e
-            for e in project["columns"][0]
-            if e.get("title") == "Configuration Reference"
-        ),
-        None,
-    )
-    if config_item and str(live_count) not in config_item["desc"]:
-        print(
-            "warning: data/nav.json Configuration Reference dropdown says %r "
-            "but data/yang-config-tree.json has %d top-level sections -- "
-            "update the desc text in data/nav.json" % (config_item["desc"], live_count),
-            file=sys.stderr,
-        )
+# The Features / CLI Reference / Dependencies / Configuration Reference nav
+# counts used to be hardcoded in data/nav.json and guarded by three
+# check_*_drift() warnings here. They are now %(name)s placeholders in
+# data/nav.json substituted from sitelib.live_counts() at render time, so
+# they are always live and cannot drift -- the checks are gone with them.
 
 
 def check_homepage_proof_drift():
@@ -469,9 +390,6 @@ def main():
         )
         return 1
 
-    check_feature_count_drift()
-    check_cli_count_drift()
-    check_config_reference_drift()
     check_homepage_proof_drift()
     check_performance_stat_drift()
     check_llms_md_siblings()

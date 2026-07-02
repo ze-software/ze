@@ -1,149 +1,159 @@
 {
-  "anomaly-detect": {
+  "anomaly": {
     "children": [
       {
-        "description": "Per-entity baseline horizon in ticks (the EWMA smoothing factor is derived from it).",
-        "kind": "leaf",
-        "name": "baseline-window",
-        "source": "config",
-        "type": "uint32"
+        "children": [
+          {
+            "description": "Per-entity baseline horizon in ticks (the EWMA smoothing factor is derived from it).",
+            "kind": "leaf",
+            "name": "baseline-window",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Consecutive below-threshold ticks before an active incident clears.",
+            "kind": "leaf",
+            "name": "clear-consecutive",
+            "source": "config",
+            "type": "uint8"
+          },
+          {
+            "description": "Source-prefix length that buckets IPv4 entities into peer-group cohorts.",
+            "kind": "leaf",
+            "name": "cohort-prefix-len-v4",
+            "source": "config",
+            "type": "uint8"
+          },
+          {
+            "description": "Source-prefix length that buckets IPv6 entities into peer-group cohorts.",
+            "kind": "leaf",
+            "name": "cohort-prefix-len-v6",
+            "source": "config",
+            "type": "uint8"
+          },
+          {
+            "description": "Consecutive above-threshold ticks before an incident is confirmed and emitted.",
+            "kind": "leaf",
+            "name": "confirm-duration",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Discount applied to corroborating features when combining scores, so correlated features do not double-count.",
+            "kind": "leaf",
+            "name": "corroboration-weight",
+            "source": "config",
+            "type": "decimal-2"
+          },
+          {
+            "description": "Sigma at or above which a per-entity feature deviation fires.",
+            "kind": "leaf",
+            "name": "deviation-threshold",
+            "source": "config",
+            "type": "decimal-2"
+          },
+          {
+            "description": "Enable the behavioral anomaly detector (report-only; emits incidents, takes no action).",
+            "kind": "leaf",
+            "name": "enabled",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "description": "Minimum cohort (source-prefix bucket) members before peer-group rarity is scored; smaller cohorts fall back to self-deviation only.",
+            "kind": "leaf",
+            "name": "min-cohort-size",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Minimum distinct features that must fire on one entity/window before an incident is scored (weak-signal correlation gate).",
+            "kind": "leaf",
+            "name": "min-features-to-correlate",
+            "source": "config",
+            "type": "uint8"
+          }
+        ],
+        "description": "Report-only behavioral anomaly detector (emits incidents, takes no action).",
+        "kind": "container",
+        "name": "detect",
+        "source": "config"
       },
       {
-        "description": "Consecutive below-threshold ticks before an active incident clears.",
-        "kind": "leaf",
-        "name": "clear-consecutive",
-        "source": "config",
-        "type": "uint8"
-      },
-      {
-        "description": "Source-prefix length that buckets IPv4 entities into peer-group cohorts.",
-        "kind": "leaf",
-        "name": "cohort-prefix-len-v4",
-        "source": "config",
-        "type": "uint8"
-      },
-      {
-        "description": "Source-prefix length that buckets IPv6 entities into peer-group cohorts.",
-        "kind": "leaf",
-        "name": "cohort-prefix-len-v6",
-        "source": "config",
-        "type": "uint8"
-      },
-      {
-        "description": "Consecutive above-threshold ticks before an incident is confirmed and emitted.",
-        "kind": "leaf",
-        "name": "confirm-duration",
-        "source": "config",
-        "type": "uint16"
-      },
-      {
-        "description": "Discount applied to corroborating features when combining scores, so correlated features do not double-count.",
-        "kind": "leaf",
-        "name": "corroboration-weight",
-        "source": "config",
-        "type": "decimal-2"
-      },
-      {
-        "description": "Sigma at or above which a per-entity feature deviation fires.",
-        "kind": "leaf",
-        "name": "deviation-threshold",
-        "source": "config",
-        "type": "decimal-2"
-      },
-      {
-        "description": "Enable the behavioral anomaly detector (report-only; emits incidents, takes no action).",
-        "kind": "leaf",
-        "name": "enabled",
-        "source": "config",
-        "type": "boolean"
-      },
-      {
-        "description": "Minimum cohort (source-prefix bucket) members before peer-group rarity is scored; smaller cohorts fall back to self-deviation only.",
-        "kind": "leaf",
-        "name": "min-cohort-size",
-        "source": "config",
-        "type": "uint16"
-      },
-      {
-        "description": "Minimum distinct features that must fire on one entity/window before an incident is scored (weak-signal correlation gate).",
-        "kind": "leaf",
-        "name": "min-features-to-correlate",
-        "source": "config",
-        "type": "uint8"
+        "children": [
+          {
+            "description": "Armed action: rate-limit the source (surgical) or drop it (fallback).",
+            "kind": "leaf",
+            "name": "action",
+            "source": "config",
+            "type": "enumeration"
+          },
+          {
+            "description": "Protected source prefixes that are never armed (self-lockout guard for management / control-plane sources).",
+            "kind": "leaf-list",
+            "name": "allowlist",
+            "source": "config",
+            "type": "ip-prefix"
+          },
+          {
+            "description": "Seconds after the last signal before an armed action auto-reverts, regardless of any clear event (safety ceiling).",
+            "kind": "leaf",
+            "name": "auto-revert-ttl",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Maximum concurrently-armed live actions; further arm attempts are refused.",
+            "kind": "leaf",
+            "name": "blast-radius-cap",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "When true, revert every armed action and force the responder to shadow.",
+            "kind": "leaf",
+            "name": "kill-switch",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "description": "Burst allowance for the limit action.",
+            "kind": "leaf",
+            "name": "limit-burst",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Rate for the limit action, in packets per limit-unit.",
+            "kind": "leaf",
+            "name": "limit-rate",
+            "source": "config",
+            "type": "uint64"
+          },
+          {
+            "description": "Time unit for limit-rate.",
+            "kind": "leaf",
+            "name": "limit-unit",
+            "source": "config",
+            "type": "enumeration"
+          },
+          {
+            "description": "shadow (default): log the would-be action, install nothing. armed: install live per-source firewall actions.",
+            "kind": "leaf",
+            "name": "mode",
+            "source": "config",
+            "type": "enumeration"
+          }
+        ],
+        "description": "Autonomous responder: shadow (log-only) or armed (live per-source firewall actions).",
+        "kind": "container",
+        "name": "shape",
+        "source": "config"
       }
     ],
+    "description": "Behavioral anomaly detection and response subsystem.",
     "kind": "container",
-    "name": "anomaly-detect",
-    "source": "config"
-  },
-  "anomaly-shape": {
-    "children": [
-      {
-        "description": "Armed action: rate-limit the source (surgical) or drop it (fallback).",
-        "kind": "leaf",
-        "name": "action",
-        "source": "config",
-        "type": "enumeration"
-      },
-      {
-        "description": "Protected source prefixes that are never armed (self-lockout guard for management / control-plane sources).",
-        "kind": "leaf-list",
-        "name": "allowlist",
-        "source": "config",
-        "type": "ip-prefix"
-      },
-      {
-        "description": "Seconds after the last signal before an armed action auto-reverts, regardless of any clear event (safety ceiling).",
-        "kind": "leaf",
-        "name": "auto-revert-ttl",
-        "source": "config",
-        "type": "uint16"
-      },
-      {
-        "description": "Maximum concurrently-armed live actions; further arm attempts are refused.",
-        "kind": "leaf",
-        "name": "blast-radius-cap",
-        "source": "config",
-        "type": "uint16"
-      },
-      {
-        "description": "When true, revert every armed action and force the responder to shadow.",
-        "kind": "leaf",
-        "name": "kill-switch",
-        "source": "config",
-        "type": "boolean"
-      },
-      {
-        "description": "Burst allowance for the limit action.",
-        "kind": "leaf",
-        "name": "limit-burst",
-        "source": "config",
-        "type": "uint32"
-      },
-      {
-        "description": "Rate for the limit action, in packets per limit-unit.",
-        "kind": "leaf",
-        "name": "limit-rate",
-        "source": "config",
-        "type": "uint64"
-      },
-      {
-        "description": "Time unit for limit-rate.",
-        "kind": "leaf",
-        "name": "limit-unit",
-        "source": "config",
-        "type": "enumeration"
-      },
-      {
-        "description": "shadow (default): log the would-be action, install nothing. armed: install live per-source firewall actions.",
-        "kind": "leaf",
-        "name": "mode",
-        "source": "config",
-        "type": "enumeration"
-      }
-    ],
-    "kind": "container",
-    "name": "anomaly-shape",
+    "name": "anomaly",
     "source": "config"
   },
   "bfd": {
@@ -4904,270 +4914,278 @@
     "name": "control-plane-protection",
     "source": "config"
   },
-  "ddos-detect": {
+  "ddos": {
     "children": [
       {
-        "description": "Minimum threshold in PPS regardless of baseline.",
-        "kind": "leaf",
-        "name": "absolute-floor",
-        "source": "config",
-        "type": "uint32"
+        "children": [
+          {
+            "description": "Minimum threshold in PPS regardless of baseline.",
+            "kind": "leaf",
+            "name": "absolute-floor",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Rolling baseline window size in samples.",
+            "kind": "leaf",
+            "name": "baseline-window",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Run Stage-2 flow characterization (classify family + narrowest vector from the flow-export recent-flow ring, emit AttackCharacterized). When false the detector still emits the coarse AttackDetected target from traffic-usage.",
+            "kind": "leaf",
+            "name": "characterize-enable",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "description": "Milliseconds budget for the on-trigger traffic-usage and flow-recent queries; on timeout the detector falls back to the best available target.",
+            "kind": "leaf",
+            "name": "characterize-timeout",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Seconds of recent flows to consider when characterizing; flows last seen before this window are ignored. Flows without a timestamp are always kept.",
+            "kind": "leaf",
+            "name": "characterize-window",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Seconds between detection evaluations.",
+            "kind": "leaf",
+            "name": "check-interval",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Consecutive ticks below threshold before clearing.",
+            "kind": "leaf",
+            "name": "clear-consecutive-checks",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Consecutive ticks above threshold before triggering.",
+            "kind": "leaf",
+            "name": "confirm-duration",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Enable the DDoS detector.",
+            "kind": "leaf",
+            "name": "enabled",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "description": "Source-address Shannon entropy (bits) at or above which an attack is logged as distributed/spoofed. 0 = a single source; higher = more sources.",
+            "kind": "leaf",
+            "name": "entropy-threshold",
+            "source": "config",
+            "type": "decimal-2"
+          },
+          {
+            "description": "Seconds after startup where only extreme spikes trigger.",
+            "kind": "leaf",
+            "name": "startup-grace",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Baseline p99 multiplier for the dynamic threshold.",
+            "kind": "leaf",
+            "name": "threshold-multiplier",
+            "source": "config",
+            "type": "decimal-2"
+          },
+          {
+            "description": "Maximum number of attacker source addresses ranked into TopSources by packet volume.",
+            "kind": "leaf",
+            "name": "top-n-sources",
+            "source": "config",
+            "type": "uint16"
+          }
+        ],
+        "kind": "container",
+        "name": "detect",
+        "source": "config"
       },
       {
-        "description": "Rolling baseline window size in samples.",
-        "kind": "leaf",
-        "name": "baseline-window",
-        "source": "config",
-        "type": "uint32"
+        "children": [
+          {
+            "description": "FlowSpec traffic-action: rate-limit (non-zero rate) or discard (rate 0).",
+            "kind": "leaf",
+            "name": "action",
+            "source": "config",
+            "type": "enumeration"
+          },
+          {
+            "description": "Prefixes that must never be announced for mitigation.",
+            "kind": "leaf-list",
+            "name": "allowlist",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "Maximum FlowSpec announcements per minute.",
+            "kind": "leaf",
+            "name": "announce-rate-limit",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Maximum hold-down after exponential backoff.",
+            "kind": "leaf",
+            "name": "backoff-cap",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "When true, a critical-severity AttackDetected (peak >= 5x threshold) auto-engages an immediate upstream discard (RTBH-style) without waiting for characterization. When false (default) the upstream rule is announced only from AttackCharacterized, so it is precise before the box goes blind behind the filter.",
+            "kind": "leaf",
+            "name": "blackhole-fallback",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "description": "Minimum seconds before the first leak-probe after announcement.",
+            "kind": "leaf",
+            "name": "hold-down",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Maximum seconds a FlowSpec rule stays announced (0 = no cap).",
+            "kind": "leaf",
+            "name": "max-mitigation-duration",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Seconds between leak-probe attempts after hold-down.",
+            "kind": "leaf",
+            "name": "probe-interval",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Bits per second to allow during a leak-probe.",
+            "kind": "leaf",
+            "name": "probe-rate",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Seconds to observe leaked traffic during a probe.",
+            "kind": "leaf",
+            "name": "probe-window",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Action on attack detection: alert (log only) or enforce (announce FlowSpec).",
+            "kind": "leaf",
+            "name": "response-level",
+            "source": "config",
+            "type": "enumeration"
+          }
+        ],
+        "kind": "container",
+        "name": "flowspec",
+        "source": "config"
       },
       {
-        "description": "Run Stage-2 flow characterization (classify family + narrowest vector from the flow-export recent-flow ring, emit AttackCharacterized). When false the detector still emits the coarse AttackDetected target from traffic-usage.",
-        "kind": "leaf",
-        "name": "characterize-enable",
-        "source": "config",
-        "type": "boolean"
+        "children": [
+          {
+            "description": "Flowtriq API base URL.",
+            "kind": "leaf",
+            "name": "api-base",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "Flowtriq API bearer token.",
+            "kind": "leaf",
+            "name": "api-key",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "Enable reporting DDoS incidents to the Flowtriq cloud API.",
+            "kind": "leaf",
+            "name": "enabled",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "description": "Node UUID for Flowtriq agent identification.",
+            "kind": "leaf",
+            "name": "node-uuid",
+            "source": "config",
+            "type": "string"
+          }
+        ],
+        "kind": "container",
+        "name": "flowtriq",
+        "source": "config"
       },
       {
-        "description": "Milliseconds budget for the on-trigger traffic-usage and flow-recent queries; on timeout the detector falls back to the best available target.",
-        "kind": "leaf",
-        "name": "characterize-timeout",
-        "source": "config",
-        "type": "uint16"
+        "children": [
+          {
+            "description": "Prefixes that must never be blocked.",
+            "kind": "leaf-list",
+            "name": "allowlist",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "Maximum seconds a drop rule stays installed (0 = no cap).",
+            "kind": "leaf",
+            "name": "max-mitigation-duration",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Action on attack detection: alert (log only) or enforce (install drop rule).",
+            "kind": "leaf",
+            "name": "response-level",
+            "source": "config",
+            "type": "enumeration"
+          }
+        ],
+        "kind": "container",
+        "name": "local",
+        "source": "config"
       },
       {
-        "description": "Seconds of recent flows to consider when characterizing; flows last seen before this window are ignored. Flows without a timestamp are always kept.",
-        "kind": "leaf",
-        "name": "characterize-window",
-        "source": "config",
-        "type": "uint16"
-      },
-      {
-        "description": "Seconds between detection evaluations.",
-        "kind": "leaf",
-        "name": "check-interval",
-        "source": "config",
-        "type": "uint16"
-      },
-      {
-        "description": "Consecutive ticks below threshold before clearing.",
-        "kind": "leaf",
-        "name": "clear-consecutive-checks",
-        "source": "config",
-        "type": "uint16"
-      },
-      {
-        "description": "Consecutive ticks above threshold before triggering.",
-        "kind": "leaf",
-        "name": "confirm-duration",
-        "source": "config",
-        "type": "uint16"
-      },
-      {
-        "description": "Enable the DDoS detector.",
-        "kind": "leaf",
-        "name": "enabled",
-        "source": "config",
-        "type": "boolean"
-      },
-      {
-        "description": "Source-address Shannon entropy (bits) at or above which an attack is logged as distributed/spoofed. 0 = a single source; higher = more sources.",
-        "kind": "leaf",
-        "name": "entropy-threshold",
-        "source": "config",
-        "type": "decimal-2"
-      },
-      {
-        "description": "Seconds after startup where only extreme spikes trigger.",
-        "kind": "leaf",
-        "name": "startup-grace",
-        "source": "config",
-        "type": "uint16"
-      },
-      {
-        "description": "Baseline p99 multiplier for the dynamic threshold.",
-        "kind": "leaf",
-        "name": "threshold-multiplier",
-        "source": "config",
-        "type": "decimal-2"
-      },
-      {
-        "description": "Maximum number of attacker source addresses ranked into TopSources by packet volume.",
-        "kind": "leaf",
-        "name": "top-n-sources",
-        "source": "config",
-        "type": "uint16"
+        "children": [
+          {
+            "description": "Maximum number of incidents to retain in memory.",
+            "kind": "leaf",
+            "name": "incident-ring-size",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Seconds before an open incident without a clear event is auto-finalized.",
+            "kind": "leaf",
+            "name": "stale-incident-timeout",
+            "source": "config",
+            "type": "uint32"
+          }
+        ],
+        "kind": "container",
+        "name": "observe",
+        "source": "config"
       }
     ],
+    "description": "Distributed denial-of-service detection and mitigation subsystem.",
     "kind": "container",
-    "name": "ddos-detect",
-    "source": "config"
-  },
-  "ddos-flowspec": {
-    "children": [
-      {
-        "description": "FlowSpec traffic-action: rate-limit (non-zero rate) or discard (rate 0).",
-        "kind": "leaf",
-        "name": "action",
-        "source": "config",
-        "type": "enumeration"
-      },
-      {
-        "description": "Prefixes that must never be announced for mitigation.",
-        "kind": "leaf-list",
-        "name": "allowlist",
-        "source": "config",
-        "type": "string"
-      },
-      {
-        "description": "Maximum FlowSpec announcements per minute.",
-        "kind": "leaf",
-        "name": "announce-rate-limit",
-        "source": "config",
-        "type": "uint16"
-      },
-      {
-        "description": "Maximum hold-down after exponential backoff.",
-        "kind": "leaf",
-        "name": "backoff-cap",
-        "source": "config",
-        "type": "uint32"
-      },
-      {
-        "description": "When true, a critical-severity AttackDetected (peak >= 5x threshold) auto-engages an immediate upstream discard (RTBH-style) without waiting for characterization. When false (default) the upstream rule is announced only from AttackCharacterized, so it is precise before the box goes blind behind the filter.",
-        "kind": "leaf",
-        "name": "blackhole-fallback",
-        "source": "config",
-        "type": "boolean"
-      },
-      {
-        "description": "Minimum seconds before the first leak-probe after announcement.",
-        "kind": "leaf",
-        "name": "hold-down",
-        "source": "config",
-        "type": "uint32"
-      },
-      {
-        "description": "Maximum seconds a FlowSpec rule stays announced (0 = no cap).",
-        "kind": "leaf",
-        "name": "max-mitigation-duration",
-        "source": "config",
-        "type": "uint32"
-      },
-      {
-        "description": "Seconds between leak-probe attempts after hold-down.",
-        "kind": "leaf",
-        "name": "probe-interval",
-        "source": "config",
-        "type": "uint16"
-      },
-      {
-        "description": "Bits per second to allow during a leak-probe.",
-        "kind": "leaf",
-        "name": "probe-rate",
-        "source": "config",
-        "type": "uint32"
-      },
-      {
-        "description": "Seconds to observe leaked traffic during a probe.",
-        "kind": "leaf",
-        "name": "probe-window",
-        "source": "config",
-        "type": "uint16"
-      },
-      {
-        "description": "Action on attack detection: alert (log only) or enforce (announce FlowSpec).",
-        "kind": "leaf",
-        "name": "response-level",
-        "source": "config",
-        "type": "enumeration"
-      }
-    ],
-    "kind": "container",
-    "name": "ddos-flowspec",
-    "source": "config"
-  },
-  "ddos-flowtriq": {
-    "children": [
-      {
-        "description": "Flowtriq API base URL.",
-        "kind": "leaf",
-        "name": "api-base",
-        "source": "config",
-        "type": "string"
-      },
-      {
-        "description": "Flowtriq API bearer token.",
-        "kind": "leaf",
-        "name": "api-key",
-        "source": "config",
-        "type": "string"
-      },
-      {
-        "description": "Enable reporting DDoS incidents to the Flowtriq cloud API.",
-        "kind": "leaf",
-        "name": "enabled",
-        "source": "config",
-        "type": "boolean"
-      },
-      {
-        "description": "Node UUID for Flowtriq agent identification.",
-        "kind": "leaf",
-        "name": "node-uuid",
-        "source": "config",
-        "type": "string"
-      }
-    ],
-    "kind": "container",
-    "name": "ddos-flowtriq",
-    "source": "config"
-  },
-  "ddos-local": {
-    "children": [
-      {
-        "description": "Prefixes that must never be blocked.",
-        "kind": "leaf-list",
-        "name": "allowlist",
-        "source": "config",
-        "type": "string"
-      },
-      {
-        "description": "Maximum seconds a drop rule stays installed (0 = no cap).",
-        "kind": "leaf",
-        "name": "max-mitigation-duration",
-        "source": "config",
-        "type": "uint32"
-      },
-      {
-        "description": "Action on attack detection: alert (log only) or enforce (install drop rule).",
-        "kind": "leaf",
-        "name": "response-level",
-        "source": "config",
-        "type": "enumeration"
-      }
-    ],
-    "kind": "container",
-    "name": "ddos-local",
-    "source": "config"
-  },
-  "ddos-observe": {
-    "children": [
-      {
-        "description": "Maximum number of incidents to retain in memory.",
-        "kind": "leaf",
-        "name": "incident-ring-size",
-        "source": "config",
-        "type": "uint32"
-      },
-      {
-        "description": "Seconds before an open incident without a clear event is auto-finalized.",
-        "kind": "leaf",
-        "name": "stale-incident-timeout",
-        "source": "config",
-        "type": "uint32"
-      }
-    ],
-    "kind": "container",
-    "name": "ddos-observe",
+    "name": "ddos",
     "source": "config"
   },
   "environment": {
@@ -13732,6 +13750,35 @@
       {
         "children": [
           {
+            "description": "Enable LFA / TI-LFA fast-reroute backup computation and install.",
+            "kind": "leaf",
+            "name": "enable",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "description": "Backup computation mode: base LFA, or LFA with a TI-LFA SR-repair fallback.",
+            "kind": "leaf",
+            "name": "mode",
+            "source": "config",
+            "type": "enumeration"
+          },
+          {
+            "description": "Prefer node-protecting alternates over link-only alternates (RFC 5286 Section 3.6).",
+            "kind": "leaf",
+            "name": "node-protection",
+            "source": "config",
+            "type": "boolean"
+          }
+        ],
+        "description": "RFC 5286 Loop-Free Alternate (LFA) and TI-LFA IP fast reroute. When\nenabled, SPF pre-computes a loop-free backup next-hop alongside each\nprimary and programs it into the FIB, so a single local link or node\nfailure is repaired locally before the IGP reconverges. TI-LFA mode adds\na Segment-Routing repair-list fallback where no directly-connected LFA\nexists (requires segment-routing). Applies to OSPFv2 and OSPFv3; OSPFv3\ngets base-LFA next-hop selection (SR repair labels are IPv4 only).",
+        "kind": "container",
+        "name": "fast-reroute",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
             "children": [
               {
                 "description": "RFC 3623 Appendix B.2 RestartHelperStrictLSAChecking (sec 3.2): terminate helper mode when a changed LSA that would flood to the restarting router is installed.",
@@ -17134,180 +17181,188 @@
     "name": "telemetry",
     "source": "config"
   },
-  "traffic-control": {
+  "traffic": {
     "children": [
       {
-        "description": "Traffic control backend implementation. Default is\ntc (Linux iproute2 queueing disciplines). Future\nbackends can declare themselves via\ntraffic.RegisterBackend. The ze:backend YANG\nextension on feature nodes declares per-feature\nbackend support so the commit-time gate rejects\nconfigs that try to use unsupported qdiscs or\nfilter types.",
-        "kind": "leaf",
-        "name": "backend",
-        "source": "config",
-        "type": "string"
-      },
-      {
         "children": [
+          {
+            "description": "Traffic control backend implementation. Default is\ntc (Linux iproute2 queueing disciplines). Future\nbackends can declare themselves via\ntraffic.RegisterBackend. The ze:backend YANG\nextension on feature nodes declares per-feature\nbackend support so the commit-time gate rejects\nconfigs that try to use unsupported qdiscs or\nfilter types.",
+            "kind": "leaf",
+            "name": "backend",
+            "source": "config",
+            "type": "string"
+          },
           {
             "children": [
               {
                 "children": [
                   {
-                    "description": "Maximum rate (defaults to rate if omitted)",
-                    "kind": "leaf",
-                    "name": "ceil",
-                    "source": "config",
-                    "type": "rate-bps"
-                  },
-                  {
                     "children": [
                       {
-                        "description": "Match value (mark hex, dscp name, protocol name)",
+                        "description": "Maximum rate (defaults to rate if omitted)",
                         "kind": "leaf",
-                        "name": "value",
+                        "name": "ceil",
                         "source": "config",
-                        "type": "string"
+                        "type": "rate-bps"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "Match value (mark hex, dscp name, protocol name)",
+                            "kind": "leaf",
+                            "name": "value",
+                            "source": "config",
+                            "type": "string"
+                          }
+                        ],
+                        "description": "Filter to classify packets into this class",
+                        "kind": "list[type]",
+                        "name": "match",
+                        "source": "config"
+                      },
+                      {
+                        "description": "Scheduling priority (0 = highest)",
+                        "kind": "leaf",
+                        "name": "priority",
+                        "source": "config",
+                        "type": "uint8"
+                      },
+                      {
+                        "description": "Guaranteed rate",
+                        "kind": "leaf",
+                        "name": "rate",
+                        "source": "config",
+                        "type": "rate-bps"
                       }
                     ],
-                    "description": "Filter to classify packets into this class",
-                    "kind": "list[type]",
-                    "name": "match",
+                    "description": "Traffic class within the qdisc",
+                    "kind": "list[name]",
+                    "name": "class",
                     "source": "config"
                   },
                   {
-                    "description": "Scheduling priority (0 = highest)",
+                    "description": "Name of the default class for unclassified traffic",
                     "kind": "leaf",
-                    "name": "priority",
+                    "name": "default-class",
                     "source": "config",
-                    "type": "uint8"
+                    "type": "string"
                   },
                   {
-                    "description": "Guaranteed rate",
+                    "description": "Qdisc type",
                     "kind": "leaf",
-                    "name": "rate",
+                    "name": "type",
                     "source": "config",
-                    "type": "rate-bps"
+                    "type": "qdisc-type"
                   }
                 ],
-                "description": "Traffic class within the qdisc",
-                "kind": "list[name]",
-                "name": "class",
+                "description": "Root queueing discipline",
+                "kind": "container",
+                "name": "qdisc",
                 "source": "config"
-              },
-              {
-                "description": "Name of the default class for unclassified traffic",
-                "kind": "leaf",
-                "name": "default-class",
-                "source": "config",
-                "type": "string"
-              },
-              {
-                "description": "Qdisc type",
-                "kind": "leaf",
-                "name": "type",
-                "source": "config",
-                "type": "qdisc-type"
               }
             ],
-            "description": "Root queueing discipline",
-            "kind": "container",
-            "name": "qdisc",
-            "source": "config"
-          }
-        ],
-        "description": "Traffic control for a named interface",
-        "kind": "list[name]",
-        "name": "interface",
-        "source": "config"
-      }
-    ],
-    "description": "Per-interface traffic control configuration",
-    "kind": "container",
-    "name": "traffic-control",
-    "source": "config"
-  },
-  "traffic-usage": {
-    "children": [
-      {
-        "description": "Enable traffic-usage accounting.",
-        "kind": "leaf",
-        "name": "enabled",
-        "source": "config",
-        "type": "boolean"
-      },
-      {
-        "children": [
-          {
-            "children": [
-              {
-                "description": "Account traffic on this interface.",
-                "kind": "leaf",
-                "name": "enabled",
-                "source": "config",
-                "type": "boolean"
-              },
-              {
-                "description": "Override the global max-entries (per-map LRU capacity) for this interface (inherits when unset).",
-                "kind": "leaf",
-                "name": "max-entries",
-                "source": "config",
-                "type": "uint32"
-              },
-              {
-                "description": "Override the global stale-timeout (milliseconds; 0 disables) for this interface (inherits when unset).",
-                "kind": "leaf",
-                "name": "stale-timeout",
-                "source": "config",
-                "type": "uint32"
-              },
-              {
-                "description": "Override the global track-ip for this interface (inherits the global value when unset).",
-                "kind": "leaf",
-                "name": "track-ip",
-                "source": "config",
-                "type": "boolean"
-              }
-            ],
-            "description": "Per-interface traffic-usage accounting.",
+            "description": "Traffic control for a named interface",
             "kind": "list[name]",
             "name": "interface",
             "source": "config"
           }
         ],
-        "description": "Interfaces to account on.",
+        "description": "Per-interface traffic control configuration",
         "kind": "container",
-        "name": "interfaces",
+        "name": "control",
         "source": "config"
       },
       {
-        "description": "Map poll interval in milliseconds (100ms..1h).",
-        "kind": "leaf",
-        "name": "interval",
-        "source": "config",
-        "type": "uint32"
-      },
-      {
-        "description": "Per-map LRU capacity; least-recently-used entries are evicted beyond this, keeping top talkers.",
-        "kind": "leaf",
-        "name": "max-entries",
-        "source": "config",
-        "type": "uint32"
-      },
-      {
-        "description": "Remove a metric series unseen within this many milliseconds; 0 disables cleanup.",
-        "kind": "leaf",
-        "name": "stale-timeout",
-        "source": "config",
-        "type": "uint32"
-      },
-      {
-        "description": "Also account bytes per source (ingress) / destination (egress) IPv4. Off by default to bound metric cardinality.",
-        "kind": "leaf",
-        "name": "track-ip",
-        "source": "config",
-        "type": "boolean"
+        "children": [
+          {
+            "description": "Enable traffic-usage accounting.",
+            "kind": "leaf",
+            "name": "enabled",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "description": "Account traffic on this interface.",
+                    "kind": "leaf",
+                    "name": "enabled",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
+                    "description": "Override the global max-entries (per-map LRU capacity) for this interface (inherits when unset).",
+                    "kind": "leaf",
+                    "name": "max-entries",
+                    "source": "config",
+                    "type": "uint32"
+                  },
+                  {
+                    "description": "Override the global stale-timeout (milliseconds; 0 disables) for this interface (inherits when unset).",
+                    "kind": "leaf",
+                    "name": "stale-timeout",
+                    "source": "config",
+                    "type": "uint32"
+                  },
+                  {
+                    "description": "Override the global track-ip for this interface (inherits the global value when unset).",
+                    "kind": "leaf",
+                    "name": "track-ip",
+                    "source": "config",
+                    "type": "boolean"
+                  }
+                ],
+                "description": "Per-interface traffic-usage accounting.",
+                "kind": "list[name]",
+                "name": "interface",
+                "source": "config"
+              }
+            ],
+            "description": "Interfaces to account on.",
+            "kind": "container",
+            "name": "interfaces",
+            "source": "config"
+          },
+          {
+            "description": "Map poll interval in milliseconds (100ms..1h).",
+            "kind": "leaf",
+            "name": "interval",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Per-map LRU capacity; least-recently-used entries are evicted beyond this, keeping top talkers.",
+            "kind": "leaf",
+            "name": "max-entries",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Remove a metric series unseen within this many milliseconds; 0 disables cleanup.",
+            "kind": "leaf",
+            "name": "stale-timeout",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Also account bytes per source (ingress) / destination (egress) IPv4. Off by default to bound metric cardinality.",
+            "kind": "leaf",
+            "name": "track-ip",
+            "source": "config",
+            "type": "boolean"
+          }
+        ],
+        "description": "Per-interface eBPF TCX byte accounting (port/protocol always; per-IP via track-ip).",
+        "kind": "container",
+        "name": "usage",
+        "source": "config"
       }
     ],
-    "description": "Per-interface eBPF TCX byte accounting (port/protocol always; per-IP via track-ip).",
+    "description": "Traffic subsystem: QoS control and byte-usage accounting.",
     "kind": "container",
-    "name": "traffic-usage",
+    "name": "traffic",
     "source": "config"
   },
   "vpn": {

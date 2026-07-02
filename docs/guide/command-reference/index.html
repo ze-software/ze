@@ -39,7 +39,7 @@
                         </a>
                         <a class="nav-dropdown-item" href="../../../cli/">
                             <span class="nav-dropdown-icon">⌨️</span>
-                            <span><strong>CLI Reference</strong><small>350 commands, generated from the live binary</small></span>
+                            <span><strong>CLI Reference</strong><small>376 commands, generated from the live binary</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../../dependencies/">
                             <span class="nav-dropdown-icon">📦</span>
@@ -47,7 +47,7 @@
                         </a>
                         <a class="nav-dropdown-item" href="../../../config-reference/">
                             <span class="nav-dropdown-icon">🧬</span>
-                            <span><strong>Configuration Reference</strong><small>The whole config as a searchable tree: 41 sections from live YANG</small></span>
+                            <span><strong>Configuration Reference</strong><small>The whole config as a searchable index: 35 sections from live YANG</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../../performance/">
                             <span class="nav-dropdown-icon">⚡</span>
@@ -927,12 +927,12 @@ interfaces are hidden from both the response and the valid-types list.</p>
 whose <code>RxErrors</code>, <code>RxDropped</code>, <code>TxErrors</code>, <code>TxDropped</code> counters are all
 zero. The response includes only the four counter fields per interface
 for compact diffing across snapshots.</p>
-<h3>show traffic</h3>
+<h3>show traffic control</h3>
 <p>Traffic control (TC) state. Queries the active TC backend for qdisc, class,
 and filter state per interface. Returns "traffic control not available on
 this platform" when no TC backend is loaded (e.g. on macOS).</p>
-<pre><code>ze show traffic                   # Summary of all interfaces with qdiscs
-ze show traffic &lt;ifname&gt;          # Detail for one interface
+<pre><code>ze show traffic control            # Summary of all interfaces with qdiscs
+ze show traffic control &lt;ifname&gt;   # Detail for one interface
 </code></pre>
 <h3>show flow-export</h3>
 <p>Per-collector flow export statistics for the <code>flowexport</code> component (sFlow v5,
@@ -981,7 +981,7 @@ one source.</p>
 <pre><code>show traffic-feature                  # Top source entities
 show traffic-feature name &lt;address&gt;   # One source by address
 </code></pre>
-<h3>show anomaly</h3>
+<h3>show anomaly detect</h3>
 <!-- source: internal/plugins/anomaly/detect/show.go -- handleShowAnomaly, ze-show:anomaly -->
 
 <p>Recent behavioral anomaly incidents from the report-only <code>anomaly-detect</code> plugin.
@@ -989,23 +989,23 @@ Returns <code>{"enabled": bool, "incidents": [{entity, cohort, score, severity,
 at, fired-features: [{name, z}]}]}</code>; the ring is empty until an entity's
 correlated deviation confirms. The detector reports only; the <code>anomaly/shape</code>
 responder acts on these incidents.</p>
-<pre><code>show anomaly                          # Recent anomaly incidents
+<pre><code>show anomaly detect                   # Recent anomaly incidents
 </code></pre>
-<h3>show anomaly-shape</h3>
+<h3>show anomaly shape</h3>
 <!-- source: internal/plugins/anomaly/shape/show.go -- handleShowAnomalyShape, ze-show:anomaly-shape -->
 
 <p>Status of the shadow-first anomaly responder. Returns <code>{"enabled": bool, "mode":
 "shadow"|"armed", "action": "limit"|"drop", "kill-switch": bool, "armed-count": N,
 "armed": [source, ...]}</code>. In shadow mode (default) nothing is installed; armed
 sources carry a live rate-limit with a timed auto-revert.</p>
-<pre><code>show anomaly-shape                    # Responder mode + armed sources
+<pre><code>show anomaly shape                    # Responder mode + armed sources
 </code></pre>
-<h3>show traffic-usage</h3>
+<h3>show traffic usage</h3>
 <p>Per-interface eBPF byte accounting for the <code>traffic-usage</code> plugin (TCX
 per-port/protocol, and per-IP when <code>track-ip</code> is enabled). Returns
-<code>{"status": "not-configured"}</code> when no <code>traffic-usage { }</code> section is present.</p>
-<pre><code>ze show traffic-usage                 # All monitored interfaces
-ze show traffic-usage name &lt;interface&gt;# One interface by name
+<code>{"status": "not-configured"}</code> when no <code>traffic { usage { } }</code> section is present.</p>
+<pre><code>ze show traffic usage                 # All monitored interfaces
+ze show traffic usage name &lt;interface&gt;# One interface by name
 </code></pre>
 <p>Each entry reports <code>ingress-ports</code>, <code>egress-ports</code>, <code>map-entries</code>, and (only
 when <code>track-ip</code> is enabled) <code>ingress-ips</code> and <code>egress-ips</code>. JSON by default;

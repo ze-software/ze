@@ -81,6 +81,45 @@ def find_registration_blocks(text):
             i += 1
 
 
+def strip_go_comments(text):
+    """Remove // line and /* */ block comments, copying string, rune, and
+    raw literals verbatim so a `//` or `)` inside a string survives. Needed
+    because a `)` in a comment inside a `const ( ... )` block would otherwise
+    truncate CONST_BLOCK_RE's non-paren match before it reaches the const."""
+    out = []
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        if c in "\"'`":
+            out.append(c)
+            i += 1
+            while i < n:
+                ch = text[i]
+                out.append(ch)
+                if ch == "\\" and c != "`":  # escape inside "" or '' literals
+                    if i + 1 < n:
+                        out.append(text[i + 1])
+                        i += 2
+                        continue
+                i += 1
+                if ch == c:
+                    break
+            continue
+        if c == "/" and i + 1 < n and text[i + 1] == "/":
+            while i < n and text[i] != "\n":
+                i += 1
+            continue
+        if c == "/" and i + 1 < n and text[i + 1] == "*":
+            i += 2
+            while i + 1 < n and not (text[i] == "*" and text[i + 1] == "/"):
+                i += 1
+            i += 2
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
 def build_symbol_table(package_dir):
     """const/var NAME = "literal" declarations across every non-test .go
     file in a plugin's package directory (single-line and grouped const()
@@ -90,7 +129,7 @@ def build_symbol_table(package_dir):
     for go_file in package_dir.glob("*.go"):
         if go_file.name.endswith("_test.go"):
             continue
-        text = go_file.read_text(errors="replace")
+        text = strip_go_comments(go_file.read_text(errors="replace"))
         for name, value in CONST_SINGLE_RE.findall(text):
             symbols.setdefault(name, unquote(value))
         for block in CONST_BLOCK_RE.findall(text):

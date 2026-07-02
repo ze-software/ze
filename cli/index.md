@@ -1,6 +1,6 @@
 # CLI Reference
 
-350 commands across 46 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.github.io/ze/data/cli-commands.json).
+376 commands across 46 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.github.io/ze/data/cli-commands.json).
 
 ## announce (1)
 
@@ -35,14 +35,6 @@
 | `clear ospf process` | Daemon | Full OSPF reset: tear down every adjacency and re-run SPF. Usage: clear ospf process. Adjacencies re-form from the next Hello; the configuration is unchanged. |
 | `clear vpn ipsec sa` | Daemon | Tear down IKE Security Associations. Without arguments, terminates all SAs. Use 'peer <name>' to clear just one peer. The tunnel will renegotiate automatically if the config is still active. |
 
-## command (3)
-
-| Command | Mode | Description |
-| --- | --- | --- |
-| `command complete` | Read-only | Get tab-completion candidates for a partial command. Returns possible completions for the given input. Used internally by the CLI editor, but also callable for scripting. |
-| `command help` | Read-only | Show usage and arguments for a specific command. Gives you the full description, expected arguments, and usage pattern for one command. |
-| `command list` | Read-only | List every command the daemon knows about. Returns dispatch key and description for each. Useful for scripting or discovering commands not shown in the top-level help. |
-
 ## config (1)
 
 | Command | Mode | Description |
@@ -62,6 +54,15 @@
 | `create interface dummy unit` | Daemon | Create a dummy interface (if needed) and add a VLAN sub-interface. Usage: create interface dummy <name> unit <vid>. |
 | `create interface unit` | Daemon | Add a VLAN sub-interface (802.1Q tagged). Usage: create interface <parent> unit <vid>. Parent must already exist. |
 | `create interface veth` | Daemon | Create a veth pair (two linked virtual Ethernet interfaces). Usage: create interface veth <name> <peer>. |
+
+## debug (4)
+
+| Command | Mode | Description |
+| --- | --- | --- |
+| `debug ip ospf inject opaque` | Daemon | Inject a crafted IPv4 opaque LSA into the local LSDB (RFC 5250). Usage: debug ip ospf inject opaque scope <link\|area\|as> id <opaque-id> [type <128-255>] [hex <body> \| tlv <type> <value-hex> ...] [withdraw]. The default Opaque Type is Private-Use so a test LSA never collides with a standards-track consumer. Requires `debug ospf inject enable`. |
+| `debug ipv6 ospf inject lsa` | Daemon | Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340). Usage: debug ipv6 ospf inject lsa scope <link\|area\|as> type <ls-type> id <link-state-id> [hex <body>] [withdraw]. The flooding scope is derived from the LS Type S2/S1 bits (a reserved scope is rejected). Requires `debug ospf inject enable`. |
+| `debug ospf inject disable` | Daemon | Disable OSPF debug LSA injection. Usage: debug ospf inject disable. |
+| `debug ospf inject enable` | Daemon | Enable OSPF debug LSA injection (shared across both address families). Off by default. Usage: debug ospf inject enable. |
 
 ## delete (6)
 
@@ -357,7 +358,7 @@
 | `show l2tp tunnel-history` | Read-only | Show state transitions for a tunnel over time. Timestamped FSM entries showing how the tunnel reached its current state. Use this to diagnose tunnel establishment failures. |
 | `show l2tp tunnels` | Read-only | List all active L2TP tunnels. One line per tunnel: local/remote ID, peer address, session count, and uptime. |
 
-## show ospf (27)
+## show ospf (49)
 
 | Command | Mode | Description |
 | --- | --- | --- |
@@ -369,23 +370,45 @@
 | `show ospf database network` | Read-only | Show only Network-LSAs (Type 2). |
 | `show ospf database nssa-external` | Read-only | Show only NSSA-external-LSAs (Type 7, RFC 3101). |
 | `show ospf database opaque-area` | Read-only | Show only area-scope opaque-LSAs (Type 10, RFC 5250). |
+| `show ospf database opaque-area detail` | Read-only | Decode each area-scope opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250). |
 | `show ospf database opaque-as` | Read-only | Show only AS-scope opaque-LSAs (Type 11, RFC 5250). |
+| `show ospf database opaque-as detail` | Read-only | Decode each AS-scope opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250). |
 | `show ospf database opaque-link` | Read-only | Show only link-local opaque-LSAs (Type 9, RFC 5250). |
+| `show ospf database opaque-link detail` | Read-only | Decode each link-local opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250). |
 | `show ospf database router` | Read-only | Show only Router-LSAs (Type 1). |
 | `show ospf database router-information` | Read-only | Show the Router Information LSAs (RFC 7770) for both address families -- OSPFv2 opaque type 4 and OSPFv3 function code 12 -- decoded into the advertised informational capability bits and the TLV list. |
 | `show ospf database summary` | Read-only | Show only Summary-LSAs (Type 3, inter-area network). |
 | `show ospf graceful-restart` | Read-only | Show OSPFv2 (IPv4) Graceful Restart state (RFC 3623): the restarter state (in-restart or not, grace end, reason) and the per-neighbor helper sessions (which neighbors are being helped and their remaining grace). |
 | `show ospf instance` | Read-only | Show the configured OSPFv2 instances (RFC 6549 Multi-Instance). Lists each Instance ID with its router-id and the size of its isolated area, interface, neighbor, and link-state database state. |
 | `show ospf interface` | Read-only | Show OSPF-enabled interfaces. Returns area, network-type, cost, ISM state, DR/BDR, hello/dead intervals, priority, and passive flag per interface. |
+| `show ospf interface detail` | Read-only | Show full per-interface state (spec-ospf-ext-14): ISM, DR/BDR election detail, all three timers, and the opaque-capable neighbour count. |
 | `show ospf ipv6` | Read-only | Show the OSPFv3 (IPv6) address-family instances (RFC 5838). Lists each configured address family (ipv6-unicast, ipv6-multicast, ipv4-unicast, ipv4-multicast) with its Instance ID, router-id, and neighbor/interface counts, so multiple AF instances on a link are distinguishable. |
+| `show ospf ipv6 database` | Read-only | Show the OSPFv3 (IPv6) link-state database with each native scope-aware LSA decoded (RFC 5340). Base types decode into named fields; unknown function codes fall back to a scope-aware header + body-hex view (spec-ospf-ext-14). |
+| `show ospf ipv6 database detail` | Read-only | Decode every OSPFv3 LSA body with its scope-aware header (RFC 5340 section A.4.2.1). |
+| `show ospf ipv6 database extended` | Read-only | Show the RFC 8362 extended OSPFv3 LSAs (E-Router / E-Network / E-Inter-Area / E-AS-External / E-Link / E-Intra-Area-Prefix) decoded into named TLVs. |
+| `show ospf ipv6 database router detail` | Read-only | Decode each OSPFv3 Router-LSA body. |
+| `show ospf ipv6 database router-information` | Read-only | Show the OSPFv3 Router Information LSAs (RFC 7770, function code 12) decoded into capability bits and TLVs. |
+| `show ospf ipv6 database scope area` | Read-only | Show only area-scope (S2/S1 = 01) LSAs. |
+| `show ospf ipv6 database scope as` | Read-only | Show only AS-scope (S2/S1 = 10) LSAs. |
+| `show ospf ipv6 database scope link` | Read-only | Show only link-local (S2/S1 = 00) LSAs, including the per-interface Link-LSA store. |
+| `show ospf ipv6 database segment-routing` | Read-only | Summarise the OSPFv3 Segment Routing content (RFC 8666) carried in the RI and extended LSAs. |
 | `show ospf ipv6 graceful-restart` | Read-only | Show OSPFv3 (IPv6) Graceful Restart state (RFC 5187): the restarter state (in-restart or not, grace end, reason) and the per-neighbor helper sessions (which neighbors are being helped and their remaining grace). |
+| `show ospf ipv6 instance` | Read-only | Enumerate the active OSPFv3 address-family instances (RFC 5838 section 2): each with its address family, Instance ID, area count, and neighbor count. |
 | `show ospf ipv6 interface` | Read-only | Show OSPFv3 (IPv6-family) interfaces and their RFC 4552 IPsec status. Returns per interface whether IPsec is configured, the protocol (ah/esp) and SPI, and whether the kernel SA is installed. The key is never shown. |
+| `show ospf ipv6 interface detail` | Read-only | Show full per-interface OSPFv3 state (spec-ospf-ext-14): ISM, DR/BDR by Router ID, timers, the local Interface ID and Instance ID. |
+| `show ospf ipv6 neighbor` | Read-only | Show OSPFv3 (IPv6) neighbors: the link-local address as identity, adjacency state, DR/BDR by Router ID, and dead time. |
+| `show ospf ipv6 neighbor detail` | Read-only | Show full per-neighbor OSPFv3 state (spec-ospf-ext-14): the advertised Interface ID, DD sequence, decoded Options (R/V6/E/N/AF), list sizes, last NSM event, and timers. |
 | `show ospf ipv6 segment-routing` | Read-only | Show OSPFv3 (IPv6) Segment Routing state (RFC 8666): the configured SRGB/SRLB label ranges, the advertised SR-Algorithm, this node's node Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency. |
+| `show ospf ipv6 spf` | Read-only | Show the OSPFv3 (IPv6) per-area SPF run history. |
+| `show ospf ipv6 spf detail` | Read-only | Explain why each OSPFv3 route won (spec-ospf-ext-14), AF/Instance-ID tagged; read-only. |
 | `show ospf ldp-sync` | Read-only | Show OSPF LDP-IGP synchronization state (RFC 5443, RFC 6138). Lists each ldp-sync interface with its state (not-synchronized / hold-down / synchronized), remaining hold-down, effective metric, and whether it is stuck not-synchronized after having been synchronized. |
 | `show ospf neighbor` | Read-only | Show OSPF neighbors. Returns each neighbor's router-id, interface, adjacency state, DR/BDR, priority, dead time, and address. |
+| `show ospf neighbor detail` | Read-only | Show full per-neighbor state (spec-ospf-ext-14): DD sequence, decoded Options (incl. the RFC 5250 O-bit), request/summary list sizes, last NSM event, and timers. |
 | `show ospf route` | Read-only | Show OSPF-computed routes. Lists each prefix with its path type (intra/inter/external-1/2), cost, next-hops, and area. |
+| `show ospf route fast-reroute` | Read-only | Show OSPF fast-reroute (LFA / TI-LFA) backups (RFC 5286). Lists each prefix's primary next-hops with their pre-computed loop-free backup, protection class (node/link/downstream), and TI-LFA repair label stack. Unprotected primaries are shown as unprotected. |
 | `show ospf segment-routing` | Read-only | Show OSPFv2 (IPv4) Segment Routing state (RFC 8665): the configured SRGB/SRLB label ranges, the advertised SR-Algorithm, this node's node Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency. |
 | `show ospf spf` | Read-only | Show recent OSPF SPF runs. Returns the most recent per-area SPF runs with their timestamp, duration, node count, and pending state. |
+| `show ospf spf detail` | Read-only | Explain why each route won (spec-ospf-ext-14): the candidate paths considered per prefix, the winning cost, and the RFC 2328 section 16.4 path-preference tie-break. Read-only; the route table and SPF run count are unchanged. |
 | `show ospf te-database` | Read-only | Show the OSPF Traffic Engineering Database (RFC 3630 / RFC 5392): router addresses plus TE links with their Link ID, local/remote address, link type, TE metric, bandwidths, admin group, and (for inter-AS links) remote AS and remote ASBR. |
 | `show ospf virtual-links` | Read-only | Show OSPF virtual links (RFC 2328 section 15). Lists each configured virtual link with its transit area, remote router-id, adjacency state, computed cost, and transit next hop. |
 
@@ -448,14 +471,14 @@
 | `show vpp trace show` | Read-only | Retrieve packets captured since the last trace start. Shows per-packet VPP graph node traversal. Requires the VPP backend. |
 | `show vpp trace start` | Read-only | Start capturing packets in the VPP dataplane. Default input node is dpdk-input, default count is 100 (max 10000). After starting, use 'show vpp trace show' to retrieve the captured packets. Requires the VPP backend. |
 
-## show (other) (75)
+## show (other) (78)
 
 | Command | Mode | Description |
 | --- | --- | --- |
 | `show aaa accounting` | Read-only | Show AAA accounting counters and any dropped records. Tells you whether TACACS+ accounting is working or if records are being lost due to server unreachability. |
 | `show announcements` | Read-only | List active on-demand announcements. Usage: show announcements [tag <key>] [selector <pattern>] [family <fam>] |
-| `show anomaly` | Read-only | Show recent behavioral anomaly incidents (report-only): source entity, cohort, fired features with their deviation z-scores, combined score, and severity. The detector reports; the anomaly/shape responder (Spec 2b) acts. |
-| `show anomaly-shape` | Read-only | Show the shadow-first anomaly responder status: mode (shadow/armed), action, kill-switch state, and the currently armed source entities with live firewall actions. |
+| `show anomaly detect` | Read-only | Show recent behavioral anomaly incidents (report-only): source entity, cohort, fired features with their deviation z-scores, combined score, and severity. The detector reports; the anomaly/shape responder (Spec 2b) acts. |
+| `show anomaly shape` | Read-only | Show the shadow-first anomaly responder status: mode (shadow/armed), action, kill-switch state, and the currently armed source entities with live firewall actions. |
 | `show arp` | Read-only | Show the IPv4 ARP table (shortcut for 'show neighbor ipv4'). Lists IPv4 ARP entries with MAC address and state. ARP is IPv4-only; use 'show neighbor' for both families or 'show neighbor ipv6' for the IPv6 ND table. |
 | `show as112` | Read-only | AS112 node status: enabled, address-family, hostname/ facility/location, allow-from count, served zone count, and the current SOA serial. |
 | `show audit` | Read-only | Show who did what and when on this box. Returns audit log entries with timestamps, actors, and actions. Filters (all optional, combinable): action <type>, actor <name>, surface <name> (cli, web, api), since/until <RFC3339>, count <N>. Actions include config-commit, login, peer-teardown, and more. |
@@ -464,6 +487,9 @@
 | `show capture` | Read-only | Show captured control-plane messages. Returns protocol messages you previously enabled capture for. Without a protocol keyword, shows all protocols. Filters: tunnel-id (L2TP), peer (remote address), count (limit entries). Use this to debug session establishment issues. |
 | `show capture interface` | Read-only | Capture live packets on an interface (like tcpdump). Uses AF_PACKET for zero-copy capture. Filter by protocol and port. Limit with count or duration. Output as pcap (for Wireshark) or text. Snap-len controls how many bytes per packet are captured. |
 | `show capture raw` | Read-only | Control raw byte capture for protocol debugging. Actions: start (begin capturing), stop (halt), dump (retrieve). Protocols: l2tp, bgp. Output formats: pcap (for Wireshark), json. Limit with count <N>. |
+| `show command complete` | Read-only | Get tab-completion candidates for a partial command. Returns possible completions for the given input. Used internally by the CLI editor, but also callable for scripting. |
+| `show command help` | Read-only | Show usage and arguments for a specific command. Gives you the full description, expected arguments, and usage pattern for one command. |
+| `show command list` | Read-only | List every command the daemon knows about. Returns dispatch key and description for each. Useful for scripting or discovering commands not shown in the top-level help. |
 | `show crashes` | Read-only | View saved crash reports from panics. Without arguments, lists available crash files. Use 'latest' to see the newest crash or 'name <filename>' to print one specific report. Send the output to support when reporting a crash. |
 | `show data cat` | Read-only | Print the raw content of a blob store entry. Usage: show data cat <key>. Outputs the value for the given key, like 'cat' for ZeFS. |
 | `show data ls` | Read-only | List everything stored in the ZeFS blob store. Shows all keys and their sizes. Use 'show data cat <key>' to see the content of a specific entry. |
@@ -514,10 +540,10 @@
 | `show subscriber id detail` | Read-only | Show everything about one subscriber session. Pass the session ID. Returns access type, assigned addresses, authentication state, uptime, and traffic counters. |
 | `show tcp-check` | Read-only | Test TCP connectivity to a remote host and port. Tries to open a TCP connection and reports success or failure with the connection time. Use 'source <IP>' to bind a specific local address. Quick way to verify a peer's BGP port is reachable. |
 | `show traceroute` | Read-only | Trace the network path from this router to a target. Shows each hop with its IP and round-trip time. Dest can be an IP or hostname. Defaults: 30 max hops, 3 probes per hop. Increase probes for more reliable RTT measurements. |
-| `show traffic` | Read-only | Show traffic control (QoS) configuration per interface. Without arguments, lists every interface with its qdisc type and class/filter counts. With an interface name, shows the full qdisc and class breakdown. Use this to verify your shaping is applied. |
+| `show traffic control` | Read-only | Show traffic control (QoS) configuration per interface. Without arguments, lists every interface with its qdisc type and class/filter counts. With an interface name, shows the full qdisc and class breakdown. Use this to verify your shaping is applied. |
+| `show traffic usage` | Read-only | Show per-interface traffic byte counters captured by eBPF TCX. Per destination/source port and protocol counters are always present; per-IP top-talker counters appear when track-ip is enabled. Without arguments, lists all monitored interfaces. With 'name <interface>', shows that one interface. |
 | `show traffic-feature` | Read-only | Show neutral per-source traffic feature signals: fan-out (distinct destinations), out/in byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto, and coarse beaconing. Without arguments, shows the top source entities. With 'name <address>', filters to one source. |
 | `show traffic-stat` | Read-only | Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity). Without arguments, shows all interfaces. With 'name <interface>', filters to one interface. |
-| `show traffic-usage` | Read-only | Show per-interface traffic byte counters captured by eBPF TCX. Per destination/source port and protocol counters are always present; per-IP top-talker counters appear when track-ip is enabled. Without arguments, lists all monitored interfaces. With 'name <interface>', shows that one interface. |
 | `show uptime` | Read-only | Show how long the daemon has been running. Returns the start time and elapsed uptime. Handy after a maintenance window to confirm the process restarted. |
 | `show version` | Read-only | Show the running Ze version and build date. You can verify which release is deployed on this box. |
 | `show vpn ipsec peer name` | Read-only | Show full detail for one IPsec peer. Returns IKE SA state, all child SAs with traffic selectors, and byte counts. Usage: show vpn ipsec peer name <name>. |

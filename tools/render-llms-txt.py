@@ -147,9 +147,7 @@ def render(nav):
                 % (md_url, live_blog_count(), web_url)
             )
         else:
-            more_lines.append(
-                "- [%s](%s) (web: %s)" % (link["label"], md_url, web_url)
-            )
+            more_lines.append("- [%s](%s) (web: %s)" % (link["label"], md_url, web_url))
     more_lines.append("- [Discord](%s): community and support" % sitelib.DISCORD_INVITE)
     more_lines.append(
         "- [GitHub](https://github.com/%s): mirror, issues" % sitelib.GITHUB_REPO
@@ -164,7 +162,9 @@ def render(nav):
 
 
 def main():
-    nav = json.loads((DATA_DIR / "nav.json").read_text())
+    # Via sitelib so nav desc %(name)s count placeholders are substituted
+    # with live values (same as the mega-menu), not left as raw templates.
+    nav = sitelib.load_nav_data()
     render(nav)
     return 0
 

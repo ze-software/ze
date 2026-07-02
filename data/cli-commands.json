@@ -146,27 +146,6 @@
     "global-pipes": true
   },
   {
-    "path": "command complete",
-    "description": "Get tab-completion candidates for a partial command.\nReturns possible completions for the given input. Used internally\nby the CLI editor, but also callable for scripting.",
-    "mode": "read-only",
-    "wire-method": "ze-bgp:command-complete",
-    "global-pipes": true
-  },
-  {
-    "path": "command help",
-    "description": "Show usage and arguments for a specific command.\nGives you the full description, expected arguments, and usage\npattern for one command.",
-    "mode": "read-only",
-    "wire-method": "ze-bgp:command-help",
-    "global-pipes": true
-  },
-  {
-    "path": "command list",
-    "description": "List every command the daemon knows about.\nReturns dispatch key and description for each. Useful for scripting\nor discovering commands not shown in the top-level help.",
-    "mode": "read-only",
-    "wire-method": "ze-bgp:command-list",
-    "global-pipes": true
-  },
-  {
     "path": "config archive",
     "description": "Save a snapshot of the current running configuration.\nCaptures the config into the store for later rollback or comparison.\nOptional name labels the snapshot; defaults to a timestamp.",
     "mode": "daemon",
@@ -326,6 +305,34 @@
         "mandatory": true
       }
     ],
+    "global-pipes": true
+  },
+  {
+    "path": "debug ip ospf inject opaque",
+    "description": "Inject a crafted IPv4 opaque LSA into the local LSDB (RFC 5250).\nUsage: debug ip ospf inject opaque scope <link|area|as> id <opaque-id>\n[type <128-255>] [hex <body> | tlv <type> <value-hex> ...] [withdraw].\nThe default Opaque Type is Private-Use so a test LSA never collides with a\nstandards-track consumer. Requires `debug ospf inject enable`.",
+    "mode": "daemon",
+    "wire-method": "ze-debug:ospf-inject",
+    "global-pipes": true
+  },
+  {
+    "path": "debug ipv6 ospf inject lsa",
+    "description": "Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340).\nUsage: debug ipv6 ospf inject lsa scope <link|area|as> type <ls-type>\nid <link-state-id> [hex <body>] [withdraw]. The flooding scope is derived from\nthe LS Type S2/S1 bits (a reserved scope is rejected). Requires\n`debug ospf inject enable`.",
+    "mode": "daemon",
+    "wire-method": "ze-debug:ospfv3-inject",
+    "global-pipes": true
+  },
+  {
+    "path": "debug ospf inject disable",
+    "description": "Disable OSPF debug LSA injection. Usage: debug ospf inject disable.",
+    "mode": "daemon",
+    "wire-method": "ze-debug:ospf-inject-disable",
+    "global-pipes": true
+  },
+  {
+    "path": "debug ospf inject enable",
+    "description": "Enable OSPF debug LSA injection (shared across both address\nfamilies). Off by default. Usage: debug ospf inject enable.",
+    "mode": "daemon",
+    "wire-method": "ze-debug:ospf-inject-enable",
     "global-pipes": true
   },
   {
@@ -1114,14 +1121,14 @@
     "global-pipes": true
   },
   {
-    "path": "show anomaly",
+    "path": "show anomaly detect",
     "description": "Show recent behavioral anomaly incidents (report-only): source entity, cohort,\nfired features with their deviation z-scores, combined score, and severity. The detector reports;\nthe anomaly/shape responder (Spec 2b) acts.",
     "mode": "read-only",
     "wire-method": "ze-show:anomaly",
     "global-pipes": true
   },
   {
-    "path": "show anomaly-shape",
+    "path": "show anomaly shape",
     "description": "Show the shadow-first anomaly responder status: mode (shadow/armed), action,\nkill-switch state, and the currently armed source entities with live firewall actions.",
     "mode": "read-only",
     "wire-method": "ze-show:anomaly-shape",
@@ -1735,6 +1742,27 @@
         ]
       }
     ],
+    "global-pipes": true
+  },
+  {
+    "path": "show command complete",
+    "description": "Get tab-completion candidates for a partial command.\nReturns possible completions for the given input. Used internally\nby the CLI editor, but also callable for scripting.",
+    "mode": "read-only",
+    "wire-method": "ze-bgp:command-complete",
+    "global-pipes": true
+  },
+  {
+    "path": "show command help",
+    "description": "Show usage and arguments for a specific command.\nGives you the full description, expected arguments, and usage\npattern for one command.",
+    "mode": "read-only",
+    "wire-method": "ze-bgp:command-help",
+    "global-pipes": true
+  },
+  {
+    "path": "show command list",
+    "description": "List every command the daemon knows about.\nReturns dispatch key and description for each. Useful for scripting\nor discovering commands not shown in the top-level help.",
+    "mode": "read-only",
+    "wire-method": "ze-bgp:command-list",
     "global-pipes": true
   },
   {
@@ -2553,6 +2581,16 @@
     "description": "Show only area-scope opaque-LSAs (Type 10, RFC 5250).",
     "mode": "read-only",
     "wire-method": "ze-show:ospf-database-opaque-area",
+    "global-pipes": true,
+    "subcommands": [
+      "detail"
+    ]
+  },
+  {
+    "path": "show ospf database opaque-area detail",
+    "description": "Decode each area-scope opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database-opaque-area-detail",
     "global-pipes": true
   },
   {
@@ -2560,6 +2598,16 @@
     "description": "Show only AS-scope opaque-LSAs (Type 11, RFC 5250).",
     "mode": "read-only",
     "wire-method": "ze-show:ospf-database-opaque-as",
+    "global-pipes": true,
+    "subcommands": [
+      "detail"
+    ]
+  },
+  {
+    "path": "show ospf database opaque-as detail",
+    "description": "Decode each AS-scope opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database-opaque-as-detail",
     "global-pipes": true
   },
   {
@@ -2567,6 +2615,16 @@
     "description": "Show only link-local opaque-LSAs (Type 9, RFC 5250).",
     "mode": "read-only",
     "wire-method": "ze-show:ospf-database-opaque-link",
+    "global-pipes": true,
+    "subcommands": [
+      "detail"
+    ]
+  },
+  {
+    "path": "show ospf database opaque-link detail",
+    "description": "Decode each link-local opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-database-opaque-link-detail",
     "global-pipes": true
   },
   {
@@ -2609,6 +2667,16 @@
     "description": "Show OSPF-enabled interfaces.\nReturns area, network-type, cost, ISM state, DR/BDR, hello/dead\nintervals, priority, and passive flag per interface.",
     "mode": "read-only",
     "wire-method": "ze-show:ospf-interface",
+    "global-pipes": true,
+    "subcommands": [
+      "detail"
+    ]
+  },
+  {
+    "path": "show ospf interface detail",
+    "description": "Show full per-interface state (spec-ospf-ext-14): ISM, DR/BDR election detail, all three timers, and the opaque-capable neighbour count.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-interface-detail",
     "global-pipes": true
   },
   {
@@ -2618,10 +2686,85 @@
     "wire-method": "ze-show:ospf-ipv6",
     "global-pipes": true,
     "subcommands": [
+      "database",
       "graceful-restart",
+      "instance",
       "interface",
+      "neighbor",
+      "segment-routing",
+      "spf"
+    ]
+  },
+  {
+    "path": "show ospf ipv6 database",
+    "description": "Show the OSPFv3 (IPv6) link-state database with each native scope-aware LSA decoded (RFC 5340). Base types decode into named fields; unknown function codes fall back to a scope-aware header + body-hex view (spec-ospf-ext-14).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-database",
+    "global-pipes": true,
+    "subcommands": [
+      "detail",
+      "extended",
+      "router",
+      "router-information",
+      "scope",
       "segment-routing"
     ]
+  },
+  {
+    "path": "show ospf ipv6 database detail",
+    "description": "Decode every OSPFv3 LSA body with its scope-aware header (RFC 5340 section A.4.2.1).",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-database-detail",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf ipv6 database extended",
+    "description": "Show the RFC 8362 extended OSPFv3 LSAs (E-Router / E-Network / E-Inter-Area / E-AS-External / E-Link / E-Intra-Area-Prefix) decoded into named TLVs.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-database-extended",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf ipv6 database router detail",
+    "description": "Decode each OSPFv3 Router-LSA body.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-database-router-detail",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf ipv6 database router-information",
+    "description": "Show the OSPFv3 Router Information LSAs (RFC 7770, function code 12) decoded into capability bits and TLVs.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-database-router-information",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf ipv6 database scope area",
+    "description": "Show only area-scope (S2/S1 = 01) LSAs.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-database-scope-area",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf ipv6 database scope as",
+    "description": "Show only AS-scope (S2/S1 = 10) LSAs.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-database-scope-as",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf ipv6 database scope link",
+    "description": "Show only link-local (S2/S1 = 00) LSAs, including the per-interface Link-LSA store.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-database-scope-link",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf ipv6 database segment-routing",
+    "description": "Summarise the OSPFv3 Segment Routing content (RFC 8666) carried in the RI and extended LSAs.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-database-segment-routing",
+    "global-pipes": true
   },
   {
     "path": "show ospf ipv6 graceful-restart",
@@ -2631,10 +2774,44 @@
     "global-pipes": true
   },
   {
+    "path": "show ospf ipv6 instance",
+    "description": "Enumerate the active OSPFv3 address-family instances (RFC 5838 section 2): each with its address family, Instance ID, area count, and neighbor count.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-instance",
+    "global-pipes": true
+  },
+  {
     "path": "show ospf ipv6 interface",
     "description": "Show OSPFv3 (IPv6-family) interfaces and their RFC 4552 IPsec status.\nReturns per interface whether IPsec is configured, the protocol (ah/esp) and\nSPI, and whether the kernel SA is installed. The key is never shown.",
     "mode": "read-only",
     "wire-method": "ze-show:ospf-ipv6-interface",
+    "global-pipes": true,
+    "subcommands": [
+      "detail"
+    ]
+  },
+  {
+    "path": "show ospf ipv6 interface detail",
+    "description": "Show full per-interface OSPFv3 state (spec-ospf-ext-14): ISM, DR/BDR by Router ID, timers, the local Interface ID and Instance ID.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-interface-detail",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf ipv6 neighbor",
+    "description": "Show OSPFv3 (IPv6) neighbors: the link-local address as identity, adjacency state, DR/BDR by Router ID, and dead time.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-neighbor",
+    "global-pipes": true,
+    "subcommands": [
+      "detail"
+    ]
+  },
+  {
+    "path": "show ospf ipv6 neighbor detail",
+    "description": "Show full per-neighbor OSPFv3 state (spec-ospf-ext-14): the advertised Interface ID, DD sequence, decoded Options (R/V6/E/N/AF), list sizes, last NSM event, and timers.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-neighbor-detail",
     "global-pipes": true
   },
   {
@@ -2642,6 +2819,23 @@
     "description": "Show OSPFv3 (IPv6) Segment Routing state (RFC 8666): the configured\nSRGB/SRLB label ranges, the advertised SR-Algorithm, this node's node\nPrefix-SIDs, and the Adjacency-SIDs allocated per adjacency.",
     "mode": "read-only",
     "wire-method": "ze-show:ospf-ipv6-segment-routing",
+    "global-pipes": true
+  },
+  {
+    "path": "show ospf ipv6 spf",
+    "description": "Show the OSPFv3 (IPv6) per-area SPF run history.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-spf",
+    "global-pipes": true,
+    "subcommands": [
+      "detail"
+    ]
+  },
+  {
+    "path": "show ospf ipv6 spf detail",
+    "description": "Explain why each OSPFv3 route won (spec-ospf-ext-14), AF/Instance-ID tagged; read-only.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospfv3-spf-detail",
     "global-pipes": true
   },
   {
@@ -2656,6 +2850,16 @@
     "description": "Show OSPF neighbors.\nReturns each neighbor's router-id, interface, adjacency state, DR/BDR,\npriority, dead time, and address.",
     "mode": "read-only",
     "wire-method": "ze-show:ospf-neighbor",
+    "global-pipes": true,
+    "subcommands": [
+      "detail"
+    ]
+  },
+  {
+    "path": "show ospf neighbor detail",
+    "description": "Show full per-neighbor state (spec-ospf-ext-14): DD sequence, decoded Options (incl. the RFC 5250 O-bit), request/summary list sizes, last NSM event, and timers.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-neighbor-detail",
     "global-pipes": true
   },
   {
@@ -2663,6 +2867,16 @@
     "description": "Show OSPF-computed routes.\nLists each prefix with its path type (intra/inter/external-1/2), cost,\nnext-hops, and area.",
     "mode": "read-only",
     "wire-method": "ze-show:ospf-route",
+    "global-pipes": true,
+    "subcommands": [
+      "fast-reroute"
+    ]
+  },
+  {
+    "path": "show ospf route fast-reroute",
+    "description": "Show OSPF fast-reroute (LFA / TI-LFA) backups (RFC 5286).\nLists each prefix's primary next-hops with their pre-computed loop-free\nbackup, protection class (node/link/downstream), and TI-LFA repair label\nstack. Unprotected primaries are shown as unprotected.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-route-fast-reroute",
     "global-pipes": true
   },
   {
@@ -2677,6 +2891,16 @@
     "description": "Show recent OSPF SPF runs.\nReturns the most recent per-area SPF runs with their timestamp,\nduration, node count, and pending state.",
     "mode": "read-only",
     "wire-method": "ze-show:ospf-spf",
+    "global-pipes": true,
+    "subcommands": [
+      "detail"
+    ]
+  },
+  {
+    "path": "show ospf spf detail",
+    "description": "Explain why each route won (spec-ospf-ext-14): the candidate paths considered per prefix, the winning cost, and the RFC 2328 section 16.4 path-preference tie-break. Read-only; the route table and SPF run count are unchanged.",
+    "mode": "read-only",
+    "wire-method": "ze-show:ospf-spf-detail",
     "global-pipes": true
   },
   {
@@ -3234,10 +3458,23 @@
     "global-pipes": true
   },
   {
-    "path": "show traffic",
+    "path": "show traffic control",
     "description": "Show traffic control (QoS) configuration per interface.\nWithout arguments, lists every interface with its qdisc type and\nclass/filter counts. With an interface name, shows the full qdisc\nand class breakdown. Use this to verify your shaping is applied.",
     "mode": "read-only",
     "wire-method": "ze-show:traffic",
+    "global-pipes": true
+  },
+  {
+    "path": "show traffic usage",
+    "description": "Show per-interface traffic byte counters captured by eBPF TCX.\nPer destination/source port and protocol counters are always present; per-IP\ntop-talker counters appear when track-ip is enabled. Without arguments, lists\nall monitored interfaces. With 'name <interface>', shows that one interface.",
+    "mode": "read-only",
+    "wire-method": "ze-show:traffic-usage",
+    "args": [
+      {
+        "name": "name",
+        "type": "string"
+      }
+    ],
     "global-pipes": true
   },
   {
@@ -3258,19 +3495,6 @@
     "description": "Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity).\nWithout arguments, shows all interfaces. With 'name <interface>', filters to one interface.",
     "mode": "read-only",
     "wire-method": "ze-show:traffic-stat",
-    "args": [
-      {
-        "name": "name",
-        "type": "string"
-      }
-    ],
-    "global-pipes": true
-  },
-  {
-    "path": "show traffic-usage",
-    "description": "Show per-interface traffic byte counters captured by eBPF TCX.\nPer destination/source port and protocol counters are always present; per-IP\ntop-talker counters appear when track-ip is enabled. Without arguments, lists\nall monitored interfaces. With 'name <interface>', shows that one interface.",
-    "mode": "read-only",
-    "wire-method": "ze-show:traffic-usage",
     "args": [
       {
         "name": "name",

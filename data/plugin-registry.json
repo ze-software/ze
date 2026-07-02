@@ -710,7 +710,7 @@
     "name": "anomaly-detect-feature-source",
     "description": "Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature",
     "config_roots": [
-      "?configRoot"
+      "anomaly/detect"
     ],
     "dependencies": [
       "config-loaded"
@@ -725,7 +725,7 @@
     "name": "anomaly-shape-firewall",
     "description": "Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch",
     "config_roots": [
-      "?configRoot"
+      "anomaly/shape"
     ],
     "dependencies": [
       "config-loaded"
@@ -795,7 +795,7 @@
     "name": "ddos-detect-flow-source",
     "description": "Automatic DDoS attack detector with two-stage detection",
     "config_roots": [
-      "ddos-detect"
+      "ddos/detect"
     ],
     "dependencies": [
       "config-loaded"
@@ -810,7 +810,7 @@
     "name": "ddos-flowspec",
     "description": "DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear",
     "config_roots": [
-      "ddos-flowspec"
+      "ddos/flowspec"
     ],
     "dependencies": [],
     "optional_dependencies": [],
@@ -823,7 +823,7 @@
     "name": "ddos-flowtriq",
     "description": "DDoS incident reporter for Flowtriq cloud API",
     "config_roots": [
-      "ddos-flowtriq"
+      "ddos/flowtriq"
     ],
     "dependencies": [],
     "optional_dependencies": [],
@@ -836,7 +836,7 @@
     "name": "ddos-local",
     "description": "DDoS local responder: on-host nft drop on attack detection",
     "config_roots": [
-      "ddos-local"
+      "ddos/local"
     ],
     "dependencies": [
       "firewall"
@@ -851,7 +851,7 @@
     "name": "ddos-observe",
     "description": "DDoS observability: incident store, status CLI, doctor, metrics",
     "config_roots": [
-      "ddos-observe"
+      "ddos/observe"
     ],
     "dependencies": [],
     "optional_dependencies": [],

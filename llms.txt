@@ -9,9 +9,9 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 ## Project
 
 - [Features](https://ze-software.github.io/ze/features/index.md): 46 features, color-coded by category (web: https://ze-software.github.io/ze/features/)
-- [CLI Reference](https://ze-software.github.io/ze/cli/index.md): 350 commands, generated from the live binary (web: https://ze-software.github.io/ze/cli/)
+- [CLI Reference](https://ze-software.github.io/ze/cli/index.md): 376 commands, generated from the live binary (web: https://ze-software.github.io/ze/cli/)
 - [Dependencies](https://ze-software.github.io/ze/dependencies/index.md): 39 direct packages, generated from go.mod (web: https://ze-software.github.io/ze/dependencies/)
-- [Configuration Reference](https://ze-software.github.io/ze/config-reference/index.md): The whole config as a searchable tree: 41 sections from live YANG (web: https://ze-software.github.io/ze/config-reference/)
+- [Configuration Reference](https://ze-software.github.io/ze/config-reference/index.md): The whole config as a searchable index: 35 sections from live YANG (web: https://ze-software.github.io/ze/config-reference/)
 - [Performance](https://ze-software.github.io/ze/performance/index.md): Measured BGP benchmarks, not claims (web: https://ze-software.github.io/ze/performance/)
 - [Compare](https://ze-software.github.io/ze/compare/index.md): How Ze stacks up against BIRD, FRR, and more (web: https://ze-software.github.io/ze/compare/)
 - [Activity](https://ze-software.github.io/ze/activity/index.md): A year of commits, at a glance (web: https://ze-software.github.io/ze/activity/)

@@ -216,10 +216,72 @@ def nav_dropdown_rooted(root, label, columns):
     return nav_dropdown(label, rooted_columns)
 
 
+_GO_REQUIRE_BLOCK_RE = re.compile(r"require\s*\(([^)]*)\)", re.DOTALL)
+_GO_REQUIRE_LINE_RE = re.compile(r"^\s*(\S+)\s+(\S+)(\s*//\s*indirect)?\s*$")
+
+
+def live_counts():
+    """The live numbers substituted into data/nav.json desc placeholders
+    (%(name)s), so the mega-menu counts are computed, never hardcoded, and
+    can never drift out of sync the way a hand-typed number did. Each is read
+    from the same source the corresponding page is generated from. A missing
+    source yields "?" rather than crashing the whole build."""
+    counts = {}
+
+    def count(key, fn):
+        try:
+            counts[key] = fn()
+        except (OSError, KeyError, ValueError, StopIteration):
+            counts[key] = "?"
+
+    # Features: shipped + experimental cards (roadmap excluded), the same
+    # basis render-features.py's own intro count uses.
+    def features():
+        data = json.loads((DATA_DIR / "features.json").read_text())
+        return sum(
+            len(s["cards"])
+            for s in data["sections"]
+            if s["id"] in ("core", "experimental")
+        )
+
+    # CLI commands and config sections come from data files regenerated from
+    # the live binary each build (cli / config steps).
+    def cli_commands():
+        return len(json.loads((DATA_DIR / "cli-commands.json").read_text()))
+
+    def config_sections():
+        return len(json.loads((DATA_DIR / "yang-config-tree.json").read_text()))
+
+    # Direct go.mod dependencies (require lines without "// indirect").
+    def dependencies():
+        text = (GH_PAGES.parent / "main" / "go.mod").read_text()
+        n = 0
+        for block in _GO_REQUIRE_BLOCK_RE.findall(text):
+            for line in block.splitlines():
+                m = _GO_REQUIRE_LINE_RE.match(line)
+                if m and not m.group(3):
+                    n += 1
+        return n
+
+    count("features", features)
+    count("cli_commands", cli_commands)
+    count("config_sections", config_sections)
+    count("dependencies", dependencies)
+    return counts
+
+
 def load_nav_data():
     global _nav_data_cache
     if _nav_data_cache is None:
-        _nav_data_cache = json.loads((DATA_DIR / "nav.json").read_text())
+        data = json.loads((DATA_DIR / "nav.json").read_text())
+        counts = live_counts()
+        for dropdown in data.get("dropdowns", []):
+            for column in dropdown["columns"]:
+                for entry in column:
+                    desc = entry.get("desc")
+                    if desc and "%(" in desc:
+                        entry["desc"] = desc % counts
+        _nav_data_cache = data
     return _nav_data_cache
 
 

@@ -1,50 +1,55 @@
 # Configuration Reference
 
-The complete Ze configuration as one tree: 41 top-level sections (31 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.github.io/ze/docs/features/configuration/) for a narrative walkthrough of BGP peer config specifically.
+The complete Ze configuration as one tree: 35 top-level sections (26 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.github.io/ze/docs/features/configuration/) for a narrative walkthrough of BGP peer config specifically.
 
-## anomaly-detect
+## anomaly
 
-- **baseline-window** `uint32`
-  Per-entity baseline horizon in ticks (the EWMA smoothing factor is derived from it).
-- **clear-consecutive** `uint8`
-  Consecutive below-threshold ticks before an active incident clears.
-- **cohort-prefix-len-v4** `uint8`
-  Source-prefix length that buckets IPv4 entities into peer-group cohorts.
-- **cohort-prefix-len-v6** `uint8`
-  Source-prefix length that buckets IPv6 entities into peer-group cohorts.
-- **confirm-duration** `uint16`
-  Consecutive above-threshold ticks before an incident is confirmed and emitted.
-- **corroboration-weight** `decimal-2`
-  Discount applied to corroborating features when combining scores, so correlated features do not double-count.
-- **deviation-threshold** `decimal-2`
-  Sigma at or above which a per-entity feature deviation fires.
-- **enabled** `boolean`
-  Enable the behavioral anomaly detector (report-only; emits incidents, takes no action).
-- **min-cohort-size** `uint16`
-  Minimum cohort (source-prefix bucket) members before peer-group rarity is scored; smaller cohorts fall back to self-deviation only.
-- **min-features-to-correlate** `uint8`
-  Minimum distinct features that must fire on one entity/window before an incident is scored (weak-signal correlation gate).
+Behavioral anomaly detection and response subsystem.
 
-## anomaly-shape
-
-- **action** `enumeration`
-  Armed action: rate-limit the source (surgical) or drop it (fallback).
-- **allowlist** `ip-prefix[]`
-  Protected source prefixes that are never armed (self-lockout guard for management / control-plane sources).
-- **auto-revert-ttl** `uint16`
-  Seconds after the last signal before an armed action auto-reverts, regardless of any clear event (safety ceiling).
-- **blast-radius-cap** `uint16`
-  Maximum concurrently-armed live actions; further arm attempts are refused.
-- **kill-switch** `boolean`
-  When true, revert every armed action and force the responder to shadow.
-- **limit-burst** `uint32`
-  Burst allowance for the limit action.
-- **limit-rate** `uint64`
-  Rate for the limit action, in packets per limit-unit.
-- **limit-unit** `enumeration`
-  Time unit for limit-rate.
-- **mode** `enumeration`
-  shadow (default): log the would-be action, install nothing. armed: install live per-source firewall actions.
+- **detect** `container`
+  *Provided by `anomaly-detect-feature-source` ([ze-anomaly-detect-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang))*
+  Report-only behavioral anomaly detector (emits incidents, takes no action).
+  - **baseline-window** `uint32`
+    Per-entity baseline horizon in ticks (the EWMA smoothing factor is derived from it).
+  - **clear-consecutive** `uint8`
+    Consecutive below-threshold ticks before an active incident clears.
+  - **cohort-prefix-len-v4** `uint8`
+    Source-prefix length that buckets IPv4 entities into peer-group cohorts.
+  - **cohort-prefix-len-v6** `uint8`
+    Source-prefix length that buckets IPv6 entities into peer-group cohorts.
+  - **confirm-duration** `uint16`
+    Consecutive above-threshold ticks before an incident is confirmed and emitted.
+  - **corroboration-weight** `decimal-2`
+    Discount applied to corroborating features when combining scores, so correlated features do not double-count.
+  - **deviation-threshold** `decimal-2`
+    Sigma at or above which a per-entity feature deviation fires.
+  - **enabled** `boolean`
+    Enable the behavioral anomaly detector (report-only; emits incidents, takes no action).
+  - **min-cohort-size** `uint16`
+    Minimum cohort (source-prefix bucket) members before peer-group rarity is scored; smaller cohorts fall back to self-deviation only.
+  - **min-features-to-correlate** `uint8`
+    Minimum distinct features that must fire on one entity/window before an incident is scored (weak-signal correlation gate).
+- **shape** `container`
+  *Provided by `anomaly-shape-firewall` ([ze-anomaly-shape-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang))*
+  Autonomous responder: shadow (log-only) or armed (live per-source firewall actions).
+  - **action** `enumeration`
+    Armed action: rate-limit the source (surgical) or drop it (fallback).
+  - **allowlist** `ip-prefix[]`
+    Protected source prefixes that are never armed (self-lockout guard for management / control-plane sources).
+  - **auto-revert-ttl** `uint16`
+    Seconds after the last signal before an armed action auto-reverts, regardless of any clear event (safety ceiling).
+  - **blast-radius-cap** `uint16`
+    Maximum concurrently-armed live actions; further arm attempts are refused.
+  - **kill-switch** `boolean`
+    When true, revert every armed action and force the responder to shadow.
+  - **limit-burst** `uint32`
+    Burst allowance for the limit action.
+  - **limit-rate** `uint64`
+    Rate for the limit action, in packets per limit-unit.
+  - **limit-unit** `enumeration`
+    Time unit for limit-rate.
+  - **mode** `enumeration`
+    shadow (default): log the would-be action, install nothing. armed: install live per-source firewall actions.
 
 ## bfd
 
@@ -1374,96 +1379,86 @@ Control-plane policing configuration.
   - **trusted-source** `string[]`
     Source prefixes that bypass the rate limit. Typically the addresses of configured BGP peers.
 
-## ddos-detect
+## ddos
 
-*Provided by `ddos-detect-flow-source` ([ze-ddos-detect-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang))*
+Distributed denial-of-service detection and mitigation subsystem.
 
-- **absolute-floor** `uint32`
-  Minimum threshold in PPS regardless of baseline.
-- **baseline-window** `uint32`
-  Rolling baseline window size in samples.
-- **characterize-enable** `boolean`
-  Run Stage-2 flow characterization (classify family + narrowest vector from the flow-export recent-flow ring, emit AttackCharacterized). When false the detector still emits the coarse AttackDetected target from traffic-usage.
-- **characterize-timeout** `uint16`
-  Milliseconds budget for the on-trigger traffic-usage and flow-recent queries; on timeout the detector falls back to the best available target.
-- **characterize-window** `uint16`
-  Seconds of recent flows to consider when characterizing; flows last seen before this window are ignored. Flows without a timestamp are always kept.
-- **check-interval** `uint16`
-  Seconds between detection evaluations.
-- **clear-consecutive-checks** `uint16`
-  Consecutive ticks below threshold before clearing.
-- **confirm-duration** `uint16`
-  Consecutive ticks above threshold before triggering.
-- **enabled** `boolean`
-  Enable the DDoS detector.
-- **entropy-threshold** `decimal-2`
-  Source-address Shannon entropy (bits) at or above which an attack is logged as distributed/spoofed. 0 = a single source; higher = more sources.
-- **startup-grace** `uint16`
-  Seconds after startup where only extreme spikes trigger.
-- **threshold-multiplier** `decimal-2`
-  Baseline p99 multiplier for the dynamic threshold.
-- **top-n-sources** `uint16`
-  Maximum number of attacker source addresses ranked into TopSources by packet volume.
-
-## ddos-flowspec
-
-*Provided by `ddos-flowspec` ([ze-ddos-flowspec-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang))*
-
-- **action** `enumeration`
-  FlowSpec traffic-action: rate-limit (non-zero rate) or discard (rate 0).
-- **allowlist** `string[]`
-  Prefixes that must never be announced for mitigation.
-- **announce-rate-limit** `uint16`
-  Maximum FlowSpec announcements per minute.
-- **backoff-cap** `uint32`
-  Maximum hold-down after exponential backoff.
-- **blackhole-fallback** `boolean`
-  When true, a critical-severity AttackDetected (peak >= 5x threshold) auto-engages an immediate upstream discard (RTBH-style) without waiting for characterization. When false (default) the upstream rule is announced only from AttackCharacterized, so it is precise before the box goes blind behind the filter.
-- **hold-down** `uint32`
-  Minimum seconds before the first leak-probe after announcement.
-- **max-mitigation-duration** `uint32`
-  Maximum seconds a FlowSpec rule stays announced (0 = no cap).
-- **probe-interval** `uint16`
-  Seconds between leak-probe attempts after hold-down.
-- **probe-rate** `uint32`
-  Bits per second to allow during a leak-probe.
-- **probe-window** `uint16`
-  Seconds to observe leaked traffic during a probe.
-- **response-level** `enumeration`
-  Action on attack detection: alert (log only) or enforce (announce FlowSpec).
-
-## ddos-flowtriq
-
-*Provided by `ddos-flowtriq` ([ze-ddos-flowtriq-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/flowtriq/yang/ze-ddos-flowtriq-conf.yang))*
-
-- **api-base** `string`
-  Flowtriq API base URL.
-- **api-key** `string`
-  Flowtriq API bearer token.
-- **enabled** `boolean`
-  Enable reporting DDoS incidents to the Flowtriq cloud API.
-- **node-uuid** `string`
-  Node UUID for Flowtriq agent identification.
-
-## ddos-local
-
-*Provided by `ddos-local` ([ze-ddos-local-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang))*
-
-- **allowlist** `string[]`
-  Prefixes that must never be blocked.
-- **max-mitigation-duration** `uint32`
-  Maximum seconds a drop rule stays installed (0 = no cap).
-- **response-level** `enumeration`
-  Action on attack detection: alert (log only) or enforce (install drop rule).
-
-## ddos-observe
-
-*Provided by `ddos-observe` ([ze-ddos-observe-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/observe/yang/ze-ddos-observe-conf.yang))*
-
-- **incident-ring-size** `uint32`
-  Maximum number of incidents to retain in memory.
-- **stale-incident-timeout** `uint32`
-  Seconds before an open incident without a clear event is auto-finalized.
+- **detect** `container`
+  *Provided by `ddos-detect-flow-source` ([ze-ddos-detect-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang))*
+  - **absolute-floor** `uint32`
+    Minimum threshold in PPS regardless of baseline.
+  - **baseline-window** `uint32`
+    Rolling baseline window size in samples.
+  - **characterize-enable** `boolean`
+    Run Stage-2 flow characterization (classify family + narrowest vector from the flow-export recent-flow ring, emit AttackCharacterized). When false the detector still emits the coarse AttackDetected target from traffic-usage.
+  - **characterize-timeout** `uint16`
+    Milliseconds budget for the on-trigger traffic-usage and flow-recent queries; on timeout the detector falls back to the best available target.
+  - **characterize-window** `uint16`
+    Seconds of recent flows to consider when characterizing; flows last seen before this window are ignored. Flows without a timestamp are always kept.
+  - **check-interval** `uint16`
+    Seconds between detection evaluations.
+  - **clear-consecutive-checks** `uint16`
+    Consecutive ticks below threshold before clearing.
+  - **confirm-duration** `uint16`
+    Consecutive ticks above threshold before triggering.
+  - **enabled** `boolean`
+    Enable the DDoS detector.
+  - **entropy-threshold** `decimal-2`
+    Source-address Shannon entropy (bits) at or above which an attack is logged as distributed/spoofed. 0 = a single source; higher = more sources.
+  - **startup-grace** `uint16`
+    Seconds after startup where only extreme spikes trigger.
+  - **threshold-multiplier** `decimal-2`
+    Baseline p99 multiplier for the dynamic threshold.
+  - **top-n-sources** `uint16`
+    Maximum number of attacker source addresses ranked into TopSources by packet volume.
+- **flowspec** `container`
+  *Provided by `ddos-flowspec` ([ze-ddos-flowspec-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang))*
+  - **action** `enumeration`
+    FlowSpec traffic-action: rate-limit (non-zero rate) or discard (rate 0).
+  - **allowlist** `string[]`
+    Prefixes that must never be announced for mitigation.
+  - **announce-rate-limit** `uint16`
+    Maximum FlowSpec announcements per minute.
+  - **backoff-cap** `uint32`
+    Maximum hold-down after exponential backoff.
+  - **blackhole-fallback** `boolean`
+    When true, a critical-severity AttackDetected (peak >= 5x threshold) auto-engages an immediate upstream discard (RTBH-style) without waiting for characterization. When false (default) the upstream rule is announced only from AttackCharacterized, so it is precise before the box goes blind behind the filter.
+  - **hold-down** `uint32`
+    Minimum seconds before the first leak-probe after announcement.
+  - **max-mitigation-duration** `uint32`
+    Maximum seconds a FlowSpec rule stays announced (0 = no cap).
+  - **probe-interval** `uint16`
+    Seconds between leak-probe attempts after hold-down.
+  - **probe-rate** `uint32`
+    Bits per second to allow during a leak-probe.
+  - **probe-window** `uint16`
+    Seconds to observe leaked traffic during a probe.
+  - **response-level** `enumeration`
+    Action on attack detection: alert (log only) or enforce (announce FlowSpec).
+- **flowtriq** `container`
+  *Provided by `ddos-flowtriq` ([ze-ddos-flowtriq-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/flowtriq/yang/ze-ddos-flowtriq-conf.yang))*
+  - **api-base** `string`
+    Flowtriq API base URL.
+  - **api-key** `string`
+    Flowtriq API bearer token.
+  - **enabled** `boolean`
+    Enable reporting DDoS incidents to the Flowtriq cloud API.
+  - **node-uuid** `string`
+    Node UUID for Flowtriq agent identification.
+- **local** `container`
+  *Provided by `ddos-local` ([ze-ddos-local-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang))*
+  - **allowlist** `string[]`
+    Prefixes that must never be blocked.
+  - **max-mitigation-duration** `uint32`
+    Maximum seconds a drop rule stays installed (0 = no cap).
+  - **response-level** `enumeration`
+    Action on attack detection: alert (log only) or enforce (install drop rule).
+- **observe** `container`
+  *Provided by `ddos-observe` ([ze-ddos-observe-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/observe/yang/ze-ddos-observe-conf.yang))*
+  - **incident-ring-size** `uint32`
+    Maximum number of incidents to retain in memory.
+  - **stale-incident-timeout** `uint32`
+    Seconds before an open incident without a clear event is auto-finalized.
 
 ## environment
 
@@ -3872,6 +3867,14 @@ OSPFv2 routing instance configuration.
   Originate RFC 7684 Extended Link Opaque LSAs (Opaque Type 8) that associate attributes with this router's links (one LSA per point-to-point/transit link, mirroring the Router-LSA link). Requires opaque true. The LSA is a container a link-attribute application (e.g. Segment Routing) fills with sub-TLVs; it is off by default until such a producer needs it. Received Extended Link LSAs are decoded and shown regardless of this leaf.
 - **extended-prefix** `boolean`
   Originate RFC 7684 Extended Prefix Opaque LSAs (Opaque Type 7) that associate attributes with this router's advertised prefixes. Requires opaque true. The LSA is a container a prefix-attribute application (e.g. Segment Routing) fills with sub-TLVs; it is off by default until such a producer needs it. Received Extended Prefix LSAs are decoded and shown regardless of this leaf.
+- **fast-reroute** `container`
+  RFC 5286 Loop-Free Alternate (LFA) and TI-LFA IP fast reroute. When enabled, SPF pre-computes a loop-free backup next-hop alongside each primary and programs it into the FIB, so a single local link or node failure is repaired locally before the IGP reconverges. TI-LFA mode adds a Segment-Routing repair-list fallback where no directly-connected LFA exists (requires segment-routing). Applies to OSPFv2 and OSPFv3; OSPFv3 gets base-LFA next-hop selection (SR repair labels are IPv4 only).
+  - **enable** `boolean`
+    Enable LFA / TI-LFA fast-reroute backup computation and install.
+  - **mode** `enumeration`
+    Backup computation mode: base LFA, or LFA with a TI-LFA SR-repair fallback.
+  - **node-protection** `boolean`
+    Prefer node-protecting alternates over link-only alternates (RFC 5286 Section 3.6).
 - **graceful-restart** `container`
   RFC 3623 (OSPFv2) / RFC 5187 (OSPFv3) Graceful Restart: keep forwarding across a control-plane restart. Family-neutral: this container drives both address families (the OSPFv3 family inherits it unless it configures its own).
   - **helper** `container`
@@ -4861,59 +4864,60 @@ Telemetry export configuration
     - **port** `listener-port`
       Listen TCP port; 0 means OS-assigned
 
-## traffic-control
+## traffic
 
-Per-interface traffic control configuration
+Traffic subsystem: QoS control and byte-usage accounting.
 
-- **backend** `string`
-  Traffic control backend implementation. Default is tc (Linux iproute2 queueing disciplines). Future backends can declare themselves via traffic.RegisterBackend. The ze:backend YANG extension on feature nodes declares per-feature backend support so the commit-time gate rejects configs that try to use unsupported qdiscs or filter types.
-- **interface <name>** `list`
-  Traffic control for a named interface
-  - **qdisc** `container`
-    Root queueing discipline
-    - **class <name>** `list`
-      Traffic class within the qdisc
-      - **ceil** `rate-bps`
-        Maximum rate (defaults to rate if omitted)
-      - **match <type>** `list`
-        Filter to classify packets into this class
-        - **value** `string`
-          Match value (mark hex, dscp name, protocol name)
-      - **priority** `uint8`
-        Scheduling priority (0 = highest)
-      - **rate** `rate-bps`
-        Guaranteed rate
-    - **default-class** `string`
-      Name of the default class for unclassified traffic
-    - **type** `qdisc-type`
-      Qdisc type
-
-## traffic-usage
-
-Per-interface eBPF TCX byte accounting (port/protocol always; per-IP via track-ip).
-
-- **enabled** `boolean`
-  Enable traffic-usage accounting.
-- **interfaces** `container`
-  Interfaces to account on.
+- **control** `container`
+  *Provided by `traffic` ([ze-traffic-control-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/traffic/yang/ze-traffic-control-conf.yang))*
+  Per-interface traffic control configuration
+  - **backend** `string`
+    Traffic control backend implementation. Default is tc (Linux iproute2 queueing disciplines). Future backends can declare themselves via traffic.RegisterBackend. The ze:backend YANG extension on feature nodes declares per-feature backend support so the commit-time gate rejects configs that try to use unsupported qdiscs or filter types.
   - **interface <name>** `list`
-    Per-interface traffic-usage accounting.
-    - **enabled** `boolean`
-      Account traffic on this interface.
-    - **max-entries** `uint32`
-      Override the global max-entries (per-map LRU capacity) for this interface (inherits when unset).
-    - **stale-timeout** `uint32`
-      Override the global stale-timeout (milliseconds; 0 disables) for this interface (inherits when unset).
-    - **track-ip** `boolean`
-      Override the global track-ip for this interface (inherits the global value when unset).
-- **interval** `uint32`
-  Map poll interval in milliseconds (100ms..1h).
-- **max-entries** `uint32`
-  Per-map LRU capacity; least-recently-used entries are evicted beyond this, keeping top talkers.
-- **stale-timeout** `uint32`
-  Remove a metric series unseen within this many milliseconds; 0 disables cleanup.
-- **track-ip** `boolean`
-  Also account bytes per source (ingress) / destination (egress) IPv4. Off by default to bound metric cardinality.
+    Traffic control for a named interface
+    - **qdisc** `container`
+      Root queueing discipline
+      - **class <name>** `list`
+        Traffic class within the qdisc
+        - **ceil** `rate-bps`
+          Maximum rate (defaults to rate if omitted)
+        - **match <type>** `list`
+          Filter to classify packets into this class
+          - **value** `string`
+            Match value (mark hex, dscp name, protocol name)
+        - **priority** `uint8`
+          Scheduling priority (0 = highest)
+        - **rate** `rate-bps`
+          Guaranteed rate
+      - **default-class** `string`
+        Name of the default class for unclassified traffic
+      - **type** `qdisc-type`
+        Qdisc type
+- **usage** `container`
+  *Provided by `traffic-usage` ([ze-traffic-usage-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/trafficusage/yang/ze-traffic-usage-cmd.yang), [ze-traffic-usage-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang))*
+  Per-interface eBPF TCX byte accounting (port/protocol always; per-IP via track-ip).
+  - **enabled** `boolean`
+    Enable traffic-usage accounting.
+  - **interfaces** `container`
+    Interfaces to account on.
+    - **interface <name>** `list`
+      Per-interface traffic-usage accounting.
+      - **enabled** `boolean`
+        Account traffic on this interface.
+      - **max-entries** `uint32`
+        Override the global max-entries (per-map LRU capacity) for this interface (inherits when unset).
+      - **stale-timeout** `uint32`
+        Override the global stale-timeout (milliseconds; 0 disables) for this interface (inherits when unset).
+      - **track-ip** `boolean`
+        Override the global track-ip for this interface (inherits the global value when unset).
+  - **interval** `uint32`
+    Map poll interval in milliseconds (100ms..1h).
+  - **max-entries** `uint32`
+    Per-map LRU capacity; least-recently-used entries are evicted beyond this, keeping top talkers.
+  - **stale-timeout** `uint32`
+    Remove a metric series unseen within this many milliseconds; 0 disables cleanup.
+  - **track-ip** `boolean`
+    Also account bytes per source (ingress) / destination (egress) IPv4. Off by default to bound metric cardinality.
 
 ## vpn
 
