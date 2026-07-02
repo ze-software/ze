@@ -2,7 +2,11 @@ module gokrazy/build/ze
 
 go 1.26.2
 
-require github.com/gokrazy/serial-busybox v0.0.0-20250119153030-ac58ba7574e7 // indirect
+require (
+	github.com/gokrazy/serial-busybox v0.0.0-20250119153030-ac58ba7574e7 // indirect
+	// Pinned >= v0.55.0: x/net/html parser DoS (Dependabot); upstream gokrazy pins v0.38.0.
+	golang.org/x/net v0.56.0 // indirect
+)
 
 // Force the current gokrazy version so the stale transitive x/crypto / x/sys copies
 // shipped with the 2020 pin are not pulled into gokrazy/modcache/. serial-busybox
