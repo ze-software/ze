@@ -48,8 +48,12 @@ directive "follow docs.vyos.io" (VyOS models per-subsystem debug log level as
   not reject a command that has a registered offline fallback (see Gotchas).
 - Hard removal of the noun-first forms (user override of cli-grammar.md's deprecation
   requirement); `ze host`, `ze crashes`, `ze debug <module>` now error.
-- `show host` on the offline path is JSON-only (`--text` was an offline-only flag; the
-  verb-first daemon grammar has no `--flag`).
+- `show host` is JSON-only, online and offline. The offline `RunShow` originally
+  kept a `--text` flag, but the verb-first daemon grammar has no `--flag`, so
+  `--text` worked offline and failed online (and only before the section, due to Go
+  flag parsing stopping at the first non-flag). Resolved by removing `--text` and
+  its per-section renderers entirely; human-readable output is `... | ze format table`
+  or `jq`. Online/offline output now matches exactly.
 
 ## Gotchas
 
