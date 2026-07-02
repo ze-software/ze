@@ -27,18 +27,136 @@
                 <div class="nav-links">
                     <a href="../../index.html#status">Status</a>
                     <a href="../../index.html#try">Try</a>
-                    <a href="../../features/">Features</a>
-                    <a href="../../activity/">Activity</a>
-                    <a href="../../performance/">Performance</a>
-                    <a href="../../labs/">Labs</a>
-                    <a href="../../compare/">Compare</a>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Project
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../../features/">
+                            <span class="nav-dropdown-icon">🧩</span>
+                            <span><strong>Features</strong><small>41 features, color-coded by category</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../performance/">
+                            <span class="nav-dropdown-icon">⚡</span>
+                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../compare/">
+                            <span class="nav-dropdown-icon">⚖️</span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../activity/">
+                            <span class="nav-dropdown-icon">📈</span>
+                            <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Labs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../../labs/bgp-interop/">
+                            <span class="nav-dropdown-icon">🌐</span>
+                            <span><strong>BGP Protocol Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/l2tp-interop/">
+                            <span class="nav-dropdown-icon">🔌</span>
+                            <span><strong>L2TP PPP/NCP Interop</strong><small>Ze as LNS vs real xl2tpd</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/pppoe-interop/">
+                            <span class="nav-dropdown-icon">📡</span>
+                            <span><strong>PPPoE Interop</strong><small>vs real accel-ppp access concentrator</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/ipsec-interop/">
+                            <span class="nav-dropdown-icon">🔒</span>
+                            <span><strong>IPsec / IKEv2 Interop</strong><small>Ze as IKE initiator vs strongSwan</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../../labs/vlan-qos/">
+                            <span class="nav-dropdown-icon">🏷️</span>
+                            <span><strong>VLAN QoS Wire-Level Proof</strong><small>802.1p PCP tagging, actually on the wire</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/looking-glass-graph/">
+                            <span class="nav-dropdown-icon">🔭</span>
+                            <span><strong>Looking Glass Graph Demo</strong><small>Realistic UK topology, real external ASNs</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/appliance-install/">
+                            <span class="nav-dropdown-icon">💿</span>
+                            <span><strong>Appliance Installer Evidence</strong><small>HTTP/PXE, ISO, Ventoy, real boots</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/vpp-dataplane/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>VPP Dataplane Evidence</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Docs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Getting started</span>
+                        <a class="nav-dropdown-item" href="../../docs/guide/quickstart/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/configuration/">
+                            <span class="nav-dropdown-icon">⚙️</span>
+                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon">⌨️</span>
+                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/architecture/">
+                            <span class="nav-dropdown-icon">🏗️</span>
+                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Deep dives</span>
+                        <a class="nav-dropdown-item" href="../../docs/features/mcp-integration/">
+                            <span class="nav-dropdown-icon">🤖</span>
+                            <span><strong>MCP Integration</strong><small>AI-assisted operations</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/web-interface/">
+                            <span class="nav-dropdown-icon">🖥️</span>
+                            <span><strong>Web Interface</strong><small>HTMX config editor and admin panel</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/guide/vpp/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/guide/benchmarking/">
+                            <span class="nav-dropdown-icon">📊</span>
+                            <span><strong>Benchmarking</strong><small>ze-perf architecture, flags, JSON output</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
                     <a href="../../blog/">Blog</a>
                     <a href="../../talks/">Talks</a>
                     <a
+                        class="nav-badge"
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        aria-label="Ze Discord"
+                        ><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>Discord</a
+                    >
+                    <a
+                        class="nav-badge"
                         href="https://github.com/ze-software/ze"
                         target="_blank"
                         rel="noopener"
-                        >GitHub</a
+                        aria-label="Ze on GitHub, 39 stars"
+                        ><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.9 6.9 7.1.6-5.4 4.6 1.7 7-6.3-3.9-6.3 3.9 1.7-7L1 9.5l7.1-.6L12 2z"/></svg>39</a
                     >
                 </div>
             </nav>
@@ -65,7 +183,7 @@
 </tr>
 <tr>
 <td><a href="configuration/">Configuration</a></td>
-<td class="cell-partial">Partial</td>
+<td class="cell-partial">∿</td>
 <td>YANG-modeled config with prefix limits, update groups, session resilience, duplicate list-key rejection, side-effect-free in-process plugin verifiers for static/API/CLI validation, and transactional commits using active/candidate/rollback pointers. Live external plugin <code>OnConfigVerify</code> callbacks run only in daemon reload/commit transactions.</td>
 </tr>
 <tr>
@@ -90,12 +208,12 @@
 </tr>
 <tr>
 <td><a href="plugins/">Plugins</a></td>
-<td class="cell-partial">Partial</td>
+<td class="cell-partial">∿</td>
 <td>RIB, route server (with reactor-native RS fast path, dynamic peers, RS-client, community filtering), graceful restart, RPKI (ASPA policy enforcement), healthcheck, community filters, prefix-list filters, AS-path filters, AS-path length filters, community-match filters, per-address-family filters (remove an AFI/SAFI from an UPDATE on import or export -- e.g. a FlowSpec route reflector that never advertises <code>ipv4/flow</code> back to edge peers via <code>export remove ipv4/flow</code> -- or tear down the session on a received family; applies to forwarded <em>and</em> originated/injected routes), route attribute modifiers (set/increment/decrement for local-preference/med/aigp, community add/remove for standard/large/extended), remove-private-AS policy action, AIGP (RFC 7311), BMP (RFC 7854), interface monitoring, cross-protocol redistribute (egress), FlowSpec-to-firewall bridge. BMP Loc-RIB and some redistribution claims remain explicitly scoped by readiness review. <!-- source: internal/component/bgp/plugins/filter_family/filter_family.go -- bgp-filter-family (per-family import/export remove + tear-down) --> <!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- export filter on originated routes --> <!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- bgp-redistribute consumer --> <!-- source: internal/core/redistevents/events.go -- RouteChangeBatch shared payload --> <!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- bgp-filter-prefix --> <!-- source: internal/component/bgp/plugins/filter_aspath/filter_aspath.go -- bgp-filter-aspath --> <!-- source: internal/component/bgp/plugins/filter_aspath_length/filter_aspath_length.go -- bgp-filter-aspath-length --> <!-- source: internal/component/bgp/plugins/filter_community_match/filter_community_match.go -- bgp-filter-community-match --> <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- bgp-filter-modify --> <!-- source: internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go -- bgp-filter-remove-private-as --></td>
 </tr>
 <tr>
 <td>BFD Liveness Detection</td>
-<td class="cell-partial">Partial</td>
+<td class="cell-partial">∿</td>
 <td>RFC 5880 Bidirectional Forwarding Detection plugin: pinned single-hop (UDP 3784) and multi-hop (UDP 4784) sessions, profile-driven timer bundles, GTSM enforcement (IP_TTL=255 outbound / IP_RECVTTL ingress gate), multi-hop min-TTL floor, RFC 5880 §6.8.7 TX jitter (0-25%, clamped to [10%, 25%) when detect-multiplier=1), SO_BINDTODEVICE for single-hop interface and multi-VRF binding, BGP peer opt-in with RFC 9384 Cease subcode 10 teardown, <code>show bfd sessions/session/profile</code> commands, <code>ze_bfd_*</code> Prometheus metrics, RFC 5880 §6.7 Keyed SHA1/MD5 (meticulous variants included) authentication with file-backed sequence-number persistence, and RFC 5880 §6.4 Echo mode config/wire advertisement (transport half tracked as spec-bfd-6b-echo-transport). <!-- source: internal/component/bfd/engine/loop.go -- passesTTLGate, applyJitter --> <!-- source: internal/component/bfd/transport/udp_linux.go -- applySocketOptions, parseReceivedTTL --> <!-- source: internal/component/bfd/bfd.go -- runtimeState, resolveLoopDevices, newUDPTransport --> <!-- source: internal/component/bfd/engine/snapshot.go -- Loop.Snapshot, SessionDetail --> <!-- source: internal/component/bfd/metrics.go -- bindMetricsRegistry, metricsHook --></td>
 </tr>
 <tr>
@@ -115,7 +233,7 @@
 </tr>
 <tr>
 <td>Modular Deployment</td>
-<td class="cell-partial">Partial</td>
+<td class="cell-partial">∿</td>
 <td>Config-driven plugin loading: BGP, interfaces, and FIB load only when their config section is present. Add or remove subsystems at runtime via config reload (SIGHUP). Required config-root autoload failures fail closed, reload diffs restart same-name plugins when their definition changes, and changed external plugin replacements are pre-started before the old handler is removed. <!-- source: internal/component/plugin/server/startup_autoload.go -- autoLoadForNewConfigPaths, autoStopForRemovedConfigPaths --></td>
 </tr>
 <tr>
@@ -156,7 +274,7 @@
 <tr>
 <td><a href="../guide/ospf/">OSPF</a></td>
 <td>Experimental</td>
-<td>Native OSPF engine with one <code>ospf</code> config root for OSPFv2 IPv4 and OSPFv3 IPv6 (<code>address-family ipv6</code>): raw protocol 89 transports, interface and neighbor state machines, LSDB flooding/aging, intra-area SPF, ABR summary origination, inter-area route calculation with area ranges, ASBR external origination and redistribution, OSPFv3 Link-LSAs and Intra-Area-Prefix-LSAs, stub / totally-stubby / NSSA areas (RFC 3101: Type 7/NSSA origination, translator election, Type 7 to Type 5 translation, §2.5 preference), per-interface OSPFv2 authentication with key chains and replay protection, ECMP, and FIB install through the shared Loc-RIB -&gt; sysrib -&gt; fibkernel path. <code>show ospf</code> exposes process, neighbor, interface, database, route, SPF, and border-router views. <!-- source: internal/plugins/ospf/register.go -- registerOSPF --> <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6Strategy --> The OSPF plugin is compile-out-able with the <code>ze_ospf</code> build tag: <code>make ze</code> and <code>ze-appliance</code> include it (default-on in <code>ZE_FEATURES</code>), while <code>ze-stripped</code> and bare <code>ze_core</code> builds drop <code>internal/plugins/ospf</code> (engine, codec, transport, v3, cli, schema) from both composition roots and reject the <code>ospf {}</code> config block as unknown. <!-- source: feature-gates.txt -- ze_ospf --> <!-- source: internal/component/plugin/all/all_ze_ospf.go -- gated OSPF imports --> <!-- source: cmd/ze/dispatch_ospf.go -- gated OSPF CLI dispatch root --></td>
+<td>Native OSPF engine with one <code>ospf</code> config root for OSPFv2 IPv4 and OSPFv3 IPv6 (<code>address-family ipv6</code>): raw protocol 89 transports, interface and neighbor state machines, LSDB flooding/aging, intra-area SPF, ABR summary origination, inter-area route calculation with area ranges, ASBR external origination and redistribution, OSPFv3 Link-LSAs and Intra-Area-Prefix-LSAs, stub / totally-stubby / NSSA areas (RFC 3101: Type 7/NSSA origination, translator election, Type 7 to Type 5 translation, §2.5 preference), the RFC 5250 opaque-LSA carrier with RFC 3630/5392 Traffic Engineering and the RFC 7770 Router Information LSA (OSPFv2 Opaque type 4, OSPFv3 function code 12, informational capability bits, a consumer-neutral TLV hook), per-interface OSPFv2 authentication with key chains and replay protection, ECMP, and FIB install through the shared Loc-RIB -&gt; sysrib -&gt; fibkernel path. <code>show ospf</code> exposes process, neighbor, interface, database (including opaque, te-database, and router-information views), route, SPF, and border-router views. <!-- source: internal/plugins/ospf/register.go -- registerOSPF --> <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6Strategy --> The OSPF plugin is compile-out-able with the <code>ze_ospf</code> build tag: <code>make ze</code> and <code>ze-appliance</code> include it (default-on in <code>ZE_FEATURES</code>), while <code>ze-stripped</code> and bare <code>ze_core</code> builds drop <code>internal/plugins/ospf</code> (engine, codec, transport, v3, cli, schema) from both composition roots and reject the <code>ospf {}</code> config block as unknown. <!-- source: feature-gates.txt -- ze_ospf --> <!-- source: internal/component/plugin/all/all_ze_ospf.go -- gated OSPF imports --> <!-- source: cmd/ze/dispatch_ospf.go -- gated OSPF CLI dispatch root --></td>
 </tr>
 <tr>
 <td>MPLS / LDP / RSVP-TE</td>
@@ -185,7 +303,7 @@
 </tr>
 <tr>
 <td><a href="https://github.com/ze-software/ze/blob/main/docs/features/config-reload.md" target="_blank" rel="noopener">Configuration Reload</a></td>
-<td class="cell-partial">Partial</td>
+<td class="cell-partial">∿</td>
 <td>Live reload via SIGHUP with automatic reconciliation. Reload stages edited config as a candidate version and promotes it to active only after runtime reload succeeds. Plugin-server transactions, config-provider roots, subsystem reload, and changed external plugin replacement roll back on failure; remaining reload safety depends on component-specific journals and privileged dataplane evidence.</td>
 </tr>
 <tr>
@@ -290,7 +408,7 @@
 </tr>
 <tr>
 <td>REST/gRPC API</td>
-<td class="cell-partial">Partial</td>
+<td class="cell-partial">∿</td>
 <td>Programmatic API with OpenAPI 3.1 spec, config sessions. Both transports accept multiple named listen endpoints via <code>environment.api-server.rest.server &lt;name&gt;</code> / <code>.grpc.server &lt;name&gt;</code>. REST is plaintext and therefore loopback-only; expose it remotely only behind a TLS terminator. Non-loopback authenticated gRPC listeners require TLS. Bearer token auth, per-user auth, CORS support. Both transports share one engine for identical command output. SSE and gRPC streaming are wired to registered streaming commands such as <code>monitor event</code>, using the same authorization and accounting path as SSH monitor commands. Completion remains future work. Each transport is independently compile-out-able: <code>ze_rest</code> gates <code>internal/component/api/rest</code> and <code>ze_grpc</code> gates <code>internal/component/api/grpc</code>, so a build can ship gRPC-without-REST or vice-versa. <code>make ze</code>/<code>ze-appliance</code> include both; <code>ze-stripped</code> and bare <code>ze_core</code> drop both. With a transport compiled out its server code and its config container (<code>rest{}</code>/<code>grpc{}</code>) are absent, so that block is rejected as unknown; the shared <code>api-server { token }</code> base and the parent <code>internal/component/api</code> engine stay always-on (gNMI uses the parent). <!-- source: feature-gates.txt -- ze_rest, ze_grpc --> <!-- source: cmd/ze/hub/service_rest.go -- ze_rest REST factory --> <!-- source: cmd/ze/hub/service_grpc.go -- ze_grpc gRPC factory --> <!-- source: internal/component/api/rest/yang/ze-rest-conf.yang -- gated rest{} schema --> <!-- source: internal/component/api/engine.go -- APIEngine, Execute, Stream, ListCommands --> <!-- source: internal/component/api/rest/server.go -- RESTServer, all HTTP handlers, multi-listener Serve --> <!-- source: internal/component/api/grpc/server.go -- GRPCServer, ZeService, ZeConfigService, multi-listener Serve --></td>
 </tr>
 <tr>
@@ -415,17 +533,17 @@
 </tr>
 <tr>
 <td><a href="../guide/l2tp/">L2TPv2 BNG</a></td>
-<td class="cell-partial">Partial</td>
+<td class="cell-partial">∿</td>
 <td>RFC 2661 L2TPv2 LNS/LAC with full BNG stack: tunnel lifecycle (SCCRQ/SCCRP/SCCCN, CHAP-MD5 challenge, HELLO keepalive, StopCCN teardown, tie-breaker), configurable dead-peer detection (<code>hello-retries</code> x <code>hello-interval</code> ACK-driven keepalive timeout, separate from the ~31s reliable-transport retransmit exhaustion, so a peer that dies without StopCCN is torn down fast while an idle-but-alive peer that only ZLB-ACKs HELLOs is not falsely dropped) <!-- source: internal/component/l2tp/reactor.go -- handleTick dead-peer check -->, reliable delivery with sliding window and congestion avoidance, PPP negotiation (LCP 10-state FSM, PAP/CHAP-MD5/MS-CHAPv2 auth, IPCP/IPv6CP address assignment, proxy LCP), kernel data plane via <code>l2tp_ppp</code> netlink and PPPoL2TP sockets. Four plugins: auth-local (static users), auth-radius (RADIUS auth/acct/CoA/DM with failover, real per-subscriber traffic counters in Interim/Stop including RFC 2869 Gigawords), pool (bitmap-backed IPv4 ranges from Ze config), shaper (TC TBF/HTB on pppN interfaces with configured defaults and CoA rate updates). Subscriber route redistribution via <code>redistribute { import l2tp }</code>: the real RouteObserver emits add/remove route-change batches, and BGP announce/withdraw plumbing is covered with a synthetic producer. CQM monitoring (100s echo RTT/loss buckets, per-login sample rings, 24h retention). Web UI at <code>/l2tp</code> with session list, detail page, uPlot CQM graph with SSE live updates, event timeline, and disconnect with audit trail. <code>ze_l2tp_*</code> Prometheus metrics (session/tunnel gauges, per-session byte/packet counters, CQM echo RTT histogram, loss ratio, bucket state). <code>ze_radius_*</code> metrics (auth/acct/interim counters, server reachability). RADIUS Access-Accept subscriber profile attributes are consumed: Framed-IP-Address bypasses pool (direct IP assignment), Framed-Pool selects a named pool, Session-Timeout/Idle-Timeout enforce session lifetime, Filter-Id sets initial shaping rate at session establishment, Vendor-Specific attributes (RFC 2865 S5.26) extract CoS profiles from Cisco-AVPair/Juniper ERX/Nokia/Huawei VSAs and shaper rates from MikroTik Mikrotik-Rate-Limit (Ze "cos:" Filter-Id takes priority; unknown vendors silently ignored), Acct-Interim-Interval overrides the per-session accounting interval, and Framed-Route/Framed-IPv6-Route (RFC 2865 Section 5.22, RFC 6911 Section 3.2) inject per-subscriber static routes into BGP alongside the subscriber /32 or /128. Named pools are configured via YANG <code>named-pool</code> list under <code>l2tp &gt; pool</code>. PPP auth now defaults to mandatory CHAP-MD5 with finite tunnel/session caps; no-auth requires explicit opt-in, hidden mandatory AVPs are rejected fail-closed. Docker-backed <code>xl2tpd</code> evidence covers external LAC control tunnel and incoming-call session setup. A peer-isolated Docker lab (<code>make ze-deployment-l2tp-ppp-docker-test</code>) proves full PPP LCP/IPCP, kernel pppN creation, dataplane ping, and BGP route redistribution from a live PPP session with Ze LNS, real xl2tpd/pppd LAC, and FRR in separate containers; requires host kernel PPPoL2TP support.</td>
 </tr>
 <tr>
 <td><a href="../guide/tacacs/">TACACS+ AAA</a></td>
-<td class="cell-partial">Partial</td>
+<td class="cell-partial">∿</td>
 <td>RFC 8907 TACACS+ client for SSH login: PAP authentication, ordered server failover with per-server timeout, MD5 pseudo-pad body encryption, priv-lvl-to-profile mapping, command accounting (START/STOP records on every dispatched CLI command), and explicit-reject vs unreachable distinction so wrong-password TACACS+ replies do NOT silently fall through to local bcrypt. Runs as a pluggable <code>aaa.Authenticator</code> so local bcrypt remains the fallback when every TACACS+ server is unreachable (default). Configurable <code>strict-fallback</code> mode denies authorization when TACACS+ infrastructure is unavailable instead of falling back to local RBAC. <!-- source: internal/component/tacacs/client.go -- TacacsClient, server failover --> <!-- source: internal/component/tacacs/packet.go -- PacketHeader, Encrypt (RFC 8907 §4.6 MD5 pseudo-pad) --> <!-- source: internal/component/tacacs/authenticator.go -- TacacsAuthenticator, priv-lvl handling --> <!-- source: internal/component/tacacs/accounting.go -- TacacsAccountant, START/STOP via Dispatcher hook --> <!-- source: internal/component/tacacs/register.go -- aaa.Default.Register, AAA chain integration --> <!-- source: internal/component/l2tp/subsystem.go -- L2TPSubsystem lifecycle --> <!-- source: internal/component/l2tp/reactor.go -- L2TPReactor dispatch --> <!-- source: internal/component/l2tp/tunnel_fsm.go -- tunnel FSM transitions --></td>
 </tr>
 <tr>
 <td><a href="../guide/pppoe/">PPPoE Access</a></td>
-<td class="cell-partial">Partial</td>
+<td class="cell-partial">∿</td>
 <td>RFC 2516 PPPoE access concentrator: discovery state machine (PADI/PADO/PADR/PADS/PADT), HMAC-SHA256 AC-Cookie for DoS protection, per-interface session tables with bitmap SID allocation (1-65535), per-source-MAC PADI rate limiting, Service-Name filtering, kernel PPPoE sessions via AF_PPPOX + PX_PROTO_OE, and integration with the transport-agnostic PPP Driver (same auth/pool/shaper plugins as L2TP). YANG config (<code>pppoe {}</code>) with per-interface settings. CLI commands: <code>show pppoe</code>, <code>show pppoe sessions</code>, <code>show pppoe statistics</code>, <code>show pppoe interfaces</code>. Runs concurrently with L2TP on the same daemon. <!-- source: internal/component/l2tp/pppoe/subsystem.go -- PPPoE subsystem lifecycle --> <!-- source: internal/component/l2tp/pppoe/server.go -- per-interface discovery dispatch --> <!-- source: internal/component/l2tp/pppoe/discovery.go -- RFC 2516 wire format --></td>
 </tr>
 <tr>
@@ -524,7 +642,7 @@
 <td>Multiple named address ranges per subnet for segmented allocation. Each range has an independent bitmap pool.</td>
 </tr>
 <tr>
-<td><a href="https://github.com/ze-software/ze/blob/main/docs/guide/as112.md" target="_blank" rel="noopener">AS112 Anycast DNS</a></td>
+<td><a href="../guide/as112/">AS112 Anycast DNS</a></td>
 <td>Supported</td>
 <td>Authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534) and the EMPTY.AS112.ARPA DNAME-redirection zone (RFC 7535). Four fixed anycast host addresses (never operator-typed), registered against the iface address-ownership registry and bound via <code>IP_FREEBIND</code>. Optional <code>allow-from</code> client-source access list (loopback always permitted). BGP integration composes existing <code>healthcheck</code>/<code>watchdog</code>/<code>update</code>-block mechanisms: the anycast route announces only once a probe against a real anycast service address confirms the DNS service is healthy, with an operator-chosen community and optional AS112-origin AS_PATH override. <code>show as112</code>, <code>as112 health [target &lt;ip&gt;]</code>, <code>ze_as112_*</code> metrics. <!-- source: internal/plugins/as112/register.go -- as112 registration --> <!-- source: internal/component/iface/address_owner.go -- address-ownership registry --></td>
 </tr>
@@ -538,24 +656,7 @@
             </section>
         </main>
 
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                var observer = new IntersectionObserver(
-                    function (entries) {
-                        entries.forEach(function (entry) {
-                            if (entry.isIntersecting) {
-                                entry.target.classList.add("visible");
-                                observer.unobserve(entry.target);
-                            }
-                        });
-                    },
-                    { threshold: 0.01 },
-                );
-                document.querySelectorAll(".reveal").forEach(function (el) {
-                    observer.observe(el);
-                });
-            });
-        </script>
+        <script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

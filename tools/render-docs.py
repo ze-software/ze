@@ -49,6 +49,7 @@ MANIFEST = {
     "features/mcp-integration.md": "automate",
     "features/plugins.md": "automate",
     "features/web-interface.md": "operate",
+    "guide/as112.md": "services",
     "guide/audit.md": "secure",
     "guide/benchmarking.md": "observe",
     "guide/firewall.md": "services",

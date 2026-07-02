@@ -25,33 +25,33 @@
     --tangerine-tint: #fff0e1;
     --tangerine-glow: rgba(255, 148, 64, 0.38);
 
-    --lemon-base: #ffc93c;
+    --lemon-base: #f0748a;
     --lemon-mid: #eb6e82;
-    --lemon-deep: #815b00;
-    --lemon-chip: #ffe9a1;
-    --lemon-tint: #fff7dc;
-    --lemon-glow: rgba(255, 201, 60, 0.42);
+    --lemon-deep: #a83752;
+    --lemon-chip: #ffd6de;
+    --lemon-tint: #fff0f3;
+    --lemon-glow: rgba(240, 116, 138, 0.38);
 
-    --mint-base: #33cd85;
-    --mint-mid: #4fc98a;
-    --mint-deep: #0a7347;
+    --mint-base: #22b573;
+    --mint-mid: #15803d;
+    --mint-deep: #0f6b34;
     --mint-chip: #b2efd0;
     --mint-tint: #e6fbef;
-    --mint-glow: rgba(51, 205, 133, 0.38);
+    --mint-glow: rgba(34, 181, 115, 0.38);
 
-    --teal-base: #1fc9c0;
-    --teal-mid: #3fc4b0;
-    --teal-deep: #076e68;
+    --teal-base: #1abc9c;
+    --teal-mid: #0f8a72;
+    --teal-deep: #0a6b58;
     --teal-chip: #abeee7;
     --teal-tint: #e2faf8;
-    --teal-glow: rgba(31, 201, 192, 0.38);
+    --teal-glow: rgba(26, 188, 156, 0.38);
 
-    --sky-base: #3fa9f5;
+    --sky-base: #009fe3;
     --sky-mid: #4fa8d8;
-    --sky-deep: #0a5aa0;
+    --sky-deep: #0071b2;
     --sky-chip: #bfe3ff;
     --sky-tint: #e9f5ff;
-    --sky-glow: rgba(63, 169, 245, 0.38);
+    --sky-glow: rgba(0, 159, 227, 0.38);
 
     --grape-base: #9d64f5;
     --grape-mid: #8a5ad0;
@@ -76,14 +76,14 @@
 
     --bg: #f0eff1;
     --bg-soft: #e6e5e9;
-    --panel: rgba(255, 255, 255, 0.82);
-    --panel-strong: rgba(255, 255, 255, 0.94);
+    --panel: #fffbfc;
+    --panel-strong: #fffefe;
     --line: rgba(190, 120, 210, 0.26);
     --line-strong: rgba(190, 120, 210, 0.45);
     --text: #331f40;
     --muted: #6a4478;
     --dim: #9878a4;
-    --shadow: rgba(170, 80, 200, 0.22);
+    --shadow: rgba(60, 40, 80, 0.14);
     --max: 1180px;
     --term-bg: #1d1133;
     --term-text: #e6d9f2;
@@ -91,13 +91,13 @@
     --term-cmd: #6fc3ff;
     --term-comment: #8f7aa8;
     --grid-color: rgba(200, 110, 220, 0.07);
-    --header-bg: rgba(250, 240, 246, 0.85);
-    --header-border: rgba(190, 120, 210, 0.22);
+    --header-bg: rgba(255, 254, 254, 0.92);
+    --header-border: rgba(40, 20, 55, 0.1);
     --card-hover-border: rgba(255, 255, 255, 1);
     --card-hover-shadow: rgba(190, 90, 220, 0.2);
     --bird-label-bg: rgba(255, 250, 251, 0.88);
     --proof-bg: rgba(255, 240, 250, 0.85);
-    --status-table-bg: rgba(255, 240, 250, 0.45);
+    --status-table-bg: #fdf3f8;
     --link-bg: rgba(255, 250, 252, 0.8);
     --audience-bg: rgba(255, 240, 250, 0.85);
     --btn-bg: rgba(255, 250, 252, 0.8);
@@ -105,13 +105,12 @@
     --body-bg-2: #f1e5fc;
 
     /*
-     * The clay shadow: inset top highlight (studio light), inset bottom
-     * shade (molded depth), diffuse outer drop. Pair with a 2px white
-     * border for the full sugar-coated look.
+     * The clay shadow: a crisp inset top highlight (studio light) plus a
+     * tight, low-blur drop shadow. Pair with a 2px white border.
      */
-    --clay: inset 0 2px 0 rgba(255, 255, 255, 0.9),
-        inset 0 -4px 8px rgba(130, 60, 160, 0.08),
-        0 0.55rem 1.3rem rgba(150, 70, 190, 0.16);
+    --clay: inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 1px 2px rgba(40, 20, 55, 0.06),
+        0 0.4rem 0.9rem rgba(40, 20, 55, 0.1);
 }
 
 * {
@@ -166,6 +165,11 @@ a {
     border-bottom: 1px solid var(--header-border);
     background: var(--header-bg);
     backdrop-filter: blur(18px);
+    transition: transform 220ms ease;
+}
+
+.site-header.hidden {
+    transform: translateY(-100%);
 }
 
 .nav {
@@ -202,8 +206,9 @@ a {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    color: var(--muted);
+    color: var(--text);
     font-size: 0.9rem;
+    font-weight: 600;
 }
 
 .nav-links a {
@@ -216,13 +221,176 @@ a {
 }
 
 .nav-links a:hover {
-    color: var(--pink-deep);
-    background: rgba(255, 100, 171, 0.16);
+    color: var(--sky-deep);
+    background: var(--sky-tint);
+}
+
+.nav-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.7rem !important;
+    border-radius: 999px;
+    background: var(--bg-soft);
+    color: var(--text) !important;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.nav-badge svg {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+}
+
+.nav-badge:hover {
+    background: var(--sky-chip) !important;
+}
+
+.nav-dropdown {
+    position: relative;
+}
+
+.nav-dropdown-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.5rem 0.65rem;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        color 160ms ease,
+        background 160ms ease;
+}
+
+.nav-dropdown-trigger svg {
+    width: 0.65rem;
+    height: 0.65rem;
+    transition: transform 160ms ease;
+}
+
+.nav-dropdown-trigger:hover,
+.nav-dropdown:hover .nav-dropdown-trigger,
+.nav-dropdown:focus-within .nav-dropdown-trigger {
+    color: var(--sky-deep);
+    background: var(--sky-tint);
+}
+
+.nav-dropdown:hover .nav-dropdown-trigger svg,
+.nav-dropdown:focus-within .nav-dropdown-trigger svg {
+    transform: rotate(180deg);
+}
+
+/*
+ * CSS-only hover/focus dropdown -- no JS state to fall out of sync with a
+ * mouseenter/mouseleave/click-toggle race. The panel sits flush against the
+ * trigger (no gap) so there's no dead zone to lose :hover crossing into it.
+ */
+.nav-dropdown-panel {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    z-index: 30;
+    display: none;
+    gap: 2rem;
+    width: max-content;
+    max-width: 32rem;
+    padding: 1.1rem;
+    transform: translateX(-50%);
+    border: 1px solid var(--header-border);
+    border-radius: 0.75rem;
+    background: #fffefe;
+    box-shadow:
+        0 1px 2px rgba(40, 20, 55, 0.06),
+        0 1.2rem 2.6rem rgba(40, 20, 55, 0.16);
+}
+
+.nav-dropdown:hover .nav-dropdown-panel,
+.nav-dropdown:focus-within .nav-dropdown-panel {
+    display: flex;
+}
+
+.nav-dropdown-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 13rem;
+}
+
+.nav-dropdown-label {
+    margin: 0.2rem 0 0.4rem;
+    color: var(--dim);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+.nav-dropdown-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.45rem 0.5rem;
+    border-radius: 0.55rem;
+    color: inherit;
+    text-decoration: none;
+    transition: background 140ms ease;
+}
+
+.nav-dropdown-item:hover {
+    background: var(--sky-tint);
+}
+
+.nav-dropdown-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    flex-shrink: 0;
+    border-radius: 0.5rem;
+    background: var(--bg);
+    font-size: 1rem;
+}
+
+.nav-dropdown-item strong {
+    display: block;
+    color: var(--text);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.nav-dropdown-item small {
+    display: block;
+    margin-top: 0.1rem;
+    color: var(--muted);
+    font-size: 0.76rem;
+    line-height: 1.35;
+}
+
+@media (max-width: 900px) {
+    .nav-dropdown-panel {
+        left: 0;
+        transform: none;
+        max-width: 90vw;
+        flex-wrap: wrap;
+    }
 }
 
 main {
     width: min(var(--max), calc(100% - 2rem));
     margin: 0 auto;
+    padding: 1rem clamp(1rem, 4vw, 2.4rem) 3rem;
+    border-radius: 1rem;
+    background: var(--panel-strong);
+    box-shadow:
+        0 1px 2px rgba(40, 20, 55, 0.05),
+        0 1.5rem 3rem rgba(40, 20, 55, 0.09);
 }
 
 .hero {
@@ -231,7 +399,18 @@ main {
     gap: clamp(2rem, 5vw, 5rem);
     align-items: center;
     min-height: auto;
-    padding: clamp(2rem, 5vw, 4rem) 0 1.5rem;
+    padding: clamp(1rem, 2.5vw, 1.8rem) 0 1.5rem;
+}
+
+.hero-brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.hero-mascot {
+    flex-shrink: 0;
+    filter: drop-shadow(0 0.4rem 0.6rem rgba(31, 20, 41, 0.18));
 }
 
 .eyebrow {
@@ -243,8 +422,8 @@ main {
     padding: 0.42rem 0.75rem;
     border: 2px solid rgba(255, 255, 255, 0.9);
     border-radius: 999px;
-    color: var(--mint-deep);
-    background: #9df2c4;
+    color: #fff;
+    background: var(--mint-deep);
     box-shadow: var(--clay);
     font-size: 0.78rem;
     font-weight: 800;
@@ -288,7 +467,7 @@ h3 {
 h1 {
     max-width: 18ch;
     margin-bottom: 1.35rem;
-    color: var(--grape-mid);
+    color: var(--text);
     font-size: clamp(3.2rem, 7vw, 6.4rem);
     font-weight: 700;
     line-height: 1;
@@ -297,21 +476,11 @@ h1 {
 
 h2 {
     margin-bottom: 1rem;
-    color: var(--grape-mid);
+    color: var(--text);
     font-size: clamp(2rem, 4vw, 3.35rem);
     font-weight: 700;
     line-height: 0.98;
     letter-spacing: -0.045em;
-}
-
-/*
- * Heading treatment: flat color, no gradient fill. A white sticker edge
- * plus a soft violet cast for molded-clay volume.
- */
-h1,
-h2 {
-    filter: drop-shadow(0 2px 0 rgba(255, 255, 255, 0.9))
-        drop-shadow(0 4px 8px rgba(103, 58, 183, 0.15));
 }
 
 /*
@@ -324,11 +493,29 @@ h2 {
  */
 .section-head[class*="cat-"] h2,
 .md-content[class*="cat-"] > h1:first-child {
-    color: var(--acc-mid, var(--grape-mid));
+    color: var(--acc-mid, var(--text));
 }
 
 #hero-title {
-    color: var(--grape-mid);
+    color: #111;
+}
+
+/* Performance reads as speed, not as the generic observe/mint category. */
+#perf-title {
+    color: #dc2626;
+}
+
+/*
+ * Category-mid tones are tuned for small in-grid headings (Features cards);
+ * a full-page lab title needs a richer, more saturated version of the same
+ * hue to not read as dull/muddy.
+ */
+.accent-routing-strong {
+    color: #c2410c;
+}
+
+.accent-services-strong {
+    color: #0f766e;
 }
 
 h3 {
@@ -367,7 +554,6 @@ a.hl:hover {
     color: var(--text);
     font-size: clamp(1.12rem, 2vw, 1.48rem);
     line-height: 1.65;
-    opacity: 0.85;
 }
 
 .sublead {
@@ -391,7 +577,7 @@ a.hl:hover {
     min-height: 3rem;
     padding: 0 1.3rem;
     border: 2px solid rgba(255, 255, 255, 0.9);
-    border-radius: 1.1rem;
+    border-radius: 0.6rem;
     color: var(--text);
     background: #fffafc;
     box-shadow: var(--clay);
@@ -406,7 +592,7 @@ a.hl:hover {
 
 .button.primary {
     border-color: rgba(255, 255, 255, 0.9);
-    background: var(--sky-base);
+    background: var(--sky-deep);
     color: #fff;
     box-shadow: var(--clay), 0 0.6rem 1.4rem -0.4rem var(--sky-glow);
 }
@@ -415,7 +601,7 @@ a.hl:hover {
     border-color: #fff;
     background: #fff;
     transform: translateY(-3px);
-    box-shadow: var(--clay), 0 1rem 2rem -0.6rem var(--grape-glow);
+    box-shadow: var(--clay), 0 1rem 2rem -0.6rem var(--sky-glow);
 }
 
 .button:active {
@@ -423,7 +609,7 @@ a.hl:hover {
 }
 
 .button.primary:hover {
-    background: var(--sky-deep);
+    background: #084677;
     box-shadow: var(--clay), 0 0.9rem 2rem -0.4rem var(--sky-glow);
 }
 
@@ -433,7 +619,7 @@ a.hl:hover {
     min-height: 34rem;
     place-items: center;
     border: 2px solid rgba(255, 255, 255, 0.9);
-    border-radius: 2rem;
+    border-radius: 0.9rem;
     overflow: hidden;
     background: var(--panel-strong);
     box-shadow: var(--clay), 0 2rem 5rem var(--shadow);
@@ -451,7 +637,7 @@ a.hl:hover {
     position: absolute;
     inset: 1rem;
     border: 1px solid rgba(190, 120, 210, 0.18);
-    border-radius: 1.45rem;
+    border-radius: 0.7rem;
     content: "";
 }
 
@@ -474,7 +660,7 @@ a.hl:hover {
     z-index: 2;
     padding: 0.7rem 0.85rem;
     border: 1px solid rgba(190, 120, 210, 0.22);
-    border-radius: 1rem;
+    border-radius: 0.55rem;
     color: var(--muted);
     background: var(--bird-label-bg);
     backdrop-filter: blur(8px);
@@ -490,38 +676,19 @@ a.hl:hover {
 }
 
 .proof {
-    --acc: var(--tangerine-base);
-    --acc-deep: var(--tangerine-deep);
-    --acc-tint: var(--tangerine-tint);
-    --acc-glow: var(--tangerine-glow);
-    padding: 1.1rem 1.2rem;
-    border: 2px solid rgba(255, 255, 255, 0.9);
-    border-left: 6px solid var(--acc);
-    border-radius: 1.25rem;
-    background: var(--acc-tint);
-    box-shadow: var(--clay), 0 0.9rem 2rem -0.9rem var(--acc-glow);
-    transition:
-        transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
-        box-shadow 200ms ease;
-}
-
-.proof:nth-child(2) {
     --acc: var(--sky-base);
     --acc-deep: var(--sky-deep);
     --acc-tint: var(--sky-tint);
     --acc-glow: var(--sky-glow);
-}
-.proof:nth-child(3) {
-    --acc: var(--grape-base);
-    --acc-deep: var(--grape-deep);
-    --acc-tint: var(--grape-tint);
-    --acc-glow: var(--grape-glow);
-}
-.proof:nth-child(4) {
-    --acc: var(--mint-base);
-    --acc-deep: var(--mint-deep);
-    --acc-tint: var(--mint-tint);
-    --acc-glow: var(--mint-glow);
+    padding: 1.1rem 1.2rem;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    border-left: 6px solid var(--acc);
+    border-radius: 0.65rem;
+    background: #fffafc;
+    box-shadow: var(--clay), 0 0.9rem 2rem -0.9rem var(--acc-glow);
+    transition:
+        transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 200ms ease;
 }
 
 .proof:hover {
@@ -532,20 +699,10 @@ a.hl:hover {
 .proof strong {
     display: block;
     margin-bottom: 0.25rem;
-    color: var(--tangerine-mid);
+    color: var(--sky-deep);
     font-size: clamp(1.35rem, 3vw, 2.1rem);
     font-weight: 800;
     letter-spacing: -0.05em;
-}
-
-.proof:nth-child(2) strong {
-    color: var(--sky-mid);
-}
-.proof:nth-child(3) strong {
-    color: var(--grape-mid);
-}
-.proof:nth-child(4) strong {
-    color: var(--mint-mid);
 }
 
 .proof strong .label {
@@ -575,7 +732,7 @@ a.hl:hover {
 }
 
 section {
-    padding: 1.2rem 0;
+    padding: 0.7rem 0;
 }
 
 .reveal {
@@ -596,7 +753,7 @@ section {
     grid-template-columns: auto minmax(0, 1fr);
     gap: 2rem;
     align-items: start;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.9rem;
 }
 
 .section-head h2 {
@@ -637,7 +794,7 @@ section {
     grid-template-columns: minmax(0, 0.78fr) minmax(0, 1fr);
     gap: 1rem;
     border: 2px solid rgba(255, 255, 255, 0.9);
-    border-radius: 1.6rem;
+    border-radius: 0.85rem;
     background: var(--panel);
     box-shadow: var(--clay);
     overflow: hidden;
@@ -681,24 +838,12 @@ section {
 }
 
 .status-row strong {
+    color: var(--text);
     font-size: 0.92rem;
 }
 
 .status-row span {
-    font-weight: 700;
-}
-
-.status-row:nth-child(1) strong {
-    color: var(--sky-mid);
-}
-.status-row:nth-child(2) strong {
-    color: var(--tangerine-mid);
-}
-.status-row:nth-child(3) strong {
-    color: var(--mint-mid);
-}
-.status-row:nth-child(4) strong {
-    color: #a17bd9;
+    font-weight: 400;
 }
 
 .tag {
@@ -708,8 +853,8 @@ section {
     padding: 0.35rem 0.62rem;
     border: 2px solid rgba(255, 255, 255, 0.8);
     border-radius: 999px;
-    color: var(--grape-deep);
-    background: var(--grape-chip);
+    color: var(--sky-deep);
+    background: var(--sky-chip);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.75),
         inset 0 -2px 3px rgba(0, 0, 0, 0.06);
@@ -740,8 +885,9 @@ section {
     min-height: 12rem;
     padding: 1.25rem 1.25rem 1.15rem;
     border: 2px solid rgba(255, 255, 255, 0.9);
-    border-radius: 1.5rem;
-    background: var(--acc-tint);
+    border-top: 4px solid rgba(255, 255, 255, 0.9);
+    border-radius: 0.75rem;
+    background: #fffafc;
     box-shadow: var(--clay), 0 1rem 2.2rem -1rem var(--acc-glow);
     transition:
         border-color 200ms ease,
@@ -753,6 +899,19 @@ section {
     border-color: var(--card-hover-border);
     transform: translateY(-5px) scale(1.015);
     box-shadow: var(--clay), 0 1.5rem 2.8rem -0.8rem var(--acc-glow);
+}
+
+.card[class*="cat-"]:hover {
+    border-color: var(--acc);
+}
+
+/*
+ * A card whose actual click target is an inner link (lab cards, anything
+ * with a nested <a>) shouldn't lift on hover -- that affordance implies the
+ * whole card is clickable. Keep the shadow/border cue, drop the transform.
+ */
+.card:has(a):hover {
+    transform: none;
 }
 
 /*
@@ -827,8 +986,8 @@ section {
     margin-bottom: 0.65rem;
     padding: 0.3rem 0.65rem;
     border-radius: 999px;
-    background: var(--acc-chip);
-    color: var(--acc-deep);
+    background: var(--acc-deep);
+    color: #fff;
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.66rem;
     font-weight: 800;
@@ -859,7 +1018,7 @@ section {
 
 .chip {
     padding: 0.24rem 0.55rem;
-    border-radius: 0.65rem;
+    border-radius: 0.4rem;
     background: rgba(255, 255, 255, 0.75);
     color: var(--acc-deep);
     font-family:
@@ -927,6 +1086,7 @@ section {
 .card.aspiration .cat {
     border: 2px dashed var(--acc);
     background: transparent;
+    color: var(--acc-deep);
     box-shadow: none;
 }
 
@@ -990,28 +1150,28 @@ section {
 }
 
 .card-label.blue {
-    color: var(--sky-deep);
-    background: var(--sky-chip);
+    color: #fff;
+    background: var(--sky-deep);
 }
 .card-label.coral {
-    color: #a83a14;
-    background: #ffd2c2;
+    color: #fff;
+    background: #a83a14;
 }
 .card-label.green {
-    color: var(--mint-deep);
-    background: var(--mint-chip);
+    color: #fff;
+    background: var(--mint-deep);
 }
 .card-label.purple {
-    color: var(--grape-deep);
-    background: var(--grape-chip);
+    color: #fff;
+    background: var(--grape-deep);
 }
 .card-label.teal {
-    color: var(--teal-deep);
-    background: var(--teal-chip);
+    color: #fff;
+    background: var(--teal-deep);
 }
 .card-label.gold {
-    color: var(--lemon-deep);
-    background: var(--lemon-chip);
+    color: #fff;
+    background: var(--lemon-deep);
 }
 
 .card h3 a {
@@ -1040,8 +1200,8 @@ section {
     padding: 0.5rem 0.95rem;
     border: 2px solid rgba(255, 255, 255, 0.9);
     border-radius: 999px;
-    background: var(--acc-chip);
-    color: var(--acc-deep);
+    background: var(--acc-deep);
+    color: #fff;
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.74rem;
     font-weight: 800;
@@ -1094,7 +1254,7 @@ section {
     position: relative;
     padding: 0;
     border: 2px solid rgba(255, 255, 255, 0.35);
-    border-radius: 1.35rem;
+    border-radius: 0.7rem;
     background: var(--term-bg);
     box-shadow:
         0 1rem 3rem rgba(60, 20, 90, 0.3),
@@ -1104,11 +1264,27 @@ section {
 
 .terminal-dots {
     display: flex;
+    align-items: center;
     gap: 0.45rem;
-    padding: 0.85rem 1.1rem 0.5rem;
+    padding: 0.75rem 1.1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.terminal-dots span {
+.terminal-title {
+    margin-left: 0.5rem;
+    overflow: hidden;
+    color: var(--term-comment);
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.terminal-dots span:not(.terminal-title) {
+    flex-shrink: 0;
     width: 0.65rem;
     height: 0.65rem;
     border-radius: 999px;
@@ -1127,7 +1303,7 @@ section {
 }
 
 .terminal-body {
-    padding: 0.6rem 1.35rem 1.35rem;
+    padding: 1.1rem 1.35rem 1.35rem;
 }
 
 pre {
@@ -1153,9 +1329,11 @@ pre {
 }
 
 .terminal-note {
+    display: flex;
+    flex-direction: column;
     padding: 1.35rem;
     border: 2px solid rgba(255, 255, 255, 0.9);
-    border-radius: 1.35rem;
+    border-radius: 0.7rem;
     background: var(--panel-strong);
     box-shadow: var(--clay);
 }
@@ -1171,6 +1349,11 @@ pre {
     margin-top: 1.4rem;
 }
 
+.terminal-note .link-list {
+    margin-top: auto;
+    padding-top: 1.4rem;
+}
+
 .link-list a {
     display: flex;
     align-items: center;
@@ -1178,7 +1361,7 @@ pre {
     gap: 1rem;
     padding: 0.88rem 1rem;
     border: 2px solid rgba(255, 255, 255, 0.9);
-    border-radius: 1rem;
+    border-radius: 0.55rem;
     color: var(--text);
     background: #fffafc;
     box-shadow: var(--clay);
@@ -1226,11 +1409,16 @@ pre {
     gap: 1rem;
 }
 
+.audience-2col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .audience-card {
     padding: 1.25rem;
     border: 2px solid rgba(255, 255, 255, 0.9);
-    border-radius: 1.5rem;
-    background: #fdf6f8;
+    border-left: 6px solid var(--lemon-mid);
+    border-radius: 0.75rem;
+    background: #fffafc;
     box-shadow: var(--clay);
     transition:
         border-color 200ms ease,
@@ -1244,20 +1432,21 @@ pre {
     box-shadow: var(--clay), 0 1.2rem 2.6rem -0.8rem var(--card-hover-shadow);
 }
 
-.audience-card:nth-child(1) {
-    background: var(--tangerine-tint);
+.audience-card:has(a):hover {
+    transform: none;
 }
+
 .audience-card:nth-child(1) h3 {
-    color: var(--tangerine-deep);
+    color: #8f2740;
 }
 .audience-card:nth-child(2) {
-    background: var(--sky-tint);
+    border-left-color: var(--sky-base);
 }
 .audience-card:nth-child(2) h3 {
     color: var(--sky-deep);
 }
 .audience-card:nth-child(3) {
-    background: var(--grape-tint);
+    border-left-color: var(--grape-base);
 }
 .audience-card:nth-child(3) h3 {
     color: var(--grape-deep);
@@ -1277,7 +1466,7 @@ pre {
     margin-bottom: 3rem;
     padding: clamp(1.5rem, 4vw, 3rem);
     border: 2px solid rgba(255, 255, 255, 0.9);
-    border-radius: 1.8rem;
+    border-radius: 0.85rem;
     background: var(--panel);
     box-shadow: var(--clay), 0 1.5rem 4rem var(--shadow);
 }
@@ -1401,9 +1590,13 @@ footer {
 }
 
 .md-content {
-    max-width: 62rem;
-    margin: 0 auto;
+    max-width: none;
+    margin: 0;
     padding: 1rem 0 3rem;
+}
+
+.md-content > :not(table):not(pre):not(.cards):not(.audience) {
+    max-width: 62rem;
 }
 
 /*
@@ -1418,13 +1611,21 @@ footer {
 .blog-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.4rem 2.5rem;
+    gap: 1rem;
+}
+
+.blog-block {
+    padding: 1.1rem 1.25rem;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    border-radius: 0.75rem;
+    background: #fffafc;
+    box-shadow: var(--clay);
 }
 
 .blog-block .md-content {
     max-width: none;
     margin: 0;
-    padding: 0 0 0.6rem;
+    padding: 0;
 }
 
 .blog-block h3 {
@@ -1476,7 +1677,7 @@ footer {
     margin: 1.4rem 0;
     padding: 1rem 1.3rem;
     border-left: 4px solid var(--grape-base);
-    border-radius: 0.9rem;
+    border-radius: 0.5rem;
     background: var(--panel);
     box-shadow: var(--clay);
     color: var(--muted);
@@ -1488,7 +1689,7 @@ footer {
 
 .md-content code {
     padding: 0.15rem 0.4rem;
-    border-radius: 0.4rem;
+    border-radius: 0.3rem;
     background: var(--proof-bg);
     font-family:
         ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -1498,7 +1699,7 @@ footer {
 
 .md-content pre {
     padding: 1rem 1.2rem;
-    border-radius: 1rem;
+    border-radius: 0.55rem;
     background: var(--term-bg);
     color: var(--term-text);
     overflow-x: auto;
@@ -1512,12 +1713,15 @@ footer {
 }
 
 .md-content table {
+    display: block;
+    max-width: 100%;
     width: 100%;
     margin: 1.2rem 0 1.8rem;
     border-collapse: separate;
     border-spacing: 0;
-    border-radius: 1.1rem;
-    overflow: hidden;
+    border-radius: 0.6rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     box-shadow: var(--clay);
     font-size: 0.92rem;
 }
@@ -1531,7 +1735,7 @@ footer {
 
 .md-content th {
     color: #fff;
-    background: var(--purple);
+    background: var(--sky-deep);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-weight: 700;
     white-space: nowrap;
@@ -1544,38 +1748,28 @@ footer {
 }
 
 .md-content td.cell-yes {
-    background: var(--mint-tint);
     color: var(--mint-deep);
     font-weight: 700;
-}
-
-.md-content td.cell-yes::before {
-    content: "\2713\00a0";
+    text-align: center;
 }
 
 .md-content td.cell-no {
-    background: var(--pink-tint);
-    color: var(--pink-deep);
-}
-
-.md-content td.cell-no::before {
-    content: "\2715\00a0";
-    opacity: 0.65;
-    font-size: 0.85em;
+    color: var(--muted);
+    text-align: center;
+    opacity: 0.7;
 }
 
 .md-content td.cell-partial {
-    background: var(--lemon-tint);
     color: var(--lemon-deep);
     font-weight: 700;
-}
-
-.md-content td.cell-partial::before {
-    content: "\223F\00a0";
+    text-align: center;
 }
 
 .md-content td.cell-na {
-    color: var(--dim);
+    color: var(--muted);
+    background: var(--bg-soft);
+    text-align: center;
+    font-style: italic;
 }
 
 .md-content tr:last-child td {
@@ -1592,7 +1786,7 @@ footer {
 }
 
 .md-content th:first-child {
-    background: var(--purple);
+    background: var(--sky-deep);
     color: #fff;
 }
 

@@ -11,10 +11,286 @@ palette, and writes activity/index.html. Re-run this to refresh the data;
 same one-command-regenerates-everything workflow as tools/render-docs.py.
 """
 
+import json
 import pathlib
 import subprocess
 import sys
 import tempfile
+import urllib.request
+
+NAV_CHEVRON = (
+    '<svg viewBox="0 0 12 8" fill="none" aria-hidden="true">'
+    '<path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" '
+    'stroke-linecap="round" stroke-linejoin="round"/></svg>'
+)
+
+_GITHUB_STARS_FALLBACK = 39  # last known count, used if the API call fails
+_github_stars_cache = None
+
+
+def get_github_stars():
+    """Live star count for ze-software/ze, fetched once per script run and
+    cached (unauthenticated GitHub API allows 60 req/hour/IP -- a batch run
+    over ~40 docs must not spend that fetching the same number 40 times).
+    Falls back to the last known count on any network/API failure so a
+    regeneration never hard-fails for lack of connectivity."""
+    global _github_stars_cache
+    if _github_stars_cache is not None:
+        return _github_stars_cache
+    try:
+        req = urllib.request.Request(
+            "https://api.github.com/repos/ze-software/ze",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "ze-site-build",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+        _github_stars_cache = int(data["stargazers_count"])
+    except Exception as exc:
+        print(
+            "warning: could not fetch live GitHub star count (%s), using last known value %d"
+            % (exc, _GITHUB_STARS_FALLBACK),
+            file=sys.stderr,
+        )
+        _github_stars_cache = _GITHUB_STARS_FALLBACK
+    return _github_stars_cache
+
+
+def build_nav_badges():
+    stars = get_github_stars()
+    return (
+        "                    <a\n"
+        '                        class="nav-badge"\n'
+        '                        href="https://discord.gg/3Sx4S2dYQ"\n'
+        '                        target="_blank"\n'
+        '                        rel="noopener"\n'
+        '                        aria-label="Ze Discord"\n'
+        '                        ><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
+        '<path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/>'
+        "</svg>Discord</a\n"
+        "                    >\n"
+        "                    <a\n"
+        '                        class="nav-badge"\n'
+        '                        href="https://github.com/ze-software/ze"\n'
+        '                        target="_blank"\n'
+        '                        rel="noopener"\n'
+        '                        aria-label="Ze on GitHub, %d stars"\n'
+        '                        ><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
+        '<path d="M12 2l2.9 6.9 7.1.6-5.4 4.6 1.7 7-6.3-3.9-6.3 3.9 1.7-7L1 9.5l7.1-.6L12 2z"/>'
+        "</svg>%d</a\n"
+        "                    >\n"
+    ) % (stars, stars)
+
+
+def nav_item(root, href, icon, title, desc):
+    return (
+        '                        <a class="nav-dropdown-item" href="%s%s">\n'
+        '                            <span class="nav-dropdown-icon">%s</span>\n'
+        "                            <span><strong>%s</strong><small>%s</small></span>\n"
+        "                        </a>\n"
+    ) % (root, href, icon, title, desc)
+
+
+def nav_dropdown(label, columns):
+    out = ['                    <div class="nav-dropdown">\n']
+    out.append(
+        '                    <button class="nav-dropdown-trigger" type="button">%s\n'
+        "                        %s\n"
+        "                    </button>\n" % (label, NAV_CHEVRON)
+    )
+    out.append('                    <div class="nav-dropdown-panel">\n')
+    for col in columns:
+        out.append('                    <div class="nav-dropdown-col">\n')
+        for entry in col:
+            if isinstance(entry, str):
+                out.append(
+                    '                        <span class="nav-dropdown-label">%s</span>\n'
+                    % entry
+                )
+            else:
+                out.append(nav_item(*entry))
+        out.append("                    </div>\n")
+    out.append("                    </div>\n")
+    out.append("                    </div>\n")
+    return "".join(out)
+
+
+def nav_dropdown_rooted(root, label, columns):
+    rooted_columns = [
+        [entry if isinstance(entry, str) else (root,) + entry for entry in col]
+        for col in columns
+    ]
+    return nav_dropdown(label, rooted_columns)
+
+
+def build_navblock(root):
+    out = ['                <div class="nav-links">\n']
+    out.append('                    <a href="%sindex.html#status">Status</a>\n' % root)
+    out.append('                    <a href="%sindex.html#try">Try</a>\n' % root)
+    out.append(
+        nav_dropdown_rooted(
+            root,
+            "Project",
+            [
+                [
+                    (
+                        "features/",
+                        "\U0001f9e9",
+                        "Features",
+                        "41 features, color-coded by category",
+                    ),
+                    (
+                        "performance/",
+                        "⚡",
+                        "Performance",
+                        "Measured BGP benchmarks, not claims",
+                    ),
+                    (
+                        "compare/",
+                        "⚖️",
+                        "Compare",
+                        "How Ze stacks up against BIRD, FRR, and more",
+                    ),
+                    (
+                        "activity/",
+                        "\U0001f4c8",
+                        "Activity",
+                        "A year of commits, at a glance",
+                    ),
+                ]
+            ],
+        )
+    )
+    out.append(
+        nav_dropdown_rooted(
+            root,
+            "Labs",
+            [
+                [
+                    (
+                        "labs/bgp-interop/",
+                        "\U0001f310",
+                        "BGP Protocol Interop",
+                        "Real FRR, BIRD, and GoBGP sessions",
+                    ),
+                    (
+                        "labs/l2tp-interop/",
+                        "\U0001f50c",
+                        "L2TP PPP/NCP Interop",
+                        "Ze as LNS vs real xl2tpd",
+                    ),
+                    (
+                        "labs/pppoe-interop/",
+                        "\U0001f4e1",
+                        "PPPoE Interop",
+                        "vs real accel-ppp access concentrator",
+                    ),
+                    (
+                        "labs/ipsec-interop/",
+                        "\U0001f512",
+                        "IPsec / IKEv2 Interop",
+                        "Ze as IKE initiator vs strongSwan",
+                    ),
+                ],
+                [
+                    (
+                        "labs/vlan-qos/",
+                        "\U0001f3f7️",
+                        "VLAN QoS Wire-Level Proof",
+                        "802.1p PCP tagging, actually on the wire",
+                    ),
+                    (
+                        "labs/looking-glass-graph/",
+                        "\U0001f52d",
+                        "Looking Glass Graph Demo",
+                        "Realistic UK topology, real external ASNs",
+                    ),
+                    (
+                        "labs/appliance-install/",
+                        "\U0001f4bf",
+                        "Appliance Installer Evidence",
+                        "HTTP/PXE, ISO, Ventoy, real boots",
+                    ),
+                    (
+                        "labs/vpp-dataplane/",
+                        "\U0001f680",
+                        "VPP Dataplane Evidence",
+                        "FIB, traffic, and firewall in a real VPP daemon",
+                    ),
+                ],
+            ],
+        )
+    )
+    out.append(
+        nav_dropdown_rooted(
+            root,
+            "Docs",
+            [
+                [
+                    "Getting started",
+                    (
+                        "docs/guide/quickstart/",
+                        "\U0001f680",
+                        "Quickstart",
+                        "Two BGP peers in under 5 minutes",
+                    ),
+                    (
+                        "docs/features/configuration/",
+                        "⚙️",
+                        "Configuration",
+                        "YANG-modeled, one model for everything",
+                    ),
+                    (
+                        "docs/features/cli-commands/",
+                        "⌨️",
+                        "CLI Commands",
+                        "SSH CLI with diff, commit, and history",
+                    ),
+                    (
+                        "docs/architecture/",
+                        "\U0001f3d7️",
+                        "Architecture",
+                        "How the pieces fit together",
+                    ),
+                ],
+                [
+                    "Deep dives",
+                    (
+                        "docs/features/mcp-integration/",
+                        "\U0001f916",
+                        "MCP Integration",
+                        "AI-assisted operations",
+                    ),
+                    (
+                        "docs/features/web-interface/",
+                        "\U0001f5a5️",
+                        "Web Interface",
+                        "HTMX config editor and admin panel",
+                    ),
+                    (
+                        "docs/guide/vpp/",
+                        "\U0001f4e6",
+                        "VPP Dataplane",
+                        "FIB, traffic, and firewall via VPP",
+                    ),
+                    (
+                        "docs/guide/benchmarking/",
+                        "\U0001f4ca",
+                        "Benchmarking",
+                        "ze-perf architecture, flags, JSON output",
+                    ),
+                ],
+            ],
+        )
+    )
+    out.append('                    <a href="%sblog/">Blog</a>\n' % root)
+    out.append('                    <a href="%stalks/">Talks</a>\n' % root)
+    out.append(build_nav_badges())
+    out.append("                </div>")
+    return "".join(out)
+
 
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
@@ -44,9 +320,7 @@ def extract(raw):
     # bucket titles repeat "Go Code Stats" ("Total First-Party Go" etc.) --
     # the panel h2 already says "Go Code Stats", so drop the redundant suffix.
     go_panel_html = (
-        go_panel_html.replace(
-            "<h3>Total First-Party Go</h3>", "<h3>Total First-Party</h3>"
-        )
+        go_panel_html.replace("<h3>Total First-Party Go</h3>", "<h3>Total Code</h3>")
         .replace("<h3>Production Go</h3>", "<h3>Production</h3>")
         .replace("<h3>Test Go</h3>", "<h3>Test</h3>")
         .replace("<h3>Vendored Dependencies</h3>", "<h3>Dependencies</h3>")
@@ -105,23 +379,7 @@ PAGE = """<!doctype html>
                     <img src="../assets/ze.svg" alt="" width="32" height="32" />
                     <span>Ze</span>
                 </a>
-                <div class="nav-links">
-                    <a href="../index.html#status">Status</a>
-                    <a href="../index.html#try">Try</a>
-                    <a href="../features/">Features</a>
-                    <a href="../activity/">Activity</a>
-                    <a href="../performance/">Performance</a>
-                    <a href="../labs/">Labs</a>
-                    <a href="../compare/">Compare</a>
-                    <a href="../blog/">Blog</a>
-                    <a href="../talks/">Talks</a>
-                    <a
-                        href="https://github.com/ze-software/ze"
-                        target="_blank"
-                        rel="noopener"
-                        >GitHub</a
-                    >
-                </div>
+{navblock}
             </nav>
         </header>
 
@@ -130,13 +388,6 @@ PAGE = """<!doctype html>
                 <div class="section-head reveal cat-observe">
                     <h2 id="activity-title">Development activity.</h2>
                     <p>A year of commits, at a glance.</p>
-                </div>
-                <div class="section-note reveal">
-                    <p>
-                        Every square is a day. Darker means more lines
-                        shipped or more commits landed. This is live data,
-                        regenerated from git history, not a curated snapshot.
-                    </p>
                 </div>
                 <div class="activity-widget reveal" aria-label="Activity heatmap">
 {stats}
@@ -156,24 +407,7 @@ PAGE = """<!doctype html>
 
 {script}
 
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {{
-                var observer = new IntersectionObserver(
-                    function (entries) {{
-                        entries.forEach(function (entry) {{
-                            if (entry.isIntersecting) {{
-                                entry.target.classList.add("visible");
-                                observer.unobserve(entry.target);
-                            }}
-                        }});
-                    }},
-                    {{ threshold: 0.01 }},
-                );
-                document.querySelectorAll(".reveal").forEach(function (el) {{
-                    observer.observe(el);
-                }});
-            }});
-        </script>
+        <script src="../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">
@@ -488,6 +722,7 @@ def main():
 
     page = PAGE.format(
         style=STYLE,
+        navblock=build_navblock("../"),
         stats=stats_html,
         chart=chart_html,
         go_panel=go_panel_html,

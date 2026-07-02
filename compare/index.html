@@ -27,18 +27,136 @@
                 <div class="nav-links">
                     <a href="../index.html#status">Status</a>
                     <a href="../index.html#try">Try</a>
-                    <a href="../features/">Features</a>
-                    <a href="../activity/">Activity</a>
-                    <a href="../performance/">Performance</a>
-                    <a href="../labs/">Labs</a>
-                    <a href="../compare/">Compare</a>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Project
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../features/">
+                            <span class="nav-dropdown-icon">🧩</span>
+                            <span><strong>Features</strong><small>41 features, color-coded by category</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../performance/">
+                            <span class="nav-dropdown-icon">⚡</span>
+                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../compare/">
+                            <span class="nav-dropdown-icon">⚖️</span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../activity/">
+                            <span class="nav-dropdown-icon">📈</span>
+                            <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Labs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../labs/bgp-interop/">
+                            <span class="nav-dropdown-icon">🌐</span>
+                            <span><strong>BGP Protocol Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/l2tp-interop/">
+                            <span class="nav-dropdown-icon">🔌</span>
+                            <span><strong>L2TP PPP/NCP Interop</strong><small>Ze as LNS vs real xl2tpd</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/pppoe-interop/">
+                            <span class="nav-dropdown-icon">📡</span>
+                            <span><strong>PPPoE Interop</strong><small>vs real accel-ppp access concentrator</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/ipsec-interop/">
+                            <span class="nav-dropdown-icon">🔒</span>
+                            <span><strong>IPsec / IKEv2 Interop</strong><small>Ze as IKE initiator vs strongSwan</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../labs/vlan-qos/">
+                            <span class="nav-dropdown-icon">🏷️</span>
+                            <span><strong>VLAN QoS Wire-Level Proof</strong><small>802.1p PCP tagging, actually on the wire</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/looking-glass-graph/">
+                            <span class="nav-dropdown-icon">🔭</span>
+                            <span><strong>Looking Glass Graph Demo</strong><small>Realistic UK topology, real external ASNs</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/appliance-install/">
+                            <span class="nav-dropdown-icon">💿</span>
+                            <span><strong>Appliance Installer Evidence</strong><small>HTTP/PXE, ISO, Ventoy, real boots</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/vpp-dataplane/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>VPP Dataplane Evidence</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Docs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Getting started</span>
+                        <a class="nav-dropdown-item" href="../docs/guide/quickstart/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/features/configuration/">
+                            <span class="nav-dropdown-icon">⚙️</span>
+                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon">⌨️</span>
+                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/architecture/">
+                            <span class="nav-dropdown-icon">🏗️</span>
+                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Deep dives</span>
+                        <a class="nav-dropdown-item" href="../docs/features/mcp-integration/">
+                            <span class="nav-dropdown-icon">🤖</span>
+                            <span><strong>MCP Integration</strong><small>AI-assisted operations</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/features/web-interface/">
+                            <span class="nav-dropdown-icon">🖥️</span>
+                            <span><strong>Web Interface</strong><small>HTMX config editor and admin panel</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/guide/vpp/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/guide/benchmarking/">
+                            <span class="nav-dropdown-icon">📊</span>
+                            <span><strong>Benchmarking</strong><small>ze-perf architecture, flags, JSON output</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
                     <a href="../blog/">Blog</a>
                     <a href="../talks/">Talks</a>
                     <a
+                        class="nav-badge"
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        aria-label="Ze Discord"
+                        ><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>Discord</a
+                    >
+                    <a
+                        class="nav-badge"
                         href="https://github.com/ze-software/ze"
                         target="_blank"
                         rel="noopener"
-                        >GitHub</a
+                        aria-label="Ze on GitHub, 39 stars"
+                        ><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.9 6.9 7.1.6-5.4 4.6 1.7 7-6.3-3.9-6.3 3.9 1.7-7L1 9.5l7.1-.6L12 2z"/></svg>39</a
                     >
                 </div>
             </nav>
@@ -64,15 +182,15 @@ via the <a href="https://codeberg.org/thomas-mangin/ze/issues">issue tracker</a>
 <tr>
 <th></th>
 <th>Ze</th>
-<th>rustbgpd</th>
 <th>BIRD 3</th>
 <th>BIRD 2</th>
-<th>bio-rd</th>
-<th>RustyBGP</th>
 <th>FRR</th>
-<th>GoBGP</th>
-<th>ExaBGP</th>
 <th>OpenBGPd</th>
+<th>GoBGP</th>
+<th>bio-rd</th>
+<th>ExaBGP</th>
+<th>RustyBGP</th>
+<th>rustbgpd</th>
 <th>freeRtr</th>
 </tr>
 </thead>
@@ -80,128 +198,114 @@ via the <a href="https://codeberg.org/thomas-mangin/ze/issues">issue tracker</a>
 <tr>
 <td>Language</td>
 <td>Go</td>
-<td>Rust</td>
+<td>C</td>
+<td>C</td>
 <td>C</td>
 <td>C</td>
 <td>Go</td>
-<td>Rust</td>
-<td>C</td>
 <td>Go</td>
 <td>Python</td>
-<td>C</td>
+<td>Rust</td>
+<td>Rust</td>
 <td>Java</td>
 </tr>
 <tr>
 <td>License</td>
-<td>AGPL-3.0</td>
-<td>MIT</td>
-<td>GPL-2.0+</td>
-<td>GPL-2.0+</td>
-<td>Apache-2.0</td>
-<td>Apache-2.0</td>
-<td>GPL-2.0</td>
-<td>Apache-2.0</td>
-<td>BSD-3-Clause</td>
+<td>AGPL 3.0</td>
+<td>GPL 2.0+</td>
+<td>GPL 2.0+</td>
+<td>GPL 2.0</td>
 <td>ISC</td>
+<td>Apache 2.0</td>
+<td>Apache 2.0</td>
+<td>BSD 3-Clause</td>
+<td>Apache 2.0</td>
+<td>MIT</td>
 <td>Free</td>
 </tr>
 <tr>
 <td>Primary interface</td>
-<td>CLI + SSH + REST/gRPC</td>
+<td>CLI, SSH, REST, gRPC</td>
+<td>CLI</td>
+<td>CLI</td>
+<td>CLI</td>
+<td>CLI</td>
 <td>gRPC</td>
-<td>CLI (birdc)</td>
-<td>CLI (birdc)</td>
+<td>gRPC</td>
+<td>CLI, API</td>
 <td>gRPC</td>
 <td>gRPC</td>
-<td>CLI (vtysh)</td>
-<td>gRPC</td>
-<td>CLI + API</td>
-<td>CLI (bgpctl)</td>
-<td>CLI (telnet/SSH)</td>
+<td>CLI</td>
 </tr>
 <tr>
 <td>First release</td>
 <td>2026</td>
-<td>2026</td>
 <td>2024</td>
 <td>1998</td>
-<td>2018</td>
-<td>2019</td>
 <td>2017</td>
-<td>2014</td>
-<td>2010</td>
 <td>2004</td>
+<td>2014</td>
+<td>2018</td>
+<td>2010</td>
+<td>2019</td>
+<td>2026</td>
 <td>2012</td>
 </tr>
 <tr>
-<td>Maturity</td>
-<td>Pre-release</td>
-<td>Pre-release</td>
-<td>Production</td>
-<td>Production</td>
-<td>Niche</td>
-<td>Experimental</td>
-<td>Production</td>
-<td>Production</td>
-<td>Production</td>
-<td>Production</td>
-<td>Production</td>
-</tr>
-<tr>
 <td>Multithreaded</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Multithread model</td>
 <td>Goroutines</td>
-<td>Tokio</td>
 <td>Cooperative threads</td>
 <td>--</td>
-<td>Goroutines</td>
-<td>Multi-core</td>
-<td>--</td>
-<td>Goroutines</td>
 <td>--</td>
 <td>3-process</td>
+<td>Goroutines</td>
+<td>Goroutines</td>
+<td>--</td>
+<td>Multi-core</td>
+<td>Tokio</td>
 <td>Per-peer</td>
 </tr>
 <tr>
 <td>Plugin architecture</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>YANG-modeled config</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 </tbody>
 </table>
@@ -211,270 +315,270 @@ via the <a href="https://codeberg.org/thomas-mangin/ze/issues">issue tracker</a>
 <tr>
 <th>AFI/SAFI</th>
 <th>Ze</th>
-<th>rustbgpd</th>
 <th>BIRD 3</th>
 <th>BIRD 2</th>
-<th>bio-rd</th>
-<th>RustyBGP</th>
 <th>FRR</th>
-<th>GoBGP</th>
-<th>ExaBGP</th>
 <th>OpenBGPd</th>
+<th>GoBGP</th>
+<th>bio-rd</th>
+<th>ExaBGP</th>
+<th>RustyBGP</th>
+<th>rustbgpd</th>
 <th>freeRtr</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>IPv4 Unicast</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>IPv6 Unicast</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>IPv4 Multicast</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>IPv6 Multicast</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>IPv4 Labeled Unicast</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>IPv6 Labeled Unicast</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>VPNv4 (RFC 4364)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>VPNv6</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>L2VPN EVPN (RFC 7432)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>L2VPN VPLS</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>IPv4 FlowSpec (RFC 8955)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>IPv6 FlowSpec</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>VPN FlowSpec</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>BGP-LS (RFC 7752)</td>
 <td>Decode (40 TLVs)</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
 <td>Decode</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>SR Policy</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
 </tr>
 <tr>
 <td>IPv4/IPv6 MUP</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>IPv4/IPv6 MVPN</td>
 <td>Decode</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>IPv4 RTC (RFC 4684)</td>
 <td>Decode</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 </tbody>
 </table>
@@ -484,256 +588,256 @@ via the <a href="https://codeberg.org/thomas-mangin/ze/issues">issue tracker</a>
 <tr>
 <th>Feature</th>
 <th>Ze</th>
-<th>rustbgpd</th>
 <th>BIRD 3</th>
 <th>BIRD 2</th>
-<th>bio-rd</th>
-<th>RustyBGP</th>
 <th>FRR</th>
-<th>GoBGP</th>
-<th>ExaBGP</th>
 <th>OpenBGPd</th>
+<th>GoBGP</th>
+<th>bio-rd</th>
+<th>ExaBGP</th>
+<th>RustyBGP</th>
+<th>rustbgpd</th>
 <th>freeRtr</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>RFC 4271 FSM</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>4-byte ASN (RFC 6793)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Capability negotiation</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Route Refresh (RFC 2918)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Enhanced Route Refresh (RFC 7313)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Graceful Restart (RFC 4724)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Long-Lived GR (RFC 9494)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-partial">∿</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Notification GR (RFC 8538)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Add-Path (RFC 7911)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td>Rx only</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Paths-Limit (draft-abraitis)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Extended Messages (RFC 8654)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Extended Nexthop (RFC 8950)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Route Reflector (RFC 4456)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Confederation (RFC 5065)</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Admin Shutdown (RFC 8203)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-partial">Partial</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-partial">∿</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-partial">∿</td>
 </tr>
 <tr>
 <td>BGP Roles (RFC 9234)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-partial">Partial</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
 </tr>
 <tr>
 <td>Prefix Limit (RFC 4486)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 </tbody>
 </table>
@@ -773,270 +877,270 @@ tag/strip, and RFC 9234 role enforcement.</p>
 <tr>
 <th>Feature</th>
 <th>Ze</th>
-<th>rustbgpd</th>
 <th>BIRD 3</th>
 <th>BIRD 2</th>
-<th>bio-rd</th>
-<th>RustyBGP</th>
 <th>FRR</th>
-<th>GoBGP</th>
-<th>ExaBGP</th>
 <th>OpenBGPd</th>
+<th>GoBGP</th>
+<th>bio-rd</th>
+<th>ExaBGP</th>
+<th>RustyBGP</th>
+<th>rustbgpd</th>
 <th>freeRtr</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Prefix matching (ge/le)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>AS-path regex</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Standard communities</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Extended communities</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Large communities (RFC 8092)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Community add/remove/replace</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td>API</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>MED manipulation (set/inc/dec)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td>API</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>LOCAL_PREF set/inc/dec</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td>API</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>AS-path length filter</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>AS-path prepend</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td>API</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Next-hop set/self</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td>API</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>RPKI validation match</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Neighbor/peer matching</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Named policy definitions</td>
 <td>Plugin</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Policy chaining</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Custom filter language</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>External process policy</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Plugin-based policy</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 </tbody>
 </table>
@@ -1046,144 +1150,144 @@ tag/strip, and RFC 9234 role enforcement.</p>
 <tr>
 <th>Feature</th>
 <th>Ze</th>
-<th>rustbgpd</th>
 <th>BIRD 3</th>
 <th>BIRD 2</th>
-<th>bio-rd</th>
-<th>RustyBGP</th>
 <th>FRR</th>
-<th>GoBGP</th>
-<th>ExaBGP</th>
 <th>OpenBGPd</th>
+<th>GoBGP</th>
+<th>bio-rd</th>
+<th>ExaBGP</th>
+<th>RustyBGP</th>
+<th>rustbgpd</th>
 <th>freeRtr</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>TCP MD5 (RFC 2385)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>TCP-AO (RFC 5925)</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>GTSM / TTL Security</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-partial">∿</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>RPKI/RTR (RFC 6810/8210)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>ASPA verification</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Private AS removal</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Privilege separation</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>TACACS+ AAA (RFC 8907)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Memory-safe language</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 </tbody>
 </table>
@@ -1193,186 +1297,186 @@ tag/strip, and RFC 9234 role enforcement.</p>
 <tr>
 <th>Feature</th>
 <th>Ze</th>
-<th>rustbgpd</th>
 <th>BIRD 3</th>
 <th>BIRD 2</th>
-<th>bio-rd</th>
-<th>RustyBGP</th>
 <th>FRR</th>
-<th>GoBGP</th>
-<th>ExaBGP</th>
 <th>OpenBGPd</th>
+<th>GoBGP</th>
+<th>bio-rd</th>
+<th>ExaBGP</th>
+<th>RustyBGP</th>
+<th>rustbgpd</th>
 <th>freeRtr</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Prometheus metrics</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Structured logging (JSON)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>BMP (RFC 7854)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>MRT dump (RFC 6396)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Flow export (sFlow/NetFlow/IPFIX)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Streaming route events</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>JSON event protocol</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Built-in DNS resolver</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Static DNS name-servers</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Built-in PeeringDB/IRR/Cymru</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Unified operational reports</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-partial">Partial</td>
+<td class="cell-yes">✓</td>
+<td class="cell-partial">∿</td>
+<td class="cell-partial">∿</td>
+<td class="cell-partial">∿</td>
+<td class="cell-partial">∿</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
 </tr>
 <tr>
 <td>SNMP agent (AgentX/MIB)</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 </tbody>
 </table>
@@ -1392,200 +1496,200 @@ without maintaining a second protocol stack to do it.</p>
 <tr>
 <th>Feature</th>
 <th>Ze</th>
-<th>rustbgpd</th>
 <th>BIRD 3</th>
 <th>BIRD 2</th>
-<th>bio-rd</th>
-<th>RustyBGP</th>
 <th>FRR</th>
-<th>GoBGP</th>
-<th>ExaBGP</th>
 <th>OpenBGPd</th>
+<th>GoBGP</th>
+<th>bio-rd</th>
+<th>ExaBGP</th>
+<th>RustyBGP</th>
+<th>rustbgpd</th>
 <th>freeRtr</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>gNMI</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>gRPC API</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>REST API</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>YANG model</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>CLI tool</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-partial">∿</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>CLI JSON output</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Runtime route injection</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Hot reconfiguration (no restart)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-partial">∿</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Embeddable library</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Plugin SDK</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>External process protocol</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>MCP (Model Context Protocol) server</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>SSH CLI access</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 </tbody>
 </table>
@@ -1595,256 +1699,256 @@ without maintaining a second protocol stack to do it.</p>
 <tr>
 <th>Feature</th>
 <th>Ze</th>
-<th>rustbgpd</th>
 <th>BIRD 3</th>
 <th>BIRD 2</th>
-<th>bio-rd</th>
-<th>RustyBGP</th>
 <th>FRR</th>
-<th>GoBGP</th>
-<th>ExaBGP</th>
 <th>OpenBGPd</th>
+<th>GoBGP</th>
+<th>bio-rd</th>
+<th>ExaBGP</th>
+<th>RustyBGP</th>
+<th>rustbgpd</th>
 <th>freeRtr</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Crash capture (syslog + file)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Config error diagnostics</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-partial">∿</td>
 </tr>
 <tr>
 <td>Runtime health monitoring</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Pre-start readiness checks</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Docker image</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Fuzz testing</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Interop test suite</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Static routes (ECMP+BFD)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Policy-based routing (PBR)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>FIB/kernel integration</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Sysctl management</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-partial">∿</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>Route server mode</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Dynamic neighbors</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Looking glass</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>BFD integration</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-partial">∿</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Firewall (nftables)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Config commit/rollback (candidate + active)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 </tr>
 </tbody>
 </table>
@@ -1861,200 +1965,200 @@ injector/receiver, not a router.</p>
 <tr>
 <th>Step</th>
 <th>Ze</th>
-<th>rustbgpd</th>
 <th>BIRD 3</th>
 <th>BIRD 2</th>
-<th>bio-rd</th>
-<th>RustyBGP</th>
 <th>FRR</th>
-<th>GoBGP</th>
-<th>ExaBGP</th>
 <th>OpenBGPd</th>
+<th>GoBGP</th>
+<th>bio-rd</th>
+<th>ExaBGP</th>
+<th>RustyBGP</th>
+<th>rustbgpd</th>
 <th>freeRtr</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>LOCAL_PREF</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td class="cell-na">N/A</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>AS-path length</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td class="cell-na">N/A</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>ORIGIN</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td class="cell-na">N/A</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>MED</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td class="cell-na">N/A</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>eBGP over iBGP</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td class="cell-na">N/A</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>CLUSTER_LIST length</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td class="cell-na">N/A</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>ORIGINATOR_ID</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td class="cell-na">N/A</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Stale route demotion (GR)</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
 <td class="cell-na">N/A</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>RPKI preference</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
 <td class="cell-na">N/A</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>AIGP</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
 <td class="cell-na">N/A</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>IGP cost to next-hop</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 <td class="cell-na">N/A</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Recursive next-hop</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
 <td class="cell-na">N/A</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Multipath/ECMP</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-partial">Partial</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-no">No</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 <td class="cell-na">N/A</td>
-<td class="cell-yes">Yes</td>
-<td class="cell-yes">Yes</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-yes">✓</td>
 </tr>
 </tbody>
 </table>
@@ -2177,24 +2281,7 @@ configuration) over matching every implementation's full breadth on day one.</p>
             </section>
         </main>
 
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                var observer = new IntersectionObserver(
-                    function (entries) {
-                        entries.forEach(function (entry) {
-                            if (entry.isIntersecting) {
-                                entry.target.classList.add("visible");
-                                observer.unobserve(entry.target);
-                            }
-                        });
-                    },
-                    { threshold: 0.01 },
-                );
-                document.querySelectorAll(".reveal").forEach(function (el) {
-                    observer.observe(el);
-                });
-            });
-        </script>
+        <script src="../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

@@ -283,18 +283,136 @@
                 <div class="nav-links">
                     <a href="../index.html#status">Status</a>
                     <a href="../index.html#try">Try</a>
-                    <a href="../features/">Features</a>
-                    <a href="../activity/">Activity</a>
-                    <a href="../performance/">Performance</a>
-                    <a href="../labs/">Labs</a>
-                    <a href="../compare/">Compare</a>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Project
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../features/">
+                            <span class="nav-dropdown-icon">🧩</span>
+                            <span><strong>Features</strong><small>41 features, color-coded by category</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../performance/">
+                            <span class="nav-dropdown-icon">⚡</span>
+                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../compare/">
+                            <span class="nav-dropdown-icon">⚖️</span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../activity/">
+                            <span class="nav-dropdown-icon">📈</span>
+                            <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Labs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../labs/bgp-interop/">
+                            <span class="nav-dropdown-icon">🌐</span>
+                            <span><strong>BGP Protocol Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/l2tp-interop/">
+                            <span class="nav-dropdown-icon">🔌</span>
+                            <span><strong>L2TP PPP/NCP Interop</strong><small>Ze as LNS vs real xl2tpd</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/pppoe-interop/">
+                            <span class="nav-dropdown-icon">📡</span>
+                            <span><strong>PPPoE Interop</strong><small>vs real accel-ppp access concentrator</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/ipsec-interop/">
+                            <span class="nav-dropdown-icon">🔒</span>
+                            <span><strong>IPsec / IKEv2 Interop</strong><small>Ze as IKE initiator vs strongSwan</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../labs/vlan-qos/">
+                            <span class="nav-dropdown-icon">🏷️</span>
+                            <span><strong>VLAN QoS Wire-Level Proof</strong><small>802.1p PCP tagging, actually on the wire</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/looking-glass-graph/">
+                            <span class="nav-dropdown-icon">🔭</span>
+                            <span><strong>Looking Glass Graph Demo</strong><small>Realistic UK topology, real external ASNs</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/appliance-install/">
+                            <span class="nav-dropdown-icon">💿</span>
+                            <span><strong>Appliance Installer Evidence</strong><small>HTTP/PXE, ISO, Ventoy, real boots</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/vpp-dataplane/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>VPP Dataplane Evidence</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Docs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Getting started</span>
+                        <a class="nav-dropdown-item" href="../docs/guide/quickstart/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/features/configuration/">
+                            <span class="nav-dropdown-icon">⚙️</span>
+                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon">⌨️</span>
+                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/architecture/">
+                            <span class="nav-dropdown-icon">🏗️</span>
+                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Deep dives</span>
+                        <a class="nav-dropdown-item" href="../docs/features/mcp-integration/">
+                            <span class="nav-dropdown-icon">🤖</span>
+                            <span><strong>MCP Integration</strong><small>AI-assisted operations</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/features/web-interface/">
+                            <span class="nav-dropdown-icon">🖥️</span>
+                            <span><strong>Web Interface</strong><small>HTMX config editor and admin panel</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/guide/vpp/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/guide/benchmarking/">
+                            <span class="nav-dropdown-icon">📊</span>
+                            <span><strong>Benchmarking</strong><small>ze-perf architecture, flags, JSON output</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
                     <a href="../blog/">Blog</a>
                     <a href="../talks/">Talks</a>
                     <a
+                        class="nav-badge"
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        aria-label="Ze Discord"
+                        ><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>Discord</a
+                    >
+                    <a
+                        class="nav-badge"
                         href="https://github.com/ze-software/ze"
                         target="_blank"
                         rel="noopener"
-                        >GitHub</a
+                        aria-label="Ze on GitHub, 39 stars"
+                        ><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.9 6.9 7.1.6-5.4 4.6 1.7 7-6.3-3.9-6.3 3.9 1.7-7L1 9.5l7.1-.6L12 2z"/></svg>39</a
                     >
                 </div>
             </nav>
@@ -306,17 +424,10 @@
                     <h2 id="activity-title">Development activity.</h2>
                     <p>A year of commits, at a glance.</p>
                 </div>
-                <div class="section-note reveal">
-                    <p>
-                        Every square is a day. Darker means more lines
-                        shipped or more commits landed. This is live data,
-                        regenerated from git history, not a curated snapshot.
-                    </p>
-                </div>
                 <div class="activity-widget reveal" aria-label="Activity heatmap">
 <section class="stats" aria-label="Summary">
-        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">1,706,207</strong></div>
-        <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">193</strong></div>
+        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">1,712,186</strong></div>
+        <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">194</strong></div>
         <div class="stat"><span id="peak-label">Peak line day (2026-06-20)</span><strong id="peak-value">48,805</strong></div>
         <div class="stat"><span>Days shown</span><strong>365</strong></div>
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem">
@@ -757,7 +868,7 @@
 <div class="day-cell" data-date="2026-06-29" data-date-label="Mon 29 Jun 2026" data-lines="32230" data-lines-display="32,230" data-lines-level="4" data-commits="14" data-commits-display="14" data-commits-level="1" data-level="4" aria-label="Mon 29 Jun 2026: 32,230 lines added, 14 commits" tabindex="0"></div>
 <div class="day-cell" data-date="2026-06-30" data-date-label="Tue 30 Jun 2026" data-lines="991" data-lines-display="991" data-lines-level="1" data-commits="14" data-commits-display="14" data-commits-level="1" data-level="1" aria-label="Tue 30 Jun 2026: 991 lines added, 14 commits" tabindex="0"></div>
 <div class="day-cell" data-date="2026-07-01" data-date-label="Wed 01 Jul 2026" data-lines="5203" data-lines-display="5,203" data-lines-level="1" data-commits="24" data-commits-display="24" data-commits-level="2" data-level="1" aria-label="Wed 01 Jul 2026: 5,203 lines added, 24 commits" tabindex="0"></div>
-<div class="day-cell" data-date="2026-07-02" data-date-label="Thu 02 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 02 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-07-02" data-date-label="Thu 02 Jul 2026" data-lines="5979" data-lines-display="5,979" data-lines-level="1" data-commits="4" data-commits-display="4" data-commits-level="1" data-level="1" aria-label="Thu 02 Jul 2026: 5,979 lines added, 4 commits" tabindex="0"></div>
 <div class="day-cell outside" data-date="2026-07-03" data-date-label="Fri 03 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 03 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell outside" data-date="2026-07-04" data-date-label="Sat 04 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 04 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
                     </div>
@@ -769,35 +880,35 @@
         <h2>Go Code Stats</h2>
         <div class="go-breakdown">
 <div class="go-bucket">
-            <h3>Total First-Party</h3>
+            <h3>Total Code</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>4,914</strong></div>
-<div class="stat"><span>Total lines</span><strong>1,084,997</strong></div>
-<div class="stat"><span>Code</span><strong>808,826</strong></div>
-<div class="stat"><span>Blank</span><strong>126,209</strong></div>
-<div class="stat"><span>Comments</span><strong>149,962</strong></div>
+<div class="stat"><span>Files</span><strong>4,939</strong></div>
+<div class="stat"><span>Total lines</span><strong>1,088,954</strong></div>
+<div class="stat"><span>Code</span><strong>811,315</strong></div>
+<div class="stat"><span>Blank</span><strong>126,633</strong></div>
+<div class="stat"><span>Comments</span><strong>151,006</strong></div>
             </div>
             
         </div>
 <div class="go-bucket">
             <h3>Production</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>2,937</strong></div>
-<div class="stat"><span>Total lines</span><strong>569,598</strong></div>
-<div class="stat"><span>Code</span><strong>426,769</strong></div>
-<div class="stat"><span>Blank</span><strong>61,543</strong></div>
-<div class="stat"><span>Comments</span><strong>81,286</strong></div>
+<div class="stat"><span>Files</span><strong>2,948</strong></div>
+<div class="stat"><span>Total lines</span><strong>571,227</strong></div>
+<div class="stat"><span>Code</span><strong>427,641</strong></div>
+<div class="stat"><span>Blank</span><strong>61,701</strong></div>
+<div class="stat"><span>Comments</span><strong>81,885</strong></div>
             </div>
             
         </div>
 <div class="go-bucket">
             <h3>Test</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>1,977</strong></div>
-<div class="stat"><span>Total lines</span><strong>515,399</strong></div>
-<div class="stat"><span>Code</span><strong>382,057</strong></div>
-<div class="stat"><span>Blank</span><strong>64,666</strong></div>
-<div class="stat"><span>Comments</span><strong>68,676</strong></div>
+<div class="stat"><span>Files</span><strong>1,991</strong></div>
+<div class="stat"><span>Total lines</span><strong>517,727</strong></div>
+<div class="stat"><span>Code</span><strong>383,674</strong></div>
+<div class="stat"><span>Blank</span><strong>64,932</strong></div>
+<div class="stat"><span>Comments</span><strong>69,121</strong></div>
             </div>
             
         </div>
@@ -861,7 +972,7 @@
         </main>
 
 <script>
-const metricSummaries = {"lines":{"totalLabel":"Total added lines","totalValue":"1,706,207","activeLabel":"Days with added lines","activeValue":"193","peakLabel":"Peak line day (2026-06-20)","peakValue":"48,805","topHeading":"Top Added-Line Days","topColumn":"Added lines","thresholdLabel":"Line thresholds","thresholdValue":"9,761, 19,522, 29,283, 39,044"},"commits":{"totalLabel":"Total commits","totalValue":"4,359","activeLabel":"Days with commits","activeValue":"193","peakLabel":"Peak commit day (2026-04-11)","peakValue":"93","topHeading":"Top Commit Days","topColumn":"Commits","thresholdLabel":"Commit thresholds","thresholdValue":"19, 38, 56, 75"}};
+const metricSummaries = {"lines":{"totalLabel":"Total added lines","totalValue":"1,712,186","activeLabel":"Days with added lines","activeValue":"194","peakLabel":"Peak line day (2026-06-20)","peakValue":"48,805","topHeading":"Top Added-Line Days","topColumn":"Added lines","thresholdLabel":"Line thresholds","thresholdValue":"9,761, 19,522, 29,283, 39,044"},"commits":{"totalLabel":"Total commits","totalValue":"4,363","activeLabel":"Days with commits","activeValue":"194","peakLabel":"Peak commit day (2026-04-11)","peakValue":"93","topHeading":"Top Commit Days","topColumn":"Commits","thresholdLabel":"Commit thresholds","thresholdValue":"19, 38, 56, 75"}};
 let currentMetric = "lines";
 const cells = Array.from(document.querySelectorAll(".activity-grid .day-cell"));
 const buttons = Array.from(document.querySelectorAll(".metric-switch button"));
@@ -968,24 +1079,7 @@ for (const cell of cells) {
 setMetric("lines");
 </script>
 
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                var observer = new IntersectionObserver(
-                    function (entries) {
-                        entries.forEach(function (entry) {
-                            if (entry.isIntersecting) {
-                                entry.target.classList.add("visible");
-                                observer.unobserve(entry.target);
-                            }
-                        });
-                    },
-                    { threshold: 0.01 },
-                );
-                document.querySelectorAll(".reveal").forEach(function (el) {
-                    observer.observe(el);
-                });
-            });
-        </script>
+        <script src="../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

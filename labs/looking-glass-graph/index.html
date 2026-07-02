@@ -24,23 +24,142 @@
                     <img src="../../assets/ze.svg" alt="" width="32" height="32" />
                     <span>Ze</span>
                 </a>
-                <div class="nav-links">
+                                                                                <div class="nav-links">
                     <a href="../../index.html#status">Status</a>
                     <a href="../../index.html#try">Try</a>
-                    <a href="../../features/">Features</a>
-                    <a href="../../activity/">Activity</a>
-                    <a href="../../performance/">Performance</a>
-                    <a href="../">Labs</a>
-                    <a href="../../compare/">Compare</a>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Project
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../../features/">
+                            <span class="nav-dropdown-icon">🧩</span>
+                            <span><strong>Features</strong><small>41 features, color-coded by category</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../performance/">
+                            <span class="nav-dropdown-icon">⚡</span>
+                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../compare/">
+                            <span class="nav-dropdown-icon">⚖️</span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../activity/">
+                            <span class="nav-dropdown-icon">📈</span>
+                            <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Labs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../../labs/bgp-interop/">
+                            <span class="nav-dropdown-icon">🌐</span>
+                            <span><strong>BGP Protocol Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/l2tp-interop/">
+                            <span class="nav-dropdown-icon">🔌</span>
+                            <span><strong>L2TP PPP/NCP Interop</strong><small>Ze as LNS vs real xl2tpd</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/pppoe-interop/">
+                            <span class="nav-dropdown-icon">📡</span>
+                            <span><strong>PPPoE Interop</strong><small>vs real accel-ppp access concentrator</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/ipsec-interop/">
+                            <span class="nav-dropdown-icon">🔒</span>
+                            <span><strong>IPsec / IKEv2 Interop</strong><small>Ze as IKE initiator vs strongSwan</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../../labs/vlan-qos/">
+                            <span class="nav-dropdown-icon">🏷️</span>
+                            <span><strong>VLAN QoS Wire-Level Proof</strong><small>802.1p PCP tagging, actually on the wire</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/looking-glass-graph/">
+                            <span class="nav-dropdown-icon">🔭</span>
+                            <span><strong>Looking Glass Graph Demo</strong><small>Realistic UK topology, real external ASNs</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/appliance-install/">
+                            <span class="nav-dropdown-icon">💿</span>
+                            <span><strong>Appliance Installer Evidence</strong><small>HTTP/PXE, ISO, Ventoy, real boots</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/vpp-dataplane/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>VPP Dataplane Evidence</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Docs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Getting started</span>
+                        <a class="nav-dropdown-item" href="../../docs/guide/quickstart/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/configuration/">
+                            <span class="nav-dropdown-icon">⚙️</span>
+                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon">⌨️</span>
+                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/architecture/">
+                            <span class="nav-dropdown-icon">🏗️</span>
+                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Deep dives</span>
+                        <a class="nav-dropdown-item" href="../../docs/features/mcp-integration/">
+                            <span class="nav-dropdown-icon">🤖</span>
+                            <span><strong>MCP Integration</strong><small>AI-assisted operations</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/web-interface/">
+                            <span class="nav-dropdown-icon">🖥️</span>
+                            <span><strong>Web Interface</strong><small>HTMX config editor and admin panel</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/guide/vpp/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/guide/benchmarking/">
+                            <span class="nav-dropdown-icon">📊</span>
+                            <span><strong>Benchmarking</strong><small>ze-perf architecture, flags, JSON output</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
                     <a href="../../blog/">Blog</a>
                     <a href="../../talks/">Talks</a>
                     <a
+                        class="nav-badge"
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        aria-label="Ze Discord"
+                        ><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>Discord</a
+                    >
+                    <a
+                        class="nav-badge"
                         href="https://github.com/ze-software/ze"
                         target="_blank"
                         rel="noopener"
-                        >GitHub</a
+                        aria-label="Ze on GitHub, 39 stars"
+                        ><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.9 6.9 7.1.6-5.4 4.6 1.7 7-6.3-3.9-6.3 3.9 1.7-7L1 9.5l7.1-.6L12 2z"/></svg>39</a
                     >
                 </div>
+            
             </nav>
         </header>
 
@@ -103,6 +222,7 @@
                     <div class="terminal" aria-label="Run commands">
                         <div class="terminal-dots">
                             <span></span><span></span><span></span>
+                            <span class="terminal-title">looking-glass-graph</span>
                         </div>
                         <div class="terminal-body">
                             <pre><span class="term-comment"># builds ze if needed, injects routes, starts the looking glass</span>
@@ -133,24 +253,7 @@
             </section>
         </main>
 
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                var observer = new IntersectionObserver(
-                    function (entries) {
-                        entries.forEach(function (entry) {
-                            if (entry.isIntersecting) {
-                                entry.target.classList.add("visible");
-                                observer.unobserve(entry.target);
-                            }
-                        });
-                    },
-                    { threshold: 0.01 },
-                );
-                document.querySelectorAll(".reveal").forEach(function (el) {
-                    observer.observe(el);
-                });
-            });
-        </script>
+<script src="../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">

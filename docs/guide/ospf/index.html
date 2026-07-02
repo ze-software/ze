@@ -27,18 +27,136 @@
                 <div class="nav-links">
                     <a href="../../../index.html#status">Status</a>
                     <a href="../../../index.html#try">Try</a>
-                    <a href="../../../features/">Features</a>
-                    <a href="../../../activity/">Activity</a>
-                    <a href="../../../performance/">Performance</a>
-                    <a href="../../../labs/">Labs</a>
-                    <a href="../../../compare/">Compare</a>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Project
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../../../features/">
+                            <span class="nav-dropdown-icon">🧩</span>
+                            <span><strong>Features</strong><small>41 features, color-coded by category</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../performance/">
+                            <span class="nav-dropdown-icon">⚡</span>
+                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../compare/">
+                            <span class="nav-dropdown-icon">⚖️</span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../activity/">
+                            <span class="nav-dropdown-icon">📈</span>
+                            <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Labs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../../../labs/bgp-interop/">
+                            <span class="nav-dropdown-icon">🌐</span>
+                            <span><strong>BGP Protocol Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/l2tp-interop/">
+                            <span class="nav-dropdown-icon">🔌</span>
+                            <span><strong>L2TP PPP/NCP Interop</strong><small>Ze as LNS vs real xl2tpd</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/pppoe-interop/">
+                            <span class="nav-dropdown-icon">📡</span>
+                            <span><strong>PPPoE Interop</strong><small>vs real accel-ppp access concentrator</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/ipsec-interop/">
+                            <span class="nav-dropdown-icon">🔒</span>
+                            <span><strong>IPsec / IKEv2 Interop</strong><small>Ze as IKE initiator vs strongSwan</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../../../labs/vlan-qos/">
+                            <span class="nav-dropdown-icon">🏷️</span>
+                            <span><strong>VLAN QoS Wire-Level Proof</strong><small>802.1p PCP tagging, actually on the wire</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/looking-glass-graph/">
+                            <span class="nav-dropdown-icon">🔭</span>
+                            <span><strong>Looking Glass Graph Demo</strong><small>Realistic UK topology, real external ASNs</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/appliance-install/">
+                            <span class="nav-dropdown-icon">💿</span>
+                            <span><strong>Appliance Installer Evidence</strong><small>HTTP/PXE, ISO, Ventoy, real boots</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/vpp-dataplane/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>VPP Dataplane Evidence</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Docs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Getting started</span>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/quickstart/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/configuration/">
+                            <span class="nav-dropdown-icon">⚙️</span>
+                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon">⌨️</span>
+                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/architecture/">
+                            <span class="nav-dropdown-icon">🏗️</span>
+                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Deep dives</span>
+                        <a class="nav-dropdown-item" href="../../../docs/features/mcp-integration/">
+                            <span class="nav-dropdown-icon">🤖</span>
+                            <span><strong>MCP Integration</strong><small>AI-assisted operations</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/web-interface/">
+                            <span class="nav-dropdown-icon">🖥️</span>
+                            <span><strong>Web Interface</strong><small>HTMX config editor and admin panel</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/vpp/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/benchmarking/">
+                            <span class="nav-dropdown-icon">📊</span>
+                            <span><strong>Benchmarking</strong><small>ze-perf architecture, flags, JSON output</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
                     <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
                     <a
+                        class="nav-badge"
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        aria-label="Ze Discord"
+                        ><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>Discord</a
+                    >
+                    <a
+                        class="nav-badge"
                         href="https://github.com/ze-software/ze"
                         target="_blank"
                         rel="noopener"
-                        >GitHub</a
+                        aria-label="Ze on GitHub, 39 stars"
+                        ><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.9 6.9 7.1.6-5.4 4.6 1.7 7-6.3-3.9-6.3 3.9 1.7-7L1 9.5l7.1-.6L12 2z"/></svg>39</a
                     >
                 </div>
             </nav>
@@ -64,6 +182,29 @@
 <!-- source: internal/plugins/ospf/spf/interarea.go -- IsABR and ComputeInterArea -->
 <!-- source: internal/plugins/ospf/spf/summary.go -- OriginateSummaries -->
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateSummary and FlushStaleSummaryLSAs -->
+
+<h2>Multiple address families (RFC 5838)</h2>
+<p>The OSPFv3 (IPv6) family carries several address families over one link, each as a separate
+OSPFv3 instance distinguished by its <strong>Instance ID range</strong> (RFC 5838 §2.1): IPv6-unicast
+0-31, IPv6-multicast 32-63, IPv4-unicast 64-95, IPv4-multicast 96-127. Configure each under
+<code>ospf { address-family { &lt;af&gt; { instance-id N; areas {...} interfaces {...} } } }</code>, where
+<code>&lt;af&gt;</code> is <code>ipv6-unicast</code> (or the bare <code>ipv6</code>), <code>ipv6-multicast</code>, <code>ipv4-unicast</code>, or
+<code>ipv4-multicast</code>. The Instance ID must fall inside the chosen AF's range or the config is
+rejected. Each configured AF runs its own engine instance with a private LSDB, neighbor
+table, SPF, and Loc-RIB install family (IPv6-unicast routes install into <code>family.IPv6Unicast</code>,
+IPv4-unicast into <code>family.IPv4Unicast</code>, etc.).</p>
+<!-- source: internal/plugins/ospf/multiaf.go -- afFromInstanceID, install family -->
+<!-- source: internal/plugins/ospf/register_multiaf.go -- v6EngineSet per-AF spawn -->
+
+<p>A router running more than one address family sets the <strong>AF-bit</strong> (RFC 5838 §2.4) in its
+Hello and DD Options. A non-default AF requires the AF-bit to form an adjacency (§2.5); the
+default IPv6-unicast AF ignores a missing AF-bit for backward interoperability (§2.6), so a
+lone IPv6-unicast instance keeps the same on-wire bytes as before and peers with a legacy
+FRR <code>ospf6d</code>. IPv4-over-OSPFv3 (Instance ID 64-95) carries a 0-32-bit IPv4 prefix in a single
+32-bit word (§2.7) and derives its next-hop from the IPv6 link-local adjacency. <code>show ospf
+ipv6</code> lists each running AF instance with its address family and Instance ID.</p>
+<!-- source: internal/plugins/ospf/v3/types/options.go -- OptAF -->
+<!-- source: internal/plugins/ospf/encoder_v6.go -- AF-bit emission -->
 
 <h2>AS-External routes and redistribution</h2>
 <p>A router becomes an AS Boundary Router (ASBR) when it originates external LSAs, either by redistributing routes from another protocol or through <code>default-information originate</code>. OSPFv2 uses Type 5 AS-External-LSAs; OSPFv3 uses AS-External-LSAs (<code>0x4005</code>) in normal areas and NSSA-LSAs (<code>0x2007</code>) in attached NSSA areas. The ASBR sets the E-bit in its Router-LSA; the ABR and ASBR roles are independent. AS-scoped Type 5 / <code>0x4005</code> LSAs live in the AS-wide store, separate from per-area LSDBs.</p>
@@ -153,6 +294,48 @@
 <!-- source: internal/plugins/ospf/te_ted.go -- ted, TEDSnapshot, LookupLink -->
 <!-- source: internal/plugins/ospf/packet/te_lsa.go -- TELSA, DecodeTELSA, TELink -->
 
+<h2>Router Information (RFC 7770)</h2>
+<p>Ze advertises this router's optional capabilities in the Router Information (RI) LSA (RFC 7770, which obsoletes RFC 4970). The RI LSA carries two things this router controls: the Router Informational Capabilities TLV (type 1) and a consumer-neutral hook so a later extension (Segment Routing) can inject its own TLVs into the same LSA. RI is informational only: it never feeds SPF or the route table, so a received RI LSA changes no routing.</p>
+<p>The two address families carry the RI LSA differently but share one body. For OSPFv2 the RI LSA is an Opaque LSA with Opaque type 4 (RI rides the opaque carrier above and requires <code>opaque true</code>); the 24-bit Opaque ID is the RI LSA Instance ID (Instance 0 is LS ID <code>4.0.0.0</code>). For OSPFv3 the RI LSA is a native LSA with function code 12 and the U-bit set (0x800C link, 0xA00C area, 0xC00C AS), so a router that does not understand it still floods it (RFC 5340). Both carriages build the same TLV stream, so the advertised bytes are identical across the two families.</p>
+<p>Enable it with a <code>router-information</code> container. It applies to both address families (a top-level container drives the OSPFv3 family unless that family sets its own):</p>
+<pre><code>ospf {
+    opaque true
+    router-information {
+        enabled true
+        scope area
+        scope as
+    }
+}
+</code></pre>
+<p>The <code>scope</code> leaf-list selects the flooding scope(s) per RFC 7770 §2.7 (<code>link</code> / <code>area</code> / <code>as</code>); when enabled with no scope listed it defaults to area + AS, matching the common Segment-Routing deployment. When AS scope is chosen and an NSSA is attached, Ze also advertises an area-scoped RI LSA into that NSSA (RFC 7770 §2.7 SHOULD).</p>
+<p>The Router Informational Capabilities TLV is always the first TLV in Instance 0 (RFC 7770 §2.4 MUST) and reflects live engine state, so it cannot advertise a capability the router lacks: bit 0/1 (graceful restart capable / helper) track the GR configuration, bit 2 (stub router) is set when max-metric is configured (RFC 6987), and bit 3 (traffic engineering) is set when TE is configured (RFC 3630). An empty Functional Capabilities TLV (type 2) is carried as a placeholder (the RFC functional registry is initially empty). A downstream consumer registers additional TLVs; the originator emits them after the type-1 TLV in ascending TLV-type order, and if they overflow one LSA they spill into subsequent Instance IDs (a receiver uses the smallest Instance ID for an unspecified-multi-instance TLV, RFC 7770 §3). A registered builder that panics is isolated and counted, and the RI LSA is still emitted.</p>
+<p><code>show ospf database router-information</code> decodes the stored RI LSAs for both address families into the named capability bits and the TLV list. RI activity is counted by <code>ze_ospf_ri_lsas{af,scope}</code>, <code>ze_ospf_ri_originations_total{af,scope}</code>, <code>ze_ospf_ri_received_total{af}</code>, <code>ze_ospf_ri_tlv_builder_errors_total</code>, and <code>ze_ospf_ri_capability_bits{bit}</code>.</p>
+<!-- source: internal/plugins/ospf/ri.go -- registerRIConsumer, deriveRICapabilities, buildRIInstances, riMetrics -->
+<!-- source: internal/plugins/ospf/ri_registry.go -- registerRITLV, riTLVBuildersForScope -->
+<!-- source: internal/plugins/ospf/origination_v6_ri.go -- v6OriginateRI, v6RILSType -->
+<!-- source: internal/plugins/ospf/packet/ri_tlv.go -- RITLV, EncodeRITLVs, DecodeRITLVStream, RICapabilitiesValue -->
+
+<h2>Multi-Instance (RFC 6549)</h2>
+<p>Several independent OSPFv2 instances can coexist on one physical interface / subnet. RFC 6549 carves an 8-bit Instance ID out of the OSPFv2 common header by splitting the former 16-bit Authentication Type field into an Instance ID (header offset 14) and an 8-bit AuType (offset 15); the header size is unchanged. Ze runs one full OSPFv2 engine per configured Instance ID (its own LSDB, SPF, and neighbour table), each demultiplexed by the Instance ID: a received packet whose Instance ID does not match the receiving engine's is discarded before any handler runs, so neighbours only form within a matching instance.</p>
+<!-- source: internal/plugins/ospf/packet/header.go -- offInstanceID/offAuType split -->
+<!-- source: internal/plugins/ospf/dispatcher.go -- h.InstanceID != instanceID discard -->
+<!-- source: internal/plugins/ospf/multi_instance.go -- one engine per Instance ID -->
+
+<p>An interface joins one or more instances with the per-interface <code>instance-id</code> leaf-list; absent, it belongs to the base instance 0, which is bit-for-bit identical to base OSPFv2 (a Ze router with no multi-instance config interoperates unchanged with a legacy peer such as FRR). A non-zero Instance ID is transmitted in every packet's header and, on a legacy peer, is read as a mismatched 16-bit AuType and dropped at authentication -- the intended isolation. Listing two Instance IDs on one interface enrols it in two coexisting instances.</p>
+<pre><code class="language-text">ospf {
+    interfaces {
+        interface eth0 {
+            area 0.0.0.0
+            instance-id 0
+            instance-id 5
+        }
+    }
+}
+</code></pre>
+<p><code>show ospf instance</code> lists each configured instance with its Instance ID and the size of its isolated area/interface/neighbour/database state. The demux exposes <code>ze_ospf_instances</code> (gauge) and <code>ze_ospf_instance_mismatch_drops_total{interface}</code> (counter, packets dropped because their Instance ID matched no configured instance). The Instance ID has local subnet significance only: it lives only in the packet header, is never carried in an LSA, and is never compared across links. Ze does not compute per-topology routes (Multi-Topology Routing / RFC 4915 is out of scope), so the reserved Instance IDs 0/1/2 carry no special semantics.</p>
+<!-- source: internal/plugins/ospf/config.go -- configInstanceIDs, instanceIDSet, forInstance -->
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- interface instance-id leaf-list -->
+
 <h2>Authentication</h2>
 <p>OSPFv2 packets can be authenticated per interface with a key chain (RFC 2328 Appendix D, RFC 5709, RFC 7474). Four schemes are supported, selected by the key algorithm and the chain's <code>extended-sequence</code> flag: AuType 0 (none), AuType 1 (<code>simple</code> 8-byte cleartext password), AuType 2 (<code>md5</code> keyed-MD5 or HMAC-SHA-1/256/384/512), and AuType 3 (the same HMAC-SHA algorithms with a 64-bit extended cryptographic sequence number). Every outgoing packet is signed and every incoming packet is verified before it reaches the ISM/NSM/LSDB; a packet that fails is dropped before any protocol processing and increments <code>ze_ospf_auth_failures_total{interface,reason}</code>.</p>
 <!-- source: internal/plugins/ospf/packet/auth_verify.go -- Sign, Verify -->
@@ -166,16 +349,18 @@
 
 <p>Operational state is available through the <code>show ospf</code> command tree:</p>
 <pre><code class="language-text">show ospf
+show ospf instance
 show ospf neighbor
 show ospf interface
 show ospf database [router|network|summary|asbr-summary|external|nssa-external]
 show ospf database [opaque-link|opaque-area|opaque-as]
+show ospf database router-information
 show ospf te-database
 show ospf route
 show ospf spf
 show ospf border-routers
 </code></pre>
-<p><code>show ospf database opaque-link|opaque-area|opaque-as</code> filter the LSDB to the RFC 5250 opaque LSAs of Type 9 (link), Type 10 (area), and Type 11 (AS) respectively. <code>show ospf te-database</code> renders the RFC 3630 / RFC 5392 Traffic Engineering Database (see Traffic Engineering above).</p>
+<p><code>show ospf database opaque-link|opaque-area|opaque-as</code> filter the LSDB to the RFC 5250 opaque LSAs of Type 9 (link), Type 10 (area), and Type 11 (AS) respectively. <code>show ospf database router-information</code> decodes the RFC 7770 Router Information LSAs of both address families (see Router Information above). <code>show ospf te-database</code> renders the RFC 3630 / RFC 5392 Traffic Engineering Database (see Traffic Engineering above).</p>
 <p><code>show ospf</code> is the process summary (router-id, ABR/ASBR status, areas, and the active stub-router / max-metric state). <code>show ospf database</code> lists every LSA; the per-type subviews filter to one LS Type (1/2/3/4/5/7). <code>show ospf route</code> reports area, prefix, metric, route type, origin router, and next-hop set. <code>show ospf spf</code> reports per-area last run, duration, node count, pending state, and current throttle delay. <code>show ospf border-routers</code> reports reachable ABRs and ASBRs with their area, metric, and next-hop set.</p>
 <!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
 <!-- source: internal/plugins/ospf/cmd_show.go -- ze-show:ospf-* RPC proxies -->
@@ -190,24 +375,7 @@ show ospf border-routers
             </section>
         </main>
 
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                var observer = new IntersectionObserver(
-                    function (entries) {
-                        entries.forEach(function (entry) {
-                            if (entry.isIntersecting) {
-                                entry.target.classList.add("visible");
-                                observer.unobserve(entry.target);
-                            }
-                        });
-                    },
-                    { threshold: 0.01 },
-                );
-                document.querySelectorAll(".reveal").forEach(function (el) {
-                    observer.observe(el);
-                });
-            });
-        </script>
+        <script src="../../../assets/site.js" defer></script>
 
         <footer>
             <div class="footer-inner">
