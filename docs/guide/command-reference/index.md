@@ -624,6 +624,9 @@ preferred-source IP when the kernel reports one.
 
 **`show ospf route`** returns the OSPF SPF route table: area, prefix,
 metric, path type, advertising router, and equal-cost next-hop set. **`show ospf
+route fast-reroute`** returns each prefix's primary next-hops with their RFC 5286
+LFA / TI-LFA backup next-hop, protection class (node/link/downstream), and
+TI-LFA repair label stack; unprotected primaries are shown as unprotected. **`show ospf
 spf`** returns per-area SPF run state: last run time, duration, node count,
 pending state, and current throttle delay. **`show ospf border-routers`**
 returns reachable ABRs and ASBRs with area, metric, and next-hop set. **`show

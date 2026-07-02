@@ -296,6 +296,27 @@ MPLS forwarding is programmed through the shared `mpls-fib` bus with two SR sour
 <!-- source: internal/plugins/ospf/sr.go -- RI + Extended Prefix/Link SR TLV builders + reception -->
 <!-- source: internal/plugins/ospf/sr_fib.go -- mpls-fib push/swap/pop install -->
 
+## Fast reroute: LFA and TI-LFA (RFC 5286)
+
+Fast reroute pre-computes, alongside each primary next-hop, a loop-free backup next-hop so a single local link or node failure is repaired locally the instant it is detected, before the IGP reconverges. The backup is programmed into the FIB next to the primary; on primary-down the forwarding plane swings to the backup with no control-plane recompute. It is a compute-and-install feature: it changes no OSPF packet on the wire (the only wire signal is the Adj-SID Backup flag advertised by Segment Routing), lives entirely in the SPF / Loc-RIB / FIB seams, and is off by default.
+
+Two tiers run. Base **LFA** (RFC 5286) runs one extra shortest-path tree rooted at each directly-connected neighbour to get `D_opt(N,*)`, then selects, per primary next-hop, the neighbour that best satisfies the loop-free inequality `D_opt(N,D) < D_opt(N,S) + D_opt(S,D)` (strict), preferring node-protecting over link-protecting alternates (§3.6), honouring the §3.5 cost/reverse-cost gate and the §3.3 broadcast pseudo-node rule, and classifying downstream alternates against `D_opt(S,D)` (Errata 2323). **TI-LFA** (`mode ti-lfa`) adds a fallback where no directly-connected LFA exists: it computes the post-convergence SPF (the protected resource removed from a graph clone), derives the P-space/Q-space, and builds a Segment Routing repair label stack (a P-node Prefix-SID resolved through the P-node's SRGB, plus an Adj-SID across the protected resource where needed), giving 100% single-failure coverage on the post-convergence path. TI-LFA repair labels require Segment Routing (RFC 8665) and are IPv4-only; OSPFv3 gets base-LFA next-hop selection through the same address-family seam. In OSPF multi-area topologies where the local-area SPF cannot see the real path (an inter-area prefix reachable via more than one ABR, an external prefix via more than one ASBR, or the backbone with virtual links), the LFA is suppressed (the prefix is left unprotected) rather than installed wrong (RFC 5286 §6.3).
+
+```
+ospf {
+    fast-reroute {
+        enable true
+        mode ti-lfa          # lfa (default) or ti-lfa
+        node-protection true # prefer node-protecting alternates (RFC 5286 §3.6)
+    }
+}
+```
+
+`show ospf route fast-reroute` lists each prefix's primary next-hops with their backup next-hop, protection class (node/link/downstream), and TI-LFA repair label stack; unprotected primaries are shown as unprotected. Fast-reroute activity is exposed by the `ze_ospf_fast_reroute_*` metric series: `ze_ospf_fast_reroute_protected_prefixes{area,class}`, `ze_ospf_fast_reroute_unprotected_prefixes{area,reason}`, `ze_ospf_fast_reroute_backups_installed{kind}`, `ze_ospf_fast_reroute_compute_seconds{area}`, and `ze_ospf_fast_reroute_ti_lfa_repair_labels{area}`. On Linux the backup is programmed as a link-down/backup multipath next-hop carrying the repair MPLS encap, so the kernel forwards to it only when the primary link is down.
+<!-- source: internal/plugins/ospf/spf/lfa.go -- RFC 5286 base LFA selection -->
+<!-- source: internal/plugins/ospf/spf/tilfa.go -- TI-LFA post-convergence repair-list builder -->
+<!-- source: internal/plugins/ospf/spf/lfa_multiarea.go -- RFC 5286 §6.3 multi-area suppression -->
+
 ## Graceful Restart (RFC 3623, RFC 5187)
 
 Graceful Restart lets Ze restart or reload its OSPF control software while staying on the forwarding path ("non-stop forwarding"). It is one feature with one control plane spanning both address families: the restarter and helper state machines, the FIB-retention coupling, the non-volatile restart fact, and the config / CLI / metrics surface are shared, because the OSPF engine's FSM, flooding, DR election, SPF, and LSDB sequencing are address-family-neutral. Only the Grace-LSA wire object differs: the IPv4 family (OSPFv2, RFC 3623) carries it as a link-local Type-9 Opaque LSA (Opaque Type 3, Opaque ID 0, three TLVs) through the opaque carrier, and the IPv6 family (OSPFv3, RFC 5187) carries it as a native link-scope LSA (LS Type 0x000B, function code 11, two TLVs, Link State ID = the originating interface's Interface ID). Both encode the grace period as the Grace-LSA's LS age against the Grace Period TLV: LS age starts at 0, is never reset on retransmit, and DoNotAge is never set, so the grace clock cannot be extended indefinitely.

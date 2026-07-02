@@ -9112,6 +9112,15 @@ remote ASBR.";
                 description "Show OSPF-computed routes.
 Lists each prefix with its path type (intra/inter/external-1/2), cost,
 next-hops, and area.";
+
+                container fast-reroute {
+                    config false;
+                    ze:command "ze-show:ospf-route-fast-reroute";
+                    description "Show OSPF fast-reroute (LFA / TI-LFA) backups (RFC 5286).
+Lists each prefix's primary next-hops with their pre-computed loop-free
+backup, protection class (node/link/downstream), and TI-LFA repair label
+stack. Unprotected primaries are shown as unprotected.";
+                }
             }
 
             container virtual-links {
@@ -9488,6 +9497,35 @@ module ze-ospf-conf {
                  router in its Router-Address TE LSA. Defaults to the Router ID when unset.
                  Requires opaque and at least one traffic-engineering interface to take
                  effect.";
+        }
+
+        container fast-reroute {
+            description
+                "RFC 5286 Loop-Free Alternate (LFA) and TI-LFA IP fast reroute. When
+                 enabled, SPF pre-computes a loop-free backup next-hop alongside each
+                 primary and programs it into the FIB, so a single local link or node
+                 failure is repaired locally before the IGP reconverges. TI-LFA mode adds
+                 a Segment-Routing repair-list fallback where no directly-connected LFA
+                 exists (requires segment-routing). Applies to OSPFv2 and OSPFv3; OSPFv3
+                 gets base-LFA next-hop selection (SR repair labels are IPv4 only).";
+            leaf enable {
+                type boolean;
+                default false;
+                description "Enable LFA / TI-LFA fast-reroute backup computation and install.";
+            }
+            leaf mode {
+                type enumeration {
+                    enum lfa { description "Base loop-free alternates only (RFC 5286)."; }
+                    enum ti-lfa { description "Add the Segment-Routing repair-list fallback (TI-LFA)."; }
+                }
+                default lfa;
+                description "Backup computation mode: base LFA, or LFA with a TI-LFA SR-repair fallback.";
+            }
+            leaf node-protection {
+                type boolean;
+                default true;
+                description "Prefer node-protecting alternates over link-only alternates (RFC 5286 Section 3.6).";
+            }
         }
 
         container default-information {

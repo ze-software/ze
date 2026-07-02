@@ -1037,6 +1037,9 @@ routes have an empty <code>nexthop</code>; the <code>source</code> field carries
 preferred-source IP when the kernel reports one.</p>
 <p><strong><code>show ospf route</code></strong> returns the OSPF SPF route table: area, prefix,
 metric, path type, advertising router, and equal-cost next-hop set. <strong><code>show ospf
+route fast-reroute</code></strong> returns each prefix's primary next-hops with their RFC 5286
+LFA / TI-LFA backup next-hop, protection class (node/link/downstream), and
+TI-LFA repair label stack; unprotected primaries are shown as unprotected. <strong><code>show ospf
 spf</code></strong> returns per-area SPF run state: last run time, duration, node count,
 pending state, and current throttle delay. <strong><code>show ospf border-routers</code></strong>
 returns reachable ABRs and ASBRs with area, metric, and next-hop set. <strong><code>show
