@@ -353,6 +353,17 @@
 </tr>
 </tbody>
 </table>
+<p><strong>Ping and traceroute:</strong> <code>show ping</code> and <code>show traceroute</code> run one-shot ICMP checks from the router itself using ze's internal engine -- no daemon required, they work as local handlers. <code>monitor ping</code> and <code>monitor traceroute</code> open a live, continuously-updating view (Ctrl-C to stop); pipe either through <code>| log</code> for scrollback, or add <code>| resolve</code> / <code>| origin</code> to enrich traceroute hops with reverse DNS or ASN info.</p>
+<pre><code>ze show ping 8.8.8.8 count 5 timeout 3s
+ze show traceroute 8.8.8.8 max-hops 10 probes 1
+ze cli -c &quot;monitor ping 8.8.8.8 interval 500ms&quot;
+ze cli -c &quot;monitor traceroute 8.8.8.8 | log | resolve&quot;
+</code></pre>
+<!-- source: internal/component/ping/cmd/register.go -- showPingLocal, monitorPingLocal -->
+<!-- source: internal/component/traceroute/cmd/register.go -- showTracerouteLocal -->
+<!-- source: internal/component/cli/model_ping_test.go -- parsePingMonitorArgs -->
+<!-- source: internal/component/cli/model_traceroute_test.go -- parseTracerouteMonitorArgs -->
+
 <p><strong>Live peer dashboard:</strong> <code>monitor bgp</code> in the interactive CLI enters a live dashboard showing router identity, a sortable color-coded peer table with update rates, and drill-down detail view. Auto-refreshes every 2 seconds. Navigate with j/k, sort with s/S, Enter for detail, Esc to exit.</p>
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 
