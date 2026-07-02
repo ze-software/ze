@@ -8,7 +8,7 @@ Ze is an open-source network operating system for Linux. It speaks BGP, manages 
 
 The engine is a supervisor that composes a message bus, a config provider, and a plugin manager. It has no knowledge of BGP or any specific protocol. BGP, interface management, and everything else register as subsystems and plugins.
 
-It is the successor to [ExaBGP](https://github.com/Exa-Networks/exabgp) to be a fully programmable network stack for device configuration and network automation.
+It was designed to let [ExaBGP](https://github.com/Exa-Networks/exabgp) users migrate to a more performant, fully programmable network stack for device configuration and network automation.
 
 ### Components
 
