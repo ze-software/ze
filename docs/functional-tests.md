@@ -181,7 +181,7 @@ and name, plus periodic progress while tests are still running.
 | L2TP wire | `ze-test l2tp-wire` | `test/l2tp-wire/*.ci` | Exercises L2TP wire-level encode/decode and malformed-packet handling. |
 | IS-IS wire | `ze-test isis-wire` | `test/isis-wire/*.ci` | Exercises IS-IS wire-level decode and malformed-PDU handling. |
 | OSPFv2 wire | `ze-test ospf-wire` | `test/ospf-wire/*.ci` | Exercises OSPFv2 packet/LSA wire-level decode and malformed-packet handling. |
-| OSPF | `ze-test ospf` | `test/ospf/*.ci` | Exercises release-gate OSPF config validation, interface ISM config leaves including passive and loopback records, NSM config leaves including `mtu-ignore`, LSDB flooding/retransmit/purge logic, SPF route installation via Loc-RIB/sysrib ECMP membership updates, inter-area ABR Type 3/4 summary origination, area ranges, summary withdraw, border-router snapshots, daemon route snapshot wiring, admin-distance arbitration, and raw-socket doctor diagnostics while later child specs add redistribution and interop scenarios. |
+| OSPF | `ze-test ospf` | `test/ospf/*.ci` | Exercises release-gate OSPF config validation, interface ISM config leaves including passive and loopback records, NSM config leaves including `mtu-ignore`, LSDB flooding/retransmit/purge logic, SPF route installation via Loc-RIB/sysrib ECMP membership updates, inter-area ABR Type 3/4 summary origination, area ranges, summary withdraw, border-router snapshots, daemon route snapshot wiring, admin-distance arbitration, and raw-socket doctor diagnostics, plus the RFC 5250 opaque carrier, RFC 3630/5392 Traffic Engineering, the RFC 7770 Router Information LSA (`ospf-ri-*.ci`, `ospf6-ri-originate.ci`), and the RFC 7684 Extended Prefix/Link Opaque LSAs (`ospf-ext-register.ci`, `ospf-ext-prefix-originate.ci`, `ospf-ext-link-originate.ci`, `ospf-ext-prefix-receive.ci`, `ospf-ext-subtlv-hook.ci`, `ospf-ext-decode.ci`), with FRR interop scenarios (`ospf-ri-frr`, `ospf6-ri-frr`, `ospf-ext-prefix-link-frr`) run under QEMU. |
 | Chaos | `ze-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. |
 | Chaos web | `ze-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. |
 | ExaBGP compatibility | `ze-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `ze-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
@@ -212,6 +212,17 @@ component-group targets to test only the area you changed:
 | `make ze-unit-test` | All packages with `-race` | ~5 min |
 
 All groups run with `-race`.
+
+### In-process integration tests (feeds that can't cross the plugin boundary)
+
+Some chains are driven by `internal/core/observation`, a **process-local** feed
+(a `.ci` cannot inject into it, because a config-loaded plugin runs isolated from
+the engine's in-engine consumers). These are proven by in-process Go integration
+tests that compose the real production types in one process and drive them with
+synthetic observations. The anomaly facts→judgment→response chain
+(`trafficfeature` → `anomaly/detect` → `anomaly/shape`) is proven this way by
+`TestChainFactsToResponse`; it is `-short`-skippable (drives real 1s ticks).
+<!-- source: internal/plugins/anomaly/detect/chain_integration_test.go -- TestChainFactsToResponse -->
 
 ### Development Workflow
 
