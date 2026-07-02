@@ -8,7 +8,7 @@
 #
 # End-to-end CLI over SSH is exercised by the ospf-lfa-frr interop scenario.
 
-cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf -run 'Test(RouteEntryBackupSnapshot|BackupOnlyChangeReinstalls|FastRerouteConfigEnablesLFAPass)$' -count=1:timeout=30s
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf -run Test(RouteEntryBackupSnapshot|BackupOnlyChangeReinstalls|FastRerouteConfigEnablesLFAPass)$ -count=1:timeout=30s
 expect=exit:code=0
 expect=stdout:contains=TestRouteEntryBackupSnapshot
 expect=stdout:contains=TestBackupOnlyChangeReinstalls

@@ -6,6 +6,6 @@
 # real RFC 8362 framing + RFC 8666 value codecs.
 # PREVENTS: a v6 SR Extended LSA that never carries the SID, or a node Prefix-SID lost in carriage.
 
-cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestOSPFv3ERouterBodyCarriesAdjSID|TestOSPFv3ERouterBodyEmptyWithoutAdjSID|TestOSPFv3EIntraAreaPrefixRoundTrip' -count=1:timeout=90s
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFv3ERouterBodyCarriesAdjSID|TestOSPFv3ERouterBodyEmptyWithoutAdjSID|TestOSPFv3EIntraAreaPrefixRoundTrip -count=1:timeout=90s
 expect=exit:code=0
 expect=stdout:contains=PASS

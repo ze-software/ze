@@ -5,7 +5,7 @@
 #
 # Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.
 
-cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf -run 'TestSPFExplainCandidateList|TestSPFExplainNoRecompute' -count=1:timeout=60s
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf -run TestSPFExplainCandidateList|TestSPFExplainNoRecompute -count=1:timeout=60s
 expect=exit:code=0
 expect=stdout:contains=TestSPFExplainNoRecompute
 expect=stdout:contains=PASS

@@ -8,7 +8,7 @@
 #
 # Live FRR/QEMU kernel failover is owned by the ospf-lfa-frr interop scenario.
 
-cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf ./internal/plugins/ospf/spf -run 'TestFastReroute(ConfigParse|DisabledByDefault|ModeDefaultsToLFA|ConfigEnablesLFAPass|DisabledNoBackup)$' -count=1:timeout=30s
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf ./internal/plugins/ospf/spf -run TestFastReroute(ConfigParse|DisabledByDefault|ModeDefaultsToLFA|ConfigEnablesLFAPass|DisabledNoBackup)$ -count=1:timeout=30s
 expect=exit:code=0
 expect=stdout:contains=TestFastRerouteConfigParse
 expect=stdout:contains=TestFastRerouteDisabledByDefault

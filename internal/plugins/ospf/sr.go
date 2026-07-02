@@ -235,19 +235,19 @@ func srReceivePrefixSID(value []byte) {
 	// A malformed sub-TLV is ignored and counted; decoding validates the V/L
 	// combination and length (RFC 8665 §5). The ext-4 dispatch recover-wraps the call.
 	if _, err := sr.DecodePrefixSIDValue(value); err != nil {
-		srMetrics.observeMalformed("ipv4", "prefix-sid")
+		srMetrics.Load().observeMalformed("ipv4", "prefix-sid")
 	}
 }
 
 func srReceiveAdjSID(value []byte) {
 	if _, err := sr.DecodeAdjSIDValue(value); err != nil {
-		srMetrics.observeMalformed("ipv4", "adj-sid")
+		srMetrics.Load().observeMalformed("ipv4", "adj-sid")
 	}
 }
 
 func srReceiveLANAdjSID(value []byte) {
 	if _, err := sr.DecodeLANAdjSIDValue(value); err != nil {
-		srMetrics.observeMalformed("ipv4", "lan-adj-sid")
+		srMetrics.Load().observeMalformed("ipv4", "lan-adj-sid")
 	}
 }
 
@@ -333,13 +333,13 @@ func srDecodeRemoteCapabilities(af string, body []byte) srRemoteCapabilities {
 			if r, rerr := sr.DecodeRangeValue(tlv.Value); rerr == nil {
 				srgb = append(srgb, r)
 			} else {
-				srMetrics.observeMalformed(af, "srgb")
+				srMetrics.Load().observeMalformed(af, "srgb")
 			}
 		case sr.V4TypeSRLB:
 			if r, rerr := sr.DecodeRangeValue(tlv.Value); rerr == nil {
 				srlb = append(srlb, r)
 			} else {
-				srMetrics.observeMalformed(af, "srlb")
+				srMetrics.Load().observeMalformed(af, "srlb")
 			}
 		case sr.V4TypeSRMS:
 			if pref, perr := sr.DecodeSRMSValue(tlv.Value); perr == nil {

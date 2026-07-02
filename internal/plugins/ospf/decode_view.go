@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-ext-14-debug-introspection.md -- IPv4 opaque-LSA deep decode.
+// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- IPv4 opaque-LSA deep decode.
 // RFC: rfc/short/rfc5250.md (Section 3 / App A.2: Opaque Type/ID split, generic TLVs),
 // rfc/short/rfc2328.md (Section A.4.1: LSA header fields the detail view renders).
 //
@@ -163,7 +163,7 @@ func (e *engine) decodeOpaqueBody(row *opaqueDetailLSA, opaqueType uint8, body [
 			return
 		}
 		// Typed decode failed: count it and fall through to the generic rendering.
-		debugMetrics.v4Decode.With(opaqueTypeLabel(opaqueType)).Inc()
+		debugMetrics.Load().v4Decode.With(opaqueTypeLabel(opaqueType)).Inc()
 	}
 	tlvs, err := packet.DecodeOpaqueTLVs(body)
 	for _, t := range tlvs {
@@ -172,7 +172,7 @@ func (e *engine) decodeOpaqueBody(row *opaqueDetailLSA, opaqueType uint8, body [
 	if err != nil {
 		row.Malformed = true
 		row.BodyHex = hex.EncodeToString(body)
-		debugMetrics.v4Decode.With(opaqueTypeLabel(opaqueType)).Inc()
+		debugMetrics.Load().v4Decode.With(opaqueTypeLabel(opaqueType)).Inc()
 		if row.Decoder == "" {
 			row.Decoder = decoderRaw
 		}

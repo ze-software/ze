@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-ext-1-opaque-framework.md -- RFC 5250 opaque consumer registry.
+// Design: plan/learned/1029-ospf-ext-1-opaque-framework.md -- RFC 5250 opaque consumer registry.
 // RFC: rfc/short/rfc5250.md -- §9 Opaque Type registry; §3 origination/reception hooks.
 //
 // The opaque framework is a registration API: a consumer module (the future ext-2 TE,

@@ -1,4 +1,4 @@
-// Design: plan/spec-anomaly-2-shape.md -- source entity to firewall term/table
+// Design: plan/learned/1049-anomaly-2-shape.md -- source entity to firewall term/table
 
 package shape
 

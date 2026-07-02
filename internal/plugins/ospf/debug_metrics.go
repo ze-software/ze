@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-ext-14-debug-introspection.md -- the six debug metric series.
+// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- the six debug metric series.
 // RFC: rfc/short/rfc5250.md (IPv4 opaque), rfc/short/rfc5340.md (IPv6 native).
 //
 // The debug/introspection surface owns exactly six Prometheus series, three per address
@@ -12,6 +12,7 @@ package ospf
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
@@ -54,7 +55,14 @@ func newDebugMetrics(reg metrics.Registry) *debugMetricsSet {
 
 var (
 	debugMetricsOnce sync.Once
-	debugMetrics     = newDebugMetrics(metrics.NopRegistry{})
+	// debugMetrics is an atomic pointer so a goroutine reading it races cleanly with a
+	// test that swaps it via Store (go test -race clean). It is seeded with a NopRegistry
+	// set so reads before setDebugMetrics never deref nil.
+	debugMetrics = func() *atomic.Pointer[debugMetricsSet] {
+		p := &atomic.Pointer[debugMetricsSet]{}
+		p.Store(newDebugMetrics(metrics.NopRegistry{}))
+		return p
+	}()
 )
 
 // setDebugMetrics binds the six debug series to the real registry exactly once, regardless
@@ -63,5 +71,5 @@ func setDebugMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
-	debugMetricsOnce.Do(func() { debugMetrics = newDebugMetrics(reg) })
+	debugMetricsOnce.Do(func() { debugMetrics.Store(newDebugMetrics(reg)) })
 }

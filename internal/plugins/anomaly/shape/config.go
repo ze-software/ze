@@ -1,4 +1,4 @@
-// Design: plan/spec-anomaly-2-shape.md -- shadow-first anomaly responder config
+// Design: plan/learned/1049-anomaly-2-shape.md -- shadow-first anomaly responder config
 
 package shape
 

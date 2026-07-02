@@ -5,7 +5,7 @@
 #
 # Live FRR/QEMU multicast convergence is owned by the ospf-debug-*-frr interop scenarios.
 
-cmd=foreground:seq=1:exec=go test -v ./internal/component/web -run 'TestOSPFOpaqueWebView|TestOSPFv3DatabaseWebView|TestNoInjectWebRoute|TestNoV3InjectWebRoute' -count=1:timeout=60s
+cmd=foreground:seq=1:exec=go test -v ./internal/component/web -run TestOSPFOpaqueWebView|TestOSPFv3DatabaseWebView|TestNoInjectWebRoute|TestNoV3InjectWebRoute -count=1:timeout=60s
 expect=exit:code=0
 expect=stdout:contains=TestOSPFOpaqueWebView
 expect=stdout:contains=TestOSPFv3DatabaseWebView

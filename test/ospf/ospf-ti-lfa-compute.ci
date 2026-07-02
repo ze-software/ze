@@ -14,7 +14,7 @@
 # Live SR label capture and kernel failover is owned by the ospf-ti-lfa-frr interop
 # scenario.
 
-cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf -run 'Test(PostConvergenceSPFExcludesResource|TILFAPQSpace|TILFARepairListFromSRMaps|TILFANoSRNoRepair|TILFARemoteAdjSegmentResolvesUnderProductionContract)$' -count=1:timeout=30s
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf -run Test(PostConvergenceSPFExcludesResource|TILFAPQSpace|TILFARepairListFromSRMaps|TILFANoSRNoRepair|TILFARemoteAdjSegmentResolvesUnderProductionContract)$ -count=1:timeout=30s
 expect=exit:code=0
 expect=stdout:contains=TestPostConvergenceSPFExcludesResource
 expect=stdout:contains=TestTILFAPQSpace
@@ -25,7 +25,7 @@ expect=stdout:contains=TestTILFARemoteAdjSegmentResolvesUnderProductionContract
 # AC-9 production path: the engine's srTILFAResolver resolves a remote router's
 # Adj-SID (point-to-point Link ID match and transit LAN-Adj-SID Neighbor ID match)
 # from its Extended Link Opaque LSA in a real LSDB, returning the advertised label.
-cmd=foreground:seq=2:exec=go test -v ./internal/plugins/ospf -run 'TestSRTILFAResolver(RemoteAdjSIDPointToPoint|RemoteAdjSIDLAN|RemoteAdjSIDIndexFormSkipped|LocalAdjStillResolves)$' -count=1:timeout=60s
+cmd=foreground:seq=2:exec=go test -v ./internal/plugins/ospf -run TestSRTILFAResolver(RemoteAdjSIDPointToPoint|RemoteAdjSIDLAN|RemoteAdjSIDIndexFormSkipped|LocalAdjStillResolves)$ -count=1:timeout=60s
 expect=exit:code=0
 expect=stdout:contains=TestSRTILFAResolverRemoteAdjSIDPointToPoint
 expect=stdout:contains=TestSRTILFAResolverRemoteAdjSIDLAN

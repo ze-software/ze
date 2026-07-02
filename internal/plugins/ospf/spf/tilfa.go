@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-ext-6-ti-lfa.md -- TI-LFA repair list builder. Where no
+// Design: plan/learned/1051-ospf-ext-6-ti-lfa.md -- TI-LFA repair list builder. Where no
 // directly-connected loop-free alternate exists (RFC 5286), TI-LFA builds an
 // explicit Segment Routing repair list along the post-convergence path: a
 // Prefix-SID toward a P-node (a node S can reach avoiding the protected resource)

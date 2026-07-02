@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-ext-9-graceful-restart.md -- OSPFv3 Grace-LSA tlv carriage.
+// Design: plan/learned/1044-ospf-ext-9-graceful-restart.md -- OSPFv3 Grace-LSA tlv carriage.
 // RFC: rfc/short/rfc5187.md (§2.2 grace-LSA TLVs use the RFC 3630 §2.3.2 format),
 // rfc/short/rfc3630.md (§2.3.2 the 4-octet-aligned Type/Length/Value convention).
 //

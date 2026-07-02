@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-ext-14-debug-introspection.md -- read-only SPF-explain snapshot.
+// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- read-only SPF-explain snapshot.
 // RFC: rfc/short/rfc2328.md (Section 16.4: intra-area > inter-area > external Type 1 >
 // external Type 2 path preference, then lowest cost).
 //

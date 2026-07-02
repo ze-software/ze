@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-ext-14-debug-introspection.md -- guarded IPv4 opaque LSA inject.
+// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- guarded IPv4 opaque LSA inject.
 // RFC: rfc/short/rfc5250.md (Section 3 LS-ID split; Section 9 Private-Use Opaque Type;
 // Section 8 MinLSInterval pacing), rfc/short/rfc2328.md (Section 14 MaxAge withdraw).
 //
@@ -97,12 +97,12 @@ func (e *engine) debugInjectOpaque(args []string) (injectResult, error) {
 		action = actionWithdraw
 	}
 	res.Action = action
-	debugMetrics.v4Inject.With(res.Scope, action).Inc()
+	debugMetrics.Load().v4Inject.With(res.Scope, action).Inc()
 	if ok {
 		if p.withdraw {
-			debugMetrics.v4Injected.With(res.Scope).Dec()
+			debugMetrics.Load().v4Injected.With(res.Scope).Dec()
 		} else {
-			debugMetrics.v4Injected.With(res.Scope).Inc()
+			debugMetrics.Load().v4Injected.With(res.Scope).Inc()
 		}
 	}
 	return res, nil

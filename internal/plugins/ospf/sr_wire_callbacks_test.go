@@ -92,9 +92,9 @@ func (srCountingCounter) Add(float64) {}
 
 func TestSRReceiveSubTLVCountsMalformed(t *testing.T) {
 	vec := &srCountingCounterVec{counts: map[string]int{}}
-	saved := srMetrics
-	srMetrics = newSRMetrics(srCountingRegistry{vec: vec})
-	t.Cleanup(func() { srMetrics = saved })
+	saved := srMetrics.Load()
+	srMetrics.Store(newSRMetrics(srCountingRegistry{vec: vec}))
+	t.Cleanup(func() { srMetrics.Store(saved) })
 
 	// Well-formed values (index form, V=0/L=0 is valid per RFC 8665 §5) MUST NOT be counted.
 	srReceivePrefixSID(sr.EncodePrefixSIDValue(sr.PrefixSID{Index: 5}))

@@ -130,8 +130,8 @@ func applySRConfig(sections []configSection, cfg ospfConfig) {
 	}
 	if eff == nil {
 		srWire.set(cfg.RouterID, sr.SRConfig{})
-		srMetrics.updateFromConfig("ipv4", sr.SRConfig{}, 0)
-		srMetrics.updateFromConfig("ipv6", sr.SRConfig{}, 0)
+		srMetrics.Load().updateFromConfig("ipv4", sr.SRConfig{}, 0)
+		srMetrics.Load().updateFromConfig("ipv6", sr.SRConfig{}, 0)
 		return
 	}
 	srWire.set(cfg.RouterID, *eff)
@@ -148,14 +148,14 @@ func applySRConfig(sections []configSection, cfg ospfConfig) {
 	}
 	adjInUse := len(srWire.adjList(cfg.RouterID))
 	if v4 != nil {
-		srMetrics.updateFromConfig("ipv4", *v4, adjInUse)
+		srMetrics.Load().updateFromConfig("ipv4", *v4, adjInUse)
 	}
 	if v6 != nil {
-		srMetrics.updateFromConfig("ipv6", *v6, adjInUse)
+		srMetrics.Load().updateFromConfig("ipv6", *v6, adjInUse)
 	} else if v4 != nil {
 		// The RI capabilities are shared, so the IPv6 family reflects the same enable
 		// state when only IPv4 configured SR (RFC 8666 §4).
-		srMetrics.updateFromConfig("ipv6", *v4, adjInUse)
+		srMetrics.Load().updateFromConfig("ipv6", *v4, adjInUse)
 	}
 }
 

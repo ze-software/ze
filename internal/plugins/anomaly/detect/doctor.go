@@ -1,4 +1,4 @@
-// Design: plan/spec-anomaly-1-detect.md -- feature-source readiness check.
+// Design: plan/learned/1048-anomaly-1-detect.md -- feature-source readiness check.
 //
 // The detector consumes trafficfeature, which is fed by the observation feed from
 // flow-export (conntrack) or traffic-usage (eBPF). With neither configured the

@@ -305,8 +305,8 @@ func TestMetaCmdModule(t *testing.T) {
 	require.NotNil(t, entry)
 
 	assert.Equal(t, "ze-bgp:help", GetCommandExtension(entry.Dir["help"]))
-	assert.Equal(t, "ze-bgp:command-list", GetCommandExtension(entry.Dir["command"].Dir["list"]))
-	assert.Equal(t, "ze-bgp:event-list", GetCommandExtension(entry.Dir["event"].Dir["list"]))
+	assert.Equal(t, "ze-bgp:command-list", GetCommandExtension(entry.Dir["show"].Dir["command"].Dir["list"]))
+	assert.Equal(t, "ze-bgp:event-list", GetCommandExtension(entry.Dir["show"].Dir["event"].Dir["list"]))
 	assert.Equal(t, "ze-bgp:plugin-encoding", GetCommandExtension(entry.Dir["plugin"].Dir["encoding"]))
 }
 

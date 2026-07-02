@@ -1,4 +1,4 @@
-// Design: plan/spec-anomaly-1-detect.md -- Scoring & Correlation Rule (pinned)
+// Design: plan/learned/1048-anomaly-1-detect.md -- Scoring & Correlation Rule (pinned)
 //
 // Pure scoring primitives for the pinned rule. Stateful per-entity baselines live
 // in detector.go; these functions take the already-derived mean/stddev and the

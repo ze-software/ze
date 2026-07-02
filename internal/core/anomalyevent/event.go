@@ -1,4 +1,4 @@
-// Design: plan/spec-anomaly-1-detect.md -- behavioral anomaly event contract
+// Design: plan/learned/1048-anomaly-1-detect.md -- behavioral anomaly event contract
 //
 // The SECURITY anomaly domain's event contract: source/entity-oriented, deliberately
 // SEPARATE from the destination-oriented ddosevent (they share no namespace, struct,

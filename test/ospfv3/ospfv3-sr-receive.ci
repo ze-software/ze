@@ -6,6 +6,6 @@
 # tag and the IPv6 Explicit NULL label 2; conflicting duplicates are ignored.
 # PREVENTS: a v6 Prefix-SID that never installs, a wrong SRGB label, or a duplicate installing.
 
-cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestOSPFv3PrefixSIDInstallsPush|TestOSPFv3PrefixSIDExplicitNull|TestOSPFv3PrefixSIDPHP|TestOSPFv3ReceivedRangeTLV|TestOSPFv3ReceivedPrefixSIDsFromLSDB|TestOSPFv3ReceptionDuplicateIgnored|TestOSPFv3ReceptionSameSIDNotDuplicate|TestOSPFv3ReceptionMalformedNoPanic' -count=1:timeout=90s
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFv3PrefixSIDInstallsPush|TestOSPFv3PrefixSIDExplicitNull|TestOSPFv3PrefixSIDPHP|TestOSPFv3ReceivedRangeTLV|TestOSPFv3ReceivedPrefixSIDsFromLSDB|TestOSPFv3ReceptionDuplicateIgnored|TestOSPFv3ReceptionSameSIDNotDuplicate|TestOSPFv3ReceptionMalformedNoPanic -count=1:timeout=90s
 expect=exit:code=0
 expect=stdout:contains=PASS

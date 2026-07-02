@@ -88,9 +88,9 @@ func (g *countingGauge) Add(f float64) { g.r.mu.Lock(); g.r.counts[g.name] += in
 func withDebugMetrics(t *testing.T) *countingRegistry {
 	t.Helper()
 	rec := newCountingRegistry()
-	old := debugMetrics
-	debugMetrics = newDebugMetrics(rec)
-	t.Cleanup(func() { debugMetrics = old })
+	old := debugMetrics.Load()
+	debugMetrics.Store(newDebugMetrics(rec))
+	t.Cleanup(func() { debugMetrics.Store(old) })
 	return rec
 }
 

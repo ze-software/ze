@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-ext-2-traffic-engineering.md -- TE LSA origination from config.
+// Design: plan/learned/1030-ospf-ext-2-traffic-engineering.md -- TE LSA origination from config.
 // RFC: rfc/short/rfc3630.md sec 2.4/2.5 (Router-Address + Link TLV), sec 3 (rate-limit);
 // rfc/short/rfc5392.md sec 3/4 (inter-AS proxy advertisement, Type 10/11 scope).
 //

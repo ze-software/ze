@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-ext-1-opaque-framework.md -- RFC 5250 opaque-LSA carrier.
+// Design: plan/learned/1029-ospf-ext-1-opaque-framework.md -- RFC 5250 opaque-LSA carrier.
 // RFC: rfc/short/rfc5250.md -- Type 9/10/11 scope, LS-ID split, reception delivery.
 //
 // This file holds the AS-wide (Type 11) opaque store's origination and the

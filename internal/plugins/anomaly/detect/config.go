@@ -1,4 +1,4 @@
-// Design: plan/spec-anomaly-1-detect.md -- behavioral anomaly detector configuration
+// Design: plan/learned/1048-anomaly-1-detect.md -- behavioral anomaly detector configuration
 
 package detect
 

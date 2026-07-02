@@ -1,4 +1,4 @@
-// Design: plan/spec-traffic-analysis-0-restructure.md -- neutral statistical primitives (mean, stddev, quantile)
+// Design: plan/learned/1046-traffic-analysis-restructure.md -- neutral statistical primitives (mean, stddev, quantile)
 
 package stats
 

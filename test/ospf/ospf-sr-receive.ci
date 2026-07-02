@@ -5,6 +5,6 @@
 # and duplicate Prefix-SIDs and out-of-range indices are ignored.
 # PREVENTS: a mislabelled push, an install toward a non-SR next hop, or a leaked SR entry.
 
-cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestSRInstallPrefixSIDPushAndSwap|TestSRInstallUnknownAlgorithmIgnored|TestSRInstallDuplicateIgnored|TestSRInstallIndexOutOfRange|TestSRInstallWithdrawsStale' -count=1:timeout=90s
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestSRInstallPrefixSIDPushAndSwap|TestSRInstallUnknownAlgorithmIgnored|TestSRInstallDuplicateIgnored|TestSRInstallIndexOutOfRange|TestSRInstallWithdrawsStale -count=1:timeout=90s
 expect=exit:code=0
 expect=stdout:contains=PASS

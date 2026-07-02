@@ -66,7 +66,7 @@ func (e *engine) v6ReceivedPrefixSIDs() []v6ReceivedPrefixSID {
 			}
 			ext, err := ospfv3packet.DecodeExtendedLSABody(v.Body[hdr:])
 			if err != nil {
-				srMetrics.observeMalformed(interfaceFamilyIPv6, "e-prefix")
+				srMetrics.Load().observeMalformed(interfaceFamilyIPv6, "e-prefix")
 				continue
 			}
 			for i := range ext.TLVs {

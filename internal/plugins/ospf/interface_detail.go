@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-ext-14-debug-introspection.md -- `show ospf [ipv6] interface detail`.
+// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- `show ospf [ipv6] interface detail`.
 // RFC: rfc/short/rfc2328.md (Section 9 ISM state + DR/BDR election), rfc/short/rfc5340.md
 // (Section 3.4.3 OSPFv3 Interface ID; RFC 6549 Instance ID).
 //

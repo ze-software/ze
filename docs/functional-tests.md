@@ -2,7 +2,7 @@
 
 ## Overview
 
-Functional tests exercise release-gate behavior across BGP wire encoding and decoding, plugin behavior, config parsing, reloads, UI/editor flows, managed config, L2TP, firewall, policy routing, LDP, RSVP-TE, IS-IS, OSPF, web UI, and install flows.
+Functional tests exercise release-gate behavior across BGP wire encoding and decoding, plugin behavior, config parsing, reloads, UI/editor flows, managed config, L2TP, firewall, policy routing, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, web UI, and install flows.
 
 > For how the runner schedules and executes tests (the three execution engines, concurrency, reporting) and the web `.wb` test format, see [`architecture/testing/runner-architecture.md`](architecture/testing/runner-architecture.md).
 
@@ -32,7 +32,7 @@ top-level stage failures, and write:
 | `tmp/ze-verify.status` | Freshness fingerprint for the last run |
 
 The functional test target runs 17 suites: encode, plugin, parse, decode, reload,
-ui, editor, managed, l2tp, firewall, policy, ldp, rsvpte, isis, ospf, web, install.
+ui, editor, managed, l2tp, firewall, policy, ldp, rsvpte, isis, ospf, ospfv3, web, install.
 
 `make ze-validate` is a fast (~0.2s) post-verify check that catches recurring
 implementation mistakes: stale source anchors, line-number anchors, unwired

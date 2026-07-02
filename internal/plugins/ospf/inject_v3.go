@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-ext-14-debug-introspection.md -- guarded IPv6 native LSA inject.
+// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- guarded IPv6 native LSA inject.
 // RFC: rfc/short/rfc5340.md (Section A.4.2.1: scope from S2/S1 bits; reserved=11 rejected),
 // rfc/short/rfc2328.md (Section 14 MaxAge withdraw; Section 9.5 MinLSInterval pacing).
 //
@@ -96,12 +96,12 @@ func (e *engine) debugInjectV3(args []string) (v3InjectResult, error) {
 	}
 	res.Installed = ok
 	res.LinkStateID = h.LinkStateID.String()
-	debugMetrics.v6Inject.With(scope, res.Action).Inc()
+	debugMetrics.Load().v6Inject.With(scope, res.Action).Inc()
 	if ok {
 		if p.withdraw {
-			debugMetrics.v6Injected.With(scope).Dec()
+			debugMetrics.Load().v6Injected.With(scope).Dec()
 		} else {
-			debugMetrics.v6Injected.With(scope).Inc()
+			debugMetrics.Load().v6Injected.With(scope).Inc()
 		}
 	}
 	return res, nil

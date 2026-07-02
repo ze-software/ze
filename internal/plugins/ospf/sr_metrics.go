@@ -8,6 +8,7 @@ package ospf
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/sr"
@@ -80,14 +81,21 @@ func (m *srMetricsSet) observeLabelsInstalled(af, op string, n int) {
 
 var (
 	srMetricsOnce sync.Once
-	srMetrics     = newSRMetrics(metrics.NopRegistry{})
+	// srMetrics is an atomic pointer so a leaked SPF Computer goroutine reading it
+	// races cleanly with a test that swaps it via Store (go test -race clean). It is
+	// seeded with a NopRegistry set so reads before setSRMetrics never deref nil.
+	srMetrics = func() *atomic.Pointer[srMetricsSet] {
+		p := &atomic.Pointer[srMetricsSet]{}
+		p.Store(newSRMetrics(metrics.NopRegistry{}))
+		return p
+	}()
 )
 
 // setSRMetrics binds the SR metric series to the real registry once (the series
-// are process-global and must be registered a single time).
+// are process-global and bound a single time).
 func setSRMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
-	srMetricsOnce.Do(func() { srMetrics = newSRMetrics(reg) })
+	srMetricsOnce.Do(func() { srMetrics.Store(newSRMetrics(reg)) })
 }

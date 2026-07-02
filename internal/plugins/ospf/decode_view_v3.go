@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-ext-14-debug-introspection.md -- IPv6 native LSA deep decode.
+// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- IPv6 native LSA deep decode.
 // RFC: rfc/short/rfc5340.md (Section A.4.2.1: scope-aware LS Type; Section A.4: base types),
 // rfc/short/rfc5838.md (Section 2: address-family identity of the OSPFv3 instance).
 //
@@ -245,7 +245,7 @@ func (e *engine) decodeV3Body(row *v3DetailLSA, v ospflsdb.NativeLSAView) {
 		row.Decoder = decoderRaw
 		row.Malformed = true
 		row.BodyHex = hex.EncodeToString(v.Body)
-		debugMetrics.v6Decode.With(v3LSTypeHex(v.Type)).Inc()
+		debugMetrics.Load().v6Decode.With(v3LSTypeHex(v.Type)).Inc()
 		return
 	}
 	row.Decoder = d.name

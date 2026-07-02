@@ -1,4 +1,4 @@
-// Design: plan/spec-anomaly-1-detect.md -- show anomaly report surface
+// Design: plan/learned/1048-anomaly-1-detect.md -- show anomaly report surface
 //
 // The detector runs in-process (plugins are goroutines), so the show handler reads
 // the recent-incident ring directly from the process-global detector.

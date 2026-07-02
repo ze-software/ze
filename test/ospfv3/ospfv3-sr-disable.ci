@@ -5,6 +5,6 @@
 # E-Intra-Area-Prefix / E-Inter-Area-Prefix types are registered as self-managed for the flush.
 # PREVENTS: an SR Extended LSA originated or left lingering when SR is off; base OSPFv3 unaffected.
 
-cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestOSPFv3SRDisabledOriginatesNothing|TestOSPFv3ManagedSelfTypesIncludeSR' -count=1:timeout=60s
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFv3SRDisabledOriginatesNothing|TestOSPFv3ManagedSelfTypesIncludeSR -count=1:timeout=60s
 expect=exit:code=0
 expect=stdout:contains=PASS

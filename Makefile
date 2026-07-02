@@ -109,7 +109,7 @@ ze-yang-glue-check:
 # "unexpected/missing" message and points here, so the lists never silently
 # drift from all.go. Review the diff before committing.
 ze-plugin-snapshot:
-	@$(GO_TEST) -run 'TestRegisteredPluginNames|TestRegisteredWireMethods|TestYANGSchemaProviders' -update ./internal/component/plugin/all/
+	@$(GO_TEST) -run 'TestRegisteredPluginNames|TestRegisteredWireMethods|TestYANGSchemaProviders' ./internal/component/plugin/all/ -update
 	@echo "Updated internal/component/plugin/all/testdata/*.snapshot"
 
 build: generate bin/ze bin/ze-appliance bin/ze-setup bin/ze-stripped bin/ze-test bin/ze-chaos bin/ze-perf bin/ze-analyze
@@ -442,7 +442,7 @@ help-test:
 	@echo "    ze-race-reactor           Stress race-test reactor (-race -count=20)"
 	@echo ""
 	@echo "  Functional tests (.ci suites via bin/ze-test):"
-	@echo "    ze-functional-test        All 17 gating suites"
+	@echo "    ze-functional-test        All 18 gating suites"
 	@echo "    ze-encode-test            BGP wire encoding"
 	@echo "    ze-plugin-test            Plugin behavior"
 	@echo "    ze-decode-test            Wire decoding"

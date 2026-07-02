@@ -1,4 +1,4 @@
-// Design: plan/spec-anomaly-1-detect.md -- behavioral anomaly detector (report-only)
+// Design: plan/learned/1048-anomaly-1-detect.md -- behavioral anomaly detector (report-only)
 //
 // Consumes trafficfeature.Snapshot each tick, maintains a per-(entity,feature)
 // EWMA baseline, scores self-deviation + cohort rarity via the pinned rule, runs

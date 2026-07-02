@@ -148,7 +148,7 @@ func (e *engine) srAdjNeighborFull(snap ospfneighbor.Snapshot) {
 	e.srAdj.self = e.cfg.RouterID
 	e.srAdj.ensureAlloc(cfg.SRLB)
 	if e.srAdj.neighborFull(snap.Interface, router, linkData, nh, false, [4]byte(router)) {
-		srMetrics.updateFromConfig(e.srAF(), cfg, e.srAdj.inUse())
+		srMetrics.Load().updateFromConfig(e.srAF(), cfg, e.srAdj.inUse())
 		e.originateSelfLSAs()
 	}
 }
@@ -166,7 +166,7 @@ func (e *engine) srAdjNeighborLost(snap ospfneighbor.Snapshot) {
 	e.srAdj.neighborLost(snap.Interface, router)
 	if e.srAdj.inUse() != before {
 		if cfg, ok := srWire.get(e.cfg.RouterID); ok {
-			srMetrics.updateFromConfig(e.srAF(), cfg, e.srAdj.inUse())
+			srMetrics.Load().updateFromConfig(e.srAF(), cfg, e.srAdj.inUse())
 		}
 		e.originateSelfLSAs()
 	}

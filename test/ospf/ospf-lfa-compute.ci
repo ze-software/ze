@@ -10,7 +10,7 @@
 #
 # Live FRR/QEMU kernel failover is owned by the ospf-lfa-frr interop scenario.
 
-cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf -run 'Test(PerNeighborSPFDistances|LoopFreeStrictInequality|DownstreamCriterionAgainstS|NodeProtectionStrictInequality|CostOverloadGate|BroadcastPseudoNodeRule|SelectionPreferenceOrder|BackupPerPrimaryNextHop)$' -count=1:timeout=30s
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf -run Test(PerNeighborSPFDistances|LoopFreeStrictInequality|DownstreamCriterionAgainstS|NodeProtectionStrictInequality|CostOverloadGate|BroadcastPseudoNodeRule|SelectionPreferenceOrder|BackupPerPrimaryNextHop)$ -count=1:timeout=30s
 expect=exit:code=0
 expect=stdout:contains=TestPerNeighborSPFDistances
 expect=stdout:contains=TestLoopFreeStrictInequality

@@ -79,7 +79,7 @@ func (s *srInstaller) installRoutes(
 		rs, ok := prefixSIDs[r.Prefix]
 		if !ok || rs.Duplicate {
 			if rs.Duplicate {
-				srMetrics.observeComputeError(s.af, "duplicate")
+				srMetrics.Load().observeComputeError(s.af, "duplicate")
 			}
 			continue
 		}
@@ -87,7 +87,7 @@ func (s *srInstaller) installRoutes(
 		// (only Algorithm 0), or one whose algorithm the originator did not advertise, is
 		// recorded but not installed.
 		if rs.SID.Algorithm != 0 {
-			srMetrics.observeComputeError(s.af, "unknown-algorithm")
+			srMetrics.Load().observeComputeError(s.af, "unknown-algorithm")
 			continue
 		}
 		if !sr.HasAlgorithm(algos[rs.Originator], 0) {
@@ -125,7 +125,7 @@ func (s *srInstaller) installRoutes(
 		}
 	}
 	s.active = next
-	srMetrics.observeLabelsInstalled(s.af, "push", installedPush)
+	srMetrics.Load().observeLabelsInstalled(s.af, "push", installedPush)
 }
 
 // forwarding resolves the outgoing label and forwarding action for one SPF next-hop
@@ -152,7 +152,7 @@ func (s *srInstaller) forwarding(rs srRemotePrefixSID, nh srNextHop, remoteCaps 
 	}
 	label, ok := srgb.Label(rs.SID.Index)
 	if !ok {
-		srMetrics.observeComputeError(s.af, "index-out-of-range")
+		srMetrics.Load().observeComputeError(s.af, "index-out-of-range")
 		return 0, sr.ActionKeep, false
 	}
 	// Penultimate hop (next-hop == originator): apply the advertised PHP/E/M rules.
@@ -268,7 +268,7 @@ func (e *engine) srRemotePrefixSIDs() map[netip.Prefix]srRemotePrefixSID {
 				}
 				ps, derr := sr.DecodePrefixSIDValue(sub.Value)
 				if derr != nil {
-					srMetrics.observeMalformed(e.srAF(), "prefix-sid")
+					srMetrics.Load().observeMalformed(e.srAF(), "prefix-sid")
 					continue
 				}
 				if existing, dup := out[pfx]; dup {

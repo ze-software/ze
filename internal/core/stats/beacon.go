@@ -1,4 +1,4 @@
-// Design: plan/spec-traffic-analysis-0-restructure.md -- coarse beaconing (interval regularity)
+// Design: plan/learned/1046-traffic-analysis-restructure.md -- coarse beaconing (interval regularity)
 
 package stats
 

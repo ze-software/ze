@@ -4,6 +4,6 @@
 # SRGB/SRLB ranges, the node Prefix-SIDs and any allocated Adj-SIDs for the IPv4 family.
 # PREVENTS: the IPv4 SR show dispatch rendering an empty snapshot.
 
-cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run 'TestSRSnapshot' -count=1:timeout=60s
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestSRSnapshot -count=1:timeout=60s
 expect=exit:code=0
 expect=stdout:contains=PASS
