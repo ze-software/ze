@@ -1220,7 +1220,8 @@ section {
     margin: 0 0 1rem;
 }
 
-.legend button {
+.legend button,
+.legend a {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
@@ -1234,6 +1235,7 @@ section {
     font-weight: 800;
     letter-spacing: 0.09em;
     text-transform: uppercase;
+    text-decoration: none;
     box-shadow: var(--clay);
     cursor: pointer;
     transition:
@@ -1242,7 +1244,8 @@ section {
         border-color 200ms ease;
 }
 
-.legend button::before {
+.legend button::before,
+.legend a::before {
     width: 0.55rem;
     height: 0.55rem;
     border-radius: 999px;
@@ -1251,8 +1254,10 @@ section {
     content: "";
 }
 
-.legend button:hover {
+.legend button:hover,
+.legend a:hover {
     transform: translateY(-2px);
+    color: #fff;
 }
 
 .legend button:active {

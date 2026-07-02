@@ -943,13 +943,20 @@
                     });
                 }
 
+                function pressOnly(activeBtn) {
+                    buttons.forEach(function (other) {
+                        other.setAttribute(
+                            "aria-pressed",
+                            other === activeBtn ? "true" : "false",
+                        );
+                    });
+                }
+
                 buttons.forEach(function (btn) {
                     btn.addEventListener("click", function () {
                         var wasPressed =
                             btn.getAttribute("aria-pressed") === "true";
-                        buttons.forEach(function (other) {
-                            other.setAttribute("aria-pressed", "false");
-                        });
+                        pressOnly(null);
                         if (wasPressed) {
                             applyFilter(null);
                         } else {
@@ -958,6 +965,18 @@
                         }
                     });
                 });
+
+                // A homepage category link (e.g. features/#operate) arrives
+                // pre-filtered instead of dumping the visitor on an
+                // unfiltered page of 44 cards after they picked one category.
+                var hashCat = location.hash.replace("#", "");
+                var hashBtn = hashCat
+                    ? document.querySelector('.legend button[data-cat="' + hashCat + '"]')
+                    : null;
+                if (hashBtn) {
+                    pressOnly(hashBtn);
+                    applyFilter(hashCat);
+                }
             });
         </script>
 

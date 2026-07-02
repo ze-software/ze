@@ -29,6 +29,34 @@ DISCORD_INVITE = "https://discord.gg/3Sx4S2dYQ"
 GITHUB_REPO = "ze-software/ze"
 CODEBERG_REPO = "https://codeberg.org/thomas-mangin/ze"
 
+# The site's seven feature categories, in display order. Shared by
+# render-features.py (the legend/filter buttons) and render-index.py (the
+# homepage's per-category links into that filter) so the two never disagree
+# on which categories exist or what order they're shown in.
+CATEGORIES = [
+    "operate",
+    "routing",
+    "services",
+    "automate",
+    "observe",
+    "secure",
+    "platform",
+]
+
+
+def feature_counts_by_category():
+    """Card count per category, core + experimental sections only (matches
+    the "N features" count used elsewhere -- roadmap/aspiration cards
+    aren't shipped features yet)."""
+    features = json.loads((DATA_DIR / "features.json").read_text())
+    core = next(s for s in features["sections"] if s["id"] == "core")
+    experimental = next(s for s in features["sections"] if s["id"] == "experimental")
+    counts = {cat: 0 for cat in CATEGORIES}
+    for card in core["cards"] + experimental["cards"]:
+        counts[card["category"]] += 1
+    return counts
+
+
 _GITHUB_STARS_FALLBACK = 39  # last known count, used if the API call fails
 _github_stars_cache = None
 _nav_data_cache = None

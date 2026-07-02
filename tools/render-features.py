@@ -22,16 +22,6 @@ GH_PAGES = HERE.parent
 DATA = GH_PAGES / "data" / "features.json"
 DEST = GH_PAGES / "features" / "index.html"
 
-CATEGORY_ORDER = [
-    "operate",
-    "routing",
-    "services",
-    "automate",
-    "observe",
-    "secure",
-    "platform",
-]
-
 STATUS_LABELS = {
     "experimental": "Experimental",
     "aspiration": "Spec'd",
@@ -115,13 +105,20 @@ FILTER_SCRIPT = """        <script>
                     });
                 }
 
+                function pressOnly(activeBtn) {
+                    buttons.forEach(function (other) {
+                        other.setAttribute(
+                            "aria-pressed",
+                            other === activeBtn ? "true" : "false",
+                        );
+                    });
+                }
+
                 buttons.forEach(function (btn) {
                     btn.addEventListener("click", function () {
                         var wasPressed =
                             btn.getAttribute("aria-pressed") === "true";
-                        buttons.forEach(function (other) {
-                            other.setAttribute("aria-pressed", "false");
-                        });
+                        pressOnly(null);
                         if (wasPressed) {
                             applyFilter(null);
                         } else {
@@ -130,6 +127,18 @@ FILTER_SCRIPT = """        <script>
                         }
                     });
                 });
+
+                // A homepage category link (e.g. features/#operate) arrives
+                // pre-filtered instead of dumping the visitor on an
+                // unfiltered page of 44 cards after they picked one category.
+                var hashCat = location.hash.replace("#", "");
+                var hashBtn = hashCat
+                    ? document.querySelector('.legend button[data-cat="' + hashCat + '"]')
+                    : null;
+                if (hashBtn) {
+                    pressOnly(hashBtn);
+                    applyFilter(hashCat);
+                }
             });
         </script>
 """
@@ -171,7 +180,7 @@ def render(data):
     out.append(
         '                <div class="legend reveal" role="group" aria-label="Filter features by category">'
     )
-    for cat in CATEGORY_ORDER:
+    for cat in sitelib.CATEGORIES:
         out.append(
             '                    <button class="cat-%s" data-cat="%s" aria-pressed="false">%s</button>'
             % (cat, cat, cat.capitalize())

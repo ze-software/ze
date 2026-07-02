@@ -250,8 +250,8 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
                         MPLS, and appliance packaging.
                     </p>
                 </div>
-                <div class="actions reveal">
-                    <a class="button" href="features/">See all {feature_count} features</a>
+                <div class="legend reveal" role="group" aria-label="Browse features by category">
+{category_links}
                 </div>
             </section>
 
@@ -366,15 +366,17 @@ def render(data):
     )
     head = sitelib.page_head(title, desc, root, og_title=title, og_desc=og_desc)
 
-    features = json.loads((GH_PAGES / "data" / "features.json").read_text())
-    core = next(s for s in features["sections"] if s["id"] == "core")
-    experimental = next(s for s in features["sections"] if s["id"] == "experimental")
-    feature_count = len(core["cards"]) + len(experimental["cards"])
+    counts = sitelib.feature_counts_by_category()
+    category_links = "\n".join(
+        '                    <a class="cat-%s" href="features/#%s">%s (%d)</a>'
+        % (cat, cat, cat.capitalize(), counts[cat])
+        for cat in sitelib.CATEGORIES
+    )
 
     run_cards = "\n".join(render_run_card(c) for c in data["run"])
     who_cards = "\n".join(render_who_card(c) for c in data["who"])
     body = BODY.format(
-        run_cards=run_cards, who_cards=who_cards, feature_count=feature_count
+        run_cards=run_cards, who_cards=who_cards, category_links=category_links
     )
 
     DEST.write_text(head + body + sitelib.page_foot(root))
