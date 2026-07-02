@@ -3,10 +3,37 @@
 Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before Any
 Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
 
-**Status 2026-07-02: one open failure (below), unrelated to spec-as112/cos work.**
+**Status 2026-07-02: two open failures (below), unrelated to spec-as112/cos work.**
 Every previously tracked entry from 2026-07-01 is resolved (see below). Three
 were already fixed by shipped specs (621, 887, 888) and merely stale in this
-log; the kernel flake and the cos-vendor fixtures were fixed 2026-07-01.
+log; the kernel flake and the cos-vendor fixtures were fixed 2026-07-01. The
+`ddos/detect` build break (concurrent cp-survival session) that briefly
+blocked `go build ./...` and `go test ./internal/component/doctor/...` on
+2026-07-02 during the AS112 doctor-check review cycle is now resolved --
+`go build ./...`'s only remaining failure is the OSPF entry below, which has
+since moved to a different symbol (`gr.go:282`), consistent with the same
+concurrent OSPF session continuing to iterate.
+
+### `internal/component/doctor` -- 4 listener/schema tests fail on this macOS dev machine, pre-existing, not attributable to the AS112 doctor-check additions
+
+Observed 2026-07-02 via `go test ./internal/component/doctor/... -v` while
+adding `doctor-as112-watchdog-missing-withdraw` and
+`doctor-as112-global-origin-uncoordinated` (AC-10/AC-11 from the closed
+as112-3 spec): `TestCheckListeners_PortInUse`, `TestCheckListeners_API`,
+`TestCollectSchemaListeners_SSHDefault`, `TestCollectSchemaListeners_SSHExplicit`
+fail consistently (3/3 in isolated re-runs, `-count=3`). All four exercise
+`checkListeners`/`collectSchemaListeners` in `checks_listener.go`, a file
+this session never touched (session's only edits to this package:
+`checks_helpers.go` +`nestedSlice`, `doctor.go` +2 `runChecks` call lines,
+new `checks_as112_coordination.go`/`_test.go`). `TestCheckListeners_PortInUse`
+and `_API` bind a real `127.0.0.1:0` listener, then assert `checkListeners`
+reports that same port as unavailable -- consistent with this specific
+macOS host's socket stack allowing a second bind where the test expects
+exclusivity (a `SO_REUSEPORT`/dual-stack quirk, not exercised by any AS112
+code path). `go vet ./internal/component/doctor/...` and every AS112-scoped
+test (`-run 'AS112'`, `TestDoctorCoverageCodesRegistered`,
+`TestRunChecksExecutesRegisteredPluginCheck`) pass cleanly. Owner: whoever
+next investigates macOS listener-probe test portability; not spec-as112 scope.
 
 ### `internal/plugins/ospf/multi_instance.go` -- build fails, owned by a concurrent OSPF session, not attributable to spec-as112/cos work
 

@@ -68,6 +68,19 @@ func inheritedValue(parent, node *config.Tree, path ...string) (string, bool) {
 	return nestedValue(parent, path...)
 }
 
+func nestedSlice(tree *config.Tree, path ...string) []string {
+	if len(path) == 0 {
+		return nil
+	}
+	containerPath := path[:len(path)-1]
+	leaf := path[len(path)-1]
+	container := getContainerPath(tree, containerPath...)
+	if container == nil {
+		return nil
+	}
+	return container.GetSlice(leaf)
+}
+
 func valueOrDefault(tree *config.Tree, name, def string) string {
 	if tree == nil {
 		return def

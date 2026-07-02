@@ -1,0 +1,247 @@
+// Design: plan/learned/1034-as112-3-bgp-integration.md -- AC-10/AC-11
+// advisory doctor checks (H2/R-4, M5/R-3), built after the closed
+// as112-3 spec deferred them pending a doctor-check "home" decision.
+// Detail: checks_as112_coordination_test.go -- unit tests for both checks
+// Related: checks_helpers.go -- nestedValue/nestedSlice config-tree helpers
+// RFC: rfc/short/rfc7534.md -- AS112 Nameserver Operations (Section 3.2/3.3/3.4)
+// RFC: rfc/short/rfc7535.md -- AS112 Redirection Using DNAME (Section 3.1)
+// RFC: rfc/short/rfc6996.md -- Private Use ASN ranges
+
+// Neither check can live in the as112 plugin nor the bgp component: the
+// as112-3 spec's own Key Design Decisions required that neither the as112
+// plugin read BGP config nor BGP hardcode AS112 knowledge. internal/component/doctor
+// is the neutral third home per ai/rules/doctor-checks.md ("dependency with
+// no narrower owner") -- it already reads the whole config.Tree generically
+// (see checkConfigReferences, checkBGPMD5) without importing either package.
+// The AS112 plugin's own (unrelated) port-53 bind-capability check lives at
+// internal/plugins/as112 instead, since that one is a same-plugin runtime
+// dependency, not a cross-component coordination concern.
+
+package doctor
+
+import (
+	"net/netip"
+	"slices"
+	"strconv"
+	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
+
+// as112ASN is the well-known AS112 Autonomous System Number (RFC 7534
+// Section 3.2) operators may optionally originate routes as, via
+// asn.local + replace-as, for a global (non-local-use) AS112 node.
+const as112ASN = "112"
+
+// as112CoveringPrefixes are the four fixed AS112 covering prefixes (RFC 7534
+// Section 3.4 Direct Delegation, RFC 7535 Section 3.1 DNAME Redirection) --
+// not operator-configurable. Parsed once into netip.Prefix so a non-canonical
+// but equivalent nlri token (leading zeros, uppercase hex, expanded IPv6)
+// still compares equal instead of missing an exact-literal-string match --
+// the production watchdog pool builder normalizes each token the same way
+// (internal/component/bgp/plugins/watchdog/config.go's normalizePrefix).
+var as112CoveringPrefixes = []netip.Prefix{
+	netip.MustParsePrefix("192.175.48.0/24"),   // Direct Delegation v4
+	netip.MustParsePrefix("2620:4f:8000::/48"), // Direct Delegation v6
+	netip.MustParsePrefix("192.31.196.0/24"),   // DNAME Redirection v4
+	netip.MustParsePrefix("2001:4:112::/48"),   // DNAME Redirection v6
+}
+
+// checkAS112WatchdogWithdraw warns (AC-10, H2, R-4) when a BGP update block
+// announces an AS112 covering prefix without a watchdog{withdraw true}
+// marker. The marker's absence defaults to already-announced, not
+// already-withdrawn -- so a worked example that omits it announces the
+// AS112 route at startup before the DNS service is confirmed healthy
+// (RFC 7534 Section 3.3).
+func checkAS112WatchdogWithdraw(tree *config.Tree) []diagnostic.Diagnostic {
+	bgp := tree.GetContainer("bgp")
+	if bgp == nil {
+		return nil
+	}
+
+	var diags []diagnostic.Diagnostic
+	var tb textbuf.Buffer
+
+	check := func(path string, update *config.Tree) {
+		if !updateCarriesAS112CoveringPrefix(update) {
+			return
+		}
+		if updateHasWatchdogWithdraw(update) {
+			return
+		}
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-as112-watchdog-missing-withdraw",
+			Severity: diagnostic.SeverityWarning,
+			Message: tb.Reset().Str(path).
+				Str(": update block announces an AS112 covering prefix without watchdog{withdraw true} -- the route will be announced at startup before AS112 health is confirmed (RFC 7534 Section 3.3)").
+				String(),
+		})
+	}
+
+	for _, u := range bgp.GetListOrdered("update") {
+		check(tb.Reset().Str("bgp/update/").Str(u.Key).String(), u.Value)
+	}
+	for _, p := range bgp.GetListOrdered("peer") {
+		for _, u := range p.Value.GetListOrdered("update") {
+			check(tb.Reset().Str("bgp/peer/").Str(p.Key).Str("/update/").Str(u.Key).String(), u.Value)
+		}
+	}
+	for _, g := range bgp.GetListOrdered("group") {
+		for _, u := range g.Value.GetListOrdered("update") {
+			check(tb.Reset().Str("bgp/group/").Str(g.Key).Str("/update/").Str(u.Key).String(), u.Value)
+		}
+		for _, p := range g.Value.GetListOrdered("peer") {
+			for _, u := range p.Value.GetListOrdered("update") {
+				check(tb.Reset().Str("bgp/group/").Str(g.Key).Str("/peer/").Str(p.Key).Str("/update/").Str(u.Key).String(), u.Value)
+			}
+		}
+	}
+
+	return diags
+}
+
+// updateCarriesAS112CoveringPrefix mirrors the production watchdog pool
+// builder's own content grammar (internal/component/bgp/plugins/watchdog/config.go):
+// "content" is "<op> <prefix> [<prefix> ...]" (plus optional inline rd/label
+// modifier pairs, which simply fail netip.ParsePrefix and are skipped here).
+// Only "add" entries are ever announced -- "del"/other ops never reach the
+// wire, so a covering prefix appearing only in a non-"add" entry must not be
+// treated as announced (that previously caused a false-positive missing-withdraw
+// warning on a block that only ever withdraws the prefix).
+func updateCarriesAS112CoveringPrefix(update *config.Tree) bool {
+	for _, n := range update.GetListOrdered("nlri") {
+		content, ok := n.Value.Get("content")
+		if !ok || content == "" {
+			continue
+		}
+		fields := strings.Fields(content)
+		if len(fields) < 2 || fields[0] != "add" {
+			continue
+		}
+		for _, tok := range fields[1:] {
+			p, err := netip.ParsePrefix(tok)
+			if err != nil {
+				continue
+			}
+			if slices.Contains(as112CoveringPrefixes, normalizeIPv4In6(p)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// normalizeIPv4In6 rewrites an IPv4-in-IPv6-embedded prefix (e.g.
+// "::ffff:192.175.48.0/120") to its native IPv4 form ("192.175.48.0/24") so
+// it compares equal to as112CoveringPrefixes' native-IPv4 entries -- plain
+// netip.Prefix equality treats Is4() and Is4In6() addresses as always
+// unequal even when they represent the same network, per net/netip's
+// documented behavior. Only unmaps when bits describe a prefix entirely
+// within the embedded 32-bit space (bits >= 96); anything else is returned
+// unchanged; comparison against the native-IPv4 table correctly stays false.
+func normalizeIPv4In6(p netip.Prefix) netip.Prefix {
+	addr := p.Addr()
+	if !addr.Is4In6() || p.Bits() < 96 {
+		return p
+	}
+	return netip.PrefixFrom(addr.Unmap(), p.Bits()-96)
+}
+
+func updateHasWatchdogWithdraw(update *config.Tree) bool {
+	wd := update.GetContainer("watchdog")
+	if wd == nil {
+		return false
+	}
+	v, _ := wd.Get("withdraw")
+	return v == configTrueValue
+}
+
+// checkAS112GlobalOriginCoordination warns (AC-11, M5, R-3) when a BGP
+// session has asn.local 112 with the replace-as local-option (overriding
+// AS_PATH origin to 112) while eBGP-peering a non-private-use remote ASN
+// (RFC 6996 Section 4) -- silently making this node an uncoordinated global
+// AS112 origin, which RFC 7534 Section 3.2/Section 5 requires coordinating
+// before deploying.
+func checkAS112GlobalOriginCoordination(tree *config.Tree) []diagnostic.Diagnostic {
+	bgp := tree.GetContainer("bgp")
+	if bgp == nil {
+		return nil
+	}
+
+	// bgp/session/asn/local is a real third inheritance tier below group and
+	// peer: PeersFromTree (internal/component/bgp/reactor/config.go) seeds
+	// its local-AS default from exactly this leaf when neither group nor
+	// peer overrides it, so a peer relying on it is a genuine live AS112
+	// origin session, not just an unresolved default.
+	globalLocal, _ := nestedValue(bgp, "session", "asn", "local")
+
+	var diags []diagnostic.Diagnostic
+	var tb textbuf.Buffer
+
+	check := func(path string, group, peer *config.Tree) {
+		local, ok := inheritedValue(group, peer, "session", "asn", "local")
+		if !ok {
+			local = globalLocal
+		}
+		if local != as112ASN {
+			return
+		}
+		if !hasReplaceAsOption(group, peer) {
+			return
+		}
+		remoteStr, ok := inheritedValue(group, peer, "session", "asn", "remote")
+		if !ok || remoteStr == "" {
+			return
+		}
+		remote, err := strconv.ParseUint(remoteStr, 10, 32)
+		if err != nil {
+			return
+		}
+		if isPrivateUseASN(uint32(remote)) { //nolint:gosec // bounded by ParseUint bitSize=32
+			return
+		}
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-as112-global-origin-uncoordinated",
+			Severity: diagnostic.SeverityWarning,
+			Message: tb.Reset().Str(path).
+				Str(": asn.local 112 with replace-as is set on an eBGP session to non-private ASN ").Str(remoteStr).
+				Str(" -- this makes the node an uncoordinated global AS112 origin (RFC 7534 Section 3.2/Section 5); coordinate before deploying outside a local-use mirror").
+				String(),
+		})
+	}
+
+	for _, p := range bgp.GetListOrdered("peer") {
+		check(tb.Reset().Str("bgp/peer/").Str(p.Key).String(), nil, p.Value)
+	}
+	for _, g := range bgp.GetListOrdered("group") {
+		for _, p := range g.Value.GetListOrdered("peer") {
+			check(tb.Reset().Str("bgp/group/").Str(g.Key).Str("/peer/").Str(p.Key).String(), g.Value, p.Value)
+		}
+	}
+
+	return diags
+}
+
+// hasReplaceAsOption treats peer's local-options as a full override of
+// group's whenever peer sets ANY value, same as inheritedValue's scalar
+// inheritance (checkBGPMD5's hasMD5 accepts the identical imprecision) --
+// config.Tree's GetSlice/SetSlice cannot distinguish "peer never set
+// local-options" from "peer explicitly cleared it," so an operator who
+// clears an inherited replace-as at the peer level is not detectable here.
+func hasReplaceAsOption(group, peer *config.Tree) bool {
+	if opts := nestedSlice(peer, "session", "asn", "local-options"); len(opts) > 0 {
+		return slices.Contains(opts, "replace-as")
+	}
+	return slices.Contains(nestedSlice(group, "session", "asn", "local-options"), "replace-as")
+}
+
+// isPrivateUseASN reports whether asn falls in an RFC 6996 Section 4
+// Private Use range. Duplicated from filter_remove_private_as/private_as.go
+// and reactor/filter_delta.go's identical checks rather than imported: a
+// doctor check importing a BGP plugin package would violate the same
+// layering this file's package doc explains.
+func isPrivateUseASN(asn uint32) bool {
+	return (asn >= 64512 && asn <= 65534) || (asn >= 4200000000 && asn <= 4294967294)
+}

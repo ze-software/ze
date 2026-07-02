@@ -99,8 +99,47 @@ as112.
   first caller to actually depend on `ze cli -c`'s exit code reflecting
   operational (not just dispatch) success.
 
+## Open / Deferred -- RESOLVED
+
+- **AC-10, AC-11: two advisory doctor checks, originally deferred, were
+  subsequently built** (user direction: "2 doctor implement", after this
+  entry first recorded the deferral). Both were scoped as OPTIONAL in the
+  spec's own Key Design Decisions ("build only if a clean home is found...
+  otherwise ship tests + docs and record the deferral") -- primary
+  enforcement for both was already in place; this closes the optional
+  secondary warning too:
+  - `doctor-as112-watchdog-missing-withdraw` -- warns when a BGP `update`
+    block announces an AS112 covering prefix without a
+    `watchdog{ withdraw true }` marker.
+  - `doctor-as112-global-origin-uncoordinated` -- warns when
+    `asn.local 112` + `replace-as` (the M5 foot-gun documented in
+    [1035](1035-as112-0-umbrella.md)) targets an eBGP session to a
+    non-private-use remote ASN (RFC 6996 Section 5).
+  - **The "home" decision**, previously the actual blocker (neither the
+    as112 plugin nor bgp could own it without violating the spec's own
+    no-layering rule -- neither may read the other's config): both checks
+    live in `internal/component/doctor` per `ai/rules/doctor-checks.md`'s
+    "dependency with no narrower owner" bucket, reading the whole
+    `config.Tree` generically (same pattern as the pre-existing
+    `checkConfigReferences`/`checkBGPMD5`), importing neither package.
+  - Codes registered in `internal/core/diagnostic/codes.go`; unit tests
+    (including RFC 6996 boundary tests) and a full-config-text functional
+    test (through `Run()`, the real `ze doctor` entry point) in
+    `internal/component/doctor/checks_as112_coordination_test.go`.
+  - `docs/guide/as112.md`'s H2/M5 worked-example comments now cross-reference
+    the corresponding check by code name.
+
 ## Files
 
+- `internal/component/doctor/checks_as112_coordination.go` +
+  `checks_as112_coordination_test.go` -- AC-10/AC-11 advisory doctor checks
+  (built after initial deferral, see Open/Deferred above)
+- `internal/component/doctor/checks_helpers.go` -- `nestedSlice` helper
+  (leaf-list counterpart to the pre-existing `nestedValue`)
+- `internal/component/doctor/doctor.go` -- wires both checks into `runChecks`
+- `internal/core/diagnostic/codes.go` -- registers
+  `doctor-as112-watchdog-missing-withdraw`,
+  `doctor-as112-global-origin-uncoordinated`
 - `docs/guide/as112.md` -- BGP worked example (two peer-groups, watchdog
   groups, community selection, origin-AS override), `allow-from`-vs-firewall
   framing, internal-only requirement (added later, see 1032)

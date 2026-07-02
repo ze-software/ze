@@ -304,6 +304,18 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-as112-port-unavailable"},
 	},
 	{
+		Code:        "doctor-as112-watchdog-missing-withdraw",
+		Title:       "AS112 route missing watchdog withdraw marker",
+		Description: "A BGP update block announces an AS112 covering prefix (192.175.48.0/24, 192.31.196.0/24, 2620:4f:8000::/48, or 2001:4:112::/48) without a watchdog{withdraw true} marker. The marker's absence defaults to already-announced, so the route is advertised at startup before AS112 health is confirmed (RFC 7534 Section 3.3).",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-as112-watchdog-missing-withdraw"},
+	},
+	{
+		Code:        "doctor-as112-global-origin-uncoordinated",
+		Title:       "AS112 global origin override to a public ASN",
+		Description: "A BGP session sets asn.local 112 with the replace-as local-option while eBGP-peering a non-private-use remote ASN (RFC 6996 Section 4), making this node an uncoordinated global AS112 origin. RFC 7534 Section 3.2/Section 5 requires coordination before deploying outside a local-use mirror.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-as112-global-origin-uncoordinated"},
+	},
+	{
 		Code:        "doctor-isis-raw-socket",
 		Title:       "IS-IS raw L2 socket unavailable",
 		Description: "IS-IS is configured but a raw AF_PACKET/SOCK_RAW socket cannot be opened. IS-IS runs directly over IEEE 802.3 frames (ISO/IEC 10589), so it needs CAP_NET_RAW or root; without it IS-IS cannot send or receive IIH/LSP/CSNP/PSNP PDUs and forms no adjacencies.",
