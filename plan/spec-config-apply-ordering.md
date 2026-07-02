@@ -671,3 +671,24 @@ AC-9 is in scope. The earlier Future row deferring the three-way rotation test i
 | Decomposition ownership | Component-owned decomposition via registry. | iface, BGP, static, and external plugins own semantic decomposition; the transaction package owns only generic graph, solver, executor, settlement, and rollback machinery. |
 | External callbacks | Mandatory in v1. | SDK/RPC operation callbacks are in the first implementation scope. Ordering-sensitive external roots cannot be handled by legacy full-diff apply. |
 | BGP continuity | Use the current wording in this review section. | Tests require TCP sessions to stay Established when the tuple can remain valid; otherwise replacement listener/session readiness must precede old address/listener removal. |
+
+## Review Gate
+
+### Run 1 (closure review, 2026-07-03)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+Fresh read-only closure review of the committed implementation (commit `4cf41371c`):
+wiring traced end-to-end from the real reload path (`plugin/server/reload.go`
+`runTxCoordinator` -> `SetOperationPlanner` -> `orchestrator.runOperationPath` ->
+`BuildOperationGraph` -> `TopologicalSort` -> executor `Verify/Execute/Commit`);
+component-owned decomposers/rules registered and invoked (`iface/operation.go`,
+`bgp/plugin/operation.go`, `bgp/reactor/operation.go`); rollback replays inverses in
+reverse excluding the failed op; cycle relaxation limited to address-only
+cross-interface cycles (`solver.go`). All 6 `test/reload/test-config-apply-ordering-*.ci`
+present; rotation/swap/reip/nochange run on every platform, create/delete Linux-only.
+**0 BLOCKER, 0 ISSUE.** Non-blocking limitations recorded in `plan/learned/1055-config-apply-ordering.md`
+(IP-cycle/dual-presence covered by unit tests not functional; boundary caps
+unenforced; settlement step-3 owner-check unimplemented).
+
+### Final status
+- [x] Closure review shows 0 BLOCKER, 0 ISSUE (committed-implementation review, 2026-07-03)

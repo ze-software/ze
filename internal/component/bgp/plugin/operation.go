@@ -1,4 +1,4 @@
-// Design: plan/spec-config-apply-ordering.md -- BGP-owned operation decomposition
+// Design: plan/learned/1055-config-apply-ordering.md -- BGP-owned operation decomposition
 // Related: register.go -- SDK operation callback wiring
 
 package plugin

@@ -1,4 +1,4 @@
-// Design: plan/spec-config-apply-ordering.md -- BGP peer operation handlers
+// Design: plan/learned/1055-config-apply-ordering.md -- BGP peer operation handlers
 // Related: reactor_peers.go -- peer add/remove primitives
 
 package reactor
