@@ -133,3 +133,36 @@ func TestBuildCohortsExcludesInfiniteRatio(t *testing.T) {
 		t.Errorf("cohort fanout.count = %d, want 4 (all hosts counted)", ca.fanout.count)
 	}
 }
+
+// TestFreezeLearnDuringSustainedAnomaly proves a sustained anomaly does NOT drift
+// the entity's own baseline up until it looks normal (freeze-learn). A short
+// baseline window makes the baseline fast to poison, so without the freeze the
+// incident would self-clear; with it, the baseline holds and the incident persists.
+func TestFreezeLearnDuringSustainedAnomaly(t *testing.T) {
+	cfg := testConfig()
+	cfg.BaselineWindow = 10 // fast baseline -> would poison in a few ticks without the freeze
+	d := newDetector(cfg, nil)
+	src := netip.MustParseAddr("198.51.100.77")
+
+	// Warm and establish a low baseline with normal traffic.
+	for range 6 {
+		d.onTick(snapOf(trafficfeature.FeatureEntry{Addr: src, FanOut: 1, OutInRatio: 1, PortEntropy: 0.1}))
+	}
+	if base := d.states[src].fanout.mean.Value(); base > 2 {
+		t.Fatalf("baseline not established low: fan-out mean = %v", base)
+	}
+
+	// Sustain the anomaly well beyond the baseline window.
+	spike := trafficfeature.FeatureEntry{Addr: src, FanOut: 200, OutInRatio: 500, PortEntropy: 0.1}
+	for range 20 {
+		d.onTick(snapOf(spike))
+	}
+
+	st := d.states[src]
+	if got := st.fanout.mean.Value(); got > 10 {
+		t.Errorf("baseline poisoned by the sustained anomaly: fan-out mean = %v, want ~1 (frozen)", got)
+	}
+	if !st.active {
+		t.Error("sustained anomaly self-cleared (baseline poisoning) instead of staying active")
+	}
+}

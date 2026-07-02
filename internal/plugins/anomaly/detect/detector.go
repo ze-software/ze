@@ -30,7 +30,18 @@ const (
 	maxTrackedEntities = 10000
 	// incidentRingSize bounds the recent-incident report ring.
 	incidentRingSize = 128
+	// warmupTicks is how many samples a per-entity baseline must accumulate before
+	// self-deviation is scored, so a never-seen entity is not flagged against an
+	// empty baseline (its early values seed the baseline first).
+	warmupTicks = 3
 )
+
+// baselineUpdate defers folding a value into a feature baseline so the caller can
+// apply it only when the entity is NOT anomalous this tick (freeze-learn).
+type baselineUpdate struct {
+	base featBaseline
+	val  float64
+}
 
 // per-feature stddev floors keep the z-score meaningful across the differing
 // scales of each feature (avoids divide-by-tiny-variance).
@@ -74,6 +85,7 @@ func (b featBaseline) stddev() float64 {
 
 type entityState struct {
 	fanout, ratio, entropy, beacon featBaseline
+	samples                        int // ticks scored (warmup gate for self-deviation)
 	idle                           int
 	above                          int
 	below                          int
@@ -122,9 +134,19 @@ func (d *detector) onTick(snap *trafficfeature.Snapshot) {
 		if st == nil {
 			continue // at cardinality cap
 		}
-		fired := d.scoreEntity(fe, st, cohorts[d.cohortPrefix(fe.Addr)])
+		fired, updates := d.scoreEntity(fe, st, cohorts[d.cohortPrefix(fe.Addr)])
 		score := combineScore(zValues(fired), d.cfg.CorroborationWeight)
 		above := len(fired) >= d.cfg.MinFeaturesToCorrelate
+
+		// Freeze-learn: fold this tick into the baselines only when the entity is
+		// NOT anomalous, or while still warming up. A sustained anomaly therefore
+		// cannot drift the entity's own baseline up until it looks normal again.
+		if !above || st.samples < warmupTicks {
+			for _, u := range updates {
+				u.base.update(u.val)
+			}
+		}
+		st.samples++
 
 		if above {
 			st.above++
@@ -185,18 +207,25 @@ func (d *detector) buildCohorts(snap *trafficfeature.Snapshot) map[netip.Prefix]
 
 // scoreEntity computes the fired feature signals for one entity: continuous
 // features take max(self-deviation, cohort-rarity); binary features fire at the
-// threshold. Returns only features whose z reaches the deviation threshold.
-func (d *detector) scoreEntity(fe trafficfeature.FeatureEntry, st *entityState, ca *cohortAgg) []anomalyevent.FeatureSignal {
+// threshold. It does NOT mutate the baselines -- it returns the per-feature updates
+// so the caller can fold them only when the entity is not anomalous this tick
+// (freeze-learn). Self-deviation is suppressed until the baseline has warmed up.
+func (d *detector) scoreEntity(fe trafficfeature.FeatureEntry, st *entityState, ca *cohortAgg) ([]anomalyevent.FeatureSignal, []baselineUpdate) {
 	var fired []anomalyevent.FeatureSignal
+	var updates []baselineUpdate
 	thr := d.cfg.DeviationThreshold
+	warmed := st.samples >= warmupTicks
 
 	cont := func(name string, val float64, base featBaseline, cohort cohortStats, forceMax bool) {
 		var self float64
 		if forceMax {
+			// An infinite ratio is scored at max and never folded into the baseline.
 			self = zMax
 		} else {
-			base.update(val)
-			self = zScore(val, base.mean.Value(), base.stddev(), floorFor(name))
+			if warmed {
+				self = zScore(val, base.mean.Value(), base.stddev(), floorFor(name))
+			}
+			updates = append(updates, baselineUpdate{base: base, val: val})
 		}
 		z := math.Max(self, cohort.rarity(val, d.cfg.MinCohortSize, floorFor(name)))
 		if z >= thr {
@@ -221,7 +250,7 @@ func (d *detector) scoreEntity(fe trafficfeature.FeatureEntry, st *entityState, 
 	if fe.RarePort {
 		fired = append(fired, anomalyevent.FeatureSignal{Name: "rare-port", Z: thr})
 	}
-	return fired
+	return fired, updates
 }
 
 func (d *detector) cohortPrefix(addr netip.Addr) netip.Prefix {

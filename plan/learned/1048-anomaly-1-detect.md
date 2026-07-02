@@ -28,10 +28,13 @@ shared event contract, detector, or responder). Report-only: it emits incidents;
   peers -- both review-driven, see Gotchas), `combineScore` (Zstrong + corroboration-weight*sum(others),
   capped at scoreMax=30 -- NOT naive sum). Continuous features take max(self, cohort); binary
   features (new-peer, rare-port) contribute exactly one threshold unit.
-- **Update-before-score seeds the baseline.** Folding the current value into the EWMA before
-  computing z means a new entity's first value scores ~0 (no first-sight false positive) and
-  only a departure from established history scores high. Poisoning under a SUSTAINED anomaly is
-  slow (bounded by the long EWMA window) -- a documented Known Limitation for slice-one, not a bug.
+- **Freeze-learn + warmup, not update-before-score** (the initial cut used update-before-score,
+  which self-dampened via slow poisoning). `scoreEntity` now scores WITHOUT mutating the baseline
+  and returns the pending `baselineUpdate`s; `onTick` folds them only when the entity is NOT
+  anomalous this tick, or while still warming (`warmupTicks=3`). So a SUSTAINED anomaly cannot
+  drift the entity's own baseline up until it looks normal, and a never-seen entity has NO
+  self-deviation until its baseline warms (no first-sight false positive). Regression:
+  `TestFreezeLearnDuringSustainedAnomaly`.
 - **Report surface = process-global + pluginserver RPC.** Plugins run in-process, so the detector
   sets a package-global (`setGlobalDetector`) that the `ze-show:anomaly` handler (registered via
   `pluginserver.RegisterRPCs` in the same package) reads. No cross-process plumbing.

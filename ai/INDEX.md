@@ -6,12 +6,14 @@
 |------|-----------|------|
 | Understand the modular core | `ai/patterns/registration.md` | `docs/architecture/core-design.md` |
 | Keep a plugin self-contained (removal test) | `ai/rules/plugin-self-containment.md` | Remove the plugin and ALL its features vanish; other plugins and core keep working |
+| Call another package's function directly from a plugin (not through RPC) | `ai/rules/plugin-process-boundary.md` | Check `p.IsInternal()`; guard with refuse-or-warn depending on how much value survives running external. Gated by `make ze-plugin-boundary-check` |
 | Choose internal/core vs internal/component vs internal/plugins for a new package | `ai/rules/module-tiers.md` | Tier = dependency direction; engine placement gated by `make ze-tier-check` (`scripts/dev/dep_audit.py --check`) |
 | Test linux-only code (QEMU) | `ai/rules/qemu-testing.md` | `ai/rules/testing.md` (Linux-Only Tests section) |
 | Fix a failing test, gate, demo, or user-visible problem | `ai/rules/no-workarounds-for-missing-behavior.md` | Implement the missing behavior at the source, never route around it |
 | Modify wire encoding | `ai/rules/buffer-first.md` | `docs/architecture/buffer-architecture.md` |
 | Add route processing | `ai/rules/architecture-summary.md` | `docs/architecture/core-design.md` |
 | Detect and auto-mitigate a DDoS flood | `docs/guide/ddos-mitigation.md` | `ddos-detect` characterizes the attack (family + vector) from `traffic-usage`/`flow-export`; `ddos-local`/`ddos-flowspec` install surgical rules; `show flow-recent` inspects the flow ring |
+| Detect behavioral security anomalies (exfil, C2, scanning) | learned `1046`/`1048`/`1049` | Neutral facts in `internal/component/trafficfeature` (fan-out, out/in ratio, entropy, beaconing) on `internal/core/stats`; `anomaly/detect` (report-only) scores per-entity deviation + cohort rarity into incidents (`show anomaly`); `anomaly/shape` responds shadow-first (per-source rate-limit, arm/auto-revert/kill-switch, `show anomaly-shape`). Separate security domain from `ddos`. |
 | Implement an RFC | `ai/rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
 | Write a spec | `ai/rules/planning.md` | `plan/TEMPLATE.md` |
 | Record design risks and assumptions | `ai/rules/planning.md` (Risks & Assumptions) | A-N/R-N tables in `plan/TEMPLATE.md`; validate during /ze-implement audit |
@@ -31,7 +33,7 @@
 |---|---|---|---|
 | CLI command | `ai/patterns/cli-command.md` | `ai/rules/cli-grammar.md`, `ai/rules/pipe-completeness.md`, `docs/architecture/cli/command-namespacing.md` (rooting + filters-not-flags) | `ai/rules/derive-not-hardcode.md` if it lists things |
 | Web page/endpoint | `ai/patterns/web-endpoint.md` | `docs/architecture/web-interface.md`, `docs/architecture/web-components.md` | SSE: `docs/architecture/web-components.md` SSE section |
-| Plugin | `ai/patterns/plugin.md` | `ai/rules/plugin-design.md`, `ai/rules/goroutine-lifecycle.md` | `ai/rules/naming.md` for registered names |
+| Plugin | `ai/patterns/plugin.md` | `ai/rules/plugin-design.md`, `ai/rules/goroutine-lifecycle.md` | `ai/rules/naming.md` for registered names; `ai/rules/plugin-process-boundary.md` if it calls another package's function directly |
 | Config option | `ai/patterns/config-option.md` | `ai/rules/config-design.md` (listener pattern if network endpoint) | `ai/rules/config-surface.md` (YANG vs env var), `ai/rules/config-naming.md` (naming), `ai/rules/go-standards.md` env var section |
 | NLRI family | **`ai/patterns/bgp-family.md`** (BLOCKING) | `docs/architecture/wire/nlri.md`, `ai/rules/buffer-first.md` | `ai/rules/plugin-design.md` family registration |
 | Capability | **`ai/patterns/bgp-family.md`** (BLOCKING) | `docs/architecture/wire/capabilities.md` | |
@@ -145,6 +147,7 @@ artifact type. Check them whenever your work touches the described concern.
 | File size | `ai/rules/file-modularity.md` | Modified file exceeds 600 lines |
 | Pipe operators | `ai/rules/pipe-completeness.md` | Any command producing output |
 | Registered names | `ai/rules/plugin-design.md` "Renaming" section | Changing any plugin/subsystem/dispatch/log name |
+| Same-process-only calls | `ai/rules/plugin-process-boundary.md` | Any plugin calling another `internal/component/*` package's exported function directly, not through DirectBridge/DispatchCommand |
 | Sibling call sites | `ai/rules/before-writing-code.md` "Sibling Call-Site Audit" | Adding a guard/fallback/retry to ANY call site |
 | Buffer allocation / memory | `ai/rules/memory-architecture.md`, `ai/rules/buffer-first.md`, `ai/rules/no-sprintf-alloc.md` | Any allocation, pool use, string building, or wire encoding |
 | Map keys / dispatch keys | `ai/rules/enum-over-string.md` | Any new `map[string]` or string-based dispatch on a hot path |
