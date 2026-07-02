@@ -1,0 +1,163 @@
+module ze-as112-conf {
+    namespace "urn:ze:as112:conf";
+    prefix as112;
+
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description
+        "AS112 anycast DNS node configuration for Ze: authoritative sink for
+         misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534) and
+         the EMPTY.AS112.ARPA DNAME-redirection sink (RFC 7535). The four
+         anycast host addresses and every served zone are fixed -- no
+         operator-typed IP address anywhere in this module.";
+
+    revision 2026-07-01 {
+        description "Initial revision";
+    }
+
+    container service {
+        description "Service settings";
+
+        container as112 {
+            description "AS112 anycast DNS node";
+
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Enable the AS112 anycast DNS node";
+            }
+
+            leaf address-family {
+                type enumeration {
+                    enum both {
+                        description "Serve on both IPv4 and IPv6 anycast addresses (default)";
+                    }
+                    enum ipv4-only {
+                        description "Serve on the two IPv4 anycast addresses only";
+                    }
+                    enum ipv6-only {
+                        description "Serve on the two IPv6 anycast addresses only";
+                    }
+                }
+                default "both";
+                description
+                    "Restrict the service to one address family (RFC 7534
+                     Section 3.4 / RFC 7535 Section 3.1 single-stack option).
+                     The anycast addresses themselves are fixed constants,
+                     never operator-typed.";
+            }
+
+            leaf hostname {
+                type string {
+                    length "0..63";
+                }
+                description
+                    "Node identification string surfaced in the
+                     HOSTNAME.AS112.NET/ARPA TXT answers (RFC 7534 Section
+                     3.5), so operators can tell which anycast instance
+                     answered a given query. Empty omits the TXT string.";
+            }
+
+            leaf facility {
+                type string {
+                    length "0..100";
+                }
+                description
+                    "Facility/site name surfaced alongside location in the
+                     HOSTNAME.AS112.NET/ARPA TXT answers, e.g. 'Example
+                     Datacenter'.";
+            }
+
+            leaf location {
+                type string {
+                    length "0..100";
+                }
+                description
+                    "City/country surfaced alongside facility in the
+                     HOSTNAME.AS112.NET/ARPA TXT answers, e.g. 'London, UK'.";
+            }
+
+            leaf-list allow-from {
+                type zt:ip-prefix;
+                description
+                    "Optional client-source access list. Empty/unset (default)
+                     answers every source, matching standard AS112 public-sink
+                     behavior. When non-empty, only queries whose source IP is
+                     contained in one of these prefixes are answered; all
+                     others are silently dropped (no response). Loopback/
+                     on-box sources are always implicitly permitted regardless
+                     of this list, so the 'as112 health' probe is never
+                     blocked. Setting this makes the node non-public --
+                     correct for a local-use mirror, wrong for a
+                     globally-reachable AS112 contributor.";
+            }
+
+            // Schema anchors for cross-service port-conflict detection
+            // (finding L3): these two lists sit directly under container
+            // as112 (NOT inside a wrapper container) because a `config
+            // false` container with zero operator-typeable content never
+            // materializes in the parsed config Tree (empirically verified:
+            // internal/component/config's tree walk stops at the first
+            // GetContainer() that returns nil), which silently made the
+            // former ipv4-anycast/ipv6-anycast wrapper-container shape a
+            // permanent no-op regardless of RegisterListenerDefault calls.
+            // container as112 itself always materializes once `enabled` is
+            // committed, so anchoring the lists there -- one level up --
+            // fixes materialization. As a side effect the derived
+            // listenerService now inherits as112's "enabled" leaf as its
+            // gate (hasEnabledLeaf=true, matching geodns's own listener
+            // gating precedent): the conflict check only fires while as112
+            // is actually enabled, which is the correct semantic (a
+            // disabled service is not occupying the port).
+            list ipv4-anycast-listener {
+                key "name";
+                config false;
+                ze:listener;
+                description
+                    "Presence-only anchor: as112 always occupies port 53
+                     on its fixed IPv4 anycast addresses while enabled.
+                     The Go-level default (RegisterListenerDefault) fills
+                     in the representative address, since this list is
+                     never populated by any operator-facing command.";
+
+                leaf name {
+                    type string;
+                    description "Fixed entry name";
+                }
+
+                uses zt:listener {
+                    refine ip {
+                        default "192.175.48.1";
+                    }
+                    refine port {
+                        default 53;
+                    }
+                }
+            }
+
+            list ipv6-anycast-listener {
+                key "name";
+                config false;
+                ze:listener;
+                description
+                    "Presence-only anchor: as112 always occupies port 53
+                     on its fixed IPv6 anycast addresses while enabled.";
+
+                leaf name {
+                    type string;
+                    description "Fixed entry name";
+                }
+
+                uses zt:listener {
+                    refine ip {
+                        default "2620:4f:8000::1";
+                    }
+                    refine port {
+                        default 53;
+                    }
+                }
+            }
+        }
+    }
+}

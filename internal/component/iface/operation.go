@@ -123,8 +123,8 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 	if err != nil {
 		return nil, fmt.Errorf("iface operation decompose candidate: %w", err)
 	}
-	activeAddrs, activeManaged := active.desiredState()
-	candidateAddrs, candidateManaged := candidate.desiredState()
+	activeAddrs, activeManaged, _ := active.desiredState()
+	candidateAddrs, candidateManaged, _ := candidate.desiredState()
 
 	var ops []tx.ConfigOperation
 

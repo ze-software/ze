@@ -6,6 +6,7 @@ package iface
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -15,7 +16,12 @@ import (
 // desiredState builds a map of OS interface name -> desired addresses from config.
 // Also returns the set of Ze-managed interface names (dummy, veth, bridge, VLAN)
 // that should exist. Physical interfaces (ethernet) are never in the managed set.
-func (cfg *ifaceConfig) desiredState() (addrs map[string]map[string]bool, managed map[string]bool) {
+//
+// staleNames is address_owner.go's ownedAddresses() staleNames, passed
+// through unchanged -- see clearStaleIfaces for why callers that reconcile
+// against this exact snapshot must use it, not a fresh read of the live
+// registry, to clear staleIfaces afterward.
+func (cfg *ifaceConfig) desiredState() (addrs map[string]map[string]bool, managed map[string]bool, staleNames []string) {
 	addrs = make(map[string]map[string]bool)
 	managed = make(map[string]bool)
 
@@ -106,7 +112,21 @@ func (cfg *ifaceConfig) desiredState() (addrs map[string]map[string]bool, manage
 		}
 	}
 
-	return addrs, managed
+	// Merge plugin-registered addresses (address_owner.go) on top of the
+	// YANG-derived set. A registered owner's addresses are desired for as
+	// long as the registration exists, without a duplicated YANG
+	// declaration; an address present in both sources counts once.
+	owned, staleNames := ownedAddresses()
+	for ifaceName, ownedAddrs := range owned {
+		if addrs[ifaceName] == nil {
+			addrs[ifaceName] = make(map[string]bool, len(ownedAddrs))
+		}
+		for a := range ownedAddrs {
+			addrs[ifaceName][a] = true
+		}
+	}
+
+	return addrs, managed, staleNames
 }
 
 // currentAddrSet builds a map of OS interface name -> set of current CIDR addresses.
@@ -155,7 +175,7 @@ func (cfg *ifaceConfig) rememberPreviousManaged(previous *ifaceConfig) {
 	if previous == nil {
 		return
 	}
-	_, managed := previous.desiredState()
+	_, managed, _ := previous.desiredState()
 	cfg.previousManaged = managed
 }
 
@@ -754,9 +774,49 @@ func reconcileOnReady(cfg *ifaceConfig, b Backend) (errs []error, deferred bool)
 	return reconcileOnReadyWithJournal(cfg, b, nil, nil)
 }
 
+// reconcileMu serializes reconcileOnReadyWithJournal across its three
+// independent trigger paths -- applyConfig (config commits), vppReconcileCh's
+// worker (reconcileOnVPPReady, vpp connect/reconnect events), and
+// registryReconcileCh's worker (reconcileOnRegistryChange, address_owner.go
+// registry changes) -- which otherwise run on different goroutines with no
+// other synchronization against the same Backend and the same
+// desiredState() (which unconditionally merges the FULL live registry on
+// every call, so ANY commit's reconcile independently re-decides every
+// registry-owned address too, not just its own YANG diff).
+//
+// This spec's review weighed two options and picked this one deliberately:
+//   - Serialize all three (this option): a config commit can BLOCK for the
+//     duration of a concurrent background pass's real kernel I/O. Bounded
+//     downside: only a problem if that pass exceeds the plugin's
+//     ApplyBudget (10s, register.go), realistically only under a VPP
+//     reconnect RPC storm -- rare, and the system is already in a degraded
+//     state from the underlying VPP crash when it happens.
+//   - Serialize only the two background paths, leave applyConfig
+//     unsynchronized (tried first, reverted): an adversarial re-review
+//     showed this lets a registry-triggered reconcile (routine plugin
+//     enable/disable, NOT rare) race an unrelated commit's own reconcile
+//     over the SAME address, both issuing AddAddress/RemoveAddress
+//     concurrently; the kernel's second, colliding call returns EEXIST or
+//     ENOENT, which reconcileOnReadyWithJournal (below) treats as fatal --
+//     rolling back the ENTIRE unrelated commit (Phase 1/2 changes and all)
+//     for a reason having nothing to do with what the operator actually
+//     changed. Unbounded, deterministic-on-collision downside, and far
+//     higher frequency than a VPP reconnect.
+//
+// Between "a commit occasionally waits a bit longer" and "a commit
+// occasionally fails for a reason unrelated to what it changed," the first
+// is the better failure mode. The pre-existing race this closes (config
+// commits vs. vpp-event reconciles) predates this spec; this spec chooses
+// to fix it now because the new registry-change path would otherwise make
+// it meaningfully more frequent.
+var reconcileMu sync.Mutex
+
 func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journal, previous *ifaceConfig) (errs []error, deferred bool) {
+	reconcileMu.Lock()
+	defer reconcileMu.Unlock()
+
 	log := loggerPtr.Load()
-	desiredAddrs, managedNames := cfg.desiredState()
+	desiredAddrs, managedNames, staleNames := cfg.desiredState()
 
 	currentInfos, err := b.ListInterfaces()
 	if err != nil {
@@ -835,6 +895,17 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 			log.Info("iface config: deleted interface not in config", "name", name, "type", linkType)
 		}
 	}
+
+	// Reached only when every add/remove/delete step above succeeded (each
+	// failure path returns early) -- a fully clean pass over desiredAddrs,
+	// which included every name in staleNames (this call's own
+	// ownedAddresses() snapshot, not a fresh read) as an empty key. Any
+	// stale address the registry left behind on exactly these interfaces
+	// was therefore just pruned (or there was none). Passing staleNames
+	// (not a blanket clear) means a concurrent UnregisterOwnedAddresses
+	// call that added a DIFFERENT interface to staleIfaces after this
+	// pass's snapshot was taken is never silently discarded here.
+	clearStaleIfaces(staleNames)
 
 	return errs, false
 }
@@ -972,7 +1043,7 @@ func recreateManagedVLAN(parent string, units []unitEntry, name string, b Backen
 // vppevents.EventConnected.
 func addDesiredAddresses(cfg *ifaceConfig, b Backend) {
 	log := loggerPtr.Load()
-	desiredAddrs, _ := cfg.desiredState()
+	desiredAddrs, _, _ := cfg.desiredState()
 	for osName, addrs := range desiredAddrs {
 		for addr := range addrs {
 			if err := b.AddAddress(osName, addr); err != nil {
@@ -1034,5 +1105,38 @@ func reconcileOnVPPReady(activeCfg *atomic.Pointer[ifaceConfig]) {
 	}
 	for _, e := range errs {
 		log.Warn("iface reconcile on vpp ready", "err", e)
+	}
+}
+
+// reconcileOnRegistryChange re-runs address reconciliation after
+// address_owner.go's registry changes (RegisterOwnedAddresses /
+// UnregisterOwnedAddresses), so a plugin enabling or disabling its service
+// sees its addresses applied (or removed) within the same operation instead
+// of waiting for an unrelated config commit (design finding B1).
+// Unlike reconcileOnVPPReady, this is not gated to any particular backend --
+// a registry mutation must reach the kernel regardless of which backend is
+// active. No-op when no config has been applied yet or no backend is loaded.
+//
+// Exposed at package level so the trigger wiring in runEngine is easy to
+// test without standing up the SDK event loop.
+func reconcileOnRegistryChange(activeCfg *atomic.Pointer[ifaceConfig]) {
+	log := loggerPtr.Load()
+	cfg := activeCfg.Load()
+	if cfg == nil {
+		return
+	}
+	b := GetBackend()
+	if b == nil {
+		return
+	}
+
+	errs, deferred := reconcileOnReady(cfg, b)
+	if deferred {
+		log.Debug("iface reconcile on registry change deferred, backend not ready")
+		return
+	}
+	recordRegistryReconcileOutcome(errs)
+	for _, e := range errs {
+		log.Warn("iface reconcile on registry change", "err", e)
 	}
 }

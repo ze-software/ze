@@ -562,6 +562,51 @@ func TestParseUpdateText_CommunitySet(t *testing.T) {
 	assert.Equal(t, uint32(65000<<16|200), comms[1])
 }
 
+// TestParseUpdateText_CommunityWellKnownNames verifies that ALL IANA
+// well-known community names parse via "update text", not just the 3
+// (no-export, no-advertise, no-export-subconfed) parseCommunityText used to
+// hardcode. Regression test for a bug found by spec-as112-3: a watchdog-gated
+// route configured with "community [ nopeer ]" (RFC 3765, ze-bgp-conf.yang:237)
+// parses fine at config-load time (attribute.ParseCommunity), but the SAME
+// text re-parsed on watchdog announce replay (bgp.FormatAnnounceCommand ->
+// "update text ... community [nopeer] ...") used to fail with "invalid
+// community format: nopeer (expected ASN:value)", silently dropping the
+// route instead of announcing it. parseCommunityText now delegates to
+// attribute.ParseCommunity so both paths share one well-known-name table.
+//
+// VALIDATES: "update text" community keyword accepts any registered
+// well-known name (RFC 1997 NO_EXPORT family + RFC 3765 NOPEER), matching
+// the config-time parser.
+// PREVENTS: watchdog/GR route replay silently dropping a route whose
+// configured community isn't one of a hardcoded subset of well-known names.
+func TestParseUpdateText_CommunityWellKnownNames(t *testing.T) {
+	cases := []struct {
+		name string
+		want uint32
+	}{
+		{"no-export", 0xFFFFFF01},
+		{"no-advertise", 0xFFFFFF02},
+		{"no-export-subconfed", 0xFFFFFF03},
+		{"nopeer", 0xFFFFFF04},
+		{"blackhole", 0xFFFF029A},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := ParseUpdateText([]string{
+				"community", tc.name,
+				"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+			})
+			require.NoError(t, err)
+			require.Len(t, result.Groups, 1)
+
+			comms := testExtractCommunities(t, result.Groups[0].Wire)
+			require.Len(t, comms, 1)
+			assert.Equal(t, tc.want, comms[0])
+		})
+	}
+}
+
 // Accumulator tests (CommunityAdd, CommunityDel, CommunityNotFoundDel, EmptyListOKDel,
 // FirstInstanceOnlyDel, ThenAddSet) removed: accumulator model replaced by flat grammar.
 // Equivalent functionality covered by TestParseUpdateText_FlatListAttributes and

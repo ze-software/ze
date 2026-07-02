@@ -3,10 +3,28 @@
 Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before Any
 Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
 
-**Status 2026-07-01: no open failures.** Every previously tracked entry is
-resolved (see below). Three were already fixed by shipped specs (621, 887, 888)
-and merely stale in this log; the kernel flake and the cos-vendor fixtures were
-fixed 2026-07-01.
+**Status 2026-07-02: one open failure (below), unrelated to spec-as112/cos work.**
+Every previously tracked entry from 2026-07-01 is resolved (see below). Three
+were already fixed by shipped specs (621, 887, 888) and merely stale in this
+log; the kernel flake and the cos-vendor fixtures were fixed 2026-07-01.
+
+### `internal/plugins/ospf/multi_instance.go` -- build fails, owned by a concurrent OSPF session, not attributable to spec-as112/cos work
+
+Observed 2026-07-02 via a full `go build -tags 'ze_core ze_distro ze_gnmi
+ze_grpc ze_isis ze_ldp ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh
+ze_telemetry ze_web' ./cmd/ze` while preparing a commit for the spec-as112
+set (which never touches `internal/plugins/ospf`): `e.mInstanceMismatch
+undefined`, `cfg.instanceIDSet undefined`, `cfg.forInstance undefined` --
+struct fields referenced by `multi_instance.go` that do not yet exist on
+`*engine`/`ospfConfig`, consistent with a concurrent Claude session's
+in-progress OSPF multi-instance refactor mid-edit (confirmed via `git
+status`: `internal/plugins/ospf/**`, `docs/architecture/wire/ospf.md`,
+`docs/guide/ospf.md`, `plan/spec-ospf-*.md` all modified, none touched by
+this session). Building `./cmd/ze` WITHOUT the `ze_ospf` tag succeeds
+cleanly, and every AS112/iface/cos/sdk package this session touched passes
+`go vet`/`go test`/`make ze-lint-changed`/`make ze-doc-drift`/`make
+ze-validate` with zero related findings. Owner: whichever session is
+actively editing `internal/plugins/ospf/multi_instance.go`.
 
 ## Harness notes (not failures)
 
@@ -16,6 +34,28 @@ two full `--all` suites back-to-back melts down (resource exhaustion: ~50
 timeouts, ~200 "failures"). Triage individual tests in isolation; treat a
 contiguous block of failures or a spike of timeouts in `--all` as a
 harness/resource artifact, not real regressions.
+
+### `internal/component/l2tp` `TestPeerTeardownWithdrawsSubscriberRoute` -- load-sensitive `-race` flake, not attributable to spec-as112 work
+
+Observed 2026-07-01 during `make ze-verify-changed` while implementing the
+spec-as112 set (which never touches `internal/component/l2tp`): `go test
+-race` reports a data race between `L2TPReactor.SetRouteObserver`
+(`reactor_setters.go:114`, called from the test itself) and
+`L2TPReactor.notifyRouteObserverDown` (`reactor_kernel.go:253`, called from
+the reactor's own goroutine) -- both racing on the same `RouteObserver`
+field with no synchronization between the test's setter call and the
+reactor's already-running background goroutine. Reproduced twice in the full
+`ze-unit-test-changed` sweep (58 packages under `-race` simultaneously) but
+passes 5/5 in isolation (`go test ./internal/component/l2tp/... -race -run
+TestPeerTeardownWithdrawsSubscriberRoute -count=5`), consistent with a
+genuine, load-sensitive scheduling race in the test's own setup (the test
+calls `SetRouteObserver` after `Start()`, with no barrier against the
+reactor goroutine already running), not a flake caused by, or fixed by, any
+spec-as112 change. Owner: whichever session next touches
+`internal/component/l2tp/reactor_test.go` around
+`TestPeerTeardownWithdrawsSubscriberRoute` -- likely fix is a synchronized
+handoff (set the observer before `Start()`, or via a channel) rather than a
+post-`Start()` direct field write.
 
 ## Resolved
 

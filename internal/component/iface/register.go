@@ -241,6 +241,17 @@ type routerEntry struct {
 	metric int // route-priority at install time
 }
 
+// nonBlockingNotify sends a coalescing signal on ch without blocking: if a
+// signal is already pending (buffer full, no receiver ready), the send is
+// dropped since the next worker iteration absorbs it. Shared by the vpp-ready
+// and registry-change reconcile triggers below.
+func nonBlockingNotify(ch chan<- struct{}) {
+	select {
+	case ch <- struct{}{}:
+	default: // reconcile already pending, next worker iteration absorbs this event
+	}
+}
+
 // subscribeReconcileOnReady registers the vpp lifecycle handlers that trigger
 // iface reconciliation once the vpp backend finishes its handshake. Subscribes
 // to EventConnected (first handshake after daemon start) and EventReconnected
@@ -333,6 +344,40 @@ func runEngine(conn net.Conn) int {
 			reconcileOnVPPReady(&activeCfg)
 		}
 	}()
+	// registryReconcileCh coalesces address_owner.go registry-change
+	// notifications into at most one pending work item, the same
+	// coalescing shape as vppReconcileCh above. Unlike the vpp trigger
+	// (gated to the vpp backend only), this fires for any backend: a
+	// plugin's RegisterOwnedAddresses/UnregisterOwnedAddresses call must
+	// reach the kernel within the same enable/disable operation regardless
+	// of which backend is active (design finding B1). The channel is
+	// never closed -- only registryReconcileStop is -- so a registry
+	// mutation racing shutdown can still send without panicking on a
+	// closed channel; the worker simply may not drain it.
+	registryReconcileCh := make(chan struct{}, 1)
+	registryReconcileStop := make(chan struct{})
+	registryReconcileDone := make(chan struct{})
+	go func() {
+		defer close(registryReconcileDone)
+		for {
+			select {
+			case <-registryReconcileCh:
+				reconcileOnRegistryChange(&activeCfg)
+			case <-registryReconcileStop:
+				// select does not prefer registryReconcileCh over
+				// registryReconcileStop when both are ready, so a signal
+				// that raced the stop could otherwise be silently
+				// dropped. Drain it once, non-blocking, before exiting.
+				select {
+				case <-registryReconcileCh:
+					reconcileOnRegistryChange(&activeCfg)
+				default: // nothing pending to drain
+				}
+				return
+			}
+		}
+	}()
+	setAddressOwnerReconcileTrigger(func() { nonBlockingNotify(registryReconcileCh) })
 	go func() {
 		defer close(linkWorkerDone)
 		for ev := range linkEventCh {
@@ -471,12 +516,7 @@ func runEngine(conn net.Conn) int {
 		// vppReconcileCh and vppReadyWorker does the GoVPP RPCs outside the
 		// Emit goroutine.
 		vppReadyOnce.Do(func() {
-			trigger := func() {
-				select {
-				case vppReconcileCh <- struct{}{}:
-				default: // non-blocking: reconcile already pending, next worker iteration absorbs this event
-				}
-			}
+			trigger := func() { nonBlockingNotify(vppReconcileCh) }
 			unsubscribers = append(unsubscribers, subscribeReconcileOnReady(eb, trigger)...)
 		})
 
@@ -677,6 +717,22 @@ func runEngine(conn net.Conn) int {
 	// unsubscribers above have run so no further sends race the close.
 	close(vppReconcileCh)
 	<-vppReconcileDone
+
+	// Stop the registry reconcile worker. Deliberately does NOT call
+	// setAddressOwnerReconcileTrigger(nil) here: addressOwnerTrigger is a
+	// single package-level var, and a respawned iface engine instance
+	// (ProcessManager.Respawn) can call setAddressOwnerReconcileTrigger
+	// with its own trigger before this shutdown sequence reaches this
+	// point -- clearing it here would then clobber the NEW instance's
+	// trigger with nil, silently disabling registry-triggered
+	// reconciliation until an unrelated config commit. Leaving a stale
+	// trigger installed after shutdown is harmless: registryReconcileCh is
+	// never closed (see its declaration), so a send through the dead
+	// trigger is a no-op nobody drains, not a panic; a subsequent engine
+	// instance's own setAddressOwnerReconcileTrigger call simply replaces
+	// it, which is the only way this reaches a consistent final state.
+	close(registryReconcileStop)
+	<-registryReconcileDone
 
 	// Stop all PPPoE clients on shutdown.
 	pppoeMu.Lock()

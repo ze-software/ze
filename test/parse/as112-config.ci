@@ -1,0 +1,19 @@
+# Valid as112 config: enabled, hostname/facility/location, and an allow-from
+# access list. No operator-typed IP anywhere (spec-as112-2 Task section).
+# spec-as112-2 AC-1: as112 config parses and validates successfully.
+stdin=config:terminator=EOF_CONF
+service {
+    as112 {
+        enabled true
+        address-family both
+        hostname node1.example
+        facility "Example Datacenter"
+        location "London, UK"
+        allow-from 10.0.0.0/8
+        allow-from 2001:db8::/32
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

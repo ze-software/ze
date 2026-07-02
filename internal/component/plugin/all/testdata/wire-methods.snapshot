@@ -1,3 +1,4 @@
+ze-as112:health
 ze-bfd-api:show-profile
 ze-bfd-api:show-session
 ze-bfd-api:show-sessions
@@ -132,6 +133,7 @@ ze-rib-api:withdraw
 ze-set:system-file-descriptors
 ze-show:aaa-accounting
 ze-show:arp
+ze-show:as112
 ze-show:audit
 ze-show:bgp-health
 ze-show:bmp-collectors
@@ -194,12 +196,16 @@ ze-show:ospf-database-asbr-summary
 ze-show:ospf-database-external
 ze-show:ospf-database-network
 ze-show:ospf-database-nssa-external
+ze-show:ospf-database-opaque-area
+ze-show:ospf-database-opaque-as
+ze-show:ospf-database-opaque-link
 ze-show:ospf-database-router
 ze-show:ospf-database-summary
 ze-show:ospf-interface
 ze-show:ospf-neighbor
 ze-show:ospf-route
 ze-show:ospf-spf
+ze-show:ospf-te-database
 ze-show:ping
 ze-show:pki-certificate
 ze-show:pki-certificates

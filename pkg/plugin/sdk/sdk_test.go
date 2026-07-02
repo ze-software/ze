@@ -44,6 +44,47 @@ func newTestPair(t *testing.T) (*Plugin, *engineSide) {
 	return p, &engineSide{mux: engineMux}
 }
 
+// TestPlugin_IsInternal verifies IsInternal reflects exactly whether conn
+// carries a DirectBridge (rpc.Bridger), the same discovery NewWithConn itself
+// uses -- a plain net.Pipe() end (external-style transport in this test) is
+// not internal; rpc.NewBridgedConn (what process.go's startInternal wraps
+// the pipe with) is.
+//
+// VALIDATES: plugins that call another in-process package's functions
+// directly (bypassing DirectBridge) can reliably detect whether they are
+// actually running in-process before doing so.
+// PREVENTS: a plugin silently treating a forked-subprocess conn as in-process.
+func TestPlugin_IsInternal(t *testing.T) {
+	t.Parallel()
+
+	t.Run("plain conn is not internal", func(t *testing.T) {
+		t.Parallel()
+		pluginEnd, engineEnd := net.Pipe()
+		t.Cleanup(func() {
+			pluginEnd.Close() //nolint:errcheck // test cleanup
+			engineEnd.Close() //nolint:errcheck // test cleanup
+		})
+		p := NewWithConn("test-external", pluginEnd)
+		if p.IsInternal() {
+			t.Fatal("IsInternal() = true for a plain (non-bridged) conn, want false")
+		}
+	})
+
+	t.Run("bridged conn is internal", func(t *testing.T) {
+		t.Parallel()
+		bridge := rpc.NewDirectBridge()
+		pluginEnd, engineEnd := net.Pipe()
+		t.Cleanup(func() {
+			pluginEnd.Close() //nolint:errcheck // test cleanup
+			engineEnd.Close() //nolint:errcheck // test cleanup
+		})
+		p := NewWithConn("test-internal", rpc.NewBridgedConn(pluginEnd, bridge))
+		if !p.IsInternal() {
+			t.Fatal("IsInternal() = false for a bridged conn, want true")
+		}
+	})
+}
+
 // callAndExpectOK sends an RPC request and expects a successful response.
 // CallRPC returns RPC errors as Go errors, so this just forwards the error.
 func callAndExpectOK(ctx context.Context, mux *rpc.MuxConn, method string, params any) error {

@@ -2134,7 +2134,20 @@ func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
 		info := InterfaceInfo{Name: f.name, Type: f.linkType}
 		if addrs, ok := b.addrs[f.name]; ok {
 			for _, a := range addrs {
-				info.Addresses = append(info.Addresses, AddrInfo{Address: a, PrefixLength: 24})
+				// b.addrs stores full CIDR strings (what AddAddress received,
+				// e.g. "10.0.0.1/24"). Split back into bare address +
+				// prefix length here to match the real backend's contract
+				// (netlink/show_linux.go addrList: Address is a.IP.String(),
+				// PrefixLength is the mask size) -- currentAddrSet()
+				// reconstructs "Address/PrefixLength", so returning the
+				// already-slashed string verbatim as Address would produce
+				// a double-slash CIDR that never matches desiredState()'s
+				// output, silently defeating stale-address removal.
+				prefix, err := netip.ParsePrefix(a)
+				if err != nil {
+					continue
+				}
+				info.Addresses = append(info.Addresses, AddrInfo{Address: prefix.Addr().String(), PrefixLength: prefix.Bits()})
 			}
 		}
 		result = append(result, info)
@@ -3075,7 +3088,7 @@ func TestDesiredState_PerFamilyAddresses(t *testing.T) {
 			}},
 		}},
 	}
-	addrs, managed := cfg.desiredState()
+	addrs, managed, _ := cfg.desiredState()
 	assert.True(t, managed["dum0"])
 	assert.True(t, addrs["dum0"]["10.0.0.1/24"])
 	assert.True(t, addrs["dum0"]["fd00::1/64"])

@@ -1,0 +1,100 @@
+# AS112 BGP integration (spec-as112-3): the operator's chosen community
+# (community leaf-list, ze-bgp-conf.yang:237) appears correctly on the wire.
+# Two watchdog-gated update blocks share ONE fake probe (command "true",
+# rise=1) -- only the community attribute matters here, so a single AS112
+# covering prefix per variant is enough (NLRI completeness for all 4 covering
+# prefixes is proven by as112-healthcheck-announce.ci / as112-healthcheck-withdraw.ci).
+#
+# AC-4: community [ no-export ] -> NO_EXPORT (0xFFFFFF01, RFC 1997) on the wire.
+# AC-5: community [ nopeer ] -> NOPEER (0xFFFFFF04, RFC 3765) on the wire instead.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=15s
+# Startup: only EOR expected (both update blocks have watchdog withdraw=true).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# After probe succeeds (rise=1), healthcheck dispatches
+# "request bgp watchdog announce as112-comm med 100", announcing both routes.
+# Unordered group (pool iteration order is not deterministic).
+cmd=api:conn=1:seq=2:text=healthcheck probe UP triggers watchdog announce as112-comm med 100
+# 192.175.48.0/24 -- community no-export (AC-4): COMMUNITIES 0xFFFFFF01.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0118C0AF30
+# 192.31.196.0/24 -- community nopeer (AC-5): COMMUNITIES 0xFFFFFF04.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0418C01FC4
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	healthcheck {
+		probe as112 {
+			command "true"
+			group as112-comm
+			interval 1
+			rise 1
+			fall 1
+			withdraw-on-down true
+			up-metric 100
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.10
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		# AC-4: community no-export -> NO_EXPORT (0xFFFFFF01).
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 1.2.3.4
+				community [ no-export ]
+			}
+			nlri {
+				ipv4/unicast add 192.175.48.0/24
+			}
+			watchdog {
+				name as112-comm
+				withdraw true
+			}
+		}
+		# AC-5: community nopeer -> NOPEER (0xFFFFFF04), RFC 7534's recommended
+		# community for routes sent to bilateral peers.
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 1.2.3.4
+				community [ nopeer ]
+			}
+			nlri {
+				ipv4/unicast add 192.31.196.0/24
+			}
+			watchdog {
+				name as112-comm
+				withdraw true
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-healthcheck --plugin ze.bgp-watchdog -:stdin=ze-bgp:timeout=15s

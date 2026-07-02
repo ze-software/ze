@@ -302,7 +302,11 @@ func countInteropScenarios(scenariosDir string) int {
 		return 0
 	}
 	for _, e := range entries {
-		if e.IsDir() {
+		// Skip dotfile-prefixed directories (e.g. .ruff_cache, a Python
+		// linter's cache dir left behind by scenario check.py scripts) --
+		// never a real scenario, but counted as one before this filter,
+		// inflating the doc-claimed count by one per such cache dir.
+		if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
 			count++
 		}
 	}

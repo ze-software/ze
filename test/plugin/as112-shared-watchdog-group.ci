@@ -1,0 +1,180 @@
+# AS112 BGP integration (spec-as112-3): two distinct peer-groups referencing
+# the SAME watchdog group name announce together, confirming "send to chosen
+# peer-group(s)" via a single shared watchdog group (A-1, AC-8).
+#
+# ONE fake probe (command "true", rise=1) drives the shared group "as112-shared".
+# Healthcheck dispatches "request bgp watchdog announce" with an empty peer
+# selector, which the engine normalizes to "*" (broadcast) --
+# internal/component/plugin/server/dispatch.go:701-702 -- so
+# handlePoolActionAll fans the announce out to every peer whose pool carries
+# the group name (watchdog/server.go:131-156), regardless of which
+# peer-group configured it.
+#
+# AC-8: peer1 and peer2 are two independent peer blocks (own connection,
+# session, and update block) that each reference watchdog group
+# "as112-shared". Both must announce their AS112-covering route once the
+# shared probe reaches UP.
+#
+# Design note -- why "contains:" instead of a fixed full-message hex per
+# connection: ze-peer's accept loop is sequential, one Accept() per
+# fully-satisfied connection (peer.go:234-285), and peer1/peer2 dial in at
+# essentially the same instant, so which physical TCP connection becomes
+# "conn=1" vs "conn=2" is a genuine race (confirmed empirically -- the same
+# test flip-flopped between peer1-as-conn=1 and peer2-as-conn=1 across
+# runs). Which specific prefix/AS_PATH each peer announces is NOT racy --
+# each peer's own pool is fixed by its own config -- only ze-peer's conn
+# numbering is. So each connection's announce is matched on the one thing
+# guaranteed true for either peer landing there (the shared "no-export"
+# community), rather than pinning a specific NLRI to a specific conn number.
+# // test-relax: full-message hex per connection number replaced with
+# contains: matching on the shared community substring -- not weakening
+# coverage, relocating it. Exact per-prefix wire bytes for BOTH AS112
+# covering prefixes (192.175.48.0/24, 192.31.196.0/24, plus both IPv6
+# covering prefixes) are already asserted byte-for-byte by
+# as112-healthcheck-announce.ci / as112-healthcheck-withdraw.ci. This file's
+# job is specifically proving the shared-watchdog-group fan-out (AC-8),
+# which "contains:" on both connections proves without depending on
+# ze-peer's non-deterministic conn numbering.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+# ze-peer's listener defaults to binding 127.0.0.1 only (peer.go:201-208), so
+# peer2's dial to 127.0.0.2 would get "connection refused" without this --
+# bind to all interfaces so both peer1 (127.0.0.1) and peer2 (127.0.0.2) can
+# reach the same listener.
+option=bind:value=0.0.0.0
+option=timeout:value=15s
+# conn=1 is whichever peer wins the accept race and connects BEFORE the
+# probe fires: it gets EOR (watchdog withdraw=true) then the broadcast
+# announce once the probe reaches UP (rise=1).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# "request bgp watchdog announce as112-shared med 100" (peer="*",
+# broadcast) reaches every peer whose pool carries "as112-shared".
+# C00804FFFFFF01 is the COMMUNITY attribute (type 8, 4-byte value
+# 0xFFFFFF01 = NO_EXPORT, RFC 1997) both peers' update blocks configure;
+# its presence is exactly AC-8's claim, regardless of which peer/prefix it is.
+cmd=api:conn=1:seq=2:text=healthcheck probe UP triggers watchdog announce as112-shared med 100
+expect=bgp:conn=1:seq=2:contains=C00804FFFFFF01
+# conn=2 is the OTHER peer: ze-peer only accepts it once conn=1's sequence
+# above fully completes (peer.go:234-285), by which time the shared probe
+# is already UP, so its session establishes straight into the watchdog's
+# peer-up replay (AnnouncedForPeer, watchdog/server.go:301-318).
+# // test-relax: no separate EOR-then-announce expectation for conn=2 --
+# confirmed empirically that a bare EOR expectation here mismatched against
+# the actual first message received (the watchdog replay, not an EOR),
+# because this connection only forms after the broadcast announce already
+# happened. Not a coverage loss: EOR-before-announce ordering is already
+# proven for conn=1 above and for as112-healthcheck-announce.ci.
+cmd=api:conn=2:seq=1:text=other peer connects after probe already UP -- receives the watchdog replay directly
+expect=bgp:conn=2:seq=1:contains=C00804FFFFFF01
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	healthcheck {
+		probe as112 {
+			command "true"
+			group as112-shared
+			interval 1
+			rise 1
+			fall 1
+			withdraw-on-down true
+			up-metric 100
+		}
+	}
+	# Peer-group A -- e.g. an IX peering session for AS112 anycast.
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.10
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		# Fast connect-retry: ze-test's peer harness accepts connections
+		# sequentially (one Accept() per completed connection), so whichever
+		# peer loses the initial accept race may have its first dial attempt
+		# abandoned while the other's sequence is still in flight (waiting on
+		# the healthcheck probe). Without this, ze falls back to the 120s
+		# default connect-retry (peersettings.go DefaultConnectRetry), which
+		# exceeds the test timeout.
+		timer { connect-retry 2; }
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 1.2.3.4
+				community [ no-export ]
+			}
+			nlri {
+				ipv4/unicast add 192.175.48.0/24
+			}
+			watchdog {
+				name as112-shared
+				withdraw true
+			}
+		}
+	}
+	# Peer-group B -- e.g. a bilateral peering session for AS112 anycast.
+	# Distinct peer, distinct session (own remote IP -- ze rejects duplicate
+	# remote IPs across peers), SAME watchdog group name.
+	peer peer2 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65534
+			}
+			router-id 10.0.0.11
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		# Fast connect-retry -- see peer1's comment above.
+		timer { connect-retry 2; }
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 1.2.3.4
+				community [ no-export ]
+			}
+			nlri {
+				ipv4/unicast add 192.31.196.0/24
+			}
+			watchdog {
+				name as112-shared
+				withdraw true
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-healthcheck --plugin ze.bgp-watchdog -:stdin=ze-bgp:timeout=15s

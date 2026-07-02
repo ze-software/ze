@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/miekg/dns"
@@ -24,6 +25,14 @@ import (
 // drainTimeout bounds how long Stop waits for in-flight handlers to finish,
 // so a wedged handler cannot block a rebind or process exit.
 const drainTimeout = 5 * time.Second
+
+// unappliedSig is a signature no real endpoint set can ever produce
+// (endpointSig only ever returns "disabled" or a comma-joined host:port
+// list). Apply uses it to mark "nothing is known to be correctly bound" so
+// the next Apply call is never short-circuited by the same-signature no-op
+// fast path -- covers both a fresh Manager and any Manager that just lost a
+// listener (full bind failure, or an unexpected post-bind crash).
+const unappliedSig = "\x00unset"
 
 // Endpoint is one UDP+TCP bind target.
 type Endpoint struct {
@@ -49,18 +58,27 @@ type Options struct {
 // Manager owns the bound UDP+TCP listeners for a dns.Handler. The handler is
 // expected to be state-independent (reading its own snapshot per request), so
 // only an endpoint-set change triggers a rebind.
+//
+// servers/boundAddrs are written only by the Apply/Stop-calling goroutine
+// (bind, Stop); mu additionally protects applied/generation, which the
+// background serve goroutines also touch when an unexpected listener crash
+// is detected.
 type Manager struct {
-	log        *slog.Logger
-	handler    dns.Handler
-	opts       Options
+	log     *slog.Logger
+	handler dns.Handler
+	opts    Options
+
 	servers    []*dns.Server
 	boundAddrs []string
+
+	mu         sync.Mutex
 	applied    string
+	generation int
 }
 
 // New creates a Manager serving handler for every endpoint Apply binds.
 func New(log *slog.Logger, handler dns.Handler, opts Options) *Manager {
-	return &Manager{log: log, handler: handler, opts: opts, applied: "\x00unset"}
+	return &Manager{log: log, handler: handler, opts: opts, applied: unappliedSig}
 }
 
 // endpointSig is the signature of the desired bound-listener set; Apply
@@ -80,14 +98,23 @@ func endpointSig(enabled bool, endpoints []Endpoint) string {
 // Apply reconciles the bound listeners with the desired endpoint set. A pure
 // host-data change (same endpoints) is a no-op -- the handler is expected to
 // pick up new state itself; an endpoint-set change stops and rebinds.
+//
+// The signature only sticks on a fully successful bind. A transient failure
+// (port momentarily taken, anycast address not yet present) must not wedge
+// the manager into treating an unchanged, still-failed endpoint set as
+// already applied -- the caller's next identical Apply (a periodic
+// reconcile, or an operator re-commit, including reverting straight back to
+// a previously-good endpoint set after an intervening failed Apply) has to
+// actually retry the bind, not silently no-op with zero listeners up.
 func (m *Manager) Apply(enabled bool, endpoints []Endpoint) error {
 	sig := endpointSig(enabled, endpoints)
-	if sig == m.applied {
+	if sig == m.appliedSig() {
 		return nil
 	}
 	m.Stop()
-	m.applied = sig
+
 	if !enabled {
+		m.setApplied(sig)
 		return nil
 	}
 	for _, e := range endpoints {
@@ -98,21 +125,49 @@ func (m *Manager) Apply(enabled bool, endpoints []Endpoint) error {
 		}
 	}
 	if len(m.servers) == 0 && len(endpoints) > 0 {
+		m.setApplied(unappliedSig)
 		return fmt.Errorf("dnsserver: no listeners bound on %d endpoint(s)", len(endpoints))
 	}
+	m.setApplied(sig)
 	m.log.Info("dnsserver: listening", "endpoints", len(m.servers)/2)
 	return nil
 }
 
+func (m *Manager) appliedSig() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.applied
+}
+
+func (m *Manager) setApplied(sig string) {
+	m.mu.Lock()
+	m.applied = sig
+	m.mu.Unlock()
+}
+
 // bind opens a UDP and a TCP listener on ep (best-effort: the caller logs and
 // continues if one endpoint fails so the rest still serve).
+//
+// Waits for both spawned listener goroutines to reach dns.Server's genuine
+// "started" state (via NotifyStartedFunc) before returning. Without this,
+// a caller that calls Stop() immediately after bind() returns (e.g. a rapid
+// Apply->Apply sequence) can race ActivateAndServe: dns.Server.
+// ShutdownContext returns immediately with "server not started", WITHOUT
+// closing the underlying socket, whenever srv.started is still false --
+// which it is until ActivateAndServe's goroutine actually gets scheduled.
+// The listener then proceeds to serve indefinitely on a socket the Manager
+// has already forgotten (m.servers cleared by Stop), permanently occupying
+// the port. NotifyStartedFunc fires unconditionally, early inside
+// serveUDP/serveTCP, strictly after ActivateAndServe sets srv.started=true
+// (miekg/dns server.go), so waiting on it closes the race window exactly.
 func (m *Manager) bind(ep, addr string) error {
 	lc := listenConfig(m.opts.Freebind)
 	pc, err := lc.ListenPacket(context.Background(), "udp", ep)
 	if err != nil {
 		return fmt.Errorf("udp: %w", err)
 	}
-	udp := &dns.Server{PacketConn: pc, Handler: m.handler}
+	udpStarted := make(chan struct{})
+	udp := &dns.Server{PacketConn: pc, Handler: m.handler, NotifyStartedFunc: func() { close(udpStarted) }}
 	ln, err := lc.Listen(context.Background(), "tcp", ep)
 	if err != nil {
 		if cerr := pc.Close(); cerr != nil {
@@ -120,26 +175,72 @@ func (m *Manager) bind(ep, addr string) error {
 		}
 		return fmt.Errorf("tcp: %w", err)
 	}
-	tcp := &dns.Server{Listener: ln, Handler: m.handler}
+	tcpStarted := make(chan struct{})
+	tcp := &dns.Server{Listener: ln, Handler: m.handler, NotifyStartedFunc: func() { close(tcpStarted) }}
 	m.servers = append(m.servers, udp, tcp)
 	m.boundAddrs = append(m.boundAddrs, addr)
 	if m.opts.OnListenerChange != nil {
 		m.opts.OnListenerChange("udp", addr, true)
 		m.opts.OnListenerChange("tcp", addr, true)
 	}
-	go m.serve(udp, ep, "udp")
-	go m.serve(tcp, ep, "tcp")
+	m.mu.Lock()
+	gen := m.generation
+	m.mu.Unlock()
+	go m.serve(udp, ep, addr, "udp", gen)
+	go m.serve(tcp, ep, addr, "tcp", gen)
+	<-udpStarted
+	<-tcpStarted
 	return nil
 }
 
-func (m *Manager) serve(s *dns.Server, ep, proto string) {
-	if err := s.ActivateAndServe(); err != nil {
-		m.log.Debug("dnsserver: server stopped", "endpoint", ep, "proto", proto, "error", err)
+// serve runs one listener's accept loop until it exits. gen is the Manager's
+// generation snapshot at bind time: Stop increments generation before
+// touching any listener, so if the generation is still current when
+// ActivateAndServe returns, no deliberate Stop has happened since this
+// listener was bound and the exit is an unexpected crash (socket error, an
+// anycast address withdrawn under it, ...) rather than a graceful shutdown.
+//
+// An unexpected crash must surface: silently leaving the listener-up gauge
+// at "true" and the Manager's applied signature unchanged would make a dead
+// listener look healthy forever, and a later Apply call with the same
+// (still-desired, unchanged) endpoint set would short-circuit as a no-op
+// instead of actually rebinding.
+//
+// Known benign race: a genuine crash whose ActivateAndServe return races a
+// concurrent Stop/Apply's generation++ can be misclassified as graceful
+// (crashed==false here), losing this function's Error log line. This does
+// not lose state: Stop's own loop unconditionally calls OnListenerChange
+// false for every bound address it tears down and clears m.servers, so the
+// listener-up gauge and m.applied end up correct regardless of which path
+// ran. The concurrent Stop/Apply was already replacing this listener, so
+// the crash is moot once it completes -- only a diagnostic log line is
+// lost, not correctness.
+func (m *Manager) serve(s *dns.Server, ep, addr, proto string, gen int) {
+	err := s.ActivateAndServe()
+
+	m.mu.Lock()
+	crashed := m.generation == gen
+	if crashed {
+		m.applied = unappliedSig
+	}
+	m.mu.Unlock()
+
+	if !crashed {
+		m.log.Debug("dnsserver: listener stopped", "endpoint", ep, "proto", proto, "error", err)
+		return
+	}
+	m.log.Error("dnsserver: listener crashed unexpectedly", "endpoint", ep, "proto", proto, "error", err)
+	if m.opts.OnListenerChange != nil {
+		m.opts.OnListenerChange(proto, addr, false)
 	}
 }
 
 // Stop drains and closes every bound listener with a bounded timeout.
 func (m *Manager) Stop() {
+	m.mu.Lock()
+	m.generation++
+	m.mu.Unlock()
+
 	for _, s := range m.servers {
 		ctx, cancel := context.WithTimeout(context.Background(), drainTimeout)
 		if err := s.ShutdownContext(ctx); err != nil {

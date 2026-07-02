@@ -40,12 +40,20 @@ func ClientIP(r *dns.Msg, packetSrc netip.Addr, mode string) (netip.Addr, bool) 
 }
 
 // RemoteAddr extracts the client IP from a Peer's remote address (the UDP/TCP
-// packet source, before any EDNS0 client-subnet lookup).
+// packet source, before any EDNS0 client-subnet lookup). Unmapped to plain
+// IPv4 form when applicable, matching ClientIP's own normalization: a 4-in-6
+// address (::ffff:a.b.c.d) fed raw into netip.Prefix.Contains against a v4
+// prefix never matches (family mismatch), which would wrongly deny a
+// legitimate v4 client to a consumer (e.g. as112's allow-from matcher) that
+// uses this result directly instead of routing it through ClientIP.
 func RemoteAddr(p Peer) netip.Addr {
 	host, _, err := net.SplitHostPort(p.RemoteAddr().String())
 	if err != nil {
 		return netip.Addr{}
 	}
-	a, _ := netip.ParseAddr(host)
-	return a
+	a, err := netip.ParseAddr(host)
+	if err != nil {
+		return netip.Addr{}
+	}
+	return a.Unmap()
 }

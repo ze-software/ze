@@ -1,0 +1,53 @@
+module ze-as112-cmd {
+    namespace "urn:ze:as112:cmd";
+    prefix as112cmd;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "show as112 and as112 health command tree. Owned by the as112 plugin
+         because both handlers read the as112 server's live state. See
+         ai/rules/plugin-self-containment.md.";
+
+    revision 2026-07-01 {
+        description "Initial revision";
+    }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container as112 {
+            config false;
+            ze:command "ze-show:as112";
+            description
+                "AS112 node status: enabled, address-family, hostname/
+                 facility/location, allow-from count, served zone count, and
+                 the current SOA serial.";
+        }
+    }
+
+    container as112 {
+        config false;
+        description "AS112 operational commands";
+
+        container health {
+            config false;
+            ze:command "ze-as112:health";
+            description
+                "One-shot authoritative query against an anycast service
+                 address (or the given target), exit 0 iff the expected
+                 AS112 answer comes back. Finding M4: the tool child 3's
+                 healthcheck probe calls, since dig is not on the gokrazy
+                 appliance and 'ze resolve dns' cannot target a specific
+                 server. Usage: as112 health [target <ip>].";
+
+            leaf target {
+                type string;
+                description "Anycast service address to query; defaults to the
+                     address-family-appropriate on-box loopback when omitted
+                     (127.0.0.1, or ::1 when address-family is ipv6-only)";
+            }
+        }
+    }
+}

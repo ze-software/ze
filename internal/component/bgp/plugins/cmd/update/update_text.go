@@ -4,6 +4,8 @@
 // Detail: update_text_evpn.go — EVPN NLRI parsing
 // Detail: update_text_flowspec.go — FlowSpec NLRI parsing
 // Detail: update_text_vpls.go — VPLS NLRI parsing
+// RFC: rfc/short/rfc1997.md -- COMMUNITIES attribute and well-known values (parseCommunityText)
+// RFC: rfc/short/rfc3765.md -- NOPEER well-known community (parseCommunityText)
 //
 // update_text.go provides the update text parser for the "update text" command format.
 //
@@ -440,32 +442,23 @@ func parseBracketedListText(args []string) ([]string, int) {
 	return tokens, 1
 }
 
-// parseCommunityText parses community in ASN:value or well-known format.
+// parseCommunityText parses a community token via the canonical parser:
+// ASN:value, hex (0xNNNNNNNN), bare integer, or any IANA well-known name
+// (no-export, no-advertise, no-export-subconfed, nopeer, blackhole, ...).
+// Delegates to attribute.ParseCommunity so this "update text" replay path
+// (used by watchdog/GR route replay, among others) stays in sync with the
+// config-time YANG community leaf-list parser instead of duplicating a
+// partial well-known-name table. Bug found by spec-as112-3: this function
+// previously hardcoded only 3 of the ~15 registered well-known names, so a
+// route configured with e.g. "community [ nopeer ]" (RFC 3765, ze-bgp-conf.yang:237)
+// failed to re-parse when replayed through watchdog announce, silently
+// dropping the route instead of announcing it with the configured community.
 func parseCommunityText(s string) (uint32, error) {
-	// Well-known communities
-	switch strings.ToLower(s) {
-	case "no-export":
-		return 0xFFFFFF01, nil
-	case "no-advertise":
-		return 0xFFFFFF02, nil
-	case "no-export-subconfed":
-		return 0xFFFFFF03, nil
-	}
-
-	// ASN:value format
-	parts := strings.SplitN(s, ":", 2)
-	if len(parts) != 2 {
-		return 0, fmt.Errorf("invalid community format: %s (expected ASN:value)", s)
-	}
-	high, err := strconv.ParseUint(parts[0], 10, 16)
+	v, err := attribute.ParseCommunity(s)
 	if err != nil {
-		return 0, fmt.Errorf("invalid community ASN: %s", parts[0])
+		return 0, fmt.Errorf("invalid community format: %s (expected ASN:value or well-known name)", s)
 	}
-	low, err := strconv.ParseUint(parts[1], 10, 16)
-	if err != nil {
-		return 0, fmt.Errorf("invalid community value: %s", parts[1])
-	}
-	return uint32(high)<<16 | uint32(low), nil
+	return v, nil
 }
 
 // errAttrsAfterNLRI is returned when attributes appear after the first nlri section.

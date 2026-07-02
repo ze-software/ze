@@ -372,6 +372,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `tftpserver` | Read-only TFTP file server for PXE boot (RFC 2347 option negotiation) |
 | `imageserver` | HTTP provisioning server for disk images and boot files |
 | `geodns` | GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871) |
+| `as112` | AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535) |
 | `connected` | Redistribute directly connected interface prefixes |
 | `policy-routes` | Policy-based routing |
 | `vpp` | VPP lifecycle and telemetry management |
@@ -788,7 +789,7 @@ entry points is not a substitute.
 BGP daemons. Ze establishes real sessions with FRR, BIRD, and GoBGP in containers and
 verifies correct behavior: session establishment, route exchange, graceful restart,
 route refresh, next-hop handling, BFD failover, ECMP, SRv6, and remove-private-as policy.
-63 interop scenarios run across multiple implementations, written in Python with
+69 interop scenarios run across multiple implementations, written in Python with
 automated container orchestration. Interop correctness is measured by real peers,
 not unit tests alone.
 

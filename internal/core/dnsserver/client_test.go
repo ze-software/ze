@@ -68,6 +68,23 @@ func TestRemoteAddr(t *testing.T) {
 	}
 }
 
+// VALIDATES: RemoteAddr unmaps a 4-in-6 address (::ffff:a.b.c.d) to its plain
+// IPv4 form, matching ClientIP's own normalization (client.go:27,37). A
+// consumer that feeds RemoteAddr's result directly into netip.Prefix.Contains
+// against a v4 prefix (as112's allow-from matcher, server.go) would otherwise
+// never match a legitimate v4 client presented in 4-in-6 form, since
+// Contains requires matching address families.
+func TestRemoteAddr_UnmapsIPv4In6(t *testing.T) {
+	fw := &remoteAddrWriter{addr: &net.UDPAddr{IP: net.ParseIP("::ffff:203.0.113.7"), Port: 53210}}
+	got := RemoteAddr(fw)
+	if got.Is4In6() {
+		t.Fatalf("RemoteAddr = %v, want unmapped (Is4In6() = false)", got)
+	}
+	if got.String() != "203.0.113.7" {
+		t.Errorf("RemoteAddr = %v, want plain 203.0.113.7", got)
+	}
+}
+
 type remoteAddrWriter struct {
 	dns.ResponseWriter
 	addr net.Addr

@@ -125,6 +125,22 @@ func NewWithConn(name string, conn net.Conn) *Plugin {
 	return p
 }
 
+// IsInternal reports whether this plugin instance is running in-process with
+// the engine (a DirectBridge was discovered on conn in NewWithConn) as
+// opposed to a forked subprocess talking over TLS. True exactly when the
+// engine started this plugin via the "internal" invocation mode (process.go's
+// startInternal, which wraps the net.Pipe() end with rpc.NewBridgedConn).
+//
+// A plugin that calls another in-process package's plain Go functions
+// directly -- bypassing DirectBridge/DispatchCommand, e.g. as112 calling
+// iface.RegisterOwnedAddresses -- MUST check this and refuse to start if
+// false. Such a call is syntactically valid and returns no error when run
+// external: it silently operates on the subprocess's own copy of the
+// target package's state, never the engine process's.
+func (p *Plugin) IsInternal() bool {
+	return p.bridge != nil
+}
+
 // NewWithIO creates a plugin from separate reader and writer streams.
 // Use this for non-TCP transports (SSH channels, stdin/stdout pipes) where
 // a net.Conn is not available. MuxConn is created immediately for

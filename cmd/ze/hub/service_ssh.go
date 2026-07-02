@@ -1,4 +1,5 @@
 // Design: docs/architecture/hub-architecture.md -- infrastructure server setup
+// Related: session_factory.go -- builds the session model factory this file wires in
 //
 // The ssh side of the compile-out seam (see ssh_infra.go): the build + post-
 // start wiring implementations that touch internal/component/ssh. Compiled only
@@ -19,6 +20,7 @@ import (
 
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -26,6 +28,7 @@ import (
 )
 
 var errNoCommandProvided = errors.New("no command provided")
+var errStatusErrorNoMessage = errors.New("command reported status=error")
 
 // sshBuildImpl builds and starts the ssh server from generic infra inputs and
 // returns it as the opaque sshServer handle (nil on config/start error).
@@ -98,7 +101,8 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 			if resp == nil {
 				return "", nil
 			}
-			return params.FormatResponseData(resp.Data), nil
+			formatted := params.FormatResponseData(resp.Data)
+			return formatted, responseExecErr(resp, formatted)
 		}
 	})
 	sshSrv.SetStreamingExecutorFactory(func(username, remoteAddr string) zessh.StreamingExecutor {
@@ -168,6 +172,30 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 		}
 		return warnings
 	})
+}
+
+// responseExecErr maps a dispatched Response's Status to the error
+// CommandExecutor must return, so ssh.go's exec middleware maps the SSH
+// session to the correct exit code. Many handlers deliberately return
+// Status:StatusError with a nil Go error -- an operational failure encoded
+// in the Response, not a Go error (e.g. as112's handleAS112Health returns
+// {"healthy":false} with Status:StatusError, no Go error, when a health
+// query legitimately fails). Without this mapping, d.Dispatch's nil error
+// made the executor always return (formatted, nil), so a real `ze cli -c
+// "..."` invocation over SSH always exited 0 regardless of Status -- silently
+// breaking any script (a BGP healthcheck probe, in particular) that relies on
+// the process exit code to detect an operational failure.
+func responseExecErr(resp *plugin.Response, formatted string) error {
+	if resp.Status != plugin.StatusError {
+		return nil
+	}
+	if resp.Error != "" {
+		return errors.New(resp.Error)
+	}
+	if formatted != "" {
+		return errors.New(formatted)
+	}
+	return errStatusErrorNoMessage
 }
 
 // sshBuildStandaloneImpl builds, wires (session model + dispatch executor), and
