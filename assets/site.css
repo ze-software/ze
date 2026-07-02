@@ -972,6 +972,7 @@ section {
     --acc-chip: var(--grape-chip);
     --acc-tint: #fdf6f8;
     --acc-glow: rgba(160, 110, 220, 0.25);
+    position: relative;
     min-height: 12rem;
     padding: 1.25rem 1.25rem 1.15rem;
     border: 2px solid rgba(255, 255, 255, 0.9);
@@ -1043,9 +1044,11 @@ section {
     color: var(--acc-deep);
 }
 
-/* Whole-card click target: stretch the week's title link over the entire
-   tile so a click anywhere on the card opens that post. */
-.card-post h3 a::after {
+/* Whole-card click target: stretch a card's title link over the entire
+   tile so a click anywhere on the card follows it. Every linked card grid
+   (features, labs, performance, blog posts) puts its single link in the
+   <h3>, so this makes those cards clickable to match their hover lift. */
+.card h3 a::after {
     content: "";
     position: absolute;
     inset: 0;
