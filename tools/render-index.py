@@ -21,6 +21,17 @@ GH_PAGES = HERE.parent
 DATA = GH_PAGES / "data" / "audience.json"
 DEST = GH_PAGES / "index.html"
 
+# Homepage proof-strip floors. Hand-set because computing them exactly means
+# walking ../main (test funcs, fuzz targets, .ci files, interop Dockerfiles)
+# -- tools/build.py's check_homepage_proof_drift() warns at build time if any
+# of these ever overstate the live count in ../main.
+PROOF_STATS = {
+    "unit_tests": "17,300+",
+    "e2e_tests": "1,300+",
+    "fuzz_targets": "65+",
+    "interop_targets": "7",
+}
+
 
 def render_run_card(card):
     link = card["link"]
@@ -156,7 +167,7 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
             <div class="proof-strip reveal" aria-label="Project evidence">
                 <div class="proof">
                     <strong
-                        >13,700+ <span class="label">unit tests</span></strong
+                        >{unit_tests} <span class="label">unit tests</span></strong
                     >
                     <ul>
                         <li>Wire encoding, parsing</li>
@@ -166,7 +177,7 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
                 </div>
                 <div class="proof">
                     <strong
-                        >1,200+
+                        >{e2e_tests}
                         <span class="label">end to end tests</span></strong
                     >
                     <ul>
@@ -175,7 +186,7 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
                     </ul>
                 </div>
                 <div class="proof">
-                    <strong>55+ <span class="label">fuzz targets</span></strong>
+                    <strong>{fuzz_targets} <span class="label">fuzz targets</span></strong>
                     <ul>
                         <li>Parsers, external inputs</li>
                         <li>Wire formats, config files</li>
@@ -183,7 +194,7 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
                 </div>
                 <div class="proof">
                     <strong
-                        >7 <span class="label">interop targets</span></strong
+                        >{interop_targets} <span class="label">interop targets</span></strong
                     >
                     <ul>
                         <li>FRR, BIRD, GoBGP</li>
@@ -425,6 +436,7 @@ def render(data):
         who_cards=who_cards,
         category_links=category_links,
         blog_teaser_cards=blog_teaser_cards,
+        **PROOF_STATS,
     )
 
     DEST.write_text(head + body + sitelib.page_foot(root))

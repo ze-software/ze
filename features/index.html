@@ -35,7 +35,7 @@
                     <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../features/">
                             <span class="nav-dropdown-icon">🧩</span>
-                            <span><strong>Features</strong><small>44 features, color-coded by category</small></span>
+                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../cli/">
                             <span class="nav-dropdown-icon">⌨️</span>
@@ -126,6 +126,10 @@
                             <span class="nav-dropdown-icon">⌨️</span>
                             <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="../docs/features/formatting/">
+                            <span class="nav-dropdown-icon">🪄</span>
+                            <span><strong>Output Formatting</strong><small>Pipe operators: table, json, yaml, match, count</small></span>
+                        </a>
                         <a class="nav-dropdown-item" href="../docs/architecture/">
                             <span class="nav-dropdown-icon">🏗️</span>
                             <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
@@ -184,7 +188,7 @@
             <section aria-labelledby="features-title">
                 <div class="section-head reveal">
                     <h2 id="features-title">Every feature Ze ships.</h2>
-                    <p>44 features plus a spec'd roadmap, color-coded by category.</p>
+                    <p>46 features plus a spec'd roadmap, color-coded by category.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>Each card's color is its category: how the feature fits into the system. Solid cards are shipped; dashed cards are experimental; blueprint cards at the bottom are specs, not code. Everything shipped runs in both daemon and appliance modes unless a card says otherwise. Click a category to filter, click again to show everything.</p>
@@ -230,6 +234,19 @@
                     <li>Schema-driven <strong>validation</strong></li>
                     <li><strong>One model</strong> for everything</li>
                     <li><strong>Plugin</strong> defined</li>
+                    </ul>
+                    </article>
+                    <article class="card cat-operate" data-cat="operate">
+                    <span class="cat">Operate</span>
+                    <h3><a href="../docs/features/formatting/">Output Formatting</a></h3>
+                    <div class="chips">
+                    <span class="chip">VyOS-style pipes</span>
+                    <span class="chip">Offline</span>
+                    </div>
+                    <ul>
+                    <li><strong>table</strong>, <strong>json</strong>, <strong>yaml</strong>, <strong>ndjson</strong></li>
+                    <li><strong>match</strong>, <strong>count</strong>, <strong>first</strong>/<strong>last</strong></li>
+                    <li>Offline via <strong>ze format</strong></li>
                     </ul>
                     </article>
                     <article class="card cat-operate" data-cat="operate">
@@ -818,6 +835,20 @@
                     <li>Anycast IPs bound on <strong>lo</strong> automatically, never operator-typed</li>
                     </ul>
                     </article>
+                    <article class="card experimental cat-routing" data-cat="routing">
+                    <span class="cat">Routing</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/nlri/srpolicy" target="_blank" rel="noopener">Segment Routing</a></h3>
+                    <div class="chips">
+                    <span class="chip">SAFI 73</span>
+                    <span class="chip">SRv6</span>
+                    </div>
+                    <ul>
+                    <li><strong>SR-Policy</strong> NLRI (RFC 9830), SAFI 73</li>
+                    <li>MPLS and <strong>SRv6</strong> binding SID, tunnel encap</li>
+                    <li><strong>ExaBGP bridge</strong> for SR-Policy migration</li>
+                    </ul>
+                    </article>
                 </div>
             </section>
 
@@ -842,20 +873,6 @@
                     <li>Full <strong>link-state IGP</strong>: SPF, areas, flooding</li>
                     <li>16 extension specs: <strong>TE, SR, TI-LFA</strong></li>
                     <li><strong>Graceful restart</strong>, BFD, multi-AF</li>
-                    </ul>
-                    </article>
-                    <article class="card aspiration cat-routing" data-cat="routing">
-                    <span class="cat">Routing</span>
-                    <span class="status">Spec'd</span>
-                    <h3><a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-sr-policy.md" target="_blank" rel="noopener">Segment Routing</a></h3>
-                    <div class="chips">
-                    <span class="chip">SAFI 73</span>
-                    <span class="chip">SRv6</span>
-                    </div>
-                    <ul>
-                    <li><strong>SR-Policy</strong> NLRI, tunnel encapsulation</li>
-                    <li><strong>ExaBGP bridge</strong> for SR-Policy</li>
-                    <li>SRv6 <strong>labeled unicast</strong> family</li>
                     </ul>
                     </article>
                     <article class="card aspiration cat-routing" data-cat="routing">

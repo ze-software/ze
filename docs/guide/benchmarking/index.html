@@ -35,7 +35,7 @@
                     <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../../../features/">
                             <span class="nav-dropdown-icon">🧩</span>
-                            <span><strong>Features</strong><small>44 features, color-coded by category</small></span>
+                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../../cli/">
                             <span class="nav-dropdown-icon">⌨️</span>
@@ -126,6 +126,10 @@
                             <span class="nav-dropdown-icon">⌨️</span>
                             <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/formatting/">
+                            <span class="nav-dropdown-icon">🪄</span>
+                            <span><strong>Output Formatting</strong><small>Pipe operators: table, json, yaml, match, count</small></span>
+                        </a>
                         <a class="nav-dropdown-item" href="../../../docs/architecture/">
                             <span class="nav-dropdown-icon">🏗️</span>
                             <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
@@ -214,7 +218,7 @@ ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze --routes 1000
   --routes 1000 --output result-ze.json
 </code></pre>
 <h2>Running Benchmarks</h2>
-<p>For a complete flag reference, see <a href="https://github.com/ze-software/ze/blob/main/docs/guide/command-reference.md#ze-perf-run" target="_blank" rel="noopener">ze-perf run</a>.</p>
+<p>For a complete flag reference, see <a href="../command-reference/#ze-perf-run">ze-perf run</a>.</p>
 <h3>Encoding Modes</h3>
 <p>Three encoding modes measure different code paths through the DUT:</p>
 <table>
@@ -390,7 +394,7 @@ ze-perf report --html result-ze.json result-gobgp.json &gt; comparison.html
 <!-- source: internal/perf/report/markdown.go -- Markdown report generation -->
 <!-- source: internal/perf/report/html.go -- HTML report generation -->
 
-<p>For the full flag reference, see <a href="https://github.com/ze-software/ze/blob/main/docs/guide/command-reference.md#ze-perf-report" target="_blank" rel="noopener">ze-perf report</a>.</p>
+<p>For the full flag reference, see <a href="../command-reference/#ze-perf-report">ze-perf report</a>.</p>
 <h2>Tracking Performance Over Time</h2>
 <h3>NDJSON History</h3>
 <p>Each <code>ze-perf run --json</code> invocation produces a single JSON object. Append
@@ -458,7 +462,7 @@ prevents false positives from noisy measurements.</p>
 <p>Limit the comparison window to the last N entries with <code>--last</code>:</p>
 <pre><code class="language-bash">ze-perf track --check --last 5 history.ndjson
 </code></pre>
-<p>For the full flag reference, see <a href="https://github.com/ze-software/ze/blob/main/docs/guide/command-reference.md#ze-perf-track" target="_blank" rel="noopener">ze-perf track</a>.</p>
+<p>For the full flag reference, see <a href="../command-reference/#ze-perf-track">ze-perf track</a>.</p>
 <h2>Understanding Results</h2>
 <h3>JSON Output Fields</h3>
 <p>The JSON result object contains these key fields:</p>

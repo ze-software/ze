@@ -127,6 +127,29 @@ FILTER_SCRIPT = """        <script>
 """
 
 
+def render_markdown(versions, data, total):
+    parts = [
+        "# Dependencies",
+        "",
+        "Ze is Go, and Go code leans on packages. %d direct dependencies, "
+        "read straight from `go.mod` so the list and versions can't drift "
+        "-- each one with a plain-English reason it's there, grounded in "
+        "where it's actually imported, not its own pitch." % total,
+        "",
+    ]
+    for category in data["categories"]:
+        parts.append("## %s (%d)" % (category["name"], len(category["modules"])))
+        parts.append("")
+        parts.append("| Module | Version | Why we use it |")
+        parts.append("| --- | --- | --- |")
+        for entry in category["modules"]:
+            version = versions.get(entry["module"], "?")
+            why = entry["why"].replace("|", "\\|")
+            parts.append("| `%s` | `%s` | %s |" % (entry["module"], version, why))
+        parts.append("")
+    return "\n".join(parts).strip() + "\n"
+
+
 def render(versions, data):
     root = "../"
     total = sum(len(cat["modules"]) for cat in data["categories"])
@@ -157,8 +180,9 @@ def render(versions, data):
     body = "\n".join(out)
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_text(body + "\n" + FILTER_SCRIPT + "\n" + sitelib.page_foot(root))
+    sitelib.write_markdown_sibling(DEST, render_markdown(versions, data, total))
     print(
-        "rendered %d dependencies (%d groups) -> %s"
+        "rendered %d dependencies (%d groups) -> %s (+ index.md)"
         % (total, len(data["categories"]), DEST)
     )
 

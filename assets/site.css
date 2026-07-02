@@ -1493,6 +1493,28 @@ pre {
     line-height: 1.65;
 }
 
+.talk-link {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    display: block;
+}
+
+.talk-date {
+    margin-top: 0.5em;
+    font-size: 0.85em;
+    opacity: 0.7;
+}
+
+.talk-alt {
+    margin-top: 0.3em;
+    font-size: 0.8em;
+}
+
+.talk-alt a {
+    opacity: 0.6;
+}
+
 .closing {
     display: grid;
     grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);

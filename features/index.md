@@ -1,6 +1,6 @@
 # Every feature Ze ships.
 
-44 features plus a spec'd roadmap, color-coded by category. A card's category is how the feature fits into the system: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
+46 features plus a spec'd roadmap, color-coded by category. A card's category is how the feature fits into the system: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
 
 ## Built for demanding operators.
 
@@ -25,6 +25,16 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **Plugin** defined
 
 [Learn more](https://ze-software.github.io/ze/docs/features/configuration/)
+
+### Output Formatting
+
+*operate* -- `VyOS-style pipes` `Offline`
+
+- **table**, **json**, **yaml**, **ndjson**
+- **match**, **count**, **first**/**last**
+- Offline via **ze format**
+
+[Learn more](https://ze-software.github.io/ze/docs/features/formatting/)
 
 ### Web Workbench
 
@@ -453,6 +463,16 @@ Implemented and tested, not yet production-proven.
 
 [Learn more](https://ze-software.github.io/ze/docs/guide/as112/)
 
+### Segment Routing
+
+*routing / Experimental* -- `SAFI 73` `SRv6`
+
+- **SR-Policy** NLRI (RFC 9830), SAFI 73
+- MPLS and **SRv6** binding SID, tunnel encap
+- **ExaBGP bridge** for SR-Policy migration
+
+[Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/nlri/srpolicy)
+
 ## Spec'd, not built.
 
 Aspirations with written, reviewed specs. Nothing here is usable today.
@@ -468,16 +488,6 @@ Aspirations with written, reviewed specs. Nothing here is usable today.
 - **Graceful restart**, BFD, multi-AF
 
 [Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-0-umbrella.md)
-
-### Segment Routing
-
-*routing / Spec'd* -- `SAFI 73` `SRv6`
-
-- **SR-Policy** NLRI, tunnel encapsulation
-- **ExaBGP bridge** for SR-Policy
-- SRv6 **labeled unicast** family
-
-[Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-sr-policy.md)
 
 ### VRF
 

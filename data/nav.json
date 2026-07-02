@@ -8,7 +8,7 @@
             "label": "Project",
             "columns": [
                 [
-                    {"href": "features/", "icon": "🧩", "title": "Features", "desc": "44 features, color-coded by category"},
+                    {"href": "features/", "icon": "🧩", "title": "Features", "desc": "46 features, color-coded by category"},
                     {"href": "cli/", "icon": "⌨️", "title": "CLI Reference", "desc": "350 commands, generated from the live binary"},
                     {"href": "dependencies/", "icon": "📦", "title": "Dependencies", "desc": "39 direct packages, generated from go.mod"},
                     {"href": "config-reference/", "icon": "🧬", "title": "Configuration Reference", "desc": "86 plugins across 38 groups, generated from Go + YANG"},
@@ -43,6 +43,7 @@
                     {"href": "docs/guide/quickstart/", "icon": "🚀", "title": "Quickstart", "desc": "Two BGP peers in under 5 minutes"},
                     {"href": "docs/features/configuration/", "icon": "⚙️", "title": "Configuration", "desc": "YANG-modeled, one model for everything"},
                     {"href": "docs/features/cli-commands/", "icon": "⌨️", "title": "CLI Commands", "desc": "SSH CLI with diff, commit, and history"},
+                    {"href": "docs/features/formatting/", "icon": "🪄", "title": "Output Formatting", "desc": "Pipe operators: table, json, yaml, match, count"},
                     {"href": "docs/architecture/", "icon": "🏗️", "title": "Architecture", "desc": "How the pieces fit together"}
                 ],
                 [

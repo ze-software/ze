@@ -53,6 +53,28 @@
         {
           "category": "operate",
           "status": null,
+          "title": "Output Formatting",
+          "href": "docs/features/formatting/",
+          "external": false,
+          "chips": [
+            {
+              "text": "VyOS-style pipes",
+              "mode": false
+            },
+            {
+              "text": "Offline",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**table**, **json**, **yaml**, **ndjson**",
+            "**match**, **count**, **first**/**last**",
+            "Offline via **ze format**"
+          ]
+        },
+        {
+          "category": "operate",
+          "status": null,
           "title": "Web Workbench",
           "href": "docs/features/web-interface/",
           "external": false,
@@ -1034,6 +1056,28 @@
             "Conditional **BGP origination** via healthcheck-gated watchdog",
             "Anycast IPs bound on **lo** automatically, never operator-typed"
           ]
+        },
+        {
+          "category": "routing",
+          "status": "experimental",
+          "title": "Segment Routing",
+          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/nlri/srpolicy",
+          "external": true,
+          "chips": [
+            {
+              "text": "SAFI 73",
+              "mode": false
+            },
+            {
+              "text": "SRv6",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**SR-Policy** NLRI (RFC 9830), SAFI 73",
+            "MPLS and **SRv6** binding SID, tunnel encap",
+            "**ExaBGP bridge** for SR-Policy migration"
+          ]
         }
       ]
     },
@@ -1063,28 +1107,6 @@
             "Full **link-state IGP**: SPF, areas, flooding",
             "16 extension specs: **TE, SR, TI-LFA**",
             "**Graceful restart**, BFD, multi-AF"
-          ]
-        },
-        {
-          "category": "routing",
-          "status": "aspiration",
-          "title": "Segment Routing",
-          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-sr-policy.md",
-          "external": true,
-          "chips": [
-            {
-              "text": "SAFI 73",
-              "mode": false
-            },
-            {
-              "text": "SRv6",
-              "mode": false
-            }
-          ],
-          "bullets": [
-            "**SR-Policy** NLRI, tunnel encapsulation",
-            "**ExaBGP bridge** for SR-Policy",
-            "SRv6 **labeled unicast** family"
           ]
         },
         {

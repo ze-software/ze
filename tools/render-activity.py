@@ -395,6 +395,27 @@ STYLE = """
 """
 
 
+def render_markdown(stats_html, go_panel_html, tables_html):
+    """Reuses the same stats/go-panel/tables HTML fragments extract() already
+    sliced out of loc_activity.py's raw output -- run through
+    sitelib.html_to_markdown -- rather than the SVG heatmap or the tab-switch
+    script, neither of which mean anything as text."""
+    base = sitelib.SITE_BASE + "activity/"
+    parts = [
+        "# Development activity",
+        "",
+        "A year of commits, at a glance.",
+        "",
+        sitelib.html_to_markdown(stats_html, base_url=base).strip(),
+        "",
+        sitelib.html_to_markdown(go_panel_html, base_url=base).strip(),
+        "",
+        sitelib.html_to_markdown(tables_html, base_url=base).strip(),
+        "",
+    ]
+    return "\n".join(parts).strip() + "\n"
+
+
 def main():
     with tempfile.TemporaryDirectory() as tmp:
         raw_path = pathlib.Path(tmp) / "activity-raw.html"
@@ -433,7 +454,10 @@ def main():
     )
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_text(page)
-    print("rendered activity heatmap -> %s" % DEST)
+    sitelib.write_markdown_sibling(
+        DEST, render_markdown(stats_html, go_panel_html, tables_html)
+    )
+    print("rendered activity heatmap -> %s (+ index.md)" % DEST)
     return 0
 
 

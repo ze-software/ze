@@ -196,17 +196,78 @@ FILTER_SCRIPT = """        <script>
 """
 
 
-def render(plugins):
-    root = "../"
+def build_groups(plugins):
     by_name = {p["name"]: p for p in plugins}
-
     groups = {}
     for plugin in plugins:
         key, _reason = group_key(plugin, by_name)
         groups.setdefault(key, []).append(plugin)
     for key, members in groups.items():
         members.sort(key=lambda p, key=key: (p["name"] != key, p["name"]))
+    return groups
 
+
+def render_plugin_markdown(plugin):
+    parts = ["### %s" % plugin["name"], ""]
+    meta_bits = ["source: `%s`" % plugin["source_dir"]]
+    if plugin["config_roots"]:
+        meta_bits.append("config root: `%s`" % ", ".join(plugin["config_roots"]))
+    if plugin["dependencies"]:
+        meta_bits.append("depends on: `%s`" % ", ".join(plugin["dependencies"]))
+    if plugin["optional_dependencies"]:
+        meta_bits.append(
+            "optional: `%s`" % ", ".join(plugin["optional_dependencies"])
+        )
+    parts.append(" -- ".join(meta_bits))
+    parts.append("")
+    if plugin["description"]:
+        parts.append(plugin["description"])
+        parts.append("")
+    if plugin["yang_files"]:
+        for rel_path in plugin["yang_files"]:
+            content = read_yang(rel_path)
+            filename = rel_path.rsplit("/", 1)[-1]
+            parts.append("`%s`" % filename)
+            parts.append("")
+            if content is None:
+                parts.append("*(not found on disk at render time)*")
+            else:
+                parts.append("```yang\n%s\n```" % content.strip("\n"))
+            parts.append("")
+    else:
+        parts.append(
+            "No YANG module of its own (reads config defined by another "
+            "plugin, or has none)."
+        )
+        parts.append("")
+    return "\n".join(parts)
+
+
+def render_markdown(plugins, groups, total_yang):
+    parts = [
+        "# Configuration Reference",
+        "",
+        "%d plugins across %d groups, %d YANG modules total. Generated "
+        "from every real `registry.Registration{}` in `../main/internal/` "
+        "and the YANG modules each one actually imports -- grouped by the "
+        "config root each plugin's own registration declares, not a "
+        "hand-picked category list. Every subsystem here, not only BGP: "
+        "see [the Configuration guide](%sdocs/features/configuration/) "
+        "for a narrative walkthrough of BGP peer config specifically."
+        % (len(plugins), len(groups), total_yang, sitelib.SITE_BASE),
+        "",
+    ]
+    for key in sorted(groups):
+        members = groups[key]
+        parts.append("## %s (`%s`, %d plugins)" % (prettify(key), key, len(members)))
+        parts.append("")
+        for plugin in members:
+            parts.append(render_plugin_markdown(plugin))
+    return "\n".join(parts).strip() + "\n"
+
+
+def render(plugins, groups):
+    root = "../"
     total_yang = sum(len(p["yang_files"]) for p in plugins)
     title = "Configuration Reference - Ze"
     desc = (
@@ -242,15 +303,17 @@ def render(plugins):
     body = "\n".join(out)
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_text(body + "\n" + FILTER_SCRIPT + "\n" + sitelib.page_foot(root))
+    sitelib.write_markdown_sibling(DEST, render_markdown(plugins, groups, total_yang))
     print(
-        "rendered %d plugins across %d groups (%d yang modules) -> %s"
+        "rendered %d plugins across %d groups (%d yang modules) -> %s (+ index.md)"
         % (len(plugins), len(groups), total_yang, DEST)
     )
 
 
 def main():
     plugins = load_plugins()
-    render(plugins)
+    groups = build_groups(plugins)
+    render(plugins, groups)
     return 0
 
 

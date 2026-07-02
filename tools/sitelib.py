@@ -607,6 +607,12 @@ _MD_WS_RE = re.compile(r"\s+")
 _MD_TRAILING_WS_RE = re.compile(r"[ \t]+\n")
 _MD_BLANK_RUN_RE = re.compile(r"\n{3,}")
 _MD_MULTI_SPACE_RE = re.compile(r"[ \t]{2,}")
+_MD_LABEL_VALUE_RE = re.compile(r"([^\s:])(\*\*)(\s*)")
+
+
+def _label_value_repl(m):
+    before, stars, ws = m.groups()
+    return "%s:%s%s" % (before, stars, ws if ws else " ")
 
 
 def _collapse_spaces_outside_code(text):
@@ -804,7 +810,12 @@ class _HTMLToMarkdown(HTMLParser):
             return "\n\n%s\n\n" % quoted
         classes = (node.attrs.get("class") or "").split()
         if tag == "div" and ("status-row" in classes or "stat" in classes):
+            # <div class="status-row"><strong>Label</strong><span>Value</span></div>
+            # (or the reverse order for .stat) concatenates with no
+            # separator in the source HTML -- insert "label: value" so the
+            # two aren't run together as "Label**Value**".
             text = inner.strip()
+            text = _MD_LABEL_VALUE_RE.sub(_label_value_repl, text, count=1)
             return "- %s\n" % text if text else ""
         if "chip" in classes or "tag" in classes or "card-label" in classes:
             text = inner.strip()

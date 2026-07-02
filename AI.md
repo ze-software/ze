@@ -45,10 +45,13 @@ gh-pages/
                                               cards on index.html
     dependencies.json                     -- every direct Go dependency's "why", grouped by
                                               category, keyed to ../main/go.mod
+    plugin-registry.json                  -- every plugin's Registration{} fields + resolved YANG
+                                              module paths, extracted fresh from ../main/internal/
   tools/
     sitelib.py                            -- shared nav/head/foot chrome, imported by every
                                               render-*.py; also the navblock patcher for pages
-                                              with no dedicated generator
+                                              with no dedicated generator, and the Markdown-mirror
+                                              machinery (see "Markdown mirrors" below)
     build.py                              -- regenerates the entire site in one command
     render-docs.py / render-doc.py        -- ../main/docs/*.md -> docs/**/index.html (also used
                                               directly for compare/comparison.md -> compare/index.html
@@ -56,9 +59,16 @@ gh-pages/
     render-blog.py                        -- blog/posts/*.md -> blog/**/index.html
     render-activity.py                    -- git history -> activity/index.html
     render-features.py                    -- data/features.json -> features/index.html
-    render-cli-catalog.py                 -- `ze help command --json` -> cli/index.html
+    render-cli-catalog.py                 -- `ze help command --json` -> cli/index.html, with a
+                                              live search box that jumps to a matching command's
+                                              anchor (id="cmd-<slug>") in its group
     render-dependencies.py                -- ../main/go.mod + data/dependencies.json -> dependencies/index.html
+    extract-plugin-registry.py            -- ../main/internal/**/register.go + YANG imports ->
+                                              data/plugin-registry.json
+    render-config-reference.py            -- data/plugin-registry.json -> config-reference/index.html,
+                                              every plugin (not just BGP) grouped by config root
     render-index.py                       -- data/audience.json + template -> index.html
+    render-llms-txt.py                    -- data/nav.json + live counts -> llms.txt
   update-website.sh                       -- thin wrapper at the repo root: `./update-website.sh`
                                               regenerates everything, same as `tools/build.py`.
                                               Forwards args, e.g. `./update-website.sh --only cli`
@@ -72,12 +82,47 @@ page.
 
 Run `./update-website.sh` (repo root) or `tools/build.py` directly -- same
 thing, the script is just a short, obvious name to reach for. Pass `--only
-<docs,blog,activity,compare,features,cli,deps,contribute,index,nav>` to
-regenerate a subset. It warns on stderr if `data/nav.json`'s Features-dropdown
+<docs,blog,activity,compare,features,cli,deps,config,contribute,index,nav,llms>`
+to regenerate a subset. It warns on stderr if `data/nav.json`'s Features-dropdown
 card count falls out of sync with `data/features.json`'s actual card count,
-or its CLI Reference command count with `data/cli-commands.json` -- the class
-of bug that motivated data-driving this in the first place (a hand-typed "41
-features" count silently went stale when a card moved between sections).
+its CLI Reference command count with `data/cli-commands.json`, or its
+Configuration Reference plugin count with `data/plugin-registry.json` -- the
+class of bug that motivated data-driving this in the first place (a
+hand-typed "41 features" count silently went stale when a card moved between
+sections).
+
+### Markdown mirrors
+
+Every published page -- generated or hand-authored -- gets an `index.md`
+sibling next to its `index.html`, reachable at the same URL with `.md` for
+`/`. This is what `llms.txt` (below) links to: an LLM fetching the site
+gets plain Markdown, not HTML it has to parse. Three tiers, by how the
+page is already built:
+
+- **Real Markdown source already exists** (`docs/*`, `compare/`,
+  `contribute/`): `render-doc.py` publishes that source itself, with
+  internal `[text](other.md)` links rewritten to the sibling `.md` path
+  when the target is also published (GitHub blob link otherwise -- same
+  rule its HTML-link rewriter already used, just emitting Markdown link
+  syntax).
+- **Built from JSON/data** (`features/`, `cli/`, `dependencies/`,
+  `config-reference/`, `activity/`, blog posts): each `render-*.py` has a
+  `render_markdown()` next to its `render()`, both reading the same data,
+  so the two can't disagree.
+- **Hand-authored HTML, no source of either kind** (`labs/*/`, `talks/`,
+  `style-guide/`, `performance/`, `zeledon/`): `tools/build.py`'s `nav`
+  step extracts the `<main id="top">...</main>` content
+  (`sitelib.extract_main`) and converts it with `sitelib.html_to_markdown`
+  -- a small HTML->Markdown converter written against exactly the tags and
+  component classes this site emits (status-row facts, stat tiles,
+  terminal panels, chips/tags, tables), not a general-purpose library.
+  Re-derived from the HTML on every build, so it can't drift from the page
+  the way a hand-maintained companion file would.
+
+`tools/build.py` runs `nav` before `llms` so every page `llms.txt` links to
+already has its `index.md` on disk, and warns on stderr
+(`check_llms_md_siblings`) if a `data/nav.json` entry's `index.md` is
+missing.
 
 To add, remove, or re-categorize a feature card: edit `data/features.json`,
 then run `tools/build.py --only features` (or the full build). Same for
@@ -137,14 +182,18 @@ update). Work through this before considering the update done.
    blog post and blog index, the activity heatmap from fresh git history,
    `compare/index.html` from `compare/comparison.md`, `features/index.html`
    from `data/features.json`, `index.html` from `data/audience.json`, every
-   `../main/docs/*.md` -> `docs/**/index.html`, and the nav block on every
-   hand-authored page (labs, talks, style guide, performance, zeledon).
-   Watch stderr for the feature-count drift warning and any per-step
-   failures.
+   `../main/docs/*.md` -> `docs/**/index.html`, the nav block on every
+   hand-authored page (labs, talks, style guide, performance, zeledon), and
+   every page's `index.md` sibling (see "Markdown mirrors" above) --
+   including the hand-authored pages', which need no manual step since the
+   `nav` step re-derives them from the HTML every run. Watch stderr for the
+   feature-count drift warning, the missing-`index.md` warning, and any
+   per-step failures.
 6. **Link-check before calling it done.** Every `href`/`src` across the
-   published site (excluding `presentations/`) should resolve to a real
-   local file or an external URL. Write a quick script that walks all
-   `*.html` files and resolves relative links via `pathlib`, or reuse one
-   from a prior session if still on disk.
+   published site (excluding `presentations/`), and every link inside every
+   `index.md`, should resolve to a real local file or an external URL.
+   Write a quick script that walks all `*.html`/`*.md` files and resolves
+   relative links via `pathlib`, or reuse one from a prior session if still
+   on disk.
 7. **Never edit `presentations/*/` content** as part of this checklist --
    those decks are historic snapshots frozen at the time they were given.

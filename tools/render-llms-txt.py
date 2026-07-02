@@ -13,8 +13,19 @@ carry a live count (Features, CLI Reference, Dependencies) are recomputed
 here from data/features.json, data/cli-commands.json, and
 data/dependencies.json rather than trusted from nav.json's own (hand-edited,
 drift-checked-but-not-auto-fixed) desc text, so a stale nav.json copy can't
-make llms.txt wrong too. Wired into tools/build.py's default step list, so
-a normal site build always regenerates this file.
+make llms.txt wrong too.
+
+Each entry links to two URLs: the page's index.md sibling (Markdown, no
+HTML for an LLM to parse -- every render-*.py writes one next to its
+index.html; see tools/build.py's module docstring for which pages get it
+from a real source, which from data, and which from HTML extraction) and,
+parenthetically, the normal index.html page (for when a human-facing link
+is what's needed). tools/build.py's "nav" step runs before "llms" so every
+linked index.md exists by the time this renders; build.py also warns on
+stderr if a nav.json entry's index.md is missing.
+
+Wired into tools/build.py's default step list, so a normal site build
+always regenerates this file.
 """
 
 import json
@@ -27,7 +38,7 @@ GH_PAGES = HERE.parent
 DATA_DIR = GH_PAGES / "data"
 DEST = GH_PAGES / "llms.txt"
 
-SITE_BASE = "https://ze-software.github.io/ze/"
+SITE_BASE = sitelib.SITE_BASE
 
 
 def live_feature_count():
@@ -79,7 +90,9 @@ def nav_entry_line(entry):
         fresh = override()
         if fresh:
             desc = fresh
-    return "- [%s](%s%s): %s" % (entry["title"], SITE_BASE, href, desc)
+    md_url = "%s%sindex.md" % (SITE_BASE, href)
+    web_url = "%s%s" % (SITE_BASE, href)
+    return "- [%s](%s): %s (web: %s)" % (entry["title"], md_url, desc, web_url)
 
 
 def render_dropdown_section(dropdown):
@@ -112,19 +125,31 @@ def render(nav):
         "built continuously from the main branch. AGPLv3 open source."
     )
     parts.append("")
+    parts.append(
+        "Every link below points at that page's Markdown source (an "
+        "`index.md` sibling of its `index.html`, plain content, no HTML to "
+        "parse); the `(web: ...)` link is the same page rendered for a "
+        "human, for when a link needs to be shown to one."
+    )
+    parts.append("")
 
     for dropdown in nav["dropdowns"]:
         parts.append(render_dropdown_section(dropdown))
 
     more_lines = ["## More", ""]
     for link in nav["trailing_links"]:
-        if link["href"] == "blog/":
+        href = link["href"]
+        md_url = "%s%sindex.md" % (SITE_BASE, href)
+        web_url = "%s%s" % (SITE_BASE, href)
+        if href == "blog/":
             more_lines.append(
-                "- [Blog](%s%s): %d weekly updates, mined from git history"
-                % (SITE_BASE, link["href"], live_blog_count())
+                "- [Blog](%s): %d weekly updates, mined from git history (web: %s)"
+                % (md_url, live_blog_count(), web_url)
             )
         else:
-            more_lines.append("- [%s](%s%s)" % (link["label"], SITE_BASE, link["href"]))
+            more_lines.append(
+                "- [%s](%s) (web: %s)" % (link["label"], md_url, web_url)
+            )
     more_lines.append("- [Discord](%s): community and support" % sitelib.DISCORD_INVITE)
     more_lines.append(
         "- [GitHub](https://github.com/%s): mirror, issues" % sitelib.GITHUB_REPO

@@ -82,6 +82,12 @@ def rewrite_doc_links_markdown(md_text, doc_rel, manifest, dest_rel_dir):
         if target.startswith(("http://", "https://", "mailto:", "#")):
             return m.group(0)
         path_part, sep, fragment = target.partition("#")
+        if not path_part:
+            return m.group(0)
+        if path_part.endswith("/"):
+            target_doc_rel = posixpath.normpath(posixpath.join(source_dir, path_part))
+            new_target = "https://github.com/ze-software/ze/tree/main/docs/%s" % target_doc_rel
+            return "[%s](%s)" % (label, new_target)
         if not path_part.endswith(".md"):
             return m.group(0)
         target_doc_rel = posixpath.normpath(posixpath.join(source_dir, path_part))

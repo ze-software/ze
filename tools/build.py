@@ -16,14 +16,30 @@ Steps (default order, also the --only vocabulary):
     config    ../main/internal/**/register.go + YANG -> config-reference/index.html
               (tools/extract-plugin-registry.py, tools/render-config-reference.py)
     contribute contribute/contribute.md -> contribute/index.html (tools/render-doc.py)
+    talks     data/talks.json -> talks/index.html          (tools/render-talks.py)
     index     data/audience.json -> index.html            (tools/render-index.py)
+    nav       patch <div class="nav-links"> and <footer> in the remaining
+              hand-authored pages (zeledon, labs/*, style-guide,
+              performance) so they stay in sync with data/nav.json /
+              tools/sitelib.py without a full rewrite -- also (re)writes
+              each one's index.md sibling from its own <main> content
+              (sitelib.extract_main + sitelib.html_to_markdown), since these
+              pages have no Markdown source of their own to publish as-is
     llms      data/nav.json + live counts -> llms.txt      (tools/render-llms-txt.py)
               -- always runs; there is no way to regenerate the site without
-              also regenerating llms.txt, so it can never silently go stale
-    nav       patch <div class="nav-links"> and <footer> in the remaining
-              hand-authored pages (zeledon, labs/*, talks, style-guide,
-              performance) so they stay in sync with data/nav.json /
-              tools/sitelib.py without a full rewrite
+              also regenerating llms.txt, so it can never silently go stale.
+              Runs after "nav" so every page llms.txt links to already has
+              its index.md sibling on disk.
+
+Every published page (generated or hand-authored) gets an index.md sibling
+next to its index.html -- docs/blog/compare/contribute publish their real
+Markdown source (link-rewritten to sibling .md paths); features/cli/deps/
+config-reference/activity/talks render Markdown straight from the same data
+the HTML comes from; labs/style-guide/performance/zeledon (no source of
+either kind) get it via the "nav" step's HTML->Markdown extraction. llms.txt
+links every entry to its .md (for an LLM to fetch) alongside the human-
+facing HTML page (for when a link needs to be shown to a person) -- see
+tools/render-llms-txt.py.
 
 Replaces the old workflow of remembering to run four separate scripts (see
 AI.md) -- every page on the site, generated or hand-authored, reads its nav
@@ -51,14 +67,14 @@ STEPS = [
     "deps",
     "config",
     "contribute",
+    "talks",
     "index",
-    "llms",
     "nav",
+    "llms",
 ]
 
 NAV_PATCH_TARGETS = [
     ("zeledon/index.html", "../"),
-    ("talks/index.html", "../"),
     ("style-guide/index.html", "../"),
     ("performance/index.html", "../"),
     ("labs/index.html", "../"),
@@ -153,6 +169,11 @@ def step_contribute():
     return 0
 
 
+def step_talks():
+    render_talks = load_module("render-talks")
+    return render_talks.main()
+
+
 def step_index():
     render_index = load_module("render-index")
     return render_index.main()
@@ -169,7 +190,12 @@ def step_nav():
         text = sitelib.patch_navblock(path.read_text(), root)
         text = sitelib.patch_footer(text, root)
         path.write_text(text)
-        print("patched nav+footer -> %s" % rel)
+        base_url = sitelib.SITE_BASE + str(pathlib.PurePosixPath(rel).parent) + "/"
+        md_text = sitelib.html_to_markdown(
+            sitelib.extract_main(text), base_url=base_url
+        )
+        sitelib.write_markdown_sibling(path, md_text)
+        print("patched nav+footer, wrote index.md -> %s" % rel)
     return 0
 
 
@@ -183,6 +209,7 @@ STEP_FUNCS = {
     "deps": step_deps,
     "config": step_config,
     "contribute": step_contribute,
+    "talks": step_talks,
     "index": step_index,
     "llms": step_llms,
     "nav": step_nav,
@@ -278,6 +305,145 @@ def check_config_reference_drift():
         )
 
 
+def check_homepage_proof_drift():
+    """The homepage proof-strip (render-index.py PROOF_STATS) states floors
+    like "17,300+ unit tests" -- hand-set because computing them exactly
+    means walking ../main (test funcs, fuzz targets, .ci files, interop
+    Dockerfiles), which render-index.py doesn't do on every run. Warn if the
+    live count in ../main ever drops below (or, for the exact interop-target
+    count, diverges from) the stated number -- that turns a "+" floor into
+    an outright overstatement, the same drift class as the other checks."""
+    import re
+
+    render_index = load_module("render-index")
+    stats = render_index.PROOF_STATS
+
+    main_repo = (GH_PAGES.parent / "main").resolve()
+    if not main_repo.exists():
+        return
+    skip_dirs = {"vendor", ".claude", ".git"}
+    test_func_re = re.compile(r"^func Test[A-Za-z0-9_]+\(", re.MULTILINE)
+    fuzz_func_re = re.compile(r"^func Fuzz[A-Za-z0-9_]+\(", re.MULTILINE)
+
+    def under_skip_dir(path):
+        return bool(skip_dirs & set(path.relative_to(main_repo).parts))
+
+    unit_tests = 0
+    fuzz_targets = 0
+    for path in main_repo.rglob("*_test.go"):
+        if under_skip_dir(path):
+            continue
+        text = path.read_text(errors="ignore")
+        unit_tests += len(test_func_re.findall(text))
+        fuzz_targets += len(fuzz_func_re.findall(text))
+
+    test_dir = main_repo / "test"
+    e2e_tests = sum(
+        1
+        for path in (test_dir.rglob("*.ci") if test_dir.exists() else [])
+        if not under_skip_dir(path)
+    )
+
+    interop_dir = main_repo / "test" / "interop"
+    interop_targets = 1 + sum(  # +1 for FRR, pulled via FRR_IMAGE env var
+        1
+        for path in (interop_dir.glob("Dockerfile.*") if interop_dir.exists() else [])
+        if path.name != "Dockerfile.ze"
+    )
+
+    def floor_int(s):
+        return int(s.rstrip("+").replace(",", ""))
+
+    for key, live, label in [
+        ("unit_tests", unit_tests, "unit test functions"),
+        ("e2e_tests", e2e_tests, "end-to-end .ci files"),
+        ("fuzz_targets", fuzz_targets, "fuzz targets"),
+    ]:
+        stated = floor_int(stats[key])
+        if stated > live:
+            print(
+                "warning: render-index.py PROOF_STATS[%r] claims %r but "
+                "../main currently has %d %s -- lower the stated floor"
+                % (key, stats[key], live, label),
+                file=sys.stderr,
+            )
+
+    if floor_int(stats["interop_targets"]) != interop_targets:
+        print(
+            "warning: render-index.py PROOF_STATS['interop_targets'] claims "
+            "%r but ../main/test/interop currently has %d target Dockerfiles "
+            "+ FRR -- update the stated number"
+            % (stats["interop_targets"], interop_targets),
+            file=sys.stderr,
+        )
+
+
+def check_llms_md_siblings():
+    """llms.txt links every nav.json entry to a sibling index.md alongside
+    its index.html. Every render-*.py that produces one of these pages
+    writes that sibling itself, but nothing forces it to -- warn instead of
+    shipping a page llms.txt claims exists but a fetch would 404 on."""
+    import json
+
+    nav = json.loads((GH_PAGES / "data" / "nav.json").read_text())
+    hrefs = [link["href"] for link in nav["trailing_links"]]
+    for dropdown in nav["dropdowns"]:
+        for column in dropdown["columns"]:
+            hrefs.extend(e["href"] for e in column if "href" in e)
+
+    for href in hrefs:
+        md_path = GH_PAGES / href / "index.md"
+        if not md_path.exists():
+            print(
+                "warning: llms.txt links %s to an index.md that doesn't exist "
+                "(%s) -- run the step that generates it" % (href, md_path),
+                file=sys.stderr,
+            )
+
+
+def check_performance_stat_drift():
+    """performance/index.html's status-row (convergence/throughput/withdrawal)
+    is hand-copied from ../main/test/perf/results/ze.json's last real
+    ze-perf run, not regenerated by any build.py step -- warn if the page
+    ever drifts from that file, the same drift class as the other checks,
+    so a new perf run doesn't silently leave the page quoting a stale one."""
+    import json
+    import re
+
+    result_path = (
+        GH_PAGES.parent / "main" / "test" / "perf" / "results" / "ze.json"
+    ).resolve()
+    page_path = GH_PAGES / "performance" / "index.html"
+    if not result_path.exists() or not page_path.exists():
+        return
+
+    result = json.loads(result_path.read_text())
+    page = page_path.read_text()
+
+    run_date = result["timestamp"].split("T")[0]
+    expected = {
+        "Convergence": "%dms to propagate %s routes (%s run)"
+        % (result["convergence-ms"], "{:,}".format(result["routes"]), run_date),
+        "Throughput": "%s routes/sec sustained during propagation"
+        % "{:,}".format(result["throughput-avg"]),
+        "Withdrawal": "%dms from withdrawal sent to receiver idle"
+        % result["withdrawal-ms"],
+    }
+
+    for label, want in expected.items():
+        match = re.search(
+            r"<strong>%s</strong>\s*<span>([^<]+)</span>" % re.escape(label), page
+        )
+        got = match.group(1).strip() if match else None
+        if got != want:
+            print(
+                "warning: performance/index.html %s row says %r but "
+                "../main/test/perf/results/ze.json's last run (%s) says %r "
+                "-- update the status-row text" % (label, got, run_date, want),
+                file=sys.stderr,
+            )
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -299,6 +465,9 @@ def main():
     check_feature_count_drift()
     check_cli_count_drift()
     check_config_reference_drift()
+    check_homepage_proof_drift()
+    check_performance_stat_drift()
+    check_llms_md_siblings()
 
     failures = []
     for step in steps:
