@@ -267,6 +267,20 @@ almost always is), those modifications must be committed before deletion.
 | `git rm -f` without a prior commit of the spec | Destroys uncommitted design work. |
 | "Run the commit, then I'll prepare closure" | The user will not ask. One script, one run, done. |
 
+### Closure Enforcement (automated)
+
+Closure once depended on remembering the two-commit step, so it was routinely
+dropped and specs piled up in `plan/` as false "open work". Three mechanical
+gates now enforce it (registered in `ai/rules/hook-mapping.md`):
+
+| Gate | Where | Fires when |
+|------|-------|-----------|
+| Detector | `scripts/dev/spec-closure-check.py` | `--list` reports completed-but-not-closed specs in two tiers; `--spec <s>` exits 3 only for a high-confidence one. High confidence = a **committed** `plan/learned/NNN-<slug>.md` whose slug **exactly equals** the spec stem while the spec is still `in-progress` and is **not an umbrella** (commit A ran, commit B did not). Weaker `[umbrella]` / `[weak-match]` candidates (child/sibling/predecessor summaries) are listed under NEEDS VERIFICATION and must be audited before closing — they are usually false positives. Only the high-confidence set triggers the `--spec` block. |
+| Stop-hook block | `.claude/hooks/block-premature-stop.sh` | This session's claimed spec is completed-but-not-closed: the session cannot end (exit 2) until commit B runs, or `tmp/session/.closure-ack-<stem>` records why the spec is genuinely still open. |
+| Commit reminder | `scripts/dev/commit_helper.py` | A commit adds a learned summary but removes no spec: it prints the closure-commit reminder to stderr. |
+
+Run `scripts/dev/spec-closure-check.py --list` any time to see the backlog.
+
 ## Verify Specs Against Code (BLOCKING)
 
 Never report spec progress by reading the spec alone. Grep the codebase to verify

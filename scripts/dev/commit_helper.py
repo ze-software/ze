@@ -317,6 +317,33 @@ def learned_paths(paths: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(path for path in paths if LEARNED_RE.match(path))
 
 
+SPEC_PATH_RE = re.compile(r"^plan/spec-.+\.md$")
+
+
+def closure_reminder(
+    add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> str | None:
+    """Warn when a commit adds a learned summary but closes no spec.
+
+    The two-commit spec closure is: commit A adds plan/learned/NNN-*.md (this
+    commit), commit B does `git rm plan/spec-<stem>.md`. Commit B is the step
+    that gets dropped, orphaning the spec in plan/ with Status=in-progress. If
+    this commit adds a learned summary and removes no spec, nudge the caller to
+    prepare the closure commit next. See ai/rules/planning.md "Spec Closure".
+    """
+    if not learned_paths(add_paths):
+        return None
+    if any(SPEC_PATH_RE.match(path) for path in remove_paths):
+        return None
+    return (
+        "closure-reminder: this commit adds a learned summary but removes no "
+        "spec.\n"
+        "  If it completes a spec, prepare the closure commit next:\n"
+        "    git rm plan/spec-<stem>.md   (ai/rules/planning.md Spec Closure)\n"
+        "  List what is still open: scripts/dev/spec-closure-check.py --list"
+    )
+
+
 def lesson_comment(
     add_paths: tuple[str, ...],
     remove_paths: tuple[str, ...],
@@ -495,6 +522,9 @@ def create(args: argparse.Namespace) -> int:
             print(f"verify=UNVERIFIED ({args.unverified})")
         else:
             print(f"verify={vstate.upper()} ({detail})")
+    reminder = closure_reminder(add_paths, remove_paths)
+    if reminder:
+        print(reminder, file=sys.stderr)
     return 0
 
 

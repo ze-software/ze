@@ -50,7 +50,7 @@ Generate the attention list by checking these conditions in order:
 | Condition | Attention Item | Suggested Action |
 |-----------|---------------|------------------|
 | Spec with `Status \| done` | "[spec] passed its gate but was never closed -- closure violation" | Prepare the two closure commits (`ai/rules/planning.md` Spec Closure) |
-| Spec in-progress with clean Review Gate (0 BLOCKER, 0 ISSUE) | "[spec] completed but not closed" | Prepare the two closure commits |
+| Spec listed by `scripts/dev/spec-closure-check.py --list` | "[spec] completed but not closed" | Prepare the two closure commits (`ai/rules/planning.md` Closure Enforcement) |
 | Tests failing | "N test failures in last run" | `/ze-debug` |
 | Spec in-progress with uncommitted changes | "Uncommitted work on [spec]" | `/ze-verify` then `/ze-commit` |
 | Spec in skeleton/design status | "[spec] needs implementation" | `/ze-implement` |

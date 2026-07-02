@@ -70,7 +70,23 @@ if [ -n "$SID" ]; then
     if [ -f "$MARKER" ]; then
         SPEC=$(head -1 "$MARKER" 2>/dev/null || true)
         if [ -n "$SPEC" ] && [ "$SPEC" != "unassigned" ] && [ -f "plan/$SPEC" ]; then
-            if grep -q "^Status:.*in-progress" "plan/$SPEC" 2>/dev/null; then
+            # Closure gate: block if this session's spec is implemented but the
+            # second closure commit (git rm the spec) never ran. The detector
+            # exits 3 for exactly that "commit A ran, commit B skipped" state.
+            # See ai/rules/planning.md "Spec Closure".
+            CLOSURE_RC=0
+            CLOSURE_MSG=$(python3 scripts/dev/spec-closure-check.py --spec "plan/$SPEC" 2>&1) || CLOSURE_RC=$?
+            if [ "$CLOSURE_RC" -eq 3 ]; then
+                {
+                    echo "BLOCKED: spec implemented but not closed."
+                    echo "$CLOSURE_MSG"
+                } >&2
+                exit 2
+            fi
+            # Fixed from a dead `^Status:` grep: specs write status as a
+            # `| Status | in-progress |` metadata table, so the old anchored
+            # pattern never matched a single spec.
+            if grep -qE "^\| Status \|.*in-progress" "plan/$SPEC" 2>/dev/null; then
                 REASONS+=("Spec '$SPEC' still in-progress")
             fi
         fi

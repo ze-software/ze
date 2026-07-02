@@ -19,7 +19,9 @@ functions inside these files, not separate scripts:
 
 Still standalone (single-purpose or deliberately not folded):
 `block-until-lsp.sh`, `validate-spec.sh` (see note below), `mark-lsp-invoked.sh`,
-`mark-source-read.sh`, and the session-lifecycle hooks.
+`mark-source-read.sh`, and the session-lifecycle hooks. The Stop hook also shells
+out to `scripts/dev/spec-closure-check.py` (the spec-closure detector; also
+usable directly as `--list`).
 
 **Changing a check:** edit the function in the relevant dispatcher (not a `.sh`),
 then run `python3 scripts/dev/hook-parity-check.py` to confirm no behaviour
@@ -143,7 +145,7 @@ that is a Make target, not a Claude hook.
 |---|---|---|
 | `session-start.sh` | SessionStart | Prints status summary. Creates session marker. |
 | `compaction-reminder.sh` | UserPromptSubmit | Detects compaction; reminds to read `post-compaction.md`. |
-| `block-premature-stop.sh` | Stop | Blocks stop on ownership-dodging phrases. BLOCKING. |
+| `block-premature-stop.sh` | Stop | Blocks stop on ownership-dodging phrases. Also runs `scripts/dev/spec-closure-check.py --spec` on the session's claimed spec and blocks (exit 2) if it is completed-but-not-closed. BLOCKING. See `ai/rules/planning.md` "Closure Enforcement". |
 | `session-end-summary.sh` | Stop | Writes session state snapshot. Cleans up marker. |
 | `session-end-deferrals.sh` | Stop | Prints open deferral count. Advisory. |
 | `pre-compact-save.sh` | PreCompact | Saves session state before compaction. |
