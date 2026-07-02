@@ -57,6 +57,13 @@ def load_data():
 
 
 def check_drift(versions, data):
+    """Report drift between go.mod and data/dependencies.json.
+
+    Returns True if there is drift the curator must act on. Callers render
+    the page first (so the site is always valid) and then treat a True here
+    as a build failure -- a stderr warning alone gets scrolled past, so this
+    is a hard gate like the other drift checks in build.py.
+    """
     curated = {
         entry["module"]: cat["name"]
         for cat in data["categories"]
@@ -76,6 +83,7 @@ def check_drift(versions, data):
             "lists it as a direct dependency -- remove the entry" % module,
             file=sys.stderr,
         )
+    return bool(missing or stale)
 
 
 def render_row(module, version, why):
@@ -190,8 +198,19 @@ def render(versions, data):
 def main():
     versions = parse_direct_deps()
     data = load_data()
-    check_drift(versions, data)
+    # Always render a valid page first, then fail the build if go.mod and
+    # data/dependencies.json disagree, so a new/removed dependency can't ship
+    # undocumented -- the site is still generated, the build just goes red
+    # until the curator acts on the warning above.
     render(versions, data)
+    if check_drift(versions, data):
+        print(
+            "error: dependency drift between go.mod and "
+            "data/dependencies.json -- see warnings above; page was "
+            "regenerated but the build fails until they match",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 
