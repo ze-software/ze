@@ -13,9 +13,11 @@ Steps (default order, also the --only vocabulary):
     features  data/features.json -> features/index.html  (tools/render-features.py)
     cli       `ze help command --json` -> cli/index.html  (tools/render-cli-catalog.py)
     index     data/audience.json -> index.html            (tools/render-index.py)
-    nav       patch <div class="nav-links"> in the remaining hand-authored
-              pages (zeledon, labs/*, talks, style-guide, performance) so
-              they stay in sync with data/nav.json without a full rewrite
+    nav       patch <div class="nav-links"> and the footer Discord link in
+              the remaining hand-authored pages (zeledon, labs/*, talks,
+              style-guide, performance) so they stay in sync with
+              data/nav.json / tools/sitelib.py's DISCORD_INVITE without a
+              full rewrite
 
 Replaces the old workflow of remembering to run four separate scripts (see
 AI.md) -- every page on the site, generated or hand-authored, reads its nav
@@ -40,6 +42,7 @@ NAV_PATCH_TARGETS = [
     ("talks/index.html", "../"),
     ("style-guide/index.html", "../"),
     ("performance/index.html", "../"),
+    ("labs/index.html", "../"),
     ("labs/appliance-install/index.html", "../../"),
     ("labs/bgp-interop/index.html", "../../"),
     ("labs/ipsec-interop/index.html", "../../"),
@@ -110,7 +113,9 @@ def step_index():
 def step_nav():
     for rel, root in NAV_PATCH_TARGETS:
         path = GH_PAGES / rel
-        path.write_text(sitelib.patch_navblock(path.read_text(), root))
+        text = sitelib.patch_navblock(path.read_text(), root)
+        text = sitelib.patch_footer_discord_link(text)
+        path.write_text(text)
         print("patched nav -> %s" % rel)
     return 0
 

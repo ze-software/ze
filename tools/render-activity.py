@@ -158,7 +158,7 @@ PAGE = """<!doctype html>
                         >Issues</a
                     >
                     <a
-                        href="https://discord.gg/3Sx4S2dYQ"
+                        href="https://discord.gg/T8s7CjPDne"
                         target="_blank"
                         rel="noopener"
                         >Discord</a

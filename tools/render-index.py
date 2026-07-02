@@ -103,7 +103,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                         >
                         <a
                             class="button"
-                            href="https://discord.gg/3Sx4S2dYQ"
+                            href="https://discord.gg/T8s7CjPDne"
                             target="_blank"
                             rel="noopener"
                             >Get Help</a

@@ -25,7 +25,7 @@ NAV_CHEVRON = (
     'stroke-linecap="round" stroke-linejoin="round"/></svg>'
 )
 
-DISCORD_INVITE = "https://discord.gg/3Sx4S2dYQ"
+DISCORD_INVITE = "https://discord.gg/T8s7CjPDne"
 GITHUB_REPO = "ze-software/ze"
 CODEBERG_REPO = "https://codeberg.org/thomas-mangin/ze"
 
@@ -300,6 +300,18 @@ def patch_navblock(html_text, root):
     div_start = html_text.index('<div class="nav-links">', m.start())
     end = _find_balanced_div_end(html_text, div_start)
     return html_text[: m.start()] + build_navblock(root) + html_text[end:]
+
+
+DISCORD_HREF_RE = re.compile(r'href="https://discord\.gg/[A-Za-z0-9]+"')
+
+
+def patch_footer_discord_link(html_text):
+    """Hand-authored pages' <footer> is static HTML, not built from
+    PAGE_FOOT -- their nav gets refreshed by patch_navblock, but a footer
+    Discord link would otherwise silently keep pointing at a rotated-out
+    invite code forever. Matches by URL pattern, not by the previous
+    invite's exact code, so this keeps working on the next rotation too."""
+    return DISCORD_HREF_RE.sub('href="%s"' % DISCORD_INVITE, html_text)
 
 
 PAGE_HEAD = """<!doctype html>
