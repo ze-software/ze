@@ -9,65 +9,65 @@ A feature comparison of open-source BGP daemon implementations.
 > project's own documentation before making decisions. Corrections and updates are welcome
 > via the [issue tracker](https://codeberg.org/thomas-mangin/ze/issues).
 
-Last updated: 2026-05-30
+Last updated: 2026-07-02
 
 ## Overview
 
-|  | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
+|  | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Language | Go | Rust | C | Go | Rust | C | Go | Python | C | C | Java |
-| License | AGPL-3.0 | MIT | GPL-2.0+ | Apache-2.0 | Apache-2.0 | GPL-2.0 | Apache-2.0 | BSD-3-Clause | ISC | GPL-2.0+ | Free |
-| Primary interface | CLI + SSH + REST/gRPC | gRPC | CLI (birdc) | gRPC | gRPC | CLI (vtysh) | gRPC | CLI + API | CLI (bgpctl) | CLI (birdc) | CLI (telnet/SSH) |
-| First release | 2026 | 2026 | 2024 | 2018 | 2019 | 2017 | 2014 | 2010 | 2004 | 1998 | 2012 |
-| Maturity | Pre-release | Pre-release | Production | Niche | Experimental | Production | Production | Production | Production | Production | Production |
-| Multithreaded | Yes (goroutines) | Yes (tokio) | Yes | Yes (goroutines) | Yes (multi-core) | No | Yes (goroutines) | No | Yes (3-process) | No | Yes (per-peer) |
+| Language | Go | C | C | C | C | Go | Go | Python | Rust | Rust | Java |
+| License | AGPL 3.0 | GPL 2.0+ | GPL 2.0+ | GPL 2.0 | ISC | Apache 2.0 | Apache 2.0 | BSD 3-Clause | Apache 2.0 | MIT | Free |
+| Primary interface | CLI, SSH, REST, gRPC | CLI | CLI | CLI | CLI | gRPC | gRPC | CLI, API | gRPC | gRPC | CLI |
+| First release | 2026 | 2024 | 1998 | 2017 | 2004 | 2014 | 2018 | 2010 | 2019 | 2026 | 2012 |
+| Multithreaded | Yes | Yes | No | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
+| Multithread model | Goroutines | Cooperative threads | -- | -- | 3-process | Goroutines | Goroutines | -- | Multi-core | Tokio | Per-peer |
 | Plugin architecture | Yes | No | No | No | No | No | No | No | No | No | No |
-| YANG-modeled config | Yes | No | No | No | No | Partial | No | No | No | No | No |
+| YANG-modeled config | Yes | No | No | Partial | No | No | No | No | No | No | No |
 
 ## Address Families
 
-| AFI/SAFI | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
+| AFI/SAFI | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | IPv4 Unicast | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | IPv6 Unicast | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| IPv4 Multicast | Yes | No | Yes | No | No | Yes | Yes | No | No | Yes | Yes |
-| IPv6 Multicast | Yes | No | Yes | No | No | Yes | Yes | No | No | Yes | Yes |
-| IPv4 Labeled Unicast | Yes | No | No | No | No | Yes | Yes | Yes | No | No | Yes |
-| IPv6 Labeled Unicast | Yes | No | No | No | No | Yes | Yes | Yes | No | No | Yes |
-| VPNv4 (RFC 4364) | Yes | No | Yes | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
-| VPNv6 | Yes | No | Yes | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
-| L2VPN EVPN (RFC 7432) | Yes | No | Yes | No | No | Yes | Yes | Yes | No | Yes | Yes |
-| L2VPN VPLS | Yes | No | No | No | No | No | Yes | Yes | No | No | Yes |
-| IPv4 FlowSpec (RFC 8955) | Yes | Yes | Yes | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
-| IPv6 FlowSpec | Yes | Yes | Yes | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
-| VPN FlowSpec | Yes | No | No | No | No | No | Yes | No | No | No | Yes |
-| BGP-LS (RFC 7752) | Decode (40 TLVs) | No | No | No | No | No | Yes | Decode | No | No | Yes |
-| SR Policy | No | No | No | No | No | No | Yes | No | No | No | Partial |
+| IPv4 Multicast | Yes | Yes | Yes | Yes | No | Yes | No | No | No | No | Yes |
+| IPv6 Multicast | Yes | Yes | Yes | Yes | No | Yes | No | No | No | No | Yes |
+| IPv4 Labeled Unicast | Yes | No | No | Yes | No | Yes | No | Yes | No | No | Yes |
+| IPv6 Labeled Unicast | Yes | No | No | Yes | No | Yes | No | Yes | No | No | Yes |
+| VPNv4 (RFC 4364) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | No | Yes |
+| VPNv6 | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | No | Yes |
+| L2VPN EVPN (RFC 7432) | Yes | Yes | Yes | Yes | No | Yes | No | Yes | No | No | Yes |
+| L2VPN VPLS | Yes | No | No | No | No | Yes | No | Yes | No | No | Yes |
+| IPv4 FlowSpec (RFC 8955) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
+| IPv6 FlowSpec | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
+| VPN FlowSpec | Yes | No | No | No | No | Yes | No | No | No | No | Yes |
+| BGP-LS (RFC 7752) | Decode (40 TLVs) | No | No | No | No | Yes | No | Decode | No | No | Yes |
+| SR Policy | No | No | No | No | No | Yes | No | No | No | No | Partial |
 | IPv4/IPv6 MUP | Yes | No | No | No | No | No | No | No | No | No | Yes |
 | IPv4/IPv6 MVPN | Decode | No | No | No | No | No | No | No | No | No | Yes |
 | IPv4 RTC (RFC 4684) | Decode | No | No | No | No | No | No | Yes | No | No | Yes |
 
 ## Core Protocol
 
-| Feature | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
+| Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | RFC 4271 FSM | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | 4-byte ASN (RFC 6793) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Capability negotiation | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Route Refresh (RFC 2918) | Yes | Yes | Yes | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
-| Enhanced Route Refresh (RFC 7313) | Yes | Yes | Yes | No | No | Yes | No | Yes | Yes | Yes | Yes |
-| Graceful Restart (RFC 4724) | Yes | Yes | Yes | No | No | Yes | Yes | Partial | Yes | Yes | Yes |
-| Long-Lived GR (RFC 9494) | Yes | Yes | Yes | No | No | Partial | Yes | No | No | Yes | Yes |
-| Notification GR (RFC 8538) | Yes | Yes | No | No | No | No | Yes | No | Yes | No | No |
-| Add-Path (RFC 7911) | Yes | Yes | Yes | Yes | Rx only | Yes | Yes | Yes | Yes | Yes | Yes |
-| Paths-Limit (draft-abraitis) | Yes | No | No | No | No | Yes | No | Yes | No | No | No |
-| Extended Messages (RFC 8654) | Yes | Yes | Yes | No | No | Yes | No | Yes | Yes | Yes | Yes |
-| Extended Nexthop (RFC 8950) | Yes | Yes | Yes | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
-| Route Reflector (RFC 4456) | Yes | Yes | Yes | Yes | No | Yes | Yes | No | Yes | Yes | Yes |
-| Confederation (RFC 5065) | No | No | Yes | No | No | Yes | Yes | No | No | Yes | Yes |
-| Admin Shutdown (RFC 8203) | Yes | Yes | Yes | Partial | No | Yes | Yes | Yes | Yes | Yes | Partial |
-| BGP Roles (RFC 9234) | Yes | No | Yes | Yes | No | No | No | No | Yes | Yes | Partial |
-| Prefix Limit (RFC 4486) | Yes | Yes | Yes | No | No | Yes | Yes | No | Yes | Yes | Yes |
+| Route Refresh (RFC 2918) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
+| Enhanced Route Refresh (RFC 7313) | Yes | Yes | Yes | Yes | Yes | No | No | Yes | No | Yes | Yes |
+| Graceful Restart (RFC 4724) | Yes | Yes | Yes | Yes | Yes | Yes | No | Partial | No | Yes | Yes |
+| Long-Lived GR (RFC 9494) | Yes | Yes | Yes | Partial | No | Yes | No | No | No | Yes | Yes |
+| Notification GR (RFC 8538) | Yes | No | No | No | Yes | Yes | No | No | No | Yes | No |
+| Add-Path (RFC 7911) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Rx only | Yes | Yes |
+| Paths-Limit (draft-abraitis) | Yes | No | No | Yes | No | No | No | Yes | No | No | No |
+| Extended Messages (RFC 8654) | Yes | Yes | Yes | Yes | Yes | No | No | Yes | No | Yes | Yes |
+| Extended Nexthop (RFC 8950) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
+| Route Reflector (RFC 4456) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes |
+| Confederation (RFC 5065) | No | Yes | Yes | Yes | No | Yes | No | No | No | No | Yes |
+| Admin Shutdown (RFC 8203) | Yes | Yes | Yes | Yes | Yes | Yes | Partial | Yes | No | Yes | Partial |
+| BGP Roles (RFC 9234) | Yes | Yes | Yes | No | Yes | No | Yes | No | No | No | Partial |
+| Prefix Limit (RFC 4486) | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | Yes | Yes |
 
 ## Cross-Protocol Redistribute
 
@@ -100,10 +100,15 @@ type 1 (E1) adds the internal cost to the ASBR, type 2 (E2) keeps the advertised
 metric, and E1 always wins over E2. Ze also implements stub, totally-stubby, and
 NSSA areas (RFC 3101) with Type 7 origination, highest-Router-ID translator
 election, Type 7 to Type 5 translation, and the §2.5 preference -- matching the
-FRR/bird NSSA feature set. Per-interface authentication covers simple password,
-keyed-MD5 (RFC 2328), HMAC-SHA (RFC 5709), and the RFC 7474 extended-sequence
-variant, with key chains for hitless rotation and sequence-number replay
-protection.
+FRR/bird NSSA feature set. On the opaque-LSA carrier (RFC 5250) Ze
+matches FRR's Traffic Engineering LSA (RFC 3630/5392) and Router Information LSA
+(RFC 7770): it advertises the informational capability bits (graceful restart,
+stub router, TE) in an Opaque type-4 LSA for OSPFv2 and a function-code-12 LSA for
+OSPFv3, and exposes a consumer-neutral TLV hook that a later Segment Routing module
+plugs into -- the same extensibility FRR's RI implementation provides. Per-interface
+authentication covers simple password, keyed-MD5 (RFC 2328), HMAC-SHA (RFC 5709), and
+the RFC 7474 extended-sequence variant, with key chains for hitless rotation and
+sequence-number replay protection.
 <!-- source: internal/plugins/ospf/packet/auth_verify.go -- Sign, Verify -->
 <!-- source: internal/plugins/ospf/spf/install.go -- Installer Apply -->
 <!-- source: internal/plugins/ospf/spf/computer.go -- Computer Run -->
@@ -136,56 +141,57 @@ roles enforcement. Filters compose in ordered chains:
 <!-- source: internal/component/bgp/plugins/filter_community_match/ -- bgp-filter-community-match cmd-6 -->
 <!-- source: internal/component/bgp/plugins/filter_modify/ -- bgp-filter-modify cmd-7 -->
 
-| Feature | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
+| Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Prefix matching (ge/le) | Yes | Yes | Yes | Yes | Partial | Yes | Yes | No | Yes | Yes | Yes |
-| AS-path regex | Yes | Yes | Yes | No | No | Yes | Yes | No | Yes | Yes | Yes |
+| Prefix matching (ge/le) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | Partial | Yes | Yes |
+| AS-path regex | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | Yes | Yes |
 | Standard communities | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Extended communities | Yes | Yes | Yes | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
-| Large communities (RFC 8092) | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Yes | Yes |
-| Community add/remove/replace | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
-| MED manipulation (set/inc/dec) | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
-| LOCAL_PREF set/inc/dec | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
-| AS-path length filter | Yes | No | Yes | No | No | No | No | No | Yes | Yes | No |
-| AS-path prepend | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
-| Next-hop set/self | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
-| RPKI validation match | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| Neighbor/peer matching | Yes | Yes | Yes | No | No | Yes | Yes | No | Yes | Yes | Yes |
-| Named policy definitions | Plugin | Yes | Yes | Yes | Partial | Yes | Yes | No | Yes | Yes | Yes |
-| Policy chaining | Yes | Yes | Yes | Yes | No | Yes | Yes | No | Yes | Yes | Yes |
-| Custom filter language | No | No | Yes | No | No | No | No | No | Yes | Yes | No |
+| Extended communities | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
+| Large communities (RFC 8092) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | Yes |
+| Community add/remove/replace | Yes | Yes | Yes | Yes | Yes | Yes | Yes | API | No | Yes | Yes |
+| MED manipulation (set/inc/dec) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | API | No | Yes | Yes |
+| LOCAL_PREF set/inc/dec | Yes | Yes | Yes | Yes | Yes | Yes | Yes | API | No | Yes | Yes |
+| AS-path length filter | Yes | Yes | Yes | No | Yes | No | No | No | No | No | No |
+| AS-path prepend | Yes | Yes | Yes | Yes | Yes | Yes | Yes | API | No | Yes | Yes |
+| Next-hop set/self | Yes | Yes | Yes | Yes | Yes | Yes | Yes | API | No | Yes | Yes |
+| RPKI validation match | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes | Yes |
+| Neighbor/peer matching | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | Yes | Yes |
+| Named policy definitions | Plugin | Yes | Yes | Yes | Yes | Yes | Yes | No | Partial | Yes | Yes |
+| Policy chaining | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes |
+| Custom filter language | No | Yes | Yes | No | Yes | No | No | No | No | No | No |
 | External process policy | Yes | No | No | No | No | No | No | Yes | No | No | No |
 | Plugin-based policy | Yes | No | No | No | No | No | No | No | No | No | No |
 
 ## Security
 
-| Feature | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
+| Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TCP MD5 (RFC 2385) | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Yes | Yes |
+| TCP MD5 (RFC 2385) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | Yes |
 | TCP-AO (RFC 5925) | No | No | No | No | No | No | No | No | No | No | No |
-| GTSM / TTL Security | Yes | Yes | Yes | Partial | No | Yes | Yes | Yes | Yes | Yes | Yes |
-| RPKI/RTR (RFC 6810/8210) | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| ASPA verification | Yes | Yes | Yes | No | No | No | No | No | Yes | Yes | No |
-| Private AS removal | Yes | Yes | Yes | No | No | Yes | Yes | No | Yes | Yes | Yes |
-| Privilege separation | No | No | No | No | No | No | No | No | Yes | No | No |
-| TACACS+ AAA (RFC 8907) | Yes | No | No | No | No | Yes | No | No | No | No | Yes |
-| Memory-safe language | Yes | Yes | No | Yes | Yes | No | Yes | Yes | No | No | Yes |
+| GTSM / TTL Security | Yes | Yes | Yes | Yes | Yes | Yes | Partial | Yes | No | Yes | Yes |
+| RPKI/RTR (RFC 6810/8210) | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes | Yes |
+| ASPA verification | Yes | Yes | Yes | No | Yes | No | No | No | No | Yes | No |
+| Private AS removal | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | Yes | Yes |
+| Privilege separation | No | No | No | No | Yes | No | No | No | No | No | No |
+| TACACS+ AAA (RFC 8907) | Yes | No | No | Yes | No | No | No | No | No | No | Yes |
+| Memory-safe language | Yes | No | No | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
 
 ## Monitoring & Observability
 
-| Feature | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
+| Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Prometheus metrics | Yes | Yes | No | Yes | No | Yes | Yes | No | No | No | No |
-| Structured logging (JSON) | Yes | Yes | No | Yes | No | No | No | No | No | No | No |
-| BMP (RFC 7854) | Yes | Yes | Yes | Yes | Partial | Yes | Yes | No | No | Yes | Yes |
-| MRT dump (RFC 6396) | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
+| Prometheus metrics | Yes | No | No | Yes | No | Yes | Yes | No | No | Yes | No |
+| Structured logging (JSON) | Yes | No | No | No | No | No | Yes | No | No | Yes | No |
+| BMP (RFC 7854) | Yes | Yes | Yes | Yes | No | Yes | Yes | No | Partial | Yes | Yes |
+| MRT dump (RFC 6396) | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes | Yes |
 | Flow export (sFlow/NetFlow/IPFIX) | Yes | No | No | No | No | No | No | No | No | No | No |
-| Streaming route events | Yes | Yes | No | Yes | No | No | Yes | Yes | No | No | No |
+| Streaming route events | Yes | No | No | No | No | Yes | Yes | Yes | No | Yes | No |
 | JSON event protocol | Yes | No | No | No | No | No | No | Yes | No | No | No |
 | Built-in DNS resolver | Yes | No | No | No | No | No | No | No | No | No | No |
-| Static DNS name-servers | Yes | No | No | Yes | No | Yes | No | Yes | No | No | No |
+| Static DNS name-servers | Yes | No | No | Yes | No | No | Yes | Yes | No | No | No |
 | Built-in PeeringDB/IRR/Cymru | Yes | No | No | No | No | No | No | No | No | No | No |
-| Unified operational reports (`show warnings` / `show errors`) | Yes | No | Partial | No | No | Partial | No | No | Partial | Partial | Partial |
+| Unified operational reports (`show warnings` / `show errors`) | Yes | Partial | Partial | Partial | Partial | No | No | No | No | No | Partial |
+| SNMP agent (AgentX/MIB) | No | No | No | Yes | No | No | No | No | No | No | Yes |
 
 <!-- source: internal/core/report/report.go -- cross-subsystem report bus -->
 <!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->
@@ -199,19 +205,24 @@ errors (event-based) onto a single place, and `ze show warnings` /
 banner reads the same source, so nothing is silently hidden. See
 [`docs/guide/operational-reports.md`](guide/operational-reports.md).
 
+SNMP is a deliberate non-goal, not a gap: FRR and freeRtr both expose
+legacy AgentX/MIB agents, but Ze's operational surface (Prometheus, gNMI,
+gRPC, structured JSON events) already covers what those MIBs would carry,
+without maintaining a second protocol stack to do it.
+
 ## API & Programmability
 
-| Feature | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
+| Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| gNMI | Yes | No | No | No | No | Partial | No | No | No | No | No |
-| gRPC API | Yes | Yes | No | Yes | Yes | Partial | Yes | No | No | No | No |
-| REST API | Yes | Partial | No | No | No | Partial | No | No | No | No | No |
-| YANG model | Yes | No | No | No | No | Partial | No | No | No | No | No |
-| CLI tool | Yes | Yes | Yes | Partial | No | Yes | Yes | Yes | Yes | Yes | Yes |
-| CLI JSON output | Yes | Yes | No | No | No | Yes | Yes | Yes | Yes | No | No |
-| Runtime route injection | Yes | Yes | No | No | Yes | No | Yes | Yes | No | No | Yes |
-| Hot reconfiguration (no restart) | Yes | Yes | Yes | Partial | No | Yes | Yes | Yes | Yes | Yes | Yes |
-| Embeddable library | No | No | No | Yes | No | No | Yes | No | No | No | No |
+| gNMI | Yes | No | No | Partial | No | No | No | No | No | No | No |
+| gRPC API | Yes | No | No | Partial | No | Yes | Yes | No | Yes | Yes | No |
+| REST API | Yes | No | No | Partial | No | No | No | No | No | Partial | No |
+| YANG model | Yes | No | No | Partial | No | No | No | No | No | No | No |
+| CLI tool | Yes | Yes | Yes | Yes | Yes | Yes | Partial | Yes | No | Yes | Yes |
+| CLI JSON output | Yes | No | No | Yes | Yes | Yes | No | Yes | No | Yes | No |
+| Runtime route injection | Yes | No | No | No | No | Yes | No | Yes | Yes | Yes | Yes |
+| Hot reconfiguration (no restart) | Yes | Yes | Yes | Yes | Yes | Yes | Partial | Yes | No | Yes | Yes |
+| Embeddable library | No | No | No | No | No | Yes | Yes | No | No | No | No |
 | Plugin SDK | Yes | No | No | No | No | No | No | No | No | No | No |
 | External process protocol | Yes | No | No | No | No | No | No | Yes | No | No | No |
 | MCP (Model Context Protocol) server | Yes | No | No | No | No | No | No | No | No | No | No |
@@ -222,35 +233,34 @@ banner reads the same source, so nothing is silently hidden. See
 
 ## Operations
 
-| Feature | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
+| Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Crash capture (syslog + file) | Yes | No | No | No | No | No | No | No | No | No | No |
-| Config error diagnostics | Yes | Yes | No | Partial | No | No | No | No | No | No | Partial |
+| Config error diagnostics | Yes | No | No | No | No | No | Partial | No | No | Yes | Partial |
 | Runtime health monitoring | Yes | No | No | No | No | No | No | No | No | No | No |
 | Pre-start readiness checks | Yes | No | No | No | No | No | No | No | No | No | No |
 | Docker image | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes |
-| Fuzz testing | Yes | Yes | No | Yes | No | No | No | No | No | No | No |
-| Interop test suite | Yes | Yes | No | Partial | No | No | No | No | No | No | Yes |
-| Static routes (ECMP+BFD) | Yes | No | Yes | No | No | Yes | No | No | Yes | Yes | Yes |
-| Policy-based routing (PBR) | Yes | No | No | No | No | Yes | No | No | No | No | Yes |
-| FIB/kernel integration | Yes | No | Yes | Yes | No | Yes | Yes | No | Yes | Yes | Yes |
-| Sysctl management | Yes | No | No | No | No | Partial | No | No | Partial | No | No |
+| Fuzz testing | Yes | No | No | No | No | No | Yes | No | No | Yes | No |
+| Interop test suite | Yes | No | No | No | No | No | Partial | No | No | Yes | Yes |
+| Static routes (ECMP+BFD) | Yes | Yes | Yes | Yes | Yes | No | No | No | No | No | Yes |
+| Policy-based routing (PBR) | Yes | No | No | Yes | No | No | No | No | No | No | Yes |
+| FIB/kernel integration | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | Yes |
+| Sysctl management | Yes | No | No | Partial | Partial | No | No | No | No | No | No |
 | Sysctl profiles | Yes | No | No | No | No | No | No | No | No | No | No |
-| Route server mode | Yes | Yes | Yes | Yes | No | Yes | Yes | No | Yes | Yes | Yes |
-| Dynamic neighbors | No | No | Yes | No | Yes | Yes | Yes | No | No | Yes | Yes |
-| Looking glass | Yes | Yes | Yes | Yes | No | No | No | No | Yes | Yes | Yes |
-| Multicast RPF lookup | Yes | No | No | No | No | Yes | No | No | No | No | Yes |
-| BFD integration | Partial | No | Yes | No | No | Yes | No | No | No | Yes | Yes |
-| Firewall (nftables) | Yes | No | No | No | No | Yes | No | No | Yes | No | Yes |
-| Modular subsystem loading | Yes | No | Partial | No | No | No | No | No | No | Partial | No |
-| Chaos testing framework | Yes | No | No | No | No | No | No | No | No | No | No |
-| Atomic commit workflow | Yes | No | No | No | No | No | No | No | No | No | No |
+| Route server mode | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes |
+| Dynamic neighbors | Yes | Yes | Yes | Yes | No | Yes | No | No | Yes | No | Yes |
+| Looking glass | Yes | Yes | Yes | No | Yes | No | Yes | No | No | Yes | Yes |
+| Multicast RPF lookup | Yes | No | No | Yes | No | No | No | No | No | No | Yes |
+| BFD integration | Partial | Yes | Yes | Yes | No | No | No | No | No | No | Yes |
+| Firewall (nftables) | Yes | No | No | Yes | Yes | No | No | No | No | No | Yes |
+| Modular subsystem loading | Yes | Partial | Partial | No | No | No | No | No | No | No | No |
+| Config commit/rollback (candidate + active) | Yes | No | No | No | No | No | No | No | No | No | No |
 | Schema discovery (CLI) | Yes | No | No | No | No | No | No | No | No | No | No |
-| Healthcheck tool | Yes | No | No | Partial | No | No | No | Yes | No | No | No |
+| Healthcheck tool | Yes | No | No | No | No | No | Partial | Yes | No | No | No |
 | SMART disk management | Yes | No | No | No | No | No | No | No | No | No | No |
 | PeeringDB prefix integration | Yes | No | No | No | No | No | No | No | No | No | No |
 | Propagation benchmark tool | Yes | No | No | No | No | No | No | No | No | No | No |
-| Update groups | Auto | No | No | No | No | Explicit | No | No | No | No | No |
+| Update groups | Auto | No | No | Explicit | No | No | No | No | No | No | No |
 
 **Update groups:** Ze automatically groups peers by encoding context (ContextID) and builds each UPDATE once per group, fanning out the wire bytes to all members. No configuration needed. FRR requires explicit peer-group assignment for update group optimization. BIRD batches updates in its write loop but does not have a cross-peer build-sharing mechanism.
 <!-- source: internal/component/bgp/reactor/update_group.go -- automatic grouping by sendCtxID -->
@@ -263,21 +273,21 @@ banner reads the same source, so nothing is silently hidden. See
 ExaBGP does not perform best-path selection -- it forwards all received routes to external
 processes and injects routes from them. It is a route injector/receiver, not a router.
 
-| Step | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
+| Step | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | LOCAL_PREF | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | Yes | Yes | Yes |
 | AS-path length | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | Yes | Yes | Yes |
 | ORIGIN | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | Yes | Yes | Yes |
 | MED | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | Yes | Yes | Yes |
 | eBGP over iBGP | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | Yes | Yes | Yes |
-| CLUSTER_LIST length | Yes | Yes | Yes | Yes | No | Yes | Yes | N/A | Yes | Yes | Yes |
-| ORIGINATOR_ID | Yes | Yes | Yes | Yes | No | Yes | Yes | N/A | Yes | Yes | Yes |
-| Stale route demotion (GR) | Yes | Yes | Yes | No | No | Yes | Yes | N/A | Yes | Yes | Yes |
-| RPKI preference | Yes | Yes | Yes | No | Yes | Yes | Yes | N/A | Yes | Yes | Yes |
-| AIGP | Yes | No | No | No | No | Yes | Yes | N/A | No | No | Yes |
-| IGP cost to next-hop | Yes | No | Yes | No | No | Yes | No | N/A | Yes | Yes | Yes |
-| Recursive next-hop | Yes | No | Yes | No | No | Yes | No | N/A | Yes | Yes | Yes |
-| Multipath/ECMP | Yes | Partial | Yes | Yes | No | Yes | Yes | N/A | Yes | Yes | Yes |
+| CLUSTER_LIST length | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | No | Yes | Yes |
+| ORIGINATOR_ID | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | No | Yes | Yes |
+| Stale route demotion (GR) | Yes | Yes | Yes | Yes | Yes | Yes | No | N/A | No | Yes | Yes |
+| RPKI preference | Yes | Yes | Yes | Yes | Yes | Yes | No | N/A | Yes | Yes | Yes |
+| AIGP | Yes | No | No | Yes | No | Yes | No | N/A | No | No | Yes |
+| IGP cost to next-hop | Yes | Yes | Yes | Yes | Yes | No | No | N/A | No | No | Yes |
+| Recursive next-hop | Yes | Yes | Yes | Yes | Yes | No | No | N/A | No | No | Yes |
+| Multipath/ECMP | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | No | Partial | Yes |
 
 ## Positioning
 
@@ -398,3 +408,61 @@ handling, IP pool allocation correctness, and teardown completeness without
 requiring root, kernel modules, or Docker.
 
 <!-- source: internal/test/cli/cmd_l2tp_scale.go -- LAC simulator + mock RADIUS -->
+
+## Where Ze is behind today
+
+After the detail tables above: the gaps, stated plainly, not buried in a
+"No" cell thirteen tables deep.
+
+- **No BGP confederations (RFC 5065)** — BIRD 3, bio-rd (partial), FRR, GoBGP, BIRD 2, and freeRtr all support it.
+- **No privilege separation** — a signature feature of at least one other implementation in this table.
+- **BFD integration is "Partial"** — several other implementations here have full support.
+- **No embeddable library mode** — at least two other implementations in this table offer one.
+- **No custom filter language** — several implementations here have their own filter DSL; Ze relies on plugin chains instead.
+- **No SR Policy support.**
+- **No Confederation, no Multi-Topology IS-IS (RFC 5120)** — Ze's IS-IS matches the single-topology default other implementations ship, but not their optional multi-topology extension.
+- **Pre-release, first release 2026** — sitting in the same table as implementations with years to decades of production hardening (one dates to 1998).
+- **Performance is not yet benchmarked at scale.** Go carries an estimated 10-15% CPU overhead versus C/Rust implementations; this has not been measured under load. See [Performance Trade-offs](DESIGN.md#performance-trade-offs).
+
+None of this is hidden in the tables above — it's restated here because a
+visitor shouldn't have to hunt for it.
+
+## FAQ
+
+**Ze is pre-release — why should I trust it yet?**
+
+Don't take that on faith: it's backed by 13,700+ unit tests, 1,200+ end-to-end
+tests, 55+ fuzz targets, and interop testing against seven independent BGP
+implementations. That's evidence you can check, not a promise. What it
+doesn't have yet is operational mileage — real deployments, over real time,
+on real networks. Use it in labs first.
+
+**Why no BGP confederations yet?**
+
+Not implemented yet. It's a real gap against implementations that have had
+it for years, and it's listed as one plainly above rather than left for you
+to find in a table.
+
+**Why no custom filter language?**
+
+Ze doesn't have a bespoke filter DSL like some implementations here do.
+Instead, filters are external plugins chained per peer/group: JSON events in,
+text commands out, over a TLS connect-back socket, in any language that can
+read lines. That trades a purpose-built mini-language for the full power of
+a real programming language -- write a filter in Go, Python, or whatever you
+already know, instead of learning a new syntax.
+
+**Is Ze's performance actually competitive with C/Rust implementations?**
+
+Unknown at scale. The current estimate is 10-15% CPU overhead from the Go
+runtime, but that number has not been benchmarked under real load. Treat it
+as an open question, not a claim. See [performance.md](performance.md) for
+the actual convergence and throughput numbers measured so far.
+
+**Does Ze support everything FRR or freeRtr does?**
+
+No. Both have broader AFI/SAFI coverage — FRR as the most feature-complete
+open-source routing suite, freeRtr with the broadest coverage of any
+implementation in this table, including MUP, MVPN, RTC, and VPN FlowSpec.
+Ze chose depth in fewer areas (BGP, BNG, plugin architecture, YANG
+configuration) over matching every implementation's full breadth on day one.

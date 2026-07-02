@@ -15,7 +15,7 @@ This directory contains user guides, feature inventories, implementation referen
 | ExaBGP migration | `exabgp/`, `config-migration.md` | Migration command and compatibility bridge | Mapping from ExaBGP concepts to Ze |
 | Contributing and tests | `contributing/`, `functional-tests.md` | Test runner and Make targets | How documentation and behavior are tested |
 | Research and background | `research/` | Historical notes and external references | Design input, not a current behavior contract unless explicitly source-anchored |
-| Assets | `logo/`, `comparison.html`, diagrams | Generated or static assets | Images, comparison output, and presentation material |
+| Assets | `logo/`, diagrams | Generated or static assets | Images and presentation material |
 
 ## Current Entry Points
 

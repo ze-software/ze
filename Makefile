@@ -112,11 +112,8 @@ ze-plugin-snapshot:
 	@$(GO_TEST) -run 'TestRegisteredPluginNames|TestRegisteredWireMethods|TestYANGSchemaProviders' -update ./internal/component/plugin/all/
 	@echo "Updated internal/component/plugin/all/testdata/*.snapshot"
 
-build: generate bin/ze bin/ze-appliance bin/ze-setup bin/ze-stripped bin/ze-test bin/ze-chaos bin/ze-perf bin/ze-analyze docs/comparison.html
+build: generate bin/ze bin/ze-appliance bin/ze-setup bin/ze-stripped bin/ze-test bin/ze-chaos bin/ze-perf bin/ze-analyze
 	@echo "All binaries built"
-
-docs/comparison.html: docs/comparison.md scripts/codegen/comparison_html.go
-	@go run scripts/codegen/comparison_html.go
 
 ze:
 	@mkdir -p bin
