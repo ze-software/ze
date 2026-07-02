@@ -1015,6 +1015,7 @@ section {
  * as one clickable post.
  */
 .card-post {
+    position: relative;
     display: flex;
     flex-direction: column;
     border-top-color: var(--acc);
@@ -1040,6 +1041,15 @@ section {
 
 .card-post h3 a {
     color: var(--acc-deep);
+}
+
+/* Whole-card click target: stretch the week's title link over the entire
+   tile so a click anywhere on the card opens that post. */
+.card-post h3 a::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
 }
 
 .card-post > p {
@@ -1368,7 +1378,11 @@ section {
     padding: 0.5rem 0.95rem;
     border: 2px solid transparent;
     border-radius: 0.6rem;
-    background: var(--acc);
+    /* Subtle vertical sheen over the vibrant base: a gradient, but gentle,
+       and symmetric so the left and right edges stay identical. */
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.14)),
+        var(--acc);
     color: #fff;
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.74rem;
@@ -1386,7 +1400,9 @@ section {
 /* Gold's vivid base is too light for legible white text; use the richer
    amber so the Services chip reads as clearly as the others. */
 .legend .cat-services {
-    background: var(--acc-mid);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.14)),
+        var(--acc-mid);
 }
 
 .legend button:hover,

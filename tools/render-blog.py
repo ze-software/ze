@@ -224,8 +224,7 @@ def render_index(posts):
             excerpt = markdown.markdown(p["intro"])[3:-4]
             parts.append("                        <p>%s</p>" % excerpt)
         parts.append(
-            '                        <a class="post-more" href="%s/">Read the update</a>'
-            % p["slug"]
+            '                        <span class="post-more">Read the update</span>'
         )
         parts.append("                    </article>")
     parts.append("                </div>")

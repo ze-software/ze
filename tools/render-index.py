@@ -85,8 +85,7 @@ def render_blog_teaser_card(post, i):
     if post["intro"]:
         parts.append("                        <p>%s</p>" % post["intro"])
     parts.append(
-        '                        <a class="post-more" href="blog/%s/">Read the update</a>'
-        % post["slug"]
+        '                        <span class="post-more">Read the update</span>'
     )
     parts.append("                    </article>")
     return "\n".join(parts)
