@@ -1,33 +1,38 @@
 #!/usr/bin/env python3
-"""Render config-reference/index.html: the whole Ze configuration as one
-searchable, collapsible tree of sections.
+"""Render config-reference/index.html: the whole Ze configuration as a
+two-pane explorer -- a sticky section index on the left, a focused detail
+pane on the right, an overview table as the landing view, and a search that
+filters both.
 
 Usage:
     tools/render-config-reference.py
 
 This page is about the *configuration*, not the plugins. It shows every
-configuration section Ze has -- the complete YANG config tree -- as one
-structure a reader can scan, search, and drill into. The tree is produced
-by running the live `ze yang tree --json --config` (cached by
-tools/extract-yang-config-tree.py to data/yang-config-tree.json), the same
-unified walker Ze's own CLI uses, which already merges every config module
-in the tree into one shape (no per-plugin fragments).
+configuration section Ze has -- the complete YANG config tree -- so a
+reader can grasp the structure, search it, and inspect any section in
+depth. Rather than stacking one box per top-level root (41 of them), it
+uses the explorer layout schema/API references use (VS Code settings,
+Stripe/Kubernetes API docs, OpenAPI/YANG browsers): pick a section from the
+index and its config tree fills the detail pane.
 
-Every container and YANG list is its own collapsible <details>, so a big
-section like `bgp` (hundreds of nodes) opens as a compact set of
-sub-sections a reader expands only where they care. Each node's summary
-always shows its name, type, and description, so scanning collapsed
-sections alone already tells you the structure.
+The tree is produced by running the live `ze yang tree --json --config`
+(cached by tools/extract-yang-config-tree.py to data/yang-config-tree.json),
+the same unified walker Ze's own CLI uses, which already merges every config
+module in the tree into one shape (no per-plugin fragments). Every container
+and YANG list in a section is a collapsible <details>, so a big section like
+`bgp` opens compact and a reader expands only what they care about.
 
 Where a section is provided by a plugin, that ownership is shown as an
-annotation on the section, resolved from data/plugin-registry.json (see
+annotation, resolved from data/plugin-registry.json (see
 tools/extract-plugin-registry.py): a plugin's ConfigRoots declares which
-config path it owns (e.g. `bgp`, or the nested `fib/kernel`), so the
-section is annotated with the owning plugin(s) and a link to each one's
-real YANG source on Codeberg. Sections with no plugin owner are core
-config and simply carry no annotation. Plugins that declare no config root
-(wire codecs, filters) contribute behaviour, not config structure, so they
-do not appear here -- this page is the config, not a plugin inventory.
+config path it owns (e.g. `bgp`, or the nested `fib/kernel`), so the section
+is annotated with the owning plugin(s) and a link to each one's real YANG
+source on Codeberg. Ownership resolves at the right depth, so a nested root
+like `fib/kernel` annotates the `kernel` child under `fib`. Sections with no
+plugin owner are core config and simply carry no annotation. Plugins that
+declare no config root (wire codecs, filters) contribute behaviour, not
+config structure, so they do not appear here -- this page is the config, not
+a plugin inventory.
 """
 
 import html
@@ -45,6 +50,10 @@ YANG_TREE_DATA = GH_PAGES / "data" / "yang-config-tree.json"
 DEST = GH_PAGES / "config-reference" / "index.html"
 
 TEST_DIR_PREFIX = "internal/test/"
+
+
+def esc(text):
+    return html.escape(str(text))
 
 
 def load_plugins():
@@ -80,6 +89,38 @@ def build_owner_map(plugins):
     return owners
 
 
+def path_exists(tree, path):
+    """Whether a config-root path (e.g. "bgp" or "fib/kernel") resolves to a
+    real node in the YANG config tree, walking child names."""
+    parts = path.split("/")
+    node = tree.get(parts[0])
+    if node is None:
+        return False
+    for part in parts[1:]:
+        node = next((c for c in node.get("children") or [] if c["name"] == part), None)
+        if node is None:
+            return False
+    return True
+
+
+def warn_orphan_roots(tree, owner_map):
+    """A ConfigRoot that resolves to no config-tree node means its owning
+    plugin's config section is silently unattributed on the page -- usually
+    a mid-refactor mismatch in ../main between a plugin's declared ConfigRoot
+    and the YANG container it actually augments. Surface it instead of hiding
+    it (no silent truncation)."""
+    orphans = sorted(root for root in owner_map if not path_exists(tree, root))
+    for root in orphans:
+        names = ", ".join(p["name"] for p in owner_map[root])
+        print(
+            "warning: config root %r (declared by %s) resolves to no node in "
+            "the YANG config tree -- its ownership is not shown; check "
+            "../main for a ConfigRoots vs YANG container mismatch" % (root, names),
+            file=sys.stderr,
+        )
+    return orphans
+
+
 def read_yang(rel_path):
     path = MAIN_REPO / rel_path
     if not path.exists():
@@ -96,11 +137,11 @@ def render_yang_link(rel_path):
     if read_yang(rel_path) is None:
         return (
             '<span class="config-yang-missing">%s (not found on disk at render time)</span>'
-            % html.escape(rel_path)
+            % esc(rel_path)
         )
     return '<a href="%s" target="_blank" rel="noopener"><code>%s</code></a>' % (
-        html.escape(yang_source_href(rel_path)),
-        html.escape(filename),
+        esc(yang_source_href(rel_path)),
+        esc(filename),
     )
 
 
@@ -125,40 +166,46 @@ def node_badge(node):
 
 
 def owner_marker(owners):
-    """Compact at-a-glance ownership hint shown in a section's summary."""
+    """Compact at-a-glance ownership hint shown inline on a tree node."""
     if not owners:
         return ""
     if len(owners) == 1:
         text = "provided by %s" % owners[0]["name"]
     else:
         text = "provided by %d plugins" % len(owners)
-    return ' <span class="config-owner">%s</span>' % html.escape(text)
+    return ' <span class="config-owner">%s</span>' % esc(text)
+
+
+def owner_short(owners):
+    if not owners:
+        return "core"
+    if len(owners) == 1:
+        return owners[0]["name"]
+    return "%d plugins" % len(owners)
 
 
 def node_label(node, owners):
-    label = "<code>%s</code>" % html.escape(node_head(node))
+    label = "<code>%s</code>" % esc(node_head(node))
     badge = node_badge(node)
     if badge:
-        label += ' <span class="yang-type">%s</span>' % html.escape(badge)
+        label += ' <span class="yang-type">%s</span>' % esc(badge)
     label += owner_marker(owners)
     desc = node.get("description")
     if desc:
-        label += ' <span class="yang-desc">%s</span>' % html.escape(
-            " ".join(desc.split())
-        )
+        label += ' <span class="yang-desc">%s</span>' % esc(" ".join(desc.split()))
     return label
 
 
 def owner_detail_html(owners):
-    """The expanded ownership block shown inside a section (below its
-    summary): who provides it and a link to each one's real YANG source."""
+    """The ownership block shown at the top of a section: who provides it and
+    a link to each one's real YANG source."""
     if not owners:
-        return ""
+        return '<p class="config-owner-detail config-owner-core">Core configuration &mdash; no plugin owner.</p>'
 
     def one(plugin):
         links = ", ".join(render_yang_link(y) for y in plugin["yang_files"])
         src = " &mdash; %s" % links if links else ""
-        return "<code>%s</code>%s" % (html.escape(plugin["name"]), src)
+        return "<code>%s</code>%s" % (esc(plugin["name"]), src)
 
     if len(owners) == 1:
         return '<p class="config-owner-detail">Provided by %s</p>' % one(owners[0])
@@ -180,88 +227,211 @@ def render_child(node, path, owner_map):
     )
     return (
         '<li><details class="yang-branch"><summary>%s</summary>%s<ul>%s</ul></details></li>'
-    ) % (label, owner_detail_html(owners), inner)
+    ) % (label, owner_detail_html(owners) if owners else "", inner)
 
 
-def render_section(name, node, owner_map):
+def render_panel(name, node, owner_map, active=False):
     owners = owner_map.get(name, [])
-    label = node_label(node, owners)
+    cls = "config-panel is-active" if active else "config-panel"
+    head = "<code>%s</code>" % esc(name)
+    badge = node_badge(node)
+    if badge:
+        head += ' <span class="yang-type">%s</span>' % esc(badge)
+    parts = [
+        '<article class="%s" data-panel="%s" id="section-%s" aria-label="%s configuration">'
+        % (cls, esc(name), esc(name), esc(name)),
+        '<div class="config-panel-head">',
+        "<h2>%s</h2>" % head,
+        owner_detail_html(owners),
+    ]
+    desc = node.get("description")
+    if desc:
+        parts.append(
+            '<p class="config-panel-desc">%s</p>' % esc(" ".join(desc.split()))
+        )
+    parts.append("</div>")
     children = node.get("children") or []
-    inner = "".join(
-        render_child(c, name + "/" + c["name"], owner_map) for c in children
+    if children:
+        inner = "".join(
+            render_child(c, name + "/" + c["name"], owner_map) for c in children
+        )
+        parts.append('<ul class="yang-tree">%s</ul>' % inner)
+    parts.append("</article>")
+    return "\n".join(parts)
+
+
+def render_nav(sections):
+    parts = ['<nav class="config-nav" aria-label="Configuration sections">']
+    parts.append(
+        '<a class="config-nav-item is-active" href="#overview" data-target="overview">Overview</a>'
     )
-    body = owner_detail_html(owners)
-    if inner:
-        body += '<ul class="yang-tree">%s</ul>' % inner
-    return '<details class="config-section"><summary>%s</summary>%s</details>' % (
-        label,
-        body,
-    )
+    for name in sections:
+        parts.append(
+            '<a class="config-nav-item" href="#%s" data-target="%s"><code>%s</code></a>'
+            % (esc(name), esc(name), esc(name))
+        )
+    parts.append("</nav>")
+    return "\n".join(parts)
+
+
+def render_overview(tree, owner_map, sections):
+    parts = [
+        '<article class="config-panel is-active" data-panel="overview">',
+        '<p class="config-overview-hint">The whole Ze configuration, %d '
+        "top-level sections. Pick one to inspect its tree, or search across "
+        "all of them.</p>" % len(sections),
+        '<p class="config-overview-count" role="status" aria-live="polite"></p>',
+        '<table class="config-overview"><thead><tr>'
+        "<th>Section</th><th>Provided by</th><th>What it configures</th>"
+        "</tr></thead><tbody>",
+    ]
+    for name in sections:
+        node = tree[name]
+        owners = owner_map.get(name, [])
+        own_cls = "config-owner-plugin" if owners else "config-owner-core"
+        desc = node.get("description")
+        desc_html = (
+            esc(" ".join(desc.split()))
+            if desc
+            else '<span class="config-overview-nodesc">&mdash;</span>'
+        )
+        parts.append(
+            '<tr data-target="%s"><td><a href="#%s"><code>%s</code></a></td>'
+            '<td class="%s">%s</td><td>%s</td></tr>'
+            % (
+                esc(name),
+                esc(name),
+                esc(name),
+                own_cls,
+                esc(owner_short(owners)),
+                desc_html,
+            )
+        )
+    parts.append("</tbody></table></article>")
+    return "\n".join(parts)
 
 
 FILTER_SCRIPT = """        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                var input = document.getElementById("config-search");
-                var sections = document.querySelectorAll(".config-section");
-                if (!input) return;
-                input.addEventListener("input", function () {
-                    var q = input.value.trim().toLowerCase();
-                    sections.forEach(function (section) {
+            (function () {
+                var root = document.querySelector("[data-config-explorer]");
+                if (!root) return;
+                var search = root.querySelector("#config-search");
+                var navItems = Array.prototype.slice.call(
+                    root.querySelectorAll(".config-nav-item")
+                );
+                var panels = Array.prototype.slice.call(
+                    root.querySelectorAll(".config-panel")
+                );
+                var rows = Array.prototype.slice.call(
+                    root.querySelectorAll(".config-overview tbody tr")
+                );
+                var note = root.querySelector(".config-overview-count");
+                var panelMap = {};
+                panels.forEach(function (p) {
+                    panelMap[p.getAttribute("data-panel")] = p;
+                });
+                var navMap = {};
+                navItems.forEach(function (n) {
+                    navMap[n.getAttribute("data-target")] = n;
+                });
+
+                function setBranches(panel, q) {
+                    panel.querySelectorAll("details").forEach(function (d) {
+                        d.open =
+                            q !== "" &&
+                            d.textContent.toLowerCase().indexOf(q) !== -1;
+                    });
+                }
+
+                function activate(target) {
+                    if (!panelMap[target]) target = "overview";
+                    panels.forEach(function (p) {
+                        p.classList.toggle("is-active", p === panelMap[target]);
+                    });
+                    navItems.forEach(function (n) {
+                        n.classList.toggle("is-active", n === navMap[target]);
+                    });
+                    var q = search.value.trim().toLowerCase();
+                    if (target !== "overview") setBranches(panelMap[target], q);
+                }
+
+                function applySearch() {
+                    var q = search.value.trim().toLowerCase();
+                    var count = 0;
+                    navItems.forEach(function (n) {
+                        var t = n.getAttribute("data-target");
+                        if (t === "overview") return;
+                        var panel = panelMap[t];
                         var match =
                             q === "" ||
-                            section.textContent.toLowerCase().indexOf(q) !== -1;
-                        section.style.display = match ? "" : "none";
-                        if (q === "") {
-                            // Reset to the clean collapsed overview.
-                            section.open = false;
-                            section
-                                .querySelectorAll("details")
-                                .forEach(function (d) {
-                                    d.open = false;
-                                });
-                        } else if (match) {
-                            // Open only the branches on the path to a match --
-                            // a parent contains its child's text, so ancestors
-                            // of a hit open while unrelated siblings stay shut.
-                            section.open = true;
-                            section
-                                .querySelectorAll("details")
-                                .forEach(function (d) {
-                                    d.open =
-                                        d.textContent.toLowerCase().indexOf(q) !==
-                                        -1;
-                                });
-                        }
+                            (panel &&
+                                panel.textContent.toLowerCase().indexOf(q) !== -1);
+                        n.style.display = match ? "" : "none";
+                        if (match) count++;
                     });
+                    rows.forEach(function (r) {
+                        var panel = panelMap[r.getAttribute("data-target")];
+                        var match =
+                            q === "" ||
+                            (panel &&
+                                panel.textContent.toLowerCase().indexOf(q) !== -1);
+                        r.style.display = match ? "" : "none";
+                    });
+                    if (note) {
+                        note.textContent =
+                            q === ""
+                                ? ""
+                                : count +
+                                  " section" +
+                                  (count === 1 ? "" : "s") +
+                                  " match \\u201c" +
+                                  search.value.trim() +
+                                  "\\u201d";
+                    }
+                    if (q === "") {
+                        panels.forEach(function (p) {
+                            if (p.getAttribute("data-panel") !== "overview")
+                                setBranches(p, "");
+                        });
+                    } else {
+                        // Searching shows the filtered overview (a results
+                        // list); clicking a result drills into that section
+                        // with the matching branches already expanded.
+                        activate("overview");
+                    }
+                }
+
+                function targetFromHash() {
+                    return (location.hash || "#overview").replace(/^#/, "");
+                }
+
+                window.addEventListener("hashchange", function () {
+                    activate(targetFromHash());
+                    // Selecting a section swaps the detail pane in place; if
+                    // the explorer has scrolled out of view, bring its top
+                    // back under the header so you land at the section's top.
+                    var top = root.getBoundingClientRect().top;
+                    if (top < 60 || top > 160) {
+                        window.scrollTo({
+                            top: window.scrollY + top - 76,
+                            behavior: "smooth",
+                        });
+                    }
                 });
-            });
+                root.addEventListener("click", function (e) {
+                    var row =
+                        e.target.closest &&
+                        e.target.closest(".config-overview tbody tr[data-target]");
+                    if (row && !(e.target.closest && e.target.closest("a"))) {
+                        location.hash = row.getAttribute("data-target");
+                    }
+                });
+                search.addEventListener("input", applySearch);
+
+                activate(targetFromHash());
+            })();
         </script>
 """
-
-
-def render_section_markdown(name, node, owner_map):
-    lines = ["## %s" % name, ""]
-    owners = owner_map.get(name, [])
-    if owners:
-        lines.append(owner_line_markdown(owners))
-        lines.append("")
-    for child in node.get("children") or []:
-        lines.extend(
-            render_child_markdown(child, name + "/" + child["name"], owner_map, 0)
-        )
-    lines.append("")
-    return lines
-
-
-def owner_line_markdown(owners):
-    def one(plugin):
-        links = ", ".join(
-            "[%s](%s)" % (y.rsplit("/", 1)[-1], yang_source_href(y))
-            for y in plugin["yang_files"]
-        )
-        return "`%s`%s" % (plugin["name"], (" (%s)" % links) if links else "")
-
-    return "*Provided by %s*" % "; ".join(one(p) for p in owners)
 
 
 def render_child_markdown(node, path, owner_map, depth):
@@ -288,6 +458,35 @@ def render_child_markdown(node, path, owner_map, depth):
     return lines
 
 
+def owner_line_markdown(owners):
+    def one(plugin):
+        links = ", ".join(
+            "[%s](%s)" % (y.rsplit("/", 1)[-1], yang_source_href(y))
+            for y in plugin["yang_files"]
+        )
+        return "`%s`%s" % (plugin["name"], (" (%s)" % links) if links else "")
+
+    return "*Provided by %s*" % "; ".join(one(p) for p in owners)
+
+
+def render_section_markdown(name, node, owner_map):
+    lines = ["## %s" % name, ""]
+    owners = owner_map.get(name, [])
+    if owners:
+        lines.append(owner_line_markdown(owners))
+        lines.append("")
+    desc = node.get("description")
+    if desc:
+        lines.append(" ".join(desc.split()))
+        lines.append("")
+    for child in node.get("children") or []:
+        lines.extend(
+            render_child_markdown(child, name + "/" + child["name"], owner_map, 0)
+        )
+    lines.append("")
+    return lines
+
+
 def render_markdown(tree, owner_map, owned_count):
     sections = sorted(tree)
     parts = [
@@ -310,11 +509,12 @@ def render_markdown(tree, owner_map, owned_count):
 def render(tree, owner_map):
     root = "../"
     sections = sorted(tree)
+    warn_orphan_roots(tree, owner_map)
     owned_count = sum(1 for name in sections if owner_map.get(name))
     title = "Configuration Reference - Ze"
     desc = (
-        "The complete Ze configuration as one searchable tree -- every "
-        "section, generated live from the YANG schema."
+        "Browse the whole Ze configuration -- every section as one searchable "
+        "explorer, generated live from the YANG schema."
     )
     out = [sitelib.page_head(title, desc, root, og_title=title, og_desc=desc)]
     out.append(
@@ -322,24 +522,32 @@ def render(tree, owner_map):
     )
     out.append('                <h1 id="config-ref-title">Configuration Reference</h1>')
     out.append(
-        "                <p>The complete Ze configuration as one tree: "
+        "                <p>The complete Ze configuration in one place: "
         "<strong>%d top-level sections</strong> (%d provided by plugins, the "
         "rest core), generated live from the YANG schema with "
-        "<code>ze yang tree</code>. This page is about the structure of the "
-        "configuration itself -- every section, searchable and inspectable. "
-        "Where a section is provided by a plugin, its owner and YANG source "
-        "are shown. See the "
+        "<code>ze yang tree</code>. Pick a section to inspect its structure, "
+        "or search across the whole configuration. Where a section is "
+        "provided by a plugin, its owner and YANG source are shown. See the "
         '<a href="%sdocs/features/configuration/">Configuration guide</a> '
         "for a narrative walkthrough of BGP peer config specifically.</p>"
         % (len(sections), owned_count, root)
     )
+    out.append('                <div class="config-explorer" data-config-explorer>')
+    out.append('<script>document.documentElement.classList.add("config-js")</script>')
     out.append(
         '                <input id="config-search" type="search" '
         'placeholder="Search the whole configuration (section, leaf, type, plugin)..." '
         'aria-label="Search the configuration" />'
     )
+    out.append('                <div class="config-layout">')
+    out.append(render_nav(sections))
+    out.append('                <div class="config-main">')
+    out.append(render_overview(tree, owner_map, sections))
     for name in sections:
-        out.append(render_section(name, tree[name], owner_map))
+        out.append(render_panel(name, tree[name], owner_map))
+    out.append("                </div>")  # config-main
+    out.append("                </div>")  # config-layout
+    out.append("                </div>")  # config-explorer
     out.append("            </section>")
 
     body = "\n".join(out)

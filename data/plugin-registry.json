@@ -682,7 +682,7 @@
     "name": "traffic",
     "description": "Traffic control (tc) qdisc, class, and filter management",
     "config_roots": [
-      "traffic-control"
+      "traffic/control"
     ],
     "dependencies": [],
     "optional_dependencies": [
@@ -710,7 +710,7 @@
     "name": "anomaly-detect-feature-source",
     "description": "Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature",
     "config_roots": [
-      "anomaly-detect"
+      "?configRoot"
     ],
     "dependencies": [
       "config-loaded"
@@ -725,7 +725,7 @@
     "name": "anomaly-shape-firewall",
     "description": "Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch",
     "config_roots": [
-      "anomaly-shape"
+      "?configRoot"
     ],
     "dependencies": [
       "config-loaded"
@@ -1153,7 +1153,7 @@
     "name": "traffic-usage",
     "description": "eBPF TCX per-port and per-IP byte accounting",
     "config_roots": [
-      "traffic-usage"
+      "traffic/usage"
     ],
     "dependencies": [
       "interface"

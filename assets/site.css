@@ -1694,7 +1694,7 @@ footer {
     padding: 1rem 0 3rem;
 }
 
-.md-content > :not(table):not(pre):not(.cards):not(.audience) {
+.md-content > :not(table):not(pre):not(.cards):not(.audience):not(.config-explorer) {
     max-width: 62rem;
 }
 
@@ -2083,32 +2083,175 @@ footer {
     box-shadow: var(--clay);
 }
 
-.config-section {
-    margin-bottom: 0.6rem;
-    border: 1px solid var(--header-border);
-    border-radius: 0.6rem;
-    background: var(--panel-strong);
-    overflow: hidden;
+/* Configuration Reference: a two-pane explorer (sticky section index +
+ * focused detail pane) instead of one stacked box per config root. */
+.config-explorer {
+    margin-top: 0.5rem;
 }
 
-.config-section > summary {
-    padding: 0.7rem 1rem;
+.config-layout {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    gap: 1.75rem;
+    align-items: start;
+}
+
+.config-nav {
+    position: sticky;
+    top: 5.5rem;
+    max-height: calc(100vh - 7rem);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding-right: 0.4rem;
+}
+
+.config-nav-item {
+    padding: 0.32rem 0.6rem;
+    border-radius: 0.45rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.config-nav-item:hover {
     background: var(--bg-soft);
     color: var(--text);
+}
+
+.config-nav-item.is-active {
+    background: var(--blue);
+    color: #fff;
+    font-weight: 600;
+}
+
+.config-nav-item.is-active code {
+    color: #fff;
+}
+
+.config-nav-item[data-target="overview"] {
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.3rem;
+}
+
+.config-main {
+    min-width: 0;
+}
+
+.config-panel {
+    display: none;
+}
+
+.config-panel.is-active {
+    display: block;
+}
+
+.config-panel-head {
+    margin-bottom: 1rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.config-panel-head h2 {
+    margin: 0 0 0.3rem;
+}
+
+.config-panel-desc {
+    margin: 0.3rem 0 0;
+    color: var(--muted);
+}
+
+/* Overview: a compact scannable table of every section, the landing view. */
+.config-overview-hint {
+    color: var(--muted);
+}
+
+.config-overview-count {
+    margin: 0.2rem 0 0.8rem;
+    min-height: 1.2em;
+    color: var(--blue);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+table.config-overview {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+table.config-overview th {
+    text-align: left;
+    padding: 0.4rem 0.6rem;
+    border-bottom: 2px solid var(--line-strong);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+}
+
+table.config-overview td {
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+}
+
+table.config-overview tbody tr {
     cursor: pointer;
-    list-style: revert;
 }
 
-.config-section > summary > code {
-    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
-    font-weight: 700;
-    font-size: 1rem;
+table.config-overview tbody tr:hover {
+    background: var(--bg-soft);
 }
 
-.config-section > .yang-tree,
-.config-section > .config-owner-detail,
-.config-section > .config-owners {
-    margin: 0.6rem 1rem;
+.config-owner-plugin {
+    color: var(--blue);
+    white-space: nowrap;
+}
+
+.config-owner-core {
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.config-overview-nodesc {
+    color: var(--muted);
+}
+
+/* No-JS fallback: without the explorer script, show every section stacked
+ * and hide the nav, so the whole config is still readable. */
+html:not(.config-js) .config-nav {
+    display: none;
+}
+
+html:not(.config-js) .config-panel {
+    display: block;
+    margin-bottom: 2.5rem;
+}
+
+@media (max-width: 820px) {
+    .config-layout {
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+    }
+
+    .config-nav {
+        position: static;
+        max-height: none;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        padding-right: 0;
+    }
+
+    .config-nav-item {
+        border: 1px solid var(--header-border);
+    }
 }
 
 .yang-tree,

@@ -1,10 +1,8 @@
 # Configuration Reference
 
-The complete Ze configuration as one tree: 41 top-level sections (35 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.github.io/ze/docs/features/configuration/) for a narrative walkthrough of BGP peer config specifically.
+The complete Ze configuration as one tree: 41 top-level sections (31 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.github.io/ze/docs/features/configuration/) for a narrative walkthrough of BGP peer config specifically.
 
 ## anomaly-detect
-
-*Provided by `anomaly-detect-feature-source` ([ze-anomaly-detect-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang))*
 
 - **baseline-window** `uint32`
   Per-entity baseline horizon in ticks (the EWMA smoothing factor is derived from it).
@@ -29,8 +27,6 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 ## anomaly-shape
 
-*Provided by `anomaly-shape-firewall` ([ze-anomaly-shape-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang))*
-
 - **action** `enumeration`
   Armed action: rate-limit the source (surgical) or drop it (fallback).
 - **allowlist** `ip-prefix[]`
@@ -53,6 +49,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 ## bfd
 
 *Provided by `bfd` ([ze-bfd-api.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bfd/yang/ze-bfd-api.yang), [ze-bfd-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bfd/yang/ze-bfd-cmd.yang), [ze-bfd-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bfd/yang/ze-bfd-conf.yang))*
+
+BFD control configuration for Ze.
 
 - **bind-v6** `boolean`
   When true, the BFD plugin also binds an IPv6 socket (::0) alongside the IPv4 socket for every (vrf, mode) loop. The paired sockets share the same RX channel via a transport.Dual wrapper and send routes by destination address family. Stage 2b (spec-bfd-2b-ipv6-transport) ships this leaf; pinned IPv6 sessions require it to be set explicitly so operators who do not need v6 do not open a second socket per loop.
@@ -109,6 +107,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 ## bgp
 
 *Provided by `bgp` ([ze-bgp-api.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/yang/ze-bgp-api.yang), [ze-bgp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/yang/ze-bgp-conf.yang)); `bgp-bmp` ([ze-bmp-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang)); `bgp-filter-aspath` ([ze-filter-aspath.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang)); `bgp-filter-aspath-length` ([ze-filter-aspath-length.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_aspath_length/yang/ze-filter-aspath-length.yang)); `bgp-filter-community` ([ze-filter-community.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang)); `bgp-filter-community-match` ([ze-filter-community-match.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang)); `bgp-filter-family` ([ze-filter-family.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang)); `bgp-filter-irr` ([ze-filter-irr-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang), [ze-filter-irr.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang)); `bgp-filter-modify` ([ze-filter-modify.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang)); `bgp-filter-prefix` ([ze-filter-prefix.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang)); `bgp-filter-remove-private-as` ([ze-filter-remove-private-as.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/filter_remove_private_as/yang/ze-filter-remove-private-as.yang)); `bgp-gr` ([ze-graceful-restart.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang)); `bgp-healthcheck` ([ze-healthcheck-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang)); `bgp-hostname` ([ze-hostname.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/hostname/yang/ze-hostname.yang)); `bgp-llnh` ([ze-link-local-nexthop.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/llnh/yang/ze-link-local-nexthop.yang)); `bgp-rib` ([ze-rib-api.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/rib/yang/ze-rib-api.yang), [ze-rib.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/rib/yang/ze-rib.yang)); `bgp-role` ([ze-role.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/role/yang/ze-role.yang)); `bgp-route-refresh` ([ze-refresh-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang), [ze-route-refresh-api.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang), [ze-route-refresh.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang)); `bgp-rpki` ([ze-rpki.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/rpki/yang/ze-rpki.yang)); `bgp-rs` ([ze-rs-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang)); `bgp-softver` ([ze-softver.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/softver/yang/ze-softver.yang)); `bgp-watchdog`*
+
+Border Gateway Protocol routing configuration. Peers inherit from group defaults; groups inherit from this global level.
 
 - **admin-distance** `container`
   Classical admin distance stamped on BGP best-paths when they are mirrored into the shared Loc-RIB. Lower distance wins against other protocols for the same prefix. Defaults follow the Cisco/Juniper convention; RFC 4271 does not mandate values.
@@ -1331,6 +1331,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 *Provided by `cos` ([ze-cos-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/cos/yang/ze-cos-conf.yang))*
 
+Named class-of-service profiles
+
 - **ieee-802.1p <name>** `list`
   An 802.1p QoS profile. Defines the mapping between the 3-bit PCP field in the 802.1Q header and internal priorities, for both ingress and egress directions.
   - **egress** `container`
@@ -1350,10 +1352,14 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 *Provided by `connected` ([ze-connected-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/connected/yang/ze-connected-conf.yang))*
 
+Connected route redistribution. Presence enables the plugin.
+
 
 ## control-plane-protection
 
 *Provided by `copp-input-chain` ([ze-copp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/copp/yang/ze-copp-conf.yang))*
+
+Control-plane policing configuration.
 
 - **bgp** `container`
   Rate-limit new TCP connections to the BGP listen port.
@@ -1462,6 +1468,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 ## environment
 
 *Provided by `bgp-bmp` ([ze-bmp-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang)); `ntp` ([ze-ntp-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ntp/yang/ze-ntp-cmd.yang), [ze-ntp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ntp/yang/ze-ntp-conf.yang))*
+
+Environment settings for API transports
 
 - **api-server** `container`
   API engine settings (shared parent for the REST/gRPC transports)
@@ -1702,6 +1710,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 ## fib
 
+Forwarding Information Base configuration.
+
 - **kernel** `container`
   *Provided by `fib-kernel` ([ze-fib-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/fib/kernel/yang/ze-fib-conf.yang))*
   OS kernel route programming via netlink (Linux).
@@ -1733,6 +1743,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 ## firewall
 
 *Provided by `firewall-irr` ([ze-firewall-irr-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang), [ze-firewall-irr.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang)); `firewall` ([ze-firewall-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/firewall/yang/ze-firewall-cmd.yang), [ze-firewall-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/firewall/yang/ze-firewall-conf.yang))*
+
+Ze-managed nftables firewall tables. Table names are bare in config; ze_ prefix added by component.
 
 - **backend** `string`
   Firewall backend implementation. Default is nft (nftables via libnftnl). Future backends can declare themselves via firewall.RegisterBackend. The ze:backend YANG extension on feature nodes declares per-feature backend support so the commit-time gate rejects configs that try to use unsupported primitives.
@@ -1919,6 +1931,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 *Provided by `flow-export` ([ze-flowexport-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/flowexport/yang/ze-flowexport-conf.yang))*
 
+Flow export (sFlow, NetFlow v9, IPFIX) configuration
+
 - **collector <name>** `list`
   A flow export collector endpoint
   - **address** `ip-address`
@@ -1963,6 +1977,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 ## interface
 
 *Provided by `interface` ([ze-iface-api.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-api.yang), [ze-iface-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-cmd.yang), [ze-iface-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-conf.yang), [ze-iface-interface-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-interface-cmd.yang), [ze-iface-monitor-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-monitor-cmd.yang), [ze-iface-show-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/iface/yang/ze-iface-show-cmd.yang))*
+
+Interface-level class-of-service bindings and inline QoS maps (container-merge with ze-iface-conf). Removing the cos plugin removes all QoS surface from interfaces.
 
 - **backend** `string`
   Interface management backend (e.g., netlink, networkd)
@@ -3003,6 +3019,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 *Provided by `isis` ([ze-isis-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/isis/yang/ze-isis-cmd.yang), [ze-isis-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/isis/yang/ze-isis-conf.yang))*
 
+IS-IS routing instance configuration.
+
 - **hostname** `string`
   Dynamic hostname to advertise (RFC 5301).
 - **interfaces** `container`
@@ -3096,10 +3114,14 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 *Provided by `kernel` ([ze-kernel-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/kernel/yang/ze-kernel-conf.yang))*
 
+Kernel route redistribution. Presence enables the plugin.
+
 
 ## l2tp
 
 *Provided by `l2tp-auth-local` ([ze-l2tp-auth-local-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/l2tp/plugins/authlocal/yang/ze-l2tp-auth-local-conf.yang)); `l2tp-auth-radius-servers` ([ze-l2tp-auth-radius-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang)); `l2tp-pool` ([ze-l2tp-pool-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang)); `l2tp-shaper` ([ze-l2tp-shaper-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang))*
+
+L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any content implies the subsystem is enabled. Use 'enabled false' to disable explicitly, or 'enabled true' as a filler when no other settings are needed.
 
 - **allow-no-auth** `boolean`
   Allow PPP LCP authentication negotiation to proceed without an Auth-Protocol. The default is false, so a peer that rejects all configured authentication methods is disconnected instead of being accepted as no-auth.
@@ -3210,6 +3232,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 *Provided by `ldp-port` ([ze-ldp-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ldp/yang/ze-ldp-cmd.yang), [ze-ldp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ldp/yang/ze-ldp-conf.yang))*
 
+Label Distribution Protocol configuration
+
 - **hello-hold-time** `uint16`
   Hello adjacency hold time
 - **hello-interval** `uint16`
@@ -3226,6 +3250,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 ## mrt
 
 *Provided by `mrt` ([ze-mrt-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/mrt/yang/ze-mrt-conf.yang))*
+
+MRT dump configuration
 
 - **add-path** `boolean`
   Force add-path subtypes even when not negotiated with the peer.
@@ -3257,6 +3283,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 ## ospf
 
 *Provided by `ospf` ([ze-ospf-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ospf/yang/ze-ospf-cmd.yang), [ze-ospf-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ospf/yang/ze-ospf-conf.yang))*
+
+OSPFv2 routing instance configuration.
 
 - **address-family** `container`
   Additional OSPF address families. The IPv6 (OSPFv3, RFC 5340) family runs as a second engine instance over the ospfv3 transport (ff02::5/6), sharing the FSM/flooding/SPF machinery with the IPv4 family.
@@ -4036,6 +4064,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 *Provided by `ike`*
 
+PKI certificate and key store. Presence of this block enables certificate-based authentication for IPsec VPN, TLS, and other subsystems.
+
 - **ca <name>** `list`
   Trusted CA certificate. The certificate leaf holds a base64-encoded DER X.509 certificate (no PEM headers).
   - **certificate** `string`
@@ -4052,6 +4082,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
       Private key in base64-encoded DER format. Stored as $9$ in config file, auto-decoded on load. Supports PKCS8, SEC1 (ECDSA), and PKCS1 (RSA) encodings.
 
 ## plugin
+
+Plugin configuration
 
 - **external <name>** `list`
   External plugin process
@@ -4096,6 +4128,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 *Provided by `policy-routes` ([ze-policyroute-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/policyroute/yang/ze-policyroute-cmd.yang), [ze-policyroute-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/policyroute/yang/ze-policyroute-conf.yang))*
 
+Policy routing configuration.
+
 - **route <name>** `list`
   A named policy route applied to ingress interfaces.
   - **interface** `string[]`
@@ -4133,6 +4167,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 ## pppoe
 
+PPPoE access concentrator settings (RFC 2516). Presence of this block with any content implies the subsystem is enabled. Use 'enabled false' to disable explicitly, or 'enabled true' as a filler when no other settings are needed.
+
 - **ac-name** `string`
   Access Concentrator Name advertised in PADO (RFC 2516 Section 5.2).
 - **cookie-timeout** `uint16`
@@ -4156,6 +4192,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 *Provided by `redistribute-orchestrator`*
 
+Route redistribution between protocols. Each destination protocol has its own container with import rules. Adding a new destination protocol means adding a new key here.
+
 - **destination <protocol>** `list`
   Destination protocol for redistributed routes. Each entry names a registered consumer (bgp, ospf, ...).
   - **import <source>** `list`
@@ -4166,6 +4204,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 ## rib
 
 *Provided by `rib` ([ze-rib-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/sysrib/yang/ze-rib-conf.yang))*
+
+System RIB configuration.
 
 - **admin-distance** `container`
   Administrative distance per protocol. Lower value wins. Used by the system RIB to select the best route across protocols.
@@ -4186,6 +4226,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 *Provided by `routing-table` ([ze-routing-table-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/routingtable/yang/ze-routing-table-conf.yang))*
 
+Named routing table definitions. Each entry maps a name to a kernel routing table ID.
+
 - **table <name>** `list`
   A named routing table.
   - **id** `uint32`
@@ -4194,6 +4236,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 ## rsvp-te
 
 *Provided by `rsvp-te-rawsock` ([ze-rsvp-te-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/rsvpte/yang/ze-rsvp-te-cmd.yang), [ze-rsvp-te-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang))*
+
+RSVP-TE traffic engineering configuration
 
 - **bypass <name>** `list`
   Facility-backup bypass LSP (RFC 4090 Section 3.2): an LSP from this PLR to a merge point, explicitly routed to avoid the protected resource. A protected transit LSP whose next hop (link protection) or next-next hop (node protection) is this bypass's merge point is redirected onto it on a local failure. Explicit because ze has no IGP/CSPF to auto-compute a backup path.
@@ -4253,6 +4297,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 ## service
 
 *Provided by `as112` ([ze-as112-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/as112/yang/ze-as112-cmd.yang), [ze-as112-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/as112/yang/ze-as112-conf.yang)); `dhcpserver` ([ze-dhcp-server-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang)); `geodns` ([ze-geodns-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/geodns/yang/ze-geodns-cmd.yang), [ze-geodns-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/geodns/yang/ze-geodns-conf.yang)); `imageserver` ([ze-image-server-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/imageserver/yang/ze-image-server-conf.yang)); `tftpserver` ([ze-tftp-server-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang))*
+
+Service settings
 
 - **as112** `container`
   AS112 anycast DNS node
@@ -4415,6 +4461,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 *Provided by `static` ([ze-static-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/static/yang/ze-static-cmd.yang), [ze-static-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/static/yang/ze-static-conf.yang))*
 
+Static route configuration.
+
 - **table <name>** `list`
   A named routing table grouping. Table name is resolved to a kernel table ID via the routing-table registry. Use 'default' for the main routing table.
   - **route <prefix>** `list`
@@ -4448,6 +4496,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
       Opaque tag for route policy matching. Carried in redistribute events.
 
 ## storage
+
+Storage device management
 
 - **smart** `container`
   SMART disk health monitoring and self-test scheduling
@@ -4484,6 +4534,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 *Provided by `sysctl` ([ze-sysctl-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/sysctl/yang/ze-sysctl-conf.yang))*
 
+Kernel tunable management.
+
 - **profile <name>** `list`
   User-defined sysctl profile: a named collection of kernel tunables applied together to interface units. Overrides built-in profiles with the same name.
   - **setting <name>** `list`
@@ -4496,6 +4548,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
     Value to set for this key.
 
 ## system
+
+System-level settings
 
 - **archive <name>** `list`
   Named config archive destinations
@@ -4756,6 +4810,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 ## telemetry
 
+Telemetry export configuration
+
 - **prometheus** `container`
   Prometheus metrics HTTP export
   - **basic-auth** `container`
@@ -4807,7 +4863,7 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 ## traffic-control
 
-*Provided by `traffic` ([ze-traffic-control-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/traffic/yang/ze-traffic-control-conf.yang))*
+Per-interface traffic control configuration
 
 - **backend** `string`
   Traffic control backend implementation. Default is tc (Linux iproute2 queueing disciplines). Future backends can declare themselves via traffic.RegisterBackend. The ze:backend YANG extension on feature nodes declares per-feature backend support so the commit-time gate rejects configs that try to use unsupported qdiscs or filter types.
@@ -4834,7 +4890,7 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 
 ## traffic-usage
 
-*Provided by `traffic-usage` ([ze-traffic-usage-cmd.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/trafficusage/yang/ze-traffic-usage-cmd.yang), [ze-traffic-usage-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang))*
+Per-interface eBPF TCX byte accounting (port/protocol always; per-IP via track-ip).
 
 - **enabled** `boolean`
   Enable traffic-usage accounting.
@@ -4862,6 +4918,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 ## vpn
 
 *Provided by `ike`*
+
+VPN subsystems.
 
 - **ipsec** `container`
   IPsec site-to-site VPN configuration.
@@ -4977,6 +5035,8 @@ The complete Ze configuration as one tree: 41 top-level sections (35 provided by
 ## vpp
 
 *Provided by `vpp` ([ze-vpp-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/component/vpp/yang/ze-vpp-conf.yang))*
+
+VPP data plane configuration.
 
 - **api-socket** `string`
   GoVPP binary API Unix socket path.
