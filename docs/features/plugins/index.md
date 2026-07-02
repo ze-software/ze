@@ -1,0 +1,100 @@
+# Plugins
+
+### Storage & Policy
+
+| Plugin | Description |
+|--------|-------------|
+| bgp-rib | Route Information Base -- stores received/sent routes |
+| bgp-adj-rib-in | Adj-RIB-In -- raw hex replay of received routes |
+| bgp-persist | Route persistence across restarts |
+| bgp-rs | Route server -- client-to-client route reflection (RFC 7947). Forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3): DirectBridge in-process, `ze-plugin-engine:forward-cached` over newline-framed YANG RPC for out-of-process plugins. No text-RPC tokenise on the hot path. `bgp-adj-rib-in` is an optional dep; when absent, forwarding still works and replay-on-peer-up is disabled with a WARN. |
+| bgp-watchdog | Deferred route announcement with named watchdog groups |
+| bgp-healthcheck | Service healthcheck with FSM-controlled route announcement/withdrawal via watchdog groups. [Guide](https://github.com/ze-software/ze/blob/main/docs/guide/healthcheck.md) |
+
+### Route Filters
+
+External plugins can act as route filters on import and export. Filters are
+configured per peer/group/globally via `filter { import [...] export [...] }`
+using named filter instances or explicit `<plugin>:<filter>` references. Multiple filters chain as piped transforms
+(each sees previous filter's output). Filters respond accept/reject/modify with
+delta-only attribute changes and dirty tracking for efficient re-encoding.
+
+Three filter categories:
+
+| Category | Behavior | Example |
+|----------|----------|---------|
+| Mandatory | Always on, cannot be overridden | `rfc:otc` (RFC 9234) |
+| Default | On by default, can be overridden per-peer | `rfc:no-self-as` (loop prevention) |
+| User | Only present when explicitly configured | `rpki:validate`, `community:scrub` |
+
+<!-- source: plan/learned/479-redistribution-filter.md -- redistribution filter design -->
+
+<!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/register.go -- bgp-adj-rib-in -->
+<!-- source: internal/component/bgp/plugins/persist/register.go -- bgp-persist -->
+<!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs -->
+<!-- source: internal/component/bgp/plugins/watchdog/register.go -- bgp-watchdog -->
+<!-- source: internal/component/bgp/plugins/healthcheck/register.go -- bgp-healthcheck -->
+
+### Protocol
+
+| Plugin | Description |
+|--------|-------------|
+| bgp-gr | Graceful Restart (RFC 4724) and Long-Lived GR (RFC 9494) state machine |
+| bgp-aigp | Accumulated IGP Metric (RFC 7311) |
+| bgp-rpki | RPKI origin validation via RTR protocol (RFC 6811, RFC 8210). [Guide](https://github.com/ze-software/ze/blob/main/docs/guide/rpki.md) |
+| bgp-rpki-decorator | Correlates UPDATE + RPKI events into merged update-rpki events |
+| bgp-route-refresh | Route Refresh handling (RFC 2918, RFC 7313) |
+| bgp-role | BGP Role capability enforcement (RFC 9234) |
+| bgp-llnh | Link-local next-hop for IPv6 (RFC 2545) |
+| bgp-hostname | FQDN capability for peer identification |
+| bgp-softver | Software version capability advertisement |
+| bgp-filter-community | Community tag/strip filter (standard, large, extended) |
+| bgp-filter-irr | IRR-based prefix-list filter from whois queries (replaces bgpq4 workflow) |
+| loop | Route loop detection (RFC 4271 S9, RFC 4456 S8) |
+
+<!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr -->
+<!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki -->
+<!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator -->
+<!-- source: internal/component/bgp/plugins/route_refresh/register.go -- bgp-route-refresh -->
+<!-- source: internal/component/bgp/plugins/role/register.go -- bgp-role -->
+<!-- source: internal/component/bgp/plugins/llnh/register.go -- bgp-llnh -->
+<!-- source: internal/component/bgp/plugins/hostname/register.go -- bgp-hostname -->
+<!-- source: internal/component/bgp/plugins/softver/register.go -- bgp-softver -->
+<!-- source: internal/component/bgp/plugins/aigp/register.go -- bgp-aigp -->
+<!-- source: internal/component/bgp/plugins/filter_community/register.go -- bgp-filter-community -->
+<!-- source: internal/component/bgp/plugins/filter_irr/register.go -- bgp-filter-irr -->
+<!-- source: internal/component/bgp/reactor/filter/register.go -- loop -->
+
+### Infrastructure
+
+| Plugin | Description |
+|--------|-------------|
+| interface | OS network interface monitoring and management via netlink or VPP. Publishes interface and address events to the bus. |
+| static | Config-driven static route programming with ECMP. |
+| connected | Redistributes directly connected interface prefixes. |
+| kernel | Redistributes externally-installed kernel routes. |
+| rib | System RIB selection by administrative distance. |
+| fib-kernel | Programs OS routes from the system RIB. |
+| fib-vpp | Programs VPP routes from the system RIB. |
+| sysctl | Kernel tunable management with default, transient, and config layers. |
+| traffic | Traffic control lifecycle and backend dispatch. |
+| vpp | VPP lifecycle and telemetry. |
+| cos | 802.1p class-of-service profile definitions. Named QoS maps, dynamic per-subscriber CoS via RADIUS. |
+| bgp-nlri-srpolicy | SR-Policy NLRI (SAFI 73) with Tunnel Encapsulation attribute. |
+
+<!-- source: internal/component/iface/register.go -- interface -->
+
+### Plugin Health Metrics
+
+Plugin infrastructure exposes per-plugin Prometheus metrics for operational visibility:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `ze_plugin_status{plugin}` | Gauge | Current plugin stage (0=init, 6=running). Absent when disabled. |
+| `ze_plugin_restarts_total{plugin}` | Counter | Cumulative restart count. |
+| `ze_plugin_events_delivered_total{plugin}` | Counter | Total events enqueued to plugin. |
+
+When a plugin is disabled (respawn limit exceeded), its metrics are deleted rather than showing a stale value.
+
+<!-- source: internal/component/plugin/process/manager.go -- pluginMetrics -->

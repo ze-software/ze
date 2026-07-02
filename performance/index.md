@@ -1,0 +1,58 @@
+## Performance.
+
+Measured, not claimed.
+
+All benchmarks are lies: these numbers measure one scenario, on one machine, under artificial conditions. They show relative differences between implementations, not absolute performance. If it matters to you, run `ze-perf` on your own hardware with your own workload.
+
+ `BGP benchmark`
+
+`ze-perf` establishes two BGP sessions with a device under test: a sender injects 100,000 routes, a receiver times their arrival. The same harness runs unmodified against BIRD, FRR, GoBGP, RustyBGP, freeRtr, rustbgpd, and OpenBGPd, all in Docker on the same host.
+
+Go carries an estimated 10-15% CPU overhead against C/Rust implementations. That number comes from code-path analysis, not a measured benchmark -- Ze has not been benchmarked at DFZ scale (1M+ prefixes).
+
+ - **Convergence:** 62ms to propagate 100,000 routes (2026-06-05 run)
+ - **Throughput:** 1,612,903 routes/sec sustained during propagation
+ - **Withdrawal:** 596ms from withdrawal sent to receiver idle
+ - **Full results:** [All DUTs, all runs, full methodology](https://ze-software.github.io/ze/docs/performance/)
+
+```
+# build ze-perf and all DUT images, then run
+$ python3 test/perf/run.py --build --test
+
+# test specific DUTs only
+$ python3 test/perf/run.py --build --test ze bird
+
+# regenerate docs/performance.md from results
+$ bin/ze-perf report --doc test/perf/results/*.json
+```
+
+ `Prerequisites`
+
+Docker (Colima on macOS). `ze-perf` works against any BGP implementation, not just Ze -- point it at your own DUT.
+
+ [Benchmarking guide architecture, flags, JSON output](https://ze-software.github.io/ze/docs/guide/benchmarking/)
+
+## Performance evidence in the labs.
+
+Where else the numbers show up.
+
+### [BGP Protocol Interop](https://ze-software.github.io/ze/labs/bgp-interop/)
+
+ `Daemon` `Docker`
+
+ - Same DUTs as the benchmark: **FRR, BIRD, GoBGP**
+ - Correctness first; the perf numbers above measure the same sessions
+
+### [VPP Dataplane Evidence](https://ze-software.github.io/ze/labs/vpp-dataplane/)
+
+ `Daemon` `Docker`
+
+ - Ze programs **FIB, traffic, and firewall** into a real VPP daemon
+ - Dataplane throughput backs the numbers in the VPP guide
+
+### [VLAN QoS Wire-Level Proof](https://ze-software.github.io/ze/labs/vlan-qos/)
+
+ `Daemon` `AF_PACKET`
+
+ - 802.1p **PCP tagging** verified on the wire
+ - Not just kernel-state acceptance -- captured packets
