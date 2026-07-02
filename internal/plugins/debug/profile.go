@@ -123,6 +123,28 @@ func (p *Profile) Scopes(module string) []ScopeEntry {
 	return entry.Scopes
 }
 
+// HasFlag reports whether a module has the named flag. Used by the verb-first
+// set/delete handlers to make flag changes idempotent (ToggleFlag alone flips).
+func (p *Profile) HasFlag(module, flag string) bool {
+	for _, f := range p.Flags(module) {
+		if f.Name == flag {
+			return true
+		}
+	}
+	return false
+}
+
+// HasScope reports whether a module has the given scope filter. Used to make
+// verb-first scope changes idempotent.
+func (p *Profile) HasScope(module, kind, value string) bool {
+	for _, s := range p.Scopes(module) {
+		if s.Kind == kind && s.Value == value {
+			return true
+		}
+	}
+	return false
+}
+
 // ModuleNames returns the sorted list of module names in the profile.
 func (p *Profile) ModuleNames() []string {
 	names := make([]string, 0, len(p.Modules))

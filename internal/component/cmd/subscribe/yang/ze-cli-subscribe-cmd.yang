@@ -14,7 +14,7 @@ module ze-cli-subscribe-cmd {
             ze:task-support required;
             description "Start receiving events of one or more types.
 Events are delivered asynchronously to your plugin session until
-you unsubscribe. Use 'event list' to see available event types.";
+you unsubscribe. Use 'show event list' to see available event types.";
         }
 
         container unsubscribe {

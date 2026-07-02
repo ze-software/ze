@@ -1,7 +1,10 @@
-# Test: ze debug with no args shows usage
-# VALIDATES: CLI help output for debug command (toggle grammar, see 891-granular-debug)
-cmd=foreground:seq=1:exec=ze debug
+# Test: set debug module with no subsystem shows usage
+# VALIDATES: CLI usage output for the verb-first debug set grammar
+# test-relax: the `ze debug` root command was removed (spec-cli-verb-first-followup);
+# debug is now verb-first (set/delete/show/clear). The old toggle-usage assertions
+# no longer apply; this asserts the new `set debug module` usage instead.
+cmd=foreground:seq=1:exec=ze set debug module
 expect=exit:code=1
-expect=stdout:contains=Toggle
-expect=stdout:contains=show
-expect=stdout:contains=profile
+expect=stderr:contains=level
+expect=stderr:contains=flag
+expect=stderr:contains=scope

@@ -334,33 +334,32 @@ as context, `show host *` when you want hardware-first.
 
 <!-- source: internal/component/cmd/show/system.go -- handleShowSystemMemory/CPU/Date -->
 
-### ze host show
+### show host
 
-Host hardware inventory. Read-only, no daemon required. Walks sysfs/procfs
-(and issues best-effort `ethtool` ioctls for NIC firmware/rings) to produce
-a structured JSON description of the machine. Defaults to JSON output for
-pipeline consumption (`jq`, Prometheus scrapers, SNMP shims); use
-`--text` for human-readable summaries.
+Host hardware inventory. Read-only. Walks sysfs/procfs (and issues best-effort
+`ethtool` ioctls for NIC firmware/rings) to produce a structured JSON description
+of the machine. Served by the daemon when reachable; when no daemon is running it
+falls back to the same in-process detection library, so `show host` works whether
+or not the daemon is up. JSON output for pipeline consumption (`jq`, Prometheus
+scrapers, SNMP shims).
 
 ```
-ze host show                       # Full inventory (all sections), JSON
-ze host show cpu                   # CPU only
-ze host show nic                   # Physical NICs (virtual interfaces filtered)
-ze host show dmi                   # DMI/SMBIOS board identity
-ze host show memory                # /proc/meminfo + ECC counters (edac)
-ze host show thermal               # hwmon sensors + per-CPU throttle counts
-ze host show storage               # Block devices + NVMe firmware
-ze host show kernel                # Kernel release, cmdline, microcode, arch flags
-ze host show all                   # Every section in one payload
-ze host show --text cpu            # Human-readable summary
+ze show host all                   # Full inventory (all sections), JSON
+ze show host cpu                   # CPU only
+ze show host nic                   # Physical NICs (virtual interfaces filtered)
+ze show host dmi                   # DMI/SMBIOS board identity
+ze show host memory                # /proc/meminfo + ECC counters (edac)
+ze show host thermal               # hwmon sensors + per-CPU throttle counts
+ze show host storage               # Block devices + NVMe firmware
+ze show host kernel                # Kernel release, cmdline, microcode, arch flags
 ```
 
-<!-- source: internal/plugins/host/host.go -- RunShow, validSections -->
+<!-- source: internal/plugins/host-cmd/cmd/show_host.go -- online `show host *` RPCs -->
+<!-- source: internal/plugins/host/host.go -- RunShow offline fallback (registry.RegisterOfflineFallback) -->
 <!-- source: internal/component/host/inventory.go -- Inventory struct and types -->
 
-The same sections are also available as RPCs over `ze cli` to a running
-daemon: `show host cpu`, `show host nic`, etc. Online and offline paths
-share the same detection library; the JSON shapes are identical.
+Online (daemon) and offline (fallback) paths share the same detection library, so
+the JSON shapes are identical either way.
 
 **Sections:**
 
@@ -379,14 +378,14 @@ All sizes in **bytes**. All frequencies in **MHz**. Unreadable sysfs files
 are omitted from the JSON rather than returning `null` or an empty string.
 Permission errors are recorded in the inventory's `errors[]` array.
 
-**Virtual interface filtering**: `ze host show nic` only reports physical
+**Virtual interface filtering**: `ze show host nic` only reports physical
 interfaces. The filter is structural (presence of
 `/sys/class/net/<n>/device/`) rather than a driver-name allowlist, so
 new virtual drivers (wireguard, ipvlan, etc.) are filtered uniformly.
 
 **Platform**: Linux only. Darwin and other platforms return
-`ErrUnsupported` per section; `ze host show` reports "unsupported on this
-platform" with exit 0 so scripts can probe gracefully.
+`ErrUnsupported` per section; `ze show host` reports "unsupported on this
+platform" so scripts can probe gracefully.
 
 ### show storage smart
 
@@ -552,6 +551,19 @@ show traffic-feature                  # Top source entities
 show traffic-feature name <address>   # One source by address
 ```
 
+### show anomaly
+<!-- source: internal/plugins/anomaly/detect/show.go -- handleShowAnomaly, ze-show:anomaly -->
+
+Recent behavioral anomaly incidents from the report-only `anomaly-detect` plugin.
+Returns `{"enabled": bool, "incidents": [{entity, cohort, score, severity,
+at, fired-features: [{name, z}]}]}`; the ring is empty until an entity's
+correlated deviation confirms. The detector reports only; the `anomaly/shape`
+responder acts on these incidents.
+
+```
+show anomaly                          # Recent anomaly incidents
+```
+
 ### show traffic-usage
 
 Per-interface eBPF byte accounting for the `traffic-usage` plugin (TCX
@@ -616,6 +628,11 @@ bandwidths, admin group, and (for inter-AS links) remote AS and remote ASBR.
 **`show ospf database router-information`** decodes the RFC 7770 Router Information
 LSAs for both address families (OSPFv2 Opaque type 4 and OSPFv3 function code 12) into
 the advertised informational capability bits and the TLV list.
+
+**`show ospf segment-routing`** and **`show ospf ipv6 segment-routing`** render the
+RFC 8665 / RFC 8666 Segment Routing state for each address family: the configured
+SRGB/SRLB label ranges, the advertised SR-Algorithm, this node's node Prefix-SIDs, and
+the Adjacency-SIDs allocated per adjacency.
 
 <!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
 <!-- source: internal/plugins/ospf/te_show.go -- teDatabaseSnapshot, teDecodeOpaqueLSA -->
@@ -1125,26 +1142,24 @@ traceroute` also work offline, streaming results until Ctrl-C.
 <!-- source: internal/component/ping/cmd/register.go -- showPingLocal -->
 <!-- source: internal/component/traceroute/cmd/register.go -- showTracerouteLocal -->
 
-### show crashes / ze crashes show
+### show crashes
 
-**Online (daemon running):**
 ```
-show crashes           # List crash files with timestamp and size
-show crashes latest    # Display full content of most recent crash report
+ze show crashes              # List crash files with timestamp and size (JSON)
+ze show crashes latest       # Display the most recent crash report
+ze show crashes name <file>  # Display a specific crash report
 ```
 
-**Offline (no daemon required):**
-```
-ze crashes show          # List crash files (JSON)
-ze crashes show latest   # Display most recent crash report
-```
+`show crashes` is served by the daemon when reachable; when no daemon is running
+it falls back to reading the crash files in-process. That fallback matters most
+here: you inspect a crash precisely when the daemon has died, so the command must
+work with no daemon.
 
 Crash reports contain the panic stack trace, ring buffer context (last 64
 log entries before the crash), version, build date, and uptime. Crash files
 are stored in the autodetected crash directory (see `ze.crash.dir` env var).
-
-The offline variant works when the daemon is down (which is when you need
-it most, after a crash).
+<!-- source: internal/plugins/crashes/cmd/register.go -- online show crashes RPC -->
+<!-- source: internal/plugins/crashes/register.go -- offline fallback (registry.RegisterOfflineFallback) -->
 
 <!-- source: internal/plugins/crashes/cmd/show.go -- show crashes command -->
 <!-- source: internal/plugins/crashes/crashes.go -- crash storage commands -->
@@ -1417,41 +1432,44 @@ for localhost, 127.0.0.1, ::1, and the listen address.
 See [Web Interface Guide](web-interface.md) for full usage documentation.
 <!-- source: cmd/ze/main.go -- cmdStart, cmd/ze/hub/main.go -- startWebServer -->
 
-### ze debug
+### debug (set / delete / show / clear)
 
-Granular debug with toggle semantics and named profiles. Stored in `debug.zefs`.
+Granular debug edited as persistent state in `debug.zefs`. Verb-first grammar
+(`set`/`delete`/`show`/`clear`), matching VyOS syslog-level configuration: enabling
+debug for a subsystem is `set`, disabling is `delete`.
 
 ```
-ze debug <module>                                # Toggle debug on/off
-ze debug <module> level <level>                  # Set level (debug/info/warn/error)
-ze debug <module> flag <flag>                    # Toggle flag
-ze debug <module> scope direction <dir>          # Direction filter (send/receive)
-ze debug <module> scope <kind> <value>           # Toggle scope filter
-ze debug show                                    # Show active debug state
-ze debug show <module>                           # Show module subtree
-ze debug show saved                              # Show saved profile
-ze debug restore                                 # Load and apply default profile
-ze debug restore profile <name>                  # Load and apply named profile
-ze debug clear                                   # Clear default profile
-ze debug profile save <name>                     # Save current state as named
-ze debug profile list                            # List profiles
-ze debug profile delete <name>                   # Delete a profile
-ze debug timeout <duration>                      # Auto-disable timer (e.g. 30m, 1h, 90s; 0=off)
+ze set debug module <name>                       # Enable debug for a subsystem
+ze set debug module <name> level <level>         # Set level (debug/info/warn/error)
+ze set debug module <name> flag <flag>           # Add a debug flag
+ze set debug module <name> scope <kind> <value>  # Add a scope filter (e.g. scope direction receive)
+ze delete debug module <name>                    # Disable debug for a subsystem
+ze delete debug module <name> flag <flag>        # Remove a flag
+ze delete debug module <name> scope <kind> <value>  # Remove a scope filter
+ze show debug profile                            # List stored profiles
+ze show debug profile name <name>                # Show a stored profile (e.g. name default)
+ze show debug profile name <name> module <prefix>  # Filter the table to one subsystem subtree
+ze set debug profile name <name>                 # Save current state as a named profile
+ze set debug active name <name>                  # Load and apply a named profile
+ze delete debug profile name <name>              # Delete a named profile
+ze clear debug                                   # Clear the default profile
+ze set debug timeout <duration>                  # Auto-disable timer (e.g. 30m, 1h, 90s; 0=off)
 ```
 
-Hierarchical prefixes work: `ze debug bgp` covers all bgp.* subsystems.
-Not auto-applied on reboot (safety). Use `ze debug restore` after restart.
+Hierarchical prefixes work: `ze set debug module bgp` covers all bgp.* subsystems.
+Not auto-applied on reboot (safety). Use `ze set debug active name <name>` after restart.
 Each plugin declares valid flags via the debug YANG registry; invalid flags are rejected.
 
-`debug show` reads the stored profile (offline). To see the daemon's actual live state,
-use `show debug` (YANG-dispatched RPC, requires running daemon).
-<!-- source: internal/plugins/debug/debug.go -- Run, cmdToggle, applyProfile -->
+`show debug profile name <name>` reads a stored profile (offline). To see the daemon's
+actual live state, use `show debug` (YANG-dispatched RPC, requires a running daemon).
+<!-- source: internal/plugins/debug/debug.go -- runSetModule, runDeleteModule, applyProfile -->
+<!-- source: internal/plugins/debug/register.go -- set/delete/show/clear debug registrations -->
 <!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
 <!-- source: internal/component/debug/yang/register.go -- RegisterModule, ValidateFlag -->
 
 ### ze format
 
-Apply pipe formatting to stdin. Offline commands (like `ze debug show`) do not pass
+Apply pipe formatting to stdin. Offline commands (like `ze show debug profile`) do not pass
 through the YANG-dispatched pipe infrastructure. `ze format` provides the same
 operators as a standalone filter.
 
@@ -2102,9 +2120,9 @@ Levels: debug, info, warn, err, disabled.
 |---------|--------|---------|
 | `show debug` | read-only | Show live debug state from the running daemon (levels, flags, scopes) |
 
-Unlike `debug show` (offline, reads stored profile from debug.zefs), `show debug` queries the
-daemon's actual runtime slogutil state. Use this to verify what is active after toggling or
-restoring a profile.
+Unlike `show debug profile name <name>` (offline, reads a stored profile from debug.zefs),
+`show debug` queries the daemon's actual runtime slogutil state. Use this to verify what is
+active after enabling debug or applying a profile.
 <!-- source: internal/plugins/debug/cmd/handlers.go -- show debug RPC -->
 
 ### Plugin Configuration (from plugin context)

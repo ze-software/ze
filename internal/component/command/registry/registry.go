@@ -158,11 +158,12 @@ type RootCommand struct {
 }
 
 var (
-	mu            sync.RWMutex
-	localHandlers = make(map[string]LocalHandler)
-	localMeta     = make(map[string]Meta)
-	rootCommands  = make(map[string]Meta)
-	rootHandlers  = make(map[string]RootHandler)
+	mu               sync.RWMutex
+	localHandlers    = make(map[string]LocalHandler)
+	localMeta        = make(map[string]Meta)
+	rootCommands     = make(map[string]Meta)
+	rootHandlers     = make(map[string]RootHandler)
+	offlineFallbacks = make(map[string]LocalHandler)
 )
 
 // RegisterLocal registers a handler for a CLI command path (for example,
@@ -320,6 +321,54 @@ func LookupLocal(words []string) (LocalHandler, []string) {
 	return nil, nil
 }
 
+// RegisterOfflineFallback registers an in-process handler for a read-only
+// command path (for example "show crashes" or "show host") that is served ONLY
+// when the daemon is unreachable. Unlike RegisterLocal, a fallback is never
+// consulted while the daemon is up, so it does not shadow the daemon command:
+// the CLI tries the daemon first and calls the fallback only after a
+// connection-level failure. Intended for host-local read-only data (crash
+// files, hardware inventory) an operator must still be able to read with no
+// daemon running.
+func RegisterOfflineFallback(path string, handler LocalHandler) error {
+	if path == "" {
+		return errRegisterLocalEmptyPath
+	}
+	if handler == nil {
+		return fmt.Errorf("registry.RegisterOfflineFallback: nil handler for %q", path)
+	}
+	mu.Lock()
+	offlineFallbacks[path] = handler
+	mu.Unlock()
+	return nil
+}
+
+// MustRegisterOfflineFallback is the panicking variant, intended for init().
+// The path and handler are fixed at each call site, so a failure is a
+// programming bug; the offending call site is evident from the panic stack.
+func MustRegisterOfflineFallback(path string, handler LocalHandler) {
+	if err := RegisterOfflineFallback(path, handler); err != nil {
+		_ = err
+		panic("BUG: registry.MustRegisterOfflineFallback: empty path or nil handler")
+	}
+}
+
+// LookupOfflineFallback finds the longest prefix of words matching a registered
+// offline fallback handler, returning the handler and remaining words as args.
+// Returns a nil handler if no fallback is registered. Same longest-prefix
+// semantics as LookupLocal, but a separate registry so fallbacks are only
+// reachable through the daemon-unreachable path.
+func LookupOfflineFallback(words []string) (LocalHandler, []string) {
+	mu.RLock()
+	defer mu.RUnlock()
+	for i := len(words); i > 0; i-- {
+		path := textbuf.Join(words[:i], " ")
+		if handler, ok := offlineFallbacks[path]; ok {
+			return handler, append([]string(nil), words[i:]...)
+		}
+	}
+	return nil, nil
+}
+
 // ListLocal returns every registered local command sorted by path. Handlers
 // are not returned; only path + metadata.
 func ListLocal() []LocalCommandEntry {
@@ -341,6 +390,7 @@ func ResetForTest() {
 	localMeta = make(map[string]Meta)
 	rootCommands = make(map[string]Meta)
 	rootHandlers = make(map[string]RootHandler)
+	offlineFallbacks = make(map[string]LocalHandler)
 	mu.Unlock()
 	runtimeStorageMu.Lock()
 	runtimeStorage = nil

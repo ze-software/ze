@@ -41,16 +41,24 @@ by the CLI editor, but also callable for scripting.";
         }
     }
 
-    container event {
+    container show {
         config false;
-        description "Event type discovery";
+        description "Read-only commands to inspect system, protocol, and network state";
 
-        container list {
+        container event {
             config false;
-            ze:command "ze-bgp:event-list";
-            description "List every event type you can subscribe to.
+            // Description is owned by the central show schema's `event` container
+            // (ze-cli-show-cmd.yang, which holds recent/namespaces). This module
+            // only merges the `list` leaf onto it, so it does not redeclare the
+            // description (a mismatch triggers a loader warning).
+
+            container list {
+                config false;
+                ze:command "ze-bgp:event-list";
+                description "List every event type you can subscribe to.
 Shows event name, category, and payload structure. Use this to
 discover what events are available before subscribing.";
+            }
         }
     }
 

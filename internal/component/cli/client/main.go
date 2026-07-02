@@ -23,6 +23,7 @@ import (
 
 	unicli "codeberg.org/thomas-mangin/ze/internal/component/cli"
 	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	pingcmd "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd" // init() registers ping RPCs; NewPingSession used below
 
@@ -237,6 +238,24 @@ func runInteractiveSession(client *cliClient) int {
 }
 
 // runBGP runs the BGP CLI using the unified cli.Model.
+// runOfflineFallback serves a read-only command in-process when the daemon is
+// unreachable, if an offline fallback was registered for that command path
+// (via registry.RegisterOfflineFallback). Returns the command's exit code and
+// true when it handled the command; false lets the caller emit the usual
+// "daemon unreachable" error. The fallback registry is separate from the local
+// command registry, so a fallback is reached only through this daemon-down path
+// and never shadows the daemon command while the daemon is up.
+func runOfflineFallback(command string) (int, bool) {
+	if command == "" {
+		return 0, false
+	}
+	handler, fallbackArgs := registry.LookupOfflineFallback(strings.Fields(command))
+	if handler == nil {
+		return 0, false
+	}
+	return handler(fallbackArgs), true
+}
+
 func runBGP(args []string) int {
 	fs := flag.NewFlagSet("cli", flag.ExitOnError)
 	runCmd := fs.String("c", "", "Execute single command and exit")
@@ -260,6 +279,12 @@ func runBGP(args []string) int {
 		creds, err = sshclient.LoadCredentialsWithFlags(*user)
 	}
 	if err != nil {
+		// No usable credentials means no daemon to talk to. Read-only commands
+		// that registered an in-process fallback (show crashes, show host) are
+		// served locally so host-local data stays readable with no daemon.
+		if code, served := runOfflineFallback(*runCmd); served {
+			return code
+		}
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")
 		return 1
@@ -273,6 +298,13 @@ func runBGP(args []string) int {
 	// connection-level failures as unreachable.
 	if _, err := client.SendCommand("show version"); err != nil {
 		if !strings.Contains(err.Error(), "unauthorized") {
+			// Daemon unreachable: try an in-process offline fallback before
+			// giving up. The fallback registry is consulted ONLY here, after a
+			// connection-level failure, so it never shadows the daemon command
+			// when the daemon is up.
+			if code, served := runOfflineFallback(*runCmd); served {
+				return code
+			}
 			fmt.Fprintf(os.Stderr, "error: cannot connect to daemon: %v\n", err)
 			fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")
 			return 1

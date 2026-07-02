@@ -1,6 +1,6 @@
-# Test: ze debug with a malformed subsystem shows error and valid list
-# VALIDATES: invalid-subsystem help (toggle grammar, see 891-granular-debug)
-cmd=foreground:seq=1:exec=ze debug bgp/bad
+# Test: set debug module with a malformed subsystem shows error and valid list
+# VALIDATES: invalid-subsystem help (verb-first set grammar)
+cmd=foreground:seq=1:exec=ze set debug module bgp/bad
 expect=exit:code=1
 expect=stderr:contains=unknown subsystem
 expect=stderr:contains=valid subsystems

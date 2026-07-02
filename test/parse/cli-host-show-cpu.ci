@@ -1,11 +1,9 @@
-# Test: ze host show cpu returns CPU inventory JSON without daemon
-# VALIDATES: AC-1, AC-18 of spec-host-0-inventory.md -- offline host
-#            show cpu routes through cmdregistry into cmd/ze/host and
-#            produces JSON containing the logical-cpus field sourced
-#            from /proc/cpuinfo + sysfs on Linux.
-# PREVENTS: regressions where host show silently requires a daemon
-#           connection, or where the JSON output drops its canonical
-#           kebab-case fields.
+# Test: ze show host cpu returns CPU inventory JSON without a daemon
+# VALIDATES: offline fallback -- `show host cpu` falls back to the in-process
+#            host.RunShow when no daemon is reachable, producing JSON with the
+#            logical-cpus field sourced from /proc/cpuinfo + sysfs on Linux.
+# PREVENTS: regressions where show host silently requires a daemon connection,
+#           or where the JSON output drops its canonical kebab-case fields.
 # PLATFORM: host inventory reads /proc/cpuinfo + sysfs; the darwin
 # detector (cpu_other.go) returns ErrUnsupported at build time so the
 # underlying feature cannot succeed. Skip on darwin per
@@ -23,7 +21,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze host show cpu
+cmd=foreground:seq=1:exec=ze show host cpu
 expect=exit:code=0
 expect=stdout:contains="logical-cpus"
 expect=stdout:contains="vendor"

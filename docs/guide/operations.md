@@ -349,11 +349,11 @@ show crashes           # list crash files with timestamps
 show crashes latest    # display most recent crash report
 ```
 
-**CLI (offline, no daemon required):**
+**CLI (works with or without a daemon; falls back to in-process read when the daemon is down):**
 
 ```
-ze crashes show          # list crash files (JSON)
-ze crashes show latest   # display most recent crash report
+ze show crashes          # list crash files (JSON)
+ze show crashes latest   # display most recent crash report
 ```
 
 ### Collecting Debug Information

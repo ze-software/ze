@@ -1,0 +1,9 @@
+# Test: show event list is wired (verb-first, replaces noun-first `event list`)
+# VALIDATES: the meta plugin merges `show event list` onto the show verb tree,
+#   so the event-list command is discoverable and dispatches to its handler
+#   (ze-bgp:event-list).
+# PREVENTS: event-list becoming unreachable after moving from `event list` to
+#   `show event list` under the existing `show event` container.
+cmd=foreground:seq=1:exec=ze help command
+expect=exit:code=0
+expect=stdout:contains=show event list

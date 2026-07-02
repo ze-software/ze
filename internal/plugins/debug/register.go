@@ -1,7 +1,7 @@
 // Design: plan/learned/891-granular-debug.md -- debug CLI registration
-// Related: debug.go -- Run handler
+// Related: debug.go -- verb-first set/delete/show/clear handlers
 
-// codegen:skip -- CLI command wired via cmd/ze/main.go, not a runtime plugin.
+// codegen:skip -- CLI commands wired via the command registry, not a runtime plugin.
 
 package debug
 
@@ -10,24 +10,34 @@ import (
 )
 
 func init() {
-	registry.MustRegisterRootHandler("debug", func(_ *registry.RuntimeContext, args []string) int {
-		return Run(args)
-	}, registry.Meta{
-		Description: "Granular debug with toggle semantics and named profiles (stored in debug.zefs)",
-		Mode:        "offline",
-		Section:     registry.SectionOperations,
-		Subs:        "show, restore, clear, profile, timeout, <module>",
+	// Offline debug management: verb-first (set/delete/show/clear), editing the
+	// stored profile in debug.zefs which the daemon applies on load. Grammar
+	// follows VyOS syslog-level configuration (docs.vyos.io). Registered as
+	// local shortcuts under existing verb roots; cmdutil.RunCommand checks the
+	// local registry before the daemon, so they run in-process without shadowing
+	// the daemon `show debug` command (live runtime state, in yang/).
+	registry.MustRegisterLocalMeta("set debug module", runSetModule, registry.Meta{
+		Description: "Enable debug for a subsystem; optionally set level/flag/scope. E.g. 'set debug module bgp.reactor level debug'.",
 	})
-	registry.MustRegisterLocalMeta("debug show", func(args []string) int {
-		return Run(append([]string{"show"}, args...))
-	}, registry.Meta{Description: "Show active debug state (module, level, flags, scopes)."})
-	registry.MustRegisterLocalMeta("debug clear", func(args []string) int {
-		return Run(append([]string{"clear"}, args...))
-	}, registry.Meta{Description: "Clear default debug profile."})
-	registry.MustRegisterLocalMeta("debug restore", func(args []string) int {
-		return Run(append([]string{"restore"}, args...))
-	}, registry.Meta{Description: "Load and apply saved debug profile."})
-	registry.MustRegisterLocalMeta("debug profile", func(args []string) int {
-		return Run(append([]string{"profile"}, args...))
-	}, registry.Meta{Description: "Manage named debug profiles (save/list/delete)."})
+	registry.MustRegisterLocalMeta("delete debug module", runDeleteModule, registry.Meta{
+		Description: "Disable debug for a subsystem, or remove one of its flags/scopes.",
+	})
+	registry.MustRegisterLocalMeta("set debug timeout", runSetTimeout, registry.Meta{
+		Description: "Set the debug auto-disable timer (e.g. 30m, 1h, 90s; 0 disables).",
+	})
+	registry.MustRegisterLocalMeta("set debug profile name", runSaveProfile, registry.Meta{
+		Description: "Save the current debug state as a named profile.",
+	})
+	registry.MustRegisterLocalMeta("set debug active name", runRestoreProfile, registry.Meta{
+		Description: "Load a named debug profile and apply it to the running daemon.",
+	})
+	registry.MustRegisterLocalMeta("delete debug profile name", runDeleteProfileName, registry.Meta{
+		Description: "Delete a named debug profile.",
+	})
+	registry.MustRegisterLocalMeta("clear debug", func(_ []string) int { return cmdClear() }, registry.Meta{
+		Description: "Clear the default debug profile.",
+	})
+	registry.MustRegisterLocalMeta("show debug profile", runShowProfile, registry.Meta{
+		Description: "Show stored debug profiles (list, 'name <name>' for one, add 'module <prefix>' to filter).",
+	})
 }

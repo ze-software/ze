@@ -1,9 +1,10 @@
-// VALIDATES: AC-1 -- debug <module> when not in profile adds module, prints "enabled".
-// VALIDATES: AC-2 -- debug <module> when in profile removes module, prints "disabled".
-// VALIDATES: AC-3 -- debug <module> flag <flag> toggles flag entry.
-// VALIDATES: AC-12 -- debug restore loads and applies saved profile.
-// VALIDATES: AC-14 -- invalid flag name rejected with YANG-derived error.
-// PREVENTS: Toggle semantics broken, profile not persisting, timeout bounds violation.
+// VALIDATES: set debug module <m> enables the subsystem (level debug), idempotent.
+// VALIDATES: delete debug module <m> disables it.
+// VALIDATES: set/delete debug module <m> flag <f> add/remove a flag entry.
+// VALIDATES: set debug active name <n> loads and applies a saved profile.
+// VALIDATES: invalid flag/level rejected with a YANG-derived error.
+// VALIDATES: set debug timeout bounds (0..1440m).
+// PREVENTS: set/delete not persisting, non-idempotent enable, timeout bounds violation.
 
 package debug
 
@@ -31,110 +32,193 @@ func setupTestDebugStore(t *testing.T) func() {
 	return func() { debugStoreOverride = orig }
 }
 
-func TestDebugToggleOn(t *testing.T) {
+func TestDebugEnableModule(t *testing.T) {
 	slogutil.ResetLevelRegistry()
-	_ = slogutil.Logger("test.debug.toggle")
+	_ = slogutil.Logger("test.debug.enable")
 
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"test.debug.toggle"})
+	code := runSetModule([]string{"test.debug.enable"})
 	if code != 0 {
-		t.Fatalf("toggle on returned %d, want 0", code)
+		t.Fatalf("set debug module returned %d, want 0", code)
 	}
 
 	levels := slogutil.ListLevels()
-	if levels["test.debug.toggle"] != "debug" {
-		t.Errorf("level = %q, want debug", levels["test.debug.toggle"])
+	if levels["test.debug.enable"] != "debug" {
+		t.Errorf("level = %q, want debug", levels["test.debug.enable"])
 	}
 }
 
-func TestDebugToggleOff(t *testing.T) {
+func TestDebugEnableIdempotent(t *testing.T) {
 	slogutil.ResetLevelRegistry()
-	_ = slogutil.Logger("test.debug.toggle2")
+	_ = slogutil.Logger("test.debug.idem")
 
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	Run([]string{"test.debug.toggle2"})
-	code := Run([]string{"test.debug.toggle2"})
-	if code != 0 {
-		t.Fatalf("toggle off returned %d, want 0", code)
+	if code := runSetModule([]string{"test.debug.idem"}); code != 0 {
+		t.Fatalf("first enable returned %d, want 0", code)
+	}
+	if code := runSetModule([]string{"test.debug.idem"}); code != 0 {
+		t.Fatalf("second enable returned %d, want 0", code)
 	}
 
 	levels := slogutil.ListLevels()
-	if levels["test.debug.toggle2"] == "debug" {
-		t.Error("level should not be debug after toggle off")
+	if levels["test.debug.idem"] != "debug" {
+		t.Errorf("level = %q, want debug (enable must be idempotent)", levels["test.debug.idem"])
 	}
 }
 
-func TestDebugToggleFlag(t *testing.T) {
+func TestDebugDisableModule(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	_ = slogutil.Logger("test.debug.disable")
+
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	runSetModule([]string{"test.debug.disable"})
+	code := runDeleteModule([]string{"test.debug.disable"})
+	if code != 0 {
+		t.Fatalf("delete debug module returned %d, want 0", code)
+	}
+
+	levels := slogutil.ListLevels()
+	if levels["test.debug.disable"] == "debug" {
+		t.Error("level should not be debug after delete")
+	}
+}
+
+func TestDebugDisableIdempotent(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	// Deleting an already-absent module is a no-op success.
+	code := runDeleteModule([]string{"never.enabled"})
+	if code != 0 {
+		t.Errorf("delete of absent module returned %d, want 0", code)
+	}
+}
+
+func TestDebugSetFlag(t *testing.T) {
 	slogutil.ResetLevelRegistry()
 	_ = slogutil.Logger("test.debug.flag")
 
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"test.debug.flag", "flag", "update"})
+	code := runSetModule([]string{"test.debug.flag", "flag", "update"})
 	if code != 0 {
-		t.Fatalf("flag toggle returned %d, want 0", code)
+		t.Fatalf("set flag returned %d, want 0", code)
 	}
 }
 
-func TestDebugDirectionAsScope(t *testing.T) {
+func TestDebugDeleteFlag(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	_ = slogutil.Logger("test.debug.delflag")
+
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	runSetModule([]string{"test.debug.delflag", "flag", "update"})
+	code := runDeleteModule([]string{"test.debug.delflag", "flag", "update"})
+	if code != 0 {
+		t.Fatalf("delete flag returned %d, want 0", code)
+	}
+}
+
+func TestDebugSetDirectionScope(t *testing.T) {
 	slogutil.ResetLevelRegistry()
 	_ = slogutil.Logger("test.debug.dirscope")
 
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"test.debug.dirscope", "scope", "direction", "receive"})
+	code := runSetModule([]string{"test.debug.dirscope", "scope", "direction", "receive"})
 	if code != 0 {
-		t.Fatalf("direction scope toggle returned %d, want 0", code)
+		t.Fatalf("set direction scope returned %d, want 0", code)
 	}
 }
 
-func TestDebugToggleScope(t *testing.T) {
+func TestDebugSetNeighborScope(t *testing.T) {
 	slogutil.ResetLevelRegistry()
 	_ = slogutil.Logger("test.debug.scope")
 
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"test.debug.scope", "scope", "neighbor", "192.0.2.1"})
+	code := runSetModule([]string{"test.debug.scope", "scope", "neighbor", "192.0.2.1"})
 	if code != 0 {
-		t.Fatalf("scope toggle returned %d, want 0", code)
+		t.Fatalf("set neighbor scope returned %d, want 0", code)
 	}
 }
 
-func TestDebugShow(t *testing.T) {
+func TestDebugShowProfileByName(t *testing.T) {
 	slogutil.ResetLevelRegistry()
 	_ = slogutil.Logger("test.debug.show")
 
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	Run([]string{"test.debug.show"})
+	runSetModule([]string{"test.debug.show"})
 
-	code := Run([]string{"show"})
+	code := runShowProfile([]string{"name", "default"})
 	if code != 0 {
-		t.Fatalf("show returned %d, want 0", code)
+		t.Fatalf("show debug profile name default returned %d, want 0", code)
 	}
 }
 
-func TestDebugShowSubtree(t *testing.T) {
+func TestDebugShowProfileModuleFilter(t *testing.T) {
 	slogutil.ResetLevelRegistry()
-	_ = slogutil.Logger("test.debug.sub.a")
-	_ = slogutil.Logger("test.debug.sub.b")
+	_ = slogutil.Logger("test.debug.filt.a")
+	_ = slogutil.Logger("test.debug.filt.b")
 
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	Run([]string{"test.debug.sub.a"})
+	runSetModule([]string{"test.debug.filt.a"})
 
-	code := Run([]string{"show", "test.debug.sub"})
+	// `show debug profile name default module <prefix>` filters the subtree
+	// (preserves the historical `debug show <module>` view).
+	code := runShowProfile([]string{"name", "default", "module", "test.debug.filt"})
 	if code != 0 {
-		t.Fatalf("show subtree returned %d, want 0", code)
+		t.Fatalf("show debug profile name default module <prefix> returned %d, want 0", code)
+	}
+}
+
+func TestDebugShowProfileMalformedArgsRejected(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	// Trailing tokens that are not exactly `module <prefix>` are rejected,
+	// not silently ignored.
+	cases := [][]string{
+		{"name", "default", "module"},                 // module keyword, no value
+		{"name", "default", "junk"},                   // unknown trailing token
+		{"name", "default", "xxx", "bgp"},             // wrong keyword
+		{"name", "default", "module", "bgp", "extra"}, // extra token after filter
+	}
+	for _, args := range cases {
+		if code := runShowProfile(args); code != 1 {
+			t.Errorf("runShowProfile(%v) = %d, want 1", args, code)
+		}
+	}
+}
+
+func TestDebugShowProfileList(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	_ = slogutil.Logger("test.debug.list")
+
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	runSetModule([]string{"test.debug.list"})
+
+	code := runShowProfile(nil)
+	if code != 0 {
+		t.Fatalf("show debug profile (list) returned %d, want 0", code)
 	}
 }
 
@@ -145,7 +229,7 @@ func TestDebugRestore(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	Run([]string{"test.debug.restore"})
+	runSetModule([]string{"test.debug.restore"})
 
 	slogutil.RestoreLevel("test.debug.restore")
 	levels := slogutil.ListLevels()
@@ -153,9 +237,9 @@ func TestDebugRestore(t *testing.T) {
 		t.Fatal("level should not be debug after RestoreLevel")
 	}
 
-	code := Run([]string{"restore"})
+	code := runRestoreProfile([]string{"default"})
 	if code != 0 {
-		t.Fatalf("restore returned %d, want 0", code)
+		t.Fatalf("set debug active name default returned %d, want 0", code)
 	}
 
 	levels = slogutil.ListLevels()
@@ -171,16 +255,16 @@ func TestDebugProfileSaveList(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	Run([]string{"test.debug.profsave"})
+	runSetModule([]string{"test.debug.profsave"})
 
-	code := Run([]string{"profile", "save", "test-profile"})
+	code := runSaveProfile([]string{"test-profile"})
 	if code != 0 {
-		t.Fatalf("profile save returned %d, want 0", code)
+		t.Fatalf("set debug profile name returned %d, want 0", code)
 	}
 
-	code = Run([]string{"profile", "list"})
+	code = runShowProfile(nil)
 	if code != 0 {
-		t.Fatalf("profile list returned %d, want 0", code)
+		t.Fatalf("show debug profile list returned %d, want 0", code)
 	}
 }
 
@@ -191,12 +275,12 @@ func TestDebugProfileDelete(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	Run([]string{"test.debug.profdel"})
-	Run([]string{"profile", "save", "to-delete"})
+	runSetModule([]string{"test.debug.profdel"})
+	runSaveProfile([]string{"to-delete"})
 
-	code := Run([]string{"profile", "delete", "to-delete"})
+	code := runDeleteProfileName([]string{"to-delete"})
 	if code != 0 {
-		t.Fatalf("profile delete returned %d, want 0", code)
+		t.Fatalf("delete debug profile name returned %d, want 0", code)
 	}
 }
 
@@ -207,11 +291,11 @@ func TestDebugClear(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	Run([]string{"test.debug.clear"})
+	runSetModule([]string{"test.debug.clear"})
 
-	code := Run([]string{"clear"})
+	code := cmdClear()
 	if code != 0 {
-		t.Fatalf("clear returned %d, want 0", code)
+		t.Fatalf("clear debug returned %d, want 0", code)
 	}
 
 	levels := slogutil.ListLevels()
@@ -226,7 +310,7 @@ func TestDebugUnregisteredSubsystemAccepted(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"any.module.name"})
+	code := runSetModule([]string{"any.module.name"})
 	if code != 0 {
 		t.Errorf("unregistered subsystem returned %d, want 0 (profile stores intent)", code)
 	}
@@ -236,23 +320,16 @@ func TestDebugInvalidModuleName(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"has/slash"})
+	code := runSetModule([]string{"has/slash"})
 	if code != 1 {
 		t.Errorf("module with slash returned %d, want 1", code)
 	}
 }
 
-func TestDebugNoArgs(t *testing.T) {
-	code := Run(nil)
+func TestDebugSetModuleNoArgs(t *testing.T) {
+	code := runSetModule(nil)
 	if code != 1 {
-		t.Errorf("no args returned %d, want 1", code)
-	}
-}
-
-func TestDebugHelp(t *testing.T) {
-	code := Run([]string{"help"})
-	if code != 0 {
-		t.Errorf("help returned %d, want 0", code)
+		t.Errorf("set debug module with no args returned %d, want 1", code)
 	}
 }
 
@@ -260,7 +337,7 @@ func TestDebugTimeoutMinutes(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "30m"})
+	code := runSetTimeout([]string{"30m"})
 	if code != 0 {
 		t.Fatalf("timeout 30m returned %d, want 0", code)
 	}
@@ -270,7 +347,7 @@ func TestDebugTimeoutHours(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "1h"})
+	code := runSetTimeout([]string{"1h"})
 	if code != 0 {
 		t.Fatalf("timeout 1h returned %d, want 0", code)
 	}
@@ -280,7 +357,7 @@ func TestDebugTimeoutSeconds(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "90s"})
+	code := runSetTimeout([]string{"90s"})
 	if code != 0 {
 		t.Fatalf("timeout 90s returned %d, want 0", code)
 	}
@@ -290,7 +367,7 @@ func TestDebugTimeoutZero(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "0"})
+	code := runSetTimeout([]string{"0"})
 	if code != 0 {
 		t.Fatalf("timeout 0 returned %d, want 0", code)
 	}
@@ -300,7 +377,7 @@ func TestDebugTimeoutLastValid(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "1440m"})
+	code := runSetTimeout([]string{"1440m"})
 	if code != 0 {
 		t.Fatalf("timeout 1440m returned %d, want 0", code)
 	}
@@ -310,7 +387,7 @@ func TestDebugTimeout24h(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "24h"})
+	code := runSetTimeout([]string{"24h"})
 	if code != 0 {
 		t.Fatalf("timeout 24h returned %d, want 0", code)
 	}
@@ -320,7 +397,7 @@ func TestDebugTimeoutAboveMax(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "1441m"})
+	code := runSetTimeout([]string{"1441m"})
 	if code != 1 {
 		t.Errorf("timeout 1441m returned %d, want 1", code)
 	}
@@ -330,7 +407,7 @@ func TestDebugTimeoutAboveMax25h(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "25h"})
+	code := runSetTimeout([]string{"25h"})
 	if code != 1 {
 		t.Errorf("timeout 25h returned %d, want 1", code)
 	}
@@ -340,7 +417,7 @@ func TestDebugTimeoutNoUnit(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "30"})
+	code := runSetTimeout([]string{"30"})
 	if code != 1 {
 		t.Errorf("timeout without unit returned %d, want 1", code)
 	}
@@ -350,7 +427,7 @@ func TestDebugTimeoutBadFormat(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "abc"})
+	code := runSetTimeout([]string{"abc"})
 	if code != 1 {
 		t.Errorf("timeout abc returned %d, want 1", code)
 	}
@@ -360,7 +437,7 @@ func TestDebugTimeoutOverflow(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "99999999999999999999m"})
+	code := runSetTimeout([]string{"99999999999999999999m"})
 	if code != 1 {
 		t.Errorf("overflow duration returned %d, want 1", code)
 	}
@@ -380,12 +457,12 @@ func TestDebugInvalidFlagRejected(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"test.debug.flagval", "flag", "nonexistent"})
+	code := runSetModule([]string{"test.debug.flagval", "flag", "nonexistent"})
 	if code != 1 {
 		t.Errorf("invalid flag returned %d, want 1", code)
 	}
 
-	code = Run([]string{"test.debug.flagval", "flag", "update"})
+	code = runSetModule([]string{"test.debug.flagval", "flag", "update"})
 	if code != 0 {
 		t.Errorf("valid flag returned %d, want 0", code)
 	}
@@ -401,7 +478,7 @@ func TestDebugNoFlagsRegisteredAcceptsAny(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"test.debug.noflag", "flag", "anything"})
+	code := runSetModule([]string{"test.debug.noflag", "flag", "anything"})
 	if code != 0 {
 		t.Errorf("flag with no modules should be accepted (no validation), got %d", code)
 	}
@@ -414,8 +491,8 @@ func TestDebugOverlappingModulesSpecificWins(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	Run([]string{"test.debug.overlap", "level", "debug"})
-	Run([]string{"test.debug.overlap.child", "level", "info"})
+	runSetModule([]string{"test.debug.overlap", "level", "debug"})
+	runSetModule([]string{"test.debug.overlap.child", "level", "info"})
 
 	levels := slogutil.ListLevels()
 	if levels["test.debug.overlap.child"] != "info" {
@@ -430,7 +507,7 @@ func TestDebugInvalidLevelRejected(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"test.debug.badlevel", "level", "bogus"})
+	code := runSetModule([]string{"test.debug.badlevel", "level", "bogus"})
 	if code != 1 {
 		t.Errorf("invalid level returned %d, want 1", code)
 	}
@@ -443,7 +520,7 @@ func TestDebugSetLevel(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"test.debug.level", "level", "info"})
+	code := runSetModule([]string{"test.debug.level", "level", "info"})
 	if code != 0 {
 		t.Fatalf("set level returned %d, want 0", code)
 	}

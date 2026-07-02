@@ -83,7 +83,13 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 		return -1 // signal caller to show usage (all words were format keyword)
 	}
 
-	if !IsValidCommand(treeWords, tree) {
+	// A command absent from this binary's local command tree may still be a
+	// daemon command with a registered offline fallback (e.g. show crashes, show
+	// host). Route those to the daemon path below: cli.Run serves them from the
+	// daemon when reachable and from the in-process fallback when not, so they
+	// are never rejected as unknown and the fallback never shadows the daemon.
+	fallbackHandler, _ := registry.LookupOfflineFallback(cmdWords)
+	if !IsValidCommand(treeWords, tree) && fallbackHandler == nil {
 		fmt.Fprintf(os.Stderr, "error: unknown command: %s\n", textbuf.Join(cmdWords, " "))
 		if suggestion := SuggestFromTree(cmdWords[0], tree); suggestion != "" {
 			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", suggestion)

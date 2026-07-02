@@ -1,7 +1,9 @@
 // Design: plan/learned/726-diag-crash-capture.md -- offline crash file viewer
 //
-// Package crashes provides `ze crashes show [latest|<name>]`. Works offline
-// (no daemon required) by reading crash files directly from disk.
+// Package crashes provides the in-process offline fallback for
+// `show crashes [latest | name <file>]`. It reads crash files directly from
+// disk, so it works when no daemon is reachable -- the situation you are in
+// when inspecting a crash, since the daemon has died.
 
 package crashes
 
@@ -11,11 +13,6 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
 )
-
-func RunHint(_ []string) int {
-	os.Stdout.WriteString("Usage: ze crashes show [latest|<filename>]\n") //nolint:errcheck // CLI hint
-	return 0
-}
 
 func RunShow(args []string) int {
 	crashlog.Init()

@@ -1,0 +1,11 @@
+# Test: show crashes works offline (no daemon) via the offline fallback
+# VALIDATES: `show crashes` routes to the in-process crashlog fallback when no
+#            daemon is reachable -- essential because you inspect crashes after
+#            the daemon has died.
+# REGRESSION: the fallback was unreachable because RunCommand rejected commands
+#            absent from the CLI tree before reaching cli.Run; RunCommand now
+#            routes commands with a registered offline fallback to the daemon
+#            path (daemon when up, in-process fallback when down).
+cmd=foreground:seq=1:exec=ze show crashes
+expect=exit:code=0
+expect=stdout:contains=crashes

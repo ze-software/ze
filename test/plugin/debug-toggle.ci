@@ -1,8 +1,10 @@
-# Test: ze debug toggle, show, profile, clear
-# VALIDATES: AC-1 toggle on, AC-2 toggle off, AC-6 show, AC-13 profile save
-# PREVENTS: debug CLI dispatch broken, toggle not persisting, show empty
+# Test: verb-first debug management (set/delete/show/clear)
+# VALIDATES: set debug module (enable), delete debug module (disable),
+#            show debug profile, set/delete debug profile name, clear debug,
+#            set debug timeout bounds, invalid module rejected.
+# PREVENTS: debug CLI dispatch broken, set/delete not persisting, show empty
 
-tmpfs=test-debug-toggle.sh:mode=755:terminator=EOF_SH
+tmpfs=test-debug-verb.sh:mode=755:terminator=EOF_SH
 #!/bin/sh
 set -e
 
@@ -11,54 +13,54 @@ TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 export ze_debug_store="$TMPDIR/debug.zefs"
 
-# Toggle on
-OUT=$(ze debug bgp.reactor)
-echo "$OUT" | grep -q "enabled" || { echo "FAIL: toggle on: $OUT" >&2; exit 1; }
+# Enable
+OUT=$(ze set debug module bgp.reactor)
+echo "$OUT" | grep -q "enabled" || { echo "FAIL: enable: $OUT" >&2; exit 1; }
 
-# Show lists the module
-OUT=$(ze debug show)
-echo "$OUT" | grep -q "bgp.reactor" || { echo "FAIL: show after toggle: $OUT" >&2; exit 1; }
+# Show default profile lists the module
+OUT=$(ze show debug profile name default)
+echo "$OUT" | grep -q "bgp.reactor" || { echo "FAIL: show after enable: $OUT" >&2; exit 1; }
 
-# Toggle off
-OUT=$(ze debug bgp.reactor)
-echo "$OUT" | grep -q "disabled" || { echo "FAIL: toggle off: $OUT" >&2; exit 1; }
+# Disable
+OUT=$(ze delete debug module bgp.reactor)
+echo "$OUT" | grep -q "disabled" || { echo "FAIL: disable: $OUT" >&2; exit 1; }
 
 # Profile save
-ze debug bgp.reactor >/dev/null
-OUT=$(ze debug profile save myprofile)
+ze set debug module bgp.reactor >/dev/null
+OUT=$(ze set debug profile name myprofile)
 echo "$OUT" | grep -q "saved" || { echo "FAIL: profile save: $OUT" >&2; exit 1; }
 
 # Profile list
-OUT=$(ze debug profile list)
+OUT=$(ze show debug profile)
 echo "$OUT" | grep -q "myprofile" || { echo "FAIL: profile list: $OUT" >&2; exit 1; }
 
 # Clear
-OUT=$(ze debug clear)
+OUT=$(ze clear debug)
 echo "$OUT" | grep -q "cleared" || { echo "FAIL: clear: $OUT" >&2; exit 1; }
 
-# Show after clear is empty
-OUT=$(ze debug show)
+# Show default after clear no longer has the module
+OUT=$(ze show debug profile name default)
 if echo "$OUT" | grep -q "bgp.reactor"; then
   echo "FAIL: show after clear still has module" >&2; exit 1
 fi
 
 # Timeout with duration unit
-OUT=$(ze debug timeout 30m)
+OUT=$(ze set debug timeout 30m)
 echo "$OUT" | grep -q "timeout" || { echo "FAIL: timeout 30m: $OUT" >&2; exit 1; }
 
 # Bare number rejected
-if ze debug timeout 30 2>/dev/null; then
+if ze set debug timeout 30 2>/dev/null; then
   echo "FAIL: bare number accepted" >&2; exit 1
 fi
 
 # Invalid module name
-if ze debug "has/slash" 2>/dev/null; then
+if ze set debug module "has/slash" 2>/dev/null; then
   echo "FAIL: slash accepted" >&2; exit 1
 fi
 
-echo "OK: all debug toggle tests passed" >&2
+echo "OK: all verb-first debug tests passed" >&2
 exit 0
 EOF_SH
 
-cmd=foreground:seq=1:exec=./test-debug-toggle.sh:timeout=10s
+cmd=foreground:seq=1:exec=./test-debug-verb.sh:timeout=10s
 expect=exit:code=0

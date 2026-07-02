@@ -31,21 +31,7 @@ import (
 // map; it was deleted when the canonical registry landed in the
 // host package.
 
-// RunHint is the handler for bare `ze host` (no subcommand). Prints
-// one usage line to stdout and returns 0. The registry routes
-// subcommand-less invocations here so the operator sees a purpose-
-// ful hint rather than the generic dispatcher's "unknown command"
-// response.
-func RunHint(_ []string) int {
-	usage := "Usage: ze host show [" + strings.ReplaceAll(sectionList(), ", ", "|") + "] [--text]\n"
-	if _, err := os.Stdout.WriteString(usage); err != nil {
-		fmt.Fprintf(os.Stderr, "error: write: %v\n", err)
-		return 1
-	}
-	return 0
-}
-
-// RunShow implements `ze host show [section] [--text]`. Default output
+// RunShow implements `show host [section]` as the offline fallback. Default
 // is JSON (machine-parseable — ISP pipelines); `--text` produces a
 // human-readable summary. Returns 0 on success, 1 on argument / IO
 // error.

@@ -1,6 +1,6 @@
-# Test: ze debug show renders the active debug-state table
-# VALIDATES: structured debug-state display (toggle grammar, see 891-granular-debug)
-cmd=foreground:seq=1:exec=ze debug show
+# Test: show debug profile renders the stored debug-state table
+# VALIDATES: verb-first stored debug view (set/delete/show grammar)
+cmd=foreground:seq=1:exec=ze show debug profile name default
 expect=exit:code=0
 expect=stdout:contains=MODULE
 expect=stdout:contains=LEVEL

@@ -1,30 +1,20 @@
-// Register the `ze host` entry point with the cmd/ze dispatcher.
-// Imported by cmd/ze/main.go for its side effects.
+// Register the offline fallback for `show host` with the command registry.
+// `show host [section]` is a daemon command (host-cmd plugin); this fallback
+// serves the same hardware inventory in-process (host.DetectSection) when no
+// daemon is reachable, so an operator can read it before the daemon is up.
+// Imported by cmd/ze for its side effects.
 
-// codegen:skip -- CLI command wired via cmd/ze/main.go, not a runtime plugin.
+// codegen:skip -- offline fallback wired via the command registry, not a runtime plugin.
 
 package host
 
 import (
-	"strings"
-
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 func init() {
-	// The section list is derived from validSections (the single source
-	// of truth in host.go), not hardcoded here — adding a new section
-	// only requires editing the map, not the help metadata.
-	registry.RegisterRoot("host", registry.Meta{
-		Description: "Show hardware inventory for this box (offline)",
-		Mode:        "offline",
-		Section:     registry.SectionSystem,
-		Subs:        "show [" + strings.ReplaceAll(sectionList(), ", ", "|") + "] [--text]",
-	})
-	registry.MustRegisterLocalMeta("host show", RunShow, registry.Meta{
-		Description: "Show hardware details by section (cpu, nic, dmi, memory, thermal, storage, kernel). JSON by default, --text for human-readable.",
-	})
-	registry.MustRegisterLocalMeta("host", RunHint, registry.Meta{
-		Description: "Show hardware inventory for this box (offline)",
-	})
+	// Offline fallback only: consulted solely when the daemon is unreachable,
+	// so it never shadows the daemon `show host` command. RunShow takes the
+	// section as its first arg, matching the tokens after `show host`.
+	registry.MustRegisterOfflineFallback("show host", RunShow)
 }

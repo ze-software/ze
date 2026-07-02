@@ -17,7 +17,7 @@ stdin=config:terminator=EOF_CONF
 bgp { }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze host show bogus
+cmd=foreground:seq=1:exec=ze show host bogus
 expect=exit:code=1
 expect=stderr:contains=unknown section
 expect=stderr:contains=cpu

@@ -231,21 +231,22 @@ ze.log.config=debug ze bgp server config.conf
 
 ## 5. Granular Debug (runtime)
 
-Toggle debug per-module with filters and named profiles:
+Set debug per-module with filters and named profiles (verb-first, VyOS-style):
 
 ```bash
-ze debug bgp.reactor                         # Toggle debug on/off
-ze debug bgp.reactor flag update             # Filter to specific flag
-ze debug bgp.reactor scope neighbor 192.0.2.1  # Filter by scope
-ze debug show                                # Show stored profile (offline)
-show debug                                   # Show live daemon state (YANG RPC)
-ze debug profile save deep-trace             # Save named profile
-ze debug restore                             # Reload saved profile after restart
+ze set debug module bgp.reactor                        # Enable debug
+ze set debug module bgp.reactor flag update            # Add a flag filter
+ze set debug module bgp.reactor scope neighbor 192.0.2.1  # Add a scope filter
+ze delete debug module bgp.reactor                     # Disable debug
+ze show debug profile name default                     # Show stored profile (offline)
+show debug                                              # Show live daemon state (YANG RPC)
+ze set debug profile name deep-trace                   # Save named profile
+ze set debug active name deep-trace                    # Apply a saved profile after restart
 ```
 
-`debug show` reads from `debug.zefs` (works offline). `show debug` queries the running
-daemon's actual slogutil state (requires daemon).
-<!-- source: internal/plugins/debug/debug.go -- Run, cmdToggle -->
+`show debug profile name <name>` reads from `debug.zefs` (works offline). `show debug`
+queries the running daemon's actual slogutil state (requires daemon).
+<!-- source: internal/plugins/debug/debug.go -- runSetModule, runDeleteModule -->
 <!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
 
 ---
