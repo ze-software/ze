@@ -2,7 +2,7 @@
 
 A year of commits, at a glance.
 
-- Total added lines:** 1,775,699**
+- Total added lines:** 1,777,365**
  - Days with added lines:** 195**
  - Peak line day (2026-07-02):** 68,057**
  - Days shown:** 365**
@@ -12,27 +12,27 @@ A year of commits, at a glance.
 
 ### Total Code
 
- - Files:** 5,257**
- - Total lines:** 1,137,647**
- - Code:** 847,831**
- - Blank:** 130,552**
- - Comments:** 159,264**
+ - Files:** 5,266**
+ - Total lines:** 1,139,486**
+ - Code:** 849,023**
+ - Blank:** 130,735**
+ - Comments:** 159,728**
 
 ### Production
 
- - Files:** 3,084**
- - Total lines:** 595,790**
- - Code:** 444,903**
- - Blank:** 63,599**
- - Comments:** 87,288**
+ - Files:** 3,087**
+ - Total lines:** 596,531**
+ - Code:** 445,385**
+ - Blank:** 63,673**
+ - Comments:** 87,473**
 
 ### Test
 
- - Files:** 2,173**
- - Total lines:** 541,857**
- - Code:** 402,928**
- - Blank:** 66,953**
- - Comments:** 71,976**
+ - Files:** 2,179**
+ - Total lines:** 542,955**
+ - Code:** 403,638**
+ - Blank:** 67,062**
+ - Comments:** 72,255**
 
 ### Dependencies
 

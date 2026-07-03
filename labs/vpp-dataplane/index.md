@@ -1,4 +1,4 @@
-## VPP Dataplane Evidence
+# VPP Dataplane Evidence
 
 Ze programs FIB, traffic, and firewall state into a real VPP daemon over GoVPP -- the evidence behind the production numbers quoted in the VPP guide.
 

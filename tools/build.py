@@ -78,6 +78,7 @@ STEPS = [
     "cli",
     "deps",
     "config",
+    "facts",
     "contribute",
     "contribguide",
     "talks",
@@ -92,6 +93,7 @@ STEPS = [
     "timeline",
     "nav",
     "search",
+    "seo",
     "llms",
 ]
 
@@ -207,6 +209,12 @@ def step_config():
     render_config_reference = load_module("render-config-reference")
     return render_config_reference.main()
 
+def step_facts():
+    render_site_facts = load_module("render-site-facts")
+    return render_site_facts.main()
+
+
+
 
 def step_contribute():
     render_doc = load_module("render-doc")
@@ -311,6 +319,12 @@ def step_search():
     render_search_index = load_module("render-search-index")
     return render_search_index.main()
 
+def step_seo():
+    render_seo = load_module("render-seo")
+    return render_seo.main()
+
+
+
 
 def step_talks():
     render_talks = load_module("render-talks")
@@ -352,6 +366,7 @@ STEP_FUNCS = {
     "cli": step_cli,
     "deps": step_deps,
     "config": step_config,
+    "facts": step_facts,
     "contribute": step_contribute,
     "contribguide": step_contribguide,
     "talks": step_talks,
@@ -367,6 +382,7 @@ STEP_FUNCS = {
     "llms": step_llms,
     "nav": step_nav,
     "search": step_search,
+    "seo": step_seo,
 }
 
 
@@ -378,74 +394,13 @@ STEP_FUNCS = {
 
 
 def check_homepage_proof_drift():
-    """The homepage proof-strip (render-index.py PROOF_STATS) states floors
-    like "17,300+ unit tests" -- hand-set because computing them exactly
-    means walking ../main (test funcs, fuzz targets, .ci files, interop
-    Dockerfiles), which render-index.py doesn't do on every run. Warn if the
-    live count in ../main ever drops below (or, for the exact interop-target
-    count, diverges from) the stated number -- that turns a "+" floor into
-    an outright overstatement, the same drift class as the other checks."""
-    import re
+    """Homepage proof-strip counts now come from data/site-facts.json.
 
-    render_index = load_module("render-index")
-    stats = render_index.PROOF_STATS
-
-    main_repo = (GH_PAGES.parent / "main").resolve()
-    if not main_repo.exists():
-        return
-    skip_dirs = {"vendor", ".claude", ".git"}
-    test_func_re = re.compile(r"^func Test[A-Za-z0-9_]+\(", re.MULTILINE)
-    fuzz_func_re = re.compile(r"^func Fuzz[A-Za-z0-9_]+\(", re.MULTILINE)
-
-    def under_skip_dir(path):
-        return bool(skip_dirs & set(path.relative_to(main_repo).parts))
-
-    unit_tests = 0
-    fuzz_targets = 0
-    for path in main_repo.rglob("*_test.go"):
-        if under_skip_dir(path):
-            continue
-        text = path.read_text(errors="ignore")
-        unit_tests += len(test_func_re.findall(text))
-        fuzz_targets += len(fuzz_func_re.findall(text))
-
-    test_dir = main_repo / "test"
-    e2e_tests = sum(
-        1
-        for path in (test_dir.rglob("*.ci") if test_dir.exists() else [])
-        if not under_skip_dir(path)
-    )
-
-    interop_dir = main_repo / "test" / "interop"
-    interop_targets = 1 + sum(  # +1 for FRR, pulled via FRR_IMAGE env var
-        1
-        for path in (interop_dir.glob("Dockerfile.*") if interop_dir.exists() else [])
-        if path.name != "Dockerfile.ze"
-    )
-
-    def floor_int(s):
-        return int(s.rstrip("+").replace(",", ""))
-
-    for key, live, label in [
-        ("unit_tests", unit_tests, "unit test functions"),
-        ("e2e_tests", e2e_tests, "end-to-end .ci files"),
-        ("fuzz_targets", fuzz_targets, "fuzz targets"),
-    ]:
-        stated = floor_int(stats[key])
-        if stated > live:
-            sitelib.warn(
-                "render-index.py PROOF_STATS[%r] claims %r but "
-                "../main currently has %d %s -- lower the stated floor"
-                % (key, stats[key], live, label)
-            )
-
-    if floor_int(stats["interop_targets"]) != interop_targets:
-        sitelib.warn(
-            "render-index.py PROOF_STATS['interop_targets'] claims "
-            "%r but ../main/test/interop currently has %d target Dockerfiles "
-            "+ FRR -- update the stated number"
-            % (stats["interop_targets"], interop_targets)
-        )
+    The facts step computes them from ../main before index rendering, so the
+    old floor drift check is obsolete. Keep this hook as a named no-op because
+    main() still runs the shared drift hooks before selected build steps.
+    """
+    return
 
 
 def check_llms_md_siblings():

@@ -240,7 +240,7 @@ def render(data):
     out.append('            <section aria-labelledby="milestones-title">')
     out.append('                <div class="section-head reveal">')
     out.append(
-        '                    <h2 id="milestones-title">The road so far.</h2>'
+        '                    <h1 id="milestones-title">The road so far.</h1>'
     )
     out.append(
         "                    <p>%d milestones, oldest first. %s</p>"

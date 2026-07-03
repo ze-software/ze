@@ -18,6 +18,8 @@ import urllib.request
 from html.parser import HTMLParser
 from urllib.parse import urljoin
 
+import sitefacts
+
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 DATA_DIR = GH_PAGES / "data"
@@ -25,8 +27,15 @@ DATA_DIR = GH_PAGES / "data"
 # Published site root -- every render-*.py that needs to turn a page-relative
 # href into an absolute URL (llms.txt entries, Markdown mirrors whose links
 # must resolve outside the site's own relative-path structure) imports this
-# instead of hardcoding it a second time.
-SITE_BASE = "https://ze-software.github.io/ze/"
+# instead of hardcoding it a second time. This MUST be the live canonical
+# domain (the CNAME apex), not the github.io project URL, which 301-redirects
+# here: sitemap <loc> entries, the robots.txt Sitemap line, JSON-LD url, and
+# og:image must all point at the final URL, never a cross-host redirect.
+SITE_BASE = "https://ze-software.net/"
+FONT_CSS_URL = (
+    "https://fonts.googleapis.com/css2?"
+    "family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+)
 
 
 # Build-time drift warnings that MUST be resolved before a build can pass.
@@ -194,7 +203,13 @@ def _nav_badge(href, aria_label, icon_path, icon_viewbox, count_text):
         "</span>\n"
         '                        <span class="nav-badge-count">%s</span>\n'
         "                    </a>\n"
-    ) % (href, aria_label, icon_viewbox, icon_path, count_text)
+    ) % (
+        html.escape(href, quote=True),
+        html.escape(aria_label, quote=True),
+        html.escape(icon_viewbox, quote=True),
+        html.escape(icon_path, quote=True),
+        html.escape(str(count_text)),
+    )
 
 
 def _nav_search_badge(root):
@@ -203,13 +218,15 @@ def _nav_search_badge(root):
         '                        class="nav-badge nav-badge-search"\n'
         '                        href="%ssearch/"\n'
         '                        aria-label="Search the site"\n'
+        '                        aria-expanded="false"\n'
         "                    >\n"
         '                        <span class="nav-badge-icon">'
         '<svg viewBox="0 0 512 512" fill="currentColor" aria-hidden="true">'
         '<path d="%s"/></svg>'
         "</span>\n"
+        '                        <span class="nav-badge-count nav-badge-search-label">Search</span>\n'
         "                    </a>\n"
-    ) % (root, SEARCH_ICON_PATH)
+    ) % (html.escape(root, quote=True), html.escape(SEARCH_ICON_PATH, quote=True))
 
 
 def build_nav_badges(root=""):
@@ -232,31 +249,45 @@ def build_nav_badges(root=""):
     return "".join(out)
 
 
+def nav_slug(label):
+    slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")
+    return slug or "menu"
+
+
 def nav_item(root, href, icon, title, desc, feature=False):
     cls = "nav-dropdown-item nav-dropdown-feature" if feature else "nav-dropdown-item"
     return (
-        '                        <a class="%s" href="%s%s">\n'
+        '                        <a class="%s" href="%s">\n'
         '                            <span class="nav-dropdown-icon">%s</span>\n'
         "                            <span><strong>%s</strong><small>%s</small></span>\n"
         "                        </a>\n"
-    ) % (cls, root, href, icon, title, desc)
+    ) % (
+        cls,
+        html.escape(root + href, quote=True),
+        html.escape(icon),
+        html.escape(title),
+        html.escape(desc),
+    )
 
 
 def nav_dropdown(label, columns):
+    panel_id = "nav-panel-" + nav_slug(label)
     out = ['                    <div class="nav-dropdown">\n']
     out.append(
-        '                    <button class="nav-dropdown-trigger" type="button">%s\n'
+        '                    <button class="nav-dropdown-trigger" type="button" '
+        'aria-haspopup="true" aria-expanded="false" aria-controls="%s">%s\n'
         "                        %s\n"
-        "                    </button>\n" % (label, NAV_CHEVRON)
+        "                    </button>\n"
+        % (panel_id, html.escape(label), NAV_CHEVRON)
     )
-    out.append('                    <div class="nav-dropdown-panel">\n')
+    out.append('                    <div class="nav-dropdown-panel" id="%s">\n' % panel_id)
     for col in columns:
         out.append('                    <div class="nav-dropdown-col">\n')
         for entry in col:
             if isinstance(entry, str):
                 out.append(
                     '                        <span class="nav-dropdown-label">%s</span>\n'
-                    % entry
+                    % html.escape(entry)
                 )
             else:
                 out.append(nav_item(*entry))
@@ -274,58 +305,23 @@ def nav_dropdown_rooted(root, label, columns):
     return nav_dropdown(label, rooted_columns)
 
 
-_GO_REQUIRE_BLOCK_RE = re.compile(r"require\s*\(([^)]*)\)", re.DOTALL)
-_GO_REQUIRE_LINE_RE = re.compile(r"^\s*(\S+)\s+(\S+)(\s*//\s*indirect)?\s*$")
 
 
 def live_counts():
-    """The live numbers substituted into data/nav.json desc placeholders
-    (%(name)s), so the mega-menu counts are computed, never hardcoded, and
-    can never drift out of sync the way a hand-typed number did. Each is read
-    from the same source the corresponding page is generated from. A missing
-    source yields "?" rather than crashing the whole build."""
-    counts = {}
-
-    def count(key, fn):
-        try:
-            counts[key] = fn()
-        except (OSError, KeyError, ValueError, StopIteration):
-            counts[key] = "?"
-
-    # Features: shipped + experimental cards (roadmap excluded), the same
-    # basis render-features.py's own intro count uses.
-    def features():
-        data = json.loads((DATA_DIR / "features.json").read_text())
-        return sum(
-            len(s["cards"])
-            for s in data["sections"]
-            if s["id"] in ("core", "experimental")
-        )
-
-    # CLI commands and config sections come from data files regenerated from
-    # the live binary each build (cli / config steps).
-    def cli_commands():
-        return len(json.loads((DATA_DIR / "cli-commands.json").read_text()))
-
-    def config_sections():
-        return len(json.loads((DATA_DIR / "yang-config-tree.json").read_text()))
-
-    # Direct go.mod dependencies (require lines without "// indirect").
-    def dependencies():
-        text = (GH_PAGES.parent / "main" / "go.mod").read_text()
-        n = 0
-        for block in _GO_REQUIRE_BLOCK_RE.findall(text):
-            for line in block.splitlines():
-                m = _GO_REQUIRE_LINE_RE.match(line)
-                if m and not m.group(3):
-                    n += 1
-        return n
-
-    count("features", features)
-    count("cli_commands", cli_commands)
-    count("config_sections", config_sections)
-    count("dependencies", dependencies)
-    return counts
+    """The live numbers substituted into data/nav.json desc placeholders."""
+    try:
+        facts = sitefacts.load_facts()
+    except (OSError, KeyError, ValueError):
+        facts = {}
+    features = facts.get("features", {})
+    return {
+        "features": features.get("core_experimental", "?"),
+        "cli_commands": facts.get("cli_commands", "?"),
+        "config_sections": facts.get("config_sections", "?"),
+        "dependencies": facts.get("dependencies", "?"),
+        "changes": facts.get("changes", "?"),
+        "articles": facts.get("blog_articles", "?"),
+    }
 
 
 def load_nav_data():
@@ -396,11 +392,14 @@ def blog_dropdown_columns(n=5):
 
 def build_navblock(root):
     data = load_nav_data()
-    out = ['                <div class="nav-links">\n']
+    out = ['                <div id="site-nav-links" class="nav-links">\n']
     for link in data["top_links"]:
         out.append(
             '                    <a href="%s">%s</a>\n'
-            % (rooted_href(root, link["href"]), link["label"])
+            % (
+                html.escape(rooted_href(root, link["href"]), quote=True),
+                html.escape(link["label"]),
+            )
         )
     for dropdown in data["dropdowns"]:
         if dropdown.get("dynamic") == "blog":
@@ -411,14 +410,17 @@ def build_navblock(root):
     for link in data["trailing_links"]:
         out.append(
             '                    <a href="%s">%s</a>\n'
-            % (rooted_href(root, link["href"]), link["label"])
+            % (
+                html.escape(rooted_href(root, link["href"]), quote=True),
+                html.escape(link["label"]),
+            )
         )
     out.append(build_nav_badges(root))
     out.append("                </div>")
     return "".join(out)
 
 
-NAV_LINKS_START_RE = re.compile(r'[ \t]*<div class="nav-links">')
+NAV_LINKS_START_RE = re.compile(r'[ \t]*<div\b[^>]*class="nav-links"[^>]*>')
 DIV_OPEN_RE = re.compile(r"<div\b")
 DIV_CLOSE_RE = re.compile(r"</div>")
 
@@ -453,7 +455,7 @@ def patch_navblock(html_text, root):
     m = NAV_LINKS_START_RE.search(html_text)
     if not m:
         raise ValueError('no <div class="nav-links"> found')
-    div_start = html_text.index('<div class="nav-links">', m.start())
+    div_start = m.start()
     end = _find_balanced_div_end(html_text, div_start)
     return html_text[: m.start()] + build_navblock(root) + html_text[end:]
 
@@ -597,15 +599,95 @@ _ASSET_REF_RE = re.compile(r"assets/site\.(css|js)(?:\?v=[0-9a-f]+)?")
 
 
 def patch_asset_versions(html_text):
-    """Refresh (or add) the ?v=<hash> cache-buster on site.css/site.js links
-    in an already hand-authored / previously rendered page, so nav-patched
-    pages get the same cache-busting as freshly rendered ones."""
-    return _ASSET_REF_RE.sub(
+    """Refresh shared generated head bits in already-authored pages."""
+    html_text = _ASSET_REF_RE.sub(
         lambda m: "assets/site.%s%s"
         % (m.group(1), asset_query("assets/site." + m.group(1))),
         html_text,
     )
+    html_text = _FONT_REF_RE.sub(FONT_CSS_URL, html_text)
+    html_text = patch_social_meta(html_text)
+    return patch_structured_data(html_text)
 
+
+_FONT_REF_RE = re.compile(r"https://fonts\.googleapis\.com/css2\?family=Poppins[^\"']+display=swap")
+_STRUCTURED_DATA_RE = re.compile(
+    r'[ \t]*<script type="application/ld\+json">.*?</script>\n?', re.DOTALL
+)
+
+
+def structured_data_script():
+    data = {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "WebSite",
+                "name": "Ze",
+                "url": SITE_BASE,
+                "description": (
+                    "Open, programmable network OS for Linux with BGP, IS-IS, "
+                    "OSPF, telemetry, operator interfaces, and plugins."
+                ),
+                "inLanguage": "en",
+            },
+            {
+                "@type": "SoftwareSourceCode",
+                "name": "Ze",
+                "description": (
+                    "Open-source network OS for Linux, built around native "
+                    "routing engines and operator automation."
+                ),
+                "codeRepository": CODEBERG_REPO,
+                "license": "https://www.gnu.org/licenses/agpl-3.0.en.html",
+                "programmingLanguage": "Go",
+                "runtimePlatform": "Linux",
+                "applicationCategory": "Network operating system",
+                "isAccessibleForFree": True,
+            },
+        ],
+    }
+    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace(
+        "</", "<\\/"
+    )
+    return '        <script type="application/ld+json">%s</script>\n' % payload
+
+
+def patch_structured_data(html_text):
+    script = structured_data_script()
+    cleaned = _STRUCTURED_DATA_RE.sub("", html_text)
+    return cleaned.replace("    </head>\n", script + "    </head>\n", 1)
+
+
+# A raster 1200x630 card -- SVG is not rendered by social scrapers.
+OG_IMAGE = SITE_BASE + "assets/social-card.png"
+
+_SOCIAL_META = (
+    '        <meta property="og:image" content="%s" />\n'
+    '        <meta property="og:image:width" content="1200" />\n'
+    '        <meta property="og:image:height" content="630" />\n'
+    '        <meta property="og:image:alt" '
+    'content="Ze, an open, programmable network OS for Linux" />\n'
+    '        <meta name="twitter:card" content="summary_large_image" />\n'
+    '        <meta name="twitter:image" content="%s" />\n'
+) % (html.escape(OG_IMAGE, quote=True), html.escape(OG_IMAGE, quote=True))
+
+_OG_TYPE_RE = re.compile(r'([ \t]*<meta property="og:type"[^>]*>\n)')
+
+
+def patch_social_meta(html_text):
+    """Give hand-authored pages the same share-card meta as generated pages.
+
+    Idempotent: any page rendered through page_head already declares og:image
+    (and its explicit twitter:title/description), so those are left untouched.
+    Hand-authored heads carry only og:title/og:description/og:type, so append
+    the shared image + large-image twitter card; twitter falls back to the
+    existing og:title/og:description for the text."""
+    if 'property="og:image"' in html_text:
+        return html_text
+    m = _OG_TYPE_RE.search(html_text)
+    if m:
+        return html_text[: m.end()] + _SOCIAL_META + html_text[m.end() :]
+    return html_text.replace("    </head>\n", _SOCIAL_META + "    </head>\n", 1)
 
 PAGE_HEAD = """<!doctype html>
 <html lang="en">
@@ -617,27 +699,40 @@ PAGE_HEAD = """<!doctype html>
         <meta property="og:title" content="{og_title}" />
         <meta property="og:description" content="{og_desc}" />
         <meta property="og:type" content="website" />
+        <meta property="og:image" content="{og_image}" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="{og_title}" />
+        <meta name="twitter:description" content="{og_desc}" />
+        <meta name="twitter:image" content="{og_image}" />
         <link rel="icon" href="{root}assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            href="{font_css}"
             rel="stylesheet"
         />
         <link rel="stylesheet" href="{site_css}" />
-{extra_head}    </head>
+{json_ld}{extra_head}    </head>
     <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
         <header class="site-header">
             <nav class="nav" aria-label="Main navigation">
                 <a class="brand" href="{brand_href}" aria-label="Ze home">
                     <img src="{root}assets/ze.svg" alt="" width="32" height="32" />
                     <span>Ze</span>
                 </a>
+                <button class="nav-menu-toggle" type="button" aria-controls="site-nav-links" aria-expanded="false">
+                    <span class="nav-menu-toggle-bars" aria-hidden="true"></span>
+                    <span>Menu</span>
+                </button>
 {navblock}
             </nav>
         </header>
 
-        <main id="top">
+        <main id="top" tabindex="-1">
 """
 
 PAGE_FOOT = """        </main>
@@ -651,16 +746,24 @@ PAGE_FOOT = """        </main>
 
 
 def page_head(title, desc, root, og_title=None, og_desc=None, extra_head=""):
+    page_title = str(title)
+    page_desc = str(desc)
+    social_title = str(og_title if og_title is not None else title)
+    social_desc = str(og_desc if og_desc is not None else desc)
+    og_image = OG_IMAGE
     return PAGE_HEAD.format(
-        title=title,
-        desc=desc,
-        og_title=og_title if og_title is not None else title,
-        og_desc=og_desc if og_desc is not None else desc,
+        title=html.escape(page_title),
+        desc=html.escape(page_desc, quote=True),
+        og_title=html.escape(social_title, quote=True),
+        og_desc=html.escape(social_desc, quote=True),
+        og_image=html.escape(og_image, quote=True),
         root=root,
         site_css=asset_url(root, "assets/site.css"),
-        brand_href=rooted_href(root, "index.html#top"),
+        font_css=html.escape(FONT_CSS_URL, quote=True),
+        brand_href=html.escape(rooted_href(root, "index.html#top"), quote=True),
         navblock=build_navblock(root),
         extra_head=extra_head,
+        json_ld=structured_data_script(),
     )
 
 

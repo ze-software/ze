@@ -8,14 +8,21 @@
         <meta property="og:title" content="PPPoE Interop - Ze" />
         <meta property="og:description" content="Ze PPPoE client against real accel-ppp, the dominant open-source access concentrator." />
         <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=ee13a92027" />
+        <link rel="stylesheet" href="../../assets/site.css?v=dac44333bd" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <header class="site-header">
@@ -24,14 +31,14 @@
                     <img src="../../assets/ze.svg" alt="" width="32" height="32" />
                     <span>Ze</span>
                 </a>
-                <div class="nav-links">
+                <div id="site-nav-links" class="nav-links">
                     <a href="../../index.html#status">Status</a>
                     <a href="../../index.html#try">Try</a>
                     <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Project
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-project">Project
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-panel" id="nav-panel-project">
                     <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../../features/">
                             <span class="nav-dropdown-icon">🧩</span>
@@ -63,10 +70,10 @@
                     </div>
                     </div>
                     <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Journey
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-journey">Journey
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-panel" id="nav-panel-journey">
                     <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../../roadmap/">
                             <span class="nav-dropdown-icon">🗺️</span>
@@ -88,10 +95,10 @@
                     </div>
                     </div>
                     <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Docs
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-docs">Docs
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-panel" id="nav-panel-docs">
                     <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item nav-dropdown-feature" href="../../docs/">
                             <span class="nav-dropdown-icon">📚</span>
@@ -147,10 +154,10 @@
                     </div>
                     </div>
                     <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Labs
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-labs">Labs
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-panel" id="nav-panel-labs">
                     <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../../labs/bgp-interop/">
                             <span class="nav-dropdown-icon">🌐</span>
@@ -197,8 +204,10 @@
                         class="nav-badge nav-badge-search"
                         href="../../search/"
                         aria-label="Search the site"
+                        aria-expanded="false"
                     >
                         <span class="nav-badge-icon"><svg viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/></svg></span>
+                        <span class="nav-badge-count nav-badge-search-label">Search</span>
                     </a>
                     <a
                         class="nav-badge"
@@ -228,7 +237,7 @@
         <main id="top">
             <section aria-labelledby="lab-title">
                 <div class="section-head reveal cat-services">
-                    <h2 id="lab-title">PPPoE Interop</h2>
+                    <h1 id="lab-title">PPPoE Interop</h1>
                     <p>
                         Ze's PPPoE client against real
                         <code>accel-ppp</code>, the dominant open-source
@@ -316,7 +325,7 @@
             </section>
         </main>
 
-<script src="../../assets/site.js?v=009147356b" defer></script>
+<script src="../../assets/site.js?v=74c603e2dc" defer></script>
 
         <footer>
             <div class="footer-inner">

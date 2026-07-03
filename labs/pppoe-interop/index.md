@@ -1,4 +1,4 @@
-## PPPoE Interop
+# PPPoE Interop
 
 Ze's PPPoE client against real `accel-ppp`, the dominant open-source BRAS/access concentrator.
 

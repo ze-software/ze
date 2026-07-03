@@ -90,14 +90,14 @@ PAGE = """<!doctype html>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            href="{font_css}"
             rel="stylesheet"
         />
         <link rel="stylesheet" href="{site_css}" />
         <style>
 {style}
         </style>
-    </head>
+{json_ld}    </head>
     <body>
         <header class="site-header">
             <nav class="nav" aria-label="Main navigation">
@@ -112,7 +112,7 @@ PAGE = """<!doctype html>
         <main id="top">
             <section aria-labelledby="activity-title">
                 <div class="section-head reveal cat-observe">
-                    <h2 id="activity-title">Development activity.</h2>
+                    <h1 id="activity-title">Development activity.</h1>
                     <p>A year of commits, at a glance.</p>
                 </div>
                 <div class="activity-widget reveal" aria-label="Activity heatmap">
@@ -444,6 +444,8 @@ def main():
     page = PAGE.format(
         style=STYLE,
         site_css=sitelib.asset_url("../", "assets/site.css"),
+        font_css=sitelib.FONT_CSS_URL,
+        json_ld=sitelib.structured_data_script(),
         site_js=sitelib.asset_url("../", "assets/site.js"),
         navblock=sitelib.build_navblock("../"),
         stats=stats_html,
@@ -454,6 +456,7 @@ def main():
         script=script_html,
         footer=sitelib.footer_html("../"),
     )
+    page = sitelib.patch_social_meta(page)
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_text(page)
     sitelib.write_markdown_sibling(

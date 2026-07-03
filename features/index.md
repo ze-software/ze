@@ -14,7 +14,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **rollback** and **diff**
 - **Command** mode
 
-[Learn more](https://ze-software.github.io/ze/docs/features/cli-commands/)
+[Learn more](https://ze-software.net/docs/features/cli-commands/)
 
 ### YANG Configuration
 
@@ -24,7 +24,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **One model** for everything
 - **Plugin** defined
 
-[Learn more](https://ze-software.github.io/ze/docs/features/configuration/)
+[Learn more](https://ze-software.net/docs/features/configuration/)
 
 ### Output Formatting
 
@@ -34,7 +34,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **match**, **count**, **first**/**last**
 - Offline via **ze format**
 
-[Learn more](https://ze-software.github.io/ze/docs/features/formatting/)
+[Learn more](https://ze-software.net/docs/features/formatting/)
 
 ### Web Workbench
 
@@ -44,7 +44,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - Config editor, **admin** panel
 - **Live updates** via SSE
 
-[Learn more](https://ze-software.github.io/ze/docs/features/web-interface/)
+[Learn more](https://ze-software.net/docs/features/web-interface/)
 
 ### Looking Glass
 
@@ -54,7 +54,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **Topology** graph
 - SSE streaming for **live state**
 
-[Learn more](https://ze-software.github.io/ze/docs/features/looking-glass/)
+[Learn more](https://ze-software.net/docs/features/looking-glass/)
 
 ### System Readiness
 
@@ -64,7 +64,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **Platform-aware**: gokrazy, systemd, container, plain-Linux detection
 - `--json` output with stable diagnostic codes and `ze explain <code>` **remediation**
 
-[Learn more](https://ze-software.github.io/ze/docs/features/)
+[Learn more](https://ze-software.net/docs/features/)
 
 ### Native BGP Engine
 
@@ -74,7 +74,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **Lazy parsing**, buffer-first encoding
 - Negotiated **capabilities**
 
-[Learn more](https://ze-software.github.io/ze/docs/features/bgp-protocol/)
+[Learn more](https://ze-software.net/docs/features/bgp-protocol/)
 
 ### Static Routes
 
@@ -84,7 +84,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **BFD**-tracked failover
 - Multi-path **ECMP** groups
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/static-routes/)
+[Learn more](https://ze-software.net/docs/guide/static-routes/)
 
 ### BFD
 
@@ -94,7 +94,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - GTSM, jitter, **BGP** integration
 - SHA1/MD5 **auth**, echo mode
 
-[Learn more](https://ze-software.github.io/ze/docs/features/bgp-protocol/)
+[Learn more](https://ze-software.net/docs/features/bgp-protocol/)
 
 ### MRT Recording
 
@@ -104,7 +104,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **Strftime** file rotation
 - Show, inject, replay, **filter**
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/mrt-analysis/)
+[Learn more](https://ze-software.net/docs/guide/mrt-analysis/)
 
 ### DNS Resolver
 
@@ -114,7 +114,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **| resolve** and **| origin** pipe operators
 - No external **daemon** needed
 
-[Learn more](https://ze-software.github.io/ze/docs/features/dns-resolver/)
+[Learn more](https://ze-software.net/docs/features/dns-resolver/)
 
 ### Plugin System
 
@@ -124,7 +124,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **Persistence**, NLRI families
 - Independent, **composable**
 
-[Learn more](https://ze-software.github.io/ze/docs/features/plugins/)
+[Learn more](https://ze-software.net/docs/features/plugins/)
 
 ### Programmable
 
@@ -134,7 +134,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - External **process plugins**
 - Automate from **any language**
 
-[Learn more](https://ze-software.github.io/ze/docs/features/api-commands/)
+[Learn more](https://ze-software.net/docs/features/api-commands/)
 
 ### AI-First Design
 
@@ -144,7 +144,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - Structured **diagnostics**: `ze explain <code>` and machine-parseable repair plans
 - **Version-matched skills** served by the binary for agent workflows
 
-[Learn more](https://ze-software.github.io/ze/docs/features/ai-first/)
+[Learn more](https://ze-software.net/docs/features/ai-first/)
 
 ### MCP Integration
 
@@ -154,7 +154,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - Server-initiated **elicitation**, task-augmented tool calls
 - **MCP Apps UI** with embedded panels
 
-[Learn more](https://ze-software.github.io/ze/docs/features/mcp-integration/)
+[Learn more](https://ze-software.net/docs/features/mcp-integration/)
 
 ### ExaBGP Compatibility
 
@@ -164,7 +164,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **Plugin bridge** for existing workflows
 - Smooth **transition** path
 
-[Learn more](https://ze-software.github.io/ze/docs/features/exabgp-compatibility/)
+[Learn more](https://ze-software.net/docs/features/exabgp-compatibility/)
 
 ### Evidence Over Claims
 
@@ -174,7 +174,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - Performance **benchmarks**
 - **Interop** vs FRR, BIRD, GoBGP
 
-[Learn more](https://ze-software.github.io/ze/docs/features/interoperability-testing/)
+[Learn more](https://ze-software.net/docs/features/interoperability-testing/)
 
 ### Development Activity
 
@@ -184,7 +184,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - Regenerated from git history, not curated
 - Top commit and line days, ranked
 
-[Learn more](https://ze-software.github.io/ze/activity/)
+[Learn more](https://ze-software.net/activity/)
 
 ### Prometheus Telemetry
 
@@ -194,7 +194,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **Netdata** naming, drop-in replacement
 - Existing **Grafana** dashboards keep working
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/monitoring/)
+[Learn more](https://ze-software.net/docs/guide/monitoring/)
 
 ### Health Registry
 
@@ -204,7 +204,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - Per-component **status** checks
 - BGP, FIB, IPsec, L2TP, **VPP**
 
-[Learn more](https://ze-software.github.io/ze/docs/features/)
+[Learn more](https://ze-software.net/docs/features/)
 
 ### Host Inventory
 
@@ -214,7 +214,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **SMART** disk health and self-tests
 - **JSON** output for pipelines
 
-[Learn more](https://ze-software.github.io/ze/docs/features/)
+[Learn more](https://ze-software.net/docs/features/)
 
 ### Crash Capture
 
@@ -224,7 +224,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - Ring buffer **context** (last 64 entries)
 - **show crashes** CLI command
 
-[Learn more](https://ze-software.github.io/ze/docs/features/)
+[Learn more](https://ze-software.net/docs/features/)
 
 ### Tech-Support Bundle
 
@@ -234,7 +234,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - Structured **JSON** per module
 - Privacy-by-default, **gokrazy**-safe
 
-[Learn more](https://ze-software.github.io/ze/docs/features/)
+[Learn more](https://ze-software.net/docs/features/)
 
 ### Production Diagnostics
 
@@ -244,7 +244,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **tcpdump**, traceroute, ping, mtr
 - All exposed via **MCP** for AI debugging
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/production-diagnostics/)
+[Learn more](https://ze-software.net/docs/guide/production-diagnostics/)
 
 ### Secure by Default
 
@@ -254,7 +254,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **RPKI** route origin validation
 - No **other daemons** needed
 
-[Learn more](https://ze-software.github.io/ze/docs/features/plugins/)
+[Learn more](https://ze-software.net/docs/features/plugins/)
 
 ### TACACS+ AAA
 
@@ -264,7 +264,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - Command **accounting** START/STOP
 - Server failover, **local** fallback
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/tacacs/)
+[Learn more](https://ze-software.net/docs/guide/tacacs/)
 
 ### Audit Trail
 
@@ -274,7 +274,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - Failed **auth** across all surfaces
 - Filter by action, actor, **time**
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/audit/)
+[Learn more](https://ze-software.net/docs/guide/audit/)
 
 ### PKI Store
 
@@ -284,7 +284,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - Chain validation, **expiry** checks
 - Shared by IPsec, **TLS**, mutual auth
 
-[Learn more](https://ze-software.github.io/ze/docs/features/)
+[Learn more](https://ze-software.net/docs/features/)
 
 ### Two Targets
 
@@ -295,7 +295,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - Single **static binary**
 - Ideal for **virtual networking**
 
-[Learn more](https://ze-software.github.io/ze/docs/features/interfaces/)
+[Learn more](https://ze-software.net/docs/features/interfaces/)
 
 ### Runs Itself
 
@@ -305,7 +305,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - Built-in **readiness** checks
 - No **orchestrator** needed
 
-[Learn more](https://ze-software.github.io/ze/docs/features/introspection/)
+[Learn more](https://ze-software.net/docs/features/introspection/)
 
 ### Docker Support
 
@@ -315,7 +315,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 - **Compose** support included
 - Optional **build tags**
 
-[Learn more](https://ze-software.github.io/ze/docs/features/)
+[Learn more](https://ze-software.net/docs/features/)
 
 ## Experimental and growing.
 
@@ -331,7 +331,7 @@ Implemented and tested, not yet production-proven.
 - **NAT-T**, keepalive, XFRM interfaces
 - EAP-MSCHAPv2, **EAP-TLS**, road warrior
 
-[Learn more](https://ze-software.github.io/ze/docs/features/)
+[Learn more](https://ze-software.net/docs/features/)
 
 ### L2TPv2 BNG
 
@@ -341,7 +341,7 @@ Implemented and tested, not yet production-proven.
 - **RADIUS** auth, accounting, CoA
 - CQM monitoring, **shaping**, web UI
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/l2tp/)
+[Learn more](https://ze-software.net/docs/guide/l2tp/)
 
 ### PPPoE Access
 
@@ -351,7 +351,7 @@ Implemented and tested, not yet production-proven.
 - Shared **PPP driver** with L2TP
 - HMAC-SHA256 **cookie**, rate limiting
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/pppoe/)
+[Learn more](https://ze-software.net/docs/guide/pppoe/)
 
 ### Interface Management
 
@@ -361,7 +361,7 @@ Implemented and tested, not yet production-proven.
 - 8 tunnel kinds, **DHCP** client
 - NTP sync, **offload** tuning, mirroring
 
-[Learn more](https://ze-software.github.io/ze/docs/features/interfaces/)
+[Learn more](https://ze-software.net/docs/features/interfaces/)
 
 ### Firewall
 
@@ -371,7 +371,7 @@ Implemented and tested, not yet production-proven.
 - SNAT, DNAT, **masquerade**
 - FlowSpec-to-firewall **bridge**
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/firewall/)
+[Learn more](https://ze-software.net/docs/guide/firewall/)
 
 ### Policy Routing
 
@@ -381,7 +381,7 @@ Implemented and tested, not yet production-proven.
 - Table steering, **next-hop** actions
 - TCP-MSS clamping, **interface** wildcards
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/policy-routing/)
+[Learn more](https://ze-software.net/docs/guide/policy-routing/)
 
 ### VPP Data Plane
 
@@ -391,7 +391,7 @@ Implemented and tested, not yet production-proven.
 - MPLS **label** operations
 - Per-interface **Prometheus** metrics
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/vpp/)
+[Learn more](https://ze-software.net/docs/guide/vpp/)
 
 ### MPLS / LDP / RSVP-TE
 
@@ -401,7 +401,7 @@ Implemented and tested, not yet production-proven.
 - LDP **discovery** and sessions
 - RSVP-TE **ERO**, bandwidth admission
 
-[Learn more](https://ze-software.github.io/ze/docs/features/)
+[Learn more](https://ze-software.net/docs/features/)
 
 ### OSPF
 
@@ -411,7 +411,7 @@ Implemented and tested, not yet production-proven.
 - Stub, totally-stubby, **NSSA** areas
 - Redistributes with **BGP** both ways
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/ospf/)
+[Learn more](https://ze-software.net/docs/guide/ospf/)
 
 ### IS-IS
 
@@ -421,7 +421,7 @@ Implemented and tested, not yet production-proven.
 - RFC 5304/5310 **authentication**, key chains
 - Dual-stack **IPv6**, redistributes with BGP
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/isis/)
+[Learn more](https://ze-software.net/docs/guide/isis/)
 
 ### Flow Export
 
@@ -431,7 +431,7 @@ Implemented and tested, not yet production-proven.
 - Packet sampling, **conntrack** flows
 - BGP **next-hop** enrichment
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/flow-export/)
+[Learn more](https://ze-software.net/docs/guide/flow-export/)
 
 ### Install and Provision
 
@@ -441,7 +441,7 @@ Implemented and tested, not yet production-proven.
 - Bootable **ISO** builder
 - systemd install, **uninstall**
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/ze-install/)
+[Learn more](https://ze-software.net/docs/guide/ze-install/)
 
 ### Kernel Tunables
 
@@ -451,7 +451,7 @@ Implemented and tested, not yet production-proven.
 - Named **profiles** (DSR, router, hardened)
 - Originals **restored** on stop
 
-[Learn more](https://ze-software.github.io/ze/docs/features/)
+[Learn more](https://ze-software.net/docs/features/)
 
 ### AS112 Anycast DNS
 
@@ -461,7 +461,7 @@ Implemented and tested, not yet production-proven.
 - Conditional **BGP origination** via healthcheck-gated watchdog
 - Anycast IPs bound on **lo** automatically, never operator-typed
 
-[Learn more](https://ze-software.github.io/ze/docs/guide/as112/)
+[Learn more](https://ze-software.net/docs/guide/as112/)
 
 ### Segment Routing
 

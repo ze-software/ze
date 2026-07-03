@@ -1,6 +1,6 @@
 # CLI Reference
 
-380 commands across 45 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.github.io/ze/data/cli-commands.json).
+380 commands across 43 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
 
 ## announce (1)
 
@@ -29,25 +29,19 @@
 | `clear ospf process` | Daemon | Full OSPF reset: tear down every adjacency and re-run SPF. Usage: clear ospf process. Adjacencies re-form from the next Hello; the configuration is unchanged. |
 | `clear vpn ipsec sa` | Daemon | Tear down IKE Security Associations. Without arguments, terminates all SAs. Use 'peer <name>' to clear just one peer. The tunnel will renegotiate automatically if the config is still active. |
 
-## config (1)
-
-| Command | Mode | Description |
-| --- | --- | --- |
-| `config archive` | Daemon | Save a snapshot of the current running configuration. Captures the config into the store for later rollback or comparison. Optional name labels the snapshot; defaults to a timestamp. |
-
 ## create (9)
 
 | Command | Mode | Description |
 | --- | --- | --- |
-| `create interface address` | Daemon | Add an IP address to an interface. Usage: create interface <name> address <prefix>. Interface must already exist. |
-| `create interface bridge` | Daemon | Create a Linux bridge for L2 forwarding. Usage: create interface bridge <name>. |
-| `create interface bridge address` | Daemon | Create a bridge (if needed) and add an IP address. Usage: create interface bridge <name> address <prefix>. |
-| `create interface bridge unit` | Daemon | Create a bridge (if needed) and add a VLAN sub-interface. Usage: create interface bridge <name> unit <vid>. |
-| `create interface dummy` | Daemon | Create a dummy (loopback-style) interface. Usage: create interface dummy <name>. |
-| `create interface dummy address` | Daemon | Create a dummy interface (if needed) and add an IP address. Usage: create interface dummy <name> address <prefix>. |
-| `create interface dummy unit` | Daemon | Create a dummy interface (if needed) and add a VLAN sub-interface. Usage: create interface dummy <name> unit <vid>. |
-| `create interface unit` | Daemon | Add a VLAN sub-interface (802.1Q tagged). Usage: create interface <parent> unit <vid>. Parent must already exist. |
-| `create interface veth` | Daemon | Create a veth pair (two linked virtual Ethernet interfaces). Usage: create interface veth <name> <peer>. |
+| `create interface address` | Daemon | Add an IP address to an interface. Usage: create interface address <name> <prefix>. Interface must already exist. |
+| `create interface bridge name` | Daemon | Create a Linux bridge for L2 forwarding. Usage: create interface bridge name <name>. |
+| `create interface bridge name address` | Daemon | Add an IP address to the bridge. Usage: create interface bridge name <name> address <prefix>. |
+| `create interface bridge name unit` | Daemon | Add a VLAN sub-interface to the bridge. Usage: create interface bridge name <name> unit <vid>. |
+| `create interface dummy name` | Daemon | Create a dummy (loopback-style) interface. Usage: create interface dummy name <name>. |
+| `create interface dummy name address` | Daemon | Add an IP address to the dummy. Usage: create interface dummy name <name> address <prefix>. |
+| `create interface dummy name unit` | Daemon | Add a VLAN sub-interface to the dummy. Usage: create interface dummy name <name> unit <vid>. |
+| `create interface unit` | Daemon | Add a VLAN sub-interface (802.1Q tagged). Usage: create interface unit <parent> <vid>. Parent must already exist. |
+| `create interface veth name` | Daemon | Create a veth pair (two linked virtual Ethernet interfaces). Usage: create interface veth name <name> <peer>. |
 
 ## debug (4)
 
@@ -65,9 +59,9 @@
 | `delete bgp peer` | Daemon | Remove a peer from the running config. Tears down the TCP session and deletes the peer from the running configuration. Does not modify the config file on disk. |
 | `delete debug module` | Offline | Disable debug for a subsystem, or remove one of its flags/scopes. |
 | `delete debug profile name` | Offline | Delete a named debug profile. |
-| `delete interface` | Daemon | Delete an interface from the kernel. Usage: delete interface <name>. |
-| `delete interface address` | Daemon | Remove an IP address from an interface. Usage: delete interface <name> address <prefix>. |
-| `delete interface unit` | Daemon | Remove a VLAN sub-interface. Usage: delete interface <name> unit. |
+| `delete interface name` | Daemon | Delete an interface from the kernel. Usage: delete interface name <name>. |
+| `delete interface name address` | Daemon | Remove an IP address from an interface. Usage: delete interface name <name> address <prefix>. |
+| `delete interface name unit` | Daemon | Remove a VLAN sub-interface. Usage: delete interface name <name> unit. |
 
 ## doctor (1)
 
@@ -109,12 +103,6 @@
 | `help` | Read-only | Show available commands at this level. Lists every registered command verb with a brief description. |
 | `help ai` | Offline | AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json). |
 | `help command` | Offline | List every command with its description. Use a filter to narrow the list. |
-
-## metrics (1)
-
-| Command | Mode | Description |
-| --- | --- | --- |
-| `metrics pool` | Daemon | Show attribute pool memory usage and dedup efficiency. Returns allocated entries, reference counts, and deduplication hit rates per attribute type. Watch the dedup rate to gauge how much memory pooling is saving you. |
 
 ## monitor (8)
 
@@ -184,7 +172,7 @@
 | `request peer resume` | Daemon | Resume reading from a previously paused peer. Usage: request peer <selector> resume. |
 | `request peer teardown` | Daemon | Tear down a peer session. Usage: request peer <selector> teardown [cease-subcode]. |
 
-## request (other) (12)
+## request (other) (13)
 
 | Command | Mode | Description |
 | --- | --- | --- |
@@ -192,6 +180,7 @@
 | `request bgp rib inject` | Daemon | Inject a synthetic route into the Adj-RIB-In. Behaves as if the route was received from a peer. Use this for testing policy filters or simulating route announcements. |
 | `request bgp rib withdraw` | Daemon | Withdraw a route from the Adj-RIB-In. Removes a previously injected or received route from a peer's Adj-RIB-In, triggering best-path recomputation. |
 | `request commit` | Daemon | Group route changes into named atomic commits. Actions: start (begin a commit), end (finalize), eor (signal end of RIB), rollback (undo), show (inspect), withdraw (remove all routes in a commit), list (show all commits). Grammar: request commit <action> <name> [args]. |
+| `request config archive` | Daemon | Save a snapshot of the current running configuration. Captures the config into the store for later rollback or comparison. Optional name labels the snapshot; defaults to a timestamp. |
 | `request halt` | Daemon | Dump goroutine stacks to stderr and terminate immediately. |
 | `request log level` | Daemon | Change a subsystem's log level without restarting. Usage: request log level <logger> <level>. Takes effect immediately. Set to debug when troubleshooting, then back to info when you are done. |
 | `request ospf graceful-restart` | Daemon | Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1). Usage: request ospf graceful-restart. The engine originates one Grace-LSA per interface, persists the non-volatile restart fact, and suppresses route churn so the FIB is retained across the ensuing control-plane restart. Refused when graceful-restart is not configured. |
@@ -470,7 +459,7 @@
 | `show vpp trace show` | Read-only | Retrieve packets captured since the last trace start. Shows per-packet VPP graph node traversal. Requires the VPP backend. |
 | `show vpp trace start` | Read-only | Start capturing packets in the VPP dataplane. Default input node is dpdk-input, default count is 100 (max 10000). After starting, use 'show vpp trace show' to retrieve the captured packets. Requires the VPP backend. |
 
-## show (other) (78)
+## show (other) (79)
 
 | Command | Mode | Description |
 | --- | --- | --- |
@@ -516,6 +505,7 @@
 | `show log levels` | Read-only | Show what log level each subsystem is using. Lists every registered logger with its current level. Use 'request log level' to change a level at runtime without restarting. |
 | `show log recent` | Read-only | Show recent log entries from the in-memory ring. Filters (all optional): level <lvl>, component <name>, count <N>. Newest entries first. Useful when you cannot access the log file directly. |
 | `show metrics list` | Read-only | List all registered metric names (no values). Useful for discovering what metrics exist before querying them. |
+| `show metrics pool` | Read-only | Show attribute pool memory usage and dedup efficiency. Returns allocated entries, reference counts, and deduplication hit rates per attribute type. Watch the dedup rate to gauge how much memory pooling is saving you. |
 | `show metrics values` | Read-only | Dump all metrics in Prometheus text format. Outputs every registered metric with labels and values. Suitable for feeding into Prometheus, Grafana, or curl-based monitoring. |
 | `show metrics-query` | Read-only | Query a specific Prometheus metric by name. Usage: show metrics-query <name> [label=value ...]. Returns matching time series from the internal registry. Multiple label filters are ANDed. More targeted than the full metrics dump. |
 | `show mpls forwarding` | Read-only | Show MPLS forwarding entries installed in the kernel. Each entry shows the incoming label, swap/push/pop operation, and outgoing next-hop. Pass 'limit N' to cap large tables. Linux only. |

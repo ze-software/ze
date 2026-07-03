@@ -165,6 +165,30 @@ a {
     color: inherit;
 }
 
+:focus-visible {
+    outline: 3px solid var(--sky-base);
+    outline-offset: 3px;
+}
+
+.skip-link {
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 200;
+    padding: 0.55rem 0.8rem;
+    border-radius: 0.6rem;
+    background: var(--term-bg);
+    color: #fff;
+    font-weight: 800;
+    text-decoration: none;
+    transform: translateY(-150%);
+    transition: transform 160ms ease;
+}
+
+.skip-link:focus-visible {
+    transform: translateY(0);
+}
+
 .site-header {
     position: sticky;
     top: 0;
@@ -216,6 +240,10 @@ a {
     color: var(--text);
     font-size: 0.9rem;
     font-weight: 600;
+}
+
+.nav-links > * {
+    flex: 0 0 auto;
 }
 
 .nav-links a {
@@ -271,6 +299,50 @@ a {
 
 .nav-badge:hover .nav-badge-icon {
     background: var(--sky-chip);
+}
+
+.nav-menu-toggle {
+    display: none;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--header-border);
+    border-radius: 0.7rem;
+    background: var(--panel-strong);
+    color: var(--text);
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: var(--clay);
+}
+
+.nav-menu-toggle-bars,
+.nav-menu-toggle-bars::before,
+.nav-menu-toggle-bars::after {
+    display: block;
+    width: 1rem;
+    height: 2px;
+    border-radius: 99px;
+    background: currentColor;
+    content: "";
+}
+
+.nav-menu-toggle-bars {
+    position: relative;
+}
+
+.nav-menu-toggle-bars::before,
+.nav-menu-toggle-bars::after {
+    position: absolute;
+    left: 0;
+}
+
+.nav-menu-toggle-bars::before {
+    top: -0.35rem;
+}
+
+.nav-menu-toggle-bars::after {
+    top: 0.35rem;
 }
 
 .nav-dropdown {
@@ -337,7 +409,8 @@ a {
 }
 
 .nav-dropdown:hover .nav-dropdown-panel,
-.nav-dropdown:focus-within .nav-dropdown-panel {
+.nav-dropdown:focus-within .nav-dropdown-panel,
+.nav-dropdown.is-open .nav-dropdown-panel {
     display: flex;
 }
 
@@ -566,7 +639,7 @@ h2 {
  * topic or umbrella headings (e.g. "Every feature Ze ships") stay the
  * default flat color below by simply not carrying a cat-* class.
  */
-.section-head[class*="cat-"] h2,
+.section-head[class*="cat-"] :is(h1, h2),
 .md-content[class*="cat-"] > h1:first-child {
     color: var(--acc-mid, var(--text));
 }
@@ -826,6 +899,11 @@ section {
 }
 
 .reveal {
+    opacity: 1;
+    transform: none;
+}
+
+.js .reveal.reveal-pending {
     opacity: 0;
     transform: translateY(1.5rem);
     transition:
@@ -833,7 +911,7 @@ section {
         transform 600ms ease;
 }
 
-.reveal.visible {
+.js .reveal.visible {
     opacity: 1;
     transform: translateY(0);
 }
@@ -846,7 +924,7 @@ section {
     margin-bottom: 0.9rem;
 }
 
-.section-head h2 {
+.section-head :is(h1, h2) {
     margin-bottom: 0.5rem;
     font-size: clamp(1.8rem, 3.4vw, 2.6rem);
 }
@@ -1784,20 +1862,80 @@ footer {
 
 @media (max-width: 700px) {
     .nav {
-        align-items: flex-start;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+    }
+
+    .nav-menu-toggle {
+        display: inline-flex;
+        justify-self: end;
     }
 
     .nav-links {
+        grid-column: 1 / -1;
+        flex-direction: column;
+        align-items: stretch;
         width: 100%;
-        overflow-x: auto;
-        padding-bottom: 0.2rem;
-        -webkit-overflow-scrolling: touch;
+        padding: 0.7rem;
+        border: 1px solid var(--header-border);
+        border-radius: 0.9rem;
+        background: var(--panel-strong);
+        box-shadow: var(--clay);
+    }
+
+    .js .nav-links {
+        display: none;
+    }
+
+    .js .nav-links.is-open {
+        display: flex;
+    }
+
+    .nav-links a,
+    .nav-dropdown-trigger,
+    .nav-badge {
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    .nav-dropdown {
+        width: 100%;
+    }
+
+    .nav-dropdown-panel {
+        position: static;
+        display: none;
+        width: 100%;
+        max-width: none;
+        margin-top: 0.35rem;
+        padding: 0.6rem;
+        transform: none;
+        flex-direction: column;
+        gap: 0.5rem;
+        box-shadow: none;
+    }
+
+    .nav-dropdown:hover .nav-dropdown-panel {
+        display: none;
+    }
+
+    .nav-dropdown:focus-within .nav-dropdown-panel,
+    .nav-dropdown.is-open .nav-dropdown-panel {
+        display: flex;
+    }
+
+    .nav-dropdown-col {
+        min-width: 0;
     }
 
     .hero {
         min-height: auto;
-        padding-top: 3rem;
+        padding-top: 1.5rem;
+    }
+
+    .hero-terminal {
+        display: none;
     }
 
     .proof-strip,
@@ -1818,25 +1956,19 @@ footer {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .reveal {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .reveal,
+    .js .reveal.reveal-pending {
         opacity: 1;
         transform: none;
-        transition: none;
-    }
-    h1 {
-        animation: none;
-    }
-    .eyebrow::before {
-        animation: none;
-    }
-    .bird-card,
-    .bird-card img,
-    .card,
-    .proof,
-    .audience-card,
-    .button,
-    .legend button {
-        transition: none;
     }
 }
 
@@ -2228,6 +2360,36 @@ body.search-open {
     border-radius: 0.9rem;
     background: var(--panel-strong);
     box-shadow: 0 1.5rem 3.5rem rgba(40, 20, 55, 0.28);
+}
+
+.search-overlay-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+}
+
+.search-overlay-title {
+    margin: 0;
+    color: var(--text);
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+    font-size: 1.1rem;
+}
+
+.search-overlay-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--header-border);
+    border-radius: 999px;
+    background: var(--bg-soft);
+    color: var(--text);
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
 }
 
 .search-overlay-input {

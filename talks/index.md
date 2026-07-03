@@ -6,10 +6,10 @@ Sharing Ze with the community.
 
 From ExaBGP to a Network OS with AI -- 11 June 2026
 
-[Watch](https://ze-software.github.io/ze/presentations/linx-2026-06/index.html)
+[Watch](https://ze-software.net/presentations/linx-2026-06/index.html)
 
 ## Net Manchester
 
 Ze: Redoing and improving on ExaBGP -- 9 April 2026
 
-[Watch](https://ze-software.github.io/ze/presentations/netmcr-2026-04/index.html)
+[Watch](https://ze-software.net/presentations/netmcr-2026-04/index.html)

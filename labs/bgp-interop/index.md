@@ -1,4 +1,4 @@
-## BGP Protocol Interop
+# BGP Protocol Interop
 
 Ze's BGP engine against real FRR, BIRD, and GoBGP, scenario by scenario.
 
@@ -11,7 +11,7 @@ A Docker orchestrator launches Ze and one or more peer daemons on an isolated ne
  - **Proves:** Real BGP sessions against production daemon implementations, not mocks
  - **Peers:** Real FRR, BIRD, and GoBGP, in Docker containers
  - **Requires:** Docker, Python 3, ~1.5 GB disk for daemon images
- - **Source:** [docs/architecture/testing/interop.md](https://ze-software.github.io/ze/docs/architecture/testing/interop/)
+ - **Source:** [docs/architecture/testing/interop.md](https://ze-software.net/docs/architecture/testing/interop/)
 
 ```
 # all 68 scenarios

@@ -198,7 +198,7 @@ def render_post(meta, intro, sections, covers):
     parts.append('                <div class="section-head reveal">')
     if is_draft:
         parts.append('                    <span class="tag">Draft -- pending review</span>')
-    parts.append('                    <h2 id="post-title">Week of %s</h2>' % start_date(covers))
+    parts.append('                    <h1 id="post-title">Week of %s</h1>' % start_date(covers))
     if intro:
         parts.append("                    <p>%s</p>" % markdown.markdown(intro)[3:-4])
     parts.append('                    <p class="post-back"><a href="../">&larr; All weekly updates</a></p>')
@@ -360,7 +360,7 @@ def render_index_html(weeks):
 
     out = ['            <section aria-labelledby="changes-title">']
     out.append('                <div class="section-head reveal">')
-    out.append('                    <h2 id="changes-title">Changes.</h2>')
+    out.append('                    <h1 id="changes-title">Changes.</h1>')
     out.append(
         '                    <p>What shipped in Ze, newest first: the weekly '
         "updates, mined from git history and posted to Discord's "

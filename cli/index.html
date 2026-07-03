@@ -4,34 +4,48 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>CLI Reference - Ze</title>
-        <meta name="description" content="Every ze command, generated live from the binary's own command registry -- 380 commands across 45 groups." />
+        <meta name="description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 380 commands across 43 groups." />
         <meta property="og:title" content="CLI Reference - Ze" />
-        <meta property="og:description" content="Every ze command, generated live from the binary's own command registry -- 380 commands across 45 groups." />
+        <meta property="og:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 380 commands across 43 groups." />
         <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="CLI Reference - Ze" />
+        <meta name="twitter:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 380 commands across 43 groups." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css?v=ee13a92027" />
+        <link rel="stylesheet" href="../assets/site.css?v=dac44333bd" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
         <header class="site-header">
             <nav class="nav" aria-label="Main navigation">
                 <a class="brand" href="../index.html#top" aria-label="Ze home">
                     <img src="../assets/ze.svg" alt="" width="32" height="32" />
                     <span>Ze</span>
                 </a>
-                <div class="nav-links">
+                <button class="nav-menu-toggle" type="button" aria-controls="site-nav-links" aria-expanded="false">
+                    <span class="nav-menu-toggle-bars" aria-hidden="true"></span>
+                    <span>Menu</span>
+                </button>
+                <div id="site-nav-links" class="nav-links">
                     <a href="../index.html#status">Status</a>
                     <a href="../index.html#try">Try</a>
                     <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Project
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-project">Project
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-panel" id="nav-panel-project">
                     <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../features/">
                             <span class="nav-dropdown-icon">🧩</span>
@@ -63,10 +77,10 @@
                     </div>
                     </div>
                     <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Journey
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-journey">Journey
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-panel" id="nav-panel-journey">
                     <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../roadmap/">
                             <span class="nav-dropdown-icon">🗺️</span>
@@ -88,10 +102,10 @@
                     </div>
                     </div>
                     <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Docs
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-docs">Docs
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-panel" id="nav-panel-docs">
                     <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item nav-dropdown-feature" href="../docs/">
                             <span class="nav-dropdown-icon">📚</span>
@@ -147,10 +161,10 @@
                     </div>
                     </div>
                     <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Labs
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-labs">Labs
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-panel" id="nav-panel-labs">
                     <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../labs/bgp-interop/">
                             <span class="nav-dropdown-icon">🌐</span>
@@ -197,8 +211,10 @@
                         class="nav-badge nav-badge-search"
                         href="../search/"
                         aria-label="Search the site"
+                        aria-expanded="false"
                     >
                         <span class="nav-badge-icon"><svg viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/></svg></span>
+                        <span class="nav-badge-count nav-badge-search-label">Search</span>
                     </a>
                     <a
                         class="nav-badge"
@@ -224,11 +240,11 @@
             </nav>
         </header>
 
-        <main id="top">
+        <main id="top" tabindex="-1">
 
             <section aria-labelledby="cli-title" class="md-content reveal cat-operate">
                 <h1 id="cli-title">CLI Reference</h1>
-                <p>380 commands across 45 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>
+                <p>380 commands across 43 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>
                 <div class="cli-search-wrap">
                     <input id="cli-search" type="search" autocomplete="off" placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." aria-label="Filter commands" />
                     <div id="cli-suggestions" class="cli-suggestions" hidden></div>
@@ -258,23 +274,18 @@
 <tr id="cmd-clear-ospf-process"><td><code>clear ospf process</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Full OSPF reset: tear down every adjacency and re-run SPF.<br>Usage: clear ospf process. Adjacencies re-form from the next Hello;<br>the configuration is unchanged.</td></tr>
 <tr id="cmd-clear-vpn-ipsec-sa"><td><code>clear vpn ipsec sa</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Tear down IKE Security Associations.<br>Without arguments, terminates all SAs. Use &#x27;peer &lt;name&gt;&#x27; to clear<br>just one peer. The tunnel will renegotiate automatically if the<br>config is still active.</td></tr>
 </tbody></table></details>
-<details class="cli-group" id="cli-group-config" open>
-<summary>config <span class="cli-group-count">1</span></summary>
-<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-config-archive"><td><code>config archive</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Save a snapshot of the current running configuration.<br>Captures the config into the store for later rollback or comparison.<br>Optional name labels the snapshot; defaults to a timestamp.</td></tr>
-</tbody></table></details>
 <details class="cli-group" id="cli-group-create" open>
 <summary>create <span class="cli-group-count">9</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-create-interface-address"><td><code>create interface address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add an IP address to an interface.<br>Usage: create interface &lt;name&gt; address &lt;prefix&gt;. Interface must already exist.</td></tr>
-<tr id="cmd-create-interface-bridge"><td><code>create interface bridge</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a Linux bridge for L2 forwarding.<br>Usage: create interface bridge &lt;name&gt;.</td></tr>
-<tr id="cmd-create-interface-bridge-address"><td><code>create interface bridge address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a bridge (if needed) and add an IP address.<br>Usage: create interface bridge &lt;name&gt; address &lt;prefix&gt;.</td></tr>
-<tr id="cmd-create-interface-bridge-unit"><td><code>create interface bridge unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a bridge (if needed) and add a VLAN sub-interface.<br>Usage: create interface bridge &lt;name&gt; unit &lt;vid&gt;.</td></tr>
-<tr id="cmd-create-interface-dummy"><td><code>create interface dummy</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a dummy (loopback-style) interface.<br>Usage: create interface dummy &lt;name&gt;.</td></tr>
-<tr id="cmd-create-interface-dummy-address"><td><code>create interface dummy address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a dummy interface (if needed) and add an IP address.<br>Usage: create interface dummy &lt;name&gt; address &lt;prefix&gt;.</td></tr>
-<tr id="cmd-create-interface-dummy-unit"><td><code>create interface dummy unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a dummy interface (if needed) and add a VLAN sub-interface.<br>Usage: create interface dummy &lt;name&gt; unit &lt;vid&gt;.</td></tr>
-<tr id="cmd-create-interface-unit"><td><code>create interface unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add a VLAN sub-interface (802.1Q tagged).<br>Usage: create interface &lt;parent&gt; unit &lt;vid&gt;. Parent must already exist.</td></tr>
-<tr id="cmd-create-interface-veth"><td><code>create interface veth</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a veth pair (two linked virtual Ethernet interfaces).<br>Usage: create interface veth &lt;name&gt; &lt;peer&gt;.</td></tr>
+<tr id="cmd-create-interface-address"><td><code>create interface address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add an IP address to an interface.<br>Usage: create interface address &lt;name&gt; &lt;prefix&gt;. Interface must already exist.</td></tr>
+<tr id="cmd-create-interface-bridge-name"><td><code>create interface bridge name</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a Linux bridge for L2 forwarding.<br>Usage: create interface bridge name &lt;name&gt;.</td></tr>
+<tr id="cmd-create-interface-bridge-name-address"><td><code>create interface bridge name address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add an IP address to the bridge.<br>Usage: create interface bridge name &lt;name&gt; address &lt;prefix&gt;.</td></tr>
+<tr id="cmd-create-interface-bridge-name-unit"><td><code>create interface bridge name unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add a VLAN sub-interface to the bridge.<br>Usage: create interface bridge name &lt;name&gt; unit &lt;vid&gt;.</td></tr>
+<tr id="cmd-create-interface-dummy-name"><td><code>create interface dummy name</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a dummy (loopback-style) interface.<br>Usage: create interface dummy name &lt;name&gt;.</td></tr>
+<tr id="cmd-create-interface-dummy-name-address"><td><code>create interface dummy name address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add an IP address to the dummy.<br>Usage: create interface dummy name &lt;name&gt; address &lt;prefix&gt;.</td></tr>
+<tr id="cmd-create-interface-dummy-name-unit"><td><code>create interface dummy name unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add a VLAN sub-interface to the dummy.<br>Usage: create interface dummy name &lt;name&gt; unit &lt;vid&gt;.</td></tr>
+<tr id="cmd-create-interface-unit"><td><code>create interface unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add a VLAN sub-interface (802.1Q tagged).<br>Usage: create interface unit &lt;parent&gt; &lt;vid&gt;. Parent must already exist.</td></tr>
+<tr id="cmd-create-interface-veth-name"><td><code>create interface veth name</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a veth pair (two linked virtual Ethernet interfaces).<br>Usage: create interface veth name &lt;name&gt; &lt;peer&gt;.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-debug" open>
 <summary>debug <span class="cli-group-count">4</span></summary>
@@ -290,9 +301,9 @@
 <tr id="cmd-delete-bgp-peer"><td><code>delete bgp peer</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove a peer from the running config.<br>Tears down the TCP session and deletes the peer from the running<br>configuration. Does not modify the config file on disk.</td></tr>
 <tr id="cmd-delete-debug-module"><td><code>delete debug module</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Disable debug for a subsystem, or remove one of its flags/scopes.</td></tr>
 <tr id="cmd-delete-debug-profile-name"><td><code>delete debug profile name</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Delete a named debug profile.</td></tr>
-<tr id="cmd-delete-interface"><td><code>delete interface</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Delete an interface from the kernel.<br>Usage: delete interface &lt;name&gt;.</td></tr>
-<tr id="cmd-delete-interface-address"><td><code>delete interface address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove an IP address from an interface.<br>Usage: delete interface &lt;name&gt; address &lt;prefix&gt;.</td></tr>
-<tr id="cmd-delete-interface-unit"><td><code>delete interface unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove a VLAN sub-interface.<br>Usage: delete interface &lt;name&gt; unit.</td></tr>
+<tr id="cmd-delete-interface-name"><td><code>delete interface name</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Delete an interface from the kernel.<br>Usage: delete interface name &lt;name&gt;.</td></tr>
+<tr id="cmd-delete-interface-name-address"><td><code>delete interface name address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove an IP address from an interface.<br>Usage: delete interface name &lt;name&gt; address &lt;prefix&gt;.</td></tr>
+<tr id="cmd-delete-interface-name-unit"><td><code>delete interface name unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove a VLAN sub-interface.<br>Usage: delete interface name &lt;name&gt; unit.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-doctor" open>
 <summary>doctor <span class="cli-group-count">1</span></summary>
@@ -328,11 +339,6 @@
 <tr id="cmd-help"><td><code>help</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show available commands at this level.<br>Lists every registered command verb with a brief description.</td></tr>
 <tr id="cmd-help-ai"><td><code>help ai</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json).</td></tr>
 <tr id="cmd-help-command"><td><code>help command</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>List every command with its description. Use a filter to narrow the list.</td></tr>
-</tbody></table></details>
-<details class="cli-group" id="cli-group-metrics" open>
-<summary>metrics <span class="cli-group-count">1</span></summary>
-<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-metrics-pool"><td><code>metrics pool</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Show attribute pool memory usage and dedup efficiency.<br>Returns allocated entries, reference counts, and deduplication hit<br>rates per attribute type. Watch the dedup rate to gauge how much<br>memory pooling is saving you.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-monitor" open>
 <summary>monitor <span class="cli-group-count">8</span></summary>
@@ -397,12 +403,13 @@
 <tr id="cmd-request-peer-teardown"><td><code>request peer teardown</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Tear down a peer session.<br>Usage: request peer &lt;selector&gt; teardown [cease-subcode].</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-request-other" open>
-<summary>request (other) <span class="cli-group-count">12</span></summary>
+<summary>request (other) <span class="cli-group-count">13</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr id="cmd-request-as112-healthcheck"><td><code>request as112 healthcheck</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>One-shot authoritative query against an anycast service<br>address (or the given target), exit 0 iff the expected<br>AS112 answer comes back. Finding M4: the tool a<br>healthcheck probe calls, since dig is not on the gokrazy<br>appliance and &#x27;ze resolve dns&#x27; cannot target a specific<br>server. Usage: request as112 healthcheck [target &lt;ip&gt;].</td></tr>
 <tr id="cmd-request-bgp-rib-inject"><td><code>request bgp rib inject</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Inject a synthetic route into the Adj-RIB-In.<br>Behaves as if the route was received from a peer. Use this for<br>testing policy filters or simulating route announcements.</td></tr>
 <tr id="cmd-request-bgp-rib-withdraw"><td><code>request bgp rib withdraw</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Withdraw a route from the Adj-RIB-In.<br>Removes a previously injected or received route from a peer&#x27;s<br>Adj-RIB-In, triggering best-path recomputation.</td></tr>
 <tr id="cmd-request-commit"><td><code>request commit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Group route changes into named atomic commits.<br>Actions: start (begin a commit), end (finalize), eor (signal end of<br>RIB), rollback (undo), show (inspect), withdraw (remove all routes<br>in a commit), list (show all commits). Grammar: request commit &lt;action&gt;<br>&lt;name&gt; [args].</td></tr>
+<tr id="cmd-request-config-archive"><td><code>request config archive</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Save a snapshot of the current running configuration.<br>Captures the config into the store for later rollback or comparison.<br>Optional name labels the snapshot; defaults to a timestamp.</td></tr>
 <tr id="cmd-request-halt"><td><code>request halt</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Dump goroutine stacks to stderr and terminate immediately.</td></tr>
 <tr id="cmd-request-log-level"><td><code>request log level</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Change a subsystem&#x27;s log level without restarting.<br>Usage: request log level &lt;logger&gt; &lt;level&gt;. Takes effect immediately.<br>Set to debug when troubleshooting, then back to info when you are done.</td></tr>
 <tr id="cmd-request-ospf-graceful-restart"><td><code>request ospf graceful-restart</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).<br>Usage: request ospf graceful-restart. The engine originates one Grace-LSA per<br>interface, persists the non-volatile restart fact, and suppresses route churn<br>so the FIB is retained across the ensuing control-plane restart. Refused when<br>graceful-restart is not configured.</td></tr>
@@ -664,7 +671,7 @@
 <tr id="cmd-show-vpp-trace-start"><td><code>show vpp trace start</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Start capturing packets in the VPP dataplane.<br>Default input node is dpdk-input, default count is 100 (max 10000).<br>After starting, use &#x27;show vpp trace show&#x27; to retrieve the captured<br>packets. Requires the VPP backend.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-show-other" open>
-<summary>show (other) <span class="cli-group-count">78</span></summary>
+<summary>show (other) <span class="cli-group-count">79</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr id="cmd-show-aaa-accounting"><td><code>show aaa accounting</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show AAA accounting counters and any dropped records.<br>Tells you whether TACACS+ accounting is working or if records are<br>being lost due to server unreachability.</td></tr>
 <tr id="cmd-show-announcements"><td><code>show announcements</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List active on-demand announcements.<br>Usage: show announcements [tag &lt;key&gt;] [selector &lt;pattern&gt;] [family &lt;fam&gt;]</td></tr>
@@ -708,6 +715,7 @@
 <tr id="cmd-show-log-levels"><td><code>show log levels</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show what log level each subsystem is using.<br>Lists every registered logger with its current level. Use<br>&#x27;request log level&#x27; to change a level at runtime without restarting.</td></tr>
 <tr id="cmd-show-log-recent"><td><code>show log recent</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show recent log entries from the in-memory ring.<br>Filters (all optional): level &lt;lvl&gt;, component &lt;name&gt;, count &lt;N&gt;.<br>Newest entries first. Useful when you cannot access the log file<br>directly.</td></tr>
 <tr id="cmd-show-metrics-list"><td><code>show metrics list</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List all registered metric names (no values).<br>Useful for discovering what metrics exist before querying them.</td></tr>
+<tr id="cmd-show-metrics-pool"><td><code>show metrics pool</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show attribute pool memory usage and dedup efficiency.<br>Returns allocated entries, reference counts, and deduplication hit<br>rates per attribute type. Watch the dedup rate to gauge how much<br>memory pooling is saving you.</td></tr>
 <tr id="cmd-show-metrics-values"><td><code>show metrics values</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Dump all metrics in Prometheus text format.<br>Outputs every registered metric with labels and values. Suitable<br>for feeding into Prometheus, Grafana, or curl-based monitoring.</td></tr>
 <tr id="cmd-show-metrics-query"><td><code>show metrics-query</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Query a specific Prometheus metric by name.<br>Usage: show metrics-query &lt;name&gt; [label=value ...]. Returns matching<br>time series from the internal registry. Multiple label filters are<br>ANDed. More targeted than the full metrics dump.</td></tr>
 <tr id="cmd-show-mpls-forwarding"><td><code>show mpls forwarding</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show MPLS forwarding entries installed in the kernel.<br>Each entry shows the incoming label, swap/push/pop operation, and<br>outgoing next-hop. Pass &#x27;limit N&#x27; to cap large tables. Linux only.</td></tr>
@@ -920,7 +928,7 @@
 
         </main>
 
-        <script src="../assets/site.js?v=009147356b" defer></script>
+        <script src="../assets/site.js?v=74c603e2dc" defer></script>
 
         <footer>
             <div class="footer-inner">

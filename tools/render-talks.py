@@ -48,7 +48,7 @@ def render(talks):
     out = [sitelib.page_head(title, desc, root, og_title=title, og_desc=desc)]
     out.append('            <section id="talks" aria-labelledby="talks-title">')
     out.append('                <div class="section-head reveal">')
-    out.append('                    <h2 id="talks-title">Talks and presentations.</h2>')
+    out.append('                    <h1 id="talks-title">Talks and presentations.</h1>')
     out.append("                    <p>")
     out.append("                        Sharing Ze with the community.")
     out.append("                    </p>")

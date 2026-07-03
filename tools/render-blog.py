@@ -78,7 +78,7 @@ def render_article(a):
     body_html = markdown.markdown(a["body"], extensions=["tables", "fenced_code", "sane_lists"])
     parts = [
         '            <section class="section-head reveal">',
-        '                <h2 id="post-title">%s</h2>' % a["title"],
+        '                <h1 id="post-title">%s</h1>' % a["title"],
     ]
     if a["date"]:
         parts.append('                <p class="post-meta"><time datetime="%s">%s</time></p>' % (a["date"], a["date"]))
@@ -102,7 +102,7 @@ def render_article_markdown(a):
 def render_index(articles):
     parts = ['            <section aria-labelledby="blog-title">']
     parts.append('                <div class="section-head reveal">')
-    parts.append('                    <h2 id="blog-title">The Ze blog.</h2>')
+    parts.append('                    <h1 id="blog-title">The Ze blog.</h1>')
     if articles:
         lead = (
             "Occasional articles on Ze: design notes, deep dives, and talk "

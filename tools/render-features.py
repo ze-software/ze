@@ -202,7 +202,7 @@ def render(data):
     out.append('            <section aria-labelledby="features-title">')
     out.append('                <div class="section-head reveal">')
     out.append(
-        '                    <h2 id="features-title">Every feature Ze ships.</h2>'
+        '                    <h1 id="features-title">Every feature Ze ships.</h1>'
     )
     out.append(
         "                    <p>%d features plus a spec'd roadmap, color-coded by category.</p>"

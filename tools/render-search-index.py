@@ -211,7 +211,7 @@ def main():
         )
 
     records.sort(key=lambda r: r["url"])
-    OUT.write_text(json.dumps(records, ensure_ascii=False, indent=0) + "\n")
+    OUT.write_text(json.dumps(records, ensure_ascii=False, separators=(",", ":")) + "\n")
     print("wrote %s (%d pages)" % (OUT, len(records)))
 
     render_search_page()

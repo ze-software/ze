@@ -15,22 +15,35 @@ import json
 import pathlib
 
 import sitelib
+import sitefacts
 
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 DATA = GH_PAGES / "data" / "audience.json"
 DEST = GH_PAGES / "index.html"
 
-# Homepage proof-strip floors. Hand-set because computing them exactly means
-# walking ../main (test funcs, fuzz targets, .ci files, interop Dockerfiles)
-# -- tools/build.py's check_homepage_proof_drift() warns at build time if any
-# of these ever overstate the live count in ../main.
-PROOF_STATS = {
+# Homepage proof-strip numbers are regenerated from ../main whenever the
+# homepage is rendered. The fallback is only for a damaged or unavailable
+# source tree.
+PROOF_STATS_FALLBACK = {
     "unit_tests": "17,300+",
     "e2e_tests": "1,300+",
     "fuzz_targets": "65+",
     "interop_targets": "7",
 }
+
+
+def proof_stats():
+    try:
+        facts = sitefacts.write_facts()
+    except (OSError, KeyError, ValueError):
+        return PROOF_STATS_FALLBACK
+    return {
+        "unit_tests": facts["tests"]["unit_display"],
+        "e2e_tests": facts["tests"]["e2e_display"],
+        "fuzz_targets": facts["tests"]["fuzz_display"],
+        "interop_targets": facts["interop"]["target_display"],
+    }
 
 
 def render_run_card(card):
@@ -443,7 +456,7 @@ def render(data):
         who_cards=who_cards,
         category_links=category_links,
         blog_teaser_cards=blog_teaser_cards,
-        **PROOF_STATS,
+        **proof_stats(),
     )
 
     DEST.write_text(head + body + sitelib.page_foot(root))

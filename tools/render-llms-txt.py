@@ -28,7 +28,6 @@ Wired into tools/build.py's default step list, so a normal site build
 always regenerates this file.
 """
 
-import json
 import pathlib
 
 import sitelib
@@ -41,49 +40,22 @@ DEST = GH_PAGES / "llms.txt"
 SITE_BASE = sitelib.SITE_BASE
 
 
-def live_feature_count():
-    features = json.loads((DATA_DIR / "features.json").read_text())
-    core = next(s for s in features["sections"] if s["id"] == "core")
-    experimental = next(s for s in features["sections"] if s["id"] == "experimental")
-    return len(core["cards"]) + len(experimental["cards"])
-
-
-def live_cli_count():
-    path = DATA_DIR / "cli-commands.json"
-    if not path.exists():
-        return None
-    return len(json.loads(path.read_text()))
-
-
-def live_deps_count():
-    path = DATA_DIR / "dependencies.json"
-    if not path.exists():
-        return None
-    data = json.loads(path.read_text())
-    return sum(len(cat["modules"]) for cat in data["categories"])
+def live_counts():
+    return sitelib.live_counts()
 
 
 def live_article_count():
-    return len(list((GH_PAGES / "blog" / "posts").glob("*.md")))
-
-
-def live_changes_count():
-    return len(list((GH_PAGES / "changes" / "posts").glob("*.md")))
+    return live_counts()["articles"]
 
 
 LIVE_DESC_OVERRIDES = {
-    "features/": lambda: "%d features, color-coded by category" % live_feature_count(),
-    "cli/": lambda: (
-        "%d commands, generated from the live binary" % live_cli_count()
-        if live_cli_count() is not None
-        else None
-    ),
-    "dependencies/": lambda: (
-        "%d direct packages, generated from go.mod" % live_deps_count()
-        if live_deps_count() is not None
-        else None
-    ),
-    "changes/": lambda: "%d weekly updates, newest first" % live_changes_count(),
+    "features/": lambda: "%s features, color-coded by category"
+    % live_counts()["features"],
+    "cli/": lambda: "%s commands, generated from the live binary"
+    % live_counts()["cli_commands"],
+    "dependencies/": lambda: "%s direct packages, generated from go.mod"
+    % live_counts()["dependencies"],
+    "changes/": lambda: "%s weekly updates, newest first" % live_counts()["changes"],
 }
 
 

@@ -403,6 +403,13 @@
                     "name": "port",
                     "source": "config",
                     "type": "port"
+                  },
+                  {
+                    "description": "Source IP address for outbound BMP connections",
+                    "kind": "leaf",
+                    "name": "source-address",
+                    "source": "config",
+                    "type": "ip-address"
                   }
                 ],
                 "description": "BMP collector endpoints to connect to",
@@ -4164,6 +4171,13 @@
                 "name": "server",
                 "source": "config",
                 "type": "string"
+              },
+              {
+                "description": "Source IP address for outbound IRR whois connections.",
+                "kind": "leaf",
+                "name": "source-address",
+                "source": "config",
+                "type": "ip-address"
               }
             ],
             "description": "Global IRR filtering settings.",
@@ -4530,6 +4544,13 @@
                 "name": "preference",
                 "source": "config",
                 "type": "uint8"
+              },
+              {
+                "description": "Source IP address for outbound RTR connections",
+                "kind": "leaf",
+                "name": "source-address",
+                "source": "config",
+                "type": "ip-address"
               }
             ],
             "kind": "list[address]",
@@ -6863,6 +6884,13 @@
             "name": "protocol",
             "source": "config",
             "type": "enumeration"
+          },
+          {
+            "description": "Source IP address for outbound flow export datagrams",
+            "kind": "leaf",
+            "name": "source-address",
+            "source": "config",
+            "type": "ip-address"
           },
           {
             "description": "sFlow sub-agent identifier",
@@ -14592,6 +14620,13 @@
                 "name": "secret",
                 "source": "config",
                 "type": "string"
+              },
+              {
+                "description": "Source IP address for outbound hub connections.",
+                "kind": "leaf",
+                "name": "source-address",
+                "source": "config",
+                "type": "ip-address"
               }
             ],
             "description": "Outbound hub connections (managed client mode)",

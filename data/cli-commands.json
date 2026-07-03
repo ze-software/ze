@@ -133,15 +133,8 @@
     "global-pipes": true
   },
   {
-    "path": "config archive",
-    "description": "Save a snapshot of the current running configuration.\nCaptures the config into the store for later rollback or comparison.\nOptional name labels the snapshot; defaults to a timestamp.",
-    "mode": "daemon",
-    "wire-method": "ze-config-archive:trigger",
-    "global-pipes": true
-  },
-  {
     "path": "create interface address",
-    "description": "Add an IP address to an interface.\nUsage: create interface <name> address <prefix>. Interface must already exist.",
+    "description": "Add an IP address to an interface.\nUsage: create interface address <name> <prefix>. Interface must already exist.",
     "mode": "daemon",
     "wire-method": "ze-iface:interface-addr-add",
     "args": [
@@ -154,8 +147,8 @@
     "global-pipes": true
   },
   {
-    "path": "create interface bridge",
-    "description": "Create a Linux bridge for L2 forwarding.\nUsage: create interface bridge <name>.",
+    "path": "create interface bridge name",
+    "description": "Create a Linux bridge for L2 forwarding.\nUsage: create interface bridge name <name>.",
     "mode": "daemon",
     "wire-method": "ze-iface:interface-create-bridge",
     "backend": [
@@ -175,8 +168,8 @@
     ]
   },
   {
-    "path": "create interface bridge address",
-    "description": "Create a bridge (if needed) and add an IP address.\nUsage: create interface bridge <name> address <prefix>.",
+    "path": "create interface bridge name address",
+    "description": "Add an IP address to the bridge.\nUsage: create interface bridge name <name> address <prefix>.",
     "mode": "daemon",
     "wire-method": "ze-iface:interface-addr-add",
     "backend": [
@@ -192,8 +185,8 @@
     "global-pipes": true
   },
   {
-    "path": "create interface bridge unit",
-    "description": "Create a bridge (if needed) and add a VLAN sub-interface.\nUsage: create interface bridge <name> unit <vid>.",
+    "path": "create interface bridge name unit",
+    "description": "Add a VLAN sub-interface to the bridge.\nUsage: create interface bridge name <name> unit <vid>.",
     "mode": "daemon",
     "wire-method": "ze-iface:interface-unit-add",
     "backend": [
@@ -209,8 +202,8 @@
     "global-pipes": true
   },
   {
-    "path": "create interface dummy",
-    "description": "Create a dummy (loopback-style) interface.\nUsage: create interface dummy <name>.",
+    "path": "create interface dummy name",
+    "description": "Create a dummy (loopback-style) interface.\nUsage: create interface dummy name <name>.",
     "mode": "daemon",
     "wire-method": "ze-iface:interface-create-dummy",
     "backend": [
@@ -230,8 +223,8 @@
     ]
   },
   {
-    "path": "create interface dummy address",
-    "description": "Create a dummy interface (if needed) and add an IP address.\nUsage: create interface dummy <name> address <prefix>.",
+    "path": "create interface dummy name address",
+    "description": "Add an IP address to the dummy.\nUsage: create interface dummy name <name> address <prefix>.",
     "mode": "daemon",
     "wire-method": "ze-iface:interface-addr-add",
     "backend": [
@@ -247,8 +240,8 @@
     "global-pipes": true
   },
   {
-    "path": "create interface dummy unit",
-    "description": "Create a dummy interface (if needed) and add a VLAN sub-interface.\nUsage: create interface dummy <name> unit <vid>.",
+    "path": "create interface dummy name unit",
+    "description": "Add a VLAN sub-interface to the dummy.\nUsage: create interface dummy name <name> unit <vid>.",
     "mode": "daemon",
     "wire-method": "ze-iface:interface-unit-add",
     "backend": [
@@ -265,7 +258,7 @@
   },
   {
     "path": "create interface unit",
-    "description": "Add a VLAN sub-interface (802.1Q tagged).\nUsage: create interface <parent> unit <vid>. Parent must already exist.",
+    "description": "Add a VLAN sub-interface (802.1Q tagged).\nUsage: create interface unit <parent> <vid>. Parent must already exist.",
     "mode": "daemon",
     "wire-method": "ze-iface:interface-unit-add",
     "args": [
@@ -278,8 +271,8 @@
     "global-pipes": true
   },
   {
-    "path": "create interface veth",
-    "description": "Create a veth pair (two linked virtual Ethernet interfaces).\nUsage: create interface veth <name> <peer>.",
+    "path": "create interface veth name",
+    "description": "Create a veth pair (two linked virtual Ethernet interfaces).\nUsage: create interface veth name <name> <peer>.",
     "mode": "daemon",
     "wire-method": "ze-iface:interface-create-veth",
     "backend": [
@@ -347,8 +340,8 @@
     "mode": "offline"
   },
   {
-    "path": "delete interface",
-    "description": "Delete an interface from the kernel.\nUsage: delete interface <name>.",
+    "path": "delete interface name",
+    "description": "Delete an interface from the kernel.\nUsage: delete interface name <name>.",
     "mode": "daemon",
     "wire-method": "ze-iface:interface-delete",
     "args": [
@@ -365,8 +358,8 @@
     ]
   },
   {
-    "path": "delete interface address",
-    "description": "Remove an IP address from an interface.\nUsage: delete interface <name> address <prefix>.",
+    "path": "delete interface name address",
+    "description": "Remove an IP address from an interface.\nUsage: delete interface name <name> address <prefix>.",
     "mode": "daemon",
     "wire-method": "ze-iface:interface-addr-del",
     "args": [
@@ -379,8 +372,8 @@
     "global-pipes": true
   },
   {
-    "path": "delete interface unit",
-    "description": "Remove a VLAN sub-interface.\nUsage: delete interface <name> unit.",
+    "path": "delete interface name unit",
+    "description": "Remove a VLAN sub-interface.\nUsage: delete interface name <name> unit.",
     "mode": "daemon",
     "wire-method": "ze-iface:interface-unit-del",
     "args": [
@@ -458,13 +451,6 @@
     "path": "help command",
     "description": "List every command with its description. Use a filter to narrow the list.",
     "mode": "offline"
-  },
-  {
-    "path": "metrics pool",
-    "description": "Show attribute pool memory usage and dedup efficiency.\nReturns allocated entries, reference counts, and deduplication hit\nrates per attribute type. Watch the dedup rate to gauge how much\nmemory pooling is saving you.",
-    "mode": "daemon",
-    "wire-method": "ze-bgp:pool-stats",
-    "global-pipes": true
   },
   {
     "path": "monitor bgp",
@@ -728,6 +714,13 @@
     "description": "Group route changes into named atomic commits.\nActions: start (begin a commit), end (finalize), eor (signal end of\nRIB), rollback (undo), show (inspect), withdraw (remove all routes\nin a commit), list (show all commits). Grammar: request commit <action>\n<name> [args].",
     "mode": "daemon",
     "wire-method": "ze-bgp:commit",
+    "global-pipes": true
+  },
+  {
+    "path": "request config archive",
+    "description": "Save a snapshot of the current running configuration.\nCaptures the config into the store for later rollback or comparison.\nOptional name labels the snapshot; defaults to a timestamp.",
+    "mode": "daemon",
+    "wire-method": "ze-config-archive:trigger",
     "global-pipes": true
   },
   {
@@ -1660,7 +1653,7 @@
       },
       {
         "name": "tunnel-id",
-        "type": "uint"
+        "type": "string"
       }
     ],
     "global-pipes": true,
@@ -2480,6 +2473,13 @@
     "description": "List all registered metric names (no values).\nUseful for discovering what metrics exist before querying them.",
     "mode": "read-only",
     "wire-method": "ze-bgp:metrics-list",
+    "global-pipes": true
+  },
+  {
+    "path": "show metrics pool",
+    "description": "Show attribute pool memory usage and dedup efficiency.\nReturns allocated entries, reference counts, and deduplication hit\nrates per attribute type. Watch the dedup rate to gauge how much\nmemory pooling is saving you.",
+    "mode": "read-only",
+    "wire-method": "ze-bgp:pool-stats",
     "global-pipes": true
   },
   {
@@ -3317,7 +3317,7 @@
           "err",
           "info",
           "notice",
-          "warn"
+          "warning"
         ]
       }
     ],

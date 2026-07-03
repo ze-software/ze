@@ -1,4 +1,4 @@
-## Performance.
+# Performance.
 
 Measured, not claimed.
 
@@ -13,7 +13,7 @@ Go carries an estimated 10-15% CPU overhead against C/Rust implementations. That
  - **Convergence:** 62ms to propagate 100,000 routes (2026-06-05 run)
  - **Throughput:** 1,612,903 routes/sec sustained during propagation
  - **Withdrawal:** 596ms from withdrawal sent to receiver idle
- - **Full results:** [All DUTs, all runs, full methodology](https://ze-software.github.io/ze/docs/performance/)
+ - **Full results:** [All DUTs, all runs, full methodology](https://ze-software.net/docs/performance/)
 
 ```
 # build ze-perf and all DUT images, then run
@@ -30,27 +30,27 @@ $ bin/ze-perf report --doc test/perf/results/*.json
 
 Docker (Colima on macOS). `ze-perf` works against any BGP implementation, not just Ze -- point it at your own DUT.
 
- [Benchmarking guide architecture, flags, JSON output](https://ze-software.github.io/ze/docs/guide/benchmarking/)
+ [Benchmarking guide architecture, flags, JSON output](https://ze-software.net/docs/guide/benchmarking/)
 
 ## Performance evidence in the labs.
 
 Where else the numbers show up.
 
-### [BGP Protocol Interop](https://ze-software.github.io/ze/labs/bgp-interop/)
+### [BGP Protocol Interop](https://ze-software.net/labs/bgp-interop/)
 
  `Daemon` `Docker`
 
  - Same DUTs as the benchmark: **FRR, BIRD, GoBGP**
  - Correctness first; the perf numbers above measure the same sessions
 
-### [VPP Dataplane Evidence](https://ze-software.github.io/ze/labs/vpp-dataplane/)
+### [VPP Dataplane Evidence](https://ze-software.net/labs/vpp-dataplane/)
 
  `Daemon` `Docker`
 
  - Ze programs **FIB, traffic, and firewall** into a real VPP daemon
  - Dataplane throughput backs the numbers in the VPP guide
 
-### [VLAN QoS Wire-Level Proof](https://ze-software.github.io/ze/labs/vlan-qos/)
+### [VLAN QoS Wire-Level Proof](https://ze-software.net/labs/vlan-qos/)
 
  `Daemon` `AF_PACKET`
 

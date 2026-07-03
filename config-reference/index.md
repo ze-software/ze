@@ -1,6 +1,6 @@
 # Configuration Reference
 
-The complete Ze configuration as one tree: 35 top-level sections (26 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.github.io/ze/docs/features/configuration/) for a narrative walkthrough of BGP peer config specifically.
+The complete Ze configuration as one tree: 35 top-level sections (26 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/docs/features/configuration/) for a narrative walkthrough of BGP peer config specifically.
 
 ## anomaly
 
@@ -131,6 +131,8 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
         Collector IP address
       - **port** `port`
         Collector TCP port
+      - **source-address** `ip-address`
+        Source IP address for outbound BMP connections
     - **route-mirroring** `boolean`
       Enable Route Mirroring (RFC 7854 S4.7): stream verbatim copies of all BGP messages to collectors
     - **route-monitoring-policy** `enumeration`
@@ -1167,6 +1169,8 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       Seconds between automatic IRR re-queries.
     - **server** `string`
       IRR whois server hostname or host:port.
+    - **source-address** `ip-address`
+      Source IP address for outbound IRR whois connections.
   - **loop-detection <name>** `list`
     Named loop detection filter instance. Configures AS loop and cluster-list loop detection per-peer.
     - **allow-own-as** `uint8`
@@ -1263,6 +1267,8 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       RTR TCP port
     - **preference** `uint8`
       Server preference (lower = preferred)
+    - **source-address** `ip-address`
+      Source IP address for outbound RTR connections
   - **policy** `container`
     - **invalid-action** `enumeration`
       Action for routes with Invalid validation state
@@ -1942,6 +1948,8 @@ Flow export (sFlow, NetFlow v9, IPFIX) configuration
     Collector UDP port
   - **protocol** `enumeration`
     Export protocol
+  - **source-address** `ip-address`
+    Source IP address for outbound flow export datagrams
   - **sub-agent-id** `uint32`
     sFlow sub-agent identifier
   - **template-refresh** `uint32`
@@ -4110,6 +4118,8 @@ Plugin configuration
       Remote hub port
     - **secret** `string`
       Auth token (min 32 chars)
+    - **source-address** `ip-address`
+      Source IP address for outbound hub connections.
   - **server <name>** `list`
     Named hub server instances (TLS listeners)
     - **client <name>** `list`
