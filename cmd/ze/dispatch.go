@@ -95,15 +95,46 @@ func defaultDispatch(args []string) int {
 		return 0
 	}
 
-	handler := registry.LookupRoot(arg)
-	if handler == nil {
-		fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
-		printUsage()
-		return 1
+	rctx := &registry.RuntimeContext{}
+
+	if handler := registry.LookupRoot(arg); handler != nil {
+		return handler(rctx, args[1:])
 	}
 
-	rctx := &registry.RuntimeContext{}
-	return handler(rctx, args[1:])
+	// `ze-analyze density` shorthand: when argv[0] is not itself a root but the
+	// binary-name segment after the last '-' names a registered root, dispatch
+	// through that suffix root so `ze-analyze density` behaves like
+	// `ze analyze density`. The prefix before the '-' is ignored, so a
+	// dynamically-named binary (foo-analyze) resolves the same. No-op for
+	// multi-root binaries like ze-test whose subcommands are top-level roots,
+	// and the explicit `ze-analyze analyze density` form still works (arg is a
+	// root then, handled above).
+	if suffix := binarySuffixRoot(); suffix != "" && suffix != arg {
+		if handler := registry.LookupRoot(suffix); handler != nil {
+			return handler(rctx, args)
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
+	printUsage()
+	return 1
+}
+
+// binarySuffixRoot returns the binary-name segment after the last '-'
+// (e.g. "ze-analyze" -> "analyze", "ze-perf" -> "perf") when it names a
+// registered root command, else "". The prefix before the '-' is ignored so
+// the perf/analyze code can ship in a dynamically-named dedicated binary.
+func binarySuffixRoot() string {
+	name := binaryName()
+	i := strings.LastIndex(name, "-")
+	if i < 0 || i+1 >= len(name) {
+		return ""
+	}
+	suffix := name[i+1:]
+	if registry.LookupRoot(suffix) != nil {
+		return suffix
+	}
+	return ""
 }
 
 func binaryName() string {
