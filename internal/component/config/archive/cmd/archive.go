@@ -128,7 +128,7 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"message": tb.Reset().Str("archived ").Str(archiveName).Str(" to ").Str(ac.Location).String(),
+			"message": tb.Reset().Str("archived ").Str(archiveName).Str(" to ").Str(archive.RedactURL(ac.Location)).String(),
 		},
 	}, nil
 }

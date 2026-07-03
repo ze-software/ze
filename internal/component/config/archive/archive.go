@@ -124,6 +124,16 @@ func ValidateTrigger(trigger string) error {
 	return fmt.Errorf("invalid trigger %q (valid: commit, manual, daily, hourly)", trigger)
 }
 
+// RedactURL sanitizes a URL string by replacing any embedded password with "xxxxx".
+func RedactURL(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+
+	return parsed.Redacted()
+}
+
 // ValidateLocation checks that a URL has a supported scheme.
 // Supported schemes: file, http, https.
 func ValidateLocation(rawURL string) error {
@@ -140,7 +150,7 @@ func ValidateLocation(rawURL string) error {
 	case schemeFile, schemeHTTP, schemeHTTPS:
 		return nil
 	case "":
-		return fmt.Errorf("missing URL scheme in %q (use file://, http://, or https://)", rawURL)
+		return fmt.Errorf("missing URL scheme in %q (use file://, http://, or https://)", parsed.Redacted())
 	}
 
 	return fmt.Errorf("unsupported archive scheme %q (supported: file, http, https)", parsed.Scheme)
@@ -185,7 +195,7 @@ func ToHTTP(content []byte, baseURL, filename string, timeout time.Duration) err
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("archive HTTP upload to %s: %w", baseURL, err)
+		return fmt.Errorf("archive HTTP upload to %s: %w", RedactURL(baseURL), err)
 	}
 	defer func() {
 		io.Copy(io.Discard, resp.Body) //nolint:errcheck // drain for connection reuse
@@ -193,7 +203,7 @@ func ToHTTP(content []byte, baseURL, filename string, timeout time.Duration) err
 	}()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("archive HTTP upload to %s: status %d", baseURL, resp.StatusCode)
+		return fmt.Errorf("archive HTTP upload to %s: status %d", RedactURL(baseURL), resp.StatusCode)
 	}
 
 	return nil
@@ -203,7 +213,7 @@ func ToHTTP(content []byte, baseURL, filename string, timeout time.Duration) err
 func archiveToLocation(content []byte, location, filename string, timeout time.Duration) error {
 	parsed, err := url.Parse(location)
 	if err != nil {
-		return fmt.Errorf("invalid archive location %q: %w", location, err)
+		return fmt.Errorf("invalid archive location %q: %w", RedactURL(location), err)
 	}
 
 	switch parsed.Scheme {
@@ -213,7 +223,7 @@ func archiveToLocation(content []byte, location, filename string, timeout time.D
 		return ToHTTP(content, location, filename, timeout)
 	}
 
-	return fmt.Errorf("unsupported archive scheme %q in location %q", parsed.Scheme, location)
+	return fmt.Errorf("unsupported archive scheme %q in location %q", parsed.Scheme, parsed.Redacted())
 }
 
 // FilterByTrigger returns only the configs with the given trigger type.

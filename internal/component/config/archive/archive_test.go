@@ -565,3 +565,93 @@ func TestPruneFileArchives_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
 	archive.PruneFileArchives("file://"+dir, 1, "ze-")
 }
+
+// --- RedactURL tests ---
+
+// TestRedactURL_WithCredentials verifies password is replaced with xxxxx.
+//
+// VALIDATES: AC-1 -- URLs with embedded credentials are sanitized.
+// PREVENTS: Credential leak in error/log output.
+func TestRedactURL_WithCredentials(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{"https with userinfo", "https://admin:s3cret@host.example.com/archive", "https://admin:xxxxx@host.example.com/archive"},
+		{"http with userinfo", "http://user:pass@10.0.0.1:8080/path", "http://user:xxxxx@10.0.0.1:8080/path"},
+		{"user only no password", "https://user@host.example.com/path", "https://user@host.example.com/path"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := archive.RedactURL(tt.url)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestRedactURL_WithoutCredentials verifies URLs without credentials pass through unchanged.
+//
+// VALIDATES: AC-2 -- URLs without credentials are not modified.
+// PREVENTS: Unnecessary URL mutation breaking error message clarity.
+func TestRedactURL_WithoutCredentials(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{"https no auth", "https://host.example.com/archive"},
+		{"file scheme", "file:///backups/configs"},
+		{"http with port", "http://10.0.0.1:8080/path"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := archive.RedactURL(tt.url)
+			assert.Equal(t, tt.url, got)
+		})
+	}
+}
+
+// TestRedactURL_InvalidURL verifies fallback to raw string on parse failure.
+//
+// VALIDATES: RedactURL does not panic on unparseable input.
+// PREVENTS: Panic or empty string from malformed URL.
+func TestRedactURL_InvalidURL(t *testing.T) {
+	raw := "://bad"
+	got := archive.RedactURL(raw)
+	assert.Equal(t, raw, got)
+}
+
+// TestValidateLocation_RedactsCredentials verifies error messages do not leak passwords.
+//
+// VALIDATES: AC-3 -- ValidateLocation error output sanitizes credentials.
+// PREVENTS: Password appearing in validation error message.
+func TestValidateLocation_RedactsCredentials(t *testing.T) {
+	// test-relax: unsupported-scheme error only includes the scheme name, not the full URL,
+	// so "xxxxx" never appears; the credential-free error is already safe by design.
+	err := archive.ValidateLocation("ftp://admin:s3cret@host.example.com/path")
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "s3cret")
+}
+
+// TestValidateLocation_NoSchemeRedactsCredentials verifies missing-scheme error sanitizes credentials.
+//
+// VALIDATES: AC-3 -- missing-scheme error path also sanitizes.
+// PREVENTS: Password leak in "missing URL scheme" error message.
+func TestValidateLocation_NoSchemeRedactsCredentials(t *testing.T) {
+	err := archive.ValidateLocation("//admin:s3cret@host/path")
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "s3cret")
+}
+
+// TestToHTTP_RedactsCredentials verifies HTTP error messages do not leak passwords.
+//
+// VALIDATES: AC-1 -- HTTP upload error output sanitizes credentials.
+// PREVENTS: Password appearing in HTTP upload error message.
+func TestToHTTP_RedactsCredentials(t *testing.T) {
+	err := archive.ToHTTP([]byte("data"), "https://admin:s3cret@192.0.2.1:9999/archive", "test.conf", 100*time.Millisecond)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "s3cret")
+	assert.Contains(t, err.Error(), "xxxxx")
+}
