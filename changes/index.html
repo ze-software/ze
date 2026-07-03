@@ -22,6 +22,9 @@
             .ch-week { padding: 1.1rem 0; border-top: 1px solid var(--line); }
             .ch-week:first-child { border-top: none; }
             .ch-week.filtered-out { display: none; }
+            .ch-filters { margin: 1.1rem 0 0.2rem; }
+            .ch-empty { margin: 1.5rem 0; color: var(--muted); }
+            .ch-empty.filtered-out { display: none; }
             .ch-head { display: flex; align-items: baseline; gap: 1rem; justify-content: space-between; }
             .ch-head h2 { margin: 0; font-size: 1.12rem; letter-spacing: -0.01em; }
             .ch-head h2 a { text-decoration: none; color: var(--text); }
@@ -40,6 +43,25 @@
                 color: var(--acc-deep, var(--muted));
                 border: 1px solid var(--acc, var(--line));
                 white-space: nowrap;
+            }
+            .ch-chip.cat-meta {
+                background: var(--bg-soft);
+                color: var(--muted);
+                border-color: var(--line);
+                border-style: dashed;
+            }
+            /* The meta bucket has no accent hue, so the shared .legend button
+               style (white text over var(--acc)) renders invisible. Give the
+               filter button a readable neutral treatment instead. */
+            .ch-filters .cat-meta {
+                background: var(--bg-soft);
+                color: var(--muted);
+                border-color: var(--line);
+            }
+            .ch-filters .cat-meta:hover { color: var(--text); }
+            .ch-filters .cat-meta[aria-pressed="true"] {
+                border-color: var(--muted);
+                box-shadow: 0 0 0 2px var(--line);
             }
             .ch-draft { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--acc-deep, var(--muted)); margin-left: 0.5rem; }
         </style>
@@ -255,53 +277,76 @@
             <section aria-labelledby="changes-title">
                 <div class="section-head reveal">
                     <h2 id="changes-title">Changes.</h2>
-                    <p>What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's <code>ze-news</code>. Each week's chips are the areas it touched; click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the <a href="../roadmap/">roadmap</a> tracks the path to a stable release. For the landmark features on a timeline, see <a href="../milestones/">Milestones</a>.</p>
+                    <p>What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's <code>ze-news</code>. Each week's chips are the areas it touched; click a category to show just the weeks that touched it, click again to show everything, or click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the <a href="../roadmap/">roadmap</a> tracks the path to a stable release. For the landmark features on a timeline, see <a href="../milestones/">Milestones</a>.</p>
+                </div>
+                <div class="legend ch-filters reveal" role="group" aria-label="Filter weeks by category">
+                    <button class="cat-operate" data-cat="operate" aria-pressed="false">Operate</button>
+                    <button class="cat-routing" data-cat="routing" aria-pressed="false">Routing</button>
+                    <button class="cat-services" data-cat="services" aria-pressed="false">Services</button>
+                    <button class="cat-automate" data-cat="automate" aria-pressed="false">Automate</button>
+                    <button class="cat-observe" data-cat="observe" aria-pressed="false">Observe</button>
+                    <button class="cat-secure" data-cat="secure" aria-pressed="false">Secure</button>
+                    <button class="cat-platform" data-cat="platform" aria-pressed="false">Platform</button>
+                    <button class="cat-meta" data-cat="meta" aria-pressed="false">Meta</button>
                 </div>
                 <div class="ch-list reveal">
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="routing services secure platform">
                         <div class="ch-head">
                             <h2><a href="2026-06-25/">Week of 2026-06-25</a></h2>
                             <a class="ch-read" href="2026-06-25/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">Shipped across security, the appliance, routing, and observability this week.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-secure">Control-plane survival</span>
-                            <span class="ch-chip cat-platform">Feature gates</span>
-                            <span class="ch-chip cat-platform">Appliance &amp; installer</span>
-                            <span class="ch-chip cat-routing">Routing &amp; access</span>
-                            <span class="ch-chip cat-observe">Observability</span>
-                            <span class="ch-chip cat-platform">Under the hood</span>
+                            <span class="ch-chip cat-secure">Control-Plane</span>
+                            <span class="ch-chip cat-secure">DDoS</span>
+                            <span class="ch-chip cat-platform">Feature Gates</span>
+                            <span class="ch-chip cat-platform">Appliance</span>
+                            <span class="ch-chip cat-platform">Installer</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-services">L2TP</span>
+                            <span class="ch-chip cat-routing">IS-IS</span>
+                            <span class="ch-chip cat-routing">OSPF</span>
+                            <span class="ch-chip cat-services">DNS</span>
+                            <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing observe platform">
                         <div class="ch-head">
                             <h2><a href="2026-06-22/">Week of 2026-06-22</a></h2>
                             <a class="ch-read" href="2026-06-22/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">Focused on trimming attack surface and rounding out OSPF.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-platform">Feature gates</span>
-                            <span class="ch-chip cat-routing">Routing</span>
-                            <span class="ch-chip cat-observe">Observability</span>
-                            <span class="ch-chip cat-platform">Under the hood</span>
+                            <span class="ch-chip cat-platform">Feature Gates</span>
+                            <span class="ch-chip cat-routing">OSPF</span>
+                            <span class="ch-chip cat-routing">IS-IS</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-operate">Web UI</span>
+                            <span class="ch-chip cat-observe">Telemetry</span>
+                            <span class="ch-chip cat-platform">Kernel</span>
+                            <span class="ch-chip cat-platform">Installer</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing secure platform">
                         <div class="ch-head">
                             <h2><a href="2026-06-15/">Week of 2026-06-15</a></h2>
                             <a class="ch-read" href="2026-06-15/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-routing">IS-IS &amp; MPLS</span>
+                            <span class="ch-chip cat-routing">IS-IS</span>
+                            <span class="ch-chip cat-routing">MPLS</span>
+                            <span class="ch-chip cat-routing">RSVP-TE</span>
                             <span class="ch-chip cat-routing">BGP</span>
-                            <span class="ch-chip cat-secure">Firewall / IRR</span>
+                            <span class="ch-chip cat-routing">Flowspec</span>
+                            <span class="ch-chip cat-secure">Firewall</span>
                             <span class="ch-chip cat-platform">Interfaces</span>
                             <span class="ch-chip cat-operate">CLI</span>
-                            <span class="ch-chip cat-platform">Appliance &amp; provisioning</span>
+                            <span class="ch-chip cat-platform">Appliance</span>
+                            <span class="ch-chip cat-platform">Installer</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing services platform meta">
                         <div class="ch-head">
                             <h2><a href="2026-06-08/">Week of 2026-06-08</a></h2>
                             <a class="ch-read" href="2026-06-08/">read &rarr;</a>
@@ -309,15 +354,15 @@
                         <p class="ch-intro">A week of operator-facing polish: a real Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.</p>
                         <div class="ch-chips">
                             <span class="ch-chip cat-routing">BGP</span>
-                            <span class="ch-chip cat-operate">Web Workbench</span>
-                            <span class="ch-chip cat-platform">CLI</span>
-                            <span class="ch-chip cat-services">Class of Service</span>
+                            <span class="ch-chip cat-operate">Web UI</span>
+                            <span class="ch-chip cat-operate">CLI</span>
+                            <span class="ch-chip cat-services">CoS</span>
                             <span class="ch-chip cat-platform">Installer</span>
-                            <span class="ch-chip cat-platform">Under the hood</span>
-                            <span class="ch-chip cat-platform">Presentation: LINX 126</span>
+                            <span class="ch-chip cat-platform">Under the Hood</span>
+                            <span class="ch-chip cat-meta">Presentation: LINX 126</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing services observe platform">
                         <div class="ch-head">
                             <h2><a href="2026-06-01/">Week of 2026-06-01</a></h2>
                             <a class="ch-read" href="2026-06-01/">read &rarr;</a>
@@ -325,13 +370,17 @@
                         <p class="ch-intro">The CLI grammar rollout finished, MRT tooling arrived, and a handful of quiet-but-important reliability bugs got fixed.</p>
                         <div class="ch-chips">
                             <span class="ch-chip cat-operate">CLI</span>
-                            <span class="ch-chip cat-observe">MRT tooling</span>
-                            <span class="ch-chip cat-platform">Appliance &amp; installer</span>
-                            <span class="ch-chip cat-secure">Reliability fixes</span>
-                            <span class="ch-chip cat-platform">Config validation</span>
+                            <span class="ch-chip cat-observe">MRT</span>
+                            <span class="ch-chip cat-platform">Appliance</span>
+                            <span class="ch-chip cat-platform">Installer</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">RPKI</span>
+                            <span class="ch-chip cat-services">L2TP</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing automate observe platform">
                         <div class="ch-head">
                             <h2><a href="2026-05-25/">Week of 2026-05-25</a></h2>
                             <a class="ch-read" href="2026-05-25/">read &rarr;</a>
@@ -339,115 +388,150 @@
                         <p class="ch-intro">MPLS grew a full label-switching stack, flow export and gNMI landed, and config commits became transactional.</p>
                         <div class="ch-chips">
                             <span class="ch-chip cat-routing">MPLS</span>
-                            <span class="ch-chip cat-observe">Observability &amp; telemetry</span>
+                            <span class="ch-chip cat-routing">LDP</span>
+                            <span class="ch-chip cat-routing">RSVP-TE</span>
+                            <span class="ch-chip cat-observe">Flow Export</span>
+                            <span class="ch-chip cat-automate">gNMI</span>
                             <span class="ch-chip cat-operate">CLI</span>
-                            <span class="ch-chip cat-secure">Config &amp; commit reliability</span>
-                            <span class="ch-chip cat-routing">BGP policy &amp; RIB efficiency</span>
-                            <span class="ch-chip cat-platform">Appliance &amp; provisioning</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-platform">Appliance</span>
+                            <span class="ch-chip cat-platform">Installer</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing services observe secure platform">
                         <div class="ch-head">
                             <h2><a href="2026-05-18/">Week of 2026-05-18</a></h2>
                             <a class="ch-read" href="2026-05-18/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">A full native IPsec/IKEv2 VPN stack, a route server for IXPs, and a big allocation-hunting pass across the BGP hot path.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-secure">IPsec / IKEv2 VPN</span>
-                            <span class="ch-chip cat-routing">Routing, BGP &amp; subscriber access</span>
-                            <span class="ch-chip cat-operate">CLI &amp; diagnostics</span>
-                            <span class="ch-chip cat-platform">Appliance, provisioning &amp; readiness</span>
+                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">Route Server</span>
+                            <span class="ch-chip cat-routing">Flowspec</span>
+                            <span class="ch-chip cat-routing">RPKI</span>
+                            <span class="ch-chip cat-services">PPPoE</span>
+                            <span class="ch-chip cat-services">L2TP</span>
+                            <span class="ch-chip cat-operate">CLI</span>
+                            <span class="ch-chip cat-observe">Diagnostics</span>
+                            <span class="ch-chip cat-platform">Appliance</span>
+                            <span class="ch-chip cat-platform">Installer</span>
                             <span class="ch-chip cat-platform">Performance</span>
-                            <span class="ch-chip cat-platform">Under the hood</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing services observe platform">
                         <div class="ch-head">
                             <h2><a href="2026-05-11/">Week of 2026-05-11</a></h2>
                             <a class="ch-read" href="2026-05-11/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">CPE features round out, interface config gets restructured, and RPKI gains ASPA path verification.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-services">CPE / edge router</span>
+                            <span class="ch-chip cat-services">DHCP</span>
+                            <span class="ch-chip cat-services">PPPoE</span>
+                            <span class="ch-chip cat-services">CPE</span>
                             <span class="ch-chip cat-platform">Interfaces</span>
-                            <span class="ch-chip cat-routing">Routing</span>
-                            <span class="ch-chip cat-secure">Security</span>
-                            <span class="ch-chip cat-observe">Observability</span>
-                            <span class="ch-chip cat-platform">Under the hood</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">MPLS</span>
+                            <span class="ch-chip cat-routing">RPKI</span>
+                            <span class="ch-chip cat-observe">Telemetry</span>
+                            <span class="ch-chip cat-operate">Web UI</span>
+                            <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="services observe secure platform">
                         <div class="ch-head">
                             <h2><a href="2026-05-04/">Week of 2026-05-04</a></h2>
                             <a class="ch-read" href="2026-05-04/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">Two major subsystems landed this week: a fleet management tool for appliances, and a PPPoE access concentrator alongside VPP-backed NAT and ACLs.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-platform">Appliance fleet management</span>
-                            <span class="ch-chip cat-services">Broadband access (BNG)</span>
-                            <span class="ch-chip cat-secure">Firewall &amp; VPP dataplane</span>
+                            <span class="ch-chip cat-platform">Fleet</span>
+                            <span class="ch-chip cat-platform">Appliance</span>
+                            <span class="ch-chip cat-services">PPPoE</span>
+                            <span class="ch-chip cat-services">BNG</span>
+                            <span class="ch-chip cat-services">RADIUS</span>
+                            <span class="ch-chip cat-services">PPP</span>
+                            <span class="ch-chip cat-platform">Kernel</span>
+                            <span class="ch-chip cat-secure">Firewall</span>
+                            <span class="ch-chip cat-platform">VPP</span>
                             <span class="ch-chip cat-observe">Diagnostics</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing services automate observe platform">
                         <div class="ch-head">
                             <h2><a href="2026-04-27/">Week of 2026-04-27</a></h2>
                             <a class="ch-read" href="2026-04-27/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">Interface configuration now rolls back cleanly on failure, the web UI got a dedicated CLI page, and traffic-control state survives more edge cases.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-platform">Interfaces &amp; routing</span>
+                            <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-routing">BGP</span>
                             <span class="ch-chip cat-operate">Web UI</span>
-                            <span class="ch-chip cat-services">Traffic control &amp; telemetry</span>
-                            <span class="ch-chip cat-platform">Under the hood</span>
+                            <span class="ch-chip cat-operate">CLI</span>
+                            <span class="ch-chip cat-services">CoS</span>
+                            <span class="ch-chip cat-observe">Telemetry</span>
+                            <span class="ch-chip cat-automate">API</span>
+                            <span class="ch-chip cat-services">L2TP</span>
+                            <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing automate observe secure platform">
                         <div class="ch-head">
                             <h2><a href="2026-04-20/">Week of 2026-04-20</a></h2>
                             <a class="ch-read" href="2026-04-20/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">Security hardening, a new diagnostics subsystem, and a redesigned operator web UI headline this week.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-secure">Security &amp; hardening</span>
-                            <span class="ch-chip cat-observe">Observability &amp; diagnostics</span>
+                            <span class="ch-chip cat-secure">Security</span>
+                            <span class="ch-chip cat-observe">Diagnostics</span>
+                            <span class="ch-chip cat-observe">Telemetry</span>
                             <span class="ch-chip cat-operate">Web UI</span>
-                            <span class="ch-chip cat-routing">Routing</span>
-                            <span class="ch-chip cat-platform">Route-server performance</span>
-                            <span class="ch-chip cat-platform">Under the hood</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">BFD</span>
+                            <span class="ch-chip cat-platform">VPP</span>
+                            <span class="ch-chip cat-platform">Performance</span>
+                            <span class="ch-chip cat-automate">MCP</span>
+                            <span class="ch-chip cat-secure">Firewall</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="services secure platform">
                         <div class="ch-head">
                             <h2><a href="2026-04-13/">Week of 2026-04-13</a></h2>
                             <a class="ch-read" href="2026-04-13/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">A complete L2TP/PPP access stack, TACACS+ and pluggable AAA, a VPP dataplane, and new nftables/tc firewall backends.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-routing">L2TP &amp; PPP access</span>
-                            <span class="ch-chip cat-secure">Authentication &amp; AAA</span>
-                            <span class="ch-chip cat-secure">Firewall, traffic control &amp; VPP</span>
-                            <span class="ch-chip cat-platform">Interfaces &amp; sysctl</span>
-                            <span class="ch-chip cat-platform">Route-server performance</span>
-                            <span class="ch-chip cat-platform">Under the hood</span>
+                            <span class="ch-chip cat-services">L2TP</span>
+                            <span class="ch-chip cat-services">PPP</span>
+                            <span class="ch-chip cat-secure">TACACS+</span>
+                            <span class="ch-chip cat-secure">AAA</span>
+                            <span class="ch-chip cat-secure">Firewall</span>
+                            <span class="ch-chip cat-services">CoS</span>
+                            <span class="ch-chip cat-platform">VPP</span>
+                            <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-platform">Performance</span>
+                            <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing services automate platform meta">
                         <div class="ch-head">
                             <h2><a href="2026-04-06/">Week of 2026-04-06</a></h2>
                             <a class="ch-read" href="2026-04-06/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">A full BFD engine, BGP route reflection and policy filters, a real REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-secure">BFD liveness detection</span>
-                            <span class="ch-chip cat-routing">BGP routing and policy</span>
-                            <span class="ch-chip cat-platform">Config editor and API</span>
+                            <span class="ch-chip cat-routing">BFD</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-automate">API</span>
+                            <span class="ch-chip cat-operate">Config Editor</span>
                             <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-services">DHCP</span>
                             <span class="ch-chip cat-platform">Appliance</span>
-                            <span class="ch-chip cat-platform">Presentation: Net Manchester</span>
+                            <span class="ch-chip cat-meta">Presentation: Net Manchester</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing services automate observe platform">
                         <div class="ch-head">
                             <h2><a href="2026-03-30/">Week of 2026-03-30</a></h2>
                             <a class="ch-read" href="2026-03-30/">read &rarr;</a>
@@ -455,152 +539,183 @@
                         <p class="ch-intro">A full interface management subsystem, offline DNS/RIR resolution tooling, config-driven plugin loading, BGP healthcheck and long-lived graceful restart support, and a Looking Glass overhaul.</p>
                         <div class="ch-chips">
                             <span class="ch-chip cat-platform">Interfaces</span>
-                            <span class="ch-chip cat-platform">DNS &amp; resolution</span>
-                            <span class="ch-chip cat-platform">Config-driven plugins</span>
-                            <span class="ch-chip cat-operate">CLI &amp; Looking Glass</span>
-                            <span class="ch-chip cat-routing">Routing</span>
-                            <span class="ch-chip cat-platform">Under the hood</span>
+                            <span class="ch-chip cat-services">DHCP</span>
+                            <span class="ch-chip cat-services">DNS</span>
+                            <span class="ch-chip cat-automate">Plugins</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-operate">CLI</span>
+                            <span class="ch-chip cat-observe">Looking Glass</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">Graceful Restart</span>
+                            <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing services automate observe secure platform">
                         <div class="ch-head">
                             <h2><a href="2026-03-23/">Week of 2026-03-23</a></h2>
                             <a class="ch-read" href="2026-03-23/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">A full web interface, fleet management, redistribution filtering, and a stack of routing-protocol correctness work all landed together.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-operate">Web interface</span>
-                            <span class="ch-chip cat-platform">Fleet management</span>
-                            <span class="ch-chip cat-platform">Redistribution filtering</span>
-                            <span class="ch-chip cat-secure">Plugin and session security</span>
-                            <span class="ch-chip cat-routing">Routing correctness</span>
-                            <span class="ch-chip cat-observe">Observability and prefix hygiene</span>
-                            <span class="ch-chip cat-platform">Performance and benchmarking</span>
+                            <span class="ch-chip cat-operate">Web UI</span>
+                            <span class="ch-chip cat-platform">Fleet</span>
+                            <span class="ch-chip cat-routing">Redistribution</span>
+                            <span class="ch-chip cat-automate">Plugins</span>
+                            <span class="ch-chip cat-secure">Security</span>
+                            <span class="ch-chip cat-services">DNS</span>
+                            <span class="ch-chip cat-automate">MCP</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-observe">Telemetry</span>
+                            <span class="ch-chip cat-platform">Performance</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing automate secure meta">
                         <div class="ch-head">
                             <h2><a href="2026-03-16/">Week of 2026-03-16</a></h2>
                             <a class="ch-read" href="2026-03-16/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">RPKI route origin validation landed in full, alongside a wave of BGP RFC compliance work, CLI polish, and daemon security hardening.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-secure">RPKI route origin validation</span>
-                            <span class="ch-chip cat-routing">Routing &amp; RFC compliance</span>
-                            <span class="ch-chip cat-platform">Route delivery reliability</span>
-                            <span class="ch-chip cat-operate">CLI &amp; operator experience</span>
-                            <span class="ch-chip cat-secure">Daemon &amp; security hardening</span>
-                            <span class="ch-chip cat-platform">Interop testing</span>
+                            <span class="ch-chip cat-routing">RPKI</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">Graceful Restart</span>
+                            <span class="ch-chip cat-operate">CLI</span>
+                            <span class="ch-chip cat-operate">YANG</span>
+                            <span class="ch-chip cat-secure">Security</span>
+                            <span class="ch-chip cat-meta">Interop</span>
+                            <span class="ch-chip cat-automate">Plugins</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing observe secure platform">
                         <div class="ch-head">
                             <h2><a href="2026-03-09/">Week of 2026-03-09</a></h2>
                             <a class="ch-read" href="2026-03-09/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">A big week for access, config safety, and BGP session security.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-secure">Security &amp; session hardening</span>
-                            <span class="ch-chip cat-platform">Config editing &amp; safety</span>
-                            <span class="ch-chip cat-routing">CLI &amp; operations</span>
+                            <span class="ch-chip cat-secure">Security</span>
+                            <span class="ch-chip cat-secure">RBAC</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-operate">Config Editor</span>
+                            <span class="ch-chip cat-platform">Storage</span>
+                            <span class="ch-chip cat-operate">CLI</span>
+                            <span class="ch-chip cat-observe">Telemetry</span>
+                            <span class="ch-chip cat-routing">Graceful Restart</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing platform">
                         <div class="ch-head">
                             <h2><a href="2026-03-02/">Week of 2026-03-02</a></h2>
                             <a class="ch-read" href="2026-03-02/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">Real best-path selection landed, along with outbound route tracking and a round of CLI/editor polish.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-routing">Routing</span>
-                            <span class="ch-chip cat-operate">CLI &amp; editor</span>
-                            <span class="ch-chip cat-platform">Under the hood</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">Graceful Restart</span>
+                            <span class="ch-chip cat-operate">CLI</span>
+                            <span class="ch-chip cat-operate">Config Editor</span>
+                            <span class="ch-chip cat-platform">Under the Hood</span>
+                            <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing automate observe platform">
                         <div class="ch-head">
                             <h2><a href="2026-02-23/">Week of 2026-02-23</a></h2>
                             <a class="ch-read" href="2026-02-23/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">A route-server-focused week: reliability fixes for BGP Route Server under load, a new external plugin protocol option, and systematic config validation.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-routing">Route Server (RFC 7947)</span>
-                            <span class="ch-chip cat-platform">Plugin protocol</span>
-                            <span class="ch-chip cat-platform">Config validation</span>
-                            <span class="ch-chip cat-platform">Under the hood</span>
-                            <span class="ch-chip cat-observe">ze-chaos</span>
+                            <span class="ch-chip cat-routing">Route Server</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-automate">Plugins</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-observe">Chaos</span>
+                            <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing automate observe platform meta">
                         <div class="ch-head">
                             <h2><a href="2026-02-16/">Week of 2026-02-16</a></h2>
                             <a class="ch-read" href="2026-02-16/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">A hard round of route reflector hardening, a live web dashboard for the chaos tool, and a batch of BGP protocol and config improvements.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-automate">Route reflector hardening</span>
-                            <span class="ch-chip cat-observe">Chaos tool dashboard</span>
-                            <span class="ch-chip cat-routing">A new IETF draft: ATTR_TOMBSTONE</span>
-                            <span class="ch-chip cat-routing">Protocol and config</span>
-                            <span class="ch-chip cat-platform">Under the hood</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-observe">Chaos</span>
+                            <span class="ch-chip cat-meta">IETF Draft: ATTR_TOMBSTONE</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-automate">Plugins</span>
+                            <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing automate observe platform">
                         <div class="ch-head">
                             <h2><a href="2026-02-09/">Week of 2026-02-09</a></h2>
                             <a class="ch-read" href="2026-02-09/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot-path allocation cleanup.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-observe">Chaos testing tool</span>
-                            <span class="ch-chip cat-automate">Config reload</span>
-                            <span class="ch-chip cat-routing">Protocol correctness</span>
-                            <span class="ch-chip cat-automate">ExaBGP migration</span>
+                            <span class="ch-chip cat-observe">Chaos</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-automate">Plugins</span>
+                            <span class="ch-chip cat-operate">Config Editor</span>
+                            <span class="ch-chip cat-automate">ExaBGP Migration</span>
                             <span class="ch-chip cat-platform">Performance</span>
+                            <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing automate platform">
                         <div class="ch-head">
                             <h2><a href="2026-02-02/">Week of 2026-02-02</a></h2>
                             <a class="ch-read" href="2026-02-02/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">Mostly spent on the config editor, a new capability, and a round of decode/RIB bug fixes.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-platform">Link-local next-hop capability</span>
-                            <span class="ch-chip cat-operate">Config editor</span>
-                            <span class="ch-chip cat-platform">Fixes</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-automate">Plugins</span>
+                            <span class="ch-chip cat-operate">Config Editor</span>
+                            <span class="ch-chip cat-automate">ExaBGP Migration</span>
+                            <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing automate platform">
                         <div class="ch-head">
                             <h2><a href="2026-01-26/">Week of 2026-01-26</a></h2>
                             <a class="ch-read" href="2026-01-26/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">Config work, the ExaBGP migration path, and correctness fixes across the wire.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-platform">Family plugins</span>
-                            <span class="ch-chip cat-automate">ExaBGP migration</span>
-                            <span class="ch-chip cat-platform">Correctness fixes</span>
-                            <span class="ch-chip cat-operate">Config editor and CLI</span>
-                            <span class="ch-chip cat-platform">Under the hood</span>
+                            <span class="ch-chip cat-automate">Plugins</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">Flowspec</span>
+                            <span class="ch-chip cat-automate">ExaBGP Migration</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-operate">Config Editor</span>
+                            <span class="ch-chip cat-operate">CLI</span>
+                            <span class="ch-chip cat-platform">Quality Improvement</span>
+                            <span class="ch-chip cat-platform">Under the Hood</span>
+                            <span class="ch-chip cat-platform">Storage</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing automate platform">
                         <div class="ch-head">
                             <h2><a href="2026-01-19/">Week of 2026-01-19</a></h2>
                             <a class="ch-read" href="2026-01-19/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">A big architecture week: Ze split into a hub process and a BGP child process, gained live config reload, and got a documented plugin SDK.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-platform">Process architecture</span>
-                            <span class="ch-chip cat-platform">Plugin SDK</span>
-                            <span class="ch-chip cat-operate">Config validation</span>
-                            <span class="ch-chip cat-platform">Config syntax</span>
-                            <span class="ch-chip cat-platform">CLI</span>
-                            <span class="ch-chip cat-platform">Fixes</span>
+                            <span class="ch-chip cat-platform">Under the Hood</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-automate">Plugins</span>
+                            <span class="ch-chip cat-operate">YANG</span>
+                            <span class="ch-chip cat-operate">Config Editor</span>
+                            <span class="ch-chip cat-operate">CLI</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing automate observe">
                         <div class="ch-head">
                             <h2><a href="2026-01-12/">Week of 2026-01-12</a></h2>
                             <a class="ch-read" href="2026-01-12/">read &rarr;</a>
@@ -608,65 +723,127 @@
                         <p class="ch-intro">A week focused on Graceful Restart, ExaBGP migration tooling, and logging.</p>
                         <div class="ch-chips">
                             <span class="ch-chip cat-routing">Graceful Restart</span>
-                            <span class="ch-chip cat-automate">ExaBGP migration</span>
-                            <span class="ch-chip cat-observe">Logging</span>
-                            <span class="ch-chip cat-platform">Config &amp; API</span>
+                            <span class="ch-chip cat-automate">Plugins</span>
+                            <span class="ch-chip cat-automate">ExaBGP Migration</span>
+                            <span class="ch-chip cat-observe">Diagnostics</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-automate">API</span>
+                            <span class="ch-chip cat-routing">BGP</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="routing automate platform">
                         <div class="ch-head">
                             <h2><a href="2026-01-05/">Week of 2026-01-05</a></h2>
                             <a class="ch-read" href="2026-01-05/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">This week rounded out route-refresh, ADD-PATH and VPN/labeled-unicast support in the plugin API, alongside a batch of BGP correctness fixes.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-automate">Route refresh</span>
-                            <span class="ch-chip cat-platform">Plugin API: routes and families</span>
-                            <span class="ch-chip cat-platform">Protocol correctness</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">Graceful Restart</span>
+                            <span class="ch-chip cat-automate">Plugins</span>
+                            <span class="ch-chip cat-automate">API</span>
+                            <span class="ch-chip cat-routing">Flowspec</span>
+                            <span class="ch-chip cat-routing">MPLS</span>
+                            <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing secure platform">
                         <div class="ch-head">
                             <h2><a href="2025-12-29/">Week of 2025-12-29</a></h2>
                             <a class="ch-read" href="2025-12-29/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">Route-family coverage rounded out (labeled-unicast, MPLS VPN, MUP, route reflection), a batch of protocol-correctness fixes, and a security-relevant change to how Ze listens for BGP sessions.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-secure">Session hardening</span>
-                            <span class="ch-chip cat-routing">Route families</span>
-                            <span class="ch-chip cat-platform">Protocol correctness</span>
-                            <span class="ch-chip cat-operate">CLI &amp; config</span>
-                            <span class="ch-chip cat-platform">Reliability</span>
+                            <span class="ch-chip cat-secure">Security</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">MPLS</span>
+                            <span class="ch-chip cat-routing">Route Server</span>
+                            <span class="ch-chip cat-routing">Flowspec</span>
+                            <span class="ch-chip cat-operate">CLI</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-operate">Config Editor</span>
+                            <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="routing automate platform">
                         <div class="ch-head">
                             <h2><a href="2025-12-22/">Week of 2025-12-22</a></h2>
                             <a class="ch-read" href="2025-12-22/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">Work on the BGP engine itself: route encoding correctness, session robustness, and a first real API surface for driving peers programmatically.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-routing">Protocol correctness</span>
-                            <span class="ch-chip cat-platform">Session and process handling</span>
-                            <span class="ch-chip cat-operate">API</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">Flowspec</span>
+                            <span class="ch-chip cat-automate">API</span>
+                            <span class="ch-chip cat-automate">Plugins</span>
+                            <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </article>
-                    <article class="ch-week">
+                    <article class="ch-week" data-cats="operate routing automate">
                         <div class="ch-head">
                             <h2><a href="2025-12-15/">Week of 2025-12-15</a></h2>
                             <a class="ch-read" href="2025-12-15/">read &rarr;</a>
                         </div>
                         <p class="ch-intro">The first tracked week of development on Ze. In seven days the BGP engine went from nothing to a config-driven daemon that speaks the wire protocol, holds a RIB, and tests itself against ExaBGP.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-routing">Core BGP engine</span>
-                            <span class="ch-chip cat-platform">Config and CLI</span>
-                            <span class="ch-chip cat-automate">API and self-check testing</span>
-                            <span class="ch-chip cat-routing">RFC compliance pass</span>
-                            <span class="ch-chip cat-operate">Config migration and batched updates</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">Flowspec</span>
+                            <span class="ch-chip cat-automate">ExaBGP Migration</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-operate">Config Editor</span>
+                            <span class="ch-chip cat-operate">CLI</span>
+                            <span class="ch-chip cat-automate">API</span>
                         </div>
                     </article>
+                    <p class="ch-empty filtered-out">No weeks in that category yet.</p>
                 </div>
             </section>
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var buttons = document.querySelectorAll(".ch-filters button");
+                var weeks = document.querySelectorAll(".ch-week[data-cats]");
+                var empty = document.querySelector(".ch-empty");
+
+                function applyFilter(cat) {
+                    var shown = 0;
+                    weeks.forEach(function (w) {
+                        var hit = cat === null || w.dataset.cats.split(" ").indexOf(cat) !== -1;
+                        w.classList.toggle("filtered-out", !hit);
+                        if (hit) shown++;
+                    });
+                    if (empty) empty.classList.toggle("filtered-out", shown !== 0);
+                }
+
+                function pressOnly(activeBtn) {
+                    buttons.forEach(function (other) {
+                        other.setAttribute("aria-pressed", other === activeBtn ? "true" : "false");
+                    });
+                }
+
+                buttons.forEach(function (btn) {
+                    btn.addEventListener("click", function () {
+                        var wasPressed = btn.getAttribute("aria-pressed") === "true";
+                        pressOnly(null);
+                        if (wasPressed) {
+                            applyFilter(null);
+                        } else {
+                            btn.setAttribute("aria-pressed", "true");
+                            applyFilter(btn.dataset.cat);
+                        }
+                    });
+                });
+
+                var hashCat = location.hash.replace("#", "");
+                var hashBtn = hashCat
+                    ? document.querySelector('.ch-filters button[data-cat="' + hashCat + '"]')
+                    : null;
+                if (hashBtn) {
+                    pressOnly(hashBtn);
+                    applyFilter(hashCat);
+                }
+            });
+        </script>
+
         </main>
 
         <script src="../assets/site.js?v=009147356b" defer></script>

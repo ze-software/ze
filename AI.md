@@ -43,6 +43,12 @@ gh-pages/
                                               status, chips, bullets
     milestones.json                       -- every node on milestones/index.html: date, title,
                                               category, blurb, and the blog week it links to
+    topics.json                           -- controlled tag vocabulary for the Changes chips: every
+                                              allowed tag -> one of eight categories (seven site
+                                              colors + neutral `meta`). render-changes.py reads each
+                                              weekly post's `tags:` front matter against this and the
+                                              build fails on any tag not listed. Keep tags atomic and
+                                              in canonical casing (BGP, IS-IS, Flow Export, ...)
     audience.json                         -- the "Two ways to run Ze" and "Who should look now"
                                               cards on index.html
     dependencies.json                     -- every direct Go dependency's "why", grouped by
@@ -63,7 +69,10 @@ gh-pages/
                                               is the Changes section below, not the blog)
     render-changes.py                     -- changes/posts/*.md (weekly updates) -> changes/<week>/
                                               index.html full write-up + changes/index.html terse
-                                              index + changes/feed.xml RSS
+                                              index + changes/feed.xml RSS. Topic chips come from
+                                              each post's `tags:` front matter (comma-separated),
+                                              colored via data/topics.json; a post with no `tags:`
+                                              falls back to its section headers and warns
     render-activity.py                    -- git history -> activity/index.html
     render-features.py                    -- data/features.json -> features/index.html
     render-timeline.py                    -- data/milestones.json -> milestones/index.html, the
@@ -171,6 +180,17 @@ Trigger: a new `changes/posts/<start-date>.md` lands (the week's Discord
 `ze-news` update -- this is the weekly changelog source; the `blog/` section
 is now for occasional editorial articles, not the weekly update). Work through
 this before considering the update done.
+
+0. **Tag the week.** Give the new post a `tags:` front-matter line (comma-
+   separated) drawn from `data/topics.json`: one atomic tag per protocol or
+   subsystem the week actually touched (`BGP`, `IS-IS`, `L2TP`, `Web UI`,
+   ...), plus `Under the Hood` / `Quality Improvement` for refactors and
+   fixes, and the `meta` family (`Presentation: <venue>`, `IETF Draft: <name>`,
+   `Interop`) for non-subsystem work. The category is the broad area (it picks
+   the chip color), so the tag is always the specific thing -- `Routing` is
+   never a tag. `tools/build.py` fails on any tag not in `data/topics.json`; if
+   the week did something genuinely new, add the tag to the vocabulary (with
+   its category) rather than forcing a near-miss.
 
 1. **Check Features for drift.** Did the week ship something with no card
    yet, or move a feature from Experimental to shipped? Add/move/edit its

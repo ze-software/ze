@@ -65,6 +65,17 @@ parse_front_matter = sitelib.parse_blog_front_matter
 split_sections = sitelib.split_blog_sections
 start_date = sitelib.blog_start_date
 
+TOPICS_JSON = GH_PAGES / "data" / "topics.json"
+
+
+def load_topic_vocab():
+    """The controlled tag vocabulary: {tag -> category}. See data/topics.json."""
+    return json.loads(TOPICS_JSON.read_text())["tags"]
+
+
+TAG_CATEGORY = load_topic_vocab()
+
+
 # --- Topic classification --------------------------------------------------
 #
 # Each section header starts with an emoji whose meaning STYLE.md fixes; we map
@@ -135,7 +146,31 @@ def topics_of(sections):
         label = clean_header(header)
         if not label or SKIP_TOPIC_RE.search(label):
             continue
-        topics.append({"label": label, "category": classify(header)})
+        topics.append({"label": label, "category": classify(header), "key": label})
+    return topics
+
+
+def topics_from_tags(meta, source):
+    """The chip list for a week, from its front-matter `tags:` line and the
+    controlled vocabulary in data/topics.json. Each tag maps to one of the
+    eight site categories (color); a namespaced tag ('Presentation: LINX 126')
+    is classified and filtered by its family (the part before the colon) but
+    shown in full. Returns None if the post has no `tags:` line so the caller
+    can fall back to the section-header heuristic. Unknown tags still render
+    (neutral) but warn, so the vocabulary can't drift silently."""
+    raw = meta.get("tags", "").strip()
+    if not raw:
+        return None
+    topics = []
+    for tag in (t.strip() for t in raw.split(",")):
+        if not tag:
+            continue
+        family = tag.split(":", 1)[0].strip()
+        category = TAG_CATEGORY.get(family)
+        if category is None:
+            sitelib.warn("%s: tag %r not in data/topics.json vocabulary" % (source, tag))
+            category = "meta"
+        topics.append({"label": tag, "category": category, "key": family})
     return topics
 
 
@@ -211,6 +246,9 @@ INDEX_CSS = """        <style>
             .ch-week { padding: 1.1rem 0; border-top: 1px solid var(--line); }
             .ch-week:first-child { border-top: none; }
             .ch-week.filtered-out { display: none; }
+            .ch-filters { margin: 1.1rem 0 0.2rem; }
+            .ch-empty { margin: 1.5rem 0; color: var(--muted); }
+            .ch-empty.filtered-out { display: none; }
             .ch-head { display: flex; align-items: baseline; gap: 1rem; justify-content: space-between; }
             .ch-head h2 { margin: 0; font-size: 1.12rem; letter-spacing: -0.01em; }
             .ch-head h2 a { text-decoration: none; color: var(--text); }
@@ -230,12 +268,96 @@ INDEX_CSS = """        <style>
                 border: 1px solid var(--acc, var(--line));
                 white-space: nowrap;
             }
+            .ch-chip.cat-meta {
+                background: var(--bg-soft);
+                color: var(--muted);
+                border-color: var(--line);
+                border-style: dashed;
+            }
+            /* The meta bucket has no accent hue, so the shared .legend button
+               style (white text over var(--acc)) renders invisible. Give the
+               filter button a readable neutral treatment instead. */
+            .ch-filters .cat-meta {
+                background: var(--bg-soft);
+                color: var(--muted);
+                border-color: var(--line);
+            }
+            .ch-filters .cat-meta:hover { color: var(--text); }
+            .ch-filters .cat-meta[aria-pressed="true"] {
+                border-color: var(--muted);
+                box-shadow: 0 0 0 2px var(--line);
+            }
             .ch-draft { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--acc-deep, var(--muted)); margin-left: 0.5rem; }
         </style>
 """
 
+# Category filter: a legend of the categories actually present, reusing the
+# same .legend component and press/toggle behaviour as the Features page. A
+# week carries every category it touched in data-cats (space-separated), so
+# clicking a category shows every week that touched it (a week matches more
+# than one). #hash arrives pre-filtered, like features/#routing.
+FILTER_SCRIPT = """        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var buttons = document.querySelectorAll(".ch-filters button");
+                var weeks = document.querySelectorAll(".ch-week[data-cats]");
+                var empty = document.querySelector(".ch-empty");
+
+                function applyFilter(cat) {
+                    var shown = 0;
+                    weeks.forEach(function (w) {
+                        var hit = cat === null || w.dataset.cats.split(" ").indexOf(cat) !== -1;
+                        w.classList.toggle("filtered-out", !hit);
+                        if (hit) shown++;
+                    });
+                    if (empty) empty.classList.toggle("filtered-out", shown !== 0);
+                }
+
+                function pressOnly(activeBtn) {
+                    buttons.forEach(function (other) {
+                        other.setAttribute("aria-pressed", other === activeBtn ? "true" : "false");
+                    });
+                }
+
+                buttons.forEach(function (btn) {
+                    btn.addEventListener("click", function () {
+                        var wasPressed = btn.getAttribute("aria-pressed") === "true";
+                        pressOnly(null);
+                        if (wasPressed) {
+                            applyFilter(null);
+                        } else {
+                            btn.setAttribute("aria-pressed", "true");
+                            applyFilter(btn.dataset.cat);
+                        }
+                    });
+                });
+
+                var hashCat = location.hash.replace("#", "");
+                var hashBtn = hashCat
+                    ? document.querySelector('.ch-filters button[data-cat="' + hashCat + '"]')
+                    : null;
+                if (hashBtn) {
+                    pressOnly(hashBtn);
+                    applyFilter(hashCat);
+                }
+            });
+        </script>
+"""
+
+# Legend order matches the Features page (sitelib.CATEGORIES), with the
+# neutral meta bucket last.
+FILTER_ORDER = sitelib.CATEGORIES + ["meta"]
+
+
+def week_categories(w):
+    """The distinct categories a week touched, in canonical legend order."""
+    present = {t["category"] for t in w["topics"]}
+    return [c for c in FILTER_ORDER if c in present]
+
 
 def render_index_html(weeks):
+    present = {c for w in weeks for c in week_categories(w)}
+    legend_cats = [c for c in FILTER_ORDER if c in present]
+
     out = ['            <section aria-labelledby="changes-title">']
     out.append('                <div class="section-head reveal">')
     out.append('                    <h2 id="changes-title">Changes.</h2>')
@@ -243,16 +365,29 @@ def render_index_html(weeks):
         '                    <p>What shipped in Ze, newest first: the weekly '
         "updates, mined from git history and posted to Discord's "
         "<code>ze-news</code>. Each week's chips are the areas it touched; "
-        "click a week for the full write-up. Ze is pre-release, so the "
-        'configuration syntax can still change, and the <a href="../roadmap/">'
-        "roadmap</a> tracks the path to a stable release. For the landmark "
-        'features on a timeline, see <a href="../milestones/">Milestones</a>.</p>'
+        "click a category to show just the weeks that touched it, click again "
+        "to show everything, or click a week for the full write-up. Ze is "
+        'pre-release, so the configuration syntax can still change, and the '
+        '<a href="../roadmap/">roadmap</a> tracks the path to a stable '
+        "release. For the landmark features on a timeline, see "
+        '<a href="../milestones/">Milestones</a>.</p>'
     )
+    out.append("                </div>")
+    out.append(
+        '                <div class="legend ch-filters reveal" role="group" '
+        'aria-label="Filter weeks by category">'
+    )
+    for cat in legend_cats:
+        out.append(
+            '                    <button class="cat-%s" data-cat="%s" aria-pressed="false">%s</button>'
+            % (cat, cat, cat.capitalize())
+        )
     out.append("                </div>")
     out.append('                <div class="ch-list reveal">')
     for w in weeks:
         slug = w["slug"]
-        out.append('                    <article class="ch-week">')
+        cats = " ".join(week_categories(w))
+        out.append('                    <article class="ch-week" data-cats="%s">' % html.escape(cats, quote=True))
         out.append('                        <div class="ch-head">')
         draft = '<span class="ch-draft">pending review</span>' if w["is_draft"] else ""
         out.append(
@@ -272,8 +407,13 @@ def render_index_html(weeks):
                 )
             out.append("                        </div>")
         out.append("                    </article>")
+    out.append(
+        '                    <p class="ch-empty filtered-out">No weeks in that '
+        "category yet.</p>"
+    )
     out.append("                </div>")
     out.append("            </section>")
+    out.append(FILTER_SCRIPT)
     return "\n".join(out)
 
 
@@ -389,12 +529,19 @@ def main():
             + sitelib.page_foot("../../")
         )
         sitelib.write_markdown_sibling(dest, render_post_markdown(meta, intro, sections, covers))
+        topics = topics_from_tags(meta, f.name)
+        if topics is None:
+            sitelib.warn(
+                "%s: no `tags:` front matter; deriving chips from section headers. "
+                "Add a curated `tags:` line (vocabulary: data/topics.json)." % f.name
+            )
+            topics = topics_of(sections)
         weeks.append(
             {
                 "slug": slug,
                 "intro": intro,
                 "is_draft": meta.get("status", "").upper().startswith("DRAFT"),
-                "topics": topics_of(sections),
+                "topics": topics,
             }
         )
 
