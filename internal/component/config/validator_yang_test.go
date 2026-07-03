@@ -822,37 +822,11 @@ func TestCheckAllValidatorsRegistered_AllPresent(t *testing.T) {
 	loader := newTestLoader(t)
 	reg := yang.NewValidatorRegistry()
 
-	// Register all validators referenced by ze:validate in YANG.
-	reg.Register("registered-address-family", yang.CustomValidator{
-		ValidateFn: func(path string, value any) error { return nil },
-	})
-	reg.Register("nonzero-ipv4", yang.CustomValidator{
-		ValidateFn: func(path string, value any) error { return nil },
-	})
-	reg.Register("literal-self", yang.CustomValidator{
-		ValidateFn: func(path string, value any) error { return nil },
-	})
-	reg.Register("community-range", yang.CustomValidator{
-		ValidateFn: func(path string, value any) error { return nil },
-	})
-	reg.Register("receive-event-type", yang.CustomValidator{
-		ValidateFn: func(path string, value any) error { return nil },
-	})
-	reg.Register("send-message-type", yang.CustomValidator{
-		ValidateFn: func(path string, value any) error { return nil },
-	})
-	reg.Register("mac-address", yang.CustomValidator{
-		ValidateFn: func(path string, value any) error { return nil },
-	})
-	reg.Register("internal-plugin-name", yang.CustomValidator{
-		ValidateFn: func(path string, value any) error { return nil },
-	})
-	reg.Register("isis-net", yang.CustomValidator{
-		ValidateFn: func(path string, value any) error { return nil },
-	})
-	reg.Register("isis-system-id", yang.CustomValidator{
-		ValidateFn: func(path string, value any) error { return nil },
-	})
+	// Register the production validator set so this test tracks the real registry
+	// rather than a hand-maintained subset that silently drifts as modules are
+	// added (adding config/redistribute/yang to this binary previously exposed a
+	// missing "redistribute-source" entry here).
+	RegisterValidators(reg)
 
 	err := yang.CheckAllValidatorsRegistered(loader, reg)
 	assert.NoError(t, err)

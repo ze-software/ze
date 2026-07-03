@@ -10,4 +10,8 @@ import (
 
 func init() {
 	health.Register("l2tp", checkHealth)
+	// Register the redistribute source at init so `import l2tp` resolves during
+	// `ze config validate`, which imports plugins but does not start their engines.
+	// Subsystem.Start also calls this; sync.Once makes the second call a no-op.
+	RegisterL2TPSources()
 }

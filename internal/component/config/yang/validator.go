@@ -647,6 +647,11 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 						continue
 					}
 					entryPath := tb.Reset().Str(childPath).Byte('[').Str(listKey).Byte(']').String()
+					// Validate the list key value itself. walkTree recurses into
+					// the entry's children, but the key is only the map key — not a
+					// child — so without this a ze:validate on a list key leaf
+					// (e.g. redistribute `import` source) never runs.
+					v.validateListKey(entryPath, child, listKey, entryMap, errs)
 					v.walkTree(entryPath, child, entryMap, errs)
 				}
 				// Check list cardinality against YANG max-elements.
@@ -704,6 +709,40 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 		// Check ze:validate extension for custom validation.
 		v.applyCustomValidators(childPath, child, value, errs)
 	}
+}
+
+// validateListKey validates a list entry's key value against the list's key-leaf
+// schema, running the key leaf's YANG type check and any ze:validate custom
+// validators. Without it, a ze:validate on a list key (e.g. the redistribute
+// `import` source) is dead code: walkTree only validates an entry's children,
+// and the key is the map key, not a child. Skips composite keys, keys with no
+// resolvable leaf, and keys the entry also stores as a child (validated by the
+// normal child walk, so we avoid a duplicate error).
+func (v *Validator) validateListKey(path string, list *yang.Entry, keyVal string, entryMap map[string]any, errs *[]ValidationError) {
+	key := list.Key
+	if key == "" || strings.Contains(key, " ") {
+		return // no key, or composite key — not a single validated leaf
+	}
+	if _, dup := entryMap[key]; dup {
+		return // key is also stored as a child; the child walk validates it
+	}
+	keyLeaf, ok := list.Dir[key]
+	if !ok {
+		return
+	}
+	if leafErr := v.validateEntry(path, keyLeaf, keyVal); leafErr != nil {
+		var valErr *ValidationError
+		if errors.As(leafErr, &valErr) {
+			*errs = append(*errs, *valErr)
+		} else {
+			*errs = append(*errs, ValidationError{
+				Path:    path,
+				Type:    ErrTypeType,
+				Message: leafErr.Error(),
+			})
+		}
+	}
+	v.applyCustomValidators(path, keyLeaf, keyVal, errs)
 }
 
 // applyCustomValidators runs the child's ze:validate custom validators against

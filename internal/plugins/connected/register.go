@@ -14,6 +14,12 @@ import (
 )
 
 func init() {
+	// Register the redistribute source at init (not only in runConnectedPlugin)
+	// so `import connected` resolves during `ze config validate`, which imports
+	// plugins but does not start their engines. sync.Once keeps the run-time call
+	// idempotent.
+	registerConnectedSources()
+
 	reg := registry.Registration{
 		Name:        pluginName,
 		Description: "Connected routes: redistribute directly connected interface prefixes",
