@@ -329,6 +329,50 @@ func TestValidateSemanticValidationWarnings(t *testing.T) {
 	assert.True(t, hasRouterIDWarning, "expected warning about missing router-id")
 }
 
+// TestValidateNoFalseASNWarnings verifies AS numbers set under the canonical
+// session/asn paths do not trigger spurious "not configured" warnings.
+//
+// VALIDATES: addSemanticWarnings reads session/asn/{local,remote}.
+// PREVENTS: Regression where it read pre-schema paths (bgp/local/as,
+// peer/local/as, peer/remote/as) and falsely warned on every correct config.
+func TestValidateNoFalseASNWarnings(t *testing.T) {
+	const conf = `bgp {
+    router-id 10.0.0.1
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+        }
+    }
+}
+`
+	result := runValidation(conf, "asn.conf")
+	require.True(t, result.Valid, "expected valid config, diagnostics: %+v", result.Diagnostics)
+
+	for _, d := range result.Diagnostics {
+		if strings.Contains(d.Message, "local-as not configured") ||
+			strings.Contains(d.Message, "remote as not configured") ||
+			strings.Contains(d.Message, "not configured globally") {
+			t.Errorf("spurious ASN warning for a config that sets session/asn: %q", d.Message)
+		}
+	}
+}
+
 // envelopeKey returns the JSON key name for the contract envelope field.
 func envelopeKey() string { return "schema" + "-" + "version" }
 

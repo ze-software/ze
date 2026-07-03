@@ -479,6 +479,22 @@ func treeUint32(v any) uint32 {
 	return uint32(n) //nolint:gosec // Validated by ParseUint with bitSize 32
 }
 
+// asnFromSession reads session/asn/<leaf> from a bgp-global or peer subtree.
+// The AS numbers live under session { asn { local; remote } } in the config
+// tree (see internal/component/bgp/reactor/config.go), not under bare
+// local/remote containers.
+func asnFromSession(tree map[string]any, leaf string) uint32 {
+	sessionMap, ok := tree["session"].(map[string]any)
+	if !ok {
+		return 0
+	}
+	asnMap, ok := sessionMap["asn"].(map[string]any)
+	if !ok {
+		return 0
+	}
+	return treeUint32(asnMap[leaf])
+}
+
 func isSensitiveLeaf(path string, sensitiveKeys map[string]bool) bool {
 	if idx := strings.LastIndex(path, "."); idx >= 0 {
 		return sensitiveKeys[path[idx+1:]]
@@ -542,10 +558,7 @@ func addSemanticWarnings(result *validationResult, bgpTree map[string]any) {
 		result.addWarning("config-warning", "router-id not configured (will use system default)")
 	}
 
-	var globalLocalAS uint32
-	if localMap, ok := bgpTree["local"].(map[string]any); ok {
-		globalLocalAS = treeUint32(localMap["as"])
-	}
+	globalLocalAS := asnFromSession(bgpTree, "local")
 	if globalLocalAS == 0 {
 		result.addWarning("config-warning", "local-as not configured globally")
 	}
@@ -556,17 +569,11 @@ func addSemanticWarnings(result *validationResult, bgpTree map[string]any) {
 		if !ok {
 			continue
 		}
-		var peerLocalAS uint32
-		if localMap, ok := peer["local"].(map[string]any); ok {
-			peerLocalAS = treeUint32(localMap["as"])
-		}
+		peerLocalAS := asnFromSession(peer, "local")
 		if peerLocalAS == 0 && globalLocalAS == 0 {
 			result.addWarning("config-warning", "peer "+name+": local-as not configured")
 		}
-		var peerAS uint32
-		if remoteMap, ok := peer["remote"].(map[string]any); ok {
-			peerAS = treeUint32(remoteMap["as"])
-		}
+		peerAS := asnFromSession(peer, "remote")
 		if peerAS == 0 {
 			result.addWarning("config-warning", "peer "+name+": remote as not configured")
 		}
