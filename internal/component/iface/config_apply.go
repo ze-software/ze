@@ -1054,15 +1054,14 @@ func addDesiredAddresses(cfg *ifaceConfig, b Backend) {
 }
 
 // reconcileOnVPPReady is invoked from the register.go EventBus handler when
-// vppevents.EventConnected or EventReconnected fires. It looks up the
-// currently-active config and, if one exists and the currently active
-// backend is vpp, runs reconcileOnReady. It also retries b.StartMonitor so
-// a monitor deferred at startup (backend not ready at OnConfigure time)
-// installs as soon as the backend becomes live. No-op when no config has
-// been applied yet, when the backend is still unregistered, or when the
-// active backend is not vpp (the subscription is installed unconditionally
-// for simplicity but should not mutate netlink state on a vpp lifecycle
-// event, since vpp-ready has no meaning for the netlink backend).
+// vppevents.EventConnected or EventReconnected fires. It reloads the VPP
+// backend via LoadBackend to clear stale state (dead GoVPP channel, stale
+// name map, stale bridge domains) from the pre-crash instance, then runs
+// reconcileOnReady against the fresh backend. It also retries
+// b.StartMonitor so a monitor deferred at startup (backend not ready at
+// OnConfigure time) installs as soon as the backend becomes live. No-op
+// when no config has been applied yet, when the backend is still
+// unregistered, or when the active backend is not vpp.
 //
 // Exposed at package level so the register-time handler is easy to test
 // without standing up the SDK event loop.
@@ -1080,6 +1079,14 @@ func reconcileOnVPPReady(activeCfg *atomic.Pointer[ifaceConfig]) {
 	if cfg.Backend != vppBackendName {
 		return
 	}
+
+	// Reload the backend to clear stale state (dead GoVPP channel, stale
+	// name map, stale bridge domains) from the pre-crash VPP instance.
+	// LoadBackend creates a fresh vppBackendImpl; the old one is closed.
+	if err := LoadBackend(vppBackendName); err != nil {
+		log.Warn("iface: reload vpp backend on reconnect", "err", err)
+	}
+
 	b := GetBackend()
 	if b == nil {
 		return

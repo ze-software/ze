@@ -228,6 +228,167 @@ func TestUnsubscribeOnShutdown(t *testing.T) {
 	require.False(t, fb.deleted["orphan-dum"], "handler must not fire after unsubscribe")
 }
 
+// TestReconcileOnVPPReady_ReloadsBackend verifies AC-1: when
+// EventReconnected fires, reconcileOnVPPReady reloads the backend via
+// LoadBackend to clear stale state (dead GoVPP channel, stale name map,
+// stale bridge domains) from the pre-crash VPP instance.
+//
+// VALIDATES: AC-1 -- backend reloaded on vpp reconnect.
+// PREVENTS: stale ifacevpp state surviving VPP crash.
+func TestReconcileOnVPPReady_ReloadsBackend(t *testing.T) {
+	var factoryCalls int
+	err := RegisterBackend(vppBackendName, func() (Backend, error) {
+		factoryCalls++
+		return &fakeBackend{ifaces: map[string]fakeIface{}}, nil
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = CloseBackend()
+		backendsMu.Lock()
+		delete(backends, vppBackendName)
+		backendsMu.Unlock()
+	})
+
+	require.NoError(t, LoadBackend(vppBackendName))
+	require.Equal(t, 1, factoryCalls, "factory should be called once for initial load")
+
+	cfg := testConfigWithAddresses()
+	var activeCfg atomic.Pointer[ifaceConfig]
+	activeCfg.Store(cfg)
+
+	reconcileOnVPPReady(&activeCfg)
+
+	require.Equal(t, 2, factoryCalls, "factory should be called again during reconcile (backend reload)")
+}
+
+// TestReconcileOnVPPReady_ReconcilesToNewBackend verifies AC-2/AC-3: after
+// a backend reload, the reconciliation runs against the fresh backend (not
+// the stale one). This proves that addresses are applied to the new
+// instance, meaning the new VPP instance will have the correct state.
+//
+// VALIDATES: AC-2, AC-3 -- fresh backend receives reconciled state.
+// PREVENTS: reconciliation running against old, stale backend.
+func TestReconcileOnVPPReady_ReconcilesToNewBackend(t *testing.T) {
+	var latestBackend *fakeBackend
+	err := RegisterBackend(vppBackendName, func() (Backend, error) {
+		fb := &fakeBackend{ifaces: map[string]fakeIface{
+			"dum0": {name: "dum0", linkType: zeTypeDummy},
+		}}
+		latestBackend = fb
+		return fb, nil
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = CloseBackend()
+		backendsMu.Lock()
+		delete(backends, vppBackendName)
+		backendsMu.Unlock()
+	})
+
+	require.NoError(t, LoadBackend(vppBackendName))
+	firstBackend := latestBackend
+
+	cfg := testConfigWithAddresses()
+	var activeCfg atomic.Pointer[ifaceConfig]
+	activeCfg.Store(cfg)
+
+	reconcileOnVPPReady(&activeCfg)
+
+	require.True(t, firstBackend != latestBackend, "backend instance should have been replaced")
+	require.ElementsMatch(t, []string{"10.0.0.1/24", "10.0.0.2/24"}, latestBackend.addrs["dum0"],
+		"addresses should be applied to the NEW backend")
+}
+
+// TestReconcileOnVPPReady_ClearsStaleState verifies AC-2: the fresh backend
+// created by LoadBackend carries no state from the pre-crash instance. We
+// simulate stale state by mutating the first backend (adding addresses and
+// created-interface markers), then verify the replacement has none of it.
+//
+// VALIDATES: AC-2 -- stale state does not survive backend reload.
+// PREVENTS: dead GoVPP channel / stale name map / stale bridge domains
+// leaking across a VPP crash boundary.
+func TestReconcileOnVPPReady_ClearsStaleState(t *testing.T) {
+	var latestBackend *fakeBackend
+	err := RegisterBackend(vppBackendName, func() (Backend, error) {
+		fb := &fakeBackend{ifaces: map[string]fakeIface{
+			"dum0": {name: "dum0", linkType: zeTypeDummy},
+		}}
+		latestBackend = fb
+		return fb, nil
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = CloseBackend()
+		backendsMu.Lock()
+		delete(backends, vppBackendName)
+		backendsMu.Unlock()
+	})
+
+	require.NoError(t, LoadBackend(vppBackendName))
+	staleBackend := latestBackend
+
+	// Simulate pre-crash state on the old backend.
+	staleBackend.ensureMaps()
+	staleBackend.addrs["dum0"] = []string{"192.168.99.1/24"}
+	staleBackend.created["stale-if"] = true
+
+	cfg := testConfigWithAddresses()
+	var activeCfg atomic.Pointer[ifaceConfig]
+	activeCfg.Store(cfg)
+
+	reconcileOnVPPReady(&activeCfg)
+
+	require.True(t, staleBackend != latestBackend, "backend instance must be replaced")
+	require.False(t, latestBackend.created["stale-if"],
+		"fresh backend must not inherit stale created-interface markers")
+	require.NotContains(t, latestBackend.addrs["dum0"], "192.168.99.1/24",
+		"fresh backend must not carry stale addresses")
+}
+
+// TestReconcileOnVPPReady_FirstConnect verifies AC-4: on the first VPP
+// connect (EventConnected, not a crash), the LoadBackend reload is harmless
+// because the old backend has no meaningful state to lose. The factory is
+// called, reconciliation succeeds, and the fresh backend receives the
+// desired config.
+//
+// VALIDATES: AC-4 -- first-connect reload is safe.
+// PREVENTS: regression where the reload path assumes prior state exists.
+func TestReconcileOnVPPReady_FirstConnect(t *testing.T) {
+	var factoryCalls int
+	var latestBackend *fakeBackend
+	err := RegisterBackend(vppBackendName, func() (Backend, error) {
+		factoryCalls++
+		fb := &fakeBackend{ifaces: map[string]fakeIface{
+			"dum0": {name: "dum0", linkType: zeTypeDummy},
+		}}
+		latestBackend = fb
+		return fb, nil
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = CloseBackend()
+		backendsMu.Lock()
+		delete(backends, vppBackendName)
+		backendsMu.Unlock()
+	})
+
+	// Initial load (daemon startup).
+	require.NoError(t, LoadBackend(vppBackendName))
+	require.Equal(t, 1, factoryCalls)
+
+	// First EventConnected fires before any config is applied to the backend.
+	// The backend has no stale state, no addresses, no created interfaces.
+	cfg := testConfigWithAddresses()
+	var activeCfg atomic.Pointer[ifaceConfig]
+	activeCfg.Store(cfg)
+
+	reconcileOnVPPReady(&activeCfg)
+
+	require.Equal(t, 2, factoryCalls, "factory called again on first connect")
+	require.ElementsMatch(t, []string{"10.0.0.1/24", "10.0.0.2/24"}, latestBackend.addrs["dum0"],
+		"fresh backend must receive desired addresses on first connect")
+}
+
 // testConfigWithAddresses builds an ifaceConfig that declares one dummy
 // interface with two addresses. Shared by reconcileOnReady and
 // reconcileOnVPPReady tests. Backend is "vpp" so the VPP-event handler's
