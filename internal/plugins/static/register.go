@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	bfdapi "codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/routingtable"
@@ -21,7 +22,26 @@ import (
 
 const pluginName = "static"
 
+var sourcesOnce sync.Once
+
+// registerStaticSources registers "static" as a redistribute source so
+// `redistribute { destination <proto> { import static } }` resolves. Called from
+// init() (not plugin run) so the source is visible to `ze config validate`, which
+// imports plugins but does not start their engines. The static plugin already emits
+// route-change events (inject.go emitRouteChange); this closes the config side.
+func registerStaticSources() {
+	sourcesOnce.Do(func() {
+		_ = redistribute.RegisterSource(redistribute.RouteSource{
+			Name:        pluginName,
+			Protocol:    pluginName,
+			Description: "static routes",
+		})
+	})
+}
+
 func init() {
+	registerStaticSources()
+
 	reg := registry.Registration{
 		Name:                    pluginName,
 		Description:             "Static routes: config-driven kernel/VPP route programming with ECMP",
