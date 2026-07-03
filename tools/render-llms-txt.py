@@ -63,8 +63,12 @@ def live_deps_count():
     return sum(len(cat["modules"]) for cat in data["categories"])
 
 
-def live_blog_count():
+def live_article_count():
     return len(list((GH_PAGES / "blog" / "posts").glob("*.md")))
+
+
+def live_changes_count():
+    return len(list((GH_PAGES / "changes" / "posts").glob("*.md")))
 
 
 LIVE_DESC_OVERRIDES = {
@@ -79,6 +83,7 @@ LIVE_DESC_OVERRIDES = {
         if live_deps_count() is not None
         else None
     ),
+    "changes/": lambda: "%d weekly updates, newest first" % live_changes_count(),
 }
 
 
@@ -151,10 +156,9 @@ def render(nav):
         md_url = "%s%sindex.md" % (SITE_BASE, href)
         web_url = "%s%s" % (SITE_BASE, href)
         if href == "blog/":
-            more_lines.append(
-                "- [Blog](%s): %d weekly updates, mined from git history (web: %s)"
-                % (md_url, live_blog_count(), web_url)
-            )
+            n = live_article_count()
+            desc = "%d editorial articles" % n if n else "editorial articles"
+            more_lines.append("- [Blog](%s): %s (web: %s)" % (md_url, desc, web_url))
         else:
             more_lines.append("- [%s](%s) (web: %s)" % (link["label"], md_url, web_url))
     more_lines.append("- [Discord](%s): community and support" % sitelib.DISCORD_INVITE)

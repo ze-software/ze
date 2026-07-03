@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
@@ -292,14 +260,30 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 
 <h2>Minimal Config</h2>
 <p>Save as <code>example.conf</code>:</p>
-<pre><code>plugin {
-    internal rib {
-        use bgp-rib
+<pre><code>static {
+    table default {
+        route 172.16.0.0/24 {
+            next {
+                hop 10.0.0.1 {
+                }
+            }
+        }
+    }
+}
+
+redistribute {
+    destination bgp {
+        import static
     }
 }
 
 bgp {
     router-id 10.0.0.1
+    session {
+        asn {
+            local 65000
+        }
+    }
 
     peer test-peer {
         connection {
@@ -325,11 +309,6 @@ bgp {
             }
         }
 
-        process rib {
-            receive [ state ]
-            send [ update ]
-        }
-
         update {
             attribute {
                 origin igp
@@ -342,6 +321,28 @@ bgp {
     }
 }
 </code></pre>
+<p>This advertises two prefixes to <code>test-peer</code>, one by each of the routes Ze gives you to get
+a prefix into BGP:</p>
+<ul>
+<li>
+<p><strong>Redistribution</strong> (<code>172.16.0.0/24</code>): a <code>static</code> route pulled into BGP by the top-level
+  <code>redistribute { destination bgp { import static } }</code> block. Every source protocol
+  (<code>static</code>, <code>connected</code>, <code>kernel</code>, <code>ospf</code>, <code>isis</code>, ...) redistributes into any destination
+  the same way -- this is how interface and interior-gateway routes reach your peers.
+  <!-- source: internal/plugins/static/register.go -- registerStaticSources; internal/component/config/loader_redistribute.go -- ExtractRedistributeRules --></p>
+</li>
+<li>
+<p><strong>Direct announcement</strong> (<code>192.168.1.0/24</code>): a prefix declared inline on the peer in its
+  <code>update {}</code> block, sent as soon as the session establishes.
+  <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
+</p>
+</li>
+</ul>
+<blockquote>
+<p>Advanced: a <code>process</code> binding attaches a plugin or your own external program to a peer (the
+ExaBGP-style event API), including making a peer RIB-backed so it stores and re-advertises
+received routes. It is not needed for the config above; see <a href="https://github.com/ze-software/ze/blob/main/docs/guide/plugins.md" target="_blank" rel="noopener">Plugins</a>.</p>
+</blockquote>
 <h2>Validate</h2>
 <pre><code class="language-bash">bin/ze config validate example.conf
 </code></pre>
@@ -373,8 +374,8 @@ bin/ze cli -c &quot;show bgp peer list&quot;
 # Show peer details
 bin/ze cli -c &quot;show bgp peer test-peer detail&quot;
 
-# Watch live events
-bin/ze cli -c &quot;monitor bgp&quot;
+# Watch live events (streams until Ctrl-C)
+bin/ze cli -c &quot;monitor event&quot;
 </code></pre>
 <!-- source: internal/component/cli/client/main.go -- Execute, StreamMonitor -->
 

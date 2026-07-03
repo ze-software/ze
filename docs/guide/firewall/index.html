@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
@@ -402,9 +370,9 @@ more chains; a base chain has a type, hook, priority, and default policy.</p>
 <td><code>tcp-flags syn;</code></td>
 </tr>
 <tr>
-<td><code>match-set</code></td>
+<td><code>source-address @set</code></td>
 <td>Named set lookup</td>
-<td><code>match-set blocked source-address;</code></td>
+<td><code>source-address @blocked;</code></td>
 </tr>
 </tbody>
 </table>
@@ -483,7 +451,7 @@ Numeric values (0-255) are also accepted.</p>
 <tr>
 <td><code>redirect</code></td>
 <td>Redirect to port</td>
-<td><code>redirect { port 8080; }</code></td>
+<td><code>redirect { to 8080; }</code></td>
 </tr>
 <tr>
 <td><code>notrack</code></td>
@@ -493,32 +461,32 @@ Numeric values (0-255) are also accepted.</p>
 <tr>
 <td><code>flow-offload</code></td>
 <td>Hardware offload</td>
-<td><code>flow-offload ft0;</code></td>
+<td><code>flow-offload { flowtable ft0; }</code></td>
 </tr>
 <tr>
-<td><code>mark</code></td>
+<td><code>mark-set</code></td>
 <td>Set packet mark</td>
-<td><code>mark { value 0x10; }</code></td>
+<td><code>mark-set { value 0x10; }</code></td>
 </tr>
 <tr>
-<td><code>connection-mark</code></td>
+<td><code>connection-mark-set</code></td>
 <td>Set connmark</td>
-<td><code>connection-mark { value 0x20; mask 0xff; }</code></td>
+<td><code>connection-mark-set { value 0x20/0xff; }</code></td>
 </tr>
 <tr>
-<td><code>dscp</code></td>
+<td><code>dscp-set</code></td>
 <td>Set DSCP</td>
-<td><code>dscp { value 46; }</code></td>
+<td><code>dscp-set 46;</code></td>
 </tr>
 <tr>
-<td><code>tcp-mss</code></td>
+<td><code>tcp-mss-set</code></td>
 <td>Clamp TCP MSS</td>
-<td><code>tcp-mss { size 1400; }</code></td>
+<td><code>tcp-mss-set 1400;</code></td>
 </tr>
 <tr>
 <td><code>counter</code></td>
 <td>Count packets/bytes</td>
-<td><code>counter my-counter;</code></td>
+<td><code>counter;</code></td>
 </tr>
 <tr>
 <td><code>log</code></td>
@@ -526,9 +494,9 @@ Numeric values (0-255) are also accepted.</p>
 <td><code>log { prefix "DROPPED"; }</code></td>
 </tr>
 <tr>
-<td><code>limit</code></td>
+<td><code>limit-rate</code></td>
 <td>Rate limit</td>
-<td><code>limit { rate 10/second; burst 5; }</code></td>
+<td><code>limit-rate { rate 10/second; burst 5; }</code></td>
 </tr>
 <tr>
 <td><code>exclude</code></td>
@@ -582,7 +550,7 @@ pattern.</p>
     table wan {
         family inet;
         set blocked {
-            type ipv4_addr;
+            type ipv4;
             element 10.0.0.1;
             element 10.0.0.2 { timeout 3600; }
         }
@@ -593,7 +561,7 @@ pattern.</p>
             policy drop;
             term block-list {
                 from {
-                    match-set blocked source-address;
+                    source-address @blocked;
                 }
                 then {
                     drop;

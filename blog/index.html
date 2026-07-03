@@ -3,10 +3,10 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Blog - Ze Blog</title>
-        <meta name="description" content="Ze weekly updates, mined from git history and posted to Discord." />
-        <meta property="og:title" content="Blog - Ze Blog" />
-        <meta property="og:description" content="Ze weekly updates, mined from git history and posted to Discord." />
+        <title>Blog - Ze</title>
+        <meta name="description" content="Editorial articles on Ze: design notes, deep dives, and talk write-ups." />
+        <meta property="og:title" content="Blog - Ze" />
+        <meta property="og:description" content="Editorial articles on Ze: design notes, deep dives, and talk write-ups." />
         <meta property="og:type" content="website" />
         <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,7 +16,6 @@
             rel="stylesheet"
         />
         <link rel="stylesheet" href="../assets/site.css?v=ee13a92027" />
-        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="feed.xml" />
     </head>
     <body>
         <header class="site-header">
@@ -190,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../blog/">Blog</a>
                     <a href="../talks/">Talks</a>
                     <a href="../faq/">FAQ</a>
                     <a href="../contribute/">Contribute</a>
@@ -260,155 +227,8 @@
         <main id="top">
             <section aria-labelledby="blog-title">
                 <div class="section-head reveal">
-                    <h2 id="blog-title">Ze weekly updates.</h2>
-                    <p>29 weeks of shipped work, in <a href="../zeledon/">Zeledon</a>'s voice, mined from git history. New weeks are also posted to Discord's <code>ze-news</code>. Subscribe by <a href="feed.xml">RSS</a>, or scan the terser <a href="../changes/">changelog</a>.</p>
-                </div>
-                <div class="cards reveal">
-                    <article class="card card-post cat-operate">
-                        <h3><a href="2026-06-25/">Week of 2026-06-25</a></h3>
-                        <p>Shipped across security, the appliance, routing, and observability this week.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-routing">
-                        <h3><a href="2026-06-22/">Week of 2026-06-22</a></h3>
-                        <p>Focused on trimming attack surface and rounding out OSPF.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-automate">
-                        <h3><a href="2026-06-15/">Week of 2026-06-15</a></h3>
-                        <p>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-observe">
-                        <h3><a href="2026-06-08/">Week of 2026-06-08</a></h3>
-                        <p>A week of operator-facing polish: a real Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-secure">
-                        <h3><a href="2026-06-01/">Week of 2026-06-01</a></h3>
-                        <p>The CLI grammar rollout finished, MRT tooling arrived, and a handful of quiet-but-important reliability bugs got fixed.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-services">
-                        <h3><a href="2026-05-25/">Week of 2026-05-25</a></h3>
-                        <p>MPLS grew a full label-switching stack, flow export and gNMI landed, and config commits became transactional.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-platform">
-                        <h3><a href="2026-05-18/">Week of 2026-05-18</a></h3>
-                        <p>A full native IPsec/IKEv2 VPN stack, a route server for IXPs, and a big allocation-hunting pass across the BGP hot path.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-operate">
-                        <h3><a href="2026-05-11/">Week of 2026-05-11</a></h3>
-                        <p>CPE features round out, interface config gets restructured, and RPKI gains ASPA path verification.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-routing">
-                        <h3><a href="2026-05-04/">Week of 2026-05-04</a></h3>
-                        <p>Two major subsystems landed this week: a fleet management tool for appliances, and a PPPoE access concentrator alongside VPP-backed NAT and ACLs.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-automate">
-                        <h3><a href="2026-04-27/">Week of 2026-04-27</a></h3>
-                        <p>Interface configuration now rolls back cleanly on failure, the web UI got a dedicated CLI page, and traffic-control state survives more edge cases.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-observe">
-                        <h3><a href="2026-04-20/">Week of 2026-04-20</a></h3>
-                        <p>Security hardening, a new diagnostics subsystem, and a redesigned operator web UI headline this week.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-secure">
-                        <h3><a href="2026-04-13/">Week of 2026-04-13</a></h3>
-                        <p>A complete L2TP/PPP access stack, TACACS+ and pluggable AAA, a VPP dataplane, and new nftables/tc firewall backends.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-services">
-                        <h3><a href="2026-04-06/">Week of 2026-04-06</a></h3>
-                        <p>A full BFD engine, BGP route reflection and policy filters, a real REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-platform">
-                        <h3><a href="2026-03-30/">Week of 2026-03-30</a></h3>
-                        <p>A full interface management subsystem, offline DNS/RIR resolution tooling, config-driven plugin loading, BGP healthcheck and long-lived graceful restart support, and a Looking Glass overhaul.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-operate">
-                        <h3><a href="2026-03-23/">Week of 2026-03-23</a></h3>
-                        <p>A full web interface, fleet management, redistribution filtering, and a stack of routing-protocol correctness work all landed together.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-routing">
-                        <h3><a href="2026-03-16/">Week of 2026-03-16</a></h3>
-                        <p>RPKI route origin validation landed in full, alongside a wave of BGP RFC compliance work, CLI polish, and daemon security hardening.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-automate">
-                        <h3><a href="2026-03-09/">Week of 2026-03-09</a></h3>
-                        <p>A big week for access, config safety, and BGP session security.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-observe">
-                        <h3><a href="2026-03-02/">Week of 2026-03-02</a></h3>
-                        <p>Real best-path selection landed, along with outbound route tracking and a round of CLI/editor polish.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-secure">
-                        <h3><a href="2026-02-23/">Week of 2026-02-23</a></h3>
-                        <p>A route-server-focused week: reliability fixes for BGP Route Server under load, a new external plugin protocol option, and systematic config validation.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-services">
-                        <h3><a href="2026-02-16/">Week of 2026-02-16</a></h3>
-                        <p>A hard round of route reflector hardening, a live web dashboard for the chaos tool, and a batch of BGP protocol and config improvements.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-platform">
-                        <h3><a href="2026-02-09/">Week of 2026-02-09</a></h3>
-                        <p>A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot-path allocation cleanup.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-operate">
-                        <h3><a href="2026-02-02/">Week of 2026-02-02</a></h3>
-                        <p>Mostly spent on the config editor, a new capability, and a round of decode/RIB bug fixes.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-routing">
-                        <h3><a href="2026-01-26/">Week of 2026-01-26</a></h3>
-                        <p>Config work, the ExaBGP migration path, and correctness fixes across the wire.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-automate">
-                        <h3><a href="2026-01-19/">Week of 2026-01-19</a></h3>
-                        <p>A big architecture week: Ze split into a hub process and a BGP child process, gained live config reload, and got a documented plugin SDK.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-observe">
-                        <h3><a href="2026-01-12/">Week of 2026-01-12</a></h3>
-                        <p>A week focused on Graceful Restart, ExaBGP migration tooling, and logging.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-secure">
-                        <h3><a href="2026-01-05/">Week of 2026-01-05</a></h3>
-                        <p>This week rounded out route-refresh, ADD-PATH and VPN/labeled-unicast support in the plugin API, alongside a batch of BGP correctness fixes.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-services">
-                        <h3><a href="2025-12-29/">Week of 2025-12-29</a></h3>
-                        <p>Route-family coverage rounded out (labeled-unicast, MPLS VPN, MUP, route reflection), a batch of protocol-correctness fixes, and a security-relevant change to how Ze listens for BGP sessions.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-platform">
-                        <h3><a href="2025-12-22/">Week of 2025-12-22</a></h3>
-                        <p>Work on the BGP engine itself: route encoding correctness, session robustness, and a first real API surface for driving peers programmatically.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
-                    <article class="card card-post cat-operate">
-                        <h3><a href="2025-12-15/">Week of 2025-12-15</a></h3>
-                        <p>The first tracked week of development on Ze. In seven days the BGP engine went from nothing to a config-driven daemon that speaks the wire protocol, holds a RIB, and tests itself against ExaBGP.</p>
-                        <span class="post-more">Read the update</span>
-                    </article>
+                    <h2 id="blog-title">The Ze blog.</h2>
+                    <p>Occasional articles on Ze: design notes, deep dives, and talk write-ups. None published yet. In the meantime, what shipped week by week is in the <a href="../changes/">changelog</a>, and the landmark features are on the <a href="../milestones/">Milestones</a> timeline.</p>
                 </div>
             </section>
         </main>

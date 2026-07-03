@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
@@ -284,10 +252,10 @@ UPDATE and stops when the receiver has collected all expected prefixes.</p>
 ze test-config.conf &amp;
 
 # Run the benchmark
-ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze --routes 1000
+ze-perf perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze --routes 1000
 </code></pre>
 <p>With JSON output saved to a file:</p>
-<pre><code class="language-bash">ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze \
+<pre><code class="language-bash">ze-perf perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze \
   --routes 1000 --output result-ze.json
 </code></pre>
 <h2>Running Benchmarks</h2>
@@ -323,7 +291,7 @@ ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze --routes 1000
 <!-- source: internal/perf/cli/cmd_run.go -- family and force-mp validation -->
 
 <h3>Multi-Iteration</h3>
-<p>By default, <code>ze-perf run</code> executes 5 iterations with 1 warmup run. The warmup
+<p>By default, <code>ze-perf perf run</code> executes 5 iterations with 1 warmup run. The warmup
 run is discarded, and outliers beyond 2 standard deviations from the median
 convergence time are removed (minimum 3 iterations kept). Final results report
 median and standard deviation across the kept iterations.</p>
@@ -357,7 +325,7 @@ median and standard deviation across the kept iterations.</p>
 </table>
 <p>More iterations improve statistical confidence. For reliable results, use at
 least <code>--repeat 10</code>:</p>
-<pre><code class="language-bash">ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --repeat 10 --warmup-runs 2
+<pre><code class="language-bash">ze-perf perf run --dut-addr 172.31.0.2 --dut-asn 65000 --repeat 10 --warmup-runs 2
 </code></pre>
 <h3>Timing</h3>
 <table>
@@ -395,7 +363,7 @@ least <code>--repeat 10</code>:</p>
 a pause. Longer delays give the DUT time to settle between measurements.</p>
 <h2>Cross-Implementation Comparison</h2>
 <h3>Automated Docker Runner</h3>
-<p>The included test runner benchmarks all five supported implementations in Docker:</p>
+<p>The included test runner benchmarks all eight supported implementations in Docker:</p>
 <table>
 <thead>
 <tr>
@@ -436,6 +404,24 @@ a pause. Longer delays give the DUT time to settle between measurements.</p>
 <td><code>test/perf/configs/rustbgpd.toml</code></td>
 <td>route_server_client</td>
 </tr>
+<tr>
+<td>rustybgp</td>
+<td>rustybgp-interop (built)</td>
+<td><code>test/perf/configs/rustybgp.toml</code></td>
+<td>default accept policy</td>
+</tr>
+<tr>
+<td>FreeRtr</td>
+<td>freertr-interop (built)</td>
+<td><code>test/perf/configs/freertr-sw.txt</code></td>
+<td>eBGP + redistribute connected</td>
+</tr>
+<tr>
+<td>OpenBGPD</td>
+<td>openbgpd-interop (built)</td>
+<td><code>test/perf/configs/openbgpd.conf</code></td>
+<td>allow from/to any</td>
+</tr>
 </tbody>
 </table>
 <!-- source: test/perf/run.py -- Docker benchmark runner -->
@@ -458,10 +444,10 @@ make ze-perf-bench PERF_DUT=ze
 <h3>Manual Reports</h3>
 <p>After running benchmarks, generate reports from the result files:</p>
 <pre><code class="language-bash"># Markdown report (default)
-ze-perf report result-ze.json result-gobgp.json result-rustbgpd.json
+ze-perf perf report result-ze.json result-gobgp.json result-rustbgpd.json
 
 # HTML report
-ze-perf report --html result-ze.json result-gobgp.json &gt; comparison.html
+ze-perf perf report --html result-ze.json result-gobgp.json &gt; comparison.html
 </code></pre>
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
 <!-- source: internal/perf/report/markdown.go -- Markdown report generation -->
@@ -470,16 +456,16 @@ ze-perf report --html result-ze.json result-gobgp.json &gt; comparison.html
 <p>For the full flag reference, see <a href="../command-reference/#ze-perf-report">ze-perf report</a>.</p>
 <h2>Tracking Performance Over Time</h2>
 <h3>NDJSON History</h3>
-<p>Each <code>ze-perf run --json</code> invocation produces a single JSON object. Append
+<p>Each <code>ze-perf perf run --json</code> invocation produces a single JSON object. Append
 results to an NDJSON (newline-delimited JSON) file to build a history:</p>
-<pre><code class="language-bash">ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --json &gt;&gt; history.ndjson
+<pre><code class="language-bash">ze-perf perf run --dut-addr 127.0.0.1 --dut-asn 65000 --json &gt;&gt; history.ndjson
 </code></pre>
 <!-- source: internal/perf/result.go -- ReadNDJSON and WriteNDJSON -->
 
 <h3>Trend Reports</h3>
 <p>Generate a trend report from a history file:</p>
-<pre><code class="language-bash">ze-perf track history.ndjson
-ze-perf track --html history.ndjson &gt; trend.html
+<pre><code class="language-bash">ze-perf perf track history.ndjson
+ze-perf perf track --html history.ndjson &gt; trend.html
 </code></pre>
 <!-- source: internal/perf/cli/cmd_track.go -- track subcommand -->
 <!-- source: internal/perf/report/trend.go -- trend report generation -->
@@ -487,7 +473,7 @@ ze-perf track --html history.ndjson &gt; trend.html
 <h3>Regression Detection</h3>
 <p>Use <code>--check</code> in CI to detect performance regressions. The tool compares the
 most recent entry against the previous one using stddev-aware thresholds:</p>
-<pre><code class="language-bash">ze-perf track --check history.ndjson
+<pre><code class="language-bash">ze-perf perf track --check history.ndjson
 </code></pre>
 <!-- source: internal/perf/regression.go -- CheckRegression and CheckHistory -->
 
@@ -530,10 +516,10 @@ prevents false positives from noisy measurements.</p>
 <!-- source: internal/perf/regression.go -- DefaultThresholds -->
 
 <p>Custom thresholds:</p>
-<pre><code class="language-bash">ze-perf track --check --threshold-convergence 15 --threshold-throughput 10 --threshold-p99 25 history.ndjson
+<pre><code class="language-bash">ze-perf perf track --check --threshold-convergence 15 --threshold-throughput 10 --threshold-p99 25 history.ndjson
 </code></pre>
 <p>Limit the comparison window to the last N entries with <code>--last</code>:</p>
-<pre><code class="language-bash">ze-perf track --check --last 5 history.ndjson
+<pre><code class="language-bash">ze-perf perf track --check --last 5 history.ndjson
 </code></pre>
 <p>For the full flag reference, see <a href="../command-reference/#ze-perf-track">ze-perf track</a>.</p>
 <h2>Understanding Results</h2>

@@ -33,13 +33,13 @@ Run a benchmark against Ze on localhost:
 ze test-config.conf &
 
 # Run the benchmark
-ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze --routes 1000
+ze-perf perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze --routes 1000
 ```
 
 With JSON output saved to a file:
 
 ```bash
-ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze \
+ze-perf perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze \
   --routes 1000 --output result-ze.json
 ```
 
@@ -61,7 +61,7 @@ Three encoding modes measure different code paths through the DUT:
 
 ### Multi-Iteration
 
-By default, `ze-perf run` executes 5 iterations with 1 warmup run. The warmup
+By default, `ze-perf perf run` executes 5 iterations with 1 warmup run. The warmup
 run is discarded, and outliers beyond 2 standard deviations from the median
 convergence time are removed (minimum 3 iterations kept). Final results report
 median and standard deviation across the kept iterations.
@@ -78,7 +78,7 @@ More iterations improve statistical confidence. For reliable results, use at
 least `--repeat 10`:
 
 ```bash
-ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --repeat 10 --warmup-runs 2
+ze-perf perf run --dut-addr 172.31.0.2 --dut-asn 65000 --repeat 10 --warmup-runs 2
 ```
 
 ### Timing
@@ -97,7 +97,7 @@ a pause. Longer delays give the DUT time to settle between measurements.
 
 ### Automated Docker Runner
 
-The included test runner benchmarks all five supported implementations in Docker:
+The included test runner benchmarks all eight supported implementations in Docker:
 
 | DUT | Image | Config | Forwarding mechanism |
 |-----|-------|--------|---------------------|
@@ -106,6 +106,9 @@ The included test runner benchmarks all five supported implementations in Docker
 | BIRD | bird-interop (built) | `test/perf/configs/bird.conf` | import/export all |
 | GoBGP | gobgp-interop (built) | `test/perf/configs/gobgp.toml` | default accept policy |
 | rustbgpd | rustbgpd-interop (built from source) | `test/perf/configs/rustbgpd.toml` | route_server_client |
+| rustybgp | rustybgp-interop (built) | `test/perf/configs/rustybgp.toml` | default accept policy |
+| FreeRtr | freertr-interop (built) | `test/perf/configs/freertr-sw.txt` | eBGP + redistribute connected |
+| OpenBGPD | openbgpd-interop (built) | `test/perf/configs/openbgpd.conf` | allow from/to any |
 
 <!-- source: test/perf/run.py -- Docker benchmark runner -->
 <!-- source: test/interop/Dockerfile.rustbgpd -- rustbgpd Docker image -->
@@ -133,10 +136,10 @@ After running benchmarks, generate reports from the result files:
 
 ```bash
 # Markdown report (default)
-ze-perf report result-ze.json result-gobgp.json result-rustbgpd.json
+ze-perf perf report result-ze.json result-gobgp.json result-rustbgpd.json
 
 # HTML report
-ze-perf report --html result-ze.json result-gobgp.json > comparison.html
+ze-perf perf report --html result-ze.json result-gobgp.json > comparison.html
 ```
 
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
@@ -149,11 +152,11 @@ For the full flag reference, see [ze-perf report](../command-reference/index.md#
 
 ### NDJSON History
 
-Each `ze-perf run --json` invocation produces a single JSON object. Append
+Each `ze-perf perf run --json` invocation produces a single JSON object. Append
 results to an NDJSON (newline-delimited JSON) file to build a history:
 
 ```bash
-ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --json >> history.ndjson
+ze-perf perf run --dut-addr 127.0.0.1 --dut-asn 65000 --json >> history.ndjson
 ```
 
 <!-- source: internal/perf/result.go -- ReadNDJSON and WriteNDJSON -->
@@ -163,8 +166,8 @@ ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --json >> history.ndjson
 Generate a trend report from a history file:
 
 ```bash
-ze-perf track history.ndjson
-ze-perf track --html history.ndjson > trend.html
+ze-perf perf track history.ndjson
+ze-perf perf track --html history.ndjson > trend.html
 ```
 
 <!-- source: internal/perf/cli/cmd_track.go -- track subcommand -->
@@ -176,7 +179,7 @@ Use `--check` in CI to detect performance regressions. The tool compares the
 most recent entry against the previous one using stddev-aware thresholds:
 
 ```bash
-ze-perf track --check history.ndjson
+ze-perf perf track --check history.ndjson
 ```
 
 <!-- source: internal/perf/regression.go -- CheckRegression and CheckHistory -->
@@ -201,13 +204,13 @@ Default thresholds:
 Custom thresholds:
 
 ```bash
-ze-perf track --check --threshold-convergence 15 --threshold-throughput 10 --threshold-p99 25 history.ndjson
+ze-perf perf track --check --threshold-convergence 15 --threshold-throughput 10 --threshold-p99 25 history.ndjson
 ```
 
 Limit the comparison window to the last N entries with `--last`:
 
 ```bash
-ze-perf track --check --last 5 history.ndjson
+ze-perf perf track --check --last 5 history.ndjson
 ```
 
 For the full flag reference, see [ze-perf track](../command-reference/index.md#ze-perf-track).

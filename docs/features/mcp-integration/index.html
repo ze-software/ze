@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
@@ -274,6 +242,14 @@
 </thead>
 <tbody>
 <tr>
+<td><code>ze_execute</code></td>
+<td>Run <strong>any</strong> CLI command -- full daemon control (the escape hatch)</td>
+</tr>
+<tr>
+<td><code>ze_reference</code></td>
+<td>Full machine-readable reference for this daemon (commands, RPC endpoints, dispatch keys, plugins, families, services); same JSON as <code>ze help ai --json</code>. Call first to discover capabilities.</td>
+</tr>
+<tr>
 <td><code>ze_announce</code></td>
 <td>Announce routes with typed parameters (origin, next-hop, communities, prefixes)</td>
 </tr>
@@ -282,24 +258,12 @@
 <td>Withdraw routes</td>
 </tr>
 <tr>
-<td><code>ze_peers</code></td>
-<td>Monitor peer state, ASN, uptime</td>
+<td><code>ze_show_bgp</code></td>
+<td>BGP peer state, ASN, uptime, and summary views (auto-generated from <code>show bgp ...</code>)</td>
 </tr>
 <tr>
-<td><code>ze_peer_control</code></td>
-<td>Teardown, pause, resume, flush peers</td>
-</tr>
-<tr>
-<td><code>ze_execute</code></td>
-<td>Run <strong>any</strong> CLI command -- full daemon control</td>
-</tr>
-<tr>
-<td><code>ze_commands</code></td>
-<td>List all available daemon commands</td>
-</tr>
-<tr>
-<td><code>ze_reference</code></td>
-<td>Full machine-readable reference for this daemon (commands, RPC endpoints, dispatch keys, plugins, families, services); same JSON as <code>ze help ai --json</code>. Call first to discover capabilities.</td>
+<td><code>ze_request_peer</code></td>
+<td>Peer lifecycle: teardown, pause, resume, flush (auto-generated from <code>request peer ...</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -309,16 +273,17 @@ with an <code>action</code> enum and optional <code>arguments</code> and <code>p
 commands are exposed automatically without code changes.</p>
 <p>The <code>ze_execute</code> tool is the key to full control: anything you can do in <code>ze cli</code> (interactive or <code>ze cli -c</code> for one-shot commands), an AI can do via MCP. This includes:</p>
 <ul>
-<li><strong>Route management:</strong> <code>bgp peer * update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24</code></li>
+<li><strong>Route management:</strong> <code>peer * update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24</code></li>
 <li><strong>RIB queries:</strong> <code>show bgp rib received</code>, <code>show bgp rib sent</code>, <code>clear bgp rib in</code></li>
-<li><strong>Peer lifecycle:</strong> <code>bgp peer * show</code>, <code>bgp peer 10.0.0.1 teardown 6</code>, <code>delete bgp peer-peer with ...</code></li>
+<li><strong>Peer lifecycle:</strong> <code>show bgp peer list</code>, <code>request peer 10.0.0.1 teardown 6</code>, <code>delete bgp peer &lt;sel&gt;</code></li>
 <li><strong>Configuration:</strong> <code>request commit start window1</code>, route changes, <code>request commit end window1</code></li>
-<li><strong>Cache operations:</strong> <code>cache list</code>, <code>cache forward</code></li>
+<li><strong>Cache operations:</strong> <code>show cache</code>, <code>request cache forward</code></li>
 <li><strong>Event subscription:</strong> <code>request subscribe bgp/update</code></li>
 <li><strong>Schema discovery:</strong> <code>command-list</code>, <code>command-help &lt;name&gt;</code></li>
 </ul>
 <h2>Starting the MCP Server</h2>
-<pre><code>ze start --mcp 8080 config.conf
+<pre><code>ze start --mcp 8080            # start from stored (blob) config; run `ze init` first
+ze --mcp 8080 config.conf      # start from a config file
 </code></pre>
 <p>Or via config:</p>
 <pre><code>environment {
@@ -340,7 +305,7 @@ ze help ai api          # daemon API endpoints (ze-show:*, ze-set:*, ...)
 <h2>Example: AI-Driven Route Announcement</h2>
 <p>An AI assistant connected via MCP can:</p>
 <ol>
-<li>Check peer state: <code>ze_peers</code> returns structured JSON with all peer status</li>
+<li>Check peer state: <code>ze_show_bgp</code> returns structured JSON with all peer status</li>
 <li>Announce a route: <code>ze_announce</code> with origin=igp, next-hop=10.0.0.1, prefixes=[10.0.0.0/24]</li>
 <li>Verify propagation: <code>ze_execute</code> with command <code>show bgp rib sent peer peer1 family ipv4/unicast</code></li>
 <li>Withdraw if needed: <code>ze_withdraw</code> with the same prefixes</li>

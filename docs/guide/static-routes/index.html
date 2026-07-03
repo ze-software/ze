@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
@@ -450,8 +418,9 @@ outgoing interface:</p>
 <p>Shows all configured static routes with their prefixes, next-hops,
 weights, and BFD status in JSON format.</p>
 <h2>Route programming</h2>
-<p>Static routes are programmed with <code>RTPROT_ZE</code> (protocol 250), the same
-identifier used by the FIB kernel plugin. On config reload, the plugin
+<p>Static routes are programmed with <code>RTPROT_ZE</code> (protocol 251), a
+Ze-specific identifier distinct from the FIB kernel plugin (protocol 250).
+On config reload, the plugin
 computes the diff between old and new routes and applies only the
 changes.</p>
 <p>Kernel ECMP uses <code>RTA_MULTIPATH</code> with per-next-hop weight mapped from
@@ -460,7 +429,9 @@ the <code>weight</code> field (kernel weight = weight - 1).</p>
 <p>Static routes register as protocol "static" in the redistribute
 framework. BGP redistribute can import static routes:</p>
 <pre><code>redistribute {
-    import static { }
+    destination bgp {
+        import static
+    }
 }
 </code></pre>
             </section>

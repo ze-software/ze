@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
@@ -387,10 +355,12 @@ built-in read-only authz profile.</p>
 <!-- source: internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang -->
 
 <h3>Offline dispatcher</h3>
-<p><code>ze l2tp show ...</code> and <code>ze l2tp clear ...</code> forward to the running daemon
-via SSH. Output is the same JSON the daemon handler returns. <code>ze l2tp
-decode</code> is an offline wire-decode tool that does not require a running
-daemon.</p>
+<p><code>ze l2tp show ...</code> and the <code>ze l2tp tunnel|session teardown[-all]</code> commands
+forward to the running daemon via SSH. Output is the same JSON the daemon
+handler returns. (Inside the daemon CLI these teardowns dispatch as
+<code>clear l2tp tunnel|session teardown ...</code>, per the grammar note above.)
+<code>ze l2tp decode</code> is an offline wire-decode tool that does not require a
+running daemon.</p>
 <pre><code>echo c8020044... | ze l2tp decode --pretty
 </code></pre>
 <!-- source: internal/component/l2tp/cli/show.go -- offline forwarder -->
@@ -476,7 +446,8 @@ least one user or configure RADIUS before enabling subscriber access.</p>
             timeout 3;
             retries 3;
             acct-interval 300;
-            server 10.0.0.10 {
+            server main {
+                address 10.0.0.10;
                 port 1812;
                 shared-key radiussecret;
             }

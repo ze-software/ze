@@ -7,7 +7,11 @@ Usage:
 
 Steps (default order, also the --only vocabulary):
     docs      main/docs/*.md -> docs/**/index.html      (data/nav.json MANIFEST in render-docs.py)
-    blog      blog/posts/*.md -> blog/**/index.html      (tools/render-blog.py)
+    blog      blog/posts/*.md (editorial articles) -> blog/**/index.html
+              (tools/render-blog.py) -- empty until articles are added
+    changes   changes/posts/*.md (weekly updates) -> changes/<week>/index.html
+              full write-up + changes/index.html terse index + changes/feed.xml
+              (tools/render-changes.py)
     activity  git history -> activity/index.html         (tools/render-activity.py)
     compare   compare/comparison.md -> compare/index.html (tools/render-doc.py)
     features  data/features.json -> features/index.html  (tools/render-features.py)

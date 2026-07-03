@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../blog/">Blog</a>
                     <a href="../talks/">Talks</a>
                     <a href="../faq/">FAQ</a>
                     <a href="../contribute/">Contribute</a>
@@ -620,7 +588,7 @@ via the <a href="https://codeberg.org/thomas-mangin/ze/issues">issue tracker</a>
 </tr>
 <tr>
 <td>SR Policy</td>
-<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 <td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
@@ -2275,7 +2243,6 @@ root, kernel modules, or Docker.</p>
 <li><strong>BFD integration is "Partial"</strong> — several other implementations here have full support.</li>
 <li><strong>No embeddable library mode</strong> — at least two other implementations in this table offer one.</li>
 <li><strong>No custom filter language</strong> — several implementations here have their own filter DSL; Ze relies on plugin chains instead.</li>
-<li><strong>No SR Policy support.</strong></li>
 <li><strong>No Confederation, no Multi-Topology IS-IS (RFC 5120)</strong> — Ze's IS-IS matches the single-topology default other implementations ship, but not their optional multi-topology extension.</li>
 <li><strong>Pre-release, first release 2026</strong> — sitting in the same table as implementations with years to decades of production hardening (one dates to 1998).</li>
 <li><strong>Performance is not yet benchmarked at scale.</strong> Go carries an estimated 10-15% CPU overhead versus C/Rust implementations; this has not been measured under load. See <a href="../performance/">Performance</a>.</li>
@@ -2295,8 +2262,8 @@ to implementations with years to decades of production hardening — one
 dates to 1998. Its Go runtime carries an estimated 10-15% CPU overhead
 versus the C/Rust implementations in this table, and that estimate has not
 yet been benchmarked at scale. It does not yet support BGP confederations,
-dynamic/passive neighbors, privilege separation, or a custom filter
-language, all of which at least one other implementation here has shipped
+privilege separation, or a custom filter language, all of which at least
+one other implementation here has shipped
 for years. Where it is strong — plugin architecture, YANG-modeled
 configuration end to end, MCP integration, a production BNG stack alongside
 BGP — it is strong because the project chose to build fewer things more

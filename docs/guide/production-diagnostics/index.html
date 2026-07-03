@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
@@ -338,9 +306,9 @@
 <pre><code>show dns lookup &lt;peer-hostname&gt;
 </code></pre>
 <p><strong>Inspect raw BGP messages:</strong></p>
-<pre><code>show capture-raw start bgp
+<pre><code>show capture raw start bgp
 # Wait for connection attempt, then:
-show capture-raw dump bgp
+show capture raw dump bgp
 </code></pre>
 <h3>2. BGP Session Flapping</h3>
 <p><strong>Check kernel log for link events:</strong></p>
@@ -353,20 +321,20 @@ show capture-raw dump bgp
 <pre><code>show system sockets tcp port 179
 </code></pre>
 <p><strong>Inspect raw packets during flap:</strong></p>
-<pre><code>show capture-raw start bgp
-show capture-raw dump bgp pcap
+<pre><code>show capture raw start bgp
+show capture raw dump bgp pcap
 </code></pre>
 <p><strong>Live packet capture on the interface (replaces tcpdump):</strong></p>
 <pre><code>show capture interface eth0 tcp port 179 count 20 format text
 show capture interface eth0 tcp port 179 duration 10s format pcap
 </code></pre>
 <h3>3. BGP Routes Not Received</h3>
-<pre><code>show bgp peer &lt;selector&gt;
-show capture-raw start bgp
+<pre><code>show bgp peer &lt;selector&gt; detail
+show capture raw start bgp
 </code></pre>
 <p>Check UPDATE messages in the capture for the expected NLRI.</p>
 <h3>4. BGP Routes Not Advertised</h3>
-<pre><code>show bgp peer &lt;selector&gt;
+<pre><code>show bgp peer &lt;selector&gt; detail
 </code></pre>
 <p>Check advertised route counts, filter configuration, and export policy.</p>
 <h3>5. High CPU Usage</h3>
@@ -488,7 +456,7 @@ show system goroutines summary
 show errors
 </code></pre>
 <h3>17. Telemetry / Metrics Gaps</h3>
-<pre><code>show metrics-query ze_bgp_sessions
+<pre><code>show metrics-query ze_peer_state
 show system sockets
 show system profile cpu duration 5s
 </code></pre>

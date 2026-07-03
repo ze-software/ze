@@ -42,7 +42,7 @@
 | IPv6 FlowSpec | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
 | VPN FlowSpec | Yes | No | No | No | No | Yes | No | No | No | No | Yes |
 | BGP-LS (RFC 7752) | Decode (40 TLVs) | No | No | No | No | Yes | No | Decode | No | No | Yes |
-| SR Policy | No | No | No | No | No | Yes | No | No | No | No | Partial |
+| SR Policy | Yes | No | No | No | No | Yes | No | No | No | No | Partial |
 | IPv4/IPv6 MUP | Yes | No | No | No | No | No | No | No | No | No | Yes |
 | IPv4/IPv6 MVPN | Decode | No | No | No | No | No | No | No | No | No | Yes |
 | IPv4 RTC (RFC 4684) | Decode | No | No | No | No | No | No | Yes | No | No | Yes |
@@ -259,7 +259,6 @@ After the detail tables above: the gaps, stated plainly, not buried in a
 - **BFD integration is "Partial"** — several other implementations here have full support.
 - **No embeddable library mode** — at least two other implementations in this table offer one.
 - **No custom filter language** — several implementations here have their own filter DSL; Ze relies on plugin chains instead.
-- **No SR Policy support.**
 - **No Confederation, no Multi-Topology IS-IS (RFC 5120)** — Ze's IS-IS matches the single-topology default other implementations ship, but not their optional multi-topology extension.
 - **Pre-release, first release 2026** — sitting in the same table as implementations with years to decades of production hardening (one dates to 1998).
 - **Performance is not yet benchmarked at scale.** Go carries an estimated 10-15% CPU overhead versus C/Rust implementations; this has not been measured under load. See [Performance](../performance/).
@@ -282,8 +281,8 @@ to implementations with years to decades of production hardening — one
 dates to 1998. Its Go runtime carries an estimated 10-15% CPU overhead
 versus the C/Rust implementations in this table, and that estimate has not
 yet been benchmarked at scale. It does not yet support BGP confederations,
-dynamic/passive neighbors, privilege separation, or a custom filter
-language, all of which at least one other implementation here has shipped
+privilege separation, or a custom filter language, all of which at least
+one other implementation here has shipped
 for years. Where it is strong — plugin architecture, YANG-modeled
 configuration end to end, MCP integration, a production BNG stack alongside
 BGP — it is strong because the project chose to build fewer things more

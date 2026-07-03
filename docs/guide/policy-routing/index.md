@@ -79,13 +79,22 @@ policy {
 }
 ```
 
-Table 100 must be populated separately via static routes:
+Table 100 must be populated separately via static routes. Static routes
+reference tables by name, so define a named routing table mapping to kernel
+table ID 100 and add the route under it:
 
 ```
+routing-table {
+    table pbr {
+        id 100
+    }
+}
+
 static {
-    route 0.0.0.0/0 {
-        table 100;
-        next-hop tun100 { }
+    table pbr {
+        route 0.0.0.0/0 {
+            next { interface tun100 { } }
+        }
     }
 }
 ```

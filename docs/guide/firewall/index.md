@@ -80,7 +80,7 @@ firewall {
 | `mark` | Packet mark value/mask | `mark 0x10/0xff;` |
 | `dscp` | DSCP value (name or number) | `dscp ef;` |
 | `tcp-flags` | TCP header flags | `tcp-flags syn;` |
-| `match-set` | Named set lookup | `match-set blocked source-address;` |
+| `source-address @set` | Named set lookup | `source-address @blocked;` |
 
 ### ICMP Type Names
 
@@ -117,16 +117,16 @@ A trailing `*` on an interface name produces a prefix match. For example,
 | `snat` | Source NAT | `snat { to "10.0.0.1"; }` |
 | `dnat` | Destination NAT | `dnat { to "10.1.1.1:8080"; }` |
 | `masquerade` | Masquerade | `masquerade;` or `masquerade { port-range "1024-65535"; }` or `masquerade { random; }` |
-| `redirect` | Redirect to port | `redirect { port 8080; }` |
+| `redirect` | Redirect to port | `redirect { to 8080; }` |
 | `notrack` | Disable conntrack | `notrack;` |
-| `flow-offload` | Hardware offload | `flow-offload ft0;` |
-| `mark` | Set packet mark | `mark { value 0x10; }` |
-| `connection-mark` | Set connmark | `connection-mark { value 0x20; mask 0xff; }` |
-| `dscp` | Set DSCP | `dscp { value 46; }` |
-| `tcp-mss` | Clamp TCP MSS | `tcp-mss { size 1400; }` |
-| `counter` | Count packets/bytes | `counter my-counter;` |
+| `flow-offload` | Hardware offload | `flow-offload { flowtable ft0; }` |
+| `mark-set` | Set packet mark | `mark-set { value 0x10; }` |
+| `connection-mark-set` | Set connmark | `connection-mark-set { value 0x20/0xff; }` |
+| `dscp-set` | Set DSCP | `dscp-set 46;` |
+| `tcp-mss-set` | Clamp TCP MSS | `tcp-mss-set 1400;` |
+| `counter` | Count packets/bytes | `counter;` |
 | `log` | Log packet | `log { prefix "DROPPED"; }` |
-| `limit` | Rate limit | `limit { rate 10/second; burst 5; }` |
+| `limit-rate` | Rate limit | `limit-rate { rate 10/second; burst 5; }` |
 | `exclude` | Skip NAT (Return) | `exclude;` |
 
 ### NAT Exclude
@@ -184,7 +184,7 @@ firewall {
     table wan {
         family inet;
         set blocked {
-            type ipv4_addr;
+            type ipv4;
             element 10.0.0.1;
             element 10.0.0.2 { timeout 3600; }
         }
@@ -195,7 +195,7 @@ firewall {
             policy drop;
             term block-list {
                 from {
-                    match-set blocked source-address;
+                    source-address @blocked;
                 }
                 then {
                     drop;

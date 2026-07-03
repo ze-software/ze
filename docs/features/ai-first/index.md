@@ -98,12 +98,12 @@ The MCP (Model Context Protocol) server wraps the CLI command surface for AI con
 
 | Tool | Description |
 |------|-------------|
+| `ze_execute` | Run **any** CLI command -- full daemon control |
+| `ze_reference` | Machine-readable reference for this daemon (commands, endpoints, dispatch keys, plugins, families); same JSON as `ze help ai --json` |
 | `ze_announce` | Announce routes with typed parameters (origin, next-hop, communities, prefixes) |
 | `ze_withdraw` | Withdraw routes |
-| `ze_peers` | Monitor peer state, ASN, uptime |
-| `ze_peer_control` | Teardown, pause, resume, flush peers |
-| `ze_execute` | Run **any** CLI command -- full daemon control |
-| `ze_commands` | List all available daemon commands |
+| `ze_show_bgp` | BGP peer state, ASN, uptime, and summary views (auto-generated from `show bgp ...`) |
+| `ze_request_peer` | Peer lifecycle: teardown, pause, resume, flush (auto-generated from `request peer ...`) |
 
 Additional tools are auto-generated from the command registry. Every YANG command
 and plugin command becomes a typed MCP tool automatically.

@@ -15,7 +15,7 @@
 |---------|-------------|
 | `ze config validate <file>` | Validate configuration file |
 | `ze config edit` | Interactive configuration editor |
-| `ze config migrate` | Convert ExaBGP config to ze format |
+| `ze config migrate` | Convert an older ze config to the current format |
 | `ze config fmt` | Format and normalize config file |
 | `ze config dump` | Dump parsed configuration tree |
 | `ze config diff <a> <b>` | Compare two configuration files |

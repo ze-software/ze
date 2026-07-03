@@ -6,7 +6,7 @@ Ze provides real-time BGP event monitoring and a live peer dashboard through the
 ## Live Peer Dashboard
 
 ```
-ze cli monitor bgp
+ze cli -c "monitor bgp"
 ```
 
 Auto-refreshing dashboard showing router identity, sortable color-coded peer table with update rates. Navigate with j/k, sort with s/S, Enter for detail, Esc to exit. Refreshes every 2 seconds.
@@ -15,7 +15,7 @@ Auto-refreshing dashboard showing router identity, sortable color-coded peer tab
 ## Event Streaming
 
 ```
-ze cli monitor event
+ze cli -c "monitor event"
 ```
 
 ### Filters
@@ -30,7 +30,7 @@ ze cli monitor event
 Combine filters:
 
 ```
-ze cli monitor event peer upstream1 include update direction received
+ze cli -c "monitor event peer upstream1 include update direction received"
 ```
 
 ### Event Types
@@ -53,9 +53,9 @@ ze cli monitor event peer upstream1 include update direction received
 Pipe the output through format operators:
 
 ```
-ze cli monitor event | json      # Full JSON envelope
-ze cli monitor event | table     # Tabular format
-ze cli monitor event | match rx  # Regex filter on output
+ze cli -c "monitor event | json"      # Full JSON envelope
+ze cli -c "monitor event | table"     # Tabular format
+ze cli -c "monitor event | match rx"  # Regex filter on output
 ```
 <!-- source: internal/component/command/ -- ApplyJSON, ApplyTable pipe operators -->
 
@@ -338,7 +338,7 @@ Host metrics are refreshed on a configurable interval (default 60 seconds). Linu
 For scripting, use `-c` to execute a single command and exit:
 
 ```
-ze cli -c "bgp summary"
+ze cli -c "show bgp summary"
 ze cli -c "show bgp rib received"
 ze cli -c "show bgp rpki status"
 ```

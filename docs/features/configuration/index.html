@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
@@ -277,22 +245,22 @@ straight from each plugin's own YANG module.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>remote { ip; }</code></td>
+<td><code>connection/remote/ip</code></td>
 <td>Peer IP address</td>
 <td>Required (<code>ze:required</code>)</td>
 </tr>
 <tr>
-<td><code>remote { as; }</code></td>
+<td><code>session/asn/remote</code></td>
 <td>Peer AS number</td>
 <td>Required (<code>ze:required</code>)</td>
 </tr>
 <tr>
-<td><code>local { as; }</code></td>
+<td><code>session/asn/local</code></td>
 <td>Local AS number</td>
 <td>Required (<code>ze:required</code>, inheritable from bgp level)</td>
 </tr>
 <tr>
-<td><code>local { ip; }</code></td>
+<td><code>connection/local/ip</code></td>
 <td>Local bind address</td>
 <td>Suggested (<code>ze:suggest</code>, can be <code>auto</code>)</td>
 </tr>
@@ -307,17 +275,17 @@ straight from each plugin's own YANG module.</p>
 <td>Required</td>
 </tr>
 <tr>
-<td><code>hold-time</code></td>
+<td><code>timer/receive-hold-time</code></td>
 <td>Hold timer (0 or 3-65535 seconds)</td>
 <td>1-2 rejected</td>
 </tr>
 <tr>
-<td><code>remote { connect; }</code></td>
+<td><code>connection/remote/connect</code></td>
 <td>Initiate outbound connections (boolean)</td>
 <td>Default: true</td>
 </tr>
 <tr>
-<td><code>local { accept; }</code></td>
+<td><code>connection/local/accept</code></td>
 <td>Accept inbound connections (boolean)</td>
 <td>Default: true</td>
 </tr>
@@ -566,7 +534,7 @@ Cluster ID defaults to Router ID per RFC 4456 Section 7.</p>
 </tr>
 <tr>
 <td>Role Strict</td>
-<td><code>role-strict</code></td>
+<td><code>role/strict</code></td>
 <td>true / false</td>
 </tr>
 </tbody>

@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="blog/">Blog</a>
                     <a href="talks/">Talks</a>
                     <a href="faq/">FAQ</a>
                     <a href="contribute/">Contribute</a>
@@ -324,7 +292,7 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
 
 <span class="term-comment"># from another terminal</span>
 <span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "show bgp peer list"
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "bgp monitor"</pre>
+<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "monitor event"</pre>
                     </div>
                 </div>
             </section>
@@ -608,31 +576,31 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
 
             <section aria-labelledby="blog-teaser-title">
                 <div class="section-head reveal">
-                    <h2 id="blog-teaser-title">Latest from the blog.</h2>
+                    <h2 id="blog-teaser-title">Latest updates.</h2>
                     <p>
-                        Weekly updates, mined from git history and posted to
-                        Discord's <code>ze-news</code>.
+                        What shipped recently, week by week, mined from git
+                        history and posted to Discord's <code>ze-news</code>.
                     </p>
                 </div>
                 <div class="cards reveal">
                     <article class="card card-post cat-operate">
-                        <h3><a href="blog/2026-06-25/">Week of 2026-06-25</a></h3>
+                        <h3><a href="changes/2026-06-25/">Week of 2026-06-25</a></h3>
                         <p>Shipped across security, the appliance, routing, and observability this week.</p>
                         <span class="post-more">Read the update</span>
                     </article>
                     <article class="card card-post cat-routing">
-                        <h3><a href="blog/2026-06-22/">Week of 2026-06-22</a></h3>
+                        <h3><a href="changes/2026-06-22/">Week of 2026-06-22</a></h3>
                         <p>Focused on trimming attack surface and rounding out OSPF.</p>
                         <span class="post-more">Read the update</span>
                     </article>
                     <article class="card card-post cat-automate">
-                        <h3><a href="blog/2026-06-15/">Week of 2026-06-15</a></h3>
+                        <h3><a href="changes/2026-06-15/">Week of 2026-06-15</a></h3>
                         <p>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR.</p>
                         <span class="post-more">Read the update</span>
                     </article>
                 </div>
                 <div class="link-list reveal">
-                    <a href="blog/">See all updates</a>
+                    <a href="changes/">See all updates</a>
                 </div>
             </section>
         </main>

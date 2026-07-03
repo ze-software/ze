@@ -204,7 +204,7 @@ FILTER_SCRIPT = """        <script>
 
 
 def render_item(m):
-    href = "../blog/%s/" % m["blog"] if m.get("blog") else None
+    href = "../changes/%s/" % m["blog"] if m.get("blog") else None
     parts = [
         '                    <li class="tl-item cat-%s" data-cat="%s">'
         % (m["category"], m["category"]),
@@ -304,7 +304,7 @@ def render_markdown(data):
             parts.append(m["blurb"])
             if m.get("blog"):
                 parts.append("")
-                parts.append("[Read the week](../blog/%s/)" % m["blog"])
+                parts.append("[Read the week](../changes/%s/)" % m["blog"])
             parts.append("")
     return "\n".join(parts).strip() + "\n"
 

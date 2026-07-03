@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
@@ -270,15 +238,15 @@
 </thead>
 <tbody>
 <tr>
-<td><code>bgp peer * list</code></td>
+<td><code>show bgp peer list</code></td>
 <td>List peers (brief)</td>
 </tr>
 <tr>
-<td><code>bgp peer * show</code></td>
+<td><code>show bgp peer &lt;sel&gt; detail</code></td>
 <td>Show peer details and statistics</td>
 </tr>
 <tr>
-<td><code>bgp peer &lt;addr&gt; teardown &lt;code&gt;</code></td>
+<td><code>request peer &lt;addr&gt; teardown &lt;code&gt;</code></td>
 <td>Graceful session closure with NOTIFICATION</td>
 </tr>
 <tr>
@@ -286,19 +254,19 @@
 <td>Remove peer</td>
 </tr>
 <tr>
-<td><code>bgp peer &lt;addr&gt; pause</code></td>
+<td><code>request peer &lt;addr&gt; pause</code></td>
 <td>Pause reading from peer (flow control)</td>
 </tr>
 <tr>
-<td><code>bgp peer &lt;addr&gt; resume</code></td>
+<td><code>request peer &lt;addr&gt; resume</code></td>
 <td>Resume reading from peer</td>
 </tr>
 <tr>
-<td><code>bgp peer &lt;addr&gt; capabilities</code></td>
+<td><code>show bgp peer &lt;addr&gt; capabilities</code></td>
 <td>Show negotiated capabilities</td>
 </tr>
 <tr>
-<td><code>bgp summary</code></td>
+<td><code>show bgp summary</code></td>
 <td>BGP summary table with statistics</td>
 </tr>
 </tbody>
@@ -316,11 +284,11 @@
 </thead>
 <tbody>
 <tr>
-<td><code>bgp peer * update text &lt;attrs&gt; nlri &lt;family&gt; &lt;op&gt; &lt;prefix&gt;</code></td>
+<td><code>peer * update text &lt;attrs&gt; nlri &lt;family&gt; &lt;op&gt; &lt;prefix&gt;</code></td>
 <td>Text-format UPDATE</td>
 </tr>
 <tr>
-<td><code>bgp peer * update hex &lt;hex&gt;</code></td>
+<td><code>peer * update hex &lt;hex&gt;</code></td>
 <td>Hex-format UPDATE</td>
 </tr>
 </tbody>
@@ -379,23 +347,23 @@
 </thead>
 <tbody>
 <tr>
-<td><code>cache list</code></td>
+<td><code>show cache</code></td>
 <td>List cached messages</td>
 </tr>
 <tr>
-<td><code>cache retain</code></td>
+<td><code>request cache retain</code></td>
 <td>Retain message in cache</td>
 </tr>
 <tr>
-<td><code>cache release</code></td>
+<td><code>request cache release</code></td>
 <td>Release from cache</td>
 </tr>
 <tr>
-<td><code>cache expire</code></td>
+<td><code>request cache expire</code></td>
 <td>Set cache expiration</td>
 </tr>
 <tr>
-<td><code>cache forward</code></td>
+<td><code>request cache forward</code></td>
 <td>Forward cached message to peer(s)</td>
 </tr>
 </tbody>
@@ -471,7 +439,7 @@
 </thead>
 <tbody>
 <tr>
-<td><code>bgp peer * raw &lt;hex&gt;</code></td>
+<td><code>peer * raw &lt;hex&gt;</code></td>
 <td>Send raw BGP message bytes</td>
 </tr>
 <tr>

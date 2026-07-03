@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../blog/">Blog</a>
                     <a href="../../talks/">Talks</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
@@ -273,7 +241,7 @@
 <tr>
 <td><a href="bgp-protocol/">BGP Protocol</a></td>
 <td>Supported</td>
-<td>21 address families, 13 capabilities, 18 path attributes (including AIGP RFC 7311)</td>
+<td>23 address families, 14 capabilities, 15 path attributes</td>
 </tr>
 <tr>
 <td><a href="configuration/">Configuration</a></td>
@@ -453,7 +421,7 @@
 <tr>
 <td>Health Registry</td>
 <td>Supported</td>
-<td>Aggregated component health via <code>show health</code> and <code>/health</code> HTTP endpoint (503 when any component is down). Registered components: l2tp, report-bus, ipsec, pki, bgp (session-stuck/flap/EOR), fib (sync-failure/orphan/lag), firewall (stale-table/drift audit), iface (error counters), plugins (crash/disabled), vpp (API socket probe). Health checks timeout at 1 second.</td>
+<td>Aggregated component health via <code>show health</code> and <code>/health</code> HTTP endpoint (503 when any component is down). Registered components: l2tp, report-bus, ipsec, pki, bgp (session-stuck/flap/EOR), fib (sync-failure/orphan/lag), firewall (stale-table/drift audit), iface (error counters), plugins (crash/disabled), vpp (API socket probe). Each check is expected to return within 1 second by contract; the registry recovers panics but does not enforce a timeout.</td>
 </tr>
 <tr>
 <td>Storage SMART Management</td>
@@ -478,7 +446,7 @@
 <tr>
 <td>Runtime Diagnostics</td>
 <td>Supported</td>
-<td>Production debugging via CLI and MCP: <code>show l2tp observer</code> (per-session event ring), <code>show l2tp cqm</code> (per-login echo RTT/loss buckets), <code>show l2tp echo</code> (current echo state), <code>show l2tp reliable</code> (reliable transport Ns/Nr/cwnd), <code>show traffic control</code> (TC qdisc/class state), <code>metrics pool</code> (BGP attribute pool occupancy and dedup rates), enhanced <code>subsystem-list</code> (real plugin state). All auto-exposed as MCP tools for AI-assisted troubleshooting.</td>
+<td>Production debugging via CLI and MCP: <code>show l2tp observer</code> (per-session event ring), <code>show l2tp cqm</code> (per-login echo RTT/loss buckets), <code>show l2tp echo</code> (current echo state), <code>show l2tp reliable</code> (reliable transport Ns/Nr/cwnd), <code>show traffic control</code> (TC qdisc/class state), <code>show metrics pool</code> (BGP attribute pool occupancy and dedup rates), enhanced <code>subsystem-list</code> (real plugin state). All auto-exposed as MCP tools for AI-assisted troubleshooting.</td>
 </tr>
 <tr>
 <td>Core Diagnostics</td>
@@ -493,7 +461,7 @@
 <tr>
 <td><a href="interoperability-testing/">Interoperability Testing</a></td>
 <td>Supported</td>
-<td>30+ Docker-based scenarios against FRR, BIRD, GoBGP, OpenBGPD, FreeRtr, and Rust implementations</td>
+<td>90+ Docker-based interop scenarios against FRR, BIRD, and GoBGP; OpenBGPD, FreeRtr, and Rust implementations are exercised as performance-benchmark DUTs, not interop scenarios</td>
 </tr>
 <tr>
 <td>gNMI</td>
@@ -523,7 +491,7 @@
 <tr>
 <td>Chaos MRT Recording</td>
 <td>Supported</td>
-<td><code>--mrt-file</code> flag produces standard BGP4MP_MESSAGE_AS4 and BGP4MP_STATE_CHANGE_AS4 MRT records from chaos peer events, readable by bgpdump/bgpkit-parser/ze-analyse. Strftime filename patterns for rotation. <!-- source: internal/chaos/report/mrtlog.go -- MRTLog consumer --></td>
+<td><code>--mrt-file</code> flag produces standard BGP4MP_MESSAGE_AS4 and BGP4MP_STATE_CHANGE_AS4 MRT records from chaos peer events, readable by bgpdump/bgpkit-parser/ze-analyze. Strftime filename patterns for rotation. <!-- source: internal/chaos/report/mrtlog.go -- MRTLog consumer --></td>
 </tr>
 <tr>
 <td><a href="../guide/mrt-analysis/">MRT Dump</a></td>

@@ -98,6 +98,13 @@ All session waiters poll with a configurable timeout (default 90s, override via 
 
 ### Scenario Inventory
 
+The suite has grown to 97 scenario directories in `test/interop/scenarios/`. The table
+below lists the core BGP scenarios (01-37); beyond these, the suite also covers route
+reflection, policy import/export, RPKI origin validation, BMP monitoring, PATHS-LIMIT,
+max-prefix cease, GTSM, AS112, and full IS-IS (auth, convergence, dual-stack, LAN DIS,
+P2P, redistribution) and OSPFv2/OSPFv3 (auth, BFD, TE, LFA/TI-LFA, graceful restart,
+segment routing, opaque LSAs, stub/NSSA, virtual links, and more) interop families.
+
 | # | Scenario | Daemons | What It Tests |
 |---|----------|---------|---------------|
 | 01 | ebgp-ipv4-frr | Ze, FRR | Basic eBGP session establishment |
@@ -239,9 +246,12 @@ standard verification suite.
 ## Current Scope
 
 Interop scenarios cover core BGP: session establishment, route exchange, withdrawal,
-capabilities (4-byte ASN, ADD-PATH, GR, route refresh), communities, MD5 auth,
-route server behavior, BFD failover, ECMP, SRv6 VPNv6, remove-private-as export
-policy, and non-unicast address families (EVPN, VPN, FlowSpec).
+capabilities (4-byte ASN, ADD-PATH, GR, route refresh, PATHS-LIMIT), communities, MD5
+auth, route server behavior, route reflection, policy import/export, RPKI origin
+validation, BMP monitoring, BFD failover, ECMP, SRv6 VPNv6, remove-private-as export
+policy, GTSM, AS112, and non-unicast address families (EVPN, VPN, FlowSpec). The suite
+also includes full IS-IS and OSPFv2/OSPFv3 interop families (adjacency, flooding, SPF,
+dual-stack, authentication, TE, LFA/TI-LFA, graceful restart, and segment routing).
 ExaBGP compat covers wire encoding for all supported address families.
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 

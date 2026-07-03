@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../../../blog/">Blog</a>
                     <a href="../../../../talks/">Talks</a>
                     <a href="../../../../faq/">FAQ</a>
                     <a href="../../../../contribute/">Contribute</a>
@@ -441,6 +409,12 @@ existing scenario (e.g., <code>01-ebgp-ipv4-frr/check.py</code>) as a template.<
 <!-- source: test/interop/interop.py -- wait_session, wait_route, check_route -->
 
 <h3>Scenario Inventory</h3>
+<p>The suite has grown to 97 scenario directories in <code>test/interop/scenarios/</code>. The table
+below lists the core BGP scenarios (01-37); beyond these, the suite also covers route
+reflection, policy import/export, RPKI origin validation, BMP monitoring, PATHS-LIMIT,
+max-prefix cease, GTSM, AS112, and full IS-IS (auth, convergence, dual-stack, LAN DIS,
+P2P, redistribution) and OSPFv2/OSPFv3 (auth, BFD, TE, LFA/TI-LFA, graceful restart,
+segment routing, opaque LSAs, stub/NSSA, virtual links, and more) interop families.</p>
 <table>
 <thead>
 <tr>
@@ -804,9 +778,12 @@ Docker and take longer to run. ExaBGP wire compatibility tests run as part of th
 standard verification suite.</p>
 <h2>Current Scope</h2>
 <p>Interop scenarios cover core BGP: session establishment, route exchange, withdrawal,
-capabilities (4-byte ASN, ADD-PATH, GR, route refresh), communities, MD5 auth,
-route server behavior, BFD failover, ECMP, SRv6 VPNv6, remove-private-as export
-policy, and non-unicast address families (EVPN, VPN, FlowSpec).
+capabilities (4-byte ASN, ADD-PATH, GR, route refresh, PATHS-LIMIT), communities, MD5
+auth, route server behavior, route reflection, policy import/export, RPKI origin
+validation, BMP monitoring, BFD failover, ECMP, SRv6 VPNv6, remove-private-as export
+policy, GTSM, AS112, and non-unicast address families (EVPN, VPN, FlowSpec). The suite
+also includes full IS-IS and OSPFv2/OSPFv3 interop families (adjacency, flooding, SPF,
+dual-stack, authentication, TE, LFA/TI-LFA, graceful restart, and segment routing).
 ExaBGP compat covers wire encoding for all supported address families.</p>
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 

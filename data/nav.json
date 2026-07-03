@@ -70,13 +70,10 @@
                     {"href": "labs/vpp-dataplane/", "icon": "🚀", "title": "VPP Dataplane Evidence", "desc": "FIB, traffic, and firewall in a real VPP daemon"}
                 ]
             ]
-        },
-        {
-            "label": "Blog",
-            "dynamic": "blog"
         }
     ],
     "trailing_links": [
+        {"href": "blog/", "label": "Blog"},
         {"href": "talks/", "label": "Talks"},
         {"href": "faq/", "label": "FAQ"},
         {"href": "contribute/", "label": "Contribute"}

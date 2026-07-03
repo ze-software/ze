@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
@@ -607,6 +575,9 @@ the interface via <code>create interface rdma host-if &lt;pci-addr&gt;</code> in
 - DPDK section in startup.conf does NOT include mlx5 devices
 - Interface creation uses GoVPP <code>RdmaCreate</code> API instead of DPDK auto-discovery
 - Performance is equivalent to DPDK for mlx5</p>
+<p>This describes VPP's general Mellanox handling. Ze's own VPP integration does not yet
+implement RDMA/mlx5 interface creation (there is no <code>RdmaCreate</code> call in the codebase);
+this section is background for a future deployment path.</p>
 <h3>NIC-Specific Quirks</h3>
 <table>
 <thead>
@@ -702,9 +673,9 @@ from the management plane. Ze's BGP reactor, SSH, web UI all run in this netns.<
 <h3>Socket Transport</h3>
 <p>GoVPP connects via Unix socket at <code>/run/vpp/api.sock</code>. Pure Go, no CGo.</p>
 <p>AsyncConnect pattern:
-- 10 connection attempts, 1 second interval
+- 10 connection attempts, 1 second interval (initial connect only)
 - Returns event channel for connection state changes (Connected, Disconnected)
-- On disconnect: attempt reconnect with exponential backoff</p>
+- Ze consumes the first state event and returns an error on any non-Connected state; there is no automatic reconnect-with-backoff loop after an established session drops (reconnection is the caller's responsibility)</p>
 <h3>API Clients</h3>
 <p>GoVPP provides typed RPC service clients generated from VPP's <code>.api.json</code> files:</p>
 <table>

@@ -17,7 +17,7 @@ unregistered access (`env.MustRegister()`).
 
 | Command | What it shows |
 |---------|---------------|
-| `ze schema list` | All registered YANG modules (52 modules) |
+| `ze schema list` | All registered YANG modules (65 modules) |
 | `ze schema show <module>` | Full YANG content for a module |
 | `ze schema methods [module]` | All RPCs with parameters from YANG |
 | `ze schema events` | All notification/event types from YANG |

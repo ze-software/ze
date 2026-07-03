@@ -1,0 +1,789 @@
+[
+  {
+    "slug": "2026-06-25",
+    "intro": "Shipped across security, the appliance, routing, and observability this week.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Control-plane survival",
+        "category": "secure"
+      },
+      {
+        "label": "Feature gates",
+        "category": "platform"
+      },
+      {
+        "label": "Appliance & installer",
+        "category": "platform"
+      },
+      {
+        "label": "Routing & access",
+        "category": "routing"
+      },
+      {
+        "label": "Observability",
+        "category": "observe"
+      },
+      {
+        "label": "Under the hood",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-06-22",
+    "intro": "Focused on trimming attack surface and rounding out OSPF.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Feature gates",
+        "category": "platform"
+      },
+      {
+        "label": "Routing",
+        "category": "routing"
+      },
+      {
+        "label": "Observability",
+        "category": "observe"
+      },
+      {
+        "label": "Under the hood",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-06-15",
+    "intro": "Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "IS-IS & MPLS",
+        "category": "routing"
+      },
+      {
+        "label": "BGP",
+        "category": "routing"
+      },
+      {
+        "label": "Firewall / IRR",
+        "category": "secure"
+      },
+      {
+        "label": "Interfaces",
+        "category": "platform"
+      },
+      {
+        "label": "CLI",
+        "category": "operate"
+      },
+      {
+        "label": "Appliance & provisioning",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-06-08",
+    "intro": "A week of operator-facing polish: a real Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "BGP",
+        "category": "routing"
+      },
+      {
+        "label": "Web Workbench",
+        "category": "operate"
+      },
+      {
+        "label": "CLI",
+        "category": "platform"
+      },
+      {
+        "label": "Class of Service",
+        "category": "services"
+      },
+      {
+        "label": "Installer",
+        "category": "platform"
+      },
+      {
+        "label": "Under the hood",
+        "category": "platform"
+      },
+      {
+        "label": "Presentation: LINX 126",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-06-01",
+    "intro": "The CLI grammar rollout finished, MRT tooling arrived, and a handful of quiet-but-important reliability bugs got fixed.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "CLI",
+        "category": "operate"
+      },
+      {
+        "label": "MRT tooling",
+        "category": "observe"
+      },
+      {
+        "label": "Appliance & installer",
+        "category": "platform"
+      },
+      {
+        "label": "Reliability fixes",
+        "category": "secure"
+      },
+      {
+        "label": "Config validation",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-05-25",
+    "intro": "MPLS grew a full label-switching stack, flow export and gNMI landed, and config commits became transactional.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "MPLS",
+        "category": "routing"
+      },
+      {
+        "label": "Observability & telemetry",
+        "category": "observe"
+      },
+      {
+        "label": "CLI",
+        "category": "operate"
+      },
+      {
+        "label": "Config & commit reliability",
+        "category": "secure"
+      },
+      {
+        "label": "BGP policy & RIB efficiency",
+        "category": "routing"
+      },
+      {
+        "label": "Appliance & provisioning",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-05-18",
+    "intro": "A full native IPsec/IKEv2 VPN stack, a route server for IXPs, and a big allocation-hunting pass across the BGP hot path.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "IPsec / IKEv2 VPN",
+        "category": "secure"
+      },
+      {
+        "label": "Routing, BGP & subscriber access",
+        "category": "routing"
+      },
+      {
+        "label": "CLI & diagnostics",
+        "category": "operate"
+      },
+      {
+        "label": "Appliance, provisioning & readiness",
+        "category": "platform"
+      },
+      {
+        "label": "Performance",
+        "category": "platform"
+      },
+      {
+        "label": "Under the hood",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-05-11",
+    "intro": "CPE features round out, interface config gets restructured, and RPKI gains ASPA path verification.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "CPE / edge router",
+        "category": "services"
+      },
+      {
+        "label": "Interfaces",
+        "category": "platform"
+      },
+      {
+        "label": "Routing",
+        "category": "routing"
+      },
+      {
+        "label": "Security",
+        "category": "secure"
+      },
+      {
+        "label": "Observability",
+        "category": "observe"
+      },
+      {
+        "label": "Under the hood",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-05-04",
+    "intro": "Two major subsystems landed this week: a fleet management tool for appliances, and a PPPoE access concentrator alongside VPP-backed NAT and ACLs.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Appliance fleet management",
+        "category": "platform"
+      },
+      {
+        "label": "Broadband access (BNG)",
+        "category": "services"
+      },
+      {
+        "label": "Firewall & VPP dataplane",
+        "category": "secure"
+      },
+      {
+        "label": "Diagnostics",
+        "category": "observe"
+      }
+    ]
+  },
+  {
+    "slug": "2026-04-27",
+    "intro": "Interface configuration now rolls back cleanly on failure, the web UI got a dedicated CLI page, and traffic-control state survives more edge cases.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Interfaces & routing",
+        "category": "platform"
+      },
+      {
+        "label": "Web UI",
+        "category": "operate"
+      },
+      {
+        "label": "Traffic control & telemetry",
+        "category": "services"
+      },
+      {
+        "label": "Under the hood",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-04-20",
+    "intro": "Security hardening, a new diagnostics subsystem, and a redesigned operator web UI headline this week.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Security & hardening",
+        "category": "secure"
+      },
+      {
+        "label": "Observability & diagnostics",
+        "category": "observe"
+      },
+      {
+        "label": "Web UI",
+        "category": "operate"
+      },
+      {
+        "label": "Routing",
+        "category": "routing"
+      },
+      {
+        "label": "Route-server performance",
+        "category": "platform"
+      },
+      {
+        "label": "Under the hood",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-04-13",
+    "intro": "A complete L2TP/PPP access stack, TACACS+ and pluggable AAA, a VPP dataplane, and new nftables/tc firewall backends.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "L2TP & PPP access",
+        "category": "routing"
+      },
+      {
+        "label": "Authentication & AAA",
+        "category": "secure"
+      },
+      {
+        "label": "Firewall, traffic control & VPP",
+        "category": "secure"
+      },
+      {
+        "label": "Interfaces & sysctl",
+        "category": "platform"
+      },
+      {
+        "label": "Route-server performance",
+        "category": "platform"
+      },
+      {
+        "label": "Under the hood",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-04-06",
+    "intro": "A full BFD engine, BGP route reflection and policy filters, a real REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "BFD liveness detection",
+        "category": "secure"
+      },
+      {
+        "label": "BGP routing and policy",
+        "category": "routing"
+      },
+      {
+        "label": "Config editor and API",
+        "category": "platform"
+      },
+      {
+        "label": "Interfaces",
+        "category": "platform"
+      },
+      {
+        "label": "Appliance",
+        "category": "platform"
+      },
+      {
+        "label": "Presentation: Net Manchester",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-03-30",
+    "intro": "A full interface management subsystem, offline DNS/RIR resolution tooling, config-driven plugin loading, BGP healthcheck and long-lived graceful restart support, and a Looking Glass overhaul.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Interfaces",
+        "category": "platform"
+      },
+      {
+        "label": "DNS & resolution",
+        "category": "platform"
+      },
+      {
+        "label": "Config-driven plugins",
+        "category": "platform"
+      },
+      {
+        "label": "CLI & Looking Glass",
+        "category": "operate"
+      },
+      {
+        "label": "Routing",
+        "category": "routing"
+      },
+      {
+        "label": "Under the hood",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-03-23",
+    "intro": "A full web interface, fleet management, redistribution filtering, and a stack of routing-protocol correctness work all landed together.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Web interface",
+        "category": "operate"
+      },
+      {
+        "label": "Fleet management",
+        "category": "platform"
+      },
+      {
+        "label": "Redistribution filtering",
+        "category": "platform"
+      },
+      {
+        "label": "Plugin and session security",
+        "category": "secure"
+      },
+      {
+        "label": "Routing correctness",
+        "category": "routing"
+      },
+      {
+        "label": "Observability and prefix hygiene",
+        "category": "observe"
+      },
+      {
+        "label": "Performance and benchmarking",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-03-16",
+    "intro": "RPKI route origin validation landed in full, alongside a wave of BGP RFC compliance work, CLI polish, and daemon security hardening.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "RPKI route origin validation",
+        "category": "secure"
+      },
+      {
+        "label": "Routing & RFC compliance",
+        "category": "routing"
+      },
+      {
+        "label": "Route delivery reliability",
+        "category": "platform"
+      },
+      {
+        "label": "CLI & operator experience",
+        "category": "operate"
+      },
+      {
+        "label": "Daemon & security hardening",
+        "category": "secure"
+      },
+      {
+        "label": "Interop testing",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-03-09",
+    "intro": "A big week for access, config safety, and BGP session security.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Security & session hardening",
+        "category": "secure"
+      },
+      {
+        "label": "Config editing & safety",
+        "category": "platform"
+      },
+      {
+        "label": "CLI & operations",
+        "category": "routing"
+      }
+    ]
+  },
+  {
+    "slug": "2026-03-02",
+    "intro": "Real best-path selection landed, along with outbound route tracking and a round of CLI/editor polish.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Routing",
+        "category": "routing"
+      },
+      {
+        "label": "CLI & editor",
+        "category": "operate"
+      },
+      {
+        "label": "Under the hood",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-02-23",
+    "intro": "A route-server-focused week: reliability fixes for BGP Route Server under load, a new external plugin protocol option, and systematic config validation.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Route Server (RFC 7947)",
+        "category": "routing"
+      },
+      {
+        "label": "Plugin protocol",
+        "category": "platform"
+      },
+      {
+        "label": "Config validation",
+        "category": "platform"
+      },
+      {
+        "label": "Under the hood",
+        "category": "platform"
+      },
+      {
+        "label": "ze-chaos",
+        "category": "observe"
+      }
+    ]
+  },
+  {
+    "slug": "2026-02-16",
+    "intro": "A hard round of route reflector hardening, a live web dashboard for the chaos tool, and a batch of BGP protocol and config improvements.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Route reflector hardening",
+        "category": "automate"
+      },
+      {
+        "label": "Chaos tool dashboard",
+        "category": "observe"
+      },
+      {
+        "label": "A new IETF draft: ATTR_TOMBSTONE",
+        "category": "routing"
+      },
+      {
+        "label": "Protocol and config",
+        "category": "routing"
+      },
+      {
+        "label": "Under the hood",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-02-09",
+    "intro": "A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot-path allocation cleanup.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Chaos testing tool",
+        "category": "observe"
+      },
+      {
+        "label": "Config reload",
+        "category": "automate"
+      },
+      {
+        "label": "Protocol correctness",
+        "category": "routing"
+      },
+      {
+        "label": "ExaBGP migration",
+        "category": "automate"
+      },
+      {
+        "label": "Performance",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-02-02",
+    "intro": "Mostly spent on the config editor, a new capability, and a round of decode/RIB bug fixes.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Link-local next-hop capability",
+        "category": "platform"
+      },
+      {
+        "label": "Config editor",
+        "category": "operate"
+      },
+      {
+        "label": "Fixes",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-01-26",
+    "intro": "Config work, the ExaBGP migration path, and correctness fixes across the wire.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Family plugins",
+        "category": "platform"
+      },
+      {
+        "label": "ExaBGP migration",
+        "category": "automate"
+      },
+      {
+        "label": "Correctness fixes",
+        "category": "platform"
+      },
+      {
+        "label": "Config editor and CLI",
+        "category": "operate"
+      },
+      {
+        "label": "Under the hood",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-01-19",
+    "intro": "A big architecture week: Ze split into a hub process and a BGP child process, gained live config reload, and got a documented plugin SDK.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Process architecture",
+        "category": "platform"
+      },
+      {
+        "label": "Plugin SDK",
+        "category": "platform"
+      },
+      {
+        "label": "Config validation",
+        "category": "operate"
+      },
+      {
+        "label": "Config syntax",
+        "category": "platform"
+      },
+      {
+        "label": "CLI",
+        "category": "platform"
+      },
+      {
+        "label": "Fixes",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-01-12",
+    "intro": "A week focused on Graceful Restart, ExaBGP migration tooling, and logging.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Graceful Restart",
+        "category": "routing"
+      },
+      {
+        "label": "ExaBGP migration",
+        "category": "automate"
+      },
+      {
+        "label": "Logging",
+        "category": "observe"
+      },
+      {
+        "label": "Config & API",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2026-01-05",
+    "intro": "This week rounded out route-refresh, ADD-PATH and VPN/labeled-unicast support in the plugin API, alongside a batch of BGP correctness fixes.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Route refresh",
+        "category": "automate"
+      },
+      {
+        "label": "Plugin API: routes and families",
+        "category": "platform"
+      },
+      {
+        "label": "Protocol correctness",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2025-12-29",
+    "intro": "Route-family coverage rounded out (labeled-unicast, MPLS VPN, MUP, route reflection), a batch of protocol-correctness fixes, and a security-relevant change to how Ze listens for BGP sessions.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Session hardening",
+        "category": "secure"
+      },
+      {
+        "label": "Route families",
+        "category": "routing"
+      },
+      {
+        "label": "Protocol correctness",
+        "category": "platform"
+      },
+      {
+        "label": "CLI & config",
+        "category": "operate"
+      },
+      {
+        "label": "Reliability",
+        "category": "platform"
+      }
+    ]
+  },
+  {
+    "slug": "2025-12-22",
+    "intro": "Work on the BGP engine itself: route encoding correctness, session robustness, and a first real API surface for driving peers programmatically.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Protocol correctness",
+        "category": "routing"
+      },
+      {
+        "label": "Session and process handling",
+        "category": "platform"
+      },
+      {
+        "label": "API",
+        "category": "operate"
+      }
+    ]
+  },
+  {
+    "slug": "2025-12-15",
+    "intro": "The first tracked week of development on Ze. In seven days the BGP engine went from nothing to a config-driven daemon that speaks the wire protocol, holds a RIB, and tests itself against ExaBGP.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Core BGP engine",
+        "category": "routing"
+      },
+      {
+        "label": "Config and CLI",
+        "category": "platform"
+      },
+      {
+        "label": "API and self-check testing",
+        "category": "automate"
+      },
+      {
+        "label": "RFC compliance pass",
+        "category": "routing"
+      },
+      {
+        "label": "Config migration and batched updates",
+        "category": "operate"
+      }
+    ]
+  }
+]

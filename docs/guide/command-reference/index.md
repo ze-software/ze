@@ -211,8 +211,8 @@ ze show bgp encode <route-command>
 | `-f <family>` | Address family (default: ipv4/unicast) |
 | `-a <asn>` | Local ASN (default: 65533) |
 | `-z <asn>` | Peer ASN (default: 65533) |
-| `-i` | Enable feature |
-| `-n` | Dry run |
+| `-i` | Enable ADD-PATH (include path-id) |
+| `-n` | Output only NLRI bytes |
 | `--no-header` | Exclude BGP header |
 | `--asn4` | 4-byte ASN (default: true) |
 <!-- source: internal/component/bgp/cli/main.go -- Run; internal/component/bgp/cli/decode.go -- cmdDecode; internal/component/bgp/cli/encode.go -- cmdEncode -->
@@ -425,9 +425,9 @@ health checks, configuration, logs, and diagnostics into a compressed tar.gz
 with one JSON file per module. No shell-outs; gokrazy-safe.
 
 ```
-ze support                             # Full bundle, all 19 modules
+ze support                             # Full bundle, all 20 modules
 ze support --module version,doctor     # Only named modules
-ze support --exclude logs              # All except named modules
+ze support --exclude dmesg             # All except named modules
 ze support --json                      # Output manifest JSON to stdout
 ze support --list-modules              # List available modules
 ze support --reason "BGP flap"         # Embed reason in manifest
@@ -2066,7 +2066,7 @@ malformed AVPs; stderr carries the reason.
 ### Event Monitoring
 
 ```
-bgp monitor [peer <sel>] [event <types>] [direction <dir>]
+monitor event [peer <sel>] [event <types>] [direction <dir>]
 ```
 
 | Filter | Values |
@@ -2075,7 +2075,7 @@ bgp monitor [peer <sel>] [event <types>] [direction <dir>]
 | `event` | update, open, notification, keepalive, refresh, state, negotiated (comma-separated) |
 | `direction` | sent, received |
 
-Streaming command: use in interactive `ze cli` or via SSH.
+Streaming command: use in interactive `ze cli` or via SSH. `monitor bgp` (no `event`) is a separate command: the live peer dashboard, documented in the [Monitoring guide](../monitoring/index.md).
 <!-- source: internal/component/bgp/plugins/cmd/monitor/ -- monitor streaming RPCs -->
 
 ### Netlink Monitoring

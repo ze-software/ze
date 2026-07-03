@@ -79,7 +79,7 @@ def render_blog_teaser_card(post, i):
     cat = BLOG_TEASER_CATEGORIES[i % len(BLOG_TEASER_CATEGORIES)]
     parts = ['                    <article class="card card-post %s">' % cat]
     parts.append(
-        '                        <h3><a href="blog/%s/">Week of %s</a></h3>'
+        '                        <h3><a href="changes/%s/">Week of %s</a></h3>'
         % (post["slug"], post["slug"])
     )
     if post["intro"]:
@@ -158,7 +158,7 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
 
 <span class="term-comment"># from another terminal</span>
 <span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "show bgp peer list"
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "bgp monitor"</pre>
+<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "monitor event"</pre>
                     </div>
                 </div>
             </section>
@@ -396,17 +396,17 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
 
             <section aria-labelledby="blog-teaser-title">
                 <div class="section-head reveal">
-                    <h2 id="blog-teaser-title">Latest from the blog.</h2>
+                    <h2 id="blog-teaser-title">Latest updates.</h2>
                     <p>
-                        Weekly updates, mined from git history and posted to
-                        Discord's <code>ze-news</code>.
+                        What shipped recently, week by week, mined from git
+                        history and posted to Discord's <code>ze-news</code>.
                     </p>
                 </div>
                 <div class="cards reveal">
 {blog_teaser_cards}
                 </div>
                 <div class="link-list reveal">
-                    <a href="blog/">See all updates</a>
+                    <a href="changes/">See all updates</a>
                 </div>
             </section>
 """

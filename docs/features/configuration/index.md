@@ -13,15 +13,15 @@ Peers are keyed by name (`peer <name> { }`) with IP and AS in nested containers:
 
 | Setting | Description | Validation |
 |---------|-------------|------------|
-| `remote { ip; }` | Peer IP address | Required (`ze:required`) |
-| `remote { as; }` | Peer AS number | Required (`ze:required`) |
-| `local { as; }` | Local AS number | Required (`ze:required`, inheritable from bgp level) |
-| `local { ip; }` | Local bind address | Suggested (`ze:suggest`, can be `auto`) |
+| `connection/remote/ip` | Peer IP address | Required (`ze:required`) |
+| `session/asn/remote` | Peer AS number | Required (`ze:required`) |
+| `session/asn/local` | Local AS number | Required (`ze:required`, inheritable from bgp level) |
+| `connection/local/ip` | Local bind address | Suggested (`ze:suggest`, can be `auto`) |
 | `router-id` | Per-peer router ID override | Optional (or inherited) |
 | `name` | Peer key (must start with letter) | Required |
-| `hold-time` | Hold timer (0 or 3-65535 seconds) | 1-2 rejected |
-| `remote { connect; }` | Initiate outbound connections (boolean) | Default: true |
-| `local { accept; }` | Accept inbound connections (boolean) | Default: true |
+| `timer/receive-hold-time` | Hold timer (0 or 3-65535 seconds) | 1-2 rejected |
+| `connection/remote/connect` | Initiate outbound connections (boolean) | Default: true |
+| `connection/local/accept` | Accept inbound connections (boolean) | Default: true |
 | `md5-password` | TCP MD5 authentication | Optional |
 | `outgoing-ttl` | TTL for outgoing packets | Optional |
 | `ttl-security` | Minimum TTL for incoming packets | Optional |
@@ -131,7 +131,7 @@ Cluster ID defaults to Router ID per RFC 4456 Section 7.
 | Extended Next Hop | `nexthop` | Per-family AFI mapping |
 | Graceful Restart | `graceful-restart` | restart-time (0-4095s), long-lived-stale-time (0-16777215s) |
 | Role | `role` | provider / rs / rs-client / customer / peer |
-| Role Strict | `role-strict` | true / false |
+| Role Strict | `role/strict` | true / false |
 
 ### Route Configuration
 

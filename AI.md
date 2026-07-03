@@ -58,7 +58,12 @@ gh-pages/
     render-docs.py / render-doc.py        -- ../main/docs/*.md -> docs/**/index.html (also used
                                               directly for compare/comparison.md -> compare/index.html
                                               and contribute/contribute.md -> contribute/index.html)
-    render-blog.py                        -- blog/posts/*.md -> blog/**/index.html
+    render-blog.py                        -- blog/posts/*.md (editorial articles) -> blog/**/index.html
+                                              (empty until articles are added; the weekly changelog
+                                              is the Changes section below, not the blog)
+    render-changes.py                     -- changes/posts/*.md (weekly updates) -> changes/<week>/
+                                              index.html full write-up + changes/index.html terse
+                                              index + changes/feed.xml RSS
     render-activity.py                    -- git history -> activity/index.html
     render-features.py                    -- data/features.json -> features/index.html
     render-timeline.py                    -- data/milestones.json -> milestones/index.html, the
@@ -162,8 +167,10 @@ Do not edit presentation content on main.
 
 ## Weekly Update Checklist
 
-Trigger: a new `blog/posts/<start-date>.md` lands (the week's Discord `ze-news`
-update). Work through this before considering the update done.
+Trigger: a new `changes/posts/<start-date>.md` lands (the week's Discord
+`ze-news` update -- this is the weekly changelog source; the `blog/` section
+is now for occasional editorial articles, not the weekly update). Work through
+this before considering the update done.
 
 1. **Check Features for drift.** Did the week ship something with no card
    yet, or move a feature from Experimental to shipped? Add/move/edit its
@@ -173,7 +180,7 @@ update). Work through this before considering the update done.
    routine improvement), also add one node to `data/milestones.json` so the
    Milestones timeline stays current -- keep it coarse, one node per
    capability class, dated to the week's `covers` start so it links to the
-   right blog post.
+   right weekly page under `changes/`.
 2. **Check Compare for drift.** Did the week close one of the
    "Where Ze is behind today" gaps, or change a Yes/No/Partial cell? Edit
    `../main/docs/comparison.md` first (the source of truth), then copy the
@@ -189,7 +196,8 @@ update). Work through this before considering the update done.
    fresh benchmark run this week? If so, update the headline stat-row on
    `performance/index.html` (Convergence/Throughput/Withdrawal) to match.
 5. **Run `./update-website.sh`.** One command regenerates everything: the new
-   blog post and blog index, the activity heatmap from fresh git history,
+   weekly page and the terse Changes index (plus `changes/feed.xml`), the
+   editorial blog index, the activity heatmap from fresh git history,
    `compare/index.html` from `compare/comparison.md`, `features/index.html`
    from `data/features.json`, `index.html` from `data/audience.json`, every
    `../main/docs/*.md` -> `docs/**/index.html`, the nav block on every

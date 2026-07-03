@@ -91,10 +91,12 @@ built-in read-only authz profile.
 
 ### Offline dispatcher
 
-`ze l2tp show ...` and `ze l2tp clear ...` forward to the running daemon
-via SSH. Output is the same JSON the daemon handler returns. `ze l2tp
-decode` is an offline wire-decode tool that does not require a running
-daemon.
+`ze l2tp show ...` and the `ze l2tp tunnel|session teardown[-all]` commands
+forward to the running daemon via SSH. Output is the same JSON the daemon
+handler returns. (Inside the daemon CLI these teardowns dispatch as
+`clear l2tp tunnel|session teardown ...`, per the grammar note above.)
+`ze l2tp decode` is an offline wire-decode tool that does not require a
+running daemon.
 
 ```
 echo c8020044... | ze l2tp decode --pretty
@@ -201,7 +203,8 @@ l2tp {
             timeout 3;
             retries 3;
             acct-interval 300;
-            server 10.0.0.10 {
+            server main {
+                address 10.0.0.10;
                 port 1812;
                 shared-key radiussecret;
             }

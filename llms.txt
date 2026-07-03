@@ -19,7 +19,7 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 
 - [Roadmap](https://ze-software.github.io/ze/roadmap/index.md): The path to a first release you can trust (web: https://ze-software.github.io/ze/roadmap/)
 - [Milestones](https://ze-software.github.io/ze/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.github.io/ze/milestones/)
-- [Changes](https://ze-software.github.io/ze/changes/index.md): What shipped, week by week (web: https://ze-software.github.io/ze/changes/)
+- [Changes](https://ze-software.github.io/ze/changes/index.md): 29 weekly updates, newest first (web: https://ze-software.github.io/ze/changes/)
 - [Activity](https://ze-software.github.io/ze/activity/index.md): A year of commits, at a glance (web: https://ze-software.github.io/ze/activity/)
 
 ## Docs
@@ -49,17 +49,9 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 - [Appliance Installer Evidence](https://ze-software.github.io/ze/labs/appliance-install/index.md): HTTP/PXE, ISO, Ventoy, real boots (web: https://ze-software.github.io/ze/labs/appliance-install/)
 - [VPP Dataplane Evidence](https://ze-software.github.io/ze/labs/vpp-dataplane/index.md): FIB, traffic, and firewall in a real VPP daemon (web: https://ze-software.github.io/ze/labs/vpp-dataplane/)
 
-## Blog
-
-- [All posts](https://ze-software.github.io/ze/blog/index.md): Every weekly update, newest first (web: https://ze-software.github.io/ze/blog/)
-- [Week of 2026-06-25](https://ze-software.github.io/ze/blog/2026-06-25/index.md): Shipped across security, the appliance, routing, and observability thi… (web: https://ze-software.github.io/ze/blog/2026-06-25/)
-- [Week of 2026-06-22](https://ze-software.github.io/ze/blog/2026-06-22/index.md): Focused on trimming attack surface and rounding out OSPF. (web: https://ze-software.github.io/ze/blog/2026-06-22/)
-- [Week of 2026-06-15](https://ze-software.github.io/ze/blog/2026-06-15/index.md): Native IS-IS landed, MPLS gained fast reroute, and firewall rules can … (web: https://ze-software.github.io/ze/blog/2026-06-15/)
-- [Week of 2026-06-08](https://ze-software.github.io/ze/blog/2026-06-08/index.md): A week of operator-facing polish: a real Web Workbench UI, SR-Policy a… (web: https://ze-software.github.io/ze/blog/2026-06-08/)
-- [Week of 2026-06-01](https://ze-software.github.io/ze/blog/2026-06-01/index.md): The CLI grammar rollout finished, MRT tooling arrived, and a handful o… (web: https://ze-software.github.io/ze/blog/2026-06-01/)
-
 ## More
 
+- [Blog](https://ze-software.github.io/ze/blog/index.md): editorial articles (web: https://ze-software.github.io/ze/blog/)
 - [Talks](https://ze-software.github.io/ze/talks/index.md) (web: https://ze-software.github.io/ze/talks/)
 - [FAQ](https://ze-software.github.io/ze/faq/index.md) (web: https://ze-software.github.io/ze/faq/)
 - [Contribute](https://ze-software.github.io/ze/contribute/index.md) (web: https://ze-software.github.io/ze/contribute/)

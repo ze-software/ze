@@ -158,7 +158,7 @@ local bcrypt user accepted the credentials.
 ## Operational notes
 
 - **Shared secrets** are stored as `$9$`-encoded ciphertext, never as
-  plaintext. The CLI never echoes them; `ze config dump --strip-secrets`
+  plaintext. The CLI never echoes them; `ze config dump --strip-private`
   replaces them with `/* SECRET-DATA */`.
 - **VRF**: when the SSH server runs in a non-default VRF, TACACS+ TCP
   connections inherit the same VRF context.

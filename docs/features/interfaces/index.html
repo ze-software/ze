@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
@@ -1133,7 +1101,7 @@ tab press, returning MAC addresses from currently active OS interfaces.</p>
         }
         unit default {
             ipv4 {
-                address 10.0.0.1/30
+                address [ 10.0.0.1/30 ]
             }
         }
     }
@@ -1147,7 +1115,7 @@ tab press, returning MAC addresses from currently active OS interfaces.</p>
         }
         unit default {
             ipv6 {
-                address 2001:db8::1/64
+                address [ 2001:db8::1/64 ]
             }
         }
     }
@@ -1294,7 +1262,7 @@ ride the same <code>interface-unit</code> grouping used everywhere else.</p>
         }
         unit default {
             ipv4 {
-                address 10.0.0.1/24
+                address [ 10.0.0.1/24 ]
             }
         }
     }
@@ -1429,19 +1397,19 @@ that may not exist yet, the compound form auto-creates the parent:</p>
 </thead>
 <tbody>
 <tr>
-<td><code>create interface dummy &lt;name&gt; unit &lt;vid&gt;</code></td>
+<td><code>create interface dummy name &lt;name&gt; unit &lt;vid&gt;</code></td>
 <td>Creates dummy <code>&lt;name&gt;</code> if missing, then creates VLAN <code>&lt;name&gt;.&lt;vid&gt;</code></td>
 </tr>
 <tr>
-<td><code>create interface dummy &lt;name&gt; address &lt;prefix&gt;</code></td>
+<td><code>create interface dummy name &lt;name&gt; address &lt;prefix&gt;</code></td>
 <td>Creates dummy <code>&lt;name&gt;</code> if missing, then adds address</td>
 </tr>
 <tr>
-<td><code>create interface bridge &lt;name&gt; unit &lt;vid&gt;</code></td>
+<td><code>create interface bridge name &lt;name&gt; unit &lt;vid&gt;</code></td>
 <td>Creates bridge <code>&lt;name&gt;</code> if missing, then creates VLAN</td>
 </tr>
 <tr>
-<td><code>create interface bridge &lt;name&gt; address &lt;prefix&gt;</code></td>
+<td><code>create interface bridge name &lt;name&gt; address &lt;prefix&gt;</code></td>
 <td>Creates bridge <code>&lt;name&gt;</code> if missing, then adds address</td>
 </tr>
 <tr>
@@ -1457,7 +1425,7 @@ that may not exist yet, the compound form auto-creates the parent:</p>
 <p>The type keyword (<code>dummy</code>, <code>bridge</code>) is required when the parent does not
 exist, because the system needs to know what kind of interface to create.
 If the parent already exists with a different type, the command fails
-(e.g., <code>create interface dummy br0 unit 100</code> rejects if <code>br0</code> is a bridge).</p>
+(e.g., <code>create interface dummy name br0 unit 100</code> rejects if <code>br0</code> is a bridge).</p>
 <p>Rollback: if the sub-resource creation fails after the parent was
 auto-created, the parent is deleted. Pre-existing parents are never
 deleted on failure.</p>

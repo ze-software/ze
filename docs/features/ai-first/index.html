@@ -189,39 +189,7 @@
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button">Blog
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel">
-                    <div class="nav-dropdown-col">
-                        <a class="nav-dropdown-item" href="../../../blog/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>All posts</strong><small>Every weekly update, newest first</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-25/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-25</strong><small>Shipped across security, the appliance, routing, and observability thi…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-22/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-22</strong><small>Focused on trimming attack surface and rounding out OSPF.</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-15/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-15</strong><small>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can …</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-08/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-08</strong><small>A week of operator-facing polish: a real Web Workbench UI, SR-Policy a…</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../../../blog/2026-06-01/">
-                            <span class="nav-dropdown-icon">🗓️</span>
-                            <span><strong>Week of 2026-06-01</strong><small>The CLI grammar rollout finished, MRT tooling arrived, and a handful o…</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
+                    <a href="../../../blog/">Blog</a>
                     <a href="../../../talks/">Talks</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
@@ -342,6 +310,14 @@ flow, and learned-summary gate for workflow/tooling/rule changes.</p>
 </thead>
 <tbody>
 <tr>
+<td><code>ze_execute</code></td>
+<td>Run <strong>any</strong> CLI command -- full daemon control</td>
+</tr>
+<tr>
+<td><code>ze_reference</code></td>
+<td>Machine-readable reference for this daemon (commands, endpoints, dispatch keys, plugins, families); same JSON as <code>ze help ai --json</code></td>
+</tr>
+<tr>
 <td><code>ze_announce</code></td>
 <td>Announce routes with typed parameters (origin, next-hop, communities, prefixes)</td>
 </tr>
@@ -350,20 +326,12 @@ flow, and learned-summary gate for workflow/tooling/rule changes.</p>
 <td>Withdraw routes</td>
 </tr>
 <tr>
-<td><code>ze_peers</code></td>
-<td>Monitor peer state, ASN, uptime</td>
+<td><code>ze_show_bgp</code></td>
+<td>BGP peer state, ASN, uptime, and summary views (auto-generated from <code>show bgp ...</code>)</td>
 </tr>
 <tr>
-<td><code>ze_peer_control</code></td>
-<td>Teardown, pause, resume, flush peers</td>
-</tr>
-<tr>
-<td><code>ze_execute</code></td>
-<td>Run <strong>any</strong> CLI command -- full daemon control</td>
-</tr>
-<tr>
-<td><code>ze_commands</code></td>
-<td>List all available daemon commands</td>
+<td><code>ze_request_peer</code></td>
+<td>Peer lifecycle: teardown, pause, resume, flush (auto-generated from <code>request peer ...</code>)</td>
 </tr>
 </tbody>
 </table>

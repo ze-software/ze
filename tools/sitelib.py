@@ -382,7 +382,7 @@ def blog_dropdown_columns(n=5):
     desc, feature) that nav_dropdown_rooted then prefixes with the page's
     root."""
     col = [
-        ("blog/", "\U0001f4da", "All posts", "Every weekly update, newest first", False)
+        ("changes/", "\U0001f4da", "All updates", "Every weekly update, newest first", False)
     ]
     for post in latest_blog_posts(n):
         title = "Week of %s" % post["slug"]
@@ -390,7 +390,7 @@ def blog_dropdown_columns(n=5):
             title += " (draft)"
         intro = " ".join((post.get("intro") or "").split())
         desc = (intro[:70] + "…") if len(intro) > 70 else (intro or "Weekly update")
-        col.append(("blog/%s/" % post["slug"], "\U0001f5d3️", title, desc, False))
+        col.append(("changes/%s/" % post["slug"], "\U0001f5d3️", title, desc, False))
     return [col]
 
 
@@ -693,7 +693,10 @@ def bold(text):
 # drifting apart.
 BLOG_HEADER_RE = re.compile(r"^\*\*(.+?)\*\*\s*$", re.MULTILINE)
 BLOG_FRONT_MATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
-POSTS_DIR = GH_PAGES / "blog" / "posts"
+# The weekly-update sources (the changelog) live under changes/posts/; the
+# blog is now for editorial articles (see render-blog.py). latest_blog_posts()
+# below feeds the homepage "latest updates" teaser from these weekly sources.
+POSTS_DIR = GH_PAGES / "changes" / "posts"
 
 
 def parse_blog_front_matter(text):

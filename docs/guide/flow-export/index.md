@@ -147,9 +147,9 @@ flow-export {
 
 ## Operational Command
 
-`show flow-export [<collector>]` reports per-collector export statistics. With
-no argument it lists every collector; with a collector name it returns that one
-collector, or an error if the name is not configured. When no `flow-export`
+`show flow-export [name <collector>]` reports per-collector export statistics.
+With no argument it lists every collector; with `name <collector>` it returns
+that one collector, or an error if the name is not configured. When no `flow-export`
 section is configured the command returns `{"status": "not-configured"}`.
 
 ```

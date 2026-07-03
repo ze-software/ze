@@ -53,14 +53,30 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 Save as `example.conf`:
 
 ```
-plugin {
-    internal rib {
-        use bgp-rib
+static {
+    table default {
+        route 172.16.0.0/24 {
+            next {
+                hop 10.0.0.1 {
+                }
+            }
+        }
+    }
+}
+
+redistribute {
+    destination bgp {
+        import static
     }
 }
 
 bgp {
     router-id 10.0.0.1
+    session {
+        asn {
+            local 65000
+        }
+    }
 
     peer test-peer {
         connection {
@@ -86,11 +102,6 @@ bgp {
             }
         }
 
-        process rib {
-            receive [ state ]
-            send [ update ]
-        }
-
         update {
             attribute {
                 origin igp
@@ -103,6 +114,22 @@ bgp {
     }
 }
 ```
+
+This advertises two prefixes to `test-peer`, one by each of the routes Ze gives you to get
+a prefix into BGP:
+
+- **Redistribution** (`172.16.0.0/24`): a `static` route pulled into BGP by the top-level
+  `redistribute { destination bgp { import static } }` block. Every source protocol
+  (`static`, `connected`, `kernel`, `ospf`, `isis`, ...) redistributes into any destination
+  the same way -- this is how interface and interior-gateway routes reach your peers.
+  <!-- source: internal/plugins/static/register.go -- registerStaticSources; internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
+- **Direct announcement** (`192.168.1.0/24`): a prefix declared inline on the peer in its
+  `update {}` block, sent as soon as the session establishes.
+  <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
+
+> Advanced: a `process` binding attaches a plugin or your own external program to a peer (the
+> ExaBGP-style event API), including making a peer RIB-backed so it stores and re-advertises
+> received routes. It is not needed for the config above; see [Plugins](https://github.com/ze-software/ze/blob/main/docs/guide/plugins.md).
 
 ## Validate
 
@@ -151,8 +178,8 @@ bin/ze cli -c "show bgp peer list"
 # Show peer details
 bin/ze cli -c "show bgp peer test-peer detail"
 
-# Watch live events
-bin/ze cli -c "monitor bgp"
+# Watch live events (streams until Ctrl-C)
+bin/ze cli -c "monitor event"
 ```
 <!-- source: internal/component/cli/client/main.go -- Execute, StreamMonitor -->
 

@@ -1,17 +1,27 @@
 #!/usr/bin/env -S uv run --with markdown python3
-"""Render blog/posts/*.md (Zeledon weekly updates) into the site.
+"""Render editorial blog articles from blog/posts/*.md.
 
 Usage:
     tools/render-blog.py
 
-Reads every file in blog/posts/, parses its front matter and Zeledon-style
-body (bold "**text**"-only lines act as section headers, Discord style --
-not markdown # headings), and renders each to blog/<start-date>/index.html.
-Then generates blog/index.html itself: a reverse-chronological list of every
-post found, so the main page is always in sync with whatever .md files
-exist on disk -- add, edit, or remove a post in blog/posts/ and re-run this
-to update both the post page and the index. Same one-command-regenerates-
-everything workflow as tools/render-docs.py.
+The blog is for occasional editorial articles (deep dives, talk write-ups,
+design notes), NOT the weekly changelog -- that moved to the Changes section
+(see render-changes.py). Each article is a Markdown file in blog/posts/ with
+front matter:
+
+    ---
+    title: From ExaBGP to a Network OS
+    date: 2026-07-03
+    description: One-line summary shown on the index and in the feed.
+    ---
+
+    Normal Markdown body, with ## headings, code fences, links.
+
+It renders to blog/<slug>/index.html (slug = the file's front-matter `slug`
+or its filename stem) plus blog/index.html (newest first). When there are no
+articles yet, the index shows an intro and points readers at the weekly
+changelog. A feed (blog/feed.xml) is written only once at least one article
+exists.
 """
 
 import pathlib
@@ -29,56 +39,156 @@ GH_PAGES = HERE.parent
 POSTS_DIR = GH_PAGES / "blog" / "posts"
 OUT_DIR = GH_PAGES / "blog"
 BLOG_URL = sitelib.SITE_BASE + "blog/"
-FEED_URL = BLOG_URL + "feed.xml"
-RSS_HEAD = (
-    '        <link rel="alternate" type="application/rss+xml" '
-    'title="Ze weekly updates" href="feed.xml" />\n'
-)
-
-LIST_ITEM_RE = re.compile(r"^[-*]\s")
+DATE_DIR_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
-def rfc822(slug):
-    """slug is a YYYY-MM-DD start date; format it as an RSS pubDate. Derived
-    from the date itself, never the wall clock, so rebuilds are stable."""
-    y, m, d = (int(x) for x in slug.split("-"))
+def slug_of(meta, f):
+    return meta.get("slug", f.stem).strip()
+
+
+def rfc822(iso):
+    y, m, d = (int(x) for x in iso.split("-"))
     return date(y, m, d).strftime("%a, %d %b %Y 00:00:00 +0000")
 
 
-def render_feed(entries):
-    posts = sorted(
-        (e for e in entries if not e["is_draft"]),
-        key=lambda p: p["start"],
-        reverse=True,
-    )
+def parse_articles():
+    """Every blog/posts/*.md as {slug, title, date, description, body},
+    newest first. Skips files without a title (treat as not ready)."""
+    articles = []
+    for f in sorted(POSTS_DIR.glob("*.md")):
+        meta, body = sitelib.parse_blog_front_matter(f.read_text())
+        title = meta.get("title")
+        if not title:
+            sitelib.warn("blog article %s has no title, skipping" % f.name)
+            continue
+        articles.append(
+            {
+                "slug": slug_of(meta, f),
+                "title": title.strip(),
+                "date": meta.get("date", "").strip(),
+                "description": meta.get("description", "").strip(),
+                "body": body,
+            }
+        )
+    articles.sort(key=lambda a: a["date"], reverse=True)
+    return articles
+
+
+def render_article(a):
+    body_html = markdown.markdown(a["body"], extensions=["tables", "fenced_code", "sane_lists"])
+    parts = [
+        '            <section class="section-head reveal">',
+        '                <h2 id="post-title">%s</h2>' % a["title"],
+    ]
+    if a["date"]:
+        parts.append('                <p class="post-meta"><time datetime="%s">%s</time></p>' % (a["date"], a["date"]))
+    parts.append('                <p class="post-back"><a href="../">&larr; All articles</a></p>')
+    parts.append("            </section>")
+    parts.append('            <section class="md-content reveal">')
+    parts.append(body_html)
+    parts.append("            </section>")
+    return "\n".join(parts)
+
+
+def render_article_markdown(a):
+    parts = ["# %s" % a["title"], ""]
+    if a["date"]:
+        parts.append("*%s*" % a["date"])
+        parts.append("")
+    parts.append(a["body"].strip())
+    return "\n".join(parts).strip() + "\n"
+
+
+def render_index(articles):
+    parts = ['            <section aria-labelledby="blog-title">']
+    parts.append('                <div class="section-head reveal">')
+    parts.append('                    <h2 id="blog-title">The Ze blog.</h2>')
+    if articles:
+        lead = (
+            "Occasional articles on Ze: design notes, deep dives, and talk "
+            "write-ups. For what shipped week by week, see the "
+            '<a href="../changes/">changelog</a>.'
+        )
+    else:
+        lead = (
+            "Occasional articles on Ze: design notes, deep dives, and talk "
+            "write-ups. None published yet. In the meantime, what shipped "
+            'week by week is in the <a href="../changes/">changelog</a>, and '
+            'the landmark features are on the <a href="../milestones/">'
+            "Milestones</a> timeline."
+        )
+    parts.append("                    <p>%s</p>" % lead)
+    parts.append("                </div>")
+    if articles:
+        parts.append('                <div class="cards reveal">')
+        cats = ["cat-operate", "cat-routing", "cat-automate", "cat-observe", "cat-secure", "cat-services", "cat-platform"]
+        for i, a in enumerate(articles):
+            parts.append('                    <article class="card card-post %s">' % cats[i % 7])
+            parts.append('                        <h3><a href="%s/">%s</a></h3>' % (a["slug"], a["title"]))
+            if a["date"]:
+                parts.append('                        <span class="chip">%s</span>' % a["date"])
+            if a["description"]:
+                parts.append("                        <p>%s</p>" % a["description"])
+            parts.append('                        <span class="post-more">Read the article</span>')
+            parts.append("                    </article>")
+        parts.append("                </div>")
+    parts.append("            </section>")
+    return "\n".join(parts)
+
+
+def render_index_markdown(articles):
+    parts = ["# The Ze blog", ""]
+    if articles:
+        parts.append(
+            "Occasional articles on Ze: design notes, deep dives, and talk "
+            "write-ups. For what shipped week by week, see the "
+            "[changelog](../changes/)."
+        )
+        parts.append("")
+        for a in articles:
+            line = "- [%s](%s/index.md)" % (a["title"], a["slug"])
+            if a["date"]:
+                line += " (%s)" % a["date"]
+            if a["description"]:
+                line += ": %s" % a["description"]
+            parts.append(line)
+    else:
+        parts.append(
+            "Occasional articles on Ze. None published yet. See the "
+            "[changelog](../changes/) for what shipped week by week, and the "
+            "[Milestones](../milestones/) timeline for the landmark features."
+        )
+    return "\n".join(parts).strip() + "\n"
+
+
+def render_feed(articles):
     items = []
-    for p in posts:
-        slug = p["slug"]
-        link = "%s%s/" % (BLOG_URL, slug)
-        desc = " ".join(p["intro"].split()) if p["intro"] else "Ze weekly update."
+    for a in articles:
+        if not a["date"]:
+            continue
+        link = "%s%s/" % (BLOG_URL, a["slug"])
         items.append(
             "\n".join(
                 [
                     "        <item>",
-                    "            <title>Week of %s</title>" % slug,
+                    "            <title>%s</title>" % escape(a["title"]),
                     "            <link>%s</link>" % link,
                     '            <guid isPermaLink="true">%s</guid>' % link,
-                    "            <pubDate>%s</pubDate>" % rfc822(slug),
-                    "            <description>%s</description>" % escape(desc),
+                    "            <pubDate>%s</pubDate>" % rfc822(a["date"]),
+                    "            <description>%s</description>" % escape(a["description"] or a["title"]),
                     "        </item>",
                 ]
             )
         )
-    built = rfc822(posts[0]["slug"]) if posts else rfc822("2026-01-01")
+    built = rfc822(articles[0]["date"]) if articles and articles[0]["date"] else rfc822("2026-01-01")
     feed = "\n".join(
         [
             '<?xml version="1.0" encoding="UTF-8"?>',
             '<rss version="2.0">',
             "    <channel>",
-            "        <title>Ze weekly updates</title>",
+            "        <title>Ze blog</title>",
             "        <link>%s</link>" % BLOG_URL,
-            "        <description>What shipped in Ze each week, in Zeledon's "
-            "voice, mined from git history.</description>",
+            "        <description>Editorial articles on Ze.</description>",
             "        <language>en</language>",
             "        <lastBuildDate>%s</lastBuildDate>" % built,
             "".join(items),
@@ -88,225 +198,69 @@ def render_feed(entries):
         ]
     )
     (OUT_DIR / "feed.xml").write_text(feed)
-    print("rendered feed -> %s (%d items)" % (OUT_DIR / "feed.xml", len(posts)))
+    print("rendered feed -> %s (%d items)" % (OUT_DIR / "feed.xml", len(items)))
 
 
-def ensure_blank_line_before_lists(text):
-    """python-markdown (unlike CommonMark) won't start a list immediately
-    after a paragraph with no blank line between -- Zeledon's Discord-style
-    writing does exactly that ("intro:\\n- item"), so insert the blank line
-    it needs."""
-    lines = text.split("\n")
-    out = []
-    for i, line in enumerate(lines):
-        is_item = LIST_ITEM_RE.match(line)
-        if is_item and out and out[-1].strip() and not LIST_ITEM_RE.match(out[-1]):
-            out.append("")
-        out.append(line)
-    return "\n".join(out)
-
-
-parse_front_matter = sitelib.parse_blog_front_matter
-split_sections = sitelib.split_blog_sections
-start_date = sitelib.blog_start_date
-
-
-def render_post(meta, intro, sections, covers):
-    is_draft = meta.get("status", "").upper().startswith("DRAFT")
-    parts = []
-    parts.append('            <section class="blog-post" aria-labelledby="post-title">')
-    parts.append('                <div class="section-head reveal">')
-    if is_draft:
-        parts.append(
-            '                    <span class="tag">Draft -- pending review</span>'
-        )
-    parts.append(
-        '                    <h2 id="post-title">Week of %s</h2>' % start_date(covers)
-    )
-    if intro:
-        parts.append("                    <p>%s</p>" % markdown.markdown(intro)[3:-4])
-    parts.append("                </div>")
-    parts.append("            </section>")
-
-    parts.append('            <section class="blog-post reveal">')
-    parts.append('                <div class="blog-grid">')
-    for header, section_body in sections:
-        html_body = markdown.markdown(
-            ensure_blank_line_before_lists(section_body),
-            extensions=["fenced_code", "sane_lists"],
-        )
-        parts.append(
-            '                    <div class="blog-block" aria-label="%s">'
-            % header.replace('"', "")
-        )
-        parts.append('                        <div class="md-content">')
-        parts.append("                            <h3>%s</h3>" % header)
-        parts.append("                            %s" % html_body)
-        parts.append("                        </div>")
-        parts.append("                    </div>")
-    parts.append("                </div>")
-    parts.append("            </section>")
-
-    return "\n".join(parts)
-
-
-def render_post_markdown(meta, intro, sections, covers):
-    title = "Week of %s" % start_date(covers)
-    if meta.get("status", "").upper().startswith("DRAFT"):
-        title += " (Draft -- pending review)"
-    parts = ["# %s" % title, ""]
-    if intro:
-        parts.append(intro.strip())
-        parts.append("")
-    for header, section_body in sections:
-        parts.append("## %s" % header)
-        parts.append("")
-        parts.append(ensure_blank_line_before_lists(section_body).strip())
-        parts.append("")
-    return "\n".join(parts).strip() + "\n"
-
-
-def render_index_markdown(posts):
-    posts_sorted = sorted(posts, key=lambda p: p["start"], reverse=True)
-    parts = [
-        "# Ze weekly updates",
-        "",
-        "%d weeks of shipped work, in Zeledon's voice, mined from git "
-        "history. New weeks are also posted to Discord's `ze-news`."
-        % len(posts_sorted),
-        "",
-    ]
-    for p in posts_sorted:
-        title = "Week of %s" % start_date(p["covers"])
-        if p["is_draft"]:
-            title += " (Draft)"
-        line = "- [%s](%s/index.md)" % (title, p["slug"])
-        if p["intro"]:
-            line += ": %s" % " ".join(p["intro"].split())
-        parts.append(line)
-    return "\n".join(parts).strip() + "\n"
-
-
-def render_index(posts):
-    # posts: list of dict(slug, covers, intro, is_draft)
-    posts_sorted = sorted(posts, key=lambda p: p["start"], reverse=True)
-    parts = []
-    parts.append('            <section aria-labelledby="blog-title">')
-    parts.append('                <div class="section-head reveal">')
-    parts.append('                    <h2 id="blog-title">Ze weekly updates.</h2>')
-    parts.append(
-        '                    <p>%d weeks of shipped work, in <a href="../zeledon/">Zeledon</a>\'s voice, '
-        "mined from git history. New weeks are also posted to Discord's "
-        "<code>ze-news</code>. Subscribe by "
-        '<a href="feed.xml">RSS</a>, or scan the terser '
-        '<a href="../changes/">changelog</a>.</p>' % len(posts_sorted)
-    )
-    parts.append("                </div>")
-    parts.append('                <div class="cards reveal">')
-    for i, p in enumerate(posts_sorted):
-        cat = [
-            "cat-operate",
-            "cat-routing",
-            "cat-automate",
-            "cat-observe",
-            "cat-secure",
-            "cat-services",
-            "cat-platform",
-        ][i % 7]
-        parts.append('                    <article class="card card-post %s">' % cat)
-        if p["is_draft"]:
-            parts.append('                        <span class="chip mode">Draft</span>')
-        parts.append(
-            '                        <h3><a href="%s/">Week of %s</a></h3>'
-            % (p["slug"], start_date(p["covers"]))
-        )
-        if p["intro"]:
-            excerpt = markdown.markdown(p["intro"])[3:-4]
-            parts.append("                        <p>%s</p>" % excerpt)
-        parts.append(
-            '                        <span class="post-more">Read the update</span>'
-        )
-        parts.append("                    </article>")
-    parts.append("                </div>")
-    parts.append("            </section>")
-    return "\n".join(parts)
+def clean_stale_dirs(keep_slugs):
+    """Remove leftover blog/<dir>/ pages that are not current articles --
+    notably the old YYYY-MM-DD weekly dirs, now served from changes/."""
+    for child in OUT_DIR.iterdir():
+        if not child.is_dir() or child.name == "posts":
+            continue
+        if child.name in keep_slugs:
+            continue
+        for f in child.rglob("*"):
+            if f.is_file():
+                f.unlink()
+        child.rmdir()
+        print("removed stale blog dir -> %s" % child)
 
 
 def main():
-    if not POSTS_DIR.exists():
-        print("error: %s not found" % POSTS_DIR, file=sys.stderr)
-        return 1
+    POSTS_DIR.mkdir(parents=True, exist_ok=True)
+    articles = parse_articles()
 
-    post_files = sorted(POSTS_DIR.glob("*.md"))
-    if not post_files:
-        print("error: no posts found in %s" % POSTS_DIR, file=sys.stderr)
-        return 1
-
-    index_entries = []
-
-    for f in post_files:
-        text = f.read_text()
-        meta, body = parse_front_matter(text)
-        covers = meta.get("covers", f.stem.replace("..", " .. "))
-        title_marker, intro, sections = split_sections(body)
-        if title_marker is None:
-            sitelib.warn("no sections found in %s, skipping" % f)
-            continue
-
-        slug = start_date(covers)
-        dest_dir = OUT_DIR / slug
+    for a in articles:
+        dest_dir = OUT_DIR / a["slug"]
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest = dest_dir / "index.html"
-
-        desc = intro.replace("\n", " ")[:200] if intro else "Ze weekly update."
-        title = "Week of %s" % start_date(covers)
-        content = render_post(meta, intro, sections, covers)
-
-        full_title = "%s - Ze Blog" % title
+        desc = a["description"] or a["title"]
+        full_title = "%s - Ze Blog" % a["title"]
         dest.write_text(
-            sitelib.page_head(
-                full_title, desc, "../../", og_title=full_title, og_desc=desc
-            )
-            + content
+            sitelib.page_head(full_title, desc, "../../", og_title=full_title, og_desc=desc)
+            + render_article(a)
             + "\n"
             + sitelib.page_foot("../../")
         )
-        sitelib.write_markdown_sibling(
-            dest, render_post_markdown(meta, intro, sections, covers)
-        )
-        print("rendered %s -> %s (+ index.md)" % (f.name, dest))
+        sitelib.write_markdown_sibling(dest, render_article_markdown(a))
+        print("rendered article %s -> %s (+ index.md)" % (a["slug"], dest))
 
-        index_entries.append(
-            {
-                "slug": slug,
-                "start": slug,
-                "covers": covers,
-                "intro": intro,
-                "is_draft": meta.get("status", "").upper().startswith("DRAFT"),
-            }
-        )
+    clean_stale_dirs({a["slug"] for a in articles})
 
+    index_desc = "Editorial articles on Ze: design notes, deep dives, and talk write-ups."
+    extra = ""
+    if articles:
+        extra = (
+            '        <link rel="alternate" type="application/rss+xml" '
+            'title="Ze blog" href="feed.xml" />\n'
+        )
     index_dest = OUT_DIR / "index.html"
-    index_content = render_index(index_entries)
-    index_desc = "Ze weekly updates, mined from git history and posted to Discord."
     index_dest.write_text(
-        sitelib.page_head(
-            "Blog - Ze Blog",
-            index_desc,
-            "../",
-            og_title="Blog - Ze Blog",
-            og_desc=index_desc,
-            extra_head=RSS_HEAD,
-        )
-        + index_content
+        sitelib.page_head("Blog - Ze", index_desc, "../", og_title="Blog - Ze", og_desc=index_desc, extra_head=extra)
+        + render_index(articles)
         + "\n"
         + sitelib.page_foot("../")
     )
-    sitelib.write_markdown_sibling(index_dest, render_index_markdown(index_entries))
-    print(
-        "rendered index -> %s (%d posts, + index.md)" % (index_dest, len(index_entries))
-    )
-    render_feed(index_entries)
+    sitelib.write_markdown_sibling(index_dest, render_index_markdown(articles))
+    print("rendered blog index -> %s (%d articles, + index.md)" % (index_dest, len(articles)))
+
+    if articles:
+        render_feed(articles)
+    else:
+        stale_feed = OUT_DIR / "feed.xml"
+        if stale_feed.exists():
+            stale_feed.unlink()
+            print("removed stale blog feed (no articles) -> %s" % stale_feed)
     return 0
 
 
