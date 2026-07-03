@@ -54,7 +54,11 @@ session establishment issues.";
                 description "Protocol filter";
             }
             leaf tunnel-id {
-                type uint16;
+                // Identifiers are string-typed (ai/rules/cli-grammar.md "Identifiers
+                // Are Strings"); the pattern keeps the 0-65535 numeric shape.
+                type string {
+                    pattern '[0-9]{1,5}';
+                }
                 description "L2TP tunnel ID filter";
             }
             leaf count {

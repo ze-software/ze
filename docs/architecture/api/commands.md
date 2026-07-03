@@ -498,14 +498,14 @@ Levels: `debug`, `info`, `warn`, `err`. Changes take effect immediately via `slo
 ### Metrics Commands (Ze)
 
 ```
-bgp metrics values        # Dump Prometheus text format output
-bgp metrics list          # List metric names only (no values)
-bgp metrics pool          # Per-attribute pool occupancy and dedup rates
+show metrics values       # Dump Prometheus text format output
+show metrics list         # List metric names only (no values)
+show metrics pool         # Per-attribute pool occupancy and dedup rates
 ```
 
 Requires telemetry to be enabled in config (`telemetry { prometheus { ... } }`). Returns error if metrics registry is not available.
 
-`metrics pool` returns 13 per-attribute pools (Origin, AS-Path, LocalPref, MED, NextHop,
+`show metrics pool` returns 13 per-attribute pools (Origin, AS-Path, LocalPref, MED, NextHop,
 Communities, LargeCommunities, ExtCommunities, ClusterList, OriginatorID, AtomicAggregate,
 Aggregator, OtherAttrs) with live/dead slots, bytes, intern count, dedup hit rate.
 

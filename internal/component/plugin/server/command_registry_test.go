@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
@@ -540,6 +541,24 @@ func TestValidateCommandNameAcceptsShippingCommands(t *testing.T) {
 		"cache retain",
 	} {
 		assert.NoError(t, validateCommandName(name), "should accept %q", name)
+	}
+}
+
+// TestValidateCommandNameUsesCanonicalVerbs proves the registration gate derives
+// its verb set from the one canonical command.Verbs registry (no second list to
+// drift): every canonical verb is accepted, and a mutation token is rejected.
+//
+// VALIDATES: AC-1 single source of truth; AC-4 strengthened registration check.
+// PREVENTS: the plugin gate and the grammar gate disagreeing on the verb set.
+func TestValidateCommandNameUsesCanonicalVerbs(t *testing.T) {
+	for verb := range command.Verbs {
+		if err := validateCommandName(verb + " fixture status"); err != nil {
+			t.Errorf("canonical verb %q rejected: %v", verb, err)
+		}
+	}
+	// R7: a mutation token (add/remove) is rejected even under a valid verb.
+	if err := validateCommandName("request interface addr add"); err == nil {
+		t.Error("expected mutation-token command to be rejected (R7)")
 	}
 }
 

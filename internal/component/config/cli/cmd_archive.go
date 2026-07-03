@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func cmdArchiveWithStorage(_ storage.Storage, args []string) int {
@@ -54,7 +55,10 @@ func cmdArchiveImpl(args []string) int {
 		return exitError
 	}
 
-	result, err := sshclient.ExecCommand(creds, "config archive "+archiveName)
+	// The operational command is verb-first `request config archive <name>`
+	// (ai/rules/cli-grammar.md); this offline `ze config archive` tool dispatches it.
+	var tb textbuf.Buffer
+	result, err := sshclient.ExecCommand(creds, tb.Str("request config archive ").Str(archiveName).String())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError

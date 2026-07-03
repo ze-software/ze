@@ -9,7 +9,7 @@
 #
 .PHONY: ze-spec-status ze-spec-status-json ze-learned-counter
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
-.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-consistency
+.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-consistency
 .PHONY: ze-verify-wiring-docs ze-wiki-update ze-wiki-commands
 
 ze-spec-status:
@@ -56,6 +56,14 @@ ze-command-ownership-check:
 
 ze-command-ownership-check-json:
 	@go run scripts/checks/command_ownership.go --json
+
+# CLI grammar gate: every built-in command obeys the verb-first grammar rules
+# (ai/rules/cli-grammar.md, R1-R8) and no .yang carries a --flag.
+ze-cli-grammar-check:
+	@go run scripts/checks/cli_grammar.go
+
+ze-cli-grammar-check-json:
+	@go run scripts/checks/cli_grammar.go --json
 
 
 ze-verify-wiring-docs:

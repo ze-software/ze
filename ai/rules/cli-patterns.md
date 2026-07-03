@@ -59,10 +59,12 @@ completion and help. The command still works when typed in full. Use this only
 for internal/diagnostic commands that operators should not discover through
 tab-completion. Hidden is the exception, not the default.
 
-**Known gap:** 51 commands across 12 plugins currently lack completion because the
-plugin registry does not yet feed the completion tree. Tracked as a framework
-change (inject `CommandRegistry` entries into the command tree after plugin
-registration). No per-plugin YANG files needed.
+**Runtime vs offline tree:** the runtime completion tree DOES inject plugin
+`CommandRegistry` entries after startup (`internal/component/cli/client/inject.go`
+`injectPluginCommands`), so plugin commands complete in the live CLI. The static
+offline tree (`BuildCommandTree`, used when no daemon is reachable, and
+`ze help command`) still sees only YANG-backed commands; a plugin whose commands
+must complete offline should ship a `-cmd` YANG module.
 
 ## New Command Checklist
 

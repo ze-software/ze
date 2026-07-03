@@ -5,7 +5,7 @@ module ze-mpls-cmd {
     import ze-cli-show-cmd  { prefix clishowcmd; }
     description "MPLS show commands: forwarding table inspection.
          Relocated from the central show schema for plugin self-containment.";
-    revision 2026-06-26 { description "Add the row-cap as a 'limit' keyword leaf (was a --limit flag in the handler), matching show route."; }
+    revision 2026-06-26 { description "Add the row-cap as a 'limit' keyword leaf (replacing a handler-side row-limit flag), matching show route."; }
     revision 2026-06-03 { description "Initial revision: relocated from ze-cli-show-cmd."; }
 
     augment "/clishowcmd:show" {

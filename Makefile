@@ -271,14 +271,14 @@ ze-verify:
 # (plan/learned/1045-plugin-process-boundary.md). A new gate added HERE will
 # NOT run under `make ze-verify`/`ze-verify-changed` or CI -- add it to
 # scripts/status/verify_run.go's stagesForMode() instead, in BOTH branches.
-_ze-verify-impl: ze-lint ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-verify-wiring-docs ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
+_ze-verify-impl: ze-lint ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-cli-grammar-check ze-verify-wiring-docs ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
 
 ze-verify-changed:
 	@scripts/dev/verify-lock.sh ze-verify-changed env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify-changed
 
 # See the _ze-verify-impl comment above: not the live path either.
-_ze-verify-changed-impl: ze-lint-changed ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
+_ze-verify-changed-impl: ze-lint-changed ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-cli-grammar-check ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification (changed) passed"
 
 # Module-tier placement gate (ai/rules/module-tiers.md): a config-driven engine

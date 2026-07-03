@@ -173,6 +173,7 @@ artifact type. Check them whenever your work touches the described concern.
 | `make ze-doc-test` | `mk/inventory.mk` | Documentation drift, stale source anchors, and YANG command handler contract checks. |
 | `make ze-inventory` / `make ze-inventory-json` | `mk/inventory.mk` | Registry-backed plugin, command, YANG, and test inventory. |
 | `make ze-command-list` / `make ze-command-list-json` | `mk/inventory.mk` | Live command inventory generated from registered handlers and schemas. |
+| `make ze-cli-grammar-check` / `-json` | `mk/inventory.mk` | CLI grammar gate: every built-in command obeys the verb-first rules R1-R8 (`ai/rules/cli-grammar.md`) and no `.yang` carries a `--flag`. In `make ze-verify`. |
 | `make ze-doc-index` | `mk/inventory.mk` | Regenerate `ai/CODE-TO-DOCS.md`, the source-to-document reverse index. |
 | `make ze-ai-sync` | `scripts/dev/skill_sync.sh` | Sync canonical `ai/skills/*.md` to `.claude/skills/`, `.codex/skills/`, and `.agents/skills/`; also regenerates `CLAUDE.md` and `AGENTS.md` from `ai/INSTRUCTIONS.md`. |
 | `make ze-spec-status` / `make ze-spec-status-json` | `mk/inventory.mk` | Spec progress overview for active planning and handoff. |
@@ -353,7 +354,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | self-improvement, discoverability, discovery, new tool, self-check, verification gate | `ai/rules/discovery-updates.md`, `ai/rules/hook-mapping.md`, `docs/contributing/documentation-testing.md` |
 | inventory, command-list, doc drift, source anchor, doc index | `ai/rules/discovery-updates.md`, `ai/rules/documentation.md`, `docs/contributing/documentation-testing.md`, `mk/inventory.mk` |
 | clear, clear command, clear dns, clear interface, clear ipsec | `internal/component/resolve/cmd/` (dns), `internal/component/iface/cmd/` (interface), `internal/component/ike/cmd/` (ipsec), `internal/component/cmd/clear/` (verb root) |
-| command grammar, verb-first, command alias, deprecated alias | `ai/rules/cli-grammar.md`, `plan/learned/829-command-verb-first.md` |
+| command grammar, verb-first, command alias, deprecated alias, grammar gate | `ai/rules/cli-grammar.md` (Mechanical Enforcement), `make ze-cli-grammar-check`, `plan/learned/829-command-verb-first.md` |
 | DispatchCommandArgs, typed inter-plugin dispatch, tokenizer bypass | `plan/learned/830-typed-inter-plugin-dispatch.md`, `ai/rules/plugin-design.md` |
 | RawMessage, double marshal, callback passthrough, SDK callback | `plan/learned/826-ipc-dispatch-data-raw.md`, `plan/learned/827-dispatch-response-passthrough.md`, `plan/learned/828-codec-callback-passthrough.md` |
 | pipe first, pipe last, pipe metadata | `ai/rules/pipe-completeness.md`, `plan/learned/822-pipe-first-last.md` |

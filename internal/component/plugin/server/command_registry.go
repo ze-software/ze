@@ -6,12 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/grammar"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -33,48 +34,22 @@ type deprecatedAlias struct {
 	Process      *process.Process
 }
 
-// commandVerbs is the canonical closed set of first tokens (verbs) a plugin
-// command may begin with, per the verb-first CLI grammar
-// (ai/rules/cli-grammar.md). It is the single source of truth: validVerbList
-// derives the verb list shown in error messages from this map, so there is no
-// second copy to drift (ai/rules/derive-not-hardcode.md).
+// The canonical closed set of first tokens (verbs) a plugin command may begin
+// with lives in command.Verbs (internal/component/command), the single source of
+// truth shared with the grammar gate (ai/rules/cli-grammar.md, derive-not-hardcode.md).
+// validateCommandName below checks against it; adding a verb is a deliberate edit
+// to command.Verbs, not a second list here.
 //
-// Scope: this gate applies ONLY to plugin-registered commands (Register and
-// RegisterDeprecated). Core builtins are registered through a separate path
-// (AddBuiltin) and are not validated by this function.
+// Scope: this registration gate applies ONLY to plugin-registered commands
+// (Register and RegisterDeprecated). Core builtins are registered through a
+// separate path (AddBuiltin) and are covered instead by the static grammar gate
+// (scripts/checks/cli_grammar.go) walking the YANG command tree.
 //
-// Seeded with the verbs reachable through plugin command registration today
-// (show/set/clear/request), the operator verbs commit/cache, and update (the
-// data-refresh verb, e.g. `update bgp irr` to re-query IRR prefix data) from the
-// same grammar. To add a plugin command whose first verb is not yet listed, add
-// the verb here in the same change. There is no compatibility escape hatch: a
-// noun-first duplicate of a verb-first command is layering to delete, not a
-// token to add (ai/rules/no-layering.md).
-//
-// Completeness note: a static grep of string-literal command names does not
-// enumerate what actually registers (names declared via constants or built by
-// append are invisible to it). The authoritative check that every shipping
-// command's verb is present is running the registration gate (functional and
-// exabgp suites), which exercises real plugin startup.
-var commandVerbs = map[string]bool{
-	"show":    true,
-	"set":     true,
-	"clear":   true,
-	"request": true,
-	"commit":  true,
-	"cache":   true,
-	"update":  true,
-}
-
 // validVerbList returns the sorted, comma-separated list of valid command verbs,
-// derived from commandVerbs for use in error messages (never hardcoded twice).
+// derived from the canonical command.Verbs registry (internal/component/command)
+// so there is no second verb list to drift (ai/rules/derive-not-hardcode.md).
 func validVerbList() string {
-	verbs := make([]string, 0, len(commandVerbs))
-	for v := range commandVerbs {
-		verbs = append(verbs, v)
-	}
-	sort.Strings(verbs)
-	return textbuf.Join(verbs, ", ")
+	return textbuf.Join(command.VerbList(), ", ")
 }
 
 // validateCommandName checks that a command name is well-formed for dispatch.
@@ -99,8 +74,14 @@ func validateCommandName(name string) error {
 			return err
 		}
 	}
-	if !commandVerbs[tokens[0]] {
+	if !command.IsVerb(tokens[0]) {
 		return fmt.Errorf("command name %q has unknown verb %q (valid verbs: %s)", name, tokens[0], validVerbList())
+	}
+	// The remaining grammar rules (e.g. mutation tokens like add/remove, R7) come
+	// from the shared checker so plugin commands obey the same grammar as the gate.
+	if findings := grammar.CheckName(name); len(findings) > 0 {
+		f := findings[0]
+		return fmt.Errorf("command name %q violates %s: %s", name, f.Rule, f.Message)
 	}
 	return nil
 }

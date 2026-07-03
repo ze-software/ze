@@ -187,6 +187,26 @@ grep -n 'args\[0\]' <handler-file> | grep -v 'case\|==.*"'
 If any `args[0]` usage passes the value to a lookup/parse function (GetInterface,
 ParseUint, etc.) without first matching it against a keyword set, that is a violation.
 
+## Mechanical Enforcement (automated)
+
+These rules are enforced automatically, not just by review. The reverse-engineered
+ruleset is R1-R8 (verb-first, token form, no `--flag`, namespace discipline,
+keyword-before-value, action-before-identifier, config-tree-mutation stays in
+`set`/`delete`, string identifiers), implemented once in
+`internal/component/command/grammar` and read from the canonical verb registry
+`internal/component/command` (`Verbs`). Three feeders enforce it:
+
+| Feeder | What it checks | Run |
+|--------|----------------|-----|
+| Static gate | Every built-in command (YANG command tree) against R1-R8, plus no `--flag` in any `.yang` | `make ze-cli-grammar-check` (in `make ze-verify`) |
+| Registration | Every plugin `CommandDecl` at registration (`validateCommandName`) | plugin startup in functional/exabgp suites |
+| Runtime audit | The full merged surface (`system command list`) | functional `.ci` |
+
+To add a verb, edit `command.Verbs` (one place; the plugin gate and the static gate
+both derive from it). Category exemptions (the text bridge, `ze-plugin:`/`ze-system:`
+wire-protocol directives, and `ze-editor:` modes) live in `grammar.ExemptCategory`,
+keyed on the handler wire-method namespace -- never a per-command allowlist.
+
 ## YANG Tree
 
 The YANG container nesting must mirror the corrected grammar. If the CLI path

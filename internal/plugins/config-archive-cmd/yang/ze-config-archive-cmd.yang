@@ -5,16 +5,20 @@ module ze-config-archive-cmd {
     description "Save configuration snapshots to the config store";
     revision 2026-05-17 { description "Initial revision"; }
 
-    container config {
+    container request {
         config false;
-        description "Configuration snapshot and archiving";
 
-        container archive {
+        container config {
             config false;
-            ze:command "ze-config-archive:trigger";
-            description "Save a snapshot of the current running configuration.
+            description "Configuration snapshot and archiving";
+
+            container archive {
+                config false;
+                ze:command "ze-config-archive:trigger";
+                description "Save a snapshot of the current running configuration.
 Captures the config into the store for later rollback or comparison.
 Optional name labels the snapshot; defaults to a timestamp.";
+            }
         }
     }
 }
