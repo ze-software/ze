@@ -27,7 +27,7 @@ identity is injected only by trusted transport wiring.
 | Encoder | json or text (v4), json only (v6) | json or text |
 | Peer selectors | `*`, IP, filters (`[local-as ...]`) | `*`, IP, negated (`!IP`) |
 | Multi-session filters | Supported (draft) | Not supported |
-| Forward command | Not available | `bgp cache forward <id> <selector>` for route reflection |
+| Forward command | Not available | `request cache forward <id> <selector>` for route reflection |
 
 See [json-format.md](json-format.md#exabgp-differences) for output format differences.
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher -->
@@ -41,7 +41,7 @@ The action verb determines the command's behavior; the module implements it.
 
 | Verb | Purpose | Examples |
 |------|---------|---------|
-| `show` | Read-only display (returns data, exits) | `show peer detail X`, `show bgp warnings` |
+| `show` | Read-only display (returns data, exits) | `show bgp peer <selector> detail`, `show warnings` |
 | `set` | Create or modify | `set bgp peer X ...` |
 | `delete` | Remove | `delete bgp peer X` |
 | `update` | Route operations (announce, withdraw, refresh), firmware, prefix data | `update system firmware check`, `update bgp peer * prefix` |
@@ -163,8 +163,8 @@ the bus from buggy or malicious producers.
 | `ze-show:traffic` | `handleShowTraffic` in `internal/component/traffic/cmd/traffic.go` | `{"interfaces": [...], "count": N}` or single interface detail |
 | `ze-show:static` | `forwardShowStatic` in `internal/plugins/static/cmd_show.go` | JSON array of configured static routes (proxy to static plugin) |
 | `ze-show:policy-routes` | `forwardShowPolicyRoutes` in `internal/plugins/policyroute/cmd_show.go` | JSON array of PBR policy routes (proxy to policyroute plugin) |
-| `ze-show:policy-chain` | `handleShowPolicyChain` in `internal/component/cmd/show/show_policy.go` | `{"chains": [{"peer": "...", "name": "...", "import": [{"name": "...", "canonical": "..."}], "export": [...]}]}` — per-peer effective filter chains, plain name plus canonical ref |
-| `ze-show:policy-test` | `handleShowPolicyTest` in `internal/component/cmd/show/show_policy_test_cmd.go` | `{"direction": "...", "peer": "...", "action": "accept\|reject\|modify", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS4_PATH suppressed", ...]}` — read-only policy dry-run, no forwarding or mutation |
+| `ze-show:policy-chain` | `handleShowPolicyChain` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"chains": [{"peer": "...", "name": "...", "import": [{"name": "...", "canonical": "..."}], "export": [...]}]}` — per-peer effective filter chains, plain name plus canonical ref |
+| `ze-show:policy-test` | `handleShowPolicyTest` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"direction": "...", "peer": "...", "action": "accept\|reject\|modify", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS4_PATH suppressed", ...]}` — read-only policy dry-run, no forwarding or mutation |
 | `ze-show:bmp-sessions` | `forwardShowBMPSessions` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP receiver sessions (proxy to BMP plugin) |
 | `ze-show:bmp-peers` | `forwardShowBMPPeers` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP monitored peers (proxy to BMP plugin) |
 | `ze-show:bmp-collectors` | `forwardShowBMPCollectors` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP sender collectors (proxy to BMP plugin) |
@@ -174,16 +174,16 @@ the bus from buggy or malicious producers.
 | `ze-show:system-sockets` | `handleShowSystemSockets` in `sockets_linux.go` | `{"sockets": [...], "count": N}` (Linux only) |
 | `ze-show:system-kernel-log` | `handleShowSystemKernelLog` in `kernel_log_linux.go` | `{"entries": [...], "count": N}` (Linux only) |
 | `ze-show:system-goroutines` | `handleShowSystemGoroutines` in `goroutines.go` | `{"total": N, "by-state": {...}, "mode": "..."}` |
-| `ze-show:tcp-check` | `handleTCPCheck` in `tcp_check.go` | `{"host": "...", "port": N, "result": "...", "latency-ms": N}` |
+| `ze-show:tcp-check` | `HandleTCPCheck` in `internal/plugins/diag/cmd/tcp_check.go` | `{"host": "...", "port": N, "result": "...", "latency-ms": N}` |
 | `ze-show:traceroute` | `handleTraceroute` in `traceroute.go` | `{"target": "...", "hops": [{"hop": N, "addr": "...", "rtt-ms": N, "ttl": N}, ...]}` |
 | `ze-show:capture-interface` | `handleCaptureInterface` in `capture_interface_linux.go` | pcap: `{"format": "pcap", "packets": N, "pcap": "base64...", "snap-len": N}`; text: `{"format": "text", "packets": N, "lines": [...]}` (Linux only) |
 | `ze-show:system-file-descriptors` | `handleShowSystemFD` in `fd_linux.go` | `{"total": N, "by-type": {...}, "soft-limit": N, "hard-limit": N}` (Linux only) |
-| `ze-show:dns-lookup` | `handleDNSLookup` in `dns.go` | `{"name": "...", "type": "...", "records": [...], "query-time-ms": N}` |
-| `ze-show:dns-cache` | `handleDNSCache` in `dns.go` | `{"entries": N, "capacity": N, "hits": N, "misses": N, "evictions": N, "expired": N}` |
+| `ze-show:dns-lookup` | `handleDNSLookup` in `internal/component/resolve/cmd/show_dns.go` | `{"name": "...", "type": "...", "records": [...], "query-time-ms": N}` |
+| `ze-show:dns-cache` | `handleDNSCache` in `internal/component/resolve/cmd/show_dns.go` | `{"entries": N, "capacity": N, "hits": N, "misses": N, "evictions": N, "expired": N}` |
 | `ze-show:system-profile` | `handleShowSystemProfile` in `profile.go` | `{"type": "...", "format": "pprof-base64", "data": "..."}` |
 | `ze-show:system-memory-map` | `handleShowSystemMemoryMap` in `memory_map_linux.go` | `{"vm-rss-kb": N, "vm-size-kb": N, ...}` (Linux only) |
-| `ze-show:system-update` | `handleShowSystemUpdate` in `update.go` | `{"backend": "ze-self-update"|"gokrazy-ab", "running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", "gokrazy-reachable": bool, "gokrazy-features": [...]}` |
-| `ze-show:system-update-history` | `handleShowSystemUpdateHistory` in `update.go` | `{"history": [{"timestamp": "...", "from": "...", "to": "...", "result": "..."}], "count": N}` |
+| `ze-show:system-update` | `handleShowSystemUpdate` in `internal/plugins/update-cmd/cmd/show.go` | `{"backend": "ze-self-update"|"gokrazy-ab", "running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", "gokrazy-reachable": bool, "gokrazy-features": [...]}` |
+| `ze-show:system-update-history` | `handleShowSystemUpdateHistory` in `internal/plugins/update-cmd/cmd/show.go` | `{"history": [{"timestamp": "...", "from": "...", "to": "...", "result": "..."}], "count": N}` |
 | `ze-update:system-firmware-check` | `handleFirmwareCheck` in `firmware.go` | `{"running-version": "...", "update-available": bool, ...}` or on gokrazy `{"backend":"gokrazy-ab", "status":"unsupported", "message":"updates managed by gokrazy"}` |
 | `ze-update:system-firmware-download` | `handleFirmwareDownload` in `firmware.go` | `{"downloaded-version": "...", "status": "complete"}` |
 | `ze-update:system-firmware-apply` | `handleFirmwareApply` in `firmware.go` | `{"applied-version": "...", "status": "restarting"}` |
@@ -191,7 +191,7 @@ the bus from buggy or malicious producers.
 | `ze-update:system-firmware-rollback` | `handleFirmwareRollback` in `firmware.go` | `{"status": "rolling back"}` |
 | `ze-show:interface` (args: `rate [<name>]`) | `handleShowInterfaceRate` in `internal/component/iface/cmd/interface_rate.go` | JSON array of `InterfaceRate` (all) or single object (named); fields: `name`, `rx-bps`, `tx-bps`, `rx-pps`, `tx-pps`, `stats` |
 | `ze-monitor:interface-rate` | `streamInterfaceRate` in `internal/component/iface/cmd/interface_rate.go` | Streaming JSON lines (1/s); optional `<name>` filter |
-| `ze-show:storage-smart` | `handleShowStorageSmart` in `storage.go` | JSON array of per-device objects: `name`, `transport`, `healthy`, `temp-celsius`, `power-on-hours`, `error-count`, `percent-used` (NVMe), `available-spare` (NVMe), `smart-enabled`, `last-checked`, `last-short-test`, `last-long-test`. Returns error if SMART management not configured. |
+| `ze-show:storage-smart` | `handleShowStorageSmart` in `internal/component/storage/show.go` | JSON array of per-device objects: `name`, `transport`, `healthy`, `temp-celsius`, `power-on-hours`, `error-count`, `percent-used` (NVMe), `available-spare` (NVMe), `smart-enabled`, `last-checked`, `last-short-test`, `last-long-test`. Returns error if SMART management not configured. |
 | `ze-show:flow-export` (args: `[<collector>]`) | `handleShowFlowExport` in `internal/plugins/flowexport/cmd_show.go` | No arg: JSON array of per-collector objects. Named: single collector object, or error `collector not found: <name>`. Per-collector fields: `name`, `address`, `port`, `protocol`, `datagrams-sent`, `bytes-sent`, `errors`, `sequence`, `last-export-time` (Unix seconds, omitted before first poll). When unconfigured: `{"status": "not-configured"}`. Backed by `flowexport.Exporter.Status()`. |
 | `ze-show:traffic-stat` (args: `[name <interface>]`) | `handleShowTraffic` in `internal/component/trafficstat/cmd/traffic.go` | One-shot aggregated snapshot: `{"at": "RFC3339", "severity": "normal\|caution\|danger", "degraded": bool, "interfaces": [{name, rx-bps, tx-bps, rx-pps, tx-pps}], "top-source-ips": [{address, bps}], "top-dest-ips": [{address, bps}], "top-ports": [{port, service, proto, bps, amplification?}], "protocol-mix": [{proto, name, bps, percent}], "history": [float64]}`. Optional `name <interface>` filters the interfaces array. When no collector data: `"degraded": true` with interface rates only. |
 | `ze-monitor:traffic-stat` (args: `[name <interface>]`) | `streamTraffic` in `internal/component/trafficstat/cmd/traffic.go` | Streaming JSON lines (1/s) with the same shape as `ze-show:traffic-stat`. Attaches as a consumer on connect, detaches on disconnect (lazy lifecycle). Also registered as a `MonitorProvider` for full-screen TUI rendering via `createTrafficMonitorSession` in `cmd/render.go`. |
@@ -437,9 +437,9 @@ show bgp peer <selector> detail       # Show specific peer detail
 show bgp peer <selector> capabilities # Show specific peer capabilities
 show bgp peer <selector> statistics   # Show specific peer statistics
 show bgp peer <selector> history      # Show FSM transition history
-peer <ip> teardown <code> [<reason>]  # Disconnect peer
+request peer <selector> teardown [<cease-subcode>]  # Disconnect peer
 delete bgp peer <name>             # Remove dynamic peer
-peer <sel> flush         # Wait for forward pool to drain (barrier)
+request peer <sel> flush           # Wait for forward pool to drain (barrier)
 ```
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer RPCs -->
 
@@ -448,28 +448,28 @@ peer <sel> flush         # Wait for forward pool to drain (barrier)
 > **Implementation spec:** `plan/learned/148-api-command-restructure-step-8.md`
 
 ```
-bgp cache forward <id> <sel>    # Forward cached UPDATE to peers
-bgp cache retain <id>           # Prevent eviction
-bgp cache release <id>          # Allow eviction (reset TTL)
-bgp cache expire <id>           # Remove immediately
-bgp cache list                  # List cached message IDs
+request cache forward <id> <sel>    # Forward cached UPDATE to peers
+request cache retain <id>           # Prevent eviction
+request cache release <id>          # Allow eviction (reset TTL)
+request cache expire <id>           # Remove immediately
+show cache                          # List cached message IDs
 
 # Batch variants (comma-separated IDs, max 1000):
-bgp cache forward <id1>,<id2>,...,<idN> <sel>  # Batch forward
-bgp cache release <id1>,<id2>,...,<idN>        # Batch release
+request cache forward <id1>,<id2>,...,<idN> <sel>  # Batch forward
+request cache release <id1>,<id2>,...,<idN>        # Batch release
 ```
 
 The cache commands enable route reflection via API:
 1. Received UPDATEs are assigned a unique msg-id (per-UPDATE, not per-NLRI)
 2. API outputs UPDATE info with msg-id
 3. External process decides routing
-4. Cache forward command references msg-id (zero-copy when contexts match)
+4. The `request cache forward` command references msg-id (zero-copy when contexts match)
 5. Cache entries expire after configurable TTL (default 60s) unless retained
 <!-- source: internal/component/bgp/reactor/reactor.go -- cache forward -->
 
 #### Fast-path typed SDK (rs-fastpath-3)
 
-The text-RPC `bgp cache forward <id> <sel>` path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:
+The text-RPC `request cache forward <id> <sel>` path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:
 
 ```go
 Plugin.ForwardCached(ctx, ids []uint64, destinations []netip.AddrPort) error
@@ -488,8 +488,8 @@ Per-source ordering, egress filter chains, AS-PATH prepend, next-hop policy, rep
 ### Log Commands (Ze)
 
 ```
-bgp log levels                    # Show all subsystem log levels (JSON map)
-bgp log set <subsystem> <level>   # Change subsystem log level at runtime
+show log levels                       # Show all subsystem log levels (JSON map)
+request log level <logger> <level>    # Change subsystem log level at runtime
 ```
 
 Levels: `debug`, `info`, `warn`, `err`. Changes take effect immediately via `slog.LevelVar` atomic swap. Only loggers created via `slogutil.Logger()` or `slogutil.LazyLogger()` (non-disabled) are shown and modifiable.
@@ -523,7 +523,7 @@ peer !upstream1           # All peers EXCEPT this one (for route reflection)
 The `!<ip>` negated selector is useful for route reflection:
 ```
 # Forward update to all peers except the source
-bgp cache forward 12345 !upstream1
+request cache forward 12345 !upstream1
 ```
 
 > **Note:** Filter selectors (`[local-as ...]`, `[peer-as ...]`) from ExaBGP multi-session
@@ -625,11 +625,11 @@ show bgp rib [filters...] [terminal]        # Unified route display with pipelin
     terminals: count, prefix-summary, graph (AS topology box-drawing)
 show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9.1.2)
 show bgp rib status                         # RIB status (peer/route counts)
-rib clear in <selector>                      # Clear Adj-RIB-In (* for all peers)
-rib clear out <selector> [family]           # Resend Adj-RIB-Out (* for all, optional family)
-rib inject <peer> <family> <prefix> [attrs] # Insert route into Adj-RIB-In (no session needed)
-rib withdraw <peer> <family> <prefix>       # Remove route from Adj-RIB-In
-rib rpf <family> <source-addr>              # RPF lookup (longest-prefix-match in Loc-RIB)
+clear bgp rib in <selector>                  # Clear Adj-RIB-In (* for all peers)
+clear bgp rib out <selector> [family]        # Resend Adj-RIB-Out (* for all, optional family)
+request bgp rib inject <peer> <family> <prefix> [attrs] # Insert route into Adj-RIB-In (no session needed)
+request bgp rib withdraw <peer> <family> <prefix>       # Remove route from Adj-RIB-In
+show bgp rib rpf <family> <source-addr>      # RPF lookup (longest-prefix-match in Loc-RIB)
 ```
 
 Generic pipes such as `match`, `json`, `ndjson`, `table`, `text`, `yaml`, `resolve`, `origin`, `log`, and `no-more` remain client-side pipe operators. RIB route filters such as `received`, `advertised`, `peer`, `family`, `prefix`, `path`, and `community` are command-specific filters registered by the RIB command and folded into the RIB iterator request before route output is generated.
@@ -643,12 +643,12 @@ Inject attributes: `origin <igp|egp|incomplete>`, `nhop|nexthop <ip>`, `aspath <
 These commands are dispatched between plugins (bgp-gr to bgp-rib) and are not intended for direct user invocation:
 
 ```
-rib retain-routes <peer>                    # Retain routes for peer (GR activation)
-rib release-routes <peer>                   # Release retained routes
-rib mark-stale <peer> <restart-time> [level]  # Mark routes stale (level: 1=GR, 2=LLGR)
-rib purge-stale <peer> [family]             # Purge stale routes (optionally per-family)
-rib attach-community <peer> <family> <hex>  # Attach community to stale routes in family
-rib delete-with-community <peer> <family> <hex>  # Delete routes carrying community in family
+request bgp rib retain-routes <peer>                    # Retain routes for peer (GR activation)
+request bgp rib release-routes <peer>                   # Release retained routes
+request bgp rib mark-stale <peer> <restart-time> [level]  # Mark routes stale (level: 1=GR, 2=LLGR)
+request bgp rib purge-stale <peer> [family]             # Purge stale routes (optionally per-family)
+request bgp rib attach-community <peer> <family> <hex>  # Attach community to stale routes in family
+request bgp rib delete-with-community <peer> <family> <hex>  # Delete routes carrying community in family
 ```
 
 ### Group Commands (Batching)
@@ -872,15 +872,23 @@ update text next 1.2.3.4 nlri ipv4/mpls-vpn rd 100:1 label 200 add prefix 10.0.0
 
 ## FlowSpec Commands
 
-```
-announce ipv4/flow \
-  destination 10.0.0.0/8 \
-  destination-port =80 \
-  protocol =tcp \
-  then discard
+FlowSpec rules use the unified `update text` syntax. The match components are
+the FlowSpec NLRI (`nlri ipv4/flow add <components>`); the action is carried as
+a FlowSpec extended community declared with the `extended-community` attribute
+before the `nlri` section (`discard` is sugar for `traffic-rate 0`).
 
-withdraw ipv4/flow \
+```
+# Match TCP traffic to 10.0.0.0/8 port 80 and drop it
+update text extended-community discard \
+  nlri ipv4/flow add \
   destination 10.0.0.0/8 \
+  protocol tcp \
+  destination-port =80
+
+# Withdraw the same FlowSpec rule (match components identify it)
+update text nlri ipv4/flow del \
+  destination 10.0.0.0/8 \
+  protocol tcp \
   destination-port =80
 ```
 
@@ -914,7 +922,8 @@ withdraw ipv4/flow \
 | redirect-next-hop | Redirect to next-hop |
 | mark <dscp> | Set DSCP |
 | community [...] | Add community |
-<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- FlowSpec parsing -->
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_flowspec.go -- FlowSpec NLRI parsing -->
+<!-- source: internal/component/bgp/route/route_community.go -- ParseExtendedCommunities (discard, traffic-rate, redirect actions) -->
 
 ---
 
@@ -988,6 +997,13 @@ Response: `{"action":"accept"}`, `{"action":"reject"}`, or
 ## Command Dispatch
 
 ### Command Tree Structure
+
+> **Note:** This tree shows the **internal noun-first dispatch structure**, not
+> the user-facing grammar. User-facing commands are verb-first
+> (`show`/`request`/`clear`/`update`/`monitor` roots, e.g. `show bgp peer <sel> detail`,
+> `request cache forward`, `clear bgp rib in`); the noun-first RPCs below remain
+> only for internal dispatch. Nodes such as `peer/<selector>/announce` and
+> `peer/<selector>/withdraw` reflect removed verbs (see "Removed Commands").
 
 ```
 daemon
