@@ -2,10 +2,48 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | (parent) cli-grammar-gate -- Feeders 1+2 shipped; see plan/learned/1056-cli-grammar-gate.md |
-| Phase | - |
+| Phase | 1/1 |
 | Updated | 2026-07-03 |
+
+## Design Pivot (2026-07-03, user-approved)
+
+Implementation-phase audit (see `ai/rules/no-fabrication.md`, cited below) proved the
+original daemon-boot runtime audit **provably redundant**, and assumption A-1 broken.
+User chose **"In-process guard, close spec"**. The daemon-boot / all-plugins-config /
+drift-guard design is dropped. Evidence (all `file:line`, verified by reading producers):
+
+- **Built-ins are 100% YANG-derived.** `LoadBuiltinsWithAliases` sets each builtin's
+  dispatch name from `wireToPaths[reg.WireMethod]` and *skips* any handler with no YANG
+  path (`internal/component/plugin/server/command.go:80-84`, `:53-58`). Production call:
+  `server.go:190` sourced from `yang.WireMethodToPaths(loader)`. So every runtime built-in
+  is a strict subset of `BuildCommandTree` -- exactly what Feeder 1 already checks.
+- **Plugin commands are rejected at registration.** The only two writers to the plugin
+  command registry (`command_registry.go:229` Register, `:319` RegisterDeprecated) both run
+  `validateCommandName` first (`:202`, `:303`), which calls `grammar.CheckName` (`:82`) +
+  `command.IsVerb` (`:77`); on violation `OK=false; continue` -- the command never enters
+  the registry. No bypass path exists.
+- **The merged `system command list` surface can therefore contain only conforming
+  commands by construction.** A daemon-boot audit re-checking it is guaranteed to find
+  zero new violations, while carrying the most fragility: A-1 broken (no single config
+  starts every plugin -- startup is `ConfiguredPaths`-gated, `startup_autoload.go:78-140`),
+  needs a drift guard, and cannot call `grammar.ExemptCategory` because the RPC strips the
+  wire method (`command_registry.go:115-120`, `system.go:300-339`).
+
+**Revised scope (replaces AC-1/AC-2 daemon-boot intent):** two deterministic in-process
+Go tests in `internal/component/plugin/server` (package `server_test`), no daemon boot,
+no config, no drift guard:
+
+1. `TestRuntimeBuiltinSurfaceGrammar` -- iterate `AllBuiltinRPCs()`, skip
+   `grammar.ExemptCategory(reg.WireMethod)`, run `grammar.CheckName` over every alias path
+   in `yang.WireMethodToPaths(loader)[reg.WireMethod]`. Validates the *runtime built-in
+   assembly source* (the LoadBuiltinsWithAliases inputs), reusing `ExemptCategory` with the
+   wire method in hand -- the check the RPC-walk could not do. AC-3 (reuse, no dup rules) holds.
+2. `TestRegistrationRejectsBadGrammar` -- `CommandRegistry.Register` with a non-conforming
+   name returns `OK=false` (and a conforming control returns `OK=true`). Locks Feeder 2's
+   rejection of the genuinely-non-YANG surface (plugin-process command names) against a
+   future refactor dropping the `validateCommandName` call.
 
 ## Post-Compaction Recovery
 
@@ -81,8 +119,9 @@ N/A -- not protocol work.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | One config can start every command-registering plugin | spike: none exists; per-plugin config-path start | option (a) infeasible -> use (b) best-effort | build the config; assert dump covers each plugin | broken (spike) |
-| A-2 | `system command list --verbose` returns the complete merged surface | `system.go:307-330` | audit incomplete | `.ci`/Go assertion vs floor | unvalidated |
+| A-1 | One config can start every command-registering plugin | spike: none exists; per-plugin config-path start | option (a) infeasible -> use (b) best-effort | build the config; assert dump covers each plugin | **broken** -- startup is `ConfiguredPaths`-gated (`startup_autoload.go:78-140`); design pivoted away from a daemon-boot audit entirely |
+| A-2 | `system command list --verbose` returns the complete merged surface | `system.go:307-330` | audit incomplete | `.ci`/Go assertion vs floor | **moot** -- no RPC dump used; in-process guard reads `AllBuiltinRPCs()` + `WireMethodToPaths` directly |
+| A-3 | The merged runtime surface can contain a non-conforming command that Feeders 1+2 missed | premise of the whole audit | audit is redundant | read `LoadBuiltinsWithAliases`, `Register`, `validateCommandName` producers | **broken** -- built-ins 100% YANG-derived (`command.go:53-98`), plugin cmds rejected at registration (`command_registry.go:202,229`); surface conforming by construction. This is why the audit became an in-process regression guard, not a live dump. |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation |

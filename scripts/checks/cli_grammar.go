@@ -7,8 +7,9 @@
 // commands (bridge / wire-protocol / editor) are skipped and counted.
 //
 // This is Feeder 1 of the grammar gate (ai/rules/cli-grammar.md). The plugin
-// registration check (validateCommandName) and the runtime .ci audit are Feeders 2
-// and 3.
+// registration check (validateCommandName) is Feeder 2; the in-process runtime
+// guard (TestRuntimeBuiltinSurfaceGrammar / TestRegistrationRejectsBadGrammar in
+// internal/component/plugin/server) is Feeder 3.
 //
 // Usage:   go run scripts/checks/cli_grammar.go [--json]
 // Called by: make ze-cli-grammar-check

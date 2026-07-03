@@ -200,7 +200,16 @@ keyword-before-value, action-before-identifier, config-tree-mutation stays in
 |--------|----------------|-----|
 | Static gate | Every built-in command (YANG command tree) against R1-R8, plus no `--flag` in any `.yang` | `make ze-cli-grammar-check` (in `make ze-verify`) |
 | Registration | Every plugin `CommandDecl` at registration (`validateCommandName`) | plugin startup in functional/exabgp suites |
-| Runtime audit | The full merged surface (`system command list`) | functional `.ci` |
+| Runtime guard | The runtime built-in assembly (`AllBuiltinRPCs` x `WireMethodToPaths`) re-checked with `ExemptCategory` by wire method; and the `CommandRegistry.Register` boundary rejecting a bad name | `TestRuntimeBuiltinSurfaceGrammar` / `TestRegistrationRejectsBadGrammar` (unit) |
+
+Feeder 3 is an **in-process** guard, not a daemon-boot audit: built-ins are 100%
+YANG-derived (a handler with no YANG path is skipped, `LoadBuiltinsWithAliases`) so
+they are a strict subset of the static gate's tree, and plugin commands are rejected
+at registration by Feeder 2. The merged `system command list` surface therefore
+contains only conforming commands by construction -- a boot-and-dump audit would add
+no catch value while depending on an all-plugins config that cannot exist (startup is
+config-path-gated). The guard instead locks the two runtime sources against
+regression cheaply and deterministically.
 
 To add a verb, edit `command.Verbs` (one place; the plugin gate and the static gate
 both derive from it). Category exemptions (the text bridge, `ze-plugin:`/`ze-system:`
