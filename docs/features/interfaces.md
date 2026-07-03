@@ -268,7 +268,7 @@ interface {
         }
         unit default {
             ipv4 {
-                address 10.0.0.1/30
+                address [ 10.0.0.1/30 ]
             }
         }
     }
@@ -282,7 +282,7 @@ interface {
         }
         unit default {
             ipv6 {
-                address 2001:db8::1/64
+                address [ 2001:db8::1/64 ]
             }
         }
     }
@@ -384,7 +384,7 @@ interface {
         }
         unit default {
             ipv4 {
-                address 10.0.0.1/24
+                address [ 10.0.0.1/24 ]
             }
         }
     }
@@ -482,17 +482,17 @@ that may not exist yet, the compound form auto-creates the parent:
 
 | Command | Behavior |
 |---------|----------|
-| `create interface dummy <name> unit <vid>` | Creates dummy `<name>` if missing, then creates VLAN `<name>.<vid>` |
-| `create interface dummy <name> address <prefix>` | Creates dummy `<name>` if missing, then adds address |
-| `create interface bridge <name> unit <vid>` | Creates bridge `<name>` if missing, then creates VLAN |
-| `create interface bridge <name> address <prefix>` | Creates bridge `<name>` if missing, then adds address |
+| `create interface dummy name <name> unit <vid>` | Creates dummy `<name>` if missing, then creates VLAN `<name>.<vid>` |
+| `create interface dummy name <name> address <prefix>` | Creates dummy `<name>` if missing, then adds address |
+| `create interface bridge name <name> unit <vid>` | Creates bridge `<name>` if missing, then creates VLAN |
+| `create interface bridge name <name> address <prefix>` | Creates bridge `<name>` if missing, then adds address |
 | `create interface <name> unit <vid>` | Direct form: parent must already exist |
 | `create interface <name> address <prefix>` | Direct form: interface must already exist |
 
 The type keyword (`dummy`, `bridge`) is required when the parent does not
 exist, because the system needs to know what kind of interface to create.
 If the parent already exists with a different type, the command fails
-(e.g., `create interface dummy br0 unit 100` rejects if `br0` is a bridge).
+(e.g., `create interface dummy name br0 unit 100` rejects if `br0` is a bridge).
 
 Rollback: if the sub-resource creation fails after the parent was
 auto-created, the parent is deleted. Pre-existing parents are never

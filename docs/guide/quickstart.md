@@ -33,7 +33,7 @@ Ze runs an SSH server on localhost for CLI access (`ze cli`, `ze show`, `ze sign
 bin/ze init
 ```
 
-This prompts for username, password, SSH host (default `127.0.0.1`), and port (default `2222`). Credentials are stored locally with bcrypt-hashed passwords. For scripting:
+This prompts for username, password, SSH host (default `127.0.0.1`), port (default `2222`), and node name (default: hostname). Credentials are stored locally with bcrypt-hashed passwords. For scripting (later fields fall back to their defaults):
 <!-- source: internal/plugins/init/main.go -- Run, defaultHost, defaultPort, bcrypt hashing -->
 
 ```bash
@@ -53,34 +53,53 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 Save as `example.conf`:
 
 ```
-plugin {
-    internal rib {
-        use bgp-rib
+static {
+    table default {
+        route 172.16.0.0/24 {
+            next {
+                hop 10.0.0.1 {
+                }
+            }
+        }
+    }
+}
+
+redistribute {
+    destination bgp {
+        import static
     }
 }
 
 bgp {
     router-id 10.0.0.1
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
 
     peer test-peer {
-        remote {
-            ip 10.0.0.2
-            as 65001
-        }
-        local {
-            ip 10.0.0.1
-        }
-
-        family {
-            ipv4/unicast
+        connection {
+            remote {
+                ip 10.0.0.2
+            }
+            local {
+                ip 10.0.0.1
+            }
         }
 
-        process rib {
-            receive [ state ]
-            send [ update ]
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 1000000
+                    }
+                }
+            }
         }
 
         update {
@@ -95,6 +114,22 @@ bgp {
     }
 }
 ```
+
+This advertises two prefixes to `test-peer`, one by each of the routes Ze gives you to get
+a prefix into BGP:
+
+- **Redistribution** (`172.16.0.0/24`): a `static` route pulled into BGP by the top-level
+  `redistribute { destination bgp { import static } }` block. Every source protocol
+  (`static`, `connected`, `kernel`, `ospf`, `isis`, ...) redistributes into any destination
+  the same way -- this is how interface and interior-gateway routes reach your peers.
+  <!-- source: internal/plugins/static/register.go -- registerStaticSources; internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
+- **Direct announcement** (`192.168.1.0/24`): a prefix declared inline on the peer in its
+  `update {}` block, sent as soon as the session establishes.
+  <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
+
+> Advanced: a `process` binding attaches a plugin or your own external program to a peer (the
+> ExaBGP-style event API), including making a peer RIB-backed so it stores and re-advertises
+> received routes. It is not needed for the config above; see [Plugins](plugins.md).
 
 ## Validate
 
@@ -143,8 +178,8 @@ bin/ze cli -c "show bgp peer list"
 # Show peer details
 bin/ze cli -c "show bgp peer test-peer detail"
 
-# Watch live events
-bin/ze cli -c "bgp monitor"
+# Watch live events (streams until Ctrl-C)
+bin/ze cli -c "monitor event"
 ```
 <!-- source: internal/component/cli/client/main.go -- Execute, StreamMonitor -->
 
@@ -161,7 +196,23 @@ bin/ze example-local.conf
 ```
 <!-- source: internal/test/cli/cmd_peer.go -- ze-test peer command -->
 
-Where `example-local.conf` uses `remote { ip 127.0.0.1; }` and `port 1179`.
+Where `example-local.conf` is the config above with the peer's `connection`
+block pointed at the local sink, so ze dials `127.0.0.1:1179` instead of
+`10.0.0.2`:
+
+```
+        connection {
+            remote {
+                ip 127.0.0.1
+                port 1179
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+```
+
+The sink's `--asn 65001` matches the peer's `session { asn { remote 65001 } }`.
 
 ## Stop
 

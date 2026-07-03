@@ -410,8 +410,8 @@ reads option 93 (client architecture) to select the bootfile:
 
 | Architecture | Bootfile |
 |-------------|----------|
-| BIOS (type 0) | `ipxe.pxe` |
-| UEFI (type 6, 7, 9) | `ipxe.efi` |
+| UEFI x64 (type 7) | `ipxe.efi` |
+| Everything else, including BIOS (type 0) and UEFI types 6 and 9 | `ipxe.pxe` |
 
 When the PXE client is iPXE (detected via option 77 user-class prefix "iPXE")
 and `boot-script-url` is configured, the DHCP server sends the HTTP boot script

@@ -97,7 +97,7 @@ a pause. Longer delays give the DUT time to settle between measurements.
 
 ### Automated Docker Runner
 
-The included test runner benchmarks all five supported implementations in Docker:
+The included test runner benchmarks all eight supported implementations in Docker:
 
 | DUT | Image | Config | Forwarding mechanism |
 |-----|-------|--------|---------------------|
@@ -106,6 +106,9 @@ The included test runner benchmarks all five supported implementations in Docker
 | BIRD | bird-interop (built) | `test/perf/configs/bird.conf` | import/export all |
 | GoBGP | gobgp-interop (built) | `test/perf/configs/gobgp.toml` | default accept policy |
 | rustbgpd | rustbgpd-interop (built from source) | `test/perf/configs/rustbgpd.toml` | route_server_client |
+| rustybgp | rustybgp-interop (built) | `test/perf/configs/rustybgp.toml` | default accept policy |
+| FreeRtr | freertr-interop (built) | `test/perf/configs/freertr-sw.txt` | eBGP + redistribute connected |
+| OpenBGPD | openbgpd-interop (built) | `test/perf/configs/openbgpd.conf` | allow from/to any |
 
 <!-- source: test/perf/run.py -- Docker benchmark runner -->
 <!-- source: test/interop/Dockerfile.rustbgpd -- rustbgpd Docker image -->

@@ -128,6 +128,10 @@ This means:
 - Interface creation uses GoVPP `RdmaCreate` API instead of DPDK auto-discovery
 - Performance is equivalent to DPDK for mlx5
 
+This describes VPP's general Mellanox handling. Ze's own VPP integration does not yet
+implement RDMA/mlx5 interface creation (there is no `RdmaCreate` call in the codebase);
+this section is background for a future deployment path.
+
 ### NIC-Specific Quirks
 
 | NIC | Issue | Workaround |
@@ -182,9 +186,9 @@ from the management plane. Ze's BGP reactor, SSH, web UI all run in this netns.
 GoVPP connects via Unix socket at `/run/vpp/api.sock`. Pure Go, no CGo.
 
 AsyncConnect pattern:
-- 10 connection attempts, 1 second interval
+- 10 connection attempts, 1 second interval (initial connect only)
 - Returns event channel for connection state changes (Connected, Disconnected)
-- On disconnect: attempt reconnect with exponential backoff
+- Ze consumes the first state event and returns an error on any non-Connected state; there is no automatic reconnect-with-backoff loop after an established session drops (reconnection is the caller's responsibility)
 
 ### API Clients
 

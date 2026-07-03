@@ -11,13 +11,12 @@ The MCP server exposes typed tools with structured parameters, so AI assistants 
 
 | Tool | Description |
 |------|-------------|
+| `ze_execute` | Run **any** CLI command -- full daemon control (the escape hatch) |
+| `ze_reference` | Full machine-readable reference for this daemon (commands, RPC endpoints, dispatch keys, plugins, families, services); same JSON as `ze help ai --json`. Call first to discover capabilities. |
 | `ze_announce` | Announce routes with typed parameters (origin, next-hop, communities, prefixes) |
 | `ze_withdraw` | Withdraw routes |
-| `ze_peers` | Monitor peer state, ASN, uptime |
-| `ze_peer_control` | Teardown, pause, resume, flush peers |
-| `ze_execute` | Run **any** CLI command -- full daemon control |
-| `ze_commands` | List all available daemon commands |
-| `ze_reference` | Full machine-readable reference for this daemon (commands, RPC endpoints, dispatch keys, plugins, families, services); same JSON as `ze help ai --json`. Call first to discover capabilities. |
+| `ze_show_bgp` | BGP peer state, ASN, uptime, and summary views (auto-generated from `show bgp ...`) |
+| `ze_request_peer` | Peer lifecycle: teardown, pause, resume, flush (auto-generated from `request peer ...`) |
 
 Additional tools are auto-generated from the command registry at runtime.
 Every registered YANG command and plugin command appears as a typed MCP tool
@@ -26,18 +25,19 @@ commands are exposed automatically without code changes.
 
 The `ze_execute` tool is the key to full control: anything you can do in `ze cli` (interactive or `ze cli -c` for one-shot commands), an AI can do via MCP. This includes:
 
-- **Route management:** `bgp peer * update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24`
+- **Route management:** `peer * update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24`
 - **RIB queries:** `show bgp rib received`, `show bgp rib sent`, `clear bgp rib in`
-- **Peer lifecycle:** `bgp peer * show`, `bgp peer 10.0.0.1 teardown 6`, `delete bgp peer-peer with ...`
+- **Peer lifecycle:** `show bgp peer list`, `request peer 10.0.0.1 teardown 6`, `delete bgp peer <sel>`
 - **Configuration:** `request commit start window1`, route changes, `request commit end window1`
-- **Cache operations:** `cache list`, `cache forward`
+- **Cache operations:** `show cache`, `request cache forward`
 - **Event subscription:** `request subscribe bgp/update`
 - **Schema discovery:** `command-list`, `command-help <name>`
 
 ## Starting the MCP Server
 
 ```
-ze start --mcp 8080 config.conf
+ze start --mcp 8080            # start from stored (blob) config; run `ze init` first
+ze --mcp 8080 config.conf      # start from a config file
 ```
 
 Or via config:
@@ -69,7 +69,7 @@ Generates a machine-readable command reference from code, suitable for feeding t
 
 An AI assistant connected via MCP can:
 
-1. Check peer state: `ze_peers` returns structured JSON with all peer status
+1. Check peer state: `ze_show_bgp` returns structured JSON with all peer status
 2. Announce a route: `ze_announce` with origin=igp, next-hop=10.0.0.1, prefixes=[10.0.0.0/24]
 3. Verify propagation: `ze_execute` with command `show bgp rib sent peer peer1 family ipv4/unicast`
 4. Withdraw if needed: `ze_withdraw` with the same prefixes

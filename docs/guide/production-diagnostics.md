@@ -56,9 +56,9 @@ show dns lookup <peer-hostname>
 **Inspect raw BGP messages:**
 
 ```
-show capture-raw start bgp
+show capture raw start bgp
 # Wait for connection attempt, then:
-show capture-raw dump bgp
+show capture raw dump bgp
 ```
 
 ### 2. BGP Session Flapping
@@ -84,8 +84,8 @@ show system sockets tcp port 179
 **Inspect raw packets during flap:**
 
 ```
-show capture-raw start bgp
-show capture-raw dump bgp pcap
+show capture raw start bgp
+show capture raw dump bgp pcap
 ```
 
 **Live packet capture on the interface (replaces tcpdump):**
@@ -98,8 +98,8 @@ show capture interface eth0 tcp port 179 duration 10s format pcap
 ### 3. BGP Routes Not Received
 
 ```
-show bgp peer <selector>
-show capture-raw start bgp
+show bgp peer <selector> detail
+show capture raw start bgp
 ```
 
 Check UPDATE messages in the capture for the expected NLRI.
@@ -107,7 +107,7 @@ Check UPDATE messages in the capture for the expected NLRI.
 ### 4. BGP Routes Not Advertised
 
 ```
-show bgp peer <selector>
+show bgp peer <selector> detail
 ```
 
 Check advertised route counts, filter configuration, and export policy.
@@ -333,7 +333,7 @@ show errors
 ### 17. Telemetry / Metrics Gaps
 
 ```
-show metrics-query ze_bgp_sessions
+show metrics-query ze_peer_state
 show system sockets
 show system profile cpu duration 5s
 ```

@@ -242,8 +242,9 @@ weights, and BFD status in JSON format.
 
 ## Route programming
 
-Static routes are programmed with `RTPROT_ZE` (protocol 250), the same
-identifier used by the FIB kernel plugin. On config reload, the plugin
+Static routes are programmed with `RTPROT_ZE` (protocol 251), a
+Ze-specific identifier distinct from the FIB kernel plugin (protocol 250).
+On config reload, the plugin
 computes the diff between old and new routes and applies only the
 changes.
 
@@ -257,6 +258,8 @@ framework. BGP redistribute can import static routes:
 
 ```
 redistribute {
-    import static { }
+    destination bgp {
+        import static
+    }
 }
 ```

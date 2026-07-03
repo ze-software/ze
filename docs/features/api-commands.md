@@ -6,14 +6,14 @@ Commands sent through `ze cli`, `ze cli -c`, `ze show`, or process stdin.
 
 | Command | Description |
 |---------|-------------|
-| `bgp peer * list` | List peers (brief) |
-| `bgp peer * show` | Show peer details and statistics |
-| `bgp peer <addr> teardown <code>` | Graceful session closure with NOTIFICATION |
+| `show bgp peer list` | List peers (brief) |
+| `show bgp peer <sel> detail` | Show peer details and statistics |
+| `request peer <addr> teardown <code>` | Graceful session closure with NOTIFICATION |
 | `delete bgp peer <name>` | Remove peer |
-| `bgp peer <addr> pause` | Pause reading from peer (flow control) |
-| `bgp peer <addr> resume` | Resume reading from peer |
-| `bgp peer <addr> capabilities` | Show negotiated capabilities |
-| `bgp summary` | BGP summary table with statistics |
+| `request peer <addr> pause` | Pause reading from peer (flow control) |
+| `request peer <addr> resume` | Resume reading from peer |
+| `show bgp peer <addr> capabilities` | Show negotiated capabilities |
+| `show bgp summary` | BGP summary table with statistics |
 
 Peer selector supports: `*` (all), exact IP, peer name, ASN (`as65001`), glob patterns (`192.168.*.*`), exclusion (`!addr`, `!as65001`). Tab completion for peer selectors in `ze show` and `ze cli` when daemon is running.
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer management RPC handlers -->
@@ -22,8 +22,8 @@ Peer selector supports: `*` (all), exact IP, peer name, ASN (`as65001`), glob pa
 
 | Command | Description |
 |---------|-------------|
-| `bgp peer * update text <attrs> nlri <family> <op> <prefix>` | Text-format UPDATE |
-| `bgp peer * update hex <hex>` | Hex-format UPDATE |
+| `peer * update text <attrs> nlri <family> <op> <prefix>` | Text-format UPDATE |
+| `peer * update hex <hex>` | Hex-format UPDATE |
 
 Text attribute syntax: `origin set igp`, `nhop set 1.1.1.1`, `local-preference set 100`, `med set 50`, `as-path set [65000 65001]`, `community set [no-export]`, `large-community set [65000:1:1]`.
 
@@ -50,11 +50,11 @@ Inject attributes: `origin <igp|egp|incomplete>`, `nhop|nexthop <ip>`, `aspath <
 
 | Command | Description |
 |---------|-------------|
-| `cache list` | List cached messages |
-| `cache retain` | Retain message in cache |
-| `cache release` | Release from cache |
-| `cache expire` | Set cache expiration |
-| `cache forward` | Forward cached message to peer(s) |
+| `show cache` | List cached messages |
+| `request cache retain` | Retain message in cache |
+| `request cache release` | Release from cache |
+| `request cache expire` | Set cache expiration |
+| `request cache forward` | Forward cached message to peer(s) |
 
 ### Event Subscription
 
@@ -83,7 +83,7 @@ Named update windows for atomic route changes:
 
 | Command | Description |
 |---------|-------------|
-| `bgp peer * raw <hex>` | Send raw BGP message bytes |
+| `peer * raw <hex>` | Send raw BGP message bytes |
 | `route-refresh <family>` | Send route refresh request |
 | `help` | Show available commands |
 | `command-list` | List all commands with descriptions |

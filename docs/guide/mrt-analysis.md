@@ -160,7 +160,7 @@ Supports both TABLE_DUMP_V2 (RIB entries) and BGP4MP (UPDATE messages).
 <!-- source: internal/analyze/inject.go -- BGP session injection -->
 
 ```
-bin/ze-analyze inject --target 10.0.0.1:179 --local-as 65000 --peer-as 65001 test/internet/latest-bview.gz
+bin/ze-analyze inject --local-as 65000 test/internet/latest-bview.gz 10.0.0.1:179
 ```
 
 ### replay
@@ -171,7 +171,7 @@ timing. Configurable speed multiplier.
 <!-- source: internal/analyze/replay.go -- timed BGP4MP replay -->
 
 ```
-bin/ze-analyze replay --target 10.0.0.1:179 --local-as 65000 --peer-as 65001 --speed 10 test/internet/ripe-updates.*.gz
+bin/ze-analyze replay --local-as 65000 --speed 10 test/internet/ripe-updates.*.gz 10.0.0.1:179
 ```
 
 ### convert
@@ -250,10 +250,10 @@ to a new MRT file. Multiple filters are AND-composed.
 <!-- source: internal/analyze/filter.go -- MRT record filtering -->
 
 ```
-bin/ze-analyze filter --peer-asn 13335 -o cloudflare.mrt test/internet/latest-bview.gz
-bin/ze-analyze filter --prefix 1.0.0.0/24 --after 2026-06-01 test/internet/ripe-updates.*.gz
-bin/ze-analyze filter --as-path "174 .* 13335" -o transit.mrt test/internet/latest-bview.gz
-bin/ze-analyze filter --community "13335:" -o tagged.mrt test/internet/latest-bview.gz
+bin/ze-analyze filter --peer-asn 13335 test/internet/latest-bview.gz cloudflare.mrt
+bin/ze-analyze filter --prefix 1.0.0.0/24 --after 1780272000 test/internet/ripe-updates.*.gz filtered.mrt
+bin/ze-analyze filter --as-path "174 .* 13335" test/internet/latest-bview.gz transit.mrt
+bin/ze-analyze filter --community "13335:" test/internet/latest-bview.gz tagged.mrt
 ```
 
 AS-path regex matches against space-separated ASNs (e.g. `"174 1916 52888"`).

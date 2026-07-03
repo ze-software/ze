@@ -160,7 +160,7 @@ Best-path decisions flow through the bus:
 
 | Area | Location |
 |------|----------|
-| Components | `internal/component/` (api, bgp, cli, config, firewall, flowexport, gnmi, iface, ike, ipsec, l2tp, ldp, lg, mcp, pki, pppoe, resolve, rsvpte, ssh, storage, telemetry, traffic, vpp, web, ...) |
+| Components | `internal/component/` (api, bgp, cli, config, firewall, gnmi, iface, ike, l2tp, lg, mcp, pki, resolve, ssh, storage, telemetry, traffic, vpp, web, ...) |
 | BGP engine | `internal/component/bgp/` (reactor, FSM, wire, message, capability) |
 | Plugin implementations | `internal/plugins/` and `internal/component/bgp/plugins/` |
 | Plugin infrastructure | `internal/component/plugin/` (registry, process, hub, SDK) |

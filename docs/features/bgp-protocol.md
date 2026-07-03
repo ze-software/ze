@@ -18,8 +18,8 @@
 | IPv6 MPLS Label | `ipv6/mpls-label` | 2/4 | Yes | Yes | Yes |
 | L2VPN EVPN | `l2vpn/evpn` | 25/70 | Yes | Yes | Yes |
 | L2VPN VPLS | `l2vpn/vpls` | 25/65 | Yes | Yes | Yes |
-| BGP-LS | `bgp-ls/bgp-ls` | 16/71 | No | Yes | No |
-| BGP-LS VPN | `bgp-ls/bgp-ls-vpn` | 16/72 | No | Yes | No |
+| BGP-LS | `bgp-ls/bgp-ls` | 16388/71 | No | Yes | No |
+| BGP-LS VPN | `bgp-ls/bgp-ls-vpn` | 16388/72 | No | Yes | No |
 | IPv4 MVPN | `ipv4/mvpn` | 1/5 | No | Yes | No |
 | IPv6 MVPN | `ipv6/mvpn` | 2/5 | No | Yes | No |
 | IPv4 RTC | `ipv4/rtc` | 1/132 | No | Yes | No |

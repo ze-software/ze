@@ -43,7 +43,13 @@ plugin {
 
 bgp {
     peer upstream1 {
-        remote { ip 10.0.0.1; as 65001; }
+        connection {
+            remote { ip 10.0.0.1; }
+            local { ip 10.0.0.2; }
+        }
+        session {
+            asn { local 65000; remote 65001; }
+        }
         ...
         process my-exabgp-plugin {
             receive [ update state ]
