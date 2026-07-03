@@ -20,6 +20,7 @@ const (
 type irrConfig struct {
 	Server          string
 	PeeringDBURL    string
+	SourceAddress   string
 	RefreshInterval uint32
 	Peers           []peerIRRConfig
 }
@@ -45,6 +46,9 @@ func parseIRRConfig(bgpCfg map[string]any) *irrConfig {
 			}
 			if pdbURL, ok := irrBlock["peeringdb-url"].(string); ok && pdbURL != "" {
 				cfg.PeeringDBURL = pdbURL
+			}
+			if sa, ok := irrBlock["source-address"].(string); ok && sa != "" {
+				cfg.SourceAddress = sa
 			}
 			if v, ok := readUint(irrBlock["refresh-interval"]); ok {
 				cfg.RefreshInterval = clampRefreshInterval(v)

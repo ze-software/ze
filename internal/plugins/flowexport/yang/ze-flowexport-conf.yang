@@ -30,6 +30,11 @@ module ze-flowexport-conf {
                 description "Collector UDP port";
             }
 
+            leaf source-address {
+                type zt:ip-address;
+                description "Source IP address for outbound flow export datagrams";
+            }
+
             leaf protocol {
                 type enumeration {
                     enum sflow {

@@ -84,8 +84,9 @@ type senderConfig struct {
 }
 
 type collectorConfig struct {
-	Address string `json:"address"`
-	Port    string `json:"port"`
+	Address       string `json:"address"`
+	Port          string `json:"port"`
+	SourceAddress string `json:"source-address"`
 }
 
 // environmentSection wraps the full environment config section.

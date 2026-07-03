@@ -49,6 +49,31 @@ func TestLDPSessionEventCarriesInterface(t *testing.T) {
 	}
 }
 
+// TestLDPTransportAddressBinding verifies the configured transport-address is
+// bound as the dialer's local source, and that an unset transport-address leaves
+// the source OS-selected.
+//
+// VALIDATES: AC-9/AC-10 -- LDP binds transport-address as TCP source when
+// configured (RFC 5036), unchanged when not.
+// PREVENTS: transport-address being advertised in Hellos but not bound to the
+// session TCP, so the session could originate from a different source.
+func TestLDPTransportAddressBinding(t *testing.T) {
+	// Configured: valid transport-address -> bound as LocalAddr.
+	d := ldpSessionDialer(netip.MustParseAddr("10.0.0.1"))
+	if d.LocalAddr == nil {
+		t.Fatal("expected LocalAddr bound for configured transport-address")
+	}
+	if got := d.LocalAddr.IP.String(); got != "10.0.0.1" {
+		t.Errorf("LocalAddr IP = %q, want %q", got, "10.0.0.1")
+	}
+
+	// Unconfigured: zero-value netip.Addr (IsValid()==false) -> no binding.
+	d2 := ldpSessionDialer(netip.Addr{})
+	if d2.LocalAddr != nil {
+		t.Errorf("expected no LocalAddr for unset transport-address, got %v", d2.LocalAddr)
+	}
+}
+
 // VALIDATES: spec-ospf-ext-11 review FIX 1 (DATA RACE) -- the discovering interface
 // name must be written inside AdjacencyTable.Update under the table lock, never as an
 // unlocked field write on the returned *Adjacency after Update returns. This test

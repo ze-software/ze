@@ -3,6 +3,7 @@
 package flowexport
 
 import (
+	"fmt"
 	"net"
 	"net/netip"
 	"sync"
@@ -50,7 +51,8 @@ type Sender struct {
 }
 
 // NewSender creates a UDP sender targeting the given collector.
-func NewSender(address string, port int) (*Sender, error) {
+// If sourceAddress is non-empty, the UDP socket binds to that local IP.
+func NewSender(address string, port int, sourceAddress string) (*Sender, error) {
 	addr, err := netip.ParseAddr(address)
 	if err != nil {
 		return nil, err
@@ -66,8 +68,24 @@ func NewSender(address string, port int) (*Sender, error) {
 		network = "udp6"
 	}
 
-	conn, err := net.DialUDP(network, nil, udpAddr)
+	var localAddr *net.UDPAddr
+	if sourceAddress != "" {
+		srcIP := net.ParseIP(sourceAddress)
+		if srcIP == nil {
+			// Reject rather than fall back to a wildcard (nil IP) bind, which
+			// would silently ignore the operator-configured source.
+			return nil, fmt.Errorf("invalid source-address %q", sourceAddress)
+		}
+		localAddr = &net.UDPAddr{IP: srcIP}
+	}
+
+	conn, err := net.DialUDP(network, localAddr, udpAddr)
 	if err != nil {
+		if localAddr != nil {
+			// Attribute the failure to the source binding so a misconfigured
+			// or not-yet-assigned source-address is diagnosable in the log.
+			return nil, fmt.Errorf("bind source-address %s: %w", sourceAddress, err)
+		}
 		return nil, err
 	}
 

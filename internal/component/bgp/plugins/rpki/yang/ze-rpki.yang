@@ -6,6 +6,10 @@ module ze-rpki {
     prefix bgp;
   }
 
+  import ze-types {
+    prefix zt;
+  }
+
   grouping rpki-config {
     container rpki {
       presence "RPKI origin validation enabled";
@@ -25,6 +29,10 @@ module ze-rpki {
           type uint8;
           default "100";
           description "Server preference (lower = preferred)";
+        }
+        leaf source-address {
+          type zt:ip-address;
+          description "Source IP address for outbound RTR connections";
         }
       }
 

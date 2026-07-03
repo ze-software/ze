@@ -92,7 +92,7 @@ func newExporter(cfg *Config) (*exporter, error) {
 
 	for i := range cfg.Collectors {
 		cc := &cfg.Collectors[i]
-		sender, err := NewSender(cc.Address, cc.Port)
+		sender, err := NewSender(cc.Address, cc.Port, cc.SourceAddress)
 		if err != nil {
 			e.stop()
 			return nil, err

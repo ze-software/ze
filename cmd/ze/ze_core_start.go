@@ -318,11 +318,12 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 	cli := hubCfg.Clients[0]
 
 	return &managed.ClientConfig{
-		Name:        cli.Name,
-		Server:      cli.Address(),
-		Token:       cli.Secret,
-		TLSInsecure: env.GetBool("ze.managed.tls.insecure", false),
-		Version:     fleet.VersionHash(data),
+		Name:          cli.Name,
+		Server:        cli.Address(),
+		Token:         cli.Secret,
+		TLSInsecure:   env.GetBool("ze.managed.tls.insecure", false),
+		SourceAddress: cli.SourceAddress,
+		Version:       fleet.VersionHash(data),
 		Handler: &managed.Handler{
 			Validate: func(cfgData []byte) error {
 				_, parseErr := config.LoadConfig(string(cfgData), "", nil)

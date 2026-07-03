@@ -76,6 +76,11 @@ module ze-plugin-conf {
                     ze:sensitive;
                     description "Auth token (min 32 chars)";
                 }
+
+                leaf source-address {
+                    type zt:ip-address;
+                    description "Source IP address for outbound hub connections.";
+                }
             }
         }
 

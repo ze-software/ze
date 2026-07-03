@@ -31,6 +31,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	ldpyang "codeberg.org/thomas-mangin/ze/internal/plugins/ldp/yang"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -324,8 +325,9 @@ func runLDPEngine(conn net.Conn) int {
 		}
 
 		startFn := func(ifctx context.Context, ifName string, c ldpConfig) {
+			localTransport := cfg.TransportAddr
 			discoverOnInterface(ifctx, log, c, lsrID, ifName, adjTable, func(adj *Adjacency) {
-				startSessionForAdj(ctx, log, adj, lsrID, lib, sessions, &sessionsMu, fib)
+				startSessionForAdj(ctx, log, adj, lsrID, localTransport, lib, sessions, &sessionsMu, fib)
 			})
 		}
 		mgr := newDiscoveryManager(ctx, log, startFn)
@@ -416,7 +418,20 @@ func emitLabelEvent(eb ze.EventBus, log *slog.Logger, evt *LabelBindEvent) {
 	}
 }
 
-func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, lsrID [4]byte, lib *LIB, sessions map[string]*Session, sessionsMu *sync.Mutex, fib *ldpFIB) {
+// ldpSessionDialer builds the TCP dialer for an outbound LDP session. When the
+// local transport address is configured (valid), it is bound as the source so
+// the session originates from the address advertised in this LSR's LDP Hellos
+// (RFC 5036: the transport address determines the TCP session). When unset, the
+// OS selects the source (unchanged behavior).
+func ldpSessionDialer(localTransport netip.Addr) *network.RealDialer {
+	dialer := &network.RealDialer{Timeout: 5 * time.Second}
+	if localTransport.IsValid() {
+		dialer.LocalAddr = &net.TCPAddr{IP: localTransport.AsSlice()}
+	}
+	return dialer
+}
+
+func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, lsrID [4]byte, localTransport netip.Addr, lib *LIB, sessions map[string]*Session, sessionsMu *sync.Mutex, fib *ldpFIB) {
 	sessionsMu.Lock()
 	defer sessionsMu.Unlock()
 	key := AdjacencyKey(adj.PeerLSRID, adj.PeerLabelSpace)
@@ -428,7 +443,7 @@ func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, l
 		IP:   adj.TransportAddr.AsSlice(),
 		Port: ldpSessionPort,
 	}
-	dialer := net.Dialer{Timeout: 5 * time.Second}
+	dialer := ldpSessionDialer(localTransport)
 	tcpConn, err := dialer.DialContext(ctx, "tcp", tcpAddr.String())
 	if err != nil {
 		log.Warn("ldp: TCP connect failed", "peer", adj.TransportAddr, "error", err)

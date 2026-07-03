@@ -1,0 +1,28 @@
+# Test: RPKI cache-server with source-address parses successfully
+
+stdin=config:terminator=EOF_CONF
+bgp {
+    router-id 198.51.100.1
+    rpki {
+        cache-server 192.0.2.200 {
+            port 3323
+            preference 10
+            source-address 198.51.100.1
+        }
+    }
+    peer test {
+        connection {
+            remote { ip 192.0.2.2; }
+            local { ip 192.0.2.1; }
+        }
+        session {
+            asn { local 65000; remote 65100; }
+            router-id 198.51.100.1
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

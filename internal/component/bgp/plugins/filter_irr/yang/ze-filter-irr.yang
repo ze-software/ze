@@ -3,6 +3,7 @@ module ze-filter-irr {
     prefix firr;
 
     import ze-bgp-conf { prefix bgp; }
+    import ze-types { prefix zt; }
 
     description "IRR-based prefix-list filter for eBGP peers.
                  Queries IRR databases for AS-SET prefixes and applies them
@@ -56,6 +57,11 @@ module ze-filter-irr {
                 default "https://www.peeringdb.com";
                 description "Base URL for PeeringDB API queries.
                              Override for testing with a mock server.";
+            }
+
+            leaf source-address {
+                type zt:ip-address;
+                description "Source IP address for outbound IRR whois connections.";
             }
 
             leaf refresh-interval {

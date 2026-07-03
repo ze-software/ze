@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,56 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/fleet"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// TestManagedSourceAddress verifies runConnection binds the configured
+// source-address as the TCP local source before the TLS upgrade: a source not
+// assigned locally fails the bind rather than being ignored.
+//
+// VALIDATES: AC-13/AC-14 -- managed hub client binds source-address on TCP.
+// PREVENTS: SourceAddress being carried on ClientConfig but never applied.
+func TestManagedSourceAddress(t *testing.T) {
+	cfg := &ClientConfig{
+		Name:          "test",
+		Server:        "192.0.2.2:12700", // RFC 5737 literal IP:port, no DNS
+		Token:         "0123456789abcdef0123456789abcdef",
+		SourceAddress: "192.0.2.9", // not a local address -> bind fails
+	}
+	backoff := NewBackoff(time.Millisecond, time.Second, 0)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := runConnection(ctx, cfg, backoff)
+	if err == nil {
+		t.Fatal("expected connect error for non-local source-address, got nil")
+	}
+	if !strings.Contains(err.Error(), "connect") {
+		t.Errorf("error = %v, want a connect/bind failure", err)
+	}
+}
+
+// TestManagedTLSServerName verifies the TLS ServerName is derived from the hub
+// address. net.Dialer + tls.Client() (unlike tls.Dialer) does not infer it, so
+// without this the certificate hostname check would be skipped (see
+// serverNameFromAddr) -- a silent downgrade of certificate verification.
+//
+// VALIDATES: preserves hostname verification after the tls.Dialer->tls.Client split.
+// PREVENTS: MITM via any CA-signed cert when TLSInsecure is false (the default).
+func TestManagedTLSServerName(t *testing.T) {
+	tests := []struct {
+		server string
+		want   string
+	}{
+		{"hub.example.com:12700", "hub.example.com"},
+		{"127.0.0.1:12700", "127.0.0.1"},
+		{"[2001:db8::1]:443", "2001:db8::1"},
+		{"hostonly", "hostonly"}, // no port separator -> used verbatim
+	}
+	for _, tt := range tests {
+		if got := serverNameFromAddr(tt.server); got != tt.want {
+			t.Errorf("serverNameFromAddr(%q) = %q, want %q", tt.server, got, tt.want)
+		}
+	}
+}
 
 // mockHub simulates a hub that responds to config-fetch RPCs.
 func mockHub(t *testing.T, conn net.Conn, configData []byte) {

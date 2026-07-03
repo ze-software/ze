@@ -11,6 +11,35 @@ import (
 	"testing"
 )
 
+// TestIRRSourceAddress verifies SetSourceAddress records the local IP and that
+// query applies it as the dialer's local source (so a non-local address fails
+// the bind rather than being silently ignored).
+//
+// VALIDATES: AC-11/AC-12 -- IRR whois queries bind the configured source-address.
+// PREVENTS: source-address being stored but never used by the dialer.
+func TestIRRSourceAddress(t *testing.T) {
+	c := NewIRR("192.0.2.2:43")
+	if c.sourceAddress != "" {
+		t.Fatalf("new client sourceAddress = %q, want empty", c.sourceAddress)
+	}
+
+	c.SetSourceAddress("198.51.100.1")
+	if c.sourceAddress != "198.51.100.1" {
+		t.Fatalf("sourceAddress = %q, want %q", c.sourceAddress, "198.51.100.1")
+	}
+
+	// A source-address not assigned to any local interface must fail the TCP
+	// bind, proving query() applies it as LocalAddr. 192.0.2.9 is RFC 5737
+	// TEST-NET-1 (not a local address); the remote is a literal IP:port so no
+	// DNS is needed and the bind is what fails.
+	c.SetSourceAddress("192.0.2.9")
+	if _, err := c.query(context.Background(), "!gAS-TEST\n"); err == nil {
+		t.Fatal("expected connect error for non-local source-address, got nil")
+	} else if !strings.Contains(err.Error(), "connect") {
+		t.Errorf("error = %v, want a connect/bind failure", err)
+	}
+}
+
 // fakeIRRServer starts a TCP server that responds to RPSL whois queries
 // with deterministic data. Returns the server address and a cleanup function.
 func fakeIRRServer(t *testing.T, handler func(conn net.Conn)) (string, func()) {

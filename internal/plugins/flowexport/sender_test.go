@@ -3,6 +3,7 @@ package flowexport
 import (
 	"context"
 	"net"
+	"strings"
 	"testing"
 )
 
@@ -33,6 +34,58 @@ func TestPutBufNil(t *testing.T) {
 	PutBuf(nil) // must not panic
 }
 
+// TestFlowExportSourceAddress verifies the collector source-address leaf is
+// parsed into CollectorConfig (via parseCollectorMap, the real production path,
+// NOT the struct json tag) and that NewSender binds it as the UDP local source.
+//
+// VALIDATES: AC-7/AC-8 -- source-address flows YANG->config->UDP source bind.
+// PREVENTS: regression of the wiring bug where parseCollectorMap ignored
+// source-address, leaving the json tag dead and the feature inert.
+func TestFlowExportSourceAddress(t *testing.T) {
+	// Keyed-map form (as YANG delivers a list) and array form both route
+	// through parseCollectorMap; test the keyed-map form here.
+	data := `{"flow-export":{"collector":{
+		"c1":{"address":"10.0.0.50","port":6343,"source-address":"192.168.1.1","protocol":"sflow"}
+	}}}`
+	cfg, err := ParseConfig(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Collectors) != 1 {
+		t.Fatalf("expected 1 collector, got %d", len(cfg.Collectors))
+	}
+	if cfg.Collectors[0].SourceAddress != "192.168.1.1" {
+		t.Fatalf("SourceAddress = %q, want %q", cfg.Collectors[0].SourceAddress, "192.168.1.1")
+	}
+
+	// A source-address not assigned to any local interface must fail the UDP
+	// bind -- proving NewSender actually applies it as the socket's local addr.
+	// 192.0.2.2 is RFC 5737 TEST-NET-1 (not a local address). The error must
+	// name source-address so the misconfiguration is diagnosable.
+	_, bindErr := NewSender("127.0.0.1", 9995, "192.0.2.2")
+	if bindErr == nil {
+		t.Fatal("expected bind failure for non-local source-address, got nil")
+	}
+	if !strings.Contains(bindErr.Error(), "source-address") {
+		t.Errorf("bind error = %v, want it to mention source-address", bindErr)
+	}
+
+	// An unparseable source-address is rejected, not silently treated as a
+	// wildcard bind.
+	if _, err := NewSender("127.0.0.1", 9995, "not-an-ip"); err == nil {
+		t.Fatal("expected error for invalid source-address, got nil")
+	}
+
+	// A loopback source is assignable: NewSender succeeds.
+	s, err := NewSender("127.0.0.1", 9995, "127.0.0.1")
+	if err != nil {
+		t.Fatalf("NewSender with loopback source: %v", err)
+	}
+	if closeErr := s.Close(); closeErr != nil {
+		t.Logf("close: %v", closeErr)
+	}
+}
+
 func TestSenderUDP(t *testing.T) {
 	// Listen on a random loopback port.
 	var lc net.ListenConfig
@@ -47,7 +100,7 @@ func TestSenderUDP(t *testing.T) {
 		t.Fatal("unexpected address type")
 	}
 
-	s, err := NewSender("127.0.0.1", addr.Port)
+	s, err := NewSender("127.0.0.1", addr.Port, "")
 	if err != nil {
 		t.Fatal(err)
 	}

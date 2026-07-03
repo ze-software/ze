@@ -15,6 +15,7 @@ import (
 	"time"
 
 	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/fleet"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -37,14 +38,15 @@ var logger = slogutil.LazyLogger("hub.managed")
 
 // ClientConfig holds the configuration for a managed client connection.
 type ClientConfig struct {
-	Name         string // Client identity (from hub client block name)
-	Server       string // Hub address (host:port)
-	Token        string // Auth token
-	Version      string // Current config version hash (empty on first boot)
-	TLSInsecure  bool   // Skip TLS certificate verification (INSECURE: only for testing or self-signed hubs with explicit opt-in)
-	Handler      *Handler
-	OnCommit     func([]byte) error // Called to transactionally commit fetched config
-	CheckManaged func() bool        // Returns false when meta/instance/managed is disabled; nil = always managed
+	Name          string // Client identity (from hub client block name)
+	Server        string // Hub address (host:port)
+	Token         string // Auth token
+	Version       string // Current config version hash (empty on first boot)
+	TLSInsecure   bool   // Skip TLS certificate verification (INSECURE: only for testing or self-signed hubs with explicit opt-in)
+	SourceAddress string // Optional source IP for outbound connection
+	Handler       *Handler
+	OnCommit      func([]byte) error // Called to transactionally commit fetched config
+	CheckManaged  func() bool        // Returns false when meta/instance/managed is disabled; nil = always managed
 }
 
 // RunManagedClient connects to the hub and maintains the connection with
@@ -81,13 +83,26 @@ func RunManagedClient(ctx context.Context, cfg ClientConfig) {
 	}
 }
 
+// serverNameFromAddr derives the TLS ServerName from a "host:port" address.
+// This must be set explicitly: net.Dialer + tls.Client() does NOT infer the
+// ServerName from the dial address the way tls.Dialer.DialContext() does. With
+// an empty ServerName, certificate verification skips the hostname check
+// (crypto/x509 Verify only runs VerifyHostname when DNSName is non-empty), so
+// any CA-signed certificate would be silently accepted. Falls back to the raw
+// input when it has no port separator.
+func serverNameFromAddr(server string) string {
+	if host, _, err := net.SplitHostPort(server); err == nil {
+		return host
+	}
+	return server
+}
+
 // runConnection handles a single connection to the hub: connect, auth,
 // fetch config, run heartbeat + notification loop. Returns on any error
 // (caller retries with backoff). Resets backoff on successful auth.
 func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) error {
-	// TLS connect. Certificate verification is enabled by default.
-	// TLSInsecure must be explicitly set via config for self-signed hubs.
 	tlsConf := &tls.Config{
+		ServerName:         serverNameFromAddr(cfg.Server),
 		InsecureSkipVerify: cfg.TLSInsecure, //nolint:gosec // opt-in via explicit config flag
 		MinVersion:         tls.VersionTLS13,
 	}
@@ -98,10 +113,21 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 	connectCtx, connectCancel := context.WithTimeout(ctx, connectTimeout)
 	defer connectCancel()
 
-	conn, err := (&tls.Dialer{Config: tlsConf}).DialContext(connectCtx, "tcp", cfg.Server)
+	dialer := &network.RealDialer{}
+	if err := dialer.SetSourceAddress(cfg.SourceAddress); err != nil {
+		return err
+	}
+	rawConn, err := dialer.DialContext(connectCtx, "tcp", cfg.Server)
 	if err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}
+
+	tlsConn := tls.Client(rawConn, tlsConf)
+	if err := tlsConn.HandshakeContext(connectCtx); err != nil {
+		rawConn.Close() //nolint:errcheck // cleanup on handshake failure
+		return fmt.Errorf("tls handshake: %w", err)
+	}
+	conn := net.Conn(tlsConn)
 	defer conn.Close() //nolint:errcheck // cleanup
 
 	// Auth.

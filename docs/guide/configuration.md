@@ -1775,6 +1775,7 @@ flow-export {
         protocol sflow;        // sflow | netflow9 | ipfix
         polling-interval 20;   // counter polling seconds, default 20
         agent-address 198.51.100.1;
+        source-address 198.51.100.1;  // optional: bind UDP datagrams to this local IP
     }
     collector ipfix {
         address 192.0.2.21;
@@ -2430,6 +2431,7 @@ plugin {
             host 10.0.0.1;
             port 1791;
             secret "per-client-token-min-32-chars!!!";
+            source-address 198.51.100.1;  // optional: bind outbound hub TLS to this local IP
         }
     }
 }
@@ -2440,6 +2442,41 @@ Secrets must be at least 32 characters. See [Fleet Configuration](fleet-config.m
 
 <!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- hub YANG schema -->
 <!-- source: internal/component/bgp/config/plugins.go -- ExtractHubConfig -->
+
+## Outbound Source Address
+
+Operators who deploy Ze behind loopback or management interfaces can pin the
+local source address of a service's outbound connections. When `source-address`
+is set, the socket binds to that local IP before connecting; when it is omitted,
+the OS selects the source per its routing table (unchanged default behavior). The
+address is validated as an `ip-address` at config time, and must be assigned to a
+local interface or the connection fails with `cannot assign requested address`.
+
+| Service | Config location | Leaf | Transport |
+|---------|-----------------|------|-----------|
+| BMP | `bgp bmp sender collector <name>` | `source-address` | TCP |
+| RPKI/RTR | `bgp rpki cache-server <addr>` | `source-address` | TCP |
+| Flow Export | `flow-export collector <name>` | `source-address` | UDP |
+| IRR (filter) | `bgp policy irr` | `source-address` | TCP |
+| Managed hub | `plugin hub client <name>` | `source-address` | TLS |
+| LDP | `ldp` | `transport-address` | TCP |
+
+LDP reuses its existing `transport-address` leaf: RFC 5036 defines the transport
+address as the endpoint of the LDP TCP session, so Ze binds the outbound session
+to it (rather than adding a separate `source-address`). When `transport-address`
+is unset, the OS selects the source.
+
+TACACS+ (`system authentication tacacs source-address`) and L2TP RADIUS already
+bind an outbound source; BGP peers bind their mandatory per-peer `local ip`.
+These predate this feature and keep their existing leaf names.
+
+<!-- source: internal/core/network/network.go -- RealDialer.LocalAddr source binding -->
+<!-- source: internal/component/bgp/plugins/bmp/sender.go -- BMP collector source-address -->
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- RTR source-address -->
+<!-- source: internal/plugins/flowexport/sender.go -- flow-export UDP source bind -->
+<!-- source: internal/component/resolve/irr/client.go -- IRR whois source-address -->
+<!-- source: internal/component/managed/client.go -- managed hub TLS source-address -->
+<!-- source: internal/plugins/ldp/register.go -- LDP transport-address binding -->
 
 ## Validation
 

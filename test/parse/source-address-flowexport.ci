@@ -1,0 +1,16 @@
+# Test: FlowExport collector with source-address parses successfully
+
+stdin=config:terminator=EOF_CONF
+flow-export {
+    collector sflow1 {
+        address 10.0.0.50;
+        port 6343;
+        source-address 192.168.1.1;
+        protocol sflow;
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

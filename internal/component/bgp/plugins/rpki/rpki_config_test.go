@@ -35,6 +35,42 @@ func TestParseRPKIConfigBasic(t *testing.T) {
 	assert.Equal(t, uint16(60), cfg.ValidationTimeout)
 }
 
+// TestRPKISourceAddress verifies the cache-server source-address leaf is parsed
+// into cacheServerConfig and threaded through NewRTRSession to the dialer field.
+//
+// VALIDATES: AC-5/AC-6 -- source-address reaches the RTR session (bound as
+// LocalAddr) when configured, and is empty (OS-selected) when omitted.
+// PREVENTS: the leaf being parsed but dropped before the RTRSession constructor.
+func TestRPKISourceAddress(t *testing.T) {
+	jsonStr := `{
+		"rpki": {
+			"cache-server": {
+				"192.0.2.200": {"port": "3323", "source-address": "198.51.100.1"},
+				"192.0.2.201": {"port": "3324"}
+			}
+		}
+	}`
+
+	cfg, err := parseRPKIConfig(jsonStr)
+	require.NoError(t, err)
+	require.Len(t, cfg.CacheServers, 2)
+
+	byAddr := map[string]cacheServerConfig{}
+	for _, cs := range cfg.CacheServers {
+		byAddr[cs.Address] = cs
+	}
+	require.Equal(t, "198.51.100.1", byAddr["192.0.2.200"].SourceAddress)
+	require.Empty(t, byAddr["192.0.2.201"].SourceAddress, "unconfigured server keeps empty source")
+
+	// Constructor stores the source address for the dialer to bind.
+	stopCh := make(chan struct{})
+	sess := NewRTRSession("192.0.2.200", 3323, 100, "198.51.100.1", NewROACache(), NewASPACache(), stopCh)
+	require.Equal(t, "198.51.100.1", sess.sourceAddress)
+
+	sessNoSrc := NewRTRSession("192.0.2.201", 3324, 100, "", NewROACache(), NewASPACache(), stopCh)
+	require.Empty(t, sessNoSrc.sourceAddress)
+}
+
 func TestParseRPKIConfigDefaults(t *testing.T) {
 	// Cache server with no port/preference uses YANG defaults
 	jsonStr := `{

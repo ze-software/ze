@@ -187,12 +187,13 @@ func (s HubServerConfig) Address() string {
 }
 
 // HubClientConfig holds a hub-level client block (outbound connection).
-// Extracted from: plugin { hub { client <name> { host; port; secret; } } }.
+// Extracted from: plugin { hub { client <name> { host; port; secret; source-address; } } }.
 type HubClientConfig struct {
-	Name   string // Client identity name
-	Host   string // Remote hub address
-	Port   uint16 // Remote hub port
-	Secret string `json:"-"` // Auth token
+	Name          string // Client identity name
+	Host          string // Remote hub address
+	Port          uint16 // Remote hub port
+	Secret        string `json:"-"` // Auth token
+	SourceAddress string // Optional source IP for outbound connection
 }
 
 // Address returns "host:port" for net.Dial.

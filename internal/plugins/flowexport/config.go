@@ -108,6 +108,7 @@ type CollectorConfig struct {
 	Name              string `json:"name"`
 	Address           string `json:"address"`
 	Port              int    `json:"port"`
+	SourceAddress     string `json:"source-address"`
 	Protocol          string `json:"protocol"`
 	PollingInterval   int    `json:"polling-interval"`
 	TemplateRefresh   int    `json:"template-refresh"`
@@ -271,6 +272,9 @@ func parseCollectorMap(name string, m map[string]any) CollectorConfig {
 	}
 	if v, ok := m["address"].(string); ok {
 		c.Address = v
+	}
+	if v, ok := m["source-address"].(string); ok {
+		c.SourceAddress = v
 	}
 	if v, ok := cfgInt(m["port"]); ok {
 		c.Port = v

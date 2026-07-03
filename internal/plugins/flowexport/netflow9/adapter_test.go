@@ -23,7 +23,7 @@ func TestNetflow9EncodeChunksManyInterfaces(t *testing.T) {
 		t.Fatal("unexpected address type")
 	}
 
-	s, err := flowexport.NewSender("127.0.0.1", addr.Port)
+	s, err := flowexport.NewSender("127.0.0.1", addr.Port, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestNetflow9EncodeChunksManyInterfaces(t *testing.T) {
 // send would open a phantom gap at the collector (RFC 3954: the sequence counts
 // packets sent). The sender's socket is closed up front so Send fails.
 func TestNetflow9SeqNumNotAdvancedOnSendError(t *testing.T) {
-	s, err := flowexport.NewSender("127.0.0.1", 65000)
+	s, err := flowexport.NewSender("127.0.0.1", 65000, "")
 	if err != nil {
 		t.Fatal(err)
 	}

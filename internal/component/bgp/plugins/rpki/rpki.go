@@ -267,7 +267,7 @@ func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
 	defer rp.mu.Unlock()
 
 	for _, cs := range cfg.CacheServers {
-		session := NewRTRSession(cs.Address, cs.Port, cs.Preference, rp.cache, rp.aspaCache, rp.stopCh)
+		session := NewRTRSession(cs.Address, cs.Port, cs.Preference, cs.SourceAddress, rp.cache, rp.aspaCache, rp.stopCh)
 		session.onASPAChange = rp.handleASPAChange
 		rp.sessions = append(rp.sessions, session)
 		rp.sessionWg.Go(session.Run)

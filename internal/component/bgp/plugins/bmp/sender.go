@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
 )
 
 var errNotConnected = errors.New("not connected")
@@ -40,9 +41,10 @@ const (
 // scratch slice (sized to maxBMPMsgSize) therefore covers every path
 // without a lock or pool.
 type senderSession struct {
-	name    string
-	address string
-	port    uint16
+	name          string
+	address       string
+	port          uint16
+	sourceAddress string
 
 	conn   net.Conn
 	connMu sync.Mutex
@@ -58,12 +60,13 @@ type senderSession struct {
 func newSenderSession(name string, cfg collectorConfig) *senderSession {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &senderSession{
-		name:    name,
-		address: cfg.Address,
-		port:    parseUint16(cfg.Port, DefaultPort),
-		stopCh:  make(chan struct{}),
-		stopCtx: ctx,
-		cancel:  cancel,
+		name:          name,
+		address:       cfg.Address,
+		port:          parseUint16(cfg.Port, DefaultPort),
+		sourceAddress: cfg.SourceAddress,
+		stopCh:        make(chan struct{}),
+		stopCtx:       ctx,
+		cancel:        cancel,
 		// maxBMPMsgSize (65535) is the RFC 7854 ceiling. Allocating
 		// this once per collector session keeps the BGP-UPDATE → BMP
 		// Route Monitoring hot path allocation-free.
@@ -85,7 +88,13 @@ func (ss *senderSession) run() {
 		}
 
 		logger().Info("bmp: sender connecting", "collector", ss.name, "address", addr)
-		conn, err := (&net.Dialer{Timeout: 10 * time.Second}).DialContext(ss.stopCtx, "tcp", addr)
+		dialer := &network.RealDialer{Timeout: 10 * time.Second}
+		if err := dialer.SetSourceAddress(ss.sourceAddress); err != nil {
+			// Unreachable via YANG-validated config; fall back to OS-selected
+			// source rather than never connecting.
+			logger().Warn("bmp: invalid source-address, using OS default", "collector", ss.name, "error", err)
+		}
+		conn, err := dialer.DialContext(ss.stopCtx, "tcp", addr)
 		if err != nil {
 			if ss.isStopping() {
 				return

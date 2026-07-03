@@ -665,5 +665,9 @@ func extractHubClientConfig(name string, tree *Tree) (plugin.HubClientConfig, er
 		cli.Secret = secret
 	}
 
+	if sa, ok := tree.Get("source-address"); ok {
+		cli.SourceAddress = sa
+	}
+
 	return cli, nil
 }

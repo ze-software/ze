@@ -180,7 +180,11 @@ func runFilterIRR(conn net.Conn) int {
 func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 	cfg := parseIRRConfig(bgpCfg)
 
-	ps := store.New(irr.NewIRR(cfg.Server), peeringdb.NewPeeringDB(cfg.PeeringDBURL), cacheStorePath())
+	irrClient := irr.NewIRR(cfg.Server)
+	if cfg.SourceAddress != "" {
+		irrClient.SetSourceAddress(cfg.SourceAddress)
+	}
+	ps := store.New(irrClient, peeringdb.NewPeeringDB(cfg.PeeringDBURL), cacheStorePath())
 	if err := ps.Open(); err != nil {
 		logger().Warn("irr: prefix store open failed", "error", err)
 	}

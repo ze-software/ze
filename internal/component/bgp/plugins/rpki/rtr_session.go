@@ -4,6 +4,7 @@
 package rpki
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
 )
 
 var (
@@ -27,9 +30,10 @@ const (
 
 // RTRSession manages a single RTR connection to a cache server.
 type RTRSession struct {
-	address    string
-	port       uint16
-	preference uint8
+	address       string
+	port          uint16
+	preference    uint8
+	sourceAddress string
 
 	conn      net.Conn
 	state     string
@@ -61,11 +65,12 @@ type RTRSession struct {
 }
 
 // NewRTRSession creates a new RTR session for the given cache server.
-func NewRTRSession(address string, port uint16, pref uint8, cache *ROACache, aspaCache *ASPACache, stopCh <-chan struct{}) *RTRSession {
+func NewRTRSession(address string, port uint16, pref uint8, sourceAddress string, cache *ROACache, aspaCache *ASPACache, stopCh <-chan struct{}) *RTRSession {
 	return &RTRSession{
 		address:         address,
 		port:            port,
 		preference:      pref,
+		sourceAddress:   sourceAddress,
 		state:           sessionIdle,
 		version:         rtrVersionMax,
 		refreshInterval: 3600 * time.Second,
@@ -115,8 +120,28 @@ func (s *RTRSession) stopped() bool {
 // connectAndSync establishes TCP connection and runs the RTR protocol.
 func (s *RTRSession) connectAndSync() error {
 	addr := net.JoinHostPort(s.address, strconv.Itoa(int(s.port)))
-	dialer := &net.Dialer{Timeout: 30 * time.Second}
-	conn, err := dialer.Dial("tcp", addr)
+	dialer := &network.RealDialer{Timeout: 30 * time.Second}
+	if err := dialer.SetSourceAddress(s.sourceAddress); err != nil {
+		return err
+	}
+
+	// Cancel an in-progress dial when the session is stopped, so shutdown is
+	// not blocked for up to the 30s connect timeout. The watcher is scoped to
+	// the dial (the explicit cancelDial after the dial releases it), and the
+	// deferred cancel is a panic-safe backstop -- both paths close dialCtx,
+	// which the goroutine waits on.
+	dialCtx, cancelDial := context.WithCancel(context.Background())
+	defer cancelDial()
+	go func() {
+		select {
+		case <-s.stopCh:
+			cancelDial()
+		case <-dialCtx.Done():
+		}
+	}()
+
+	conn, err := dialer.DialContext(dialCtx, "tcp", addr)
+	cancelDial()
 	if err != nil {
 		return fmt.Errorf("connect %s: %w", addr, err)
 	}

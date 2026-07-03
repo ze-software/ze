@@ -101,6 +101,11 @@ module ze-bmp-conf {
                         default 11019;
                         description "Collector TCP port";
                     }
+
+                    leaf source-address {
+                        type zt:ip-address;
+                        description "Source IP address for outbound BMP connections";
+                    }
                 }
 
                 leaf route-monitoring-policy {

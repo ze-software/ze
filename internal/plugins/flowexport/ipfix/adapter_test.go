@@ -24,7 +24,7 @@ func TestIPFIXEncodeChunksManyInterfaces(t *testing.T) {
 		t.Fatal("unexpected address type")
 	}
 
-	s, err := flowexport.NewSender("127.0.0.1", addr.Port)
+	s, err := flowexport.NewSender("127.0.0.1", addr.Port, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestIPFIXEncodeChunksManyInterfaces(t *testing.T) {
 // the collector never received. The sender's socket is closed up front so Send
 // fails.
 func TestIPFIXSeqNumNotAdvancedOnSendError(t *testing.T) {
-	s, err := flowexport.NewSender("127.0.0.1", 65000)
+	s, err := flowexport.NewSender("127.0.0.1", 65000, "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,0 +1,37 @@
+# Test: BMP collector with source-address parses successfully
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+    router-id 1.2.3.4;
+    peer test {
+        connection {
+            remote {
+                ip 127.0.0.1;
+            }
+            local {
+                ip 127.0.0.1;
+                accept false;
+            }
+        }
+        session {
+            asn {
+                local 65000;
+                remote 65001;
+            }
+            router-id 1.2.3.4;
+        }
+    }
+    bmp {
+        sender {
+            collector station1 {
+                address 10.0.0.100;
+                port 11019;
+                source-address 192.168.1.1;
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ze-bgp
+expect=exit:code=0

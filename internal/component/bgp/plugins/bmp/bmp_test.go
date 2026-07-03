@@ -41,6 +41,41 @@ func TestBMPCompositeKeyFormat(t *testing.T) {
 	}
 }
 
+// TestBMPCollectorSourceAddress verifies the collector's source-address leaf is
+// parsed from the config JSON into collectorConfig, and that a collector without
+// it leaves the field empty (OS-selected source).
+//
+// VALIDATES: AC-3/AC-4 -- source-address flows from YANG-derived JSON to the
+// collector config that the sender dialer binds as LocalAddr.
+// PREVENTS: the leaf being accepted by YANG but dropped before the dialer.
+func TestBMPCollectorSourceAddress(t *testing.T) {
+	data := `{"bgp":{"bmp":{"sender":{"collector":{
+		"withsrc":{"address":"10.0.0.100","port":"11019","source-address":"192.168.1.1"},
+		"nosrc":{"address":"10.0.0.101","port":"11019"}
+	}}}}}`
+
+	cfg, err := parseSenderConfig(data)
+	if err != nil {
+		t.Fatalf("parseSenderConfig: %v", err)
+	}
+
+	withSrc, ok := cfg.Collectors["withsrc"]
+	if !ok {
+		t.Fatal("collector \"withsrc\" missing")
+	}
+	if withSrc.SourceAddress != "192.168.1.1" {
+		t.Errorf("SourceAddress = %q, want %q", withSrc.SourceAddress, "192.168.1.1")
+	}
+
+	noSrc, ok := cfg.Collectors["nosrc"]
+	if !ok {
+		t.Fatal("collector \"nosrc\" missing")
+	}
+	if noSrc.SourceAddress != "" {
+		t.Errorf("SourceAddress = %q, want empty (unconfigured)", noSrc.SourceAddress)
+	}
+}
+
 func TestPeerAddressString(t *testing.T) {
 	tests := []struct {
 		name string

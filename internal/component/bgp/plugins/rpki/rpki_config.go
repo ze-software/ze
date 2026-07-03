@@ -13,9 +13,10 @@ var errRpkiInvalidBgpConfigJson = errors.New("rpki: invalid BGP config JSON")
 
 // cacheServerConfig holds parsed config for a single RTR cache server.
 type cacheServerConfig struct {
-	Address    string
-	Port       uint16
-	Preference uint8
+	Address       string
+	Port          uint16
+	Preference    uint8
+	SourceAddress string
 }
 
 // ASPA policy actions.
@@ -125,6 +126,10 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 			if err == nil {
 				cs.Preference = uint8(p) //nolint:gosec // range checked by ParseUint
 			}
+		}
+
+		if sa, ok := serverMap["source-address"].(string); ok && sa != "" {
+			cs.SourceAddress = sa
 		}
 
 		cfg.CacheServers = append(cfg.CacheServers, cs)

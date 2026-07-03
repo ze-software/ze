@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cache"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -57,10 +58,11 @@ func (p PrefixList) Empty() bool {
 // IRR queries an IRR database via the RPSL whois protocol.
 // Results are cached for 1h to avoid redundant whois queries.
 type IRR struct {
-	server      string // host:port of the IRR whois server
-	timeout     time.Duration
-	asSetCache  *cache.Cache[[]uint32]
-	prefixCache *cache.Cache[PrefixList]
+	server        string // host:port of the IRR whois server
+	timeout       time.Duration
+	sourceAddress string
+	asSetCache    *cache.Cache[[]uint32]
+	prefixCache   *cache.Cache[PrefixList]
 }
 
 // NewIRR creates an IRR client for the given whois server.
@@ -79,6 +81,11 @@ func NewIRR(server string) *IRR {
 		asSetCache:  cache.New[[]uint32](cacheTTL),
 		prefixCache: cache.New[PrefixList](cacheTTL),
 	}
+}
+
+// SetSourceAddress sets the local IP address for outbound whois connections.
+func (c *IRR) SetSourceAddress(addr string) {
+	c.sourceAddress = addr
 }
 
 // maxRecursionDepth limits AS-SET expansion to prevent resource exhaustion
@@ -233,7 +240,10 @@ func (c *IRR) lookupFamilyPrefixes(ctx context.Context, asSet string, family int
 // query sends an RPSL query to the IRR server and returns the raw response.
 // Each query opens a new TCP connection (whois protocol is one-shot).
 func (c *IRR) query(ctx context.Context, command string) (string, error) {
-	dialer := net.Dialer{Timeout: c.timeout}
+	dialer := &network.RealDialer{Timeout: c.timeout}
+	if err := dialer.SetSourceAddress(c.sourceAddress); err != nil {
+		return "", fmt.Errorf("irr: %w", err)
+	}
 	conn, err := dialer.DialContext(ctx, "tcp", c.server)
 	if err != nil {
 		return "", fmt.Errorf("irr: connect %s: %w", c.server, err)

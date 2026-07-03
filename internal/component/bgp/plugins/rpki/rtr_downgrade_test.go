@@ -55,7 +55,7 @@ func TestLiveRTRv2DowngradeToV1(t *testing.T) {
 
 	cache := NewROACache()
 	stopCh := make(chan struct{})
-	session := NewRTRSession("127.0.0.1", uint16(port), 100, cache, NewASPACache(), stopCh) //nolint:gosec // port fits uint16
+	session := NewRTRSession("127.0.0.1", uint16(port), 100, "", cache, NewASPACache(), stopCh) //nolint:gosec // port fits uint16
 	session.retryInterval = 5 * time.Second
 
 	done := make(chan struct{})

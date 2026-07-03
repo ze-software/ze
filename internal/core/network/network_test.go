@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"testing"
+	"time"
 )
 
 // TestRealDialer verifies RealDialer connects to a real listener.
@@ -195,6 +196,104 @@ func TestRealListenerFactoryMD5PeersZeroValue(t *testing.T) {
 		t.Fatalf("Listen failed: %v", err)
 	}
 	closeOrLog(t, ln)
+}
+
+// TestRealDialerTimeout verifies the Timeout field is applied to the inner
+// net.Dialer so a connect that would otherwise hang is bounded.
+//
+// VALIDATES: AC-1 -- RealDialer with Timeout set honors it (same as net.Dialer.Timeout).
+// PREVENTS: Timeout field being dropped, leaving connects on the ~75s OS default.
+func TestRealDialerTimeout(t *testing.T) {
+	// 192.0.2.1 is RFC 5737 TEST-NET-1: not routed to a real host, so the SYN
+	// is dropped and the connect can only end via the Timeout (or a fast
+	// "unreachable" on an offline host -- both satisfy the bound below). A
+	// context WITHOUT a deadline isolates the Timeout field as the sole bound.
+	d := &RealDialer{Timeout: 200 * time.Millisecond}
+	start := time.Now()
+	conn, err := d.DialContext(context.Background(), "tcp", "192.0.2.1:80")
+	elapsed := time.Since(start)
+	if err == nil {
+		closeOrLog(t, conn)
+		t.Fatal("expected dial to fail, got a connection")
+	}
+	// Without an honored Timeout the connect would block far longer than this.
+	if elapsed > 5*time.Second {
+		t.Fatalf("dial took %v, Timeout was not applied", elapsed)
+	}
+}
+
+// TestRealDialerTimeoutZero verifies a zero Timeout leaves connects controlled
+// by the context only -- the pre-existing behavior for every non-BGP caller.
+//
+// VALIDATES: AC-2 -- RealDialer with Timeout zero dials successfully (unchanged).
+// PREVENTS: A regression where the zero value would abort valid connections.
+func TestRealDialerTimeoutZero(t *testing.T) {
+	var lc net.ListenConfig
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to create listener: %v", err)
+	}
+	defer closeOrLog(t, ln)
+
+	go func() {
+		conn, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			return
+		}
+		closeOrLog(t, conn)
+	}()
+
+	d := &RealDialer{} // Timeout zero-value
+	conn, err := d.DialContext(context.Background(), "tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatalf("DialContext with zero Timeout failed: %v", err)
+	}
+	closeOrLog(t, conn)
+}
+
+// TestRealDialerSetSourceAddress verifies source-address binding is validated
+// uniformly: empty is a no-op, valid IPs set LocalAddr, and an unparseable
+// address is rejected instead of silently binding to the wildcard.
+//
+// VALIDATES: every outbound TCP/TLS service routes source-address through here,
+// so an invalid value is rejected rather than ignored.
+// PREVENTS: a nil-IP TCPAddr silently binding the wildcard (OS default).
+func TestRealDialerSetSourceAddress(t *testing.T) {
+	// Empty: no-op, LocalAddr stays nil.
+	d := &RealDialer{}
+	if err := d.SetSourceAddress(""); err != nil {
+		t.Fatalf("empty source: unexpected error %v", err)
+	}
+	if d.LocalAddr != nil {
+		t.Errorf("empty source set LocalAddr = %v, want nil", d.LocalAddr)
+	}
+
+	// Valid IPv4.
+	d = &RealDialer{}
+	if err := d.SetSourceAddress("127.0.0.1"); err != nil {
+		t.Fatalf("valid IPv4: unexpected error %v", err)
+	}
+	if d.LocalAddr == nil || !d.LocalAddr.IP.Equal(net.IPv4(127, 0, 0, 1)) {
+		t.Errorf("LocalAddr = %v, want 127.0.0.1", d.LocalAddr)
+	}
+
+	// Valid IPv6.
+	d = &RealDialer{}
+	if err := d.SetSourceAddress("::1"); err != nil {
+		t.Fatalf("valid IPv6: unexpected error %v", err)
+	}
+	if d.LocalAddr == nil || !d.LocalAddr.IP.Equal(net.IPv6loopback) {
+		t.Errorf("LocalAddr = %v, want ::1", d.LocalAddr)
+	}
+
+	// Invalid: rejected, LocalAddr left untouched (not a wildcard bind).
+	d = &RealDialer{}
+	if err := d.SetSourceAddress("not-an-ip"); err == nil {
+		t.Error("invalid source: expected error, got nil")
+	}
+	if d.LocalAddr != nil {
+		t.Errorf("invalid source set LocalAddr = %v, want nil", d.LocalAddr)
+	}
 }
 
 type closer interface {
