@@ -129,6 +129,30 @@ func TestParseConfigRoute_TruncatedBindingSID(t *testing.T) {
 	}
 }
 
+func TestParseConfigRoute_Priority(t *testing.T) {
+	t.Parallel()
+	content := strings.Fields("distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 priority 10 segment-list weight 1 segment type-a mpls 16001")
+	pr, err := parseConfigRoute(cr(content, "192.0.2.1", false))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(pr.Attrs) != 1 || pr.Attrs[0].Code != 23 {
+		t.Fatalf("attrs = %v, want one TunnelEncap", pr.Attrs)
+	}
+}
+
+func TestParseConfigRoute_BindingSIDNull(t *testing.T) {
+	t.Parallel()
+	content := strings.Fields("distinguisher 0 color 100 endpoint 10.0.0.1 binding-sid null")
+	pr, err := parseConfigRoute(cr(content, "192.0.2.1", false))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(pr.Attrs) != 1 || pr.Attrs[0].Code != 23 {
+		t.Fatalf("attrs = %v, want one TunnelEncap", pr.Attrs)
+	}
+}
+
 func TestParseConfigRoute_TruncatedEndpointBehavior(t *testing.T) {
 	t.Parallel()
 	content := strings.Fields("distinguisher 0 color 100 endpoint 10.0.0.1 segment-list weight 1 segment type-b srv6 fc00::1 endpoint-behavior 65 32")

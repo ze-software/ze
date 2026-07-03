@@ -22,6 +22,7 @@ const (
 
 	subTLVPreference       uint8 = 12
 	subTLVBindingSID       uint8 = 13
+	subTLVPriority         uint8 = 15
 	subTLVSRv6BindingSID   uint8 = 20
 	subTLVSegmentList      uint8 = 128
 	subTLVCandidatePathNam uint8 = 129
@@ -53,8 +54,11 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 		endpoint         string
 		preference       uint32
 		hasPref          bool
+		priority         uint8
+		hasPriority      bool
 		bsidMPLS         uint32
 		hasBSID          bool
+		bsidNull         bool
 		bsidSRv6         netip.Addr
 		hasSRv6BSID      bool
 		segLists         []srpSegmentList
@@ -109,17 +113,40 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 			hasPref = true
 			i += 2
 
-		case "binding-sid":
-			if i+2 >= len(content) || content[i+1] != "mpls" {
-				return registry.PluginRoute{}, fmt.Errorf("expected 'binding-sid mpls <label>'")
+		case "priority":
+			if i+1 >= len(content) {
+				return registry.PluginRoute{}, fmt.Errorf("missing value for %s", key)
 			}
-			v, err := strconv.ParseUint(content[i+2], 10, 32)
+			v, err := strconv.ParseUint(content[i+1], 10, 8)
 			if err != nil {
-				return registry.PluginRoute{}, fmt.Errorf("invalid binding-sid label: %w", err)
+				return registry.PluginRoute{}, fmt.Errorf("invalid priority: %w", err)
 			}
-			bsidMPLS = uint32(v)
-			hasBSID = true
-			i += 3
+			priority = uint8(v)
+			hasPriority = true
+			i += 2
+
+		case "binding-sid":
+			if i+1 >= len(content) {
+				return registry.PluginRoute{}, fmt.Errorf("missing value for binding-sid")
+			}
+			switch content[i+1] {
+			case "mpls":
+				if i+2 >= len(content) {
+					return registry.PluginRoute{}, fmt.Errorf("expected 'binding-sid mpls <label>'")
+				}
+				v, err := strconv.ParseUint(content[i+2], 10, 32)
+				if err != nil {
+					return registry.PluginRoute{}, fmt.Errorf("invalid binding-sid label: %w", err)
+				}
+				bsidMPLS = uint32(v)
+				hasBSID = true
+				i += 3
+			case "null":
+				bsidNull = true
+				i += 2
+			default:
+				return registry.PluginRoute{}, fmt.Errorf("expected 'binding-sid mpls <label>' or 'binding-sid null'")
+			}
 
 		case "srv6-binding-sid":
 			if i+1 >= len(content) {
@@ -181,7 +208,8 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 
 	tunnelEncapValue := buildTunnelEncap(
 		preference, hasPref,
-		bsidMPLS, hasBSID,
+		priority, hasPriority,
+		bsidMPLS, hasBSID, bsidNull,
 		bsidSRv6, hasSRv6BSID,
 		segLists,
 		policyName, candPathName,
@@ -302,7 +330,8 @@ func parseSegmentList(tokens []string) (srpSegmentList, int, error) {
 
 func buildTunnelEncap(
 	preference uint32, hasPref bool,
-	bsidMPLS uint32, hasBSID bool,
+	priority uint8, hasPriority bool,
+	bsidMPLS uint32, hasBSID bool, bsidNull bool,
 	bsidSRv6 netip.Addr, hasSRv6BSID bool,
 	segLists []srpSegmentList,
 	policyName, candPathName string,
@@ -314,9 +343,14 @@ func buildTunnelEncap(
 	}
 	if hasBSID {
 		subTLVs = append(subTLVs, buildBindingSIDSubTLV(bsidMPLS)...)
+	} else if bsidNull {
+		subTLVs = append(subTLVs, buildBindingSIDNullSubTLV()...)
 	}
 	if hasSRv6BSID {
 		subTLVs = append(subTLVs, buildSRv6BindingSIDSubTLV(bsidSRv6)...)
+	}
+	if hasPriority {
+		subTLVs = append(subTLVs, buildPrioritySubTLV(priority)...)
 	}
 	for i := range segLists {
 		subTLVs = append(subTLVs, buildSegmentListSubTLV(segLists[i])...)
@@ -349,10 +383,26 @@ func buildBindingSIDSubTLV(label uint32) []byte {
 	buf[0] = subTLVBindingSID
 	buf[1] = 6
 	buf[2] = 0x10
-	mplsEntry := label<<4 | 1
+	// RFC 9830 §2.4.2: MPLS label stack entry, S bit MUST be zero.
+	mplsEntry := label << 4
 	buf[4] = byte(mplsEntry >> 16)
 	buf[5] = byte(mplsEntry >> 8)
 	buf[6] = byte(mplsEntry)
+	return buf
+}
+
+func buildBindingSIDNullSubTLV() []byte {
+	buf := make([]byte, 4)
+	buf[0] = subTLVBindingSID
+	buf[1] = 2
+	return buf
+}
+
+func buildPrioritySubTLV(p uint8) []byte {
+	buf := make([]byte, 4)
+	buf[0] = subTLVPriority
+	buf[1] = 2
+	buf[2] = p
 	return buf
 }
 
@@ -397,7 +447,8 @@ func buildSegmentTypeA(label uint32) []byte {
 	buf := make([]byte, 8)
 	buf[0] = segSubTLVTypeA
 	buf[1] = 6
-	mplsEntry := label<<4 | 1
+	// RFC 9830 §2.4.4.2.1: S bit MUST be zero on transmission.
+	mplsEntry := label << 4
 	buf[4] = byte(mplsEntry >> 16)
 	buf[5] = byte(mplsEntry >> 8)
 	buf[6] = byte(mplsEntry)

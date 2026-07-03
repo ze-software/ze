@@ -237,33 +237,36 @@ func convertWithdrawFamily(peerIP, rest string) string {
 // convertAnnounceSRPolicy translates ExaBGP SR-Policy announce to Ze's update text format.
 //
 // ExaBGP: announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4 preference 100 ...
-// Ze:     peer <ip> update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1
+// Ze:     peer <ip> update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 ...
 //
-// Extracts next-hop and the three NLRI fields (distinguisher, color, endpoint).
-// Tunnel encapsulation tokens (preference, segment-list, etc.) are not yet supported.
+// Extracts next-hop and the three NLRI fields (distinguisher, color, endpoint),
+// then appends all remaining tunnel-encap tokens verbatim.
 func convertAnnounceSRPolicy(peerIP, afi, rest string) string {
 	rest = strings.TrimSpace(rest)
 	parts := strings.Fields(rest)
 
 	var nhop, distinguisher, color, endpoint string
+	var extra []string
 	for i := 0; i < len(parts); i++ {
 		key := strings.ToLower(parts[i])
-		if i+1 >= len(parts) {
-			break
-		}
 		switch key {
-		case "next-hop":
-			nhop = parts[i+1]
+		case bridgeAttrNextHop, "distinguisher", "color", "endpoint":
+			if i+1 >= len(parts) {
+				break
+			}
+			switch key {
+			case bridgeAttrNextHop:
+				nhop = parts[i+1]
+			case "distinguisher":
+				distinguisher = parts[i+1]
+			case "color":
+				color = parts[i+1]
+			case "endpoint":
+				endpoint = parts[i+1]
+			}
 			i++
-		case "distinguisher":
-			distinguisher = parts[i+1]
-			i++
-		case "color":
-			color = parts[i+1]
-			i++
-		case "endpoint":
-			endpoint = parts[i+1]
-			i++
+		default:
+			extra = append(extra, parts[i])
 		}
 	}
 
@@ -276,6 +279,9 @@ func convertAnnounceSRPolicy(peerIP, afi, rest string) string {
 	tb.Str(" distinguisher ").Str(distinguisher)
 	tb.Str(" color ").Str(color)
 	tb.Str(" endpoint ").Str(endpoint)
+	for _, tok := range extra {
+		tb.Str(" ").Str(tok)
+	}
 	return tb.String()
 }
 

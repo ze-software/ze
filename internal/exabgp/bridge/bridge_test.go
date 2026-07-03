@@ -1676,7 +1676,12 @@ func TestBridgeSRPolicyCommand(t *testing.T) {
 		{
 			"announce_ipv4_with_preference",
 			"neighbor 10.0.0.1 announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4 preference 200",
-			"peer 10.0.0.1 update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1",
+			"peer 10.0.0.1 update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 200",
+		},
+		{
+			"announce_ipv4_full_tunnel_encap",
+			"neighbor 10.0.0.1 announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4 preference 100 priority 10 binding-sid mpls 24000 segment-list weight 1 segment type-a mpls 16001",
+			"peer 10.0.0.1 update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 priority 10 binding-sid mpls 24000 segment-list weight 1 segment type-a mpls 16001",
 		},
 		{
 			"announce_ipv6",

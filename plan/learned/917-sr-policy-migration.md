@@ -17,6 +17,10 @@ Ze had SR-Policy wire encoding/decoding and CLI text parsing, but the ExaBGP con
 - The `PluginRoute` / `PluginParams` / `BuildPlugin` path is a generic reactor announce mechanism. Any plugin that produces pre-built NLRI + attributes can use it.
 - The ExaBGP TunnelEncap sub-TLV encoding uses draft numbering (segment type-A = sub-sub-TLV type 1, type-B = type 13) which differs from RFC 9830 final assignments. This is intentional: ze must match ExaBGP's wire format for migration compat.
 
+- MPLS S-bit (bottom-of-stack) in Type-A segments and Binding SID: RFC 9830 §2.4.4.2.1 says "The S bit MUST be zero upon transmission." Ze previously set S=1 on every label entry (`label<<4 | 1`). Fixed to `label<<4`. ExaBGP sets S=1 on the last segment (is_last); both were non-compliant, just differently. The S-bit difference affects wire bytes only for multi-segment lists and is ignored by receivers per the same RFC section.
+- Bridge passthrough: `convertAnnounceSRPolicy` initially dropped all tunnel-encap tokens (preference, priority, binding-sid, segment-list, etc.), forwarding only NLRI fields. Fixed to pass through all non-NLRI tokens verbatim.
+- Core keyword gaps vs ExaBGP: Ze lacked `priority` (sub-TLV type 15) and rejected `binding-sid null` (no-label form, 2-byte value). Added both for ExaBGP parity.
+
 ## Gotchas
 
 - `packAttributesOrderedInto` puts MP_REACH_NLRI last and appends `rawAttrs` after that. Passing plugin attributes via `rawAttrs` puts them after MP_REACH, which doesn't match ExaBGP ordering. They must go through the sorted attribute list.

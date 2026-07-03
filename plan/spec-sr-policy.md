@@ -133,7 +133,7 @@ This enables Ze to negotiate, decode, encode, and forward SR-Policy UPDATEs, and
 | A-2 | SR-Policy does not use ADD-PATH | RFC 9830 Section 2.1, no path-id mention | Splitter would need addPath=true handling | confirm with RFC 9830 summary | unvalidated |
 | A-3 | ParseMPReachNLRI extracts NLRI bytes generically for any AFI/SAFI; splitting happens downstream via nlrisplit registry | mpnlri.go:208 ParseMPReachNLRI | If mpnlri.go filters by SAFI, SR-Policy NLRIs would be dropped | confirmed by reading mpnlri.go:208-244 | confirmed |
 | A-4 | ExaBGP bridge JSON event format for non-prefix NLRIs passes objects through | bridge_event.go line 276 else branch | Would need bridge event translation changes | test with SR-Policy JSON event | unvalidated |
-| A-5 | ExaBGP PR 1393 command syntax matches what the bridge needs to generate | PR review of configuration/static/sr_policy.py | Bridge generates wrong commands | compare bridge output with ExaBGP parser expectations | unvalidated |
+| A-5 | ExaBGP PR 1393 command syntax matches what the bridge needs to generate | PR review of configuration/static/sr_policy.py | Bridge generates wrong commands | compare bridge output with ExaBGP parser expectations | validated 2026-07-03: NLRI keywords match; Ze update-text grammar accepts all tunnel-encap tokens; remaining gaps are the bridge passthrough + core priority/binding-sid-null (not a syntax mismatch). S-bit difference fixed (RFC 9830 compliance). |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -208,7 +208,7 @@ This enables Ze to negotiate, decode, encode, and forward SR-Policy UPDATEs, and
 ### Interop Tests
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| sr-policy-announce | test/interop/ | ExaBGP (via bridge) | SR-Policy UPDATE round-trip through Ze | deferred (needs ExaBGP PR merged first) |
+| sr-policy-announce | test/interop/ | ExaBGP (via bridge) | SR-Policy UPDATE round-trip through Ze | unblocked 2026-07-03 (PR 1393 landed; ExaBGP at /Users/thomas/Code/github.com/exa-networks/exabgp/main); implement |
 
 ## Files to Modify
 - `internal/core/family/family.go` - SAFISRPolicy constant (already done)
@@ -276,6 +276,7 @@ This enables Ze to negotiate, decode, encode, and forward SR-Policy UPDATEs, and
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| Set MPLS S-bit to zero on all Type-A segments and Binding SID | Match ExaBGP is_last (S only on last); always-set (previous Ze behavior) | RFC 9830 §2.4.4.2.1: "The S bit MUST be zero upon transmission." Both Ze (always 1) and ExaBGP (1 on last) were non-compliant. Fixed Ze to comply. Wire difference only for multi-segment lists. |
 
 ## Known Limitations
 
@@ -317,12 +318,13 @@ This enables Ze to negotiate, decode, encode, and forward SR-Policy UPDATEs, and
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (2026-07-03)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | NOTE | RFC summary said Priority value is 1 byte; actual RFC says 2 (priority + reserved). Code was correct. | rfc/short/rfc9830.md:148 | Fixed summary |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] `/ze-review` run shows 0 BLOCKER, 0 ISSUE
 
 ## Pre-Commit Verification
 
