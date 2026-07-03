@@ -41,6 +41,8 @@ gh-pages/
                                               this, generated or hand-authored
     features.json                         -- every card on features/index.html: section, category,
                                               status, chips, bullets
+    milestones.json                       -- every node on milestones/index.html: date, title,
+                                              category, blurb, and the blog week it links to
     audience.json                         -- the "Two ways to run Ze" and "Who should look now"
                                               cards on index.html
     dependencies.json                     -- every direct Go dependency's "why", grouped by
@@ -59,6 +61,9 @@ gh-pages/
     render-blog.py                        -- blog/posts/*.md -> blog/**/index.html
     render-activity.py                    -- git history -> activity/index.html
     render-features.py                    -- data/features.json -> features/index.html
+    render-timeline.py                    -- data/milestones.json -> milestones/index.html, the
+                                              landmark-features timeline, oldest first, grouped by
+                                              quarter and color-coded by category
     render-cli-catalog.py                 -- `ze help command --json` -> cli/index.html, with a
                                               live search box that jumps to a matching command's
                                               anchor (id="cmd-<slug>") in its group
@@ -82,7 +87,7 @@ page.
 
 Run `./update-website.sh` (repo root) or `tools/build.py` directly -- same
 thing, the script is just a short, obvious name to reach for. Pass `--only
-<docs,blog,activity,compare,features,cli,deps,config,contribute,index,nav,llms>`
+<docs,blog,activity,compare,features,cli,deps,config,contribute,index,timeline,nav,llms>`
 to regenerate a subset. It warns on stderr if `data/nav.json`'s Features-dropdown
 card count falls out of sync with `data/features.json`'s actual card count,
 its CLI Reference command count with `data/cli-commands.json`, or its
@@ -163,7 +168,12 @@ update). Work through this before considering the update done.
 1. **Check Features for drift.** Did the week ship something with no card
    yet, or move a feature from Experimental to shipped? Add/move/edit its
    entry in `data/features.json` -- the intro paragraph's count is computed
-   from the data at render time, nothing to hand-update.
+   from the data at render time, nothing to hand-update. If the week is a
+   genuine landmark (a whole protocol or subsystem's first appearance, not a
+   routine improvement), also add one node to `data/milestones.json` so the
+   Milestones timeline stays current -- keep it coarse, one node per
+   capability class, dated to the week's `covers` start so it links to the
+   right blog post.
 2. **Check Compare for drift.** Did the week close one of the
    "Where Ze is behind today" gaps, or change a Yes/No/Partial cell? Edit
    `../main/docs/comparison.md` first (the source of truth), then copy the

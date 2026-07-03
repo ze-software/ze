@@ -1,18 +1,12 @@
 # CLI Reference
 
-380 commands across 47 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.github.io/ze/data/cli-commands.json).
+380 commands across 45 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.github.io/ze/data/cli-commands.json).
 
 ## announce (1)
 
 | Command | Mode | Description |
 | --- | --- | --- |
 | `announce` | Daemon | Announce a route on demand to selected peers. Usage: announce <unicast\|blackhole\|flowspec> <args> [tag <key> <value>] [for <duration>] |
-
-## as112 (1)
-
-| Command | Mode | Description |
-| --- | --- | --- |
-| `as112 health` | Daemon | One-shot authoritative query against an anycast service address (or the given target), exit 0 iff the expected AS112 answer comes back. Finding M4: the tool child 3's healthcheck probe calls, since dig is not on the gokrazy appliance and 'ze resolve dns' cannot target a specific server. Usage: as112 health [target <ip>]. |
 
 ## clear (16)
 
@@ -135,12 +129,6 @@
 | `monitor traffic-stat` | Read-only | Start streaming traffic monitor (per-second snapshots). Without arguments, shows all interfaces. With 'name <interface>', filters to one interface. |
 | `monitor vpn ipsec` | Read-only | Watch IPsec SA events as they happen. Streams sa-up, sa-down, child-up, child-down, and child-rekey events. Useful for debugging tunnel flaps or rekey issues. |
 
-## ospf (1)
-
-| Command | Mode | Description |
-| --- | --- | --- |
-| `ospf graceful-restart prepare` | Daemon | Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1). Usage: ospf graceful-restart prepare. The engine originates one Grace-LSA per interface, persists the non-volatile restart fact, and suppresses route churn so the FIB is retained across the ensuing control-plane restart. Refused when graceful-restart is not configured. |
-
 ## peer (2)
 
 | Command | Mode | Description |
@@ -196,15 +184,17 @@
 | `request peer resume` | Daemon | Resume reading from a previously paused peer. Usage: request peer <selector> resume. |
 | `request peer teardown` | Daemon | Tear down a peer session. Usage: request peer <selector> teardown [cease-subcode]. |
 
-## request (other) (10)
+## request (other) (12)
 
 | Command | Mode | Description |
 | --- | --- | --- |
+| `request as112 healthcheck` | Daemon | One-shot authoritative query against an anycast service address (or the given target), exit 0 iff the expected AS112 answer comes back. Finding M4: the tool a healthcheck probe calls, since dig is not on the gokrazy appliance and 'ze resolve dns' cannot target a specific server. Usage: request as112 healthcheck [target <ip>]. |
 | `request bgp rib inject` | Daemon | Inject a synthetic route into the Adj-RIB-In. Behaves as if the route was received from a peer. Use this for testing policy filters or simulating route announcements. |
 | `request bgp rib withdraw` | Daemon | Withdraw a route from the Adj-RIB-In. Removes a previously injected or received route from a peer's Adj-RIB-In, triggering best-path recomputation. |
 | `request commit` | Daemon | Group route changes into named atomic commits. Actions: start (begin a commit), end (finalize), eor (signal end of RIB), rollback (undo), show (inspect), withdraw (remove all routes in a commit), list (show all commits). Grammar: request commit <action> <name> [args]. |
 | `request halt` | Daemon | Dump goroutine stacks to stderr and terminate immediately. |
 | `request log level` | Daemon | Change a subsystem's log level without restarting. Usage: request log level <logger> <level>. Takes effect immediately. Set to debug when troubleshooting, then back to info when you are done. |
+| `request ospf graceful-restart` | Daemon | Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1). Usage: request ospf graceful-restart. The engine originates one Grace-LSA per interface, persists the non-volatile restart fact, and suppresses route churn so the FIB is retained across the ensuing control-plane restart. Refused when graceful-restart is not configured. |
 | `request reboot` | Daemon | Gracefully shutdown then reboot the system. |
 | `request reload` | Daemon | Reload the configuration without restarting. |
 | `request shutdown` | Daemon | Gracefully shutdown: drain connections, close peers, exit. |

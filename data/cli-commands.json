@@ -14,19 +14,6 @@
     "global-pipes": true
   },
   {
-    "path": "as112 health",
-    "description": "One-shot authoritative query against an anycast service\naddress (or the given target), exit 0 iff the expected\nAS112 answer comes back. Finding M4: the tool child 3's\nhealthcheck probe calls, since dig is not on the gokrazy\nappliance and 'ze resolve dns' cannot target a specific\nserver. Usage: as112 health [target <ip>].",
-    "mode": "daemon",
-    "wire-method": "ze-as112:health",
-    "args": [
-      {
-        "name": "target",
-        "type": "string"
-      }
-    ],
-    "global-pipes": true
-  },
-  {
     "path": "clear bgp rib in",
     "description": "Remove all routes received from a peer.\nWipes the Adj-RIB-In for matched peers. They will need to\nre-advertise everything (or you can send a route-refresh).\nSelector: IP, name, AS pattern, glob, or *.",
     "mode": "daemon",
@@ -549,13 +536,6 @@
     "global-pipes": true
   },
   {
-    "path": "ospf graceful-restart prepare",
-    "description": "Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).\nUsage: ospf graceful-restart prepare. The engine originates one Grace-LSA per\ninterface, persists the non-volatile restart fact, and suppresses route churn\nso the FIB is retained across the ensuing control-plane restart. Refused when\ngraceful-restart is not configured.",
-    "mode": "daemon",
-    "wire-method": "ze-ospf:graceful-restart-prepare",
-    "global-pipes": true
-  },
-  {
     "path": "peer raw",
     "description": "Send raw bytes into a peer's TCP stream (dangerous).\nInjects arbitrary bytes with no BGP framing or validation. Intended\nfor conformance testing and fuzzing only. Will likely break the\nsession if used carelessly.",
     "mode": "daemon",
@@ -651,6 +631,19 @@
     "description": "Signal plugin init complete",
     "mode": "read-only",
     "wire-method": "ze-plugin:session-ready",
+    "global-pipes": true
+  },
+  {
+    "path": "request as112 healthcheck",
+    "description": "One-shot authoritative query against an anycast service\naddress (or the given target), exit 0 iff the expected\nAS112 answer comes back. Finding M4: the tool a\nhealthcheck probe calls, since dig is not on the gokrazy\nappliance and 'ze resolve dns' cannot target a specific\nserver. Usage: request as112 healthcheck [target <ip>].",
+    "mode": "daemon",
+    "wire-method": "ze-as112:health",
+    "args": [
+      {
+        "name": "target",
+        "type": "string"
+      }
+    ],
     "global-pipes": true
   },
   {
@@ -829,6 +822,13 @@
         ]
       }
     ],
+    "global-pipes": true
+  },
+  {
+    "path": "request ospf graceful-restart",
+    "description": "Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).\nUsage: request ospf graceful-restart. The engine originates one Grace-LSA per\ninterface, persists the non-volatile restart fact, and suppresses route churn\nso the FIB is retained across the ensuing control-plane restart. Refused when\ngraceful-restart is not configured.",
+    "mode": "daemon",
+    "wire-method": "ze-ospf:graceful-restart-prepare",
     "global-pipes": true
   },
   {

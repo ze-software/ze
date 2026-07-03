@@ -472,6 +472,7 @@ FOOTER_LOCAL_COLUMNS = [
             ("performance/", "Performance"),
             ("compare/", "Compare"),
             ("roadmap/", "Roadmap"),
+            ("milestones/", "Milestones"),
             ("changes/", "Changes"),
             ("activity/", "Activity"),
         ],

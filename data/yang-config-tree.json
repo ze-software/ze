@@ -13826,7 +13826,7 @@
         "description": "RFC 3623 (OSPFv2) / RFC 5187 (OSPFv3) Graceful Restart: keep forwarding across a control-plane restart. Family-neutral: this container drives both address families (the OSPFv3 family inherits it unless it configures its own).",
         "kind": "container",
         "name": "graceful-restart",
-        "source": "both"
+        "source": "config"
       },
       {
         "children": [
@@ -13859,6 +13859,42 @@
                 "description": "Per-interface authentication settings.",
                 "kind": "container",
                 "name": "authentication",
+                "source": "config"
+              },
+              {
+                "children": [
+                  {
+                    "description": "Enable single-hop BFD failure detection on this interface.",
+                    "kind": "leaf",
+                    "name": "enabled",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
+                    "description": "Required minimum BFD receive interval (RFC 5880 Required Min RX Interval).",
+                    "kind": "leaf",
+                    "name": "min-rx",
+                    "source": "config",
+                    "type": "uint32"
+                  },
+                  {
+                    "description": "Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval).",
+                    "kind": "leaf",
+                    "name": "min-tx",
+                    "source": "config",
+                    "type": "uint32"
+                  },
+                  {
+                    "description": "BFD detection multiplier (RFC 5880 Detect Mult).",
+                    "kind": "leaf",
+                    "name": "multiplier",
+                    "source": "config",
+                    "type": "uint8"
+                  }
+                ],
+                "description": "RFC 5880 / RFC 5881 single-hop BFD for this OSPF interface. When enabled, a Full adjacency opens a single-hop BFD session; a BFD-detected failure declares the neighbor down far faster than the router-dead interval.",
+                "kind": "container",
+                "name": "bfd",
                 "source": "config"
               },
               {
@@ -14112,42 +14148,6 @@
                 "name": "algorithm",
                 "source": "config",
                 "type": "enumeration"
-              },
-              {
-                "children": [
-                  {
-                    "description": "Enable single-hop BFD failure detection on this interface.",
-                    "kind": "leaf",
-                    "name": "enabled",
-                    "source": "config",
-                    "type": "boolean"
-                  },
-                  {
-                    "description": "Required minimum BFD receive interval (RFC 5880 Required Min RX Interval).",
-                    "kind": "leaf",
-                    "name": "min-rx",
-                    "source": "config",
-                    "type": "uint32"
-                  },
-                  {
-                    "description": "Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval).",
-                    "kind": "leaf",
-                    "name": "min-tx",
-                    "source": "config",
-                    "type": "uint32"
-                  },
-                  {
-                    "description": "BFD detection multiplier (RFC 5880 Detect Mult).",
-                    "kind": "leaf",
-                    "name": "multiplier",
-                    "source": "config",
-                    "type": "uint8"
-                  }
-                ],
-                "description": "RFC 5880 / RFC 5881 single-hop BFD for this OSPF interface. When enabled, a Full adjacency opens a single-hop BFD session; a BFD-detected failure declares the neighbor down far faster than the router-dead interval.",
-                "kind": "container",
-                "name": "bfd",
-                "source": "config"
               },
               {
                 "description": "Shared secret, masked and $9$-encoded at rest.",
@@ -14461,7 +14461,7 @@
     "description": "OSPFv2 routing instance configuration.",
     "kind": "container",
     "name": "ospf",
-    "source": "both"
+    "source": "config"
   },
   "pki": {
     "children": [
@@ -15200,7 +15200,7 @@
             "type": "enumeration"
           },
           {
-            "description": "Optional client-source access list. Empty/unset (default)\nanswers every source, matching standard AS112 public-sink\nbehavior. When non-empty, only queries whose source IP is\ncontained in one of these prefixes are answered; all\nothers are silently dropped (no response). Loopback/\non-box sources are always implicitly permitted regardless\nof this list, so the 'as112 health' probe is never\nblocked. Setting this makes the node non-public --\ncorrect for a local-use mirror, wrong for a\nglobally-reachable AS112 contributor.",
+            "description": "Optional client-source access list. Empty/unset (default)\nanswers every source, matching standard AS112 public-sink\nbehavior. When non-empty, only queries whose source IP is\ncontained in one of these prefixes are answered; all\nothers are silently dropped (no response). Loopback/\non-box sources are always implicitly permitted regardless\nof this list, so the 'request as112 healthcheck' probe is\nnever blocked. Setting this makes the node non-public --\ncorrect for a local-use mirror, wrong for a\nglobally-reachable AS112 contributor.",
             "kind": "leaf-list",
             "name": "allow-from",
             "source": "config",

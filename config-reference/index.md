@@ -3901,6 +3901,16 @@ OSPFv2 routing instance configuration.
         Key chain reference.
       - **mode** `enumeration`
         Authentication mode; inherit uses the area default.
+    - **bfd** `container`
+      RFC 5880 / RFC 5881 single-hop BFD for this OSPF interface. When enabled, a Full adjacency opens a single-hop BFD session; a BFD-detected failure declares the neighbor down far faster than the router-dead interval.
+      - **enabled** `boolean`
+        Enable single-hop BFD failure detection on this interface.
+      - **min-rx** `uint32`
+        Required minimum BFD receive interval (RFC 5880 Required Min RX Interval).
+      - **min-tx** `uint32`
+        Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval).
+      - **multiplier** `uint8`
+        BFD detection multiplier (RFC 5880 Detect Mult).
     - **cost** `uint16`
       Interface output cost.
     - **dead-interval** `uint16`
@@ -3971,16 +3981,6 @@ OSPFv2 routing instance configuration.
         RFC3339 start timestamp.
     - **algorithm** `enumeration`
       Authentication algorithm.
-    - **bfd** `container`
-      RFC 5880 / RFC 5881 single-hop BFD for this OSPF interface. When enabled, a Full adjacency opens a single-hop BFD session; a BFD-detected failure declares the neighbor down far faster than the router-dead interval.
-      - **enabled** `boolean`
-        Enable single-hop BFD failure detection on this interface.
-      - **min-rx** `uint32`
-        Required minimum BFD receive interval (RFC 5880 Required Min RX Interval).
-      - **min-tx** `uint32`
-        Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval).
-      - **multiplier** `uint8`
-        BFD detection multiplier (RFC 5880 Detect Mult).
     - **secret** `string`
       Shared secret, masked and $9$-encoded at rest.
     - **send-lifetime** `container`
@@ -4308,7 +4308,7 @@ Service settings
   - **address-family** `enumeration`
     Restrict the service to one address family (RFC 7534 Section 3.4 / RFC 7535 Section 3.1 single-stack option). The anycast addresses themselves are fixed constants, never operator-typed.
   - **allow-from** `ip-prefix[]`
-    Optional client-source access list. Empty/unset (default) answers every source, matching standard AS112 public-sink behavior. When non-empty, only queries whose source IP is contained in one of these prefixes are answered; all others are silently dropped (no response). Loopback/ on-box sources are always implicitly permitted regardless of this list, so the 'as112 health' probe is never blocked. Setting this makes the node non-public -- correct for a local-use mirror, wrong for a globally-reachable AS112 contributor.
+    Optional client-source access list. Empty/unset (default) answers every source, matching standard AS112 public-sink behavior. When non-empty, only queries whose source IP is contained in one of these prefixes are answered; all others are silently dropped (no response). Loopback/ on-box sources are always implicitly permitted regardless of this list, so the 'request as112 healthcheck' probe is never blocked. Setting this makes the node non-public -- correct for a local-use mirror, wrong for a globally-reachable AS112 contributor.
   - **enabled** `boolean`
     Enable the AS112 anycast DNS node
   - **facility** `string`

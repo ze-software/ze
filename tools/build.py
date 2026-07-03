@@ -25,6 +25,7 @@ Steps (default order, also the --only vocabulary):
     contribute contribute/contribute.md -> contribute/index.html (tools/render-doc.py)
     talks     data/talks.json -> talks/index.html          (tools/render-talks.py)
     index     data/audience.json -> index.html            (tools/render-index.py)
+    timeline  data/milestones.json -> milestones/index.html (tools/render-timeline.py)
     nav       patch <div class="nav-links"> and <footer> in the remaining
               hand-authored pages (zeledon, labs/*, style-guide,
               performance) so they stay in sync with data/nav.json /
@@ -84,6 +85,7 @@ STEPS = [
     "coc",
     "security",
     "changes",
+    "timeline",
     "nav",
     "search",
     "llms",
@@ -296,6 +298,11 @@ def step_changes():
     return render_changes.main()
 
 
+def step_timeline():
+    render_timeline = load_module("render-timeline")
+    return render_timeline.main()
+
+
 def step_search():
     render_search_index = load_module("render-search-index")
     return render_search_index.main()
@@ -352,6 +359,7 @@ STEP_FUNCS = {
     "coc": step_coc,
     "security": step_security,
     "changes": step_changes,
+    "timeline": step_timeline,
     "llms": step_llms,
     "nav": step_nav,
     "search": step_search,

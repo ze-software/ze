@@ -14,7 +14,11 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 - [Dependencies](https://ze-software.github.io/ze/dependencies/index.md): 39 direct packages, generated from go.mod (web: https://ze-software.github.io/ze/dependencies/)
 - [Performance](https://ze-software.github.io/ze/performance/index.md): Measured BGP benchmarks, not claims (web: https://ze-software.github.io/ze/performance/)
 - [Compare](https://ze-software.github.io/ze/compare/index.md): How Ze stacks up against BIRD, FRR, and more (web: https://ze-software.github.io/ze/compare/)
+
+## Journey
+
 - [Roadmap](https://ze-software.github.io/ze/roadmap/index.md): The path to a first release you can trust (web: https://ze-software.github.io/ze/roadmap/)
+- [Milestones](https://ze-software.github.io/ze/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.github.io/ze/milestones/)
 - [Changes](https://ze-software.github.io/ze/changes/index.md): What shipped, week by week (web: https://ze-software.github.io/ze/changes/)
 - [Activity](https://ze-software.github.io/ze/activity/index.md): A year of commits, at a glance (web: https://ze-software.github.io/ze/activity/)
 

@@ -45,6 +45,8 @@
                             <span class="nav-dropdown-icon">🧬</span>
                             <span><strong>Configuration Reference</strong><small>The whole config as a searchable index: 35 sections from live YANG</small></span>
                         </a>
+                    </div>
+                    <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../../../dependencies/">
                             <span class="nav-dropdown-icon">📦</span>
                             <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
@@ -53,15 +55,26 @@
                             <span class="nav-dropdown-icon">⚡</span>
                             <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
                         </a>
-                    </div>
-                    <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../../../compare/">
                             <span class="nav-dropdown-icon">⚖️</span>
                             <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
                         </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Journey
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../../../roadmap/">
                             <span class="nav-dropdown-icon">🗺️</span>
                             <span><strong>Roadmap</strong><small>The path to a first release you can trust</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../milestones/">
+                            <span class="nav-dropdown-icon">🏁</span>
+                            <span><strong>Milestones</strong><small>Landmark features, oldest to newest</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../../changes/">
                             <span class="nav-dropdown-icon">🧾</span>
@@ -305,7 +318,7 @@
 <td><code>allow-from</code></td>
 <td>leaf-list (ip-prefix)</td>
 <td>(empty = answer all)</td>
-<td>Optional client-source access list. Non-empty: only queries from a listed prefix are answered, others are silently dropped. Loopback/on-box sources are always permitted regardless, so <code>as112 health</code> is never blocked. Setting this makes the node non-public — correct for a local-use mirror, wrong for a globally-reachable AS112 contributor.</td>
+<td>Optional client-source access list. Non-empty: only queries from a listed prefix are answered, others are silently dropped. Loopback/on-box sources are always permitted regardless, so <code>request as112 healthcheck</code> is never blocked. Setting this makes the node non-public — correct for a local-use mirror, wrong for a globally-reachable AS112 contributor.</td>
 </tr>
 </tbody>
 </table>
@@ -328,7 +341,7 @@
 <td>Node status: enabled, address-family, hostname/facility/location, allow-from count, served zone count, current SOA serial, and the address-registry's health (<code>address-registry-ok</code>; when false, <code>address-registry-error</code>/<code>address-registry-error-at</code> explain the most recent failure to apply the anycast addresses to a kernel interface).</td>
 </tr>
 <tr>
-<td><code>as112 health [target &lt;ip&gt;]</code></td>
+<td><code>request as112 healthcheck [target &lt;ip&gt;]</code></td>
 <td>One-shot authoritative query against an anycast service address (or the given target; defaults to the address-family-appropriate loopback). Exit 0 iff the expected AS112 answer comes back — the tool a healthcheck probe or monitoring script calls, since <code>dig</code> is not on the gokrazy appliance and <code>ze resolve dns</code> cannot target a specific server.</td>
 </tr>
 </tbody>
@@ -359,7 +372,7 @@ bgp {
             # itself must be started with ZE_CONFIG_DIR/ZE_SSH_PASSWORD (or
             # an equivalent credential) set in its OWN environment, since the
             # probe subprocess inherits it -- see &quot;Probe credentials&quot; below.
-            command &quot;ze cli -c \&quot;as112 health target 192.175.48.1\&quot;&quot;
+            command &quot;ze cli -c \&quot;request as112 healthcheck target 192.175.48.1\&quot;&quot;
             group as112-anycast
             interval 10
             rise 2
@@ -459,7 +472,7 @@ bgp {
 }
 </code></pre>
 <h3>Probe credentials</h3>
-<p>The healthcheck probe's <code>command</code> is a plain shell command (<code>/bin/sh -c "..."</code>), executed as a child of the <code>ze</code> daemon process and inheriting its environment. For <code>ze cli -c "as112 health target ..."</code> to authenticate back into the same daemon over SSH:</p>
+<p>The healthcheck probe's <code>command</code> is a plain shell command (<code>/bin/sh -c "..."</code>), executed as a child of the <code>ze</code> daemon process and inheriting its environment. For <code>ze cli -c "request as112 healthcheck target ..."</code> to authenticate back into the same daemon over SSH:</p>
 <ol>
 <li>Start the daemon with <code>ZE_CONFIG_DIR</code> and <code>ZE_SSH_PASSWORD</code> (or the super-admin credential of your choice) set in its own environment.</li>
 <li>Ensure <code>environment { ssh { enabled true; ... } }</code> is configured, and a <code>bgp { ... }</code> block is present (SSH command dispatch for a healthcheck probe requires the BGP-wired executor path; a bare <code>ssh {}</code>-only config with no <code>bgp {}</code> block routes through a different, standalone SSH path that does not carry this wiring).</li>
@@ -621,6 +634,7 @@ bgp {
                         <a href="../../../performance/">Performance</a>
                         <a href="../../../compare/">Compare</a>
                         <a href="../../../roadmap/">Roadmap</a>
+                        <a href="../../../milestones/">Milestones</a>
                         <a href="../../../changes/">Changes</a>
                         <a href="../../../activity/">Activity</a>
                     </div>

@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>CLI Reference - Ze</title>
-        <meta name="description" content="Every ze command, generated live from the binary's own command registry -- 380 commands across 47 groups." />
+        <meta name="description" content="Every ze command, generated live from the binary's own command registry -- 380 commands across 45 groups." />
         <meta property="og:title" content="CLI Reference - Ze" />
-        <meta property="og:description" content="Every ze command, generated live from the binary's own command registry -- 380 commands across 47 groups." />
+        <meta property="og:description" content="Every ze command, generated live from the binary's own command registry -- 380 commands across 45 groups." />
         <meta property="og:type" content="website" />
         <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -45,6 +45,8 @@
                             <span class="nav-dropdown-icon">🧬</span>
                             <span><strong>Configuration Reference</strong><small>The whole config as a searchable index: 35 sections from live YANG</small></span>
                         </a>
+                    </div>
+                    <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../dependencies/">
                             <span class="nav-dropdown-icon">📦</span>
                             <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
@@ -53,15 +55,26 @@
                             <span class="nav-dropdown-icon">⚡</span>
                             <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
                         </a>
-                    </div>
-                    <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../compare/">
                             <span class="nav-dropdown-icon">⚖️</span>
                             <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
                         </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Journey
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../roadmap/">
                             <span class="nav-dropdown-icon">🗺️</span>
                             <span><strong>Roadmap</strong><small>The path to a first release you can trust</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../milestones/">
+                            <span class="nav-dropdown-icon">🏁</span>
+                            <span><strong>Milestones</strong><small>Landmark features, oldest to newest</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../changes/">
                             <span class="nav-dropdown-icon">🧾</span>
@@ -247,7 +260,7 @@
 
             <section aria-labelledby="cli-title" class="md-content reveal cat-operate">
                 <h1 id="cli-title">CLI Reference</h1>
-                <p>380 commands across 47 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>
+                <p>380 commands across 45 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>
                 <div class="cli-search-wrap">
                     <input id="cli-search" type="search" autocomplete="off" placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." aria-label="Filter commands" />
                     <div id="cli-suggestions" class="cli-suggestions" hidden></div>
@@ -256,11 +269,6 @@
 <summary>announce <span class="cli-group-count">1</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr id="cmd-announce"><td><code>announce</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Announce a route on demand to selected peers.<br>Usage: announce &lt;unicast|blackhole|flowspec&gt; &lt;args&gt; [tag &lt;key&gt; &lt;value&gt;] [for &lt;duration&gt;]</td></tr>
-</tbody></table></details>
-<details class="cli-group" id="cli-group-as112" open>
-<summary>as112 <span class="cli-group-count">1</span></summary>
-<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-as112-health"><td><code>as112 health</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>One-shot authoritative query against an anycast service<br>address (or the given target), exit 0 iff the expected<br>AS112 answer comes back. Finding M4: the tool child 3&#x27;s<br>healthcheck probe calls, since dig is not on the gokrazy<br>appliance and &#x27;ze resolve dns&#x27; cannot target a specific<br>server. Usage: as112 health [target &lt;ip&gt;].</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-clear" open>
 <summary>clear <span class="cli-group-count">16</span></summary>
@@ -370,11 +378,6 @@
 <tr id="cmd-monitor-traffic-stat"><td><code>monitor traffic-stat</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Start streaming traffic monitor (per-second snapshots).<br>Without arguments, shows all interfaces. With &#x27;name &lt;interface&gt;&#x27;, filters to one interface.</td></tr>
 <tr id="cmd-monitor-vpn-ipsec"><td><code>monitor vpn ipsec</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Watch IPsec SA events as they happen.<br>Streams sa-up, sa-down, child-up, child-down, and child-rekey<br>events. Useful for debugging tunnel flaps or rekey issues.</td></tr>
 </tbody></table></details>
-<details class="cli-group" id="cli-group-ospf" open>
-<summary>ospf <span class="cli-group-count">1</span></summary>
-<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-ospf-graceful-restart-prepare"><td><code>ospf graceful-restart prepare</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).<br>Usage: ospf graceful-restart prepare. The engine originates one Grace-LSA per<br>interface, persists the non-volatile restart fact, and suppresses route churn<br>so the FIB is retained across the ensuing control-plane restart. Refused when<br>graceful-restart is not configured.</td></tr>
-</tbody></table></details>
 <details class="cli-group" id="cli-group-peer" open>
 <summary>peer <span class="cli-group-count">2</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
@@ -426,13 +429,15 @@
 <tr id="cmd-request-peer-teardown"><td><code>request peer teardown</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Tear down a peer session.<br>Usage: request peer &lt;selector&gt; teardown [cease-subcode].</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-request-other" open>
-<summary>request (other) <span class="cli-group-count">10</span></summary>
+<summary>request (other) <span class="cli-group-count">12</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr id="cmd-request-as112-healthcheck"><td><code>request as112 healthcheck</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>One-shot authoritative query against an anycast service<br>address (or the given target), exit 0 iff the expected<br>AS112 answer comes back. Finding M4: the tool a<br>healthcheck probe calls, since dig is not on the gokrazy<br>appliance and &#x27;ze resolve dns&#x27; cannot target a specific<br>server. Usage: request as112 healthcheck [target &lt;ip&gt;].</td></tr>
 <tr id="cmd-request-bgp-rib-inject"><td><code>request bgp rib inject</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Inject a synthetic route into the Adj-RIB-In.<br>Behaves as if the route was received from a peer. Use this for<br>testing policy filters or simulating route announcements.</td></tr>
 <tr id="cmd-request-bgp-rib-withdraw"><td><code>request bgp rib withdraw</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Withdraw a route from the Adj-RIB-In.<br>Removes a previously injected or received route from a peer&#x27;s<br>Adj-RIB-In, triggering best-path recomputation.</td></tr>
 <tr id="cmd-request-commit"><td><code>request commit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Group route changes into named atomic commits.<br>Actions: start (begin a commit), end (finalize), eor (signal end of<br>RIB), rollback (undo), show (inspect), withdraw (remove all routes<br>in a commit), list (show all commits). Grammar: request commit &lt;action&gt;<br>&lt;name&gt; [args].</td></tr>
 <tr id="cmd-request-halt"><td><code>request halt</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Dump goroutine stacks to stderr and terminate immediately.</td></tr>
 <tr id="cmd-request-log-level"><td><code>request log level</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Change a subsystem&#x27;s log level without restarting.<br>Usage: request log level &lt;logger&gt; &lt;level&gt;. Takes effect immediately.<br>Set to debug when troubleshooting, then back to info when you are done.</td></tr>
+<tr id="cmd-request-ospf-graceful-restart"><td><code>request ospf graceful-restart</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).<br>Usage: request ospf graceful-restart. The engine originates one Grace-LSA per<br>interface, persists the non-volatile restart fact, and suppresses route churn<br>so the FIB is retained across the ensuing control-plane restart. Refused when<br>graceful-restart is not configured.</td></tr>
 <tr id="cmd-request-reboot"><td><code>request reboot</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Gracefully shutdown then reboot the system.</td></tr>
 <tr id="cmd-request-reload"><td><code>request reload</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Reload the configuration without restarting.</td></tr>
 <tr id="cmd-request-shutdown"><td><code>request shutdown</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Gracefully shutdown: drain connections, close peers, exit.</td></tr>
@@ -960,6 +965,7 @@
                         <a href="../performance/">Performance</a>
                         <a href="../compare/">Compare</a>
                         <a href="../roadmap/">Roadmap</a>
+                        <a href="../milestones/">Milestones</a>
                         <a href="../changes/">Changes</a>
                         <a href="../activity/">Activity</a>
                     </div>

@@ -45,6 +45,8 @@
                             <span class="nav-dropdown-icon">🧬</span>
                             <span><strong>Configuration Reference</strong><small>The whole config as a searchable index: 35 sections from live YANG</small></span>
                         </a>
+                    </div>
+                    <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../../../dependencies/">
                             <span class="nav-dropdown-icon">📦</span>
                             <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
@@ -53,15 +55,26 @@
                             <span class="nav-dropdown-icon">⚡</span>
                             <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
                         </a>
-                    </div>
-                    <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../../../compare/">
                             <span class="nav-dropdown-icon">⚖️</span>
                             <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
                         </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button">Journey
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel">
+                    <div class="nav-dropdown-col">
                         <a class="nav-dropdown-item" href="../../../roadmap/">
                             <span class="nav-dropdown-icon">🗺️</span>
                             <span><strong>Roadmap</strong><small>The path to a first release you can trust</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../milestones/">
+                            <span class="nav-dropdown-icon">🏁</span>
+                            <span><strong>Milestones</strong><small>Landmark features, oldest to newest</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../../changes/">
                             <span class="nav-dropdown-icon">🧾</span>
@@ -266,7 +279,7 @@ tagged release -- there are no tagged releases yet.</p>
 <p>Ze runs an SSH server on localhost for CLI access (<code>ze cli</code>, <code>ze show</code>, <code>ze signal</code>). This keeps the control plane authenticated even in multi-user environments. Set up credentials once:</p>
 <pre><code class="language-bash">bin/ze init
 </code></pre>
-<p>This prompts for username, password, SSH host (default <code>127.0.0.1</code>), and port (default <code>2222</code>). Credentials are stored locally with bcrypt-hashed passwords. For scripting:</p>
+<p>This prompts for username, password, SSH host (default <code>127.0.0.1</code>), port (default <code>2222</code>), and node name (default: hostname). Credentials are stored locally with bcrypt-hashed passwords. For scripting (later fields fall back to their defaults):</p>
 <!-- source: internal/plugins/init/main.go -- Run, defaultHost, defaultPort, bcrypt hashing -->
 
 <pre><code class="language-bash">echo -e &quot;admin\nsecret&quot; | bin/ze init
@@ -287,21 +300,29 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 
 bgp {
     router-id 10.0.0.1
-    local {
-        as 65000
-    }
 
     peer test-peer {
-        remote {
-            ip 10.0.0.2
-            as 65001
-        }
-        local {
-            ip 10.0.0.1
+        connection {
+            remote {
+                ip 10.0.0.2
+            }
+            local {
+                ip 10.0.0.1
+            }
         }
 
-        family {
-            ipv4/unicast
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 1000000
+                    }
+                }
+            }
         }
 
         process rib {
@@ -353,7 +374,7 @@ bin/ze cli -c &quot;show bgp peer list&quot;
 bin/ze cli -c &quot;show bgp peer test-peer detail&quot;
 
 # Watch live events
-bin/ze cli -c &quot;bgp monitor&quot;
+bin/ze cli -c &quot;monitor bgp&quot;
 </code></pre>
 <!-- source: internal/component/cli/client/main.go -- Execute, StreamMonitor -->
 
@@ -367,7 +388,20 @@ bin/ze example-local.conf
 </code></pre>
 <!-- source: internal/test/cli/cmd_peer.go -- ze-test peer command -->
 
-<p>Where <code>example-local.conf</code> uses <code>remote { ip 127.0.0.1; }</code> and <code>port 1179</code>.</p>
+<p>Where <code>example-local.conf</code> is the config above with the peer's <code>connection</code>
+block pointed at the local sink, so ze dials <code>127.0.0.1:1179</code> instead of
+<code>10.0.0.2</code>:</p>
+<pre><code>        connection {
+            remote {
+                ip 127.0.0.1
+                port 1179
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+</code></pre>
+<p>The sink's <code>--asn 65001</code> matches the peer's <code>session { asn { remote 65001 } }</code>.</p>
 <h2>Stop</h2>
 <pre><code class="language-bash">bin/ze signal stop             # graceful shutdown
 bin/ze signal restart          # graceful restart (preserves routes via GR)
@@ -398,6 +432,7 @@ bin/ze signal restart          # graceful restart (preserves routes via GR)
                         <a href="../../../performance/">Performance</a>
                         <a href="../../../compare/">Compare</a>
                         <a href="../../../roadmap/">Roadmap</a>
+                        <a href="../../../milestones/">Milestones</a>
                         <a href="../../../changes/">Changes</a>
                         <a href="../../../activity/">Activity</a>
                     </div>

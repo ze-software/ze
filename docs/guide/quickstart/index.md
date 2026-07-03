@@ -33,7 +33,7 @@ Ze runs an SSH server on localhost for CLI access (`ze cli`, `ze show`, `ze sign
 bin/ze init
 ```
 
-This prompts for username, password, SSH host (default `127.0.0.1`), and port (default `2222`). Credentials are stored locally with bcrypt-hashed passwords. For scripting:
+This prompts for username, password, SSH host (default `127.0.0.1`), port (default `2222`), and node name (default: hostname). Credentials are stored locally with bcrypt-hashed passwords. For scripting (later fields fall back to their defaults):
 <!-- source: internal/plugins/init/main.go -- Run, defaultHost, defaultPort, bcrypt hashing -->
 
 ```bash
@@ -61,21 +61,29 @@ plugin {
 
 bgp {
     router-id 10.0.0.1
-    local {
-        as 65000
-    }
 
     peer test-peer {
-        remote {
-            ip 10.0.0.2
-            as 65001
-        }
-        local {
-            ip 10.0.0.1
+        connection {
+            remote {
+                ip 10.0.0.2
+            }
+            local {
+                ip 10.0.0.1
+            }
         }
 
-        family {
-            ipv4/unicast
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 1000000
+                    }
+                }
+            }
         }
 
         process rib {
@@ -144,7 +152,7 @@ bin/ze cli -c "show bgp peer list"
 bin/ze cli -c "show bgp peer test-peer detail"
 
 # Watch live events
-bin/ze cli -c "bgp monitor"
+bin/ze cli -c "monitor bgp"
 ```
 <!-- source: internal/component/cli/client/main.go -- Execute, StreamMonitor -->
 
@@ -161,7 +169,23 @@ bin/ze example-local.conf
 ```
 <!-- source: internal/test/cli/cmd_peer.go -- ze-test peer command -->
 
-Where `example-local.conf` uses `remote { ip 127.0.0.1; }` and `port 1179`.
+Where `example-local.conf` is the config above with the peer's `connection`
+block pointed at the local sink, so ze dials `127.0.0.1:1179` instead of
+`10.0.0.2`:
+
+```
+        connection {
+            remote {
+                ip 127.0.0.1
+                port 1179
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+```
+
+The sink's `--asn 65001` matches the peer's `session { asn { remote 65001 } }`.
 
 ## Stop
 
