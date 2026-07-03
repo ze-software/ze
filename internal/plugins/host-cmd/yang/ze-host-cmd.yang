@@ -109,7 +109,7 @@ Linux only. Useful for spotting NIC errors or OOM events.";
                         enum alert;
                         enum crit;
                         enum err;
-                        enum warn;
+                        enum warning;
                         enum notice;
                         enum info;
                         enum debug;
