@@ -635,6 +635,13 @@ module ze-ospf-conf {
                         }
                     }
                 }
+                container bfd {
+                    description "RFC 5880 / RFC 5881 single-hop BFD for this OSPF interface. When enabled, a Full adjacency opens a single-hop BFD session; a BFD-detected failure declares the neighbor down far faster than the router-dead interval.";
+                    leaf enabled { type boolean; default false; description "Enable single-hop BFD failure detection on this interface."; }
+                    leaf min-tx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval)."; }
+                    leaf min-rx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Required minimum BFD receive interval (RFC 5880 Required Min RX Interval)."; }
+                    leaf multiplier { type uint8 { range "1..255"; } default 3; description "BFD detection multiplier (RFC 5880 Detect Mult)."; }
+                }
             }
         }
 
@@ -673,13 +680,6 @@ module ze-ospf-conf {
                     description "When this key is accepted on receive.";
                     leaf start { type string { length "1..64"; } description "RFC3339 start timestamp."; }
                     leaf end { type string { length "1..64"; } description "RFC3339 end timestamp."; }
-                }
-                container bfd {
-                    description "RFC 5880 / RFC 5881 single-hop BFD for this OSPF interface. When enabled, a Full adjacency opens a single-hop BFD session; a BFD-detected failure declares the neighbor down far faster than the router-dead interval.";
-                    leaf enabled { type boolean; default false; description "Enable single-hop BFD failure detection on this interface."; }
-                    leaf min-tx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Desired minimum BFD transmit interval (RFC 5880 Desired Min TX Interval)."; }
-                    leaf min-rx { type uint32 { range "1..10000"; } default 50; units milliseconds; description "Required minimum BFD receive interval (RFC 5880 Required Min RX Interval)."; }
-                    leaf multiplier { type uint8 { range "1..255"; } default 3; description "BFD detection multiplier (RFC 5880 Detect Mult)."; }
                 }
             }
         }
