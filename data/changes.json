@@ -5,39 +5,9 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "Control-Plane",
-        "category": "secure",
-        "key": "Control-Plane"
-      },
-      {
-        "label": "DDoS",
-        "category": "secure",
-        "key": "DDoS"
-      },
-      {
-        "label": "Feature Gates",
-        "category": "platform",
-        "key": "Feature Gates"
-      },
-      {
-        "label": "Appliance",
-        "category": "platform",
-        "key": "Appliance"
-      },
-      {
-        "label": "Installer",
-        "category": "platform",
-        "key": "Installer"
-      },
-      {
         "label": "BGP",
         "category": "routing",
         "key": "BGP"
-      },
-      {
-        "label": "L2TP",
-        "category": "services",
-        "key": "L2TP"
       },
       {
         "label": "IS-IS",
@@ -55,6 +25,36 @@
         "key": "DNS"
       },
       {
+        "label": "L2TP",
+        "category": "services",
+        "key": "L2TP"
+      },
+      {
+        "label": "Control-Plane",
+        "category": "secure",
+        "key": "Control-Plane"
+      },
+      {
+        "label": "DDoS",
+        "category": "secure",
+        "key": "DDoS"
+      },
+      {
+        "label": "Appliance",
+        "category": "platform",
+        "key": "Appliance"
+      },
+      {
+        "label": "Feature Gates",
+        "category": "platform",
+        "key": "Feature Gates"
+      },
+      {
+        "label": "Installer",
+        "category": "platform",
+        "key": "Installer"
+      },
+      {
         "label": "Under the Hood",
         "category": "platform",
         "key": "Under the Hood"
@@ -67,19 +67,9 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "Feature Gates",
-        "category": "platform",
-        "key": "Feature Gates"
-      },
-      {
-        "label": "OSPF",
-        "category": "routing",
-        "key": "OSPF"
-      },
-      {
-        "label": "IS-IS",
-        "category": "routing",
-        "key": "IS-IS"
+        "label": "Web UI",
+        "category": "operate",
+        "key": "Web UI"
       },
       {
         "label": "BGP",
@@ -87,9 +77,14 @@
         "key": "BGP"
       },
       {
-        "label": "Web UI",
-        "category": "operate",
-        "key": "Web UI"
+        "label": "IS-IS",
+        "category": "routing",
+        "key": "IS-IS"
+      },
+      {
+        "label": "OSPF",
+        "category": "routing",
+        "key": "OSPF"
       },
       {
         "label": "Telemetry",
@@ -97,14 +92,19 @@
         "key": "Telemetry"
       },
       {
-        "label": "Kernel",
+        "label": "Feature Gates",
         "category": "platform",
-        "key": "Kernel"
+        "key": "Feature Gates"
       },
       {
         "label": "Installer",
         "category": "platform",
         "key": "Installer"
+      },
+      {
+        "label": "Kernel",
+        "category": "platform",
+        "key": "Kernel"
       }
     ]
   },
@@ -113,6 +113,21 @@
     "intro": "Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR.",
     "is_draft": false,
     "topics": [
+      {
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "Flowspec",
+        "category": "routing",
+        "key": "Flowspec"
+      },
       {
         "label": "IS-IS",
         "category": "routing",
@@ -129,29 +144,9 @@
         "key": "RSVP-TE"
       },
       {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
-      },
-      {
-        "label": "Flowspec",
-        "category": "routing",
-        "key": "Flowspec"
-      },
-      {
         "label": "Firewall",
         "category": "secure",
         "key": "Firewall"
-      },
-      {
-        "label": "Interfaces",
-        "category": "platform",
-        "key": "Interfaces"
-      },
-      {
-        "label": "CLI",
-        "category": "operate",
-        "key": "CLI"
       },
       {
         "label": "Appliance",
@@ -162,6 +157,11 @@
         "label": "Installer",
         "category": "platform",
         "key": "Installer"
+      },
+      {
+        "label": "Interfaces",
+        "category": "platform",
+        "key": "Interfaces"
       }
     ]
   },
@@ -171,9 +171,9 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
       },
       {
         "label": "Web UI",
@@ -181,9 +181,9 @@
         "key": "Web UI"
       },
       {
-        "label": "CLI",
-        "category": "operate",
-        "key": "CLI"
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
       },
       {
         "label": "CoS",
@@ -218,19 +218,9 @@
         "key": "CLI"
       },
       {
-        "label": "MRT",
-        "category": "observe",
-        "key": "MRT"
-      },
-      {
-        "label": "Appliance",
-        "category": "platform",
-        "key": "Appliance"
-      },
-      {
-        "label": "Installer",
-        "category": "platform",
-        "key": "Installer"
+        "label": "Config",
+        "category": "operate",
+        "key": "Config"
       },
       {
         "label": "BGP",
@@ -248,9 +238,19 @@
         "key": "L2TP"
       },
       {
-        "label": "Config",
-        "category": "operate",
-        "key": "Config"
+        "label": "MRT",
+        "category": "observe",
+        "key": "MRT"
+      },
+      {
+        "label": "Appliance",
+        "category": "platform",
+        "key": "Appliance"
+      },
+      {
+        "label": "Installer",
+        "category": "platform",
+        "key": "Installer"
       },
       {
         "label": "Quality Improvement",
@@ -265,31 +265,6 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "MPLS",
-        "category": "routing",
-        "key": "MPLS"
-      },
-      {
-        "label": "LDP",
-        "category": "routing",
-        "key": "LDP"
-      },
-      {
-        "label": "RSVP-TE",
-        "category": "routing",
-        "key": "RSVP-TE"
-      },
-      {
-        "label": "Flow Export",
-        "category": "observe",
-        "key": "Flow Export"
-      },
-      {
-        "label": "gNMI",
-        "category": "automate",
-        "key": "gNMI"
-      },
-      {
         "label": "CLI",
         "category": "operate",
         "key": "CLI"
@@ -303,6 +278,31 @@
         "label": "BGP",
         "category": "routing",
         "key": "BGP"
+      },
+      {
+        "label": "LDP",
+        "category": "routing",
+        "key": "LDP"
+      },
+      {
+        "label": "MPLS",
+        "category": "routing",
+        "key": "MPLS"
+      },
+      {
+        "label": "RSVP-TE",
+        "category": "routing",
+        "key": "RSVP-TE"
+      },
+      {
+        "label": "gNMI",
+        "category": "automate",
+        "key": "gNMI"
+      },
+      {
+        "label": "Flow Export",
+        "category": "observe",
+        "key": "Flow Export"
       },
       {
         "label": "Appliance",
@@ -322,9 +322,9 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "IPsec",
-        "category": "secure",
-        "key": "IPsec"
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
       },
       {
         "label": "BGP",
@@ -332,14 +332,14 @@
         "key": "BGP"
       },
       {
-        "label": "Route Server",
-        "category": "routing",
-        "key": "Route Server"
-      },
-      {
         "label": "Flowspec",
         "category": "routing",
         "key": "Flowspec"
+      },
+      {
+        "label": "Route Server",
+        "category": "routing",
+        "key": "Route Server"
       },
       {
         "label": "RPKI",
@@ -347,24 +347,24 @@
         "key": "RPKI"
       },
       {
-        "label": "PPPoE",
-        "category": "services",
-        "key": "PPPoE"
-      },
-      {
         "label": "L2TP",
         "category": "services",
         "key": "L2TP"
       },
       {
-        "label": "CLI",
-        "category": "operate",
-        "key": "CLI"
+        "label": "PPPoE",
+        "category": "services",
+        "key": "PPPoE"
       },
       {
         "label": "Diagnostics",
         "category": "observe",
         "key": "Diagnostics"
+      },
+      {
+        "label": "IPsec",
+        "category": "secure",
+        "key": "IPsec"
       },
       {
         "label": "Appliance",
@@ -389,24 +389,9 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "DHCP",
-        "category": "services",
-        "key": "DHCP"
-      },
-      {
-        "label": "PPPoE",
-        "category": "services",
-        "key": "PPPoE"
-      },
-      {
-        "label": "CPE",
-        "category": "services",
-        "key": "CPE"
-      },
-      {
-        "label": "Interfaces",
-        "category": "platform",
-        "key": "Interfaces"
+        "label": "Web UI",
+        "category": "operate",
+        "key": "Web UI"
       },
       {
         "label": "BGP",
@@ -424,14 +409,29 @@
         "key": "RPKI"
       },
       {
+        "label": "CPE",
+        "category": "services",
+        "key": "CPE"
+      },
+      {
+        "label": "DHCP",
+        "category": "services",
+        "key": "DHCP"
+      },
+      {
+        "label": "PPPoE",
+        "category": "services",
+        "key": "PPPoE"
+      },
+      {
         "label": "Telemetry",
         "category": "observe",
         "key": "Telemetry"
       },
       {
-        "label": "Web UI",
-        "category": "operate",
-        "key": "Web UI"
+        "label": "Interfaces",
+        "category": "platform",
+        "key": "Interfaces"
       },
       {
         "label": "Under the Hood",
@@ -446,29 +446,9 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "Fleet",
-        "category": "platform",
-        "key": "Fleet"
-      },
-      {
-        "label": "Appliance",
-        "category": "platform",
-        "key": "Appliance"
-      },
-      {
-        "label": "PPPoE",
-        "category": "services",
-        "key": "PPPoE"
-      },
-      {
         "label": "BNG",
         "category": "services",
         "key": "BNG"
-      },
-      {
-        "label": "RADIUS",
-        "category": "services",
-        "key": "RADIUS"
       },
       {
         "label": "PPP",
@@ -476,9 +456,19 @@
         "key": "PPP"
       },
       {
-        "label": "Kernel",
-        "category": "platform",
-        "key": "Kernel"
+        "label": "PPPoE",
+        "category": "services",
+        "key": "PPPoE"
+      },
+      {
+        "label": "RADIUS",
+        "category": "services",
+        "key": "RADIUS"
+      },
+      {
+        "label": "Diagnostics",
+        "category": "observe",
+        "key": "Diagnostics"
       },
       {
         "label": "Firewall",
@@ -486,14 +476,24 @@
         "key": "Firewall"
       },
       {
+        "label": "Appliance",
+        "category": "platform",
+        "key": "Appliance"
+      },
+      {
+        "label": "Fleet",
+        "category": "platform",
+        "key": "Fleet"
+      },
+      {
+        "label": "Kernel",
+        "category": "platform",
+        "key": "Kernel"
+      },
+      {
         "label": "VPP",
         "category": "platform",
         "key": "VPP"
-      },
-      {
-        "label": "Diagnostics",
-        "category": "observe",
-        "key": "Diagnostics"
       }
     ]
   },
@@ -503,14 +503,9 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "Interfaces",
-        "category": "platform",
-        "key": "Interfaces"
-      },
-      {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
       },
       {
         "label": "Web UI",
@@ -518,9 +513,9 @@
         "key": "Web UI"
       },
       {
-        "label": "CLI",
-        "category": "operate",
-        "key": "CLI"
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
       },
       {
         "label": "CoS",
@@ -528,9 +523,9 @@
         "key": "CoS"
       },
       {
-        "label": "Telemetry",
-        "category": "observe",
-        "key": "Telemetry"
+        "label": "L2TP",
+        "category": "services",
+        "key": "L2TP"
       },
       {
         "label": "API",
@@ -538,9 +533,14 @@
         "key": "API"
       },
       {
-        "label": "L2TP",
-        "category": "services",
-        "key": "L2TP"
+        "label": "Telemetry",
+        "category": "observe",
+        "key": "Telemetry"
+      },
+      {
+        "label": "Interfaces",
+        "category": "platform",
+        "key": "Interfaces"
       },
       {
         "label": "Under the Hood",
@@ -555,9 +555,24 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "Security",
-        "category": "secure",
-        "key": "Security"
+        "label": "Web UI",
+        "category": "operate",
+        "key": "Web UI"
+      },
+      {
+        "label": "BFD",
+        "category": "routing",
+        "key": "BFD"
+      },
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "MCP",
+        "category": "automate",
+        "key": "MCP"
       },
       {
         "label": "Diagnostics",
@@ -570,24 +585,14 @@
         "key": "Telemetry"
       },
       {
-        "label": "Web UI",
-        "category": "operate",
-        "key": "Web UI"
+        "label": "Firewall",
+        "category": "secure",
+        "key": "Firewall"
       },
       {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
-      },
-      {
-        "label": "BFD",
-        "category": "routing",
-        "key": "BFD"
-      },
-      {
-        "label": "VPP",
-        "category": "platform",
-        "key": "VPP"
+        "label": "Security",
+        "category": "secure",
+        "key": "Security"
       },
       {
         "label": "Performance",
@@ -595,14 +600,9 @@
         "key": "Performance"
       },
       {
-        "label": "MCP",
-        "category": "automate",
-        "key": "MCP"
-      },
-      {
-        "label": "Firewall",
-        "category": "secure",
-        "key": "Firewall"
+        "label": "VPP",
+        "category": "platform",
+        "key": "VPP"
       }
     ]
   },
@@ -612,6 +612,11 @@
     "is_draft": false,
     "topics": [
       {
+        "label": "CoS",
+        "category": "services",
+        "key": "CoS"
+      },
+      {
         "label": "L2TP",
         "category": "services",
         "key": "L2TP"
@@ -620,11 +625,6 @@
         "label": "PPP",
         "category": "services",
         "key": "PPP"
-      },
-      {
-        "label": "TACACS+",
-        "category": "secure",
-        "key": "TACACS+"
       },
       {
         "label": "AAA",
@@ -637,14 +637,9 @@
         "key": "Firewall"
       },
       {
-        "label": "CoS",
-        "category": "services",
-        "key": "CoS"
-      },
-      {
-        "label": "VPP",
-        "category": "platform",
-        "key": "VPP"
+        "label": "TACACS+",
+        "category": "secure",
+        "key": "TACACS+"
       },
       {
         "label": "Interfaces",
@@ -660,6 +655,11 @@
         "label": "Under the Hood",
         "category": "platform",
         "key": "Under the Hood"
+      },
+      {
+        "label": "VPP",
+        "category": "platform",
+        "key": "VPP"
       }
     ]
   },
@@ -668,6 +668,11 @@
     "intro": "A full BFD engine, BGP route reflection and policy filters, a real REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.",
     "is_draft": false,
     "topics": [
+      {
+        "label": "Config Editor",
+        "category": "operate",
+        "key": "Config Editor"
+      },
       {
         "label": "BFD",
         "category": "routing",
@@ -679,29 +684,24 @@
         "key": "BGP"
       },
       {
-        "label": "API",
-        "category": "automate",
-        "key": "API"
-      },
-      {
-        "label": "Config Editor",
-        "category": "operate",
-        "key": "Config Editor"
-      },
-      {
-        "label": "Interfaces",
-        "category": "platform",
-        "key": "Interfaces"
-      },
-      {
         "label": "DHCP",
         "category": "services",
         "key": "DHCP"
       },
       {
+        "label": "API",
+        "category": "automate",
+        "key": "API"
+      },
+      {
         "label": "Appliance",
         "category": "platform",
         "key": "Appliance"
+      },
+      {
+        "label": "Interfaces",
+        "category": "platform",
+        "key": "Interfaces"
       },
       {
         "label": "Presentation: Net Manchester",
@@ -716,9 +716,24 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "Interfaces",
-        "category": "platform",
-        "key": "Interfaces"
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "Config",
+        "category": "operate",
+        "key": "Config"
+      },
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "Graceful Restart",
+        "category": "routing",
+        "key": "Graceful Restart"
       },
       {
         "label": "DHCP",
@@ -736,29 +751,14 @@
         "key": "Plugins"
       },
       {
-        "label": "Config",
-        "category": "operate",
-        "key": "Config"
-      },
-      {
-        "label": "CLI",
-        "category": "operate",
-        "key": "CLI"
-      },
-      {
         "label": "Looking Glass",
         "category": "observe",
         "key": "Looking Glass"
       },
       {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
-      },
-      {
-        "label": "Graceful Restart",
-        "category": "routing",
-        "key": "Graceful Restart"
+        "label": "Interfaces",
+        "category": "platform",
+        "key": "Interfaces"
       },
       {
         "label": "Under the Hood",
@@ -778,24 +778,14 @@
         "key": "Web UI"
       },
       {
-        "label": "Fleet",
-        "category": "platform",
-        "key": "Fleet"
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
       },
       {
         "label": "Redistribution",
         "category": "routing",
         "key": "Redistribution"
-      },
-      {
-        "label": "Plugins",
-        "category": "automate",
-        "key": "Plugins"
-      },
-      {
-        "label": "Security",
-        "category": "secure",
-        "key": "Security"
       },
       {
         "label": "DNS",
@@ -808,14 +798,24 @@
         "key": "MCP"
       },
       {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
+        "label": "Plugins",
+        "category": "automate",
+        "key": "Plugins"
       },
       {
         "label": "Telemetry",
         "category": "observe",
         "key": "Telemetry"
+      },
+      {
+        "label": "Security",
+        "category": "secure",
+        "key": "Security"
+      },
+      {
+        "label": "Fleet",
+        "category": "platform",
+        "key": "Fleet"
       },
       {
         "label": "Performance",
@@ -830,21 +830,6 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "RPKI",
-        "category": "routing",
-        "key": "RPKI"
-      },
-      {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
-      },
-      {
-        "label": "Graceful Restart",
-        "category": "routing",
-        "key": "Graceful Restart"
-      },
-      {
         "label": "CLI",
         "category": "operate",
         "key": "CLI"
@@ -855,6 +840,26 @@
         "key": "YANG"
       },
       {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "Graceful Restart",
+        "category": "routing",
+        "key": "Graceful Restart"
+      },
+      {
+        "label": "RPKI",
+        "category": "routing",
+        "key": "RPKI"
+      },
+      {
+        "label": "Plugins",
+        "category": "automate",
+        "key": "Plugins"
+      },
+      {
         "label": "Security",
         "category": "secure",
         "key": "Security"
@@ -863,11 +868,6 @@
         "label": "Interop",
         "category": "meta",
         "key": "Interop"
-      },
-      {
-        "label": "Plugins",
-        "category": "automate",
-        "key": "Plugins"
       }
     ]
   },
@@ -877,14 +877,9 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "Security",
-        "category": "secure",
-        "key": "Security"
-      },
-      {
-        "label": "RBAC",
-        "category": "secure",
-        "key": "RBAC"
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
       },
       {
         "label": "Config",
@@ -897,14 +892,9 @@
         "key": "Config Editor"
       },
       {
-        "label": "Storage",
-        "category": "platform",
-        "key": "Storage"
-      },
-      {
-        "label": "CLI",
-        "category": "operate",
-        "key": "CLI"
+        "label": "Graceful Restart",
+        "category": "routing",
+        "key": "Graceful Restart"
       },
       {
         "label": "Telemetry",
@@ -912,9 +902,19 @@
         "key": "Telemetry"
       },
       {
-        "label": "Graceful Restart",
-        "category": "routing",
-        "key": "Graceful Restart"
+        "label": "RBAC",
+        "category": "secure",
+        "key": "RBAC"
+      },
+      {
+        "label": "Security",
+        "category": "secure",
+        "key": "Security"
+      },
+      {
+        "label": "Storage",
+        "category": "platform",
+        "key": "Storage"
       }
     ]
   },
@@ -924,16 +924,6 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
-      },
-      {
-        "label": "Graceful Restart",
-        "category": "routing",
-        "key": "Graceful Restart"
-      },
-      {
         "label": "CLI",
         "category": "operate",
         "key": "CLI"
@@ -944,14 +934,24 @@
         "key": "Config Editor"
       },
       {
-        "label": "Under the Hood",
-        "category": "platform",
-        "key": "Under the Hood"
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "Graceful Restart",
+        "category": "routing",
+        "key": "Graceful Restart"
       },
       {
         "label": "Quality Improvement",
         "category": "platform",
         "key": "Quality Improvement"
+      },
+      {
+        "label": "Under the Hood",
+        "category": "platform",
+        "key": "Under the Hood"
       }
     ]
   },
@@ -961,9 +961,9 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "Route Server",
-        "category": "routing",
-        "key": "Route Server"
+        "label": "Config",
+        "category": "operate",
+        "key": "Config"
       },
       {
         "label": "BGP",
@@ -971,14 +971,14 @@
         "key": "BGP"
       },
       {
+        "label": "Route Server",
+        "category": "routing",
+        "key": "Route Server"
+      },
+      {
         "label": "Plugins",
         "category": "automate",
         "key": "Plugins"
-      },
-      {
-        "label": "Config",
-        "category": "operate",
-        "key": "Config"
       },
       {
         "label": "Chaos",
@@ -998,24 +998,14 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
-      },
-      {
-        "label": "Chaos",
-        "category": "observe",
-        "key": "Chaos"
-      },
-      {
-        "label": "IETF Draft: ATTR_TOMBSTONE",
-        "category": "meta",
-        "key": "IETF Draft"
-      },
-      {
         "label": "Config",
         "category": "operate",
         "key": "Config"
+      },
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
       },
       {
         "label": "Plugins",
@@ -1023,9 +1013,19 @@
         "key": "Plugins"
       },
       {
+        "label": "Chaos",
+        "category": "observe",
+        "key": "Chaos"
+      },
+      {
         "label": "Under the Hood",
         "category": "platform",
         "key": "Under the Hood"
+      },
+      {
+        "label": "IETF Draft: ATTR_TOMBSTONE",
+        "category": "meta",
+        "key": "IETF Draft"
       }
     ]
   },
@@ -1035,24 +1035,9 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "Chaos",
-        "category": "observe",
-        "key": "Chaos"
-      },
-      {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
-      },
-      {
         "label": "Config",
         "category": "operate",
         "key": "Config"
-      },
-      {
-        "label": "Plugins",
-        "category": "automate",
-        "key": "Plugins"
       },
       {
         "label": "Config Editor",
@@ -1060,9 +1045,24 @@
         "key": "Config Editor"
       },
       {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
         "label": "ExaBGP Migration",
         "category": "automate",
         "key": "ExaBGP Migration"
+      },
+      {
+        "label": "Plugins",
+        "category": "automate",
+        "key": "Plugins"
+      },
+      {
+        "label": "Chaos",
+        "category": "observe",
+        "key": "Chaos"
       },
       {
         "label": "Performance",
@@ -1082,24 +1082,24 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
-      },
-      {
-        "label": "Plugins",
-        "category": "automate",
-        "key": "Plugins"
-      },
-      {
         "label": "Config Editor",
         "category": "operate",
         "key": "Config Editor"
       },
       {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
         "label": "ExaBGP Migration",
         "category": "automate",
         "key": "ExaBGP Migration"
+      },
+      {
+        "label": "Plugins",
+        "category": "automate",
+        "key": "Plugins"
       },
       {
         "label": "Quality Improvement",
@@ -1114,9 +1114,19 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "Plugins",
-        "category": "automate",
-        "key": "Plugins"
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "Config",
+        "category": "operate",
+        "key": "Config"
+      },
+      {
+        "label": "Config Editor",
+        "category": "operate",
+        "key": "Config Editor"
       },
       {
         "label": "BGP",
@@ -1134,19 +1144,9 @@
         "key": "ExaBGP Migration"
       },
       {
-        "label": "Config",
-        "category": "operate",
-        "key": "Config"
-      },
-      {
-        "label": "Config Editor",
-        "category": "operate",
-        "key": "Config Editor"
-      },
-      {
-        "label": "CLI",
-        "category": "operate",
-        "key": "CLI"
+        "label": "Plugins",
+        "category": "automate",
+        "key": "Plugins"
       },
       {
         "label": "Quality Improvement",
@@ -1154,14 +1154,14 @@
         "key": "Quality Improvement"
       },
       {
-        "label": "Under the Hood",
-        "category": "platform",
-        "key": "Under the Hood"
-      },
-      {
         "label": "Storage",
         "category": "platform",
         "key": "Storage"
+      },
+      {
+        "label": "Under the Hood",
+        "category": "platform",
+        "key": "Under the Hood"
       }
     ]
   },
@@ -1171,9 +1171,9 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "Under the Hood",
-        "category": "platform",
-        "key": "Under the Hood"
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
       },
       {
         "label": "Config",
@@ -1181,9 +1181,9 @@
         "key": "Config"
       },
       {
-        "label": "Plugins",
-        "category": "automate",
-        "key": "Plugins"
+        "label": "Config Editor",
+        "category": "operate",
+        "key": "Config Editor"
       },
       {
         "label": "YANG",
@@ -1191,24 +1191,24 @@
         "key": "YANG"
       },
       {
-        "label": "Config Editor",
-        "category": "operate",
-        "key": "Config Editor"
-      },
-      {
-        "label": "CLI",
-        "category": "operate",
-        "key": "CLI"
-      },
-      {
         "label": "BGP",
         "category": "routing",
         "key": "BGP"
       },
       {
+        "label": "Plugins",
+        "category": "automate",
+        "key": "Plugins"
+      },
+      {
         "label": "Quality Improvement",
         "category": "platform",
         "key": "Quality Improvement"
+      },
+      {
+        "label": "Under the Hood",
+        "category": "platform",
+        "key": "Under the Hood"
       }
     ]
   },
@@ -1218,29 +1218,19 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "Graceful Restart",
-        "category": "routing",
-        "key": "Graceful Restart"
-      },
-      {
-        "label": "Plugins",
-        "category": "automate",
-        "key": "Plugins"
-      },
-      {
-        "label": "ExaBGP Migration",
-        "category": "automate",
-        "key": "ExaBGP Migration"
-      },
-      {
-        "label": "Diagnostics",
-        "category": "observe",
-        "key": "Diagnostics"
-      },
-      {
         "label": "Config",
         "category": "operate",
         "key": "Config"
+      },
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "Graceful Restart",
+        "category": "routing",
+        "key": "Graceful Restart"
       },
       {
         "label": "API",
@@ -1248,9 +1238,19 @@
         "key": "API"
       },
       {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
+        "label": "ExaBGP Migration",
+        "category": "automate",
+        "key": "ExaBGP Migration"
+      },
+      {
+        "label": "Plugins",
+        "category": "automate",
+        "key": "Plugins"
+      },
+      {
+        "label": "Diagnostics",
+        "category": "observe",
+        "key": "Diagnostics"
       }
     ]
   },
@@ -1265,14 +1265,19 @@
         "key": "BGP"
       },
       {
+        "label": "Flowspec",
+        "category": "routing",
+        "key": "Flowspec"
+      },
+      {
         "label": "Graceful Restart",
         "category": "routing",
         "key": "Graceful Restart"
       },
       {
-        "label": "Plugins",
-        "category": "automate",
-        "key": "Plugins"
+        "label": "MPLS",
+        "category": "routing",
+        "key": "MPLS"
       },
       {
         "label": "API",
@@ -1280,14 +1285,9 @@
         "key": "API"
       },
       {
-        "label": "Flowspec",
-        "category": "routing",
-        "key": "Flowspec"
-      },
-      {
-        "label": "MPLS",
-        "category": "routing",
-        "key": "MPLS"
+        "label": "Plugins",
+        "category": "automate",
+        "key": "Plugins"
       },
       {
         "label": "Quality Improvement",
@@ -1302,31 +1302,6 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "Security",
-        "category": "secure",
-        "key": "Security"
-      },
-      {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
-      },
-      {
-        "label": "MPLS",
-        "category": "routing",
-        "key": "MPLS"
-      },
-      {
-        "label": "Route Server",
-        "category": "routing",
-        "key": "Route Server"
-      },
-      {
-        "label": "Flowspec",
-        "category": "routing",
-        "key": "Flowspec"
-      },
-      {
         "label": "CLI",
         "category": "operate",
         "key": "CLI"
@@ -1340,6 +1315,31 @@
         "label": "Config Editor",
         "category": "operate",
         "key": "Config Editor"
+      },
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "Flowspec",
+        "category": "routing",
+        "key": "Flowspec"
+      },
+      {
+        "label": "MPLS",
+        "category": "routing",
+        "key": "MPLS"
+      },
+      {
+        "label": "Route Server",
+        "category": "routing",
+        "key": "Route Server"
+      },
+      {
+        "label": "Security",
+        "category": "secure",
+        "key": "Security"
       },
       {
         "label": "Quality Improvement",
@@ -1386,19 +1386,9 @@
     "is_draft": false,
     "topics": [
       {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
-      },
-      {
-        "label": "Flowspec",
-        "category": "routing",
-        "key": "Flowspec"
-      },
-      {
-        "label": "ExaBGP Migration",
-        "category": "automate",
-        "key": "ExaBGP Migration"
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
       },
       {
         "label": "Config",
@@ -1411,14 +1401,24 @@
         "key": "Config Editor"
       },
       {
-        "label": "CLI",
-        "category": "operate",
-        "key": "CLI"
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "Flowspec",
+        "category": "routing",
+        "key": "Flowspec"
       },
       {
         "label": "API",
         "category": "automate",
         "key": "API"
+      },
+      {
+        "label": "ExaBGP Migration",
+        "category": "automate",
+        "key": "ExaBGP Migration"
       }
     ]
   }
