@@ -10,7 +10,7 @@
                 [
                     {"href": "features/", "icon": "🧩", "title": "Features", "desc": "%(features)s features, color-coded by category"},
                     {"href": "cli/", "icon": "⌨️", "title": "CLI Reference", "desc": "%(cli_commands)s commands, generated from the live binary"},
-                    {"href": "config-reference/", "icon": "🧬", "title": "Configuration Reference", "desc": "The whole config as a searchable index: %(config_sections)s sections from live YANG"}
+                    {"href": "config-reference/", "icon": "🧬", "title": "Configuration Reference", "desc": "%(config_sections)s sections, indexed from live YANG"}
                 ],
                 [
                     {"href": "dependencies/", "icon": "📦", "title": "Dependencies", "desc": "%(dependencies)s direct packages, generated from go.mod"},
