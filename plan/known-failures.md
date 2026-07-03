@@ -3,77 +3,35 @@
 Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before Any
 Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
 
-**Status 2026-07-02: two open failures (below), unrelated to spec-as112/cos/plugin-process-boundary work.**
-`internal/component/plugin/all`'s golden-snapshot tests
-(`TestRegisteredPluginNames`/`TestRegisteredWireMethods`/`TestYANGSchemaProviders`)
-also intermittently fail during the plugin-process-boundary work session --
-confirmed under both an untagged `go test` (reports isis/ldp/ospf/rsvp-te as
-"missing", a build-tag-scoping artifact of not passing the full tag set) and
-the full tagged build (reports new OSPF wire-methods -- graceful-restart,
-instance, ipv6, segment-routing -- as "unexpected," i.e. not yet in the
-checked-in `testdata/*.snapshot`). `git status` confirms
-`internal/component/plugin/all/all.go` and all 3 snapshot files are
-modified by the same concurrent OSPF session tracked below, not this
-session (which never touched `internal/component/plugin/all/`).
-Every previously tracked entry from 2026-07-01 is resolved (see below). Three
-were already fixed by shipped specs (621, 887, 888) and merely stale in this
-log; the kernel flake and the cos-vendor fixtures were fixed 2026-07-01. The
-`ddos/detect` build break (concurrent cp-survival session) that briefly
-blocked `go build ./...` and `go test ./internal/component/doctor/...` on
-2026-07-02 during the AS112 doctor-check review cycle is now resolved --
-`make ze-validate` run 2026-07-02 during the plugin-process-boundary work
-(traffic-usage/flow-export/ddos-detect fixes + new ze-plugin-boundary-check)
-shows 39 unwired-symbol issues, entirely in `internal/component/ike/dataplane/**`,
-`internal/component/trafficstat/service.go`, `internal/core/stats/**`,
-`internal/plugins/ldp/**`, and `internal/plugins/ospf/**` -- confirmed via
-`git status` that every one of those paths is modified/untracked by other
-concurrent sessions (VPP IKE dataplane, an EWMA/stats package, LDP adjacency
-work, and the same ongoing OSPF extension work already tracked below), none
-touched by this session; `make ze-lint-changed`, `go vet`, and
-`go test ./internal/plugins/{trafficusage,flowexport,ddos/detect}/... ./scripts/checks/...`
-all pass clean for every file this session changed.
-`go build ./...`'s only remaining failure is the OSPF entry below, which has
-since moved to a different symbol (`gr.go:282`), consistent with the same
-concurrent OSPF session continuing to iterate.
+**Status 2026-07-03: three open entries (below).**
+The OSPF build break and `plugin/all` golden-snapshot failures from 2026-07-02
+are resolved (the concurrent OSPF session's `multi_instance.go` work landed and
+snapshots are current). Every previously tracked entry from 2026-07-01 and
+earlier remains resolved (see below).
 
-### `internal/component/doctor` -- 4 listener/schema tests fail on this macOS dev machine, pre-existing, not attributable to the AS112 doctor-check additions
+### `internal/component/doctor` -- 4 listener/schema tests fail on this macOS dev machine, pre-existing
 
-Observed 2026-07-02 via `go test ./internal/component/doctor/... -v` while
-adding `doctor-as112-watchdog-missing-withdraw` and
-`doctor-as112-global-origin-uncoordinated` (AC-10/AC-11 from the closed
-as112-3 spec): `TestCheckListeners_PortInUse`, `TestCheckListeners_API`,
-`TestCollectSchemaListeners_SSHDefault`, `TestCollectSchemaListeners_SSHExplicit`
-fail consistently (3/3 in isolated re-runs, `-count=3`). All four exercise
-`checkListeners`/`collectSchemaListeners` in `checks_listener.go`, a file
-this session never touched (session's only edits to this package:
-`checks_helpers.go` +`nestedSlice`, `doctor.go` +2 `runChecks` call lines,
-new `checks_as112_coordination.go`/`_test.go`). `TestCheckListeners_PortInUse`
-and `_API` bind a real `127.0.0.1:0` listener, then assert `checkListeners`
-reports that same port as unavailable -- consistent with this specific
-macOS host's socket stack allowing a second bind where the test expects
-exclusivity (a `SO_REUSEPORT`/dual-stack quirk, not exercised by any AS112
-code path). `go vet ./internal/component/doctor/...` and every AS112-scoped
-test (`-run 'AS112'`, `TestDoctorCoverageCodesRegistered`,
-`TestRunChecksExecutesRegisteredPluginCheck`) pass cleanly. Owner: whoever
-next investigates macOS listener-probe test portability; not spec-as112 scope.
+Observed 2026-07-02, re-confirmed 2026-07-03: `TestCheckListeners_PortInUse`,
+`TestCheckListeners_API`, `TestCollectSchemaListeners_SSHDefault`,
+`TestCollectSchemaListeners_SSHExplicit` fail consistently. All four exercise
+`checkListeners`/`collectSchemaListeners` in `checks_listener.go`.
+`TestCheckListeners_PortInUse` and `_API` bind a real `127.0.0.1:0` listener,
+then assert `checkListeners` reports that same port as unavailable -- consistent
+with this specific macOS host's socket stack allowing a second bind where the
+test expects exclusivity (a `SO_REUSEPORT`/dual-stack quirk). Owner: whoever
+next investigates macOS listener-probe test portability.
 
-### `internal/plugins/ospf/multi_instance.go` -- build fails, owned by a concurrent OSPF session, not attributable to spec-as112/cos work
+### `config/cli` + `config/yang` -- 2 tests fail, pre-existing
 
-Observed 2026-07-02 via a full `go build -tags 'ze_core ze_distro ze_gnmi
-ze_grpc ze_isis ze_ldp ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh
-ze_telemetry ze_web' ./cmd/ze` while preparing a commit for the spec-as112
-set (which never touches `internal/plugins/ospf`): `e.mInstanceMismatch
-undefined`, `cfg.instanceIDSet undefined`, `cfg.forInstance undefined` --
-struct fields referenced by `multi_instance.go` that do not yet exist on
-`*engine`/`ospfConfig`, consistent with a concurrent Claude session's
-in-progress OSPF multi-instance refactor mid-edit (confirmed via `git
-status`: `internal/plugins/ospf/**`, `docs/architecture/wire/ospf.md`,
-`docs/guide/ospf.md`, `plan/spec-ospf-*.md` all modified, none touched by
-this session). Building `./cmd/ze` WITHOUT the `ze_ospf` tag succeeds
-cleanly, and every AS112/iface/cos/sdk package this session touched passes
-`go vet`/`go test`/`make ze-lint-changed`/`make ze-doc-drift`/`make
-ze-validate` with zero related findings. Owner: whichever session is
-actively editing `internal/plugins/ospf/multi_instance.go`.
+Observed 2026-07-03:
+- `TestValidateListenerConflictRelated` (config/cli): expects a
+  `config-listener-conflict` diagnostic for a bgp-less `environment { web {
+  server ... } }` with two servers on the same ip:port; none produced.
+- `TestBuildCommandTreeEnsureExists` (config/yang): `ze-iface:interface-create-
+  dummy`/`interface-delete` ensure-exists handlers missing from the built tree.
+
+Both are in subsystems with concurrent iface/web work in the busy tree. Owner:
+whichever session edits iface command YANG / web listener-conflict validation.
 
 ## Harness notes (not failures)
 
@@ -84,29 +42,27 @@ timeouts, ~200 "failures"). Triage individual tests in isolation; treat a
 contiguous block of failures or a spike of timeouts in `--all` as a
 harness/resource artifact, not real regressions.
 
-### `internal/component/l2tp` `TestPeerTeardownWithdrawsSubscriberRoute` -- load-sensitive `-race` flake, not attributable to spec-as112 work
+### `internal/component/l2tp` `TestPeerTeardownWithdrawsSubscriberRoute` -- genuine `-race` data race, load-sensitive
 
-Observed 2026-07-01 during `make ze-verify-changed` while implementing the
-spec-as112 set (which never touches `internal/component/l2tp`): `go test
--race` reports a data race between `L2TPReactor.SetRouteObserver`
-(`reactor_setters.go:114`, called from the test itself) and
-`L2TPReactor.notifyRouteObserverDown` (`reactor_kernel.go:253`, called from
-the reactor's own goroutine) -- both racing on the same `RouteObserver`
-field with no synchronization between the test's setter call and the
-reactor's already-running background goroutine. Reproduced twice in the full
-`ze-unit-test-changed` sweep (58 packages under `-race` simultaneously) but
-passes 5/5 in isolation (`go test ./internal/component/l2tp/... -race -run
-TestPeerTeardownWithdrawsSubscriberRoute -count=5`), consistent with a
-genuine, load-sensitive scheduling race in the test's own setup (the test
-calls `SetRouteObserver` after `Start()`, with no barrier against the
-reactor goroutine already running), not a flake caused by, or fixed by, any
-spec-as112 change. Owner: whichever session next touches
-`internal/component/l2tp/reactor_test.go` around
-`TestPeerTeardownWithdrawsSubscriberRoute` -- likely fix is a synchronized
-handoff (set the observer before `Start()`, or via a channel) rather than a
-post-`Start()` direct field write.
+Observed 2026-07-01, re-confirmed 2026-07-03 (1/3 under `-race -count=3` in
+isolation): `go test -race` reports a data race between
+`L2TPReactor.SetRouteObserver` (`reactor_setters.go:114`, called from the test)
+and `L2TPReactor.notifyRouteObserverDown` (`reactor_kernel.go:253`, called from
+the reactor's goroutine) -- both racing on the same `RouteObserver` field. The
+test calls `SetRouteObserver` after `Start()`, with no barrier against the
+reactor goroutine already running. Fix: set the observer before `Start()`, or
+synchronize via a channel. Owner: whichever session next touches
+`internal/component/l2tp/reactor_test.go`.
 
 ## Resolved
+
+### 2026-07-02 -- `internal/plugins/ospf/multi_instance.go` build break -> concurrent OSPF session completed
+
+**Resolved 2026-07-03.** The concurrent OSPF multi-instance refactor landed:
+`e.mInstanceMismatch`, `cfg.instanceIDSet`, `cfg.forInstance` now exist. Full
+tagged build with `ze_ospf` succeeds. `plugin/all` golden-snapshot tests
+(`TestRegisteredPluginNames`/`TestRegisteredWireMethods`/`TestYANGSchemaProviders`)
+also pass.
 
 ### 2026-07-01 -- kernel-runtime-deps parallel-execution flake -> per-test isolation
 
