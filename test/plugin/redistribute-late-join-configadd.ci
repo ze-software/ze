@@ -1,0 +1,162 @@
+# Test: redistribute-late-join-configadd -- a peer ADDED by a later config apply
+#       (absent from the reactor map at injection time) receives the injected
+#       redistribute route via the peer-up replay.
+#
+# VALIDATES: AC-1 (the true late-join, config-added peer) -- the route is injected
+#            while the bgp block has NO peers, so AnnounceNLRIBatch("*") returns
+#            ErrNoPeersMatch and NOTHING is queued anywhere. A SIGHUP then adds
+#            peer1; reconcilePeers/AddPeer brings it up. peer1 was never in the
+#            map at injection, has no PluginRoutes and no ribOut, so the ONLY path
+#            that can deliver the injected route is the redistribute replay.
+# PREVENTS: the replay not firing for a config-added peer.
+#
+# This is the definitive isolation: unlike a reconnect (which keeps a per-peer
+# store), and unlike a dynamic peer (which the check-mode harness cannot create
+# on a custom port), a config-added peer is genuinely new AND is a normal static
+# peer, so nothing but the replay can feed it the injected route.
+
+# ze-peer: listens; ze connects after the config apply adds peer1.
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=30s
+# UPDATE for 10.0.0.1/32, origin incomplete, empty AS_PATH (iBGP), LOCAL_PREF 100,
+# NEXT_HOP 127.0.0.1. EOR is silently accepted whenever it arrives.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000140050400000064200A000001
+EOF_PEER
+
+# Python observer: inject the route while there are NO peers, before the reload.
+tmpfs=late-join-configadd-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+# // test-relax: removed the two blocking sleeps per the ci-sleep ratchet (baseline
+# 448). This does NOT weaken coverage: the expect=bgp:hex assertion is unchanged;
+# the settle-delay is replaced by wait_for_config()+ready() (fakeredist records the
+# route in its store regardless) and the keep-alive by wait_for_shutdown().
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Inject while the bgp block has no peers (nothing to queue to). The config is
+    # applied (wait_for_config) and the plugin is ready, so fakeredist records the
+    # route in its current-set store; nothing is queued to any peer. The peer-up
+    # replay re-emits from that store after the reload adds peer1.
+    resp = dispatch(api, 'request fakeredist emit add ipv4/unicast 10.0.0.1/32')
+    result = resp.get('result', {})
+    if result.get('status') != 'done':
+        runtime_fail(f'request fakeredist emit failed: {result}')
+        return
+
+    # Hold the injected route in fakeredist's store until the harness tears the
+    # test down. The pass is decided by peer1 receiving the replayed UPDATE (the
+    # expect= above), not by this observer.
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# Trigger: after the inject window, rewrite the config to add peer1 and SIGHUP.
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+# Wait past the observer's inject at ~2s so the route is injected with no peers.
+sleep 6
+cp config2.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+EOF_TRIGGER
+
+# Initial config: fakeredist + orchestrator + redistribute, but NO bgp peers.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external late-join-configadd-test {
+		run ./late-join-configadd-test.run
+		encoder json
+	}
+	internal redistribute-orchestrator {
+		use redistribute-orchestrator
+	}
+	internal fakeredist {
+		use fakeredist
+	}
+}
+
+redistribute {
+	destination bgp {
+		import fakeredist {
+			family [ ipv4/unicast ];
+		}
+	}
+}
+
+bgp {
+}
+EOF_CONF
+
+# Rewritten config: adds peer1 (no config route -- only the replay can feed it).
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external late-join-configadd-test {
+		run ./late-join-configadd-test.run
+		encoder json
+	}
+	internal redistribute-orchestrator {
+		use redistribute-orchestrator
+	}
+	internal fakeredist {
+		use fakeredist
+	}
+}
+
+redistribute {
+	destination bgp {
+		import fakeredist {
+			family [ ipv4/unicast ];
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF2
+
+# Process orchestration.
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=30s

@@ -328,16 +328,32 @@ actually produces. The test self-validates against its own setup.
   accept; route came through a different code path).
 - 362 (watchdog `.ci` flakiness was masked because the checker
   framework's `(conn, seq)` grouping hid ordering violations).
+- 1062 (three redistribute-late-join `.ci` passed with the late-join
+  replay disabled — the fixture was fine, but the route reached the peer
+  via an ALTERNATE production path, not the replay under test; caught
+  only by disabling `handleReplayBatch` and seeing all three stay green.
+  The reactor does not persist routes across reconnects itself
+  (`internal/component/bgp/reactor/peer.go:143`), so a reconnect is not
+  a clean genuinely-new-peer isolation).
 
 **Avoid it by.** Before citing a test as evidence that feature F
 works, name the single file and line in production code whose removal
 would make the test fail. If you cannot name a specific `file.go:line`,
 the fixture is wrong — the test proves only that its own setup is
-self-consistent.
+self-consistent. For a `.ci`/`.et` guarding specific behavior, do not
+just NAME that line — DISABLE it (early `return` / no-op / `if true {
+return }`) and confirm the test flips RED, then revert. A functional
+test that stays green with the producing function disabled guards
+nothing, even when its fixture is real. See
+`ai/rules/functional-test-gate.md` "Mutation-Verify the Test Actually Gates".
 
 **Recover if you hit it.** Rebuild the fixture from real production
 output. For `.ci` tests, capture the fixture from a live run, not from
-the test's own expectation.
+the test's own expectation. If the behavior is not observable
+end-to-end (a duplicate is suppressed, an alternate path delivers the
+same effect), guard it with a UNIT test that inspects the producing
+value directly and design the `.ci` to remove the alternate path
+(inject with no peers, use a genuinely-new peer, not a reconnect).
 
 ---
 

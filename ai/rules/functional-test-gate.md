@@ -53,12 +53,44 @@ find test/<directory>/ -name "*.ci" -o -name "*.et" | xargs grep -l '<feature-ke
 
 If no functional test exists for a user-facing behavior, that is a BLOCKER.
 
+## Mutation-Verify the Test Actually Gates (MANDATORY for behavior-guarding tests)
+
+A functional test that EXISTS is not the same as one that GATES. A `.ci`/`.et` can
+pass whether or not the feature works -- a **false-pass** -- when the observed effect
+reaches the assertion by a path OTHER than the one under test. Real example: three
+`redistribute-late-join*.ci` tests kept passing with the late-join replay
+(`handleReplayBatch`) disabled, so the route reached the peer by some path other than
+the replay -- they guarded nothing and shipped green
+(`plan/learned/1062-redistribute-late-join-replay.md`).
+
+For every NEW or CHANGED `.ci`/`.et` that is meant to guard a SPECIFIC behavior:
+
+1. Disable the producing function (the code the test exists to prove) -- an early
+   `return`, a no-op, or `if true { return }` at the top of the function.
+2. Re-run the test. It MUST flip to RED. If it still passes, the test does not gate
+   on the feature: find the alternate delivery path and design it out (inject with no
+   peers, remove the fallback store, use a genuinely-new peer instead of a reconnect),
+   or the test is worthless -- delete it, do not ship it.
+3. Revert the mutation immediately and confirm the test is green again.
+
+This is a MANUAL discipline. `make ze-mutation-test` / `ze-mutation-changed` (gomu,
+see `testing.md`) mutates Go source and runs only `go test` UNIT tests -- it never
+executes `.ci`/`.et`, so it cannot catch a functional false-pass. Nothing else in the
+pipeline does either.
+
+If a test genuinely cannot be made to fail under mutation because the behavior is not
+observable end-to-end (e.g. the reactor suppresses a duplicate announce, so per-peer
+targeting is wire-indistinguishable), guard it with a UNIT test that inspects the
+producing value directly, and say so in the test comment. Do NOT keep a `.ci` that
+passes with the feature disabled.
+
 ## Common Violations
 
 | Pattern | Why it's wrong |
 |---------|----------------|
 | "Unit tests cover this" | Unit tests prove the function works in isolation. They do not prove the daemon exposes the feature to users. |
 | "The wiring test passes" | Wiring proves reachability. Functional tests prove correct behavior through the full path. |
+| "The `.ci` is green" | A test that passes with the feature DISABLED (false-pass) guards nothing. Mutation-verify it: disable the producing function, confirm the test goes red. |
 | "I'll add the .ci test later" | Later never comes. The feature ships without end-to-end coverage. |
 | "The behavior is too simple to need a functional test" | Simple behaviors break when config parsing, CLI dispatch, or plugin registration changes. The functional test catches that. |
 | "There's no test infrastructure for this path" | Build the infrastructure or flag it as blocked. Do not skip the test. |

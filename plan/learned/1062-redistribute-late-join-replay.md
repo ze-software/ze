@@ -67,12 +67,33 @@ contract. This gap already affected l2tp/connected and blocked `spec-as112-bgp-r
   observable and must be guarded by a UNIT test that inspects `RouteEntry.Peer`
   (`TestOrchestratorTargetsNewPeerOnly`), not a `.ci`. Reassuring side effect: even a
   `*` fan-out cannot spam an already-up peer with duplicates.
-- **A truly dynamic/inbound peer is not expressible in the check-mode `.ci` harness:**
-  `ze-peer` dials in only under `--mode inject` (no per-message expect), and a
-  dynamic-only `group { ip dynamic }` opens no listener (needs a companion passive
-  peer). Isolate the replay path with a RECONNECT instead (`tcp_connections=2`, no RIB
-  plugin, no config route) so connection B can only receive a non-config route via
-  replay. Precedent: `watchdog-reconnect.ci`, `adj-rib-in-replay-on-peerup.ci`.
+- **A RECONNECT `.ci` does NOT isolate the redistribute replay path -- it is a
+  false-pass.** Mutation-verified: disabling `handleReplayBatch` (early `return`) still
+  PASSES the reconnect, `-withdrawn`, and `-targeting` `.ci`, so the route reaches the
+  peer by a path OTHER than the replay -- they never gated on the feature. The exact
+  false-path was not traced, but the reactor does NOT itself persist routes across
+  reconnects (`internal/component/bgp/reactor/peer.go:143` delegates that to external
+  programs; `peer_initial_sync.go:295` clears the unsent `opQueue` on teardown), so a
+  reconnecting session is a CONFIGURED peer, not a genuinely-new one. Isolate the replay
+  with a CONFIG-ADD instead: start `bgp {}` with ZERO peers, inject the route, then add
+  the peer via a config reload (write `config2.conf`, `kill -HUP`). The new peer is
+  genuinely absent from the reactor map at inject AND has no `opQueue` (no configured
+  peer slot to queue against), so it can receive the route ONLY via replay.
+  Mutation-verified: `redistribute-late-join-configadd.ci` FAILS when `handleReplayBatch`
+  is disabled.
+- **A truly dynamic/inbound peer IS expressible -- via interop, not the check-mode
+  harness.** `ze-peer` dials in only under `--mode inject` (no per-message expect), and
+  a dynamic-only `group { ip dynamic }` on a custom test port opens a PER-peer listener
+  (an anchor peer then claims the inbound). The real proof is the interop scenario
+  `redist-late-join-dynamic-frr`: on port 179 (root in Docker) the passive listener is
+  SHARED, so FRR dialing in from inside the group's range becomes a `dyn-<addr>` peer
+  and receives a route redistributed at Ze startup, before FRR connected -- deliverable
+  only by the peer-up replay.
+- **A passing `.ci` is not evidence a feature works -- mutation-test it.** Disable the
+  producing function and re-run: a test that still passes proves nothing (the observed
+  effect came from another path -- here a reconnect delivered the route without the
+  replay). This caught three false-pass late-join `.ci` that shipped in the first commit
+  before the config-add and interop tests replaced them.
 - A configured-but-unestablished peer gets `QueueAnnounce`, so injecting before it
   establishes does NOT isolate the replay path -- the queue delivers on establishment.
   The gap is ONLY for peers absent from the map at injection time.
@@ -100,5 +121,10 @@ contract. This gap already affected l2tp/connected and blocked `spec-as112-bgp-r
 - `internal/plugins/connected/connected.go` -- `reemitAll` + subscription
 - `internal/component/l2tp/route_observer.go`, `subsystem.go` -- `emitEntries`/`reemitAll` + subscription + unsub
 - `internal/test/plugins/fakeredist/{store.go(new),fakeredist.go,register.go}` -- current-set + replay for `.ci`
-- `test/plugin/redistribute-late-join{,-withdrawn,-targeting}.ci` (new)
+- `test/plugin/redistribute-late-join-configadd.ci` (new) -- inject with zero peers, add the
+  peer via config reload; only the replay can deliver (mutation-verified). Replaced the three
+  false-pass reconnect `.ci` (`redistribute-late-join{,-withdrawn,-targeting}.ci`) from the
+  first commit.
+- `test/interop/scenarios/redist-late-join-dynamic-frr/{ze.conf,frr.conf,check.py}` (new) --
+  FRR as a genuinely-new dynamic/inbound peer over the wire receives a pre-connection route
 - docs: `docs/features.md`, `docs/architecture/core-design.md`, `docs/guide/{configuration,plugins}.md`, `docs/functional-tests.md`, `ai/rules/plugin-design.md`
