@@ -413,7 +413,6 @@ def render_card(plugin, group):
                             {chips}
                         </div>
                         {meta}
-                        <span class="plugin-card-cta" aria-hidden="true">Open local page</span>
                     </article>""".format(
         cat=group["cat"],
         anchor=esc(plugin["slug"]),

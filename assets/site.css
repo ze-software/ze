@@ -18,12 +18,12 @@
     --pink-tint: #ffedf5;
     --pink-glow: rgba(255, 100, 171, 0.38);
 
-    --tangerine-base: #ff9440;
-    --tangerine-mid: #e0954f;
-    --tangerine-deep: #a34a00;
-    --tangerine-chip: #ffd6ae;
-    --tangerine-tint: #fff0e1;
-    --tangerine-glow: rgba(255, 148, 64, 0.38);
+    --tangerine-base: #ff5a1f;
+    --tangerine-mid: #f97316;
+    --tangerine-deep: #c2410c;
+    --tangerine-chip: #ffd2bd;
+    --tangerine-tint: #fff1eb;
+    --tangerine-glow: rgba(255, 90, 31, 0.38);
 
     --lemon-base: #f0748a;
     --lemon-mid: #eb6e82;
@@ -32,12 +32,12 @@
     --lemon-tint: #fff0f3;
     --lemon-glow: rgba(240, 116, 138, 0.38);
 
-    --mint-base: #22b573;
-    --mint-mid: #15803d;
-    --mint-deep: #0f6b34;
-    --mint-chip: #b2efd0;
-    --mint-tint: #e6fbef;
-    --mint-glow: rgba(34, 181, 115, 0.38);
+    --mint-base: #91d4dd;
+    --mint-mid: #68bec9;
+    --mint-deep: #2f8ca0;
+    --mint-chip: #d7f3f6;
+    --mint-tint: #effbfc;
+    --mint-glow: rgba(104, 190, 201, 0.3);
 
     --teal-base: #1abc9c;
     --teal-mid: #0aa88c;
@@ -60,12 +60,12 @@
     --grape-tint: #f3edfe;
     --grape-glow: rgba(157, 100, 245, 0.38);
 
-    --gold-base: #f0b429;
-    --gold-mid: #c98a1a;
-    --gold-deep: #8a5a00;
-    --gold-chip: #ffe7ad;
-    --gold-tint: #fff6e0;
-    --gold-glow: rgba(240, 180, 41, 0.4);
+    --gold-base: #ffd43b;
+    --gold-mid: #f6c21a;
+    --gold-deep: #b76a00;
+    --gold-chip: #fff0a6;
+    --gold-tint: #fff9d7;
+    --gold-glow: rgba(255, 212, 59, 0.42);
 
     /* Legacy accent names still used by inline highlights across pages. */
     --purple: #7a2fd6;
@@ -632,25 +632,42 @@ h2 {
 }
 
 /*
- * Topic color convention: a heading inherits its section's category color
- * so a reader can tell what a section is about at a glance, reusing the
- * same seven hues as the Features category legend (cat-operate, cat-routing,
- * cat-automate, cat-observe, cat-secure, cat-services, cat-platform). Mixed-
- * topic or umbrella headings (e.g. "Every feature Ze ships") stay the
- * default flat color below by simply not carrying a cat-* class.
+ * Project and category page titles use the same hue vocabulary as the cards,
+ * but with a candy gradient and a soft underline so top-level pages do not
+ * read as flat single-color headings.
  */
+#features-title,
+#perf-title,
 .section-head[class*="cat-"] :is(h1, h2),
 .md-content[class*="cat-"] > h1:first-child {
-    color: var(--acc-mid, var(--text));
+    position: relative;
+    z-index: 2;
+    overflow: visible;
+    display: inline-block;
+    width: fit-content;
+    max-width: min(18ch, 100%);
+    color: var(--sky-deep);
+    background: linear-gradient(
+        90deg,
+        var(--sky-deep),
+        var(--grape-deep) 52%,
+        var(--pink-deep)
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+#features-title + :is(p, blockquote),
+#perf-title + :is(p, blockquote),
+.section-head[class*="cat-"] :is(h1, h2) + :is(p, blockquote),
+.md-content[class*="cat-"] > h1:first-child + :is(p, blockquote) {
+    position: relative;
+    z-index: 1;
 }
 
 #hero-title {
     color: #111;
-}
-
-/* Performance reads as speed, not as the generic observe/mint category. */
-#perf-title {
-    color: #dc2626;
 }
 
 /*
@@ -1246,7 +1263,7 @@ section {
 .cards {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 1.1rem;
+    gap: 1.45rem 1.1rem;
 }
 
 /*
@@ -1273,6 +1290,20 @@ section {
         border-color 200ms ease,
         transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
         box-shadow 220ms ease;
+}
+
+.card[class*="cat-"] {
+    overflow: visible;
+    padding-top: 1.75rem;
+    border-color: rgba(255, 255, 255, 0.92);
+    border-top-color: transparent;
+    background:
+        radial-gradient(circle at 88% 0%, var(--acc-tint), transparent 42%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 250, 252, 0.94));
+}
+
+.card[class*="cat-"]::before {
+    content: none;
 }
 
 /*
@@ -1470,11 +1501,59 @@ section {
     content: "";
 }
 
+.card[class*="cat-"] .cat {
+    position: absolute;
+    top: -0.78rem;
+    left: 1.1rem;
+    z-index: 2;
+    margin: 0;
+    padding: 0.34rem 0.9rem;
+    border-radius: 999px;
+    background: var(--acc-deep);
+    color: #fff;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.42),
+        0 0.65rem 1.1rem -0.7rem var(--acc-glow);
+    font-size: 0.68rem;
+    line-height: 1;
+    transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.card.cat-services .cat {
+    background: var(--gold-base);
+    color: #3a2600;
+}
+
+.card[class*="cat-"]:hover .cat {
+    transform: translateY(-1px);
+}
+
+.card[class*="cat-"] .cat::before {
+    display: none;
+}
+
 .chips {
     display: flex;
     flex-wrap: wrap;
     gap: 0.35rem;
     margin: 0 0 0.8rem;
+}
+
+.card .chips {
+    padding: 0.5rem 0.55rem;
+    margin: 0.15rem 0 1rem;
+    border: 1px solid var(--acc-chip);
+    border-radius: 0.65rem;
+    background:
+        linear-gradient(180deg, var(--acc-tint), rgba(255, 255, 255, 0.76));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 0.45rem 1rem -0.8rem var(--acc-glow);
+}
+
+.card .chips + ul {
+    padding-top: 0.78rem;
+    border-top: 1px solid var(--acc-chip);
 }
 
 .chip {
@@ -1589,7 +1668,7 @@ section {
 }
 
 .card ul strong {
-    color: var(--acc-deep);
+    color: var(--text);
 }
 
 .card ul code {
@@ -2921,16 +3000,19 @@ body.search-open {
 }
 
 .plugin-card h3 {
-    margin: 0 0 0.55rem;
-    color: var(--acc-deep);
-    font-size: 1.12rem;
-    line-height: 1.25;
+    margin: 0 0 0.6rem;
+    color: var(--text);
+    font-size: 1.18rem;
+    line-height: 1.18;
+    letter-spacing: -0.025em;
+    overflow-wrap: anywhere;
 }
 
 .plugin-card h3 code {
     padding: 0;
     background: transparent;
     color: inherit;
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 1em;
 }
 
@@ -2957,7 +3039,7 @@ body.search-open {
 }
 
 .plugin-meta dt {
-    color: var(--acc-deep);
+    color: var(--text);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.68rem;
     font-weight: 800;
@@ -2967,28 +3049,14 @@ body.search-open {
 
 .plugin-meta dd {
     margin: 0;
-    color: var(--muted);
+    color: var(--text);
     font-size: 0.86rem;
 }
 
 .plugin-meta code {
-    color: var(--acc-deep);
+    color: var(--text);
 }
 
-.plugin-card-cta {
-    align-self: flex-start;
-    margin-top: auto;
-    color: var(--acc-deep);
-    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
-    font-size: 0.82rem;
-    font-weight: 800;
-    letter-spacing: 0.03em;
-}
-
-.plugin-card:hover .plugin-card-cta {
-    text-decoration: underline;
-    text-underline-offset: 0.2rem;
-}
 
 .plugin-detail-back {
     display: inline-flex;

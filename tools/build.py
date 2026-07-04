@@ -183,6 +183,7 @@ def step_compare():
         GH_PAGES / "compare" / "index.html",
         "../",
         COMPARE_DESC,
+        cat="routing",
     )
     return 0
 
