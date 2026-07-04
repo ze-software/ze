@@ -2,37 +2,37 @@
 
 A year of commits, at a glance.
 
-- Total added lines:** 1,778,125**
+- Total added lines:** 1,779,805**
  - Days with added lines:** 196**
- - Peak line day (2026-07-02):** 68,057**
+ - Peak line day:** 68,057**
  - Days shown:** 365**
  2025-07-05 to 2026-07-04
 
-## Go Code Stats
+## Go code composition
 
 ### Total Code
 
- - Files:** 5,266**
- - Total lines:** 1,140,093**
- - Code:** 849,382**
- - Blank:** 130,786**
- - Comments:** 159,925**
+ - Files:** 5,271**
+ - Total lines:** 1,140,742**
+ - Code:** 849,803**
+ - Blank:** 130,873**
+ - Comments:** 160,066**
 
 ### Production
 
- - Files:** 3,087**
- - Total lines:** 596,891**
- - Code:** 445,585**
- - Blank:** 63,695**
- - Comments:** 87,611**
+ - Files:** 3,089**
+ - Total lines:** 597,227**
+ - Code:** 445,794**
+ - Blank:** 63,730**
+ - Comments:** 87,703**
 
 ### Test
 
- - Files:** 2,179**
- - Total lines:** 543,202**
- - Code:** 403,797**
- - Blank:** 67,091**
- - Comments:** 72,314**
+ - Files:** 2,182**
+ - Total lines:** 543,515**
+ - Code:** 404,009**
+ - Blank:** 67,143**
+ - Comments:** 72,363**
 
 ### Dependencies
 
@@ -57,6 +57,10 @@ A year of commits, at a glance.
 | Fri 19 Dec 2025 | 27,408 |
 | Fri 27 Mar 2026 | 26,870 |
 | Fri 10 Apr 2026 | 25,830 |
+| Wed 20 May 2026 | 24,772 |
+| Thu 16 Apr 2026 | 23,114 |
+| Sat 20 Dec 2025 | 23,098 |
+| Sat 11 Apr 2026 | 21,425 |
 
 | Day | Commits |
 | --- | --- |
@@ -70,3 +74,7 @@ A year of commits, at a glance.
 | Mon 30 Mar 2026 | 57 |
 | Mon 23 Mar 2026 | 56 |
 | Thu 26 Mar 2026 | 53 |
+| Sat 18 Apr 2026 | 52 |
+| Sat 21 Mar 2026 | 50 |
+| Sun 05 Apr 2026 | 49 |
+| Sun 24 May 2026 | 48 |

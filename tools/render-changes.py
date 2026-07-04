@@ -242,19 +242,42 @@ def render_post_markdown(meta, intro, sections, covers):
 # --- Index (the scannable list of weeks) -----------------------------------
 
 INDEX_CSS = """        <style>
-            .ch-list { margin-top: 1.5rem; }
-            .ch-week { padding: 1.1rem 0; border-top: 1px solid var(--line); }
-            .ch-week:first-child { border-top: none; }
+            .ch-list { display: grid; gap: 0.45rem; margin-top: 1.5rem; }
+            .ch-week {
+                display: block;
+                padding: 0.95rem 1rem;
+                border: 1px solid transparent;
+                border-radius: 0.85rem;
+                color: inherit;
+                text-decoration: none;
+                transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+            }
+            .ch-week:hover,
+            .ch-week:focus-visible {
+                border-color: var(--line);
+                background: rgba(255, 254, 254, 0.72);
+                box-shadow: var(--clay);
+                transform: translateY(-1px);
+            }
+            .ch-week:focus-visible {
+                outline: 3px solid rgba(0, 159, 227, 0.22);
+                outline-offset: 2px;
+            }
             .ch-week.filtered-out { display: none; }
             .ch-filters { margin: 1.1rem 0 0.2rem; }
             .ch-empty { margin: 1.5rem 0; color: var(--muted); }
             .ch-empty.filtered-out { display: none; }
-            .ch-head { display: flex; align-items: baseline; gap: 1rem; justify-content: space-between; }
+            .ch-head { display: flex; align-items: baseline; gap: 1rem; justify-content: flex-start; }
             .ch-head h2 { margin: 0; font-size: 1.12rem; letter-spacing: -0.01em; }
-            .ch-head h2 a { text-decoration: none; color: var(--text); }
-            .ch-head h2 a:hover { color: var(--acc-deep, var(--muted)); }
-            .ch-read { font-size: 0.8rem; font-weight: 600; white-space: nowrap; text-decoration: none; color: var(--muted); }
-            .ch-read:hover { text-decoration: underline; }
+            .ch-week-title {
+                color: var(--text);
+                text-decoration: underline;
+                text-decoration-color: var(--sky-chip);
+                text-decoration-thickness: 0.16em;
+                text-underline-offset: 0.18em;
+            }
+            .ch-week:hover .ch-week-title,
+            .ch-week:focus-visible .ch-week-title { color: var(--sky-deep); text-decoration-color: var(--sky-base); }
             .ch-intro { margin: 0.3rem 0 0.65rem; color: var(--text); }
             .ch-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
             .ch-chip {
@@ -359,7 +382,8 @@ def render_index_html(weeks):
     legend_cats = [c for c in FILTER_ORDER if c in present]
 
     out = ['            <section aria-labelledby="changes-title">']
-    out.append('                <div class="section-head reveal">')
+    out.append('                <div class="section-head journey-hero reveal">')
+    out.append('                    <span class="journey-eyebrow">Weekly updates</span>')
     out.append('                    <h1 id="changes-title">Changes.</h1>')
     out.append(
         '                    <p>What shipped in Ze, newest first: the weekly '
@@ -387,14 +411,16 @@ def render_index_html(weeks):
     for w in weeks:
         slug = w["slug"]
         cats = " ".join(week_categories(w))
-        out.append('                    <article class="ch-week" data-cats="%s">' % html.escape(cats, quote=True))
+        out.append(
+            '                    <a class="ch-week" data-cats="%s" href="%s/" aria-label="Read Week of %s">'
+            % (html.escape(cats, quote=True), slug, slug)
+        )
         out.append('                        <div class="ch-head">')
         draft = '<span class="ch-draft">pending review</span>' if w["is_draft"] else ""
         out.append(
-            '                            <h2><a href="%s/">Week of %s</a>%s</h2>'
-            % (slug, slug, draft)
+            '                            <h2><span class="ch-week-title">Week of %s</span>%s</h2>'
+            % (slug, draft)
         )
-        out.append('                            <a class="ch-read" href="%s/">read &rarr;</a>' % slug)
         out.append("                        </div>")
         if w["intro"]:
             out.append('                        <p class="ch-intro">%s</p>' % html.escape(" ".join(w["intro"].split())))
@@ -406,7 +432,7 @@ def render_index_html(weeks):
                     % (t["category"], html.escape(t["label"]))
                 )
             out.append("                        </div>")
-        out.append("                    </article>")
+        out.append("                    </a>")
     out.append(
         '                    <p class="ch-empty filtered-out">No weeks in that '
         "category yet.</p>"

@@ -281,6 +281,7 @@ def step_roadmap():
         GH_PAGES / "roadmap" / "index.html",
         "../",
         ROADMAP_DESC,
+        journey_label="Release path",
     )
     return 0
 

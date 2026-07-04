@@ -936,6 +936,217 @@ section {
     line-height: 1.75;
 }
 
+.journey-hero {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    margin-bottom: clamp(1.2rem, 3vw, 2rem);
+    border: 2px solid rgba(255, 255, 255, 0.92);
+    border-radius: clamp(1.1rem, 2.5vw, 1.55rem);
+    padding: clamp(1.15rem, 2.4vw, 1.65rem);
+    background:
+        radial-gradient(circle at 86% 38%, rgba(157, 100, 245, 0.18), transparent 14rem),
+        radial-gradient(circle at 20% 18%, rgba(26, 188, 156, 0.14), transparent 16rem),
+        linear-gradient(135deg, rgba(255, 254, 254, 0.96), rgba(233, 245, 255, 0.84));
+    box-shadow: var(--clay), 0 1.7rem 4rem -2.2rem var(--shadow);
+    color: var(--text);
+}
+
+.journey-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(rgba(190, 120, 210, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(190, 120, 210, 0.08) 1px, transparent 1px);
+    background-size: 22px 22px;
+    mask-image: linear-gradient(115deg, #000, transparent 72%);
+    pointer-events: none;
+}
+
+.journey-hero::after {
+    content: "";
+    position: absolute;
+    right: clamp(0.8rem, 2vw, 1.2rem);
+    bottom: clamp(0.8rem, 2vw, 1.2rem);
+    width: min(12rem, 28vw);
+    height: min(12rem, 28vw);
+    border: 1px solid rgba(157, 100, 245, 0.24);
+    border-radius: 999px;
+    background:
+        radial-gradient(circle, transparent 55%, rgba(157, 100, 245, 0.16) 56%, transparent 57%),
+        radial-gradient(circle, rgba(0, 159, 227, 0.12), transparent 68%);
+    transform: translate(20%, 24%);
+    pointer-events: none;
+}
+
+.journey-eyebrow {
+    position: absolute;
+    top: clamp(1rem, 2vw, 1.25rem);
+    right: clamp(1rem, 2.4vw, 1.5rem);
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0;
+    color: var(--grape-deep);
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.journey-eyebrow::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--mint-base);
+    box-shadow: 0 0 1.1rem var(--mint-glow);
+}
+
+.journey-hero :is(h1, h2),
+.md-content .journey-hero :is(h1, h2) {
+    position: relative;
+    max-width: 18ch;
+    margin: 0;
+    color: var(--text);
+    background: linear-gradient(90deg, var(--grape-deep), var(--sky-deep) 54%, var(--teal-deep));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: clamp(2.25rem, 4.8vw, 4.15rem);
+    z-index: 2;
+    line-height: 0.92;
+    letter-spacing: -0.065em;
+    transform: translateY(-0.22em);
+    padding-bottom: 0;
+}
+
+#changes-title {
+    display: block;
+    overflow: visible;
+    line-height: 1.04;
+    padding-bottom: 0.12em;
+    margin-bottom: -0.36em;
+    z-index: 2;
+}
+
+.journey-hero p {
+    position: relative;
+    z-index: 1;
+    max-width: 45rem;
+    margin: 0.65rem 0 0;
+    color: var(--muted);
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.journey-hero code {
+    color: var(--grape-deep);
+    background: var(--grape-tint);
+}
+
+
+.roadmap-forward-note {
+    margin: 1.1rem 0 1rem;
+}
+
+.md-content > .roadmap-forward-note,
+.md-content > .roadmap-step-list {
+    max-width: none;
+}
+
+.md-content .roadmap-forward-note p {
+    max-width: 45rem;
+    margin: 0;
+    color: var(--muted);
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.roadmap-step-list {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: 1.5rem;
+}
+
+.roadmap-step {
+    position: relative;
+    padding: 0.95rem 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.85rem;
+    background: rgba(255, 254, 254, 0.42);
+    transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.roadmap-step:hover {
+    border-color: var(--line);
+    background: rgba(255, 254, 254, 0.72);
+    box-shadow: var(--clay);
+    transform: translateY(-1px);
+}
+
+.roadmap-step-muted {
+    background: rgba(255, 254, 254, 0.28);
+}
+
+.md-content .roadmap-step h2 {
+    margin: 0;
+    color: var(--text);
+    font-size: 1.12rem;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+}
+
+.md-content .roadmap-step p {
+    max-width: none;
+    margin: 0.3rem 0 0.65rem;
+    color: var(--text);
+    line-height: 1.55;
+}
+
+.roadmap-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.roadmap-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    padding: 0.08rem 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.4;
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.roadmap-chip[data-tone="operate"] { color: var(--sky-deep); background: var(--sky-tint); }
+.roadmap-chip[data-tone="routing"] { color: var(--tangerine-deep); background: var(--tangerine-tint); }
+.roadmap-chip[data-tone="services"] { color: var(--lemon-deep); background: var(--lemon-tint); }
+.roadmap-chip[data-tone="automate"] { color: var(--grape-deep); background: var(--grape-tint); }
+.roadmap-chip[data-tone="observe"] { color: var(--mint-deep); background: var(--mint-tint); }
+.roadmap-chip[data-tone="secure"] { color: var(--pink-deep); background: var(--pink-tint); }
+.roadmap-chip[data-tone="platform"] { color: var(--teal-deep); background: var(--teal-tint); }
+.roadmap-chip[data-tone="meta"] { color: var(--muted); background: var(--bg-soft); }
+@media (max-width: 620px) {
+    .journey-eyebrow {
+        position: relative;
+        top: auto;
+        right: auto;
+        margin-bottom: 0.5rem;
+    }
+
+    .journey-hero :is(h1, h2),
+    .md-content .journey-hero :is(h1, h2) {
+        font-size: clamp(2rem, 12vw, 3.2rem);
+    }
+}
+
 /*
  * Longer supporting prose goes here, under the section head, never in
  * its right column. The head's side text stays to a sentence or two so
@@ -1978,7 +2189,7 @@ footer {
     padding: 1rem 0 3rem;
 }
 
-.md-content > :not(table):not(pre):not(.cards):not(.audience):not(.config-explorer):not(.plugin-console):not(.plugin-groups):not(.plugin-detail-grid) {
+.md-content > :not(table):not(pre):not(.cards):not(.audience):not(.config-explorer):not(.plugin-console):not(.plugin-groups):not(.plugin-detail-grid):not(.journey-hero):not(.roadmap-forward-note):not(.roadmap-step-list) {
     max-width: 62rem;
 }
 
@@ -2218,9 +2429,31 @@ footer {
 }
 
 .cli-group table {
+    display: table;
+    width: 100%;
     margin: 0;
     border-radius: 0;
+    table-layout: fixed;
     box-shadow: none;
+}
+
+.cli-group th:nth-child(1),
+.cli-group td:nth-child(1) {
+    width: 18rem;
+}
+
+.cli-group th:nth-child(2),
+.cli-group td:nth-child(2) {
+    width: 7.5rem;
+}
+
+.cli-group th:nth-child(3),
+.cli-group td:nth-child(3) {
+    width: auto;
+}
+
+.cli-group td:nth-child(3) {
+    padding-right: 1rem;
 }
 
 .cli-mode {

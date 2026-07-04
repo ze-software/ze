@@ -474,8 +474,11 @@ def render_cells(
     return "\n".join(cells)
 
 
+TOP_DAY_LIMIT = 14
+
+
 def render_top_days(totals: dict[dt.date, int], empty_text: str) -> str:
-    rows = sorted(totals.items(), key=lambda item: (item[1], item[0]), reverse=True)[:10]
+    rows = sorted(totals.items(), key=lambda item: (item[1], item[0]), reverse=True)[:TOP_DAY_LIMIT]
     if not rows:
         return f'<tr><td colspan="2">{html.escape(empty_text)}</td></tr>'
     html_rows: list[str] = []

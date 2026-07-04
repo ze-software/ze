@@ -23,23 +23,46 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css?v=1aee5aade6" />
+        <link rel="stylesheet" href="../assets/site.css?v=ff69ef8208" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="feed.xml" />
         <style>
-            .ch-list { margin-top: 1.5rem; }
-            .ch-week { padding: 1.1rem 0; border-top: 1px solid var(--line); }
-            .ch-week:first-child { border-top: none; }
+            .ch-list { display: grid; gap: 0.45rem; margin-top: 1.5rem; }
+            .ch-week {
+                display: block;
+                padding: 0.95rem 1rem;
+                border: 1px solid transparent;
+                border-radius: 0.85rem;
+                color: inherit;
+                text-decoration: none;
+                transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+            }
+            .ch-week:hover,
+            .ch-week:focus-visible {
+                border-color: var(--line);
+                background: rgba(255, 254, 254, 0.72);
+                box-shadow: var(--clay);
+                transform: translateY(-1px);
+            }
+            .ch-week:focus-visible {
+                outline: 3px solid rgba(0, 159, 227, 0.22);
+                outline-offset: 2px;
+            }
             .ch-week.filtered-out { display: none; }
             .ch-filters { margin: 1.1rem 0 0.2rem; }
             .ch-empty { margin: 1.5rem 0; color: var(--muted); }
             .ch-empty.filtered-out { display: none; }
-            .ch-head { display: flex; align-items: baseline; gap: 1rem; justify-content: space-between; }
+            .ch-head { display: flex; align-items: baseline; gap: 1rem; justify-content: flex-start; }
             .ch-head h2 { margin: 0; font-size: 1.12rem; letter-spacing: -0.01em; }
-            .ch-head h2 a { text-decoration: none; color: var(--text); }
-            .ch-head h2 a:hover { color: var(--acc-deep, var(--muted)); }
-            .ch-read { font-size: 0.8rem; font-weight: 600; white-space: nowrap; text-decoration: none; color: var(--muted); }
-            .ch-read:hover { text-decoration: underline; }
+            .ch-week-title {
+                color: var(--text);
+                text-decoration: underline;
+                text-decoration-color: var(--sky-chip);
+                text-decoration-thickness: 0.16em;
+                text-underline-offset: 0.18em;
+            }
+            .ch-week:hover .ch-week-title,
+            .ch-week:focus-visible .ch-week-title { color: var(--sky-deep); text-decoration-color: var(--sky-base); }
             .ch-intro { margin: 0.3rem 0 0.65rem; color: var(--text); }
             .ch-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
             .ch-chip {
@@ -295,7 +318,8 @@
 
         <main id="top" tabindex="-1">
             <section aria-labelledby="changes-title">
-                <div class="section-head reveal">
+                <div class="section-head journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly updates</span>
                     <h1 id="changes-title">Changes.</h1>
                     <p>What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's <code>ze-news</code>. Each week's chips are the areas it touched; click a category to show just the weeks that touched it, click again to show everything, or click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the <a href="../roadmap/">roadmap</a> tracks the path to a stable release. For the landmark features on a timeline, see <a href="../milestones/">Milestones</a>.</p>
                 </div>
@@ -310,10 +334,9 @@
                     <button class="cat-meta" data-cat="meta" aria-pressed="false">Meta</button>
                 </div>
                 <div class="ch-list reveal">
-                    <article class="ch-week" data-cats="routing services secure platform">
+                    <a class="ch-week" data-cats="routing services secure platform" href="2026-06-25/" aria-label="Read Week of 2026-06-25">
                         <div class="ch-head">
-                            <h2><a href="2026-06-25/">Week of 2026-06-25</a></h2>
-                            <a class="ch-read" href="2026-06-25/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-06-25</span></h2>
                         </div>
                         <p class="ch-intro">Shipped across security, the appliance, routing, and observability this week.</p>
                         <div class="ch-chips">
@@ -329,11 +352,10 @@
                             <span class="ch-chip cat-platform">Installer</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing observe platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing observe platform" href="2026-06-22/" aria-label="Read Week of 2026-06-22">
                         <div class="ch-head">
-                            <h2><a href="2026-06-22/">Week of 2026-06-22</a></h2>
-                            <a class="ch-read" href="2026-06-22/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-06-22</span></h2>
                         </div>
                         <p class="ch-intro">Focused on trimming attack surface and rounding out OSPF.</p>
                         <div class="ch-chips">
@@ -346,11 +368,10 @@
                             <span class="ch-chip cat-platform">Installer</span>
                             <span class="ch-chip cat-platform">Kernel</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing secure platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing secure platform" href="2026-06-15/" aria-label="Read Week of 2026-06-15">
                         <div class="ch-head">
-                            <h2><a href="2026-06-15/">Week of 2026-06-15</a></h2>
-                            <a class="ch-read" href="2026-06-15/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-06-15</span></h2>
                         </div>
                         <p class="ch-intro">Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR.</p>
                         <div class="ch-chips">
@@ -365,11 +386,10 @@
                             <span class="ch-chip cat-platform">Installer</span>
                             <span class="ch-chip cat-platform">Interfaces</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing services platform meta">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing services platform meta" href="2026-06-08/" aria-label="Read Week of 2026-06-08">
                         <div class="ch-head">
-                            <h2><a href="2026-06-08/">Week of 2026-06-08</a></h2>
-                            <a class="ch-read" href="2026-06-08/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-06-08</span></h2>
                         </div>
                         <p class="ch-intro">A week of operator-facing polish: a real Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.</p>
                         <div class="ch-chips">
@@ -381,11 +401,10 @@
                             <span class="ch-chip cat-platform">Under the Hood</span>
                             <span class="ch-chip cat-meta">Presentation: LINX 126</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing services observe platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing services observe platform" href="2026-06-01/" aria-label="Read Week of 2026-06-01">
                         <div class="ch-head">
-                            <h2><a href="2026-06-01/">Week of 2026-06-01</a></h2>
-                            <a class="ch-read" href="2026-06-01/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-06-01</span></h2>
                         </div>
                         <p class="ch-intro">The CLI grammar rollout finished, MRT tooling arrived, and a handful of quiet-but-important reliability bugs got fixed.</p>
                         <div class="ch-chips">
@@ -399,11 +418,10 @@
                             <span class="ch-chip cat-platform">Installer</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing automate observe platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing automate observe platform" href="2026-05-25/" aria-label="Read Week of 2026-05-25">
                         <div class="ch-head">
-                            <h2><a href="2026-05-25/">Week of 2026-05-25</a></h2>
-                            <a class="ch-read" href="2026-05-25/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-05-25</span></h2>
                         </div>
                         <p class="ch-intro">MPLS grew a full label-switching stack, flow export and gNMI landed, and config commits became transactional.</p>
                         <div class="ch-chips">
@@ -418,11 +436,10 @@
                             <span class="ch-chip cat-platform">Appliance</span>
                             <span class="ch-chip cat-platform">Installer</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing services observe secure platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing services observe secure platform" href="2026-05-18/" aria-label="Read Week of 2026-05-18">
                         <div class="ch-head">
-                            <h2><a href="2026-05-18/">Week of 2026-05-18</a></h2>
-                            <a class="ch-read" href="2026-05-18/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-05-18</span></h2>
                         </div>
                         <p class="ch-intro">A full native IPsec/IKEv2 VPN stack, a route server for IXPs, and a big allocation-hunting pass across the BGP hot path.</p>
                         <div class="ch-chips">
@@ -439,11 +456,10 @@
                             <span class="ch-chip cat-platform">Installer</span>
                             <span class="ch-chip cat-platform">Performance</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing services observe platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing services observe platform" href="2026-05-11/" aria-label="Read Week of 2026-05-11">
                         <div class="ch-head">
-                            <h2><a href="2026-05-11/">Week of 2026-05-11</a></h2>
-                            <a class="ch-read" href="2026-05-11/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-05-11</span></h2>
                         </div>
                         <p class="ch-intro">CPE features round out, interface config gets restructured, and RPKI gains ASPA path verification.</p>
                         <div class="ch-chips">
@@ -458,11 +474,10 @@
                             <span class="ch-chip cat-platform">Interfaces</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="services observe secure platform">
+                    </a>
+                    <a class="ch-week" data-cats="services observe secure platform" href="2026-05-04/" aria-label="Read Week of 2026-05-04">
                         <div class="ch-head">
-                            <h2><a href="2026-05-04/">Week of 2026-05-04</a></h2>
-                            <a class="ch-read" href="2026-05-04/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-05-04</span></h2>
                         </div>
                         <p class="ch-intro">Two major subsystems landed this week: a fleet management tool for appliances, and a PPPoE access concentrator alongside VPP-backed NAT and ACLs.</p>
                         <div class="ch-chips">
@@ -477,11 +492,10 @@
                             <span class="ch-chip cat-platform">Kernel</span>
                             <span class="ch-chip cat-platform">VPP</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing services automate observe platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing services automate observe platform" href="2026-04-27/" aria-label="Read Week of 2026-04-27">
                         <div class="ch-head">
-                            <h2><a href="2026-04-27/">Week of 2026-04-27</a></h2>
-                            <a class="ch-read" href="2026-04-27/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-04-27</span></h2>
                         </div>
                         <p class="ch-intro">Interface configuration now rolls back cleanly on failure, the web UI got a dedicated CLI page, and traffic-control state survives more edge cases.</p>
                         <div class="ch-chips">
@@ -495,11 +509,10 @@
                             <span class="ch-chip cat-platform">Interfaces</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing automate observe secure platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing automate observe secure platform" href="2026-04-20/" aria-label="Read Week of 2026-04-20">
                         <div class="ch-head">
-                            <h2><a href="2026-04-20/">Week of 2026-04-20</a></h2>
-                            <a class="ch-read" href="2026-04-20/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-04-20</span></h2>
                         </div>
                         <p class="ch-intro">Security hardening, a new diagnostics subsystem, and a redesigned operator web UI headline this week.</p>
                         <div class="ch-chips">
@@ -514,11 +527,10 @@
                             <span class="ch-chip cat-platform">Performance</span>
                             <span class="ch-chip cat-platform">VPP</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="services secure platform">
+                    </a>
+                    <a class="ch-week" data-cats="services secure platform" href="2026-04-13/" aria-label="Read Week of 2026-04-13">
                         <div class="ch-head">
-                            <h2><a href="2026-04-13/">Week of 2026-04-13</a></h2>
-                            <a class="ch-read" href="2026-04-13/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-04-13</span></h2>
                         </div>
                         <p class="ch-intro">A complete L2TP/PPP access stack, TACACS+ and pluggable AAA, a VPP dataplane, and new nftables/tc firewall backends.</p>
                         <div class="ch-chips">
@@ -533,11 +545,10 @@
                             <span class="ch-chip cat-platform">Under the Hood</span>
                             <span class="ch-chip cat-platform">VPP</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing services automate platform meta">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing services automate platform meta" href="2026-04-06/" aria-label="Read Week of 2026-04-06">
                         <div class="ch-head">
-                            <h2><a href="2026-04-06/">Week of 2026-04-06</a></h2>
-                            <a class="ch-read" href="2026-04-06/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-04-06</span></h2>
                         </div>
                         <p class="ch-intro">A full BFD engine, BGP route reflection and policy filters, a real REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.</p>
                         <div class="ch-chips">
@@ -550,11 +561,10 @@
                             <span class="ch-chip cat-platform">Interfaces</span>
                             <span class="ch-chip cat-meta">Presentation: Net Manchester</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing services automate observe platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing services automate observe platform" href="2026-03-30/" aria-label="Read Week of 2026-03-30">
                         <div class="ch-head">
-                            <h2><a href="2026-03-30/">Week of 2026-03-30</a></h2>
-                            <a class="ch-read" href="2026-03-30/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-03-30</span></h2>
                         </div>
                         <p class="ch-intro">A full interface management subsystem, offline DNS/RIR resolution tooling, config-driven plugin loading, BGP healthcheck and long-lived graceful restart support, and a Looking Glass overhaul.</p>
                         <div class="ch-chips">
@@ -569,11 +579,10 @@
                             <span class="ch-chip cat-platform">Interfaces</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing services automate observe secure platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing services automate observe secure platform" href="2026-03-23/" aria-label="Read Week of 2026-03-23">
                         <div class="ch-head">
-                            <h2><a href="2026-03-23/">Week of 2026-03-23</a></h2>
-                            <a class="ch-read" href="2026-03-23/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-03-23</span></h2>
                         </div>
                         <p class="ch-intro">A full web interface, fleet management, redistribution filtering, and a stack of routing-protocol correctness work all landed together.</p>
                         <div class="ch-chips">
@@ -588,11 +597,10 @@
                             <span class="ch-chip cat-platform">Fleet</span>
                             <span class="ch-chip cat-platform">Performance</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing automate secure meta">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing automate secure meta" href="2026-03-16/" aria-label="Read Week of 2026-03-16">
                         <div class="ch-head">
-                            <h2><a href="2026-03-16/">Week of 2026-03-16</a></h2>
-                            <a class="ch-read" href="2026-03-16/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-03-16</span></h2>
                         </div>
                         <p class="ch-intro">RPKI route origin validation landed in full, alongside a wave of BGP RFC compliance work, CLI polish, and daemon security hardening.</p>
                         <div class="ch-chips">
@@ -605,11 +613,10 @@
                             <span class="ch-chip cat-secure">Security</span>
                             <span class="ch-chip cat-meta">Interop</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing observe secure platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing observe secure platform" href="2026-03-09/" aria-label="Read Week of 2026-03-09">
                         <div class="ch-head">
-                            <h2><a href="2026-03-09/">Week of 2026-03-09</a></h2>
-                            <a class="ch-read" href="2026-03-09/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-03-09</span></h2>
                         </div>
                         <p class="ch-intro">A big week for access, config safety, and BGP session security.</p>
                         <div class="ch-chips">
@@ -622,11 +629,10 @@
                             <span class="ch-chip cat-secure">Security</span>
                             <span class="ch-chip cat-platform">Storage</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing platform" href="2026-03-02/" aria-label="Read Week of 2026-03-02">
                         <div class="ch-head">
-                            <h2><a href="2026-03-02/">Week of 2026-03-02</a></h2>
-                            <a class="ch-read" href="2026-03-02/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-03-02</span></h2>
                         </div>
                         <p class="ch-intro">Real best-path selection landed, along with outbound route tracking and a round of CLI/editor polish.</p>
                         <div class="ch-chips">
@@ -637,11 +643,10 @@
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing automate observe platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing automate observe platform" href="2026-02-23/" aria-label="Read Week of 2026-02-23">
                         <div class="ch-head">
-                            <h2><a href="2026-02-23/">Week of 2026-02-23</a></h2>
-                            <a class="ch-read" href="2026-02-23/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-02-23</span></h2>
                         </div>
                         <p class="ch-intro">A route-server-focused week: reliability fixes for BGP Route Server under load, a new external plugin protocol option, and systematic config validation.</p>
                         <div class="ch-chips">
@@ -652,11 +657,10 @@
                             <span class="ch-chip cat-observe">Chaos</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing automate observe platform meta">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing automate observe platform meta" href="2026-02-16/" aria-label="Read Week of 2026-02-16">
                         <div class="ch-head">
-                            <h2><a href="2026-02-16/">Week of 2026-02-16</a></h2>
-                            <a class="ch-read" href="2026-02-16/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-02-16</span></h2>
                         </div>
                         <p class="ch-intro">A hard round of route reflector hardening, a live web dashboard for the chaos tool, and a batch of BGP protocol and config improvements.</p>
                         <div class="ch-chips">
@@ -667,11 +671,10 @@
                             <span class="ch-chip cat-platform">Under the Hood</span>
                             <span class="ch-chip cat-meta">IETF Draft: ATTR_TOMBSTONE</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing automate observe platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing automate observe platform" href="2026-02-09/" aria-label="Read Week of 2026-02-09">
                         <div class="ch-head">
-                            <h2><a href="2026-02-09/">Week of 2026-02-09</a></h2>
-                            <a class="ch-read" href="2026-02-09/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-02-09</span></h2>
                         </div>
                         <p class="ch-intro">A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot-path allocation cleanup.</p>
                         <div class="ch-chips">
@@ -684,11 +687,10 @@
                             <span class="ch-chip cat-platform">Performance</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing automate platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing automate platform" href="2026-02-02/" aria-label="Read Week of 2026-02-02">
                         <div class="ch-head">
-                            <h2><a href="2026-02-02/">Week of 2026-02-02</a></h2>
-                            <a class="ch-read" href="2026-02-02/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-02-02</span></h2>
                         </div>
                         <p class="ch-intro">Mostly spent on the config editor, a new capability, and a round of decode/RIB bug fixes.</p>
                         <div class="ch-chips">
@@ -698,11 +700,10 @@
                             <span class="ch-chip cat-automate">Plugins</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing automate platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing automate platform" href="2026-01-26/" aria-label="Read Week of 2026-01-26">
                         <div class="ch-head">
-                            <h2><a href="2026-01-26/">Week of 2026-01-26</a></h2>
-                            <a class="ch-read" href="2026-01-26/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-01-26</span></h2>
                         </div>
                         <p class="ch-intro">Config work, the ExaBGP migration path, and correctness fixes across the wire.</p>
                         <div class="ch-chips">
@@ -717,11 +718,10 @@
                             <span class="ch-chip cat-platform">Storage</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing automate platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing automate platform" href="2026-01-19/" aria-label="Read Week of 2026-01-19">
                         <div class="ch-head">
-                            <h2><a href="2026-01-19/">Week of 2026-01-19</a></h2>
-                            <a class="ch-read" href="2026-01-19/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-01-19</span></h2>
                         </div>
                         <p class="ch-intro">A big architecture week: Ze split into a hub process and a BGP child process, gained live config reload, and got a documented plugin SDK.</p>
                         <div class="ch-chips">
@@ -734,11 +734,10 @@
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing automate observe">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing automate observe" href="2026-01-12/" aria-label="Read Week of 2026-01-12">
                         <div class="ch-head">
-                            <h2><a href="2026-01-12/">Week of 2026-01-12</a></h2>
-                            <a class="ch-read" href="2026-01-12/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-01-12</span></h2>
                         </div>
                         <p class="ch-intro">A week focused on Graceful Restart, ExaBGP migration tooling, and logging.</p>
                         <div class="ch-chips">
@@ -750,11 +749,10 @@
                             <span class="ch-chip cat-automate">Plugins</span>
                             <span class="ch-chip cat-observe">Diagnostics</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="routing automate platform">
+                    </a>
+                    <a class="ch-week" data-cats="routing automate platform" href="2026-01-05/" aria-label="Read Week of 2026-01-05">
                         <div class="ch-head">
-                            <h2><a href="2026-01-05/">Week of 2026-01-05</a></h2>
-                            <a class="ch-read" href="2026-01-05/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2026-01-05</span></h2>
                         </div>
                         <p class="ch-intro">This week rounded out route-refresh, ADD-PATH and VPN/labeled-unicast support in the plugin API, alongside a batch of BGP correctness fixes.</p>
                         <div class="ch-chips">
@@ -766,11 +764,10 @@
                             <span class="ch-chip cat-automate">Plugins</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing secure platform">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing secure platform" href="2025-12-29/" aria-label="Read Week of 2025-12-29">
                         <div class="ch-head">
-                            <h2><a href="2025-12-29/">Week of 2025-12-29</a></h2>
-                            <a class="ch-read" href="2025-12-29/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2025-12-29</span></h2>
                         </div>
                         <p class="ch-intro">Route-family coverage rounded out (labeled-unicast, MPLS VPN, MUP, route reflection), a batch of protocol-correctness fixes, and a security-relevant change to how Ze listens for BGP sessions.</p>
                         <div class="ch-chips">
@@ -784,11 +781,10 @@
                             <span class="ch-chip cat-secure">Security</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="routing automate platform">
+                    </a>
+                    <a class="ch-week" data-cats="routing automate platform" href="2025-12-22/" aria-label="Read Week of 2025-12-22">
                         <div class="ch-head">
-                            <h2><a href="2025-12-22/">Week of 2025-12-22</a></h2>
-                            <a class="ch-read" href="2025-12-22/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2025-12-22</span></h2>
                         </div>
                         <p class="ch-intro">Work on the BGP engine itself: route encoding correctness, session robustness, and a first real API surface for driving peers programmatically.</p>
                         <div class="ch-chips">
@@ -798,11 +794,10 @@
                             <span class="ch-chip cat-automate">Plugins</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
-                    </article>
-                    <article class="ch-week" data-cats="operate routing automate">
+                    </a>
+                    <a class="ch-week" data-cats="operate routing automate" href="2025-12-15/" aria-label="Read Week of 2025-12-15">
                         <div class="ch-head">
-                            <h2><a href="2025-12-15/">Week of 2025-12-15</a></h2>
-                            <a class="ch-read" href="2025-12-15/">read &rarr;</a>
+                            <h2><span class="ch-week-title">Week of 2025-12-15</span></h2>
                         </div>
                         <p class="ch-intro">The first tracked week of development on Ze. In seven days the BGP engine went from nothing to a config-driven daemon that speaks the wire protocol, holds a RIB, and tests itself against ExaBGP.</p>
                         <div class="ch-chips">
@@ -814,7 +809,7 @@
                             <span class="ch-chip cat-automate">API</span>
                             <span class="ch-chip cat-automate">ExaBGP Migration</span>
                         </div>
-                    </article>
+                    </a>
                     <p class="ch-empty filtered-out">No weeks in that category yet.</p>
                 </div>
             </section>

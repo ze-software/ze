@@ -12,6 +12,7 @@ for presentation content.
 """
 
 import argparse
+import html
 import json
 import pathlib
 import posixpath
@@ -26,6 +27,24 @@ import sitelib
 def first_h1(md_text):
     match = re.search(r"^#\s+(.+)$", md_text, re.MULTILINE)
     return match.group(1).strip() if match else "Ze"
+
+
+FIRST_H1_P_RE = re.compile(r"\A<h1([^>]*)>(.*?)</h1>\n<p>(.*?)</p>", re.S)
+
+
+def wrap_journey_hero(body_html, label):
+    def repl(match):
+        h1_attrs, title, intro = match.groups()
+        return (
+            '<div class="journey-hero reveal">\n'
+            '    <span class="journey-eyebrow">%s</span>\n'
+            "    <h1%s>%s</h1>\n"
+            "    <p>%s</p>\n"
+            "</div>"
+            % (html.escape(label), h1_attrs, title, intro)
+        )
+
+    return FIRST_H1_P_RE.sub(repl, body_html, count=1)
 
 
 TD_RE = re.compile(r"<td([^>]*)>((?:(?!</td>).)*)</td>", re.S)
@@ -142,7 +161,15 @@ def rewrite_doc_links(body_html, doc_rel, manifest, dest_rel_dir):
 
 
 def render(
-    source, dest, root, desc, manifest=None, doc_rel=None, dest_rel_dir=None, cat=None
+    source,
+    dest,
+    root,
+    desc,
+    manifest=None,
+    doc_rel=None,
+    dest_rel_dir=None,
+    cat=None,
+    journey_label=None,
 ):
     md_text = source.read_text()
     title = first_h1(md_text)
@@ -154,6 +181,8 @@ def render(
     if manifest is not None:
         body_html = rewrite_doc_links(body_html, doc_rel, manifest, dest_rel_dir)
         md_out = rewrite_doc_links_markdown(md_text, doc_rel, manifest, dest_rel_dir)
+    if journey_label:
+        body_html = wrap_journey_hero(body_html, journey_label)
     section_class = "md-content reveal cat-%s" % cat if cat else "md-content reveal"
     full_title = "%s - Ze" % title
     head = sitelib.page_head(full_title, desc, root, og_title=full_title, og_desc=desc)
@@ -201,6 +230,10 @@ def main():
         help="topic category, colors the h1 per the site's color convention "
         "(same seven hues as the Features category legend)",
     )
+    parser.add_argument(
+        "--journey-label",
+        help="optional top-right label for the shared Journey clay hero",
+    )
     args = parser.parse_args()
 
     if not args.source.exists():
@@ -217,6 +250,7 @@ def main():
         doc_rel=args.doc_rel,
         dest_rel_dir=args.dest_rel_dir,
         cat=args.cat,
+        journey_label=args.journey_label,
     )
     return 0
 

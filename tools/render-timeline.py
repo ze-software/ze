@@ -238,7 +238,8 @@ def render(data):
     out = [sitelib.page_head(TITLE, desc, "../", extra_head=EXTRA_HEAD)]
 
     out.append('            <section aria-labelledby="milestones-title">')
-    out.append('                <div class="section-head reveal">')
+    out.append('                <div class="section-head journey-hero reveal">')
+    out.append('                    <span class="journey-eyebrow">Timeline</span>')
     out.append(
         '                    <h1 id="milestones-title">The road so far.</h1>'
     )
