@@ -1,0 +1,179 @@
+# Test: redistribute-late-join-targeting -- the replay coexists with an
+#       already-established peer: peer2 (127.0.0.2) flaps and receives its route
+#       via replay on reconnect while peer1 (127.0.0.1), already up, keeps
+#       receiving normally and is undisturbed.
+#
+# VALIDATES: AC-2 (multi-peer end-to-end) -- with two peers up, peer2 resets and
+#            reconnects, firing a replay of route A that reaches peer2's fresh
+#            session; peer1 stays up throughout and still receives a later route
+#            C. Proves the peer-up replay path works when other peers are already
+#            established (no crash, no starvation of the reconnecting peer).
+#
+# TARGETING NOTE (mutation-verified): the strict "replay goes ONLY to the
+# triggering peer, never to an already-up peer" isolation (R-1) is NOT
+# wire-observable here. The reactor suppresses a duplicate announce to a session
+# that already holds the route, so a mis-targeted UpdateRoute("*") produces the
+# SAME wire output for an already-up peer as a correctly-targeted one (confirmed:
+# forcing "*" in handleReplayBatch does not fail this test). The per-peer
+# targeting selector is therefore guarded by the unit test
+# TestOrchestratorTargetsNewPeerOnly, which inspects the injected RouteEntry.Peer
+# before any reactor de-duplication.
+#
+# No RIB plugin and no config route, so peer2's connection B route comes solely
+# from the replay path (same isolation as redistribute-late-join.ci).
+
+# ze-peer 1 (127.0.0.1) -- stays up; must see A then C, no duplicate in between.
+stdin=peer1:terminator=EOF_PEER1
+option=tcp_connections:value=1
+option=timeout:value=40s
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.1"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.3/32"],"next-hop":"127.0.0.1"}]}
+EOF_PEER1
+
+# ze-peer 2 (127.0.0.2) -- flaps; connection B gets A via replay, then C.
+stdin=peer2:terminator=EOF_PEER2
+option=tcp_connections:value=2
+option=timeout:value=40s
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.2","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.2"}]}
+action=notification:conn=1:seq=2:text=Peer Reset
+expect=json:conn=2:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.2","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.2"}]}
+expect=json:conn=2:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.2","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.3/32"],"next-hop":"127.0.0.2"}]}
+EOF_PEER2
+
+# Python observer: inject A while both peers are up; after peer2's flap window,
+# inject C so peer1's pending read straddles peer2's replay.
+tmpfs=late-join-targeting-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import time
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
+
+
+def emit(api, command):
+    resp = dispatch(api, command)
+    result = resp.get('result', {})
+    if result.get('status') != 'done':
+        runtime_fail(f'{command} failed: {result}')
+        return False
+    return True
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Both peers up.
+    time.sleep(2.0)
+    if not emit(api, 'request fakeredist emit add ipv4/unicast 10.0.0.1/32'):
+        return
+
+    # Wait past peer2's notification-driven reset + connect-retry (5s) + reconnect
+    # + replay, so any mis-targeted duplicate to peer1 would arrive before C.
+    time.sleep(14.0)
+    if not emit(api, 'request fakeredist emit add ipv4/unicast 10.0.0.3/32'):
+        return
+
+    time.sleep(4.0)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration -- two peers on distinct loopback addresses.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external late-join-targeting-test {
+		run ./late-join-targeting-test.run
+		encoder json
+	}
+	internal redistribute-orchestrator {
+		use redistribute-orchestrator
+	}
+	internal fakeredist {
+		use fakeredist
+	}
+}
+
+redistribute {
+	destination bgp {
+		import fakeredist {
+			family [ ipv4/unicast ];
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+
+	peer peer2 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		timer { connect-retry 5; }
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration: two ze-peer instances on different loopback addresses.
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer1
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=40s
+expect=exit:code=0

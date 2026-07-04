@@ -202,3 +202,49 @@ func TestConnectedMalformedPayload(t *testing.T) {
 	obs.handleAddrAdded(42)
 	require.Empty(t, bus.events())
 }
+
+// VALIDATES: TestProducerEchoesReplayIDOnReplayRequest (connected) -- reemitAll
+// re-emits the current prefix set as adds tagged with the echoed ReplayID; the
+// incremental emit stays ReplayID=0 (AC-6, AC-8).
+// PREVENTS: a late-joining peer missing connected routes; a wire change to the
+// incremental path.
+func TestConnectedReemitsReplayID(t *testing.T) {
+	bus := &recordingBus{}
+	obs := newRouteObserver(bus)
+
+	obs.handleAddrAdded(makePayload("10.0.0.1", 24))
+	obs.handleAddrAdded(makePayload("192.168.1.1", 16))
+
+	// Incremental emits carry ReplayID 0 (no behavior change).
+	for _, e := range bus.events() {
+		b, ok := e.payload.(*redistevents.RouteChangeBatch)
+		require.True(t, ok)
+		require.Equal(t, uint64(0), b.ReplayID, "incremental emit must not set ReplayID")
+	}
+	bus.mu.Lock()
+	bus.emits = nil
+	bus.mu.Unlock()
+
+	obs.reemitAll(77)
+
+	evts := bus.events()
+	require.Len(t, evts, 2, "both current prefixes re-emitted")
+	prefixes := map[string]bool{}
+	for _, e := range evts {
+		b, ok := e.payload.(*redistevents.RouteChangeBatch)
+		require.True(t, ok)
+		require.Equal(t, uint64(77), b.ReplayID, "re-emit echoes the replayID")
+		require.Len(t, b.Entries, 1)
+		require.Equal(t, redistevents.ActionAdd, b.Entries[0].Action)
+		prefixes[b.Entries[0].Prefix.String()] = true
+	}
+	require.True(t, prefixes["10.0.0.0/24"])
+	require.True(t, prefixes["192.168.0.0/16"])
+
+	// A replayID of 0 is a no-op guard (never re-emit as incremental).
+	bus.mu.Lock()
+	bus.emits = nil
+	bus.mu.Unlock()
+	obs.reemitAll(0)
+	require.Empty(t, bus.events(), "reemitAll(0) must be a no-op")
+}

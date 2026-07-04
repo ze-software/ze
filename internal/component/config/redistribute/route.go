@@ -20,19 +20,36 @@ type RedistRoute struct {
 }
 
 // ImportRule represents a parsed redistribution import entry from config.
-// Corresponds to one entry in the YANG list import { key "source"; }.
+// Corresponds to one entry in the YANG list import { key "source"; } under a
+// `destination <proto>` block.
 type ImportRule struct {
-	Source   string          // Source name from config ("ebgp", "ospf", "connected", ...)
-	Families []family.Family // Allowed families (empty = all families accepted)
+	Source string // Source name from config ("ebgp", "ospf", "connected", ...)
+	// Destination is the protocol this import feeds ("bgp", "ospf", "isis"),
+	// taken from the enclosing `destination <proto>` block. An empty
+	// Destination is destination-agnostic: it accepts any importing protocol.
+	// Empty is the back-compat default for rules built without the field (unit
+	// tests, callers that pre-date destination scoping); the config loader
+	// always populates it from the `destination` key so production rules are
+	// scoped.
+	Destination string
+	Families    []family.Family // Allowed families (empty = all families accepted)
 }
 
 // Accept checks whether a route should be accepted by this import rule.
 // A route is rejected if:
 //   - its origin protocol matches the importing protocol (loop prevention)
-//   - its family is not in the allowed list (when families is non-empty)
+//   - the rule has a Destination that does not match the importing protocol
+//     (destination scoping: an import under `destination bgp` feeds only BGP)
 //   - neither its specific source nor umbrella origin matches the rule's source
+//   - its family is not in the allowed list (when families is non-empty)
 func (r ImportRule) Accept(route RedistRoute, importingProtocol string) bool {
 	if route.Origin == importingProtocol {
+		return false
+	}
+	// Destination scoping (R-3): a rule parsed under `destination <proto>` is
+	// accepted only by that protocol. An empty Destination stays agnostic so
+	// rules built without the field behave as before this change.
+	if r.Destination != "" && r.Destination != importingProtocol {
 		return false
 	}
 	if route.Source != r.Source && route.Origin != r.Source {

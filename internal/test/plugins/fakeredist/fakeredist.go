@@ -101,9 +101,12 @@ var Handle = events.Register[*redistevents.RouteChangeBatch](ProtocolName, redis
 // redistevents registry. Captured at init for cheap comparisons elsewhere.
 var ProtocolID redistevents.ProtocolID
 
-// emitOnce builds and emits a one-entry batch. Returns the count of
-// in-process subscribers reached and any emit error.
-func emitOnce(action redistevents.RouteAction, fam family.Family, prefix netip.Prefix, nh netip.Addr) (int, error) {
+// emitOnce builds and emits a one-entry batch tagged with replayID (0 for the
+// normal incremental path; nonzero echoes a redistribute ReplayRequest).
+// Incremental emits (replayID==0) update the current-set store so a later
+// replay can re-emit them; a replay itself does not mutate the store. Returns
+// the count of in-process subscribers reached and any emit error.
+func emitOnce(action redistevents.RouteAction, fam family.Family, prefix netip.Prefix, nh netip.Addr, replayID uint64) (int, error) {
 	bus := getEventBus()
 	if bus == nil {
 		return 0, errFakeredistNoEventBus
@@ -112,9 +115,13 @@ func emitOnce(action redistevents.RouteAction, fam family.Family, prefix netip.P
 		// Defensive: should never happen because init() registers.
 		return 0, errFakeredistProtocolIdNotRegistered
 	}
+	if replayID == 0 {
+		store.apply(action, fam, prefix, nh)
+	}
 	b := redistevents.AcquireBatch()
 	defer redistevents.ReleaseBatch(b)
 	b.Protocol = ProtocolID
+	b.ReplayID = replayID
 	b.AFI = uint16(fam.AFI)
 	b.SAFI = uint8(fam.SAFI)
 	b.Entries = append(b.Entries, redistevents.RouteChangeEntry{
@@ -181,7 +188,7 @@ func runEmit(args []string) (json.RawMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	delivered, err := emitOnce(action, fam, prefix, nh)
+	delivered, err := emitOnce(action, fam, prefix, nh, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +243,7 @@ func runEmitBurst(args []string) (json.RawMessage, error) {
 		if err != nil {
 			return nil, fmt.Errorf("internal: build entry prefix: %w", err)
 		}
-		d, err := emitOnce(action, fam, entry, netip.Addr{})
+		d, err := emitOnce(action, fam, entry, netip.Addr{}, 0)
 		if err != nil {
 			return nil, fmt.Errorf("emit %d/%d (delivered %d) failed: %w", emitted, n, delivered, err)
 		}

@@ -3,6 +3,7 @@ package redistributeegress
 import (
 	"context"
 	"net"
+	"strings"
 
 	bgpredist "codeberg.org/thomas-mangin/ze/internal/component/bgp/redistribute"
 	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
@@ -10,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -56,12 +58,52 @@ func runPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
 
+	// Peer-up trigger: fire a targeted redistribute replay to a peer that
+	// establishes after an injection (spec-redistribute-late-join-replay).
+	coord := newReplayCoordinator()
+	setReplayCoordinator(coord)
+
 	p.OnStarted(func(ctx context.Context) error {
 		consumer := bgpredist.NewBGPConsumer(p)
 		if err := configredist.RegisterConsumer(consumer); err != nil {
 			logger().Warn("failed to register BGP consumer", "error", err)
 		}
 		go run(ctx)
+		return nil
+	})
+
+	// Subscribe to peer state; on a down->up edge fire a targeted replay so a
+	// newly-established peer receives the current redistribute route set. Mirrors
+	// the watchdog's state-subscription pattern (in-process DirectBridge via
+	// OnStructuredEvent, text fallback via OnEvent).
+	p.SetStartupSubscriptions([]string{"state"}, nil, "")
+	p.SetEncoding("text")
+	p.OnStructuredEvent(func(events []any) error {
+		bus := getEventBus()
+		for _, event := range events {
+			se, ok := event.(*rpc.StructuredEvent)
+			if !ok || se.PeerAddress == "" {
+				continue
+			}
+			if se.State == rpc.SessionStateUp {
+				coord.onPeerUp(bus, se.PeerAddress)
+			} else if se.State != rpc.SessionStateUnspecified {
+				coord.onPeerDown(se.PeerAddress)
+			}
+		}
+		return nil
+	})
+	p.OnEvent(func(eventStr string) error {
+		peerAddr, state := parseStateEvent(eventStr)
+		if peerAddr == "" {
+			return nil
+		}
+		bus := getEventBus()
+		if state == "up" {
+			coord.onPeerUp(bus, peerAddr)
+		} else {
+			coord.onPeerDown(peerAddr)
+		}
 		return nil
 	})
 
@@ -72,4 +114,22 @@ func runPlugin(conn net.Conn) int {
 		return 1
 	}
 	return 0
+}
+
+// parseStateEvent extracts the peer address and state from a text state event
+// (the non-DirectBridge / external-plugin delivery path). Format:
+// "peer 10.0.0.1 remote as 65001 state up\n". Returns ("", "") when the line is
+// not a recognized state event. Mirrors the watchdog plugin's parser.
+func parseStateEvent(text string) (peerAddr, state string) {
+	fields := strings.Fields(strings.TrimRight(text, "\n"))
+	if len(fields) < 4 || fields[0] != "peer" {
+		return "", ""
+	}
+	addr := fields[1]
+	for i := 2; i < len(fields)-1; i++ {
+		if fields[i] == "state" {
+			return addr, fields[i+1]
+		}
+	}
+	return "", ""
 }

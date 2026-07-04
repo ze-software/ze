@@ -344,6 +344,14 @@ func (rm *routeManager) showRoutes() []showRoute {
 }
 
 func (rm *routeManager) emitRouteChange(action redistevents.RouteAction, r staticRoute) {
+	rm.emitRouteChangeID(action, r, 0)
+}
+
+// emitRouteChangeID emits a single-route batch tagged with replayID (0 for the
+// normal incremental path; nonzero echoes a redistribute ReplayRequest so the
+// orchestrator can replay to a newly-established peer). Only forward routes in
+// table 0 are redistribute sources; the guards match emitRouteChange.
+func (rm *routeManager) emitRouteChangeID(action redistevents.RouteAction, r staticRoute, replayID uint64) {
 	if r.Table != 0 {
 		return
 	}
@@ -357,6 +365,7 @@ func (rm *routeManager) emitRouteChange(action redistevents.RouteAction, r stati
 	b := redistevents.AcquireBatch()
 	defer redistevents.ReleaseBatch(b)
 	b.Protocol = staticevents.ProtocolID
+	b.ReplayID = replayID
 	if r.Prefix.Addr().Is4() {
 		b.AFI = 1
 		b.SAFI = 1
@@ -372,5 +381,28 @@ func (rm *routeManager) emitRouteChange(action redistevents.RouteAction, r stati
 	})
 	if _, err := staticevents.RouteChange.Emit(bus, b); err != nil {
 		logger().Warn("static: route-change emit failed", "error", err)
+	}
+}
+
+// reemitAll re-emits every currently-announced static route as an add tagged
+// with replayID, so the redistribute orchestrator can replay them to a peer
+// that establishes after the original emit. Reflects the CURRENT live set: only
+// routes with emitted==true (forward, table 0, active next-hop) are re-emitted;
+// a route withdrawn before the peer joined is absent. A zero replayID is a
+// no-op (the orchestrator only allocates nonzero tokens).
+func (rm *routeManager) reemitAll(replayID uint64) {
+	if replayID == 0 {
+		return
+	}
+	rm.mu.Lock()
+	announced := make([]staticRoute, 0, len(rm.routes))
+	for _, rs := range rm.routes {
+		if rs.emitted {
+			announced = append(announced, rs.route)
+		}
+	}
+	rm.mu.Unlock()
+	for i := range announced {
+		rm.emitRouteChangeID(redistevents.ActionAdd, announced[i], replayID)
 	}
 }

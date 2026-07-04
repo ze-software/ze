@@ -361,9 +361,19 @@ With `default-information originate` and `always false`, the Type 5 default
 RIB; `always true` advertises it unconditionally. The `redistribute` source list
 accepts `connected`, `static`, `kernel`, `bgp`, and `isis`; the
 `default-information` and per-source `metric` are bound to `0..16777215`.
+
+Each `import` is scoped to the `destination` protocol that encloses it: an
+`import connected` under `destination bgp` feeds only BGP, and does NOT also leak
+into OSPF or IS-IS. To feed the same source into two protocols, list it under both
+destinations. Routes injected by a redistribute source (connected, static, l2tp,
+...) into `destination bgp` also replay to a BGP peer that establishes AFTER the
+injection (e.g. a dynamic/inbound peer), matching how received/best-path routes are
+delivered to a new peer.
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- default-information, redistribute -->
 <!-- source: internal/plugins/ospf/default.go -- applyDefaultInformation -->
 <!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute -->
+<!-- source: internal/component/config/redistribute/route.go -- ImportRule.Destination, destination-scoped Accept -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- late-join replay-on-peer-up -->
 
 ## Inheritance
 

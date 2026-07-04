@@ -84,12 +84,17 @@ func (b *captureBus) records() []emitRecord {
 	return out
 }
 
-// resetBus swaps in a fresh capture bus and clears it after the test.
+// resetBus swaps in a fresh capture bus and clears it after the test. It also
+// resets the current-set store so route tracking does not leak across tests.
 func resetBus(t *testing.T) *captureBus {
 	t.Helper()
 	bus := newCaptureBus()
 	setEventBus(bus)
-	t.Cleanup(func() { eventBusPtr.Store(nil) })
+	resetStore()
+	t.Cleanup(func() {
+		eventBusPtr.Store(nil)
+		resetStore()
+	})
 	return bus
 }
 
@@ -237,4 +242,53 @@ func TestDispatchHelp(t *testing.T) {
 	require.True(t, ok)
 	assert.Contains(t, helpStr, "emit add")
 	assert.Contains(t, helpStr, "emit-burst")
+}
+
+// VALIDATES: TestProducerEchoesReplayIDOnReplayRequest (fakeredist) -- the .ci
+// test producer tracks its current set (add tracked, remove untracked) and
+// reemitAll re-emits the live set as adds tagged with the echoed ReplayID; a
+// route removed before the replay is absent (AC-4); the incremental emit stays
+// ReplayID=0 (AC-8).
+// PREVENTS: the late-join .ci producer not answering a ReplayRequest, or a
+// withdrawn route reappearing on replay.
+func TestFakeredistReemitsReplayID(t *testing.T) {
+	bus := resetBus(t)
+
+	require.NotEqual(t, redistevents.ProtocolUnspecified, ProtocolID, "init must register fakeredist")
+
+	// Two adds then a withdraw of the first, all incremental (ReplayID 0).
+	for _, args := range [][]string{
+		{"add", "ipv4/unicast", "10.0.0.1/32"},
+		{"add", "ipv4/unicast", "10.0.0.2/32"},
+		{"remove", "ipv4/unicast", "10.0.0.1/32"},
+	} {
+		status, _, err := dispatchCommand("", "request fakeredist emit", args, "")
+		require.NoError(t, err)
+		require.Equal(t, rpc.StatusDone, status)
+	}
+	for _, rec := range bus.records() {
+		require.NotNil(t, rec.payload)
+		assert.Equal(t, uint64(0), rec.payload.ReplayID, "incremental emit must not set ReplayID")
+	}
+
+	// Drain, then replay for a fresh peer.
+	bus.mu.Lock()
+	bus.emits = nil
+	bus.mu.Unlock()
+
+	reemitAll(99)
+
+	recs := bus.records()
+	require.Len(t, recs, 1, "only the live route (10.0.0.2/32) replays; the withdrawn one is absent (AC-4)")
+	assert.Equal(t, uint64(99), recs[0].payload.ReplayID, "re-emit echoes the replayID")
+	require.Len(t, recs[0].entries, 1)
+	assert.Equal(t, redistevents.ActionAdd, recs[0].entries[0].Action)
+	assert.Equal(t, netip.MustParsePrefix("10.0.0.2/32"), recs[0].entries[0].Prefix)
+
+	// reemitAll(0) is a no-op.
+	bus.mu.Lock()
+	bus.emits = nil
+	bus.mu.Unlock()
+	reemitAll(0)
+	assert.Empty(t, bus.records(), "reemitAll(0) must be a no-op")
 }

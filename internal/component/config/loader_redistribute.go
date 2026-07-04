@@ -39,7 +39,7 @@ func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 				if _, ok := redistribute.LookupSource(scalar); !ok {
 					return nil, fmt.Errorf("redistribute: unknown source %q under destination %q", scalar, dest.Key)
 				}
-				rules = append(rules, redistribute.ImportRule{Source: scalar})
+				rules = append(rules, redistribute.ImportRule{Source: scalar, Destination: dest.Key})
 				continue
 			}
 		}
@@ -64,8 +64,9 @@ func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 			}
 
 			rules = append(rules, redistribute.ImportRule{
-				Source:   source,
-				Families: families,
+				Source:      source,
+				Destination: dest.Key,
+				Families:    families,
 			})
 		}
 	}

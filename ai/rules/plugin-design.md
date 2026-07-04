@@ -200,6 +200,22 @@ plugins in later phases are loaded.
 | `DoctorChecks` | []DoctorCheckDef | No | Doctor readiness checks this plugin provides. Each entry carries metadata (name, phase, order, platforms, codes) and a check function. Component is set from the plugin Name. See `ai/rules/doctor-checks.md`. |
 | `Features` | string | No | Space-separated flags ("nlri yang capa") |
 
+
+## Registration Metadata Feeds Generated Docs
+
+The website plugin catalog in `../gh-pages/docs/features/plugins/` is
+generated from `registry.Registration` fields via
+`../gh-pages/tools/extract-plugin-registry.py` and
+`../gh-pages/tools/render-plugin-catalog.py`. When adding or changing a
+plugin, treat `Name`, `Description`, `ConfigRoots`, `Dependencies`,
+`OptionalDependencies`, and `YANG` as public catalog data.
+
+Do not create a second hand-written plugin list in docs or website content.
+If the catalog needs more facts, add structured metadata to the registry or
+extractor, then render the website from that data. Catalog grouping is derived
+from `ConfigRoots` and source path layout, so package moves and config-root
+changes affect the generated site.
+
 ## Optional Dependencies
 
 Plugins that USE another plugin when it is present but can run without it
@@ -419,6 +435,25 @@ Plugins read attributes via `AttrsWire.Get(code)` (lazy, per-attribute) and NLRI
 `Handle.Emit(bus, payload)` and consumers call
 `Handle.Subscribe(bus, func(T))`; the registry is the single source of
 truth for the payload type.
+
+**Engine (in-process) subscribers deliver synchronously within `Emit`;
+plugin-process subscribers deliver asynchronously** (`Emit` returns the
+plugin-process delivery count -- see `internal/core/events/typed.go`). A
+request/re-emit correlation that assumes all subscribers answered by the time
+`Emit` returns is therefore only safe when every subscriber is in-process. The
+redistribute late-join replay (`redistevents.ReplayRequest` + echoed `ReplayID`
+token) correlates a returning `RouteChangeBatch` to the requesting peer via an
+opaque token the producer echoes, and holds the `ReplayID -> peer` map for a TTL
+rather than dropping it right after `Emit`, precisely because an out-of-process
+producer's re-emit arrives after `Emit` returns.
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- ReplayID token + TTL map -->
+<!-- source: internal/core/redistevents/events.go -- ReplayRequest event -->
+<!-- source: internal/core/events/typed.go -- Emit returns plugin-process delivery count -->
+
+A payload-carrying request event (`events.Register[T]`) is preferred over a
+payload-less signal (`RegisterSignal`) when a returning batch must be correlated
+back to a specific requestor: the token rides the request and the producer echoes
+it, keeping the returning batch peer-agnostic.
 
 **Test-stub convention.** Every test file that defines a private mock of
 `ze.EventBus` MUST add a compile-time check on the same file:

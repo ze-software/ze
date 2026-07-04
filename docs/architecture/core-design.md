@@ -1108,6 +1108,40 @@ redistributed. Tracks announced prefixes; withdraws all on shutdown. Configured 
 <!-- source: internal/plugins/kernel/kernel.go -- routeObserver, handleRouteEvent, withdrawAll -->
 <!-- source: internal/plugins/kernel/events/events.go -- redistevents producer registration -->
 
+### Redistribute Late-Join Replay
+
+Redistribute injection is a point-in-time fan-out: `AnnounceNLRIBatch` only reaches
+peers present in the reactor's peer map at emit time (established peers are sent
+immediately, configured-but-unestablished peers are queued). A peer that FIRST
+enters the map after the injection (a dynamic/passive peer accepted on inbound
+connect, or a peer added by a later config apply) would otherwise never receive the
+route -- unlike OSPF/IS-IS redistribute consumers, whose routes live in the
+flooded/synchronized link-state DB and reach a new adjacency via database exchange.
+
+The BGP path closes this gap with a **re-emit-on-request** mechanism modeled on
+`ribevents.ReplayRequest`. The redistribute orchestrator subscribes to peer `state`
+events (like the watchdog). On a peer's down->up edge it allocates a monotonic
+`ReplayID`, records `ReplayID -> peer` in a bounded, TTL-evicted map, and emits
+`redistevents.ReplayRequest{ReplayID}` (only when an import feeds BGP). Each producer
+(static, connected, l2tp; the as112 producer when it lands) re-emits its current
+route set as a `RouteChangeBatch` with `ReplayID` echoed -- the producer never learns
+the peer, so the batch stays peer-agnostic. The orchestrator maps the returning
+`ReplayID` back to the one peer, applies the destination-scoped `Accept` filter, and
+injects to that single peer via `UpdateRoute(<peer>)`. Distinct `ReplayID`s per
+peer-up mean concurrent replays never cross-deliver; an unknown/expired `ReplayID` is
+dropped. The map is held for a TTL (not dropped right after `Emit`) because
+out-of-process producers deliver their re-emit asynchronously. The replay reflects
+the CURRENT live set, so a route withdrawn before the peer joined is not replayed.
+Replays increment `ze_bgp_redistribute_replay_total{source}`.
+
+Destination scoping: an `ImportRule` records the `destination` protocol it was parsed
+under, and `Accept(route, importingProtocol)` requires the importing protocol to match
+that destination -- so an import under `destination bgp` no longer satisfies
+`Accept(_, "ospf")`. An empty `Destination` stays destination-agnostic (back-compat).
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- replayCoordinator, onPeerUp, handleReplayBatch, ReplayID->peer TTL map -->
+<!-- source: internal/core/redistevents/events.go -- ReplayRequest event + ReplayID field + IsReplay -->
+<!-- source: internal/component/config/redistribute/route.go -- ImportRule.Destination, destination-scoped Accept -->
+
 ### FIB VPP
 
 The `fib-vpp` plugin subscribes to `system-rib/best-change` and programs VPP's FIB

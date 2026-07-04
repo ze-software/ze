@@ -31,7 +31,7 @@ top-level stage failures, and write:
 | `tmp/ze-verify-failures.json` | Machine-readable failure routing index |
 | `tmp/ze-verify.status` | Freshness fingerprint for the last run |
 
-The functional test target runs 17 suites: encode, plugin, parse, decode, reload,
+The functional test target runs 18 suites: encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, ldp, rsvpte, isis, ospf, ospfv3, web, install.
 
 `make ze-validate` is a fast (~0.2s) post-verify check that catches recurring
@@ -412,8 +412,15 @@ First occupant: `internal/test/plugins/fakeredist/`. Pattern:
 | File | Role |
 |------|------|
 | `fakeredist.go` | Package state, command parser, batch builder/emitter |
-| `register.go` | Plugin registration + `OnExecuteCommand` dispatcher |
+| `store.go` | Current-set tracking + `reemitAll` for redistribute late-join replay |
+| `register.go` | Plugin registration + `OnExecuteCommand` dispatcher + `ReplayRequest` subscription |
 | `fakeredist_test.go` | Unit tests for the command surface |
+
+fakeredist tracks the routes it has emitted (`store.go`) and subscribes to
+`redistevents.ReplayRequest`, re-emitting its current live set tagged with the
+echoed `ReplayID` so the late-join `.ci` tests (`redistribute-late-join*.ci`) can
+drive a peer-up replay in-process, the same way the real producers (static,
+connected, l2tp) do.
 
 The aggregator at `internal/test/plugins/all/all.go` blank-imports every
 test-only internal plugin. `cmd/ze/plugins_zetest.go` imports that aggregator

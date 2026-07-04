@@ -340,6 +340,8 @@ Each `destination <protocol>` names a registered consumer. Under it,
 `source` is the protocol's canonical name registered via
 `redistribute.RegisterSource`. Per-source `family` lists narrow which
 address families are redistributed; an empty list means "all families".
+An import is scoped to its enclosing `destination`: an `import` under
+`destination bgp` feeds only BGP, not OSPF/IS-IS.
 
 The orchestrator **auto-loads** when `redistribute {}` appears in the
 config. No `plugin { internal redistribute-orchestrator { use redistribute-orchestrator } }`
@@ -349,10 +351,21 @@ Reactor per-peer NEXT_HOP substitution applies: when the producer leaves
 `NextHop` zero, the reactor stamps each peer's local session address as the
 NEXT_HOP. Producers that have an explicit address pass it through verbatim.
 
+**Late-join replay:** a route injected by a source into `destination bgp` also
+reaches a BGP peer that establishes AFTER the injection. On a peer's down->up
+edge the orchestrator emits a `redistevents.ReplayRequest` carrying an opaque
+`ReplayID` token; each producer re-emits its current set with the token echoed,
+and the orchestrator targets only the newly-established peer. Producers stay
+peer-agnostic; the orchestrator holds the `ReplayID -> peer` mapping. Out-of-process
+producers re-emit asynchronously, so the mapping is held for a TTL. This closes the
+gap for dynamic/inbound peers not present in the reactor map at injection time.
+
 Counters: `ze_bgp_redistribute_events_received`, `_announcements`,
-`_withdrawals`, `_filtered_protocol_total`, `_filtered_rule_total`.
+`_withdrawals`, `_filtered_protocol_total`, `_filtered_rule_total`,
+`ze_bgp_redistribute_replay_total{source}` (routes replayed to a newly-established peer).
 
 <!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer plugin -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- late-join replay-on-peer-up -->
 <!-- source: internal/core/redistevents/registry.go -- ProtocolID + producer registration -->
 
 ### Prefix-List Filter (`bgp-filter-prefix`)

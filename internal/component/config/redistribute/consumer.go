@@ -35,6 +35,13 @@ type RouteEntry struct {
 	// when the orchestrator could not resolve a name. Adding it is additive: it
 	// does not change the RedistConsumer interface signature.
 	Source string
+	// Peer is the single peer selector for a targeted inject, used by the BGP
+	// consumer's replay-on-peer-up path: the orchestrator sets it to the address
+	// of the newly-established peer so a replayed route reaches only that peer.
+	// Empty means the normal fan-out to all peers ("*"). Consumers that inject
+	// into a flooded/synchronized DB (OSPF/ISIS) ignore it. Additive: it does
+	// not change the RedistConsumer interface signature.
+	Peer string
 }
 
 var (

@@ -128,6 +128,13 @@ func (o *routeObserver) toNetworkPrefix(p addrPayload) (netip.Prefix, bool) {
 }
 
 func (o *routeObserver) emit(action redistevents.RouteAction, prefix netip.Prefix) {
+	o.emitID(action, prefix, 0)
+}
+
+// emitID emits a single-prefix batch tagged with replayID (0 for the normal
+// incremental path; nonzero echoes a redistribute ReplayRequest so the
+// orchestrator can replay to a newly-established peer).
+func (o *routeObserver) emitID(action redistevents.RouteAction, prefix netip.Prefix, replayID uint64) {
 	if o.bus == nil {
 		return
 	}
@@ -142,12 +149,35 @@ func (o *routeObserver) emit(action redistevents.RouteAction, prefix netip.Prefi
 	b.Protocol = connectedevents.ProtocolID
 	b.AFI = uint16(fam.AFI)
 	b.SAFI = uint8(fam.SAFI)
+	b.ReplayID = replayID
 	b.Entries = append(b.Entries, redistevents.RouteChangeEntry{
 		Action: action,
 		Prefix: prefix,
 	})
 	if _, err := connectedevents.RouteChange.Emit(o.bus, b); err != nil {
 		logger().Warn("connected: route-change emit failed", "error", err)
+	}
+}
+
+// reemitAll re-emits every currently-connected prefix as an add tagged with
+// replayID, so the redistribute orchestrator can replay them to a peer that
+// establishes after the original emit. Reflects the CURRENT live set (a prefix
+// removed before the peer joined is simply absent). A zero replayID is a no-op
+// (the orchestrator only allocates nonzero tokens).
+func (o *routeObserver) reemitAll(replayID uint64) {
+	if o.bus == nil || replayID == 0 {
+		return
+	}
+	o.mu.Lock()
+	prefixes := make([]netip.Prefix, 0, len(o.prefixes))
+	for p, count := range o.prefixes {
+		if count > 0 {
+			prefixes = append(prefixes, p)
+		}
+	}
+	o.mu.Unlock()
+	for _, p := range prefixes {
+		o.emitID(redistevents.ActionAdd, p, replayID)
 	}
 }
 
@@ -163,8 +193,15 @@ func runConnectedPlugin(conn net.Conn) int {
 	if bus != nil {
 		unsub1 := bus.Subscribe("interface", "addr-added", obs.handleAddrAdded)
 		unsub2 := bus.Subscribe("interface", "addr-removed", obs.handleAddrRemoved)
+		// Redistribute late-join replay: on a ReplayRequest re-emit the current
+		// connected-route set tagged with the echoed ReplayID so a peer that
+		// established after injection receives them (spec-redistribute-late-join-replay).
+		unsub3 := redistevents.ReplayRequestEvent.Subscribe(bus, func(r *redistevents.ReplayRequest) {
+			obs.reemitAll(r.ReplayID)
+		})
 		defer unsub1()
 		defer unsub2()
+		defer unsub3()
 	}
 
 	ctx := context.Background()

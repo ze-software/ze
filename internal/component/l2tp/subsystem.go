@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -78,6 +79,9 @@ type Subsystem struct {
 	// One instance per subsystem; installed into every reactor at
 	// Start. See spec-l2tp-7 "Redistribute" and route_observer.go.
 	routeObserver *subscriberRouteObserver
+	// replayUnsub unsubscribes the redistribute ReplayRequest handler
+	// installed at Start; nil when no bus was provided. Cleared on Stop/unwind.
+	replayUnsub func()
 	// observer tracks per-session events and per-login CQM samples.
 	// Created at Start when CQMEnabled; nil otherwise.
 	observer *Observer
@@ -154,6 +158,16 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	// transitions drive subscriber route inject / withdraw.
 	RegisterL2TPSources()
 	s.routeObserver = newSubscriberRouteObserver(s.logger, bus)
+
+	// Redistribute late-join replay: on a ReplayRequest re-emit the current
+	// subscriber-route set tagged with the echoed ReplayID so a peer that
+	// established after injection receives them (spec-redistribute-late-join-replay).
+	if bus != nil {
+		obs := s.routeObserver
+		s.replayUnsub = redistevents.ReplayRequestEvent.Subscribe(bus, func(r *redistevents.ReplayRequest) {
+			obs.reemitAll(r.ReplayID)
+		})
+	}
 
 	// spec-l2tp-9: create the CQM observer when enabled.
 	if s.params.CQMEnabled {
@@ -420,6 +434,10 @@ func (s *Subsystem) unwindLocked() {
 			errs = append(errs, err)
 		}
 	}
+	if s.replayUnsub != nil {
+		s.replayUnsub()
+		s.replayUnsub = nil
+	}
 	if s.statsPoller != nil {
 		s.statsPoller.stop()
 		s.statsPoller = nil
@@ -491,6 +509,10 @@ func (s *Subsystem) Stop(_ context.Context) error {
 		if err := l.Stop(); err != nil {
 			errs = append(errs, err)
 		}
+	}
+	if s.replayUnsub != nil {
+		s.replayUnsub()
+		s.replayUnsub = nil
 	}
 	if s.statsPoller != nil {
 		s.statsPoller.stop()

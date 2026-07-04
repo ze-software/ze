@@ -37,10 +37,16 @@ func (c *BGPConsumer) Name() string { return bgpConsumerName }
 
 func (c *BGPConsumer) InjectRoute(ctx context.Context, fam family.Family, entry redistribute.RouteEntry) {
 	cmd := formatAnnounce(fam.String(), entry.NextHop, entry.Prefix)
-	slog.Debug("bgp consumer: injecting route", "command", cmd)
+	// Peer targets a single peer (replay-on-peer-up); empty is the normal
+	// fan-out to all peers.
+	sel := entry.Peer
+	if sel == "" {
+		sel = "*"
+	}
+	slog.Debug("bgp consumer: injecting route", "command", cmd, "peer", sel)
 	cctx, cancel := context.WithTimeout(ctx, updateRouteTimeout)
 	defer cancel()
-	added, withdrawn, err := c.dispatcher.UpdateRoute(cctx, "*", cmd)
+	added, withdrawn, err := c.dispatcher.UpdateRoute(cctx, sel, cmd)
 	if err != nil {
 		slog.Warn("bgp consumer: update-route failed", "error", err, "command", cmd)
 	} else {

@@ -128,6 +128,51 @@ func TestRouteObserverSessionDownUnknownID(t *testing.T) {
 	require.Equal(t, 0, active)
 }
 
+// VALIDATES: TestProducerEchoesReplayIDOnReplayRequest (l2tp) -- reemitAll
+// re-emits the current session addresses as adds tagged with the echoed
+// ReplayID; the incremental emit stays ReplayID=0 (AC-6, AC-8).
+// PREVENTS: a late-joining peer missing l2tp subscriber routes; a wire change
+// to the incremental path.
+func TestRouteObserverReemitsReplayID(t *testing.T) {
+	bus := &recordingBus{}
+	o := newSubscriberRouteObserver(slog.Default(), bus)
+
+	o.OnSessionIPUp(1, 42, "alice", netip.MustParseAddr("192.0.2.7"))
+	o.OnSessionIPUp(1, 43, "bob", netip.MustParseAddr("2001:db8::1"))
+
+	// Incremental emits carried ReplayID 0.
+	for _, e := range bus.events() {
+		if b, ok := e.payload.(*redistevents.RouteChangeBatch); ok {
+			require.Equal(t, uint64(0), b.ReplayID, "incremental emit must not set ReplayID")
+		}
+	}
+	bus.mu.Lock()
+	bus.emits = nil
+	bus.mu.Unlock()
+
+	o.reemitAll(88)
+
+	evts := bus.events()
+	require.Len(t, evts, 2, "both session addresses re-emitted")
+	got := map[string]uint64{}
+	for _, e := range evts {
+		b, ok := e.payload.(*redistevents.RouteChangeBatch)
+		require.True(t, ok)
+		require.Len(t, b.Entries, 1)
+		require.Equal(t, redistevents.ActionAdd, b.Entries[0].Action)
+		got[b.Entries[0].Prefix.String()] = b.ReplayID
+	}
+	require.Equal(t, uint64(88), got["192.0.2.7/32"], "v4 session route re-emitted with replayID")
+	require.Equal(t, uint64(88), got["2001:db8::1/128"], "v6 session route re-emitted with replayID")
+
+	// reemitAll(0) is a no-op.
+	bus.mu.Lock()
+	bus.emits = nil
+	bus.mu.Unlock()
+	o.reemitAll(0)
+	require.Empty(t, bus.events(), "reemitAll(0) must be a no-op")
+}
+
 // VALIDATES: OnSessionIPUp with an invalid address is a no-op.
 func TestRouteObserverSkipsInvalidAddr(t *testing.T) {
 	o := newSubscriberRouteObserver(slog.Default(), nil)

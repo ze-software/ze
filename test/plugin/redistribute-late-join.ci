@@ -1,0 +1,136 @@
+# Test: redistribute-late-join -- a redistribute-injected route reaches a peer
+#       that establishes AFTER the injection, via the peer-up replay path.
+#
+# VALIDATES: AC-1 -- redistribute source injects a route, then a peer establishes
+#            on a FRESH down->up edge and still receives it. The route is NOT a
+#            config route and NO RIB plugin is loaded, so on the reconnect
+#            (connection B) the ONLY mechanism that can re-send the fakeredist
+#            route is the redistribute replay-on-peer-up (orchestrator state-up
+#            -> ReplayRequest -> fakeredist re-emit -> targeted UpdateRoute).
+# PREVENTS: the orchestrator not subscribing to state, the producer not
+#           answering a ReplayRequest, or the ReplayID targeting regressing --
+#           any of which leaves connection B with no UPDATE and times out.
+#
+# Harness note: a truly-new dynamic/inbound peer is not expressible in check
+# mode (ze-peer only dials in `--mode inject`, which has no per-message expect;
+# a dynamic-only group opens no listener). The reconnect (tcp_connections=2)
+# isolates the replay path the same way watchdog-reconnect.ci and
+# adj-rib-in-replay-on-peerup.ci do: connection B has no config route and no
+# ribOut to fall back on, so a received UPDATE proves the replay path fired.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=30s
+
+# Connection A: fakeredist route delivered by the incremental path (peer already
+# up when the observer injects). Then reset the session to force a reconnect.
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.1"}]}
+action=notification:conn=1:seq=2:text=Peer Reset
+
+# Connection B: the SAME route, re-delivered ONLY by the replay-on-peer-up path
+# (no config route, no RIB plugin => no other source can resend it).
+expect=json:conn=2:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.1"}]}
+EOF_PEER
+
+# Python observer plugin: inject once while connection A is up, then hold the
+# daemon alive across the reconnect so the replay reaches connection B.
+tmpfs=late-join-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import time
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for connection A (the first BGP session) to be established so the
+    # inject takes the incremental path, not the queue.
+    time.sleep(2.0)
+
+    resp = dispatch(api, 'request fakeredist emit add ipv4/unicast 10.0.0.1/32')
+    result = resp.get('result', {})
+    if result.get('status') != 'done':
+        runtime_fail(f'request fakeredist emit failed: {result}')
+        return
+
+    # Hold the daemon up across the notification-driven reset + connect-retry (5s)
+    # + reconnect + replay so connection B receives the replayed UPDATE.
+    time.sleep(18.0)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration -- fakeredist producer + redistribute orchestrator, NO RIB
+# plugin and NO config route, so connection B's only route source is the replay.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external late-join-test {
+		run ./late-join-test.run
+		encoder json
+	}
+	internal redistribute-orchestrator {
+		use redistribute-orchestrator
+	}
+	internal fakeredist {
+		use fakeredist
+	}
+}
+
+redistribute {
+	destination bgp {
+		import fakeredist {
+			family [ ipv4/unicast ];
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		timer { connect-retry 5; }
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0

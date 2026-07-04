@@ -59,9 +59,25 @@ func (e *Evaluator) Rules() []ImportRule {
 	out := make([]ImportRule, len(e.rules))
 	for i, r := range e.rules {
 		out[i] = ImportRule{
-			Source:   r.Source,
-			Families: slices.Clone(r.Families),
+			Source:      r.Source,
+			Destination: r.Destination,
+			Families:    slices.Clone(r.Families),
 		}
 	}
 	return out
+}
+
+// HasDestination reports whether any rule feeds the given destination protocol.
+// A rule with an empty Destination is destination-agnostic and matches every
+// destination. The redistribute orchestrator calls this on a BGP peer-up to
+// skip firing a replay request when no import feeds BGP.
+func (e *Evaluator) HasDestination(dest string) bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	for i := range e.rules {
+		if e.rules[i].Destination == "" || e.rules[i].Destination == dest {
+			return true
+		}
+	}
+	return false
 }

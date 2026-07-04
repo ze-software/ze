@@ -62,6 +62,16 @@ func runPlugin(conn net.Conn) int {
 
 	p.OnExecuteCommand(dispatchCommand)
 
+	// Redistribute late-join replay: on a ReplayRequest re-emit the current
+	// synthetic route set tagged with the echoed ReplayID so a peer that
+	// established after injection receives them (spec-redistribute-late-join-replay).
+	if bus := getEventBus(); bus != nil {
+		unsub := redistevents.ReplayRequestEvent.Subscribe(bus, func(r *redistevents.ReplayRequest) {
+			reemitAll(r.ReplayID)
+		})
+		defer unsub()
+	}
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{

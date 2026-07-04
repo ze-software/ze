@@ -83,6 +83,7 @@ type pluginMetrics struct {
 	withdrawals           metrics.Counter
 	filteredProtocolTotal metrics.Counter
 	filteredRuleTotal     metrics.Counter
+	replayTotal           metrics.CounterVec
 }
 
 var metricsPtr atomic.Pointer[pluginMetrics]
@@ -94,6 +95,7 @@ func setMetricsRegistry(reg metrics.Registry) {
 		withdrawals:           reg.Counter("ze_bgp_redistribute_withdrawals", "Accepted remove entries dispatched to consumers as withdrawals."),
 		filteredProtocolTotal: reg.Counter("ze_bgp_redistribute_filtered_protocol_total", "Batches filtered by the consumer-protocol skip."),
 		filteredRuleTotal:     reg.Counter("ze_bgp_redistribute_filtered_rule_total", "Entries rejected by the redistribute evaluator."),
+		replayTotal:           reg.CounterVec("ze_bgp_redistribute_replay_total", "Redistribute routes replayed to a newly-established peer, by source.", []string{"source"}),
 	}
 	metricsPtr.Store(m)
 }
@@ -167,6 +169,15 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 		return
 	}
 
+	// Replay batches (nonzero ReplayID, echoed from a ReplayRequest) are
+	// correlated to the one peer whose establishment triggered the request and
+	// injected via the BGP consumer only. The incremental path below is
+	// unchanged for the default ReplayID==0.
+	if b.IsReplay() {
+		handleReplayBatch(ctx, b)
+		return
+	}
+
 	name := redistevents.ProtocolName(b.Protocol)
 	if name == "" {
 		logger().Warn(Name+": batch from unregistered ProtocolID", "id", b.Protocol)
@@ -218,12 +229,16 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 		}
 		logger().Debug(Name+": dispatching to consumer", "consumer", cname, "entries", len(b.Entries))
 		for i := range b.Entries {
-			dispatchEntryToConsumer(ctx, consumer, famVal, name, &b.Entries[i])
+			// Empty peer selector: the incremental path fans out to all peers.
+			dispatchEntryToConsumer(ctx, consumer, famVal, name, "", &b.Entries[i])
 		}
 	}
 }
 
-func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source string, entry *redistevents.RouteChangeEntry) {
+// dispatchEntryToConsumer dispatches one entry to a consumer. peer is the
+// single-peer selector for the replay path (empty means the normal all-peers
+// fan-out).
+func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, entry *redistevents.RouteChangeEntry) {
 	if !entry.Prefix.IsValid() {
 		logger().Warn(Name+": skipping entry with invalid prefix", "action", entry.Action)
 		return
@@ -240,6 +255,7 @@ func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistCo
 			Prefix:  entry.Prefix.String(),
 			NextHop: nhop,
 			Source:  source,
+			Peer:    peer,
 		})
 		return
 	}

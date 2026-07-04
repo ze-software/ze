@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/routingtable"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	staticyang "codeberg.org/thomas-mangin/ze/internal/plugins/static/yang"
@@ -93,6 +94,16 @@ func runStaticPlugin(conn net.Conn) int {
 
 	backend := newStaticBackend()
 	rm := newRouteManager(backend)
+
+	// Redistribute late-join replay: on a ReplayRequest re-emit the current
+	// static-route set tagged with the echoed ReplayID so a peer that
+	// established after injection receives them (spec-redistribute-late-join-replay).
+	if bus := getEventBus(); bus != nil {
+		unsub := redistevents.ReplayRequestEvent.Subscribe(bus, func(r *redistevents.ReplayRequest) {
+			rm.reemitAll(r.ReplayID)
+		})
+		defer unsub()
+	}
 
 	var mu sync.Mutex
 	var currentRoutes []staticRoute

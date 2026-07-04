@@ -221,3 +221,46 @@ func TestEvaluateEmptyRules(t *testing.T) {
 	assert.False(t, Evaluate(route, nil, "bgp"))
 	assert.False(t, Evaluate(route, []ImportRule{}, "bgp"))
 }
+
+// TestImportRuleDestinationScoped verifies R-3: an ImportRule parsed under a
+// `destination <proto>` block is accepted ONLY when the importing protocol
+// matches that destination. A source imported under `destination bgp` must NOT
+// satisfy Accept(_, "ospf"). A rule with an empty Destination stays
+// destination-agnostic (back-compat for rules built before scoping / tests).
+//
+// VALIDATES: AC-5 / R-3 destination scoping in both directions.
+// PREVENTS: cross-destination leak (an import meant for BGP reaching OSPF).
+func TestImportRuleDestinationScoped(t *testing.T) {
+	route := RedistRoute{Origin: "connected", Family: family.IPv4Unicast, Source: "connected"}
+
+	bgpOnly := ImportRule{Source: "connected", Destination: "bgp"}
+	assert.True(t, bgpOnly.Accept(route, "bgp"), "import under destination bgp must feed bgp")
+	assert.False(t, bgpOnly.Accept(route, "ospf"), "import under destination bgp must NOT feed ospf")
+
+	ospfOnly := ImportRule{Source: "connected", Destination: "ospf"}
+	assert.True(t, ospfOnly.Accept(route, "ospf"), "import under destination ospf must feed ospf")
+	assert.False(t, ospfOnly.Accept(route, "bgp"), "import under destination ospf must NOT feed bgp")
+
+	// Empty Destination stays agnostic (back-compat).
+	agnostic := ImportRule{Source: "connected"}
+	assert.True(t, agnostic.Accept(route, "bgp"), "empty destination accepts any importer (bgp)")
+	assert.True(t, agnostic.Accept(route, "ospf"), "empty destination accepts any importer (ospf)")
+}
+
+// TestEvaluatorHasDestination verifies HasDestination reports whether any rule
+// feeds a given destination protocol; an empty-Destination rule matches every
+// destination.
+//
+// VALIDATES: orchestrator can cheaply skip firing a replay when no import feeds BGP.
+// PREVENTS: a pointless replay broadcast on every peer-up when redistribute has
+// no BGP destination.
+func TestEvaluatorHasDestination(t *testing.T) {
+	ev := NewEvaluator([]ImportRule{{Source: "connected", Destination: "ospf"}})
+	assert.True(t, ev.HasDestination("ospf"))
+	assert.False(t, ev.HasDestination("bgp"))
+
+	// An empty-Destination (agnostic) rule matches every destination.
+	evAgnostic := NewEvaluator([]ImportRule{{Source: "connected"}})
+	assert.True(t, evAgnostic.HasDestination("bgp"))
+	assert.True(t, evAgnostic.HasDestination("ospf"))
+}

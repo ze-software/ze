@@ -28,12 +28,50 @@
 //     therefore runs unconditionally on the producer side after Emit returns.
 package redistevents
 
-import "net/netip"
+import (
+	"net/netip"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
+)
 
 // EventType is the canonical event-type string under each protocol's
 // namespace. Producers and consumers use it when calling
 // events.Register[*RouteChangeBatch](<protocol>, redistevents.EventType).
 const EventType = "route-change"
+
+// ReplayNamespace and ReplayRequestEventType name the SHARED replay-request
+// broadcast. Unlike RouteChange, which is per-producer (each producer emits
+// under its own protocol namespace), the replay-request is a single event the
+// redistribute orchestrator emits and every producer subscribes to. One fixed
+// (namespace, eventType) pair lets all producers agree without the orchestrator
+// having to emit per-producer.
+const (
+	ReplayNamespace        = "redistribute"
+	ReplayRequestEventType = "replay-request"
+)
+
+// ReplayRequest is the payload of the (redistribute, replay-request) event.
+// It carries an opaque correlation token the orchestrator allocates on a BGP
+// peer's down->up edge; each producer echoes the token verbatim into the
+// ReplayID of the RouteChangeBatch(es) it re-emits. The producer never learns
+// the peer -- the orchestrator alone holds the ReplayID -> peer mapping, so
+// the returning batch stays peer-agnostic.
+//
+// Payload-carrying (via events.Register), unlike ribevents' payload-less
+// RegisterSignal: ribevents broadcasts an untargeted full-table replay to all
+// consumers, whereas we must correlate a returning batch to the one new peer
+// by token.
+type ReplayRequest struct {
+	// ReplayID is the opaque correlation token. Nonzero (the orchestrator
+	// allocates from a monotonic generation counter, so 0 is never handed out).
+	ReplayID uint64 `json:"replay-id"`
+}
+
+// ReplayRequestEvent is the shared typed handle for (redistribute,
+// replay-request). The orchestrator calls ReplayRequestEvent.Emit(bus, ...);
+// producers call ReplayRequestEvent.Subscribe(bus, ...). Two Register calls
+// with the same (namespace, eventType, T) are idempotent, so importers agree.
+var ReplayRequestEvent = events.Register[*ReplayRequest](ReplayNamespace, ReplayRequestEventType)
 
 // ProtocolID is the typed numeric identity of a route-producing protocol.
 // Allocated at producer init via RegisterProtocol.
@@ -119,4 +157,19 @@ type RouteChangeBatch struct {
 	// pool's seeded size; growth on the hot path is a sizing bug surfaced
 	// by the burst test (AC-13).
 	Entries []RouteChangeEntry
+
+	// ReplayID correlates a re-emitted batch to the orchestrator's replay
+	// request. 0 means a normal incremental change (the default for every
+	// existing producer emit -- additive, no wire/behavior change). A nonzero
+	// value is the opaque token from a ReplayRequest the producer is answering;
+	// the orchestrator maps it back to the single peer whose establishment
+	// triggered the replay and targets only that peer. It is a value type (an
+	// opaque token, NOT a peer) so the batch stays peer-agnostic.
+	ReplayID uint64
 }
+
+// IsReplay reports whether this batch answers a replay request (nonzero
+// ReplayID) rather than carrying a normal incremental change. Derived from
+// ReplayID so there is no second source of truth (a separate Replay bool) to
+// keep consistent.
+func (b *RouteChangeBatch) IsReplay() bool { return b.ReplayID != 0 }

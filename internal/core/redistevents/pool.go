@@ -50,6 +50,7 @@ func AcquireBatch() *RouteChangeBatch {
 	b.Protocol = ProtocolUnspecified
 	b.AFI = 0
 	b.SAFI = 0
+	b.ReplayID = 0
 	b.Entries = b.Entries[:0]
 	return b
 }
@@ -74,5 +75,6 @@ func ReleaseBatch(b *RouteChangeBatch) {
 	b.Protocol = ProtocolUnspecified
 	b.AFI = 0
 	b.SAFI = 0
+	b.ReplayID = 0
 	batchPool.Put(b)
 }

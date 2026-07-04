@@ -185,41 +185,85 @@ func (o *subscriberRouteObserver) Stats() (injected, withdrawn uint64, active in
 // emitAdd builds and emits a single-entry add batch for the given address.
 // Nil bus is tolerated (no emission, state still tracked).
 func (o *subscriberRouteObserver) emitAdd(addr netip.Addr) {
-	if o.bus == nil {
+	o.emitEntries(0, familyForAddr(addr), redistevents.RouteChangeEntry{
+		Action: redistevents.ActionAdd,
+		Prefix: prefixForAddr(addr),
+	})
+}
+
+// emitRemove builds and emits a single-entry remove batch for the given address.
+func (o *subscriberRouteObserver) emitRemove(addr netip.Addr) {
+	o.emitEntries(0, familyForAddr(addr), redistevents.RouteChangeEntry{
+		Action: redistevents.ActionRemove,
+		Prefix: prefixForAddr(addr),
+	})
+}
+
+// emitEntries builds and emits one batch for fam with the given entries, tagged
+// with replayID (0 for the normal incremental path; nonzero echoes a
+// redistribute ReplayRequest so the orchestrator can replay to a peer that
+// established after injection). Central emit path for the observer. Nil bus or
+// no entries is a no-op.
+func (o *subscriberRouteObserver) emitEntries(replayID uint64, fam family.Family, entries ...redistevents.RouteChangeEntry) {
+	if o.bus == nil || len(entries) == 0 {
 		return
 	}
-	fam := familyForAddr(addr)
 	b := redistevents.AcquireBatch()
 	defer redistevents.ReleaseBatch(b)
 	b.Protocol = l2tpevents.ProtocolID
 	b.AFI = uint16(fam.AFI)
 	b.SAFI = uint8(fam.SAFI)
-	b.Entries = append(b.Entries, redistevents.RouteChangeEntry{
-		Action: redistevents.ActionAdd,
-		Prefix: prefixForAddr(addr),
-	})
+	b.ReplayID = replayID
+	b.Entries = append(b.Entries, entries...)
 	if _, err := l2tpevents.RouteChange.Emit(o.bus, b); err != nil {
 		o.logger.Warn("l2tp: route-change emit failed", "error", err)
 	}
 }
 
-// emitRemove builds and emits a single-entry remove batch for the given address.
-func (o *subscriberRouteObserver) emitRemove(addr netip.Addr) {
-	if o.bus == nil {
+// reemitAll re-emits every currently-tracked subscriber route (each session's
+// live v4/v6 address and any already-emitted RADIUS framed routes) as adds
+// tagged with replayID, so the redistribute orchestrator can replay them to a
+// peer that establishes after the original emit. Reflects the CURRENT live set;
+// a session torn down before the peer joined is absent. A zero replayID is a
+// no-op (the orchestrator only allocates nonzero tokens).
+func (o *subscriberRouteObserver) reemitAll(replayID uint64) {
+	if o.bus == nil || replayID == 0 {
 		return
 	}
-	fam := familyForAddr(addr)
-	b := redistevents.AcquireBatch()
-	defer redistevents.ReleaseBatch(b)
-	b.Protocol = l2tpevents.ProtocolID
-	b.AFI = uint16(fam.AFI)
-	b.SAFI = uint8(fam.SAFI)
-	b.Entries = append(b.Entries, redistevents.RouteChangeEntry{
-		Action: redistevents.ActionRemove,
-		Prefix: prefixForAddr(addr),
-	})
-	if _, err := l2tpevents.RouteChange.Emit(o.bus, b); err != nil {
-		o.logger.Warn("l2tp: route-change emit failed", "error", err)
+	var v4addrs, v6addrs []netip.Addr
+	var v4framed, v6framed []redistevents.RouteChangeEntry
+	o.mu.Lock()
+	for _, r := range o.records {
+		if r.v4.IsValid() {
+			v4addrs = append(v4addrs, r.v4)
+		}
+		if r.v6.IsValid() {
+			v6addrs = append(v6addrs, r.v6)
+		}
+		if r.framedEmitted {
+			for _, fr := range r.framedRoutes {
+				e := redistevents.RouteChangeEntry{Action: redistevents.ActionAdd, Prefix: fr.Prefix, Metric: fr.Metric}
+				if fr.Prefix.Addr().Is4() {
+					v4framed = append(v4framed, e)
+				} else {
+					v6framed = append(v6framed, e)
+				}
+			}
+		}
+	}
+	o.mu.Unlock()
+
+	for _, a := range v4addrs {
+		o.emitEntries(replayID, family.IPv4Unicast, redistevents.RouteChangeEntry{Action: redistevents.ActionAdd, Prefix: prefixForAddr(a)})
+	}
+	for _, a := range v6addrs {
+		o.emitEntries(replayID, family.IPv6Unicast, redistevents.RouteChangeEntry{Action: redistevents.ActionAdd, Prefix: prefixForAddr(a)})
+	}
+	if len(v4framed) > 0 {
+		o.emitEntries(replayID, family.IPv4Unicast, v4framed...)
+	}
+	if len(v6framed) > 0 {
+		o.emitEntries(replayID, family.IPv6Unicast, v6framed...)
 	}
 }
 
@@ -252,15 +296,7 @@ func (o *subscriberRouteObserver) emitFramedRoutes(action redistevents.RouteActi
 }
 
 func (o *subscriberRouteObserver) emitBatch(fam family.Family, entries []redistevents.RouteChangeEntry) {
-	b := redistevents.AcquireBatch()
-	defer redistevents.ReleaseBatch(b)
-	b.Protocol = l2tpevents.ProtocolID
-	b.AFI = uint16(fam.AFI)
-	b.SAFI = uint8(fam.SAFI)
-	b.Entries = append(b.Entries, entries...)
-	if _, err := l2tpevents.RouteChange.Emit(o.bus, b); err != nil {
-		o.logger.Warn("l2tp: route-change emit failed", "error", err)
-	}
+	o.emitEntries(0, fam, entries...)
 }
 
 // prefixForAddr returns /32 for IPv4, /128 for IPv6.

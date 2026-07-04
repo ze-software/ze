@@ -1,0 +1,146 @@
+# Test: redistribute-late-join-withdrawn -- a route withdrawn before a peer
+#       (re-)joins is NOT replayed; only the current live set is.
+#
+# VALIDATES: AC-4 -- re-emit reflects CURRENT live state. During connection A the
+#            producer injects a withdrawn route (10.0.0.1/32, added then removed)
+#            and a kept sentinel (10.0.0.2/32). On the reconnect (connection B)
+#            the replay re-emits ONLY the sentinel; the withdrawn route is absent
+#            because it is no longer in the producer's live set. No config route
+#            and no RIB plugin, so connection B's routes come solely from the
+#            replay path.
+# PREVENTS: the producer re-emitting stale/withdrawn routes on replay.
+#
+# Harness note: asserting the withdrawn route is *absent* on the wire is not
+# directly expressible (the peer stops reading once its expects are met); the
+# deterministic signal is that connection B's replay delivers the sentinel
+# (proving the withdrawn route was dropped from the live set, else the store
+# would carry both). The producer-level "withdrawn route not re-emitted"
+# invariant is asserted deterministically in the unit test
+# TestFakeredistReemitsReplayID.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=30s
+
+# Connection A: withdrawn route added, sentinel added, withdrawn route removed.
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.1"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.2/32"],"next-hop":"127.0.0.1"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","ipv4/unicast":[{"action":"del","nlri":["10.0.0.1/32"]}]}
+action=notification:conn=1:seq=2:text=Peer Reset
+
+# Connection B: replay delivers ONLY the sentinel (10.0.0.2/32); the withdrawn
+# 10.0.0.1/32 is not in the live set and is not replayed.
+expect=json:conn=2:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.2/32"],"next-hop":"127.0.0.1"}]}
+EOF_PEER
+
+# Python observer plugin: inject the withdrawn route + sentinel while connection
+# A is up, withdraw the first, then hold the daemon alive across the reconnect.
+tmpfs=late-join-withdrawn-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import time
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
+
+
+def emit(api, command):
+    resp = dispatch(api, command)
+    result = resp.get('result', {})
+    if result.get('status') != 'done':
+        runtime_fail(f'{command} failed: {result}')
+        return False
+    return True
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    time.sleep(2.0)
+
+    if not emit(api, 'request fakeredist emit add ipv4/unicast 10.0.0.1/32'):
+        return
+    time.sleep(0.3)
+    if not emit(api, 'request fakeredist emit add ipv4/unicast 10.0.0.2/32'):
+        return
+    time.sleep(0.3)
+    if not emit(api, 'request fakeredist emit remove ipv4/unicast 10.0.0.1/32'):
+        return
+
+    # Hold the daemon up across the reset + connect-retry (5s) + reconnect + replay.
+    time.sleep(18.0)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration -- fakeredist producer + redistribute orchestrator, NO RIB
+# plugin and NO config route.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external late-join-withdrawn-test {
+		run ./late-join-withdrawn-test.run
+		encoder json
+	}
+	internal redistribute-orchestrator {
+		use redistribute-orchestrator
+	}
+	internal fakeredist {
+		use fakeredist
+	}
+}
+
+redistribute {
+	destination bgp {
+		import fakeredist {
+			family [ ipv4/unicast ];
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		timer { connect-retry 5; }
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
