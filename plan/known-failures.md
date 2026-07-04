@@ -3,11 +3,14 @@
 Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before Any
 Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
 
-**Status 2026-07-03: three open entries (below).**
-The OSPF build break and `plugin/all` golden-snapshot failures from 2026-07-02
-are resolved (the concurrent OSPF session's `multi_instance.go` work landed and
-snapshots are current). Every previously tracked entry from 2026-07-01 and
-earlier remains resolved (see below).
+**Status 2026-07-04: three open entries (below).**
+`TestBuildCommandTreeEnsureExists` (config/yang) is now resolved (stale test
+retargeted to the typed name selector -- see Resolved). A new open entry, the
+`rsvpte-lsp-setup` load-only panic, is added. The OSPF build break and
+`plugin/all` golden-snapshot failures from 2026-07-02 are resolved (the
+concurrent OSPF session's `multi_instance.go` work landed and snapshots are
+current). Every previously tracked entry from 2026-07-01 and earlier remains
+resolved (see below).
 
 ### `internal/component/doctor` -- 4 listener/schema tests fail on this macOS dev machine, pre-existing
 
@@ -21,17 +24,45 @@ with this specific macOS host's socket stack allowing a second bind where the
 test expects exclusivity (a `SO_REUSEPORT`/dual-stack quirk). Owner: whoever
 next investigates macOS listener-probe test portability.
 
-### `config/cli` + `config/yang` -- 2 tests fail, pre-existing
+### `config/cli` -- 1 test fails, pre-existing
 
 Observed 2026-07-03:
 - `TestValidateListenerConflictRelated` (config/cli): expects a
   `config-listener-conflict` diagnostic for a bgp-less `environment { web {
   server ... } }` with two servers on the same ip:port; none produced.
-- `TestBuildCommandTreeEnsureExists` (config/yang): `ze-iface:interface-create-
-  dummy`/`interface-delete` ensure-exists handlers missing from the built tree.
 
-Both are in subsystems with concurrent iface/web work in the busy tree. Owner:
-whichever session edits iface command YANG / web listener-conflict validation.
+In a subsystem with concurrent web work in the busy tree. Owner: whichever
+session edits web listener-conflict validation.
+
+### `rsvpte-lsp-setup` -- load-only `slice bounds` panic in `ze`, pre-existing
+
+Observed 2026-07-04 (~1 of 4 full `ze-verify` functional runs): the `ze` engine
+process panics during the `rsvpte-lsp-setup` functional test with
+`panic: runtime error: slice bounds out of range [:5448] with capacity 512`
+(exit 2 -> `expect exit-code 0` fails). A cap-512 buffer is resliced to hold
+5448 bytes -- a "trust a length, do not grow/check the buffer" bug; 5448 bytes
+is the size of a large boot-time frame (e.g. the share-registry command dump the
+external `rsvpte-setup` plugin receives). The test config boots rsvp-te + a BGP
+peer (`accept false`, never establishes) + the external JSON plugin.
+
+Reproduction is environment-specific, NOT raw repetition: 0 panics across 40
+serial + ~360 parallel isolated `ze-test rsvpte 3` runs, 0 under a `-race` build
+in isolation (no data race detected at that load), 0 under heavy synthetic load
+(which only produced 15s timeouts). It only appears in the full-verify
+environment (all feature plugins compiled in, GOMAXPROCS=13, real suite load).
+The verify aggregator truncates the goroutine stack to 2 lines
+(`goroutine N [running]:`); the runner itself keeps up to 10 MB / 200 lines
+(`runner_exec_util.go:55`, `report.go:175`), so a full-suite repro captured via
+`ze-test rsvpte --all -v` (not the aggregator) will carry the crash site.
+
+Ruled out (producers read, all safe): BGP text/JSON format scratch buffers
+(`format/text_human.go:224`, `format/text_json.go:375` -- both guarded by
+`if n > cap(raw)`), the RPC frame/batch pools (`pkg/plugin/rpc/framing.go`
+4 KB-cap, `batch.go`, `conn.go:writeAppended`, `mux.go` -- all `append`-based),
+and the RSVP message builder (`rsvpte/build.go:encodeMessage`, 1500-cap). The
+BGP forwarding/update pools do not run (the peer never establishes). The cap-512
+buffer is elsewhere; the captured crash stack will pin it. Owner: in-progress
+this session (debugging continues).
 
 ## Harness notes (not failures)
 
@@ -55,6 +86,19 @@ synchronize via a channel. Owner: whichever session next touches
 `internal/component/l2tp/reactor_test.go`.
 
 ## Resolved
+
+### 2026-07-04 -- `config/yang` `TestBuildCommandTreeEnsureExists` -> stale test retargeted
+
+**Resolved 2026-07-04.** Not a product regression: the ensure-exists handlers
+were not "missing from the built tree." Commit `5f7c70f18` (the verb-first
+grammar gate) intentionally restructured `ze-iface-cmd.yang` -- `create interface
+dummy <name>` became `create interface dummy name <name>` (a typed `name`
+selector, cli-grammar.md R6) -- which moved `ze:command`/`ze:ensure-exists`/`unit`/
+`address` from the `dummy` grouping onto the nested `name` node, but left this
+test navigating the old positions. The rollback behavior is preserved (the
+ensure-exists lives on the `name` node now). Fixed by retargeting the test's
+navigation through `.Children["name"]`, keeping every assertion. Deterministic
+under `-tags ze_ospf`; verified green.
 
 ### 2026-07-02 -- `internal/plugins/ospf/multi_instance.go` build break -> concurrent OSPF session completed
 
