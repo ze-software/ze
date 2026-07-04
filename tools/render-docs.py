@@ -49,7 +49,6 @@ MANIFEST = {
     "features/introspection.md": "observe",
     "features/looking-glass.md": "operate",
     "features/mcp-integration.md": "automate",
-    "features/plugins.md": "automate",
     "features/web-interface.md": "operate",
     "guide/as112.md": "services",
     "guide/audit.md": "secure",

@@ -9,6 +9,7 @@
             "columns": [
                 [
                     {"href": "features/", "icon": "🧩", "title": "Features", "desc": "%(features)s features, color-coded by category"},
+                    {"href": "docs/features/plugins/", "icon": "∎", "title": "Plugins", "desc": "Search every runtime plugin by purpose, config, or dependency"},
                     {"href": "cli/", "icon": "⌨️", "title": "CLI Reference", "desc": "%(cli_commands)s commands, generated from the live binary"},
                     {"href": "config-reference/", "icon": "🧬", "title": "Configuration Reference", "desc": "%(config_sections)s sections, indexed from live YANG"}
                 ],

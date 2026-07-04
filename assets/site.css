@@ -1978,7 +1978,7 @@ footer {
     padding: 1rem 0 3rem;
 }
 
-.md-content > :not(table):not(pre):not(.cards):not(.audience):not(.config-explorer) {
+.md-content > :not(table):not(pre):not(.cards):not(.audience):not(.config-explorer):not(.plugin-console):not(.plugin-groups):not(.plugin-detail-grid) {
     max-width: 62rem;
 }
 
@@ -2525,6 +2525,368 @@ body.search-open {
     margin: 0;
     border-radius: 0;
     box-shadow: none;
+}
+
+/* ============================================================
+ * Plugin Catalog
+ *
+ * Generated from data/plugin-registry.json. The page is a searchable
+ * inventory of runtime features with compact cards and local detail pages:
+ * purpose first, configuration/dependencies second.
+ * ============================================================ */
+
+.plugin-catalog {
+    --plugin-panel: rgba(255, 250, 252, 0.86);
+}
+
+.plugin-lede {
+    font-size: 1.08rem;
+}
+
+.plugin-summary {
+    margin: 1rem 0 1.25rem;
+    padding: 0.75rem 0.95rem;
+    border-left: 4px solid var(--acc);
+    border-radius: 0.45rem;
+    background: rgba(255, 255, 255, 0.52);
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.55;
+}
+
+.plugin-console {
+    margin: 1.4rem 0 2rem;
+    padding: 1rem;
+    border: 2px solid rgba(255, 255, 255, 0.92);
+    border-radius: 1rem;
+    background:
+        radial-gradient(circle at top left, rgba(157, 100, 245, 0.13), transparent 38%),
+        var(--plugin-panel);
+    box-shadow: var(--clay);
+}
+
+.plugin-console label {
+    display: block;
+    margin: 0 0 0.55rem;
+    color: var(--text);
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800;
+}
+
+#plugin-search {
+    display: block;
+    width: 100%;
+    margin: 0 0 0.85rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 0.7rem;
+    background: rgba(255, 255, 255, 0.84);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 1rem;
+    box-shadow: inset 0 1px 3px rgba(80, 30, 110, 0.08);
+}
+
+#plugin-search:focus {
+    outline: none;
+    border-color: var(--acc-deep);
+    box-shadow: 0 0 0 3px var(--line);
+}
+
+.plugin-filter-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin: 0.25rem 0 0;
+}
+
+.plugin-filter-controls label {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+.plugin-filter-controls select {
+    display: block;
+    width: 100%;
+    margin-top: 0.35rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 0.65rem;
+    background: rgba(255, 255, 255, 0.86);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.95rem;
+}
+
+.plugin-filter-controls select:focus {
+    outline: none;
+    border-color: var(--acc-deep);
+    box-shadow: 0 0 0 3px var(--line);
+}
+
+.plugin-status {
+    min-height: 1.2em;
+}
+
+.plugin-empty {
+    padding: 1rem 1.1rem;
+    border: 2px dashed var(--line-strong);
+    border-radius: 0.85rem;
+    background: rgba(255, 255, 255, 0.58);
+    color: var(--muted);
+    font-weight: 800;
+}
+
+.plugin-groups {
+    display: grid;
+    gap: 2.2rem;
+}
+
+.plugin-group[hidden],
+.plugin-empty[hidden] {
+    display: none;
+}
+
+.plugin-group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.45rem;
+    border-bottom: 2px solid var(--acc);
+}
+
+.plugin-group-head h2 {
+    margin: 0;
+    color: var(--acc-deep);
+}
+
+.plugin-group-head span {
+    color: var(--acc-deep);
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.plugin-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 1rem;
+}
+
+.plugin-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-top-color: var(--acc);
+    background:
+        linear-gradient(180deg, var(--acc-tint), rgba(255, 250, 252, 0.92) 42%),
+        #fffafc;
+}
+
+.plugin-card h3 {
+    margin: 0 0 0.55rem;
+    color: var(--acc-deep);
+    font-size: 1.12rem;
+    line-height: 1.25;
+}
+
+.plugin-card h3 code {
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 1em;
+}
+
+.plugin-desc {
+    flex: 1 1 auto;
+    margin: 0 0 0.9rem;
+}
+
+.plugin-card .chips {
+    margin-bottom: 0.85rem;
+}
+
+.plugin-meta {
+    display: grid;
+    gap: 0.45rem;
+    margin: 0.2rem 0 0.95rem;
+}
+
+.plugin-meta div {
+    display: grid;
+    grid-template-columns: 5.4rem minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: baseline;
+}
+
+.plugin-meta dt {
+    color: var(--acc-deep);
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.plugin-meta dd {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.86rem;
+}
+
+.plugin-meta code {
+    color: var(--acc-deep);
+}
+
+.plugin-card-cta {
+    align-self: flex-start;
+    margin-top: auto;
+    color: var(--acc-deep);
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+}
+
+.plugin-card:hover .plugin-card-cta {
+    text-decoration: underline;
+    text-underline-offset: 0.2rem;
+}
+
+.plugin-detail-back {
+    display: inline-flex;
+    margin-bottom: 1rem;
+    color: var(--acc-deep);
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.plugin-detail-back:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2rem;
+}
+
+.plugin-detail-hero {
+    padding: 1.25rem;
+    border: 2px solid rgba(255, 255, 255, 0.92);
+    border-top: 5px solid var(--acc);
+    border-radius: 1rem;
+    background:
+        radial-gradient(circle at top left, var(--acc-tint), transparent 48%),
+        rgba(255, 250, 252, 0.92);
+    box-shadow: var(--clay);
+}
+
+.plugin-detail-hero h1 {
+    margin: 0.25rem 0 0.4rem;
+}
+
+.plugin-detail-hero h1 code {
+    padding: 0;
+    background: transparent;
+    color: var(--acc-deep);
+    font-size: 1em;
+}
+
+.plugin-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1.2rem;
+}
+
+.plugin-detail-panel {
+    padding: 1rem 1.1rem;
+    border: 2px solid rgba(255, 255, 255, 0.92);
+    border-radius: 0.85rem;
+    background: rgba(255, 250, 252, 0.82);
+    box-shadow: var(--clay);
+}
+
+.plugin-detail-panel-wide {
+    grid-column: 1 / -1;
+}
+
+.plugin-detail-panel h2 {
+    margin: 0 0 0.7rem;
+    color: var(--acc-deep);
+    font-size: 1.25rem;
+}
+
+.plugin-detail-panel h3 {
+    margin: 0.8rem 0 0.25rem;
+    color: var(--acc-deep);
+    font-size: 0.92rem;
+}
+
+.plugin-detail-panel ul {
+    margin: 0;
+}
+
+.plugin-detail-empty {
+    margin: 0;
+    color: var(--muted);
+    font-style: italic;
+}
+
+.plugin-detail-facts {
+    display: grid;
+    gap: 0.55rem;
+    margin: 0;
+}
+
+.plugin-detail-facts div {
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: 0.7rem;
+}
+
+.plugin-detail-facts dt {
+    color: var(--acc-deep);
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.plugin-detail-facts dd {
+    margin: 0;
+    color: var(--muted);
+}
+
+.plugin-detail-notes > :first-child {
+    margin-top: 0;
+}
+
+.plugin-detail-notes > :last-child {
+    margin-bottom: 0;
+}
+
+@media (max-width: 980px) {
+    .plugin-grid,
+    .plugin-detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    .plugin-grid,
+    .plugin-detail-grid,
+    .plugin-filter-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .plugin-meta div,
+    .plugin-detail-facts div {
+        grid-template-columns: 1fr;
+        gap: 0.1rem;
+    }
 }
 
 /* ============================================================

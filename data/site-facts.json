@@ -8,7 +8,7 @@
     "core_experimental": 46,
     "planned": 6
   },
-  "generated_at": "2026-07-03",
+  "generated_at": "2026-07-04",
   "interop": {
     "scenario_dirs_raw": 97,
     "scenarios": 96,
@@ -16,11 +16,11 @@
     "targets": 7
   },
   "tests": {
-    "e2e": 1335,
+    "e2e": 1338,
     "e2e_display": "1,300+",
     "fuzz": 364,
     "fuzz_display": "360+",
-    "unit": 63931,
+    "unit": 63944,
     "unit_display": "63,900+"
   }
 }

@@ -15,10 +15,11 @@ other .go file in the same package directory for a matching `const`/`var`
 string declaration -- if no such declaration is found, the value is kept
 as "?identifier" rather than silently dropped or guessed.
 
-This is the grouping data source for tools/render-config-reference.py:
-plugins are grouped by ConfigRoots (which YANG config subtree a plugin's
-config lives under -- e.g. every bgp-* plugin declares ConfigRoots
-["bgp"]), not by directory path or hand-authored mapping.
+This is the grouping data source for tools/render-config-reference.py and
+tools/render-plugin-catalog.py. Plugin catalog prose/formatting can be
+extended with local `PLUGIN.md` front matter next to a plugin's `register.go`;
+the extractor keeps that metadata distributed with the plugin instead of in a
+central website list.
 """
 
 import json
@@ -55,6 +56,8 @@ CONST_BLOCK_LINE_RE = re.compile(
 )
 IMPORT_BLOCK_RE = re.compile(r"\bimport\s*\(([^)]*)\)", re.DOTALL)
 IMPORT_LINE_RE = re.compile(r"(?:(" + IDENT + r")\s+)?\"([^\"]+)\"")
+FRONT_MATTER_RE = re.compile(r"^---\n(.*?)\n---\n?(.*)$", re.DOTALL)
+PLUGIN_DOC_NAMES = ("PLUGIN.md", "plugin.md")
 
 
 def unquote(s):
@@ -187,6 +190,52 @@ def resolve_list(raw, symbols):
             out.append(resolved)
     return out
 
+def parse_front_matter(text):
+    m = FRONT_MATTER_RE.match(text)
+    if not m:
+        return {}, text.strip()
+    raw, body = m.group(1), m.group(2)
+    meta = {}
+    for line in raw.splitlines():
+        if ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        meta[key.strip().lower()] = value.strip()
+    return meta, body.strip()
+
+
+def split_csv(value):
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def load_plugin_doc(package_dir):
+    """Optional local catalog metadata kept beside the plugin implementation.
+
+    The file is deliberately per-plugin front matter, not a central taxonomy.
+    Supported keys: title, summary, area or catalog-area, tags.
+    """
+    for name in PLUGIN_DOC_NAMES:
+        path = package_dir / name
+        if not path.exists():
+            continue
+        meta, body = parse_front_matter(path.read_text(errors="replace"))
+        doc = {"source": str(path.relative_to(MAIN_REPO))}
+        if meta.get("title"):
+            doc["title"] = meta["title"]
+        if meta.get("summary"):
+            doc["summary"] = meta["summary"]
+        area = meta.get("area") or meta.get("catalog-area")
+        if area:
+            doc["area"] = area
+        tags = split_csv(meta.get("tags", ""))
+        if tags:
+            doc["tags"] = tags
+        if body:
+            doc["body"] = body
+        return doc
+    return {}
+
+
 
 def parse_register_file(path):
     text = path.read_text(errors="replace")
@@ -234,6 +283,7 @@ def parse_register_file(path):
         )
         fields["source_dir"] = str(path.parent.relative_to(MAIN_REPO))
         fields["yang_files"] = yang_files
+        fields["doc"] = load_plugin_doc(path.parent)
         entries.append(fields)
     return entries
 

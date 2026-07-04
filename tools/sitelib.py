@@ -469,6 +469,7 @@ FOOTER_LOCAL_COLUMNS = [
         "Project",
         [
             ("features/", "Features"),
+            ("docs/features/plugins/", "Plugins"),
             ("cli/", "CLI Reference"),
             ("dependencies/", "Dependencies"),
             ("performance/", "Performance"),

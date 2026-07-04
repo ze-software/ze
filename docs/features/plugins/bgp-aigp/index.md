@@ -1,0 +1,35 @@
+# `bgp-aigp` plugin
+
+Accumulated IGP Metric (RFC 7311)
+
+[Back to plugin catalog](../index.md)
+
+## At a glance
+
+| Field | Value |
+|-------|-------|
+| Registry area | BGP |
+| Kind | Runtime plugin |
+| Source path | `internal/component/bgp/plugins/aigp` |
+| YANG modules | 0 |
+
+## Configuration
+
+None
+
+## Dependencies
+
+- Required: None
+- Optional: None
+
+## Used by
+
+- Required dependency for: None
+- Optional dependency for: None
+
+## Repository artifacts
+
+Package: `internal/component/bgp/plugins/aigp`
+
+YANG files: None
+Metadata source: `Registration`

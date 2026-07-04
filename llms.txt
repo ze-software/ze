@@ -9,6 +9,7 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 ## Project
 
 - [Features](https://ze-software.net/features/index.md): 46 features, color-coded by category (web: https://ze-software.net/features/)
+- [Plugins](https://ze-software.net/docs/features/plugins/index.md): Search every runtime plugin by purpose, config, or dependency (web: https://ze-software.net/docs/features/plugins/)
 - [CLI Reference](https://ze-software.net/cli/index.md): 380 commands, generated from the live binary (web: https://ze-software.net/cli/)
 - [Configuration Reference](https://ze-software.net/config-reference/index.md): 35 sections, indexed from live YANG (web: https://ze-software.net/config-reference/)
 - [Dependencies](https://ze-software.net/dependencies/index.md): 39 direct packages, generated from go.mod (web: https://ze-software.net/dependencies/)

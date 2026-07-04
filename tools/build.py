@@ -26,6 +26,10 @@ Steps (default order, also the --only vocabulary):
               config path. The page embeds the tree as JSON and browses it
               level by level (breadcrumb + a table of each node's children),
               the same presentation at every depth, not a per-plugin list
+    plugins   ../main/internal/**/register.go + local PLUGIN.md front matter
+              -> data/plugin-registry.json -> docs/features/plugins/index.html
+              searchable runtime plugin catalog, generated from live registry
+              extraction rather than a hand-authored website list
     contribute contribute/contribute.md -> contribute/index.html (tools/render-doc.py)
     talks     data/talks.json -> talks/index.html          (tools/render-talks.py)
     index     data/audience.json -> index.html            (tools/render-index.py)
@@ -78,6 +82,7 @@ STEPS = [
     "cli",
     "deps",
     "config",
+    "plugins",
     "facts",
     "contribute",
     "contribguide",
@@ -208,6 +213,15 @@ def step_config():
         return rc
     render_config_reference = load_module("render-config-reference")
     return render_config_reference.main()
+
+def step_plugins():
+    extract_plugin_registry = load_module("extract-plugin-registry")
+    rc = extract_plugin_registry.main()
+    if rc:
+        return rc
+    render_plugin_catalog = load_module("render-plugin-catalog")
+    return render_plugin_catalog.main()
+
 
 def step_facts():
     render_site_facts = load_module("render-site-facts")
@@ -366,6 +380,7 @@ STEP_FUNCS = {
     "cli": step_cli,
     "deps": step_deps,
     "config": step_config,
+    "plugins": step_plugins,
     "facts": step_facts,
     "contribute": step_contribute,
     "contribguide": step_contribguide,

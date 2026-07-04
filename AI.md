@@ -84,6 +84,10 @@ gh-pages/
     render-dependencies.py                -- ../main/go.mod + data/dependencies.json -> dependencies/index.html
     extract-plugin-registry.py            -- ../main/internal/**/register.go + YANG imports ->
                                               data/plugin-registry.json
+    render-plugin-catalog.py             -- data/plugin-registry.json -> docs/features/plugins/
+                                              catalog plus one local detail page per plugin;
+                                              grouping is derived from ConfigRoots and source
+                                              paths, not a hand-written plugin taxonomy
     render-config-reference.py            -- data/plugin-registry.json -> config-reference/index.html,
                                               every plugin (not just BGP) grouped by config root
     render-index.py                       -- data/audience.json + template -> index.html
@@ -100,15 +104,10 @@ but their nav block is still patched from `data/nav.json` by `tools/build.py`
 page.
 
 Run `./update-website.sh` (repo root) or `tools/build.py` directly -- same
-thing, the script is just a short, obvious name to reach for. Pass `--only
-<docs,blog,activity,compare,features,cli,deps,config,contribute,index,timeline,nav,llms>`
-to regenerate a subset. It warns on stderr if `data/nav.json`'s Features-dropdown
-card count falls out of sync with `data/features.json`'s actual card count,
-its CLI Reference command count with `data/cli-commands.json`, or its
-Configuration Reference plugin count with `data/plugin-registry.json` -- the
-class of bug that motivated data-driving this in the first place (a
-hand-typed "41 features" count silently went stale when a card moved between
-sections).
+thing, the script is just a short, obvious name to reach for. Pass `--only`
+with comma-separated step names from `tools/build.py` (for example
+`config,plugins,search,seo`) to regenerate a subset. Watch stderr for drift
+warnings and per-step failures.
 
 ### Markdown mirrors
 
@@ -147,6 +146,22 @@ To add, remove, or re-categorize a feature card: edit `data/features.json`,
 then run `tools/build.py --only features` (or the full build). Same for
 `data/audience.json` and `--only index`, or `data/nav.json` and `--only nav`
 (plus regenerate anything else the nav change should also touch).
+
+### Plugin catalog
+
+`docs/features/plugins/` is generated from `data/plugin-registry.json`, which
+is generated from `../main/internal/**/register.go` plus optional local
+`PLUGIN.md` front matter beside a plugin's `register.go`. Do not hand-edit
+plugin cards, dependency lists, source paths, or detail pages. Add or fix
+machine facts in `registry.Registration`; add local prose or display metadata
+in that plugin's `PLUGIN.md`; then run `tools/build.py --only
+plugins,search,seo,llms` or the full build.
+
+The catalog renderer creates `docs/features/plugins/index.html`, its
+`index.md` mirror, and one local `docs/features/plugins/<plugin>/` detail page
+per registry entry. Card clicks must stay on the site. If the page needs a new
+machine fact, extend the extractor or registry data instead of adding a
+hardcoded list to the renderer.
 
 ## Presentation tooling
 
