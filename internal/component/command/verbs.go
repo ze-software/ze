@@ -27,9 +27,10 @@ const (
 // this map -- there is no second hardcoded list (ai/rules/derive-not-hardcode.md).
 //
 // The vocabulary was agreed in plan/learned/829-command-verb-first.md (show, monitor,
-// clear, set, request, resolve, commit, update) plus the engine mutation verb delete
-// and the runtime cache verb. Adding a verb here is a deliberate vocabulary decision,
-// not a convenience: a small, learnable verb set is the point.
+// clear, set, request, resolve, commit, update) plus the engine mutation verb delete,
+// the runtime cache verb, the runtime-lifecycle verb create, and the diagnostic verb
+// debug. Adding a verb here is a deliberate vocabulary decision, not a convenience:
+// a small, learnable verb set is the point.
 var Verbs = map[string]VerbRole{
 	// Reads.
 	"show":    VerbRead,
@@ -49,6 +50,12 @@ var Verbs = map[string]VerbRole{
 	// mutation (which is set/delete on a config path). delete is the VerbMutation
 	// above and serves both the config-tree and runtime-resource senses.
 	"create": VerbAction,
+	// Diagnostic actions that PERTURB live protocol state for testing/introspection
+	// (e.g. OSPF ext-14 crafted-LSA injection). Distinct from show/monitor, which
+	// only read state: a debug command changes what the router does. Double-gated by
+	// authz + an explicit enablement (see internal/plugins/ospf/debug_enable.go).
+	// When to pick debug vs show: ai/rules/cli-grammar.md "Choosing the Verb".
+	"debug": VerbAction,
 }
 
 // IsVerb reports whether tok is a canonical command verb.

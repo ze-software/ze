@@ -23,6 +23,7 @@ func TestVerbRegistryCanonical(t *testing.T) {
 		"update":  VerbAction,
 		"cache":   VerbAction,
 		"create":  VerbAction,
+		"debug":   VerbAction,
 	}
 	if len(Verbs) != len(want) {
 		t.Fatalf("Verbs has %d entries, want %d: %v", len(Verbs), len(want), VerbList())

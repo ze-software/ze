@@ -75,6 +75,45 @@ Correct form: `<resource> <action> <id>`.
 
 The `list` action (no identifier) already works correctly in both.
 
+## Choosing the Verb: Read vs Perturb (`show`/`monitor` vs `debug`)
+
+The verb is chosen by the command's **effect on live state**, not by how
+"diagnostic" it feels. The deciding question:
+
+> Does running this command change what the router does, emits, or forwards?
+
+- **No -- it only reports current state.** Use `show` (one snapshot) or
+  `monitor` (a continuous stream of the same read). These are the read-only
+  verbs (`command.IsReadOnlyVerb`); they never alter protocol or dataplane
+  state. **Deep introspection stays here:** a view that only *observes* internal
+  state (`show ospf database opaque-area detail`, `show bgp peer name <n> rib`)
+  is `show`, however low-level -- reading is not debugging.
+- **Yes, and it is a normal operational action or lifecycle change.** Use the
+  existing action verbs (`request`, `clear`, `create`, `set`/`delete`, `update`,
+  `cache`). Not `debug`.
+- **Yes, and the change is a deliberate diagnostic PERTURBATION of the running
+  protocol/dataplane** -- inject, force, corrupt, drop, or toggle a fault/
+  injection mode for testing or introspection. Use `debug`. A `debug` command
+  changes the router's behaviour, so it MUST be double-gated: authz (`deny
+  debug`) plus an explicit, fail-closed runtime enablement
+  (see `internal/plugins/ospf/debug_enable.go`).
+
+`debug` is a verb (first token) *and* a legitimate noun under a read verb
+(`show debug` = display debug state). They do not collide: `show debug` reads,
+`debug ...` perturbs.
+
+Not `debug`: turning on verbose **logging** changes output, not protocol
+behaviour -- model it as configuration (`set ... log level debug`), never as a
+`debug` command. The `debug` verb is reserved for perturbing protocol/dataplane
+state.
+
+| Command | Verb | Why |
+|---------|------|-----|
+| `show ospf database opaque-area detail` | `show` | reads the LSDB; observes only |
+| `monitor ospf ...` | `monitor` | streams events; observes only |
+| `debug ospf inject enable` / `debug ip ospf inject opaque ...` | `debug` | injects a crafted LSA / toggles injection; perturbs the LSDB (double-gated) |
+| `set ospf area <a> log level debug` | `set` | verbose logging is config, not perturbation |
+
 ## Engine-Owned Tree Mutation
 
 Do not invent operational `add`, `del`, `remove`, or similar verbs for
