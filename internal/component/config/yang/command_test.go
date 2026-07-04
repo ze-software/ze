@@ -1166,7 +1166,9 @@ func navigateTree(root *command.Node, path string) *command.Node {
 
 // TestBuildCommandTreeEnsureExists verifies ze:ensure-exists is extracted from the iface YANG.
 //
-// VALIDATES: BuildCommandTree propagates EnsureExists (rollback wire method) to command.Node.
+// VALIDATES: BuildCommandTree propagates EnsureExists (rollback wire method) to command.Node,
+// on the typed `name` selector node that carries the executable create command
+// (create interface dummy name <name>), per cli-grammar.md R6.
 // PREVENTS: Compound commands silently losing auto-ensure behavior.
 func TestBuildCommandTreeEnsureExists(t *testing.T) {
 	loader := NewLoader()
@@ -1184,18 +1186,26 @@ func TestBuildCommandTreeEnsureExists(t *testing.T) {
 	ifc := create.Children["interface"]
 	require.NotNil(t, ifc)
 
+	// Typed name selector (cli-grammar.md, R6): the executable create command lives
+	// on the `name` selector node (`create interface dummy name <name>`), not on the
+	// `dummy` grouping container. The ensure-exists rollback handler travels with it.
 	dummy := ifc.Children["dummy"]
 	require.NotNil(t, dummy, "dummy container must exist")
-	assert.Equal(t, "ze-iface:interface-delete", dummy.EnsureExists, "dummy must have ze:ensure-exists with rollback handler")
-	assert.Equal(t, "ze-iface:interface-create-dummy", dummy.WireMethod)
+	dummyName := dummy.Children["name"]
+	require.NotNil(t, dummyName, "dummy > name selector must exist")
+	assert.Equal(t, "ze-iface:interface-delete", dummyName.EnsureExists, "dummy name must have ze:ensure-exists with rollback handler")
+	assert.Equal(t, "ze-iface:interface-create-dummy", dummyName.WireMethod)
 
 	bridge := ifc.Children["bridge"]
 	require.NotNil(t, bridge, "bridge container must exist")
-	assert.Equal(t, "ze-iface:interface-delete", bridge.EnsureExists, "bridge must have ze:ensure-exists with rollback handler")
+	bridgeName := bridge.Children["name"]
+	require.NotNil(t, bridgeName, "bridge > name selector must exist")
+	assert.Equal(t, "ze-iface:interface-delete", bridgeName.EnsureExists, "bridge name must have ze:ensure-exists with rollback handler")
 
-	// Nested unit under dummy inherits the parent's ensure-exists via chain building
-	dummyUnit := dummy.Children["unit"]
-	require.NotNil(t, dummyUnit, "dummy > unit must exist")
+	// Nested unit under the dummy name-selector carries its own wire method and has
+	// no ensure-exists of its own (the rollback handler lives on the create node).
+	dummyUnit := dummyName.Children["unit"]
+	require.NotNil(t, dummyUnit, "dummy > name > unit must exist")
 	assert.Equal(t, "ze-iface:interface-unit-add", dummyUnit.WireMethod)
 	assert.Empty(t, dummyUnit.EnsureExists, "unit itself has no ensure-exists")
 
@@ -1204,23 +1214,26 @@ func TestBuildCommandTreeEnsureExists(t *testing.T) {
 	require.NotNil(t, flatUnit, "flat unit must exist")
 	assert.Empty(t, flatUnit.EnsureExists, "flat unit has no ensure-exists")
 
-	// veth has no ensure-exists
+	// veth's create command exists but carries no ensure-exists (unlike dummy/bridge)
 	veth := ifc.Children["veth"]
 	require.NotNil(t, veth)
-	assert.Empty(t, veth.EnsureExists, "veth has no ensure-exists")
+	vethName := veth.Children["name"]
+	require.NotNil(t, vethName, "veth > name selector must exist")
+	assert.Equal(t, "ze-iface:interface-create-veth", vethName.WireMethod)
+	assert.Empty(t, vethName.EnsureExists, "veth has no ensure-exists")
 
 	// Nested compound commands inherit backend restriction from parent
-	assert.Equal(t, []string{"netlink"}, dummyUnit.Backend, "dummy > unit must have netlink backend")
-	dummyAddr := dummy.Children["address"]
-	require.NotNil(t, dummyAddr, "dummy > address must exist")
-	assert.Equal(t, []string{"netlink"}, dummyAddr.Backend, "dummy > address must have netlink backend")
+	assert.Equal(t, []string{"netlink"}, dummyUnit.Backend, "dummy > name > unit must have netlink backend")
+	dummyAddr := dummyName.Children["address"]
+	require.NotNil(t, dummyAddr, "dummy > name > address must exist")
+	assert.Equal(t, []string{"netlink"}, dummyAddr.Backend, "dummy > name > address must have netlink backend")
 
-	bridgeUnit := bridge.Children["unit"]
-	require.NotNil(t, bridgeUnit, "bridge > unit must exist")
-	assert.Equal(t, []string{"netlink"}, bridgeUnit.Backend, "bridge > unit must have netlink backend")
-	bridgeAddr := bridge.Children["address"]
-	require.NotNil(t, bridgeAddr, "bridge > address must exist")
-	assert.Equal(t, []string{"netlink"}, bridgeAddr.Backend, "bridge > address must have netlink backend")
+	bridgeUnit := bridgeName.Children["unit"]
+	require.NotNil(t, bridgeUnit, "bridge > name > unit must exist")
+	assert.Equal(t, []string{"netlink"}, bridgeUnit.Backend, "bridge > name > unit must have netlink backend")
+	bridgeAddr := bridgeName.Children["address"]
+	require.NotNil(t, bridgeAddr, "bridge > name > address must exist")
+	assert.Equal(t, []string{"netlink"}, bridgeAddr.Backend, "bridge > name > address must have netlink backend")
 }
 
 func TestValidateCommandTreeWarnsMissingDescription(t *testing.T) {
