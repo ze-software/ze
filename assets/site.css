@@ -1075,6 +1075,20 @@ section {
     padding: 0.7rem 0;
 }
 
+:is(
+    section[aria-labelledby="run-title"],
+    #features-summary,
+    #try,
+    section[aria-labelledby="audience-title"],
+    section[aria-label="Closing statement"]
+) {
+    margin-top: clamp(1.25rem, 3.2vw, 2.2rem);
+}
+
+section[aria-labelledby="blog-teaser-title"] {
+    margin-top: clamp(0.35rem, 1vw, 0.8rem);
+}
+
 .reveal {
     opacity: 1;
     transform: none;
@@ -2393,7 +2407,7 @@ pre {
     grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
     gap: 2rem;
     align-items: center;
-    margin-bottom: 3rem;
+    margin-bottom: 1.1rem;
     padding: clamp(1.5rem, 4vw, 3rem);
     border: 2px solid rgba(255, 255, 255, 0.9);
     border-radius: 0.85rem;
