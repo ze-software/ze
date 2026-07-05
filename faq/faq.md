@@ -19,7 +19,7 @@ The questions people tend to ask before they spend time on Ze. If yours is not h
     </div>
   </details>
 
-  <details class="faq-card cat-routing" id="ready">
+  <details class="faq-card cat-routing" id="ready" open>
     <summary>Is Ze ready for production?</summary>
     <div>
       <p>Not yet, and the site says so everywhere on purpose. The routing core is heavily tested, but operational mileage is still limited and the configuration syntax can still change before the first release.</p>

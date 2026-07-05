@@ -851,15 +851,16 @@
                     <article class="card feature-card experimental cat-routing" data-cat="routing">
                     <span class="cat">Routing</span>
                     <span class="status">Experimental</span>
-                    <h3><a href="../docs/guide/ospf/">OSPF</a></h3>
+                    <h3><a href="../docs/guide/ospf/">OSPFv2 / OSPFv3</a></h3>
                     <div class="chips">
-                    <span class="chip">RFC 3101</span>
+                    <span class="chip">RFC 2328</span>
+                    <span class="chip">RFC 5340</span>
                     <span class="chip">ECMP</span>
                     </div>
                     <ul>
-                    <li><strong>OSPFv2</strong> and <strong>OSPFv3</strong>, one config root</li>
-                    <li>Stub, totally-stubby, <strong>NSSA</strong> areas</li>
-                    <li>Redistributes with <strong>BGP</strong> both ways</li>
+                    <li>One <strong>ospf</strong> engine, IPv4 and IPv6 address families</li>
+                    <li>SPF/ABR, <strong>NSSA</strong>, virtual links, NBMA/P2MP</li>
+                    <li>Redistribution, <strong>SR</strong>, BFD, graceful restart</li>
                     </ul>
                     </article>
                     <article class="card feature-card experimental cat-routing" data-cat="routing">
@@ -962,15 +963,16 @@
                     <article class="card feature-card aspiration cat-routing" data-cat="routing">
                     <span class="cat">Routing</span>
                     <span class="status">Spec'd</span>
-                    <h3><a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-0-umbrella.md" target="_blank" rel="noopener">OSPFv2</a></h3>
+                    <h3><a href="https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md" target="_blank" rel="noopener">OSPF L3VPN PE-CE</a></h3>
                     <div class="chips">
-                    <span class="chip">OSPF</span>
-                    <span class="chip">IGP</span>
+                    <span class="chip">RFC 4576</span>
+                    <span class="chip">RFC 4577</span>
+                    <span class="chip">L3VPN</span>
                     </div>
                     <ul>
-                    <li>Full <strong>link-state IGP</strong>: SPF, areas, flooding</li>
-                    <li>16 extension specs: <strong>TE, SR, TI-LFA</strong></li>
-                    <li><strong>Graceful restart</strong>, BFD, multi-AF</li>
+                    <li>PE-CE <strong>DN bit</strong> loop prevention</li>
+                    <li>Domain ID, route type, <strong>VPN route tag</strong></li>
+                    <li>Blocked on <strong>VRF/MPLS L3VPN</strong> infrastructure</li>
                     </ul>
                     </article>
                     <article class="card feature-card aspiration cat-routing" data-cat="routing">

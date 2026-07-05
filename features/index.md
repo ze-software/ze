@@ -403,13 +403,13 @@ Implemented and tested, not yet production-proven.
 
 [Learn more](https://ze-software.net/docs/features/)
 
-### OSPF
+### OSPFv2 / OSPFv3
 
-*routing / Experimental* -- `RFC 3101` `ECMP`
+*routing / Experimental* -- `RFC 2328` `RFC 5340` `ECMP`
 
-- **OSPFv2** and **OSPFv3**, one config root
-- Stub, totally-stubby, **NSSA** areas
-- Redistributes with **BGP** both ways
+- One **ospf** engine, IPv4 and IPv6 address families
+- SPF/ABR, **NSSA**, virtual links, NBMA/P2MP
+- Redistribution, **SR**, BFD, graceful restart
 
 [Learn more](https://ze-software.net/docs/guide/ospf/)
 
@@ -479,15 +479,15 @@ Aspirations with written, reviewed specs. Nothing here is usable today.
 
 > Every card links to a pending spec in the main repo's <code>plan/</code> directory, where captured intent moves from skeleton to design to ready to in-progress, and a spec is deleted only when the work ships.
 
-### OSPFv2
+### OSPF L3VPN PE-CE
 
-*routing / Spec'd* -- `OSPF` `IGP`
+*routing / Spec'd* -- `RFC 4576` `RFC 4577` `L3VPN`
 
-- Full **link-state IGP**: SPF, areas, flooding
-- 16 extension specs: **TE, SR, TI-LFA**
-- **Graceful restart**, BFD, multi-AF
+- PE-CE **DN bit** loop prevention
+- Domain ID, route type, **VPN route tag**
+- Blocked on **VRF/MPLS L3VPN** infrastructure
 
-[Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-0-umbrella.md)
+[Learn more](https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md)
 
 ### VRF
 

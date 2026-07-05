@@ -88,7 +88,7 @@ Implemented and tested, not yet production-proven.
 - Policy Routing [services, experimental]: chips: nftables, PBR; L3/L4 match criteria; Table steering, next-hop actions; TCP-MSS clamping, interface wildcards; link: https://ze-software.net/docs/guide/policy-routing/index.md
 - VPP Data Plane [services, experimental]: chips: DPDK, GoVPP; FIB programming via GoVPP; MPLS label operations; Per-interface Prometheus metrics; link: https://ze-software.net/docs/guide/vpp/index.md
 - MPLS / LDP / RSVP-TE [routing, experimental]: chips: Labels, Signaling; Kernel MPLS FIB, push/swap/pop; LDP discovery and sessions; RSVP-TE ERO, bandwidth admission; link: https://ze-software.net/docs/features/index.md
-- OSPF [routing, experimental]: chips: RFC 3101, ECMP; OSPFv2 and OSPFv3, one config root; Stub, totally-stubby, NSSA areas; Redistributes with BGP both ways; link: https://ze-software.net/docs/guide/ospf/index.md
+- OSPFv2 / OSPFv3 [routing, experimental]: chips: RFC 2328, RFC 5340, ECMP; One ospf engine, IPv4 and IPv6 address families; SPF/ABR, NSSA, virtual links, NBMA/P2MP; Redistribution, SR, BFD, graceful restart; link: https://ze-software.net/docs/guide/ospf/index.md
 - IS-IS [routing, experimental]: chips: ISO 10589, Dual-stack; L1/L2 link-state IGP over Layer 2; RFC 5304/5310 authentication, key chains; Dual-stack IPv6, redistributes with BGP; link: https://ze-software.net/docs/guide/isis/index.md
 - Flow Export [observe, experimental]: chips: sFlow, NetFlow, IPFIX; sFlow v5, NetFlow v9, IPFIX; Packet sampling, conntrack flows; BGP next-hop enrichment; link: https://ze-software.net/docs/guide/flow-export/index.md
 - Install and Provision [platform, experimental]: chips: PXE, ISO; PXE bare-metal provisioning; Bootable ISO builder; systemd install, uninstall; link: https://ze-software.net/docs/guide/ze-install/index.md
@@ -98,7 +98,7 @@ Implemented and tested, not yet production-proven.
 
 ### Spec'd, not built. (6 cards: 6 aspiration)
 Aspirations with written, reviewed specs. Nothing here is usable today.
-- OSPFv2 [routing, aspiration]: chips: OSPF, IGP; Full link-state IGP: SPF, areas, flooding; 16 extension specs: TE, SR, TI-LFA; Graceful restart, BFD, multi-AF; link: https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-0-umbrella.md
+- OSPF L3VPN PE-CE [routing, aspiration]: chips: RFC 4576, RFC 4577, L3VPN; PE-CE DN bit loop prevention; Domain ID, route type, VPN route tag; Blocked on VRF/MPLS L3VPN infrastructure; link: https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md
 - VRF [routing, aspiration]: chips: VRF, L3VPN; VRF as a first-class concept; Per-VRF BGP stacks, YANG config; Kernel VRF devices, table binding; link: https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-vrf-0-umbrella.md
 - Fleet Management [automate, aspiration]: chips: Registry, Rollout; Device registry, config templates; Staged rollout, config freeze; Fleet audit trail, inventory health; link: https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-fleet-0-umbrella.md
 - IRR Route Filtering [secure, aspiration]: chips: IRR, as-set; Prefix-lists from IRR data; bgpq4-style, live in the engine; Automatic from the peer's remote ASN; link: https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-filter-irr.md

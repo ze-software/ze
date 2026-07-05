@@ -924,12 +924,16 @@
         {
           "category": "routing",
           "status": "experimental",
-          "title": "OSPF",
+          "title": "OSPFv2 / OSPFv3",
           "href": "docs/guide/ospf/",
           "external": false,
           "chips": [
             {
-              "text": "RFC 3101",
+              "text": "RFC 2328",
+              "mode": false
+            },
+            {
+              "text": "RFC 5340",
               "mode": false
             },
             {
@@ -938,9 +942,9 @@
             }
           ],
           "bullets": [
-            "**OSPFv2** and **OSPFv3**, one config root",
-            "Stub, totally-stubby, **NSSA** areas",
-            "Redistributes with **BGP** both ways"
+            "One **ospf** engine, IPv4 and IPv6 address families",
+            "SPF/ABR, **NSSA**, virtual links, NBMA/P2MP",
+            "Redistribution, **SR**, BFD, graceful restart"
           ]
         },
         {
@@ -1090,23 +1094,27 @@
         {
           "category": "routing",
           "status": "aspiration",
-          "title": "OSPFv2",
-          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-0-umbrella.md",
+          "title": "OSPF L3VPN PE-CE",
+          "href": "https://codeberg.org/thomas-mangin/ze/src/branch/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md",
           "external": true,
           "chips": [
             {
-              "text": "OSPF",
+              "text": "RFC 4576",
               "mode": false
             },
             {
-              "text": "IGP",
+              "text": "RFC 4577",
+              "mode": false
+            },
+            {
+              "text": "L3VPN",
               "mode": false
             }
           ],
           "bullets": [
-            "Full **link-state IGP**: SPF, areas, flooding",
-            "16 extension specs: **TE, SR, TI-LFA**",
-            "**Graceful restart**, BFD, multi-AF"
+            "PE-CE **DN bit** loop prevention",
+            "Domain ID, route type, **VPN route tag**",
+            "Blocked on **VRF/MPLS L3VPN** infrastructure"
           ]
         },
         {
