@@ -110,6 +110,7 @@ def feature_counts_by_category():
 _GITHUB_STARS_FALLBACK = 39  # last known count, used if the API call fails
 _github_stars_cache = None
 _nav_data_cache = None
+_page_links_cache = None
 
 
 def get_github_stars():
@@ -370,6 +371,138 @@ def rooted_href(root, path):
     return root + path
 
 
+def _normalize_page_key(page_key):
+    if page_key is None:
+        return None
+    key = str(page_key).strip().replace("\\", "/").lstrip("/")
+    if key in ("", "."):
+        return ""
+    if key == "index.html":
+        return ""
+    if key.endswith("/index.html"):
+        key = key[: -len("index.html")]
+    name = pathlib.PurePosixPath(key).name
+    if key and not key.endswith("/") and "." not in name:
+        key += "/"
+    return key
+
+
+def page_key_for_path(path):
+    """Canonical key used by data/page-links.json.
+
+    Directory index pages are keyed by their site-root directory, with a
+    trailing slash. The home page is the empty string.
+    """
+    p = pathlib.Path(path)
+    if p.is_absolute():
+        try:
+            p = p.relative_to(GH_PAGES)
+        except ValueError:
+            pass
+    rel = pathlib.PurePosixPath(*p.parts).as_posix()
+    return _normalize_page_key(rel)
+
+
+def load_page_links():
+    global _page_links_cache
+    if _page_links_cache is None:
+        path = DATA_DIR / "page-links.json"
+        if path.exists():
+            _page_links_cache = json.loads(path.read_text())
+        else:
+            _page_links_cache = {"external": {}, "pages": {}, "patterns": []}
+    return _page_links_cache
+
+
+def page_link_spec(page_key):
+    key = _normalize_page_key(page_key)
+    if key is None:
+        return None
+    data = load_page_links()
+    pages = data.get("pages", {})
+    if key in pages:
+        return pages[key]
+    for pattern in data.get("patterns", []):
+        prefix = _normalize_page_key(pattern.get("prefix", ""))
+        if prefix is None or not key.startswith(prefix):
+            continue
+        excluded = {
+            _normalize_page_key(item)
+            for item in pattern.get("exclude", [])
+        }
+        if key in excluded:
+            continue
+        return pattern
+    return None
+
+
+def _page_sidebar_link(root, link, external_links):
+    if "external" in link:
+        ref = link["external"]
+        target = external_links[ref]
+        href = target["url"]
+        label = link.get("label", target["label"])
+        desc = link.get("desc", target.get("desc", ""))
+        attrs = ' target="_blank" rel="noopener"'
+    else:
+        href = link["href"]
+        if not href.startswith(("http://", "https://", "mailto:", "#")):
+            href = rooted_href(root, href)
+        label = link["label"]
+        desc = link.get("desc", "")
+        attrs = (
+            ' target="_blank" rel="noopener"'
+            if href.startswith(("http://", "https://"))
+            else ""
+        )
+    out = [
+        '                    <a class="page-sidebar-link" href="%s"%s>\n'
+        % (html.escape(href, quote=True), attrs),
+        '                        <span class="page-sidebar-link-label">%s</span>\n'
+        % html.escape(label),
+    ]
+    if desc:
+        out.append(
+            "                        <small>%s</small>\n" % html.escape(desc)
+        )
+    out.append("                    </a>\n")
+    return "".join(out)
+
+
+def page_sidebar(root, page_key):
+    spec = page_link_spec(page_key)
+    if not spec:
+        return ""
+    current_key = _normalize_page_key(page_key)
+    external_links = load_page_links().get("external", {})
+    rendered_groups = []
+    for group in spec.get("groups", []):
+        links = []
+        for link in group.get("links", []):
+            if "href" in link and _normalize_page_key(link["href"]) == current_key:
+                continue
+            links.append(_page_sidebar_link(root, link, external_links))
+        if links:
+            rendered_groups.append((group["title"], links))
+    if not rendered_groups:
+        return ""
+    out = ['            <aside class="page-sidebar" aria-label="Related page links">\n']
+    if spec.get("eyebrow"):
+        out.append(
+            '                <p class="page-sidebar-eyebrow">%s</p>\n'
+            % html.escape(spec["eyebrow"])
+        )
+    out.append('                <nav class="page-sidebar-nav" aria-label="Related links">\n')
+    for title, links in rendered_groups:
+        out.append('                <section class="page-sidebar-group">\n')
+        out.append("                    <h2>%s</h2>\n" % html.escape(title))
+        out.extend(links)
+        out.append("                </section>\n")
+    out.append("                </nav>\n")
+    out.append("            </aside>\n")
+    return "".join(out)
+
+
 def blog_dropdown_columns(n=5):
     """The Blog dropdown is populated live from the newest posts (via
     latest_blog_posts) rather than a hand-maintained nav.json list, so it can
@@ -611,6 +744,88 @@ def patch_asset_versions(html_text):
     return patch_structured_data(html_text)
 
 
+ANCHOR_OPEN_RE = re.compile(r"<a\b[^>]*>", re.IGNORECASE)
+HREF_ATTR_RE = re.compile(r'\bhref=(["\'])(.*?)\1', re.IGNORECASE)
+TARGET_ATTR_RE = re.compile(r'\s+target=(["\'])(.*?)\1', re.IGNORECASE)
+REL_ATTR_RE = re.compile(r'\s+rel=(["\'])(.*?)\1', re.IGNORECASE)
+
+
+def is_external_href(href):
+    return href.startswith(("http://", "https://")) and not href.startswith(SITE_BASE)
+
+
+def _set_anchor_attr(tag, pattern, name, value):
+    replacement = ' %s="%s"' % (name, html.escape(value, quote=True))
+    if pattern.search(tag):
+        return pattern.sub(replacement, tag, count=1)
+    return tag[:-1] + replacement + ">"
+
+
+def _ensure_anchor_rel(tag, value):
+    match = REL_ATTR_RE.search(tag)
+    if not match:
+        return _set_anchor_attr(tag, REL_ATTR_RE, "rel", value)
+    values = match.group(2).split()
+    if value not in values:
+        values.append(value)
+    replacement = ' rel="%s"' % " ".join(values)
+    return tag[: match.start()] + replacement + tag[match.end() :]
+
+
+def patch_external_link_targets(html_text):
+    def repl(match):
+        tag = match.group(0)
+        href_match = HREF_ATTR_RE.search(tag)
+        if not href_match or not is_external_href(href_match.group(2)):
+            return tag
+        tag = _set_anchor_attr(tag, TARGET_ATTR_RE, "target", "_blank")
+        return _ensure_anchor_rel(tag, "noopener")
+
+    return ANCHOR_OPEN_RE.sub(repl, html_text)
+
+
+MAIN_OPEN_RE = re.compile(r'(?P<indent>[ \t]*)<main\b(?P<attrs>[^>]*)>\n?')
+MAIN_CLASS_RE = re.compile(r'class="([^"]*)"')
+PAGE_SIDEBAR_RE = re.compile(
+    r'[ \t]*<aside\b[^>]*class="[^"]*\bpage-sidebar\b[^"]*"[^>]*>.*?</aside>\n?',
+    re.DOTALL,
+)
+
+
+def _main_open_tag(match, has_sidebar):
+    attrs = match.group("attrs")
+    class_match = MAIN_CLASS_RE.search(attrs)
+    if class_match:
+        classes = [c for c in class_match.group(1).split() if c != "has-page-sidebar"]
+        if has_sidebar:
+            classes.append("has-page-sidebar")
+        if classes:
+            attrs = (
+                attrs[: class_match.start()]
+                + 'class="%s"' % " ".join(classes)
+                + attrs[class_match.end() :]
+            )
+        else:
+            attrs = attrs[: class_match.start()] + attrs[class_match.end() :]
+    elif has_sidebar:
+        attrs += ' class="has-page-sidebar"'
+    return "%s<main%s>\n" % (match.group("indent"), attrs)
+
+
+def patch_page_sidebar(html_text, root, page_key):
+    sidebar = page_sidebar(root, page_key)
+    html_text = PAGE_SIDEBAR_RE.sub("", html_text)
+    m = MAIN_OPEN_RE.search(html_text)
+    if not m:
+        raise ValueError("no <main> found")
+    return (
+        html_text[: m.start()]
+        + _main_open_tag(m, bool(sidebar))
+        + sidebar
+        + html_text[m.end() :]
+    )
+
+
 _FONT_REF_RE = re.compile(r"https://fonts\.googleapis\.com/css2\?family=Poppins[^\"']+display=swap")
 _STRUCTURED_DATA_RE = re.compile(
     r'[ \t]*<script type="application/ld\+json">.*?</script>\n?', re.DOTALL
@@ -733,7 +948,8 @@ PAGE_HEAD = """<!doctype html>
             </nav>
         </header>
 
-        <main id="top" tabindex="-1">
+        <main id="top"{main_class} tabindex="-1">
+{page_sidebar}
 """
 
 PAGE_FOOT = """        </main>
@@ -746,12 +962,14 @@ PAGE_FOOT = """        </main>
 """
 
 
-def page_head(title, desc, root, og_title=None, og_desc=None, extra_head=""):
+def page_head(title, desc, root, og_title=None, og_desc=None, extra_head="", page_key=None):
     page_title = str(title)
     page_desc = str(desc)
     social_title = str(og_title if og_title is not None else title)
     social_desc = str(og_desc if og_desc is not None else desc)
     og_image = OG_IMAGE
+    sidebar = page_sidebar(root, page_key)
+    main_class = ' class="has-page-sidebar"' if sidebar else ""
     return PAGE_HEAD.format(
         title=html.escape(page_title),
         desc=html.escape(page_desc, quote=True),
@@ -765,6 +983,8 @@ def page_head(title, desc, root, og_title=None, og_desc=None, extra_head=""):
         navblock=build_navblock(root),
         extra_head=extra_head,
         json_ld=structured_data_script(),
+        main_class=main_class,
+        page_sidebar=sidebar,
     )
 
 
@@ -880,7 +1100,7 @@ def latest_blog_posts(n):
 # "nav" step, so it can never drift from whatever HTML the page currently
 # has -- same zero-drift philosophy as the rest of the build.
 
-MAIN_START_RE = re.compile(r'<main id="top">')
+MAIN_START_RE = re.compile(r'<main\b[^>]*\bid="top"[^>]*>')
 
 
 def extract_main(html_text):
@@ -1012,7 +1232,7 @@ class _HTMLToMarkdown(HTMLParser):
             return
         attrs_d = dict(attrs)
         classes = (attrs_d.get("class") or "").split()
-        if tag in _MD_SKIP_TAGS or "terminal-dots" in classes:
+        if tag in _MD_SKIP_TAGS or "terminal-dots" in classes or "page-sidebar" in classes:
             self.skip_depth = 1
             return
         if tag == "br":

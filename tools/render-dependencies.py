@@ -164,7 +164,11 @@ def render(versions, data):
         "Every direct Go dependency Ze ships with and why, generated from "
         "go.mod -- %d packages across %d groups." % (total, len(data["categories"]))
     )
-    out = [sitelib.page_head(title, desc, root, og_title=title, og_desc=desc)]
+    out = [
+        sitelib.page_head(
+            title, desc, root, og_title=title, og_desc=desc, page_key="dependencies/"
+        )
+    ]
     out.append(
         '            <section aria-labelledby="dependencies-title" class="md-content reveal cat-platform">'
     )

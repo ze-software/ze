@@ -678,6 +678,7 @@ def main():
         script=script_html,
         footer=sitelib.footer_html("../"),
     )
+    page = sitelib.patch_page_sidebar(page, "../", "activity/")
     page = sitelib.patch_social_meta(page)
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_text(page)

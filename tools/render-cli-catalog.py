@@ -17,6 +17,7 @@ re-run this, to pick up new or changed commands.
 
 import html
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -44,14 +45,61 @@ SLUG_RE = re.compile(r"[^a-z0-9]+")
 def slugify(prefix, text):
     return prefix + SLUG_RE.sub("-", text.lower()).strip("-")
 
+def usage_syntax(description):
+    marker = "Usage:"
+    idx = description.find(marker)
+    if idx == -1:
+        return ""
+    usage = description[idx + len(marker):].strip().splitlines()[0].strip()
+    if "." in usage:
+        usage = usage.split(".", 1)[0].strip()
+    return usage.rstrip(".").strip()
+
+
+def normalize_commands(commands):
+    for command in commands:
+        syntax = usage_syntax(command.get("description", ""))
+        if syntax:
+            command["syntax"] = syntax
+    return commands
+
+
+def ensure_production_binary():
+    result = subprocess.run(
+        ["go", "version", "-m", str(ZE_BINARY)], capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        print(
+            "error: unable to inspect %s build tags: %s" % (ZE_BINARY, result.stderr),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line.startswith("build\t-tags="):
+            continue
+        tags = line.removeprefix("build\t-tags=").split(",")
+        if "zetest" in tags:
+            print(
+                (
+                    "error: %s was built with zetest; run `make bin/ze` in ../main "
+                    "before generating public command docs"
+                )
+                % ZE_BINARY,
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        return
+
 
 def fetch_commands():
     if not ZE_BINARY.exists():
         print(
-            "error: %s not found -- run `make ze` in ../main first" % ZE_BINARY,
+            "error: %s not found -- run `make bin/ze` in ../main first" % ZE_BINARY,
             file=sys.stderr,
         )
         sys.exit(1)
+    ensure_production_binary()
     result = subprocess.run(
         [str(ZE_BINARY), "help", "command", "--json"], capture_output=True, text=True
     )
@@ -61,14 +109,17 @@ def fetch_commands():
             file=sys.stderr,
         )
         sys.exit(1)
-    commands = json.loads(result.stdout)
+    commands = normalize_commands(json.loads(result.stdout))
     DATA.write_text(json.dumps(commands, indent=2, ensure_ascii=False) + "\n")
     return commands
 
 
 def load_commands():
-    """Use the cached data/cli-commands.json if the binary isn't available
-    (e.g. a checkout without ../main built) instead of hard-failing."""
+    """Load live commands, with an explicit cache escape hatch for review builds."""
+    if os.environ.get("ZE_CLI_CATALOG_USE_CACHE") == "1" and DATA.exists():
+        commands = normalize_commands(json.loads(DATA.read_text()))
+        DATA.write_text(json.dumps(commands, indent=2, ensure_ascii=False) + "\n")
+        return commands
     if ZE_BINARY.exists():
         return fetch_commands()
     if DATA.exists():
@@ -76,7 +127,9 @@ def load_commands():
             "warning: %s not found, using cached %s" % (ZE_BINARY, DATA),
             file=sys.stderr,
         )
-        return json.loads(DATA.read_text())
+        commands = normalize_commands(json.loads(DATA.read_text()))
+        DATA.write_text(json.dumps(commands, indent=2, ensure_ascii=False) + "\n")
+        return commands
     print(
         "error: neither %s nor a cached %s exist -- run `make ze` in ../main first"
         % (ZE_BINARY, DATA),
@@ -137,7 +190,7 @@ def render_row(c):
         '<tr id="%s"><td><code>%s</code></td>'
         '<td><span class="cli-mode cli-mode-%s">%s</span></td>'
         "<td>%s</td></tr>"
-    ) % (slugify("cmd-", c["path"]), html.escape(c["path"]), mode, mode_label, desc_html)
+    ) % (slugify("cmd-", c["path"]), html.escape(c.get("syntax") or c["path"]), mode, mode_label, desc_html)
 
 
 def render_group(label, entries):
@@ -316,7 +369,11 @@ def render(commands, groups):
         "Every ze command, generated live from the binary's own command "
         "registry -- %d commands across %d groups." % (len(commands), len(groups))
     )
-    out = [sitelib.page_head(title, desc, root, og_title=title, og_desc=desc)]
+    out = [
+        sitelib.page_head(
+            title, desc, root, og_title=title, og_desc=desc, page_key="cli/"
+        )
+    ]
     out.append(
         '            <section aria-labelledby="cli-title" class="md-content reveal cat-operate">'
     )

@@ -13,10 +13,11 @@ Steps (default order, also the --only vocabulary):
               full write-up + changes/index.html terse index + changes/feed.xml
               (tools/render-changes.py)
     activity  git history -> activity/index.html         (tools/render-activity.py)
-    compare   compare/comparison.md -> compare/index.html (tools/render-doc.py)
+    compare   compare/*.md -> compare/**/index.html      (tools/render-doc.py)
     features  data/features.json -> features/index.html  (tools/render-features.py)
     cli       `ze help command --json` -> cli/index.html  (tools/render-cli-catalog.py)
     deps      ../main/go.mod -> dependencies/index.html    (tools/render-dependencies.py)
+    quality   quality/*.md -> quality/**/index.html      (tools/render-doc.py)
     config    live YANG + ../main/internal/**/register.go -> config-reference/index.html
               (tools/extract-yang-config-tree.py, tools/extract-plugin-registry.py,
               tools/render-config-reference.py) -- extract-yang-config-tree.py runs
@@ -41,6 +42,8 @@ Steps (default order, also the --only vocabulary):
               each one's index.md sibling from its own <main> content
               (sitelib.extract_main + sitelib.html_to_markdown), since these
               pages have no Markdown source of their own to publish as-is
+    links     patch generated external links so they use target="_blank" and
+              rel="noopener" consistently; always runs after selected steps
     llms      data/nav.json + live counts -> llms.txt      (tools/render-llms-txt.py)
               -- always runs; there is no way to regenerate the site without
               also regenerating llms.txt, so it can never silently go stale.
@@ -48,8 +51,8 @@ Steps (default order, also the --only vocabulary):
               its index.md sibling on disk.
 
 Every published page (generated or hand-authored) gets an index.md sibling
-next to its index.html -- docs/blog/compare/contribute publish their real
-Markdown source (link-rewritten to sibling .md paths); features/cli/deps/
+next to its index.html -- the docs, blog, compare, contribute, and quality pages
+publish their real Markdown source (link-rewritten to sibling .md paths);
 config-reference/activity/talks render Markdown straight from the same data
 the HTML comes from; labs/style-guide/performance/zeledon (no source of
 either kind) get it via the "nav" step's HTML->Markdown extraction. llms.txt
@@ -80,7 +83,9 @@ STEPS = [
     "compare",
     "features",
     "cli",
+    "command-equivalents",
     "deps",
+    "quality",
     "config",
     "plugins",
     "facts",
@@ -97,6 +102,7 @@ STEPS = [
     "changes",
     "timeline",
     "nav",
+    "links",
     "search",
     "seo",
     "llms",
@@ -118,9 +124,76 @@ NAV_PATCH_TARGETS = [
 ]
 
 COMPARE_DESC = (
-    "How Ze compares to mature BGP daemon implementations, honestly, "
-    "including where it's still behind."
+    "Comparison hub for Ze against BGP daemons and router network operating systems."
 )
+
+COMPARE_PAGES = [
+    (
+        "comparison.md",
+        "compare/index.html",
+        COMPARE_DESC,
+        "../",
+        "routing",
+    ),
+    (
+        "bgp.md",
+        "compare/bgp/index.html",
+        "How Ze compares to mature BGP daemon implementations, including where it is still behind.",
+        "../../",
+        "routing",
+    ),
+    (
+        "nos.md",
+        "compare/nos/index.html",
+        "How Ze compares to VyOS and freeRtr as full router operating systems.",
+        "../../",
+        "platform",
+    ),
+]
+
+QUALITY_DESC = (
+    "How Ze proves code quality with unit tests, functional scenarios, QEMU, "
+    "fuzzing, gomu mutation testing, and release evidence."
+)
+
+QUALITY_PAGES = [
+    (
+        "quality.md",
+        "quality/index.html",
+        QUALITY_DESC,
+        "../",
+    ),
+    (
+        "functional-ci.md",
+        "quality/functional-ci/index.html",
+        "How to write and run Ze functional .ci tests.",
+        "../../",
+    ),
+    (
+        "browser-editor.md",
+        "quality/browser-editor/index.html",
+        "How to write and run Ze browser .wb tests and editor .et tests.",
+        "../../",
+    ),
+    (
+        "unit-fuzz-mutation.md",
+        "quality/unit-fuzz-mutation/index.html",
+        "How to write and run Ze unit tests, fuzz targets, and gomu mutation checks.",
+        "../../",
+    ),
+    (
+        "qemu-interop-release.md",
+        "quality/qemu-interop-release/index.html",
+        "How to run Ze QEMU, interop, deployment, performance, and release evidence.",
+        "../../",
+    ),
+    (
+        "verify-debugging.md",
+        "quality/verify-debugging/index.html",
+        "How Ze verify, failure routing, traces, and debug logging work.",
+        "../../",
+    ),
+]
 
 CONTRIBUTE_DESC = (
     "How to contribute to Ze: the CLA, how the project is funded, and where to start."
@@ -178,13 +251,14 @@ def step_activity():
 
 def step_compare():
     render_doc = load_module("render-doc")
-    render_doc.render(
-        GH_PAGES / "compare" / "comparison.md",
-        GH_PAGES / "compare" / "index.html",
-        "../",
-        COMPARE_DESC,
-        cat="routing",
-    )
+    for source_name, dest_rel, desc, root, cat in COMPARE_PAGES:
+        render_doc.render(
+            GH_PAGES / "compare" / source_name,
+            GH_PAGES / dest_rel,
+            root,
+            desc,
+            cat=cat,
+        )
     return 0
 
 
@@ -198,9 +272,26 @@ def step_cli():
     return render_cli_catalog.main()
 
 
+def step_command_equivalents():
+    render_command_equivalents = load_module("render-command-equivalents")
+    return render_command_equivalents.main()
+
+
 def step_deps():
     render_dependencies = load_module("render-dependencies")
     return render_dependencies.main()
+
+def step_quality():
+    render_doc = load_module("render-doc")
+    for source_name, dest_rel, desc, root in QUALITY_PAGES:
+        render_doc.render(
+            GH_PAGES / "quality" / source_name,
+            GH_PAGES / dest_rel,
+            root,
+            desc,
+            cat="observe",
+        )
+    return 0
 
 
 def step_config():
@@ -361,6 +452,7 @@ def step_nav():
     for rel, root in NAV_PATCH_TARGETS:
         path = GH_PAGES / rel
         text = sitelib.patch_navblock(path.read_text(), root)
+        text = sitelib.patch_page_sidebar(text, root, sitelib.page_key_for_path(rel))
         text = sitelib.patch_footer(text, root)
         text = sitelib.patch_asset_versions(text)
         path.write_text(text)
@@ -373,6 +465,21 @@ def step_nav():
     return 0
 
 
+def step_links():
+    patched = 0
+    for path in GH_PAGES.rglob("*.html"):
+        rel = path.relative_to(GH_PAGES)
+        if rel.parts and rel.parts[0] == "presentations":
+            continue
+        text = path.read_text()
+        updated = sitelib.patch_external_link_targets(text)
+        if updated != text:
+            path.write_text(updated)
+            patched += 1
+    print("patched external link targets -> %d html files" % patched)
+    return 0
+
+
 STEP_FUNCS = {
     "docs": step_docs,
     "blog": step_blog,
@@ -380,7 +487,9 @@ STEP_FUNCS = {
     "compare": step_compare,
     "features": step_features,
     "cli": step_cli,
+    "command-equivalents": step_command_equivalents,
     "deps": step_deps,
+    "quality": step_quality,
     "config": step_config,
     "plugins": step_plugins,
     "facts": step_facts,
@@ -398,6 +507,7 @@ STEP_FUNCS = {
     "timeline": step_timeline,
     "llms": step_llms,
     "nav": step_nav,
+    "links": step_links,
     "search": step_search,
     "seo": step_seo,
 }
@@ -519,6 +629,19 @@ def main():
             continue
         if rc:
             failures.append(step)
+
+    if "links" not in steps:
+        # Runs even when --only excludes it: external links should consistently
+        # open in fresh tabs after any generator rewrites a page.
+        print("=== links (always runs) ===")
+        try:
+            rc = step_links()
+        except Exception as exc:
+            print("error: step links raised %r" % exc, file=sys.stderr)
+            failures.append("links")
+        else:
+            if rc:
+                failures.append("links")
 
     if "llms" not in steps:
         # Runs even when --only excludes it: llms.txt must never go stale

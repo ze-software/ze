@@ -549,7 +549,15 @@ def main():
         desc = intro.replace("\n", " ")[:200] if intro else "Ze weekly update."
         full_title = "Week of %s - Ze" % slug
         dest.write_text(
-            sitelib.page_head(full_title, desc, "../../", og_title=full_title, og_desc=desc, extra_head=RSS_HEAD)
+            sitelib.page_head(
+                full_title,
+                desc,
+                "../../",
+                og_title=full_title,
+                og_desc=desc,
+                extra_head=RSS_HEAD,
+                page_key="changes/%s/" % slug,
+            )
             + render_post(meta, intro, sections, covers)
             + "\n"
             + sitelib.page_foot("../../")
@@ -580,7 +588,15 @@ def main():
     print("wrote %d weeks -> %s" % (len(weeks), INDEX_JSON))
 
     full_title = "Changes - Ze"
-    head = sitelib.page_head(full_title, DESC, "../", og_title=full_title, og_desc=DESC, extra_head=INDEX_RSS_HEAD + INDEX_CSS)
+    head = sitelib.page_head(
+        full_title,
+        DESC,
+        "../",
+        og_title=full_title,
+        og_desc=DESC,
+        extra_head=INDEX_RSS_HEAD + INDEX_CSS,
+        page_key="changes/",
+    )
     out = OUT_DIR / "index.html"
     out.write_text(head + render_index_html(weeks) + "\n" + sitelib.page_foot("../"))
     sitelib.write_markdown_sibling(out, render_index_markdown(weeks))

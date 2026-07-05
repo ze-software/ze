@@ -185,7 +185,14 @@ def render(
         body_html = wrap_journey_hero(body_html, journey_label)
     section_class = "md-content reveal cat-%s" % cat if cat else "md-content reveal"
     full_title = "%s - Ze" % title
-    head = sitelib.page_head(full_title, desc, root, og_title=full_title, og_desc=desc)
+    head = sitelib.page_head(
+        full_title,
+        desc,
+        root,
+        og_title=full_title,
+        og_desc=desc,
+        page_key=sitelib.page_key_for_path(dest),
+    )
     head += '            <section class="%s">\n' % section_class
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(

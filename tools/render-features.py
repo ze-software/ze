@@ -197,7 +197,11 @@ def render(data):
         "Every feature Ze ships and the spec'd roadmap ahead, "
         "grouped by maturity and color-coded by category."
     )
-    out = [sitelib.page_head(title, desc, root, og_title=title, og_desc=desc)]
+    out = [
+        sitelib.page_head(
+            title, desc, root, og_title=title, og_desc=desc, page_key="features/"
+        )
+    ]
 
     out.append('            <section aria-labelledby="features-title">')
     out.append('                <div class="section-head reveal">')

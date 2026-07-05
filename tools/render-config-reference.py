@@ -511,7 +511,16 @@ def render(tree, owner_map):
         "Browse the whole Ze configuration -- every level shown the same way, "
         "generated live from the YANG schema."
     )
-    out = [sitelib.page_head(title, desc, root, og_title=title, og_desc=desc)]
+    out = [
+        sitelib.page_head(
+            title,
+            desc,
+            root,
+            og_title=title,
+            og_desc=desc,
+            page_key="config-reference/",
+        )
+    ]
     out.append(
         '            <section aria-labelledby="config-ref-title" class="md-content reveal cat-platform">'
     )

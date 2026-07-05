@@ -353,7 +353,12 @@ SEARCH_MD = (
 def render_search_page():
     full_title = "Search - Ze"
     head = sitelib.page_head(
-        full_title, PAGE_DESC, "../", og_title=full_title, og_desc=PAGE_DESC
+        full_title,
+        PAGE_DESC,
+        "../",
+        og_title=full_title,
+        og_desc=PAGE_DESC,
+        page_key="search/",
     )
     PAGE.parent.mkdir(parents=True, exist_ok=True)
     PAGE.write_text(head + SEARCH_BODY + sitelib.page_foot("../"))

@@ -668,9 +668,17 @@ def render_detail_html(plugin, group, by_name, dependents):
     doc = plugin_doc(plugin)
     doc_body = render_markdown_body(doc.get("body", ""))
 
-    out = [sitelib.page_head(title, desc, root, og_title=title, og_desc=desc)]
+    out = [
+        sitelib.page_head(
+            title,
+            desc,
+            root,
+            og_title=title,
+            og_desc=desc,
+            page_key="docs/features/plugins/%s/" % plugin["slug"],
+        )
+    ]
     out.append('            <section class="md-content reveal cat-%s plugin-detail" aria-labelledby="plugin-detail-title">' % group["cat"])
-    out.append('                <a class="plugin-detail-back" href="../index.html">Back to plugin catalog</a>')
     out.append('                <div class="plugin-detail-hero cat-%s">' % group["cat"])
     out.append('                    <span class="cat">%s</span>' % esc(group["label"]))
     out.append('                    <h1 id="plugin-detail-title"><code>%s</code></h1>' % esc(plugin["name"]))
@@ -765,8 +773,6 @@ def render_detail_markdown(plugin, group, by_name, dependents):
         "",
         plugin_summary(plugin),
         "",
-        "[Back to plugin catalog](../index.md)",
-        "",
         "## At a glance",
         "",
         "| Field | Value |",
@@ -855,7 +861,16 @@ def render_catalog(plugins, groups):
 
     title = "Plugin Catalog - Ze"
     desc = "Search every Ze runtime plugin by purpose, config root, dependency, and source."
-    out = [sitelib.page_head(title, desc, CATALOG_ROOT, og_title=title, og_desc=desc)]
+    out = [
+        sitelib.page_head(
+            title,
+            desc,
+            CATALOG_ROOT,
+            og_title=title,
+            og_desc=desc,
+            page_key="docs/features/plugins/",
+        )
+    ]
     out.append('            <section class="md-content reveal cat-automate plugin-catalog" data-plugin-catalog aria-labelledby="plugin-catalog-title">')
     out.append('                <h1 id="plugin-catalog-title">Plugin catalog</h1>')
     out.append('                <p class="plugin-lede">Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>')

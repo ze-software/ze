@@ -235,7 +235,7 @@ def render(data):
         "The landmark features Ze has shipped, oldest first: one node per "
         "capability the first time it arrived, on a timeline."
     )
-    out = [sitelib.page_head(TITLE, desc, "../", extra_head=EXTRA_HEAD)]
+    out = [sitelib.page_head(TITLE, desc, "../", extra_head=EXTRA_HEAD, page_key="milestones/")]
 
     out.append('            <section aria-labelledby="milestones-title">')
     out.append('                <div class="section-head journey-hero reveal">')
