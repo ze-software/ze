@@ -4,9 +4,11 @@
 // Package filterapi defines the BGP route filter pipeline contract: the
 // value types passed to ingress/egress filters, the modification
 // accumulator egress filters write to, and the registration of filter
-// chains and attribute-modification handlers. It is a leaf package
-// (stdlib only) so filter plugins, the reactor, and protocol filters can
-// all import it without cycles.
+// chains and attribute-modification handlers. It also carries plugin-owned
+// reactor capabilities that follow the same init()-time registration model,
+// such as route-server (RS) fast-path forwarding (EnableRSForwarding). It is
+// a leaf package (stdlib only) so filter plugins, the reactor, and protocol
+// filters can all import it without cycles.
 //
 // These types are BGP-owned: other protocols (OSPF, IS-IS) would define
 // their own filter seam packages following the same registration pattern.
@@ -184,7 +186,33 @@ var (
 	// attrModHandlers stores registered attr mod handlers keyed by attribute code.
 	// Populated at init() time by plugins, read at runtime by the reactor.
 	attrModHandlers = make(map[uint8]AttrModHandler)
+
+	// rsForwarding reports whether a plugin owns and has activated the reactor's
+	// route-server (RS) fast-path forwarding. It stays false unless a plugin
+	// calls EnableRSForwarding() from its init(), so a binary that does not link
+	// the rs plugin (delete-the-folder) leaves the reactor fast path inert.
+	// Set at init() time by the rs plugin, read once at reactor construction.
+	rsForwarding bool
 )
+
+// EnableRSForwarding activates the reactor's route-server fast-path forwarding
+// capability. The rs plugin calls it from init() so that removing the plugin
+// (deleting its package) removes the only activation, leaving the reactor's RS
+// fast path inert. Must be called from init() functions only.
+func EnableRSForwarding() {
+	mu.Lock()
+	defer mu.Unlock()
+	rsForwarding = true
+}
+
+// RSForwardingEnabled reports whether the RS fast-path forwarding capability has
+// been activated by a plugin. The reactor reads it once at construction and
+// caches the result; the per-UPDATE gate then checks the cached bool.
+func RSForwardingEnabled() bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	return rsForwarding
+}
 
 // Register adds a plugin's filter pipeline contribution.
 // Must be called from init() functions only.
@@ -324,6 +352,7 @@ func AttrModHandlers() map[uint8]AttrModHandler {
 type PipelineSnapshot struct {
 	filters         map[string]Filter
 	attrModHandlers map[uint8]AttrModHandler
+	rsForwarding    bool
 }
 
 // Snapshot returns a copy of the current pipeline state. Only for use in tests.
@@ -336,7 +365,7 @@ func Snapshot() PipelineSnapshot {
 	maps.Copy(fs, filters)
 	ah := make(map[uint8]AttrModHandler, len(attrModHandlers))
 	maps.Copy(ah, attrModHandlers)
-	return PipelineSnapshot{filters: fs, attrModHandlers: ah}
+	return PipelineSnapshot{filters: fs, attrModHandlers: ah, rsForwarding: rsForwarding}
 }
 
 // Restore replaces the pipeline state with a previously saved snapshot.
@@ -346,13 +375,15 @@ func Restore(snap PipelineSnapshot) {
 	defer mu.Unlock()
 	filters = snap.filters
 	attrModHandlers = snap.attrModHandlers
+	rsForwarding = snap.rsForwarding
 }
 
-// ResetForTest clears all registered filters and attr mod handlers.
-// Only for use in tests, paired with Snapshot/Restore.
+// ResetForTest clears all registered filters, attr mod handlers, and the
+// RS-forwarding capability flag. Only for use in tests, paired with Snapshot/Restore.
 func ResetForTest() {
 	mu.Lock()
 	defer mu.Unlock()
 	filters = make(map[string]Filter)
 	attrModHandlers = make(map[uint8]AttrModHandler)
+	rsForwarding = false
 }

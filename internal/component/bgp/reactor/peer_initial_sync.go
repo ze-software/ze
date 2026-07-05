@@ -306,7 +306,7 @@ func (p *Peer) sendInitialRoutes() {
 	}
 
 	// Hold the session write lock across family-specific routes AND EOR.
-	// The route-server plugin (always loaded) sends EOR via AnnounceEOR ->
+	// The route-server plugin, when present, sends EOR via AnnounceEOR ->
 	// peer.SendUpdate in a separate goroutine. Without holding writeMu, the
 	// RS EOR can interleave between config routes and EOR markers. HoldWrites
 	// blocks the RS (writeMu.Lock blocks) and the forward pool (TryLock fails)

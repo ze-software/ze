@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rs/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -11,6 +12,14 @@ import (
 )
 
 func init() {
+	// Activate the reactor's route-server fast-path forwarding capability
+	// (BGP-owned filterapi seam, not the generic registry). This is the sole
+	// caller of EnableRSForwarding: deleting this plugin package removes the
+	// activation, leaving the reactor RS fast path inert -- the "delete the
+	// folder and the feature vanishes" invariant. The reactor reads the flag
+	// once at construction; it never imports this package.
+	filterapi.EnableRSForwarding()
+
 	reg := registry.Registration{
 		Name:        "bgp-rs",
 		Description: "Route Server",

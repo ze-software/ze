@@ -1,0 +1,69 @@
+# Test: rs plugin augment paths attach at every peer/group/group-peer level
+# Validates: rs-client (session) and rs-fast-path (behavior) are accepted at
+#   /bgp/peer, /bgp/group, and /bgp/group/peer -- the 6 augments in
+#   plugins/rs/yang/ze-rs-conf.yang (3 session + 3 behavior). When the leaves
+#   lived in core ze-bgp-conf.yang this was free via `uses peer-fields`; after
+#   the move to plugin augments each path can be dropped independently.
+# Prevents: a dropped or mistargeted augment silently failing route-server
+#   config at one level (e.g. group scope) with no test catching it. Removing
+#   any single augment makes one leaf below a rejected unknown field.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.1.1.1
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer standalone {
+		connection {
+			remote {
+				ip 10.0.0.1
+			}
+			local {
+				ip 10.0.0.100
+			}
+		}
+		session {
+			asn {
+				remote 64512
+			}
+			rs-client true
+		}
+		behavior {
+			rs-fast-path enable
+		}
+	}
+	group ix {
+		session {
+			rs-client true
+		}
+		behavior {
+			rs-fast-path enable
+		}
+		peer member {
+			connection {
+				remote {
+					ip 10.0.1.1
+				}
+				local {
+					ip 10.0.1.100
+				}
+			}
+			session {
+				asn {
+					remote 64513
+				}
+				rs-client true
+			}
+			behavior {
+				rs-fast-path enable
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

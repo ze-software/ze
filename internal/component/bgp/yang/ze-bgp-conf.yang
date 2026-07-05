@@ -515,15 +515,6 @@ module ze-bgp-conf {
                 description "Override router ID for this peer";
             }
 
-            leaf rs-client {
-                type boolean;
-                default false;
-                description "Mark this peer as an RS-client for transparent AS-path forwarding.
-                             RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH
-                             or any other transitive attribute. When true, the reactor skips
-                             AS-path prepending for this peer on the forwarding path.";
-            }
-
             leaf route-reflector-client {
                 type boolean;
                 default false;
@@ -746,14 +737,6 @@ module ze-bgp-conf {
                 description "Automatically withdraw all routes advertised to this peer when the session
                              goes down. When disabled, routes remain until explicitly withdrawn or the
                              hold timer expires. Legacy ExaBGP option, retained for migration.";
-            }
-
-            leaf rs-fast-path {
-                type boolean;
-                default false;
-                description "Forward received UPDATEs directly inside the reactor for RS-client peers,
-                             bypassing the plugin dispatch chain. Lower latency for route server
-                             forwarding. Peers with export filters are excluded and use the normal path.";
             }
         }
 

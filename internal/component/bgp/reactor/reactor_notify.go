@@ -583,7 +583,18 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	// deliverChan enqueue (plugins still get fire-and-forget delivery).
 	// Activate is NOT called here -- the delivery goroutine calls it after
 	// OnMessageBatchReceived returns the cache consumer count.
-	if kept && hasPeer && peer.settings.RSFastPath && msgType == message.TypeUPDATE {
+	//
+	// r.rsForwardingEnabled is defense-in-depth. rs-fast-path/rs-client are
+	// plugin-owned YANG leaves, so with the rs plugin absent they are rejected at
+	// config load and peer.settings.RSFastPath can never become true. The cached
+	// capability bool (set once in New from the filterapi seam the rs plugin
+	// activates) makes the fast path inert even if that field were somehow set
+	// without the plugin, keeping the "delete the plugin, RS forwarding vanishes"
+	// invariant enforced at this gate and not only by the schema. The other
+	// RSFastPath/RSClient readers (session_negotiate PATHS-LIMIT suppression,
+	// peer_forward_facts AS-path-skip) stay schema-gated only, which suffices
+	// because they are unreachable without the plugin-owned config.
+	if kept && hasPeer && r.rsForwardingEnabled && peer.settings.RSFastPath && msgType == message.TypeUPDATE {
 		update, ok := r.recentUpdates.Get(messageID)
 		if ok {
 			skipped := reactorForwardRS(r, update, messageID, peerAddr, peer)

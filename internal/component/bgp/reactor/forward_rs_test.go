@@ -9,11 +9,15 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,6 +46,87 @@ func makeRSPeer(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingCo
 	peer.sendCtxID = ctxID
 	peer.refreshForwardFacts()
 	return peer
+}
+
+// TestNewReadsRSForwardingCapability verifies reactor.New caches the rs plugin's
+// RS-forwarding capability from the filterapi seam, so the per-UPDATE gate reads
+// a single cached bool rather than calling filterapi per message.
+//
+// VALIDATES: P1 AC-2 -- a binary that never activates the capability (no rs
+// plugin linked, as in this test binary) constructs reactors with the fast path
+// inert; P1 AC-1 -- activation makes New cache true.
+// PREVENTS: the reactor fast path being live with no plugin present, or paying a
+// per-UPDATE capability lookup on the hot path.
+func TestNewReadsRSForwardingCapability(t *testing.T) {
+	snap := filterapi.Snapshot()
+	defer filterapi.Restore(snap)
+
+	filterapi.ResetForTest()
+	if r := New(&Config{ListenAddr: "127.0.0.1:0"}); r.rsForwardingEnabled {
+		t.Fatal("New().rsForwardingEnabled = true with no plugin activation, want false")
+	}
+	filterapi.EnableRSForwarding()
+	if r := New(&Config{ListenAddr: "127.0.0.1:0"}); !r.rsForwardingEnabled {
+		t.Fatal("New().rsForwardingEnabled = false after EnableRSForwarding, want true")
+	}
+}
+
+// TestRSFastPathGateRespectsCapability drives the real fast-path gate in
+// notifyMessageReceiver and asserts reactorForwardRS runs (msg.ReactorForwarded
+// set) only when the RS-forwarding capability is active -- even though the peer
+// is configured with rs-fast-path in both cases.
+//
+// VALIDATES: P1 AC-2 -- with the capability inactive (rs plugin absent) no
+// native RS forwarding occurs; P1 AC-1 -- with it active the fast path runs.
+// PREVENTS: the "delete the plugin folder but the reactor still forwards" split
+// brain the invariant closes.
+func TestRSFastPathGateRespectsCapability(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		enabled       bool
+		wantForwarded bool
+	}{
+		{"capability_inactive_inert", false, false},
+		{"capability_active_forwards", true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reactor := New(&Config{ListenAddr: "127.0.0.1:0"})
+			reactor.rsForwardingEnabled = tc.enabled
+
+			peerAddr := mustParseAddr("10.0.0.1")
+			ps := NewPeerSettings(peerAddr, 65000, 65001, 0x01020304)
+			ps.RSFastPath = true
+			require.NoError(t, reactor.AddPeer(ps))
+
+			var forwarded atomic.Bool
+			gotMsg := make(chan struct{}, 1)
+			reactor.SetMessageReceiver(&testDeliveryReceiver{
+				onReceived: func(_ plugin.PeerInfo, msg bgptypes.RawMessage) {
+					if msg.ReactorForwarded {
+						forwarded.Store(true)
+					}
+					select {
+					case gotMsg <- struct{}{}:
+					default:
+					}
+				},
+			})
+			stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
+			defer stop()
+
+			payload := testUpdatePayload()
+			wireUpdate := wireu.NewWireUpdate(payload, 0)
+			_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, testPoolBuf(t), nil)
+
+			select {
+			case <-gotMsg:
+			case <-time.After(5 * time.Second):
+				t.Fatal("delivery callback did not run")
+			}
+			assert.Equal(t, tc.wantForwarded, forwarded.Load(),
+				"ReactorForwarded=%v, want %v (capability enabled=%v)", forwarded.Load(), tc.wantForwarded, tc.enabled)
+		})
+	}
 }
 
 // TestReactorForwardRSBasic verifies the fast path forwards to all peers

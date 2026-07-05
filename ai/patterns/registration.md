@@ -282,6 +282,19 @@ carries no protocol filter knowledge).
 
 **Query:** `filterapi.IngressFilters()`, `filterapi.EgressFilters()` return ordered slices
 
+### Reactor Capability Flag (via filterapi)
+
+A boolean reactor capability that a plugin owns and activates at init(), so
+that removing the plugin package makes the corresponding reactor path inert
+("delete the folder, the feature vanishes"). Same init()-time model as the
+filter seams above; the reactor reads it once at construction (never a
+per-message lookup) and caches it on the `Reactor`.
+
+**Location:** `internal/component/bgp/filterapi/filterapi.go` (BGP-owned seam package)
+**Registration:** `filterapi.EnableRSForwarding()` in plugin init()
+**Query:** `filterapi.RSForwardingEnabled()` (read once in `reactor.New`, cached in `rsForwardingEnabled`; the per-UPDATE fast-path gate checks the cached bool)
+**Registered:** bgp-rs (route-server fast-path forwarding)
+
 ### Metrics (no central registry)
 
 No central metric registry. Each component creates metrics via a `metrics.Registry` interface
@@ -377,6 +390,14 @@ In plugin `register.go`: `attribute.RegisterName(code, "NAME")`.
 Register with `filterapi.Register(filterapi.Filter{Name, Stage, Priority, Ingress, Egress})`
 (`internal/component/bgp/filterapi`) in the plugin's init(), alongside `registry.Register()`.
 See `ai/patterns/plugin.md`.
+
+### New reactor capability flag (plugin-owned)
+When a reactor code path should exist only while a plugin does, add a bool +
+`EnableX()`/`XEnabled()` to `internal/component/bgp/filterapi` (include it in
+Snapshot/Restore/ResetForTest), call `EnableX()` in the plugin's init(), read it
+once in `reactor.New` into a cached field, and gate the path on that field.
+Never spell the plugin name in reactor/central code. Example: `EnableRSForwarding`
+(route-server fast path).
 
 ### New show enricher (in-process)
 Register with `show.MustRegister(command, key, show.Enricher{Detail: fn, Brief: fn})`

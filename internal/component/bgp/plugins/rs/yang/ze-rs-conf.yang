@@ -6,6 +6,13 @@ module ze-rs-conf {
 
     description "BGP route server plugin configuration for Ze";
 
+    revision 2026-07-04 {
+        description "Adopt the rs-client (session) and rs-fast-path (behavior)
+                     per-peer leaves from core ze-bgp-conf so the route-server
+                     config surface is plugin-owned: removing this plugin removes
+                     the leaves from the schema.";
+    }
+
     revision 2026-06-12 {
         description "Initial revision";
     }
@@ -24,4 +31,40 @@ module ze-rs-conf {
             }
         }
     }
+
+    // Per-peer route-server session leaf, adopted from core ze-bgp-conf so the
+    // route-server config surface is plugin-owned (delete this plugin and the
+    // leaf vanishes from the schema). The reactor still parses it from the
+    // merged session container -- it owns the PeerSettings field the leaf drives.
+    grouping rs-session-config {
+        leaf rs-client {
+            type boolean;
+            default false;
+            description "Mark this peer as an RS-client for transparent AS-path forwarding.
+                         RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH
+                         or any other transitive attribute. When true, the reactor skips
+                         AS-path prepending for this peer on the forwarding path.";
+        }
+    }
+
+    // Per-peer route-server behavior leaf, adopted from core ze-bgp-conf (see
+    // rs-session-config). Enables the reactor RS fast-path forwarding for the peer;
+    // the fast path itself is gated on this plugin activating the capability.
+    grouping rs-behavior-config {
+        leaf rs-fast-path {
+            type boolean;
+            default false;
+            description "Forward received UPDATEs directly inside the reactor for RS-client peers,
+                         bypassing the plugin dispatch chain. Lower latency for route server
+                         forwarding. Peers with export filters are excluded and use the normal path.";
+        }
+    }
+
+    augment "/bgp:bgp/bgp:peer/bgp:session"           { uses rs-session-config; }
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:session" { uses rs-session-config; }
+    augment "/bgp:bgp/bgp:group/bgp:session"          { uses rs-session-config; }
+
+    augment "/bgp:bgp/bgp:peer/bgp:behavior"           { uses rs-behavior-config; }
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:behavior" { uses rs-behavior-config; }
+    augment "/bgp:bgp/bgp:group/bgp:behavior"          { uses rs-behavior-config; }
 }

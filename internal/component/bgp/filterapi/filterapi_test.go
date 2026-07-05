@@ -21,6 +21,56 @@ func noopEgress(_, _ PeerFilterInfo, _ []byte, _ map[string]any, _ *ModAccumulat
 	return true
 }
 
+// --- RS forwarding capability tests ---
+
+// VALIDATES: P1 AC-2 -- the reactor RS fast-path forwarding capability is inert
+// (disabled) unless a plugin activates it. A binary that does not link the rs
+// plugin (like this test binary) never calls EnableRSForwarding, so the flag
+// stays false and the reactor gate is inert.
+// PREVENTS: the reactor forwarding RS UPDATEs when no rs plugin is present.
+func TestRSForwardingDefaultDisabled(t *testing.T) {
+	snap := Snapshot()
+	defer Restore(snap)
+	ResetForTest()
+	if RSForwardingEnabled() {
+		t.Fatal("RSForwardingEnabled() = true after ResetForTest, want false (no plugin activated it)")
+	}
+}
+
+// VALIDATES: P1 AC-1 -- a plugin activating the capability at registration makes
+// the reactor fast path eligible to run.
+// PREVENTS: the reactor ignoring an activated rs plugin.
+func TestRSForwardingEnable(t *testing.T) {
+	snap := Snapshot()
+	defer Restore(snap)
+	ResetForTest()
+	EnableRSForwarding()
+	if !RSForwardingEnabled() {
+		t.Fatal("RSForwardingEnabled() = false after EnableRSForwarding, want true")
+	}
+}
+
+// VALIDATES: Snapshot/Restore and ResetForTest round-trip the capability flag so
+// tests that toggle it do not leak state into other tests.
+// PREVENTS: cross-test contamination of the global RS-forwarding flag.
+func TestRSForwardingSnapshotRestore(t *testing.T) {
+	outer := Snapshot()
+	defer Restore(outer)
+
+	ResetForTest()
+	EnableRSForwarding()
+	enabledSnap := Snapshot()
+
+	ResetForTest()
+	if RSForwardingEnabled() {
+		t.Fatal("RSForwardingEnabled() = true after ResetForTest, want false")
+	}
+	Restore(enabledSnap)
+	if !RSForwardingEnabled() {
+		t.Fatal("RSForwardingEnabled() = false after Restore of enabled snapshot, want true")
+	}
+}
+
 // --- ModAccumulator tests ---
 
 // VALIDATES: AC-5 — ModAccumulator.Len() returns 0 when empty, no allocation.

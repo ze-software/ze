@@ -270,6 +270,12 @@ type Reactor struct {
 	// Keyed by attribute type code (uint8). Collected from registry at startup.
 	attrModHandlers map[uint8]filterapi.AttrModHandler
 
+	// rsForwardingEnabled caches whether the rs plugin has activated the
+	// reactor's route-server fast-path forwarding capability (filterapi seam).
+	// Read once at construction; the per-UPDATE fast-path gate checks this bool
+	// so that, with the rs plugin absent, no native RS forwarding happens.
+	rsForwardingEnabled bool
+
 	// dynamicGroups holds group configs with `ip dynamic` + `range`.
 	// Checked by findDynamicGroup when findPeerByAddr returns false.
 	dynamicGroups []*DynamicGroupConfig
@@ -368,6 +374,10 @@ func New(config *Config) *Reactor {
 		}),
 		configTree:   config.ConfigTree,
 		updateGroups: NewUpdateGroupIndexFromEnv(),
+		// Cache the RS fast-path forwarding capability at construction. Plugins
+		// activate it from init() (which runs before any reactor is built), so a
+		// binary without the rs plugin leaves this false and the fast path inert.
+		rsForwardingEnabled: filterapi.RSForwardingEnabled(),
 	}
 
 	// Create shared overflow MixedBufMux for forward dispatch.
