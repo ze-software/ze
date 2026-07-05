@@ -185,7 +185,9 @@ func runChildModeWithArgs(args []string) int {
 		return 1
 	}
 
-	reactor, err := bgpconfig.LoadReactorFile(storage.NewFilesystem(), configPath)
+	// Standalone: `ze bgp --child` owns the reactor lifecycle and self-hosts the
+	// plugin server (there is no hub in child mode to borrow one from).
+	reactor, err := bgpconfig.LoadReactorFileStandalone(storage.NewFilesystem(), configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1

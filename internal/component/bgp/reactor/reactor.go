@@ -62,6 +62,12 @@ import (
 
 var errServerNotReady = errors.New("server not ready")
 
+// errBorrowModeNoServer is returned when a borrow-mode (production) reactor is
+// started without a plugin server injected via SetPluginServer. Borrow mode never
+// self-hosts; a missing server is a wiring error, not a silent fallback. Standalone
+// mode (Config.Standalone) self-hosts instead.
+var errBorrowModeNoServer = errors.New("bgp reactor: borrow mode requires an injected plugin server (use Config.Standalone to self-host)")
+
 type pluginServerFactory func(*pluginserver.ServerConfig, plugin.ReactorLifecycle) (*pluginserver.Server, error)
 
 // Reactor env var registrations (ze.fwd.*, ze.buf.*, ze.cache.safety.valve,
@@ -150,6 +156,14 @@ type Config struct {
 	// Zero value means cold start (R=0).
 	// RFC 4724 Section 4.1: Restarting Speaker sets R-bit in OPEN.
 	RestartUntil time.Time
+
+	// Standalone selects self-hosting mode: the reactor creates and owns its own
+	// plugin server, runs its own signal handler, and starts peers inline. Used by
+	// the ze-chaos in-process simulation, the integration harness, and `ze bgp
+	// --child`. When false (the default, production), the reactor is borrow-only:
+	// the hub injects its server via SetPluginServer before start, and starting
+	// without an injected server is an error rather than a silent self-host.
+	Standalone bool
 }
 
 // PluginConfig is an alias for plugin.PluginConfig. Kept as an alias so reactor
@@ -309,9 +323,12 @@ type Reactor struct {
 	// Used by config loader to wire deferred components (SSH executor, authz).
 	postStartFunc func()
 
-	// externalServer is true when the plugin server was set via SetPluginServer
-	// (hub-owned lifecycle). StartWithContext skips plugin startup waits to avoid
-	// deadlock when the reactor runs as a config-driven plugin.
+	// externalServer is true when the reactor borrows a hub-owned plugin server
+	// (production, Config.Standalone == false) rather than self-hosting one. It is
+	// derived from the construction mode (!Config.Standalone) in New, NOT inferred
+	// at runtime from r.api. In borrow mode StartWithContext skips plugin-startup
+	// waits, its own signal handler, and inline peer start to avoid deadlock and
+	// duplicate ownership when the reactor runs as a config-driven plugin.
 	externalServer bool
 }
 
@@ -378,6 +395,10 @@ func New(config *Config) *Reactor {
 		// activate it from init() (which runs before any reactor is built), so a
 		// binary without the rs plugin leaves this false and the fast path inert.
 		rsForwardingEnabled: filterapi.RSForwardingEnabled(),
+		// Ownership mode is explicit at construction: borrow (production) unless
+		// Config.Standalone selects self-hosting. Derived once here rather than
+		// inferred from r.api at startup.
+		externalServer: !config.Standalone,
 	}
 
 	// Create shared overflow MixedBufMux for forward dispatch.
@@ -1119,7 +1140,12 @@ func (r *Reactor) startMultiListeners() error {
 // and startup -- the hub owns the server lifecycle. Only wires BGP-specific
 // handlers (EventDispatcher, filters, observers).
 func (r *Reactor) startAPIServer() error {
-	r.externalServer = r.api != nil
+	// Ownership mode is fixed at construction (externalServer = !Config.Standalone).
+	// Borrow mode (production) requires the hub to have injected its server before
+	// start; a missing server is a wiring error, never a silent self-host.
+	if r.externalServer && r.api == nil {
+		return errBorrowModeNoServer
+	}
 
 	if !r.externalServer {
 		// Create and own the plugin server (legacy path).

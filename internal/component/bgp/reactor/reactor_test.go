@@ -95,6 +95,7 @@ func TestReactorNew(t *testing.T) {
 func TestReactorStartStop(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 
 	reactor := New(cfg)
@@ -177,6 +178,7 @@ func TestReactorRemovePeer(t *testing.T) {
 func TestReactorPeersStartOnRun(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 
 	reactor := New(cfg)
@@ -214,6 +216,7 @@ func TestReactorPeersStartOnRun(t *testing.T) {
 func TestReactorListenerAcceptsConnections(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 
 	reactor := New(cfg)
@@ -239,6 +242,7 @@ func TestReactorListenerAcceptsConnections(t *testing.T) {
 func TestReactorIncomingConnectionMatchesPeer(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 
 	reactor := New(cfg)
@@ -281,6 +285,7 @@ func TestReactorIncomingConnectionMatchesPeer(t *testing.T) {
 func TestReactorContextCancellation(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 
 	reactor := New(cfg)
@@ -309,6 +314,7 @@ func TestReactorContextCancellation(t *testing.T) {
 func TestReactorGracefulShutdown(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 
 	reactor := New(cfg)
@@ -348,6 +354,7 @@ func TestReactorGracefulShutdown(t *testing.T) {
 func TestReactorStats(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 
 	reactor := New(cfg)
@@ -860,8 +867,9 @@ func TestGetPeerProcessBindingsReceiveNegotiated(t *testing.T) {
 // PREVENTS: Duplicate listeners wasting resources and port conflicts.
 func TestMultiListenerSameLocalAddress(t *testing.T) {
 	cfg := &Config{
-		Port:    freePort(t),
-		LocalAS: 65000,
+		Port:       freePort(t),
+		LocalAS:    65000,
+		Standalone: true,
 	}
 	reactor := New(cfg)
 
@@ -904,8 +912,9 @@ func TestMultiListenerDifferentLocalAddresses(t *testing.T) {
 	_ = ln.Close()
 
 	cfg := &Config{
-		Port:    freePort(t),
-		LocalAS: 65000,
+		Port:       freePort(t),
+		LocalAS:    65000,
+		Standalone: true,
 	}
 	reactor := New(cfg)
 
@@ -940,8 +949,9 @@ func TestMultiListenerDifferentLocalAddresses(t *testing.T) {
 // PREVENTS: Startup failure when no peers are configured.
 func TestMultiListenerNoPeers(t *testing.T) {
 	cfg := &Config{
-		Port:    freePort(t),
-		LocalAS: 65000,
+		Port:       freePort(t),
+		LocalAS:    65000,
+		Standalone: true,
 	}
 	reactor := New(cfg)
 
@@ -965,8 +975,9 @@ func TestMultiListenerNoPeers(t *testing.T) {
 // PREVENTS: Connection from peer going to wrong listener.
 func TestMultiListenerConnectionToCorrectListener(t *testing.T) {
 	cfg := &Config{
-		Port:    freePort(t),
-		LocalAS: 65000,
+		Port:       freePort(t),
+		LocalAS:    65000,
+		Standalone: true,
 	}
 	reactor := New(cfg)
 
@@ -1012,6 +1023,7 @@ func TestMultiListenerLegacyListenAddrFallback(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0", // Legacy config
 		LocalAS:    65000,
+		Standalone: true,
 	}
 	reactor := New(cfg)
 
@@ -1125,8 +1137,9 @@ func TestAddPeerAddressFamilyMismatch(t *testing.T) {
 // PREVENTS: Dynamic peers failing to accept incoming connections.
 func TestDynamicListenerAddPeerNewLocalAddress(t *testing.T) {
 	cfg := &Config{
-		Port:    freePort(t),
-		LocalAS: 65000,
+		Port:       freePort(t),
+		LocalAS:    65000,
+		Standalone: true,
 	}
 	reactor := New(cfg)
 
@@ -1156,8 +1169,9 @@ func TestDynamicListenerAddPeerNewLocalAddress(t *testing.T) {
 // PREVENTS: Resource waste from duplicate listeners.
 func TestDynamicListenerAddPeerExistingLocalAddress(t *testing.T) {
 	cfg := &Config{
-		Port:    freePort(t),
-		LocalAS: 65000,
+		Port:       freePort(t),
+		LocalAS:    65000,
+		Standalone: true,
 	}
 	reactor := New(cfg)
 
@@ -1193,8 +1207,9 @@ func TestDynamicListenerAddPeerExistingLocalAddress(t *testing.T) {
 // PREVENTS: Orphaned listeners consuming resources.
 func TestDynamicListenerRemoveLastPeer(t *testing.T) {
 	cfg := &Config{
-		Port:    freePort(t),
-		LocalAS: 65000,
+		Port:       freePort(t),
+		LocalAS:    65000,
+		Standalone: true,
 	}
 	reactor := New(cfg)
 
@@ -1226,8 +1241,9 @@ func TestDynamicListenerRemoveLastPeer(t *testing.T) {
 // PREVENTS: Premature listener closure breaking other peers.
 func TestDynamicListenerRemoveOneOfMany(t *testing.T) {
 	cfg := &Config{
-		Port:    freePort(t),
-		LocalAS: 65000,
+		Port:       freePort(t),
+		LocalAS:    65000,
+		Standalone: true,
 	}
 	reactor := New(cfg)
 
@@ -1271,8 +1287,9 @@ func TestDynamicListenerRemoveOneOfMany(t *testing.T) {
 // PREVENTS: Listener/connection mismatch due to different address formats.
 func TestAddPeerIPv4MappedNormalization(t *testing.T) {
 	cfg := &Config{
-		Port:    freePort(t),
-		LocalAS: 65000,
+		Port:       freePort(t),
+		LocalAS:    65000,
+		Standalone: true,
 	}
 	reactor := New(cfg)
 

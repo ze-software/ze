@@ -147,7 +147,9 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// Scoped narrowly: set before load, unset immediately after.
 	socketPath := filepath.Join(tmpDir, "ze.socket")
 	_ = os.Setenv("ze.bgp.api.socketpath", socketPath) //nolint:errcheck // best-effort env setup
-	reactor, err := bgpconfig.LoadReactorWithPlugins(storage.NewFilesystem(), zeConfig, "-", []string{"ze.bgp-rs"})
+	// Standalone: the in-process sim owns the reactor lifecycle (virtual clock,
+	// mock net) and self-hosts the plugin server; there is no hub to borrow from.
+	reactor, err := bgpconfig.LoadReactorWithPluginsStandalone(storage.NewFilesystem(), zeConfig, "-", []string{"ze.bgp-rs"})
 	_ = os.Unsetenv("ze.bgp.api.socketpath") //nolint:errcheck // best-effort cleanup
 	if err != nil {
 		return nil, fmt.Errorf("create reactor: %w", err)

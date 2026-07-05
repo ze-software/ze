@@ -100,6 +100,7 @@ func TestReloadAddsPeer(t *testing.T) {
 	cfg := &Config{
 		ConfigPath: configPath,
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 	reactor := New(cfg)
 	reactor.SetReloadFunc(simpleReloadFunc)
@@ -154,6 +155,7 @@ func TestReloadRemovesPeer(t *testing.T) {
 	cfg := &Config{
 		ConfigPath: configPath,
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 	reactor := New(cfg)
 	reactor.SetReloadFunc(simpleReloadFunc)
@@ -205,6 +207,7 @@ func TestReloadChangedSettings(t *testing.T) {
 	cfg := &Config{
 		ConfigPath: configPath,
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 	reactor := New(cfg)
 	reactor.SetReloadFunc(simpleReloadFunc)
@@ -274,6 +277,7 @@ func TestReloadParseError(t *testing.T) {
 	cfg := &Config{
 		ConfigPath: configPath,
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 	reactor := New(cfg)
 	reactor.SetReloadFunc(failingReloadFunc)
@@ -301,6 +305,7 @@ func TestReloadNoConfigPath(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
 		// ConfigPath not set.
+		Standalone: true,
 	}
 	reactor := New(cfg)
 	require.NoError(t, reactor.Start())
@@ -324,6 +329,7 @@ func TestReloadNoReloadFunc(t *testing.T) {
 	cfg := &Config{
 		ConfigPath: configPath,
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 	reactor := New(cfg)
 	// SetReloadFunc NOT called.
@@ -344,6 +350,7 @@ func TestReloadFileNotFound(t *testing.T) {
 	cfg := &Config{
 		ConfigPath: "/nonexistent/config.conf",
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 	reactor := New(cfg)
 	reactor.SetReloadFunc(simpleReloadFunc)
@@ -521,7 +528,7 @@ func makeBGPTree(peers map[string]testPeer) map[string]any {
 // VALIDATES: Valid peer config tree passes verification without error.
 // PREVENTS: VerifyConfig rejecting well-formed config.
 func TestReactorVerifyConfigValid(t *testing.T) {
-	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	cfg := &Config{ListenAddr: "127.0.0.1:0", Standalone: true}
 	r := New(cfg)
 	require.NoError(t, r.Start())
 	defer r.Stop()
@@ -541,7 +548,7 @@ func TestReactorVerifyConfigValid(t *testing.T) {
 // VALIDATES: Invalid peer address key → error returned.
 // PREVENTS: Bad address silently accepted, causing crash on AddPeer.
 func TestReactorVerifyConfigInvalidAddress(t *testing.T) {
-	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	cfg := &Config{ListenAddr: "127.0.0.1:0", Standalone: true}
 	r := New(cfg)
 	require.NoError(t, r.Start())
 	defer r.Stop()
@@ -561,7 +568,7 @@ func TestReactorVerifyConfigInvalidAddress(t *testing.T) {
 // VALIDATES: Calling VerifyConfig does not add, remove, or modify peers.
 // PREVENTS: Verify phase accidentally applying config changes.
 func TestReactorVerifyConfigNoMutation(t *testing.T) {
-	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	cfg := &Config{ListenAddr: "127.0.0.1:0", Standalone: true}
 	r := New(cfg)
 
 	// Add an existing peer.
@@ -594,7 +601,7 @@ func TestReactorVerifyConfigNoMutation(t *testing.T) {
 // VALIDATES: Peer in new config but not current → added to reactor.
 // PREVENTS: New peers being silently ignored during apply.
 func TestReactorApplyConfigDiffAddPeer(t *testing.T) {
-	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	cfg := &Config{ListenAddr: "127.0.0.1:0", Standalone: true}
 	r := New(cfg)
 	require.NoError(t, r.Start())
 	defer r.Stop()
@@ -619,7 +626,7 @@ func TestReactorApplyConfigDiffAddPeer(t *testing.T) {
 // VALIDATES: Peer in reactor but not in new config → removed.
 // PREVENTS: Stale peers remaining after config change.
 func TestReactorApplyConfigDiffRemovePeer(t *testing.T) {
-	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	cfg := &Config{ListenAddr: "127.0.0.1:0", Standalone: true}
 	r := New(cfg)
 
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
@@ -645,7 +652,7 @@ func TestReactorApplyConfigDiffRemovePeer(t *testing.T) {
 // VALIDATES: Peer with changed settings → removed and re-added with new settings.
 // PREVENTS: Changed peer keeping old settings after config reload.
 func TestReactorApplyConfigDiffChangedPeer(t *testing.T) {
-	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	cfg := &Config{ListenAddr: "127.0.0.1:0", Standalone: true}
 	r := New(cfg)
 
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
@@ -688,6 +695,7 @@ func TestReactorReloadBackwardCompat(t *testing.T) {
 	cfg := &Config{
 		ConfigPath: configPath,
 		ListenAddr: "127.0.0.1:0",
+		Standalone: true,
 	}
 	r := New(cfg)
 	r.SetReloadFunc(simpleReloadFunc)
@@ -720,7 +728,7 @@ func TestReactorReloadBackwardCompat(t *testing.T) {
 // VALIDATES: BGP tree without "peer" key → valid (no peers to configure).
 // PREVENTS: Nil pointer or panic when peer section is missing.
 func TestReactorVerifyConfigNoPeerSection(t *testing.T) {
-	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	cfg := &Config{ListenAddr: "127.0.0.1:0", Standalone: true}
 	r := New(cfg)
 	require.NoError(t, r.Start())
 	defer r.Stop()
@@ -739,7 +747,7 @@ func TestReactorVerifyConfigNoPeerSection(t *testing.T) {
 // VALIDATES: BGP tree without "peer" key → all existing peers removed.
 // PREVENTS: Missing peer section silently leaving stale peers.
 func TestReactorApplyConfigDiffNoPeerSection(t *testing.T) {
-	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	cfg := &Config{ListenAddr: "127.0.0.1:0", Standalone: true}
 	r := New(cfg)
 
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)

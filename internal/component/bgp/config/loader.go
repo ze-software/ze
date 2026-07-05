@@ -45,7 +45,7 @@ func LoadReactor(input string) (*reactor.Reactor, error) {
 	if err != nil {
 		return nil, err
 	}
-	return CreateReactorFromTree(result.Tree, "", "", result.Plugins, nil)
+	return CreateReactorFromTree(result.Tree, "", "", result.Plugins, nil, false)
 }
 
 // loadContext stores the config.LoadConfigResult and Storage for in-process BGP plugin use.
@@ -88,9 +88,11 @@ func GetLoadChaos() (int64, float64) {
 	return chaosConfig.seed, chaosConfig.rate
 }
 
-// CreateReactor creates a Reactor from a config.LoadConfigResult.
-func CreateReactor(cfg *config.LoadConfigResult, configPath string, store storage.Storage) (*reactor.Reactor, error) {
-	r, err := CreateReactorFromTree(cfg.Tree, cfg.ConfigDir, configPath, cfg.Plugins, store)
+// CreateReactor creates a Reactor from a config.LoadConfigResult. standalone
+// selects self-hosting mode (see reactor.Config.Standalone); production callers
+// pass false so the reactor borrows the hub-owned plugin server.
+func CreateReactor(cfg *config.LoadConfigResult, configPath string, store storage.Storage, standalone bool) (*reactor.Reactor, error) {
+	r, err := CreateReactorFromTree(cfg.Tree, cfg.ConfigDir, configPath, cfg.Plugins, store, standalone)
 	if err != nil {
 		return nil, err
 	}
@@ -103,13 +105,26 @@ func CreateReactor(cfg *config.LoadConfigResult, configPath string, store storag
 	return r, nil
 }
 
-// LoadReactorWithPlugins parses config with CLI plugins and creates Reactor.
+// LoadReactorWithPlugins parses config with CLI plugins and creates a borrow-mode
+// (production) Reactor that expects a hub-injected plugin server before start.
 func LoadReactorWithPlugins(store storage.Storage, input, configPath string, cliPlugins []string) (*reactor.Reactor, error) {
 	cfg, err := config.LoadConfig(input, configPath, cliPlugins)
 	if err != nil {
 		return nil, err
 	}
-	return CreateReactor(cfg, configPath, store)
+	return CreateReactor(cfg, configPath, store, false)
+}
+
+// LoadReactorWithPluginsStandalone is LoadReactorWithPlugins for callers that own
+// the reactor lifecycle and self-host the plugin server (the ze-chaos in-process
+// simulation). The reactor creates its own server, signal handler, and starts
+// peers inline instead of borrowing a hub-owned server.
+func LoadReactorWithPluginsStandalone(store storage.Storage, input, configPath string, cliPlugins []string) (*reactor.Reactor, error) {
+	cfg, err := config.LoadConfig(input, configPath, cliPlugins)
+	if err != nil {
+		return nil, err
+	}
+	return CreateReactor(cfg, configPath, store, true)
 }
 
 // LoadReactorFile loads config from file and creates Reactor.
@@ -117,8 +132,20 @@ func LoadReactorFile(store storage.Storage, path string) (*reactor.Reactor, erro
 	return LoadReactorFileWithPlugins(store, path, nil)
 }
 
-// LoadReactorFileWithPlugins loads config from file and creates Reactor.
+// LoadReactorFileWithPlugins loads config from file and creates a borrow-mode
+// (production) Reactor.
 func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins []string) (*reactor.Reactor, error) {
+	return loadReactorFile(store, path, cliPlugins, false)
+}
+
+// LoadReactorFileStandalone loads config from file and creates a self-hosting
+// (standalone) reactor. Used by `ze bgp --child`, which owns the reactor lifecycle
+// itself rather than borrowing a hub-owned plugin server.
+func LoadReactorFileStandalone(store storage.Storage, path string) (*reactor.Reactor, error) {
+	return loadReactorFile(store, path, nil, true)
+}
+
+func loadReactorFile(store storage.Storage, path string, cliPlugins []string, standalone bool) (*reactor.Reactor, error) {
 	var data []byte
 	var err error
 
@@ -142,7 +169,7 @@ func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins [
 		return nil, err
 	}
 
-	return CreateReactor(cfg, path, store)
+	return CreateReactor(cfg, path, store, standalone)
 }
 
 // injectChaos wraps the reactor's clock, dialer, and listener with chaos fault injection

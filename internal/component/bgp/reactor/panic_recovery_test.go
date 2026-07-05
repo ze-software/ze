@@ -312,7 +312,7 @@ func TestSafeRunGapScanRecoversPanic(t *testing.T) {
 // VALIDATES: AC-5 — reactor shutdown completes even with recovery in place.
 // PREVENTS: Recovery wrapper accidentally breaking normal shutdown flow.
 func TestReactorMonitorCleanShutdown(t *testing.T) {
-	r := New(&Config{})
+	r := New(&Config{Standalone: true})
 
 	startErr := r.Start()
 	require.NoError(t, startErr)

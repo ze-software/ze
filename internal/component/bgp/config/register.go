@@ -65,7 +65,9 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 		return nil, fmt.Errorf("parse config for reactor: %w", err)
 	}
 
-	r, err := CreateReactor(result, configPath, store)
+	// Production: borrow the hub-owned plugin server (standalone == false). The
+	// hub injects it via SetPluginServerAny before StartWithContext.
+	r, err := CreateReactor(result, configPath, store, false)
 	if err != nil {
 		return nil, err
 	}

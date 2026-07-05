@@ -27,7 +27,7 @@ func TestStartWithContextCleansUpAfterAPIServerFailure(t *testing.T) {
 	// VALIDATES: AC-1, AC-2 -- late API-server creation failure aborts provisional listener and cache resources.
 	// PREVENTS: Failed startup leaving a bound TCP listener, live cache scanner, or uncanceled reactor context.
 	apiErr := errors.New("test plugin server creation failed")
-	reactor := New(&Config{ListenAddr: "127.0.0.1:0"})
+	reactor := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true})
 	reactor.pluginServerMaker = func(*pluginserver.ServerConfig, plugin.ReactorLifecycle) (*pluginserver.Server, error) {
 		return nil, apiErr
 	}
@@ -58,7 +58,7 @@ func TestStartWithContextCleansUpAfterListenerFailure(t *testing.T) {
 	// VALIDATES: AC-2 -- listener startup failure after cache/context startup aborts provisional resources.
 	// PREVENTS: Failed listener bind leaving the cache scanner running or reactor context ambiguous.
 	listenErr := errors.New("test listener bind failed")
-	reactor := New(&Config{ListenAddr: "127.0.0.1:0"})
+	reactor := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true})
 	reactor.SetListenerFactory(startupFailingListenerFactory{err: listenErr})
 
 	err := reactor.StartWithContext(context.Background())
@@ -86,7 +86,7 @@ func TestStopAfterFailedStartupIsSafe(t *testing.T) {
 	// VALIDATES: AC-3 -- Stop after failed startup is idempotent and does not double-close provisional resources.
 	// PREVENTS: Panic or stale listener state when callers defensively Stop after StartWithContext returns an error.
 	apiErr := errors.New("test plugin server creation failed")
-	reactor := New(&Config{ListenAddr: "127.0.0.1:0"})
+	reactor := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true})
 	reactor.pluginServerMaker = func(*pluginserver.ServerConfig, plugin.ReactorLifecycle) (*pluginserver.Server, error) {
 		return nil, apiErr
 	}
@@ -177,7 +177,7 @@ func TestStartWithContextReleasesEventSubscriptionsOnFailure(t *testing.T) {
 	// the direct de-registration proof for this leak.
 	apiErr := errors.New("test plugin server creation failed")
 	bus := newFakeEventBus()
-	reactor := New(&Config{ListenAddr: "127.0.0.1:0"})
+	reactor := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true})
 	reactor.SetEventBus(bus)
 	reactor.pluginServerMaker = func(*pluginserver.ServerConfig, plugin.ReactorLifecycle) (*pluginserver.Server, error) {
 		return nil, apiErr
@@ -190,4 +190,65 @@ func TestStartWithContextReleasesEventSubscriptionsOnFailure(t *testing.T) {
 
 	assert.Nil(t, reactor.eventBusUnsubs, "failed startup must clear tracked unsubscribe funcs")
 	assert.Zero(t, bus.activeSubscriptions(), "failed startup must unsubscribe all EventBus handlers")
+}
+
+// TestExternalServerDerivedFromMode proves the borrow/self-host decision is fixed
+// at construction from Config.Standalone, not inferred at runtime from r.api.
+//
+// VALIDATES: P3 AC-3 -- externalServer == !Config.Standalone.
+// PREVENTS: reverting to `externalServer = r.api != nil`, which let production
+// silently self-host whenever a server was not injected.
+func TestExternalServerDerivedFromMode(t *testing.T) {
+	if r := New(&Config{}); !r.externalServer {
+		t.Error("borrow-mode reactor (Standalone=false) should have externalServer=true")
+	}
+	if r := New(&Config{Standalone: true}); r.externalServer {
+		t.Error("standalone reactor (Standalone=true) should have externalServer=false")
+	}
+}
+
+// TestReactorBorrowModeErrorsWithoutServer proves a production (borrow) reactor
+// started without an injected plugin server fails with a clear error and NEVER
+// falls back to self-hosting (pluginServerMaker is never called).
+//
+// VALIDATES: P3 AC-1 -- borrow mode + no server -> errBorrowModeNoServer; the
+// server maker is not invoked.
+// PREVENTS: a production wiring bug (missing SetPluginServer) silently starting a
+// second, reactor-owned server instead of erroring.
+func TestReactorBorrowModeErrorsWithoutServer(t *testing.T) {
+	reactor := New(&Config{ListenAddr: "127.0.0.1:0"}) // Standalone=false (borrow)
+	reactor.pluginServerMaker = func(*pluginserver.ServerConfig, plugin.ReactorLifecycle) (*pluginserver.Server, error) {
+		t.Fatal("borrow mode must not call pluginServerMaker (must not self-host)")
+		return nil, errors.New("unreachable: borrow mode must not create a server")
+	}
+
+	err := reactor.StartWithContext(context.Background())
+	require.ErrorIs(t, err, errBorrowModeNoServer)
+	assert.False(t, reactor.Running(), "failed borrow-mode start must not mark reactor running")
+	// The global listener binds before startAPIServer, so the borrow-guard abort
+	// must release it (abortStartup) -- prove that on the borrow-guard path, not
+	// just the standalone maker-failure path.
+	assert.Nil(t, reactor.ListenAddr(), "borrow-guard abort must release the bound global listener")
+	assert.Empty(t, reactor.ListenAddrs(), "no listener address should remain after borrow-guard abort")
+}
+
+// TestReactorStandaloneSelfHosts proves a standalone reactor reaches the
+// self-host branch and creates its own server via pluginServerMaker (where a
+// borrow-mode reactor would have errored before this).
+//
+// VALIDATES: P3 AC-2 -- standalone mode self-hosts (calls the server maker).
+// PREVENTS: standalone consumers (ze-chaos sim, integration harness, ze bgp
+// --child) accidentally getting the borrow guard.
+func TestReactorStandaloneSelfHosts(t *testing.T) {
+	reactor := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true})
+	makerCalled := false
+	sentinel := errors.New("maker reached: standalone self-host path")
+	reactor.pluginServerMaker = func(*pluginserver.ServerConfig, plugin.ReactorLifecycle) (*pluginserver.Server, error) {
+		makerCalled = true
+		return nil, sentinel
+	}
+
+	err := reactor.StartWithContext(context.Background())
+	require.ErrorIs(t, err, sentinel)
+	assert.True(t, makerCalled, "standalone mode must call pluginServerMaker to self-host")
 }

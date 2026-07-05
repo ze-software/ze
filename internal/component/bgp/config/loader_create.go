@@ -56,7 +56,7 @@ var _ = coreenv.MustRegister(coreenv.EnvEntry{
 })
 
 // CreateReactorFromTree creates a Reactor directly from a parsed config tree.
-func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plugins []reactor.PluginConfig, store storage.Storage) (*reactor.Reactor, error) {
+func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plugins []reactor.PluginConfig, store storage.Storage, standalone bool) (*reactor.Reactor, error) {
 	// Pruning + env plumbing already happened in the top-level loader
 	// (config.ParseTreeWithYANG calls PruneInactive -> ApplyEnvConfig). The
 	// BGP reactor consumes the pruned tree directly; no second extraction.
@@ -179,6 +179,9 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		Plugins:                   plugins,
 		Hub:                       hubPtr,
 		RecentUpdateMax:           coreenv.GetInt("ze.bgp.reactor.cache-max", 1000000),
+		// Borrow (production) unless the caller requests self-hosting (ze-chaos
+		// in-process sim, integration harness, ze bgp --child). See reactor.Config.
+		Standalone: standalone,
 	}
 	if port, ok := portOverrideFromEnv(); ok {
 		reactorCfg.Port = int(port)

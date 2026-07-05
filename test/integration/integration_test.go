@@ -79,12 +79,14 @@ func setupPeers(t *testing.T, ctx context.Context, cfg1, cfg2 peerConfig) (*reac
 		ListenAddr: "127.0.0.1:0",
 		RouterID:   cfg1.routerID,
 		LocalAS:    cfg1.localAS,
+		Standalone: true,
 	})
 
 	r2 := reactor.New(&reactor.Config{
 		ListenAddr: "127.0.0.1:0",
 		RouterID:   cfg2.routerID,
 		LocalAS:    cfg2.localAS,
+		Standalone: true,
 	})
 
 	// Start both reactors first so they bind to OS-assigned ports.
@@ -245,12 +247,14 @@ func TestSessionReconnect(t *testing.T) {
 		ListenAddr: "127.0.0.1:0",
 		RouterID:   0x01010101,
 		LocalAS:    65001,
+		Standalone: true,
 	})
 
 	r2 := reactor.New(&reactor.Config{
 		ListenAddr: "127.0.0.1:0",
 		RouterID:   0x02020202,
 		LocalAS:    65002,
+		Standalone: true,
 	})
 
 	if err := r1.StartWithContext(ctx); err != nil {
