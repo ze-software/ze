@@ -49,6 +49,131 @@ def wrap_journey_hero(body_html, label):
 
 TD_RE = re.compile(r"<td([^>]*)>((?:(?!</td>).)*)</td>", re.S)
 TAG_RE = re.compile(r"<[^>]+>")
+
+# --- Evidence-cell citation layout -------------------------------------------
+# Comparison tables jam source citations (file:line refs) inline in the prose,
+# which is hard to read. This pass lifts them out of each evidence cell onto
+# their own lines beneath the prose, one citation group per line, keeping them
+# as <code> so site.js still linkifies them to upstream source.
+
+CODE_SPLIT_RE = re.compile(r"(<code>.*?</code>)", re.S)
+CODE_INNER_RE = re.compile(r"^<code>(.*)</code>$", re.S)
+REPO_PREFIX_RE = re.compile(r"^(?:ze|freeRtr|vyos-1x)/")
+CONT_RE = re.compile(r"^:\d+(?:-\d+)?(?:,:?\d+(?:-\d+)?)*$")
+LINE_REF_RE = re.compile(r":\d")
+CODE_EXTS = (
+    "go|py|java|yang|sh|json|mk|proto|opam|md|txt|conf|tst|ftr|csv|sfdsk|"
+    "yml|yaml|service|xml|in|i|j2|beg|end|dsk|gns|def|rng"
+)
+BARE_FILE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.@-]*\.(?:%s)$" % CODE_EXTS)
+# text sitting between citations in a group: pure separators or a short
+# connector word ("CLI", "render", "import", "help", ...), no sentence/paren
+# boundary.
+SEP_RE = re.compile(r"^[\s,;]*(?:[A-Za-z][A-Za-z-]{0,9}\s*){0,2}[\s,;]*$")
+
+
+def _classify_code(inner):
+    """Classify a <code> span's text: FULLCITE (starts a citation line),
+    JOINER (continuation / sibling file, joins the open line), or INLINE."""
+    t = inner.strip()
+    if not t or " " in t or "|" in t or "<" in t or "(" in t or ")" in t:
+        return "INLINE"
+    core = REPO_PREFIX_RE.sub("", t)
+    if CONT_RE.match(core):
+        return "JOINER"
+    if "/" not in core and BARE_FILE_RE.match(core):
+        return "JOINER"
+    if LINE_REF_RE.search(core):
+        return "FULLCITE"
+    if "/" in core and "." in core:
+        return "FULLCITE"
+    if core in ("Makefile", "go.mod"):
+        return "FULLCITE"
+    if core.endswith("/") and "/" in core[:-1]:
+        return "FULLCITE"
+    return "INLINE"
+
+
+def _is_separator(text):
+    return "." not in text and "(" not in text and ")" not in text and bool(
+        SEP_RE.match(text)
+    )
+
+
+PROSE_CLEANUPS = [
+    (re.compile(r"\s*[,:;]\s*([.;,)])"), r"\1"),
+    (re.compile(r"\(\s*\)"), ""),
+    (re.compile(r"\(\s*[,;:]\s*"), "("),
+    (re.compile(r"[,;:]\s*\)"), ")"),
+    (re.compile(r"\s+([.,;:)])"), r"\1"),
+    (re.compile(r"\(\s+"), "("),
+    (re.compile(r"\s{2,}"), " "),
+    (re.compile(r"(?:\.\s*){2,}"), ". "),
+    (re.compile(r"\s+,"), ","),
+    (re.compile(r",\s*,"), ","),
+]
+
+
+def _clean_prose(p):
+    for rx, rep in PROSE_CLEANUPS:
+        p = rx.sub(rep, p)
+    p = re.sub(r"^[\s,.;:]+", "", p)
+    p = re.sub(r"[\s:;,]+$", "", p).strip()
+    if p and p[-1] not in ".!?:":
+        p += "."
+    return p
+
+
+def _strip_repo_prefix(codeseg):
+    """Strip a leading ze/ | freeRtr/ | vyos-1x/ repo prefix from a citation
+    <code> span so every ref reads uniformly and site.js can linkify it (its
+    source map keys off the bare repo-relative path)."""
+    m = CODE_INNER_RE.match(codeseg)
+    if not m:
+        return codeseg
+    stripped = REPO_PREFIX_RE.sub("", m.group(1))
+    return codeseg if stripped == m.group(1) else "<code>%s</code>" % stripped
+
+
+def _relayout_cell(inner):
+    parts = CODE_SPLIT_RE.split(inner)
+    prose, groups, cur = [], [], None
+    for seg in parts:
+        m = CODE_INNER_RE.match(seg)
+        if m:
+            kind = _classify_code(html.unescape(m.group(1)))
+            if kind == "FULLCITE":
+                cur = [seg]
+                groups.append(cur)
+            elif kind == "JOINER" and cur is not None:
+                cur.append(seg)
+            else:
+                cur = None
+                prose.append(seg)
+        else:
+            if cur is not None and _is_separator(seg):
+                continue
+            cur = None
+            prose.append(seg)
+    if not groups:
+        return None
+    prose_html = _clean_prose("".join(prose))
+    refs = "".join(
+        '<span class="ev-ref">%s</span>'
+        % ", ".join(_strip_repo_prefix(s) for s in g)
+        for g in groups
+    )
+    lead = (prose_html + " ") if prose_html else ""
+    return '%s<span class="ev-src">%s</span>' % (lead, refs)
+
+
+def relayout_evidence_cells(body_html):
+    def repl(m):
+        attrs, inner = m.group(1), m.group(2)
+        new_inner = _relayout_cell(inner)
+        return m.group(0) if new_inner is None else "<td%s>%s</td>" % (attrs, new_inner)
+
+    return TD_RE.sub(repl, body_html)
 CELL_CLASSES = (
     (re.compile(r"^yes\b", re.I), "cell-yes"),
     (re.compile(r"^no\b", re.I), "cell-no"),
@@ -176,6 +301,7 @@ def render(
     body_html = markdown.markdown(
         md_text, extensions=["tables", "fenced_code", "sane_lists"]
     )
+    body_html = relayout_evidence_cells(body_html)
     body_html = colorcode_cells(body_html)
     md_out = md_text
     if manifest is not None:

@@ -2687,6 +2687,31 @@ footer {
     text-decoration: none;
 }
 
+/* Evidence source citations: render-doc.py lifts file:line refs out of the
+   cell prose into this block so each citation group sits on its own line
+   under the text, instead of cluttering the sentence. */
+.md-content td .ev-src {
+    display: block;
+    margin-top: 0.45rem;
+    padding-left: 0.6rem;
+    border-left: 2px solid var(--line);
+}
+.md-content td .ev-ref {
+    display: block;
+    font-size: 0.82em;
+    line-height: 1.7;
+    white-space: nowrap;
+}
+.md-content td .ev-ref code {
+    background: none;
+    padding: 0.05rem 0;
+    color: var(--dim);
+    font-size: 0.95em;
+}
+.md-content td .ev-ref a.source-link code {
+    color: var(--muted);
+}
+
 
 .md-content pre {
     padding: 1rem 1.2rem;
