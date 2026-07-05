@@ -111,6 +111,7 @@ is A. Returns records, TTL, and query time. Supports A, AAAA, MX,
 NS, TXT, CNAME, and PTR.";
                 leaf hostname {
                     type string;
+                    mandatory true;
                     description "Hostname to resolve";
                 }
                 leaf type {
@@ -129,22 +130,29 @@ NS, TXT, CNAME, and PTR.";
 
             container cache {
                 config false;
-                ze:command "ze-show:dns-cache";
-                description "Inspect the DNS cache.
-'stats' shows hit/miss/eviction counters. 'list' shows all cached
-entries. 'record <name>' shows one specific entry. Requires the DNS
-component to be active.";
-                leaf action {
-                    type enumeration {
-                        enum stats;
-                        enum list;
-                        enum record;
-                    }
-                    description "Cache operation";
+                description "Inspect the DNS cache. Each operation is modeled as its own command so completion, help, and generated references show distinct read-only actions.";
+
+                container stats {
+                    config false;
+                    ze:command "ze-show:dns-cache-stats";
+                    description "Show DNS cache hit, miss, eviction, expiry, and hit-rate counters without changing cache contents.";
                 }
-                leaf name {
-                    type string;
-                    description "Record name (for record action)";
+
+                container list {
+                    config false;
+                    ze:command "ze-show:dns-cache-list";
+                    description "List all non-expired DNS cache entries, sorted by shortest TTL first.";
+                }
+
+                container record {
+                    config false;
+                    ze:command "ze-show:dns-cache-record";
+                    description "Show DNS cache entries for one record name.";
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "Record name to inspect";
+                    }
                 }
             }
         }
@@ -160,9 +168,36 @@ component to be active.";
             container cache {
                 config false;
                 ze:command "ze-clear:dns-cache";
-                description "Clear the DNS cache.
-With no argument, flushes everything. Use 'record <name>' to evict
-one entry, or 'stats' to see hit/miss rates without flushing.";
+                description "Flush all DNS cache entries and reset all DNS cache counters.";
+
+                container record {
+                    config false;
+                    ze:command "ze-clear:dns-cache-record";
+                    description "Evict DNS cache entries for one record name, or one name and type when a type is provided.";
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "Record name to evict";
+                    }
+                    leaf type {
+                        type enumeration {
+                            enum A;
+                            enum AAAA;
+                            enum MX;
+                            enum NS;
+                            enum TXT;
+                            enum CNAME;
+                            enum PTR;
+                        }
+                        description "Optional DNS record type to evict for the named record";
+                    }
+                }
+
+                container stats {
+                    config false;
+                    ze:command "ze-clear:dns-cache-stats";
+                    description "Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.";
+                }
             }
         }
     }

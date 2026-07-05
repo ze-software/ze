@@ -53,7 +53,7 @@ func TestClearDNSCache_All(t *testing.T) {
 
 func TestClearDNSCache_Stats(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleClearDNSCache(nil, []string{"stats"})
+		resp, err := handleClearDNSCacheStats(nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 		data := clearData(t, resp)
@@ -61,9 +61,19 @@ func TestClearDNSCache_Stats(t *testing.T) {
 	})
 }
 
+func TestClearDNSCacheStats_RejectsActionLikeArgs(t *testing.T) {
+	withTestResolver(t, func() {
+		resp, err := handleClearDNSCacheStats(nil, []string{"record", "example.com", "type", "AAAA"})
+		require.NoError(t, err)
+		assert.Equal(t, plugin.StatusError, resp.Status)
+		assert.Contains(t, resp.Error, "unexpected arguments")
+		assert.Nil(t, resp.Data)
+	})
+}
+
 func TestClearDNSCache_EntryWithType(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleClearDNSCache(nil, []string{"record", "example.com", "type", "AAAA"})
+		resp, err := handleClearDNSCacheRecord(nil, []string{"example.com", "type", "AAAA"})
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 		data := clearData(t, resp)
@@ -75,7 +85,7 @@ func TestClearDNSCache_EntryWithType(t *testing.T) {
 
 func TestClearDNSCache_EntryNoType(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleClearDNSCache(nil, []string{"record", "example.com"})
+		resp, err := handleClearDNSCacheRecord(nil, []string{"example.com"})
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 		data := clearData(t, resp)
@@ -86,7 +96,7 @@ func TestClearDNSCache_EntryNoType(t *testing.T) {
 
 func TestClearDNSCache_EntryMissingName(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleClearDNSCache(nil, []string{"record"})
+		resp, err := handleClearDNSCacheRecord(nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusError, resp.Status)
 	})
@@ -94,7 +104,7 @@ func TestClearDNSCache_EntryMissingName(t *testing.T) {
 
 func TestClearDNSCache_UnknownType(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleClearDNSCache(nil, []string{"record", "example.com", "type", "BOGUS"})
+		resp, err := handleClearDNSCacheRecord(nil, []string{"example.com", "type", "BOGUS"})
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 		data := clearData(t, resp)

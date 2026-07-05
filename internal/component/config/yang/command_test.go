@@ -1124,7 +1124,8 @@ func TestArgDefsPopulated(t *testing.T) {
 		"show tcp-check":               4, // host, port, source, timeout
 		"show probe-round":             4, // dest, probes, max-hops, timeout
 		"show dns lookup":              2, // hostname, type
-		"show dns cache":               2, // action, name
+		"show dns cache record":        1, // name
+		"clear dns cache record":       2, // name, type
 		"show capture":                 4, // protocol, tunnel-id, count, peer
 		"show capture raw":             4, // action, protocol, format, count
 		"show capture interface":       6, // iface, count, duration, snap-len, format, protocol

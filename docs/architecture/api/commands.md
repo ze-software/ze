@@ -179,7 +179,12 @@ the bus from buggy or malicious producers.
 | `ze-show:capture-interface` | `handleCaptureInterface` in `capture_interface_linux.go` | pcap: `{"format": "pcap", "packets": N, "pcap": "base64...", "snap-len": N}`; text: `{"format": "text", "packets": N, "lines": [...]}` (Linux only) |
 | `ze-show:system-file-descriptors` | `handleShowSystemFD` in `fd_linux.go` | `{"total": N, "by-type": {...}, "soft-limit": N, "hard-limit": N}` (Linux only) |
 | `ze-show:dns-lookup` | `handleDNSLookup` in `internal/component/resolve/cmd/show_dns.go` | `{"name": "...", "type": "...", "records": [...], "query-time-ms": N}` |
-| `ze-show:dns-cache` | `handleDNSCache` in `internal/component/resolve/cmd/show_dns.go` | `{"entries": N, "capacity": N, "hits": N, "misses": N, "evictions": N, "expired": N}` |
+| `ze-show:dns-cache-stats` | `handleDNSCacheStats` in `internal/component/resolve/cmd/show_dns.go` | `{"entries": N, "capacity": N, "hits": N, "misses": N, "hit-rate": N, "miss-rate": N, "evictions": N, "expired": N}` |
+| `ze-show:dns-cache-list` | `handleDNSCacheList` in `internal/component/resolve/cmd/show_dns.go` | `{"entries": [...], "count": N}` |
+| `ze-show:dns-cache-record` | `handleDNSCacheRecord` in `internal/component/resolve/cmd/show_dns.go` | `{"entries": [...], "count": N, "filter": "name"}` |
+| `ze-clear:dns-cache` | `handleClearDNSCache` in `internal/component/resolve/cmd/dns.go` | `{"action": "clear-all"}` |
+| `ze-clear:dns-cache-stats` | `handleClearDNSCacheStats` in `internal/component/resolve/cmd/dns.go` | `{"action": "reset-stats"}` |
+| `ze-clear:dns-cache-record` | `handleClearDNSCacheRecord` in `internal/component/resolve/cmd/dns.go` | `{"action": "delete-entry", "name": "...", "removed": N}` or `{"action": "delete-entry", "name": "...", "type": "...", "found": bool}` |
 | `ze-show:system-profile` | `handleShowSystemProfile` in `profile.go` | `{"type": "...", "format": "pprof-base64", "data": "..."}` |
 | `ze-show:system-memory-map` | `handleShowSystemMemoryMap` in `memory_map_linux.go` | `{"vm-rss-kb": N, "vm-size-kb": N, ...}` (Linux only) |
 | `ze-show:system-update` | `handleShowSystemUpdate` in `internal/plugins/update-cmd/cmd/show.go` | `{"backend": "ze-self-update"|"gokrazy-ab", "running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", "gokrazy-reachable": bool, "gokrazy-features": [...]}` |

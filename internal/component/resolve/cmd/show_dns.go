@@ -102,8 +102,31 @@ func dnsLookupStdlib(name, qtype string) ([]string, error) {
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-show:dns-lookup", Handler: handleDNSLookup},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:dns-cache", Handler: handleDNSCache},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:dns-cache-stats", Handler: handleDNSCacheStats},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:dns-cache-list", Handler: handleDNSCacheList},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:dns-cache-record", Handler: handleDNSCacheRecord},
 	)
+}
+
+func handleDNSCacheStats(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if len(args) != 0 {
+		return &plugin.Response{Status: plugin.StatusError, Error: "dns cache stats: unexpected arguments"}, nil
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(getDNSCacheStats())}, nil
+}
+
+func handleDNSCacheList(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if len(args) != 0 {
+		return &plugin.Response{Status: plugin.StatusError, Error: "dns cache list: unexpected arguments"}, nil
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(getDNSCacheEntries(""))}, nil
+}
+
+func handleDNSCacheRecord(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if len(args) != 1 || args[0] == "" {
+		return &plugin.Response{Status: plugin.StatusError, Error: "dns cache record: missing name"}, nil
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(getDNSCacheEntries(args[0]))}, nil
 }
 
 func handleDNSLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
@@ -173,40 +196,6 @@ func handleDNSLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
 }
 
-func handleDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	action := dnsCacheActionStats
-	filterName := ""
-
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case dnsCacheActionStats:
-			action = dnsCacheActionStats
-		case dnsCacheActionList:
-			action = dnsCacheActionList
-		case dnsCacheActionRecord:
-			action = dnsCacheActionRecord
-			if i+1 < len(args) {
-				i++
-				filterName = args[i]
-			}
-		}
-	}
-
-	switch action {
-	case dnsCacheActionStats:
-		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(getDNSCacheStats())}, nil
-	case dnsCacheActionList:
-		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(getDNSCacheEntries(""))}, nil
-	case dnsCacheActionRecord:
-		if filterName == "" {
-			return &plugin.Response{Status: plugin.StatusError, Error: "dns cache record: missing name"}, nil
-		}
-		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(getDNSCacheEntries(filterName))}, nil
-	default:
-		return &plugin.Response{Status: plugin.StatusError, Error: "dns cache: unknown action (use: stats, list, record <name>)"}, nil
-	}
-}
-
 func getDNSCacheStats() map[string]any {
 	if resolvers == nil || resolvers.DNS == nil {
 		return map[string]any{
@@ -254,7 +243,7 @@ func getDNSCacheEntries(filterName string) map[string]any {
 			"count":   len(all),
 		}
 	}
-	var filtered []map[string]any
+	filtered := make([]map[string]any, 0)
 	for _, e := range all {
 		if name, _ := e["name"].(string); name == filterName {
 			filtered = append(filtered, e)
