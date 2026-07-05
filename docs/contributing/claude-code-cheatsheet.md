@@ -27,10 +27,12 @@ are available inside Claude Code when working in the ze repository.
 | `/ze-fix-alloc <file:line>` | Convert a specific allocation to buffer-writing |
 | `/ze-extract <src> <dst> <symbols>` | Move Go symbols between files |
 | `/ze-hunt [path]` | Sweep the tree for recorded bug classes (silent fall-through, seqnum ordering, unenforced lock contracts, count-asserts) and triage each hit |
+| `/ze-weekly-update` | Draft the Zeledon weekly update, update gh-pages, and post the approved `ze-news` message |
 
 
 <!-- source: ai/skills/ze-commit.md -- scoped commit workflow -->
 <!-- source: scripts/dev/commit_helper.py -- generated message file and user-run script -->
+<!-- source: ai/skills/ze-weekly-update.md -- weekly update drafting, site update, and Discord post workflow -->
 ## Typical Workflows
 
 ### Contributing a new feature
@@ -53,6 +55,15 @@ are available inside Claude Code when working in the ze repository.
 /ze-review                 -- quick review of the fix
 /ze-commit                 -- prepare the commit
 ```
+
+### Publishing the weekly update
+
+```
+/ze-weekly-update          -- draft from shipped work, update the website, then post after approval
+```
+
+The command owns the Discord approval gate, the Zeledon voice rules, the gh-pages regeneration path, and the homepage/feed checks.
+<!-- source: ai/skills/ze-weekly-update.md -- hard gates, publish phase, and site update phase -->
 
 ### Reviewing changes
 

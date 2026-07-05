@@ -41,6 +41,7 @@ and gated fresh, so they never lie about the current code.
 | Understand Ze vs standard Go | `ai/rules/ze-divergences.md` | Buffer-first, registration, YANG, etc. |
 | Know which hooks will check my code | `ai/rules/hook-mapping.md` | Pre-flight compliance checklist |
 | Edit the website or presentations | `docs/contributing/gh-pages.md` then `../gh-pages/AI.md` | Worktree layout, tooling, adding a talk |
+| Write and publish the weekly update | `ai/skills/ze-weekly-update.md` | Draft in Zeledon voice, update `../gh-pages`, post the approved message to `ze-news`, and verify site/feed/homepage output |
 
 ## By Task Type
 
@@ -368,6 +369,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | docker, container, scratch | `plan/learned/753-docker-go126.md`, `docs/guide/docker.md` |
 | chaos, fault injection, scheduler | `plan/learned/723-chaos-actions-v2.md`, `docs/architecture/chaos-web-dashboard.md` |
 | commit, commit script, commit message, lesson learned, verified commit, verify freshness, owner override, commit no test | `scripts/dev/commit_helper.py`, `scripts/dev/verify-status.sh`, `ai/rules/git-safety.md`, `ai/skills/ze-commit.md`, `ai/skills/ze-commit-check.md` |
+| weekly update, Zeledon, ze-news, Discord announcement, gh-pages changes, homepage latest updates | `ai/skills/ze-weekly-update.md`, `../gh-pages/AI.md`, `../gh-pages/tools/render-index.py`, `~/Unix/zeledon/STYLE.md` |
 | self-improvement, discoverability, discovery, new tool, self-check, verification gate | `ai/rules/discovery-updates.md`, `ai/rules/hook-mapping.md`, `docs/contributing/documentation-testing.md` |
 | inventory, command-list, doc drift, source anchor, doc index | `ai/rules/discovery-updates.md`, `ai/rules/documentation.md`, `docs/contributing/documentation-testing.md`, `mk/inventory.mk` |
 | clear, clear command, clear dns, clear interface, clear ipsec | `internal/component/resolve/cmd/` (dns), `internal/component/iface/cmd/` (interface), `internal/component/ike/cmd/` (ipsec), `internal/component/cmd/clear/` (verb root) |
