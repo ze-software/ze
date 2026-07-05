@@ -1557,6 +1557,141 @@ section {
 }
 
 /*
+ * Homepage update cards: quieter dispatch tickets. They still get the
+ * homepage-only treatment, but the color is a top ribbon and soft wash rather
+ * than a heavy poster rail.
+ */
+.card.home-update-card {
+    min-height: 14.25rem;
+    padding: 1.55rem 1.25rem 1.2rem;
+    border: 2px solid rgba(255, 255, 255, 0.94);
+    border-top: 0;
+    border-radius: 1rem;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 98% 96%, var(--acc-chip), transparent 30%),
+        linear-gradient(180deg, var(--acc-tint), rgba(255, 255, 255, 0.96) 36%, #fffafc);
+    box-shadow:
+        var(--clay),
+        0 1.1rem 2.4rem -1.25rem var(--acc-glow);
+}
+
+.card.home-update-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 0.48rem;
+    pointer-events: none;
+    background: linear-gradient(90deg, var(--acc), var(--acc-chip));
+}
+
+.card.home-update-card::after {
+    content: "";
+    position: absolute;
+    right: -3.2rem;
+    bottom: -3.35rem;
+    width: 8.25rem;
+    height: 8.25rem;
+    border: 1.7rem solid var(--acc-chip);
+    border-radius: 999px;
+    opacity: 0.22;
+    pointer-events: none;
+}
+
+.card.home-update-card > * {
+    position: relative;
+    z-index: 2;
+}
+
+.home-update-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+}
+
+.card.home-update-card .cat {
+    position: static;
+    top: auto;
+    left: auto;
+    margin: 0;
+    transform: none;
+}
+
+.home-update-number {
+    position: absolute;
+    top: -0.3rem;
+    right: 0;
+    color: var(--acc-deep);
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+    font-size: 3.2rem;
+    font-weight: 800;
+    letter-spacing: -0.08em;
+    line-height: 0.82;
+    opacity: 0.14;
+}
+
+.card.home-update-card .home-update-date {
+    width: fit-content;
+    flex: 0 0 auto;
+    margin: 0 0 0.58rem;
+    padding: 0.2rem 0.46rem;
+    border: 1px solid var(--acc-chip);
+    border-radius: 0.44rem;
+    background: rgba(255, 255, 255, 0.58);
+    color: var(--acc-deep);
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", monospace;
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    line-height: 1.15;
+}
+
+.card.home-update-card h3 {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: 1.03rem;
+    line-height: 1.36;
+}
+
+.card.home-update-card h3 a {
+    color: #111;
+}
+
+.card.home-update-card h3 a::after {
+    z-index: 4;
+}
+
+.home-update-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.32rem;
+    margin: auto 0 0;
+    padding-top: 0.85rem;
+}
+
+.home-update-tag {
+    padding: 0.14rem 0.5rem;
+    border: 1px solid var(--acc, var(--line));
+    border-radius: 999px;
+    background: var(--acc-tint, var(--bg-soft));
+    color: var(--acc-deep, var(--muted));
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+
+
+/*
  * Category hues. Generic classes: they set the accent custom
  * properties on any element (cards, legend buttons).
  */
@@ -2136,7 +2271,7 @@ pre {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.audience-card {
+.audience-card:not(.card) {
     padding: 1.25rem;
     border: 2px solid rgba(255, 255, 255, 0.9);
     border-left: 6px solid var(--lemon-mid);
@@ -2149,38 +2284,86 @@ pre {
         box-shadow 220ms ease;
 }
 
-.audience-card:hover {
+.audience-card:not(.card):hover {
     border-color: var(--card-hover-border);
 }
 
-.audience-card:has(a):hover {
+.audience-card:not(.card):has(a):hover {
     transform: translateY(-4px) scale(1.01);
     box-shadow: var(--clay), 0 1.2rem 2.6rem -0.8rem var(--card-hover-shadow);
 }
 
-.audience-card:nth-child(1) {
+.audience-card:not(.card):nth-child(1) {
     border-left-color: var(--lemon-mid);
 }
-.audience-card:nth-child(1) h3 {
+.audience-card:not(.card):nth-child(1) h3 {
     color: #8f2740;
 }
-.audience-card:nth-child(2) {
+.audience-card:not(.card):nth-child(2) {
     border-left-color: var(--sky-base);
 }
-.audience-card:nth-child(2) h3 {
+.audience-card:not(.card):nth-child(2) h3 {
     color: var(--sky-deep);
 }
-.audience-card:nth-child(3) {
+.audience-card:not(.card):nth-child(3) {
     border-left-color: var(--grape-base);
 }
-.audience-card:nth-child(3) h3 {
+.audience-card:not(.card):nth-child(3) h3 {
     color: var(--grape-deep);
 }
 
-.audience-card p {
+.audience-card:not(.card) p {
     margin-bottom: 0;
     color: var(--muted);
     line-height: 1.65;
+}
+
+.card.audience-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 13rem;
+}
+
+.card.audience-card h3 {
+    margin-bottom: 0.7rem;
+}
+
+.card.audience-card p {
+    flex: 1 1 auto;
+    margin-bottom: 0;
+    color: var(--muted);
+    line-height: 1.65;
+}
+
+.card.audience-card .chips {
+    margin: 1rem 0 0;
+}
+
+.audience-card-cta {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    margin-top: 1rem;
+    color: var(--acc-deep);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.audience-card-cta small {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.audience-card-cta::after {
+    content: "\2192";
+    transition: transform 200ms ease;
+}
+
+.card.audience-card:hover .audience-card-cta::after {
+    transform: translateX(0.35rem);
 }
 
 .talk-link {

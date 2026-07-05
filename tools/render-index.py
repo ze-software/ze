@@ -11,6 +11,7 @@ as a literal template here (there's nothing repeated to model as data). The
 hand-editing HTML.
 """
 
+import html
 import json
 import pathlib
 
@@ -20,6 +21,7 @@ import sitefacts
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 DATA = GH_PAGES / "data" / "audience.json"
+CHANGES_DATA = GH_PAGES / "data" / "changes.json"
 DEST = GH_PAGES / "index.html"
 
 # Homepage proof-strip numbers are regenerated from ../main whenever the
@@ -46,62 +48,126 @@ def proof_stats():
     }
 
 
-def render_run_card(card):
-    link = card["link"]
-    return """                    <article class="audience-card">
-                        <h3>{title}</h3>
-                        <p>
-                            {body}
-                        </p>
-                        <div class="link-list">
-                            <a
-                                href="{href}"
-                                >{label} <span>{sublabel}</span></a
-                            >
-                        </div>
-                    </article>""".format(
-        title=card["title"],
-        body=card["body"],
-        href=link["href"],
-        label=link["label"],
-        sublabel=link["sublabel"],
+def esc(value):
+    return html.escape(str(value), quote=True)
+
+
+def render_chip_row(card):
+    chips = card.get("chips", [])
+    if not chips:
+        return ""
+
+    out = ['                        <div class="chips">']
+    out.extend(
+        '                            <span class="chip">%s</span>' % esc(chip)
+        for chip in chips
     )
+    out.append("                        </div>")
+    return "\n".join(out) + "\n"
 
 
-def render_who_card(card):
-    return """                    <article class="audience-card">
+def render_audience_card(card):
+    category = card.get("category", "platform")
+    label = card.get("label", category.capitalize())
+    link = card.get("link")
+    title = esc(card["title"])
+    if link:
+        title = '<a href="%s">%s</a>' % (esc(link["href"]), title)
+        cta = (
+            '                        <span class="audience-card-cta">%s '
+            "<small>%s</small></span>\n"
+            % (esc(link["label"]), esc(link["sublabel"]))
+        )
+    else:
+        cta = ""
+
+    return """                    <article class="card audience-card cat-{category}">
+                        <span class="cat">{label}</span>
                         <h3>{title}</h3>
                         <p>
                             {body}
                         </p>
-                    </article>""".format(title=card["title"], body=card["body"])
+{chips}{cta}                    </article>""".format(
+        category=esc(category),
+        label=esc(label),
+        title=title,
+        body=esc(card["body"]),
+        chips=render_chip_row(card),
+        cta=cta,
+    )
 
 
 BLOG_TEASER_CATEGORIES = [
     "cat-operate",
     "cat-routing",
     "cat-automate",
-    "cat-observe",
     "cat-secure",
-    "cat-services",
-    "cat-platform",
 ]
 
 
-def render_blog_teaser_card(post, i):
+def pick_home_update_topics(topics, limit=4):
+    picked = []
+    seen_categories = set()
+    for topic in topics:
+        category = topic.get("category")
+        if category in seen_categories:
+            continue
+        picked.append(topic)
+        seen_categories.add(category)
+        if len(picked) == limit:
+            return picked
+    for topic in topics:
+        if topic in picked:
+            continue
+        picked.append(topic)
+        if len(picked) == limit:
+            break
+    return picked
+
+
+def render_home_update_tags(topics):
+    picked = pick_home_update_topics(topics)
+    if not picked:
+        return ""
+    out = ['                        <div class="home-update-tags">']
+    for topic in picked:
+        out.append(
+            '                            <span class="home-update-tag cat-%s">%s</span>'
+            % (esc(topic.get("category", "meta")), esc(topic.get("label", "")))
+        )
+    out.append("                        </div>")
+    return "\n".join(out) + "\n"
+
+
+def change_topics_by_slug():
+    weeks = json.loads(CHANGES_DATA.read_text())
+    return {week["slug"]: week.get("topics", []) for week in weeks}
+
+
+def render_blog_teaser_card(post, i, topics):
     cat = BLOG_TEASER_CATEGORIES[i % len(BLOG_TEASER_CATEGORIES)]
-    parts = ['                    <article class="card card-post %s">' % cat]
+    parts = [
+        '                    <article class="card card-post home-update-card %s">'
+        % cat
+    ]
+    parts.append('                        <div class="home-update-head">')
+    parts.append('                            <span class="cat">Update</span>')
     parts.append(
-        '                        <h3><a href="changes/%s/">Week of %s</a></h3>'
-        % (post["slug"], post["slug"])
+        '                            <span class="home-update-number">%02d</span>'
+        % (i + 1)
     )
-    if post["intro"]:
-        parts.append("                        <p>%s</p>" % post["intro"])
+    parts.append("                        </div>")
     parts.append(
-        '                        <span class="post-more">Read the update</span>'
+        '                        <p class="home-update-date">Week of %s</p>'
+        % esc(post["slug"])
     )
+    parts.append(
+        '                        <h3><a href="changes/%s/">%s</a></h3>'
+        % (esc(post["slug"]), esc(post["intro"] or "Weekly update"))
+    )
+    parts.append(render_home_update_tags(topics).rstrip())
     parts.append("                    </article>")
-    return "\n".join(parts)
+    return "\n".join(part for part in parts if part)
 
 
 BODY = """            <section class="hero" aria-labelledby="hero-title">
@@ -445,11 +511,12 @@ def render(data):
         for cat in sitelib.CATEGORIES
     )
 
-    run_cards = "\n".join(render_run_card(c) for c in data["run"])
-    who_cards = "\n".join(render_who_card(c) for c in data["who"])
+    run_cards = "\n".join(render_audience_card(c) for c in data["run"])
+    who_cards = "\n".join(render_audience_card(c) for c in data["who"])
+    change_topics = change_topics_by_slug()
     blog_teaser_cards = "\n".join(
-        render_blog_teaser_card(p, i)
-        for i, p in enumerate(sitelib.latest_blog_posts(3))
+        render_blog_teaser_card(p, i, change_topics.get(p["slug"], []))
+        for i, p in enumerate(sitelib.latest_blog_posts(4))
     )
     body = BODY.format(
         run_cards=run_cards,
