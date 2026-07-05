@@ -2414,6 +2414,24 @@ pre {
     min-height: 13rem;
 }
 
+.card.audience-card .cat {
+    border: 1px solid var(--acc-chip);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.9), var(--acc-tint));
+    color: var(--acc-deep);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.82),
+        0 0.55rem 1.1rem -0.9rem var(--acc-glow);
+}
+
+section[aria-labelledby="audience-title"] .card.audience-card.cat-platform {
+    --acc: var(--gold-base);
+    --acc-deep: var(--gold-deep);
+    --acc-chip: var(--gold-chip);
+    --acc-tint: var(--gold-tint);
+    --acc-glow: var(--gold-glow);
+}
+
 .card.audience-card h3 {
     margin-bottom: 0.7rem;
 }
