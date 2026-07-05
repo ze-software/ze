@@ -329,6 +329,7 @@ def step_contribute():
         GH_PAGES / "contribute" / "index.html",
         "../",
         CONTRIBUTE_DESC,
+        journey_label="Community",
     )
     return 0
 
@@ -362,6 +363,7 @@ def step_faq():
         GH_PAGES / "faq" / "index.html",
         "../",
         FAQ_DESC,
+        journey_label="FAQ",
     )
     return 0
 

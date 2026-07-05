@@ -1,117 +1,108 @@
 # Frequently asked questions
 
-The questions people tend to ask before they spend time on Ze. If yours is
-not here, ask on [Discord](https://discord.gg/T8s7CjPDne) or open an
-[issue](https://codeberg.org/thomas-mangin/ze/issues).
+The questions people tend to ask before they spend time on Ze. If yours is not here, ask on [Discord](https://discord.gg/T8s7CjPDne) or open an [issue](https://codeberg.org/thomas-mangin/ze/issues).
 
-## What is Ze?
+<div class="faq-index" aria-label="FAQ topics">
+  <a href="#what-is-ze" class="cat-operate"><span>01</span><strong>What Ze is</strong></a>
+  <a href="#ready" class="cat-routing"><span>02</span><strong>Readiness</strong></a>
+  <a href="#compare" class="cat-platform"><span>03</span><strong>Why another NOS</strong></a>
+  <a href="#contribute-cla" class="cat-automate"><span>04</span><strong>Contributing</strong></a>
+  <a href="#help" class="cat-secure"><span>05</span><strong>Help and security</strong></a>
+</div>
 
-Ze is an open, programmable network OS for Linux. It has a native BGP, OSPF,
-and IS-IS engine, it manages interfaces and programs the FIB, and it wraps
-all of that in one operator surface: an SSH CLI, a web UI, telemetry, a
-looking glass, an API, and a plugin system, all driven by a single YANG
-configuration model. You can run it as a daemon on an existing distribution
-or build it into a dedicated appliance from the same binary and the same
-config.
+<div class="faq-list">
+  <details class="faq-card cat-operate" id="what-is-ze" open>
+    <summary>What is Ze?</summary>
+    <div>
+      <p>Ze is an open, programmable network OS for Linux. It has a native BGP, OSPF, and IS-IS engine, it manages interfaces and programs the FIB, and it wraps all of that in one operator surface: an SSH CLI, a web UI, telemetry, a looking glass, an API, and a plugin system, all driven by a single YANG configuration model.</p>
+      <p>You can run it as a daemon on an existing distribution or build it into a dedicated appliance from the same binary and the same config.</p>
+    </div>
+  </details>
 
-## Is Ze ready for production?
+  <details class="faq-card cat-routing" id="ready">
+    <summary>Is Ze ready for production?</summary>
+    <div>
+      <p>Not yet, and the site says so everywhere on purpose. The routing core is heavily tested, but operational mileage is still limited and the configuration syntax can still change before the first release.</p>
+      <p>The honest place for Ze today is a lab: build a route server, migrate an ExaBGP config, stand up a looking glass, run the interop labs against real FRR or BIRD, and tell us where it breaks. The <a href="../roadmap/">roadmap</a> explains what stands between here and a release you can run in anger.</p>
+    </div>
+  </details>
 
-Not yet, and the site says so everywhere on purpose. The routing core is
-heavily tested, but operational mileage is still limited and the
-configuration syntax can still change before the first release. The honest
-place for Ze today is a lab: build a route server, migrate an ExaBGP config,
-stand up a looking glass, run the interop labs against real FRR or BIRD, and
-tell us where it breaks. The [roadmap](../roadmap/) explains what stands
-between here and a release you can run in anger.
+  <details class="faq-card cat-platform" id="compare">
+    <summary>Why would I use Ze instead of BIRD, FRR, or GoBGP?</summary>
+    <div>
+      <p>Those are mature, and Ze does not pretend otherwise. The <a href="../compare/">comparison page</a> is blunt about where they are still ahead.</p>
+      <p>What Ze offers that they do not is a single design where the BGP engine, the configuration model, the plugins, and the operator tooling were built together: one YANG model for everything, a plugin architecture for extending the daemon, an SSH CLI with diff and commit, and an MCP server so an AI assistant can help you debug live state.</p>
+    </div>
+  </details>
 
-## Why would I use Ze instead of BIRD, FRR, or GoBGP?
+  <details class="faq-card cat-observe" id="today">
+    <summary>What can Ze actually do today?</summary>
+    <div>
+      <p>The BGP implementation is broad: IPv4 and IPv6 unicast, labeled unicast, VPNv4 and VPNv6, EVPN, FlowSpec, add-path, graceful restart in several flavours, RPKI, route reflection, and a growing list of families and capabilities.</p>
+      <p>OSPFv2, OSPFv3, IS-IS, and MPLS are in the core. Around that sit a firewall, VPN, PPPoE and L2TP access concentration, flow export, and appliance packaging. The <a href="../features/">features page</a> marks each capability by status, and the <a href="../compare/">comparison page</a> puts every protocol feature next to the other daemons.</p>
+    </div>
+  </details>
 
-Those are mature, and Ze does not pretend otherwise. The [comparison
-page](../compare/) is blunt about where they are still ahead. What Ze offers
-that they do not is a single design where the BGP engine, the configuration
-model, the plugins, and the operator tooling were built together: one YANG
-model for everything, a plugin architecture for extending the daemon, an SSH
-CLI with diff and commit, and an MCP server so an AI assistant can help you
-debug live state. If you want a routing stack you can inspect, automate, and
-extend rather than only configure, that is the reason to look.
+  <details class="faq-card cat-services" id="exabgp">
+    <summary>I run ExaBGP. Can I move to Ze?</summary>
+    <div>
+      <p>That is one of the paths Ze is built for. Ze aims for an easy migration from ExaBGP rather than perfect compatibility.</p>
+      <p>There is a config converter (<code>ze exabgp migrate</code>) and a compatibility bridge that lets existing ExaBGP process scripts run with Ze as the engine while you port them over. The <a href="../docs/guide/exabgp-migration/">ExaBGP migration guide</a> walks through the conversion, the known differences, and when it is worth rewriting a plugin against the native Ze SDK.</p>
+    </div>
+  </details>
 
-## What can Ze actually do today?
+  <details class="faq-card cat-secure" id="license">
+    <summary>What license is Ze under, and what does that mean for me?</summary>
+    <div>
+      <p>Ze is free software under the <a href="../license/">GNU Affero General Public License v3</a>. You can run it, read it, modify it, and redistribute it.</p>
+      <p>The AGPL adds one obligation beyond the GPL: if you offer a modified Ze to others over a network, you have to make your modified source available to those users. Running an unmodified Ze to route your own traffic carries no such obligation.</p>
+    </div>
+  </details>
 
-The BGP implementation is broad: IPv4 and IPv6 unicast, labeled unicast,
-VPNv4 and VPNv6, EVPN, FlowSpec, add-path, graceful restart in several
-flavours, RPKI, route reflection, and a growing list of families and
-capabilities. OSPFv2, OSPFv3, IS-IS, and MPLS are in the core. Around that
-sit a firewall, VPN, PPPoE and L2TP access concentration, flow export, and
-appliance packaging. The [features page](../features/) marks each capability
-by status (shipped, or experimental and growing), and the [comparison
-page](../compare/) puts every protocol feature next to the other daemons,
-including the ones Ze does not have yet, such as BGP confederations.
+  <details class="faq-card cat-automate" id="contribute-cla">
+    <summary>I want to contribute. What is the CLA about?</summary>
+    <div>
+      <p>Contributions require a signed-off commit (<code>git commit -s</code>), which certifies agreement to the <a href="../contribute/">Contributor License Agreement</a>. You keep your copyright.</p>
+      <p>What you grant is a broad license that lets the maintainer relicense the project, for example to offer a commercial license alongside the AGPL if that ever helps Ze reach more people. Ze stays AGPLv3 for everyone regardless. The <a href="../contribute/guide/">contributor guide</a> covers the rest of the process.</p>
+    </div>
+  </details>
 
-## I run ExaBGP. Can I move to Ze?
+  <details class="faq-card cat-operate" id="daemon-appliance">
+    <summary>The daemon or the appliance: which should I run?</summary>
+    <div>
+      <p>The same binary and the same config drive both. Run it as a <strong>daemon</strong> when you are fitting Ze into infrastructure you already operate under systemd or another process manager.</p>
+      <p>Build it as an <strong>appliance</strong> when you want a purpose-built box: a read-only root filesystem, no shell, no package manager, and automatic supervision, produced with gokrazy. Start with the daemon if you are unsure.</p>
+    </div>
+  </details>
 
-That is one of the paths Ze is built for. Ze aims for an easy migration from
-ExaBGP rather than perfect compatibility. There is a config converter
-(`ze exabgp migrate`) and a compatibility bridge that lets existing ExaBGP
-process scripts run with Ze as the engine while you port them over. The
-[ExaBGP migration guide](../docs/guide/exabgp-migration/) walks through the
-conversion, the known differences, and when it is worth rewriting a plugin
-against the native Ze SDK.
+  <details class="faq-card cat-observe" id="ai-mcp">
+    <summary>Does the AI and MCP support mean Ze needs an LLM to run?</summary>
+    <div>
+      <p>No. Ze is a routing daemon and runs entirely on its own. The MCP server is an optional surface that lets an AI assistant read Ze's state and help you debug when you choose to use one. Nothing in the data path depends on it.</p>
+    </div>
+  </details>
 
-## What license is Ze under, and what does that mean for me?
+  <details class="faq-card cat-routing" id="config-stability">
+    <summary>Will my configuration keep working as Ze changes?</summary>
+    <div>
+      <p>Until the first release, treat the configuration syntax as not yet frozen. Breaking changes are called out in the <a href="../changes/">changes log</a>, and the policy is no silent breakage: a change that affects your config should come with either an automatic migration or a clear error.</p>
+      <p>Stabilising the syntax so it stays stable is an explicit milestone on the <a href="../roadmap/">roadmap</a>.</p>
+    </div>
+  </details>
 
-Ze is free software under the [GNU Affero General Public License
-v3](../license/). You can run it, read it, modify it, and redistribute it.
-The AGPL adds one obligation beyond the GPL: if you offer a modified Ze to
-others over a network, you have to make your modified source available to
-those users. Running an unmodified Ze to route your own traffic carries no
-such obligation.
+  <details class="faq-card cat-services" id="funding">
+    <summary>Who builds Ze, and how is it funded?</summary>
+    <div>
+      <p>Ze is developed by Thomas Mangin, with his time supported by <a href="https://exa.net.uk">Exa Networks</a>, the ISP that has backed this work since 2009 when it began with ExaBGP.</p>
+      <p>There is no subscription, no paid support tier, and no separate commercial entity today. The <a href="../contribute/">contribute page</a> has the detail.</p>
+    </div>
+  </details>
 
-## I want to contribute. What is the CLA about?
-
-Contributions require a signed-off commit (`git commit -s`), which certifies
-agreement to the [Contributor License Agreement](../contribute/). You keep
-your copyright. What you grant is a broad license that lets the maintainer
-relicense the project, for example to offer a commercial license alongside
-the AGPL if that ever helps Ze reach more people. Ze stays AGPLv3 for
-everyone regardless. The [contributor guide](../contribute/guide/) covers the
-rest of the process.
-
-## The daemon or the appliance: which should I run?
-
-The same binary and the same config drive both. Run it as a **daemon** when
-you are fitting Ze into infrastructure you already operate under systemd or
-another process manager. Build it as an **appliance** when you want a
-purpose-built box: a read-only root filesystem, no shell, no package manager,
-and automatic supervision, produced with gokrazy. Start with the daemon if
-you are unsure; the appliance is the same software packaged for dedicated
-hardware.
-
-## Does the AI and MCP support mean Ze needs an LLM to run?
-
-No. Ze is a routing daemon and runs entirely on its own. The MCP server is an
-optional surface that lets an AI assistant read Ze's state and help you debug
-when you choose to use one. Nothing in the data path depends on it.
-
-## Will my configuration keep working as Ze changes?
-
-Until the first release, treat the configuration syntax as not yet frozen.
-Breaking changes are called out in the [changes log](../changes/), and the
-policy is no silent breakage: a change that affects your config should come
-with either an automatic migration or a clear error. Stabilising the syntax
-so it stays stable is an explicit milestone on the [roadmap](../roadmap/).
-
-## Who builds Ze, and how is it funded?
-
-Ze is developed by Thomas Mangin, with his time supported by [Exa
-Networks](https://exa.net.uk), the ISP that has backed this work since 2009
-when it began with ExaBGP. There is no subscription, no paid support tier,
-and no separate commercial entity today. The [contribute page](../contribute/)
-has the detail.
-
-## How do I get help, or report a security problem?
-
-For questions and discussion, use [Discord](https://discord.gg/T8s7CjPDne) or
-the [issue tracker](https://codeberg.org/thomas-mangin/ze/issues). For
-anything security-sensitive, such as a bug an unauthenticated peer could
-trigger, follow the [security policy](../security/) and report it privately
-instead of opening a public issue.
+  <details class="faq-card cat-secure" id="help">
+    <summary>How do I get help, or report a security problem?</summary>
+    <div>
+      <p>For questions and discussion, use <a href="https://discord.gg/T8s7CjPDne">Discord</a> or the <a href="https://codeberg.org/thomas-mangin/ze/issues">issue tracker</a>.</p>
+      <p>For anything security-sensitive, such as a bug an unauthenticated peer could trigger, follow the <a href="../security/">security policy</a> and report it privately instead of opening a public issue.</p>
+    </div>
+  </details>
+</div>

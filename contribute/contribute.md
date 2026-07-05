@@ -1,42 +1,68 @@
 # Contributing to Ze
 
-Ze takes code, documentation, bug reports, and real-world interop reports.
-The repositories are public, the issue tracker is public, and development
-happens in the open.
+Ze takes code, documentation, bug reports, and real-world interop reports. The repositories are public, the issue tracker is public, and development happens in the open.
 
-## Contributor License Agreement
+<div class="contribute-intro">
+  <article class="contribute-route cat-operate">
+    <span class="contribute-route-kicker">Code</span>
+    <h2>Fix the thing you can reproduce</h2>
+    <p>Small, well-proven changes are welcome: parser fixes, command output fixes, protocol edge cases, docs corrections, and test coverage that catches real behavior.</p>
+  </article>
+  <article class="contribute-route cat-observe">
+    <span class="contribute-route-kicker">Evidence</span>
+    <h2>Bring a trace, lab, or transcript</h2>
+    <p>Interop reports, QEMU runs, failing <code>.ci</code> transcripts, and browser captures are useful because they show exactly what broke and what should be checked next.</p>
+  </article>
+  <article class="contribute-route cat-secure">
+    <span class="contribute-route-kicker">Care</span>
+    <h2>Handle security privately</h2>
+    <p>If an unauthenticated peer can trigger it, or if it can escalate access, use the <a href="../security/">security policy</a> instead of a public issue.</p>
+  </article>
+</div>
 
-Contributions require signing off commits with `git commit -s`, which
-signifies agreement to Ze's [Contributor License
-Agreement](https://github.com/ze-software/ze/blob/main/CLA.md).
+## The contribution contract
 
-You keep your copyright. What you grant is a broad, non-exclusive license
-for the Maintainer to use your contribution, including the right to
-relicense it, alone or combined with the rest of the project, under
-different license terms. That's what would let Ze be offered under a
-commercial license to third parties in addition to AGPLv3, if that ever
-happens, without having to track down and re-clear every past contributor
-individually. Ze itself stays AGPLv3 for everyone either way.
-
-No signed CLA, no merge. This is the one hard requirement.
+<div class="contribute-contract">
+  <div>
+    <span class="contribute-label">Hard requirement</span>
+    <h3>No signed CLA, no merge.</h3>
+    <p>Contributions require signing off commits with <code>git commit -s</code>, which signifies agreement to Ze's <a href="https://github.com/ze-software/ze/blob/main/CLA.md">Contributor License Agreement</a>.</p>
+    <p>You keep your copyright. What you grant is a broad, non-exclusive license for the Maintainer to use your contribution, including the right to relicense it, alone or combined with the rest of the project, under different license terms.</p>
+  </div>
+  <aside>
+    <strong>Why this exists</strong>
+    <p>It keeps the project legally movable. Ze itself stays AGPLv3 for everyone, and the CLA avoids tracking down every past contributor if a commercial license ever helps the project reach more people.</p>
+  </aside>
+</div>
 
 ## How Ze is funded
 
-Ze is currently developed by Thomas Mangin, with his time on the project
-supported by [Exa Networks](https://exa.net.uk). There's no subscription
-tier, no paid support contract, no commercial entity behind it today. That
-could change if a different model turns out to help the project reach more
-people.
-
-[Exa Networks](https://exa.net.uk) has been backing this work since 2009, when
-it started with [ExaBGP](https://github.com/Exa-Networks/exabgp), Ze's
-predecessor.
+<div class="contribute-funding cat-services">
+  <div>
+    <span class="contribute-label">Stewardship</span>
+    <h3>Backed work, public project</h3>
+    <p>Ze is currently developed by Thomas Mangin, with his time on the project supported by <a href="https://exa.net.uk">Exa Networks</a>. There is no subscription tier, no paid support contract, and no separate commercial entity behind it today.</p>
+    <p><a href="https://exa.net.uk">Exa Networks</a> has been backing this work since 2009, when it started with <a href="https://github.com/Exa-Networks/exabgp">ExaBGP</a>, Ze's predecessor.</p>
+  </div>
+  <div class="contribute-funding-mark" aria-hidden="true">2009</div>
+</div>
 
 ## Where to start
 
-- Browse or file issues on [GitHub](https://github.com/ze-software/ze/issues).
-- The canonical repository is on [Codeberg](https://codeberg.org/thomas-mangin/ze).
-- Questions, discussion, and early access to what's shipping: [Discord](https://discord.gg/T8s7CjPDne).
-
-There's no formal "good first issue" program yet. Come and ask in Discord
-about where help is most useful right now.
+<div class="contribute-start">
+  <a class="contribute-action cat-routing" href="https://github.com/ze-software/ze/issues">
+    <span>Issues</span>
+    <strong>Browse or file a bug</strong>
+    <small>Use this for reproducible problems, missing docs, and clear feature gaps.</small>
+  </a>
+  <a class="contribute-action cat-platform" href="https://codeberg.org/thomas-mangin/ze">
+    <span>Repository</span>
+    <strong>Use Codeberg as canonical</strong>
+    <small>The public mirror exists, but Codeberg is the source repository.</small>
+  </a>
+  <a class="contribute-action cat-automate" href="https://discord.gg/T8s7CjPDne">
+    <span>Discussion</span>
+    <strong>Ask before guessing</strong>
+    <small>There is no formal good-first-issue program yet. Ask where help is most useful right now.</small>
+  </a>
+</div>
