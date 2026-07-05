@@ -1,5 +1,21 @@
 # Ze Documentation Index
 
+## Understand Existing Code (not change it)
+
+Cold-start orientation. Read these to answer "what is here / where does it live"
+before grepping. All three are generated from the tree (`make ze-discovery-index`)
+and gated fresh, so they never lie about the current code.
+
+| Question | Read |
+|----------|------|
+| What does package X do? (one line each, all ~590 packages) | `ai/PACKAGE-MAP.md` |
+| Which `.go` files implement design doc Y? | `ai/DOCS-TO-CODE.md` (inverse of the per-file `// Design:` headers) |
+| Which docs describe code path Z? | `ai/CODE-TO-DOCS.md` (inverse of doc `<!-- source: -->` anchors) |
+| Every past decision / trap by number | `ai/LEARNED-FULL-INDEX.md` (complete); `ai/LEARNED-INDEX.md` (curated by topic) |
+| Why is the code shaped this way? | `plan/learned/DESIGN-HISTORY.md` |
+| Which rule covers a topic? | `ai/rules/INDEX.md` |
+| How does data flow through a subsystem? | `docs/architecture/core-design.md` (START HERE), then the subsystem doc below |
+
 ## I Want To...
 
 | Task | Read first | Then |
@@ -18,6 +34,7 @@
 | Write a spec | `ai/rules/planning.md` | `plan/TEMPLATE.md` |
 | Record design risks and assumptions | `ai/rules/planning.md` (Risks & Assumptions) | A-N/R-N tables in `plan/TEMPLATE.md`; validate during /ze-implement audit |
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` | Update docs, rules, indexes, and verification paths in the same change |
+| Compare Ze with other products | `ai/rules/comparison-honesty.md` | Cite every claim, link code or official feature docs, label uncertainty, and add hide-column controls for wide product matrices |
 | Add or change an agent behavior rule | `ai/rules/canonical-sources.md` | Put shared Ze rules in `ai/rules/` and startup pointers in `ai/INSTRUCTIONS.md` |
 | Reorganize YANG tree | `scripts/dev/yang_move.py --help` | Preview diff, then `--apply` |
 | See which rule covers a topic | `ai/rules/INDEX.md` | One-line overview of every rule; open the listed file before acting |

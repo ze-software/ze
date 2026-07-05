@@ -47,6 +47,21 @@ FORBIDDEN_COMMIT_SCRIPT_PATHS = {
     "CLAUDE.md",
 }
 
+# Generated discovery indexes and the sources that feed them. With no CI, the
+# commit gate in create() is the only thing that keeps these fresh versus the
+# committed tree. The source-trigger set below mirrors is_discovery_source() in
+# scripts/dev/verify_wiring_docs.py; keep the two in sync.
+DISCOVERY_INDEX_GENERATORS = (
+    "scripts/dev/package_map.py",
+    "scripts/dev/docs_to_code.py",
+    "scripts/dev/learned_index.py",
+)
+DISCOVERY_INDEX_OUTPUTS = (
+    "ai/PACKAGE-MAP.md",
+    "ai/DOCS-TO-CODE.md",
+    "ai/LEARNED-FULL-INDEX.md",
+)
+
 
 @dataclass(frozen=True)
 class CommitBlock:
@@ -473,6 +488,104 @@ def verify_status(repo: Path) -> tuple[str, str]:
     return ("fresh" if proc.returncode == 0 else "stale"), (out[0] if out else "")
 
 
+def _read_head(path: Path, n: int) -> str:
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            return "".join(line for _, line in zip(range(n), fh))
+    except OSError:
+        return ""
+
+
+def feeds_discovery_index(repo: Path, path: str) -> bool:
+    """True if committing `path` can change a generated discovery index.
+
+    Mirrors is_discovery_source() in scripts/dev/verify_wiring_docs.py.
+    """
+    if path in DISCOVERY_INDEX_GENERATORS or path in DISCOVERY_INDEX_OUTPUTS:
+        return True
+    if path == "Makefile" or path.startswith("mk/"):
+        return True
+    if path.startswith("plan/learned/") and path.endswith(".md"):
+        return True
+    if path.endswith("register.go"):
+        return True
+    if path.endswith(".go") and not path.endswith("_test.go"):
+        head = _read_head(repo / path, 40)
+        return "// Package" in head or "// Design:" in head
+    return False
+
+
+def discovery_index_freshness(repo: Path) -> tuple[str, list[str]]:
+    """Return (state, stale) where state is "fresh", "stale", or "unknown".
+
+    Only a CONFIRMED stale index (a generator reports its committed output no
+    longer matches the tree) blocks a commit. A generator that errors for an
+    unrelated reason (missing dirs, minimal checkout) yields "unknown" and never
+    blocks, mirroring verify_status().
+    """
+    stale: list[str] = []
+    confirmed = False
+    for gen, out in zip(DISCOVERY_INDEX_GENERATORS, DISCOVERY_INDEX_OUTPUTS):
+        script = repo / gen
+        if not script.exists():
+            continue
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(script), "--check"],
+                cwd=repo,
+                capture_output=True,
+                text=True,
+            )
+        except OSError:
+            continue
+        if proc.returncode == 0:
+            confirmed = True
+        elif "is stale" in (proc.stdout or "") + (proc.stderr or ""):
+            confirmed = True
+            stale.append(out)
+        # any other nonzero exit: generator error, treat as unknown (skip)
+    if not confirmed:
+        return "unknown", []
+    return ("stale" if stale else "fresh"), stale
+
+
+def index_pending(repo: Path, path: str) -> bool:
+    """True if a discovery index has uncommitted changes (new or modified)."""
+    if not tracked(repo, path):
+        return (repo / path).exists()
+    result = run_git(repo, "diff", "--quiet", "HEAD", "--", path, check=False)
+    return result.returncode != 0
+
+
+def discovery_index_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
+    """Reasons this commit would leave a generated discovery index stale."""
+    state, stale = discovery_index_freshness(repo)
+    if state == "unknown":
+        return []
+    if state == "stale":
+        return [
+            "discovery indexes are stale: " + ", ".join(stale) + ".\n"
+            "  Run `make ze-regen` (or `make ze-discovery-index`) and include the\n"
+            "  regenerated files in this commit."
+        ]
+    # Fresh on disk: a regenerated index must ride along when a source that feeds
+    # it is part of this commit, or the committed tree drifts out of sync.
+    if not any(feeds_discovery_index(repo, p) for p in add_paths):
+        return []
+    missing = [
+        out
+        for out in DISCOVERY_INDEX_OUTPUTS
+        if out not in add_paths and index_pending(repo, out)
+    ]
+    if not missing:
+        return []
+    return [
+        "this commit changes sources that feed the discovery indexes but omits\n"
+        "  the regenerated index(es): " + ", ".join(missing) + ".\n"
+        "  Add them: " + " ".join("--file " + m for m in missing) + "."
+    ]
+
+
 def create(args: argparse.Namespace) -> int:
     repo = repo_root(args.repo)
     session = session_id(repo, args.session)
@@ -498,6 +611,16 @@ def create(args: argparse.Namespace) -> int:
             '  commit, OR pass --unverified "<reason>" to commit anyway (owner\n'
             "  override, or a known-red logged in plan/known-failures.md)."
         )
+    # Discovery-index gate: the generated maps (ai/PACKAGE-MAP.md,
+    # ai/DOCS-TO-CODE.md, ai/LEARNED-FULL-INDEX.md) must match the committed
+    # sources. With no CI, this is the only place the freshness is enforced.
+    if not args.stale_index_ok:
+        problems = discovery_index_problems(repo, add_paths)
+        if problems:
+            raise UsageError(
+                "\n".join(problems)
+                + '\n  ... or pass --stale-index-ok "<reason>" to commit anyway.'
+            )
     msg = message_text(args.subject, args.body)
     msg_path = f"tmp/commit-msg-{session}-{tag}.txt"
     comment = lesson_comment(
@@ -656,6 +779,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--unverified",
         help="reason to allow a commit when ze-verify is not FRESH-green "
         "(owner override, or a known-red logged in plan/known-failures.md)",
+    )
+    create_cmd.add_argument(
+        "--stale-index-ok",
+        help="reason to allow a commit when a generated discovery index "
+        "(ai/PACKAGE-MAP.md, ai/DOCS-TO-CODE.md, ai/LEARNED-FULL-INDEX.md) is "
+        "stale or omitted (owner override)",
     )
     create_cmd.add_argument(
         "--dry-run",

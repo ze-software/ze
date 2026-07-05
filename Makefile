@@ -357,18 +357,21 @@ ze-ai-sync:
 ze-ai-check:
 	@scripts/dev/skill_sync.sh --check
 
-ze-regen: generate ze-ai-instructions ze-ai-sync ze-doc-index ze-rules-index
+ze-regen: generate ze-ai-instructions ze-ai-sync ze-doc-index ze-rules-index ze-discovery-index
 	@echo "All generated files updated"
 
 ze-regen-check: ze-regen
-	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md internal/component/plugin/all/all.go 2>/dev/null; then \
+	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go 2>/dev/null; then \
 		echo "ERROR: Generated files are stale. Run 'make ze-regen' and commit the result." >&2; \
-		git diff --stat -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md internal/component/plugin/all/all.go; \
+		git diff --stat -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go; \
 		exit 1; \
 	fi
 	@python3 scripts/dev/code_to_docs.py --check
 	@python3 scripts/dev/rules_index.py --check
 	@python3 scripts/dev/arch_map.py --check
+	@python3 scripts/dev/package_map.py --check
+	@python3 scripts/dev/docs_to_code.py --check
+	@python3 scripts/dev/learned_index.py --check
 	@scripts/dev/skill_sync.sh --check
 	@python3 scripts/dev/check_doc_links.py --md-only
 	@echo "All generated files are up to date"

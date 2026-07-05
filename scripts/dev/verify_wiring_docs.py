@@ -30,6 +30,7 @@ TARGET_ORDER = (
     "ze-command-ownership-check",
     "ze-doc-test",
     "ze-doc-check-stale",
+    "ze-discovery-index-check",
     "ze-inventory-json",
     "ze-command-list-json",
     "ze-plugin-imports-check",
@@ -40,6 +41,7 @@ MAKE_TARGETS = {
     "ze-command-ownership-check",
     "ze-doc-test",
     "ze-doc-check-stale",
+    "ze-discovery-index-check",
     "ze-inventory-json",
     "ze-command-list-json",
     "ze-plugin-imports-check",
@@ -297,6 +299,8 @@ def selected_targets(root: Path, changed: Iterable[str]) -> list[str]:
         if is_doc_source(root, path):
             selected.add("ze-doc-test")
             selected.add("ze-doc-check-stale")
+        if is_discovery_source(root, path):
+            selected.add("ze-discovery-index-check")
         if is_inventory_source(root, path):
             selected.add("ze-inventory-json")
             selected.add("ze-command-list-json")
@@ -370,6 +374,32 @@ def is_doc_source(root: Path, path: str) -> bool:
         return True
     if (path.startswith("docs/") or path == "README.md") and path.endswith(".md"):
         return file_or_head_contains(root, path, "<!-- source:")
+    return False
+
+
+def is_discovery_source(root: Path, path: str) -> bool:
+    """Changed files that can drift a generated discovery index
+    (ai/PACKAGE-MAP.md, ai/DOCS-TO-CODE.md, ai/LEARNED-FULL-INDEX.md): the
+    generators themselves, their outputs, the Makefile wiring, any learned
+    summary, any register.go (its Description), and any .go whose header carries
+    a `// Package` or `// Design:` line that the indexes derive from."""
+    if path in {
+        "scripts/dev/package_map.py",
+        "scripts/dev/docs_to_code.py",
+        "scripts/dev/learned_index.py",
+        "ai/PACKAGE-MAP.md",
+        "ai/DOCS-TO-CODE.md",
+        "ai/LEARNED-FULL-INDEX.md",
+    }:
+        return True
+    if path == "Makefile" or path.startswith("mk/"):
+        return True
+    if path.startswith("plan/learned/") and path.endswith(".md"):
+        return True
+    if path.endswith("register.go"):
+        return True
+    if path.endswith(".go") and not path.endswith("_test.go"):
+        return file_or_head_contains_any(root, path, ("// Package", "// Design:"))
     return False
 
 

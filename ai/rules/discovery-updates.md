@@ -69,6 +69,9 @@ Use these before inventing a new mechanism:
 | Changed-file-aware wiring, doc, command, and inventory gate | `make ze-verify-wiring-docs` |
 | Documentation drift and YANG command contracts | `make ze-doc-test` |
 | Source-to-document reverse index | `make ze-doc-index`; read `ai/CODE-TO-DOCS.md` |
+| What each package does ("what does what") | `make ze-discovery-index`; read `ai/PACKAGE-MAP.md` |
+| Which `.go` files implement a design doc | read `ai/DOCS-TO-CODE.md` (inverse of `// Design:`) |
+| Every learned summary by number (complete) | read `ai/LEARNED-FULL-INDEX.md`; curated by topic: `ai/LEARNED-INDEX.md` |
 | Plugin, command, YANG, and test inventory | `make ze-inventory`, `make ze-inventory-json` |
 | Command inventory | `make ze-command-list`, `make ze-command-list-json` |
 | Spec progress | `make ze-spec-status`, `make ze-spec-status-json` |
