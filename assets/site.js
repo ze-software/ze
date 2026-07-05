@@ -458,6 +458,289 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+
+    function initFeatureTooltips() {
+        var productNames = [
+            "Ze",
+            "VyOS",
+            "freeRtr",
+            "BIRD 3",
+            "BIRD 2",
+            "FRR",
+            "OpenBGPd",
+            "GoBGP",
+            "bio-rd",
+            "ExaBGP",
+            "RustyBGP",
+            "rustbgpd",
+        ];
+        var acronymGlossary = [
+            ["AFI/SAFI", "AFI/SAFI (Address Family Identifier / Subsequent Address Family Identifier)"],
+            ["ASN", "ASN (Autonomous System Number)"],
+            ["BGP", "BGP (Border Gateway Protocol)"],
+            ["BGP-LS", "BGP-LS (BGP Link-State)"],
+            ["BFD", "BFD (Bidirectional Forwarding Detection)"],
+            ["BMP", "BMP (BGP Monitoring Protocol)"],
+            ["CoPP", "CoPP (Control Plane Policing)"],
+            ["CLI", "CLI (Command Line Interface)"],
+            ["DNS", "DNS (Domain Name System)"],
+            ["DHCP", "DHCP (Dynamic Host Configuration Protocol)"],
+            ["ECMP", "ECMP (Equal-Cost Multipath)"],
+            ["EVPN", "EVPN (Ethernet VPN)"],
+            ["FIB", "FIB (Forwarding Information Base)"],
+            ["gNMI", "gNMI (gRPC Network Management Interface)"],
+            ["gRPC", "gRPC (remote procedure call API)"],
+            ["GR", "GR (Graceful Restart)"],
+            ["GRE", "GRE (Generic Routing Encapsulation)"],
+            ["GRETAP", "GRETAP (GRE Ethernet tap tunnel)"],
+            ["GTSM", "GTSM (Generalized TTL Security Mechanism)"],
+            ["HTMX", "HTMX (HTML-over-the-wire frontend library)"],
+            ["HTTP", "HTTP (Hypertext Transfer Protocol)"],
+            ["IGMP", "IGMP (Internet Group Management Protocol)"],
+            ["IGP", "IGP (Interior Gateway Protocol)"],
+            ["IPFIX", "IPFIX (IP Flow Information Export)"],
+            ["IPIP", "IPIP (IP-in-IP tunnel)"],
+            ["IPsec", "IPsec (IP Security)"],
+            ["IS-IS", "IS-IS (Intermediate System to Intermediate System routing)"],
+            ["JSON", "JSON (JavaScript Object Notation)"],
+            ["L2TP", "L2TP (Layer 2 Tunneling Protocol)"],
+            ["LAG", "LAG (Link Aggregation Group)"],
+            ["LDP", "LDP (Label Distribution Protocol)"],
+            ["LLDP", "LLDP (Link Layer Discovery Protocol)"],
+            ["LLGR", "LLGR (Long-Lived Graceful Restart)"],
+            ["LOCAL_PREF", "LOCAL_PREF (BGP local preference)"],
+            ["MACsec", "MACsec (IEEE 802.1AE link encryption)"],
+            ["MCP", "MCP (Model Context Protocol)"],
+            ["MED", "MED (BGP Multi-Exit Discriminator)"],
+            ["MPLS", "MPLS (Multiprotocol Label Switching)"],
+            ["MRT", "MRT (Multi-threaded Routing Toolkit dump format)"],
+            ["MSDP", "MSDP (Multicast Source Discovery Protocol)"],
+            ["MTU", "MTU (Maximum Transmission Unit)"],
+            ["MUP", "MUP (Mobile User Plane)"],
+            ["MVPN", "MVPN (Multicast VPN)"],
+            ["NAT", "NAT (Network Address Translation)"],
+            ["NETCONF", "NETCONF (Network Configuration Protocol)"],
+            ["NPTv6", "NPTv6 (IPv6 Network Prefix Translation)"],
+            ["OSPF", "OSPF (Open Shortest Path First)"],
+            ["PBR", "PBR (Policy-Based Routing)"],
+            ["PIM", "PIM (Protocol Independent Multicast)"],
+            ["PKI", "PKI (Public Key Infrastructure)"],
+            ["PPP", "PPP (Point-to-Point Protocol)"],
+            ["PPPoE", "PPPoE (PPP over Ethernet)"],
+            ["PTP", "PTP (Precision Time Protocol)"],
+            ["QoS", "QoS (Quality of Service)"],
+            ["QinQ", "QinQ (stacked VLAN tagging)"],
+            ["REST", "REST (HTTP resource API style)"],
+            ["RFC", "RFC (IETF Request for Comments)"],
+            ["RIB", "RIB (Routing Information Base)"],
+            ["RIPng", "RIPng (Routing Information Protocol next generation)"],
+            ["RPKI", "RPKI (Resource Public Key Infrastructure)"],
+            ["RSVP-TE", "RSVP-TE (Resource Reservation Protocol Traffic Engineering)"],
+            ["RTC", "RTC (Route Target Constraint)"],
+            ["RTR", "RTR (RPKI-to-Router protocol)"],
+            ["SDK", "SDK (Software Development Kit)"],
+            ["SNMP", "SNMP (Simple Network Management Protocol)"],
+            ["SRv6", "SRv6 (Segment Routing over IPv6)"],
+            ["SSH", "SSH (Secure Shell)"],
+            ["TACACS+", "TACACS+ (Terminal Access Controller Access-Control System Plus)"],
+            ["TCP-AO", "TCP-AO (TCP Authentication Option)"],
+            ["TCP MD5", "TCP MD5 (TCP MD5 Signature Option)"],
+            ["TFTP", "TFTP (Trivial File Transfer Protocol)"],
+            ["TTL", "TTL (Time To Live)"],
+            ["TUN/TAP", "TUN/TAP (virtual network tunnel or tap devices)"],
+            ["VLAN", "VLAN (Virtual LAN)"],
+            ["VPLS", "VPLS (Virtual Private LAN Service)"],
+            ["VPP", "VPP (Vector Packet Processing)"],
+            ["VPN", "VPN (Virtual Private Network)"],
+            ["VRF", "VRF (Virtual Routing and Forwarding)"],
+            ["VXLAN", "VXLAN (Virtual Extensible LAN)"],
+            ["WWAN", "WWAN (Wireless Wide Area Network)"],
+            ["XDP", "XDP (eXpress Data Path)"],
+            ["YANG", "YANG (data modeling language for network config)"],
+        ];
+        var featureGlossary = {
+            "language": "Implementation language or runtime used by the project.",
+            "license": "Project license for the compared codebase.",
+            "primary interface": "Main operator or automation surface, such as CLI, HTTP API, gRPC, or SSH.",
+            "first release": "Approximate first public release year used for context, not a quality score.",
+            "multithreaded": "Whether the implementation can run useful routing work across multiple threads or workers.",
+            "multithread model": "How concurrency is structured, such as goroutines, worker threads, processes, or per-peer tasks.",
+            "plugin architecture": "Whether the project has an extension mechanism for loading or registering features outside the core.",
+            "yang-modeled config": "Whether configuration is modeled with YANG or a similar schema-backed network config model.",
+            "afi/safi": "BGP address family coverage. AFI selects the network family and SAFI selects the service type carried by BGP.",
+            "route redistribution / protocol import-export": "Moving routes learned or produced by one protocol into another protocol, for example connected or static routes into BGP or IS-IS.",
+            "is-is route leaking": "Controlled movement of routes between IS-IS Level 1 and Level 2 areas so reachability crosses the IS-IS hierarchy.",
+            "cross-vrf route leaking": "Controlled movement of routes between separate VRF routing tables.",
+            "rib / fib programming": "Ability to install routes into an internal routing table and push forwarding entries into the kernel or dataplane.",
+            "vrf / routing instances": "Separate routing tables and interface bindings, usually used for tenant or service separation.",
+            "policy-based routing": "Forwarding packets according to policy rules, such as source, mark, interface, or application criteria, not only destination prefix.",
+            "vpp interface backend or vpp interface surface": "Whether the project can configure or target VPP-backed interfaces or exposes VPP-specific interface configuration.",
+            "interface management model": "How the project represents and applies interface configuration across Linux, VPP, or other backends.",
+            "native/p4/xdp dataplane helpers": "Project-owned support for programmable or accelerated dataplanes such as P4 or XDP, beyond normal Linux networking.",
+            "generated command reference/cache": "Machine-generated command documentation or command metadata used by the CLI or docs.",
+            "generated registries/schema artifacts": "Generated files built from source declarations, such as plugin registries, schema imports, command caches, or feature catalogs. This row asks whether the project has machine-built wiring for features and configuration rather than only hand-maintained lists.",
+            "generated composition roots": "Generated startup wiring that imports or registers every component or plugin so the runtime discovers all shipped features.",
+            "startup/command registration ownership": "Whether each feature owns its startup hooks and commands, so removing that feature also removes its CLI, config, and runtime wiring.",
+            "schema validation": "Validation that config or API input follows the declared schema before it is applied.",
+            "machine-readable config schema": "Whether automation can read a formal schema for configuration fields, types, and constraints.",
+            "external plugin sdk/api": "Documented interfaces for external code to extend the product without changing the core source tree.",
+            "internal and external plugin process model": "Whether extensions run in-process, as child processes, or both, and how they communicate with the core.",
+            "external process integration": "A mechanism for external helper processes to receive events, provide commands, or extend runtime behavior.",
+            "external process protocol": "A documented wire protocol used by out-of-process plugins or integrations.",
+            "protobuf/grpc api boundary": "A typed API boundary defined with protobuf and exposed through gRPC.",
+            "source-owned protocol implementations": "Protocol engines implemented in the project's own source tree rather than only configured through an external daemon.",
+            "allocation/zero-copy tuning patterns": "Code patterns that reduce allocations and avoid unnecessary copies on hot paths.",
+            "test seams and injectable components": "Interfaces or constructors that let tests replace real dependencies with controlled implementations.",
+            "config verify/apply/rollback model": "Configuration workflow for checking a candidate config, applying it, and reverting safely when needed.",
+            "candidate/draft config model": "A separate not-yet-active configuration tree that can be edited and checked before commit.",
+            "commit confirm": "A safety workflow that automatically rolls back a config change unless the operator confirms it.",
+            "control-plane hardening/sysctls": "Settings that protect the control plane or tune kernel network behavior, often through sysctl values.",
+            "named copp feature": "A named Control Plane Policing feature that rate-limits or filters traffic destined to the router itself.",
+            "mcp / ai integration": "Integration with the Model Context Protocol or AI assistant tooling.",
+            "compile-time feature selection": "Build tags, package selection, or build profiles that choose which features are compiled into an image or binary.",
+            "non-systemd appliance mode": "A runtime mode for appliance images that does not rely on systemd as the init or service manager.",
+            "seed/bootstrap config database": "Initial configuration storage used to bring up a fresh install or appliance image.",
+            "doctor/check framework": "Built-in checks that diagnose host readiness, runtime problems, or configuration issues.",
+            "symptom-based diagnostics": "Diagnostics organized around observed symptoms, with explanations and remediation hints.",
+            "verify/release evidence gates": "Automated checks used to prove a build, release, or documentation set is coherent before publishing.",
+            "mutation testing": "Tests that deliberately alter code or logic to confirm the test suite catches meaningful regressions.",
+            "runtime route injection": "Ability to add or withdraw routes at runtime without editing static configuration and restarting.",
+            "hot reconfiguration (no restart)": "Changing runtime configuration without restarting the daemon or losing existing sessions.",
+            "plugin-based policy": "Route policy implemented by registered plugins rather than only a built-in filter language.",
+            "external process policy": "Route policy implemented through helper processes outside the daemon.",
+            "custom filter language": "A project-specific policy language for matching and transforming routes.",
+            "named policy definitions": "Reusable named policy objects that can be attached to peers, protocols, or import and export chains.",
+            "route server and route reflector": "BGP roles that redistribute routes between clients without acting like a normal transit router.",
+            "route server mode": "BGP route-server behavior for Internet exchange style peering, usually preserving client next-hop and policy semantics.",
+            "dynamic neighbors": "Ability to accept or instantiate peers from ranges, listen sockets, or discovered addresses rather than only static peer entries.",
+            "looking glass": "Operator or public route visibility interface for inspecting peers, prefixes, paths, and routing decisions.",
+            "recursive next-hop": "Resolving a BGP next-hop through another route before programming forwarding.",
+            "multipath/ecmp": "Installing multiple equal-cost paths for the same destination so traffic can be load-shared.",
+        };
+
+        function cleanLabel(text) {
+            return text.replace(/\s+/g, " ").replace(/`/g, "").trim();
+        }
+
+        function productHeaderCount(table) {
+            if (!table.rows.length) return 0;
+            var header = table.tHead && table.tHead.rows.length ? table.tHead.rows[0] : table.rows[0];
+            return Array.prototype.slice.call(header.cells).filter(function (cell) {
+                var label = cleanLabel(cell.textContent);
+                return productNames.indexOf(label) !== -1;
+            }).length;
+        }
+
+        function escapeRegExp(text) {
+            return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        }
+
+        function expandedLabel(label) {
+            var expansions = [];
+            acronymGlossary.slice().sort(function (a, b) { return b[0].length - a[0].length; }).forEach(function (entry) {
+                var pattern = new RegExp("(^|[^A-Za-z0-9+/-])" + escapeRegExp(entry[0]) + "(?=$|[^A-Za-z0-9+/-])");
+                if (pattern.test(label)) expansions.push(entry[1]);
+            });
+            if (!expansions.length) return label;
+            return label + " (" + expansions.join("; ") + ")";
+        }
+
+        function sectionFor(node) {
+            var current = node;
+            while (current) {
+                current = current.previousElementSibling;
+                if (current && current.tagName === "H2") return cleanLabel(current.textContent);
+            }
+            return "";
+        }
+
+        function descriptionFor(label, section) {
+            var key = cleanLabel(label).toLowerCase();
+            if (featureGlossary[key]) return featureGlossary[key];
+            var description = "Compares product support for " + expandedLabel(label) + ".";
+            description += " Read across the product columns. Yes or Present means supporting evidence was found, Partial means incomplete or delegated support, Unclear means the evidence was not strong enough, and No or Not found means the inspected sources did not show support.";
+            if (section) description += " Section: " + section + ".";
+            return description;
+        }
+
+        var targets = [];
+        Array.prototype.slice.call(document.querySelectorAll(".md-content table")).forEach(function (table) {
+            if (productHeaderCount(table) < 2) return;
+            var section = sectionFor(table);
+            Array.prototype.slice.call(table.querySelectorAll("tbody tr")).forEach(function (row) {
+                var cell = row.cells[0];
+                if (!cell || cell.querySelector(".feature-help")) return;
+                var label = cleanLabel(cell.textContent);
+                if (!label || label === "---") return;
+                var help = document.createElement("span");
+                var description = descriptionFor(label, section);
+                help.className = "feature-help";
+                help.tabIndex = 0;
+                help.textContent = label;
+                help.title = description;
+                help.setAttribute("aria-label", label + ": " + description);
+                help.setAttribute("data-feature-help", description);
+                cell.textContent = "";
+                cell.appendChild(help);
+                targets.push(help);
+            });
+        });
+
+        if (!targets.length) return;
+
+        var popover = document.createElement("div");
+        popover.className = "feature-tooltip-popover";
+        popover.id = "feature-tooltip-popover";
+        popover.setAttribute("role", "tooltip");
+        popover.hidden = true;
+        document.body.appendChild(popover);
+
+        function position(target) {
+            var rect = target.getBoundingClientRect();
+            var tip = popover.getBoundingClientRect();
+            var margin = 12;
+            var left = Math.max(margin, Math.min(rect.left, window.innerWidth - tip.width - margin));
+            var top = rect.bottom + 10;
+            if (top + tip.height > window.innerHeight - margin) {
+                top = Math.max(margin, rect.top - tip.height - 10);
+            }
+            popover.style.left = left + "px";
+            popover.style.top = top + "px";
+        }
+
+        function show(target) {
+            popover.textContent = target.getAttribute("data-feature-help");
+            popover.hidden = false;
+            popover.setAttribute("data-visible", "true");
+            target.setAttribute("aria-describedby", popover.id);
+            position(target);
+        }
+
+        function hide(target) {
+            popover.removeAttribute("data-visible");
+            popover.hidden = true;
+            if (target) target.removeAttribute("aria-describedby");
+        }
+
+        targets.forEach(function (target) {
+            target.addEventListener("mouseenter", function () { show(target); });
+            target.addEventListener("mouseleave", function () { hide(target); });
+            target.addEventListener("focus", function () { show(target); });
+            target.addEventListener("blur", function () { hide(target); });
+        });
+        window.addEventListener("scroll", function () {
+            var active = document.activeElement;
+            if (active && active.classList && active.classList.contains("feature-help") && !popover.hidden) {
+                position(active);
+            }
+        }, true);
+        window.addEventListener("resize", function () {
+            var active = document.activeElement;
+            if (active && active.classList && active.classList.contains("feature-help") && !popover.hidden) {
+                position(active);
+            }
+        });
+    }
     function initComparisonFilters() {
         var productMatchers = [
             ["Ze", /^ze(?: evidence)?$/],
@@ -643,6 +926,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    initFeatureTooltips();
     initComparisonFilters();
     initSourceLinks();
 });

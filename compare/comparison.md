@@ -3,26 +3,26 @@
 Choose the comparison lens before jumping into the tables. The BGP page compares Ze with BGP daemon implementations. The Network OS page compares Ze with VyOS and freeRtr as full router operating systems.
 
 <div class="cards compare-dispatch">
-  <article class="card cat-routing compare-card-bgp">
+  <a class="card cat-routing compare-card-bgp" href="bgp/">
     <span class="cat">BGP</span>
-    <h3><a href="bgp/">BGP daemon comparison</a></h3>
+    <h3>BGP daemon comparison</h3>
     <p>Ze against BIRD, FRR, OpenBGPd, GoBGP, bio-rd, ExaBGP, RustyBGP, rustbgpd, and freeRtr across AFI/SAFI, core protocol, policy, security, observability, APIs, operations, and best-path behavior.</p>
     <ul>
       <li>Best for protocol capability checks.</li>
       <li>Includes where Ze is behind today.</li>
       <li>Table filter can narrow by feature or implementation.</li>
     </ul>
-  </article>
-  <article class="card cat-platform compare-card-nos">
+  </a>
+  <a class="card cat-platform compare-card-nos" href="nos/">
     <span class="cat">NOS</span>
-    <h3><a href="nos/">Open Source Network OS comparison</a></h3>
+    <h3>Open Source Network OS comparison</h3>
     <p>Ze against VyOS and freeRtr across routing, interfaces, firewall, NAT, VPN, AAA, services, management APIs, automation, packaging, observability, tests, and implementation model.</p>
     <ul>
       <li>Best for router/NOS product decisions.</li>
       <li>Source-grounded from the local checkouts inspected for this comparison.</li>
       <li>Table filter can limit long evidence rows by section and keyword.</li>
     </ul>
-  </article>
+  </a>
 </div>
 
 ## Reading the pages

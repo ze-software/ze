@@ -574,7 +574,7 @@ main.has-page-sidebar > :not(.page-sidebar) {
     position: sticky;
     top: 5.3rem;
     grid-column: 2;
-    grid-row: 1 / span 50;
+    grid-row: 1;
     max-height: calc(100vh - 6.3rem);
     margin: 1rem 0 3rem;
     padding: 0.8rem;
@@ -2997,6 +2997,50 @@ footer {
 
 .compare-column-hidden {
     display: none !important;
+}
+
+.feature-help {
+    display: inline;
+    border-bottom: 1px dotted var(--acc, var(--blue));
+    color: inherit;
+    cursor: help;
+    text-decoration: none;
+    text-underline-offset: 0.18rem;
+}
+
+.feature-help:hover {
+    color: var(--acc-deep, var(--blue-deep));
+}
+
+.feature-help:focus-visible {
+    outline: 3px solid var(--line);
+    outline-offset: 0.18rem;
+    border-radius: 0.2rem;
+    color: var(--acc-deep, var(--blue-deep));
+}
+
+.feature-tooltip-popover {
+    position: fixed;
+    z-index: 1000;
+    max-width: min(30rem, calc(100vw - 1.5rem));
+    padding: 0.72rem 0.82rem;
+    border: 1px solid var(--line);
+    border-radius: 0.7rem;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 250, 252, 0.94)),
+        var(--panel-strong);
+    box-shadow:
+        var(--clay),
+        0 1.2rem 2.6rem -1rem rgba(82, 43, 121, 0.28);
+    color: var(--text);
+    font-size: 0.88rem;
+    font-weight: 650;
+    line-height: 1.45;
+    pointer-events: none;
+}
+
+.feature-tooltip-popover[hidden] {
+    display: none;
 }
 
 
