@@ -11,7 +11,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "announce <unicast|blackhole|flowspec> <args> [tag <key> <value>] [for <duration>]"
   },
   {
     "path": "clear bgp rib in",
@@ -36,9 +37,47 @@
   },
   {
     "path": "clear dns cache",
-    "description": "Clear the DNS cache.\nWith no argument, flushes everything. Use 'record <name>' to evict\none entry, or 'stats' to see hit/miss rates without flushing.",
+    "description": "Flush all DNS cache entries and reset all DNS cache counters.",
     "mode": "daemon",
     "wire-method": "ze-clear:dns-cache",
+    "global-pipes": true,
+    "subcommands": [
+      "record",
+      "stats"
+    ]
+  },
+  {
+    "path": "clear dns cache record",
+    "description": "Evict DNS cache entries for one record name, or one name and type when a type is provided.",
+    "mode": "daemon",
+    "wire-method": "ze-clear:dns-cache-record",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "mandatory": true
+      },
+      {
+        "name": "type",
+        "type": "enum",
+        "values": [
+          "A",
+          "AAAA",
+          "CNAME",
+          "MX",
+          "NS",
+          "PTR",
+          "TXT"
+        ]
+      }
+    ],
+    "global-pipes": true
+  },
+  {
+    "path": "clear dns cache stats",
+    "description": "Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.",
+    "mode": "daemon",
+    "wire-method": "ze-clear:dns-cache-stats",
     "global-pipes": true
   },
   {
@@ -46,7 +85,8 @@
     "description": "Zero the Rx/Tx counters for every managed interface.\nUsage: clear interface counters.",
     "mode": "daemon",
     "wire-method": "ze-clear:interface-counters",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "clear interface counters"
   },
   {
     "path": "clear interface name counters",
@@ -60,21 +100,24 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "clear interface name <name> counters"
   },
   {
     "path": "clear isis adjacency",
     "description": "Tear down every IS-IS adjacency so neighbors re-form.\nUsage: clear isis adjacency. Adjacencies re-learn from the next Hello;\nthe circuit is not closed and the configuration is unchanged.",
     "mode": "daemon",
     "wire-method": "ze-clear:isis-adjacency",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "clear isis adjacency"
   },
   {
     "path": "clear isis counters",
     "description": "Reset IS-IS observational counters and the SPF log.\nUsage: clear isis counters. Monotonic Prometheus series are not reset;\nthe SPF-run history is cleared.",
     "mode": "daemon",
     "wire-method": "ze-clear:isis-counters",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "clear isis counters"
   },
   {
     "path": "clear l2tp session teardown",
@@ -109,21 +152,24 @@
     "description": "Reset the OSPF SPF-run history.\nUsage: clear ospf counters. Monotonic Prometheus series are not reset;\nthe SPF-run log is cleared.",
     "mode": "daemon",
     "wire-method": "ze-clear:ospf-counters",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "clear ospf counters"
   },
   {
     "path": "clear ospf neighbor",
     "description": "Tear down every OSPF adjacency so neighbors re-form.\nUsage: clear ospf neighbor. Adjacencies re-learn from the next Hello.",
     "mode": "daemon",
     "wire-method": "ze-clear:ospf-neighbor",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "clear ospf neighbor"
   },
   {
     "path": "clear ospf process",
     "description": "Full OSPF reset: tear down every adjacency and re-run SPF.\nUsage: clear ospf process. Adjacencies re-form from the next Hello;\nthe configuration is unchanged.",
     "mode": "daemon",
     "wire-method": "ze-clear:ospf-process",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "clear ospf process"
   },
   {
     "path": "clear vpn ipsec sa",
@@ -144,7 +190,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "create interface address <name> <prefix>"
   },
   {
     "path": "create interface bridge name",
@@ -165,7 +212,8 @@
     "subcommands": [
       "address",
       "unit"
-    ]
+    ],
+    "syntax": "create interface bridge name <name>"
   },
   {
     "path": "create interface bridge name address",
@@ -182,7 +230,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "create interface bridge name <name> address <prefix>"
   },
   {
     "path": "create interface bridge name unit",
@@ -199,7 +248,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "create interface bridge name <name> unit <vid>"
   },
   {
     "path": "create interface dummy name",
@@ -220,7 +270,8 @@
     "subcommands": [
       "address",
       "unit"
-    ]
+    ],
+    "syntax": "create interface dummy name <name>"
   },
   {
     "path": "create interface dummy name address",
@@ -237,7 +288,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "create interface dummy name <name> address <prefix>"
   },
   {
     "path": "create interface dummy name unit",
@@ -254,7 +306,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "create interface dummy name <name> unit <vid>"
   },
   {
     "path": "create interface unit",
@@ -268,7 +321,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "create interface unit <parent> <vid>"
   },
   {
     "path": "create interface veth name",
@@ -285,35 +339,40 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "create interface veth name <name> <peer>"
   },
   {
     "path": "debug ip ospf inject opaque",
     "description": "Inject a crafted IPv4 opaque LSA into the local LSDB (RFC 5250).\nUsage: debug ip ospf inject opaque scope <link|area|as> id <opaque-id>\n[type <128-255>] [hex <body> | tlv <type> <value-hex> ...] [withdraw].\nThe default Opaque Type is Private-Use so a test LSA never collides with a\nstandards-track consumer. Requires `debug ospf inject enable`.",
     "mode": "daemon",
     "wire-method": "ze-debug:ospf-inject",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "debug ip ospf inject opaque scope <link|area|as> id <opaque-id>"
   },
   {
     "path": "debug ipv6 ospf inject lsa",
     "description": "Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340).\nUsage: debug ipv6 ospf inject lsa scope <link|area|as> type <ls-type>\nid <link-state-id> [hex <body>] [withdraw]. The flooding scope is derived from\nthe LS Type S2/S1 bits (a reserved scope is rejected). Requires\n`debug ospf inject enable`.",
     "mode": "daemon",
     "wire-method": "ze-debug:ospfv3-inject",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "debug ipv6 ospf inject lsa scope <link|area|as> type <ls-type>"
   },
   {
     "path": "debug ospf inject disable",
     "description": "Disable OSPF debug LSA injection. Usage: debug ospf inject disable.",
     "mode": "daemon",
     "wire-method": "ze-debug:ospf-inject-disable",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "debug ospf inject disable"
   },
   {
     "path": "debug ospf inject enable",
     "description": "Enable OSPF debug LSA injection (shared across both address\nfamilies). Off by default. Usage: debug ospf inject enable.",
     "mode": "daemon",
     "wire-method": "ze-debug:ospf-inject-enable",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "debug ospf inject enable"
   },
   {
     "path": "delete bgp peer",
@@ -355,7 +414,8 @@
     "subcommands": [
       "address",
       "unit"
-    ]
+    ],
+    "syntax": "delete interface name <name>"
   },
   {
     "path": "delete interface name address",
@@ -369,7 +429,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "delete interface name <name> address <prefix>"
   },
   {
     "path": "delete interface name unit",
@@ -383,7 +444,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "delete interface name <name> unit"
   },
   {
     "path": "doctor",
@@ -394,41 +456,6 @@
     "path": "explain",
     "description": "Print the meaning, likely cause, and recommended fix for a Ze diagnostic code. Pass the code you saw in a log or error message.",
     "mode": "offline"
-  },
-  {
-    "path": "fakel2tp emit",
-    "description": "Emit one synthetic L2TP route-change batch",
-    "mode": "daemon",
-    "wire-method": "ze-fakel2tp-api:fakel2tp-emit",
-    "global-pipes": true
-  },
-  {
-    "path": "fakel2tp help",
-    "description": "Print the fakel2tp command surface",
-    "mode": "daemon",
-    "wire-method": "ze-fakel2tp-api:fakel2tp-help",
-    "global-pipes": true
-  },
-  {
-    "path": "fakeredist emit",
-    "description": "Emit one synthetic route-change batch",
-    "mode": "daemon",
-    "wire-method": "ze-fakeredist-api:fakeredist-emit",
-    "global-pipes": true
-  },
-  {
-    "path": "fakeredist emit-burst",
-    "description": "Emit N synthetic batches sequentially",
-    "mode": "daemon",
-    "wire-method": "ze-fakeredist-api:fakeredist-emit-burst",
-    "global-pipes": true
-  },
-  {
-    "path": "fakeredist help",
-    "description": "Print the fakeredist command surface",
-    "mode": "daemon",
-    "wire-method": "ze-fakeredist-api:fakeredist-help",
-    "global-pipes": true
   },
   {
     "path": "generate wireguard keypair",
@@ -630,7 +657,8 @@
         "type": "string"
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request as112 healthcheck [target <ip>]"
   },
   {
     "path": "request bgp rib inject",
@@ -660,7 +688,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request cache expire <id>"
   },
   {
     "path": "request cache forward",
@@ -679,7 +708,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request cache forward <id> <selector>"
   },
   {
     "path": "request cache release",
@@ -693,7 +723,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request cache release <id>"
   },
   {
     "path": "request cache retain",
@@ -707,7 +738,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request cache retain <id>"
   },
   {
     "path": "request commit",
@@ -742,7 +774,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request interface <name> down"
   },
   {
     "path": "request interface mac",
@@ -756,7 +789,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request interface <name> mac <aa:bb:cc:dd:ee:ff>"
   },
   {
     "path": "request interface migrate",
@@ -777,7 +811,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request interface <name> mtu <bytes>"
   },
   {
     "path": "request interface up",
@@ -791,7 +826,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request interface <name> up"
   },
   {
     "path": "request log level",
@@ -815,14 +851,16 @@
         ]
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request log level <logger> <level>"
   },
   {
     "path": "request ospf graceful-restart",
     "description": "Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).\nUsage: request ospf graceful-restart. The engine originates one Grace-LSA per\ninterface, persists the non-volatile restart fact, and suppresses route churn\nso the FIB is retained across the ensuing control-plane restart. Refused when\ngraceful-restart is not configured.",
     "mode": "daemon",
     "wire-method": "ze-ospf:graceful-restart-prepare",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request ospf graceful-restart"
   },
   {
     "path": "request peer borr",
@@ -878,7 +916,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request peer <selector> flush"
   },
   {
     "path": "request peer pause",
@@ -892,7 +931,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request peer <selector> pause"
   },
   {
     "path": "request peer plugin session ready",
@@ -906,7 +946,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request peer <selector> plugin session ready"
   },
   {
     "path": "request peer refresh",
@@ -934,7 +975,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request peer <selector> resume"
   },
   {
     "path": "request peer teardown",
@@ -948,7 +990,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "request peer <selector> teardown [cease-subcode]"
   },
   {
     "path": "request reboot",
@@ -991,35 +1034,40 @@
     "description": "Find out who owns an AS number.\nQueries Team Cymru DNS to return the organization name for the ASN.\nUsage: resolve cymru asn-name <asn>.",
     "mode": "read-only",
     "wire-method": "ze-resolve:cymru-asn-name",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "resolve cymru asn-name <asn>"
   },
   {
     "path": "resolve dns a",
     "description": "Look up IPv4 addresses (A records) for a hostname.\nUsage: resolve dns a <hostname>.",
     "mode": "read-only",
     "wire-method": "ze-resolve:dns-a",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "resolve dns a <hostname>"
   },
   {
     "path": "resolve dns aaaa",
     "description": "Look up IPv6 addresses (AAAA records) for a hostname.\nUsage: resolve dns aaaa <hostname>.",
     "mode": "read-only",
     "wire-method": "ze-resolve:dns-aaaa",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "resolve dns aaaa <hostname>"
   },
   {
     "path": "resolve dns ptr",
     "description": "Reverse-lookup an IP address to its hostname (PTR).\nUsage: resolve dns ptr <ip-address>.",
     "mode": "read-only",
     "wire-method": "ze-resolve:dns-ptr",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "resolve dns ptr <ip-address>"
   },
   {
     "path": "resolve dns txt",
     "description": "Look up TXT records for a hostname.\nUsage: resolve dns txt <hostname>. Returns all TXT strings.",
     "mode": "read-only",
     "wire-method": "ze-resolve:dns-txt",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "resolve dns txt <hostname>"
   },
   {
     "path": "resolve irr expand",
@@ -1040,28 +1088,32 @@
     "description": "Find the IRR AS-SET registered for an ASN in PeeringDB.\nUsage: resolve peeringdb as-set <asn>. Feed the result into\n'resolve irr expand' to get the full member list.",
     "mode": "read-only",
     "wire-method": "ze-resolve:peeringdb-as-set",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "resolve peeringdb as-set <asn>"
   },
   {
     "path": "resolve peeringdb max-prefix",
     "description": "Get max-prefix limits for an ASN from PeeringDB.\nReturns IPv4 and IPv6 prefix limits. Apply via the config editor. Usage: resolve peeringdb max-prefix <asn>.",
     "mode": "read-only",
     "wire-method": "ze-resolve:peeringdb-max-prefix",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "resolve peeringdb max-prefix <asn>"
   },
   {
     "path": "resolve ping",
     "description": "Ping from the router with optional source binding.\nUsage: resolve ping <target> [source <ip>] [count <n>] [size <bytes>].",
     "mode": "read-only",
     "wire-method": "ze-resolve:ping",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "resolve ping <target> [source <ip>] [count <n>] [size <bytes>]"
   },
   {
     "path": "resolve traceroute",
     "description": "Traceroute from the router with optional source binding.\nUsage: resolve traceroute <target> [source <ip>] [max-hops N] [timeout D] [probes N].",
     "mode": "read-only",
     "wire-method": "ze-resolve:traceroute",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "resolve traceroute <target> [source <ip>] [max-hops N] [timeout D] [probes N]"
   },
   {
     "path": "set debug active name",
@@ -1111,7 +1163,8 @@
     "description": "List active on-demand announcements.\nUsage: show announcements [tag <key>] [selector <pattern>] [family <fam>]",
     "mode": "read-only",
     "wire-method": "ze-bgp:show-announcements",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show announcements [tag <key>] [selector <pattern>] [family <fam>]"
   },
   {
     "path": "show anomaly detect",
@@ -1261,7 +1314,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show bgp irr check <peer> <prefix>"
   },
   {
     "path": "show bgp irr prefix",
@@ -1275,7 +1329,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show bgp irr prefix <peer>"
   },
   {
     "path": "show bgp peer capabilities",
@@ -1289,7 +1344,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show bgp peer <selector> capabilities"
   },
   {
     "path": "show bgp peer detail",
@@ -1303,7 +1359,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show bgp peer <selector> detail"
   },
   {
     "path": "show bgp peer history",
@@ -1317,7 +1374,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show bgp peer <selector> history"
   },
   {
     "path": "show bgp peer list",
@@ -1338,7 +1396,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show bgp peer <selector> rib [scope|filters|terminal]"
   },
   {
     "path": "show bgp peer statistics",
@@ -1352,7 +1411,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show bgp peer <selector> statistics"
   },
   {
     "path": "show bgp rib",
@@ -1763,7 +1823,8 @@
     "description": "Print the full text of a stored configuration snapshot.\nUsage: show config cat <id>. Outputs the config as-is.",
     "mode": "read-only",
     "wire-method": "ze-show:config-cat",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show config cat <id>"
   },
   {
     "path": "show config diff",
@@ -1823,7 +1884,8 @@
     "description": "Print the raw content of a blob store entry.\nUsage: show data cat <key>. Outputs the value for the given key,\nlike 'cat' for ZeFS.",
     "mode": "read-only",
     "wire-method": "ze-show:data-cat",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show data cat <key>"
   },
   {
     "path": "show data ls",
@@ -1880,25 +1942,31 @@
     "mode": "offline"
   },
   {
-    "path": "show dns cache",
-    "description": "Inspect the DNS cache.\n'stats' shows hit/miss/eviction counters. 'list' shows all cached\nentries. 'record <name>' shows one specific entry. Requires the DNS\ncomponent to be active.",
+    "path": "show dns cache list",
+    "description": "List all non-expired DNS cache entries, sorted by shortest TTL first.",
     "mode": "read-only",
-    "wire-method": "ze-show:dns-cache",
+    "wire-method": "ze-show:dns-cache-list",
+    "global-pipes": true
+  },
+  {
+    "path": "show dns cache record",
+    "description": "Show DNS cache entries for one record name.",
+    "mode": "read-only",
+    "wire-method": "ze-show:dns-cache-record",
     "args": [
       {
-        "name": "action",
-        "type": "enum",
-        "values": [
-          "list",
-          "record",
-          "stats"
-        ]
-      },
-      {
         "name": "name",
-        "type": "string"
+        "type": "string",
+        "mandatory": true
       }
     ],
+    "global-pipes": true
+  },
+  {
+    "path": "show dns cache stats",
+    "description": "Show DNS cache hit, miss, eviction, expiry, and hit-rate counters without changing cache contents.",
+    "mode": "read-only",
+    "wire-method": "ze-show:dns-cache-stats",
     "global-pipes": true
   },
   {
@@ -1909,7 +1977,8 @@
     "args": [
       {
         "name": "hostname",
-        "type": "string"
+        "type": "string",
+        "mandatory": true
       },
       {
         "name": "type",
@@ -1939,7 +2008,8 @@
     "description": "Show one environment variable in detail.\nReturns the variable name, current value, default, and what it\ncontrols. Usage: show env get <name>.",
     "mode": "read-only",
     "wire-method": "ze-show:env-get",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show env get <name>"
   },
   {
     "path": "show env list",
@@ -2015,7 +2085,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show firewall irr prefix <asn-or-as-set>"
   },
   {
     "path": "show firewall ruleset",
@@ -2025,7 +2096,8 @@
     "backend": [
       "nft"
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show firewall ruleset <name>"
   },
   {
     "path": "show flow-export",
@@ -2178,7 +2250,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show interface name <name> counters"
   },
   {
     "path": "show interface name detail",
@@ -2192,7 +2265,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show interface name <name> detail"
   },
   {
     "path": "show interface rate",
@@ -2213,7 +2287,8 @@
     "description": "Show only interfaces of a given type.\nUsage: show interface type <type>. Types include ethernet, bridge,\nvxlan, wireguard, tunnel, bond, and more. If you pick an invalid\ntype, the error lists all valid ones.",
     "mode": "read-only",
     "wire-method": "ze-show:interface",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show interface type <type>"
   },
   {
     "path": "show isis database",
@@ -2494,7 +2569,8 @@
     "description": "Query a specific Prometheus metric by name.\nUsage: show metrics-query <name> [label=value ...]. Returns matching\ntime series from the internal registry. Multiple label filters are\nANDed. More targeted than the full metrics dump.",
     "mode": "read-only",
     "wire-method": "ze-show:metrics-query",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show metrics-query <name> [label=value"
   },
   {
     "path": "show mpls forwarding",
@@ -2978,7 +3054,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show pki certificate name <name> [pem | bundle pem | fingerprint"
   },
   {
     "path": "show pki certificates",
@@ -2992,7 +3069,8 @@
     "description": "Show the import/export filter chain applied to a peer.\nUsage: show policy chain peer <selector> [import|export]. The selector\n(IP, name, as<N>) and the optional direction are parsed by the handler.\nShows the effective chain after group inheritance is resolved. Without\na direction keyword, shows both import and export.",
     "mode": "read-only",
     "wire-method": "ze-show:policy-chain",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show policy chain peer <selector> [import|export]"
   },
   {
     "path": "show policy list",
@@ -3006,7 +3084,8 @@
     "description": "Test what your policy does to a specific UPDATE.\nFeed a hex-encoded BGP UPDATE through a peer's filter chain and see\nthe accept/reject result plus attribute modifications at each stage.\nRead-only: no routes are actually forwarded. Great for validating\npolicy changes before you commit.\nUsage: show policy test peer <selector> import|export [filter <name>]\nupdate <hex> [source-asn4 true|false]. The selector and the\nimport/export/filter/update/source-asn4 tokens are parsed by the\nhandler so the peer selector can be a free-form name or address.",
     "mode": "read-only",
     "wire-method": "ze-show:policy-test",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show policy test peer <selector> import|export [filter <name>]"
   },
   {
     "path": "show policy-routes",
@@ -3113,7 +3192,8 @@
     "description": "Look up which route the kernel would use for a given IP.\nPerforms a longest-prefix-match and returns the matching route with\ngateway, interface, protocol, and metric. Usage: show route lookup\n<ip>.",
     "mode": "read-only",
     "wire-method": "ze-show:route-lookup",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show route lookup"
   },
   {
     "path": "show rr peers",
@@ -3557,7 +3637,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "show vpn ipsec peer name <name>"
   },
   {
     "path": "show vpn ipsec sa",
@@ -3714,7 +3795,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "update bgp irr as-set <as-set>"
   },
   {
     "path": "update bgp irr asn",
@@ -3728,7 +3810,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "update bgp irr asn <asn>"
   },
   {
     "path": "update bgp peer prefix",
@@ -3742,7 +3825,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "update bgp peer <selector> prefix"
   },
   {
     "path": "update firewall irr all",
@@ -3763,7 +3847,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "update firewall irr as-set <as-set>"
   },
   {
     "path": "update firewall irr asn",
@@ -3777,7 +3862,8 @@
         "mandatory": true
       }
     ],
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "update firewall irr asn <asn>"
   },
   {
     "path": "update system firmware apply",
@@ -3824,6 +3910,7 @@
     "description": "Withdraw on-demand announcements.\nUsage: withdraw tag <key> <value|*> | withdraw tag * | withdraw id <N> | withdraw all",
     "mode": "daemon",
     "wire-method": "ze-bgp:withdraw",
-    "global-pipes": true
+    "global-pipes": true,
+    "syntax": "withdraw tag <key> <value|*> | withdraw tag * | withdraw id <N> | withdraw all"
   }
 ]
