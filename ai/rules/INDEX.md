@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 78 rules
+Total: 79 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -20,6 +20,7 @@ Total: 78 rules
 | Canonical Sources and Sync Direction | Never edit a generated file. Edit the canonical source, then sync. Project behavior rules belong in `ai/rules/` and project startup guidance belongs in `ai/INSTRUCTIONS.md`, so Claude, Codex, and... | `ai/rules/canonical-sources.md` |
 | CLI Grammar: Keywords Before Values | Every CLI command must place a closed keyword before any user-supplied value. This eliminates ambiguity where a free-form value could collide with a keyword. | `ai/rules/cli-grammar.md` |
 | CLI Patterns | All CLI commands MUST follow these patterns. | `ai/rules/cli-patterns.md` |
+| Comparison Honesty | Comparing Ze with another product, project, daemon, appliance, distribution, or vendor feature set. | `ai/rules/comparison-honesty.md` |
 | No Backwards Compatibility | Ze has never been released. No users. No compat code, comments, shims, or fallbacks anywhere — including the plugin API. If something needs to change, just change it. | `ai/rules/compatibility.md` |
 | Config Design | Decision framework (YANG vs env var): `ai/rules/config-surface.md` Naming conventions: `ai/rules/config-naming.md` | `ai/rules/config-design.md` |
 | Config Manipulation | Config content MUST be manipulated through one of two methods only. | `ai/rules/config-manipulation.md` |
