@@ -184,7 +184,7 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
                     <ul>
                         <li>Wire encoding, parsing</li>
                         <li>Config, FSM, plugins</li>
-                        <li>Mutation testing via gomu</li>
+                        <li>gomu mutates code to check assertions</li>
                     </ul>
                 </div>
                 <div class="proof">

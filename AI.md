@@ -55,12 +55,19 @@ gh-pages/
                                               category, keyed to ../main/go.mod
     plugin-registry.json                  -- every plugin's Registration{} fields + resolved YANG
                                               module paths, extracted fresh from ../main/internal/
+    command-equivalents.json              -- curated vendor equivalents keyed by Ze CLI paths;
+                                              render-command-equivalents.py joins it to live
+                                              data/cli-commands.json and emits unmapped rows
+    page-links.json                     -- right-rail page navigation, external project quick links,
+                                              and reader-intent related links used by sitelib.py
   tools/
     sitelib.py                            -- shared nav/head/foot chrome, imported by every
                                               render-*.py; also the navblock patcher for pages
                                               with no dedicated generator, and the Markdown-mirror
                                               machinery (see "Markdown mirrors" below)
     build.py                              -- regenerates the entire site in one command
+    check-page-links.py                   -- validates page-links.json external URLs, duplicate
+                                              external pages, and generated external link targets
     render-docs.py / render-doc.py        -- ../main/docs/*.md -> docs/**/index.html (also used
                                               directly for compare/comparison.md -> compare/index.html
                                               and contribute/contribute.md -> contribute/index.html)
@@ -78,6 +85,8 @@ gh-pages/
     render-timeline.py                    -- data/milestones.json -> milestones/index.html, the
                                               landmark-features timeline, oldest first, grouped by
                                               quarter and color-coded by category
+    render-command-equivalents.py         -- data/command-equivalents.json + live Ze CLI catalog ->
+                                              command-equivalents/index.html and index.md
     render-cli-catalog.py                 -- `ze help command --json` -> cli/index.html, with a
                                               live search box that jumps to a matching command's
                                               anchor (id="cmd-<slug>") in its group
@@ -142,10 +151,59 @@ already has its `index.md` on disk, and warns on stderr
 (`check_llms_md_siblings`) if a `data/nav.json` entry's `index.md` is
 missing.
 
+
+### Site design and content rules
+
+Before adding or restyling a page or component, read `style-guide/index.html`
+or the generated `style-guide/index.md`. Reuse the vivid candy claymation
+language already in `assets/site.css`: seven category hues, clay card depth,
+2px white "sugar coat" borders, masked grids, soft candy washes, and thin
+concentric ring ornaments. Do not add one-off shadows, filled decorative balls,
+opaque blobs, unrelated palettes, or custom components without updating the
+style guide in the same change.
+
+Navigation is part of the design system. `data/nav.json` owns the top
+mega-menu, footer, generated nav patches, and `llms.txt` structure. Every
+multi-column dropdown must show a label at the top of each column. Keep the
+Project dropdown grouped by reader job: Overview, Reference, Quality, Evidence.
+Use short labels and one-line descriptions. Do not let dropdown panels clip
+outside the viewport.
+
+Use the right page menu for easy local navigation. Add related choices, nearby
+evidence, and next steps to `data/page-links.json`; `sitelib.patch_page_sidebar`
+injects `.page-sidebar` and the responsive layout. Do not hand-code duplicate
+right-menu link lists inside page bodies.
+
+Every factual claim must have evidence. A claim about a feature, protocol, lab,
+benchmark, command, dependency, plugin, quality gate, or comparison must trace
+to a source file, Markdown source, JSON data file, script, generated binary
+output, or external reference. If a claim cannot be traced, do not publish it.
+
+Prefer generated data over hand-maintained prose or tables. Lists and facts
+should come from Markdown or structured data: `data/*.json`, `../main/docs/*.md`,
+`go.mod`, registry extraction, YANG extraction, git history, or live
+`../main/bin/ze` output. Extend a renderer or extractor before hardcoding a
+catalogue in HTML.
+
+Every published page needs an AI-readable `index.md` sibling. Generate it from
+the same Markdown or structured data as the HTML; only hand-authored HTML pages
+may rely on the `nav` step's HTML-to-Markdown extraction. `llms.txt` must remain
+generated from `data/nav.json` plus live counts, must link each page's
+`index.md` first, and must include the human web URL as the secondary link.
+
 To add, remove, or re-categorize a feature card: edit `data/features.json`,
 then run `tools/build.py --only features` (or the full build). Same for
-`data/audience.json` and `--only index`, or `data/nav.json` and `--only nav`
-(plus regenerate anything else the nav change should also touch).
+`data/audience.json` and `--only index`, or `data/nav.json` and the needed
+steps for pages affected by a navigation change.
+
+Command equivalence maintenance: Ze command paths come from the live CLI
+catalog, not the JSON mapping. Add vendor equivalents to
+`data/command-equivalents.json`, keep every `ze` path exact, build a production
+`../main/bin/ze` with `make bin/ze` (not a `zetest` binary), then run
+`tools/build.py --only cli,command-equivalents,search,seo,llms` after command-tree
+changes so `data/cli-commands.json`, the page, search index, metadata, and
+`llms.txt` stay aligned. For mapping-only edits where the CLI catalog is already
+fresh, `tools/build.py --only command-equivalents,search,seo,llms` is enough.
 
 ### Plugin catalog
 
