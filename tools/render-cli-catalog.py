@@ -377,14 +377,21 @@ def render(commands, groups):
     out.append(
         '            <section aria-labelledby="cli-title" class="md-content reveal cat-operate">'
     )
-    out.append('                <h1 id="cli-title">CLI Reference</h1>')
     out.append(
-        "                <p>%d commands across %d groups, generated straight from "
-        "<code>ze help command --json</code> -- the same live command registry the "
-        "binary itself uses, so this page cannot drift from what the binary actually "
-        "supports the way a hand-maintained list can. Full machine-readable list: "
-        '<a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>'
-        % (len(commands), len(groups))
+        sitelib.page_hero(
+            "CLI Reference",
+            (
+                "%d commands across %d groups, generated straight from "
+                "<code>ze help command --json</code> -- the same live command registry the "
+                "binary itself uses, so this page cannot drift from what the binary actually "
+                "supports the way a hand-maintained list can. Full machine-readable list: "
+                '<a href="../data/cli-commands.json">data/cli-commands.json</a>.'
+                % (len(commands), len(groups))
+            ),
+            "Reference",
+            h1_id="cli-title",
+            lead_html=True,
+        )
     )
     out.append('                <div class="cli-search-wrap">')
     out.append(

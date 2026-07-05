@@ -524,19 +524,26 @@ def render(tree, owner_map):
     out.append(
         '            <section aria-labelledby="config-ref-title" class="md-content reveal cat-platform">'
     )
-    out.append('                <h1 id="config-ref-title">Configuration Reference</h1>')
     out.append(
-        "                <p>The complete Ze configuration in one place: "
-        "<strong>%d sections</strong> (%d provided by plugins, the rest "
-        "core), generated live from the YANG schema with "
-        "<code>ze yang tree</code>. Every level -- sections and the "
-        "containers inside them -- is browsed the same way: pick a setting to "
-        "step into it, or search across the whole configuration. Where a "
-        "setting is provided by a plugin, its owner and YANG source are "
-        "shown. See the "
-        '<a href="%sdocs/features/configuration/">Configuration guide</a> '
-        "for a narrative walkthrough of BGP peer config specifically.</p>"
-        % (len(sections), owned_count, root)
+        sitelib.page_hero(
+            "Configuration Reference",
+            (
+                "The complete Ze configuration in one place: "
+                "<strong>%d sections</strong> (%d provided by plugins, the rest "
+                "core), generated live from the YANG schema with "
+                "<code>ze yang tree</code>. Every level -- sections and the "
+                "containers inside them -- is browsed the same way: pick a setting to "
+                "step into it, or search across the whole configuration. Where a "
+                "setting is provided by a plugin, its owner and YANG source are "
+                "shown. See the "
+                '<a href="%sdocs/features/configuration/">Configuration guide</a> '
+                "for a narrative walkthrough of BGP peer config specifically."
+                % (len(sections), owned_count, root)
+            ),
+            "Reference",
+            h1_id="config-ref-title",
+            lead_html=True,
+        )
     )
     out.append('                <div class="config-explorer" data-config-explorer>')
     out.append('<script>document.documentElement.classList.add("config-js")</script>')

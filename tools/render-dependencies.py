@@ -172,13 +172,20 @@ def render(versions, data):
     out.append(
         '            <section aria-labelledby="dependencies-title" class="md-content reveal cat-platform">'
     )
-    out.append('                <h1 id="dependencies-title">Dependencies</h1>')
     out.append(
-        "                <p>Ze is Go, and Go code leans on packages. %d direct "
-        "dependencies, read straight from <code>go.mod</code> so the list and "
-        "versions can't drift -- each one with a plain-English reason it's "
-        "there, grounded in where it's actually imported, not its own pitch.</p>"
-        % total
+        sitelib.page_hero(
+            "Dependencies",
+            (
+                "Ze is Go, and Go code leans on packages. %d direct "
+                "dependencies, read straight from <code>go.mod</code> so the list and "
+                "versions can't drift -- each one with a plain-English reason it's "
+                "there, grounded in where it's actually imported, not its own pitch."
+                % total
+            ),
+            "Platform",
+            h1_id="dependencies-title",
+            lead_html=True,
+        )
     )
     out.append(
         '                <input id="dep-search" type="search" placeholder="Filter dependencies (e.g. netlink, ssh, prometheus)..." aria-label="Filter dependencies" />'

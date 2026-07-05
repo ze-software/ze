@@ -29,22 +29,81 @@ def first_h1(md_text):
     return match.group(1).strip() if match else "Ze"
 
 
-FIRST_H1_P_RE = re.compile(r"\A<h1([^>]*)>(.*?)</h1>\n<p>(.*?)</p>", re.S)
+FIRST_H1_P_RE = re.compile(
+    r"\A((?:<!--.*?-->\s*)*)<h1([^>]*)>(.*?)</h1>\n"
+    r"((?:<!--.*?-->\s*)*)<p>(.*?)</p>",
+    re.S,
+)
+FIRST_H1_RE = re.compile(r"\A((?:<!--.*?-->\s*)*)<h1([^>]*)>(.*?)</h1>", re.S)
+
+
+def default_journey_label(dest, doc_rel=None):
+    key = sitelib.page_key_for_path(dest).strip("/")
+    if doc_rel:
+        doc_area = doc_rel.split("/", 1)[0].removesuffix(".md")
+        return {
+            "architecture": "Architecture",
+            "features": "Feature",
+            "guide": "Guide",
+            "performance": "Performance",
+            "research": "Research",
+        }.get(doc_area, "Documentation")
+    if key.startswith("compare/"):
+        return "Compare"
+    if key.startswith("contribute/"):
+        return "Community"
+    if key.startswith("docs/"):
+        parts = key.split("/")
+        area = parts[1] if len(parts) > 1 else ""
+        return {
+            "architecture": "Architecture",
+            "features": "Feature",
+            "guide": "Guide",
+            "performance": "Performance",
+            "research": "Research",
+        }.get(area, "Documentation")
+    if key.startswith("quality/"):
+        return "Quality"
+    return {
+        "code-of-conduct": "Community",
+        "faq": "FAQ",
+        "license": "License",
+        "roadmap": "Release path",
+        "security": "Security",
+    }.get(key, key.replace("-", " ").title() if key else "Ze")
 
 
 def wrap_journey_hero(body_html, label):
     def repl(match):
-        h1_attrs, title, intro = match.groups()
-        return (
-            '<div class="journey-hero reveal">\n'
-            '    <span class="journey-eyebrow">%s</span>\n'
-            "    <h1%s>%s</h1>\n"
-            "    <p>%s</p>\n"
-            "</div>"
-            % (html.escape(label), h1_attrs, title, intro)
+        leading_comments, h1_attrs, title, comments, intro = match.groups()
+        hero = sitelib.page_hero(
+            title,
+            intro,
+            label,
+            h1_attrs=h1_attrs,
+            title_html=True,
+            lead_html=True,
+            indent="",
         )
+        return (leading_comments or "") + (comments or "") + hero
 
-    return FIRST_H1_P_RE.sub(repl, body_html, count=1)
+    wrapped, count = FIRST_H1_P_RE.subn(repl, body_html, count=1)
+    if count:
+        return wrapped
+
+    def h1_only_repl(match):
+        leading_comments, h1_attrs, title = match.groups()
+        hero = sitelib.page_hero(
+            title,
+            None,
+            label,
+            h1_attrs=h1_attrs,
+            title_html=True,
+            indent="",
+        )
+        return (leading_comments or "") + hero
+
+    return FIRST_H1_RE.sub(h1_only_repl, body_html, count=1)
 
 
 TD_RE = re.compile(r"<td([^>]*)>((?:(?!</td>).)*)</td>", re.S)
@@ -307,8 +366,9 @@ def render(
     if manifest is not None:
         body_html = rewrite_doc_links(body_html, doc_rel, manifest, dest_rel_dir)
         md_out = rewrite_doc_links_markdown(md_text, doc_rel, manifest, dest_rel_dir)
-    if journey_label:
-        body_html = wrap_journey_hero(body_html, journey_label)
+    body_html = wrap_journey_hero(
+        body_html, journey_label or default_journey_label(dest, doc_rel)
+    )
     section_class = "md-content reveal cat-%s" % cat if cat else "md-content reveal"
     full_title = "%s - Ze" % title
     head = sitelib.page_head(
@@ -365,7 +425,7 @@ def main():
     )
     parser.add_argument(
         "--journey-label",
-        help="optional top-right label for the shared Journey clay hero",
+        help="override the top-right label for the shared clay page hero",
     )
     args = parser.parse_args()
 

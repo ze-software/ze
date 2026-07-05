@@ -195,14 +195,18 @@ def render_post(meta, intro, sections, covers):
     is_draft = meta.get("status", "").upper().startswith("DRAFT")
     parts = []
     parts.append('            <section class="blog-post" aria-labelledby="post-title">')
-    parts.append('                <div class="section-head reveal">')
     if is_draft:
-        parts.append('                    <span class="tag">Draft -- pending review</span>')
-    parts.append('                    <h1 id="post-title">Week of %s</h1>' % start_date(covers))
-    if intro:
-        parts.append("                    <p>%s</p>" % markdown.markdown(intro)[3:-4])
-    parts.append('                    <p class="post-back"><a href="../">&larr; All weekly updates</a></p>')
-    parts.append("                </div>")
+        parts.append('                <span class="tag">Draft -- pending review</span>')
+    parts.append(
+        sitelib.page_hero(
+            "Week of %s" % start_date(covers),
+            markdown.markdown(intro)[3:-4] if intro else None,
+            "Weekly update",
+            h1_id="post-title",
+            lead_html=True,
+        )
+    )
+    parts.append('                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>')
     parts.append("            </section>")
 
     parts.append('            <section class="blog-post reveal">')

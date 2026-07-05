@@ -204,15 +204,15 @@ def render(data):
     ]
 
     out.append('            <section aria-labelledby="features-title">')
-    out.append('                <div class="section-head reveal">')
     out.append(
-        '                    <h1 id="features-title">Every feature Ze ships.</h1>'
+        sitelib.page_hero(
+            "Every feature Ze ships.",
+            "%d features plus a spec'd roadmap, color-coded by category."
+            % feature_count,
+            "Project",
+            h1_id="features-title",
+        )
     )
-    out.append(
-        "                    <p>%d features plus a spec'd roadmap, color-coded by category.</p>"
-        % feature_count
-    )
-    out.append("                </div>")
     out.append('                <div class="section-note reveal">')
     out.append(
         "                    <p>Each card's color is its category: how the feature "

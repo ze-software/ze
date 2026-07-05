@@ -355,9 +355,14 @@ def render_index(rows, groups, vendor_only, mapping, commands, vendor_ids, vendo
         )
     ]
     out.append('<section aria-labelledby="command-equivalents-title" class="md-content command-equivalents reveal cat-operate">')
-    out.append('<h1 id="command-equivalents-title">Command Equivalents</h1>')
     out.append(
-        '<p>One line per live Ze command. Vendor commands sit side by side as curated migration hints, not as exhaustive vendor CLI catalogs; follow <strong>details</strong> for descriptions, notes, confidence, and sources.</p>'
+        sitelib.page_hero(
+            "Command Equivalents",
+            "One line per live Ze command. Vendor commands sit side by side as curated migration hints, not as exhaustive vendor CLI catalogs; follow <strong>details</strong> for descriptions, notes, confidence, and sources.",
+            "Reference",
+            h1_id="command-equivalents-title",
+            lead_html=True,
+        )
     )
     out.append('<div class="cmd-eq-stats">')
     out.append('<div><strong>%d</strong><span>live Ze commands</span></div>' % len(commands))
@@ -469,8 +474,17 @@ def render_detail_page(row, mapping, vendor_ids, vendor_labels, sources):
             page_key="command-equivalents/%s/" % row["slug"],
         )
     ]
-    out.append('<section class="md-content command-equivalents command-equivalent-detail reveal cat-operate">')
-    out.append('<h1><code>%s</code></h1>' % html.escape(command_display_path(command)))
+    out.append('<section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">')
+    out.append(
+        sitelib.page_hero(
+            "<code>%s</code>" % html.escape(command_display_path(command)),
+            "Command details and vendor equivalents for %s."
+            % html.escape(command_display_path(command)),
+            "Command map",
+            h1_id="command-equivalent-detail-title",
+            title_html=True,
+        )
+    )
     out.append('<div class="cmd-detail-grid">')
     out.append(render_ze_detail(command))
     out.append(render_mapping_notes(row))

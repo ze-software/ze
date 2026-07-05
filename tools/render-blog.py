@@ -76,14 +76,23 @@ def parse_articles():
 
 def render_article(a):
     body_html = markdown.markdown(a["body"], extensions=["tables", "fenced_code", "sane_lists"])
+    lead = (
+        '<time datetime="%s">%s</time>' % (a["date"], a["date"])
+        if a["date"]
+        else None
+    )
     parts = [
-        '            <section class="section-head reveal">',
-        '                <h1 id="post-title">%s</h1>' % a["title"],
+        '            <section aria-labelledby="post-title">',
+        sitelib.page_hero(
+            a["title"],
+            lead,
+            "Article",
+            h1_id="post-title",
+            lead_html=True,
+        ),
+        '                <p class="post-back"><a href="../">&larr; All articles</a></p>',
+        "            </section>",
     ]
-    if a["date"]:
-        parts.append('                <p class="post-meta"><time datetime="%s">%s</time></p>' % (a["date"], a["date"]))
-    parts.append('                <p class="post-back"><a href="../">&larr; All articles</a></p>')
-    parts.append("            </section>")
     parts.append('            <section class="md-content reveal">')
     parts.append(body_html)
     parts.append("            </section>")
@@ -101,8 +110,6 @@ def render_article_markdown(a):
 
 def render_index(articles):
     parts = ['            <section aria-labelledby="blog-title">']
-    parts.append('                <div class="section-head reveal">')
-    parts.append('                    <h1 id="blog-title">The Ze blog.</h1>')
     if articles:
         lead = (
             "Occasional articles on Ze: design notes, deep dives, and talk "
@@ -117,8 +124,15 @@ def render_index(articles):
             'the landmark features are on the <a href="../milestones/">'
             "Milestones</a> timeline."
         )
-    parts.append("                    <p>%s</p>" % lead)
-    parts.append("                </div>")
+    parts.append(
+        sitelib.page_hero(
+            "The Ze blog.",
+            lead,
+            "Blog",
+            h1_id="blog-title",
+            lead_html=True,
+        )
+    )
     if articles:
         parts.append('                <div class="cards reveal">')
         cats = ["cat-operate", "cat-routing", "cat-automate", "cat-observe", "cat-secure", "cat-services", "cat-platform"]

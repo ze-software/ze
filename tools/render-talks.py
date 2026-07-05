@@ -47,12 +47,14 @@ def render(talks):
     desc = "Talks and presentations about Ze."
     out = [sitelib.page_head(title, desc, root, og_title=title, og_desc=desc)]
     out.append('            <section id="talks" aria-labelledby="talks-title">')
-    out.append('                <div class="section-head reveal">')
-    out.append('                    <h1 id="talks-title">Talks and presentations.</h1>')
-    out.append("                    <p>")
-    out.append("                        Sharing Ze with the community.")
-    out.append("                    </p>")
-    out.append("                </div>")
+    out.append(
+        sitelib.page_hero(
+            "Talks and presentations.",
+            "Sharing Ze with the community.",
+            "Community",
+            h1_id="talks-title",
+        )
+    )
     out.append('                <div class="audience reveal">')
     talks_sorted = sorted(talks, key=lambda t: t["date"], reverse=True)
     for talk in talks_sorted:

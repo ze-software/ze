@@ -407,6 +407,44 @@ def page_key_for_path(path):
     return _normalize_page_key(rel)
 
 
+def page_hero(
+    title,
+    lead,
+    label,
+    h1_id=None,
+    h1_attrs="",
+    title_html=False,
+    lead_html=False,
+    classes="journey-hero reveal",
+    indent="                ",
+):
+    """Shared clay title block used by site page headers.
+
+    ``title_html`` and ``lead_html`` are for renderer-owned markup such as
+    ``<code>`` and links. Plain strings stay escaped by default.
+    """
+    attrs = h1_attrs
+    if not attrs and h1_id:
+        attrs = ' id="%s"' % html.escape(str(h1_id), quote=True)
+    rendered_title = str(title) if title_html else html.escape(str(title))
+    rendered_lead = None
+    if lead is not None and str(lead):
+        rendered_lead = str(lead) if lead_html else html.escape(str(lead))
+    out = [
+        '%s<div class="%s">' % (indent, html.escape(classes, quote=True)),
+    ]
+    if label:
+        out.append(
+            '%s    <span class="journey-eyebrow">%s</span>'
+            % (indent, html.escape(str(label)))
+        )
+    out.append("%s    <h1%s>%s</h1>" % (indent, attrs, rendered_title))
+    if rendered_lead is not None:
+        out.append("%s    <p>%s</p>" % (indent, rendered_lead))
+    out.append("%s</div>" % indent)
+    return "\n".join(out)
+
+
 def load_page_links():
     global _page_links_cache
     if _page_links_cache is None:

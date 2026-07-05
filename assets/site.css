@@ -113,6 +113,18 @@
     --body-bg-2: #f1e5fc;
 
     /*
+     * All page-title stacking lives here. Title glyphs must always paint above
+     * their intro copy, including descenders on clipped-gradient text.
+     */
+    --page-title-descender-room: 0.16em;
+    --page-title-max-width: min(100%, 32ch);
+    --page-title-copy-max-width: min(100%, 92ch);
+    --z-page-title-art: 0;
+    --z-page-title-copy: 1;
+    --z-page-title: 3;
+    --z-page-title-label: 4;
+
+    /*
      * The clay shadow: a crisp inset top highlight (studio light) plus a
      * tight, low-blur drop shadow. Pair with a 2px white border.
      */
@@ -742,7 +754,7 @@ h3 {
 }
 
 h1 {
-    max-width: 18ch;
+    max-width: var(--page-title-max-width);
     margin-bottom: 1.35rem;
     color: var(--text);
     font-size: clamp(3.2rem, 7vw, 6.4rem);
@@ -761,26 +773,33 @@ h2 {
 }
 
 /*
- * Every page title gets the same stacking and descender room. The extra
- * padding keeps letters like "g" visible when the title uses clipped gradient
- * text, while the z-index keeps following prose and cards behind the glyphs.
+ * Every page title uses the same stacking contract. Keep this selector broad:
+ * if a page-level title is authored anywhere else, it still gets descender
+ * room and paints above the intro copy below it.
  */
-#features-title,
-#perf-title,
-.section-head > h1:first-child,
-.md-content > h1:first-child {
+:where(
+    #features-title,
+    #perf-title,
+    .section-head > h1:first-child,
+    .md-content > h1:first-child,
+    .journey-hero :is(h1, h2),
+    .md-content .journey-hero :is(h1, h2)
+) {
     position: relative;
-    z-index: 2;
+    z-index: var(--z-page-title);
     overflow: visible;
-    padding-bottom: 0.12em;
+    padding-bottom: var(--page-title-descender-room);
 }
 
-#features-title + :is(p, blockquote),
-#perf-title + :is(p, blockquote),
-.section-head > h1:first-child + :is(p, blockquote),
-.md-content > h1:first-child + :is(p, blockquote) {
+:where(
+    #features-title + :is(p, blockquote),
+    #perf-title + :is(p, blockquote),
+    .section-head > h1:first-child + :is(p, blockquote),
+    .md-content > h1:first-child + :is(p, blockquote),
+    .journey-hero p
+) {
     position: relative;
-    z-index: 1;
+    z-index: var(--z-page-title-copy);
 }
 
 /*
@@ -794,7 +813,7 @@ h2 {
 .md-content[class*="cat-"] > h1:first-child {
     display: inline-block;
     width: fit-content;
-    max-width: min(18ch, 100%);
+    max-width: var(--page-title-max-width);
     color: var(--sky-deep);
     background: linear-gradient(
         90deg,
@@ -1096,6 +1115,7 @@ section {
 
 .journey-hero {
     position: relative;
+    isolation: isolate;
     display: block;
     overflow: hidden;
     margin-bottom: clamp(1.2rem, 3vw, 2rem);
@@ -1113,6 +1133,7 @@ section {
 .journey-hero::before {
     content: "";
     position: absolute;
+    z-index: var(--z-page-title-art);
     inset: 0;
     background:
         linear-gradient(rgba(190, 120, 210, 0.08) 1px, transparent 1px),
@@ -1125,6 +1146,7 @@ section {
 .journey-hero::after {
     content: "";
     position: absolute;
+    z-index: var(--z-page-title-art);
     right: clamp(0.8rem, 2vw, 1.2rem);
     bottom: clamp(0.8rem, 2vw, 1.2rem);
     width: min(12rem, 28vw);
@@ -1142,7 +1164,7 @@ section {
     position: absolute;
     top: clamp(1rem, 2vw, 1.25rem);
     right: clamp(1rem, 2.4vw, 1.5rem);
-    z-index: 1;
+    z-index: var(--z-page-title-label);
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
@@ -1165,8 +1187,7 @@ section {
 
 .journey-hero :is(h1, h2),
 .md-content .journey-hero :is(h1, h2) {
-    position: relative;
-    max-width: 18ch;
+    max-width: var(--page-title-max-width);
     margin: 0;
     color: var(--text);
     background: linear-gradient(90deg, var(--grape-deep), var(--sky-deep) 54%, var(--teal-deep));
@@ -1174,26 +1195,14 @@ section {
     background-clip: text;
     -webkit-text-fill-color: transparent;
     font-size: clamp(2.25rem, 4.8vw, 4.15rem);
-    z-index: 2;
-    line-height: 0.92;
+    line-height: 0.96;
     letter-spacing: -0.065em;
-    transform: translateY(-0.22em);
-    padding-bottom: 0;
+    transform: translateY(-0.12em);
 }
 
-#changes-title {
-    display: block;
-    overflow: visible;
-    line-height: 1.04;
-    padding-bottom: 0.12em;
-    margin-bottom: -0.36em;
-    z-index: 2;
-}
 
 .journey-hero p {
-    position: relative;
-    z-index: 1;
-    max-width: 45rem;
+    max-width: var(--page-title-copy-max-width);
     margin: 0.65rem 0 0;
     color: var(--muted);
     font-weight: 700;
@@ -4282,27 +4291,6 @@ body.search-open {
 
 
 
-.plugin-detail-hero {
-    padding: 1.25rem;
-    border: 2px solid rgba(255, 255, 255, 0.92);
-    border-top: 5px solid var(--acc);
-    border-radius: 1rem;
-    background:
-        radial-gradient(circle at top left, var(--acc-tint), transparent 48%),
-        rgba(255, 250, 252, 0.92);
-    box-shadow: var(--clay);
-}
-
-.plugin-detail-hero h1 {
-    margin: 0.25rem 0 0.4rem;
-}
-
-.plugin-detail-hero h1 code {
-    padding: 0;
-    background: transparent;
-    color: var(--acc-deep);
-    font-size: 1em;
-}
 
 .plugin-detail-grid {
     display: grid;

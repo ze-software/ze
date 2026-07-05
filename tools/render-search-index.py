@@ -60,6 +60,9 @@ BODY_CAP = 8000
 # name in every section stays findable.
 CONFIG_BODY_CAP = 12000
 
+RECORD_FIELD_ORDER = ["title", "url", "section", "text"]
+
+
 HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 FENCE_RE = re.compile(r"^```.*$", re.M)
 LINK_RE = re.compile(r"!?\[([^\]]*)\]\([^)]*\)")
@@ -167,6 +170,43 @@ def build_config_records():
         )
     return records
 
+def canonical_record(record):
+    """Return a search record with stable field order."""
+    ordered = {
+        key: record[key]
+        for key in RECORD_FIELD_ORDER
+        if key in record
+    }
+    for key in sorted(record):
+        if key not in ordered:
+            ordered[key] = record[key]
+    return ordered
+
+
+def dumps_record_lines(records):
+    """Return valid JSON with one sorted search record per line.
+
+    Keeping the search index as one minified line makes every content change
+    look like a full-file replacement in git review tools. This preserves the
+    exact JSON array contract for browsers while limiting future diffs to the
+    changed records. The record order and field order are both canonical, so
+    identical input generates byte-for-byte identical JSON.
+    """
+    if not records:
+        return "[]\n"
+    return (
+        "[\n"
+        + ",\n".join(
+            json.dumps(
+                canonical_record(record),
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            for record in records
+        )
+        + "\n]\n"
+    )
+
 
 def main():
     records = []
@@ -211,7 +251,7 @@ def main():
         )
 
     records.sort(key=lambda r: r["url"])
-    OUT.write_text(json.dumps(records, ensure_ascii=False, separators=(",", ":")) + "\n")
+    OUT.write_text(dumps_record_lines(records))
     print("wrote %s (%d pages)" % (OUT, len(records)))
 
     render_search_page()
@@ -219,9 +259,7 @@ def main():
 
 
 SEARCH_BODY = """            <section class="md-content reveal" aria-labelledby="search-title">
-                <h1 id="search-title">Search</h1>
-                <p>Search across all of Ze's documentation and pages. Everything
-                runs in your browser: nothing you type is sent anywhere.</p>
+%s
                 <div class="cli-search-wrap">
                     <input id="site-search" type="search" autocomplete="off"
                         autofocus aria-label="Search the site"
@@ -361,7 +399,19 @@ def render_search_page():
         page_key="search/",
     )
     PAGE.parent.mkdir(parents=True, exist_ok=True)
-    PAGE.write_text(head + SEARCH_BODY + sitelib.page_foot("../"))
+    PAGE.write_text(
+        head
+        + (
+            SEARCH_BODY
+            % sitelib.page_hero(
+                "Search",
+                "Search across all of Ze's documentation and pages. Everything runs in your browser: nothing you type is sent anywhere.",
+                "Site search",
+                h1_id="search-title",
+            )
+        )
+        + sitelib.page_foot("../")
+    )
     sitelib.write_markdown_sibling(PAGE, SEARCH_MD)
     print("rendered search page -> %s (+ index.md)" % PAGE)
 

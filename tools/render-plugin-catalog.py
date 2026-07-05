@@ -679,11 +679,17 @@ def render_detail_html(plugin, group, by_name, dependents):
         )
     ]
     out.append('            <section class="md-content reveal cat-%s plugin-detail" aria-labelledby="plugin-detail-title">' % group["cat"])
-    out.append('                <div class="plugin-detail-hero cat-%s">' % group["cat"])
-    out.append('                    <span class="cat">%s</span>' % esc(group["label"]))
-    out.append('                    <h1 id="plugin-detail-title"><code>%s</code></h1>' % esc(plugin["name"]))
-    out.append('                    <p>%s</p>' % esc(summary))
-    out.append("                </div>")
+    out.append(
+        sitelib.page_hero(
+            "<code>%s</code>" % esc(plugin["name"]),
+            esc(summary),
+            group["label"],
+            h1_id="plugin-detail-title",
+            title_html=True,
+            lead_html=True,
+            classes="journey-hero reveal cat-%s" % group["cat"],
+        )
+    )
     out.append('                <div class="plugin-detail-grid">')
 
     out.append('                    <article class="plugin-detail-panel">')
@@ -872,8 +878,14 @@ def render_catalog(plugins, groups):
         )
     ]
     out.append('            <section class="md-content reveal cat-automate plugin-catalog" data-plugin-catalog aria-labelledby="plugin-catalog-title">')
-    out.append('                <h1 id="plugin-catalog-title">Plugin catalog</h1>')
-    out.append('                <p class="plugin-lede">Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>')
+    out.append(
+        sitelib.page_hero(
+            "Plugin catalog",
+            "Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.",
+            "Plugins",
+            h1_id="plugin-catalog-title",
+        )
+    )
     out.append(
         '                <p class="plugin-summary">Generated from %d registry entries: %d runtime plugins and %d test fixtures. Among runtime plugins, %d declare configuration roots, %d declare dependencies, and %d ship YANG modules.</p>'
         % (
