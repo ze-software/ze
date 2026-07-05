@@ -1011,64 +1011,140 @@ a.hl:hover {
 .proof-strip {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.75rem;
-    margin-bottom: 1.2rem;
+    gap: 1rem;
+    margin: clamp(1rem, 3vw, 1.8rem) 0 1.5rem;
 }
 
 .proof {
     --acc: var(--sky-base);
     --acc-deep: var(--sky-deep);
+    --acc-chip: var(--sky-chip);
     --acc-tint: var(--sky-tint);
     --acc-glow: var(--sky-glow);
-    padding: 1.1rem 1.2rem;
-    border: 2px solid rgba(255, 255, 255, 0.9);
-    border-left: 6px solid var(--acc);
-    border-radius: 0.65rem;
-    background: #fffafc;
-    box-shadow: var(--clay), 0 0.9rem 2rem -0.9rem var(--acc-glow);
+    position: relative;
+    overflow: hidden;
+    min-height: 12rem;
+    padding: 1.25rem 1.15rem 1.05rem;
+    border: 2px solid rgba(255, 255, 255, 0.94);
+    border-top: 0;
+    border-radius: 1rem;
+    background:
+        radial-gradient(circle at 100% 100%, var(--acc-chip), transparent 32%),
+        linear-gradient(180deg, var(--acc-tint), rgba(255, 255, 255, 0.96) 38%, #fffafc);
+    box-shadow:
+        var(--clay),
+        0 1.1rem 2.3rem -1.25rem var(--acc-glow);
     transition:
         transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
         box-shadow 200ms ease;
 }
 
+.proof:nth-child(2) {
+    --acc: var(--tangerine-base);
+    --acc-deep: var(--tangerine-deep);
+    --acc-chip: var(--tangerine-chip);
+    --acc-tint: var(--tangerine-tint);
+    --acc-glow: var(--tangerine-glow);
+}
+
+.proof:nth-child(3) {
+    --acc: var(--grape-base);
+    --acc-deep: var(--grape-deep);
+    --acc-chip: var(--grape-chip);
+    --acc-tint: var(--grape-tint);
+    --acc-glow: var(--grape-glow);
+}
+
+.proof:nth-child(4) {
+    --acc: var(--pink-base);
+    --acc-deep: var(--pink-deep);
+    --acc-chip: var(--pink-chip);
+    --acc-tint: var(--pink-tint);
+    --acc-glow: var(--pink-glow);
+}
+
+.proof::before {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 0.48rem;
+    background: linear-gradient(90deg, var(--acc), var(--acc-chip));
+    content: "";
+}
+
+.proof::after {
+    position: absolute;
+    right: -2.6rem;
+    bottom: -2.8rem;
+    width: 7.25rem;
+    height: 7.25rem;
+    border: 1.45rem solid var(--acc-chip);
+    border-radius: 999px;
+    opacity: 0.2;
+    content: "";
+}
+
+.proof > * {
+    position: relative;
+    z-index: 1;
+}
+
 .proof:hover {
     transform: translateY(-3px);
-    box-shadow: var(--clay), 0 1.2rem 2.4rem -0.8rem var(--acc-glow);
+    box-shadow: var(--clay), 0 1.35rem 2.5rem -1rem var(--acc-glow);
 }
 
 .proof strong {
     display: block;
-    margin-bottom: 0.25rem;
-    color: var(--sky-deep);
-    font-size: clamp(1.35rem, 3vw, 2.1rem);
+    margin-bottom: 0.9rem;
+    color: var(--acc-deep);
+    font-size: clamp(1.65rem, 3vw, 2.35rem);
     font-weight: 800;
-    letter-spacing: -0.05em;
+    letter-spacing: -0.06em;
+    line-height: 0.96;
 }
 
 .proof strong .label {
     display: block;
-    font-size: 1.1rem;
-    font-weight: 700;
-    letter-spacing: 0;
-}
-
-.proof span {
-    font-size: 0.9rem;
-    line-height: 1.45;
+    margin-top: 0.28rem;
+    color: #111;
+    font-size: 0.94rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
 }
 
 .proof ul {
     margin: 0;
-    padding-left: 1.2rem;
+    padding: 0.85rem 0 0;
+    border-top: 1px solid var(--acc-chip);
     color: var(--muted);
-    font-size: 0.9rem;
-    line-height: 1.65;
-    list-style-type: disc;
-    list-style-position: outside;
+    font-size: 0.88rem;
+    line-height: 1.58;
+    list-style: none;
 }
 
-.proof li::marker {
-    color: var(--acc);
+.proof li {
+    position: relative;
+    margin-bottom: 0.28rem;
+    padding-left: 0.95rem;
+}
+
+.proof li:last-child {
+    margin-bottom: 0;
+}
+
+.proof li::before {
+    position: absolute;
+    top: 0.68em;
+    left: 0;
+    width: 0.38rem;
+    height: 0.38rem;
+    border-radius: 999px;
+    background: var(--acc);
+    box-shadow: 0 0 0 0.16rem var(--acc-chip);
+    content: "";
 }
 
 section {
