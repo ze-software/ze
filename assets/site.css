@@ -419,21 +419,16 @@ a {
     position: fixed;
     top: 3.25rem;
     left: 50%;
-    width: max-content;
-    max-width: min(64rem, calc(100vw - 1.5rem));
-    gap: 1.4rem;
+    width: min(60rem, calc(100vw - 1.5rem));
+    max-width: none;
+    gap: 1.2rem;
     transform: translateX(-50%);
     overflow-x: auto;
 }
 
 #nav-panel-project .nav-dropdown-col {
-    min-width: 13rem;
-}
-
-#nav-panel-project .nav-dropdown-col:nth-child(3) {
-    width: 11.5rem;
-    min-width: 11.5rem;
-    max-width: 11.5rem;
+    flex: 1 1 0;
+    min-width: 0;
 }
 
 .nav-dropdown-col {
@@ -575,7 +570,7 @@ main.has-page-sidebar > :not(.page-sidebar) {
     position: sticky;
     top: 5.3rem;
     grid-column: 2;
-    grid-row: 1;
+    grid-row: 1 / span 12;
     max-height: calc(100vh - 6.3rem);
     margin: 1rem 0 3rem;
     padding: 0.8rem;
@@ -766,6 +761,29 @@ h2 {
 }
 
 /*
+ * Every page title gets the same stacking and descender room. The extra
+ * padding keeps letters like "g" visible when the title uses clipped gradient
+ * text, while the z-index keeps following prose and cards behind the glyphs.
+ */
+#features-title,
+#perf-title,
+.section-head > h1:first-child,
+.md-content > h1:first-child {
+    position: relative;
+    z-index: 2;
+    overflow: visible;
+    padding-bottom: 0.12em;
+}
+
+#features-title + :is(p, blockquote),
+#perf-title + :is(p, blockquote),
+.section-head > h1:first-child + :is(p, blockquote),
+.md-content > h1:first-child + :is(p, blockquote) {
+    position: relative;
+    z-index: 1;
+}
+
+/*
  * Project and category page titles use the same hue vocabulary as the cards,
  * but with a candy gradient and a soft underline so top-level pages do not
  * read as flat single-color headings.
@@ -774,9 +792,6 @@ h2 {
 #perf-title,
 .section-head[class*="cat-"] :is(h1, h2),
 .md-content[class*="cat-"] > h1:first-child {
-    position: relative;
-    z-index: 2;
-    overflow: visible;
     display: inline-block;
     width: fit-content;
     max-width: min(18ch, 100%);
@@ -790,14 +805,6 @@ h2 {
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-}
-
-#features-title + :is(p, blockquote),
-#perf-title + :is(p, blockquote),
-.section-head[class*="cat-"] :is(h1, h2) + :is(p, blockquote),
-.md-content[class*="cat-"] > h1:first-child + :is(p, blockquote) {
-    position: relative;
-    z-index: 1;
 }
 
 #hero-title {
@@ -1871,58 +1878,78 @@ section {
 .legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.55rem;
+    gap: 0.6rem;
     margin: 0 0 1rem;
 }
 
 .legend button,
 .legend a {
     display: inline-flex;
+    position: relative;
     align-items: center;
-    gap: 0.45rem;
-    padding: 0.5rem 0.95rem;
-    border: 2px solid transparent;
-    border-radius: 0.6rem;
-    /* Subtle vertical sheen over the vibrant base: a gradient, but gentle,
-       and symmetric so the left and right edges stay identical. */
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.14)),
-        var(--acc);
-    color: #fff;
+    gap: 0.48rem;
+    padding: 0.5rem 0.78rem 0.5rem 0.62rem;
+    border: 1px solid var(--acc-mid);
+    border-radius: 999px;
+    background-color: var(--acc-tint);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.64));
+    color: var(--acc-deep);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
-    font-size: 0.74rem;
-    font-weight: 800;
-    letter-spacing: 0.09em;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     text-decoration: none;
-    box-shadow: none;
+    box-shadow:
+        0 0.7rem 1.4rem -1rem var(--acc-glow),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.72);
     cursor: pointer;
     transition:
-        filter 200ms ease,
-        border-color 200ms ease;
+        transform 180ms ease,
+        border-color 180ms ease,
+        box-shadow 180ms ease,
+        color 180ms ease,
+        background-color 180ms ease;
 }
 
-/* Gold's vivid base is too light for legible white text; use the richer
-   amber so the Services chip reads as clearly as the others. */
-.legend .cat-services {
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.14)),
-        var(--acc-mid);
+.legend button::before,
+.legend a::before {
+    display: block;
+    width: 0.52rem;
+    height: 0.52rem;
+    border-radius: 999px;
+    background: var(--acc);
+    box-shadow: 0 0 0 0.22rem var(--acc-tint);
+    content: "";
 }
 
 .legend button:hover,
 .legend a:hover {
-    filter: brightness(1.08);
-    color: #fff;
+    transform: translateY(-1px);
+    border-color: var(--acc);
+    color: var(--acc-deep);
+    box-shadow:
+        0 0.85rem 1.6rem -0.9rem var(--acc-glow),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.82);
 }
 
 .legend button:active {
-    filter: brightness(0.96);
+    transform: translateY(0);
 }
 
 .legend button[aria-pressed="true"] {
-    border-color: #fff;
-    box-shadow: 0 0 0 2px var(--acc-deep);
+    border-color: var(--acc-deep);
+    background-color: var(--acc);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.08));
+    color: #fff;
+    box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.95),
+        0 0.75rem 1.7rem -0.7rem var(--acc-glow);
+}
+
+.legend button[aria-pressed="true"]::before {
+    background: #fff;
+    box-shadow: 0 0 0 0.22rem rgba(255, 255, 255, 0.28);
 }
 
 .card.filtered-out {
@@ -3903,6 +3930,62 @@ body.search-open {
     margin-bottom: 0.85rem;
 }
 
+.feature-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 1rem;
+}
+
+.card.feature-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-top-color: var(--acc);
+    background:
+        linear-gradient(180deg, var(--acc-tint), rgba(255, 250, 252, 0.92) 42%),
+        #fffafc;
+}
+
+.card.feature-card.filtered-out {
+    display: none;
+}
+
+.card.feature-card h3 {
+    margin: 0 0 0.6rem;
+    color: var(--text);
+    font-size: 1.18rem;
+    line-height: 1.18;
+    letter-spacing: -0.025em;
+}
+
+.card.feature-card ul {
+    flex: 1 1 auto;
+    margin-bottom: 0.9rem;
+    line-height: 1.62;
+}
+
+.card.feature-card .chips {
+    margin-bottom: 0.85rem;
+}
+
+.card.feature-card.experimental {
+    border-style: dotted;
+    border-color: var(--acc);
+}
+
+.card.feature-card.aspiration {
+    border: 2px dashed var(--acc);
+    background: rgba(255, 255, 255, 0.4);
+    box-shadow: none;
+}
+
+.card.feature-card .status {
+    position: absolute;
+    top: -0.78rem;
+    right: 1rem;
+    margin: 0;
+    background: rgba(255, 255, 255, 0.78);
+}
+
 .plugin-meta {
     display: grid;
     gap: 0.45rem;
@@ -4036,6 +4119,7 @@ body.search-open {
 
 @media (max-width: 980px) {
     .plugin-grid,
+    .feature-grid,
     .plugin-detail-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -4043,6 +4127,7 @@ body.search-open {
 
 @media (max-width: 700px) {
     .plugin-grid,
+    .feature-grid,
     .plugin-detail-grid,
     .plugin-filter-controls {
         grid-template-columns: 1fr;

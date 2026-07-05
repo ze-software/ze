@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=07b3393433" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=ac57f05e66" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -400,12 +400,12 @@ policy.</p>
 <tr>
 <td><code>source-address</code></td>
 <td>Source IP prefix or <code>@set</code> reference</td>
-<td><code>10.0.0.0/8</code>, <code>@AllowedSrc</code></td>
+<td><code>@AllowedSrc</code>. <span class="ev-src"><span class="ev-ref"><code>10.0.0.0/8</code></span></span></td>
 </tr>
 <tr>
 <td><code>destination-address</code></td>
 <td>Destination IP prefix or <code>@set</code> reference</td>
-<td><code>0.0.0.0/0</code>, <code>@DstBypass</code></td>
+<td><code>@DstBypass</code>. <span class="ev-src"><span class="ev-ref"><code>0.0.0.0/0</code></span></span></td>
 </tr>
 <tr>
 <td><code>source-port</code></td>

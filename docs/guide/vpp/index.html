@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=07b3393433" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=ac57f05e66" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -376,7 +376,7 @@ Ze does the following, in order, every time it starts or VPP crashes:</p>
 <tr>
 <td>1</td>
 <td>Parses the <code>vpp { ... }</code> YANG section into <code>VPPSettings</code></td>
-<td><code>internal/component/vpp/config.go</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/vpp/config.go</code></span></span></td>
 </tr>
 <tr>
 <td>2</td>
@@ -405,7 +405,7 @@ Ze does the following, in order, every time it starts or VPP crashes:</p>
 </tr>
 <tr>
 <td>7</td>
-<td>AsyncConnects GoVPP to <code>/run/vpp/api.sock</code> (10 attempts, 1 s apart)</td>
+<td>AsyncConnects GoVPP to (10 attempts, 1 s apart). <span class="ev-src"><span class="ev-ref"><code>/run/vpp/api.sock</code></span></span></td>
 <td><code>conn.go: Connect</code></td>
 </tr>
 <tr>
@@ -509,7 +509,7 @@ the stats poll interval only when the defaults do not fit the workload.</p>
 <tr>
 <td><code>vpp.api-socket</code></td>
 <td>string</td>
-<td><code>/run/vpp/api.sock</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>/run/vpp/api.sock</code></span></span></td>
 <td>GoVPP Unix socket. Ze validates it is absolute, has no <code>..</code>, and fits in 108 characters.</td>
 </tr>
 <tr>
@@ -569,7 +569,7 @@ the stats poll interval only when the defaults do not fit the workload.</p>
 <tr>
 <td><code>vpp.stats.socket-path</code></td>
 <td>string</td>
-<td><code>/run/vpp/stats.sock</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>/run/vpp/stats.sock</code></span></span></td>
 <td>Stats Unix socket path. Separate from the API socket.</td>
 </tr>
 <tr>
@@ -675,7 +675,7 @@ allocate hugepages. Before enabling VPP:</p>
 <tbody>
 <tr>
 <td>Hugepages (approximately 6 GB for production 10G, 2 GB for lab)</td>
-<td><code>echo 3072 &gt; /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages</code> or via <code>/etc/sysctl.d/</code></td>
+<td><code>echo 3072 &gt; /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages</code> or via. <span class="ev-src"><span class="ev-ref"><code>/etc/sysctl.d/</code></span></span></td>
 </tr>
 <tr>
 <td>IOMMU enabled</td>
@@ -742,7 +742,7 @@ telemetry are in the tree. The remaining phases:</p>
 <tr>
 <td>vpp-4</td>
 <td>VPP-native <code>iface.Backend</code>: managing interfaces directly via GoVPP instead of through the kernel</td>
-<td><strong>In tree.</strong> Backend registers as <code>"vpp"</code> and loads cleanly under <code>interface { backend vpp; }</code>. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (<code>ListInterfaces</code>, <code>GetInterface</code>, <code>GetMACAddress</code>, <code>SetMACAddress</code>), and monitor (<code>WantInterfaceEvents</code> -&gt; EventBus) all wired against vendored GoVPP. Tunnels (VXLAN/GRE/IPIP), LCP TAP pairs, VPP stats segment, mirror, and wireguard are deferred to vpp-4b/4c/5/6b (each blocked on vendoring the matching <code>go.fd.io/govpp/binapi/*</code> package). Iface-component reconciliation also currently races the vpp handshake at startup and degrades to additive-only -- tracked in <code>spec-iface-vpp-ready-gate</code>.</td>
+<td><strong>In tree.</strong> Backend registers as <code>"vpp"</code> and loads cleanly under <code>interface { backend vpp; }</code>. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (<code>ListInterfaces</code>, <code>GetInterface</code>, <code>GetMACAddress</code>, <code>SetMACAddress</code>), and monitor (<code>WantInterfaceEvents</code> -&gt; EventBus) all wired against vendored GoVPP. Tunnels (VXLAN/GRE/IPIP), LCP TAP pairs, VPP stats segment, mirror, and wireguard are deferred to vpp-4b/4c/5/6b (each blocked on vendoring the matching package). Iface-component reconciliation also currently races the vpp handshake at startup and degrades to additive-only -- tracked in <code>spec-iface-vpp-ready-gate</code>. <span class="ev-src"><span class="ev-ref"><code>go.fd.io/govpp/binapi/*</code></span></span></td>
 </tr>
 <tr>
 <td>vpp-5</td>
@@ -767,15 +767,15 @@ and converging sub-second on a full table.</p>
 </thead>
 <tbody>
 <tr>
-<td><a href="../../research/vpp-deployment-reference/"><code>docs/research/vpp-deployment-reference.md</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/docs/guide/. /research/vpp-deployment-reference.md" target="_blank" rel="noopener"></a>. <span class="ev-src"><span class="ev-ref"><code>docs/research/vpp-deployment-reference.md</code></span></span></td>
 <td>startup.conf reference, NIC matrix, performance baselines, LCP details</td>
 </tr>
 <tr>
-<td><a href="https://github.com/ze-software/ze/blob/main/docs/research/ze-vpp-analysis.md" target="_blank" rel="noopener"><code>docs/research/ze-vpp-analysis.md</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/docs/guide/. /research/ze-vpp-analysis.md" target="_blank" rel="noopener"></a>. <span class="ev-src"><span class="ev-ref"><code>docs/research/ze-vpp-analysis.md</code></span></span></td>
 <td>Three-strategy feasibility analysis (strategy 1 / 2 / 3, LOC estimates, risks)</td>
 </tr>
 <tr>
-<td><a href="https://github.com/ze-software/ze/blob/main/docs/research/vpp-deployment-notes.md" target="_blank" rel="noopener"><code>docs/research/vpp-deployment-notes.md</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/docs/guide/. /research/vpp-deployment-notes.md" target="_blank" rel="noopener"></a>. <span class="ev-src"><span class="ev-ref"><code>docs/research/vpp-deployment-notes.md</code></span></span></td>
 <td>Consolidated notes from 83 IPng.ch articles (production architecture, article index by topic, key tools, upstream contributions)</td>
 </tr>
 <tr>

@@ -80,7 +80,7 @@ def render_card(card):
     if card["status"]:
         extra += " " + card["status"]
     parts = [
-        '<article class="card%s cat-%s" data-cat="%s">'
+        '<article class="card feature-card%s cat-%s" data-cat="%s">'
         % (extra, card["category"], card["category"])
     ]
     parts.append('<span class="cat">%s</span>' % card["category"].capitalize())
@@ -118,7 +118,7 @@ def render_section(section):
         parts.append('                <div class="section-note reveal">')
         parts.append("                    <p>%s</p>" % section["note"])
         parts.append("                </div>")
-    parts.append('                <div class="cards reveal">')
+    parts.append('                <div class="cards feature-grid reveal">')
     for card in section["cards"]:
         parts.append("                    " + render_card(card))
     parts.append("                </div>")

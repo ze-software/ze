@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css?v=07b3393433" />
+        <link rel="stylesheet" href="../assets/site.css?v=ac57f05e66" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -360,7 +360,7 @@
 <tbody>
 <tr><td>Package behavior, parser rules, encoders, races, fuzzable inputs, or weak assertions</td><td><code>go test</code>, race, fuzz, coverage, gomu mutation checks</td><td><a href="unit-fuzz-mutation/">Local Go tests, fuzzing, and gomu</a></td></tr>
 <tr><td>Daemon startup, CLI output, BGP wire output, HTTP, syslog, files, or process exits</td><td><code>.ci</code> under <code>test/&lt;suite&gt;/</code></td><td><a href="functional-ci/">Functional <code>.ci</code> tests</a></td></tr>
-<tr><td>Rendered web UI behavior or interactive editor behavior</td><td><code>.wb</code> under <code>test/web/</code>, <code>.et</code> under <code>test/editor/</code></td><td><a href="browser-editor/">Browser and editor tests</a></td></tr>
+<tr><td>Rendered web UI behavior or interactive editor behavior</td><td><code>.wb</code> under <code>.et</code> under. <span class="ev-src"><span class="ev-ref"><code>test/web/</code></span><span class="ev-ref"><code>test/editor/</code></span></span></td><td><a href="browser-editor/">Browser and editor tests</a></td></tr>
 <tr><td>Linux kernel behavior, real peer compatibility, deployment, or release evidence</td><td>QEMU, Docker interop, deployment scripts, perf gates</td><td><a href="qemu-interop-release/">QEMU, interop, and release evidence</a></td></tr>
 <tr><td>A failing verify run that needs a clear rerun command</td><td>Verify stages, failure groups, trace output, debug logs</td><td><a href="verify-debugging/">Verify and debugging workflow</a></td></tr>
 </tbody>

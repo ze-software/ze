@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=07b3393433" />
+        <link rel="stylesheet" href="../../assets/site.css?v=ac57f05e66" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -348,27 +348,27 @@ traffic control, and everything else register as subsystems and plugins.</p>
 <tr>
 <td><code>WireUpdate</code></td>
 <td>Lazy-parsed BGP UPDATE: iterators over wire bytes, no intermediate structs</td>
-<td><code>internal/component/bgp/wireu/</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/wireu/</code></span></span></td>
 </tr>
 <tr>
 <td><code>PackContext</code></td>
 <td>Negotiated capabilities that determine encoding (ASN4, ADD-PATH, ExtNH)</td>
-<td><code>internal/core/bgp/context/</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/bgp/context/</code></span></span></td>
 </tr>
 <tr>
 <td><code>ContextID</code></td>
 <td>uint16 hash of capabilities. Same ID = forward wire bytes unchanged.</td>
-<td><code>internal/core/bgp/context/</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/bgp/context/</code></span></span></td>
 </tr>
 <tr>
 <td><code>Pool</code> / <code>Handle</code></td>
 <td>Per-attribute-type pools with refcounted handles and incremental compaction</td>
-<td><code>internal/component/bgp/attrpool/</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/attrpool/</code></span></span></td>
 </tr>
 <tr>
 <td><code>DirectBridge</code></td>
 <td>Bypasses IPC serialization for internal plugins (direct function calls)</td>
-<td><code>pkg/plugin/rpc/</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>pkg/plugin/rpc/</code></span></span></td>
 </tr>
 </tbody>
 </table>
@@ -489,27 +489,27 @@ forwarding decisions, state trackers update best-path state.</p>
 <tbody>
 <tr>
 <td>Components</td>
-<td><code>internal/component/</code> (api, bgp, cli, config, firewall, gnmi, iface, ike, l2tp, lg, mcp, pki, resolve, ssh, storage, telemetry, traffic, vpp, web, ...)</td>
+<td>(api, bgp, cli, config, firewall, gnmi, iface, ike, l2tp, lg, mcp, pki, resolve, ssh, storage, telemetry, traffic, vpp, web. ). <span class="ev-src"><span class="ev-ref"><code>internal/component/</code></span></span></td>
 </tr>
 <tr>
 <td>BGP engine</td>
-<td><code>internal/component/bgp/</code> (reactor, FSM, wire, message, capability)</td>
+<td>(reactor, FSM, wire, message, capability). <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/</code></span></span></td>
 </tr>
 <tr>
 <td>Plugin implementations</td>
-<td><code>internal/plugins/</code> and <code>internal/component/bgp/plugins/</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/plugins/</code></span><span class="ev-ref"><code>internal/component/bgp/plugins/</code></span></span></td>
 </tr>
 <tr>
 <td>Plugin infrastructure</td>
-<td><code>internal/component/plugin/</code> (registry, process, hub, SDK)</td>
+<td>(registry, process, hub, SDK). <span class="ev-src"><span class="ev-ref"><code>internal/component/plugin/</code></span></span></td>
 </tr>
 <tr>
 <td>Programs</td>
-<td><code>cmd/ze/</code> (build tags: <code>ze_core</code>, <code>ze_test</code>, <code>ze_chaos</code>, <code>ze_perf</code>, <code>ze_analyze</code>)</td>
+<td>(build tags: <code>ze_core</code>, <code>ze_test</code>, <code>ze_chaos</code>, <code>ze_perf</code>, <code>ze_analyze</code>). <span class="ev-src"><span class="ev-ref"><code>cmd/ze/</code></span></span></td>
 </tr>
 <tr>
 <td>Public SDKs</td>
-<td><code>pkg/plugin/sdk/</code>, <code>pkg/plugin/rpc/</code>, <code>pkg/zefs/</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>pkg/plugin/sdk/</code></span><span class="ev-ref"><code>pkg/plugin/rpc/</code></span><span class="ev-ref"><code>pkg/zefs/</code></span></span></td>
 </tr>
 <tr>
 <td>Tests</td>
@@ -577,7 +577,7 @@ forwarding decisions, state trackers update best-path state.</p>
             </section>
         </main>
 
-        <script src="../../assets/site.js?v=b86c50b605" defer></script>
+        <script src="../../assets/site.js?v=79779d6bdd" defer></script>
 
         <footer>
             <div class="footer-inner">
