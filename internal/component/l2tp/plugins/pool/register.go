@@ -76,10 +76,8 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureEventBus: func(eb any) {
-			if e, ok := eb.(ze.EventBus); ok {
-				poolInstance.setEventBus(e)
-			}
+		ConfigureEventBus: func(eb ze.EventBus) {
+			poolInstance.setEventBus(eb)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

@@ -6,6 +6,8 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 // PluginServerAccessor provides the methods that plugins need from the Server
@@ -80,13 +82,31 @@ type BGPReactorHandle interface {
 	ReconcilePeersWithJournal(bgpTree map[string]any, j ConfigJournal) error
 }
 
+// BGPBootstrap carries the config-load state the hub hands to the BGP reactor
+// factory (createReactorFromCoordinator). It replaces a former string-keyed
+// coordinator "extra" bag whose 9 values each had a known concrete type at both
+// ends. Living in the leaf registry package lets the hub (writer) and bgp/config
+// (reader) name it without an import cycle. Callback fields may be nil.
+type BGPBootstrap struct {
+	ConfigPath string          // config file path ("" or "-" for stdin)
+	CLIPlugins []string        // plugin instance names from the config
+	ConfigData []byte          // captured config bytes (stdin fallback)
+	Store      storage.Storage // blob/file config store
+	ChaosSeed  int64           // ze-chaos fault-injection seed (0 = off)
+	ChaosRate  float64         // ze-chaos fault rate
+
+	HealthPeerCallback PeerLifecycleCallback // health-revert peer observer
+	MRTMessageCallback MessageCallback       // MRT message bridge
+	MRTPeerCallback    PeerLifecycleCallback // MRT peer bridge
+}
+
 // CoordinatorAccessor provides the methods that plugins need from the Coordinator
 // without importing the plugin package.
 type CoordinatorAccessor interface {
 	SetReactor(r any) error
 	RegisterReactor(name string, r any)
 	Reactor(name string) any
-	GetExtra(key string) any
+	Bootstrap() BGPBootstrap
 	OnPostStartup(fn func())
 }
 

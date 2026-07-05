@@ -29,15 +29,11 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureMetrics: func(r any) {
-			if m, ok := r.(metrics.Registry); ok {
-				setMetricsRegistry(m)
-			}
+		ConfigureMetrics: func(r metrics.Registry) {
+			setMetricsRegistry(r)
 		},
-		ConfigureEventBus: func(eb any) {
-			if e, ok := eb.(ze.EventBus); ok {
-				setEventBus(e)
-			}
+		ConfigureEventBus: func(eb ze.EventBus) {
+			setEventBus(eb)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

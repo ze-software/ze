@@ -29,10 +29,8 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureMetrics: func(reg any) {
-			if r, ok := reg.(metrics.Registry); ok {
-				BindMetrics(r)
-			}
+		ConfigureMetrics: func(reg metrics.Registry) {
+			BindMetrics(reg)
 		},
 		DoctorChecks: doctorChecks(),
 	}

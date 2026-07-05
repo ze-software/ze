@@ -19,10 +19,8 @@ func init() {
 		ConfigRoots:  []string{"bgp"},
 		Dependencies: []string{"bgp"},
 		RunEngine:    runFilterIRR,
-		ConfigureMetrics: func(reg any) {
-			if r, ok := reg.(metrics.Registry); ok {
-				SetMetricsRegistry(r)
-			}
+		ConfigureMetrics: func(reg metrics.Registry) {
+			SetMetricsRegistry(reg)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

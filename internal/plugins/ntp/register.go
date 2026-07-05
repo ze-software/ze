@@ -74,10 +74,8 @@ func init() {
 			loggerPtr.Store(l)
 		}
 	}
-	reg.ConfigureEventBus = func(eb any) {
-		if e, ok := eb.(ze.EventBus); ok {
-			setEventBus(e)
-		}
+	reg.ConfigureEventBus = func(eb ze.EventBus) {
+		setEventBus(eb)
 	}
 	if err := registry.Register(reg); err != nil {
 		fmt.Fprintf(os.Stderr, "ntp: registration failed: %v\n", err)

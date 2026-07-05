@@ -51,18 +51,14 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureMetrics: func(reg any) {
-			if r, ok := reg.(metrics.Registry); ok {
-				bindRADIUSMetrics(r)
-			}
+		ConfigureMetrics: func(reg metrics.Registry) {
+			bindRADIUSMetrics(reg)
 		},
-		ConfigureEventBus: func(eb any) {
-			if e, ok := eb.(ze.EventBus); ok {
-				acctInstance.SubscribeEventBus(e)
-				eventBusMu.Lock()
-				storedBus = e
-				eventBusMu.Unlock()
-			}
+		ConfigureEventBus: func(eb ze.EventBus) {
+			acctInstance.SubscribeEventBus(eb)
+			eventBusMu.Lock()
+			storedBus = eb
+			eventBusMu.Unlock()
 		},
 		DoctorChecks: []registry.DoctorCheckDef{{
 			Name:         "l2tp-auth-radius-servers",

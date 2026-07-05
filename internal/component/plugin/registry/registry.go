@@ -28,8 +28,10 @@ import (
 	"strings"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 // Registration describes a plugin's full metadata and handlers.
@@ -99,19 +101,19 @@ type Registration struct {
 	// (e.g., "destination", "protocol", "port") with string values.
 	InProcessConfigNLRIBuilder func(matchCriteria map[string][]string, isIPv6, forVPN bool) []byte
 
-	// ConfigureMetrics is called before RunEngine with the metrics registry (any).
-	// The plugin should type-assert to metrics.Registry and register gauges/counters.
-	ConfigureMetrics func(reg any)
+	// ConfigureMetrics is called before RunEngine with the metrics registry.
+	// The plugin registers its gauges/counters on it.
+	ConfigureMetrics func(reg metrics.Registry)
 
-	// ConfigureEventBus is called before RunEngine with the EventBus instance (any).
-	// The plugin should type-assert to ze.EventBus and store the reference for
-	// emitting and subscribing to namespaced events.
-	ConfigureEventBus func(eventBus any)
+	// ConfigureEventBus is called before RunEngine with the EventBus instance.
+	// The plugin stores the reference for emitting and subscribing to
+	// namespaced events.
+	ConfigureEventBus func(eventBus ze.EventBus)
 
-	// ConfigurePluginServer is called before RunEngine with the plugin server (any).
-	// The plugin should type-assert to *pluginserver.Server and store the reference.
+	// ConfigurePluginServer is called before RunEngine with the plugin server,
+	// exposed through the leaf PluginServerAccessor interface (no server import).
 	// Used by BGP to wire EventDispatcher and command dispatch to the shared server.
-	ConfigurePluginServer func(server any)
+	ConfigurePluginServer func(server PluginServerAccessor)
 
 	// RPCHandlers maps RPC method names to handler functions. Registered at init()
 	// and collected by the plugin server for dispatch. Each handler unmarshals its
@@ -243,20 +245,20 @@ var (
 	// form expected by runtime dispatch.
 	filterTypes = make(map[string]string)
 
-	// metricsRegistry stores the metrics registry (as any to avoid importing metrics).
+	// metricsRegistry stores the metrics registry.
 	// Set by the config loader after creating the Prometheus registry.
 	// Read by GetInternalPluginRunner to inject into plugins via ConfigureMetrics.
-	metricsRegistry any
+	metricsRegistry metrics.Registry
 
-	// eventBusInstance stores the EventBus instance (as any to avoid importing ze package).
+	// eventBusInstance stores the EventBus instance.
 	// Set by the engine after creating the plugin server (which implements ze.EventBus).
 	// Read by GetInternalPluginRunner to inject into plugins via ConfigureEventBus.
-	eventBusInstance any
+	eventBusInstance ze.EventBus
 
-	// pluginServerInstance stores the plugin server (as any to avoid importing server package).
+	// pluginServerInstance stores the plugin server via the leaf accessor interface.
 	// Set by the hub after creating the plugin server.
 	// Read by GetInternalPluginRunner to inject into plugins via ConfigurePluginServer.
-	pluginServerInstance any
+	pluginServerInstance PluginServerAccessor
 
 	// ntpSyncProvider returns NTP sync info as map[string]any for show system date.
 	// Set by the NTP plugin at init time. Returns nil when NTP is not configured.
@@ -356,15 +358,14 @@ func FilterTypesMap() map[string]string {
 
 // SetMetricsRegistry stores the metrics registry for plugin injection.
 // Called by the config loader after creating the Prometheus registry.
-// The registry is passed as any to avoid importing the metrics package.
-func SetMetricsRegistry(reg any) {
+func SetMetricsRegistry(reg metrics.Registry) {
 	mu.Lock()
 	defer mu.Unlock()
 	metricsRegistry = reg
 }
 
 // GetMetricsRegistry returns the stored metrics registry, or nil.
-func GetMetricsRegistry() any {
+func GetMetricsRegistry() metrics.Registry {
 	mu.RLock()
 	defer mu.RUnlock()
 	return metricsRegistry
@@ -372,30 +373,29 @@ func GetMetricsRegistry() any {
 
 // SetEventBus stores the EventBus instance for plugin injection.
 // Called by the engine after creating the plugin server (which implements
-// ze.EventBus). The instance is passed as any to avoid importing the ze
-// package from this leaf registry package.
-func SetEventBus(eventBus any) {
+// ze.EventBus).
+func SetEventBus(eventBus ze.EventBus) {
 	mu.Lock()
 	defer mu.Unlock()
 	eventBusInstance = eventBus
 }
 
 // GetEventBus returns the stored EventBus instance, or nil.
-func GetEventBus() any {
+func GetEventBus() ze.EventBus {
 	mu.RLock()
 	defer mu.RUnlock()
 	return eventBusInstance
 }
 
 // SetPluginServer stores the plugin server instance for injection into plugins.
-func SetPluginServer(server any) {
+func SetPluginServer(server PluginServerAccessor) {
 	mu.Lock()
 	defer mu.Unlock()
 	pluginServerInstance = server
 }
 
 // GetPluginServer returns the stored plugin server instance, or nil.
-func GetPluginServer() any {
+func GetPluginServer() PluginServerAccessor {
 	mu.RLock()
 	defer mu.RUnlock()
 	return pluginServerInstance
@@ -798,7 +798,7 @@ func Reset() {
 type RegistrySnapshot struct {
 	plugins          map[string]*Registration
 	rpcHandlers      map[string]func(json.RawMessage) (any, error)
-	eventBusInstance any
+	eventBusInstance ze.EventBus
 	ntpSyncProvider  func() map[string]any
 }
 

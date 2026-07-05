@@ -19,7 +19,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -348,7 +347,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		s.logger.Info("L2TP listener bound", "address", ln.Addr().String())
 	}
 	// spec-l2tp-10: bind Prometheus metrics and start the stats poller.
-	if reg, ok := registry.GetMetricsRegistry().(metrics.Registry); ok {
+	if reg := registry.GetMetricsRegistry(); reg != nil {
 		bindL2TPMetrics(reg)
 		subscriber.BindMetrics(reg)
 		pollInterval := parsePollInterval()

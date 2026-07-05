@@ -19,10 +19,8 @@ func init() {
 		ConfigRoots:  []string{"firewall"},
 		Dependencies: []string{"firewall"},
 		RunEngine:    runFirewallIRR,
-		ConfigureMetrics: func(reg any) {
-			if r, ok := reg.(metrics.Registry); ok {
-				setMetricsRegistry(r)
-			}
+		ConfigureMetrics: func(reg metrics.Registry) {
+			setMetricsRegistry(reg)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

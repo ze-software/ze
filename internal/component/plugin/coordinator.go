@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/netip"
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // ErrNoReactor is returned by protocol-specific methods when no reactor is registered.
@@ -25,9 +27,9 @@ var ErrNoReactor = errors.New("no reactor loaded")
 type Coordinator struct {
 	mu          sync.RWMutex
 	configTree  map[string]any
-	reactors    map[string]any // named protocol reactors (e.g., "bgp", "ospf")
-	extra       map[string]any // generic key-value store for cross-plugin state
-	postStartup func()         // called by SignalPluginStartupComplete (e.g., start peers)
+	reactors    map[string]any        // named protocol reactors (e.g., "bgp", "ospf")
+	bootstrap   registry.BGPBootstrap // config-load state handed to the BGP reactor factory
+	postStartup func()                // called by SignalPluginStartupComplete (e.g., start peers)
 }
 
 // NewCoordinator creates a Coordinator with the given config tree.
@@ -35,23 +37,23 @@ func NewCoordinator(configTree map[string]any) *Coordinator {
 	return &Coordinator{
 		configTree: configTree,
 		reactors:   make(map[string]any),
-		extra:      make(map[string]any),
 	}
 }
 
-// SetExtra stores a value by key. Used to pass state between the hub and
-// plugins without creating import cycles (e.g., LoadConfigResult, Storage).
-func (c *Coordinator) SetExtra(key string, value any) {
+// SetBootstrap stores the BGP bootstrap state. Used to pass typed config-load
+// state from the hub to the BGP reactor factory without an import cycle
+// (formerly a string-keyed extra bag).
+func (c *Coordinator) SetBootstrap(bs registry.BGPBootstrap) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.extra[key] = value
+	c.bootstrap = bs
 }
 
-// GetExtra retrieves a value by key. Returns nil if not set.
-func (c *Coordinator) GetExtra(key string) any {
+// Bootstrap returns the stored BGP bootstrap state (zero value if unset).
+func (c *Coordinator) Bootstrap() registry.BGPBootstrap {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.extra[key]
+	return c.bootstrap
 }
 
 // RegisterReactor stores a named protocol reactor. Any protocol (BGP, OSPF,

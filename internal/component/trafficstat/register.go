@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/observation"
 )
 
@@ -15,9 +14,7 @@ var initOnce sync.Once
 func EnsureGlobal() *Service {
 	initOnce.Do(func() {
 		if mr := registry.GetMetricsRegistry(); mr != nil {
-			if r, ok := mr.(metrics.Registry); ok {
-				BindMetrics(r)
-			}
+			BindMetrics(mr)
 		}
 		svc := NewService(observation.Global())
 		SetGlobal(svc)

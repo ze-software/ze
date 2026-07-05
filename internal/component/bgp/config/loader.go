@@ -148,11 +148,12 @@ func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins [
 // injectChaos wraps the reactor's clock, dialer, and listener with chaos fault injection
 // when the coordinator has non-zero chaos seed stored by the hub.
 func injectChaos(r *reactor.Reactor, coord registry.CoordinatorAccessor) {
-	seed, _ := coord.GetExtra("bgp.chaosSeed").(int64)
+	bs := coord.Bootstrap()
+	seed := bs.ChaosSeed
 	if seed == 0 {
 		return
 	}
-	rate, _ := coord.GetExtra("bgp.chaosRate").(float64)
+	rate := bs.ChaosRate
 	if rate < 0 {
 		rate = 0.1
 	}

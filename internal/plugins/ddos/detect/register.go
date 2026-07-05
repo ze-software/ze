@@ -39,15 +39,11 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureEventBus: func(eb any) {
-			if e, ok := eb.(ze.EventBus); ok {
-				eventBusPtr.Store(&e)
-			}
+		ConfigureEventBus: func(eb ze.EventBus) {
+			eventBusPtr.Store(&eb)
 		},
-		ConfigureMetrics: func(reg any) {
-			if r, ok := reg.(metrics.Registry); ok {
-				setMetricsRegistry(r)
-			}
+		ConfigureMetrics: func(reg metrics.Registry) {
+			setMetricsRegistry(reg)
 		},
 		DoctorChecks: []registry.DoctorCheckDef{{
 			Name:         "ddos-detect-flow-source",

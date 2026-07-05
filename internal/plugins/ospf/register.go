@@ -108,15 +108,11 @@ func registerOSPF() {
 			setLogger(slogutil.Logger(loggerName))
 			transport.SetLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureMetrics: func(reg any) {
-			if r, ok := reg.(metrics.Registry); ok {
-				setMetricsRegistry(r)
-			}
+		ConfigureMetrics: func(reg metrics.Registry) {
+			setMetricsRegistry(reg)
 		},
-		ConfigureEventBus: func(eb any) {
-			if e, ok := eb.(ze.EventBus); ok {
-				setEventBus(e)
-			}
+		ConfigureEventBus: func(eb ze.EventBus) {
+			setEventBus(eb)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

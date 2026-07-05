@@ -23,17 +23,14 @@ func init() {
 // createReactorFromCoordinator builds a BGP reactor using config state stored
 // in the coordinator by the hub. This keeps bgp/config imports out of the hub.
 func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.BGPReactorHandle, error) {
-	configPath, _ := coord.GetExtra("bgp.configPath").(string)
-	cliPlugins, _ := coord.GetExtra("bgp.cliPlugins").([]string)
-	configData, _ := coord.GetExtra("bgp.configData").([]byte)
+	bs := coord.Bootstrap()
+	configPath := bs.ConfigPath
+	cliPlugins := bs.CLIPlugins
+	configData := bs.ConfigData
 
-	storeAny := coord.GetExtra("bgp.store")
-	if storeAny == nil {
+	store := bs.Store
+	if store == nil {
 		return nil, errBgpCoordinatorMissingBgpStore
-	}
-	store, ok := storeAny.(storage.Storage)
-	if !ok {
-		return nil, fmt.Errorf("bgp: bgp.store has unexpected type %T", storeAny)
 	}
 
 	// Re-read config from disk for reload support. Stdin uses captured data.
@@ -79,14 +76,14 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 	// GR marker from storage (RFC 4724 Section 4.1).
 	readGRMarker(r, store)
 
-	if cb, ok := coord.GetExtra("health.peerCallback").(registry.PeerLifecycleCallback); ok && cb != nil {
+	if cb := bs.HealthPeerCallback; cb != nil {
 		r.AddPeerLifecycleCallback(cb)
 	}
 
-	if mcb, ok := coord.GetExtra("mrt.messageCallback").(registry.MessageCallback); ok && mcb != nil {
+	if mcb := bs.MRTMessageCallback; mcb != nil {
 		r.AddMessageCallback(mcb)
 	}
-	if pcb, ok := coord.GetExtra("mrt.peerCallback").(registry.PeerLifecycleCallback); ok && pcb != nil {
+	if pcb := bs.MRTPeerCallback; pcb != nil {
 		r.AddPeerLifecycleCallback(pcb)
 	}
 

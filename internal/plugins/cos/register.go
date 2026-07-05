@@ -41,22 +41,18 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureMetrics: func(reg any) {
-			if r, ok := reg.(metrics.Registry); ok {
-				BindMetrics(r)
-			}
+		ConfigureMetrics: func(reg metrics.Registry) {
+			BindMetrics(reg)
 		},
-		ConfigureEventBus: func(eb any) {
-			if e, ok := eb.(ze.EventBus); ok {
-				updateFn := func(ifaceName string, ingress, egress map[uint32]uint32) error {
-					b := iface.GetBackend()
-					if b == nil {
-						return fmt.Errorf("cos: no iface backend loaded")
-					}
-					return b.UpdateVLANQoSMap(ifaceName, ingress, egress)
+		ConfigureEventBus: func(eb ze.EventBus) {
+			updateFn := func(ifaceName string, ingress, egress map[uint32]uint32) error {
+				b := iface.GetBackend()
+				if b == nil {
+					return fmt.Errorf("cos: no iface backend loaded")
 				}
-				dynamicHandler = newCosHandler(e, updateFn, nil)
+				return b.UpdateVLANQoSMap(ifaceName, ingress, egress)
 			}
+			dynamicHandler = newCosHandler(eb, updateFn, nil)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

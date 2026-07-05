@@ -123,10 +123,8 @@ func init() {
 			loggerPtr.Store(l)
 		}
 	}
-	reg.ConfigureMetrics = func(r any) {
-		if mr, ok := r.(metrics.Registry); ok {
-			setMetricsRegistry(mr)
-		}
+	reg.ConfigureMetrics = func(r metrics.Registry) {
+		setMetricsRegistry(r)
 	}
 	reg.DoctorChecks = []registry.DoctorCheckDef{{
 		Name:         "as112-listen-capability",

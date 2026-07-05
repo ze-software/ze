@@ -143,16 +143,12 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureMetrics: func(reg any) {
-			if r, ok := reg.(metrics.Registry); ok {
-				bindMetricsRegistry(r)
-				observation.BindMetrics(r)
-			}
+		ConfigureMetrics: func(reg metrics.Registry) {
+			bindMetricsRegistry(reg)
+			observation.BindMetrics(reg)
 		},
-		ConfigureEventBus: func(eb any) {
-			if e, ok := eb.(ze.EventBus); ok {
-				SetEventBus(e)
-			}
+		ConfigureEventBus: func(eb ze.EventBus) {
+			SetEventBus(eb)
 		},
 	}
 	reg.CLIHandler = func(_ []string) int {

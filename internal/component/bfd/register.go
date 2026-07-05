@@ -24,10 +24,8 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			UseLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureMetrics: func(r any) {
-			if reg, ok := r.(metrics.Registry); ok {
-				bindMetricsRegistry(reg)
-			}
+		ConfigureMetrics: func(r metrics.Registry) {
+			bindMetricsRegistry(r)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

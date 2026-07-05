@@ -4,8 +4,56 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"reflect"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
+
+// Bootstrap round-trip fakes: satisfy the callback/storage interfaces without
+// implementing behavior (methods are never called in the test).
+type fakeStore struct{ storage.Storage }
+type fakePeerCB struct{}
+
+func (fakePeerCB) OnPeerEstablished(any)    {}
+func (fakePeerCB) OnPeerClosed(any, string) {}
+
+type fakeMsgCB struct{}
+
+func (fakeMsgCB) OnBGPMessage(any, uint8, bool, []byte) {}
+
+// TestBootstrapRoundTrip proves the coordinator stores and returns the typed
+// BGPBootstrap struct that replaced the string-keyed extra bag, preserving all
+// nine fields, and that *Coordinator still satisfies CoordinatorAccessor.
+//
+// VALIDATES: P2 AC-3 (bootstrap delivered via a typed struct; the 9 extra keys
+// and their per-read assertions are gone).
+// PREVENTS: a field being dropped or mistyped when threading hub -> reactor factory.
+func TestBootstrapRoundTrip(t *testing.T) {
+	var _ registry.CoordinatorAccessor = (*Coordinator)(nil)
+
+	peerCB := fakePeerCB{}
+	want := registry.BGPBootstrap{
+		ConfigPath:         "/etc/ze.conf",
+		CLIPlugins:         []string{"bgp-rs", "bgp-gr"},
+		ConfigData:         []byte("bgp {}"),
+		Store:              fakeStore{},
+		ChaosSeed:          42,
+		ChaosRate:          0.25,
+		HealthPeerCallback: peerCB,
+		MRTMessageCallback: fakeMsgCB{},
+		MRTPeerCallback:    peerCB,
+	}
+	c := NewCoordinator(map[string]any{})
+	c.SetBootstrap(want)
+	if got := c.Bootstrap(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Bootstrap() = %+v, want %+v", got, want)
+	}
+	if got := NewCoordinator(nil).Bootstrap(); !reflect.DeepEqual(got, registry.BGPBootstrap{}) {
+		t.Errorf("fresh coordinator Bootstrap() = %+v, want zero value", got)
+	}
+}
 
 // VALIDATES: Coordinator implements ReactorLifecycle and ProtocolReactor.
 // PREVENTS: Missing interface method causes compile failure.

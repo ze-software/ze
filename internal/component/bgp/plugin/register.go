@@ -74,20 +74,16 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			_ = loggerName // BGP uses its own lazy loggers
 		},
-		ConfigureEventBus: func(eb any) {
-			if e, ok := eb.(ze.EventBus); ok {
-				bgpMu.Lock()
-				bgpEventBus = e
-				bgpMu.Unlock()
-			}
+		ConfigureEventBus: func(eb ze.EventBus) {
+			bgpMu.Lock()
+			bgpEventBus = eb
+			bgpMu.Unlock()
 		},
-		ConfigurePluginServer: func(server any) {
-			if s, ok := server.(registry.PluginServerAccessor); ok {
-				bgpMu.Lock()
-				bgpServer = s
-				bgpMu.Unlock()
-				s.SetCommitManager(transaction.NewCommitManager())
-			}
+		ConfigurePluginServer: func(server registry.PluginServerAccessor) {
+			bgpMu.Lock()
+			bgpServer = server
+			bgpMu.Unlock()
+			server.SetCommitManager(transaction.NewCommitManager())
 		},
 		CLIHandler: func(_ []string) int {
 			return 1

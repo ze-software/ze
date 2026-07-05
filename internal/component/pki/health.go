@@ -39,12 +39,8 @@ func ensureMetrics() {
 	if pkiMetricsPtr.Load() != nil {
 		return
 	}
-	raw := registry.GetMetricsRegistry()
-	if raw == nil {
-		return
-	}
-	reg, ok := raw.(metrics.Registry)
-	if !ok {
+	reg := registry.GetMetricsRegistry()
+	if reg == nil {
 		return
 	}
 	m := &pkiMetrics{

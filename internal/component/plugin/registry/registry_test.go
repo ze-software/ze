@@ -5,7 +5,79 @@ import (
 	"errors"
 	"net"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+// Interface-embedding fakes: they satisfy the target interface for identity
+// round-trip tests without implementing every method (methods are never called).
+type fakeEventBus struct{ ze.EventBus }
+type fakeMetricsRegistry struct{ metrics.Registry }
+type fakePluginServerAccessor struct{ PluginServerAccessor }
+
+// TestConfigureHooksTyped is a compile-time-and-runtime contract that the three
+// Configure* hooks stay typed rather than func(any). If any hook regressed to
+// `any`, the typed function literals below would not assign and this file would
+// not compile; the runtime assertions prove the callback receives the concrete
+// typed value with no assertion needed.
+//
+// VALIDATES: P2 AC-1 (typed hook signatures) and AC-2 (implementers no longer
+// need a `.(T)` assertion because the callback already holds the concrete type).
+// PREVENTS: silently reverting a hook to func(any), which would reintroduce the
+// ~60 per-plugin runtime type assertions this spec removed.
+func TestConfigureHooksTyped(t *testing.T) {
+	var gotEB ze.EventBus
+	var gotMR metrics.Registry
+	var gotPS PluginServerAccessor
+	reg := Registration{
+		ConfigureEventBus:     func(x ze.EventBus) { gotEB = x },
+		ConfigureMetrics:      func(x metrics.Registry) { gotMR = x },
+		ConfigurePluginServer: func(x PluginServerAccessor) { gotPS = x },
+	}
+	eb := &fakeEventBus{}
+	mr := &fakeMetricsRegistry{}
+	ps := &fakePluginServerAccessor{}
+	reg.ConfigureEventBus(eb)
+	reg.ConfigureMetrics(mr)
+	reg.ConfigurePluginServer(ps)
+	if gotEB != ze.EventBus(eb) {
+		t.Errorf("ConfigureEventBus stored %v, want %v", gotEB, eb)
+	}
+	if gotMR != metrics.Registry(mr) {
+		t.Errorf("ConfigureMetrics stored %v, want %v", gotMR, mr)
+	}
+	if gotPS != PluginServerAccessor(ps) {
+		t.Errorf("ConfigurePluginServer stored %v, want %v", gotPS, ps)
+	}
+}
+
+// TestTypedInstanceAccessorsRoundTrip proves the Set/Get instance accessors are
+// typed end to end: a typed value stored via Set* returns the same value from
+// Get* without any assertion at the injection point (inprocess.go).
+//
+// VALIDATES: P2 AC-1/AC-2 for the backing globals + accessors.
+// PREVENTS: reverting the globals/accessors to `any`.
+func TestTypedInstanceAccessorsRoundTrip(t *testing.T) {
+	origEB, origMR, origPS := GetEventBus(), GetMetricsRegistry(), GetPluginServer()
+	t.Cleanup(func() { SetEventBus(origEB); SetMetricsRegistry(origMR); SetPluginServer(origPS) })
+
+	eb := &fakeEventBus{}
+	SetEventBus(eb)
+	if GetEventBus() != ze.EventBus(eb) {
+		t.Errorf("GetEventBus() = %v, want %v", GetEventBus(), eb)
+	}
+	mr := &fakeMetricsRegistry{}
+	SetMetricsRegistry(mr)
+	if GetMetricsRegistry() != metrics.Registry(mr) {
+		t.Errorf("GetMetricsRegistry() = %v, want %v", GetMetricsRegistry(), mr)
+	}
+	ps := &fakePluginServerAccessor{}
+	SetPluginServer(ps)
+	if GetPluginServer() != PluginServerAccessor(ps) {
+		t.Errorf("GetPluginServer() = %v, want %v", GetPluginServer(), ps)
+	}
+}
 
 // dummyEngine is a stub RunEngine handler for testing.
 func dummyEngine(_ net.Conn) int { return 0 }

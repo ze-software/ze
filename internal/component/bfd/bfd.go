@@ -33,7 +33,6 @@ import (
 	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	diagCmd "codeberg.org/thomas-mangin/ze/internal/plugins/diag/cmd"
@@ -712,7 +711,7 @@ func RunBFDPlugin(conn net.Conn) int {
 		// which may finish after the BFD plugin's Configure phase).
 		// Calling bindMetricsRegistry a second time with the live
 		// registry replaces any earlier nil binding.
-		if reg, ok := registry.GetMetricsRegistry().(metrics.Registry); ok {
+		if reg := registry.GetMetricsRegistry(); reg != nil {
 			bindMetricsRegistry(reg)
 			for _, loop := range state.loops {
 				attachMetricsHook(loop)

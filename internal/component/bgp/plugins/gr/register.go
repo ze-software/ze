@@ -55,10 +55,8 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureMetrics: func(reg any) {
-			if r, ok := reg.(metrics.Registry); ok {
-				SetMetricsRegistry(r)
-			}
+		ConfigureMetrics: func(reg metrics.Registry) {
+			SetMetricsRegistry(reg)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

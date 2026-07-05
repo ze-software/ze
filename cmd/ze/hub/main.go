@@ -384,21 +384,22 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	setupInfraHook(auditLog, sessionReload)
 	coordinator := zePlugin.NewCoordinator(configTree)
 
-	// Store config state for the BGP plugin's reactor factory.
-	// The BGP plugin builds its own createReactor closure using these values.
-	coordinator.SetExtra("bgp.configPath", configPath)
-	coordinator.SetExtra("bgp.cliPlugins", plugins)
-	coordinator.SetExtra("bgp.store", store)
-	coordinator.SetExtra("bgp.configData", data)
-	coordinator.SetExtra("bgp.chaosSeed", chaosSeed)
-	coordinator.SetExtra("bgp.chaosRate", chaosRate)
-
-	if PeerLifecycleCallback != nil {
-		coordinator.SetExtra("health.peerCallback", PeerLifecycleCallback)
-	}
-
-	coordinator.SetExtra("mrt.messageCallback", mrtcomp.MessageBridge)
-	coordinator.SetExtra("mrt.peerCallback", mrtcomp.PeerBridge)
+	// Store config state for the BGP plugin's reactor factory as a typed
+	// bootstrap struct (formerly a string-keyed extra bag). The BGP plugin
+	// builds its own createReactor closure from these values
+	// (bgp/config createReactorFromCoordinator). Callback fields may be nil;
+	// the reader guards each.
+	coordinator.SetBootstrap(registry.BGPBootstrap{
+		ConfigPath:         configPath,
+		CLIPlugins:         plugins,
+		ConfigData:         data,
+		Store:              store,
+		ChaosSeed:          chaosSeed,
+		ChaosRate:          chaosRate,
+		HealthPeerCallback: PeerLifecycleCallback,
+		MRTMessageCallback: mrtcomp.MessageBridge,
+		MRTPeerCallback:    mrtcomp.PeerBridge,
+	})
 	mrtcomp.SetRIBDumpCallback(ribplugin.RIBDumpBridge)
 
 	pm := pluginmgr.NewManager()

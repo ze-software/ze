@@ -23,7 +23,6 @@ import (
 	zegnmi "codeberg.org/thomas-mangin/ze/internal/component/gnmi"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -113,7 +112,7 @@ func gnmiBuildImpl(in *gnmiBuildInputs) gnmiServer {
 		treeFn = func() *zeconfig.Tree { return in.Tree }
 	}
 	gnmiSrv := zegnmi.NewServer(gnmiCfg, treeFn, gnmiSessions, yangloader.DefaultLoader, activeGNMINotifier)
-	if reg, ok := registry.GetMetricsRegistry().(metrics.Registry); ok {
+	if reg := registry.GetMetricsRegistry(); reg != nil {
 		gnmiSrv.SetMetricsRegistry(reg)
 	}
 	zegnmi.RegisterGlobal(gnmiSrv)

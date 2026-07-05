@@ -42,15 +42,11 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			SetVPPLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureMetrics: func(reg any) {
-			if r, ok := reg.(metrics.Registry); ok {
-				SetVPPMetricsRegistry(r)
-			}
+		ConfigureMetrics: func(reg metrics.Registry) {
+			SetVPPMetricsRegistry(reg)
 		},
-		ConfigureEventBus: func(eb any) {
-			if e, ok := eb.(ze.EventBus); ok {
-				SetVPPEventBus(e)
-			}
+		ConfigureEventBus: func(eb ze.EventBus) {
+			SetVPPEventBus(eb)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

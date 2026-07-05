@@ -17,7 +17,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -156,10 +155,8 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureEventBus: func(eb any) {
-			if e, ok := eb.(ze.EventBus); ok {
-				setEventBus(e)
-			}
+		ConfigureEventBus: func(eb ze.EventBus) {
+			setEventBus(eb)
 		},
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
@@ -191,9 +188,7 @@ func runEngine(conn net.Conn) int {
 
 	var ipsecMetrics *IPsecMetrics
 	if reg := registry.GetMetricsRegistry(); reg != nil {
-		if mr, ok := reg.(metrics.Registry); ok {
-			ipsecMetrics = RegisterMetrics(mr)
-		}
+		ipsecMetrics = RegisterMetrics(reg)
 	}
 
 	type reEstablishCtx struct {

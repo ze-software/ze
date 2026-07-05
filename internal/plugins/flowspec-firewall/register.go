@@ -39,10 +39,8 @@ func init() { //nolint:gochecknoinits // plugin registration
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureEventBus: func(eb any) {
-			if e, ok := eb.(ze.EventBus); ok {
-				setEventBusRef(e)
-			}
+		ConfigureEventBus: func(eb ze.EventBus) {
+			setEventBusRef(eb)
 		},
 	}
 	reg.CLIHandler = func(_ []string) int {
