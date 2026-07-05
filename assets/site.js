@@ -378,4 +378,271 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     }
+
+    function initSourceLinks() {
+        var sources = [
+            {
+                match: /^(internal|pkg|cmd|docs|schema|test|plan|mk|scripts)\//,
+                base: "https://codeberg.org/thomas-mangin/ze/src/branch/main/",
+                forge: "forgejo",
+            },
+            {
+                match: /^(interface-definitions|include|data|python|smoketest|op-mode-definitions)\//,
+                base: "https://github.com/vyos/vyos-1x/blob/current/",
+                forge: "github",
+            },
+            {
+                match: /^src\/conf_mode\//,
+                base: "https://github.com/vyos/vyos-1x/blob/current/",
+                forge: "github",
+            },
+            {
+                match: /^Makefile$/,
+                base: "https://github.com/vyos/vyos-1x/blob/current/",
+                forge: "github",
+            },
+            {
+                match: /^(src\/org\/freertr|cfg|misc)\//,
+                base: "https://codeberg.org/mc36/freeRtr/src/branch/master/",
+                forge: "forgejo",
+            },
+        ];
+
+        function lineAnchor(forge, start, end) {
+            if (!start) return "";
+            if (forge === "github") return "#L" + start + (end ? "-L" + end : "");
+            return "#L" + start + (end ? "-L" + end : "");
+        }
+
+        function sourceFor(text) {
+            var match = text.trim().match(/^([^\s:]+)(?::(\d+)(?:-(\d+))?(?:,\d+(?:-\d+)?)*)?$/);
+            if (!match) return "";
+            var path = match[1];
+            var javaDirs = {
+                cfg: "src/org/freertr/cfg/",
+                rtr: "src/org/freertr/rtr/",
+                tab: "src/org/freertr/tab/",
+                ip: "src/org/freertr/ip/",
+                serv: "src/org/freertr/serv/",
+                clnt: "src/org/freertr/clnt/",
+                user: "src/org/freertr/user/",
+                ifc: "src/org/freertr/ifc/",
+                prt: "src/org/freertr/prt/",
+            };
+            Object.keys(javaDirs).some(function (prefix) {
+                if (path.indexOf("/") !== -1 || !new RegExp("^" + prefix + "[A-Za-z0-9_]*\\.java$").test(path)) {
+                    return false;
+                }
+                path = javaDirs[prefix] + path;
+                return true;
+            });
+            for (var i = 0; i < sources.length; i++) {
+                if (!sources[i].match.test(path)) continue;
+                return sources[i].base + path + lineAnchor(sources[i].forge, match[2], match[3]);
+            }
+            return "";
+        }
+
+        Array.prototype.slice.call(document.querySelectorAll(".md-content code")).forEach(function (code) {
+            if (code.closest("a")) return;
+            var href = sourceFor(code.textContent);
+            if (!href) return;
+            var link = document.createElement("a");
+            link.className = "source-link";
+            link.href = href;
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.setAttribute("aria-label", "Open source evidence " + code.textContent.trim());
+            code.parentNode.insertBefore(link, code);
+            link.appendChild(code);
+        });
+    }
+
+    function initComparisonFilters() {
+        var productMatchers = [
+            ["Ze", /^ze(?: evidence)?$/],
+            ["VyOS", /^vyos(?: evidence)?$/],
+            ["freeRtr", /^freertr(?: evidence)?$/],
+            ["BIRD 3", /^bird 3$/],
+            ["BIRD 2", /^bird 2$/],
+            ["FRR", /^frr$/],
+            ["OpenBGPd", /^openbgpd$/],
+            ["GoBGP", /^gobgp$/],
+            ["bio-rd", /^bio-rd$/],
+            ["ExaBGP", /^exabgp$/],
+            ["RustyBGP", /^rustybgp$/],
+            ["rustbgpd", /^rustbgpd$/],
+        ];
+
+        function productLabel(text) {
+            var normalized = text.replace(/\s+/g, " ").trim().toLowerCase();
+            for (var i = 0; i < productMatchers.length; i++) {
+                if (productMatchers[i][1].test(normalized)) return productMatchers[i][0];
+            }
+            return "";
+        }
+
+        function initColumnControls(tool, content, status) {
+            var tables = Array.prototype.slice.call(content.querySelectorAll("table"));
+            var columns = {};
+            var order = [];
+
+            tables.forEach(function (table) {
+                if (!table.rows.length) return;
+                var header = table.tHead && table.tHead.rows.length ? table.tHead.rows[0] : table.rows[0];
+                Array.prototype.slice.call(header.cells).forEach(function (cell, index) {
+                    var label = productLabel(cell.textContent);
+                    if (!label) return;
+                    if (!columns[label]) {
+                        columns[label] = [];
+                        order.push(label);
+                    }
+                    columns[label].push({ table: table, index: index });
+                });
+            });
+
+            if (order.length < 3) return;
+
+            var fieldset = document.createElement("fieldset");
+            fieldset.className = "compare-columns";
+            fieldset.setAttribute("data-compare-columns", "");
+            fieldset.innerHTML = '<legend>Show products</legend>';
+            var inputs = [];
+
+            function setColumn(entry, visible) {
+                Array.prototype.slice.call(entry.table.rows).forEach(function (row) {
+                    var cell = row.cells[entry.index];
+                    if (!cell) return;
+                    cell.hidden = !visible;
+                    cell.classList.toggle("compare-column-hidden", !visible);
+                });
+            }
+
+            function applyColumns() {
+                order.forEach(function (label) {
+                    var input = fieldset.querySelector('input[value="' + label + '"]');
+                    var visible = !input || input.checked;
+                    columns[label].forEach(function (entry) {
+                        setColumn(entry, visible);
+                    });
+                });
+            }
+
+            order.forEach(function (label) {
+                var wrapper = document.createElement("label");
+                wrapper.className = "compare-column-toggle";
+                var input = document.createElement("input");
+                input.type = "checkbox";
+                input.value = label;
+                input.checked = true;
+                input.addEventListener("change", function () {
+                    if (!inputs.some(function (node) { return node.checked; })) {
+                        input.checked = true;
+                    }
+                    applyColumns();
+                });
+                inputs.push(input);
+                wrapper.appendChild(input);
+                wrapper.appendChild(document.createTextNode(label));
+                fieldset.appendChild(wrapper);
+            });
+
+            tool.insertBefore(fieldset, status);
+            applyColumns();
+        }
+
+        var tools = Array.prototype.slice.call(document.querySelectorAll("[data-compare-filter]"));
+        tools.forEach(function (tool) {
+            var input = tool.querySelector("[data-compare-search]");
+            var select = tool.querySelector("[data-compare-section]");
+            var status = tool.querySelector("[data-compare-status]");
+            var content = tool.closest(".md-content");
+            if (!input || !select || !status || !content) return;
+            initColumnControls(tool, content, status);
+
+            var headings = Array.prototype.slice.call(content.querySelectorAll("h2"));
+            var groups = headings.map(function (heading, index) {
+                var nodes = [];
+                var node = heading.nextElementSibling;
+                while (node && node.tagName !== "H2") {
+                    if (node !== tool) nodes.push(node);
+                    node = node.nextElementSibling;
+                }
+                var rows = [];
+                nodes.forEach(function (groupNode) {
+                    Array.prototype.slice.call(groupNode.querySelectorAll("tbody tr")).forEach(function (row) {
+                        row.compareText = row.textContent.toLowerCase();
+                        rows.push(row);
+                    });
+                });
+                var option = document.createElement("option");
+                option.value = String(index);
+                option.textContent = heading.textContent.trim();
+                select.appendChild(option);
+                return {
+                    heading: heading,
+                    nodes: nodes,
+                    rows: rows,
+                    value: option.value,
+                    text: (heading.textContent + " " + nodes.map(function (n) {
+                        return n.textContent;
+                    }).join(" ")).toLowerCase(),
+                };
+            });
+
+            function setHidden(node, hidden) {
+                node.classList.toggle("compare-hidden", hidden);
+            }
+
+            function applyFilter() {
+                var query = input.value.trim().toLowerCase();
+                var wanted = select.value;
+                var visibleGroups = 0;
+                var visibleRows = 0;
+                var totalRows = 0;
+
+                groups.forEach(function (group) {
+                    var sectionAllowed = !wanted || wanted === group.value;
+                    var groupTextMatch = !query || group.text.indexOf(query) !== -1;
+                    var groupRowsVisible = 0;
+
+                    group.rows.forEach(function (row) {
+                        totalRows += 1;
+                        var rowMatch = sectionAllowed && (!query || row.compareText.indexOf(query) !== -1);
+                        setHidden(row, !rowMatch);
+                        if (rowMatch) {
+                            visibleRows += 1;
+                            groupRowsVisible += 1;
+                        }
+                    });
+
+                    var showGroup = sectionAllowed && (!query || groupTextMatch || groupRowsVisible > 0);
+                    setHidden(group.heading, !showGroup);
+                    group.nodes.forEach(function (node) {
+                        if (node.tagName === "TABLE") {
+                            setHidden(node, !sectionAllowed || (query && group.rows.length && groupRowsVisible === 0));
+                        } else {
+                            setHidden(node, !showGroup);
+                        }
+                    });
+                    if (showGroup) visibleGroups += 1;
+                });
+
+                if (!groups.length) {
+                    status.textContent = "No sections found.";
+                } else if (!query && !wanted) {
+                    status.textContent = totalRows + " table rows across " + groups.length + " sections.";
+                } else {
+                    status.textContent = visibleRows + " matching table rows in " + visibleGroups + " sections.";
+                }
+            }
+
+            input.addEventListener("input", applyFilter);
+            select.addEventListener("change", applyFilter);
+            applyFilter();
+        });
+    }
+
+    initComparisonFilters();
+    initSourceLinks();
 });
