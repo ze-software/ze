@@ -429,6 +429,12 @@ a {
     min-width: 13rem;
 }
 
+#nav-panel-project .nav-dropdown-col:nth-child(3) {
+    width: 11.5rem;
+    min-width: 11.5rem;
+    max-width: 11.5rem;
+}
+
 .nav-dropdown-col {
     display: flex;
     flex-direction: column;
@@ -2821,6 +2827,29 @@ footer {
         var(--clay),
         0 1.4rem 2.8rem -1rem var(--dispatch-glow),
         inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.compare-dispatch > a.card {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.compare-dispatch > a.card:hover,
+.compare-dispatch > a.card:focus-visible {
+    transform: translateY(-5px) scale(1.015);
+    box-shadow: var(--clay), 0 1.5rem 2.8rem -0.8rem var(--dispatch-glow);
+}
+
+.compare-dispatch > a.card:focus-visible {
+    outline: 3px solid var(--acc);
+    outline-offset: 0.25rem;
+}
+
+.compare-dispatch > a.card:focus-visible h3 {
+    text-decoration: underline;
+    text-underline-offset: 0.2rem;
 }
 
 .compare-dispatch .card::after {

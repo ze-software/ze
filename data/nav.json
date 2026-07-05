@@ -10,7 +10,8 @@
                 [
                     {"label_only": "Overview"},
                     {"href": "features/", "icon": "🧩", "title": "Features", "desc": "%(features)s features, color-coded by category"},
-                    {"href": "docs/features/plugins/", "icon": "🔌", "title": "Plugins", "desc": "Search every runtime plugin by purpose, config, or dependency"}
+                    {"href": "docs/features/plugins/", "icon": "🔌", "title": "Plugins", "desc": "Search every runtime plugin by purpose, config, or dependency"},
+                    {"href": "compare/", "icon": "⚖️", "title": "Compare", "desc": "How Ze stacks up against BIRD, FRR, and more"}
                 ],
                 [
                     {"label_only": "Reference"},
@@ -21,12 +22,8 @@
                 [
                     {"label_only": "Quality"},
                     {"href": "quality/", "icon": "✓", "title": "Code Quality", "desc": "How Ze proves code quality with tests, QEMU, fuzzing, and gomu mutation checks"},
-                    {"href": "dependencies/", "icon": "📦", "title": "Dependencies", "desc": "%(dependencies)s direct packages, generated from go.mod"}
-                ],
-                [
-                    {"label_only": "Evidence"},
-                    {"href": "performance/", "icon": "⚡", "title": "Performance", "desc": "Measured BGP benchmarks, not claims"},
-                    {"href": "compare/", "icon": "⚖️", "title": "Compare", "desc": "How Ze stacks up against BIRD, FRR, and more"}
+                    {"href": "dependencies/", "icon": "📦", "title": "Dependencies", "desc": "%(dependencies)s direct packages, generated from go.mod"},
+                    {"href": "performance/", "icon": "⚡", "title": "Performance", "desc": "Measured BGP benchmarks, not claims"}
                 ]
             ]
         },
