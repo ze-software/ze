@@ -2,8 +2,6 @@
 
 IKEv2 engine for native IPsec VPN
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

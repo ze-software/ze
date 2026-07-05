@@ -2,8 +2,6 @@
 
 Named route attribute modifier (set local-preference, med, origin, next-hop)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

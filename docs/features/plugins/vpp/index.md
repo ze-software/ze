@@ -2,8 +2,6 @@
 
 VPP data plane lifecycle management
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

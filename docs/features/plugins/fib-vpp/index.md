@@ -2,8 +2,6 @@
 
 FIB VPP: programs VPP FIB entries from system RIB via GoVPP binary API
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

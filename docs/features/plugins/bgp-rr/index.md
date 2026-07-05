@@ -2,8 +2,6 @@
 
 Route Reflector
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

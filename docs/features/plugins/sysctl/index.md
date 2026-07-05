@@ -2,8 +2,6 @@
 
 Kernel tunable management: three-layer precedence, restore on stop
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

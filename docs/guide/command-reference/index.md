@@ -10,9 +10,18 @@ for machine-readable output). The wiki's auto-generated
 [command-catalog](https://codeberg.org/thomas-mangin/ze/wiki/command-catalog)
 is produced from this JSON.
 
-For the forward-looking cross-vendor roadmap (which commands VyOS /
-Junos / Nokia / Arista expose and ze's status per row), see
-[`command-catalogue.md`](https://github.com/ze-software/ze/blob/main/docs/guide/command-catalogue.md).
+For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
+Nokia SR OS, and VyOS), use the website's
+[Command Equivalents](https://ze-software.net/command-equivalents/) page.
+It joins `ze help command --json` with the curated vendor mapping in the
+website branch, so Ze command additions appear as unmapped rows until a vendor
+equivalent is added. For code-tree readers, the maintained data and generator
+are in the repository on the `gh-pages` branch:
+[`data/command-equivalents.json`](https://codeberg.org/thomas-mangin/ze/src/branch/gh-pages/data/command-equivalents.json)
+and
+[`tools/render-command-equivalents.py`](https://codeberg.org/thomas-mangin/ze/src/branch/gh-pages/tools/render-command-equivalents.py).
+<!-- source: ../gh-pages/tools/render-command-equivalents.py -- load_inputs, build_rows -->
+<!-- source: ../gh-pages/data/command-equivalents.json -- vendor mapping -->
 
 ## Shell Commands
 
@@ -1010,7 +1019,7 @@ Supported types: A, AAAA, MX, NS, TXT, CNAME, PTR.
 
 <!-- source: internal/component/resolve/cmd/show_dns.go -- handleDNSLookup -->
 
-### show dns cache
+### show dns cache stats / list / record
 
 ```
 ze show dns cache stats               # Cache hit/miss/eviction counters + hit-rate/miss-rate
@@ -1022,9 +1031,9 @@ ze show dns cache record example.com  # Show cached entries for a specific name
 `list` returns each entry with name, type, records, and ttl-seconds.
 `record <name>` filters cached entries by name (all types for that name).
 
-<!-- source: internal/component/resolve/cmd/show_dns.go -- handleDNSCache -->
+<!-- source: internal/component/resolve/cmd/show_dns.go -- handleDNSCacheStats, handleDNSCacheList, handleDNSCacheRecord -->
 
-### clear dns cache
+### clear dns cache / stats / record
 
 ```
 clear dns cache                                     # Flush all entries and reset all counters
@@ -1033,7 +1042,7 @@ clear dns cache record example.com                  # Delete all entries matchin
 clear dns cache record example.com type AAAA        # Delete a single entry by name and type
 ```
 
-<!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache -->
+<!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache, handleClearDNSCacheStats, handleClearDNSCacheRecord -->
 
 ### clear vpn ipsec sa
 

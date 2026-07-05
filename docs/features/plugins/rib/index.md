@@ -2,8 +2,6 @@
 
 System RIB: selects best route across protocols by admin distance
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

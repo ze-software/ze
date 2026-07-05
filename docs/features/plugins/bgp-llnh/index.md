@@ -2,8 +2,6 @@
 
 Link-Local Next-Hop capability plugin
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

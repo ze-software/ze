@@ -2,8 +2,6 @@
 
 Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

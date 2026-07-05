@@ -2,8 +2,6 @@
 
 Test-only sysrib event emitter for FIB functional tests (use ze.fakefib)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

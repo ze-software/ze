@@ -2,8 +2,6 @@
 
 BMP receiver and sender (RFC 7854, 8671)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

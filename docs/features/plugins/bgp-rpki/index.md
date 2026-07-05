@@ -2,8 +2,6 @@
 
 RPKI origin validation via RTR protocol
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

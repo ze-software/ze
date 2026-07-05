@@ -2,8 +2,6 @@
 
 VPLS family plugin (RFC 4761)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

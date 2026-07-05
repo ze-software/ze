@@ -2,8 +2,6 @@
 
 Multicast VPN family plugin (RFC 6514)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

@@ -2,8 +2,6 @@
 
 IRR-based prefix-list filtering for firewall rules
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

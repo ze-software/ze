@@ -2,8 +2,6 @@
 
 Service healthcheck plugin with watchdog route control
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

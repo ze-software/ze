@@ -2,8 +2,6 @@
 
 Labeled Unicast family plugin (RFC 8277)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

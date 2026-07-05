@@ -2,8 +2,6 @@
 
 Named routing table registry: maps names to kernel table IDs
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

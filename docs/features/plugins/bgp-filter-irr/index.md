@@ -2,8 +2,6 @@
 
 IRR-based prefix-list filter for eBGP peers
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

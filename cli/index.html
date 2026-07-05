@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>CLI Reference - Ze</title>
-        <meta name="description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 380 commands across 43 groups." />
+        <meta name="description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 379 commands across 42 groups." />
         <meta property="og:title" content="CLI Reference - Ze" />
-        <meta property="og:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 380 commands across 43 groups." />
+        <meta property="og:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 379 commands across 42 groups." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -14,7 +14,7 @@
         <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="CLI Reference - Ze" />
-        <meta name="twitter:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 380 commands across 43 groups." />
+        <meta name="twitter:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 379 commands across 42 groups." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css?v=e42f60ed09" />
+        <link rel="stylesheet" href="../assets/site.css?v=07b3393433" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -47,24 +47,41 @@
                     </button>
                     <div class="nav-dropdown-panel" id="nav-panel-project">
                     <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Overview</span>
                         <a class="nav-dropdown-item" href="../features/">
                             <span class="nav-dropdown-icon">🧩</span>
                             <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../docs/features/plugins/">
-                            <span class="nav-dropdown-icon">∎</span>
+                            <span class="nav-dropdown-icon">🔌</span>
                             <span><strong>Plugins</strong><small>Search every runtime plugin by purpose, config, or dependency</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="../compare/">
+                            <span class="nav-dropdown-icon">⚖️</span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Reference</span>
                         <a class="nav-dropdown-item" href="../cli/">
                             <span class="nav-dropdown-icon">⌨️</span>
-                            <span><strong>CLI Reference</strong><small>380 commands, generated from the live binary</small></span>
+                            <span><strong>CLI Reference</strong><small>379 commands, generated from the live binary</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../config-reference/">
                             <span class="nav-dropdown-icon">🧬</span>
                             <span><strong>Configuration Reference</strong><small>35 sections, indexed from live YANG</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="../command-equivalents/">
+                            <span class="nav-dropdown-icon">↔️</span>
+                            <span><strong>Command Equivalents</strong><small>Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS</small></span>
+                        </a>
                     </div>
                     <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Quality</span>
+                        <a class="nav-dropdown-item" href="../quality/">
+                            <span class="nav-dropdown-icon">✓</span>
+                            <span><strong>Code Quality</strong><small>How Ze proves code quality with tests, QEMU, fuzzing, and gomu mutation checks</small></span>
+                        </a>
                         <a class="nav-dropdown-item" href="../dependencies/">
                             <span class="nav-dropdown-icon">📦</span>
                             <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
@@ -72,10 +89,6 @@
                         <a class="nav-dropdown-item" href="../performance/">
                             <span class="nav-dropdown-icon">⚡</span>
                             <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../compare/">
-                            <span class="nav-dropdown-icon">⚖️</span>
-                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
                         </a>
                     </div>
                     </div>
@@ -111,6 +124,7 @@
                     </button>
                     <div class="nav-dropdown-panel" id="nav-panel-docs">
                     <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Hub</span>
                         <a class="nav-dropdown-item nav-dropdown-feature" href="../docs/">
                             <span class="nav-dropdown-icon">📚</span>
                             <span><strong>Documentation</strong><small>All docs, organised by what you want to do</small></span>
@@ -170,6 +184,7 @@
                     </button>
                     <div class="nav-dropdown-panel" id="nav-panel-labs">
                     <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Protocols</span>
                         <a class="nav-dropdown-item" href="../labs/bgp-interop/">
                             <span class="nav-dropdown-icon">🌐</span>
                             <span><strong>BGP Protocol Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
@@ -188,6 +203,7 @@
                         </a>
                     </div>
                     <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Systems</span>
                         <a class="nav-dropdown-item" href="../labs/vlan-qos/">
                             <span class="nav-dropdown-icon">🏷️</span>
                             <span><strong>VLAN QoS Wire-Level Proof</strong><small>802.1p PCP tagging, actually on the wire</small></span>
@@ -222,9 +238,7 @@
                     </a>
                     <a
                         class="nav-badge"
-                        href="https://discord.gg/T8s7CjPDne"
-                        target="_blank"
-                        rel="noopener"
+                        href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener"
                         aria-label="Ze Discord"
                     >
                         <span class="nav-badge-icon"><svg viewBox="0 0 640 512" fill="currentColor" aria-hidden="true"><path d="M524.531,69.836a1.5,1.5,0,0,0-.764-.7A485.065,485.065,0,0,0,404.081,32.03a1.816,1.816,0,0,0-1.923.91,337.461,337.461,0,0,0-14.9,30.6,447.848,447.848,0,0,0-134.426,0,309.541,309.541,0,0,0-15.135-30.6,1.89,1.89,0,0,0-1.924-.91A483.689,483.689,0,0,0,116.085,69.137a1.712,1.712,0,0,0-.788.676C39.068,183.651,18.186,294.69,28.43,404.354a2.016,2.016,0,0,0,.765,1.375A487.666,487.666,0,0,0,176.02,479.918a1.9,1.9,0,0,0,2.063-.676A348.2,348.2,0,0,0,208.12,430.4a1.86,1.86,0,0,0-1.019-2.588,321.173,321.173,0,0,1-45.868-21.853,1.885,1.885,0,0,1-.185-3.126c3.082-2.309,6.166-4.711,9.109-7.137a1.819,1.819,0,0,1,1.9-.256c96.229,43.917,200.41,43.917,295.5,0a1.812,1.812,0,0,1,1.924.233c2.944,2.426,6.027,4.851,9.132,7.16a1.884,1.884,0,0,1-.162,3.126,301.407,301.407,0,0,1-45.89,21.83,1.875,1.875,0,0,0-1,2.611,391.055,391.055,0,0,0,30.014,48.815,1.864,1.864,0,0,0,2.063.7A486.048,486.048,0,0,0,610.7,405.729a1.882,1.882,0,0,0,.765-1.352C623.729,277.594,590.933,167.465,524.531,69.836ZM222.491,337.58c-28.972,0-52.844-26.587-52.844-59.239S193.056,219.1,222.491,219.1c29.665,0,53.306,26.82,52.843,59.239C275.334,310.993,251.924,337.58,222.491,337.58Zm195.38,0c-28.971,0-52.843-26.587-52.843-59.239S388.437,219.1,417.871,219.1c29.667,0,53.307,26.82,52.844,59.239C470.715,310.993,447.538,337.58,417.871,337.58Z"/></svg></span>
@@ -232,9 +246,7 @@
                     </a>
                     <a
                         class="nav-badge"
-                        href="https://github.com/ze-software/ze"
-                        target="_blank"
-                        rel="noopener"
+                        href="https://github.com/ze-software/ze" target="_blank" rel="noopener"
                         aria-label="Ze on GitHub, 39 stars"
                     >
                         <span class="nav-badge-icon"><svg viewBox="0 0 496 512" fill="currentColor" aria-hidden="true"><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
@@ -244,11 +256,36 @@
             </nav>
         </header>
 
-        <main id="top" tabindex="-1">
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Operations</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Use the CLI</h2>
+                    <a class="page-sidebar-link" href="../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Map Ze syntax to Junos, IOS XR, SR OS, and VyOS.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../docs/features/cli-commands/">
+                        <span class="page-sidebar-link-label">CLI commands</span>
+                        <small>CLI behavior, modes, and generated command registration.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../docs/guide/command-reference/">
+                        <span class="page-sidebar-link-label">Command reference guide</span>
+                        <small>How this generated catalog is produced.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../search/">
+                        <span class="page-sidebar-link-label">Search</span>
+                        <small>Find a command, guide, or weekly note by keyword.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+
 
             <section aria-labelledby="cli-title" class="md-content reveal cat-operate">
                 <h1 id="cli-title">CLI Reference</h1>
-                <p>380 commands across 43 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>
+                <p>379 commands across 42 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>
                 <div class="cli-search-wrap">
                     <input id="cli-search" type="search" autocomplete="off" placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." aria-label="Filter commands" />
                     <div id="cli-suggestions" class="cli-suggestions" hidden></div>
@@ -256,17 +293,19 @@
 <details class="cli-group" id="cli-group-announce" open>
 <summary>announce <span class="cli-group-count">1</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-announce"><td><code>announce</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Announce a route on demand to selected peers.<br>Usage: announce &lt;unicast|blackhole|flowspec&gt; &lt;args&gt; [tag &lt;key&gt; &lt;value&gt;] [for &lt;duration&gt;]</td></tr>
+<tr id="cmd-announce"><td><code>announce &lt;unicast|blackhole|flowspec&gt; &lt;args&gt; [tag &lt;key&gt; &lt;value&gt;] [for &lt;duration&gt;]</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Announce a route on demand to selected peers.<br>Usage: announce &lt;unicast|blackhole|flowspec&gt; &lt;args&gt; [tag &lt;key&gt; &lt;value&gt;] [for &lt;duration&gt;]</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-clear" open>
-<summary>clear <span class="cli-group-count">16</span></summary>
+<summary>clear <span class="cli-group-count">18</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr id="cmd-clear-bgp-rib-in"><td><code>clear bgp rib in</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove all routes received from a peer.<br>Wipes the Adj-RIB-In for matched peers. They will need to<br>re-advertise everything (or you can send a route-refresh).<br>Selector: IP, name, AS pattern, glob, or *.</td></tr>
 <tr id="cmd-clear-bgp-rib-out"><td><code>clear bgp rib out</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Re-advertise all routes to a peer.<br>Triggers a full Adj-RIB-Out replay to the selected peers. Useful<br>after a policy change to push updated attributes without tearing<br>down the session. Selector: IP, name, AS pattern, glob, or *.</td></tr>
 <tr id="cmd-clear-debug"><td><code>clear debug</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Clear the default debug profile.</td></tr>
-<tr id="cmd-clear-dns-cache"><td><code>clear dns cache</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Clear the DNS cache.<br>With no argument, flushes everything. Use &#x27;record &lt;name&gt;&#x27; to evict<br>one entry, or &#x27;stats&#x27; to see hit/miss rates without flushing.</td></tr>
+<tr id="cmd-clear-dns-cache"><td><code>clear dns cache</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Flush all DNS cache entries and reset all DNS cache counters.</td></tr>
+<tr id="cmd-clear-dns-cache-record"><td><code>clear dns cache record</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Evict DNS cache entries for one record name, or one name and type when a type is provided.</td></tr>
+<tr id="cmd-clear-dns-cache-stats"><td><code>clear dns cache stats</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.</td></tr>
 <tr id="cmd-clear-interface-counters"><td><code>clear interface counters</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Zero the Rx/Tx counters for every managed interface.<br>Usage: clear interface counters.</td></tr>
-<tr id="cmd-clear-interface-name-counters"><td><code>clear interface name counters</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Zero the Rx/Tx counters for one interface.<br>Usage: clear interface name &lt;name&gt; counters.</td></tr>
+<tr id="cmd-clear-interface-name-counters"><td><code>clear interface name &lt;name&gt; counters</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Zero the Rx/Tx counters for one interface.<br>Usage: clear interface name &lt;name&gt; counters.</td></tr>
 <tr id="cmd-clear-isis-adjacency"><td><code>clear isis adjacency</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Tear down every IS-IS adjacency so neighbors re-form.<br>Usage: clear isis adjacency. Adjacencies re-learn from the next Hello;<br>the circuit is not closed and the configuration is unchanged.</td></tr>
 <tr id="cmd-clear-isis-counters"><td><code>clear isis counters</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Reset IS-IS observational counters and the SPF log.<br>Usage: clear isis counters. Monotonic Prometheus series are not reset;<br>the SPF-run history is cleared.</td></tr>
 <tr id="cmd-clear-l2tp-session-teardown"><td><code>clear l2tp session teardown</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Disconnect one subscriber session.<br>Sends a CDN to gracefully close the session. Pass the local<br>session ID.</td></tr>
@@ -281,21 +320,21 @@
 <details class="cli-group" id="cli-group-create" open>
 <summary>create <span class="cli-group-count">9</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-create-interface-address"><td><code>create interface address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add an IP address to an interface.<br>Usage: create interface address &lt;name&gt; &lt;prefix&gt;. Interface must already exist.</td></tr>
-<tr id="cmd-create-interface-bridge-name"><td><code>create interface bridge name</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a Linux bridge for L2 forwarding.<br>Usage: create interface bridge name &lt;name&gt;.</td></tr>
-<tr id="cmd-create-interface-bridge-name-address"><td><code>create interface bridge name address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add an IP address to the bridge.<br>Usage: create interface bridge name &lt;name&gt; address &lt;prefix&gt;.</td></tr>
-<tr id="cmd-create-interface-bridge-name-unit"><td><code>create interface bridge name unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add a VLAN sub-interface to the bridge.<br>Usage: create interface bridge name &lt;name&gt; unit &lt;vid&gt;.</td></tr>
-<tr id="cmd-create-interface-dummy-name"><td><code>create interface dummy name</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a dummy (loopback-style) interface.<br>Usage: create interface dummy name &lt;name&gt;.</td></tr>
-<tr id="cmd-create-interface-dummy-name-address"><td><code>create interface dummy name address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add an IP address to the dummy.<br>Usage: create interface dummy name &lt;name&gt; address &lt;prefix&gt;.</td></tr>
-<tr id="cmd-create-interface-dummy-name-unit"><td><code>create interface dummy name unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add a VLAN sub-interface to the dummy.<br>Usage: create interface dummy name &lt;name&gt; unit &lt;vid&gt;.</td></tr>
-<tr id="cmd-create-interface-unit"><td><code>create interface unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add a VLAN sub-interface (802.1Q tagged).<br>Usage: create interface unit &lt;parent&gt; &lt;vid&gt;. Parent must already exist.</td></tr>
-<tr id="cmd-create-interface-veth-name"><td><code>create interface veth name</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a veth pair (two linked virtual Ethernet interfaces).<br>Usage: create interface veth name &lt;name&gt; &lt;peer&gt;.</td></tr>
+<tr id="cmd-create-interface-address"><td><code>create interface address &lt;name&gt; &lt;prefix&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add an IP address to an interface.<br>Usage: create interface address &lt;name&gt; &lt;prefix&gt;. Interface must already exist.</td></tr>
+<tr id="cmd-create-interface-bridge-name"><td><code>create interface bridge name &lt;name&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a Linux bridge for L2 forwarding.<br>Usage: create interface bridge name &lt;name&gt;.</td></tr>
+<tr id="cmd-create-interface-bridge-name-address"><td><code>create interface bridge name &lt;name&gt; address &lt;prefix&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add an IP address to the bridge.<br>Usage: create interface bridge name &lt;name&gt; address &lt;prefix&gt;.</td></tr>
+<tr id="cmd-create-interface-bridge-name-unit"><td><code>create interface bridge name &lt;name&gt; unit &lt;vid&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add a VLAN sub-interface to the bridge.<br>Usage: create interface bridge name &lt;name&gt; unit &lt;vid&gt;.</td></tr>
+<tr id="cmd-create-interface-dummy-name"><td><code>create interface dummy name &lt;name&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a dummy (loopback-style) interface.<br>Usage: create interface dummy name &lt;name&gt;.</td></tr>
+<tr id="cmd-create-interface-dummy-name-address"><td><code>create interface dummy name &lt;name&gt; address &lt;prefix&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add an IP address to the dummy.<br>Usage: create interface dummy name &lt;name&gt; address &lt;prefix&gt;.</td></tr>
+<tr id="cmd-create-interface-dummy-name-unit"><td><code>create interface dummy name &lt;name&gt; unit &lt;vid&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add a VLAN sub-interface to the dummy.<br>Usage: create interface dummy name &lt;name&gt; unit &lt;vid&gt;.</td></tr>
+<tr id="cmd-create-interface-unit"><td><code>create interface unit &lt;parent&gt; &lt;vid&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Add a VLAN sub-interface (802.1Q tagged).<br>Usage: create interface unit &lt;parent&gt; &lt;vid&gt;. Parent must already exist.</td></tr>
+<tr id="cmd-create-interface-veth-name"><td><code>create interface veth name &lt;name&gt; &lt;peer&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Create a veth pair (two linked virtual Ethernet interfaces).<br>Usage: create interface veth name &lt;name&gt; &lt;peer&gt;.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-debug" open>
 <summary>debug <span class="cli-group-count">4</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-debug-ip-ospf-inject-opaque"><td><code>debug ip ospf inject opaque</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Inject a crafted IPv4 opaque LSA into the local LSDB (RFC 5250).<br>Usage: debug ip ospf inject opaque scope &lt;link|area|as&gt; id &lt;opaque-id&gt;<br>[type &lt;128-255&gt;] [hex &lt;body&gt; | tlv &lt;type&gt; &lt;value-hex&gt; ...] [withdraw].<br>The default Opaque Type is Private-Use so a test LSA never collides with a<br>standards-track consumer. Requires `debug ospf inject enable`.</td></tr>
-<tr id="cmd-debug-ipv6-ospf-inject-lsa"><td><code>debug ipv6 ospf inject lsa</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340).<br>Usage: debug ipv6 ospf inject lsa scope &lt;link|area|as&gt; type &lt;ls-type&gt;<br>id &lt;link-state-id&gt; [hex &lt;body&gt;] [withdraw]. The flooding scope is derived from<br>the LS Type S2/S1 bits (a reserved scope is rejected). Requires<br>`debug ospf inject enable`.</td></tr>
+<tr id="cmd-debug-ip-ospf-inject-opaque"><td><code>debug ip ospf inject opaque scope &lt;link|area|as&gt; id &lt;opaque-id&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Inject a crafted IPv4 opaque LSA into the local LSDB (RFC 5250).<br>Usage: debug ip ospf inject opaque scope &lt;link|area|as&gt; id &lt;opaque-id&gt;<br>[type &lt;128-255&gt;] [hex &lt;body&gt; | tlv &lt;type&gt; &lt;value-hex&gt; ...] [withdraw].<br>The default Opaque Type is Private-Use so a test LSA never collides with a<br>standards-track consumer. Requires `debug ospf inject enable`.</td></tr>
+<tr id="cmd-debug-ipv6-ospf-inject-lsa"><td><code>debug ipv6 ospf inject lsa scope &lt;link|area|as&gt; type &lt;ls-type&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340).<br>Usage: debug ipv6 ospf inject lsa scope &lt;link|area|as&gt; type &lt;ls-type&gt;<br>id &lt;link-state-id&gt; [hex &lt;body&gt;] [withdraw]. The flooding scope is derived from<br>the LS Type S2/S1 bits (a reserved scope is rejected). Requires<br>`debug ospf inject enable`.</td></tr>
 <tr id="cmd-debug-ospf-inject-disable"><td><code>debug ospf inject disable</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Disable OSPF debug LSA injection. Usage: debug ospf inject disable.</td></tr>
 <tr id="cmd-debug-ospf-inject-enable"><td><code>debug ospf inject enable</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Enable OSPF debug LSA injection (shared across both address<br>families). Off by default. Usage: debug ospf inject enable.</td></tr>
 </tbody></table></details>
@@ -305,9 +344,9 @@
 <tr id="cmd-delete-bgp-peer"><td><code>delete bgp peer</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove a peer from the running config.<br>Tears down the TCP session and deletes the peer from the running<br>configuration. Does not modify the config file on disk.</td></tr>
 <tr id="cmd-delete-debug-module"><td><code>delete debug module</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Disable debug for a subsystem, or remove one of its flags/scopes.</td></tr>
 <tr id="cmd-delete-debug-profile-name"><td><code>delete debug profile name</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Delete a named debug profile.</td></tr>
-<tr id="cmd-delete-interface-name"><td><code>delete interface name</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Delete an interface from the kernel.<br>Usage: delete interface name &lt;name&gt;.</td></tr>
-<tr id="cmd-delete-interface-name-address"><td><code>delete interface name address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove an IP address from an interface.<br>Usage: delete interface name &lt;name&gt; address &lt;prefix&gt;.</td></tr>
-<tr id="cmd-delete-interface-name-unit"><td><code>delete interface name unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove a VLAN sub-interface.<br>Usage: delete interface name &lt;name&gt; unit.</td></tr>
+<tr id="cmd-delete-interface-name"><td><code>delete interface name &lt;name&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Delete an interface from the kernel.<br>Usage: delete interface name &lt;name&gt;.</td></tr>
+<tr id="cmd-delete-interface-name-address"><td><code>delete interface name &lt;name&gt; address &lt;prefix&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove an IP address from an interface.<br>Usage: delete interface name &lt;name&gt; address &lt;prefix&gt;.</td></tr>
+<tr id="cmd-delete-interface-name-unit"><td><code>delete interface name &lt;name&gt; unit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove a VLAN sub-interface.<br>Usage: delete interface name &lt;name&gt; unit.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-doctor" open>
 <summary>doctor <span class="cli-group-count">1</span></summary>
@@ -318,19 +357,6 @@
 <summary>explain <span class="cli-group-count">1</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr id="cmd-explain"><td><code>explain</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Print the meaning, likely cause, and recommended fix for a Ze diagnostic code. Pass the code you saw in a log or error message.</td></tr>
-</tbody></table></details>
-<details class="cli-group" id="cli-group-fakel2tp" open>
-<summary>fakel2tp <span class="cli-group-count">2</span></summary>
-<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-fakel2tp-emit"><td><code>fakel2tp emit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Emit one synthetic L2TP route-change batch</td></tr>
-<tr id="cmd-fakel2tp-help"><td><code>fakel2tp help</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Print the fakel2tp command surface</td></tr>
-</tbody></table></details>
-<details class="cli-group" id="cli-group-fakeredist" open>
-<summary>fakeredist <span class="cli-group-count">3</span></summary>
-<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-fakeredist-emit"><td><code>fakeredist emit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Emit one synthetic route-change batch</td></tr>
-<tr id="cmd-fakeredist-emit-burst"><td><code>fakeredist emit-burst</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Emit N synthetic batches sequentially</td></tr>
-<tr id="cmd-fakeredist-help"><td><code>fakeredist help</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Print the fakeredist command surface</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-generate" open>
 <summary>generate <span class="cli-group-count">1</span></summary>
@@ -379,19 +405,19 @@
 <details class="cli-group" id="cli-group-request-cache" open>
 <summary>request cache <span class="cli-group-count">4</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-request-cache-expire"><td><code>request cache expire</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove a cached message immediately.<br>Usage: request cache expire &lt;id&gt;.</td></tr>
-<tr id="cmd-request-cache-forward"><td><code>request cache forward</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Forward a cached UPDATE to peers matching a selector.<br>Usage: request cache forward &lt;id&gt; &lt;selector&gt;.</td></tr>
-<tr id="cmd-request-cache-release"><td><code>request cache release</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Ack without forwarding (cache consumer) or undo retain (API).<br>Usage: request cache release &lt;id&gt;.</td></tr>
-<tr id="cmd-request-cache-retain"><td><code>request cache retain</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Prevent eviction of a cached message.<br>Usage: request cache retain &lt;id&gt;.</td></tr>
+<tr id="cmd-request-cache-expire"><td><code>request cache expire &lt;id&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove a cached message immediately.<br>Usage: request cache expire &lt;id&gt;.</td></tr>
+<tr id="cmd-request-cache-forward"><td><code>request cache forward &lt;id&gt; &lt;selector&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Forward a cached UPDATE to peers matching a selector.<br>Usage: request cache forward &lt;id&gt; &lt;selector&gt;.</td></tr>
+<tr id="cmd-request-cache-release"><td><code>request cache release &lt;id&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Ack without forwarding (cache consumer) or undo retain (API).<br>Usage: request cache release &lt;id&gt;.</td></tr>
+<tr id="cmd-request-cache-retain"><td><code>request cache retain &lt;id&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Prevent eviction of a cached message.<br>Usage: request cache retain &lt;id&gt;.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-request-interface" open>
 <summary>request interface <span class="cli-group-count">5</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-request-interface-down"><td><code>request interface down</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Shut down an interface.<br>Usage: request interface &lt;name&gt; down.</td></tr>
-<tr id="cmd-request-interface-mac"><td><code>request interface mac</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Set the MAC address on an interface.<br>Usage: request interface &lt;name&gt; mac &lt;aa:bb:cc:dd:ee:ff&gt;.</td></tr>
+<tr id="cmd-request-interface-down"><td><code>request interface &lt;name&gt; down</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Shut down an interface.<br>Usage: request interface &lt;name&gt; down.</td></tr>
+<tr id="cmd-request-interface-mac"><td><code>request interface &lt;name&gt; mac &lt;aa:bb:cc:dd:ee:ff&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Set the MAC address on an interface.<br>Usage: request interface &lt;name&gt; mac &lt;aa:bb:cc:dd:ee:ff&gt;.</td></tr>
 <tr id="cmd-request-interface-migrate"><td><code>request interface migrate</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Move IP addresses between interfaces with minimal downtime.<br>Takes a source interface, a target interface, and the address to move.<br>Adds addresses to the target before removing them from the source<br>(make-before-break).</td></tr>
-<tr id="cmd-request-interface-mtu"><td><code>request interface mtu</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Set the MTU on an interface.<br>Usage: request interface &lt;name&gt; mtu &lt;bytes&gt;. Range: 68 to 65535.</td></tr>
-<tr id="cmd-request-interface-up"><td><code>request interface up</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Bring an interface up.<br>Usage: request interface &lt;name&gt; up.</td></tr>
+<tr id="cmd-request-interface-mtu"><td><code>request interface &lt;name&gt; mtu &lt;bytes&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Set the MTU on an interface.<br>Usage: request interface &lt;name&gt; mtu &lt;bytes&gt;. Range: 68 to 65535.</td></tr>
+<tr id="cmd-request-interface-up"><td><code>request interface &lt;name&gt; up</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Bring an interface up.<br>Usage: request interface &lt;name&gt; up.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-request-peer" open>
 <summary>request peer <span class="cli-group-count">9</span></summary>
@@ -399,23 +425,23 @@
 <tr id="cmd-request-peer-borr"><td><code>request peer borr</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Start an Enhanced Route Refresh cycle (RFC 7313).<br>Tells the peer to mark existing routes as stale. After re-sending,<br>send EORR to purge anything not refreshed.</td></tr>
 <tr id="cmd-request-peer-clear-soft"><td><code>request peer clear soft</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Soft-clear a peer without dropping the session.<br>Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer<br>to re-send all routes. No session bounce, no traffic impact.</td></tr>
 <tr id="cmd-request-peer-eorr"><td><code>request peer eorr</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Finish an Enhanced Route Refresh cycle (RFC 7313).<br>The peer purges any routes not re-advertised since the matching<br>BORR. Only send this after the peer has finished re-advertising.</td></tr>
-<tr id="cmd-request-peer-flush"><td><code>request peer flush</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Wait until all queued updates for a peer are sent.<br>Usage: request peer &lt;selector&gt; flush.</td></tr>
-<tr id="cmd-request-peer-pause"><td><code>request peer pause</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Pause reading from a peer&#x27;s TCP socket.<br>Usage: request peer &lt;selector&gt; pause.</td></tr>
-<tr id="cmd-request-peer-plugin-session-ready"><td><code>request peer plugin session ready</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Signal that per-peer plugin setup is complete.<br>Usage: request peer &lt;selector&gt; plugin session ready.</td></tr>
+<tr id="cmd-request-peer-flush"><td><code>request peer &lt;selector&gt; flush</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Wait until all queued updates for a peer are sent.<br>Usage: request peer &lt;selector&gt; flush.</td></tr>
+<tr id="cmd-request-peer-pause"><td><code>request peer &lt;selector&gt; pause</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Pause reading from a peer&#x27;s TCP socket.<br>Usage: request peer &lt;selector&gt; pause.</td></tr>
+<tr id="cmd-request-peer-plugin-session-ready"><td><code>request peer &lt;selector&gt; plugin session ready</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Signal that per-peer plugin setup is complete.<br>Usage: request peer &lt;selector&gt; plugin session ready.</td></tr>
 <tr id="cmd-request-peer-refresh"><td><code>request peer refresh</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Ask a peer to re-send all routes (RFC 2918).<br>Sends a ROUTE-REFRESH message for the specified AFI/SAFI. The<br>peer will re-advertise its entire Adj-RIB-Out.</td></tr>
-<tr id="cmd-request-peer-resume"><td><code>request peer resume</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Resume reading from a previously paused peer.<br>Usage: request peer &lt;selector&gt; resume.</td></tr>
-<tr id="cmd-request-peer-teardown"><td><code>request peer teardown</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Tear down a peer session.<br>Usage: request peer &lt;selector&gt; teardown [cease-subcode].</td></tr>
+<tr id="cmd-request-peer-resume"><td><code>request peer &lt;selector&gt; resume</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Resume reading from a previously paused peer.<br>Usage: request peer &lt;selector&gt; resume.</td></tr>
+<tr id="cmd-request-peer-teardown"><td><code>request peer &lt;selector&gt; teardown [cease-subcode]</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Tear down a peer session.<br>Usage: request peer &lt;selector&gt; teardown [cease-subcode].</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-request-other" open>
 <summary>request (other) <span class="cli-group-count">13</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-request-as112-healthcheck"><td><code>request as112 healthcheck</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>One-shot authoritative query against an anycast service<br>address (or the given target), exit 0 iff the expected<br>AS112 answer comes back. Finding M4: the tool a<br>healthcheck probe calls, since dig is not on the gokrazy<br>appliance and &#x27;ze resolve dns&#x27; cannot target a specific<br>server. Usage: request as112 healthcheck [target &lt;ip&gt;].</td></tr>
+<tr id="cmd-request-as112-healthcheck"><td><code>request as112 healthcheck [target &lt;ip&gt;]</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>One-shot authoritative query against an anycast service<br>address (or the given target), exit 0 iff the expected<br>AS112 answer comes back. Finding M4: the tool a<br>healthcheck probe calls, since dig is not on the gokrazy<br>appliance and &#x27;ze resolve dns&#x27; cannot target a specific<br>server. Usage: request as112 healthcheck [target &lt;ip&gt;].</td></tr>
 <tr id="cmd-request-bgp-rib-inject"><td><code>request bgp rib inject</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Inject a synthetic route into the Adj-RIB-In.<br>Behaves as if the route was received from a peer. Use this for<br>testing policy filters or simulating route announcements.</td></tr>
 <tr id="cmd-request-bgp-rib-withdraw"><td><code>request bgp rib withdraw</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Withdraw a route from the Adj-RIB-In.<br>Removes a previously injected or received route from a peer&#x27;s<br>Adj-RIB-In, triggering best-path recomputation.</td></tr>
 <tr id="cmd-request-commit"><td><code>request commit</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Group route changes into named atomic commits.<br>Actions: start (begin a commit), end (finalize), eor (signal end of<br>RIB), rollback (undo), show (inspect), withdraw (remove all routes<br>in a commit), list (show all commits). Grammar: request commit &lt;action&gt;<br>&lt;name&gt; [args].</td></tr>
 <tr id="cmd-request-config-archive"><td><code>request config archive</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Save a snapshot of the current running configuration.<br>Captures the config into the store for later rollback or comparison.<br>Optional name labels the snapshot; defaults to a timestamp.</td></tr>
 <tr id="cmd-request-halt"><td><code>request halt</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Dump goroutine stacks to stderr and terminate immediately.</td></tr>
-<tr id="cmd-request-log-level"><td><code>request log level</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Change a subsystem&#x27;s log level without restarting.<br>Usage: request log level &lt;logger&gt; &lt;level&gt;. Takes effect immediately.<br>Set to debug when troubleshooting, then back to info when you are done.</td></tr>
+<tr id="cmd-request-log-level"><td><code>request log level &lt;logger&gt; &lt;level&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Change a subsystem&#x27;s log level without restarting.<br>Usage: request log level &lt;logger&gt; &lt;level&gt;. Takes effect immediately.<br>Set to debug when troubleshooting, then back to info when you are done.</td></tr>
 <tr id="cmd-request-ospf-graceful-restart"><td><code>request ospf graceful-restart</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).<br>Usage: request ospf graceful-restart. The engine originates one Grace-LSA per<br>interface, persists the non-volatile restart fact, and suppresses route churn<br>so the FIB is retained across the ensuing control-plane restart. Refused when<br>graceful-restart is not configured.</td></tr>
 <tr id="cmd-request-reboot"><td><code>request reboot</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Gracefully shutdown then reboot the system.</td></tr>
 <tr id="cmd-request-reload"><td><code>request reload</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Reload the configuration without restarting.</td></tr>
@@ -426,17 +452,17 @@
 <details class="cli-group" id="cli-group-resolve" open>
 <summary>resolve <span class="cli-group-count">11</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-resolve-cymru-asn-name"><td><code>resolve cymru asn-name</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Find out who owns an AS number.<br>Queries Team Cymru DNS to return the organization name for the ASN.<br>Usage: resolve cymru asn-name &lt;asn&gt;.</td></tr>
-<tr id="cmd-resolve-dns-a"><td><code>resolve dns a</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Look up IPv4 addresses (A records) for a hostname.<br>Usage: resolve dns a &lt;hostname&gt;.</td></tr>
-<tr id="cmd-resolve-dns-aaaa"><td><code>resolve dns aaaa</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Look up IPv6 addresses (AAAA records) for a hostname.<br>Usage: resolve dns aaaa &lt;hostname&gt;.</td></tr>
-<tr id="cmd-resolve-dns-ptr"><td><code>resolve dns ptr</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Reverse-lookup an IP address to its hostname (PTR).<br>Usage: resolve dns ptr &lt;ip-address&gt;.</td></tr>
-<tr id="cmd-resolve-dns-txt"><td><code>resolve dns txt</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Look up TXT records for a hostname.<br>Usage: resolve dns txt &lt;hostname&gt;. Returns all TXT strings.</td></tr>
+<tr id="cmd-resolve-cymru-asn-name"><td><code>resolve cymru asn-name &lt;asn&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Find out who owns an AS number.<br>Queries Team Cymru DNS to return the organization name for the ASN.<br>Usage: resolve cymru asn-name &lt;asn&gt;.</td></tr>
+<tr id="cmd-resolve-dns-a"><td><code>resolve dns a &lt;hostname&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Look up IPv4 addresses (A records) for a hostname.<br>Usage: resolve dns a &lt;hostname&gt;.</td></tr>
+<tr id="cmd-resolve-dns-aaaa"><td><code>resolve dns aaaa &lt;hostname&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Look up IPv6 addresses (AAAA records) for a hostname.<br>Usage: resolve dns aaaa &lt;hostname&gt;.</td></tr>
+<tr id="cmd-resolve-dns-ptr"><td><code>resolve dns ptr &lt;ip-address&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Reverse-lookup an IP address to its hostname (PTR).<br>Usage: resolve dns ptr &lt;ip-address&gt;.</td></tr>
+<tr id="cmd-resolve-dns-txt"><td><code>resolve dns txt &lt;hostname&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Look up TXT records for a hostname.<br>Usage: resolve dns txt &lt;hostname&gt;. Returns all TXT strings.</td></tr>
 <tr id="cmd-resolve-irr-expand"><td><code>resolve irr expand</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Expand an AS-SET into its member AS numbers.<br>Recursively resolves nested AS-SET objects via WHOIS into a flat<br>list. Useful for building prefix filters from IRR data.</td></tr>
 <tr id="cmd-resolve-irr-prefix"><td><code>resolve irr prefix</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Get all prefixes announced by an AS-SET&#x27;s members.<br>Expands the AS-SET, then returns every route/route6 object for<br>each member ASN. Use this to build or verify prefix filters.</td></tr>
-<tr id="cmd-resolve-peeringdb-as-set"><td><code>resolve peeringdb as-set</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Find the IRR AS-SET registered for an ASN in PeeringDB.<br>Usage: resolve peeringdb as-set &lt;asn&gt;. Feed the result into<br>&#x27;resolve irr expand&#x27; to get the full member list.</td></tr>
-<tr id="cmd-resolve-peeringdb-max-prefix"><td><code>resolve peeringdb max-prefix</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Get max-prefix limits for an ASN from PeeringDB.<br>Returns IPv4 and IPv6 prefix limits. Apply via the config editor. Usage: resolve peeringdb max-prefix &lt;asn&gt;.</td></tr>
-<tr id="cmd-resolve-ping"><td><code>resolve ping</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Ping from the router with optional source binding.<br>Usage: resolve ping &lt;target&gt; [source &lt;ip&gt;] [count &lt;n&gt;] [size &lt;bytes&gt;].</td></tr>
-<tr id="cmd-resolve-traceroute"><td><code>resolve traceroute</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Traceroute from the router with optional source binding.<br>Usage: resolve traceroute &lt;target&gt; [source &lt;ip&gt;] [max-hops N] [timeout D] [probes N].</td></tr>
+<tr id="cmd-resolve-peeringdb-as-set"><td><code>resolve peeringdb as-set &lt;asn&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Find the IRR AS-SET registered for an ASN in PeeringDB.<br>Usage: resolve peeringdb as-set &lt;asn&gt;. Feed the result into<br>&#x27;resolve irr expand&#x27; to get the full member list.</td></tr>
+<tr id="cmd-resolve-peeringdb-max-prefix"><td><code>resolve peeringdb max-prefix &lt;asn&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Get max-prefix limits for an ASN from PeeringDB.<br>Returns IPv4 and IPv6 prefix limits. Apply via the config editor. Usage: resolve peeringdb max-prefix &lt;asn&gt;.</td></tr>
+<tr id="cmd-resolve-ping"><td><code>resolve ping &lt;target&gt; [source &lt;ip&gt;] [count &lt;n&gt;] [size &lt;bytes&gt;]</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Ping from the router with optional source binding.<br>Usage: resolve ping &lt;target&gt; [source &lt;ip&gt;] [count &lt;n&gt;] [size &lt;bytes&gt;].</td></tr>
+<tr id="cmd-resolve-traceroute"><td><code>resolve traceroute &lt;target&gt; [source &lt;ip&gt;] [max-hops N] [timeout D] [probes N]</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Traceroute from the router with optional source binding.<br>Usage: resolve traceroute &lt;target&gt; [source &lt;ip&gt;] [max-hops N] [timeout D] [probes N].</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-set" open>
 <summary>set <span class="cli-group-count">5</span></summary>
@@ -461,14 +487,14 @@
 <tr id="cmd-show-bgp-decode"><td><code>show bgp decode</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Decode a hex-encoded BGP message into readable JSON.<br>Paste a hex BGP UPDATE and get back parsed attributes, NLRI, and<br>withdrawn prefixes. Handy for reading pcap captures or debugging<br>wire issues. Also available in the web UI under tools.</td></tr>
 <tr id="cmd-show-bgp-encode"><td><code>show bgp encode</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Turn a route announcement into wire-format hex.<br>Takes a route in API syntax and returns the BGP UPDATE as a hex<br>string. Useful for building test payloads, feeding to ze-test, or<br>verifying that your announcement encodes correctly.</td></tr>
 <tr id="cmd-show-bgp-irr"><td><code>show bgp irr</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show IRR filter status per ASN.<br>Lists each enrolled ASN with its resolved AS-SET, prefix counts,<br>last refresh time, and error status. Use this to confirm that IRR<br>prefix-lists are loaded and current.</td></tr>
-<tr id="cmd-show-bgp-irr-check"><td><code>show bgp irr check</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Check if a prefix is accepted by the IRR filter.<br>Usage: show bgp irr check &lt;peer&gt; &lt;prefix&gt;. Reports whether the<br>prefix would be accepted or rejected, and which entry matches.</td></tr>
-<tr id="cmd-show-bgp-irr-prefix"><td><code>show bgp irr prefix</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show IRR-resolved prefixes for a peer.<br>Usage: show bgp irr prefix &lt;peer&gt;. Lists all IPv4 and IPv6 prefixes<br>in the IRR-resolved prefix-list for the given peer address.</td></tr>
-<tr id="cmd-show-bgp-peer-capabilities"><td><code>show bgp peer capabilities</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show what capabilities were negotiated with a peer.<br>Usage: show bgp peer &lt;selector&gt; capabilities.</td></tr>
-<tr id="cmd-show-bgp-peer-detail"><td><code>show bgp peer detail</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show full detail for one or more peers.<br>Usage: show bgp peer &lt;selector&gt; detail. The selector can be an IP,<br>peer name, AS pattern (as65001), glob, or *.</td></tr>
-<tr id="cmd-show-bgp-peer-history"><td><code>show bgp peer history</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show FSM state transitions for a peer over time.<br>Usage: show bgp peer &lt;selector&gt; history.</td></tr>
+<tr id="cmd-show-bgp-irr-check"><td><code>show bgp irr check &lt;peer&gt; &lt;prefix&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Check if a prefix is accepted by the IRR filter.<br>Usage: show bgp irr check &lt;peer&gt; &lt;prefix&gt;. Reports whether the<br>prefix would be accepted or rejected, and which entry matches.</td></tr>
+<tr id="cmd-show-bgp-irr-prefix"><td><code>show bgp irr prefix &lt;peer&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show IRR-resolved prefixes for a peer.<br>Usage: show bgp irr prefix &lt;peer&gt;. Lists all IPv4 and IPv6 prefixes<br>in the IRR-resolved prefix-list for the given peer address.</td></tr>
+<tr id="cmd-show-bgp-peer-capabilities"><td><code>show bgp peer &lt;selector&gt; capabilities</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show what capabilities were negotiated with a peer.<br>Usage: show bgp peer &lt;selector&gt; capabilities.</td></tr>
+<tr id="cmd-show-bgp-peer-detail"><td><code>show bgp peer &lt;selector&gt; detail</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show full detail for one or more peers.<br>Usage: show bgp peer &lt;selector&gt; detail. The selector can be an IP,<br>peer name, AS pattern (as65001), glob, or *.</td></tr>
+<tr id="cmd-show-bgp-peer-history"><td><code>show bgp peer &lt;selector&gt; history</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show FSM state transitions for a peer over time.<br>Usage: show bgp peer &lt;selector&gt; history.</td></tr>
 <tr id="cmd-show-bgp-peer-list"><td><code>show bgp peer list</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List your peers, one line each.<br>Shows name, address, ASN, state, and uptime. Quick overview without<br>the detail of &#x27;show bgp peer &lt;selector&gt; detail&#x27;.</td></tr>
-<tr id="cmd-show-bgp-peer-rib"><td><code>show bgp peer rib</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show RIB data scoped to one peer.<br>Usage: show bgp peer &lt;selector&gt; rib [scope|filters|terminal].</td></tr>
-<tr id="cmd-show-bgp-peer-statistics"><td><code>show bgp peer statistics</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show UPDATE throughput for your peers.<br>Usage: show bgp peer &lt;selector&gt; statistics.</td></tr>
+<tr id="cmd-show-bgp-peer-rib"><td><code>show bgp peer &lt;selector&gt; rib [scope|filters|terminal]</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show RIB data scoped to one peer.<br>Usage: show bgp peer &lt;selector&gt; rib [scope|filters|terminal].</td></tr>
+<tr id="cmd-show-bgp-peer-statistics"><td><code>show bgp peer &lt;selector&gt; statistics</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show UPDATE throughput for your peers.<br>Usage: show bgp peer &lt;selector&gt; statistics.</td></tr>
 <tr id="cmd-show-bgp-rib"><td><code>show bgp rib</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Query routes in the BGP RIB.<br>Look at received or advertised routes with flexible filters: peer,<br>family, prefix, AS path regex, community, match expression. Pipe<br>operators: | count, | prefix-summary, | graph. This is the main<br>route inspection command.</td></tr>
 <tr id="cmd-show-bgp-rib-best"><td><code>show bgp rib best</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the winning route for each prefix.<br>Same filters as &#x27;show bgp rib&#x27;. Use &#x27;| reason&#x27; to see why each<br>path was selected (local-pref, AS path length, MED, etc.).</td></tr>
 <tr id="cmd-show-bgp-rib-best-status"><td><code>show bgp rib best status</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Check whether best-path computation is still running.<br>Reports idle, pending, or running, plus the last run duration.</td></tr>
@@ -487,7 +513,7 @@
 <details class="cli-group" id="cli-group-show-config" open>
 <summary>show config <span class="cli-group-count">7</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-show-config-cat"><td><code>show config cat</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Print the full text of a stored configuration snapshot.<br>Usage: show config cat &lt;id&gt;. Outputs the config as-is.</td></tr>
+<tr id="cmd-show-config-cat"><td><code>show config cat &lt;id&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Print the full text of a stored configuration snapshot.<br>Usage: show config cat &lt;id&gt;. Outputs the config as-is.</td></tr>
 <tr id="cmd-show-config-diff"><td><code>show config diff</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Compare two configuration versions side by side.<br>Shows what was added, removed, or changed. Commonly used with<br>rollback revisions to review what changed before you roll back.</td></tr>
 <tr id="cmd-show-config-dump"><td><code>show config dump</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the fully resolved configuration tree.<br>Parses the config and outputs it after includes, defaults, and group<br>inheritance have been applied. What you see here is exactly what the<br>daemon is using.</td></tr>
 <tr id="cmd-show-config-fmt"><td><code>show config fmt</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Pretty-print the configuration with consistent formatting.<br>Normalizes indentation and ordering. Output goes to stdout (read-only).<br>To rewrite the file in place, use &#x27;ze config fmt -w&#x27; from the CLI.</td></tr>
@@ -503,13 +529,21 @@
 <tr id="cmd-show-ddos-local"><td><code>show ddos local</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the on-host DDoS mitigation status: whether an nft drop rule is<br>currently installed and the target vector (prefix / proto / port) it covers.</td></tr>
 <tr id="cmd-show-ddos-status"><td><code>show ddos status</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show DDoS observation status: whether the incident store is running, the<br>number of currently active attacks, and the number of incidents retained in the ring.</td></tr>
 </tbody></table></details>
+<details class="cli-group" id="cli-group-show-dns" open>
+<summary>show dns <span class="cli-group-count">4</span></summary>
+<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr id="cmd-show-dns-cache-list"><td><code>show dns cache list</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List all non-expired DNS cache entries, sorted by shortest TTL first.</td></tr>
+<tr id="cmd-show-dns-cache-record"><td><code>show dns cache record</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show DNS cache entries for one record name.</td></tr>
+<tr id="cmd-show-dns-cache-stats"><td><code>show dns cache stats</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show DNS cache hit, miss, eviction, expiry, and hit-rate counters without changing cache contents.</td></tr>
+<tr id="cmd-show-dns-lookup"><td><code>show dns lookup</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Look up a DNS name from the router.<br>Resolves &lt;hostname&gt; using the daemon&#x27;s DNS resolver (falls back to<br>the system resolver if no DNS component is configured). Default type<br>is A. Returns records, TTL, and query time. Supports A, AAAA, MX,<br>NS, TXT, CNAME, and PTR.</td></tr>
+</tbody></table></details>
 <details class="cli-group" id="cli-group-show-firewall" open>
 <summary>show firewall <span class="cli-group-count">4</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr id="cmd-show-firewall-group"><td><code>show firewall group</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show members of a firewall address/port group.<br>Without arguments, lists all known groups. With a name, shows the<br>set elements. Reads from the last applied config, not the kernel.</td></tr>
 <tr id="cmd-show-firewall-irr"><td><code>show firewall irr</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show IRR filter status for all cached ASN/AS-SET entries.<br>Lists each cached entry with prefix counts, last refresh time, and<br>error status. Use this to confirm that IRR prefix-lists are loaded<br>and current before committing firewall config.</td></tr>
-<tr id="cmd-show-firewall-irr-prefix"><td><code>show firewall irr prefix</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show IRR-resolved prefixes for a cached entry.<br>Usage: show firewall irr prefix &lt;asn-or-as-set&gt;. Lists all IPv4 and<br>IPv6 prefixes in the cached prefix-list for the given ASN or AS-SET.</td></tr>
-<tr id="cmd-show-firewall-ruleset"><td><code>show firewall ruleset</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the live firewall ruleset with per-term counters.<br>Usage: show firewall ruleset &lt;name&gt;. Joins applied desired state with<br>kernel counters from the nft backend.</td></tr>
+<tr id="cmd-show-firewall-irr-prefix"><td><code>show firewall irr prefix &lt;asn-or-as-set&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show IRR-resolved prefixes for a cached entry.<br>Usage: show firewall irr prefix &lt;asn-or-as-set&gt;. Lists all IPv4 and<br>IPv6 prefixes in the cached prefix-list for the given ASN or AS-SET.</td></tr>
+<tr id="cmd-show-firewall-ruleset"><td><code>show firewall ruleset &lt;name&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the live firewall ruleset with per-term counters.<br>Usage: show firewall ruleset &lt;name&gt;. Joins applied desired state with<br>kernel counters from the nft backend.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-show-host" open>
 <summary>show host <span class="cli-group-count">9</span></summary>
@@ -530,11 +564,11 @@
 <tr id="cmd-show-interface"><td><code>show interface</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show network interfaces on this box.<br>Without arguments, returns all interfaces with full detail.<br>Subcommands: brief, type &lt;t&gt;, errors, rate [&lt;name&gt;], name &lt;name&gt; detail,<br>name &lt;name&gt; counters.</td></tr>
 <tr id="cmd-show-interface-brief"><td><code>show interface brief</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>One-line summary per interface: name, state, IP, and MTU.<br>Quick way to see what is up and what addresses are assigned.</td></tr>
 <tr id="cmd-show-interface-errors"><td><code>show interface errors</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show interfaces that have errors or drops.<br>Filters to only interfaces with non-zero Rx/Tx error or drop<br>counters. Quick way to find troubled links.</td></tr>
-<tr id="cmd-show-interface-name-counters"><td><code>show interface name counters</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show counters for one interface.<br>Usage: show interface name &lt;name&gt; counters.</td></tr>
-<tr id="cmd-show-interface-name-detail"><td><code>show interface name detail</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show full detail for one interface.<br>Usage: show interface name &lt;name&gt; detail.</td></tr>
+<tr id="cmd-show-interface-name-counters"><td><code>show interface name &lt;name&gt; counters</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show counters for one interface.<br>Usage: show interface name &lt;name&gt; counters.</td></tr>
+<tr id="cmd-show-interface-name-detail"><td><code>show interface name &lt;name&gt; detail</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show full detail for one interface.<br>Usage: show interface name &lt;name&gt; detail.</td></tr>
 <tr id="cmd-show-interface-rate"><td><code>show interface rate</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show per-second traffic rates on your interfaces.<br>Returns rx/tx bytes and packets per second. Pass an interface name<br>to narrow the output. Requires the rate tracker. For continuous<br>monitoring, use &#x27;monitor interface rate&#x27; instead.</td></tr>
 <tr id="cmd-show-interface-scan"><td><code>show interface scan</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Discover and classify all OS interfaces.<br>Returns name, Ze type (ethernet, bridge, vxlan, etc.), and MAC for<br>each interface found. Pipe to table, yaml, or json for different<br>views. Useful during initial setup to see what the box has.</td></tr>
-<tr id="cmd-show-interface-type"><td><code>show interface type</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show only interfaces of a given type.<br>Usage: show interface type &lt;type&gt;. Types include ethernet, bridge,<br>vxlan, wireguard, tunnel, bond, and more. If you pick an invalid<br>type, the error lists all valid ones.</td></tr>
+<tr id="cmd-show-interface-type"><td><code>show interface type &lt;type&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show only interfaces of a given type.<br>Usage: show interface type &lt;type&gt;. Types include ethernet, bridge,<br>vxlan, wireguard, tunnel, bond, and more. If you pick an invalid<br>type, the error lists all valid ones.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-show-isis" open>
 <summary>show isis <span class="cli-group-count">8</span></summary>
@@ -675,10 +709,10 @@
 <tr id="cmd-show-vpp-trace-start"><td><code>show vpp trace start</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Start capturing packets in the VPP dataplane.<br>Default input node is dpdk-input, default count is 100 (max 10000).<br>After starting, use &#x27;show vpp trace show&#x27; to retrieve the captured<br>packets. Requires the VPP backend.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-show-other" open>
-<summary>show (other) <span class="cli-group-count">79</span></summary>
+<summary>show (other) <span class="cli-group-count">77</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr id="cmd-show-aaa-accounting"><td><code>show aaa accounting</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show AAA accounting counters and any dropped records.<br>Tells you whether TACACS+ accounting is working or if records are<br>being lost due to server unreachability.</td></tr>
-<tr id="cmd-show-announcements"><td><code>show announcements</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List active on-demand announcements.<br>Usage: show announcements [tag &lt;key&gt;] [selector &lt;pattern&gt;] [family &lt;fam&gt;]</td></tr>
+<tr id="cmd-show-announcements"><td><code>show announcements [tag &lt;key&gt;] [selector &lt;pattern&gt;] [family &lt;fam&gt;]</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List active on-demand announcements.<br>Usage: show announcements [tag &lt;key&gt;] [selector &lt;pattern&gt;] [family &lt;fam&gt;]</td></tr>
 <tr id="cmd-show-anomaly-detect"><td><code>show anomaly detect</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show recent behavioral anomaly incidents (report-only): source entity, cohort,<br>fired features with their deviation z-scores, combined score, and severity. The detector reports;<br>the anomaly/shape responder (Spec 2b) acts.</td></tr>
 <tr id="cmd-show-anomaly-shape"><td><code>show anomaly shape</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the shadow-first anomaly responder status: mode (shadow/armed), action,<br>kill-switch state, and the currently armed source entities with live firewall actions.</td></tr>
 <tr id="cmd-show-arp"><td><code>show arp</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the IPv4 ARP table (shortcut for &#x27;show neighbor ipv4&#x27;).<br>Lists IPv4 ARP entries with MAC address and state. ARP is IPv4-only;<br>use &#x27;show neighbor&#x27; for both families or &#x27;show neighbor ipv6&#x27; for the<br>IPv6 ND table.</td></tr>
@@ -693,15 +727,13 @@
 <tr id="cmd-show-command-help"><td><code>show command help</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show usage and arguments for a specific command.<br>Gives you the full description, expected arguments, and usage<br>pattern for one command.</td></tr>
 <tr id="cmd-show-command-list"><td><code>show command list</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List every command the daemon knows about.<br>Returns dispatch key and description for each. Useful for scripting<br>or discovering commands not shown in the top-level help.</td></tr>
 <tr id="cmd-show-crashes"><td><code>show crashes</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>View saved crash reports from panics.<br>Without arguments, lists available crash files. Use &#x27;latest&#x27; to see<br>the newest crash or &#x27;name &lt;filename&gt;&#x27; to print one specific report.<br>Send the output to support when reporting a crash.</td></tr>
-<tr id="cmd-show-data-cat"><td><code>show data cat</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Print the raw content of a blob store entry.<br>Usage: show data cat &lt;key&gt;. Outputs the value for the given key,<br>like &#x27;cat&#x27; for ZeFS.</td></tr>
+<tr id="cmd-show-data-cat"><td><code>show data cat &lt;key&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Print the raw content of a blob store entry.<br>Usage: show data cat &lt;key&gt;. Outputs the value for the given key,<br>like &#x27;cat&#x27; for ZeFS.</td></tr>
 <tr id="cmd-show-data-ls"><td><code>show data ls</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List everything stored in the ZeFS blob store.<br>Shows all keys and their sizes. Use &#x27;show data cat &lt;key&gt;&#x27; to see<br>the content of a specific entry.</td></tr>
 <tr id="cmd-show-data-registered"><td><code>show data registered</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List the key patterns registered by all subsystems.<br>Shows you what types of data ZeFS knows about.</td></tr>
 <tr id="cmd-show-debug"><td><code>show debug</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show live debug state from the running daemon.<br>Lists every registered subsystem with its current log level and any<br>active flag or scope filters. Unlike &#x27;debug show&#x27; (which reads the<br>stored profile), this reflects actual runtime state.</td></tr>
 <tr id="cmd-show-debug-profile"><td><code>show debug profile</code></td><td><span class="cli-mode cli-mode-offline">Offline</span></td><td>Show stored debug profiles (list, &#x27;name &lt;name&gt;&#x27; for one, add &#x27;module &lt;prefix&gt;&#x27; to filter).</td></tr>
-<tr id="cmd-show-dns-cache"><td><code>show dns cache</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Inspect the DNS cache.<br>&#x27;stats&#x27; shows hit/miss/eviction counters. &#x27;list&#x27; shows all cached<br>entries. &#x27;record &lt;name&gt;&#x27; shows one specific entry. Requires the DNS<br>component to be active.</td></tr>
-<tr id="cmd-show-dns-lookup"><td><code>show dns lookup</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Look up a DNS name from the router.<br>Resolves &lt;hostname&gt; using the daemon&#x27;s DNS resolver (falls back to<br>the system resolver if no DNS component is configured). Default type<br>is A. Returns records, TTL, and query time. Supports A, AAAA, MX,<br>NS, TXT, CNAME, and PTR.</td></tr>
 <tr id="cmd-show-doctor"><td><code>show doctor</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Check if this box is ready to run Ze.<br>Verifies runtime dependencies: required files, sockets, ports, and<br>kernel modules. Each check reports pass or fail with a reason. Run<br>this before first start or after changing the platform setup.</td></tr>
-<tr id="cmd-show-env-get"><td><code>show env get</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show one environment variable in detail.<br>Returns the variable name, current value, default, and what it<br>controls. Usage: show env get &lt;name&gt;.</td></tr>
+<tr id="cmd-show-env-get"><td><code>show env get &lt;name&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show one environment variable in detail.<br>Returns the variable name, current value, default, and what it<br>controls. Usage: show env get &lt;name&gt;.</td></tr>
 <tr id="cmd-show-env-list"><td><code>show env list</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List all Ze environment variables with their current values.<br>Shows which env vars are set and their defaults.</td></tr>
 <tr id="cmd-show-env-registered"><td><code>show env registered</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List every registered environment variable with metadata.<br>Includes type, default, description, and whether it is currently set.</td></tr>
 <tr id="cmd-show-errors"><td><code>show errors</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show recent errors across all subsystems, newest first.<br>This is the first place to look when something goes wrong. Filter<br>with source &lt;name&gt; to narrow to one subsystem, count &lt;N&gt; to limit<br>output.</td></tr>
@@ -721,15 +753,15 @@
 <tr id="cmd-show-metrics-list"><td><code>show metrics list</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List all registered metric names (no values).<br>Useful for discovering what metrics exist before querying them.</td></tr>
 <tr id="cmd-show-metrics-pool"><td><code>show metrics pool</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show attribute pool memory usage and dedup efficiency.<br>Returns allocated entries, reference counts, and deduplication hit<br>rates per attribute type. Watch the dedup rate to gauge how much<br>memory pooling is saving you.</td></tr>
 <tr id="cmd-show-metrics-values"><td><code>show metrics values</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Dump all metrics in Prometheus text format.<br>Outputs every registered metric with labels and values. Suitable<br>for feeding into Prometheus, Grafana, or curl-based monitoring.</td></tr>
-<tr id="cmd-show-metrics-query"><td><code>show metrics-query</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Query a specific Prometheus metric by name.<br>Usage: show metrics-query &lt;name&gt; [label=value ...]. Returns matching<br>time series from the internal registry. Multiple label filters are<br>ANDed. More targeted than the full metrics dump.</td></tr>
+<tr id="cmd-show-metrics-query"><td><code>show metrics-query &lt;name&gt; [label=value</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Query a specific Prometheus metric by name.<br>Usage: show metrics-query &lt;name&gt; [label=value ...]. Returns matching<br>time series from the internal registry. Multiple label filters are<br>ANDed. More targeted than the full metrics dump.</td></tr>
 <tr id="cmd-show-mpls-forwarding"><td><code>show mpls forwarding</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show MPLS forwarding entries installed in the kernel.<br>Each entry shows the incoming label, swap/push/pop operation, and<br>outgoing next-hop. Pass &#x27;limit N&#x27; to cap large tables. Linux only.</td></tr>
 <tr id="cmd-show-neighbor"><td><code>show neighbor</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the ARP and neighbor discovery table.<br>Lists IPv4 ARP and IPv6 ND entries with MAC addresses and states.<br>Pass ipv4 or ipv6 to filter by address family; no argument shows both.<br>For the IPv4-only view, &#x27;show arp&#x27; is a shortcut.</td></tr>
 <tr id="cmd-show-ping"><td><code>show ping</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Ping a target from the router itself.<br>Sends ICMP echo requests to &lt;dest&gt; (IP or hostname). Default count<br>is 5. Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms<br>reachability from this box, not from your workstation.</td></tr>
-<tr id="cmd-show-pki-certificate-name"><td><code>show pki certificate name</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Inspect a specific certificate in detail.<br>Usage: show pki certificate name &lt;name&gt; [pem | bundle pem | fingerprint<br>[sha256|sha384|sha512]]. Use &#x27;pem&#x27; to export for another system,<br>&#x27;fingerprint&#x27; to verify identity.</td></tr>
+<tr id="cmd-show-pki-certificate-name"><td><code>show pki certificate name &lt;name&gt; [pem | bundle pem | fingerprint</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Inspect a specific certificate in detail.<br>Usage: show pki certificate name &lt;name&gt; [pem | bundle pem | fingerprint<br>[sha256|sha384|sha512]]. Use &#x27;pem&#x27; to export for another system,<br>&#x27;fingerprint&#x27; to verify identity.</td></tr>
 <tr id="cmd-show-pki-certificates"><td><code>show pki certificates</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List all loaded certificates with expiry dates.<br>Shows name, type (CA or device), subject, issuer, expiry, and<br>validity status. Check here to find certificates approaching<br>expiration.</td></tr>
-<tr id="cmd-show-policy-chain-peer"><td><code>show policy chain peer</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the import/export filter chain applied to a peer.<br>Usage: show policy chain peer &lt;selector&gt; [import|export]. The selector<br>(IP, name, as&lt;N&gt;) and the optional direction are parsed by the handler.<br>Shows the effective chain after group inheritance is resolved. Without<br>a direction keyword, shows both import and export.</td></tr>
+<tr id="cmd-show-policy-chain-peer"><td><code>show policy chain peer &lt;selector&gt; [import|export]</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the import/export filter chain applied to a peer.<br>Usage: show policy chain peer &lt;selector&gt; [import|export]. The selector<br>(IP, name, as&lt;N&gt;) and the optional direction are parsed by the handler.<br>Shows the effective chain after group inheritance is resolved. Without<br>a direction keyword, shows both import and export.</td></tr>
 <tr id="cmd-show-policy-list"><td><code>show policy list</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List all available filter types and named instances.<br>Shows each filter type and its implementing plugin. Check here<br>when building a new policy chain to see what filters you can use.</td></tr>
-<tr id="cmd-show-policy-test-peer"><td><code>show policy test peer</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Test what your policy does to a specific UPDATE.<br>Feed a hex-encoded BGP UPDATE through a peer&#x27;s filter chain and see<br>the accept/reject result plus attribute modifications at each stage.<br>Read-only: no routes are actually forwarded. Great for validating<br>policy changes before you commit.<br>Usage: show policy test peer &lt;selector&gt; import|export [filter &lt;name&gt;]<br>update &lt;hex&gt; [source-asn4 true|false]. The selector and the<br>import/export/filter/update/source-asn4 tokens are parsed by the<br>handler so the peer selector can be a free-form name or address.</td></tr>
+<tr id="cmd-show-policy-test-peer"><td><code>show policy test peer &lt;selector&gt; import|export [filter &lt;name&gt;]</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Test what your policy does to a specific UPDATE.<br>Feed a hex-encoded BGP UPDATE through a peer&#x27;s filter chain and see<br>the accept/reject result plus attribute modifications at each stage.<br>Read-only: no routes are actually forwarded. Great for validating<br>policy changes before you commit.<br>Usage: show policy test peer &lt;selector&gt; import|export [filter &lt;name&gt;]<br>update &lt;hex&gt; [source-asn4 true|false]. The selector and the<br>import/export/filter/update/source-asn4 tokens are parsed by the<br>handler so the peer selector can be a free-form name or address.</td></tr>
 <tr id="cmd-show-policy-routes"><td><code>show policy-routes</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show policy-based routing rules.<br>Lists PBR rules with match criteria and routing actions.</td></tr>
 <tr id="cmd-show-probe-round"><td><code>show probe-round</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Run a parallel traceroute probe round to a target.<br>Sends all probes concurrently for faster results than sequential<br>traceroute. Returns per-hop RTT and IP. Use probes and max-hops<br>to tune accuracy vs speed.</td></tr>
 <tr id="cmd-show-route"><td><code>show route</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the kernel routing table.<br>Lists installed routes with next-hop, interface, protocol, and metric.<br>Pass a CIDR prefix or &#x27;default&#x27; to filter, or a route limit to cap the<br>output.</td></tr>
@@ -749,7 +781,7 @@
 <tr id="cmd-show-traffic-stat"><td><code>show traffic-stat</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity).<br>Without arguments, shows all interfaces. With &#x27;name &lt;interface&gt;&#x27;, filters to one interface.</td></tr>
 <tr id="cmd-show-uptime"><td><code>show uptime</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show how long the daemon has been running.<br>Returns the start time and elapsed uptime. Handy after a maintenance<br>window to confirm the process restarted.</td></tr>
 <tr id="cmd-show-version"><td><code>show version</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the running Ze version and build date.<br>You can verify which release is deployed on this box.</td></tr>
-<tr id="cmd-show-vpn-ipsec-peer-name"><td><code>show vpn ipsec peer name</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show full detail for one IPsec peer.<br>Returns IKE SA state, all child SAs with traffic selectors, and<br>byte counts. Usage: show vpn ipsec peer name &lt;name&gt;.</td></tr>
+<tr id="cmd-show-vpn-ipsec-peer-name"><td><code>show vpn ipsec peer name &lt;name&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show full detail for one IPsec peer.<br>Returns IKE SA state, all child SAs with traffic selectors, and<br>byte counts. Usage: show vpn ipsec peer name &lt;name&gt;.</td></tr>
 <tr id="cmd-show-vpn-ipsec-sa"><td><code>show vpn ipsec sa</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show all IKE and Child Security Associations.<br>Lists every SA with peer, negotiated algorithms, byte counts, rekey<br>timers, and uptime. Includes SPIs, NAT detection, and child SA<br>traffic selectors. Your main IPsec status command.</td></tr>
 <tr id="cmd-show-vpn-ipsec-status"><td><code>show vpn ipsec status</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Quick IPsec health check.<br>Reports whether the IKE engine is running, how many peers are<br>configured, and how many IKE SAs are Established.</td></tr>
 <tr id="cmd-show-warnings"><td><code>show warnings</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show active warnings across all subsystems.<br>Displays any conditions that need your attention (degraded peers,<br>resource limits approaching, etc.). Use &#x27;source &lt;name&gt;&#x27; to filter<br>to a single subsystem.</td></tr>
@@ -783,12 +815,12 @@
 <summary>update <span class="cli-group-count">12</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr id="cmd-update-bgp-irr-all"><td><code>update bgp irr all</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Refresh all IRR prefix-lists immediately.<br>Re-queries the IRR server for every enrolled ASN and atomically<br>swaps prefix-lists on success. Failed refreshes preserve the<br>existing prefix-list and report an error.</td></tr>
-<tr id="cmd-update-bgp-irr-as-set"><td><code>update bgp irr as-set</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Refresh IRR prefix-list for a specific AS-SET.<br>Usage: update bgp irr as-set &lt;as-set&gt;. Re-queries the IRR server<br>for all peers using the given AS-SET name.</td></tr>
-<tr id="cmd-update-bgp-irr-asn"><td><code>update bgp irr asn</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Refresh IRR prefix-list for a specific ASN.<br>Usage: update bgp irr asn &lt;asn&gt;. Re-queries the IRR server for<br>the given ASN only.</td></tr>
-<tr id="cmd-update-bgp-peer-prefix"><td><code>update bgp peer prefix</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Refresh max-prefix limits from PeeringDB.<br>Usage: update bgp peer &lt;selector&gt; prefix. Queries PeeringDB for each<br>matched peer&#x27;s ASN, applies the configured margin, and writes the<br>result to the config draft. Run &#x27;config commit&#x27; to apply.</td></tr>
+<tr id="cmd-update-bgp-irr-as-set"><td><code>update bgp irr as-set &lt;as-set&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Refresh IRR prefix-list for a specific AS-SET.<br>Usage: update bgp irr as-set &lt;as-set&gt;. Re-queries the IRR server<br>for all peers using the given AS-SET name.</td></tr>
+<tr id="cmd-update-bgp-irr-asn"><td><code>update bgp irr asn &lt;asn&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Refresh IRR prefix-list for a specific ASN.<br>Usage: update bgp irr asn &lt;asn&gt;. Re-queries the IRR server for<br>the given ASN only.</td></tr>
+<tr id="cmd-update-bgp-peer-prefix"><td><code>update bgp peer &lt;selector&gt; prefix</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Refresh max-prefix limits from PeeringDB.<br>Usage: update bgp peer &lt;selector&gt; prefix. Queries PeeringDB for each<br>matched peer&#x27;s ASN, applies the configured margin, and writes the<br>result to the config draft. Run &#x27;config commit&#x27; to apply.</td></tr>
 <tr id="cmd-update-firewall-irr-all"><td><code>update firewall irr all</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Refresh all cached IRR prefix-lists.<br>Re-queries the IRR server for every cached ASN/AS-SET entry and<br>updates the zefs cache on success. Failed refreshes preserve the<br>existing cache and report an error.</td></tr>
-<tr id="cmd-update-firewall-irr-as-set"><td><code>update firewall irr as-set</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Fetch or refresh IRR prefix-list for an AS-SET.<br>Usage: update firewall irr as-set &lt;as-set&gt;. Queries the IRR server<br>and saves resolved prefixes to the zefs cache.</td></tr>
-<tr id="cmd-update-firewall-irr-asn"><td><code>update firewall irr asn</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Fetch or refresh IRR prefix-list for an ASN.<br>Usage: update firewall irr asn &lt;asn&gt;. Queries the IRR server and<br>saves resolved prefixes to the zefs cache. Creates the cache entry<br>if it does not exist.</td></tr>
+<tr id="cmd-update-firewall-irr-as-set"><td><code>update firewall irr as-set &lt;as-set&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Fetch or refresh IRR prefix-list for an AS-SET.<br>Usage: update firewall irr as-set &lt;as-set&gt;. Queries the IRR server<br>and saves resolved prefixes to the zefs cache.</td></tr>
+<tr id="cmd-update-firewall-irr-asn"><td><code>update firewall irr asn &lt;asn&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Fetch or refresh IRR prefix-list for an ASN.<br>Usage: update firewall irr asn &lt;asn&gt;. Queries the IRR server and<br>saves resolved prefixes to the zefs cache. Creates the cache entry<br>if it does not exist.</td></tr>
 <tr id="cmd-update-system-firmware-apply"><td><code>update system firmware apply</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Full upgrade: download, verify, stage, and restart.<br>Runs the complete update cycle in one command. Only available on<br>platforms where Ze owns the update lifecycle (e.g. gokrazy).<br>The box will reboot into the new version.</td></tr>
 <tr id="cmd-update-system-firmware-check"><td><code>update system firmware check</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Check for a new firmware version right now.<br>Bypasses the scheduled interval timer and contacts the update server<br>immediately. Compare the result with &#x27;show system update&#x27;.</td></tr>
 <tr id="cmd-update-system-firmware-download"><td><code>update system firmware download</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Download the latest firmware image right now.<br>Bypasses the maintenance window and spread timers. The image is<br>staged but not applied. Use &#x27;update system firmware apply&#x27; or<br>&#x27;restart&#x27; to activate it.</td></tr>
@@ -803,7 +835,7 @@
 <details class="cli-group" id="cli-group-withdraw" open>
 <summary>withdraw <span class="cli-group-count">1</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
-<tr id="cmd-withdraw"><td><code>withdraw</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Withdraw on-demand announcements.<br>Usage: withdraw tag &lt;key&gt; &lt;value|*&gt; | withdraw tag * | withdraw id &lt;N&gt; | withdraw all</td></tr>
+<tr id="cmd-withdraw"><td><code>withdraw tag &lt;key&gt; &lt;value|*&gt; | withdraw tag * | withdraw id &lt;N&gt; | withdraw all</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Withdraw on-demand announcements.<br>Usage: withdraw tag &lt;key&gt; &lt;value|*&gt; | withdraw tag * | withdraw id &lt;N&gt; | withdraw all</td></tr>
 </tbody></table></details>
             </section>
         <script>
@@ -932,7 +964,7 @@
 
         </main>
 
-        <script src="../assets/site.js?v=74c603e2dc" defer></script>
+        <script src="../assets/site.js?v=79779d6bdd" defer></script>
 
         <footer>
             <div class="footer-inner">

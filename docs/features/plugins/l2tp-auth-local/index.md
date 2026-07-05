@@ -2,8 +2,6 @@
 
 Static local user list for L2TP PPP authentication
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

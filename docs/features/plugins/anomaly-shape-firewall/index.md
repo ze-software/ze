@@ -2,8 +2,6 @@
 
 Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

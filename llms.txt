@@ -8,13 +8,18 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 
 ## Project
 
+### Overview
 - [Features](https://ze-software.net/features/index.md): 46 features, color-coded by category (web: https://ze-software.net/features/)
 - [Plugins](https://ze-software.net/docs/features/plugins/index.md): Search every runtime plugin by purpose, config, or dependency (web: https://ze-software.net/docs/features/plugins/)
-- [CLI Reference](https://ze-software.net/cli/index.md): 380 commands, generated from the live binary (web: https://ze-software.net/cli/)
+- [Compare](https://ze-software.net/compare/index.md): How Ze stacks up against BIRD, FRR, and more (web: https://ze-software.net/compare/)
+### Reference
+- [CLI Reference](https://ze-software.net/cli/index.md): 379 commands, generated from the live binary (web: https://ze-software.net/cli/)
 - [Configuration Reference](https://ze-software.net/config-reference/index.md): 35 sections, indexed from live YANG (web: https://ze-software.net/config-reference/)
+- [Command Equivalents](https://ze-software.net/command-equivalents/index.md): Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS (web: https://ze-software.net/command-equivalents/)
+### Quality
+- [Code Quality](https://ze-software.net/quality/index.md): How Ze proves code quality with tests, QEMU, fuzzing, and gomu mutation checks (web: https://ze-software.net/quality/)
 - [Dependencies](https://ze-software.net/dependencies/index.md): 39 direct packages, generated from go.mod (web: https://ze-software.net/dependencies/)
 - [Performance](https://ze-software.net/performance/index.md): Measured BGP benchmarks, not claims (web: https://ze-software.net/performance/)
-- [Compare](https://ze-software.net/compare/index.md): How Ze stacks up against BIRD, FRR, and more (web: https://ze-software.net/compare/)
 
 ## Journey
 
@@ -25,6 +30,7 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 
 ## Docs
 
+### Hub
 - [Documentation](https://ze-software.net/docs/index.md): All docs, organised by what you want to do (web: https://ze-software.net/docs/)
 ### Getting started
 - [Quickstart](https://ze-software.net/docs/guide/quickstart/index.md): Two BGP peers in under 5 minutes (web: https://ze-software.net/docs/guide/quickstart/)
@@ -41,10 +47,12 @@ Every link below points at that page's Markdown source (an `index.md` sibling of
 
 ## Labs
 
+### Protocols
 - [BGP Protocol Interop](https://ze-software.net/labs/bgp-interop/index.md): Real FRR, BIRD, and GoBGP sessions (web: https://ze-software.net/labs/bgp-interop/)
 - [L2TP PPP/NCP Interop](https://ze-software.net/labs/l2tp-interop/index.md): Ze as LNS vs real xl2tpd (web: https://ze-software.net/labs/l2tp-interop/)
 - [PPPoE Interop](https://ze-software.net/labs/pppoe-interop/index.md): vs real accel-ppp access concentrator (web: https://ze-software.net/labs/pppoe-interop/)
 - [IPsec / IKEv2 Interop](https://ze-software.net/labs/ipsec-interop/index.md): Ze as IKE initiator vs strongSwan (web: https://ze-software.net/labs/ipsec-interop/)
+### Systems
 - [VLAN QoS Wire-Level Proof](https://ze-software.net/labs/vlan-qos/index.md): 802.1p PCP tagging, actually on the wire (web: https://ze-software.net/labs/vlan-qos/)
 - [Looking Glass Graph Demo](https://ze-software.net/labs/looking-glass-graph/index.md): Realistic UK topology, real external ASNs (web: https://ze-software.net/labs/looking-glass-graph/)
 - [Appliance Installer Evidence](https://ze-software.net/labs/appliance-install/index.md): HTTP/PXE, ISO, Ventoy, real boots (web: https://ze-software.net/labs/appliance-install/)

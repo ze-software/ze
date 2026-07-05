@@ -2,8 +2,6 @@
 
 Correlates UPDATE + RPKI events into merged update-rpki events
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

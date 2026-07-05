@@ -2,8 +2,6 @@
 
 FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

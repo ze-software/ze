@@ -2,8 +2,6 @@
 
 Route Target Constraint family plugin (RFC 4684)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

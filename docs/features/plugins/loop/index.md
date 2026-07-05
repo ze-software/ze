@@ -2,8 +2,6 @@
 
 Route loop detection (RFC 4271 S9, RFC 4456 S8)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

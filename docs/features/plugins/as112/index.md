@@ -2,8 +2,6 @@
 
 AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

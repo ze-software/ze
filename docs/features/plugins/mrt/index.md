@@ -2,8 +2,6 @@
 
 MRT routing information export (RFC 6396)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

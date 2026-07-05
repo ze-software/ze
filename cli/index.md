@@ -1,6 +1,6 @@
 # CLI Reference
 
-380 commands across 43 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
+379 commands across 42 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
 
 ## announce (1)
 
@@ -8,14 +8,16 @@
 | --- | --- | --- |
 | `announce` | Daemon | Announce a route on demand to selected peers. Usage: announce <unicast\|blackhole\|flowspec> <args> [tag <key> <value>] [for <duration>] |
 
-## clear (16)
+## clear (18)
 
 | Command | Mode | Description |
 | --- | --- | --- |
 | `clear bgp rib in` | Daemon | Remove all routes received from a peer. Wipes the Adj-RIB-In for matched peers. They will need to re-advertise everything (or you can send a route-refresh). Selector: IP, name, AS pattern, glob, or *. |
 | `clear bgp rib out` | Daemon | Re-advertise all routes to a peer. Triggers a full Adj-RIB-Out replay to the selected peers. Useful after a policy change to push updated attributes without tearing down the session. Selector: IP, name, AS pattern, glob, or *. |
 | `clear debug` | Offline | Clear the default debug profile. |
-| `clear dns cache` | Daemon | Clear the DNS cache. With no argument, flushes everything. Use 'record <name>' to evict one entry, or 'stats' to see hit/miss rates without flushing. |
+| `clear dns cache` | Daemon | Flush all DNS cache entries and reset all DNS cache counters. |
+| `clear dns cache record` | Daemon | Evict DNS cache entries for one record name, or one name and type when a type is provided. |
+| `clear dns cache stats` | Daemon | Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries. |
 | `clear interface counters` | Daemon | Zero the Rx/Tx counters for every managed interface. Usage: clear interface counters. |
 | `clear interface name counters` | Daemon | Zero the Rx/Tx counters for one interface. Usage: clear interface name <name> counters. |
 | `clear isis adjacency` | Daemon | Tear down every IS-IS adjacency so neighbors re-form. Usage: clear isis adjacency. Adjacencies re-learn from the next Hello; the circuit is not closed and the configuration is unchanged. |
@@ -74,21 +76,6 @@
 | Command | Mode | Description |
 | --- | --- | --- |
 | `explain` | Offline | Print the meaning, likely cause, and recommended fix for a Ze diagnostic code. Pass the code you saw in a log or error message. |
-
-## fakel2tp (2)
-
-| Command | Mode | Description |
-| --- | --- | --- |
-| `fakel2tp emit` | Daemon | Emit one synthetic L2TP route-change batch |
-| `fakel2tp help` | Daemon | Print the fakel2tp command surface |
-
-## fakeredist (3)
-
-| Command | Mode | Description |
-| --- | --- | --- |
-| `fakeredist emit` | Daemon | Emit one synthetic route-change batch |
-| `fakeredist emit-burst` | Daemon | Emit N synthetic batches sequentially |
-| `fakeredist help` | Daemon | Print the fakeredist command surface |
 
 ## generate (1)
 
@@ -277,6 +264,15 @@
 | `show ddos local` | Read-only | Show the on-host DDoS mitigation status: whether an nft drop rule is currently installed and the target vector (prefix / proto / port) it covers. |
 | `show ddos status` | Read-only | Show DDoS observation status: whether the incident store is running, the number of currently active attacks, and the number of incidents retained in the ring. |
 
+## show dns (4)
+
+| Command | Mode | Description |
+| --- | --- | --- |
+| `show dns cache list` | Read-only | List all non-expired DNS cache entries, sorted by shortest TTL first. |
+| `show dns cache record` | Read-only | Show DNS cache entries for one record name. |
+| `show dns cache stats` | Read-only | Show DNS cache hit, miss, eviction, expiry, and hit-rate counters without changing cache contents. |
+| `show dns lookup` | Read-only | Look up a DNS name from the router. Resolves <hostname> using the daemon's DNS resolver (falls back to the system resolver if no DNS component is configured). Default type is A. Returns records, TTL, and query time. Supports A, AAAA, MX, NS, TXT, CNAME, and PTR. |
+
 ## show firewall (4)
 
 | Command | Mode | Description |
@@ -459,7 +455,7 @@
 | `show vpp trace show` | Read-only | Retrieve packets captured since the last trace start. Shows per-packet VPP graph node traversal. Requires the VPP backend. |
 | `show vpp trace start` | Read-only | Start capturing packets in the VPP dataplane. Default input node is dpdk-input, default count is 100 (max 10000). After starting, use 'show vpp trace show' to retrieve the captured packets. Requires the VPP backend. |
 
-## show (other) (79)
+## show (other) (77)
 
 | Command | Mode | Description |
 | --- | --- | --- |
@@ -484,8 +480,6 @@
 | `show data registered` | Read-only | List the key patterns registered by all subsystems. Shows you what types of data ZeFS knows about. |
 | `show debug` | Read-only | Show live debug state from the running daemon. Lists every registered subsystem with its current log level and any active flag or scope filters. Unlike 'debug show' (which reads the stored profile), this reflects actual runtime state. |
 | `show debug profile` | Offline | Show stored debug profiles (list, 'name <name>' for one, add 'module <prefix>' to filter). |
-| `show dns cache` | Read-only | Inspect the DNS cache. 'stats' shows hit/miss/eviction counters. 'list' shows all cached entries. 'record <name>' shows one specific entry. Requires the DNS component to be active. |
-| `show dns lookup` | Read-only | Look up a DNS name from the router. Resolves <hostname> using the daemon's DNS resolver (falls back to the system resolver if no DNS component is configured). Default type is A. Returns records, TTL, and query time. Supports A, AAAA, MX, NS, TXT, CNAME, and PTR. |
 | `show doctor` | Read-only | Check if this box is ready to run Ze. Verifies runtime dependencies: required files, sockets, ports, and kernel modules. Each check reports pass or fail with a reason. Run this before first start or after changing the platform setup. |
 | `show env get` | Read-only | Show one environment variable in detail. Returns the variable name, current value, default, and what it controls. Usage: show env get <name>. |
 | `show env list` | Read-only | List all Ze environment variables with their current values. Shows which env vars are set and their defaults. |

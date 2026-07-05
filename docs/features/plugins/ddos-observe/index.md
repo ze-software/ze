@@ -2,8 +2,6 @@
 
 DDoS observability: incident store and show ddos status/incidents CLI
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

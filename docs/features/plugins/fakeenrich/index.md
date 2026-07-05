@@ -2,8 +2,6 @@
 
 Test-only in-process enricher (harmless when not invoked)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

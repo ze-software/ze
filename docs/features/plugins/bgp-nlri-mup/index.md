@@ -2,8 +2,6 @@
 
 Mobile User Plane family plugin (draft-mpmz-bess-mup-safi)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>clear ospf process - Command Equivalents - Ze</title>
+        <meta name="description" content="Command details and vendor equivalents for clear ospf process." />
+        <meta property="og:title" content="clear ospf process - Command Equivalents - Ze" />
+        <meta property="og:description" content="Command details and vendor equivalents for clear ospf process." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="clear ospf process - Command Equivalents - Ze" />
+        <meta name="twitter:description" content="Command details and vendor equivalents for clear ospf process." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css?v=07b3393433" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../index.html#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <button class="nav-menu-toggle" type="button" aria-controls="site-nav-links" aria-expanded="false">
+                    <span class="nav-menu-toggle-bars" aria-hidden="true"></span>
+                    <span>Menu</span>
+                </button>
+                <div id="site-nav-links" class="nav-links">
+                    <a href="../../index.html#status">Status</a>
+                    <a href="../../index.html#try">Try</a>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-project">Project
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-project">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Overview</span>
+                        <a class="nav-dropdown-item" href="../../features/">
+                            <span class="nav-dropdown-icon">🧩</span>
+                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/plugins/">
+                            <span class="nav-dropdown-icon">🔌</span>
+                            <span><strong>Plugins</strong><small>Search every runtime plugin by purpose, config, or dependency</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../compare/">
+                            <span class="nav-dropdown-icon">⚖️</span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Reference</span>
+                        <a class="nav-dropdown-item" href="../../cli/">
+                            <span class="nav-dropdown-icon">⌨️</span>
+                            <span><strong>CLI Reference</strong><small>379 commands, generated from the live binary</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../config-reference/">
+                            <span class="nav-dropdown-icon">🧬</span>
+                            <span><strong>Configuration Reference</strong><small>35 sections, indexed from live YANG</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../command-equivalents/">
+                            <span class="nav-dropdown-icon">↔️</span>
+                            <span><strong>Command Equivalents</strong><small>Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Quality</span>
+                        <a class="nav-dropdown-item" href="../../quality/">
+                            <span class="nav-dropdown-icon">✓</span>
+                            <span><strong>Code Quality</strong><small>How Ze proves code quality with tests, QEMU, fuzzing, and gomu mutation checks</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../dependencies/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../performance/">
+                            <span class="nav-dropdown-icon">⚡</span>
+                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-journey">Journey
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-journey">
+                    <div class="nav-dropdown-col">
+                        <a class="nav-dropdown-item" href="../../roadmap/">
+                            <span class="nav-dropdown-icon">🗺️</span>
+                            <span><strong>Roadmap</strong><small>The path to a first release you can trust</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../milestones/">
+                            <span class="nav-dropdown-icon">🏁</span>
+                            <span><strong>Milestones</strong><small>Landmark features, oldest to newest</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../changes/">
+                            <span class="nav-dropdown-icon">🧾</span>
+                            <span><strong>Changes</strong><small>What shipped, week by week</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../activity/">
+                            <span class="nav-dropdown-icon">📈</span>
+                            <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-docs">Docs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-docs">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Hub</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../docs/">
+                            <span class="nav-dropdown-icon">📚</span>
+                            <span><strong>Documentation</strong><small>All docs, organised by what you want to do</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Getting started</span>
+                        <a class="nav-dropdown-item" href="../../docs/guide/quickstart/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/configuration/">
+                            <span class="nav-dropdown-icon">⚙️</span>
+                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon">⌨️</span>
+                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/formatting/">
+                            <span class="nav-dropdown-icon">🪄</span>
+                            <span><strong>Output Formatting</strong><small>Pipe operators: table, json, yaml, match, count</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/architecture/">
+                            <span class="nav-dropdown-icon">🏗️</span>
+                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Deep dives</span>
+                        <a class="nav-dropdown-item" href="../../docs/features/mcp-integration/">
+                            <span class="nav-dropdown-icon">🤖</span>
+                            <span><strong>MCP Integration</strong><small>AI-assisted operations</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/web-interface/">
+                            <span class="nav-dropdown-icon">🖥️</span>
+                            <span><strong>Web Interface</strong><small>HTMX config editor and admin panel</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/guide/vpp/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/guide/benchmarking/">
+                            <span class="nav-dropdown-icon">📊</span>
+                            <span><strong>Benchmarking</strong><small>ze-perf architecture, flags, JSON output</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/guide/exabgp-migration/">
+                            <span class="nav-dropdown-icon">🔀</span>
+                            <span><strong>Migrating from ExaBGP</strong><small>Convert configs and bridge process scripts</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-labs">Labs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-labs">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Protocols</span>
+                        <a class="nav-dropdown-item" href="../../labs/bgp-interop/">
+                            <span class="nav-dropdown-icon">🌐</span>
+                            <span><strong>BGP Protocol Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/l2tp-interop/">
+                            <span class="nav-dropdown-icon">🔌</span>
+                            <span><strong>L2TP PPP/NCP Interop</strong><small>Ze as LNS vs real xl2tpd</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/pppoe-interop/">
+                            <span class="nav-dropdown-icon">📡</span>
+                            <span><strong>PPPoE Interop</strong><small>vs real accel-ppp access concentrator</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/ipsec-interop/">
+                            <span class="nav-dropdown-icon">🔒</span>
+                            <span><strong>IPsec / IKEv2 Interop</strong><small>Ze as IKE initiator vs strongSwan</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Systems</span>
+                        <a class="nav-dropdown-item" href="../../labs/vlan-qos/">
+                            <span class="nav-dropdown-icon">🏷️</span>
+                            <span><strong>VLAN QoS Wire-Level Proof</strong><small>802.1p PCP tagging, actually on the wire</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/looking-glass-graph/">
+                            <span class="nav-dropdown-icon">🔭</span>
+                            <span><strong>Looking Glass Graph Demo</strong><small>Realistic UK topology, real external ASNs</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/appliance-install/">
+                            <span class="nav-dropdown-icon">💿</span>
+                            <span><strong>Appliance Installer Evidence</strong><small>HTTP/PXE, ISO, Ventoy, real boots</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/vpp-dataplane/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>VPP Dataplane Evidence</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <a href="../../blog/">Blog</a>
+                    <a href="../../talks/">Talks</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                    <a
+                        class="nav-badge nav-badge-search"
+                        href="../../search/"
+                        aria-label="Search the site"
+                        aria-expanded="false"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/></svg></span>
+                        <span class="nav-badge-count nav-badge-search-label">Search</span>
+                    </a>
+                    <a
+                        class="nav-badge"
+                        href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener"
+                        aria-label="Ze Discord"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 640 512" fill="currentColor" aria-hidden="true"><path d="M524.531,69.836a1.5,1.5,0,0,0-.764-.7A485.065,485.065,0,0,0,404.081,32.03a1.816,1.816,0,0,0-1.923.91,337.461,337.461,0,0,0-14.9,30.6,447.848,447.848,0,0,0-134.426,0,309.541,309.541,0,0,0-15.135-30.6,1.89,1.89,0,0,0-1.924-.91A483.689,483.689,0,0,0,116.085,69.137a1.712,1.712,0,0,0-.788.676C39.068,183.651,18.186,294.69,28.43,404.354a2.016,2.016,0,0,0,.765,1.375A487.666,487.666,0,0,0,176.02,479.918a1.9,1.9,0,0,0,2.063-.676A348.2,348.2,0,0,0,208.12,430.4a1.86,1.86,0,0,0-1.019-2.588,321.173,321.173,0,0,1-45.868-21.853,1.885,1.885,0,0,1-.185-3.126c3.082-2.309,6.166-4.711,9.109-7.137a1.819,1.819,0,0,1,1.9-.256c96.229,43.917,200.41,43.917,295.5,0a1.812,1.812,0,0,1,1.924.233c2.944,2.426,6.027,4.851,9.132,7.16a1.884,1.884,0,0,1-.162,3.126,301.407,301.407,0,0,1-45.89,21.83,1.875,1.875,0,0,0-1,2.611,391.055,391.055,0,0,0,30.014,48.815,1.864,1.864,0,0,0,2.063.7A486.048,486.048,0,0,0,610.7,405.729a1.882,1.882,0,0,0,.765-1.352C623.729,277.594,590.933,167.465,524.531,69.836ZM222.491,337.58c-28.972,0-52.844-26.587-52.844-59.239S193.056,219.1,222.491,219.1c29.665,0,53.306,26.82,52.843,59.239C275.334,310.993,251.924,337.58,222.491,337.58Zm195.38,0c-28.971,0-52.843-26.587-52.843-59.239S388.437,219.1,417.871,219.1c29.667,0,53.307,26.82,52.844,59.239C470.715,310.993,447.538,337.58,417.871,337.58Z"/></svg></span>
+                        <span class="nav-badge-count">Discord</span>
+                    </a>
+                    <a
+                        class="nav-badge"
+                        href="https://github.com/ze-software/ze" target="_blank" rel="noopener"
+                        aria-label="Ze on GitHub, 39 stars"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 496 512" fill="currentColor" aria-hidden="true"><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        <span class="nav-badge-count">39</span>
+                    </a>
+                </div>
+            </nav>
+        </header>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Command detail</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Navigate</h2>
+                    <a class="page-sidebar-link" href="../../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Return to the side-by-side vendor map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../cli/">
+                        <span class="page-sidebar-link-label">CLI reference</span>
+                        <small>Open the generated Ze command catalog.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/features/cli-commands/">
+                        <span class="page-sidebar-link-label">CLI commands</span>
+                        <small>Understand CLI behavior and design.</small>
+                    </a>
+                </section>
+                <section class="page-sidebar-group">
+                    <h2>Referenced vendors</h2>
+                    <a class="page-sidebar-link" href="https://www.juniper.net/documentation/" target="_blank" rel="noopener">
+                        <span class="page-sidebar-link-label">Juniper Junos</span>
+                        <small>Vendor documentation used by command equivalents.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="https://www.cisco.com/c/en/us/support/ios-nx-os-software/ios-xr-software/series.html" target="_blank" rel="noopener">
+                        <span class="page-sidebar-link-label">Cisco IOS XR</span>
+                        <small>Vendor documentation used by command equivalents.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="https://documentation.nokia.com/sr/" target="_blank" rel="noopener">
+                        <span class="page-sidebar-link-label">Nokia SR OS</span>
+                        <small>Vendor documentation used by command equivalents.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="https://docs.vyos.io/" target="_blank" rel="noopener">
+                        <span class="page-sidebar-link-label">VyOS docs</span>
+                        <small>Current VyOS documentation and feature references.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+
+
+<section class="md-content command-equivalents command-equivalent-detail reveal cat-operate">
+<h1><code>clear ospf process</code></h1>
+<div class="cmd-detail-grid">
+<article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
+<dl class="cmd-meta">
+<div><dt>Syntax</dt><dd><code>clear ospf process</code></dd></div>
+<div><dt>Registry path</dt><dd><code>clear ospf process</code></dd></div>
+<div><dt>Mode</dt><dd>Daemon</dd></div>
+<div><dt>Wire method</dt><dd><code>ze-clear:ospf-process</code></dd></div>
+<div><dt>Global pipes</dt><dd>yes</dd></div>
+</dl>
+<h3>Description</h3><p>Full OSPF reset: tear down every adjacency and re-run SPF.<br>Usage: clear ospf process. Adjacencies re-form from the next Hello;<br>the configuration is unchanged.</p>
+<h3>Arguments</h3>
+<p>No command-specific arguments listed.</p>
+</article>
+<article class="cmd-detail-card"><h2>Mapping intents</h2>
+<section class="cmd-intent"><h3>Clear OSPF process, counters, or neighbor state</h3>
+<p><strong>Category:</strong> Routing protocols</p>
+</section>
+</article>
+<article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
+<p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>
+</article>
+<article class="cmd-detail-card cmd-vendor-detail"><h2>Cisco IOS XR</h2>
+<p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>
+</article>
+<article class="cmd-detail-card cmd-vendor-detail"><h2>Nokia SR OS</h2>
+<p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>
+</article>
+<article class="cmd-detail-card cmd-vendor-detail"><h2>VyOS</h2>
+<p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>
+</article>
+</div></section>
+        </main>
+
+        <script src="../../assets/site.js?v=79779d6bdd" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-columns">
+                    <div class="footer-col">
+                        <h3>Project</h3>
+                        <a href="../../features/">Features</a>
+                        <a href="../../docs/features/plugins/">Plugins</a>
+                        <a href="../../cli/">CLI Reference</a>
+                        <a href="../../dependencies/">Dependencies</a>
+                        <a href="../../performance/">Performance</a>
+                        <a href="../../compare/">Compare</a>
+                        <a href="../../roadmap/">Roadmap</a>
+                        <a href="../../milestones/">Milestones</a>
+                        <a href="../../changes/">Changes</a>
+                        <a href="../../activity/">Activity</a>
+                    </div>
+                    <div class="footer-col">
+                        <h3>Learn</h3>
+                        <a href="../../docs/">Documentation</a>
+                        <a href="../../docs/guide/quickstart/">Quickstart</a>
+                        <a href="../../docs/architecture/">Architecture</a>
+                        <a href="../../labs/">Labs</a>
+                        <a href="../../blog/">Blog</a>
+                        <a href="../../talks/">Talks</a>
+                        <a href="../../faq/">FAQ</a>
+                    </div>
+                    <div class="footer-col">
+                        <h3>Community</h3>
+                        <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>
+                        <a href="../../contribute/">Contribute</a>
+                        <a href="../../security/">Security</a>
+                        <a href="../../code-of-conduct/">Code of Conduct</a>
+                        <a href="https://github.com/ze-software/ze" target="_blank" rel="noopener">GitHub</a>
+                        <a href="https://codeberg.org/thomas-mangin/ze" target="_blank" rel="noopener">Codeberg</a>
+                        <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">Issues</a>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../style-guide/">Style Guide</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

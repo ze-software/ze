@@ -2,8 +2,6 @@
 
 Traffic shaping for L2TP subscriber sessions
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

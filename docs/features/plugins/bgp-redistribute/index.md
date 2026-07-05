@@ -2,8 +2,6 @@
 
 Route redistribution ingress filter with loop prevention and family filtering
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

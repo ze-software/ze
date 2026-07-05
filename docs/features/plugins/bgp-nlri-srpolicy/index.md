@@ -2,8 +2,6 @@
 
 SR-Policy family plugin (RFC 9830, SAFI 73)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

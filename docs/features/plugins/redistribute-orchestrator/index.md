@@ -2,8 +2,6 @@
 
 Redistribute orchestrator: dispatches protocol route events to registered consumers
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

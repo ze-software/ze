@@ -2,8 +2,6 @@
 
 Named prefix-list filter (CIDR + ge/le + accept/reject)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

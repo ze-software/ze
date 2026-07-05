@@ -2,8 +2,6 @@
 
 DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

@@ -2,8 +2,6 @@
 
 Route Information Base storage
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

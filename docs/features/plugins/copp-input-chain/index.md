@@ -2,8 +2,6 @@
 
 Control-plane policing: rate-limit new TCP connections to BGP listen port
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

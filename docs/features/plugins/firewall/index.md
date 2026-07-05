@@ -2,8 +2,6 @@
 
 Packet filter and NAT rules (nftables on Linux)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

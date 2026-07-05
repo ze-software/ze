@@ -2,8 +2,6 @@
 
 OS network interface monitoring and management
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

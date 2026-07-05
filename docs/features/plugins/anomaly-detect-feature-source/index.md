@@ -2,8 +2,6 @@
 
 Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

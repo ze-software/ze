@@ -2,8 +2,6 @@
 
 DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css?v=23545b1738" />
+        <link rel="stylesheet" href="../assets/site.css?v=07b3393433" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -47,24 +47,41 @@
                     </button>
                     <div class="nav-dropdown-panel" id="nav-panel-project">
                     <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Overview</span>
                         <a class="nav-dropdown-item" href="../features/">
                             <span class="nav-dropdown-icon">🧩</span>
                             <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../docs/features/plugins/">
-                            <span class="nav-dropdown-icon">∎</span>
+                            <span class="nav-dropdown-icon">🔌</span>
                             <span><strong>Plugins</strong><small>Search every runtime plugin by purpose, config, or dependency</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="../compare/">
+                            <span class="nav-dropdown-icon">⚖️</span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Reference</span>
                         <a class="nav-dropdown-item" href="../cli/">
                             <span class="nav-dropdown-icon">⌨️</span>
-                            <span><strong>CLI Reference</strong><small>380 commands, generated from the live binary</small></span>
+                            <span><strong>CLI Reference</strong><small>379 commands, generated from the live binary</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../config-reference/">
                             <span class="nav-dropdown-icon">🧬</span>
                             <span><strong>Configuration Reference</strong><small>35 sections, indexed from live YANG</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="../command-equivalents/">
+                            <span class="nav-dropdown-icon">↔️</span>
+                            <span><strong>Command Equivalents</strong><small>Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS</small></span>
+                        </a>
                     </div>
                     <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Quality</span>
+                        <a class="nav-dropdown-item" href="../quality/">
+                            <span class="nav-dropdown-icon">✓</span>
+                            <span><strong>Code Quality</strong><small>How Ze proves code quality with tests, QEMU, fuzzing, and gomu mutation checks</small></span>
+                        </a>
                         <a class="nav-dropdown-item" href="../dependencies/">
                             <span class="nav-dropdown-icon">📦</span>
                             <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
@@ -72,10 +89,6 @@
                         <a class="nav-dropdown-item" href="../performance/">
                             <span class="nav-dropdown-icon">⚡</span>
                             <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../compare/">
-                            <span class="nav-dropdown-icon">⚖️</span>
-                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
                         </a>
                     </div>
                     </div>
@@ -111,6 +124,7 @@
                     </button>
                     <div class="nav-dropdown-panel" id="nav-panel-docs">
                     <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Hub</span>
                         <a class="nav-dropdown-item nav-dropdown-feature" href="../docs/">
                             <span class="nav-dropdown-icon">📚</span>
                             <span><strong>Documentation</strong><small>All docs, organised by what you want to do</small></span>
@@ -170,6 +184,7 @@
                     </button>
                     <div class="nav-dropdown-panel" id="nav-panel-labs">
                     <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Protocols</span>
                         <a class="nav-dropdown-item" href="../labs/bgp-interop/">
                             <span class="nav-dropdown-icon">🌐</span>
                             <span><strong>BGP Protocol Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
@@ -188,6 +203,7 @@
                         </a>
                     </div>
                     <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Systems</span>
                         <a class="nav-dropdown-item" href="../labs/vlan-qos/">
                             <span class="nav-dropdown-icon">🏷️</span>
                             <span><strong>VLAN QoS Wire-Level Proof</strong><small>802.1p PCP tagging, actually on the wire</small></span>
@@ -244,7 +260,32 @@
             </nav>
         </header>
 
-        <main id="top" tabindex="-1">
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Find</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Browse instead</h2>
+                    <a class="page-sidebar-link" href="../docs/">
+                        <span class="page-sidebar-link-label">Documentation</span>
+                        <small>Start from reader intent.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../features/">
+                        <span class="page-sidebar-link-label">Features</span>
+                        <small>Browse product surface by category.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Find operational syntax quickly.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../changes/">
+                        <span class="page-sidebar-link-label">Changes</span>
+                        <small>Scan recent work by week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+
             <section class="md-content reveal" aria-labelledby="search-title">
                 <h1 id="search-title">Search</h1>
                 <p>Search across all of Ze's documentation and pages. Everything
@@ -368,7 +409,7 @@
             </script>
         </main>
 
-        <script src="../assets/site.js?v=74c603e2dc" defer></script>
+        <script src="../assets/site.js?v=79779d6bdd" defer></script>
 
         <footer>
             <div class="footer-inner">

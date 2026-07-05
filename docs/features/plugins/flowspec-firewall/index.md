@@ -2,8 +2,6 @@
 
 Translates BGP FlowSpec routes into nftables firewall rules
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

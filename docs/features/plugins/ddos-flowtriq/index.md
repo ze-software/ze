@@ -2,8 +2,6 @@
 
 DDoS incident reporter for Flowtriq cloud API
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

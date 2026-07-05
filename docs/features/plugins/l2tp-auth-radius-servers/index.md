@@ -2,8 +2,6 @@
 
 RADIUS authentication and accounting for L2TP PPP sessions
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

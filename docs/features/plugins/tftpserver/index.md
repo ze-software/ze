@@ -2,8 +2,6 @@
 
 TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

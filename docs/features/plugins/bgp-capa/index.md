@@ -2,8 +2,6 @@
 
 Core BGP capability decoding (multiprotocol, asn4, add-path, paths-limit, extended-nexthop, extended-message)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

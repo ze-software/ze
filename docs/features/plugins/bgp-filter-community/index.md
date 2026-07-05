@@ -2,8 +2,6 @@
 
 Community tag/strip filter (standard, large, extended)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

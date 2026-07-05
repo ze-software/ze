@@ -2,8 +2,6 @@
 
 Label Distribution Protocol (RFC 5036): MPLS label distribution
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

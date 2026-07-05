@@ -2,8 +2,6 @@
 
 Named address-family policy filter: remove a family's NLRI or tear down the session
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

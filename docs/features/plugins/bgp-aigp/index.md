@@ -2,8 +2,6 @@
 
 Accumulated IGP Metric (RFC 7311)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

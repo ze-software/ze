@@ -2,8 +2,6 @@
 
 GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

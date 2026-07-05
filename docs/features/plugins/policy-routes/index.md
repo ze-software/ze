@@ -2,8 +2,6 @@
 
 Policy-based routing: nftables packet marking and ip rule table selection
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

@@ -2,8 +2,6 @@
 
 IPv4 address and IPv6 prefix pool for L2TP PPP sessions
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

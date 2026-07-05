@@ -2,8 +2,6 @@
 
 Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

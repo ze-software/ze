@@ -2,8 +2,6 @@
 
 BGP routing daemon
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

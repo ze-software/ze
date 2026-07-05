@@ -2,8 +2,6 @@
 
 Named AS-path action filter that removes RFC 6996 Private Use ASNs
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

@@ -2,8 +2,6 @@
 
 Software Version capability (code 75)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

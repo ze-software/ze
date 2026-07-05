@@ -2,8 +2,6 @@
 
 Kernel routes: redistribute externally-installed kernel routes into BGP
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

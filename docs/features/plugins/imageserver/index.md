@@ -2,8 +2,6 @@
 
 Image server: HTTP provisioning for disk images and boot files
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

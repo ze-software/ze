@@ -2,8 +2,6 @@
 
 Named AS-path regex filter (ordered entries, first match wins, accept/reject)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

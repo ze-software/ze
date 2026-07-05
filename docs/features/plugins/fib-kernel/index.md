@@ -2,8 +2,6 @@
 
 FIB kernel: programs OS routes from system RIB via netlink/route socket
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

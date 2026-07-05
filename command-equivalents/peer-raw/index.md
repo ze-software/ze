@@ -1,0 +1,32 @@
+# `peer raw <selector>`
+
+## Ze command
+
+- Syntax: `peer raw <selector>`
+- Registry path: `peer raw`
+- Mode: Daemon
+- Wire method: `ze-bgp:peer-raw`
+- Global pipes: yes
+
+Send raw bytes into a peer's TCP stream (dangerous). Injects arbitrary bytes with no BGP framing or validation. Intended for conformance testing and fuzzing only. Will likely break the session if used carelessly.
+
+## Mapping intents
+
+No vendor equivalent has been curated yet for this Ze command.
+## Vendor equivalents
+
+### Junos MX
+
+No equivalent listed.
+
+### IOS XR
+
+No equivalent listed.
+
+### SR OS
+
+No equivalent listed.
+
+### VyOS
+
+No equivalent listed.

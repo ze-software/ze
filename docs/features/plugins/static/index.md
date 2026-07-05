@@ -2,8 +2,6 @@
 
 Static routes: config-driven kernel/VPP route programming with ECMP
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

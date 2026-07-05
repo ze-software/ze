@@ -2,8 +2,6 @@
 
 802.1p class-of-service profile definitions
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

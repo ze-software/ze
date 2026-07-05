@@ -2,8 +2,6 @@
 
 Test-only synthetic L2TP route producer (use ze.fakel2tp; harmless when not invoked)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

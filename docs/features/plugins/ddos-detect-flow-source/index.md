@@ -2,8 +2,6 @@
 
 Automatic DDoS attack detector with two-stage detection
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

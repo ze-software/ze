@@ -2,8 +2,6 @@
 
 Traffic control (tc) qdisc, class, and filter management
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

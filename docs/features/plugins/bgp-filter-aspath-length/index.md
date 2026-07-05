@@ -2,8 +2,6 @@
 
 Named AS-path length filter (accept/reject based on hop count)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

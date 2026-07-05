@@ -2,8 +2,6 @@
 
 DDoS local responder: on-host nft drop on attack detection
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

@@ -2,8 +2,6 @@
 
 Bidirectional Forwarding Detection (RFC 5880, 5881, 5883)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

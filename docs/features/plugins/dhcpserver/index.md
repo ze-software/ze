@@ -2,8 +2,6 @@
 
 DHCP server: address assignment for LAN clients (RFC 2131)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

@@ -2,8 +2,6 @@
 
 Graceful Restart capability and mechanism plugin
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

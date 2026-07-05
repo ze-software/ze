@@ -2,8 +2,6 @@
 
 Connected routes: redistribute directly connected interface prefixes
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |

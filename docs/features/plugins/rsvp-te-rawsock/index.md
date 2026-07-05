@@ -2,8 +2,6 @@
 
 RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209)
 
-[Back to plugin catalog](../index.md)
-
 ## At a glance
 
 | Field | Value |
