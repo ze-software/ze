@@ -43,6 +43,66 @@ def to_data_uri(base_dir, path):
     return f'data:{mime};base64,{data}'
 
 
+def replace_or_insert_meta(html, name, content):
+    escaped = content.replace('&', '&amp;').replace('"', '&quot;')
+    pattern = re.compile(r'(<meta\s+name="' + re.escape(name) + r'"\s+content=")([^"]*)(">)')
+    if pattern.search(html):
+        return pattern.sub(r'\1' + escaped + r'\3', html, count=1)
+    return html.replace('<title>', '<meta name="' + name + '" content="' + escaped + '">\n    <title>', 1)
+
+
+def replace_or_insert_property(html, prop, content):
+    escaped = content.replace('&', '&amp;').replace('"', '&quot;')
+    pattern = re.compile(r'(<meta\s+property="' + re.escape(prop) + r'"\s+content=")([^"]*)(">)')
+    if pattern.search(html):
+        return pattern.sub(r'\1' + escaped + r'\3', html, count=1)
+    return html.replace('</title>', '</title>\n    <meta property="' + prop + '" content="' + escaped + '">', 1)
+
+
+def standalone_title(title):
+    if 'standalone HTML deck' in title:
+        return title
+    title = re.sub(r'\s+-\s+[^<]* slides$', '', title)
+    return title + ' - standalone HTML deck'
+
+
+def mark_standalone_deck(html, input_path, output_path):
+    input_name = os.path.basename(input_path)
+    output_name = os.path.basename(output_path)
+
+    title_match = re.search(r'<title>(.*?)</title>', html, re.S)
+    title = standalone_title(title_match.group(1).strip()) if title_match else 'Standalone HTML deck'
+    if title_match:
+        html = re.sub(r'<title>.*?</title>', '<title>' + title + '</title>', html, count=1, flags=re.S)
+
+    desc_match = re.search(r'<meta\s+name="description"\s+content="([^"]*)">', html)
+    if desc_match and not desc_match.group(1).startswith('Single-file downloadable HTML deck'):
+        desc = 'Single-file downloadable HTML deck for local offline use: ' + desc_match.group(1)
+        html = replace_or_insert_meta(html, 'description', desc)
+        html = replace_or_insert_property(html, 'og:description', desc)
+    elif desc_match:
+        desc = desc_match.group(1)
+    else:
+        desc = 'Single-file downloadable HTML deck for local offline use.'
+        html = replace_or_insert_meta(html, 'description', desc)
+        html = replace_or_insert_property(html, 'og:description', desc)
+
+    html = replace_or_insert_property(html, 'og:title', title)
+    html = re.sub(
+        r'(<link\s+rel="canonical"\s+href="[^"]*)' + re.escape(input_name) + r'("[^>]*>)',
+        r'\1' + output_name + r'\2',
+        html,
+        count=1,
+    )
+    html = re.sub(
+        r'(<meta\s+property="og:url"\s+content="[^"]*)' + re.escape(input_name) + r'("[^>]*>)',
+        r'\1' + output_name + r'\2',
+        html,
+        count=1,
+    )
+    return html
+
+
 def bundle(html, base_dir):
     def replace_src(m):
         prefix = m.group(1)
@@ -186,7 +246,7 @@ def main():
         with open(input_path) as f:
             html = f.read()
 
-        result = bundle(html, base_dir)
+        result = mark_standalone_deck(bundle(html, base_dir), input_path, output_path)
 
         with open(output_path, 'w') as f:
             f.write(result)

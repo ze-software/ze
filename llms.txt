@@ -14,15 +14,15 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://codeberg.org/thomas-mangin/ze. GitHub mirror: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 46 shipped or experimental feature cards, 6 roadmap cards, 379 CLI commands, 35 config sections, 90 plugin registrations, 39 direct Go dependencies, 29 weekly change entries.
-- Test evidence counts: 63,900+ unit tests, 360+ fuzz targets, 1,300+ end-to-end transcript steps, 101 interop scenarios across 7 target implementations.
+- Current generated counts: 46 shipped or experimental feature cards, 6 roadmap cards, 379 CLI commands, 35 config sections, 91 plugin registrations, 39 direct Go dependencies, 29 weekly change entries.
+- Test evidence counts: 64,000 unit tests, 360+ fuzz targets, 1,300+ end-to-end transcript steps, 101 interop scenarios across 7 target implementations.
 - Generated date: 2026-07-05.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 63,900+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 64,000 unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 360+ fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
@@ -201,6 +201,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `ddos-local`: DDoS local responder: on-host nft drop on attack detection Config roots: ddos/local. Dependencies: firewall. Optional: none. YANG files: 1. Source: `internal/plugins/ddos/local`.
 - `ddos-observe`: DDoS observability: incident store and show ddos status/incidents CLI Config roots: ddos/observe. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/ddos/observe`.
 - `dhcpserver`: DHCP server: address assignment for LAN clients (RFC 2131) Config roots: service. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/dhcpserver`.
+- `fakeas112`: Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked) Config roots: none. Dependencies: none. Optional: none. YANG files: 2. Source: `internal/test/plugins/fakeas112`.
 - `fakeenrich`: Test-only in-process enricher (harmless when not invoked) Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/test/plugins/fakeenrich`.
 - `fakefib`: Test-only sysrib event emitter for FIB functional tests (use ze.fakefib) Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/test/plugins/fakefib`.
 - `fakel2tp`: Test-only synthetic L2TP route producer (use ze.fakel2tp; harmless when not invoked) Config roots: none. Dependencies: none. Optional: none. YANG files: 2. Source: `internal/test/plugins/fakel2tp`.

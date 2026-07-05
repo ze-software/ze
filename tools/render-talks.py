@@ -32,7 +32,7 @@ def render_talk(talk):
                             <p>{title}</p>
                             <p class="talk-date">{date}</p>
                         </a>
-                        <p class="talk-alt"><a href="../presentations/{slug}/index-inlined.html">single-file version</a></p>
+                        <p class="talk-alt"><a href="../presentations/{slug}/index-inlined.html" download>Download standalone HTML deck</a></p>
                     </article>""".format(
         slug=talk["slug"],
         venue=talk["venue"],
@@ -71,6 +71,10 @@ def render(talks):
         md_parts.append("")
         md_parts.append(
             "[Watch](%spresentations/%s/index.html)" % (sitelib.SITE_BASE, talk["slug"])
+        )
+        md_parts.append(
+            "[Download standalone HTML deck](%spresentations/%s/index-inlined.html)"
+            % (sitelib.SITE_BASE, talk["slug"])
         )
         md_parts.append("")
     sitelib.write_markdown_sibling(DEST, "\n".join(md_parts).strip() + "\n")

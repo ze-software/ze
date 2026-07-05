@@ -1486,6 +1486,9 @@
     <loc>https://ze-software.net/docs/features/plugins/dhcpserver/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/features/plugins/fakeas112/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/features/plugins/fakeenrich/</loc>
   </url>
   <url>
@@ -1709,6 +1712,18 @@
   </url>
   <url>
     <loc>https://ze-software.net/performance/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/presentations/linx-2026-06/index-inlined.html</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/presentations/linx-2026-06/index.html</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/presentations/netmcr-2026-04/index-inlined.html</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/presentations/netmcr-2026-04/index.html</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/</loc>

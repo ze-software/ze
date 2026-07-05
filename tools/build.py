@@ -454,6 +454,7 @@ def step_nav():
     for rel, root in NAV_PATCH_TARGETS:
         path = GH_PAGES / rel
         text = sitelib.patch_navblock(path.read_text(), root)
+        text = sitelib.patch_brand_home_href(text, root)
         text = sitelib.patch_page_sidebar(text, root, sitelib.page_key_for_path(rel))
         text = sitelib.patch_footer(text, root)
         text = sitelib.patch_asset_versions(text)

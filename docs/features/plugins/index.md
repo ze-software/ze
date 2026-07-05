@@ -1,6 +1,6 @@
 # Plugin catalog
 
-86 runtime plugins generated from `data/plugin-registry.json`, plus 4 test fixtures. 66 runtime plugins declare configuration roots and 67 ship YANG modules.
+86 runtime plugins generated from `data/plugin-registry.json`, plus 5 test fixtures. 66 runtime plugins declare configuration roots and 67 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -320,6 +320,7 @@ Generated group for registry entries mapped to the Test Harness area. Source are
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
+| [`fakeas112`](fakeas112/index.md) | Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked) | None | None | `internal/test/plugins/fakeas112` |
 | [`fakeenrich`](fakeenrich/index.md) | Test-only in-process enricher (harmless when not invoked) | None | None | `internal/test/plugins/fakeenrich` |
 | [`fakefib`](fakefib/index.md) | Test-only sysrib event emitter for FIB functional tests (use ze.fakefib) | None | None | `internal/test/plugins/fakefib` |
 | [`fakel2tp`](fakel2tp/index.md) | Test-only synthetic L2TP route producer (use ze.fakel2tp; harmless when not invoked) | None | None | `internal/test/plugins/fakel2tp` |

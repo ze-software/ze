@@ -362,12 +362,16 @@ def _columns_from_data(columns):
 
 
 def rooted_href(root, path):
-    """root + path, except on index.html itself (root == "") a same-page
-    "index.html#frag" link collapses to a bare "#frag" -- a hard navigation
-    to your own URL still works, but the bare fragment is what lets
-    site.js's smooth-scroll handle it instead of a full reload."""
-    if root == "" and path.startswith("index.html#"):
-        return path[len("index.html") :]
+    """Return a site-root-relative href without spelling directory indexes.
+
+    Generated chrome links to the homepage from every page. Use ``../#top``,
+    not ``../index.html#top``, so crawlers and users see one URL shape for the
+    same page while same-page homepage fragments still stay bare.
+    """
+    if path == "index.html":
+        return root or "./"
+    if path.startswith("index.html#"):
+        return (root or "") + path[len("index.html") :]
     return root + path
 
 
@@ -591,6 +595,16 @@ def patch_navblock(html_text, root):
     div_start = m.start()
     end = _find_balanced_div_end(html_text, div_start)
     return html_text[: m.start()] + build_navblock(root) + html_text[end:]
+
+BRAND_HOME_RE = re.compile(r'(<a class="brand" href=")[^"]*(" aria-label="Ze home">)')
+
+
+def patch_brand_home_href(html_text, root):
+    return BRAND_HOME_RE.sub(
+        r'\1' + html.escape(rooted_href(root, "index.html#top"), quote=True) + r'\2',
+        html_text,
+        count=1,
+    )
 
 
 # (heading, [(path relative to site root, label), ...]) -- local links only,

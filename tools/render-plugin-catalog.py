@@ -319,11 +319,11 @@ def dependency_index(plugins):
 
 
 def catalog_plugin_href(plugin):
-    return "%s/index.html" % plugin["slug"]
+    return "%s/" % plugin["slug"]
 
 
 def detail_plugin_href(plugin):
-    return "../%s/index.html" % plugin["slug"]
+    return "../%s/" % plugin["slug"]
 
 
 def catalog_markdown_href(plugin):

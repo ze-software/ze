@@ -108,7 +108,7 @@ PAGE = """<!doctype html>
     <body>
         <header class="site-header">
             <nav class="nav" aria-label="Main navigation">
-                <a class="brand" href="../index.html#top" aria-label="Ze home">
+                <a class="brand" href="../#top" aria-label="Ze home">
                     <img src="../assets/ze.svg" alt="" width="32" height="32" />
                     <span>Ze</span>
                 </a>

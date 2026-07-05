@@ -1252,6 +1252,19 @@
     "doc": {}
   },
   {
+    "name": "fakeas112",
+    "description": "Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked)",
+    "config_roots": [],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/test/plugins/fakeas112",
+    "yang_files": [
+      "internal/test/plugins/fakeas112/yang/ze-fakeas112-api.yang",
+      "internal/test/plugins/fakeas112/yang/ze-fakeas112-cmd.yang"
+    ],
+    "doc": {}
+  },
+  {
     "name": "fakeenrich",
     "description": "Test-only in-process enricher (harmless when not invoked)",
     "config_roots": [],

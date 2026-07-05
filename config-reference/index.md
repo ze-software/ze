@@ -4319,6 +4319,10 @@ Service settings
     Restrict the service to one address family (RFC 7534 Section 3.4 / RFC 7535 Section 3.1 single-stack option). The anycast addresses themselves are fixed constants, never operator-typed.
   - **allow-from** `ip-prefix[]`
     Optional client-source access list. Empty/unset (default) answers every source, matching standard AS112 public-sink behavior. When non-empty, only queries whose source IP is contained in one of these prefixes are answered; all others are silently dropped (no response). Loopback/ on-box sources are always implicitly permitted regardless of this list, so the 'request as112 healthcheck' probe is never blocked. Setting this makes the node non-public -- correct for a local-use mirror, wrong for a globally-reachable AS112 contributor.
+  - **asn** `asn`
+    Origin AS the AS112 covering prefixes carry when redistributed into BGP (redistribute { destination bgp { import as112 } }). Defaults to the well-known AS112 number 112 (RFC 7534 Section 3.2): the redistribute source models an AS112 virtual router. Set an operator ASN or an RFC 6996 private-use ASN to originate under a coordinated or local-use AS instead. Ignored unless 'import as112' is configured under redistribute.
+  - **community** `string[]`
+    Optional BGP communities attached to the redistributed AS112 covering prefixes. Accepts AA:NN standard communities (RFC 1997) and well-known names such as no-export or nopeer (RFC 3765) -- the values RFC 7534 Section 3.4 recommends for restricting AS112 route propagation. Typed 'string' rather than the AA:NN-only ze-types community pattern so well-known names are accepted; every value is validated by the canonical community parser at config time. Ignored unless 'import as112' is configured under redistribute.
   - **enabled** `boolean`
     Enable the AS112 anycast DNS node
   - **facility** `string`
@@ -4339,6 +4343,8 @@ Service settings
       Listen TCP port; 0 means OS-assigned
   - **location** `string`
     City/country surfaced alongside facility in the HOSTNAME.AS112.NET/ARPA TXT answers, e.g. 'London, UK'.
+  - **watchdog** `boolean`
+    Health-gate the BGP announcement on DNS serving state (RFC 7534 Section 3.3: do not advertise the service prefix while the name server is not running). When true (default) the covering prefixes are announced only while the as112 node is serving, and withdrawn when serving is lost, the service is disabled, or the node shuts down. false announces as soon as enabled and imported, without the serving-state gate. Ignored unless 'import as112' is configured under redistribute.
 - **dhcp-server** `container`
   DHCP server settings
   - **enabled** `boolean`

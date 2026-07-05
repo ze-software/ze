@@ -15,14 +15,16 @@ SKIP_TOP = {
     ".ruff_cache",
     "assets",
     "data",
-    "presentations",
     "tmp",
     "tools",
 }
+PRESENTATION_PAGE_NAMES = {"index.html", "index-inlined.html"}
 
 
 def include_page(path):
     rel = path.relative_to(GH_PAGES)
+    if rel.parts[0] == "presentations":
+        return len(rel.parts) == 3 and rel.name in PRESENTATION_PAGE_NAMES
     if rel.parts[0] in SKIP_TOP:
         return False
     return path.name == "index.html"
@@ -32,6 +34,8 @@ def page_url(path):
     rel = path.relative_to(GH_PAGES)
     if rel == pathlib.Path("index.html"):
         return sitelib.SITE_BASE
+    if rel.parts[0] == "presentations":
+        return sitelib.SITE_BASE + rel.as_posix()
     parent = rel.parent.as_posix()
     return sitelib.SITE_BASE + parent.rstrip("/") + "/"
 

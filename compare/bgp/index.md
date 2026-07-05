@@ -267,7 +267,7 @@ After the detail tables above: the gaps, stated plainly, not buried in a
 - **No custom filter language** -- several implementations here have their own filter DSL; Ze relies on plugin chains instead.
 - **No Confederation, no Multi-Topology IS-IS (RFC 5120)** -- Ze's IS-IS matches the single-topology default other implementations ship, but not their optional multi-topology extension.
 - **Pre-release, first release 2026** -- sitting in the same table as implementations with years to decades of production hardening (one dates to 1998).
-- **Performance is not yet benchmarked at scale.** Go carries an estimated 10-15% CPU overhead versus C/Rust implementations; this has not been measured under load. See [Performance](../performance/).
+- **Performance is not yet benchmarked at scale.** Go carries an estimated 10-15% CPU overhead versus C/Rust implementations; this has not been measured under load. See [Performance](../../performance/).
 
 None of this is hidden in the tables above -- it's restated here because a
 visitor shouldn't have to hunt for it.
@@ -374,7 +374,7 @@ already know, instead of learning a new syntax.
 
 Unknown at scale. The current estimate is 10-15% CPU overhead from the Go
 runtime, but that number has not been benchmarked under real load. Treat it
-as an open question, not a claim. See [Performance](../performance/) for the
+as an open question, not a claim. See [Performance](../../performance/) for the
 actual convergence and throughput numbers measured so far.
 
 **Does Ze implement every BGP feature in this table?**
