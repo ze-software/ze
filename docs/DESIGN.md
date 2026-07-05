@@ -791,7 +791,7 @@ entry points is not a substitute.
 BGP daemons. Ze establishes real sessions with FRR, BIRD, and GoBGP in containers and
 verifies correct behavior: session establishment, route exchange, graceful restart,
 route refresh, next-hop handling, BFD failover, ECMP, SRv6, and remove-private-as policy.
-97 interop scenarios run across multiple implementations, written in Python with
+101 interop scenarios run across multiple implementations, written in Python with
 automated container orchestration. Interop correctness is measured by real peers,
 not unit tests alone.
 
