@@ -29,7 +29,10 @@ edit regenerates it and a stale index never ships. Motivating audit:
   (wiring-completeness).
 - No CI here, so the enforcement lives in `commit_helper.py`: the commit gate blocks a
   stale index (run `make ze-regen`) or a commit that changes a feeding source but
-  omits the regenerated index; overridable with `--stale-index-ok`.
+  omits the regenerated index; overridable with `--stale-index-ok`. A HEAD-consistency
+  preflight additionally warns (non-blocking) when HEAD's committed index does not
+  match HEAD's committed sources (a prior bypass), by re-running the generators against
+  a materialized `git archive HEAD`, so it works even when the working tree is dirty.
 
 ## Consequences
 

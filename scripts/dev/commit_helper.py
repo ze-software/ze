@@ -12,6 +12,7 @@ import shlex
 import stat
 import subprocess
 import sys
+import tempfile
 import textwrap
 from dataclasses import dataclass
 from pathlib import Path
@@ -586,6 +587,54 @@ def discovery_index_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str
     ]
 
 
+def discovery_index_head_status(repo: Path) -> tuple[str, list[str]]:
+    """Return (state, stale) for HEAD's COMMITTED indexes vs HEAD's committed
+    sources.
+
+    Unlike discovery_index_freshness (which checks the working tree), this
+    materializes HEAD and re-runs the generators there, so it catches a commit
+    that landed a feeding-source change without its index update even when the
+    working tree carries unrelated uncommitted changes. "unknown" (no HEAD, or
+    git/tar unavailable) surfaces nothing.
+    """
+    if run_git(repo, "rev-parse", "--verify", "-q", "HEAD", check=False).returncode:
+        return "unknown", []
+    stale: list[str] = []
+    confirmed = False
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = subprocess.Popen(
+                ["git", "archive", "HEAD"], cwd=repo, stdout=subprocess.PIPE
+            )
+            extract = subprocess.run(["tar", "-x", "-C", tmp], stdin=archive.stdout)
+            if archive.stdout:
+                archive.stdout.close()
+            archive.wait()
+            if archive.returncode or extract.returncode:
+                return "unknown", []
+            tmp_path = Path(tmp)
+            for gen, out in zip(DISCOVERY_INDEX_GENERATORS, DISCOVERY_INDEX_OUTPUTS):
+                script = tmp_path / gen
+                if not script.exists():
+                    continue
+                proc = subprocess.run(
+                    [sys.executable, str(script), "--check"],
+                    cwd=tmp_path,
+                    capture_output=True,
+                    text=True,
+                )
+                if proc.returncode == 0:
+                    confirmed = True
+                elif "is stale" in (proc.stdout or "") + (proc.stderr or ""):
+                    confirmed = True
+                    stale.append(out)
+    except OSError:
+        return "unknown", []
+    if not confirmed:
+        return "unknown", []
+    return ("stale" if stale else "fresh"), stale
+
+
 def create(args: argparse.Namespace) -> int:
     repo = repo_root(args.repo)
     session = session_id(repo, args.session)
@@ -645,6 +694,16 @@ def create(args: argparse.Namespace) -> int:
             print(f"verify=UNVERIFIED ({args.unverified})")
         else:
             print(f"verify={vstate.upper()} ({detail})")
+    head_state, head_stale = discovery_index_head_status(repo)
+    if head_state == "stale":
+        print(
+            "warning: HEAD's committed discovery index does not match HEAD's "
+            "committed sources: " + ", ".join(head_stale) + ".\n"
+            "  A prior commit bypassed the freshness gate, or an index was "
+            "committed that references not-yet-committed work. Run `make ze-regen`\n"
+            "  once the tree is coherent and commit the fix.",
+            file=sys.stderr,
+        )
     reminder = closure_reminder(add_paths, remove_paths)
     if reminder:
         print(reminder, file=sys.stderr)
