@@ -80,6 +80,7 @@
     --lime: #14a05a;
     --pink: #ff64ab;
     --gold: #e2a01a;
+    --danger-deep: #c1121f;
 
     --bg: #f0eff1;
     --bg-soft: #e6e5e9;
@@ -2770,7 +2771,7 @@ footer {
 }
 
 .md-content td.cell-no {
-    color: var(--tangerine-deep);
+    color: var(--danger-deep);
     font-weight: 800;
     text-align: center;
 }
