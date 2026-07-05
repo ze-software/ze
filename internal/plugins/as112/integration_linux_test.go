@@ -32,7 +32,7 @@ func bindLoopback53(t *testing.T, cfg as112Config) (addr string, cleanup func())
 	resetAS112State(t)
 	storeState(buildState(cfg, 1))
 
-	mgr := newServerManager(testLogger())
+	mgr := newServerManager(testLogger(), nil)
 	err := mgr.apply(true, []dnsserver.Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: 53}})
 	if err != nil {
 		mgr.stopAll()

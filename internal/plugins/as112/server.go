@@ -8,11 +8,13 @@ package as112
 import (
 	"log/slog"
 	"net/netip"
+	"sync"
 	"time"
 
 	"github.com/miekg/dns"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // ownAnycastAddrs are the four fixed anycast host addresses this plugin
@@ -150,19 +152,80 @@ func onListenerChange(proto, addr string, up bool) {
 // endpoint-agnostic Apply/Stop signatures.
 type as112Server struct {
 	mgr *dnsserver.Manager
+
+	mu        sync.Mutex
+	upV4      map[string]bool // proto/addr keys of currently-up NON-loopback IPv4 listeners
+	upV6      map[string]bool // proto/addr keys of currently-up NON-loopback IPv6 listeners
+	onServing func()          // notified on a per-family first-up / last-down anycast edge
 }
 
 // newServerManager builds the as112 DNS server on top of the shared harness
 // with Options{Freebind: true} (finding B2): the harness owns the listener
 // lifecycle, client-IP resolution, and the authoritative-answer/
 // recursion-refusal guard; as112 supplies only answerQuery (metrics +
-// policy) and its own listener-up gauge.
-func newServerManager(log *slog.Logger) *as112Server {
+// policy) and its own listener-up gauge. onServing (may be nil) is invoked on
+// the serving-state edge -- the first anycast listener coming up or the last
+// going down -- so the redistribute producer announces/withdraws the covering
+// prefixes in step with actual DNS serving (RFC 7534 Section 3.3), including a
+// runtime listener crash (dnsserver reports it via OnListenerChange up=false).
+func newServerManager(log *slog.Logger, onServing func()) *as112Server {
+	s := &as112Server{upV4: make(map[string]bool), upV6: make(map[string]bool), onServing: onServing}
 	handler := dnsserver.Authoritative(answerQuery, onPanic)
-	return &as112Server{mgr: dnsserver.New(log, handler, dnsserver.Options{
+	s.mgr = dnsserver.New(log, handler, dnsserver.Options{
 		Freebind:         true,
-		OnListenerChange: onListenerChange,
-	})}
+		OnListenerChange: s.listenerChanged,
+	})
+	return s
+}
+
+// listenerChanged updates the per-listener gauge and tracks serving state
+// PER FAMILY across the anycast (non-loopback) listeners, firing onServing on
+// each family's down->up (first) and up->down (last) edges. Tracking per family
+// means an IPv6-only outage (all v6 binds fail while v4 is up) fires an edge and
+// withdraws only the v6 covering prefixes, rather than leaving them announced
+// into a dead v6 server. Loopback listeners are diagnostic only and do not gate
+// the anycast covering-prefix announcement.
+func (s *as112Server) listenerChanged(proto, addr string, up bool) {
+	onListenerChange(proto, addr, up) // per-listener gauge (unchanged)
+
+	ip, err := netip.ParseAddr(addr)
+	if err != nil || ip.IsLoopback() {
+		return
+	}
+	key := proto + "/" + addr
+	s.mu.Lock()
+	m := s.upV6
+	if ip.Is4() {
+		m = s.upV4
+	}
+	was := len(m) > 0
+	if up {
+		m[key] = true
+	} else {
+		delete(m, key)
+	}
+	now := len(m) > 0
+	s.mu.Unlock()
+
+	// Notify (no arg) only on a family's serving edge; the producer re-reads
+	// servingFor(family) live per family, so it converges to the true per-family
+	// state even if concurrent edges notify out of order. Called outside s.mu, so
+	// no lock is held across the producer's route dispatch.
+	if s.onServing != nil && was != now {
+		s.onServing()
+	}
+}
+
+// servingFor reports whether any anycast (non-loopback) listener of fam's
+// address family is currently up. The producer reads this live per family on
+// each reconcile via servingFn.
+func (s *as112Server) servingFor(fam family.Family) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if fam.AFI == family.IPv4Unicast.AFI {
+		return len(s.upV4) > 0
+	}
+	return len(s.upV6) > 0
 }
 
 // apply reconciles the bound listeners with the given endpoints (the fixed

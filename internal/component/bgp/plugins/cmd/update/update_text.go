@@ -51,6 +51,7 @@ var (
 	errMissingLocalPreferenceValue   = errors.New("missing local-preference value")
 	errMissingMedValue               = errors.New("missing med value")
 	errMissingAsPathValue            = errors.New("missing as-path value")
+	errMissingOriginASValue          = errors.New("missing origin-as value")
 	errMissingCommunityValue         = errors.New("missing community value")
 	errMissingLargeCommunityValue    = errors.New("missing large-community value")
 	errMissingExtendedCommunityValue = errors.New("missing extended-community value")
@@ -90,6 +91,7 @@ const (
 	kwMED               = "med"
 	kwLocalPref         = "local-preference"
 	kwASPath            = "as-path"
+	kwOriginAS          = "origin-as"
 	kwCommunity         = "community"
 	kwLargeCommunity    = "large-community"
 	kwExtendedCommunity = "extended-community"
@@ -104,7 +106,7 @@ const (
 // isAttributeKeyword returns true if token is a per-attribute keyword.
 func isAttributeKeyword(token string) bool {
 	switch token {
-	case kwOrigin, kwMED, kwLocalPref, kwASPath,
+	case kwOrigin, kwMED, kwLocalPref, kwASPath, kwOriginAS,
 		kwCommunity, kwLargeCommunity, kwExtendedCommunity:
 		return true
 	}
@@ -134,6 +136,7 @@ type parsedAttrs struct {
 	LocalPreference     *uint32
 	MED                 *uint32
 	ASPath              []uint32
+	OriginAS            uint32
 	Communities         []uint32
 	LargeCommunities    []bgptypes.LargeCommunity
 	ExtendedCommunities []attribute.ExtendedCommunity
@@ -286,6 +289,21 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		}
 		attrs.ASPath = asPath
 		return consumed, nil
+
+	case kwOriginAS:
+		// origin-as <asn>: originate as a virtual router with this AS. Unlike the
+		// verbatim as-path, the reactor applies the normal export rule ([asn] to
+		// iBGP, [localAS, asn] to eBGP). Carried as a batch directive, not a wire
+		// attribute, so the reactor synthesizes the AS_PATH per peer.
+		if idx+1 >= len(args) {
+			return 0, errMissingOriginASValue
+		}
+		n, err := strconv.ParseUint(args[idx+1], 10, 32)
+		if err != nil || n == 0 {
+			return 0, fmt.Errorf("invalid origin-as %q: expected 1..4294967295", args[idx+1])
+		}
+		attrs.OriginAS = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+		return 1, nil
 
 	case kwCommunity:
 		if idx+1 >= len(args) {
@@ -511,6 +529,7 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 					Wire:         wire,
 					NextHop:      nh,
 					WatchdogName: result.Watchdog,
+					OriginAS:     attrs.OriginAS,
 				})
 				if result.Watchdog != "" {
 					watchdog = result.Watchdog
@@ -758,10 +777,11 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 	for _, group := range groups {
 		if len(group.Announce) > 0 {
 			batch := bgptypes.NLRIBatch{
-				Family:  group.Family,
-				NLRIs:   group.Announce,
-				NextHop: group.NextHop,
-				Wire:    group.Wire,
+				Family:   group.Family,
+				NLRIs:    group.Announce,
+				NextHop:  group.NextHop,
+				Wire:     group.Wire,
+				OriginAS: group.OriginAS,
 			}
 			if err := bgpReactor.AnnounceNLRIBatch(sel, batch); err != nil {
 				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {

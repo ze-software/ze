@@ -27,7 +27,7 @@ func TestBuildBatchASPath_eBGP(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	// No explicit AS_PATH, eBGP peer
-	asPath := adapter.buildBatchASPath(nil, false, 65000)
+	asPath := adapter.buildBatchASPath(nil, 0, false, 65000)
 
 	require.NotNil(t, asPath)
 	require.Len(t, asPath.Segments, 1)
@@ -44,7 +44,7 @@ func TestBuildBatchASPath_iBGP(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	// No explicit AS_PATH, iBGP peer
-	asPath := adapter.buildBatchASPath(nil, true, 65000)
+	asPath := adapter.buildBatchASPath(nil, 0, true, 65000)
 
 	require.NotNil(t, asPath)
 	assert.Empty(t, asPath.Segments, "iBGP should have empty AS_PATH")
@@ -60,7 +60,57 @@ func TestBuildBatchASPath_Explicit(t *testing.T) {
 
 	// Explicit AS_PATH
 	userPath := []uint32{65001, 65002, 65003}
-	asPath := adapter.buildBatchASPath(userPath, false, 65000)
+	asPath := adapter.buildBatchASPath(userPath, 0, false, 65000)
+
+	require.NotNil(t, asPath)
+	require.Len(t, asPath.Segments, 1)
+	assert.Equal(t, userPath, asPath.Segments[0].ASNs)
+}
+
+// TestBuildBatchASPath_OriginAS_iBGP verifies origin-as gives [originAS] to iBGP.
+//
+// VALIDATES: origin-as -> iBGP AS_PATH is exactly [originAS] (no prepend, RFC
+// 4271 §5.1.2), so a route redistributed as a virtual router keeps its origin.
+// PREVENTS: prepending localAS on iBGP for an originated route.
+func TestBuildBatchASPath_OriginAS_iBGP(t *testing.T) {
+	r := &Reactor{config: &Config{LocalAS: 65000}}
+	adapter := &reactorAPIAdapter{r: r}
+
+	asPath := adapter.buildBatchASPath(nil, 112, true, 65000)
+
+	require.NotNil(t, asPath)
+	require.Len(t, asPath.Segments, 1)
+	assert.Equal(t, []uint32{112}, asPath.Segments[0].ASNs)
+}
+
+// TestBuildBatchASPath_OriginAS_eBGP verifies origin-as prepends localAS on eBGP.
+//
+// VALIDATES: origin-as -> eBGP AS_PATH is [localAS, originAS] (normal export
+// prepend), so the peer sees ze's AS first (enforce-first-as safe).
+// PREVENTS: sending [originAS] verbatim to eBGP (rejected by enforce-first-as).
+func TestBuildBatchASPath_OriginAS_eBGP(t *testing.T) {
+	r := &Reactor{config: &Config{LocalAS: 65000}}
+	adapter := &reactorAPIAdapter{r: r}
+
+	asPath := adapter.buildBatchASPath(nil, 112, false, 65000)
+
+	require.NotNil(t, asPath)
+	require.Len(t, asPath.Segments, 1)
+	assert.Equal(t, []uint32{65000, 112}, asPath.Segments[0].ASNs)
+}
+
+// TestBuildBatchASPath_ExplicitBeatsOriginAS verifies a verbatim as-path takes
+// precedence over origin-as, so the exact-path (route-server / injection)
+// contract is never silently overridden.
+//
+// VALIDATES: userASPath wins when both an explicit as-path and origin-as are set.
+// PREVENTS: origin-as mangling a deliberately-crafted exact AS_PATH.
+func TestBuildBatchASPath_ExplicitBeatsOriginAS(t *testing.T) {
+	r := &Reactor{config: &Config{LocalAS: 65000}}
+	adapter := &reactorAPIAdapter{r: r}
+
+	userPath := []uint32{100, 200}
+	asPath := adapter.buildBatchASPath(userPath, 112, false, 65000)
 
 	require.NotNil(t, asPath)
 	require.Len(t, asPath.Segments, 1)

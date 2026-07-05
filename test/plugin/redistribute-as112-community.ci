@@ -1,0 +1,115 @@
+# Test: redistribute-as112-community -- an origin-AS redistribute carries the
+# producer's COMMUNITIES onto the wire. fakeas112 emits `community nopeer`
+# (RFC 3765 NOPEER = 0xFFFFFF04 = 65535:65284, RFC 7534's recommended community
+# for AS112 routes to bilateral peers); the consumer renders it as
+# `community [65535:65284]` and the reactor attaches it to every covering prefix.
+#
+# VALIDATES: RouteChangeBatch.Community -> COMMUNITIES on the announced covering
+#            prefixes, alongside origin igp + AS_PATH [112] (iBGP).
+# PREVENTS: the community list being dropped on redistribution.
+
+# ze-peer -- iBGP session. The bgp contains= rule matches AS_PATH [112] +
+# NEXT_HOP + COMMUNITIES 0xFFFFFF04 + LOCAL_PREF + NLRI tail of each covering
+# UPDATE; matching both completes the peer so the JSON validator runs.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F000001C00804FFFFFF044005040000006418C0AF30
+expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F000001C00804FFFFFF044005040000006418C01FC4
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["192.175.48.0/24"],"next-hop":"127.0.0.1"}]}
+EOF_PEER
+
+# Python observer plugin: drive `fakeas112 emit add asn 112 community nopeer`.
+tmpfs=as112-community-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import time
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    time.sleep(2.0)
+
+    resp = dispatch(api, 'request fakeas112 emit add asn 112 community nopeer')
+    result = resp.get('result', {})
+    if result.get('status') != 'done':
+        runtime_fail(f'request fakeas112 emit failed: {result}')
+        return
+
+    time.sleep(2.0)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external as112-community-test {
+		run ./as112-community-test.run
+		encoder json
+	}
+	internal redistribute-orchestrator {
+		use redistribute-orchestrator
+	}
+	internal fakeas112 {
+		use fakeas112
+	}
+}
+
+redistribute {
+	destination bgp {
+		import as112 {
+			family [ ipv4/unicast ];
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

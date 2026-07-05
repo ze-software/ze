@@ -165,6 +165,12 @@ type NLRIGroup struct {
 	Wire         *attribute.AttributesWire // Path attributes in wire format
 	NextHop      RouteNextHop              // Encapsulates next-hop policy (explicit or self)
 	WatchdogName string                    // Watchdog pool name for routes (empty = none)
+	// OriginAS, when nonzero, originates the route as a virtual router with this
+	// AS: the reactor synthesizes AS_PATH [OriginAS] for iBGP peers and prepends
+	// the local AS for eBGP peers ([localAS, OriginAS]) -- the normal export
+	// rule, unlike a verbatim `as-path`. Zero uses the legacy default (empty
+	// iBGP / [localAS] eBGP). Set by the `origin-as` update-text token.
+	OriginAS uint32
 }
 
 // UpdateTextResult is the parsed result of an update text command.
@@ -185,6 +191,11 @@ type NLRIBatch struct {
 	NextHop RouteNextHop              // Next-hop policy (announce only)
 	Attrs   *attribute.Builder        // Attribute builder (for new routes)
 	Wire    *attribute.AttributesWire // Wire passthrough (for forwarding)
+	// OriginAS, when nonzero, originates the route as a virtual router with this
+	// AS: AS_PATH is [OriginAS] to iBGP peers and [localAS, OriginAS] to eBGP
+	// peers (normal export prepend). Distinct from a verbatim `as-path` (route
+	// server transparency). Zero uses the legacy default AS_PATH synthesis.
+	OriginAS uint32
 }
 
 // RIBStatsInfo holds RIB statistics for Adj-RIB-In and Adj-RIB-Out.

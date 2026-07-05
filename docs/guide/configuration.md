@@ -369,6 +369,9 @@ destinations. Routes injected by a redistribute source (connected, static, l2tp,
 ...) into `destination bgp` also replay to a BGP peer that establishes AFTER the
 injection (e.g. a dynamic/inbound peer), matching how received/best-path routes are
 delivered to a new peer.
+
+The `as112` DNS plugin is also a redistribute source: `redistribute { destination bgp { import as112 } }` originates its four fixed covering prefixes (192.175.48.0/24, 192.31.196.0/24, 2620:4f:8000::/48, 2001:4:112::/48) into BGP. Three leaves under `service { as112 { ... } }` tune the announcement: `asn` (origin AS on the wire, default 112), `community` (leaf-list of well-known names or AA:NN values attached to the routes), and `watchdog` (boolean, default true: announce only while the DNS node is serving, RFC 7534 Section 3.3).
+<!-- source: internal/plugins/as112/yang/ze-as112-conf.yang -- asn/community/watchdog leaves -->
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- default-information, redistribute -->
 <!-- source: internal/plugins/ospf/default.go -- applyDefaultInformation -->
 <!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute -->

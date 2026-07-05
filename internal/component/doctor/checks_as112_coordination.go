@@ -42,6 +42,13 @@ const as112ASN = "112"
 // still compares equal instead of missing an exact-literal-string match --
 // the production watchdog pool builder normalizes each token the same way
 // (internal/component/bgp/plugins/watchdog/config.go's normalizePrefix).
+//
+// This list MUST mirror as112events.CoveringPrefixesV4/V6 (the producer's and
+// fakeas112's shared source). It is deliberately NOT imported from there: this
+// package's doc explains the doctor is the neutral third home that couples to
+// NEITHER the as112 plugin nor the bgp component, so it re-states the RFC-fixed
+// constants rather than importing the plugin. They change only if the RFC set
+// changes; update both places together.
 var as112CoveringPrefixes = []netip.Prefix{
 	netip.MustParsePrefix("192.175.48.0/24"),   // Direct Delegation v4
 	netip.MustParsePrefix("2620:4f:8000::/48"), // Direct Delegation v6
@@ -235,6 +242,153 @@ func hasReplaceAsOption(group, peer *config.Tree) bool {
 		return slices.Contains(opts, "replace-as")
 	}
 	return slices.Contains(nestedSlice(group, "session", "asn", "local-options"), "replace-as")
+}
+
+// redistributeImportsSourceIntoBGP reports whether `redistribute { destination
+// bgp { import <source> } }` is configured, in either the list form (import
+// entries keyed by source) or the scalar fallback (import <source>;) -- mirroring
+// internal/component/config/loader_redistribute.go's own parse. Read generically
+// from the config tree so this neutral doctor package needs no bgp or
+// redistribute-plugin import.
+func redistributeImportsSourceIntoBGP(tree *config.Tree, source string) bool {
+	rd := tree.GetContainer("redistribute")
+	if rd == nil {
+		return false
+	}
+	for _, dest := range rd.GetListOrdered("destination") {
+		if dest.Key != "bgp" {
+			continue
+		}
+		for _, imp := range dest.Value.GetListOrdered("import") {
+			if imp.Key == source {
+				return true
+			}
+		}
+		if scalar, ok := dest.Value.Get("import"); ok && scalar == source {
+			return true
+		}
+	}
+	return false
+}
+
+// checkAS112RedistributeOriginCoordination warns (AC-11, R-3) when the as112
+// service originates its covering prefixes as AS112 -- asn 112, the default --
+// via `redistribute { destination bgp { import as112 } }` while an eBGP session
+// to a non-private remote ASN exists. This is the redistribute-path form of the
+// same uncoordinated-global-AS112-origin risk (RFC 7534 Section 3.2/Section 5)
+// the sibling checkAS112GlobalOriginCoordination catches for the hand-authored
+// asn.local + replace-as path. An explicit non-112 asn is the operator
+// originating under its own or a private AS and is not flagged.
+func checkAS112RedistributeOriginCoordination(tree *config.Tree) []diagnostic.Diagnostic {
+	svc := tree.GetContainer("service")
+	if svc == nil {
+		return nil
+	}
+	as112 := svc.GetContainer("as112")
+	if as112 == nil {
+		return nil
+	}
+	if enabled, _ := as112.Get("enabled"); enabled != configTrueValue {
+		return nil
+	}
+	// asn unset defaults to 112 (an AS112 virtual-router origin); an explicit
+	// non-112 asn is the operator's own/private origin and not this concern.
+	if asn, ok := as112.Get("asn"); ok && asn != as112ASN {
+		return nil
+	}
+	if !redistributeImportsSourceIntoBGP(tree, "as112") {
+		return nil
+	}
+
+	bgp := tree.GetContainer("bgp")
+	if bgp == nil {
+		return nil
+	}
+	globalLocal, _ := nestedValue(bgp, "session", "asn", "local")
+
+	var diags []diagnostic.Diagnostic
+	var tb textbuf.Buffer
+	check := func(path string, group, peer *config.Tree) {
+		remoteStr, ok := inheritedValue(group, peer, "session", "asn", "remote")
+		if !ok || remoteStr == "" {
+			return
+		}
+		local, ok := inheritedValue(group, peer, "session", "asn", "local")
+		if !ok || local == "" {
+			local = globalLocal
+		}
+		// Only an eBGP session leaks the origin outward; iBGP (local == remote)
+		// keeps it internal. Skip when the local AS is undeterminable.
+		if local == "" || local == remoteStr {
+			return
+		}
+		remote, err := strconv.ParseUint(remoteStr, 10, 32)
+		if err != nil {
+			return
+		}
+		if isPrivateUseASN(uint32(remote)) { //nolint:gosec // bounded by ParseUint bitSize=32
+			return
+		}
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-as112-redistribute-origin-uncoordinated",
+			Severity: diagnostic.SeverityWarning,
+			Message: tb.Reset().Str(path).
+				Str(": service as112 originates AS112 (asn 112) via 'import as112' toward the eBGP non-private ASN ").Str(remoteStr).
+				Str(" -- this makes the node an uncoordinated global AS112 origin (RFC 7534 Section 3.2/Section 5); coordinate before deploying, restrict the route with an egress community/prefix filter, or set an operator/private asn").
+				String(),
+		})
+	}
+
+	for _, p := range bgp.GetListOrdered("peer") {
+		check(tb.Reset().Str("bgp/peer/").Str(p.Key).String(), nil, p.Value)
+	}
+	for _, g := range bgp.GetListOrdered("group") {
+		for _, p := range g.Value.GetListOrdered("peer") {
+			check(tb.Reset().Str("bgp/group/").Str(g.Key).Str("/peer/").Str(p.Key).String(), g.Value, p.Value)
+		}
+	}
+	return diags
+}
+
+// checkAS112RedistributeNotImported warns when service as112 is enabled and sets
+// a redistribute-only knob (an explicit asn or a community) but no `redistribute
+// { destination bgp { import as112 } }` exists. Those knobs only affect the
+// BGP-originated covering prefixes (the YANG documents each as "Ignored unless
+// import as112 is configured"), so setting one without the import is the silent
+// misconfiguration where an operator expects the covering prefixes in BGP but
+// the producer's events never reach the RIB. Advisory only: running as112 for
+// DNS alone (no import, no redistribute knobs) is a valid, common deployment, so
+// this fires ONLY when a redistribute-specific knob signals redistribution
+// intent -- it never nags a DNS-only node.
+func checkAS112RedistributeNotImported(tree *config.Tree) []diagnostic.Diagnostic {
+	svc := tree.GetContainer("service")
+	if svc == nil {
+		return nil
+	}
+	as112 := svc.GetContainer("as112")
+	if as112 == nil {
+		return nil
+	}
+	if enabled, _ := as112.Get("enabled"); enabled != configTrueValue {
+		return nil
+	}
+	_, hasASN := as112.Get("asn")
+	hasCommunity := len(as112.GetSlice("community")) > 0
+	if !hasASN && !hasCommunity {
+		return nil // DNS-only node, nothing to redistribute
+	}
+	if redistributeImportsSourceIntoBGP(tree, "as112") {
+		return nil // wired correctly
+	}
+
+	var tb textbuf.Buffer
+	return []diagnostic.Diagnostic{{
+		Code:     "doctor-as112-redistribute-not-imported",
+		Severity: diagnostic.SeverityWarning,
+		Message: tb.Reset().
+			Str("service as112 sets a redistribute knob (asn/community) but 'redistribute { destination bgp { import as112 } }' is absent -- the AS112 covering prefixes will NOT be originated into BGP (the knob is ignored without the import); add the import, or remove the knob if this node serves DNS only").
+			String(),
+	}}
 }
 
 // isPrivateUseASN reports whether asn falls in an RFC 6996 Section 4

@@ -42,6 +42,15 @@ type RouteEntry struct {
 	// into a flooded/synchronized DB (OSPF/ISIS) ignore it. Additive: it does
 	// not change the RedistConsumer interface signature.
 	Peer string
+	// OriginASN, when nonzero, is the origin AS the route carries as a
+	// single-ASN AS_PATH. The BGP consumer emits `origin igp origin-as
+	// <OriginASN>`; consumers that inject into a link-state DB ignore it.
+	// Additive: it does not change the RedistConsumer interface signature.
+	OriginASN uint32
+	// Community, when non-nil, is the standard BGP community list (each packed
+	// asn<<16|value) the route carries. The BGP consumer emits
+	// `community [ ... ]`; other consumers ignore it. Additive.
+	Community []uint32
 }
 
 var (

@@ -51,6 +51,8 @@ func AcquireBatch() *RouteChangeBatch {
 	b.AFI = 0
 	b.SAFI = 0
 	b.ReplayID = 0
+	b.OriginASN = 0
+	b.Community = nil
 	b.Entries = b.Entries[:0]
 	return b
 }
@@ -76,5 +78,10 @@ func ReleaseBatch(b *RouteChangeBatch) {
 	b.AFI = 0
 	b.SAFI = 0
 	b.ReplayID = 0
+	b.OriginASN = 0
+	// Drop the reference only: unlike Entries (pool-owned), the Community
+	// backing array belongs to the producer (typically config-owned), so
+	// clearing it would corrupt the producer's data.
+	b.Community = nil
 	batchPool.Put(b)
 }

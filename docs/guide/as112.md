@@ -30,6 +30,9 @@ All leaves go under `service { as112 { ... } }`.
 | `facility` | string (0-100) | (empty) | Facility/site name surfaced alongside `location` in the HOSTNAME TXT answer. |
 | `location` | string (0-100) | (empty) | City/country surfaced alongside `facility`. |
 | `allow-from` | leaf-list (ip-prefix) | (empty = answer all) | Optional client-source access list. Non-empty: only queries from a listed prefix are answered, others are silently dropped. Loopback/on-box sources are always permitted regardless, so `request as112 healthcheck` is never blocked. Setting this makes the node non-public — correct for a local-use mirror, wrong for a globally-reachable AS112 contributor. |
+| `asn` | asn (1-4294967295) | 112 | Origin AS the covering prefixes carry when redistributed into BGP (`import as112`). Defaults to the well-known AS112 number 112, since the source models an AS112 virtual router. Set an operator or RFC 6996 private ASN to originate under a coordinated or local-use AS. Ignored unless `import as112` is configured. |
+| `community` | leaf-list (string) | (empty) | Optional BGP communities on the redistributed covering prefixes. Accepts AA:NN and well-known names (`no-export`, `nopeer`; RFC 1997/3765), the values RFC 7534 §3.4 recommends for restricting AS112 route propagation. Ignored unless `import as112` is configured. |
+| `watchdog` | boolean | true | Health-gate the BGP announcement on DNS serving state (RFC 7534 §3.3). true (default) announces only while the node is serving and withdraws on serving loss, `enabled false`, or shutdown; false announces as soon as enabled and imported. Ignored unless `import as112` is configured. |
 <!-- source: internal/plugins/as112/yang/ze-as112-conf.yang -- YANG leaves -->
 
 The combined `hostname`+`facility`+`location` TXT payload is bounded so the assembled HOSTNAME.AS112.* response always fits 512 octets with TC=0, even at every field's maximum length (RFC 7534 §3.5).
@@ -49,7 +52,47 @@ The on-box carve-out recognizes both loopback and the node's own four anycast ad
 
 ## BGP Integration (Conditional Origination)
 
-Announcing AS112's anycast prefixes only when the DNS service is actually healthy is ordinary BGP composition — a `healthcheck` probe gates a `watchdog`-controlled `update` block. No AS112-specific BGP code exists; this section is a worked, tested example of composing existing mechanisms (see `docs/guide/healthcheck.md` for the full healthcheck/watchdog reference).
+AS112 covering prefixes (the /24s and /48s per RFC 7534 §3.4 / RFC 7535 §3.1, NOT the /32,/128 host addresses bound on `lo`) can be originated into BGP two ways. Both preserve the layering rule: `as112` never reads `bgp {}` config and BGP hardcodes no AS112 knowledge.
+
+| Path | When to use | Origin-AS / community control | Health gate |
+|------|-------------|-------------------------------|-------------|
+| **Redistribute** (easy) | Default choice. One `import as112` line plus source-level `asn`/`community` in the `as112` block. | Source-level (`asn`, `community` leaves), identical on every peer. | Process serving-state (`watchdog` leaf, default true): announce while the DNS node serves. |
+| **Hand-authored** (full control) | Per-peer origin-AS/community, dedicated peer-group policy, or anycast-path (not just process) liveness. | Per-peer, per-`update`-block (`as-path`, `community`, `replace-as`). | `healthcheck` probe gating a `watchdog` `update` block, which can probe the real anycast path, not just loopback. |
+
+### Redistribute origination (recommended, easy path)
+
+Model the AS112 node as a virtual router with its own ASN and let the four covering prefixes enter the BGP RIB like `static`/`connected` redistribution, triggered by one `import as112` line. The routes are announced only while the DNS node is serving (`watchdog` default true, RFC 7534 §3.3) and withdrawn on serving loss, `enabled false`, or shutdown.
+
+```
+service {
+    as112 {
+        enabled true
+        asn 112              # origin AS on the wire (default 112); an operator/private ASN overrides
+        community [ nopeer ] # optional; RFC 7534 §3.4 propagation restriction (RFC 1997/3765)
+        # watchdog true      # default: announce only while serving
+    }
+}
+redistribute {
+    destination bgp {
+        import as112         # the trigger; without this line nothing is announced
+    }
+}
+bgp {
+    # ordinary peer/group config. The covering prefixes are announced to all BGP
+    # peers (including a peer that establishes later). Use egress community/prefix
+    # filters, or the hand-authored path below, for per-peer scope.
+}
+```
+
+To an iBGP peer the AS_PATH is `[asn]` (e.g. `[112]`); to an eBGP peer the local AS is prepended, giving `[localAS, asn]`. `ze doctor` warns (`doctor-as112-redistribute-origin-uncoordinated`) when `asn 112` reaches an eBGP session to a public ASN, an uncoordinated global AS112 origin (RFC 7534 §3.2/§5): coordinate first, restrict with an egress filter, or set a private/operator `asn`.
+
+Choose the hand-authored path instead when the easy path's limitations matter: the covering prefixes go to *all* BGP peers (no dedicated-peer-group restriction in the redistribute block), the same `asn`/`community` applies to every peer, and the `watchdog` gate is process serving-state, not full anycast-path liveness.
+<!-- source: internal/plugins/as112/redistribute.go -- as112 redistribute producer -->
+<!-- source: internal/component/bgp/redistribute/consumer.go -- origin-ASN/community wire emission -->
+
+### Hand-authored origination (full per-peer control)
+
+The original composition, a `healthcheck` probe gating a `watchdog`-controlled `update` block, remains available for per-peer origin-AS/community, dedicated peer-group policy, or anycast-path (not just process) liveness. No AS112-specific BGP code exists; it composes existing mechanisms (see `docs/guide/healthcheck.md`).
 
 ### Worked example
 

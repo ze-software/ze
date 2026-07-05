@@ -166,6 +166,26 @@ type RouteChangeBatch struct {
 	// triggered the replay and targets only that peer. It is a value type (an
 	// opaque token, NOT a peer) so the batch stays peer-agnostic.
 	ReplayID uint64
+
+	// OriginASN, when nonzero, is the origin AS the redistributed route carries
+	// into BGP as a single-ASN AS_PATH: the consumer emits
+	// `origin igp origin-as <OriginASN>` (a locally-originated route) instead of
+	// the default `origin incomplete` with no AS_PATH. Generic capability: any
+	// source may set it to model itself as a virtual router with its own ASN
+	// (the first user is as112). Zero -- the default for every existing producer
+	// -- preserves the legacy `origin incomplete`, no-AS_PATH wire output. Value
+	// type; no allocation.
+	OriginASN uint32
+
+	// Community, when non-nil, is the list of standard BGP communities (each
+	// packed as asn<<16|value per RFC 1997) the redistributed route carries: the
+	// consumer emits `community [ <a>:<b> ... ]`. Generic: any source may set it.
+	// Nil -- the default for every existing producer -- omits the COMMUNITIES
+	// attribute entirely and adds no allocation. Like Entries, the slice is
+	// read-only during synchronous dispatch and MUST NOT be retained past it;
+	// ReleaseBatch drops the reference but never clears the backing array, which
+	// the producer (typically config) owns.
+	Community []uint32
 }
 
 // IsReplay reports whether this batch answers a replay request (nonzero

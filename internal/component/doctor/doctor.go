@@ -146,6 +146,8 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkBGPMD5(tree)...)
 	diags = append(diags, checkAS112WatchdogWithdraw(tree)...)
 	diags = append(diags, checkAS112GlobalOriginCoordination(tree)...)
+	diags = append(diags, checkAS112RedistributeOriginCoordination(tree)...)
+	diags = append(diags, checkAS112RedistributeNotImported(tree)...)
 	diags = append(diags, checkNTPClient(tree, platform)...)
 	diags = append(diags, checkNTPClockPrivilege(tree)...)
 	diags = append(diags, checkRPKIServers(tree)...)

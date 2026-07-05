@@ -41,7 +41,7 @@ func startTestServer(t *testing.T, cfg as112Config) string {
 	resetAS112State(t)
 	storeState(buildState(cfg, 1))
 
-	mgr := newServerManager(testLogger())
+	mgr := newServerManager(testLogger(), nil)
 	port := freePort(t)
 	if err := mgr.apply(true, []dnsserver.Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}}); err != nil {
 		t.Fatalf("apply: %v", err)

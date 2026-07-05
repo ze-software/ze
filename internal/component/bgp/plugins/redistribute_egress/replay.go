@@ -240,7 +240,7 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		if entry.Action != redistevents.ActionAdd {
 			continue // a replay reflects the current live set; only adds are meaningful
 		}
-		dispatchEntryToConsumer(ctx, consumer, famVal, name, peer, entry)
+		dispatchEntryToConsumer(ctx, consumer, famVal, name, peer, b.OriginASN, b.Community, entry)
 		if m := getMetrics(); m != nil && m.replayTotal != nil {
 			m.replayTotal.With(name).Inc()
 		}

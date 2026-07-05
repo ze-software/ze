@@ -26,7 +26,7 @@ func TestListener_FreebindBindsWithoutAddress(t *testing.T) {
 	resetAS112State(t)
 	storeState(buildState(as112Config{Enabled: true}, 1))
 
-	mgr := newServerManager(testLogger())
+	mgr := newServerManager(testLogger(), nil)
 	const nonLocalAddr = "203.0.113.5"
 	err := mgr.apply(true, []dnsserver.Endpoint{{IP: netip.MustParseAddr(nonLocalAddr), Port: 5391}})
 	if err != nil {

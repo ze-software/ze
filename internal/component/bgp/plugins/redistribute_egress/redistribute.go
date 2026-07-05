@@ -230,7 +230,7 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 		logger().Debug(Name+": dispatching to consumer", "consumer", cname, "entries", len(b.Entries))
 		for i := range b.Entries {
 			// Empty peer selector: the incremental path fans out to all peers.
-			dispatchEntryToConsumer(ctx, consumer, famVal, name, "", &b.Entries[i])
+			dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, &b.Entries[i])
 		}
 	}
 }
@@ -238,7 +238,7 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 // dispatchEntryToConsumer dispatches one entry to a consumer. peer is the
 // single-peer selector for the replay path (empty means the normal all-peers
 // fan-out).
-func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, entry *redistevents.RouteChangeEntry) {
+func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, originASN uint32, community []uint32, entry *redistevents.RouteChangeEntry) {
 	if !entry.Prefix.IsValid() {
 		logger().Warn(Name+": skipping entry with invalid prefix", "action", entry.Action)
 		return
@@ -252,10 +252,12 @@ func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistCo
 			nhop = entry.NextHop.String()
 		}
 		consumer.InjectRoute(ctx, fam, configredist.RouteEntry{
-			Prefix:  entry.Prefix.String(),
-			NextHop: nhop,
-			Source:  source,
-			Peer:    peer,
+			Prefix:    entry.Prefix.String(),
+			NextHop:   nhop,
+			Source:    source,
+			Peer:      peer,
+			OriginASN: originASN,
+			Community: community,
 		})
 		return
 	}

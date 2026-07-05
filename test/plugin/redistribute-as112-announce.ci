@@ -1,0 +1,174 @@
+# Test: redistribute-as112 -- AS112 covering prefixes redistributed into BGP
+# through the origin-AS reactor primitive. fakeas112 drives the SAME
+# (as112, route-change) handle the real producer uses, so this exercises the
+# full `origin igp origin-as 112` redistribute path without the AS112 DNS engine.
+#
+# VALIDATES: `import as112` redistributes the four fixed covering prefixes
+#            (v4: 192.175.48.0/24, 192.31.196.0/24; v6: 2620:4f:8000::/48,
+#            2001:4:112::/48) with origin=igp and, for an iBGP peer
+#            (local AS == remote AS), AS_PATH exactly [112]. The covering /24
+#            and /48 are announced -- never the /32,/128 lo host addresses (the
+#            documented AS112 covering-vs-host mistake): a producer that emitted
+#            a host address instead would fail the covering-prefix match here.
+# PREVENTS: origin-as being dropped on redistribution; host addresses leaking.
+#
+# Two peers: a v4 session (127.0.0.1) carries the two v4 covering prefixes and a
+# v6 session (::1) carries the two v6 covering prefixes -- `nhop self` resolves
+# the next-hop from each session's own local address, so each family's covering
+# prefixes reach the peer sharing its transport family. The block named "peer"
+# holds all four JSON expectations; the runner's JSON validator matches each by
+# NLRI content against every peer's received UPDATEs, so all four are gated.
+
+# ze-peer 1 -- IPv4 session (127.0.0.1). The bgp contains= rules match the
+# AS_PATH [112] + NEXT_HOP 127.0.0.1 + LOCAL_PREF 100 + NLRI tail of each v4
+# UPDATE (origin-as -> single-ASN AS_PATH for an iBGP peer); matching both
+# completes the peer so the runner runs the JSON validator over all four.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F0000014005040000006418C0AF30
+expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F0000014005040000006418C01FC4
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["192.175.48.0/24"],"next-hop":"127.0.0.1"}]}
+expect=json:conn=1:seq=2:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["192.31.196.0/24"],"next-hop":"127.0.0.1"}]}
+expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv6/unicast":[{"action":"add","nlri":["2620:4f:8000::/48"],"next-hop":"::1"}]}
+expect=json:conn=1:seq=4:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv6/unicast":[{"action":"add","nlri":["2001:4:112::/48"],"next-hop":"::1"}]}
+EOF_PEER
+
+# ze-peer 2 -- IPv6 session (::1): receives + records the two v6 covering
+# prefixes so the JSON validator can match seq=3/seq=4 above.
+stdin=peer6:terminator=EOF_PEER6
+option=bind:value=ipv6
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:contains=800E1C000201100000000000000000000000000000000100302620004F8000
+expect=bgp:conn=1:seq=1:contains=800E1C00020110000000000000000000000000000000010030200100040112
+EOF_PEER6
+
+# Python observer plugin: drive `fakeas112 emit add asn 112`, then exit.
+tmpfs=as112-announce-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import time
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for both BGP sessions up so the UPDATEs have destination peers.
+    time.sleep(2.0)
+
+    resp = dispatch(api, 'request fakeas112 emit add asn 112')
+    result = resp.get('result', {})
+    if result.get('status') != 'done':
+        runtime_fail(f'request fakeas112 emit failed: {result}')
+        return
+
+    # Give the consumer + reactor time to dispatch the UPDATEs to both peers.
+    time.sleep(3.0)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external as112-announce-test {
+		run ./as112-announce-test.run
+		encoder json
+	}
+	internal redistribute-orchestrator {
+		use redistribute-orchestrator
+	}
+	internal fakeas112 {
+		use fakeas112
+	}
+}
+
+redistribute {
+	destination bgp {
+		import as112 {
+			family [ ipv4/unicast ipv6/unicast ];
+		}
+	}
+}
+
+bgp {
+	peer peer4 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+
+	peer peer6 {
+		connection {
+			remote {
+				ip ::1
+			}
+			local {
+				ip ::1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration: v4 check peer (block "peer") + v6 check peer. Each
+# completes (prints "successful") once its covering-prefix UPDATEs match, which
+# activates the runner's JSON validator over every received UPDATE.
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze-peer --bind ::1 --port $PORT:stdin=peer6
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=15s
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

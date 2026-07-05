@@ -1123,7 +1123,7 @@ The BGP path closes this gap with a **re-emit-on-request** mechanism modeled on
 events (like the watchdog). On a peer's down->up edge it allocates a monotonic
 `ReplayID`, records `ReplayID -> peer` in a bounded, TTL-evicted map, and emits
 `redistevents.ReplayRequest{ReplayID}` (only when an import feeds BGP). Each producer
-(static, connected, l2tp; the as112 producer when it lands) re-emits its current
+(static, connected, l2tp, as112) re-emits its current
 route set as a `RouteChangeBatch` with `ReplayID` echoed -- the producer never learns
 the peer, so the batch stays peer-agnostic. The orchestrator maps the returning
 `ReplayID` back to the one peer, applies the destination-scoped `Accept` filter, and
@@ -1141,6 +1141,12 @@ that destination -- so an import under `destination bgp` no longer satisfies
 <!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- replayCoordinator, onPeerUp, handleReplayBatch, ReplayID->peer TTL map -->
 <!-- source: internal/core/redistevents/events.go -- ReplayRequest event + ReplayID field + IsReplay -->
 <!-- source: internal/component/config/redistribute/route.go -- ImportRule.Destination, destination-scoped Accept -->
+
+### Redistribute Origin ASN and Community
+
+The redistribute payload carries two generic, protocol-agnostic attribute fields so a source can originate routes as a virtual router with its own identity: `RouteChangeBatch.OriginASN` (when nonzero the consumer emits the `origin igp origin-as <asn>` directive) and `RouteChangeBatch.Community` (a standard-community list rendered as `community [ ... ]`). `origin-as` is distinct from a verbatim `as-path`: the reactor applies the normal export rule to it, synthesizing AS_PATH `[asn]` for iBGP peers and `[localAS, asn]` for eBGP peers (`buildBatchASPath`/`writeASPath`), so an eBGP peer sees ze's own AS first (enforce-first-as safe). A verbatim `as-path` stays untouched (route-server transparency). Both fields default to zero/nil, so every existing producer stays byte-for-byte unchanged. The `as112` plugin is the first user: it announces its covering prefixes under a configurable origin AS (default 112) and community list, while the pipeline itself stays protocol-agnostic.
+<!-- source: internal/core/redistevents/events.go -- RouteChangeBatch.OriginASN/Community -->
+<!-- source: internal/component/bgp/redistribute/consumer.go -- formatAnnounce -->
 
 ### FIB VPP
 

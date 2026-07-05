@@ -142,7 +142,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 			// Session not established or queue draining: queue to preserve order
 			// Build AS_PATH only for queue path (iBGP vs eBGP); the established
 			// path builds AS_PATH inside the UPDATE wire bytes directly.
-			asPath := a.buildBatchASPath(userASPath, isIBGP, peer.Settings().LocalAS)
+			asPath := a.buildBatchASPath(userASPath, batch.OriginAS, isIBGP, peer.Settings().LocalAS)
 			for _, n := range batch.NLRIs {
 				ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
 				peer.QueueAnnounce(ribRoute)
@@ -288,12 +288,24 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 
 // buildBatchASPath builds AS_PATH for batch operations.
 // RFC 4271 §5.1.2: iBGP SHALL NOT modify AS_PATH; eBGP prepends local AS.
-func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool, localAS uint32) *attribute.ASPath {
+func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, originAS uint32, isIBGP bool, localAS uint32) *attribute.ASPath {
 	switch {
 	case len(userASPath) > 0:
+		// Verbatim explicit as-path (route-server transparency): sent as-is.
 		return &attribute.ASPath{
 			Segments: []attribute.ASPathSegment{
 				{Type: attribute.ASSequence, ASNs: userASPath},
+			},
+		}
+	case originAS != 0:
+		// Virtual-router origin: [originAS] on iBGP, [localAS, originAS] on eBGP.
+		asns := []uint32{originAS}
+		if !isIBGP {
+			asns = []uint32{localAS, originAS}
+		}
+		return &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: asns},
 			},
 		}
 	case isIBGP:
@@ -321,7 +333,7 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 
 	// Wire mode: ensure mandatory attributes present, then add NEXT_HOP or MP_REACH_NLRI
 	if batch.Wire != nil {
-		attrOff := a.writeMandatoryAttrs(attrBuf, batch.Wire, isIBGP, asn4, localAS)
+		attrOff := a.writeMandatoryAttrs(attrBuf, batch.Wire, isIBGP, asn4, localAS, batch.OriginAS)
 		return a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
 	}
 
@@ -338,7 +350,7 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 
 	// Ensure ORIGIN and AS_PATH are present (Builder may not include AS_PATH)
 	wire := attribute.NewAttributesWire(builtBytes, 0)
-	attrOff := a.writeMandatoryAttrs(attrBuf, wire, isIBGP, asn4, localAS)
+	attrOff := a.writeMandatoryAttrs(attrBuf, wire, isIBGP, asn4, localAS, batch.OriginAS)
 
 	// Add NEXT_HOP or MP_REACH_NLRI
 	return a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
@@ -435,7 +447,7 @@ func (a *reactorAPIAdapter) hasAttribute(wireAttrs []byte, typeCode attribute.At
 // RFC 4271 Section 5.1: Attributes must appear in type code order.
 // If missing, adds defaults: ORIGIN=IGP, AS_PATH per iBGP/eBGP rules.
 // localAS is the peer-specific local AS (used for AS_PATH prepend when missing).
-func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.AttributesWire, isIBGP, asn4 bool, localAS uint32) int {
+func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.AttributesWire, isIBGP, asn4 bool, localAS, originAS uint32) int {
 	hasOrigin, _ := wire.Has(attribute.AttrOrigin)
 	hasASPath, _ := wire.Has(attribute.AttrASPath)
 	packed := wire.Packed()
@@ -457,7 +469,7 @@ func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.Attr
 		off += 4
 
 		// AS_PATH
-		off += a.writeASPath(buf[off:], isIBGP, asn4, localAS)
+		off += a.writeASPath(buf[off:], isIBGP, asn4, localAS, originAS)
 
 		copy(buf[off:], packed)
 		return off + len(packed)
@@ -480,7 +492,7 @@ func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.Attr
 	off = originEnd
 
 	// Insert AS_PATH
-	off += a.writeASPath(buf[off:], isIBGP, asn4, localAS)
+	off += a.writeASPath(buf[off:], isIBGP, asn4, localAS, originAS)
 
 	// Copy remaining attributes
 	copy(buf[off:], packed[originEnd:])
@@ -526,7 +538,27 @@ func (a *reactorAPIAdapter) findNextHopInsertPosition(wireAttrs []byte) int {
 
 // writeASPath writes AS_PATH attribute to buf, returning bytes written.
 // localAS is the peer-specific local AS number (may differ from reactor global config).
-func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool, localAS uint32) int {
+//
+// KNOWN LIMITATION (RFC 6793): when originAS is a 4-byte AS (> 65535) and the
+// peer did NOT negotiate 4-octet AS support (asn4 == false), writeASPathAttr
+// maps originAS to AS_TRANS (23456) in AS_PATH and this announce path emits no
+// accompanying AS4_PATH attribute, so that legacy peer cannot recover the real
+// 4-byte origin. This is pre-existing (a verbatim explicit `as-path` carrying a
+// 4-byte ASN toward a non-asn4 peer has always had it) and effectively
+// unreachable in practice: 4-octet AS support is near-universal since ~2009, and
+// the AS112 default origin (112) is 2-byte. A general RFC 6793 AS4_PATH
+// generator on the announce path (mirroring the forward-path AS4_PATH handling)
+// belongs in its own reactor spec rather than bolted onto this batch builder.
+func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool, localAS, originAS uint32) int {
+	// Virtual-router origin (origin-as): synthesize [originAS] for iBGP and
+	// prepend the local AS for eBGP ([localAS, originAS]) -- the normal export
+	// rule, so a real eBGP peer sees a well-formed first AS (enforce-first-as).
+	if originAS != 0 {
+		if isIBGP {
+			return writeASPathAttr(buf, 0, []uint32{originAS}, asn4)
+		}
+		return writeASPathAttr(buf, 0, []uint32{localAS, originAS}, asn4)
+	}
 	switch {
 	case isIBGP:
 		buf[0] = 0x40 // Transitive

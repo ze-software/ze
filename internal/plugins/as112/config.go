@@ -7,6 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/netip"
+	"strconv"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 )
 
 // maxHostnameLen is the DNS label length limit (spec Boundary Tests table).
@@ -32,6 +35,23 @@ var validAddressFamilies = map[string]bool{
 	addressFamilyIPv6Only: true,
 }
 
+// as112DefaultASN is the origin AS a redistributed AS112 covering prefix carries
+// when the operator does not set `asn`: the well-known AS112 number (RFC 7534
+// Section 3.2). The redistribute source models an AS112 virtual router, so 112
+// is the natural default; an operator or private ASN is an explicit override.
+const as112DefaultASN uint32 = 112
+
+// configValueTrue is the canonical boolean-true spelling in config leaf values.
+const configValueTrue = "true"
+
+// maxCommunities bounds the community leaf-list so the COMMUNITIES attribute on
+// the covering-prefix UPDATE cannot grow past the BGP message-size limit.
+// Mirrored by `max-elements 32` on the community leaf-list in ze-as112-conf.yang;
+// enforced here because the config validator does not enforce leaf-list
+// cardinality for this leaf. TestMaxCommunitiesMatchesYANG guards the two against
+// drift, so change both together.
+const maxCommunities = 32
+
 // as112Config is the parsed, validated configuration.
 type as112Config struct {
 	Enabled       bool
@@ -40,6 +60,19 @@ type as112Config struct {
 	Facility      string
 	Location      string
 	AllowFrom     []netip.Prefix
+	// ASN is the origin AS the redistributed covering prefixes carry as a
+	// single-ASN AS_PATH (default as112DefaultASN). Used only by the
+	// redistribute producer, never by the DNS server.
+	ASN uint32
+	// Community is the optional standard BGP community list (each packed
+	// asn<<16|value) the redistributed covering prefixes carry. Parsed via
+	// attribute.ParseCommunity so well-known names (nopeer/no-export, RFC
+	// 1997/3765) as well as AA:NN are accepted.
+	Community []uint32
+	// Watchdog gates announcement on serving state: when true (default) the
+	// covering prefixes are announced only while the DNS node is serving (RFC
+	// 7534 Section 3.3); false announces as soon as enabled + imported.
+	Watchdog bool
 }
 
 const configRootService = "service"
@@ -49,7 +82,7 @@ const configRootService = "service"
 // engine's OnConfigure. An empty/missing service.as112 container yields a
 // zero (disabled) config.
 func parseConfig(data string) (as112Config, error) {
-	cfg := as112Config{AddressFamily: addressFamilyBoth}
+	cfg := as112Config{AddressFamily: addressFamilyBoth, ASN: as112DefaultASN, Watchdog: true}
 
 	var root map[string]any
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
@@ -65,7 +98,7 @@ func parseConfig(data string) (as112Config, error) {
 	}
 
 	if v, ok := asString(a, "enabled"); ok {
-		cfg.Enabled = v == "true"
+		cfg.Enabled = v == configValueTrue
 	}
 
 	if v, ok := asString(a, "address-family"); ok {
@@ -102,6 +135,39 @@ func parseConfig(data string) (as112Config, error) {
 			return cfg, fmt.Errorf("as112: allow-from %q invalid: %w", s, err)
 		}
 		cfg.AllowFrom = append(cfg.AllowFrom, p.Masked())
+	}
+
+	// asn: origin AS for the redistribute path. The default (as112DefaultASN) is
+	// applied above; a present value must be a valid 4-byte ASN (0 is reserved).
+	if v, ok := asString(a, "asn"); ok {
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil || n == 0 {
+			return cfg, fmt.Errorf("as112: asn %q invalid (expected 1..4294967295)", v)
+		}
+		cfg.ASN = uint32(n) //nolint:gosec // G115: bounded by ParseUint bitSize=32
+	}
+
+	// community: optional BGP communities for the redistribute path. The
+	// canonical parser accepts well-known names (nopeer/no-export) and AA:NN
+	// alike (RFC 1997/3765); config time is where a malformed value is rejected,
+	// not emit time.
+	comms := asStringList(a, "community")
+	if len(comms) > maxCommunities {
+		return cfg, fmt.Errorf("as112: %d communities exceeds max %d", len(comms), maxCommunities)
+	}
+	for _, s := range comms {
+		c, err := attribute.ParseCommunity(s)
+		if err != nil {
+			return cfg, fmt.Errorf("as112: community %q invalid: %w", s, err)
+		}
+		cfg.Community = append(cfg.Community, c)
+	}
+
+	// watchdog: health gate. The default (true) is applied above; mirror the
+	// enabled leaf's boolean parse (YANG `type boolean` rejects non-true/false
+	// values upstream).
+	if v, ok := asString(a, "watchdog"); ok {
+		cfg.Watchdog = v == configValueTrue
 	}
 
 	return cfg, nil

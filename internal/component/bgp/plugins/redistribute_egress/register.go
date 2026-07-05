@@ -16,6 +16,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
+// Compile-time contract: the BGP redistribute consumer satisfies the generic
+// RedistConsumer seam it is registered under (below). Stated here so the
+// cross-package BGPConsumer type is an explicit dependency of this plugin.
+var _ configredist.RedistConsumer = (*bgpredist.BGPConsumer)(nil)
+
 func init() {
 	reg := registry.Registration{
 		Name:        Name,
@@ -60,6 +65,9 @@ func runPlugin(conn net.Conn) int {
 	setReplayCoordinator(coord)
 
 	p.OnStarted(func(ctx context.Context) error {
+		// p provides UpdateRoute, satisfying the RouteDispatcher seam the BGP
+		// consumer wraps to dispatch redistributed routes to the reactor.
+		var _ bgpredist.RouteDispatcher = p
 		consumer := bgpredist.NewBGPConsumer(p)
 		if err := configredist.RegisterConsumer(consumer); err != nil {
 			logger().Warn("failed to register BGP consumer", "error", err)

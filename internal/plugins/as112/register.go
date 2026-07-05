@@ -22,6 +22,7 @@ import (
 	as112yang "codeberg.org/thomas-mangin/ze/internal/plugins/as112/yang"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 // The four fixed AS112 anycast host addresses (RFC 7534 Section 2.3, RFC
@@ -107,6 +108,9 @@ var loggerPtr atomic.Pointer[slog.Logger]
 
 func init() {
 	loggerPtr.Store(slogutil.DiscardLogger())
+	// Register the redistribute source at init so `import as112` resolves during
+	// `ze config validate`, which imports plugins but does not start engines.
+	registerAS112Sources()
 
 	reg := registry.Registration{
 		Name:                    "as112",
@@ -125,6 +129,11 @@ func init() {
 	}
 	reg.ConfigureMetrics = func(r metrics.Registry) {
 		setMetricsRegistry(r)
+	}
+	// The redistribute producer emits covering-prefix route-change batches on the
+	// in-process EventBus; the hub injects the bus here before RunEngine.
+	reg.ConfigureEventBus = func(eb ze.EventBus) {
+		setEventBus(eb)
 	}
 	reg.DoctorChecks = []registry.DoctorCheckDef{{
 		Name:         "as112-listen-capability",
@@ -205,7 +214,21 @@ func runAS112Plugin(conn net.Conn) int {
 		return 1
 	}
 
-	mgr := newServerManager(log)
+	// Redistribute producer: originate the AS112 covering prefixes into BGP while
+	// serving (subject to `import as112`). The DNS server's anycast listener
+	// transitions notify prod.onServingChanged (runtime serving-state gate, RFC
+	// 7534 Section 3.3, including a listener crash); the producer reads the live
+	// PER-FAMILY serving state via mgr.servingFor. servingFn is wired BEFORE
+	// subscribeReplay so no subscriber can reconcile before it is set. The deferred
+	// withdraw retracts the routes on shutdown (AC-9).
+	prod := newAS112Producer()
+	defer prod.withdraw()
+
+	mgr := newServerManager(log, prod.onServingChanged)
+	prod.setServingFn(mgr.servingFor)
+
+	unsubReplay := prod.subscribeReplay()
+	defer unsubReplay()
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, s := range sections {
@@ -231,6 +254,11 @@ func runAS112Plugin(conn net.Conn) int {
 			storeState(buildState(cfg, serial))
 
 			endpoints := serverEndpoints(cfg.AddressFamily)
+			// Apply the config to the producer; the runtime serving state (anycast
+			// listener up/down) is driven separately via prod.onServingChanged from
+			// the DNS server's listener transitions. `import as112` gates whether the
+			// emitted routes reach the RIB, so as112 still never reads bgp config.
+			prod.applyConfig(cfg)
 			if aerr := mgr.apply(cfg.Enabled, endpoints); aerr != nil {
 				log.Error("as112: listener setup failed", "error", aerr)
 			}

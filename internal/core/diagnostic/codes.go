@@ -328,6 +328,18 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-as112-global-origin-uncoordinated"},
 	},
 	{
+		Code:        "doctor-as112-redistribute-origin-uncoordinated",
+		Title:       "AS112 redistribute origin to a public ASN",
+		Description: "The as112 service originates its covering prefixes as AS112 (asn 112, the default) via redistribute { destination bgp { import as112 } } while an eBGP session to a non-private-use remote ASN (RFC 6996 Section 4) exists, making this node an uncoordinated global AS112 origin. RFC 7534 Section 3.2/Section 5 requires coordination; restrict the route with an egress community/prefix filter or set an operator/private asn.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-as112-redistribute-origin-uncoordinated"},
+	},
+	{
+		Code:        "doctor-as112-redistribute-not-imported",
+		Title:       "AS112 redistribute knob set but not imported into BGP",
+		Description: "service as112 is enabled and sets a redistribute-only knob (an explicit asn or a community) but no redistribute { destination bgp { import as112 } } is configured. Those knobs only affect the BGP-originated covering prefixes and are ignored without the import, so the covering prefixes are never originated into BGP -- the common wiring mistake where an operator expects the routes but forgot the import. Add the import, or remove the knob if the node serves DNS only.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-as112-redistribute-not-imported"},
+	},
+	{
 		Code:        "doctor-isis-raw-socket",
 		Title:       "IS-IS raw L2 socket unavailable",
 		Description: "IS-IS is configured but a raw AF_PACKET/SOCK_RAW socket cannot be opened. IS-IS runs directly over IEEE 802.3 frames (ISO/IEC 10589), so it needs CAP_NET_RAW or root; without it IS-IS cannot send or receive IIH/LSP/CSNP/PSNP PDUs and forms no adjacencies.",

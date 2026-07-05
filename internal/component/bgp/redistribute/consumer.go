@@ -5,15 +5,16 @@ package redistribute
 import (
 	"context"
 	"log/slog"
-	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const bgpConsumerName = "bgp"
 const originIncomplete = "incomplete"
+const originIGP = "igp"
 const updateRouteTimeout = 10 * time.Second
 
 // RouteDispatcher abstracts the plugin SDK's UpdateRoute method.
@@ -36,7 +37,7 @@ func NewBGPConsumer(d RouteDispatcher) *BGPConsumer {
 func (c *BGPConsumer) Name() string { return bgpConsumerName }
 
 func (c *BGPConsumer) InjectRoute(ctx context.Context, fam family.Family, entry redistribute.RouteEntry) {
-	cmd := formatAnnounce(fam.String(), entry.NextHop, entry.Prefix)
+	cmd := formatAnnounce(fam.String(), entry.NextHop, entry.Prefix, entry.OriginASN, entry.Community)
 	// Peer targets a single peer (replay-on-peer-up); empty is the normal
 	// fan-out to all peers.
 	sel := entry.Peer
@@ -63,30 +64,49 @@ func (c *BGPConsumer) WithdrawRoute(ctx context.Context, fam family.Family, pref
 	}
 }
 
-func formatAnnounce(fam, nextHop, prefix string) string {
-	var sb strings.Builder
-	sb.Grow(80)
-	sb.WriteString("update text origin ")
-	sb.WriteString(originIncomplete)
-	sb.WriteString(" nhop ")
-	if nextHop != "" {
-		sb.WriteString(nextHop)
+// formatAnnounce builds the `update text ... add <prefix>` command. When
+// originASN is nonzero the route is announced as a locally-originated virtual-
+// router route (`origin igp origin-as <originASN>`): the reactor applies the
+// normal export rule, so the AS_PATH is [originASN] to iBGP peers and
+// [localAS, originASN] to eBGP peers (unlike a verbatim `as-path`). Otherwise it
+// keeps the legacy `origin incomplete` with no AS_PATH so existing producers are
+// byte-for-byte unchanged. A non-empty community list adds `community [ ... ]`.
+func formatAnnounce(fam, nextHop, prefix string, originASN uint32, community []uint32) string {
+	// textbuf.Buffer (128B inline, no heap alloc for the common case) per
+	// ai/rules/no-sprintf-alloc.md; grows automatically when a long community
+	// list overruns the inline array, so no under-provisioned Grow hint.
+	var b textbuf.Buffer
+	b.Reset().Str("update text origin ")
+	if originASN != 0 {
+		b.Str(originIGP).Str(" origin-as ").Uint32(originASN)
 	} else {
-		sb.WriteString("self")
+		b.Str(originIncomplete)
 	}
-	sb.WriteString(" nlri ")
-	sb.WriteString(fam)
-	sb.WriteString(" add ")
-	sb.WriteString(prefix)
-	return sb.String()
+	if len(community) > 0 {
+		// Each uint32 renders as <asn>:<value> (high16:low16), which round-trips
+		// through attribute.ParseCommunity for every value including well-known
+		// ones (e.g. NO_EXPORT 0xFFFFFF01 -> 65535:65281).
+		b.Str(" community [")
+		for i, c := range community {
+			if i > 0 {
+				b.Byte(' ')
+			}
+			b.Uint(uint64(c >> 16)).Byte(':').Uint(uint64(c & 0xFFFF))
+		}
+		b.Byte(']')
+	}
+	b.Str(" nhop ")
+	if nextHop != "" {
+		b.Str(nextHop)
+	} else {
+		b.Str("self")
+	}
+	b.Str(" nlri ").Str(fam).Str(" add ").Str(prefix)
+	return b.String()
 }
 
 func formatWithdraw(fam, prefix string) string {
-	var sb strings.Builder
-	sb.Grow(64)
-	sb.WriteString("update text nlri ")
-	sb.WriteString(fam)
-	sb.WriteString(" del ")
-	sb.WriteString(prefix)
-	return sb.String()
+	var b textbuf.Buffer
+	b.Reset().Str("update text nlri ").Str(fam).Str(" del ").Str(prefix)
+	return b.String()
 }

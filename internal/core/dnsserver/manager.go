@@ -179,6 +179,17 @@ func (m *Manager) bind(ep, addr string) error {
 	tcp := &dns.Server{Listener: ln, Handler: m.handler, NotifyStartedFunc: func() { close(tcpStarted) }}
 	m.servers = append(m.servers, udp, tcp)
 	m.boundAddrs = append(m.boundAddrs, addr)
+	// Fire the up-edge here, right after the sockets are BOUND (ListenPacket/
+	// Listen above) and before the serve goroutines start. A serving-gated
+	// consumer (as112's BGP announce, RFC 7534 Section 3.3) thus sees "up" a
+	// moment before ActivateAndServe's userspace read loop begins -- but this is
+	// benign, not an advertise-before-serve blackhole: the kernel has the socket
+	// bound and buffers any query arriving in that sub-millisecond window until
+	// the loop drains it. Deliberately NOT deferred until after <-udpStarted/
+	// <-tcpStarted below: doing so would let an instant post-start crash fire the
+	// down-edge (from serve's monitor) BEFORE this up-edge, leaving the consumer's
+	// serving tracker stuck "up". Ordering up-before-serve keeps up strictly
+	// before any possible down.
 	if m.opts.OnListenerChange != nil {
 		m.opts.OnListenerChange("udp", addr, true)
 		m.opts.OnListenerChange("tcp", addr, true)
