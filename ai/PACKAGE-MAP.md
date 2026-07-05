@@ -9,32 +9,32 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 593 packages, 329 described, 264 TODO
+Total: 593 packages, 593 described, 0 TODO
 
 
 ## `cmd/ze/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
-| `cmd/ze` | TODO |  |
+| `cmd/ze` | is the ze command that dispatches every ze subcommand from a single build-tag-selected entry point |  |
 
 ## `cmd/ze-gok/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
-| `cmd/ze-gok` | TODO |  |
+| `cmd/ze-gok` | is the ze-gok command that wraps the gokrazy build tool with a project-local module cache |  |
 
 ## `cmd/ze-installer/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
-| `cmd/ze-installer` | TODO |  |
+| `cmd/ze-installer` | is the ze-installer command that runs as the PID-1 initrd to install ze to disk |  |
 
 ## `cmd/ze-serial-shell/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
-| `cmd/ze-serial-shell` | TODO |  |
+| `cmd/ze-serial-shell` | is the ze-serial-shell command that symlinks the ze binary as the gokrazy serial console login shell |  |
 
 ## `cmd/ze/`
 
@@ -65,11 +65,11 @@ Total: 593 packages, 329 described, 264 TODO
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
-| `internal/chaos` | TODO |  |
+| `internal/chaos` | provides fault-injection primitives and a virtual clock for deterministic chaos simulation |  |
 | `internal/chaos/engine` | implements chaos event scheduling and action types for the ze-chaos testing tool |  |
-| `internal/chaos/guard` | TODO |  |
-| `internal/chaos/inprocess` | TODO |  |
-| `internal/chaos/mcp` | TODO |  |
+| `internal/chaos/guard` | filters chaos actions that are incompatible with a peer's current state |  |
+| `internal/chaos/inprocess` | schedules in-process chaos fault injection against simulated BGP peers |  |
+| `internal/chaos/mcp` | exposes chaos dashboard state and controls as MCP tools for AI queries |  |
 | `internal/chaos/mocknet` | provides mock network connections (dialer, listener, connection pairs) for in-process chaos simulation with virtual clock support |  |
 | `internal/chaos/orchestrator` | Chaos monkey for BGP testing |  |
 | `internal/chaos/peer` | implements BGP session handling for the chaos testing tool |  |
@@ -79,7 +79,7 @@ Total: 593 packages, 329 described, 264 TODO
 | `internal/chaos/scenario` | generates deterministic BGP peer profiles and routes from a seed value for chaos testing |  |
 | `internal/chaos/shrink` | provides test case minimization for ze-chaos |  |
 | `internal/chaos/validation` | implements the expected/actual route state model for verifying route server propagation correctness |  |
-| `internal/chaos/watchdog` | TODO |  |
+| `internal/chaos/watchdog` | detects anomalies such as reconnect timeouts and convergence plateaus during chaos runs |  |
 | `internal/chaos/web` | implements a live HTMX dashboard for ze-chaos |  |
 
 ## `internal/component/`
@@ -90,23 +90,23 @@ Total: 593 packages, 329 described, 264 TODO
 | `internal/component/aaa/all` | blank-imports every AAA backend so their init() functions fire and aaa.Default contains the backend factories |  |
 | `internal/component/aaa/cmd` | registers engine-side RPC handlers for the AAA component's CLI surface |  |
 | `internal/component/aihelp` | assembles the machine-readable "AI reference" for the running binary: CLI subcommands, daemon API RPCs (with dispatch keys), loaded plugins, address families, and config services |  |
-| `internal/component/api` | TODO |  |
+| `internal/component/api` | provides the shared command-execution engine backing the REST and gRPC transports |  |
 | `internal/component/api/grpc` | provides a gRPC server that exposes the shared API engine via protobuf services |  |
-| `internal/component/api/grpc/yang` | TODO |  |
+| `internal/component/api/grpc/yang` | embeds and registers the gRPC transport YANG configuration module |  |
 | `internal/component/api/rest` | provides an HTTP server that exposes the shared API engine as a RESTful JSON API |  |
-| `internal/component/api/rest/yang` | TODO |  |
-| `internal/component/api/yang` | TODO |  |
+| `internal/component/api/rest/yang` | embeds and registers the REST transport YANG configuration module |  |
+| `internal/component/api/yang` | embeds and registers the API YANG configuration module |  |
 | `internal/component/authz` | provides profile-based command authorization |  |
-| `internal/component/authz/yang` | TODO |  |
+| `internal/component/authz/yang` | embeds and registers the authorization YANG configuration module |  |
 | `internal/component/bfd` | is the plugin entry point for Bidirectional Forwarding Detection | bfd |
-| `internal/component/bfd/api` | TODO |  |
-| `internal/component/bfd/auth` | TODO |  |
+| `internal/component/bfd/api` | defines the BFD engine's client-facing service interface for requesting sessions and receiving state changes |  |
+| `internal/component/bfd/auth` | implements BFD packet authentication signers and verifiers per RFC 5880 |  |
 | `internal/component/bfd/cmd` | registers engine-side RPC handlers that expose the BFD plugin's observability surface to the CLI |  |
 | `internal/component/bfd/engine` | implements the BFD express-loop runtime |  |
 | `internal/component/bfd/packet` | implements the BFD Control packet codec |  |
 | `internal/component/bfd/session` | implements the per-BFD-session state machine, timer arithmetic, and Poll/Final negotiation |  |
 | `internal/component/bfd/transport` | provides UDP I/O for BFD Control packets and an in-memory loopback implementation used by engine-level tests |  |
-| `internal/component/bfd/yang` | TODO |  |
+| `internal/component/bfd/yang` | embeds and registers the BFD YANG configuration and command modules |  |
 | `internal/component/bgp` | provides shared types and event parsing for the BGP subsystem |  |
 
 ## `internal/component/bgp/`
@@ -115,7 +115,7 @@ Total: 593 packages, 329 described, 264 TODO
 |---------|----------------|------------|
 | `internal/component/bgp/attrpool` | provides refcounted, deduplicating attribute pools for BGP path attributes |  |
 | `internal/component/bgp/cli` | provides the Ze BGP daemon subcommand |  |
-| `internal/component/bgp/cli/yang` | TODO |  |
+| `internal/component/bgp/cli/yang` | embeds and registers the BGP tools CLI command YANG module |  |
 | `internal/component/bgp/config` | converts BGP configuration trees into peer definitions and route attributes |  |
 | `internal/component/bgp/configjson` | provides shared helpers for traversing BGP config JSON delivered to plugins at Stage 2 (configure callback) |  |
 | `internal/component/bgp/filter` | implements BGP route filtering based on attribute matching rules |  |
@@ -131,55 +131,55 @@ Total: 593 packages, 329 described, 264 TODO
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `internal/component/bgp/plugins/adj_rib_in` | implements an Adj-RIB-In plugin for ze | bgp-adj-rib-in |
-| `internal/component/bgp/plugins/adj_rib_in/yang` | TODO |  |
+| `internal/component/bgp/plugins/adj_rib_in/yang` | embeds and registers the adj-rib-in API YANG module |  |
 | `internal/component/bgp/plugins/aigp` | implements a stub plugin for the AIGP (Accumulated IGP) attribute | bgp-aigp |
 | `internal/component/bgp/plugins/bmp` | implements a BMP receiver and sender for ze | bgp-bmp |
-| `internal/component/bgp/plugins/bmp/yang` | TODO |  |
+| `internal/component/bgp/plugins/bmp/yang` | embeds and registers the BMP command and configuration YANG modules |  |
 | `internal/component/bgp/plugins/capa` | Core BGP capability decoding (multiprotocol, asn4, add-path, paths-limit, extended-nexthop, extended-message) | bgp-capa |
-| `internal/component/bgp/plugins/cmd/announce` | TODO |  |
-| `internal/component/bgp/plugins/cmd/announce/yang` | TODO |  |
-| `internal/component/bgp/plugins/cmd/cache` | TODO |  |
-| `internal/component/bgp/plugins/cmd/cache/yang` | TODO |  |
-| `internal/component/bgp/plugins/cmd/commit` | TODO |  |
-| `internal/component/bgp/plugins/cmd/commit/yang` | TODO |  |
+| `internal/component/bgp/plugins/cmd/announce` | implements the on-demand BGP route origination command handlers |  |
+| `internal/component/bgp/plugins/cmd/announce/yang` | embeds and registers the BGP announce command and API YANG modules |  |
+| `internal/component/bgp/plugins/cmd/cache` | implements the BGP cache operation command handlers |  |
+| `internal/component/bgp/plugins/cmd/cache/yang` | embeds and registers the YANG schema modules for the cache command |  |
+| `internal/component/bgp/plugins/cmd/commit` | implements the BGP commit command that manages named route commit transactions |  |
+| `internal/component/bgp/plugins/cmd/commit/yang` | embeds and registers the YANG schema modules for the commit command |  |
 | `internal/component/bgp/plugins/cmd/monitor` | provides the bgp monitor command for streaming live BGP events |  |
-| `internal/component/bgp/plugins/cmd/monitor/yang` | TODO |  |
+| `internal/component/bgp/plugins/cmd/monitor/yang` | embeds and registers the YANG schema modules for the monitor command |  |
 | `internal/component/bgp/plugins/cmd/peer` | provides BGP peer lifecycle and introspection command handlers for the plugin server |  |
-| `internal/component/bgp/plugins/cmd/peer/yang` | TODO |  |
-| `internal/component/bgp/plugins/cmd/policy` | TODO |  |
-| `internal/component/bgp/plugins/cmd/policy/yang` | TODO |  |
+| `internal/component/bgp/plugins/cmd/peer/yang` | embeds and registers the YANG schema modules for the peer command |  |
+| `internal/component/bgp/plugins/cmd/policy` | implements the show policy commands that inspect policy chains and dry-run policy evaluation |  |
+| `internal/component/bgp/plugins/cmd/policy/yang` | embeds and registers the YANG schema module for the policy command |  |
 | `internal/component/bgp/plugins/cmd/raw` | provides the raw BGP message injection handler |  |
-| `internal/component/bgp/plugins/cmd/raw/yang` | TODO |  |
+| `internal/component/bgp/plugins/cmd/raw/yang` | embeds and registers the YANG schema modules for the raw command |  |
 | `internal/component/bgp/plugins/cmd/rib` | registers CLI proxy handlers that forward RIB commands to the bgp-rib plugin process |  |
-| `internal/component/bgp/plugins/cmd/rib/yang` | TODO |  |
+| `internal/component/bgp/plugins/cmd/rib/yang` | embeds and registers the YANG schema modules for the rib command |  |
 | `internal/component/bgp/plugins/cmd/update` | provides BGP route announcement parsing command handlers |  |
-| `internal/component/bgp/plugins/cmd/update/yang` | TODO |  |
+| `internal/component/bgp/plugins/cmd/update/yang` | embeds and registers the YANG schema modules for the update command |  |
 | `internal/component/bgp/plugins/filter_aspath` | implements the bgp-filter-aspath plugin | bgp-filter-aspath |
-| `internal/component/bgp/plugins/filter_aspath/yang` | TODO |  |
+| `internal/component/bgp/plugins/filter_aspath/yang` | embeds and registers the YANG schema module for the aspath filter |  |
 | `internal/component/bgp/plugins/filter_aspath_length` | Named AS-path length filter (accept/reject based on hop count) | bgp-filter-aspath-length |
-| `internal/component/bgp/plugins/filter_aspath_length/yang` | TODO |  |
+| `internal/component/bgp/plugins/filter_aspath_length/yang` | embeds and registers the YANG schema module for the aspath-length filter |  |
 | `internal/component/bgp/plugins/filter_community` | implements the bgp-filter-community plugin | bgp-filter-community |
-| `internal/component/bgp/plugins/filter_community/yang` | TODO |  |
+| `internal/component/bgp/plugins/filter_community/yang` | embeds and registers the community-filter plugin's YANG configuration schema module |  |
 | `internal/component/bgp/plugins/filter_community_match` | implements the bgp-filter-community-match plugin | bgp-filter-community-match |
-| `internal/component/bgp/plugins/filter_community_match/yang` | TODO |  |
+| `internal/component/bgp/plugins/filter_community_match/yang` | embeds and registers the YANG schema module for the community-match filter |  |
 | `internal/component/bgp/plugins/filter_family` | implements the bgp-filter-family plugin | bgp-filter-family |
-| `internal/component/bgp/plugins/filter_family/yang` | TODO |  |
+| `internal/component/bgp/plugins/filter_family/yang` | embeds and registers the family-filter plugin's YANG configuration schema module |  |
 | `internal/component/bgp/plugins/filter_irr` | IRR-based prefix-list filter for eBGP peers | bgp-filter-irr |
-| `internal/component/bgp/plugins/filter_irr/yang` | TODO |  |
+| `internal/component/bgp/plugins/filter_irr/yang` | embeds and registers the IRR-filter plugin's YANG configuration schema modules |  |
 | `internal/component/bgp/plugins/filter_modify` | implements the bgp-filter-modify plugin | bgp-filter-modify |
-| `internal/component/bgp/plugins/filter_modify/yang` | TODO |  |
+| `internal/component/bgp/plugins/filter_modify/yang` | embeds and registers the modify-filter plugin's YANG configuration schema module |  |
 | `internal/component/bgp/plugins/filter_prefix` | implements the bgp-filter-prefix plugin | bgp-filter-prefix |
-| `internal/component/bgp/plugins/filter_prefix/yang` | TODO |  |
+| `internal/component/bgp/plugins/filter_prefix/yang` | embeds and registers the prefix-filter plugin's YANG configuration schema module |  |
 | `internal/component/bgp/plugins/filter_remove_private_as` | Named AS-path action filter that removes RFC 6996 Private Use ASNs | bgp-filter-remove-private-as |
-| `internal/component/bgp/plugins/filter_remove_private_as/yang` | TODO |  |
+| `internal/component/bgp/plugins/filter_remove_private_as/yang` | embeds and registers the remove-private-AS filter plugin's YANG configuration schema module |  |
 | `internal/component/bgp/plugins/gr` | implements a Graceful Restart plugin for ze (RFC 4724, RFC 9494) | bgp-gr |
-| `internal/component/bgp/plugins/gr/yang` | TODO |  |
+| `internal/component/bgp/plugins/gr/yang` | embeds and registers the graceful-restart plugin's YANG configuration schema module |  |
 | `internal/component/bgp/plugins/healthcheck` | implements a service healthcheck plugin for Ze | bgp-healthcheck |
-| `internal/component/bgp/plugins/healthcheck/yang` | TODO |  |
+| `internal/component/bgp/plugins/healthcheck/yang` | embeds and registers the healthcheck plugin's YANG configuration schema module |  |
 | `internal/component/bgp/plugins/hostname` | implements a hostname (FQDN) capability plugin for ze | bgp-hostname |
-| `internal/component/bgp/plugins/hostname/yang` | TODO |  |
+| `internal/component/bgp/plugins/hostname/yang` | embeds and registers the hostname plugin's YANG configuration schema module |  |
 | `internal/component/bgp/plugins/llnh` | implements a link-local next-hop capability plugin for ze | bgp-llnh |
-| `internal/component/bgp/plugins/llnh/yang` | TODO |  |
+| `internal/component/bgp/plugins/llnh/yang` | embeds and registers the link-local-nexthop plugin's YANG configuration schema module |  |
 | `internal/component/bgp/plugins/nlri/evpn` | implements an EVPN family plugin for ze | bgp-nlri-evpn |
 | `internal/component/bgp/plugins/nlri/flowspec` | implements a FlowSpec family plugin for ze | bgp-nlri-flowspec |
 | `internal/component/bgp/plugins/nlri/labeled` | implements a Labeled Unicast family plugin for ze | bgp-nlri-labeled |
@@ -195,24 +195,24 @@ Total: 593 packages, 329 described, 264 TODO
 | `internal/component/bgp/plugins/redistribute_ingress` | Route redistribution ingress filter with loop prevention and family filtering | bgp-redistribute |
 | `internal/component/bgp/plugins/rib` | implements a RIB (Routing Information Base) plugin for ze | bgp-rib |
 | `internal/component/bgp/plugins/rib/events` | defines event constants and typed event handles for the BGP RIB plugin |  |
-| `internal/component/bgp/plugins/rib/pool` | TODO |  |
-| `internal/component/bgp/plugins/rib/storage` | TODO |  |
-| `internal/component/bgp/plugins/rib/yang` | TODO |  |
+| `internal/component/bgp/plugins/rib/pool` | holds the per-attribute-type BGP path-attribute pools used for fine-grained RIB deduplication |  |
+| `internal/component/bgp/plugins/rib/storage` | implements the per-peer, per-family RIB storage with per-attribute-type deduplication |  |
+| `internal/component/bgp/plugins/rib/yang` | embeds and registers the BGP RIB YANG schema modules |  |
 | `internal/component/bgp/plugins/role` | implements RFC 9234 BGP Role as a plugin for ze | bgp-role |
-| `internal/component/bgp/plugins/role/yang` | TODO |  |
+| `internal/component/bgp/plugins/role/yang` | embeds and registers the BGP role YANG schema module |  |
 | `internal/component/bgp/plugins/route_refresh` | implements a Route Refresh capability plugin for ze | bgp-route-refresh |
 | `internal/component/bgp/plugins/route_refresh/handler` | provides route refresh command handlers for the plugin server |  |
-| `internal/component/bgp/plugins/route_refresh/yang` | TODO |  |
+| `internal/component/bgp/plugins/route_refresh/yang` | embeds and registers the BGP route-refresh YANG schema modules |  |
 | `internal/component/bgp/plugins/rpki` | RPKI origin validation via RTR protocol | bgp-rpki |
-| `internal/component/bgp/plugins/rpki/yang` | TODO |  |
+| `internal/component/bgp/plugins/rpki/yang` | embeds and registers the RPKI YANG schema module |  |
 | `internal/component/bgp/plugins/rpki_decorator` | provides the bgp-rpki-decorator plugin | bgp-rpki-decorator |
-| `internal/component/bgp/plugins/rpki_decorator/yang` | TODO |  |
+| `internal/component/bgp/plugins/rpki_decorator/yang` | embeds and registers the RPKI decorator YANG schema module |  |
 | `internal/component/bgp/plugins/rr` | Route Reflector | bgp-rr |
-| `internal/component/bgp/plugins/rr/yang` | TODO |  |
+| `internal/component/bgp/plugins/rr/yang` | embeds and registers the BGP route-reflector command YANG schema module |  |
 | `internal/component/bgp/plugins/rs` | Route Server | bgp-rs |
-| `internal/component/bgp/plugins/rs/yang` | TODO |  |
+| `internal/component/bgp/plugins/rs/yang` | embeds and registers the BGP route-server configuration YANG schema module |  |
 | `internal/component/bgp/plugins/softver` | implements a software-version capability plugin for ze | bgp-softver |
-| `internal/component/bgp/plugins/softver/yang` | TODO |  |
+| `internal/component/bgp/plugins/softver/yang` | embeds and registers the BGP software-version capability YANG schema module |  |
 | `internal/component/bgp/plugins/watchdog` | implements a watchdog route management plugin for ze | bgp-watchdog |
 
 ## `internal/component/bgp/`
@@ -221,14 +221,14 @@ Total: 593 packages, 329 described, 264 TODO
 |---------|----------------|------------|
 | `internal/component/bgp/reactor` | implements the BGP reactor event loop, managing peer sessions, processing wire events, and dispatching messages to plugins |  |
 | `internal/component/bgp/reactor/filter` | implements protocol-mandated ingress filters for the BGP reactor | loop |
-| `internal/component/bgp/reactor/filter/yang` | TODO |  |
-| `internal/component/bgp/redistribute` | TODO |  |
+| `internal/component/bgp/reactor/filter/yang` | embeds and registers the BGP loop-detection filter YANG schema module |  |
+| `internal/component/bgp/redistribute` | bridges BGP RIB best-path changes into the generic redistribution subsystem and injects redistributed routes back as BGP updates |  |
 | `internal/component/bgp/rib` | implements the BGP Routing Information Base with per-attribute-type deduplication |  |
 | `internal/component/bgp/route` | parses text-format BGP route definitions into wire-ready attributes and NLRI |  |
 | `internal/component/bgp/server` | provides BGP-specific event delivery and dispatch for the plugin server |  |
 | `internal/component/bgp/store` | provides deduplication stores for BGP attributes and NLRI data |  |
 | `internal/component/bgp/textparse` | provides a zero-allocation tokenizer and keyword resolution for BGP text commands |  |
-| `internal/component/bgp/transaction` | TODO |  |
+| `internal/component/bgp/transaction` | manages named BGP commits that queue route announcements and withdrawals until they are ended or rolled back |  |
 | `internal/component/bgp/types` | defines shared BGP-specific types for routes, next-hops, and reactor interfaces |  |
 | `internal/component/bgp/wireu` | implements lazy-parsed BGP UPDATE messages with zero-copy iterators over wire bytes |  |
 | `internal/component/bgp/yang` | embeds the YANG schemas for BGP configuration and API |  |
@@ -242,115 +242,115 @@ Total: 593 packages, 329 described, 264 TODO
 | `internal/component/cli/contract` | defines interfaces and types for the cli component's consumers (ssh, web) without depending on cli's concrete implementation |  |
 | `internal/component/cli/testing` | provides a replay-based testing framework for the Ze configuration cli |  |
 | `internal/component/cmd/clear` | is the generic top-level "clear" CLI verb for resetting runtime/operational state without changing configuration |  |
-| `internal/component/cmd/clear/yang` | TODO |  |
+| `internal/component/cmd/clear/yang` | embeds and registers the CLI clear command YANG schema modules |  |
 | `internal/component/cmd/delete` | provides the top-level "delete" CLI verb for removing configuration (delete peers) |  |
-| `internal/component/cmd/delete/yang` | TODO |  |
+| `internal/component/cmd/delete/yang` | embeds and registers the CLI delete command YANG schema modules |  |
 | `internal/component/cmd/log` | provides BGP log level command handlers for the plugin server |  |
-| `internal/component/cmd/log/yang` | TODO |  |
+| `internal/component/cmd/log/yang` | embeds and registers the BGP log command YANG schema modules |  |
 | `internal/component/cmd/meta` | provides BGP command discovery, help, completion, and plugin process configuration handlers |  |
-| `internal/component/cmd/meta/yang` | TODO |  |
+| `internal/component/cmd/meta/yang` | embeds and registers the BGP meta command YANG schema modules |  |
 | `internal/component/cmd/metrics` | provides BGP metrics command handlers for the plugin server |  |
-| `internal/component/cmd/metrics/yang` | TODO |  |
+| `internal/component/cmd/metrics/yang` | embeds and registers the BGP metrics command YANG schema modules |  |
 | `internal/component/cmd/monitor` | provides the generic, unowned root of the "monitor" CLI verb |  |
-| `internal/component/cmd/monitor/yang` | TODO |  |
+| `internal/component/cmd/monitor/yang` | embeds and registers the CLI monitor command YANG module |  |
 | `internal/component/cmd/set` | provides the top-level "set" CLI verb for creating or modifying configuration (add peers, save config) |  |
-| `internal/component/cmd/set/yang` | TODO |  |
+| `internal/component/cmd/set/yang` | embeds and registers the CLI set command and API YANG modules |  |
 | `internal/component/cmd/show` | provides the top-level "show" CLI verb for read-only introspection (peer details, warnings) |  |
-| `internal/component/cmd/show/yang` | TODO |  |
+| `internal/component/cmd/show/yang` | embeds and registers the CLI show command and API YANG modules |  |
 | `internal/component/cmd/subscribe` | provides event subscription command handlers |  |
-| `internal/component/cmd/subscribe/yang` | TODO |  |
+| `internal/component/cmd/subscribe/yang` | embeds and registers the CLI subscribe command and API YANG modules |  |
 | `internal/component/cmd/update` | provides the top-level "update" CLI verb for refreshing stale data from external sources (PeeringDB, RPKI, IRR, etc.) |  |
-| `internal/component/cmd/update/yang` | TODO |  |
+| `internal/component/cmd/update/yang` | embeds and registers the CLI update command and API YANG modules |  |
 | `internal/component/command` | provides shared types and logic for operational command execution |  |
 | `internal/component/command/grammar` | mechanizes the CLI command-syntax rules of ai/rules/cli-grammar.md as pure functions, so the grammar gate (scripts/checks/cli_grammar.go), the plugin |  |
 | `internal/component/command/registry` | holds the process-wide registries for ze's command-line surface: offline local handlers, top-level root commands, and owner-backed root command handlers |  |
 | `internal/component/config` | provides YANG-modeled configuration parsing, tree operations, and peer extraction for ze's BGP subsystem |  |
-| `internal/component/config/archive` | TODO |  |
-| `internal/component/config/archive/cmd` | TODO |  |
-| `internal/component/config/archive/yang` | TODO |  |
+| `internal/component/config/archive` | saves committed configuration to file and HTTP locations on commit, manual, and scheduled triggers |  |
+| `internal/component/config/archive/cmd` | handles the config archive trigger command that archives the running configuration |  |
+| `internal/component/config/archive/yang` | embeds and registers the config archive API YANG module |  |
 | `internal/component/config/cli` | provides the ze config subcommand |  |
 | `internal/component/config/env` | provides Ze BGP environment variable handling with dot/underscore support |  |
-| `internal/component/config/migration` | TODO |  |
-| `internal/component/config/redistribute` | TODO |  |
-| `internal/component/config/redistribute/yang` | TODO |  |
+| `internal/component/config/migration` | rewrites deprecated configuration syntax into its current equivalent |  |
+| `internal/component/config/redistribute` | moves routes between routing protocols with origin-based loop prevention |  |
+| `internal/component/config/redistribute/yang` | embeds and registers the redistribute configuration YANG module |  |
 | `internal/component/config/schema/cli` | provides the ze schema subcommand |  |
 | `internal/component/config/secret` | implements JunOS-compatible $9$ reversible encoding for sensitive configuration values (passwords, keys) |  |
 | `internal/component/config/storage` | provides a file I/O abstraction for ze's configuration system |  |
 | `internal/component/config/storage/cli` | provides the ze data subcommand for managing ZeFS blob stores |  |
-| `internal/component/config/system` | TODO |  |
-| `internal/component/config/system/yang` | TODO |  |
+| `internal/component/config/system` | manages system-wide configuration including identity, DNS, console, connection tracking, and self-update |  |
+| `internal/component/config/system/yang` | embeds and registers the system configuration YANG module |  |
 | `internal/component/config/transaction` | implements the stream-based config transaction protocol |  |
 | `internal/component/config/transaction/events` | defines event constants for config transactions |  |
 | `internal/component/config/yang` | provides YANG schema loading and validation for ze |  |
 | `internal/component/config/yang/cli` | provides the ze yang CLI subcommand for YANG tree analysis |  |
-| `internal/component/debug/yang` | TODO |  |
+| `internal/component/debug/yang` | registers debug YANG modules and validates debug flag and scope names against them |  |
 | `internal/component/doctor` | Check if this box is ready to run Ze |  |
-| `internal/component/doctor/cmd` | TODO |  |
-| `internal/component/doctor/yang` | TODO |  |
+| `internal/component/doctor/cmd` | handles the show doctor command that runs system and plugin diagnostic checks |  |
+| `internal/component/doctor/yang` | embeds and registers the doctor command YANG module |  |
 | `internal/component/engine` | implements the top-level supervisor that composes Bus, ConfigProvider, and PluginManager |  |
 | `internal/component/firewall` | defines the abstract data model for ze-managed nftables firewall tables | firewall |
 | `internal/component/firewall/cli` | provides the ze firewall subcommand for viewing nftables firewall state (tables, chains, rules, counters) |  |
 | `internal/component/firewall/cmd` | provides formatting functions for firewall CLI output |  |
 | `internal/component/firewall/plugins/irr` | implements IRR-based prefix-list filtering for firewall rules | firewall-irr |
-| `internal/component/firewall/plugins/irr/yang` | TODO |  |
-| `internal/component/firewall/yang` | TODO |  |
-| `internal/component/gnmi` | TODO |  |
-| `internal/component/gnmi/yang` | TODO |  |
+| `internal/component/firewall/plugins/irr/yang` | embeds and registers the firewall IRR command and schema YANG modules |  |
+| `internal/component/firewall/yang` | embeds and registers the firewall component's YANG schema modules |  |
+| `internal/component/gnmi` | implements a gNMI server exposing Ze's YANG-modeled configuration over gRPC |  |
+| `internal/component/gnmi/yang` | embeds and registers the gNMI component's YANG schema module |  |
 | `internal/component/gokrazy` | provides a reverse proxy handler for the gokrazy management interface, mounted on ze's web server at /gokrazy/ |  |
 | `internal/component/host` | reads the physical hardware inventory from sysfs, procfs, and netlink |  |
 | `internal/component/hub` | provides the hub/orchestrator process for ze |  |
-| `internal/component/hub/yang` | TODO |  |
+| `internal/component/hub/yang` | embeds and registers the hub component's YANG schema module |  |
 | `internal/component/iface` | implements the interface monitoring and management plugin | interface |
 | `internal/component/iface/cli` | provides the ze interface subcommand for managing OS network interfaces (dummy, veth, VLAN units, addresses) |  |
 | `internal/component/iface/cmd` | registers interface RPCs (migrate) with the plugin server |  |
-| `internal/component/iface/yang` | TODO |  |
-| `internal/component/ike/cmd` | TODO |  |
-| `internal/component/ike/crypto` | TODO |  |
-| `internal/component/ike/dataplane` | TODO |  |
-| `internal/component/ike/eap` | TODO |  |
+| `internal/component/iface/yang` | embeds and registers the interface component's YANG schema modules |  |
+| `internal/component/ike/cmd` | registers the IPsec VPN operational command handlers |  |
+| `internal/component/ike/crypto` | implements the IKEv2 cryptographic primitives and proposal negotiation |  |
+| `internal/component/ike/dataplane` | abstracts installation of IPsec security associations and policies across xfrm and VPP backends |  |
+| `internal/component/ike/eap` | implements the EAP authentication framework and its MSCHAPv2 and TLS methods for IKEv2 |  |
 | `internal/component/ike/engine` | IKEv2 engine for native IPsec VPN | ike |
-| `internal/component/ike/ipsec` | TODO |  |
-| `internal/component/ike/ipsec/yang` | TODO |  |
-| `internal/component/ike/transport` | TODO |  |
-| `internal/component/ike/wire` | TODO |  |
-| `internal/component/ike/yang` | TODO |  |
+| `internal/component/ike/ipsec` | defines the IPsec data model types and parses their configuration |  |
+| `internal/component/ike/ipsec/yang` | embeds and registers the IPsec configuration YANG schema module |  |
+| `internal/component/ike/transport` | implements the IKE UDP transport with NAT detection and keepalive handling |  |
+| `internal/component/ike/wire` | encodes and decodes IKEv2 messages, headers, and payloads |  |
+| `internal/component/ike/yang` | embeds and registers the IPsec operational command YANG schema module |  |
 | `internal/component/l2tp` | implements L2TPv2 (RFC 2661) wire format parsing and serialization for ze's L2TP subsystem |  |
 | `internal/component/l2tp/cli` | provides the `ze l2tp` subcommand |  |
 | `internal/component/l2tp/cmd` | registers engine-side RPC handlers that expose the L2TP subsystem's observability and teardown surface to the CLI |  |
-| `internal/component/l2tp/cmd/yang` | TODO |  |
+| `internal/component/l2tp/cmd/yang` | embeds and registers the L2TP operational command YANG schema module |  |
 | `internal/component/l2tp/events` | defines the typed EventBus handle for L2TP subscriber route-change events |  |
 | `internal/component/l2tp/plugins/authlocal` | Static local user list for L2TP PPP authentication |  |
-| `internal/component/l2tp/plugins/authlocal/yang` | TODO |  |
+| `internal/component/l2tp/plugins/authlocal/yang` | embeds and registers the L2TP local authentication YANG schema module |  |
 | `internal/component/l2tp/plugins/authradius` | RADIUS authentication and accounting for L2TP PPP sessions | l2tp-auth-radius-servers |
-| `internal/component/l2tp/plugins/authradius/yang` | TODO |  |
+| `internal/component/l2tp/plugins/authradius/yang` | embeds and registers the L2TP RADIUS authentication YANG schema module |  |
 | `internal/component/l2tp/plugins/pool` | IPv4 address and IPv6 prefix pool for L2TP PPP sessions | show l2tp pool |
-| `internal/component/l2tp/plugins/pool/yang` | TODO |  |
+| `internal/component/l2tp/plugins/pool/yang` | embeds and registers the L2TP address pool YANG schema module |  |
 | `internal/component/l2tp/plugins/shaper` | Traffic shaping for L2TP subscriber sessions | show l2tp shaper |
-| `internal/component/l2tp/plugins/shaper/yang` | TODO |  |
+| `internal/component/l2tp/plugins/shaper/yang` | embeds and registers the L2TP shaper configuration YANG module |  |
 | `internal/component/l2tp/ppp` | implements the PPP control plane (LCP, authentication, IPCP, IPv6CP) over chan/unit file descriptors obtained from /dev/ppp |  |
 | `internal/component/l2tp/pppoe` | implements the PPPoE (RFC 2516) access concentrator for subscriber session management over Ethernet |  |
 | `internal/component/l2tp/pppoe/cmd` | registers engine-side RPC handlers that expose the PPPoE subsystem's observability surface to the CLI |  |
-| `internal/component/l2tp/pppoe/cmd/yang` | TODO |  |
-| `internal/component/l2tp/pppoe/yang` | TODO |  |
-| `internal/component/l2tp/pppoeclient` | TODO |  |
-| `internal/component/l2tp/subscriber` | TODO |  |
-| `internal/component/l2tp/subscriber/cmd` | TODO |  |
-| `internal/component/l2tp/subscriber/cmd/yang` | TODO |  |
-| `internal/component/l2tp/subscriber/events` | TODO |  |
-| `internal/component/l2tp/yang` | TODO |  |
+| `internal/component/l2tp/pppoe/cmd/yang` | embeds and registers the PPPoE command YANG module |  |
+| `internal/component/l2tp/pppoe/yang` | embeds and registers the PPPoE API and configuration YANG modules |  |
+| `internal/component/l2tp/pppoeclient` | implements a PPPoE client dialer that performs RFC 2516 discovery and kernel session setup |  |
+| `internal/component/l2tp/subscriber` | provides the shared subscriber session model, registry, and metrics for PPPoE and L2TP access |  |
+| `internal/component/l2tp/subscriber/cmd` | registers the show subscriber CLI RPC handlers |  |
+| `internal/component/l2tp/subscriber/cmd/yang` | embeds and registers the subscriber command YANG module |  |
+| `internal/component/l2tp/subscriber/events` | defines the subscriber session event namespace and payloads |  |
+| `internal/component/l2tp/yang` | embeds and registers the L2TP API and configuration YANG modules |  |
 | `internal/component/lg` | provides the looking glass HTTP server for Ze |  |
-| `internal/component/lg/yang` | TODO |  |
+| `internal/component/lg/yang` | embeds and registers the looking-glass configuration YANG module |  |
 | `internal/component/managed` | implements the managed configuration client |  |
 | `internal/component/mcp` | provides an HTTP handler that speaks MCP (Model Context Protocol) JSON-RPC, wrapping Ze's command dispatcher to let AI assistants control BGP |  |
-| `internal/component/mcp/yang` | TODO |  |
-| `internal/component/mpls` | TODO |  |
+| `internal/component/mcp/yang` | embeds and registers the MCP configuration YANG module |  |
+| `internal/component/mpls` | reads the kernel MPLS forwarding table and serves the show mpls forwarding command |  |
 | `internal/component/ping/cmd` | owns the entire ping feature surface as a dedicated feature module (see ai/rules/plugin-self-containment.md "Dedicated feature modules") |  |
-| `internal/component/pki` | TODO |  |
-| `internal/component/pki/yang` | TODO |  |
+| `internal/component/pki` | parses, validates, and stores X.509 certificates with show commands and expiry health checks |  |
+| `internal/component/pki/yang` | embeds and registers the PKI API and configuration YANG modules |  |
 | `internal/component/plugin` | provides the plugin infrastructure for ze, including registry management, process lifecycle, hub-based message routing, and event dispatch |  |
 | `internal/component/plugin/all` | blank-imports all internal plugins and schema packages to trigger init() registration |  |
 | `internal/component/plugin/cli` | provides the shared plugin CLI framework for dispatch and configuration |  |
-| `internal/component/plugin/doctor` | TODO | plugin-binaries |
+| `internal/component/plugin/doctor` | registers a diagnostic check that verifies configured plugin binaries are present | plugin-binaries |
 | `internal/component/plugin/ipc` | provides Unix socket pairs and typed RPC for engine-plugin communication |  |
 | `internal/component/plugin/manager` | implements the PluginManager for plugin registration, lifecycle, and capabilities |  |
 | `internal/component/plugin/process` | manages plugin process lifecycle, respawn, and event delivery pipelines |  |
@@ -367,47 +367,47 @@ Total: 593 packages, 329 described, 264 TODO
 | `internal/component/resolve/irr` | provides a client for querying IRR (Internet Routing Registry) databases via the RPSL whois protocol (RFC 2622) |  |
 | `internal/component/resolve/irr/store` | provides PrefixStore, a shared cache of IRR-resolved prefix lists keyed by name (an ASN like "AS13335" or an AS-SET like "AS-CLOUDFLARE") |  |
 | `internal/component/resolve/peeringdb` | provides a client for querying PeeringDB-compatible APIs for per-ASN prefix counts |  |
-| `internal/component/resolve/yang` | TODO |  |
-| `internal/component/ssh` | TODO |  |
-| `internal/component/ssh/yang` | TODO |  |
-| `internal/component/storage` | TODO |  |
-| `internal/component/storage/yang` | TODO |  |
-| `internal/component/support` | TODO |  |
+| `internal/component/resolve/yang` | embeds and registers the resolver API YANG module |  |
+| `internal/component/ssh` | implements the SSH server that serves the interactive CLI over public-key-authenticated sessions |  |
+| `internal/component/ssh/yang` | embeds and registers the SSH configuration YANG module |  |
+| `internal/component/storage` | runs periodic SMART disk health checks and self-test scheduling for block devices |  |
+| `internal/component/storage/yang` | embeds the storage component's YANG configuration schema and registers it with the config module registry |  |
+| `internal/component/support` | collects host and configuration diagnostics into a sanitized tech-support archive |  |
 | `internal/component/sysctl` | implements the sysctl plugin that centralizes all kernel tunable management | sysctl |
 | `internal/component/sysctl/cli` | provides the ze sysctl subcommand for inspecting and setting kernel tunables without a running daemon |  |
 | `internal/component/sysctl/events` | defines event constants for the sysctl plugin |  |
-| `internal/component/sysctl/yang` | TODO |  |
+| `internal/component/sysctl/yang` | embeds the sysctl component's YANG configuration schema and registers it with the config module registry |  |
 | `internal/component/sysrib` | System RIB: selects best route across protocols by admin distance | show rib |
 | `internal/component/sysrib/events` | defines event constants and typed event handles for the system RIB plugin |  |
-| `internal/component/sysrib/yang` | TODO |  |
+| `internal/component/sysrib/yang` | embeds the sysrib component's YANG configuration schema and registers it with the config module registry |  |
 | `internal/component/tacacs` | implements the TACACS+ protocol (RFC 8907) client |  |
 | `internal/component/tacacs/cli` | implements the `ze tacacs` offline subcommand |  |
-| `internal/component/tacacs/yang` | TODO |  |
-| `internal/component/telemetry/collector` | TODO |  |
+| `internal/component/tacacs/yang` | embeds the tacacs component's YANG configuration schema and registers it with the config module registry |  |
+| `internal/component/telemetry/collector` | reads Netdata-compatible OS metrics from procfs and sysfs and feeds them into the shared metrics registry |  |
 | `internal/component/telemetry/exporter` | is the compile-out-able Prometheus HTTP exporter for Ze |  |
-| `internal/component/telemetry/exporter/yang` | TODO |  |
+| `internal/component/telemetry/exporter/yang` | embeds the telemetry exporter's YANG configuration schema and registers it with the config module registry |  |
 | `internal/component/traceroute/cmd` | owns the entire traceroute feature surface as a dedicated feature module (see ai/rules/plugin-self-containment.md "Dedicated feature modules") |  |
 | `internal/component/traffic` | defines the data model for ze-managed tc (traffic control) qdiscs, classes, and filters | traffic |
 | `internal/component/traffic/cli` | provides the ze traffic-control subcommand for viewing tc qdisc, class, and filter state on network interfaces |  |
 | `internal/component/traffic/cmd` | provides traffic control (QoS) CLI command handlers and formatting helpers |  |
-| `internal/component/traffic/yang` | TODO |  |
-| `internal/component/trafficfeature` | TODO |  |
-| `internal/component/trafficfeature/cmd` | TODO |  |
-| `internal/component/trafficfeature/cmd/yang` | TODO |  |
-| `internal/component/trafficstat` | TODO |  |
-| `internal/component/trafficstat/cmd` | TODO |  |
-| `internal/component/trafficstat/cmd/yang` | TODO |  |
+| `internal/component/traffic/yang` | embeds the traffic component's YANG configuration schema and registers it with the config module registry |  |
+| `internal/component/trafficfeature` | derives neutral per-source traffic feature signals from the observation feed for detection plugins |  |
+| `internal/component/trafficfeature/cmd` | registers the show traffic-feature CLI handler that surfaces neutral per-source feature signals |  |
+| `internal/component/trafficfeature/cmd/yang` | embeds the traffic-feature command's YANG schema and registers it with the config module registry |  |
+| `internal/component/trafficstat` | aggregates the observation feed into a lazy, consumer-refcounted snapshot of top talkers, ports, and protocols |  |
+| `internal/component/trafficstat/cmd` | registers the show and monitor traffic-stat CLI handlers |  |
+| `internal/component/trafficstat/cmd/yang` | embeds the traffic-stat command's YANG schema and registers it with the config module registry |  |
 | `internal/component/vpp` | manages VPP's full process lifecycle as a self-contained system | vpp |
-| `internal/component/vpp/yang` | TODO |  |
+| `internal/component/vpp/yang` | embeds the vpp component's YANG configuration schema and registers it with the config module registry |  |
 | `internal/component/web` | provides the ze web interface, including session-based authentication middleware and security headers for all HTTP responses |  |
 | `internal/component/web/testing` | provides a declarative test framework for the web interface |  |
-| `internal/component/web/yang` | TODO |  |
+| `internal/component/web/yang` | embeds the web component's YANG configuration schema and registers it with the config module registry |  |
 
 ## `internal/core/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
-| `internal/core/anomalyevent` | TODO |  |
+| `internal/core/anomalyevent` | defines the source-oriented behavioral anomaly detection event contract |  |
 | `internal/core/audit` | provides Ze's local, append-only structured audit log |  |
 | `internal/core/bgp/attribute` | provides BGP path attribute types, builders, and pool-based deduplication for ORIGIN, AS_PATH, NEXT_HOP, MED, and other path attributes defined in RFC 4271 and extensions |  |
 | `internal/core/bgp/capability` | implements BGP capability negotiation per RFC 5492, including multiprotocol extensions, 4-byte ASN, ADD-PATH, extended messages, and graceful restart capabilities |  |
@@ -418,59 +418,59 @@ Total: 593 packages, 329 described, 264 TODO
 | `internal/core/bgp/wire` | provides zero-allocation buffer writing for BGP message encoding |  |
 | `internal/core/bufpool` | provides a sync.Pool-seeded-for-peak byte-slice pool for protocol subsystems that share a buffer path across multiple goroutines (TACACS+ AAA, plugin-rpc framing, BGP BMP sender, etc.) |  |
 | `internal/core/clock` | provides injectable abstractions for time operations |  |
-| `internal/core/cos` | TODO |  |
+| `internal/core/cos` | holds the shared registry of named class-of-service QoS profiles and their resolver |  |
 | `internal/core/crashlog` | captures stderr output (including Go panic traces) and forwards it to syslog and a crash file on disk |  |
-| `internal/core/ddosevent` | TODO |  |
+| `internal/core/ddosevent` | defines the destination-oriented DDoS attack detection event contract |  |
 | `internal/core/diagnostic` | provides stable diagnostic records, codes, and explanations for Ze's agent-facing tooling surface |  |
 | `internal/core/dnsserver` | holds the listener lifecycle, EDNS0/client-IP resolution, and authoritative-answer shaping that any authoritative-only DNS plugin needs, so a second plugin never has to import a sibling plugin... |  |
-| `internal/core/dscp` | TODO |  |
-| `internal/core/duration` | TODO |  |
+| `internal/core/dscp` | parses DSCP class names (e.g |  |
+| `internal/core/duration` | parses CLI duration strings with explicit unit suffixes into minutes |  |
 | `internal/core/env` | provides centralized environment variable lookup for Ze |  |
-| `internal/core/envcatalog` | TODO |  |
+| `internal/core/envcatalog` | assembles the catalog of visible environment configuration keys, expanding per-subsystem log-level entries |  |
 | `internal/core/events` | defines the event namespace and type constants used by ze's event bus, plus the runtime registry for namespace/event validation |  |
 | `internal/core/family` | defines the BGP address family types (AFI, SAFI, Family) and their registry |  |
-| `internal/core/gokrazyutil` | TODO |  |
-| `internal/core/health` | TODO |  |
+| `internal/core/gokrazyutil` | provides helpers for authenticating to gokrazy's HTTP management interface |  |
+| `internal/core/health` | registers named component health checks and aggregates them into a JSON status report |  |
 | `internal/core/helpfmt` | provides structured, color-aware help output for ze CLI commands |  |
-| `internal/core/identity` | TODO |  |
+| `internal/core/identity` | resolves a stable machine identity and persists it to the blob store |  |
 | `internal/core/iface/events` | defines event constants for the interface component |  |
-| `internal/core/ipc` | TODO |  |
-| `internal/core/ipc/yang` | TODO |  |
+| `internal/core/ipc` | routes and serializes plugin RPC method calls for the IPC wire protocol |  |
+| `internal/core/ipc/yang` | embeds the ze plugin and system YANG modules and registers them with the config loader |  |
 | `internal/core/metrics` | provides metric collection interfaces and backends |  |
-| `internal/core/mplsfib` | TODO |  |
-| `internal/core/naming` | TODO |  |
+| `internal/core/mplsfib` | defines the event channel carrying MPLS forwarding entries from label-distribution sources to the kernel FIB |  |
+| `internal/core/naming` | validates configuration node names against the shared node-name pattern |  |
 | `internal/core/network` | provides injectable abstractions for network operations |  |
-| `internal/core/observation` | TODO |  |
+| `internal/core/observation` | provides an in-process, multi-subscriber feed for traffic observations |  |
 | `internal/core/parse` | provides shared value parsers for BGP attributes |  |
-| `internal/core/paths` | TODO |  |
-| `internal/core/portname` | TODO |  |
+| `internal/core/paths` | resolves the ze configuration directory from the running binary's location |  |
+| `internal/core/portname` | resolves transport port numbers to service names and amplification-vector labels |  |
 | `internal/core/privilege` | provides daemon privilege dropping after port binding |  |
 | `internal/core/probe` | holds the low-level ICMP echo and target-resolution helpers shared by the active-probe commands (ping, traceroute, probe-round, and the tcp-check resolver) |  |
-| `internal/core/procfs` | TODO |  |
+| `internal/core/procfs` | provides helpers for reading and decoding Linux /proc network state |  |
 | `internal/core/reboot` | provides platform-specific system reboot |  |
 | `internal/core/redistevents` | owns the shared, value-typed payload that protocol route producers (L2TP, connected, future static/OSPF/ISIS) publish on the EventBus and the bgp-redistribute consumer subscribes to |  |
 | `internal/core/report` | is the single place where Ze subsystems push operator-visible warnings and errors |  |
-| `internal/core/resolve` | TODO |  |
-| `internal/core/rib/locrib` | TODO |  |
-| `internal/core/rib/store` | TODO |  |
-| `internal/core/routewatch` | TODO |  |
-| `internal/core/routingtable` | TODO |  |
+| `internal/core/resolve` | selects the storage backend and default config filename for ze |  |
+| `internal/core/rib/locrib` | implements the unified, sharded Loc-RIB that arbitrates best paths across routing protocols |  |
+| `internal/core/rib/store` | provides a generic prefix-keyed route store backed by a BART trie |  |
+| `internal/core/routewatch` | subscribes to kernel route changes via netlink and fans them out to handlers |  |
+| `internal/core/routingtable` | maps routing-table names to kernel table IDs |  |
 | `internal/core/rtproto` | defines Linux route protocol IDs used to mark Ze-owned kernel routes by producer |  |
 | `internal/core/selector` | provides typed peer selection patterns for ze |  |
 | `internal/core/selfcert` | generates and persists self-signed HTTPS certificates for local Ze services |  |
 | `internal/core/seqmap` | provides a key-value map with efficient range queries by monotonic sequence number |  |
-| `internal/core/show` | TODO |  |
+| `internal/core/show` | registers enrichers that augment show-command output with plugin-provided fields |  |
 | `internal/core/slogutil` | provides per-subsystem logging configuration for Ze BGP |  |
-| `internal/core/smart` | TODO |  |
+| `internal/core/smart` | reads disk SMART health data via direct ATA and NVMe ioctls |  |
 | `internal/core/source` | provides a unified registry for message sources (peers, API processes, config) |  |
 | `internal/core/ssh/client` | provides SSH client connectivity for ze CLI tools |  |
 | `internal/core/stats` | holds the domain-NEUTRAL statistical primitives shared by the traffic-analysis layers (trafficstat, trafficfeature) and the detection plugins (ddos, anomaly) |  |
-| `internal/core/stringsx` | TODO |  |
-| `internal/core/subdispatch` | TODO |  |
+| `internal/core/stringsx` | provides string-splitting helpers that also report the resulting count |  |
+| `internal/core/subdispatch` | routes action-first CLI subcommands to registered handlers |  |
 | `internal/core/suggest` | provides "did you mean?" suggestions for CLI commands |  |
 | `internal/core/syncutil` | provides concurrency helpers |  |
 | `internal/core/sysctl` | provides a registry of known kernel tunables |  |
-| `internal/core/textbuf` | TODO |  |
+| `internal/core/textbuf` | provides allocation-free string building and formatting helpers |  |
 | `internal/core/version` | provides build and VCS version information for ze |  |
 | `internal/core/vpp/events` | defines event constants for the VPP component |  |
 
@@ -486,13 +486,13 @@ Total: 593 packages, 329 described, 264 TODO
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
-| `internal/graph` | TODO |  |
+| `internal/graph` | models AS-path topology graphs and renders them as layered text diagrams |  |
 
 ## `internal/install/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
-| `internal/install/disk` | TODO |  |
+| `internal/install/disk` | implements the ze install disk workflow that writes a disk image and injects the database |  |
 
 ## `internal/iter/`
 
@@ -504,13 +504,13 @@ Total: 593 packages, 329 described, 264 TODO
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
-| `internal/mrt` | TODO |  |
+| `internal/mrt` | reads, decodes, and encodes MRT routing-information records (RFC 6396) |  |
 
 ## `internal/perf/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
-| `internal/perf` | TODO |  |
+| `internal/perf` | benchmarks BGP UPDATE throughput and latency against a device under test |  |
 | `internal/perf/cli` | BGP propagation latency benchmark tool |  |
 | `internal/perf/report` | generates comparison and trend reports from benchmark results |  |
 
@@ -518,179 +518,179 @@ Total: 593 packages, 329 described, 264 TODO
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
-| `internal/plugins/aaa-cmd/yang` | TODO |  |
+| `internal/plugins/aaa-cmd/yang` | embeds and registers the AAA command YANG schema module |  |
 | `internal/plugins/anomaly/detect` | Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature | anomaly-detect-feature-source |
-| `internal/plugins/anomaly/detect/cmd/yang` | TODO |  |
-| `internal/plugins/anomaly/detect/yang` | TODO |  |
+| `internal/plugins/anomaly/detect/cmd/yang` | embeds and registers the anomaly-detection command YANG schema module |  |
+| `internal/plugins/anomaly/detect/yang` | embeds and registers the anomaly-detection configuration YANG schema module |  |
 | `internal/plugins/anomaly/shape` | Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch | anomaly-shape-firewall |
-| `internal/plugins/anomaly/shape/cmd/yang` | TODO |  |
-| `internal/plugins/anomaly/shape/yang` | TODO |  |
+| `internal/plugins/anomaly/shape/cmd/yang` | embeds and registers the anomaly-shaping command YANG schema module |  |
+| `internal/plugins/anomaly/shape/yang` | embeds and registers the anomaly-shaping configuration YANG schema module |  |
 | `internal/plugins/as112` | AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535) | as112 |
 | `internal/plugins/as112/events` | holds the as112 plugin's redistribute producer identity: its numeric ProtocolID and the LOCAL typed EventBus handle for (as112, route-change) |  |
-| `internal/plugins/as112/yang` | TODO |  |
+| `internal/plugins/as112/yang` | embeds and registers the AS112 command and configuration YANG schema modules |  |
 | `internal/plugins/completion` | provides the ze completion subcommand |  |
-| `internal/plugins/config-archive-cmd/yang` | TODO |  |
-| `internal/plugins/config-cli/yang` | TODO |  |
-| `internal/plugins/config-schema/yang` | TODO |  |
-| `internal/plugins/config-storage/yang` | TODO |  |
-| `internal/plugins/config-yang/yang` | TODO |  |
+| `internal/plugins/config-archive-cmd/yang` | embeds and registers the configuration-archive command YANG schema module |  |
+| `internal/plugins/config-cli/yang` | embeds and registers the config CLI command YANG schema module |  |
+| `internal/plugins/config-schema/yang` | embeds and registers the schema CLI command YANG schema module |  |
+| `internal/plugins/config-storage/yang` | embeds and registers the storage CLI command YANG schema module |  |
+| `internal/plugins/config-yang/yang` | embeds and registers the YANG CLI command YANG schema module |  |
 | `internal/plugins/connect` | Manage SSH credentials for remote ze daemons |  |
 | `internal/plugins/connected` | Connected routes: redistribute directly connected interface prefixes |  |
-| `internal/plugins/connected/events` | TODO |  |
-| `internal/plugins/connected/yang` | TODO |  |
+| `internal/plugins/connected/events` | registers the connected-routes redistribution producer and route-change event |  |
+| `internal/plugins/connected/yang` | embeds and registers the connected-routes configuration YANG schema module |  |
 | `internal/plugins/copp` | Control-plane policing: rate-limit new TCP connections to BGP listen port | copp |
-| `internal/plugins/copp/yang` | TODO |  |
+| `internal/plugins/copp/yang` | embeds and registers the control-plane policing (CoPP) configuration YANG schema module |  |
 | `internal/plugins/cos` | 802.1p class-of-service profile definitions | show class-of-service |
-| `internal/plugins/cos/yang` | TODO |  |
+| `internal/plugins/cos/yang` | embeds and registers the class-of-service (CoS) configuration YANG schema module |  |
 | `internal/plugins/crashes` | provides the in-process offline fallback for `show crashes [latest \| name <file>]` |  |
-| `internal/plugins/crashes/cmd` | TODO |  |
-| `internal/plugins/crashes/yang` | TODO |  |
+| `internal/plugins/crashes/cmd` | registers the show-crashes RPC handler that lists and displays recorded crash reports |  |
+| `internal/plugins/crashes/yang` | embeds and registers the crashes command YANG schema module |  |
 | `internal/plugins/ddos/detect` | Automatic DDoS attack detector with two-stage detection | ddos-detect-flow-source |
-| `internal/plugins/ddos/detect/yang` | TODO |  |
+| `internal/plugins/ddos/detect/yang` | embeds and registers the DDoS-detection configuration YANG schema module |  |
 | `internal/plugins/ddos/flowspec` | DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear |  |
-| `internal/plugins/ddos/flowspec/cmd/yang` | TODO |  |
-| `internal/plugins/ddos/flowspec/yang` | TODO |  |
+| `internal/plugins/ddos/flowspec/cmd/yang` | embeds and registers the ze-ddos-flowspec-cmd YANG command schema for the DDoS FlowSpec plugin |  |
+| `internal/plugins/ddos/flowspec/yang` | embeds and registers the ze-ddos-flowspec-conf YANG configuration schema for the DDoS FlowSpec plugin |  |
 | `internal/plugins/ddos/flowtriq` | DDoS incident reporter for Flowtriq cloud API |  |
-| `internal/plugins/ddos/flowtriq/yang` | TODO |  |
+| `internal/plugins/ddos/flowtriq/yang` | embeds and registers the ze-ddos-flowtriq-conf YANG configuration schema for the DDoS flowtriq plugin |  |
 | `internal/plugins/ddos/local` | DDoS local responder: on-host nft drop on attack detection |  |
-| `internal/plugins/ddos/local/cmd/yang` | TODO |  |
-| `internal/plugins/ddos/local/yang` | TODO |  |
+| `internal/plugins/ddos/local/cmd/yang` | embeds and registers the ze-ddos-local-cmd YANG command schema for the DDoS local plugin |  |
+| `internal/plugins/ddos/local/yang` | embeds and registers the ze-ddos-local-conf YANG configuration schema for the DDoS local plugin |  |
 | `internal/plugins/ddos/observe` | DDoS observability: incident store and show ddos status/incidents CLI |  |
-| `internal/plugins/ddos/observe/cmd/yang` | TODO |  |
-| `internal/plugins/ddos/observe/yang` | TODO |  |
+| `internal/plugins/ddos/observe/cmd/yang` | embeds and registers the ze-ddos-cmd YANG command schema for the DDoS observe plugin |  |
+| `internal/plugins/ddos/observe/yang` | embeds and registers the ze-ddos-observe-conf YANG configuration schema for the DDoS observe plugin |  |
 | `internal/plugins/debug` | Enable debug for a subsystem; optionally set level/flag/scope. E.g. 'set debug module bgp.reactor level debug'. |  |
-| `internal/plugins/debug/cmd` | TODO |  |
-| `internal/plugins/debug/yang` | TODO |  |
+| `internal/plugins/debug/cmd` | registers RPC handlers that report live debug logging state for the debug plugin |  |
+| `internal/plugins/debug/yang` | embeds and registers the ze-debug-cmd YANG command schema for the debug plugin |  |
 | `internal/plugins/dhcpserver` | DHCP server: address assignment for LAN clients (RFC 2131) | dhcpserver |
-| `internal/plugins/dhcpserver/yang` | TODO |  |
+| `internal/plugins/dhcpserver/yang` | embeds and registers the ze-dhcp-server-conf YANG configuration schema for the DHCP server plugin |  |
 | `internal/plugins/diag` | is the offline home for diagnostic commands that wrap OS tools with validated argv (no shell) |  |
-| `internal/plugins/diag/cmd` | TODO |  |
-| `internal/plugins/diag/yang` | TODO |  |
+| `internal/plugins/diag/cmd` | registers RPC handlers for diagnostic show commands including TCP reachability checks and control-plane packet capture |  |
+| `internal/plugins/diag/yang` | embeds and registers the ze-diag-cmd YANG command schema for the diag plugin |  |
 | `internal/plugins/env` | Environment variable inspection |  |
-| `internal/plugins/env/yang` | TODO |  |
+| `internal/plugins/env/yang` | embeds and registers the ze-env-cmd YANG command schema for the env plugin |  |
 | `internal/plugins/exabgp` | provides the ze exabgp subcommand |  |
 | `internal/plugins/explain` | Look up what a Ze diagnostic code means |  |
 | `internal/plugins/fib/kernel` | FIB kernel: programs OS routes from system RIB via netlink/route socket | fib-kernel |
 | `internal/plugins/fib/kernel/events` | defines event constants for the FIB kernel plugin |  |
-| `internal/plugins/fib/kernel/yang` | TODO |  |
+| `internal/plugins/fib/kernel/yang` | embeds and registers the ze-fib-conf YANG configuration schema for the kernel FIB plugin |  |
 | `internal/plugins/fib/p4` | FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime | fib-p4 |
-| `internal/plugins/fib/p4/yang` | TODO |  |
+| `internal/plugins/fib/p4/yang` | embeds and registers the ze-fib-p4-conf YANG configuration schema for the P4 FIB plugin |  |
 | `internal/plugins/fib/vpp` | FIB VPP: programs VPP FIB entries from system RIB via GoVPP binary API | fib-vpp |
-| `internal/plugins/fib/vpp/yang` | TODO |  |
+| `internal/plugins/fib/vpp/yang` | embeds and registers the ze-fib-vpp-conf YANG configuration schema for the VPP FIB plugin |  |
 | `internal/plugins/firewall/nft` | implements the firewall backend using google/nftables |  |
 | `internal/plugins/firewall/vpp` | implements the ze firewall Backend interface on top of VPP's ACL plugin binary API via GoVPP |  |
 | `internal/plugins/flowexport` | sFlow, NetFlow v9, and IPFIX counter export | flow-export |
-| `internal/plugins/flowexport-cmd/yang` | TODO |  |
-| `internal/plugins/flowexport/conntrack` | TODO |  |
-| `internal/plugins/flowexport/enrich` | TODO |  |
-| `internal/plugins/flowexport/ipfix` | TODO |  |
-| `internal/plugins/flowexport/netflow9` | TODO |  |
-| `internal/plugins/flowexport/sampling` | TODO |  |
-| `internal/plugins/flowexport/sflow` | TODO |  |
-| `internal/plugins/flowexport/yang` | TODO |  |
+| `internal/plugins/flowexport-cmd/yang` | embeds and registers the ze-flowexport-cmd YANG command schema for the flow export plugin |  |
+| `internal/plugins/flowexport/conntrack` | reads Linux conntrack flow entries via netlink and tracks per-flow byte and packet deltas for flow export |  |
+| `internal/plugins/flowexport/enrich` | annotates exported flows with BGP-derived AS, next-hop, and local-pref metadata via longest-prefix-match lookups |  |
+| `internal/plugins/flowexport/ipfix` | encodes flow and interface-counter records into IPFIX export messages |  |
+| `internal/plugins/flowexport/netflow9` | encodes flow and interface-counter records into NetFlow v9 export packets |  |
+| `internal/plugins/flowexport/sampling` | captures sampled packets using the Linux tc sample action and the psample generic netlink reader |  |
+| `internal/plugins/flowexport/sflow` | encodes interface counters and sampled packets into sFlow v5 export datagrams |  |
+| `internal/plugins/flowexport/yang` | embeds and registers the flow export configuration YANG schema module |  |
 | `internal/plugins/flowspec-firewall` | translates BGP FlowSpec routes into nftables firewall rules | flowspec-firewall |
 | `internal/plugins/geodns` | GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet) | geodns |
-| `internal/plugins/geodns/yang` | TODO |  |
-| `internal/plugins/gnmi-cmd/yang` | TODO |  |
+| `internal/plugins/geodns/yang` | embeds and registers the GeoDNS command and configuration YANG schema modules |  |
+| `internal/plugins/gnmi-cmd/yang` | embeds and registers the gNMI command YANG schema module |  |
 | `internal/plugins/host` | is the offline fallback for `show host [section]` |  |
-| `internal/plugins/host-cmd/cmd` | TODO |  |
-| `internal/plugins/host-cmd/yang` | TODO |  |
+| `internal/plugins/host-cmd/cmd` | registers the host inventory, kernel-log, and file-descriptor command handlers |  |
+| `internal/plugins/host-cmd/yang` | embeds and registers the host command YANG schema modules |  |
 | `internal/plugins/iface/dhcp` | implements DHCPv4/DHCPv6 client functionality as a separate plugin | iface-dhcp |
 | `internal/plugins/iface/netlink` | implements the netlink-based interface management backend for Linux |  |
-| `internal/plugins/iface/vpp` | TODO |  |
-| `internal/plugins/iface/vpp/yang` | TODO |  |
+| `internal/plugins/iface/vpp` | implements the iface backend for VPP via the GoVPP binary API |  |
+| `internal/plugins/iface/vpp/yang` | embeds and registers the VPP interface command YANG schema module |  |
 | `internal/plugins/imageserver` | Image server: HTTP provisioning for disk images and boot files | imageserver |
-| `internal/plugins/imageserver/yang` | TODO |  |
+| `internal/plugins/imageserver/yang` | embeds and registers the image server configuration YANG schema module |  |
 | `internal/plugins/init` | provides the `ze init` command that bootstraps the zefs database with SSH credentials before any other ze command can work |  |
 | `internal/plugins/isis` | implements native IS-IS (ISO/IEC 10589, RFC 1195 / 5305 / 5301), a link-state interior gateway protocol that runs directly over Layer 2 | isis |
-| `internal/plugins/isis/adjacency` | TODO |  |
-| `internal/plugins/isis/circuit` | TODO |  |
+| `internal/plugins/isis/adjacency` | implements the IS-IS adjacency finite state machine and per-circuit neighbor table |  |
+| `internal/plugins/isis/circuit` | implements the per-interface IS-IS circuit runtime that drives Hello exchange and the adjacency table |  |
 | `internal/plugins/isis/cli` | provides the offline IS-IS tooling that ships with the internal/plugins/isis codec |  |
-| `internal/plugins/isis/lsdb` | TODO |  |
+| `internal/plugins/isis/lsdb` | implements the per-level IS-IS link-state database store |  |
 | `internal/plugins/isis/packet` | is the IS-IS PDU and TLV wire codec: the protocol's serialization boundary |  |
 | `internal/plugins/isis/redistribute` | wires IS-IS into Ze's protocol-agnostic redistribution framework in BOTH directions (umbrella AC-7 / AC-8): - Producer (source.go): IS-IS registers the SINGLE config source "isis" |  |
 | `internal/plugins/isis/redistribute/events` | is the redistevents PRODUCER wiring for IS-IS |  |
-| `internal/plugins/isis/spf` | TODO |  |
-| `internal/plugins/isis/transport` | TODO | isis-raw-socket |
+| `internal/plugins/isis/spf` | computes IS-IS shortest paths via Dijkstra over the LSDB graph and installs the resulting routes |  |
+| `internal/plugins/isis/transport` | implements the raw L2 transport that carries IS-IS PDUs between the socket and the engine | isis-raw-socket |
 | `internal/plugins/isis/types` | defines the pure IS-IS domain value types: SystemID, SourceID, LSPID, NET, AreaID, the two wide metric widths (Metric and PrefixMetric), SequenceNumber, RemainingLifetime and HoldingTime |  |
-| `internal/plugins/isis/yang` | TODO |  |
+| `internal/plugins/isis/yang` | embeds and registers the IS-IS command and configuration YANG schema modules |  |
 | `internal/plugins/kernel` | externally-installed kernel routes (DHCP, PPP, manual) |  |
-| `internal/plugins/kernel/events` | TODO |  |
-| `internal/plugins/kernel/yang` | TODO |  |
+| `internal/plugins/kernel/events` | registers the kernel redistribution protocol and its route-change events |  |
+| `internal/plugins/kernel/yang` | embeds and registers the kernel plugin's YANG configuration schema |  |
 | `internal/plugins/ldp` | implements the Label Distribution Protocol (RFC 5036) | ldp |
-| `internal/plugins/ldp/yang` | TODO |  |
-| `internal/plugins/local` | TODO |  |
-| `internal/plugins/log/cmd` | TODO |  |
-| `internal/plugins/log/yang` | TODO |  |
-| `internal/plugins/meta/cmd` | TODO |  |
-| `internal/plugins/meta/yang` | TODO |  |
-| `internal/plugins/mpls-cmd/yang` | TODO |  |
+| `internal/plugins/ldp/yang` | embeds and registers the LDP plugin's YANG command and configuration schemas |  |
+| `internal/plugins/local` | implements the ze install and uninstall local-mode commands that copy the binary and scaffold its config directory |  |
+| `internal/plugins/log/cmd` | implements the log plugin's command handlers for listing, setting, and reading runtime log levels |  |
+| `internal/plugins/log/yang` | embeds and registers the log plugin's YANG command schema |  |
+| `internal/plugins/meta/cmd` | implements the meta plugin's command discovery, help, event-monitor, and plugin-configuration handlers |  |
+| `internal/plugins/meta/yang` | embeds and registers the command-meta plugin's YANG API, command, and monitor schemas |  |
+| `internal/plugins/mpls-cmd/yang` | embeds and registers the MPLS command plugin's YANG schema |  |
 | `internal/plugins/mrt` | MRT routing information export (RFC 6396) | mrt |
-| `internal/plugins/mrt/yang` | TODO |  |
+| `internal/plugins/mrt/yang` | embeds and registers the MRT plugin's YANG configuration schema |  |
 | `internal/plugins/ntp` | implements a lightweight NTP client plugin for ze | ntp |
 | `internal/plugins/ntp/events` | defines event constants for the "system" event namespace |  |
-| `internal/plugins/ntp/yang` | TODO |  |
+| `internal/plugins/ntp/yang` | embeds and registers the NTP plugin's YANG command and configuration schemas |  |
 | `internal/plugins/ospf` | Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP | ospf |
 | `internal/plugins/ospf/cli` | Decode a hex OSPFv2 packet from stdin to JSON (offline wire tool) |  |
-| `internal/plugins/ospf/iface` | TODO |  |
-| `internal/plugins/ospf/lsdb` | TODO |  |
+| `internal/plugins/ospf/iface` | implements the per-interface OSPF runtime, including the interface state machine, Hello exchange, DR election, and neighbor management |  |
+| `internal/plugins/ospf/lsdb` | implements the per-area OSPF link-state database with LSA flooding, origination, and aging |  |
 | `internal/plugins/ospf/neighbor` | implements the OSPFv2 Neighbor State Machine and database-exchange scaffolding |  |
 | `internal/plugins/ospf/packet` | is the OSPFv2 packet and LSA wire codec: the protocol's serialization boundary |  |
 | `internal/plugins/ospf/redistribute` | wires OSPF into Ze's protocol-agnostic redistribution framework in BOTH directions (umbrella AC-7 / AC-8): - Producer (source.go): OSPF registers the SINGLE config source "ospf" |  |
 | `internal/plugins/ospf/redistribute/events` | is the redistevents PRODUCER wiring for OSPF |  |
-| `internal/plugins/ospf/spf` | TODO |  |
+| `internal/plugins/ospf/spf` | implements OSPF shortest-path-first computation, route selection, and loop-free-alternate backup calculation |  |
 | `internal/plugins/ospf/sr` | holds the address-family-neutral control plane for OSPF Segment Routing (RFC 8665 for the IPv4 family, RFC 8666 for the IPv6 family) |  |
 | `internal/plugins/ospf/transport` | is the OSPFv2 raw IPv4 transport byte pipe | ospf-raw-socket |
 | `internal/plugins/ospf/types` | contains pure OSPFv2 value types and checksum algorithms |  |
 | `internal/plugins/ospf/v3/packet` | is the OSPFv3 (RFC 5340) packet and LSA wire codec: the protocol's serialization boundary |  |
-| `internal/plugins/ospf/v3/transport` | TODO | ospfv3-raw-socket |
+| `internal/plugins/ospf/v3/transport` | implements the OSPFv3 raw IPv6 socket transport that sends and receives OSPF datagrams per interface | ospfv3-raw-socket |
 | `internal/plugins/ospf/v3/types` | holds the OSPFv3 (RFC 5340) leaf value types shared by every later OSPFv3 child spec: Router ID, Area ID, Instance ID, Interface ID, Link State ID, the 16-bit LS Type with embedded flooding scope,... |  |
-| `internal/plugins/ospf/wire` | TODO |  |
-| `internal/plugins/ospf/yang` | TODO |  |
+| `internal/plugins/ospf/wire` | defines the address-family-neutral RawPacket handed from an OSPF transport up to the shared engine |  |
+| `internal/plugins/ospf/yang` | embeds and registers the OSPF plugin's YANG command and configuration schemas |  |
 | `internal/plugins/passwd` | implements the `ze passwd` subcommand |  |
-| `internal/plugins/ping-cmd/yang` | TODO |  |
-| `internal/plugins/pki-cmd/yang` | TODO |  |
+| `internal/plugins/ping-cmd/yang` | embeds and registers the ping command plugin's YANG schema |  |
+| `internal/plugins/pki-cmd/yang` | embeds and registers the PKI command plugin's YANG schema |  |
 | `internal/plugins/policyroute` | Policy-based routing: nftables packet marking and ip rule table selection | policy-routes |
-| `internal/plugins/policyroute/yang` | TODO |  |
-| `internal/plugins/provision` | TODO |  |
-| `internal/plugins/resolve-cmd/yang` | TODO |  |
+| `internal/plugins/policyroute/yang` | embeds and registers the policy-route plugin's YANG command and configuration schemas |  |
+| `internal/plugins/provision` | implements the ze provision command that runs DHCP, PXE, and TFTP servers for remote device installation |  |
+| `internal/plugins/resolve-cmd/yang` | embeds and registers the resolve command plugin's YANG schema |  |
 | `internal/plugins/routingtable` | Named routing table registry: maps names to kernel table IDs |  |
-| `internal/plugins/routingtable/yang` | TODO |  |
+| `internal/plugins/routingtable/yang` | embeds and registers the routing-table plugin's YANG configuration schema |  |
 | `internal/plugins/rsvpte` | implements RSVP-TE (RFC 3209) for explicitly-routed MPLS LSPs with bandwidth reservation | rsvp-te |
-| `internal/plugins/rsvpte/yang` | TODO |  |
+| `internal/plugins/rsvpte/yang` | embeds and registers the RSVP-TE plugin's YANG schema modules |  |
 | `internal/plugins/signal` | provides the `ze signal` and `ze status` CLI commands |  |
 | `internal/plugins/skills` | Agent skills matched to this Ze version |  |
 | `internal/plugins/static` | static routes | show static |
-| `internal/plugins/static/events` | TODO |  |
-| `internal/plugins/static/vpp` | TODO |  |
-| `internal/plugins/static/yang` | TODO |  |
-| `internal/plugins/storage-cmd/yang` | TODO |  |
+| `internal/plugins/static/events` | registers the static route protocol's redistribution event types |  |
+| `internal/plugins/static/vpp` | programs static routes into the VPP FIB via GoVPP |  |
+| `internal/plugins/static/yang` | embeds and registers the static route plugin's YANG schema modules |  |
+| `internal/plugins/storage-cmd/yang` | embeds and registers the storage command plugin's YANG schema module |  |
 | `internal/plugins/support` | Collect logs, config, and diagnostics into a support archive |  |
-| `internal/plugins/systemd` | TODO |  |
+| `internal/plugins/systemd` | installs and uninstalls ze as a systemd service |  |
 | `internal/plugins/tftpserver` | TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation) | tftpserver |
-| `internal/plugins/tftpserver/yang` | TODO |  |
-| `internal/plugins/traceroute-cmd/yang` | TODO |  |
-| `internal/plugins/traffic-cmd/yang` | TODO |  |
+| `internal/plugins/tftpserver/yang` | embeds and registers the TFTP server plugin's YANG schema module |  |
+| `internal/plugins/traceroute-cmd/yang` | embeds and registers the traceroute command plugin's YANG schema module |  |
+| `internal/plugins/traffic-cmd/yang` | embeds and registers the traffic command plugin's YANG schema module |  |
 | `internal/plugins/traffic/netlink` | implements the traffic control backend using vishvananda/netlink |  |
 | `internal/plugins/traffic/vpp` | implements the ze traffic-control Backend interface on top of VPP's binary API via GoVPP |  |
 | `internal/plugins/trafficusage` | implements the `traffic-usage` system plugin: eBPF TCX per-(port,protocol) and (opt-in) per-IP byte accounting on operator-selected interfaces, exported as Prometheus metrics and viewable via `show... |  |
-| `internal/plugins/trafficusage/yang` | TODO |  |
-| `internal/plugins/update-cmd/cmd` | TODO |  |
-| `internal/plugins/update-cmd/yang` | TODO |  |
+| `internal/plugins/trafficusage/yang` | embeds and registers the traffic-usage plugin's YANG schema modules |  |
+| `internal/plugins/update-cmd/cmd` | handles the system update and firmware show/update RPC commands |  |
+| `internal/plugins/update-cmd/yang` | embeds and registers the update command plugin's YANG schema modules |  |
 
 ## `internal/test/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `internal/test/ci` | provides shared utilities for parsing .ci test files |  |
-| `internal/test/cli` | TODO |  |
+| `internal/test/cli` | registers the ze-test command's functional-test and mock-server handlers |  |
 | `internal/test/decode` | provides shared BGP message decode helpers for test tools |  |
-| `internal/test/mock/cymru` | TODO |  |
-| `internal/test/mock/irr` | TODO |  |
-| `internal/test/mock/peeringdb` | TODO |  |
-| `internal/test/mock/rpki` | TODO |  |
-| `internal/test/mock/rtr` | TODO |  |
-| `internal/test/mock/tacacs` | TODO |  |
+| `internal/test/mock/cymru` | implements a deterministic Team Cymru DNS mock server for tests |  |
+| `internal/test/mock/irr` | implements a deterministic IRR whois mock server for tests |  |
+| `internal/test/mock/peeringdb` | implements a deterministic PeeringDB HTTP mock server for tests |  |
+| `internal/test/mock/rpki` | implements a deterministic RPKI/RTR mock server for tests |  |
+| `internal/test/mock/rtr` | implements a mock RTR cache server for RPKI testing |  |
+| `internal/test/mock/tacacs` | implements a mock TACACS+ server for AAA testing |  |
 | `internal/test/peer` | provides a BGP test peer for functional testing |  |
 | `internal/test/plugins/all` | blank-imports test-only internal plugins |  |
 | `internal/test/plugins/fakeas112` | is a test-only internal plugin that drives the AS112 redistribute producer namespace on demand, so `.ci` tests can exercise the | request fakeas112 emit |
@@ -706,7 +706,7 @@ Total: 593 packages, 329 described, 264 TODO
 | `internal/test/syslog` | provides a UDP syslog server for functional tests |  |
 | `internal/test/testcond` | provides conditional test-skipping helpers |  |
 | `internal/test/tmpfs` | provides a Virtual File System for embedding multiple files in a single stream |  |
-| `internal/test/trace` | TODO |  |
+| `internal/test/trace` | formats per-step functional-test trace output |  |
 
 ## `internal/thirdparty/`
 
@@ -732,7 +732,7 @@ Total: 593 packages, 329 described, 264 TODO
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
-| `pkg/ze` | TODO |  |
+| `pkg/ze` | defines the public interfaces for the Ze engine, plugins, subsystems, config, and event bus |  |
 
 ## `pkg/zefs/`
 

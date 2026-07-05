@@ -324,7 +324,7 @@ N/A — not a BGP protocol extension.
 | Keep LEARNED-FULL-INDEX separate from the curated LEARNED-INDEX | replace the curated one | Curation and completeness serve different needs; cross-link both. |
 
 ## Known Limitations
-- PACKAGE-MAP responsibility text is only as good as the `// Package` comment / `Description`; ~254 packages will show TODO until backfilled (tracked as a follow-up, driven by this map).
+- PACKAGE-MAP responsibility text is only as good as the `// Package` comment / `Description`. The 264 packages that showed TODO were backfilled with `// Package` docs (one `doc.go` each), so the map now has zero TODO rows. Per-subsystem flow digests were also added under `ai/digests/`.
 - DOCS-TO-CODE is only as complete as `// Design:` coverage (already hook-enforced, so high).
 - The optional PostToolUse auto-regen hook is out of scope; the `--check` gate is the mechanism this spec commits to.
 - ADR revival/removal (`docs/architecture/decisions/`, one entry) is a separate process decision, out of scope here.

@@ -45,6 +45,14 @@ edit regenerates it and a stale index never ships. Motivating audit:
   checkable.
 - The commit gate applies to every session, so no one can commit a feeding source
   without the regenerated index riding along.
+- The 264 undocumented packages were backfilled with `// Package` doc comments (one new
+  `doc.go` each, fanned out over parallel agents that each `go build`-verified their
+  batch), so `ai/PACKAGE-MAP.md` now has zero TODO rows and describes every package.
+- Per-subsystem flow digests were added under `ai/digests/` (reactor, wire/pools, rib,
+  config pipeline, plugin transport, CLI): a living, hand-maintained orientation layer
+  between the per-package map and the canonical `docs/architecture/`. The digest trace
+  even surfaced two doc-vs-code drifts (the attribute package is `internal/core/bgp/
+  attribute`, not `component`; there is no `PackContext` type).
 
 ## Gotchas
 
