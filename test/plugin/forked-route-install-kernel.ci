@@ -1,0 +1,163 @@
+# Test: a forked plugin's route-install reaches the KERNEL FIB (spec-forked-route-install AC-5).
+#
+# VALIDATES: AC-5 -- a route installed by a FORKED plugin over the
+#            ze-plugin-engine:route-install RPC traverses the full engine chain
+#            (locrib.Default() -> sysrib OnChange -> fib-kernel) and appears in the
+#            Linux kernel FIB tagged RTPROT_ZE (proto 250). The external Python
+#            plugin stands in for a forked OSPF/IS-IS: the route-install RPC is
+#            protocol-agnostic, so this proves the same cross-process path OSPF and
+#            IS-IS use when forked (their installers ship the identical RPC via
+#            internal/plugins/routeinstall.Sink). route-remove sweeps it from the
+#            kernel. The stand-in uses protocol "bgp" because the engine rejects
+#            protocol names it does not know (a real forked-OSPF engine links
+#            ospf/spf so it knows "ospf"; this QEMU test binary does not link ospf,
+#            but "bgp" is core and always registered).
+# PREVENTS:  a forked route landing in the Loc-RIB but never reaching the kernel
+#            (a silent black hole -- the exact bug this spec fixes), or fib-kernel
+#            not programming forked-sourced routes.
+#
+# needs-linux: programs a real kernel route via fib-kernel over netlink; cannot run
+# on darwin. A dummy interface supplies the on-link next-hop so the kernel accepts
+# the route. The unit tests + forked-route-install.ci prove the darwin-safe half
+# (RPC -> Loc-RIB -> sysrib); this test proves the final sysrib -> fib-kernel ->
+# kernel hop for a forked source.
+option=needs-linux
+
+tmpfs=forked-kernel.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Forked plugin installs a route; assert it becomes an RTPROT_ZE kernel entry."""
+
+import subprocess
+import sys
+import time
+
+from ze_api import API, runtime_fail
+
+
+def sh(*args):
+    return subprocess.run(list(args), capture_output=True, text=True)
+
+
+def kernel_has_ze_route(prefix):
+    out = sh("ip", "route", "show", prefix).stdout
+    return prefix in out and ("proto ze" in out or "proto 250" in out)
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    # A dummy interface makes 192.0.2.1 an on-link next-hop so the kernel accepts
+    # the route programmed by fib-kernel.
+    sh("ip", "link", "add", "ze-fri0", "type", "dummy")
+    sh("ip", "addr", "add", "192.0.2.254/24", "dev", "ze-fri0")
+    sh("ip", "link", "set", "ze-fri0", "up")
+
+    resp = api._call_engine('ze-plugin-engine:route-install', {'routes': [{
+        'protocol': 'bgp', 'afi': 1, 'safi': 1,
+        'prefix': '10.99.0.0/24', 'next-hop': '192.0.2.1',
+        'admin-distance': 110, 'metric': 10,
+    }]})
+    installed = (resp or {}).get('result', {}).get('installed')
+    if installed != 1:
+        runtime_fail(f"route-install: expected installed=1, got {installed!r}")
+
+    found = False
+    for _ in range(40):
+        if kernel_has_ze_route('10.99.0.0/24'):
+            found = True
+            break
+        time.sleep(0.25)
+    if not found:
+        got = sh("ip", "route", "show", "10.99.0.0/24").stdout.strip()
+        runtime_fail(f"route-install: 10.99.0.0/24 not in kernel as RTPROT_ZE; ip route showed: {got!r}")
+
+    print('OK: forked route-install produced an RTPROT_ZE kernel route', file=sys.stderr)
+
+    # route-remove must sweep it from the kernel.
+    api._call_engine('ze-plugin-engine:route-remove', {'routes': [{
+        'protocol': 'bgp', 'afi': 1, 'safi': 1,
+        'prefix': '10.99.0.0/24', 'instance': 0,
+    }]})
+    swept = False
+    for _ in range(40):
+        if not kernel_has_ze_route('10.99.0.0/24'):
+            swept = True
+            break
+        time.sleep(0.25)
+    if not swept:
+        runtime_fail("route-remove: 10.99.0.0/24 still in kernel after withdrawal")
+
+    print('OK: route-remove swept the forked route from the kernel', file=sys.stderr)
+
+    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external forked-route {
+		run ./forked-kernel.run
+		encoder json
+	}
+	internal rib {
+		use rib
+	}
+	internal fib-kernel {
+		use fib-kernel
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process forked-route {
+		}
+		process rib {
+		}
+		process fib-kernel {
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=forked route-install produced an RTPROT_ZE kernel route
+expect=stderr:contains=route-remove swept the forked route from the kernel
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=unknown method

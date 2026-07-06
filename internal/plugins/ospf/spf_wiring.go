@@ -6,12 +6,14 @@
 package ospf
 
 import (
+	"context"
 	"net/netip"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	ospfspf "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/spf"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/routeinstall"
 )
 
 func (e *engine) initSPF() {
@@ -28,10 +30,20 @@ func (e *engine) initSPF() {
 	// RFC 5838: each address family installs into its own Loc-RIB family; the family is
 	// derived from the engine's AF (Instance-ID range). This also corrects the IPv6-base
 	// hardcode where the IPv6-unicast engine installed under family.IPv4Unicast.
+	loc := locrib.Default()
+	inst := ospfspf.NewInstallerFamily(loc, e.installFamily())
+	if loc == nil {
+		// Forked subprocess: no local Loc-RIB (default.go returns nil under
+		// ze.plugin.hub.token). Ship SPF routes to the engine over RPC via the
+		// route-install client set at engine start. (spec-forked-route-install)
+		if client := routeInstallClient(); client != nil {
+			inst.SetRemoteSink(routeinstall.New(context.Background(), client))
+		}
+	}
 	e.spf = ospfspf.NewComputer(ospfspf.Config{
 		Source:      e.lsdb,
 		Resolver:    (*ospfNextHopResolver)(e),
-		Installer:   ospfspf.NewInstallerFamily(locrib.Default(), e.installFamily()),
+		Installer:   inst,
 		SummarySink: e.lsdb,
 		Strategy:    strategy,
 	})

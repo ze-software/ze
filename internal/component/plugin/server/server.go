@@ -24,6 +24,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -101,6 +102,15 @@ type Server struct {
 	wg     sync.WaitGroup
 
 	txLock txLock // Transaction exclusion (one config transaction at a time)
+
+	// Forked route-installing plugins (OSPF, IS-IS) insert into the engine Loc-RIB
+	// via the route-install RPC. installedByPlugin tracks each plugin's live routes
+	// (keyed by plugin name) so a disconnect withdraws them (AC-8: no stale routes
+	// when a forked plugin dies without withdrawing). Lazily initialized.
+	routeMu           sync.Mutex
+	installedByPlugin map[string]map[routeKey]struct{}
+	routeMetricOnce   sync.Once
+	routeInstallRPCs  metrics.CounterVec // ze_route_install_rpc_total{plugin,op,result}
 }
 
 // wrapHandler adapts a Handler to an ipc.RPCHandler for the RPC dispatcher.

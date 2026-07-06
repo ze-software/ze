@@ -29,9 +29,10 @@ import (
 )
 
 var (
-	loggerPtr   atomic.Pointer[slog.Logger]
-	eventBusPtr atomic.Pointer[ze.EventBus]
-	metricsPtr  atomic.Pointer[metrics.Registry]
+	loggerPtr       atomic.Pointer[slog.Logger]
+	eventBusPtr     atomic.Pointer[ze.EventBus]
+	metricsPtr      atomic.Pointer[metrics.Registry]
+	routeInstallPtr atomic.Pointer[sdk.Plugin]
 )
 
 func init() { loggerPtr.Store(slogutil.DiscardLogger()) }
@@ -71,6 +72,19 @@ func getMetricsRegistry() metrics.Registry {
 	}
 	return *p
 }
+
+// setRouteInstallClient records the SDK plugin handle SPF uses to ship computed
+// routes to the engine when OSPF runs FORKED (locrib.Default() is nil in a
+// subprocess). Set once at engine start, before the engines build their SPF
+// installers. In-process this stays nil and installers write the local Loc-RIB.
+func setRouteInstallClient(p *sdk.Plugin) {
+	if p != nil {
+		routeInstallPtr.Store(p)
+	}
+}
+
+// routeInstallClient returns the forked route-install SDK handle, or nil in-process.
+func routeInstallClient() *sdk.Plugin { return routeInstallPtr.Load() }
 
 func registerOSPF() {
 	_ = events.RegisterNamespace(Namespace, EventNeighborUp, EventNeighborDown, EventSPFRun, EventLSDBChange, EventInterfaceState, EventDRChange, EventNeighborChange)
@@ -297,6 +311,11 @@ func runOSPFEngine(conn net.Conn) int {
 
 	p := sdk.NewWithConn("ospf", conn)
 	defer func() { _ = p.Close() }()
+
+	// Ship SPF routes to the engine over RPC when OSPF runs FORKED (locrib.Default()
+	// is nil in a subprocess). No-op in-process, where the installer writes the local
+	// Loc-RIB directly. Set before wireV4Engine builds the SPF installer. (spec-forked-route-install)
+	setRouteInstallClient(p)
 
 	// wireV4Engine builds a fresh OSPFv2 engine over its own raw transport and applies the
 	// shared metrics/event-bus and opaque-consumer wiring. RFC 6549 multi-instance stands up

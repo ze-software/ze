@@ -53,13 +53,28 @@ func ProtocolID() redistevents.ProtocolID { return isisProtocolID }
 // the Path so that, absent config, IS-IS ranks at 115 against other protocols.
 const DefaultAdminDistance uint8 = 115
 
+// RouteSink receives Loc-RIB install/remove operations when the installer has no
+// local Loc-RIB (a forked subprocess, where locrib.Default() returns nil). The
+// forked wiring installs one via SetRemoteSink; it ships each op to the engine over
+// RPC (internal/plugins/routeinstall). In-process (loc != nil) the local RIB is
+// always preferred and the sink is unused.
+type RouteSink interface {
+	InsertForward(fam family.Family, prefix netip.Prefix, p locrib.Path)
+	Remove(fam family.Family, prefix netip.Prefix, source redistevents.ProtocolID, instance uint32)
+	// Flush sends buffered ops to the engine; the installer calls it once per
+	// Apply/RemoveAll so a whole delta travels in one RPC batch (R-1).
+	Flush()
+}
+
 // Installer inserts SPF routes into the shared Loc-RIB and tracks the installed
 // set so a subsequent run's diff can add/change/remove precisely. It mirrors the
 // BGP install shape: InsertForward on add/change, Remove (forward-remove) on
-// loss. A nil Loc-RIB (forked plugin subprocess, where locrib.Default() returns
-// nil) makes every operation a no-op, exactly as the BGP RIB is nil-safe.
+// loss. With neither a local Loc-RIB nor a remote sink (an unwired test), every
+// operation is a no-op, exactly as the BGP RIB is nil-safe; a forked subprocess
+// gets a RouteSink (SetRemoteSink) so ops reach the engine over RPC.
 type Installer struct {
 	loc      *locrib.RIB
+	remote   RouteSink
 	fam      family.Family
 	afi      string // metric label ("ipv4"|"ipv6") for ze_isis_routes_installed
 	distance uint8
@@ -115,6 +130,47 @@ func newInstaller(loc *locrib.RIB, fam family.Family, afi string) *Installer {
 	}
 }
 
+// SetRemoteSink installs the forked route sink used when the local Loc-RIB is nil
+// (locrib.Default() returned nil in a forked subprocess). If loc is non-nil
+// (in-process), the local RIB is always preferred and the sink stays unused.
+func (in *Installer) SetRemoteSink(sink RouteSink) { in.remote = sink }
+
+// hasSink reports whether the installer has somewhere to install routes: the local
+// Loc-RIB (in-process) or a remote sink (forked). With neither, install/remove
+// no-op and only the snapshot (in.installed) is maintained.
+func (in *Installer) hasSink() bool { return in.loc != nil || in.remote != nil }
+
+// insertPath sends one Path to the local Loc-RIB (preferred) or the remote sink.
+func (in *Installer) insertPath(pfx netip.Prefix, p locrib.Path) {
+	if in.loc != nil {
+		in.loc.InsertForward(in.fam, pfx, p, nil)
+		return
+	}
+	if in.remote != nil {
+		in.remote.InsertForward(in.fam, pfx, p)
+	}
+}
+
+// removePath withdraws one (source, instance) path from the local Loc-RIB or the
+// remote sink.
+func (in *Installer) removePath(pfx netip.Prefix, source redistevents.ProtocolID, instance uint32) {
+	if in.loc != nil {
+		in.loc.Remove(in.fam, pfx, source, instance)
+		return
+	}
+	if in.remote != nil {
+		in.remote.Remove(in.fam, pfx, source, instance)
+	}
+}
+
+// flushRemote ships the remote sink's buffered ops (a whole Apply/RemoveAll delta
+// in one RPC batch, R-1). No-op for the local Loc-RIB (writes already applied).
+func (in *Installer) flushRemote() {
+	if in.remote != nil {
+		in.remote.Flush()
+	}
+}
+
 // SetMetrics registers the ze_isis_routes_installed{level,afi} gauge owned by
 // this spec (umbrella canonical Metrics table). Other ze_isis_* SPF series are
 // registered on the Computer (SetMetrics there). A nil registry is ignored.
@@ -165,6 +221,7 @@ func (in *Installer) Apply(cur []RouteEntry) RouteDelta {
 		in.remove(pfx)
 	}
 
+	in.flushRemote()
 	in.publishCounts()
 	return delta
 }
@@ -186,28 +243,29 @@ func (in *Installer) insert(r RouteEntry) {
 		}
 		instance := uint32(i) //nolint:gosec // ECMP width is bounded well below 2^32
 		newInstances = append(newInstances, instance)
-		if in.loc == nil {
+		if !in.hasSink() {
 			continue
 		}
 		// Mirror BGP rib_bestchange.go:813: InsertForward with a value-typed Path
 		// and no ForwardHandle (IS-IS has no shared wire buffer; untyped nil per
-		// the ForwardHandle nil contract).
-		in.loc.InsertForward(in.fam, r.Prefix, locrib.Path{
+		// the ForwardHandle nil contract). Routed through insertPath so a forked
+		// installer ships to the engine over RPC instead of the local Loc-RIB.
+		in.insertPath(r.Prefix, locrib.Path{
 			Source:        isisProtocolID,
 			Instance:      instance,
 			NextHop:       nh.Addr,
 			AdminDistance: in.distance,
 			Metric:        metric,
-		}, nil)
+		})
 	}
 
 	// Drop any Instance from the prior insert of this prefix that the new set no
 	// longer uses (e.g. ECMP shrank from 2 next-hops to 1), so no stale Path
 	// lingers in the path-group.
-	if prev, ok := in.installed[r.Prefix]; ok && in.loc != nil {
+	if prev, ok := in.installed[r.Prefix]; ok && in.hasSink() {
 		for _, old := range prev.instances {
 			if !slices.Contains(newInstances, old) {
-				in.loc.Remove(in.fam, r.Prefix, isisProtocolID, old)
+				in.removePath(r.Prefix, isisProtocolID, old)
 			}
 		}
 	}
@@ -219,9 +277,9 @@ func (in *Installer) insert(r RouteEntry) {
 // equal-cost next-hops) and drops it from the installed set (R-4: a lost
 // neighbor's prefixes leave the Loc-RIB and the kernel).
 func (in *Installer) remove(pfx netip.Prefix) {
-	if prev, ok := in.installed[pfx]; ok && in.loc != nil {
+	if prev, ok := in.installed[pfx]; ok && in.hasSink() {
 		for _, inst := range prev.instances {
-			in.loc.Remove(in.fam, pfx, isisProtocolID, inst)
+			in.removePath(pfx, isisProtocolID, inst)
 		}
 	}
 	delete(in.installed, pfx)
@@ -231,13 +289,14 @@ func (in *Installer) remove(pfx netip.Prefix) {
 // removal) so IS-IS leaves no stale routes in the Loc-RIB.
 func (in *Installer) RemoveAll() {
 	for pfx, prev := range in.installed {
-		if in.loc != nil {
+		if in.hasSink() {
 			for _, inst := range prev.instances {
-				in.loc.Remove(in.fam, pfx, isisProtocolID, inst)
+				in.removePath(pfx, isisProtocolID, inst)
 			}
 		}
 	}
 	in.installed = make(map[netip.Prefix]installedRoute)
+	in.flushRemote()
 	in.publishCounts()
 }
 

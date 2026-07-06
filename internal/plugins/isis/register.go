@@ -37,9 +37,10 @@ import (
 )
 
 var (
-	loggerPtr   atomic.Pointer[slog.Logger]
-	eventBusPtr atomic.Pointer[ze.EventBus]
-	metricsPtr  atomic.Pointer[metrics.Registry]
+	loggerPtr       atomic.Pointer[slog.Logger]
+	eventBusPtr     atomic.Pointer[ze.EventBus]
+	metricsPtr      atomic.Pointer[metrics.Registry]
+	routeInstallPtr atomic.Pointer[sdk.Plugin]
 )
 
 func init() {
@@ -74,6 +75,19 @@ func setMetricsRegistry(reg metrics.Registry) {
 		metricsPtr.Store(&reg)
 	}
 }
+
+// setRouteInstallClient records the SDK plugin handle SPF uses to ship computed
+// routes to the engine when IS-IS runs FORKED (locrib.Default() is nil in a
+// subprocess). Set once at engine start, before initSPF builds the installers.
+// In-process this stays nil and installers write the local Loc-RIB.
+func setRouteInstallClient(p *sdk.Plugin) {
+	if p != nil {
+		routeInstallPtr.Store(p)
+	}
+}
+
+// routeInstallClient returns the forked route-install SDK handle, or nil in-process.
+func routeInstallClient() *sdk.Plugin { return routeInstallPtr.Load() }
 
 func getMetricsRegistry() metrics.Registry {
 	p := metricsPtr.Load()
@@ -216,6 +230,11 @@ func runISISEngine(conn net.Conn) int {
 
 	p := sdk.NewWithConn("isis", conn)
 	defer func() { _ = p.Close() }()
+
+	// Ship SPF routes to the engine over RPC when IS-IS runs FORKED (locrib.Default()
+	// is nil in a subprocess). No-op in-process. Set before newEngine builds the SPF
+	// installers via initSPF. (spec-forked-route-install)
+	setRouteInstallClient(p)
 
 	eng := newEngine(transport.New(transport.NewBackend()))
 	// Forward the metrics registry to the transport, which OWNS and registers the

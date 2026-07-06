@@ -90,6 +90,43 @@ func (p *Plugin) ReleaseCached(ctx context.Context, updateIDs []uint64) error {
 	return err
 }
 
+// RouteInstall inserts a batch of computed routes into the engine's process-wide
+// Loc-RIB. It is the cross-process bridge for a FORKED route-installing plugin
+// (OSPF, IS-IS): in-process the plugin writes locrib.Default() directly, but a
+// forked subprocess gets a nil Loc-RIB (default.go returns nil under
+// ze.plugin.hub.token), so it ships the ops here and the engine applies them to
+// the real singleton, where sysrib's OnChange programs the kernel. Returns the
+// number of routes applied. Each entry carries the protocol NAME; the engine
+// re-resolves it to its own numeric ProtocolID.
+func (p *Plugin) RouteInstall(ctx context.Context, routes []rpc.RouteInstallEntry) (installed uint32, err error) {
+	input := &rpc.RouteInstallInput{Routes: routes}
+	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:route-install", input)
+	if err != nil {
+		return 0, err
+	}
+	var out rpc.RouteInstallOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return 0, fmt.Errorf("unmarshal route-install result: %w", err)
+	}
+	return out.Installed, nil
+}
+
+// RouteRemove withdraws a batch of routes from the engine's Loc-RIB by their
+// (protocol, family, prefix, instance) identity. Symmetric with RouteInstall for
+// the forked route-installing path. Returns the number of routes withdrawn.
+func (p *Plugin) RouteRemove(ctx context.Context, routes []rpc.RouteRemoveEntry) (removed uint32, err error) {
+	input := &rpc.RouteRemoveInput{Routes: routes}
+	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:route-remove", input)
+	if err != nil {
+		return 0, err
+	}
+	var out rpc.RouteRemoveOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return 0, fmt.Errorf("unmarshal route-remove result: %w", err)
+	}
+	return out.Removed, nil
+}
+
 // InjectWireRoute sends raw BGP UPDATE body bytes to the RIB under a named
 // protocol. Zero-copy via DirectBridge typed handler (no hex encoding).
 // Used by the BMP plugin to inject Route Monitoring routes.

@@ -24,10 +24,24 @@ func ProtocolID() redistevents.ProtocolID { return ospfProtocolID }
 // DefaultAdminDistance is the classical OSPF administrative distance.
 const DefaultAdminDistance uint8 = 110
 
+// RouteSink receives Loc-RIB install/remove operations when the installer has no
+// local Loc-RIB (a forked subprocess, where locrib.Default() returns nil). The
+// forked wiring installs one via SetRemoteSink; it ships each op to the engine
+// over RPC (internal/plugins/routeinstall). In-process (loc != nil) the local RIB
+// is always preferred and the sink is unused.
+type RouteSink interface {
+	InsertForward(fam family.Family, prefix netip.Prefix, p locrib.Path)
+	Remove(fam family.Family, prefix netip.Prefix, source redistevents.ProtocolID, instance uint32)
+	// Flush sends buffered ops to the engine; the installer calls it once per
+	// Apply/RemoveAll so a whole delta travels in one RPC batch (R-1).
+	Flush()
+}
+
 // Installer mirrors the BGP and IS-IS Loc-RIB insertion shape: one locrib.Path per
 // equal-cost next-hop, with Source=ProtocolID and distinct Instance values.
 type Installer struct {
 	loc      *locrib.RIB
+	remote   RouteSink
 	fam      family.Family
 	afLabel  string
 	distance uint8
@@ -50,14 +64,57 @@ func (in *Installer) setSuppress(fn func() bool) { in.suppress = fn }
 // suppressed reports whether route install/removal is currently suppressed.
 func (in *Installer) suppressed() bool { return in.suppress != nil && in.suppress() }
 
+// SetRemoteSink installs the forked route sink used when the local Loc-RIB is nil
+// (locrib.Default() returned nil in a forked subprocess). If loc is non-nil
+// (in-process), the local RIB is always preferred and the sink stays unused.
+func (in *Installer) SetRemoteSink(sink RouteSink) { in.remote = sink }
+
+// hasSink reports whether the installer has somewhere to install routes: the local
+// Loc-RIB (in-process) or a remote sink (forked). With neither, install/remove
+// no-op and only the snapshot (in.installed) is maintained.
+func (in *Installer) hasSink() bool { return in.loc != nil || in.remote != nil }
+
+// insertPath sends one Path to the local Loc-RIB (preferred) or the remote sink.
+func (in *Installer) insertPath(pfx netip.Prefix, p locrib.Path) {
+	if in.loc != nil {
+		in.loc.InsertForward(in.fam, pfx, p, nil)
+		return
+	}
+	if in.remote != nil {
+		in.remote.InsertForward(in.fam, pfx, p)
+	}
+}
+
+// removePath withdraws one (source, instance) path from the local Loc-RIB or the
+// remote sink.
+func (in *Installer) removePath(pfx netip.Prefix, source redistevents.ProtocolID, instance uint32) {
+	if in.loc != nil {
+		in.loc.Remove(in.fam, pfx, source, instance)
+		return
+	}
+	if in.remote != nil {
+		in.remote.Remove(in.fam, pfx, source, instance)
+	}
+}
+
+// flushRemote ships the remote sink's buffered ops (a whole Apply/RemoveAll delta
+// in one RPC batch, R-1). No-op for the local Loc-RIB (writes already applied).
+func (in *Installer) flushRemote() {
+	if in.remote != nil {
+		in.remote.Flush()
+	}
+}
+
 type installedRoute struct {
 	entry     RouteEntry
 	instances []uint32
 }
 
 // NewInstaller constructs an IPv4-unicast OSPF installer (the OSPFv2 family). loc may be
-// nil in a forked plugin subprocess, in which case install/remove are no-ops but snapshots
-// still track the computed route table.
+// nil in a forked plugin subprocess; the forked wiring then calls SetRemoteSink so
+// install/remove ship to the engine over RPC (internal/plugins/routeinstall). With neither
+// a local Loc-RIB nor a remote sink, install/remove are no-ops but snapshots still track
+// the computed route table.
 func NewInstaller(loc *locrib.RIB) *Installer {
 	return NewInstallerFamily(loc, family.IPv4Unicast)
 }
@@ -132,6 +189,7 @@ func (in *Installer) Apply(cur []RouteEntry) RouteDelta {
 	for _, pfx := range delta.Removed {
 		in.remove(pfx)
 	}
+	in.flushRemote()
 	in.publishCounts()
 	return delta
 }
@@ -145,7 +203,7 @@ func (in *Installer) insert(r RouteEntry) {
 		}
 		instance := uint32(i) //nolint:gosec // ECMP width is capped far below uint32.
 		newInstances = append(newInstances, instance)
-		if in.loc == nil {
+		if !in.hasSink() {
 			continue
 		}
 		// RFC 5286 / TI-LFA: carry this primary's pre-computed backup (address +
@@ -160,7 +218,7 @@ func (in *Installer) insert(r RouteEntry) {
 		}
 		// Mirror BGP rib_bestchange.go: InsertForward with a value-typed Path and no
 		// ForwardHandle. redistevents is not on the FIB install path.
-		in.loc.InsertForward(in.fam, r.Prefix, locrib.Path{
+		in.insertPath(r.Prefix, locrib.Path{
 			Source:             ospfProtocolID,
 			Instance:           instance,
 			NextHop:            nh.Addr,
@@ -168,12 +226,12 @@ func (in *Installer) insert(r RouteEntry) {
 			Metric:             metric,
 			BackupNextHop:      backupNH,
 			BackupRepairLabels: repair,
-		}, nil)
+		})
 	}
-	if prev, ok := in.installed[r.Prefix]; ok && in.loc != nil {
+	if prev, ok := in.installed[r.Prefix]; ok && in.hasSink() {
 		for _, old := range prev.instances {
 			if !slices.Contains(newInstances, old) {
-				in.loc.Remove(in.fam, r.Prefix, ospfProtocolID, old)
+				in.removePath(r.Prefix, ospfProtocolID, old)
 			}
 		}
 	}
@@ -181,9 +239,9 @@ func (in *Installer) insert(r RouteEntry) {
 }
 
 func (in *Installer) remove(pfx netip.Prefix) {
-	if prev, ok := in.installed[pfx]; ok && in.loc != nil {
+	if prev, ok := in.installed[pfx]; ok && in.hasSink() {
 		for _, inst := range prev.instances {
-			in.loc.Remove(in.fam, pfx, ospfProtocolID, inst)
+			in.removePath(pfx, ospfProtocolID, inst)
 		}
 	}
 	delete(in.installed, pfx)
@@ -197,13 +255,14 @@ func (in *Installer) RemoveAll() {
 		return
 	}
 	for pfx, prev := range in.installed {
-		if in.loc != nil {
+		if in.hasSink() {
 			for _, inst := range prev.instances {
-				in.loc.Remove(in.fam, pfx, ospfProtocolID, inst)
+				in.removePath(pfx, ospfProtocolID, inst)
 			}
 		}
 	}
 	in.installed = make(map[netip.Prefix]installedRoute)
+	in.flushRemote()
 	in.publishCounts()
 }
 

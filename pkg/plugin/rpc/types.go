@@ -329,6 +329,62 @@ type ReleaseCachedInput struct {
 	IDs []uint64 `json:"ids"`
 }
 
+// RouteInstallEntry is one route a forked route-installing plugin (OSPF, IS-IS,
+// ...) inserts into the engine's process-wide Loc-RIB. It carries the fields of
+// locrib.Path in wire-portable form.
+//
+// Protocol is the redistevents protocol NAME (e.g. "ospf", "isis"), NOT the
+// numeric ProtocolID: ProtocolIDs are allocated per-process by registration
+// order, so the engine re-resolves the name to its own ID. AFI/SAFI are the
+// numeric family identifiers (stable across processes). Prefix/NextHop/
+// BackupNextHop are netip string forms; empty NextHop means "directly connected".
+type RouteInstallEntry struct {
+	Protocol           string   `json:"protocol"`
+	AFI                uint16   `json:"afi"`
+	SAFI               uint8    `json:"safi"`
+	Prefix             string   `json:"prefix"`
+	Instance           uint32   `json:"instance"`
+	NextHop            string   `json:"next-hop,omitempty"`
+	AdminDistance      uint8    `json:"admin-distance"`
+	Metric             uint32   `json:"metric"`
+	Labels             []uint32 `json:"labels,omitempty"`
+	IsEBGP             bool     `json:"is-ebgp,omitempty"`
+	BackupNextHop      string   `json:"backup-next-hop,omitempty"`
+	BackupRepairLabels []uint32 `json:"backup-repair-labels,omitempty"`
+}
+
+// RouteInstallInput is the input for ze-plugin-engine:route-install. Routes are
+// applied as a batch in one call so a whole SPF delta needs a single round-trip.
+type RouteInstallInput struct {
+	Routes []RouteInstallEntry `json:"routes"`
+}
+
+// RouteInstallOutput is the output for ze-plugin-engine:route-install.
+type RouteInstallOutput struct {
+	Installed uint32 `json:"installed"` // routes applied to the engine Loc-RIB
+}
+
+// RouteRemoveEntry identifies one route to withdraw from the engine Loc-RIB by
+// its (Protocol, AFI/SAFI, Prefix, Instance) identity. Protocol is the name
+// (see RouteInstallEntry).
+type RouteRemoveEntry struct {
+	Protocol string `json:"protocol"`
+	AFI      uint16 `json:"afi"`
+	SAFI     uint8  `json:"safi"`
+	Prefix   string `json:"prefix"`
+	Instance uint32 `json:"instance"`
+}
+
+// RouteRemoveInput is the input for ze-plugin-engine:route-remove.
+type RouteRemoveInput struct {
+	Routes []RouteRemoveEntry `json:"routes"`
+}
+
+// RouteRemoveOutput is the output for ze-plugin-engine:route-remove.
+type RouteRemoveOutput struct {
+	Removed uint32 `json:"removed"` // routes withdrawn from the engine Loc-RIB
+}
+
 // DispatchCommandInput is the input for ze-plugin-engine:dispatch-command.
 // Plugins use this to invoke commands through the engine's command dispatcher,
 // enabling inter-plugin communication via the standard routing mechanism.

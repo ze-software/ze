@@ -18,6 +18,7 @@
 package isis
 
 import (
+	"context"
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
@@ -26,6 +27,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/lsdb"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/spf"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/routeinstall"
 )
 
 // initSPF constructs the engine's SPF Computer, wiring the LSDB as the link-state
@@ -37,19 +39,32 @@ import (
 // present in the graph.
 func (e *engine) initSPF() {
 	loc := locrib.Default()
+	inst := spf.NewInstaller(loc)
+	instV6 := spf.NewInstallerV6(loc)
+	if loc == nil {
+		// Forked subprocess: no local Loc-RIB (default.go returns nil under
+		// ze.plugin.hub.token). Ship SPF routes to the engine over RPC via the
+		// route-install client set at engine start; one sink serves both families.
+		// (spec-forked-route-install)
+		if client := routeInstallClient(); client != nil {
+			sink := routeinstall.New(context.Background(), client)
+			inst.SetRemoteSink(sink)
+			instV6.SetRemoteSink(sink)
+		}
+	}
 	e.spf = spf.NewComputer(spf.Config{
 		Source:   (*lsdbSPFSource)(e),
 		Resolver: (*engineNextHopResolver)(e),
 		Levels:   []spf.Level{spf.Level1, spf.Level2},
 		// IPv4 install path (isis-9).
-		Installer: spf.NewInstaller(loc),
+		Installer: inst,
 		// IPv6 install path (isis-12): the SAME shared SPF tree, the IPv6 next-hop
 		// resolver (neighbor link-local from TLV 232), and the IPv6-family Loc-RIB
 		// Installer. The IPv6 pass is always wired; it produces no routes on an
 		// IPv4-only topology (no TLV 236 leaves), so wiring it unconditionally is
 		// harmless and keeps the engine dual-stack-ready.
 		ResolverV6:  (*engineNextHopResolverV6)(e),
-		InstallerV6: spf.NewInstallerV6(loc),
+		InstallerV6: instV6,
 	})
 	// RFC 2966 inter-level leak (AC-4/AC-5): after each SPF run the Computer hands
 	// the engine the other level's reachable prefixes to re-originate into this

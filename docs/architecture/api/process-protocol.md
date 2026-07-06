@@ -347,6 +347,8 @@ Includes filter name so the plugin can dispatch to the correct handler.
 | Method | Input | Output | Description |
 |--------|-------|--------|-------------|
 | `update-route` | `UpdateRouteInput` | `UpdateRouteOutput` | Inject route to peers |
+| `route-install` | `RouteInstallInput` | `RouteInstallOutput` | Insert a batch of computed routes into the engine Loc-RIB (forked route-installing plugin) |
+| `route-remove` | `RouteRemoveInput` | `RouteRemoveOutput` | Withdraw a batch of routes from the engine Loc-RIB (forked route-installing plugin) |
 | `dispatch-command` | `DispatchCommandInput` | `DispatchCommandOutput` | Inter-plugin command |
 | `dispatch-command-args` | `DispatchCommandArgsInput` | `DispatchCommandOutput` | Exact inter-plugin command with pre-tokenized args |
 | `emit-event` | `EmitEventInput` | `EmitEventOutput` | Push event to subscribers |
@@ -359,6 +361,21 @@ Includes filter name so the plugin can dispatch to the correct handler.
 | `decode-update` | `DecodeUpdateInput` | `DecodeUpdateOutput` | Decode full UPDATE |
 
 All methods are prefixed with `ze-plugin-engine:`.
+
+#### Forked route install (`route-install` / `route-remove`)
+
+Route-installing plugins (OSPF, IS-IS) do not program the FIB directly: their SPF
+installers insert `locrib.Path` values into the process-wide Loc-RIB singleton
+(`locrib.Default()`), which `sysrib` arbitrates and `fibkernel` programs. In a
+FORKED (external) plugin subprocess, `locrib.Default()` returns nil (the singleton
+lives in the engine's address space), so those installers instead hold a
+`routeinstall.Sink` and ship each operation over `route-install` / `route-remove`.
+The engine applies the batch to its real Loc-RIB, where `sysrib`'s `OnChange`
+programs the kernel exactly as for an in-process installer. Each entry carries the
+redistribute protocol **name** (not the numeric `ProtocolID`, which is per-process):
+the engine re-resolves it to its own id via `redistevents.RegisterProtocol`.
+<!-- source: internal/component/plugin/server/dispatch_route.go -- applyRouteInstall -->
+<!-- source: internal/plugins/routeinstall/sink.go -- Sink -->
 
 ---
 
