@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=bb9de1d82a" />
+        <link rel="stylesheet" href="../../assets/site.css?v=fa925661d3" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -184,11 +184,14 @@
                     </button>
                     <div class="nav-dropdown-panel" id="nav-panel-usage">
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Network examples</span>
+                        <span class="nav-dropdown-label">Hub</span>
                         <a class="nav-dropdown-item nav-dropdown-feature" href="../../usage/">
-                            <span class="nav-dropdown-icon">U</span>
+                            <span class="nav-dropdown-icon">🧰</span>
                             <span><strong>Usage</strong><small>Complete deployment examples for real network roles</small></span>
                         </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Network examples</span>
                         <a class="nav-dropdown-item" href="../../usage/as112/">
                             <span class="nav-dropdown-icon">112</span>
                             <span><strong>AS112 Anycast DNS</strong><small>Ze as an AS112 DNS server with VyOS, Junos, Cisco IOS XR, BIRD, and FRR peers</small></span>
@@ -201,6 +204,13 @@
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
                     <div class="nav-dropdown-panel" id="nav-panel-labs">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Hub</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../labs/">
+                            <span class="nav-dropdown-icon">🧪</span>
+                            <span><strong>Labs</strong><small>Interop proof you can run yourself against real daemons</small></span>
+                        </a>
+                    </div>
                     <div class="nav-dropdown-col">
                         <span class="nav-dropdown-label">Protocols</span>
                         <a class="nav-dropdown-item" href="../../labs/bgp-interop/">
@@ -274,7 +284,31 @@
             </nav>
         </header>
 
-        <main id="top" tabindex="-1">
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Usage example</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related usage</h2>
+                    <a class="page-sidebar-link" href="../../usage/">
+                        <span class="page-sidebar-link-label">All usage examples</span>
+                        <small>Return to the deployment shapes.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/guide/as112/">
+                        <span class="page-sidebar-link-label">AS112 reference</span>
+                        <small>Plugin config, commands, and RFC notes.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/features/bgp-protocol/">
+                        <span class="page-sidebar-link-label">BGP protocol</span>
+                        <small>Behavior used by the route examples.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label">Lab evidence</span>
+                        <small>Real daemon interop evidence.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
 
             <section class="md-content reveal cat-services">
 <div class="journey-hero reveal">
@@ -373,7 +407,6 @@ bgp {
         }
         session {
             asn {
-                local 65001
                 remote 65000
             }
             family {
@@ -397,7 +430,6 @@ bgp {
         }
         session {
             asn {
-                local 65001
                 remote 65000
             }
             family {
@@ -423,6 +455,7 @@ redistribute {
 <li>Ze registers those service addresses on <code>lo</code>; you do not configure them by hand.</li>
 <li>Ze originates the two IPv4 <code>/24</code> and two IPv6 <code>/48</code> covering prefixes into BGP.</li>
 <li><code>watchdog true</code> keeps the BGP routes withdrawn until the DNS listener is serving.</li>
+<li>The top-level <code>session</code> sets Ze's local ASN once; each peer declares only the remote ASN.</li>
 <li><code>community [ no-export ]</code> marks the routes so the network can keep them local. Use <code>nopeer</code> instead, or in addition, for a bilateral AS112 peering policy.</li>
 </ul>
 <h2>FRR core router</h2>

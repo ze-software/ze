@@ -664,6 +664,41 @@
         }
       ]
     },
+    "usage/": {
+      "eyebrow": "Usage",
+      "groups": [
+        {
+          "title": "Examples",
+          "links": [
+            {
+              "href": "usage/as112/",
+              "label": "AS112 anycast DNS",
+              "desc": "Ze config, peer configs, and lab evidence in one shape."
+            }
+          ]
+        },
+        {
+          "title": "Reference nearby",
+          "links": [
+            {
+              "href": "docs/guide/as112/",
+              "label": "AS112 feature guide",
+              "desc": "Every config leaf, command, and RFC note."
+            },
+            {
+              "href": "docs/features/bgp-protocol/",
+              "label": "BGP feature guide",
+              "desc": "Protocol behavior behind the peer examples."
+            },
+            {
+              "href": "labs/",
+              "label": "Lab evidence",
+              "desc": "Interop proof against real daemons."
+            }
+          ]
+        }
+      ]
+    },
     "cli/": {
       "eyebrow": "Operations",
       "groups": [
@@ -948,6 +983,40 @@
               "href": "docs/guide/production-diagnostics/",
               "label": "Production diagnostics",
               "desc": "Use lab findings to debug systems."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "usage/",
+      "exclude": [
+        "usage/"
+      ],
+      "eyebrow": "Usage example",
+      "groups": [
+        {
+          "title": "Related usage",
+          "links": [
+            {
+              "href": "usage/",
+              "label": "All usage examples",
+              "desc": "Return to the deployment shapes."
+            },
+            {
+              "href": "docs/guide/as112/",
+              "label": "AS112 reference",
+              "desc": "Plugin config, commands, and RFC notes."
+            },
+            {
+              "href": "docs/features/bgp-protocol/",
+              "label": "BGP protocol",
+              "desc": "Behavior used by the route examples."
+            },
+            {
+              "href": "labs/",
+              "label": "Lab evidence",
+              "desc": "Real daemon interop evidence."
             }
           ]
         }

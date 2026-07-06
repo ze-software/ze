@@ -443,6 +443,18 @@ a {
     min-width: 0;
 }
 
+#nav-panel-labs {
+    max-width: 54rem;
+}
+
+#nav-panel-labs .nav-dropdown-col {
+    min-width: 15.5rem;
+}
+
+#nav-panel-labs .nav-dropdown-col:first-child {
+    min-width: 13rem;
+}
+
 .nav-dropdown-col {
     display: flex;
     flex-direction: column;
@@ -514,14 +526,21 @@ a {
  * .nav-dropdown-item.<x> double-class beats .nav-links a's 999px pill
  * radius, which would otherwise turn this tall card into an oval. */
 .nav-dropdown-item.nav-dropdown-feature {
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    height: 100%;
-    padding: 1rem;
+    align-content: start;
+    align-items: center;
+    background: var(--sky-tint);
     border: 1px solid var(--sky-chip);
     border-radius: 0.6rem;
-    background: var(--sky-tint);
+    column-gap: 0.65rem;
+    display: grid;
+    grid-template-areas:
+        "icon title"
+        "desc desc";
+    grid-template-columns: 2.4rem 1fr;
+    height: 100%;
+    justify-content: stretch;
+    padding: 1rem;
+    row-gap: 0.2rem;
 }
 
 .nav-dropdown-item.nav-dropdown-feature:hover {
@@ -529,11 +548,24 @@ a {
 }
 
 .nav-dropdown-feature .nav-dropdown-icon {
-    width: 2.4rem;
-    height: 2.4rem;
-    margin-bottom: 0.35rem;
     background: var(--panel-strong);
     font-size: 1.4rem;
+    grid-area: icon;
+    height: 2.4rem;
+    margin-bottom: 0;
+    width: 2.4rem;
+}
+
+.nav-dropdown-feature > span:not(.nav-dropdown-icon) {
+    display: contents;
+}
+
+.nav-dropdown-feature strong {
+    grid-area: title;
+}
+
+.nav-dropdown-feature small {
+    grid-area: desc;
 }
 
 .nav-dropdown-feature strong {

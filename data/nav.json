@@ -67,8 +67,11 @@
             "label": "Usage",
             "columns": [
                 [
+                    {"label_only": "Hub"},
+                    {"href": "usage/", "icon": "🧰", "title": "Usage", "desc": "Complete deployment examples for real network roles", "feature": true}
+                ],
+                [
                     {"label_only": "Network examples"},
-                    {"href": "usage/", "icon": "U", "title": "Usage", "desc": "Complete deployment examples for real network roles", "feature": true},
                     {"href": "usage/as112/", "icon": "112", "title": "AS112 Anycast DNS", "desc": "Ze as an AS112 DNS server with VyOS, Junos, Cisco IOS XR, BIRD, and FRR peers"}
                 ]
             ]
@@ -76,6 +79,10 @@
         {
             "label": "Labs",
             "columns": [
+                [
+                    {"label_only": "Hub"},
+                    {"href": "labs/", "icon": "🧪", "title": "Labs", "desc": "Interop proof you can run yourself against real daemons", "feature": true}
+                ],
                 [
                     {"label_only": "Protocols"},
                     {"href": "labs/bgp-interop/", "icon": "🌐", "title": "BGP Protocol Interop", "desc": "Real FRR, BIRD, and GoBGP sessions"},

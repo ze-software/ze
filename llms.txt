@@ -829,12 +829,15 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ## Usage
 
-### Network examples
+### Hub
 - [Usage](https://ze-software.net/usage/index.md): Complete deployment examples for real network roles (web: https://ze-software.net/usage/)
+### Network examples
 - [AS112 Anycast DNS](https://ze-software.net/usage/as112/index.md): Ze as an AS112 DNS server with VyOS, Junos, Cisco IOS XR, BIRD, and FRR peers (web: https://ze-software.net/usage/as112/)
 
 ## Labs
 
+### Hub
+- [Labs](https://ze-software.net/labs/index.md): Interop proof you can run yourself against real daemons (web: https://ze-software.net/labs/)
 ### Protocols
 - [BGP Protocol Interop](https://ze-software.net/labs/bgp-interop/index.md): Real FRR, BIRD, and GoBGP sessions (web: https://ze-software.net/labs/bgp-interop/)
 - [L2TP PPP/NCP Interop](https://ze-software.net/labs/l2tp-interop/index.md): Ze as LNS vs real xl2tpd (web: https://ze-software.net/labs/l2tp-interop/)

@@ -59,7 +59,6 @@ bgp {
         }
         session {
             asn {
-                local 65001
                 remote 65000
             }
             family {
@@ -83,7 +82,6 @@ bgp {
         }
         session {
             asn {
-                local 65001
                 remote 65000
             }
             family {
@@ -110,6 +108,7 @@ What this does:
 - Ze registers those service addresses on `lo`; you do not configure them by hand.
 - Ze originates the two IPv4 `/24` and two IPv6 `/48` covering prefixes into BGP.
 - `watchdog true` keeps the BGP routes withdrawn until the DNS listener is serving.
+- The top-level `session` sets Ze's local ASN once; each peer declares only the remote ASN.
 - `community [ no-export ]` marks the routes so the network can keep them local. Use `nopeer` instead, or in addition, for a bilateral AS112 peering policy.
 
 ## FRR core router
