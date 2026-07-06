@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable
 
+from discovery_sources import is_discovery_source as discovery_is_source
+
 
 @dataclass(frozen=True)
 class Symbol:
@@ -31,6 +33,7 @@ TARGET_ORDER = (
     "ze-doc-test",
     "ze-doc-check-stale",
     "ze-discovery-index-check",
+    "ze-digest-check",
     "ze-inventory-json",
     "ze-command-list-json",
     "ze-plugin-imports-check",
@@ -42,6 +45,7 @@ MAKE_TARGETS = {
     "ze-doc-test",
     "ze-doc-check-stale",
     "ze-discovery-index-check",
+    "ze-digest-check",
     "ze-inventory-json",
     "ze-command-list-json",
     "ze-plugin-imports-check",
@@ -301,6 +305,8 @@ def selected_targets(root: Path, changed: Iterable[str]) -> list[str]:
             selected.add("ze-doc-check-stale")
         if is_discovery_source(root, path):
             selected.add("ze-discovery-index-check")
+        if is_digest_source(root, path):
+            selected.add("ze-digest-check")
         if is_inventory_source(root, path):
             selected.add("ze-inventory-json")
             selected.add("ze-command-list-json")
@@ -382,24 +388,54 @@ def is_discovery_source(root: Path, path: str) -> bool:
     (ai/PACKAGE-MAP.md, ai/DOCS-TO-CODE.md, ai/LEARNED-FULL-INDEX.md): the
     generators themselves, their outputs, the Makefile wiring, any learned
     summary, any register.go (its Description), and any .go whose header carries
-    a `// Package` or `// Design:` line that the indexes derive from."""
-    if path in {
-        "scripts/dev/package_map.py",
-        "scripts/dev/docs_to_code.py",
-        "scripts/dev/learned_index.py",
-        "ai/PACKAGE-MAP.md",
-        "ai/DOCS-TO-CODE.md",
-        "ai/LEARNED-FULL-INDEX.md",
-    }:
+    a `// Package` or `// Design:` line that the indexes derive from.
+
+    The path rules are shared with the commit gate
+    (commit_helper.feeds_discovery_index) via discovery_sources.py; here the
+    `// Package` / `// Design:` markers are matched against the working tree plus
+    HEAD (a change either adds or removes such a header)."""
+    header = ""
+    if path.endswith(".go") and not path.endswith("_test.go"):
+        header = read_current_or_empty(root, path) + "\n" + read_head_or_empty(root, path)
+    return discovery_is_source(path, header)
+
+
+_DIGEST_BASE_RE = re.compile(r"<!--\s*digest-base:\s*(.+?)\s*-->")
+_digest_bases_cache: dict[str, list[str]] = {}
+
+
+def digest_bases(root: Path) -> list[str]:
+    """Subtrees the digests anchor into, read from their `digest-base` headers.
+    A `.go` edit under one of these can shift the line numbers a digest cites."""
+    key = str(root)
+    if key in _digest_bases_cache:
+        return _digest_bases_cache[key]
+    bases: set[str] = set()
+    ddir = root / "ai" / "digests"
+    if ddir.is_dir():
+        for md in ddir.glob("*.md"):
+            try:
+                text = md.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            for m in _DIGEST_BASE_RE.finditer(text):
+                for tok in re.split(r"[,\s]+", m.group(1).strip()):
+                    if tok:
+                        bases.add(tok)
+    result = sorted(bases)
+    _digest_bases_cache[key] = result
+    return result
+
+
+def is_digest_source(root: Path, path: str) -> bool:
+    """Changed files that must re-validate the digest anchors: a digest itself,
+    the checker, or a non-test `.go` under a subtree some digest anchors into."""
+    if path.startswith("ai/digests/") and path.endswith(".md"):
         return True
-    if path == "Makefile" or path.startswith("mk/"):
-        return True
-    if path.startswith("plan/learned/") and path.endswith(".md"):
-        return True
-    if path.endswith("register.go"):
+    if path == "scripts/dev/digest_check.py":
         return True
     if path.endswith(".go") and not path.endswith("_test.go"):
-        return file_or_head_contains_any(root, path, ("// Package", "// Design:"))
+        return any(path == b or path.startswith(b + "/") for b in digest_bases(root))
     return False
 
 
@@ -468,7 +504,8 @@ def check_wiring(
     baseline_reader: Callable[[str], str] | None = None,
 ) -> list[str]:
     if baseline_reader is None:
-        baseline_reader = lambda path: read_head_or_empty(root, path)
+        def baseline_reader(path: str) -> str:
+            return read_head_or_empty(root, path)
 
     changed = list(changed)
 

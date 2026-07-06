@@ -17,6 +17,13 @@ import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
+# Discovery-index generators/outputs and the source-trigger predicate are shared
+# with the changed-file router (verify_wiring_docs.py) via discovery_sources.py,
+# so the commit gate here and the router cannot drift apart.
+from discovery_sources import GENERATORS as DISCOVERY_INDEX_GENERATORS
+from discovery_sources import OUTPUTS as DISCOVERY_INDEX_OUTPUTS
+from discovery_sources import is_discovery_source as _is_discovery_source
+
 SESSION_RE = re.compile(r"^[0-9a-f]{8}$")
 TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")
 LEARNED_RE = re.compile(r"^plan/learned/[0-9]{3,}-.+\.md$")
@@ -48,20 +55,6 @@ FORBIDDEN_COMMIT_SCRIPT_PATHS = {
     "CLAUDE.md",
 }
 
-# Generated discovery indexes and the sources that feed them. With no CI, the
-# commit gate in create() is the only thing that keeps these fresh versus the
-# committed tree. The source-trigger set below mirrors is_discovery_source() in
-# scripts/dev/verify_wiring_docs.py; keep the two in sync.
-DISCOVERY_INDEX_GENERATORS = (
-    "scripts/dev/package_map.py",
-    "scripts/dev/docs_to_code.py",
-    "scripts/dev/learned_index.py",
-)
-DISCOVERY_INDEX_OUTPUTS = (
-    "ai/PACKAGE-MAP.md",
-    "ai/DOCS-TO-CODE.md",
-    "ai/LEARNED-FULL-INDEX.md",
-)
 
 
 @dataclass(frozen=True)
@@ -500,20 +493,14 @@ def _read_head(path: Path, n: int) -> str:
 def feeds_discovery_index(repo: Path, path: str) -> bool:
     """True if committing `path` can change a generated discovery index.
 
-    Mirrors is_discovery_source() in scripts/dev/verify_wiring_docs.py.
+    Path rules are shared with verify_wiring_docs via discovery_sources.py; the
+    `// Package` / `// Design:` markers are matched against the working-tree
+    file's first 40 lines (the header the indexes derive from).
     """
-    if path in DISCOVERY_INDEX_GENERATORS or path in DISCOVERY_INDEX_OUTPUTS:
-        return True
-    if path == "Makefile" or path.startswith("mk/"):
-        return True
-    if path.startswith("plan/learned/") and path.endswith(".md"):
-        return True
-    if path.endswith("register.go"):
-        return True
+    header = ""
     if path.endswith(".go") and not path.endswith("_test.go"):
-        head = _read_head(repo / path, 40)
-        return "// Package" in head or "// Design:" in head
-    return False
+        header = _read_head(repo / path, 40)
+    return _is_discovery_source(path, header)
 
 
 def discovery_index_freshness(repo: Path) -> tuple[str, list[str]]:

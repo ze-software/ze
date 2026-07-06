@@ -72,7 +72,7 @@ Use these before inventing a new mechanism:
 | What each package does ("what does what") | `make ze-discovery-index`; read `ai/PACKAGE-MAP.md` |
 | Which `.go` files implement a design doc | read `ai/DOCS-TO-CODE.md` (inverse of `// Design:`) |
 | Every learned summary by number (complete) | read `ai/LEARNED-FULL-INDEX.md`; curated by topic: `ai/LEARNED-INDEX.md` |
-| How data flows through a subsystem | read `ai/digests/<subsystem>.md` (living, hand-maintained flow digests; `ai/digests/README.md` lists them) |
+| How data flows through a subsystem | read `ai/digests/<subsystem>.md` (living, hand-maintained flow digests; `ai/digests/README.md` lists them); anchors validated by `make ze-digest-check` |
 | Plugin, command, YANG, and test inventory | `make ze-inventory`, `make ze-inventory-json` |
 | Command inventory | `make ze-command-list`, `make ze-command-list-json` |
 | Spec progress | `make ze-spec-status`, `make ze-spec-status-json` |

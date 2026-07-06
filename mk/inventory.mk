@@ -9,7 +9,7 @@
 #
 .PHONY: ze-spec-status ze-spec-status-json ze-learned-counter
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
-.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-discovery-index ze-discovery-index-check ze-consistency
+.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-discovery-index ze-discovery-index-check ze-digest-check ze-consistency
 .PHONY: ze-verify-wiring-docs ze-wiki-update ze-wiki-commands
 
 ze-spec-status:
@@ -90,6 +90,9 @@ ze-doc-test:
 	python3 scripts/dev/docs_to_code.py --check || FAIL=1; \
 	python3 scripts/dev/learned_index.py --check || FAIL=1; \
 	echo ""; \
+	echo "  -> Digest anchors (ai/digests/*.md file:line references resolve)..."; \
+	python3 scripts/dev/digest_check.py --check || FAIL=1; \
+	echo ""; \
 	if [ $$FAIL -ne 0 ]; then \
 		echo "Documentation tests FAILED -- see output above."; \
 		echo "See docs/contributing/documentation-testing.md for how to fix."; \
@@ -121,6 +124,12 @@ ze-discovery-index-check:
 	@python3 scripts/dev/package_map.py --check
 	@python3 scripts/dev/docs_to_code.py --check
 	@python3 scripts/dev/learned_index.py --check
+
+# Digest anchor validity: every `file:line` reference in ai/digests/*.md resolves
+# to a real file and an in-range line. The digests are hand-maintained, so this
+# catches the anchors rotting when code moves. Runs inside ze-doc-test.
+ze-digest-check:
+	@python3 scripts/dev/digest_check.py
 
 ze-consistency:
 	@echo "Running consistency checks..."

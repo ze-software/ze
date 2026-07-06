@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1079 summaries
+Total: 1080 summaries
 
 ## 000-099
 
@@ -1143,3 +1143,4 @@ Total: 1079 summaries
 | 1065 | ownership-3-reactor-modes | `plan/learned/1065-ownership-3-reactor-modes.md` |
 | 1066 | as112-bgp-redistribute | `plan/learned/1066-as112-bgp-redistribute.md` |
 | 1067 | Generated Discovery Indexes | `plan/learned/1067-generated-discovery-indexes.md` |
+| 1068 | Digest Anchor Validator and Subsystem Digest Expansion | `plan/learned/1068-digest-anchor-validator.md` |
