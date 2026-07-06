@@ -64,6 +64,16 @@
             ]
         },
         {
+            "label": "Usage",
+            "columns": [
+                [
+                    {"label_only": "Network examples"},
+                    {"href": "usage/", "icon": "U", "title": "Usage", "desc": "Complete deployment examples for real network roles", "feature": true},
+                    {"href": "usage/as112/", "icon": "112", "title": "AS112 Anycast DNS", "desc": "Ze as an AS112 DNS server with VyOS, Junos, Cisco IOS XR, BIRD, and FRR peers"}
+                ]
+            ]
+        },
+        {
             "label": "Labs",
             "columns": [
                 [

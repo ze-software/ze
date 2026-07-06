@@ -2,6 +2,12 @@
 
 What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's `ze-news`. Each week lists the areas it touched; click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the [roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a timeline, see [Milestones](../milestones/).
 
+## [Week of 2026-07-01](2026-07-01/index.md)
+
+Work landed across DNS, traffic security, routing, and the CLI this week.
+
+Areas: DNS, Anomaly Detection, BGP, OSPF, Redistribution, MPLS, CLI, Security, VPP, Under the Hood
+
 ## [Week of 2026-06-25](2026-06-25/index.md)
 
 Shipped across security, the appliance, routing, and observability this week.

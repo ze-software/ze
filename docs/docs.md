@@ -47,6 +47,7 @@ it is, not just how to use it.
 - [Compare](../compare/): how Ze stacks up against BIRD, FRR, GoBGP, and others, including where it is still behind.
 - [Performance](../performance/): measured BGP benchmarks, with the method, not marketing numbers.
 - [Labs](../labs/): interop proof you can run yourself against real FRR, BIRD, strongSwan, and more.
+- [Usage examples](../usage/): complete network deployment shapes, starting with Ze as an AS112 anycast DNS node.
 
 ## Keep up and get involved
 

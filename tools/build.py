@@ -7,6 +7,7 @@ Usage:
 
 Steps (default order, also the --only vocabulary):
     docs      main/docs/*.md -> docs/**/index.html      (data/nav.json MANIFEST in render-docs.py)
+    usage    usage/*.md -> usage/**/index.html      (tools/render-doc.py)
     blog      blog/posts/*.md (editorial articles) -> blog/**/index.html
               (tools/render-blog.py) -- empty until articles are added
     changes   changes/posts/*.md (weekly updates) -> changes/<week>/index.html
@@ -78,6 +79,7 @@ import sitelib  # noqa: E402
 
 STEPS = [
     "docs",
+    "usage",
     "blog",
     "activity",
     "compare",
@@ -122,6 +124,32 @@ NAV_PATCH_TARGETS = [
     ("labs/vlan-qos/index.html", "../../"),
     ("labs/vpp-dataplane/index.html", "../../"),
 ]
+
+USAGE_DESC = (
+    "Deployment examples for using Ze in a real network, with adjacent router "
+    "configs and the lab evidence behind each shape."
+)
+
+USAGE_PAGES = [
+    (
+        "index.md",
+        "usage/index.html",
+        USAGE_DESC,
+        "../",
+        None,
+    ),
+    (
+        "as112/index.md",
+        "usage/as112/index.html",
+        (
+            "Use Ze as an AS112 anycast DNS node inside a network, with peer "
+            "configs for FRR, BIRD, VyOS, Junos, and Cisco IOS XR."
+        ),
+        "../../",
+        "services",
+    ),
+]
+
 
 COMPARE_DESC = (
     "Comparison hub for Ze against BGP daemons and router network operating systems."
@@ -237,6 +265,22 @@ def load_module(stem):
 def step_docs():
     render_docs = load_module("render-docs")
     return render_docs.main()
+
+
+
+def step_usage():
+    render_doc = load_module("render-doc")
+    for source_name, dest_rel, desc, root, cat in USAGE_PAGES:
+        render_doc.render(
+            GH_PAGES / "usage" / source_name,
+            GH_PAGES / dest_rel,
+            root,
+            desc,
+            cat=cat,
+            journey_label="Usage",
+        )
+    return 0
+
 
 
 def step_blog():
@@ -485,6 +529,7 @@ def step_links():
 
 STEP_FUNCS = {
     "docs": step_docs,
+    "usage": step_usage,
     "blog": step_blog,
     "activity": step_activity,
     "compare": step_compare,

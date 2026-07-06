@@ -669,6 +669,7 @@ FOOTER_LOCAL_COLUMNS = [
         "Learn",
         [
             ("docs/", "Documentation"),
+            ("usage/", "Usage"),
             ("docs/guide/quickstart/", "Quickstart"),
             ("docs/architecture/", "Architecture"),
             ("labs/", "Labs"),

@@ -14,9 +14,9 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://codeberg.org/thomas-mangin/ze. GitHub mirror: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 46 shipped or experimental feature cards, 6 roadmap cards, 379 CLI commands, 35 config sections, 91 plugin registrations, 39 direct Go dependencies, 29 weekly change entries.
+- Current generated counts: 46 shipped or experimental feature cards, 6 roadmap cards, 379 CLI commands, 35 config sections, 91 plugin registrations, 39 direct Go dependencies, 30 weekly change entries.
 - Test evidence counts: 64,000+ unit tests, 360+ fuzz targets, 1,300+ end-to-end transcript steps, 101 interop scenarios across 7 target implementations.
-- Generated date: 2026-07-05.
+- Generated date: 2026-07-06.
 
 ## Quality and verification model
 
@@ -807,7 +807,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 - [Roadmap](https://ze-software.net/roadmap/index.md): The path to a first release you can trust (web: https://ze-software.net/roadmap/)
 - [Milestones](https://ze-software.net/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/milestones/)
-- [Changes](https://ze-software.net/changes/index.md): 29 weekly updates, newest first (web: https://ze-software.net/changes/)
+- [Changes](https://ze-software.net/changes/index.md): 30 weekly updates, newest first (web: https://ze-software.net/changes/)
 - [Activity](https://ze-software.net/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/activity/)
 
 ## Docs
@@ -826,6 +826,12 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [VPP Dataplane](https://ze-software.net/docs/guide/vpp/index.md): FIB, traffic, and firewall via VPP (web: https://ze-software.net/docs/guide/vpp/)
 - [Benchmarking](https://ze-software.net/docs/guide/benchmarking/index.md): ze-perf architecture, flags, JSON output (web: https://ze-software.net/docs/guide/benchmarking/)
 - [Migrating from ExaBGP](https://ze-software.net/docs/guide/exabgp-migration/index.md): Convert configs and bridge process scripts (web: https://ze-software.net/docs/guide/exabgp-migration/)
+
+## Usage
+
+### Network examples
+- [Usage](https://ze-software.net/usage/index.md): Complete deployment examples for real network roles (web: https://ze-software.net/usage/)
+- [AS112 Anycast DNS](https://ze-software.net/usage/as112/index.md): Ze as an AS112 DNS server with VyOS, Junos, Cisco IOS XR, BIRD, and FRR peers (web: https://ze-software.net/usage/as112/)
 
 ## Labs
 

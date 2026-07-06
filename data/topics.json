@@ -33,6 +33,7 @@
     "RBAC": "secure",
     "Control-Plane": "secure",
     "Session Hardening": "secure",
+    "Anomaly Detection": "secure",
     "Security": "secure",
 
     "API": "automate",

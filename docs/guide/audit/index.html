@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=2b9e232e42" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=bb9de1d82a" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -174,6 +174,24 @@
                         <a class="nav-dropdown-item" href="../../../docs/guide/exabgp-migration/">
                             <span class="nav-dropdown-icon">🔀</span>
                             <span><strong>Migrating from ExaBGP</strong><small>Convert configs and bridge process scripts</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-usage">Usage
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-usage">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Network examples</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../../usage/">
+                            <span class="nav-dropdown-icon">U</span>
+                            <span><strong>Usage</strong><small>Complete deployment examples for real network roles</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../usage/as112/">
+                            <span class="nav-dropdown-icon">112</span>
+                            <span><strong>AS112 Anycast DNS</strong><small>Ze as an AS112 DNS server with VyOS, Junos, Cisco IOS XR, BIRD, and FRR peers</small></span>
                         </a>
                     </div>
                     </div>
@@ -369,6 +387,7 @@ ze show audit since 2026-05-24T10:00:00Z until 2026-05-24T11:00:00Z
                     <div class="footer-col">
                         <h3>Learn</h3>
                         <a href="../../../docs/">Documentation</a>
+                        <a href="../../../usage/">Usage</a>
                         <a href="../../../docs/guide/quickstart/">Quickstart</a>
                         <a href="../../../docs/architecture/">Architecture</a>
                         <a href="../../../labs/">Labs</a>
