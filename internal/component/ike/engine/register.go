@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/eap"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -84,9 +85,11 @@ func TerminateAllSAs() int {
 	count := 0
 	for name, ps := range snapshot {
 		ps.Stop()
-		if ps.sa != nil && table != nil {
-			table.Remove(ps.sa.InitiatorSPI, ps.sa.ResponderSPI)
-			emitSADown(bus, ps.sa, log)
+		// getSA (mutex-guarded): a responder's ps.sa is written by the dispatch
+		// goroutine, not joined by Stop() (Finding 3).
+		if sa := ps.getSA(); sa != nil && table != nil {
+			table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
+			emitSADown(bus, sa, log)
 		}
 		peersMu.Lock()
 		delete(activePeersMap, name)
@@ -116,11 +119,13 @@ func TerminatePeerSA(name string) bool {
 
 	ps.Stop()
 	table := ActiveTable()
-	if ps.sa != nil && table != nil {
-		table.Remove(ps.sa.InitiatorSPI, ps.sa.ResponderSPI)
+	// getSA (mutex-guarded): a responder's ps.sa is written by the dispatch goroutine,
+	// not joined by Stop() (Finding 3).
+	if sa := ps.getSA(); sa != nil && table != nil {
+		table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
 		bus := getEventBus()
 		log := getLogger()
-		emitSADown(bus, ps.sa, log)
+		emitSADown(bus, sa, log)
 	}
 
 	if fn := reEstablishFn.Load(); fn != nil {
@@ -425,20 +430,24 @@ func dispatchNATTInbound(tr *transport.UDPTransport, table *SATable, log *slog.L
 			continue
 		}
 
-		sa := table.Lookup(iSPI, rSPI)
-		if sa == nil {
-			sa = table.LookupByInitiatorSPI(iSPI)
-		}
-		if sa == nil {
-			log.Debug("ike: no SA for NAT-T packet", "ispi", SPIHex(iSPI), "rspi", SPIHex(rSPI))
-			continue
-		}
-
 		nattPkt := transport.Packet{
 			Data:       ikeData,
 			RemoteAddr: pkt.RemoteAddr,
 			LocalAddr:  pkt.LocalAddr,
 		}
+
+		sa := table.Lookup(iSPI, rSPI)
+		if sa == nil {
+			sa = table.LookupByInitiatorSPI(iSPI)
+		}
+		if sa == nil {
+			if tryResponderSAInit(nattPkt, iSPI, rSPI, table, tr, log) {
+				continue
+			}
+			log.Debug("ike: no SA for NAT-T packet", "ispi", SPIHex(iSPI), "rspi", SPIHex(rSPI))
+			continue
+		}
+
 		routeInbound(sa, nattPkt, table, tr, log)
 	}
 }
@@ -479,6 +488,76 @@ func routeInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.UD
 	handleInbound(sa, pkt, table, tr, log)
 }
 
+// matchResponderPeer finds a running `respond` peer whose configured remote
+// address equals the packet source, or nil. Used to accept an unsolicited
+// IKE_SA_INIT. Called on the dispatch goroutine; reads immutable session config
+// under the peers lock.
+func matchResponderPeer(remoteAddr *net.UDPAddr) *PeerSession {
+	if remoteAddr == nil {
+		return nil
+	}
+	src := remoteAddr.IP.String()
+	peersMu.RLock()
+	defer peersMu.RUnlock()
+	if activePeersMap == nil {
+		return nil
+	}
+	for _, ps := range activePeersMap {
+		if ps.peerCfg.ConnectionType != ipsec.ConnectionRespond {
+			continue
+		}
+		if ps.peerCfg.RemoteAddress != "" && ps.peerCfg.RemoteAddress == src {
+			return ps
+		}
+	}
+	return nil
+}
+
+// tryResponderSAInit accepts an unsolicited IKE_SA_INIT request (no SATable entry)
+// from a configured `respond` peer: it creates the responder SA, inserts it, and
+// hands the packet to the handshake handler. Returns true when the packet was
+// consumed (accepted or deliberately dropped as an unconfigured/duplicate attempt).
+// RFC 7296 Section 1.2, Section 2.6.
+func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable, tr *transport.UDPTransport, log *slog.Logger) bool {
+	// Header: [18]=exchange type, [19]=flags. Must be an IKE_SA_INIT request with a
+	// zero responder SPI (a fresh initiation, not a retransmit of a known SA).
+	if len(pkt.Data) < 20 {
+		return false
+	}
+	if pkt.Data[18] != wire.ExchangeIKESAInit || pkt.Data[19]&wire.FlagResponse != 0 {
+		return false
+	}
+	if rSPI != ([8]byte{}) {
+		return false
+	}
+	ps := matchResponderPeer(pkt.RemoteAddr)
+	if ps == nil {
+		log.Debug("ike: unsolicited IKE_SA_INIT from unconfigured source", "src", pkt.RemoteAddr)
+		return false
+	}
+	// One in-flight handshake per responder peer (AC-6). A genuine retransmit finds
+	// the SA already in the SATable and never reaches this path.
+	if !ps.responderBusy.CompareAndSwap(false, true) {
+		log.Debug("ike: responder busy, dropping concurrent IKE_SA_INIT", "peer", ps.peerName)
+		return true
+	}
+	sa, err := newResponderSA(ps.peerName, ps.peerCfg, ps.ikeGroup, ps.espGroup, iSPI)
+	if err != nil {
+		log.Warn("ike: create responder SA failed", "peer", ps.peerName, "error", err)
+		ps.responderBusy.Store(false)
+		return true
+	}
+	if !table.Insert(sa) {
+		log.Debug("ike: responder SA insert conflict", "peer", ps.peerName)
+		ps.responderBusy.Store(false)
+		return true
+	}
+	ps.setSA(sa)
+	log.Info("ike: accepting inbound IKE_SA_INIT", "peer", ps.peerName, "src", pkt.RemoteAddr)
+	routeInbound(sa, pkt, table, tr, log)
+	return true
+}
+
 // dispatchInbound reads packets from the transport and dispatches to the
 // correct SA by SPI pair.
 func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logger) {
@@ -510,6 +589,9 @@ func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logge
 			sa = table.LookupByInitiatorSPI(iSPI)
 		}
 		if sa == nil {
+			if tryResponderSAInit(pkt, iSPI, rSPI, table, tr, log) {
+				continue
+			}
 			log.Debug("ike: no SA for packet", "ispi", SPIHex(iSPI), "rspi", SPIHex(rSPI))
 			continue
 		}

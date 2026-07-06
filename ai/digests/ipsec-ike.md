@@ -39,8 +39,9 @@ tree.
    backoff (`reconcile.go:220-245`, `reconnectDelay` `fsm.go:44`).
 4. **Role dispatch.** `PeerSession.run` calls `runOnce` (`fsm.go:60`), which branches
    on `ConnectionType`: `ConnectionInitiate` → `runInitiator` (`fsm.go:76`);
-   `ConnectionRespond` → `runResponder` (`fsm.go:163`), which only blocks on
-   `ps.stopCh` (`fsm.go:171-174`), there is no responder-side IKE_SA_INIT handling.
+   `ConnectionRespond` → `runResponder` (`fsm.go`), which polls for the responder SA
+   created by the dispatch goroutine and adopts it into the owner loop once it
+   establishes (spec-ipsec-14; see Invariants for the responder path).
 5. **IKE_SA_INIT request.** `runInitiator` builds a fresh SA (`newInitiatorSA`,
    `initiator.go:18`, SPI/nonce/DH via `sa.go:121`, `sa.go:135`, `dh.go:43`), inserts
    it into `SATable` keyed by initiator-SPI + zero responder-SPI (`fsm.go:91`,
@@ -55,10 +56,11 @@ tree.
    the IKE major version and non-zero initiator SPI, and look the SA up by SPI pair
    or by initiator SPI alone (`table.go:31`, `table.go:40`). NAT-T packets are first
    passed through `StripNonESPMarker`/`IsNATKeepalive` (`engine/register.go:401`,
-   `engine/register.go:405`, `nat.go:67`, `nat.go:85`). No match → logged and dropped
-   (`engine/register.go:433`, `engine/register.go:477`), new inbound SAs are never created here.
-   A match calls `handleInbound` (`fsm.go:178`), which switches on `sa.State`
-   (`fsm.go:185-206`).
+   `engine/register.go:405`, `nat.go:67`, `nat.go:85`). No SATable match → `tryResponderSAInit`
+   creates a responder SA if the packet is an unsolicited IKE_SA_INIT request from a
+   configured `respond` peer (spec-ipsec-14), else logged and dropped. A match calls
+   `handleInbound` (`fsm.go`), which routes responder SAs to `handleResponderInbound`
+   and otherwise switches on `sa.State`.
 7. **IKE_SA_INIT response.** `handleSAInitResponse` (`fsm.go:210`) re-keys the table
    under the now-known responder SPI (`table.UpdateKey`, `fsm.go:224`), parses
    SAr1/KEr/Nr and the NAT-detection notifies to set `sa.NATDetected`/`BehindNAT`
@@ -177,13 +179,24 @@ tree.
 | `transport/keepalive.go` | RFC 3948 NAT keepalive sender (0xFF byte) |
 
 ## Invariants & gotchas
-- **Initiator-only in practice.** `ConnectionRespond` peers just block on `stopCh`
-  (`fsm.go:163-175`), and `dispatchInbound`/`dispatchNATTInbound` drop any packet
-  whose SPI pair (or bare initiator SPI) is not already in `SATable`
-  (`engine/register.go:428-434`, `engine/register.go:472-477`). There is no code path that turns
-  a fresh inbound IKE_SA_INIT into a new responder SA. EAP is likewise
-  initiator-side only (`eap/peer.go`); `eap/eap.go` is server-side scaffolding for
-  future responder work.
+- **Both roles implemented (spec-ipsec-14).** `ConnectionRespond` peers run a real
+  `runResponder` (`fsm.go`) that polls the SA created by the dispatch goroutine and
+  adopts it into the owner loop on establishment. `dispatchInbound`/`dispatchNATTInbound`,
+  on a SATable miss for an unsolicited IKE_SA_INIT **request** from a configured
+  `respond` peer, call `tryResponderSAInit` (`register.go`) → create a responder SA
+  (`newResponderSA`, `IsInitiator=false`), insert it, and drive `handleResponderInbound`
+  (`responder.go`): `handleSAInitRequest` then `handleAuthRequest` (PSK/X.509) or the
+  EAP authenticator. **Direction is parameterized by `sa.IsInitiator` in three places**:
+  IKE SK send/recv keys (`skSendEncKey`/`skRecvEncKey` etc., `auth.go`), key-derivation
+  nonce order (`sa.initiatorNonce()`/`responderNonce()`, absolute Ni|Nr), and ESP
+  install key roles (`ChildSA.LocalIsInitiator`, `child.go`). AUTH signed octets are
+  role-correct (`computeSignedOctets` uses absolute nonces + `isInitiator != sa.IsInitiator`
+  ID selection). EAP-server is the real `eap.Session` (`eap/eap.go`) wired via
+  `NewEAPSession`; `startResponderEAP`/`handleResponderEAP` mirror the initiator EAP flow.
+  Interop-verified as responder vs strongSwan 5.9.14 (`scenarios/07-responder-psk`).
+- **IKE IDs: IP literals use ID_IPV4_ADDR/ID_IPV6_ADDR.** `encodeIKEID` (`auth.go`)
+  packs an IP-literal `local-id` as the address ID type; peers constrain the remote
+  id by type and reject an IP value sent as ID_FQDN ("constraint check failed").
 - **Rekey is a real CREATE_CHILD_SA wire exchange (spec-ipsec-13, closed the 742
   self-DH deferral).** The local-roll `rekeyChildSA`/`rekeyIKESA` are gone. The
   owner loop builds an SK-encrypted CREATE_CHILD_SA (`initiateChildRekey` /
@@ -192,10 +205,13 @@ tree.
   `applyIKERekeyResponse`), installs the new SA before removing the old
   (make-before-break) and Deletes the old (`sendDeleteESP` / `sendDeleteIKE`).
   Interop-verified vs strongSwan 5.9.14 (`test/ipsec-interop/scenarios/05-child-rekey`).
-  IKE-SA rekey is INITIATOR-only (Ze logs+drops a peer-initiated IKE rekey; the SK
-  encrypt/decrypt direction is initiator-only, deferred to spec-ipsec-14).
-  Child rekey is non-PFS (matches `createFirstChildSA`); `DeriveChildSAKeysPFS`
-  remains unused. SK header framing is exchange-parameterized (`buildEncryptedMessageEx`).
+  IKE-SA rekey works in **both** directions now: `initiateIKERekey`/`applyIKERekeyResponse`
+  (initiator) and `respondIKERekey` (responder, `rekey.go`, spec-ipsec-14, closed the
+  ipsec-13 deferral). The responder holds the new IKE SA in `ps.pendingIKESwap` and
+  swaps to it (make-before-break) when the peer's INFORMATIONAL Delete of the old SA
+  arrives (`handleInformationalOwned`). Child rekey is non-PFS (matches
+  `createFirstChildSA`); `DeriveChildSAKeysPFS` remains unused. SK header framing is
+  exchange-parameterized (`buildEncryptedMessageEx`).
 - **Established-SA inbound decrypts and acts (owner loop).** `handleOwnedInbound`
   (`inbound.go`) calls `decryptAndParse` → `decryptSKPayload` and drives the rekey /
   INFORMATIONAL exchanges. The former log-only `handleCreateChildSA`/`handleInformational`

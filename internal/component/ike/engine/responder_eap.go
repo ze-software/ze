@@ -1,0 +1,249 @@
+// Design: plan/spec-ipsec-14-responder.md -- IKE responder EAP authenticator
+// RFC: rfc/short/rfc7296.md -- EAP in IKE_AUTH (Section 2.16)
+
+package engine
+
+import (
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
+	"log/slog"
+	"net"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/eap"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
+	"codeberg.org/thomas-mangin/ze/internal/component/pki"
+)
+
+// eapMethodConfig builds the EAP method configuration (server side) from the peer's
+// auth config: the MSCHAPv2 shared password, or the EAP-TLS server certificate chain.
+func eapMethodConfig(sa *SA) (eap.MethodConfig, error) {
+	if sa.PeerCfg.Auth.Mode == ipsec.AuthEAPMSCHAPv2 {
+		if sa.PeerCfg.Auth.PSK == "" {
+			return eap.MethodConfig{}, fmt.Errorf("ike: EAP-MSCHAPv2 requires a password")
+		}
+		return eap.MethodConfig{Password: sa.PeerCfg.Auth.PSK}, nil
+	}
+	if sa.PeerCfg.Auth.Mode == ipsec.AuthEAPTLS {
+		return eapTLSServerConfig(sa)
+	}
+	return eap.MethodConfig{}, fmt.Errorf("ike: auth mode %s is not EAP", sa.PeerCfg.Auth.Mode)
+}
+
+// eapTLSServerConfig loads the EAP-TLS server certificate, key, and CA from the PKI
+// store as PEM for the EAP-TLS authenticator.
+func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
+	certName := sa.PeerCfg.Auth.Certificate
+	if certName == "" {
+		return eap.MethodConfig{}, errNoCertificate
+	}
+	entry := pki.GetCertificate(certName)
+	if entry == nil || entry.PrivateKey == nil {
+		return eap.MethodConfig{}, fmt.Errorf("ike: EAP-TLS server certificate %q not found or has no private key", certName)
+	}
+	keyDER, err := x509.MarshalPKCS8PrivateKey(entry.PrivateKey)
+	if err != nil {
+		return eap.MethodConfig{}, fmt.Errorf("ike: marshal EAP-TLS server key: %w", err)
+	}
+	cfg := eap.MethodConfig{
+		ServerCertPEM: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: entry.Raw}),
+		ServerKeyPEM:  pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}),
+	}
+	if caName := sa.PeerCfg.Auth.CACertificate; caName != "" {
+		if ca := pki.GetCA(caName); ca != nil {
+			cfg.CACertPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
+		}
+	}
+	return cfg, nil
+}
+
+// computeServerAuth computes the responder's own AUTH for the EAP first message
+// using its long-term credential (certificate preferred, else PSK), independent of
+// the not-yet-derived EAP MSK. RFC 7296 Section 2.16.
+func computeServerAuth(sa *SA) (*wire.PayloadAUTH, error) {
+	if sa.PeerCfg.Auth.Certificate != "" {
+		return computeX509Auth(sa)
+	}
+	return computePSKAuth(sa)
+}
+
+// eapToWire converts an eap.Packet to a wire EAP payload. eap.Packet.Encode()
+// produces [code][id][len][type][data] (or just [code][id][0][4] for
+// Success/Failure), and wire.PayloadEAP carries everything after the 4-byte header.
+func eapToWire(p *eap.Packet) *wire.PayloadEAP {
+	enc := p.Encode()
+	return &wire.PayloadEAP{
+		Code:       enc[0],
+		Identifier: enc[1],
+		EAPData:    append([]byte(nil), enc[4:]...),
+	}
+}
+
+// startResponderEAP begins the EAP authenticator exchange after receiving the
+// initiator's first IKE_AUTH (IDi, no AUTH). RFC 7296 Section 2.16: the responder
+// authenticates itself (long-term credential), then sends the first EAP-Request.
+// SAi2/TS are stashed on the SA for the final IKE_AUTH that carries SAr2/TSi/TSr.
+func (ps *PeerSession) startResponderEAP(sa *SA, msgID uint32, remoteSAi2 *wire.PayloadSA, tsi, tsr *wire.PayloadTS, tr *transport.UDPTransport, remote *net.UDPAddr, log *slog.Logger) {
+	if remoteSAi2 != nil {
+		if outSPI, err := espSPIFromSA(remoteSAi2); err == nil {
+			sa.ChildOutboundSPI = outSPI
+		}
+	}
+	if tsi != nil {
+		sa.NegotiatedTSi = tsToIPNet(tsi.TrafficSelectors)
+	}
+	if tsr != nil {
+		sa.NegotiatedTSr = tsToIPNet(tsr.TrafficSelectors)
+	}
+
+	// Negotiate the ESP proposal now (narrows sa.ESPGroup); the final IKE_AUTH after
+	// EAP success reuses the narrowed group to build SAr2 and install the Child SA.
+	if err := selectResponderESP(sa, remoteSAi2); err != nil {
+		log.Warn("ike: no acceptable ESP proposal from initiator", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+
+	config, err := eapMethodConfig(sa)
+	if err != nil {
+		log.Warn("ike: EAP method config failed", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+	sess, err := NewEAPSession(sa.PeerCfg.Auth.Mode, config)
+	if err != nil {
+		log.Warn("ike: create EAP session failed", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+	sa.EAPSession = sess
+
+	// RFC 7296 Section 2.16: the responder authenticates with its own long-term
+	// credential (certificate/PSK) in this first message, not from the not-yet-known
+	// EAP MSK.
+	serverAuth, err := computeServerAuth(sa)
+	if err != nil {
+		log.Warn("ike: responder EAP server AUTH failed", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+
+	first := sess.Begin()
+
+	inner := make([]wire.PayloadEntry, 0, 4)
+	inner = append(inner, wire.PayloadEntry{Payload: buildIDPayload(sa, false)})
+	if sa.PeerCfg.Auth.Certificate != "" {
+		inner = append(inner, buildCertPayloads(sa)...)
+	}
+	inner = append(inner,
+		wire.PayloadEntry{Payload: serverAuth},
+		wire.PayloadEntry{Payload: eapToWire(first)},
+	)
+
+	resp, err := buildEncryptedMessageEx(sa, inner, msgID, wire.ExchangeIKEAuth, wire.FlagResponse)
+	if err != nil {
+		log.Warn("ike: build EAP first response failed", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+	cacheResponse(sa, msgID, resp)
+	sa.LastSentMsg = resp
+	if tr != nil && remote != nil {
+		if err := sendWithNATT(sa, resp, tr, remote); err != nil {
+			log.Warn("ike: send EAP first response failed", "peer", sa.PeerName, "error", err)
+		}
+	}
+	sa.State = StateEAPInProgress
+	log.Debug("ike: responder EAP started", "peer", sa.PeerName)
+}
+
+// handleResponderEAP drives one EAP round (or the concluding AUTH-from-MSK) on an
+// inbound IKE_AUTH while StateEAPInProgress. RFC 7296 Section 2.16.
+func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.UDPTransport, remote *net.UDPAddr, log *slog.Logger) {
+	inner, err := decryptAndParse(sa, msg, rawMsg)
+	if err != nil {
+		log.Warn("ike: EAP round decrypt failed", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+
+	var eapPayload *wire.PayloadEAP
+	var authPayload *wire.PayloadAUTH
+	for i := range inner {
+		switch p := inner[i].Payload.(type) {
+		case *wire.PayloadEAP:
+			eapPayload = p
+		case *wire.PayloadAUTH:
+			authPayload = p
+		}
+	}
+
+	// After EAP-Success the initiator sends its AUTH derived from the MSK, with no
+	// EAP payload. Verify it and send our final IKE_AUTH (AUTH-from-MSK + SAr2).
+	if authPayload != nil {
+		if err := verifyRemoteAuth(sa, authPayload); err != nil {
+			log.Warn("ike: EAP AUTH-from-MSK verification failed", "peer", sa.PeerName, "error", err)
+			ps.sendAuthFailed(sa, msg.Header.MessageID, tr, remote, log)
+			sa.State = StateDead
+			return
+		}
+		resp, child, err := ps.buildAuthResponse(sa, msg.Header.MessageID, nil, nil, nil, true, log)
+		if err != nil {
+			log.Warn("ike: EAP final response build failed", "peer", sa.PeerName, "error", err)
+			sa.State = StateDead
+			return
+		}
+		ps.finishResponderEstablish(sa, msg.Header.MessageID, resp, child, tr, remote, log)
+		return
+	}
+
+	if eapPayload == nil {
+		log.Warn("ike: EAP round missing EAP payload", "peer", sa.PeerName)
+		sa.State = StateDead
+		return
+	}
+
+	sess, ok := sa.EAPSession.(*eap.Session)
+	if !ok || sess == nil {
+		log.Warn("ike: no EAP authenticator session", "peer", sa.PeerName)
+		sa.State = StateDead
+		return
+	}
+
+	next := sess.Process(wireEAPToPacket(eapPayload))
+	if next == nil {
+		if sess.Succeeded() {
+			sa.EAPMSK = sess.MSK()
+		}
+		return
+	}
+	if next.Code == eap.CodeSuccess {
+		sa.EAPMSK = sess.MSK()
+	}
+	ps.sendResponderEAP(sa, msg.Header.MessageID, next, tr, remote, log)
+	if next.Code == eap.CodeFailure {
+		log.Warn("ike: EAP authentication failed", "peer", sa.PeerName)
+		sa.State = StateDead
+	}
+}
+
+// sendResponderEAP builds and sends an SK-encrypted IKE_AUTH response carrying a
+// single EAP payload (an EAP-Request, EAP-Success, or EAP-Failure).
+func (ps *PeerSession) sendResponderEAP(sa *SA, msgID uint32, pkt *eap.Packet, tr *transport.UDPTransport, remote *net.UDPAddr, log *slog.Logger) {
+	inner := []wire.PayloadEntry{{Payload: eapToWire(pkt)}}
+	resp, err := buildEncryptedMessageEx(sa, inner, msgID, wire.ExchangeIKEAuth, wire.FlagResponse)
+	if err != nil {
+		log.Warn("ike: build EAP response failed", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+	cacheResponse(sa, msgID, resp)
+	sa.LastSentMsg = resp
+	if tr != nil && remote != nil {
+		if err := sendWithNATT(sa, resp, tr, remote); err != nil {
+			log.Warn("ike: send EAP response failed", "peer", sa.PeerName, "error", err)
+		}
+	}
+}

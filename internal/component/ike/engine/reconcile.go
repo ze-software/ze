@@ -17,8 +17,17 @@ import (
 type PeerSession struct {
 	peerName string
 	peerCfg  ipsec.SiteToSitePeer
+	ikeGroup ipsec.IKEGroup // retained so the responder can negotiate on inbound
 	espGroup ipsec.ESPGroup
 	sa       *SA
+
+	// responderBusy gates a `respond` peer to one in-flight handshake. The shared
+	// dispatchInbound goroutine CAS-sets it true when it creates the responder SA
+	// on an unsolicited IKE_SA_INIT; runResponder clears it once the SA establishes
+	// or dies. A concurrent/duplicate IKE_SA_INIT while busy is dropped (AC-6); a
+	// genuine retransmit finds the SA already in the SATable and never reaches the
+	// creation path. Initiator sessions never touch it.
+	responderBusy atomic.Bool
 
 	mu         sync.Mutex
 	childSA    *ChildSA
@@ -38,6 +47,12 @@ type PeerSession struct {
 	pendingRekey    *pendingRekey
 	supersededChild *ChildSA
 
+	// pendingIKESwap holds the new IKE SA we built while responding to a peer's
+	// IKE-SA rekey; the owner loop swaps to it when the peer's INFORMATIONAL Delete
+	// of the old IKE SA arrives (make-before-break, RFC 7296 Section 2.8). Owned by
+	// the maintainSA loop.
+	pendingIKESwap *SA
+
 	// established gates owner-loop routing. Set true when maintainSA owns the SA
 	// and false during (re)handshake. routeInbound reads it on the shared dispatch
 	// goroutine, so it is atomic and set-once-per-cycle: this avoids reading the
@@ -47,6 +62,35 @@ type PeerSession struct {
 	stopCh   chan struct{}
 	done     chan struct{}
 	stopOnce sync.Once
+}
+
+// setSA / getSA guard the ps.sa pointer for the responder handoff: the shared
+// dispatchInbound goroutine publishes the responder SA it created, and runResponder
+// (a different goroutine) reads it while polling for establishment. Guarding the
+// pointer avoids a data race on the handoff; the SA's own fields during the
+// handshake follow the same single-writer (dispatch) model the initiator uses.
+func (ps *PeerSession) setSA(sa *SA) {
+	ps.mu.Lock()
+	ps.sa = sa
+	ps.mu.Unlock()
+}
+
+func (ps *PeerSession) getSA() *SA {
+	ps.mu.Lock()
+	sa := ps.sa
+	ps.mu.Unlock()
+	return sa
+}
+
+// setPendingIKESwap records the new IKE SA built while responding to a peer's IKE
+// rekey, clearing any prior unconfirmed pending SA's key material first so a peer
+// that re-initiates before Deleting the old SA cannot leak keys (Finding 4). Owned
+// by the maintainSA loop; no lock.
+func (ps *PeerSession) setPendingIKESwap(newSA *SA) {
+	if ps.pendingIKESwap != nil && ps.pendingIKESwap.SKKeys != nil {
+		ps.pendingIKESwap.SKKeys.Clear()
+	}
+	ps.pendingIKESwap = newSA
 }
 
 func (ps *PeerSession) setChildSA(c *ChildSA) {
@@ -168,9 +212,11 @@ func reconcilePeers(
 			emitRouteRemove(bus, child.TSRemote, log)
 			r.ps.setChildSA(nil)
 		}
-		if r.ps.sa != nil {
-			table.Remove(r.ps.sa.InitiatorSPI, r.ps.sa.ResponderSPI)
-			emitSADown(bus, r.ps.sa, log)
+		// getSA (mutex-guarded): a responder's ps.sa is written by the dispatch
+		// goroutine, which ps.Stop() does not join, so read it under the lock (Finding 3).
+		if sa := r.ps.getSA(); sa != nil {
+			table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
+			emitSADown(bus, sa, log)
 		}
 		peersMu.Lock()
 		delete(active, r.name)
@@ -229,6 +275,7 @@ func startPeerSession(
 	ps := &PeerSession{
 		peerName: name,
 		peerCfg:  peer,
+		ikeGroup: ikeGroup,
 		espGroup: espGroup,
 		inbound:  make(chan transport.Packet, inboundQueueDepth),
 		stopCh:   make(chan struct{}),

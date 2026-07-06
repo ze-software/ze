@@ -32,12 +32,25 @@ func (ps *PeerSession) runEstablished(
 
 	ifID := resolveIfID(peer)
 
-	child, err := createFirstChildSA(sa, ps.espGroup, peer.LocalAddress, peer.RemoteAddress, ifID, dp, log)
-	if err != nil {
-		log.Warn("ike: child SA creation failed", "peer", ps.peerName, "error", err)
-		return err
+	var child *ChildSA
+	if sa.IsInitiator {
+		var err error
+		child, err = createFirstChildSA(sa, ps.espGroup, peer.LocalAddress, peer.RemoteAddress, ifID, dp, log)
+		if err != nil {
+			log.Warn("ike: child SA creation failed", "peer", ps.peerName, "error", err)
+			return err
+		}
+		ps.setChildSA(child)
+	} else {
+		// Responder: the first Child SA was already negotiated and installed during
+		// handleAuthRequest (it had to answer with SAr2/TSr), so adopt it here rather
+		// than creating a second one (spec-ipsec-14 R-6).
+		child = ps.getChildSA()
+		if child == nil {
+			log.Warn("ike: responder established without a child SA", "peer", ps.peerName)
+			return errInvalidMessage
+		}
 	}
-	ps.setChildSA(child)
 
 	if child.TSRemote != nil {
 		log.Debug("ike: tunnel route", "peer", ps.peerName, "ts_remote", child.TSRemote.String(), "bus_set", bus != nil)

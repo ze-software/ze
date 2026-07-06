@@ -35,6 +35,12 @@ const (
 	maxRetransmissions = 7
 	reconnectBase      = 1 * time.Second
 	reconnectMaxDelay  = 60 * time.Second
+	// responderHandshakeTimeout bounds a half-open responder handshake. A peer that
+	// sends IKE_SA_INIT, receives our response, then abandons (crash/restart/partition)
+	// before IKE_AUTH would otherwise pin responderBusy and the SATable entry forever,
+	// wedging every future IKE_SA_INIT from that peer. The initiator self-heals via
+	// maxRetransmissions; this is the responder's equivalent. RFC 7296 Section 2.4.
+	responderHandshakeTimeout = 30 * time.Second
 )
 
 // afterFunc returns a channel that fires after the given duration.
@@ -162,19 +168,100 @@ func (ps *PeerSession) runInitiator(
 	return ps.runEstablished(sa, peer, ikeGroup, table, tr, bus, log)
 }
 
-// runResponder waits for incoming IKE_SA_INIT as a responder.
+// runResponder accepts remote-initiated IKE exchanges. The handshake itself is
+// driven on the shared dispatch goroutine (dispatchInbound creates the responder SA
+// and handleResponderInbound advances it); this goroutine polls the published SA and,
+// once it reaches StateEstablished, adopts it into the owner loop (runEstablished).
+// When the tunnel goes down it cleans up and waits for the next inbound. RFC 7296
+// Section 1.2, spec-ipsec-14.
 func (ps *PeerSession) runResponder(
-	_ ipsec.SiteToSitePeer,
-	_ ipsec.IKEGroup,
-	_ *SATable,
-	_ *transport.UDPTransport,
-	_ ze.EventBus,
+	peer ipsec.SiteToSitePeer,
+	ikeGroup ipsec.IKEGroup,
+	table *SATable,
+	tr *transport.UDPTransport,
+	bus ze.EventBus,
 	log *slog.Logger,
 ) error {
-	log.Debug("ike: responder waiting", "peer", ps.peerName)
-	// Responder waits for inbound IKE_SA_INIT dispatched via handleInbound.
-	<-ps.stopCh
-	return nil
+	ps.responderBusy.Store(false)
+	log.Debug("ike: responder ready", "peer", ps.peerName)
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ps.stopCh:
+			return errStopped
+		case <-ticker.C:
+		}
+
+		sa := ps.getSA()
+		if sa == nil {
+			continue
+		}
+
+		switch sa.State {
+		case StateEstablished:
+			log.Info("ike: responder SA established", "peer", ps.peerName,
+				"ispi", SPIHex(sa.InitiatorSPI), "rspi", SPIHex(sa.ResponderSPI))
+			if bus != nil {
+				if _, emitErr := SAUp.Emit(bus, &SAEvent{
+					PeerName:      sa.PeerName,
+					InitiatorSPI:  SPIHex(sa.InitiatorSPI),
+					ResponderSPI:  SPIHex(sa.ResponderSPI),
+					RemoteAddress: peer.RemoteAddress,
+					AuthMethod:    peer.Auth.Mode.String(),
+				}); emitErr != nil {
+					log.Warn("ike: emit sa-up failed", "error", emitErr)
+				}
+			}
+			err := ps.runEstablished(sa, peer, ikeGroup, table, tr, bus, log)
+			// Tunnel down (peer Delete, DPD timeout, lifetime): tear down and wait
+			// for the next inbound IKE_SA_INIT.
+			table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
+			emitSADown(bus, sa, log)
+			ps.setSA(nil)
+			ps.responderBusy.Store(false)
+			if ps.stopped() {
+				if err != nil {
+					return err
+				}
+				return errStopped
+			}
+		case StateDead:
+			// Handshake failed before establishment: reset for a fresh attempt.
+			table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
+			ps.setSA(nil)
+			ps.responderBusy.Store(false)
+		case StateIdle, StateSAInitSent, StateSAInitReceived, StateAuthSent, StateAuthReceived, StateEAPInProgress:
+			// Handshake in progress on the dispatch goroutine. Reap it if the peer
+			// abandoned it so responderBusy and the SATable slot free up (Finding 1).
+			ps.reapStaleHandshake(sa, table, log)
+		}
+	}
+}
+
+// reapStaleHandshake tears down a responder SA whose handshake the peer abandoned
+// (stuck in a pre-established state past responderHandshakeTimeout), freeing the
+// responderBusy gate and the SATable entry so the peer can reconnect with a fresh
+// IKE_SA_INIT. Returns true if it reaped. RFC 7296 Section 2.4.
+func (ps *PeerSession) reapStaleHandshake(sa *SA, table *SATable, log *slog.Logger) bool {
+	if time.Since(sa.CreatedAt) <= responderHandshakeTimeout {
+		return false
+	}
+	// The dispatch goroutine may have completed the handshake between runResponder's
+	// state switch and here; never tear down an SA that just established, or we would
+	// orphan the tunnel (runResponder never adopts it) and leak the installed Child
+	// SA. runResponder picks it up on the next tick (review pass 2, Finding 1).
+	if sa.State == StateEstablished {
+		return false
+	}
+	log.Warn("ike: responder handshake timed out, tearing down",
+		"peer", ps.peerName, "state", sa.State.String())
+	table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
+	ps.setSA(nil)
+	ps.responderBusy.Store(false)
+	return true
 }
 
 // handleInbound processes an inbound packet for an existing SA.
@@ -182,6 +269,18 @@ func handleInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.U
 	var msg wire.Message
 	if err := msg.ReadFrom(pkt.Data); err != nil {
 		log.Debug("ike: parse error", "error", err)
+		return
+	}
+
+	// Responder handshake: the SA was created by dispatchInbound and is advanced on
+	// this goroutine until it establishes and runResponder adopts it (spec-ipsec-14).
+	if !sa.IsInitiator {
+		ps := lookupPeerSession(sa.PeerName)
+		if ps == nil {
+			log.Debug("ike: no session for responder SA", "peer", sa.PeerName)
+			return
+		}
+		ps.handleResponderInbound(sa, &msg, pkt, tr, log)
 		return
 	}
 

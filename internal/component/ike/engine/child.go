@@ -55,6 +55,14 @@ type ChildSA struct {
 	ESPGroup    ipsec.ESPGroup
 	ReqID       uint32
 	NATDetected bool
+
+	// LocalIsInitiator is true when this side sent Ni for this Child SA's KEYMAT
+	// (i.e. we are the CREATE_CHILD_SA / IKE_AUTH exchange initiator). RFC 7296
+	// Section 2.17: traffic from the initiator to the responder is keyed with the
+	// EncryptKeyI/IntegKeyI half of KEYMAT and the reverse with the R half, so our
+	// send (outbound) SA uses the I half when true and the R half when false. For
+	// the first Child SA this equals the IKE SA role (sa.IsInitiator).
+	LocalIsInitiator bool
 }
 
 // Clear zeroes key material.
@@ -100,9 +108,12 @@ func createFirstChildSA(
 	enc := lookupEncryption(prop.Encryption)
 	integ := lookupIntegrity(prop.Hash)
 
+	// RFC 7296 Section 2.17: KEYMAT = prf+(SK_d, Ni | Nr) in absolute initiator/
+	// responder order, not this side's Local/Remote order (identical for an
+	// initiator SA; swapped for a responder SA).
 	keys, err := crypto.DeriveChildSAKeys(
 		sa.Proposal.PRF.ID, sa.SKKeys.SK_d,
-		sa.LocalNonce, sa.RemoteNonce,
+		sa.initiatorNonce(), sa.responderNonce(),
 		enc, integ,
 	)
 	if err != nil {
@@ -138,25 +149,33 @@ func createFirstChildSA(
 
 	tsLocal := ipToFullNet(srcIP)
 	tsRemote := ipToFullNet(dstIP)
-	if sa.NegotiatedTSi != nil {
-		tsLocal = sa.NegotiatedTSi
+	// RFC 7296 Section 2.9: TSi is the initiator's selector, TSr the responder's.
+	// Our local selector is therefore TSi when we are the initiator and TSr when we
+	// are the responder (initiator path unchanged: local=TSi, remote=TSr).
+	negLocal, negRemote := sa.NegotiatedTSi, sa.NegotiatedTSr
+	if !sa.IsInitiator {
+		negLocal, negRemote = sa.NegotiatedTSr, sa.NegotiatedTSi
 	}
-	if sa.NegotiatedTSr != nil {
-		tsRemote = sa.NegotiatedTSr
+	if negLocal != nil {
+		tsLocal = negLocal
+	}
+	if negRemote != nil {
+		tsRemote = negRemote
 	}
 
 	child := &ChildSA{
-		InboundSPI:  inSPI,
-		OutboundSPI: outSPI,
-		LocalAddr:   srcIP,
-		RemoteAddr:  dstIP,
-		IfID:        ifID,
-		TSLocal:     tsLocal,
-		TSRemote:    tsRemote,
-		Keys:        keys,
-		ESPGroup:    espGroup,
-		ReqID:       defaultReqID,
-		NATDetected: sa.NATDetected,
+		InboundSPI:       inSPI,
+		OutboundSPI:      outSPI,
+		LocalAddr:        srcIP,
+		RemoteAddr:       dstIP,
+		IfID:             ifID,
+		TSLocal:          tsLocal,
+		TSRemote:         tsRemote,
+		Keys:             keys,
+		ESPGroup:         espGroup,
+		ReqID:            defaultReqID,
+		NATDetected:      sa.NATDetected,
+		LocalIsInitiator: sa.IsInitiator,
 	}
 
 	if dp == nil {
@@ -182,7 +201,20 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	encAlgo := prop.Encryption.String()
 	authAlgo := prop.Hash.String()
 
-	// Inbound SA: remote sends to us, keyed with responder keys.
+	// RFC 7296 Section 2.17: the SA carrying data the exchange initiator sends is
+	// keyed with the EncryptKeyI/IntegKeyI half; the responder's send SA uses the R
+	// half. When we are the exchange initiator our SEND (outbound) SA uses the I
+	// half and our RECEIVE (inbound) SA uses the R half; otherwise the two swap.
+	// For an initiator-role Child SA (LocalIsInitiator=true) this yields inbound=R /
+	// outbound=I, identical to the former hardcoded assignment.
+	inEnc, inInteg := child.Keys.EncryptKeyI, child.Keys.IntegKeyI
+	outEnc, outInteg := child.Keys.EncryptKeyR, child.Keys.IntegKeyR
+	if child.LocalIsInitiator {
+		inEnc, inInteg = child.Keys.EncryptKeyR, child.Keys.IntegKeyR
+		outEnc, outInteg = child.Keys.EncryptKeyI, child.Keys.IntegKeyI
+	}
+
+	// Inbound SA: remote sends to us, keyed with the peer's send-direction keys.
 	inbound := dataplane.SAParams{
 		SPI:       child.InboundSPI,
 		Src:       child.RemoteAddr,
@@ -193,9 +225,9 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		ReqID:     child.ReqID,
 		ReplayWin: replayWindow,
 		EncAlgo:   encAlgo,
-		EncKey:    child.Keys.EncryptKeyR,
+		EncKey:    inEnc,
 		AuthAlgo:  authAlgo,
-		AuthKey:   child.Keys.IntegKeyR,
+		AuthKey:   inInteg,
 		IsAEAD:    isAEAD,
 	}
 
@@ -211,7 +243,7 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	}
 	log.Debug("child-sa: installed inbound SA", "spi", child.InboundSPI, "ifid", child.IfID)
 
-	// Outbound SA: we send to remote, keyed with initiator keys.
+	// Outbound SA: we send to remote, keyed with our send-direction keys.
 	outbound := dataplane.SAParams{
 		SPI:       child.OutboundSPI,
 		Src:       child.LocalAddr,
@@ -222,9 +254,9 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		ReqID:     child.ReqID,
 		ReplayWin: replayWindow,
 		EncAlgo:   encAlgo,
-		EncKey:    child.Keys.EncryptKeyI,
+		EncKey:    outEnc,
 		AuthAlgo:  authAlgo,
-		AuthKey:   child.Keys.IntegKeyI,
+		AuthKey:   outInteg,
 		IsAEAD:    isAEAD,
 	}
 

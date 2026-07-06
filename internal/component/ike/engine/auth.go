@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"net"
 	"slices"
 
 	ikecrypto "codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
@@ -39,20 +40,29 @@ var (
 // computeSignedOctets builds the signed octets for AUTH payload computation.
 // InitiatorSignedOctets = RealMessage1 | NonceRData | prf(SK_pi, IDi').
 // ResponderSignedOctets = RealMessage2 | NonceIData | prf(SK_pr, IDr').
+// computeSignedOctets builds the octets for the party identified by isInitiator
+// (true = the IKE-SA initiator's AUTH octets, false = the responder's), using the
+// ABSOLUTE nonce order and the correct ID: RFC 7296 Section 2.15 appends Nr (the
+// responder's nonce) to the initiator's octets and Ni (the initiator's) to the
+// responder's, each with that party's own ID payload. The nonce/ID selection is
+// therefore relative to the role, not this side's Local/Remote — for an initiator
+// SA these reduce to Remote/Local exactly as before, so the initiator is unchanged.
 func computeSignedOctets(sa *SA, isInitiator bool) ([]byte, error) {
 	var realMsg, peerNonce, skP []byte
 	if isInitiator {
 		realMsg = sa.InitiatorSAInitMsg
-		peerNonce = sa.RemoteNonce
+		peerNonce = sa.responderNonce() // Nr
 		skP = sa.SKKeys.SK_pi
 	} else {
 		realMsg = sa.ResponderSAInitMsg
-		peerNonce = sa.LocalNonce
+		peerNonce = sa.initiatorNonce() // Ni
 		skP = sa.SKKeys.SK_pr
 	}
 
+	// The ID belongs to the party whose octets these are: our own ID when that
+	// party is us, otherwise the peer's received ID payload.
 	var idPayload *wire.PayloadID
-	if !isInitiator && sa.RemoteIDPayload != nil {
+	if isInitiator != sa.IsInitiator && sa.RemoteIDPayload != nil {
 		idPayload = sa.RemoteIDPayload
 	} else {
 		idPayload = buildIDPayload(sa, isInitiator)
@@ -80,14 +90,7 @@ func computeSignedOctets(sa *SA, isInitiator bool) ([]byte, error) {
 func buildAuthRequest(sa *SA) ([]byte, error) {
 	isEAP := sa.PeerCfg.Auth.Mode == ipsec.AuthEAPTLS || sa.PeerCfg.Auth.Mode == ipsec.AuthEAPMSCHAPv2
 
-	idPayload := &wire.PayloadID{
-		IDPayloadType: wire.PayloadTypeIDi,
-		IDType:        wire.IDTypeFQDN,
-		IDData:        []byte(sa.PeerName),
-	}
-	if sa.PeerCfg.Auth.LocalID != "" {
-		idPayload.IDData = []byte(sa.PeerCfg.Auth.LocalID)
-	}
+	idPayload := buildIDPayload(sa, true)
 
 	innerPayloads := make([]wire.PayloadEntry, 0, 6)
 
@@ -432,15 +435,31 @@ func buildIDPayload(sa *SA, isInitiator bool) *wire.PayloadID {
 	if !isInitiator {
 		ptype = wire.PayloadTypeIDr
 	}
-	idData := []byte(sa.PeerName)
+	idStr := sa.PeerName
 	if sa.PeerCfg.Auth.LocalID != "" {
-		idData = []byte(sa.PeerCfg.Auth.LocalID)
+		idStr = sa.PeerCfg.Auth.LocalID
 	}
+	idType, idData := encodeIKEID(idStr)
 	return &wire.PayloadID{
 		IDPayloadType: ptype,
-		IDType:        wire.IDTypeFQDN,
+		IDType:        idType,
 		IDData:        idData,
 	}
+}
+
+// encodeIKEID selects the IKE ID type for a configured identity string: an IPv4 or
+// IPv6 literal becomes ID_IPV4_ADDR / ID_IPV6_ADDR carrying the packed address
+// bytes, anything else ID_FQDN. RFC 7296 Section 3.5. Peers commonly constrain the
+// remote identity by type, so an IP-literal id MUST be sent as the address type
+// (strongSwan rejects an IP value sent as ID_FQDN with "constraint check failed").
+func encodeIKEID(id string) (uint8, []byte) {
+	if ip := net.ParseIP(id); ip != nil {
+		if v4 := ip.To4(); v4 != nil {
+			return wire.IDTypeIPv4Addr, v4
+		}
+		return wire.IDTypeIPv6Addr, ip.To16()
+	}
+	return wire.IDTypeFQDN, []byte(id)
 }
 
 func buildCertPayloads(sa *SA) []wire.PayloadEntry {
@@ -461,6 +480,41 @@ func buildCertPayloads(sa *SA) []wire.PayloadEntry {
 		},
 	})
 	return payloads
+}
+
+// skSendEncKey/skSendIntegKey/skRecvEncKey/skRecvIntegKey select the SK_* key for
+// this SA's role. RFC 7296 Section 2.14: the IKE-SA initiator protects the
+// messages it SENDS with SK_ei/SK_ai and verifies+decrypts what it RECEIVES with
+// SK_er/SK_ar; the responder is the mirror. Selecting by sa.IsInitiator lets one
+// SK encrypt/decrypt path serve both roles. For an initiator SA these return the
+// SK_e{i}/SK_a{i} (send) and SK_e{r}/SK_a{r} (recv) keys, identical to the former
+// hardcoded behavior.
+func skSendEncKey(sa *SA) []byte {
+	if sa.IsInitiator {
+		return sa.SKKeys.SK_ei
+	}
+	return sa.SKKeys.SK_er
+}
+
+func skSendIntegKey(sa *SA) []byte {
+	if sa.IsInitiator {
+		return sa.SKKeys.SK_ai
+	}
+	return sa.SKKeys.SK_ar
+}
+
+func skRecvEncKey(sa *SA) []byte {
+	if sa.IsInitiator {
+		return sa.SKKeys.SK_er
+	}
+	return sa.SKKeys.SK_ei
+}
+
+func skRecvIntegKey(sa *SA) []byte {
+	if sa.IsInitiator {
+		return sa.SKKeys.SK_ar
+	}
+	return sa.SKKeys.SK_ai
 }
 
 // buildSKMessageCBCWithMsgID builds a complete IKE_AUTH message with AES-CBC + HMAC.
@@ -494,14 +548,14 @@ func buildSKMessageCBCWithMsgID(sa *SA, innerData []byte, firstType uint8, messa
 	copy(buf[dataOff:], innerData)
 	buf[dataOff+contentLen+padLen] = byte(padLen)
 
-	block, err := aes.NewCipher(sa.SKKeys.SK_ei)
+	block, err := aes.NewCipher(skSendEncKey(sa))
 	if err != nil {
 		return nil, err
 	}
 	cbc := gocipher.NewCBCEncrypter(block, buf[ivOff:ivOff+blockSize])
 	cbc.CryptBlocks(buf[dataOff:dataOff+paddedLen], buf[dataOff:dataOff+paddedLen])
 
-	mac, err := ikecrypto.ComputeIntegrity(sa.Proposal.Integrity.ID, sa.SKKeys.SK_ai, buf[:totalLen-integTrunc])
+	mac, err := ikecrypto.ComputeIntegrity(sa.Proposal.Integrity.ID, skSendIntegKey(sa), buf[:totalLen-integTrunc])
 	if err != nil {
 		return nil, err
 	}
@@ -530,8 +584,9 @@ func buildSKMessageAEADWithMsgID(sa *SA, innerData []byte, firstType uint8, mess
 	}
 
 	aad := buf[:wire.HeaderLen+wire.GenericHeaderLen]
-	key := sa.SKKeys.SK_ei[:len(sa.SKKeys.SK_ei)-4]
-	salt := sa.SKKeys.SK_ei[len(sa.SKKeys.SK_ei)-4:]
+	sendKey := skSendEncKey(sa)
+	key := sendKey[:len(sendKey)-4]
+	salt := sendKey[len(sendKey)-4:]
 	nonce := make([]byte, 12)
 	copy(nonce, salt)
 	copy(nonce[4:], buf[ivOff:ivOff+ivLen])
@@ -577,7 +632,7 @@ func decryptSKPayload(sa *SA, rawMsg []byte, skPayload *wire.PayloadSK) ([]byte,
 		if len(rawMsg) >= aadLen {
 			aad = rawMsg[:aadLen]
 		}
-		return ikecrypto.DecryptIKEAEAD(sa.SKKeys.SK_er, skPayload.CipherText, aad)
+		return ikecrypto.DecryptIKEAEAD(skRecvEncKey(sa), skPayload.CipherText, aad)
 	}
 
 	integTrunc := int(sa.Proposal.Integrity.TruncatedLength)
@@ -589,7 +644,7 @@ func decryptSKPayload(sa *SA, rawMsg []byte, skPayload *wire.PayloadSK) ([]byte,
 	}
 	macData := rawMsg[:len(rawMsg)-integTrunc]
 	macExpected := rawMsg[len(rawMsg)-integTrunc:]
-	if err := ikecrypto.VerifyIntegrity(sa.Proposal.Integrity.ID, sa.SKKeys.SK_ar, macData, macExpected); err != nil {
+	if err := ikecrypto.VerifyIntegrity(sa.Proposal.Integrity.ID, skRecvIntegKey(sa), macData, macExpected); err != nil {
 		return nil, fmt.Errorf("ike: integrity verification failed: %w", err)
 	}
 
@@ -598,7 +653,7 @@ func decryptSKPayload(sa *SA, rawMsg []byte, skPayload *wire.PayloadSK) ([]byte,
 		return nil, errInvalidMessage
 	}
 	ct = ct[:len(ct)-integTrunc]
-	padded, err := ikecrypto.DecryptAESCBCRaw(sa.SKKeys.SK_er, ct)
+	padded, err := ikecrypto.DecryptAESCBCRaw(skRecvEncKey(sa), ct)
 	if err != nil {
 		return nil, err
 	}

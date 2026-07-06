@@ -125,7 +125,8 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	if err != nil {
 		return nil, err
 	}
-	child := newRekeyedChild(old, pending.newInboundSPI, outSPI, keys)
+	// We initiated this rekey (sent Ni), so our KEYMAT role is initiator.
+	child := newRekeyedChild(old, pending.newInboundSPI, outSPI, keys, true)
 	if err := installChildTolerant(child, prop, dp, log); err != nil {
 		keys.Clear()
 		return nil, err
@@ -169,7 +170,8 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	if err != nil {
 		return nil, nil, err
 	}
-	child := newRekeyedChild(old, inSPI, peerSPI, keys)
+	// The peer initiated this rekey (sent Ni); our KEYMAT role is responder.
+	child := newRekeyedChild(old, inSPI, peerSPI, keys, false)
 	if err := installChildTolerant(child, prop, dp, log); err != nil {
 		keys.Clear()
 		return nil, nil, err
@@ -193,20 +195,23 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 }
 
 // newRekeyedChild builds a replacement Child SA inheriting addresses/TS/ifID from
-// the old one, with fresh SPIs and keys.
-func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKeys) *ChildSA {
+// the old one, with fresh SPIs and keys. localIsInitiator records whether we sent
+// Ni for this rekey exchange (true when we initiated it), which selects the ESP
+// send/receive key halves in installChildSA (RFC 7296 Section 2.17).
+func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKeys, localIsInitiator bool) *ChildSA {
 	return &ChildSA{
-		InboundSPI:  inSPI,
-		OutboundSPI: outSPI,
-		LocalAddr:   old.LocalAddr,
-		RemoteAddr:  old.RemoteAddr,
-		IfID:        old.IfID,
-		TSLocal:     old.TSLocal,
-		TSRemote:    old.TSRemote,
-		Keys:        keys,
-		ESPGroup:    old.ESPGroup,
-		ReqID:       old.ReqID,
-		NATDetected: old.NATDetected,
+		InboundSPI:       inSPI,
+		OutboundSPI:      outSPI,
+		LocalAddr:        old.LocalAddr,
+		RemoteAddr:       old.RemoteAddr,
+		IfID:             old.IfID,
+		TSLocal:          old.TSLocal,
+		TSRemote:         old.TSRemote,
+		Keys:             keys,
+		ESPGroup:         old.ESPGroup,
+		ReqID:            old.ReqID,
+		NATDetected:      old.NATDetected,
+		LocalIsInitiator: localIsInitiator,
 	}
 }
 
@@ -381,13 +386,16 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 	}
 
 	newSA := &SA{
-		PeerName:      oldSA.PeerName,
-		PeerCfg:       oldSA.PeerCfg,
-		IKEGroup:      oldSA.IKEGroup,
-		ESPGroup:      oldSA.ESPGroup,
-		InitiatorSPI:  pending.newInitiatorSPI,
-		ResponderSPI:  newResponderSPI,
-		IsInitiator:   oldSA.IsInitiator,
+		PeerName:     oldSA.PeerName,
+		PeerCfg:      oldSA.PeerCfg,
+		IKEGroup:     oldSA.IKEGroup,
+		ESPGroup:     oldSA.ESPGroup,
+		InitiatorSPI: pending.newInitiatorSPI,
+		ResponderSPI: newResponderSPI,
+		// We sent the CREATE_CHILD_SA request that rekeyed the IKE SA, so we are the
+		// new SA's initiator regardless of our role on the old SA: we sent Ni, so the
+		// new SK_ei is our send key. RFC 7296 Section 2.18.
+		IsInitiator:   true,
 		State:         StateEstablished,
 		LocalNonce:    pending.localNonce,
 		RemoteNonce:   nr,
@@ -409,4 +417,125 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 // RFC 7296 Section 2.8.1: the exchange with the lowest nonce wins.
 func resolveRekeyCollision(localNonce, remoteNonce []byte) bool {
 	return bytes.Compare(localNonce, remoteNonce) < 0
+}
+
+// respondIKERekey processes a peer-initiated CREATE_CHILD_SA that rekeys the IKE SA
+// (SA + Ni + KEi, no TS / no REKEY_SA). It completes a fresh DH exchange, derives the
+// new IKE SA key hierarchy (RFC 7296 Section 2.18: SKEYSEED = prf(SK_d_old, g^ir_new
+// | Ni | Nr)), and builds the CREATE_CHILD_SA response (SA + Nr + KEr) encrypted
+// under the OLD SA keys, echoing the request message ID. The peer is the rekey
+// initiator, so the new SA has IsInitiator=false (we send with SK_er). The old SA is
+// removed once the peer's INFORMATIONAL Delete confirms the rekey (make-before-break).
+// This closes spec-ipsec-13's deferred IKE-rekey responder. RFC 7296 Section 1.3.3.
+func respondIKERekey(oldSA *SA, inner []wire.PayloadEntry, msgID uint32, log *slog.Logger) ([]byte, *SA, error) {
+	if len(oldSA.IKEGroup.Proposals) == 0 {
+		return nil, nil, fmt.Errorf("ike rekey: no IKE proposals configured")
+	}
+	var ni, kei []byte
+	var peerNewSPI [8]byte
+	haveSPI := false
+	var remoteSA *wire.PayloadSA
+	for _, pe := range inner {
+		switch p := pe.Payload.(type) {
+		case *wire.PayloadNonce:
+			ni = p.NonceData
+		case *wire.PayloadKE:
+			kei = p.KeyExchangeData
+		case *wire.PayloadSA:
+			remoteSA = p
+			s, err := ikeSPIFromSA(p)
+			if err != nil {
+				return nil, nil, err
+			}
+			peerNewSPI = s
+			haveSPI = true
+		}
+	}
+	if len(ni) == 0 || len(kei) == 0 || !haveSPI {
+		return nil, nil, fmt.Errorf("ike rekey request: missing Ni(%d)/KEi(%d)/SPI(%v)", len(ni), len(kei), haveSPI)
+	}
+
+	// Select a proposal we accept for the new IKE SA.
+	chosen, err := crypto.NegotiateIKE(wireProposalsToIKE(remoteSA.Proposals), buildIKEProposals(oldSA.IKEGroup))
+	if err != nil {
+		return nil, nil, fmt.Errorf("ike rekey: %w", err)
+	}
+
+	dh, err := crypto.NewDHExchange(chosen.DHGroup.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	ourPub := append([]byte(nil), dh.PublicKey...)
+	nr, err := GenerateNonce(nonceLen)
+	if err != nil {
+		dh.Clear()
+		return nil, nil, err
+	}
+	ourNewSPI, err := GenerateSPI()
+	if err != nil {
+		dh.Clear()
+		return nil, nil, err
+	}
+
+	sharedSecret, err := dh.SharedSecret(kei)
+	dh.Clear()
+	if err != nil {
+		return nil, nil, err
+	}
+	skeyseed, err := crypto.DeriveRekeyedSKEYSEED(oldSA.Proposal.PRF.ID, oldSA.SKKeys.SK_d, sharedSecret, ni, nr)
+	clear(sharedSecret)
+	if err != nil {
+		return nil, nil, err
+	}
+	// New SA: the peer (rekey initiator) is SPIi, we are SPIr; Ni is the peer's.
+	newKeys, err := crypto.DeriveSKKeys(chosen.PRF.ID, skeyseed, ni, nr,
+		peerNewSPI[:], ourNewSPI[:], chosen.Encryption, chosen.Integrity)
+	clear(skeyseed)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	now := oldSA.EstablishedAt
+	newSA := &SA{
+		PeerName:      oldSA.PeerName,
+		PeerCfg:       oldSA.PeerCfg,
+		IKEGroup:      oldSA.IKEGroup,
+		ESPGroup:      oldSA.ESPGroup,
+		InitiatorSPI:  peerNewSPI,
+		ResponderSPI:  ourNewSPI,
+		IsInitiator:   false, // peer initiated this rekey; we send with SK_er
+		State:         StateEstablished,
+		LocalNonce:    nr,
+		RemoteNonce:   ni,
+		Proposal:      chosen,
+		SKKeys:        newKeys,
+		NextMsgID:     0,
+		ExpectedMsgID: 0,
+		NATDetected:   oldSA.NATDetected,
+		BehindNAT:     oldSA.BehindNAT,
+		CreatedAt:     now,
+		EstablishedAt: now,
+	}
+
+	// Response SA carries our new IKE SPI on the chosen proposal.
+	props := chosenIKEProposalToWire(chosen)
+	spiBytes := make([]byte, 8)
+	copy(spiBytes, ourNewSPI[:])
+	for i := range props {
+		props[i].SPISize = 8
+		props[i].SPI = spiBytes
+	}
+	inner2 := []wire.PayloadEntry{
+		{Payload: &wire.PayloadSA{Proposals: props}},
+		{Payload: &wire.PayloadNonce{NonceData: nr}},
+		{Payload: &wire.PayloadKE{DHGroup: uint16(chosen.DHGroup.ID), KeyExchangeData: ourPub}},
+	}
+	resp, err := buildEncryptedMessageEx(oldSA, inner2, msgID, wire.ExchangeCreateChildSA, initiatorFlag(oldSA)|wire.FlagResponse)
+	if err != nil {
+		newKeys.Clear()
+		return nil, nil, err
+	}
+	log.Info("ike-sa: responding to peer IKE rekey", "peer", oldSA.PeerName,
+		"old-rspi", SPIHex(oldSA.ResponderSPI), "new-rspi", SPIHex(ourNewSPI))
+	return resp, newSA, nil
 }

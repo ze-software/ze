@@ -79,7 +79,7 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 	case wire.ExchangeCreateChildSA:
 		out = ps.handleCreateChildSAOwned(sa, &msg, inner, isResponse, tr, dp, log)
 	case wire.ExchangeInformational:
-		ps.handleInformationalOwned(sa, &msg, inner, isResponse, tr, dp, log)
+		out = ps.handleInformationalOwned(sa, &msg, inner, isResponse, tr, dp, log)
 	default:
 		log.Debug("ike: unexpected owned exchange", "peer", ps.peerName, "exchange", msg.Header.ExchangeType)
 	}
@@ -186,15 +186,24 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 			"old-in", old.InboundSPI, "new-in", newChild.InboundSPI)
 		return ownedOutcome{newChild: newChild}
 	}
-	// A CREATE_CHILD_SA request without REKEY_SA is a new Child SA or a
-	// peer-initiated IKE SA rekey (SA+KE, no TS). Ze responds to neither yet: as the
-	// IKE SA responder it would have to flip its SK encrypt/decrypt direction
-	// (spec-ipsec-14). Drop; the peer retransmits and the SA eventually hard-expires.
+	// A CREATE_CHILD_SA request with SA+KE and no TS/REKEY_SA is a peer-initiated
+	// IKE SA rekey (RFC 7296 Section 1.3.3). Respond with the new IKE SA keys; the
+	// owner loop swaps to the new SA when the peer's Delete of the old one arrives
+	// (spec-ipsec-14, closes ipsec-13's deferred responder).
 	if hasKEPayload(inner) {
-		log.Info("ike: peer-initiated IKE SA rekey not supported (responder), ignoring", "peer", ps.peerName)
-	} else {
-		log.Debug("ike: peer new-child request unsupported, ignoring", "peer", ps.peerName)
+		resp, newSA, err := respondIKERekey(sa, inner, msg.Header.MessageID, log)
+		if err != nil {
+			log.Warn("ike: IKE rekey respond failed", "peer", ps.peerName, "error", err)
+			return ownedOutcome{}
+		}
+		cacheResponse(sa, msg.Header.MessageID, resp)
+		sendRaw(sa, tr, resp, log)
+		// Make-before-break: hold the new SA until the peer deletes the old IKE SA.
+		ps.setPendingIKESwap(newSA)
+		log.Info("ike: responded to peer IKE SA rekey", "peer", ps.peerName)
+		return ownedOutcome{}
 	}
+	log.Debug("ike: peer new-child request unsupported, ignoring", "peer", ps.peerName)
 	return ownedOutcome{}
 }
 
@@ -236,23 +245,36 @@ func (ps *PeerSession) sendDeleteIKE(sa *SA, tr *transport.UDPTransport, log *sl
 
 // handleInformationalOwned processes INFORMATIONAL requests/responses on an
 // established SA: DPD liveness and Delete. A request is answered (RFC 7296 §1.4).
-func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner []wire.PayloadEntry, isResponse bool, tr *transport.UDPTransport, dp dataplane.Dataplane, log *slog.Logger) {
+func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner []wire.PayloadEntry, isResponse bool, tr *transport.UDPTransport, dp dataplane.Dataplane, log *slog.Logger) ownedOutcome {
+	var out ownedOutcome
 	for i := range inner {
-		if del, ok := inner[i].Payload.(*wire.PayloadDelete); ok {
-			ps.handleDeletePayload(sa, del, dp, log)
+		del, ok := inner[i].Payload.(*wire.PayloadDelete)
+		if !ok {
+			continue
 		}
+		if del.ProtocolID == wire.ProtocolIKE && ps.pendingIKESwap != nil {
+			// RFC 7296 §2.8: the peer confirmed the IKE rekey by deleting the old SA.
+			// Swap to the new SA instead of tearing the session down.
+			out.newSA = ps.pendingIKESwap
+			ps.pendingIKESwap = nil
+			log.Info("ike: peer deleted old IKE SA after rekey, swapping to new SA", "peer", ps.peerName)
+			continue
+		}
+		ps.handleDeletePayload(sa, del, dp, log)
 	}
 	if isResponse {
-		return
+		return out
 	}
 	// RFC 7296 §1.4: every INFORMATIONAL request (DPD probe or Delete) is answered.
+	// The response is still built under the current (old) SA keys.
 	resp, err := buildEncryptedMessageEx(sa, nil, msg.Header.MessageID, wire.ExchangeInformational, initiatorFlag(sa)|wire.FlagResponse)
 	if err != nil {
 		log.Debug("ike: informational response build failed", "peer", ps.peerName, "error", err)
-		return
+		return out
 	}
 	cacheResponse(sa, msg.Header.MessageID, resp)
 	sendRaw(sa, tr, resp, log)
+	return out
 }
 
 // handleDeletePayload removes the superseded Child SA when the peer confirms a

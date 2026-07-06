@@ -164,3 +164,25 @@ func (sa *SA) remoteUDPAddr() *net.UDPAddr {
 	}
 	return addr
 }
+
+// initiatorNonce and responderNonce return the two IKE_SA_INIT nonces in the
+// absolute RFC 7296 order (Ni = the IKE-SA initiator's nonce, Nr = the
+// responder's), independent of which side this SA is. Key derivation (SKEYSEED,
+// SK_*, and Child SA KEYMAT) is defined over the absolute pair Ni|Nr, so
+// responder-side derivation MUST NOT feed Local/Remote directly — for a responder
+// SA LocalNonce is Nr and RemoteNonce is Ni. For an initiator SA these return
+// LocalNonce/RemoteNonce respectively, so existing initiator call sites are
+// unchanged. RFC 7296 Section 2.14, Section 2.17.
+func (sa *SA) initiatorNonce() []byte {
+	if sa.IsInitiator {
+		return sa.LocalNonce
+	}
+	return sa.RemoteNonce
+}
+
+func (sa *SA) responderNonce() []byte {
+	if sa.IsInitiator {
+		return sa.RemoteNonce
+	}
+	return sa.LocalNonce
+}

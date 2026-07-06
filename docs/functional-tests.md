@@ -58,6 +58,7 @@ must be run manually:
 | OSPFv2 wire | `bin/ze-test ospf-wire --all` | Wire-level codec fixture separate from release-gate OSPF runtime scenarios |
 | IS-IS wire | `bin/ze-test isis-wire --all` | Wire-level codec fixture separate from release-gate IS-IS runtime scenarios |
 | BGP interop | `python3 test/interop/run.py [scenario]` | Requires Docker peer daemons and image builds |
+| IPsec interop | `make ze-ipsec-interop-test` or `python3 test/ipsec-interop/run.py [scenario]` | strongSwan peer via Docker (privileged). Ze as initiator (`01`-`05`) and responder (`07-responder-psk`, `08-responder-eap-mschapv2`, `09-responder-ike-rekey`). Dataplane checks gate on XFRM availability; control plane verified from strongSwan logs. |
 | Chaos web | `bin/ze-test bgp chaos-web --all` | Chaos dashboard scenarios live under the BGP runner |
 
 These suites also have `make` targets: `make ze-static-test`,
@@ -111,7 +112,7 @@ Ze as the PPPoE client (the `test/pppoe/*.ci` tests run Ze as the server). The
 Docker form needs host-kernel `/dev/ppp` + `pppoe`; on macOS or any host without
 it, `make ze-qemu-pppoe-accel-test` runs the same proof in a QEMU netns
 (`scripts/evidence/effective-pppoe-accel.py`) using the runtime kernel built by
-`make ze-kernel`. See `docs/architecture/testing/pppoe-interop.md`.
+`make ze-kernel`. See `docs/labs/pppoe-interop.md`.
 <!-- source: internal/test/cli/register.go -- subcommand registry -->
 <!-- source: internal/test/cli/cmd_bgp.go -- chaos-web suite -->
 <!-- source: Makefile -- ze-linux-test -->
