@@ -8,6 +8,7 @@ package reactor
 import (
 	"encoding/binary"
 	"net/netip"
+	"slices"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
@@ -104,6 +105,55 @@ func writeASPathAttr(buf []byte, off int, asns []uint32, asn4 bool) int {
 	}
 
 	return off - start
+}
+
+// isNonMappableAS reports whether asn cannot be represented in two octets.
+// RFC 6793 §4.2.1: a four-octet AS is "mappable" only when its high two octets
+// are zero; a non-mappable AS is encoded as AS_TRANS (23456) in a two-octet
+// AS_PATH, which obliges the sender to also emit an AS4_PATH (§4.2.2).
+func isNonMappableAS(asn uint32) bool { return asn > 0xFFFF }
+
+// anyNonMappableAS reports whether asns contains a non-mappable four-octet AS.
+// Callers use it to decide whether a two-octet AS_PATH they are about to send
+// needs an accompanying AS4_PATH (RFC 6793 §4.2.2): when every AS is mappable the
+// AS4_PATH MUST NOT be sent.
+func anyNonMappableAS(asns []uint32) bool {
+	return slices.ContainsFunc(asns, isNonMappableAS)
+}
+
+// asPathHasNonMappableAS reports whether asPath carries a non-mappable AS in a
+// non-confederation segment. Confederation segments are skipped because RFC 6793
+// §3 forbids them in AS4_PATH, so a non-mappable AS confined to a confed segment
+// would never appear in the AS4_PATH we would emit and must not trigger one.
+func asPathHasNonMappableAS(asPath *attribute.ASPath) bool {
+	if asPath == nil {
+		return false
+	}
+	for _, seg := range asPath.Segments {
+		if seg.Type == attribute.ASConfedSequence || seg.Type == attribute.ASConfedSet {
+			continue
+		}
+		if anyNonMappableAS(seg.ASNs) {
+			return true
+		}
+	}
+	return false
+}
+
+// writeAS4PathForASNs writes an AS4_PATH attribute (RFC 6793 §4.2.2) carrying
+// asns as a single four-octet AS_SEQUENCE into buf at off, returning bytes
+// written. It emits only toward an OLD (2-octet) peer (asn4 == false) and only
+// when asns holds a non-mappable AS, i.e. exactly when the two-octet AS_PATH just
+// written had to substitute AS_TRANS; otherwise it writes nothing. The origination
+// encoders synthesize a single-sequence path, so a single AS_SEQUENCE suffices
+// (multi-segment stored paths use asPathHasNonMappableAS + an AS4Path built from
+// the segments directly). Reuses the tested AS4Path encoder.
+func writeAS4PathForASNs(buf []byte, off int, asn4 bool, asns []uint32) int {
+	if asn4 || !anyNonMappableAS(asns) {
+		return 0
+	}
+	as4 := &attribute.AS4Path{Segments: []attribute.ASPathSegment{{Type: attribute.ASSequence, ASNs: asns}}}
+	return attribute.WriteAttrTo(as4, buf, off)
 }
 
 // writeNextHopAttr writes NEXT_HOP attribute directly to buf.
@@ -324,6 +374,10 @@ func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, localAS 
 
 	// NLRI handling - MP_REACH_NLRI (14) goes at end per our pattern
 	if !isIPv6 {
+		// AS4_PATH (17) last, after every lower-numbered attribute, when the
+		// two-octet AS_PATH above had to carry AS_TRANS toward an OLD peer.
+		off += writeAS4PathForASNs(buf, off, asn4, asPathASNs)
+
 		// IPv4: Write NLRI directly after attributes (zero-alloc)
 		// Backfill attr length first
 		attrLen := off - attrStart
@@ -367,6 +421,10 @@ func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, localAS 
 		// RFC 4760 Section 3 - NLRI (variable)
 		// RFC 7911: WriteNLRI handles ADD-PATH encoding when negotiated
 		off += nlri.WriteNLRI(inet, buf, off, addPath)
+
+		// AS4_PATH (17) after MP_REACH_NLRI (14) keeps type-code order, when the
+		// two-octet AS_PATH above had to carry AS_TRANS toward an OLD peer.
+		off += writeAS4PathForASNs(buf, off, asn4, asPathASNs)
 
 		// Backfill attr length (no inline NLRI for IPv6)
 		attrLen := off - attrStart

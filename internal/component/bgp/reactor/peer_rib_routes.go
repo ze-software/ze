@@ -145,6 +145,16 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 		}
 	}
 
+	// AS4_PATH (RFC 6793 §4.2.2): re-announcing to an OLD (2-octet) peer, the
+	// AS_PATH written above encoded any non-mappable four-octet AS as AS_TRANS;
+	// carry the real AS numbers in an AS4_PATH so the peer can reconstruct the
+	// path. Emitted last -- type code 17 is the highest attribute here -- and
+	// built from the same AS_PATH (AS4Path.WriteTo drops confed segments per §3).
+	if !asn4 && asPathHasNonMappableAS(asPath) {
+		as4 := &attribute.AS4Path{Segments: asPath.Segments}
+		off += attribute.WriteAttrTo(as4, attrBuf, off)
+	}
+
 	return &message.Update{
 		PathAttributes: attrBuf[:off],
 		NLRI:           nlriBytes,

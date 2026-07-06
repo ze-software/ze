@@ -333,8 +333,13 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 
 	// Wire mode: ensure mandatory attributes present, then add NEXT_HOP or MP_REACH_NLRI
 	if batch.Wire != nil {
+		hadASPath, _ := batch.Wire.Has(attribute.AttrASPath)
 		attrOff := a.writeMandatoryAttrs(attrBuf, batch.Wire, isIBGP, asn4, localAS, batch.OriginAS)
-		return a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
+		update := a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
+		if !hadASPath {
+			a.appendAnnounceAS4Path(update, attrBuf, isIBGP, asn4, localAS, batch.OriginAS)
+		}
+		return update
 	}
 
 	// Builder mode or default: build attributes from Builder or defaults
@@ -350,10 +355,31 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 
 	// Ensure ORIGIN and AS_PATH are present (Builder may not include AS_PATH)
 	wire := attribute.NewAttributesWire(builtBytes, 0)
+	hadASPath, _ := wire.Has(attribute.AttrASPath)
 	attrOff := a.writeMandatoryAttrs(attrBuf, wire, isIBGP, asn4, localAS, batch.OriginAS)
 
 	// Add NEXT_HOP or MP_REACH_NLRI
-	return a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
+	update := a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
+	if !hadASPath {
+		a.appendAnnounceAS4Path(update, attrBuf, isIBGP, asn4, localAS, batch.OriginAS)
+	}
+	return update
+}
+
+// appendAnnounceAS4Path appends an AS4_PATH attribute to update's PathAttributes
+// (which alias attrBuf) when writeASPath synthesized a two-octet AS_PATH that had
+// to carry AS_TRANS toward an OLD peer. It is called only when this builder
+// synthesized the AS_PATH -- a verbatim AS_PATH copied from batch.Wire/Attrs owns
+// its own encoding. AS4_PATH's type code (17) is higher than every attribute this
+// builder emits (NEXT_HOP 3, LOCAL_PREF 5, communities 8, MP_REACH 14), so
+// appending it last keeps the attributes in type-code order.
+func (a *reactorAPIAdapter) appendAnnounceAS4Path(update *message.Update, attrBuf []byte, isIBGP, asn4 bool, localAS, originAS uint32) {
+	off := len(update.PathAttributes)
+	n := writeAnnounceAS4Path(attrBuf, off, isIBGP, asn4, localAS, originAS)
+	if n == 0 {
+		return
+	}
+	update.PathAttributes = attrBuf[:off+n]
 }
 
 // buildWireModeUpdate builds UPDATE using pre-written attribute bytes in attrBuf[:attrOff].
@@ -536,52 +562,56 @@ func (a *reactorAPIAdapter) findNextHopInsertPosition(wireAttrs []byte) int {
 	return pos
 }
 
-// writeASPath writes AS_PATH attribute to buf, returning bytes written.
-// localAS is the peer-specific local AS number (may differ from reactor global config).
+// announceASPathASNs appends to dst, and returns, the AS_PATH ASN sequence this
+// builder synthesizes for an announce that does not carry a verbatim AS_PATH:
 //
-// KNOWN LIMITATION (RFC 6793): when originAS is a 4-byte AS (> 65535) and the
-// peer did NOT negotiate 4-octet AS support (asn4 == false), writeASPathAttr
-// maps originAS to AS_TRANS (23456) in AS_PATH and this announce path emits no
-// accompanying AS4_PATH attribute, so that legacy peer cannot recover the real
-// 4-byte origin. This is pre-existing (a verbatim explicit `as-path` carrying a
-// 4-byte ASN toward a non-asn4 peer has always had it) and effectively
-// unreachable in practice: 4-octet AS support is near-universal since ~2009, and
-// the AS112 default origin (112) is 2-byte. A general RFC 6793 AS4_PATH
-// generator on the announce path (mirroring the forward-path AS4_PATH handling)
-// belongs in its own reactor spec rather than bolted onto this batch builder.
-func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool, localAS, originAS uint32) int {
-	// Virtual-router origin (origin-as): synthesize [originAS] for iBGP and
-	// prepend the local AS for eBGP ([localAS, originAS]) -- the normal export
-	// rule, so a real eBGP peer sees a well-formed first AS (enforce-first-as).
+//   - origin-as (originAS != 0): [originAS] for iBGP, [localAS, originAS] for
+//     eBGP -- the normal export rule, so a real eBGP peer sees a well-formed
+//     first AS (enforce-first-as).
+//   - plain export (originAS == 0): empty for iBGP, [localAS] for eBGP.
+//
+// dst is normally a stack-allocated scratch array (the sequence is at most two
+// ASNs) so the announce path stays allocation-free. This is the single source of
+// the synthesized AS_PATH shape, shared by writeASPath (which two-octet-encodes
+// it, mapping a non-mappable AS to AS_TRANS) and writeAnnounceAS4Path (which
+// four-octet-encodes the same sequence into an AS4_PATH when that mapping happens
+// toward an OLD peer), so the AS_PATH and AS4_PATH can never disagree.
+func announceASPathASNs(dst []uint32, isIBGP bool, localAS, originAS uint32) []uint32 {
 	if originAS != 0 {
-		if isIBGP {
-			return writeASPathAttr(buf, 0, []uint32{originAS}, asn4)
+		if !isIBGP {
+			dst = append(dst, localAS)
 		}
-		return writeASPathAttr(buf, 0, []uint32{localAS, originAS}, asn4)
+		return append(dst, originAS)
 	}
-	switch {
-	case isIBGP:
-		buf[0] = 0x40 // Transitive
-		buf[1] = 2    // AS_PATH
-		buf[2] = 0    // Length = 0 (empty)
-		return 3
-	case asn4:
-		buf[0] = 0x40 // Transitive
-		buf[1] = 2    // AS_PATH
-		buf[2] = 6    // Length: 2 (segment header) + 4 (ASN)
-		buf[3] = byte(attribute.ASSequence)
-		buf[4] = 1 // Count = 1
-		binary.BigEndian.PutUint32(buf[5:], localAS)
-		return 9
-	default: // ASN2 eBGP
-		buf[0] = 0x40 // Transitive
-		buf[1] = 2    // AS_PATH
-		buf[2] = 4    // Length: 2 (segment header) + 2 (ASN)
-		buf[3] = byte(attribute.ASSequence)
-		buf[4] = 1                                           // Count = 1
-		binary.BigEndian.PutUint16(buf[5:], uint16(localAS)) //nolint:gosec // LocalAS validated ≤ 65535 in ASN2 path
-		return 7
+	if isIBGP {
+		return dst // empty AS_PATH
 	}
+	return append(dst, localAS)
+}
+
+// writeASPath writes the AS_PATH attribute to buf, returning bytes written.
+// localAS is the peer-specific local AS number (may differ from reactor global
+// config). A non-mappable four-octet AS (localAS or originAS > 65535) toward a
+// peer that did not negotiate 4-octet support (asn4 == false) is encoded as
+// AS_TRANS here (via writeASPathAttr); buildBatchAnnounceUpdate then emits the
+// matching AS4_PATH (RFC 6793 §4.2.2) so the OLD peer can recover the real AS.
+func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool, localAS, originAS uint32) int {
+	var scratch [2]uint32
+	return writeASPathAttr(buf, 0, announceASPathASNs(scratch[:0], isIBGP, localAS, originAS), asn4)
+}
+
+// writeAnnounceAS4Path appends an AS4_PATH attribute into buf at off when the
+// AS_PATH synthesized by announceASPathASNs had to substitute AS_TRANS toward an
+// OLD (2-octet) peer, returning bytes written (0 when none is needed).
+//
+// RFC 6793 §4.2.2: a NEW speaker sending a two-octet AS_PATH that contains a
+// non-mappable AS MUST also send the AS4_PATH (four-octet encoding of the same
+// sequence); when every AS is mappable it MUST NOT. asn4 == true means the peer
+// negotiated 4-octet support, so AS_PATH already carries the real ASNs and no
+// AS4_PATH is sent.
+func writeAnnounceAS4Path(buf []byte, off int, isIBGP, asn4 bool, localAS, originAS uint32) int {
+	var scratch [2]uint32
+	return writeAS4PathForASNs(buf, off, asn4, announceASPathASNs(scratch[:0], isIBGP, localAS, originAS))
 }
 
 // buildBatchWithdrawUpdate builds an UPDATE message for withdrawing a batch of NLRIs.
