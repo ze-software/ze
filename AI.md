@@ -163,11 +163,12 @@ opaque blobs, unrelated palettes, or custom components without updating the
 style guide in the same change.
 
 Navigation is part of the design system. `data/nav.json` owns the top
-mega-menu, footer, generated nav patches, and `llms.txt` structure. Group the
-top menu by reader job: Start, Evaluate, Docs, Examples, Reference, Project.
-Every multi-column dropdown must show a label at the top of each column. Use
-short labels and one-line descriptions. Do not let dropdown panels clip outside
-the viewport.
+mega-menu, generated nav patches, and `llms.txt` page map. The footer is a
+single license line from `sitelib.footer_html`, not a sitemap or second
+call-to-action block. Group the top menu by reader job: Start, Evaluate, Docs,
+Examples, Reference, Project. Every multi-column dropdown must show a label at
+the top of each column. Use short labels and one-line descriptions. Do not let
+dropdown panels clip outside the viewport.
 
 Use the right page menu for easy local navigation. Add related choices, nearby
 evidence, and next steps to `data/page-links.json`; `sitelib.patch_page_sidebar`

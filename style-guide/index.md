@@ -8,7 +8,7 @@ The palette, components, and content rules this site follows -- so new pages sta
 
 Seven candy hues on a calm blush base.
 
-Each hue ships four tones in `assets/site.css?v=5876b4a2f7`: `-base` (the vivid candy color), `-deep` (text-safe dark), `-chip` (pill background), and `-tint` (card surface), plus a `-glow` for hue-tinted shadows. Never mix tones across hues on one component.
+Each hue ships four tones in `assets/site.css?v=8f7ce1d628`: `-base` (the vivid candy color), `-deep` (text-safe dark), `-chip` (pill background), and `-tint` (card surface), plus a `-glow` for hue-tinted shadows. Never mix tones across hues on one component.
 
  Operate
 
@@ -166,13 +166,13 @@ Wraps markdown rendered by tools/render-doc.py -- headings, tables, blockquotes,
 
 ## Navigation rules
 
-Top menu, right menu, and footer all come from shared data.
+Top menu and right menu come from shared data; footer is a license line.
 
-Use navigation to explain where the reader should go next, not as a dump of every page. The top mega-menu is the global map from `data/nav.json`. The right page menu is the local guide from `data/page-links.json`. Both are generated into pages by the site tools, so do not hand-code equivalent link lists in page bodies.
+Use navigation to explain where the reader should go next, not as a dump of every page. The top mega-menu is the global map from `data/nav.json`. The right page menu is the local guide from `data/page-links.json`. The footer is a shared license line from `sitelib.footer_html`. Do not hand-code equivalent link lists in page bodies.
 
 ### Top mega-menu
 
-Every multi-column dropdown must have a label at the top of each column. Keep Project grouped by job: overview, reference, quality, evidence. Do not let a dropdown clip outside the viewport.
+Every multi-column dropdown must have a label at the top of each column. Group the top menu by reader job: Start, Evaluate, Docs, Examples, Reference, Project. Do not let a dropdown clip outside the viewport.
 
 ### Right menu
 
@@ -236,7 +236,7 @@ The text beside a title is one or two sentences, max. Longer verbiage moves to a
 
 ### Dedicated pages over a single page
 
-New substantial content gets its own page and a nav/footer link, not another section bolted onto index.html.
+New substantial content gets its own page and a top-nav or right-menu path, not another section bolted onto index.html.
 
 ### Markdown-sourced where it can be
 

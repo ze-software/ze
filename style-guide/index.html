@@ -21,7 +21,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css?v=5876b4a2f7" />
+        <link rel="stylesheet" href="../assets/site.css?v=8f7ce1d628" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -332,7 +332,7 @@
                 <div class="section-note reveal">
                     <p>
                         Each hue ships four tones in
-                        <code>assets/site.css?v=5876b4a2f7</code>: <code>-base</code> (the
+                        <code>assets/site.css?v=8f7ce1d628</code>: <code>-base</code> (the
                         vivid candy color), <code>-deep</code> (text-safe
                         dark), <code>-chip</code> (pill background), and
                         <code>-tint</code> (card surface), plus a
@@ -558,7 +558,7 @@
             <section aria-labelledby="sg-navigation">
                 <div class="section-head reveal">
                     <h2 id="sg-navigation">Navigation rules</h2>
-                    <p>Top menu, right menu, and footer all come from shared data.</p>
+                    <p>Top menu and right menu come from shared data; footer is a license line.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>
@@ -566,15 +566,15 @@
                         not as a dump of every page. The top mega-menu is the
                         global map from <code>data/nav.json</code>. The right
                         page menu is the local guide from
-                        <code>data/page-links.json</code>. Both are generated into
-                        pages by the site tools, so do not hand-code equivalent
-                        link lists in page bodies.
+                        <code>data/page-links.json</code>. The footer is a
+                        shared license line from <code>sitelib.footer_html</code>.
+                        Do not hand-code equivalent link lists in page bodies.
                     </p>
                 </div>
                 <div class="cards reveal">
                     <article class="card">
                         <h3>Top mega-menu</h3>
-                        <p>Every multi-column dropdown must have a label at the top of each column. Keep Project grouped by job: overview, reference, quality, evidence. Do not let a dropdown clip outside the viewport.</p>
+                        <p>Every multi-column dropdown must have a label at the top of each column. Group the top menu by reader job: Start, Evaluate, Docs, Examples, Reference, Project. Do not let a dropdown clip outside the viewport.</p>
                     </article>
                     <article class="card">
                         <h3>Right menu</h3>
@@ -647,7 +647,7 @@
                     </article>
                     <article class="card">
                         <h3>Dedicated pages over a single page</h3>
-                        <p>New substantial content gets its own page and a nav/footer link, not another section bolted onto index.html.</p>
+                        <p>New substantial content gets its own page and a top-nav or right-menu path, not another section bolted onto index.html.</p>
                     </article>
                     <article class="card">
                         <h3>Markdown-sourced where it can be</h3>

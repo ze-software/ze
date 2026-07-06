@@ -20,12 +20,20 @@ SKIP_TOP = {
 }
 PRESENTATION_PAGE_NAMES = {"index.html", "index-inlined.html"}
 
+REDIRECT_PAGE_DIRS = {
+    pathlib.Path("docs/architecture/testing/l2tp-interop"),
+    pathlib.Path("docs/architecture/testing/pppoe-interop"),
+    pathlib.Path("docs/guide/exabgp-migration"),
+}
+
 
 def include_page(path):
     rel = path.relative_to(GH_PAGES)
     if rel.parts[0] == "presentations":
         return len(rel.parts) == 3 and rel.name in PRESENTATION_PAGE_NAMES
     if rel.parts[0] in SKIP_TOP:
+        return False
+    if rel.parent in REDIRECT_PAGE_DIRS:
         return False
     return path.name == "index.html"
 

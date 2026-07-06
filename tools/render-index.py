@@ -187,26 +187,26 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                         height="134"
                                     />
                                 </a>
-                                <h1 id="hero-title" class="hero-title-sr">Ze open routing for white-label hardware</h1>
                             </div>
                             <p class="hero-start-lead">
                                 Ze creates appliances or makes Linux speak
                                 <strong class="hl blue">BGP</strong>, IS-IS,
-                                and OSPF, manages interfaces, programs the FIB,
-                                and gives operators a CLI, web UI, telemetry,
-                                looking glass, API, and plugin system around
-                                one coherent configuration model.
+                                and OSPF with one YANG configuration model,
+                                operator surfaces, telemetry, and plugins.
                             </p>
                             <div class="hero-start-copy">
                                 <span class="hero-start-kicker"
-                                    >Open routing for white-label hardware</span
+                                    >Linux network OS</span
                                 >
+                                <h1 id="hero-title" class="hero-start-title">
+                                    Open routing for
+                                    <span class="nowrap">white-label</span>
+                                    hardware
+                                </h1>
                                 <p>
-                                    Ze is an open, programmable network OS for
-                                    Linux: BGP core, YANG configuration,
-                                    operator interfaces, generated references,
-                                    runnable labs, inspectable automation hooks,
-                                    extension points, and an
+                                    Native routing protocols, generated
+                                    references, runnable labs, inspectable
+                                    automation hooks, and an
                                     <strong class="hl blue">ExaBGP</strong>
                                     <a href="usage/exabgp-migration/"
                                         >migration path</a
@@ -221,7 +221,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                         >
                             <a
                                 class="hero-start-action hero-start-action-primary search-trigger"
-                                href="#search"
+                                href="search/"
                                 aria-expanded="false"
                                 ><strong>Search the site</strong
                                 ><small
@@ -528,14 +528,16 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
 
 def render(data):
     root = ""
-    title = "Ze - Open, Programmable Network OS For Linux"
+    title = "Ze - Open routing for white-label hardware"
     desc = (
-        "Ze is a pre-release open-source network OS for Linux, built around "
-        "a native BGP engine, operator interfaces, telemetry, and plugins."
+        "Ze is an open, programmable network OS for Linux: native BGP, "
+        "IS-IS, and OSPF, YANG configuration, operator interfaces, runnable "
+        "labs, and an ExaBGP migration path."
     )
     og_desc = (
-        "A serious BGP core and a growing network OS around it. Early, "
-        "tested, open, and ready for labs."
+        "Open routing for white-label hardware, with generated references, "
+        "runnable labs, inspectable automation hooks, and one coherent "
+        "configuration model."
     )
     head = sitelib.page_head(title, desc, root, og_title=title, og_desc=og_desc)
 

@@ -1079,8 +1079,8 @@ MAIN_START_RE = re.compile(r'<main\b[^>]*\bid="top"[^>]*>')
 
 def extract_main(html_text):
     """The page content between <main id="top"> and </main> -- excludes the
-    mega-menu header and footer sitemap, which every page carries and which
-    add nothing for an LLM already holding llms.txt itself."""
+    mega-menu header and shared footer, which every page carries and which add
+    nothing for an LLM already holding llms.txt itself."""
     m = MAIN_START_RE.search(html_text)
     if not m:
         raise ValueError('no <main id="top"> found')
