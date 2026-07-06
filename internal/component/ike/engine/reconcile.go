@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"maps"
 	"sync"
+	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/ipsec"
@@ -22,6 +23,26 @@ type PeerSession struct {
 	mu         sync.Mutex
 	childSA    *ChildSA
 	rekeyCount uint64
+
+	// inbound carries packets for an ESTABLISHED SA from the shared
+	// dispatchInbound goroutine to this session's maintainSA owner loop, so
+	// all post-establishment SA/childSA mutation happens on one goroutine
+	// (rekey design, spec-ipsec-13). Sends are non-blocking: dispatchInbound
+	// serves every peer, so it must never block on one slow owner.
+	inbound chan transport.Packet
+
+	// pendingRekey and supersededChild are owned exclusively by the maintainSA
+	// loop (no lock): the CREATE_CHILD_SA exchange we initiated and await a
+	// response for, and (as rekey responder) the old Child SA kept installed
+	// until the peer's INFORMATIONAL Delete arrives (make-before-break).
+	pendingRekey    *pendingRekey
+	supersededChild *ChildSA
+
+	// established gates owner-loop routing. Set true when maintainSA owns the SA
+	// and false during (re)handshake. routeInbound reads it on the shared dispatch
+	// goroutine, so it is atomic and set-once-per-cycle: this avoids reading the
+	// lockless sa.State across goroutines (which raced with owner-side State writes).
+	established atomic.Bool
 
 	stopCh   chan struct{}
 	done     chan struct{}
@@ -209,6 +230,7 @@ func startPeerSession(
 		peerName: name,
 		peerCfg:  peer,
 		espGroup: espGroup,
+		inbound:  make(chan transport.Packet, inboundQueueDepth),
 		stopCh:   make(chan struct{}),
 		done:     make(chan struct{}),
 	}

@@ -20,6 +20,15 @@ type dpdState struct {
 	lastSent   time.Time
 	awaitReply bool
 	sentAt     time.Time
+	probeMsgID uint32 // message ID of the outstanding DPD probe (RFC 7296 §2.3 correlation)
+}
+
+// matchesProbe reports whether an inbound INFORMATIONAL response with the given
+// message ID is the reply to the outstanding DPD probe. Correlating by message ID
+// (not just "any authenticated INFORMATIONAL response") rejects replayed or
+// out-of-window responses that would otherwise mask a dead peer.
+func (d *dpdState) matchesProbe(msgID uint32) bool {
+	return d != nil && d.awaitReply && d.probeMsgID == msgID
 }
 
 func newDPDState(cfg ipsec.DPDConfig) *dpdState {
@@ -99,6 +108,7 @@ func sendDPD(sa *SA, tr *transport.UDPTransport, dpd *dpdState, log *slog.Logger
 	dpd.lastSent = now
 	dpd.sentAt = now
 	dpd.awaitReply = true
+	dpd.probeMsgID = msg.Header.MessageID
 	log.Debug("dpd: sent probe", "peer", sa.PeerName, "msgid", msg.Header.MessageID)
 }
 

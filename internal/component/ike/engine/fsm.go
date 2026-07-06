@@ -66,6 +66,9 @@ func (ps *PeerSession) runOnce(
 	bus ze.EventBus,
 	log *slog.Logger,
 ) error {
+	// Not yet owned by maintainSA: (re)handshake packets are handled inline on the
+	// dispatch goroutine, not routed to the owner loop.
+	ps.established.Store(false)
 	if peer.ConnectionType == ipsec.ConnectionInitiate {
 		return ps.runInitiator(peer, ikeGroup, table, tr, bus, log)
 	}
@@ -434,6 +437,12 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 
 	sa.State = StateEstablished
 	sa.EstablishedAt = time.Now()
+	// RFC 7296 §2.2: advance past the IKE_AUTH (or final EAP) message ID so the
+	// first post-establishment exchange (rekey, DPD, Delete) uses the next free
+	// ID. Until now NextMsgID held the last-used value; without this the first
+	// CREATE_CHILD_SA reused the IKE_AUTH ID and the peer rejected it
+	// (INVALID_MESSAGE_ID / "expected N, ignored").
+	sa.NextMsgID++
 }
 
 // startEAPExchange initializes the EAP peer session and processes the first EAP request.

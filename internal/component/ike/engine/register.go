@@ -439,8 +439,44 @@ func dispatchNATTInbound(tr *transport.UDPTransport, table *SATable, log *slog.L
 			RemoteAddr: pkt.RemoteAddr,
 			LocalAddr:  pkt.LocalAddr,
 		}
-		handleInbound(sa, nattPkt, table, tr, log)
+		routeInbound(sa, nattPkt, table, tr, log)
 	}
+}
+
+// inboundQueueDepth bounds the per-session owner-loop inbound queue. Control-plane
+// exchanges are one-at-a-time per SA, so a small buffer absorbs the establish
+// hand-off window (SA marked established before maintainSA starts consuming)
+// without letting a stalled owner back up the shared dispatch goroutine.
+const inboundQueueDepth = 16
+
+// lookupPeerSession returns the running session for a peer name, or nil.
+func lookupPeerSession(name string) *PeerSession {
+	peersMu.RLock()
+	defer peersMu.RUnlock()
+	if activePeersMap == nil {
+		return nil
+	}
+	return activePeersMap[name]
+}
+
+// routeInbound delivers a received packet to the correct handler. For an
+// ESTABLISHED SA it hands the packet to the owning session's maintainSA loop
+// (single-owner model, spec-ipsec-13) via a non-blocking send; otherwise (during
+// the initial handshake) it is handled inline as before. If the owner queue is
+// full the packet is dropped and the peer will retransmit.
+func routeInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.UDPTransport, log *slog.Logger) {
+	// Route to the owner loop only once maintainSA owns the SA. `ps.established`
+	// is an atomic set by the session goroutine, so reading it here (on the shared
+	// dispatch goroutine) does not race with owner-side sa.State writes.
+	if ps := lookupPeerSession(sa.PeerName); ps != nil && ps.established.Load() && ps.inbound != nil {
+		select {
+		case ps.inbound <- pkt:
+		default:
+			log.Warn("ike: owner inbound queue full, dropping packet", "peer", sa.PeerName)
+		}
+		return
+	}
+	handleInbound(sa, pkt, table, tr, log)
 }
 
 // dispatchInbound reads packets from the transport and dispatches to the
@@ -478,7 +514,7 @@ func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logge
 			continue
 		}
 
-		handleInbound(sa, pkt, table, tr, log)
+		routeInbound(sa, pkt, table, tr, log)
 	}
 }
 

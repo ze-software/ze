@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1080 summaries
+Total: 1081 summaries
 
 ## 000-099
 
@@ -1144,3 +1144,4 @@ Total: 1080 summaries
 | 1066 | as112-bgp-redistribute | `plan/learned/1066-as112-bgp-redistribute.md` |
 | 1067 | Generated Discovery Indexes | `plan/learned/1067-generated-discovery-indexes.md` |
 | 1068 | Digest Anchor Validator and Subsystem Digest Expansion | `plan/learned/1068-digest-anchor-validator.md` |
+| 1069 | IKE/Child SA Rekey: Real CREATE_CHILD_SA Wire Exchange | `plan/learned/1069-ipsec-13-rekey-wire.md` |

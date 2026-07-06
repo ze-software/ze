@@ -153,8 +153,17 @@ func buildEAPAuthMessage(sa *SA) ([]byte, error) {
 	return buildEncryptedMessage(sa, innerPayloads, sa.NextMsgID)
 }
 
-// buildEncryptedMessage serializes inner payloads into an encrypted SK message.
+// buildEncryptedMessage serializes inner payloads into an encrypted IKE_AUTH SK
+// message (initiator request). Retained for existing IKE_AUTH callers.
 func buildEncryptedMessage(sa *SA, innerPayloads []wire.PayloadEntry, messageID uint32) ([]byte, error) {
+	return buildEncryptedMessageEx(sa, innerPayloads, messageID, wire.ExchangeIKEAuth, wire.FlagInitiator)
+}
+
+// buildEncryptedMessageEx serializes inner payloads into an encrypted SK message
+// for an arbitrary exchange type and header flags. CREATE_CHILD_SA rekey requests
+// and responses reuse the same SK wrapping as IKE_AUTH, differing only in the
+// header ExchangeType and the Response flag.
+func buildEncryptedMessageEx(sa *SA, innerPayloads []wire.PayloadEntry, messageID uint32, exchangeType, flags uint8) ([]byte, error) {
 	const maxInnerSize = 65536
 	innerBuf := make([]byte, maxInnerSize)
 	off := 0
@@ -185,9 +194,9 @@ func buildEncryptedMessage(sa *SA, innerPayloads []wire.PayloadEntry, messageID 
 	}
 
 	if sa.Proposal.Encryption.IsAEAD {
-		return buildSKMessageAEADWithMsgID(sa, innerData, innerFirstType, messageID)
+		return buildSKMessageAEADWithMsgID(sa, innerData, innerFirstType, messageID, exchangeType, flags)
 	}
-	return buildSKMessageCBCWithMsgID(sa, innerData, innerFirstType, messageID)
+	return buildSKMessageCBCWithMsgID(sa, innerData, innerFirstType, messageID, exchangeType, flags)
 }
 
 // computeLocalAuth computes the local AUTH payload.
@@ -456,7 +465,7 @@ func buildCertPayloads(sa *SA) []wire.PayloadEntry {
 
 // buildSKMessageCBCWithMsgID builds a complete IKE_AUTH message with AES-CBC + HMAC.
 // Wire: [Header 28][SK GH 4][IV blockSize][Encrypted(content+pad+padlen)][ICV truncLen].
-func buildSKMessageCBCWithMsgID(sa *SA, innerData []byte, firstType uint8, messageID uint32) ([]byte, error) {
+func buildSKMessageCBCWithMsgID(sa *SA, innerData []byte, firstType uint8, messageID uint32, exchangeType, flags uint8) ([]byte, error) {
 	const blockSize = 16 // AES block size
 
 	contentLen := len(innerData)
@@ -474,7 +483,7 @@ func buildSKMessageCBCWithMsgID(sa *SA, innerData []byte, firstType uint8, messa
 	totalLen := wire.HeaderLen + wire.GenericHeaderLen + blockSize + paddedLen + integTrunc
 	buf := make([]byte, totalLen)
 
-	writeAuthHeaderWithMsgID(buf, sa, firstType, uint32(totalLen), messageID)
+	writeAuthHeaderWithMsgID(buf, sa, firstType, uint32(totalLen), messageID, exchangeType, flags)
 
 	ivOff := wire.HeaderLen + wire.GenericHeaderLen
 	if _, err := crand.Read(buf[ivOff : ivOff+blockSize]); err != nil {
@@ -502,7 +511,7 @@ func buildSKMessageCBCWithMsgID(sa *SA, innerData []byte, firstType uint8, messa
 
 // buildSKMessageAEADWithMsgID builds a complete IKE_AUTH message with AES-GCM.
 // Wire: [Header 28][SK GH 4][IV 8][ciphertext][GCM tag 16].
-func buildSKMessageAEADWithMsgID(sa *SA, innerData []byte, firstType uint8, messageID uint32) ([]byte, error) {
+func buildSKMessageAEADWithMsgID(sa *SA, innerData []byte, firstType uint8, messageID uint32, exchangeType, flags uint8) ([]byte, error) {
 	const ivLen = 8
 	const tagLen = 16
 
@@ -513,7 +522,7 @@ func buildSKMessageAEADWithMsgID(sa *SA, innerData []byte, firstType uint8, mess
 	totalLen := wire.HeaderLen + wire.GenericHeaderLen + ivLen + len(plaintext) + tagLen
 	buf := make([]byte, totalLen)
 
-	writeAuthHeaderWithMsgID(buf, sa, firstType, uint32(totalLen), messageID)
+	writeAuthHeaderWithMsgID(buf, sa, firstType, uint32(totalLen), messageID, exchangeType, flags)
 
 	ivOff := wire.HeaderLen + wire.GenericHeaderLen
 	if _, err := crand.Read(buf[ivOff : ivOff+ivLen]); err != nil {
@@ -540,13 +549,13 @@ func buildSKMessageAEADWithMsgID(sa *SA, innerData []byte, firstType uint8, mess
 	return buf, nil
 }
 
-func writeAuthHeaderWithMsgID(buf []byte, sa *SA, firstType uint8, totalLen, messageID uint32) {
+func writeAuthHeaderWithMsgID(buf []byte, sa *SA, firstType uint8, totalLen, messageID uint32, exchangeType, flags uint8) {
 	hdr := wire.Header{
 		InitiatorSPI: sa.InitiatorSPI,
 		ResponderSPI: sa.ResponderSPI,
 		MajorVersion: 2,
-		ExchangeType: wire.ExchangeIKEAuth,
-		Flags:        wire.FlagInitiator,
+		ExchangeType: exchangeType,
+		Flags:        flags,
 		MessageID:    messageID,
 		NextPayload:  wire.PayloadTypeSK,
 		Length:       totalLen,

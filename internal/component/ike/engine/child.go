@@ -274,6 +274,25 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	return nil
 }
 
+// installChildTolerant installs a Child SA, tolerating platforms without XFRM/ESP
+// support the same way createFirstChildSA does: on an ErrNotSupported install
+// failure it logs and returns nil so the control plane proceeds (the rekey must
+// not tear down a tunnel that the first Child SA was allowed to establish
+// without a dataplane). Real install errors are returned; the caller clears keys.
+func installChildTolerant(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Dataplane, log *slog.Logger) error {
+	if dp == nil {
+		return nil
+	}
+	if err := installChildSA(child, prop, dp, log); err != nil {
+		if isXFRMUnsupported(err) {
+			log.Warn("child-sa: XFRM not available on this platform, continuing without ESP", "error", err)
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
 // removeChildSA tears down an installed Child SA from the dataplane.
 func removeChildSA(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
 	if dp == nil || child == nil {

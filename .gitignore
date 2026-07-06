@@ -67,6 +67,9 @@ AGENTS.md
 
 test/perf/results/
 bin/ze-perf-linux
+# Cross-compiled ze binary staged into the ipsec-interop Docker build context by
+# test/ipsec-interop/run.py (regenerated each run; ~58MB, must not be committed).
+test/ipsec-interop/ze-linux
 
 # Runtime / scratch artifacts that leak into the working tree from running ze
 /stderr

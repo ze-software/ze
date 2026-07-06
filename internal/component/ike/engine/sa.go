@@ -83,6 +83,13 @@ type SA struct {
 	NextMsgID     uint32
 	ExpectedMsgID uint32
 
+	// Established-SA request/response window (RFC 7296 Section 2.3, size 1).
+	// Cached so a retransmitted peer request is answered without reprocessing.
+	// Accessed only by the maintainSA owner loop after establishment.
+	lastResponse    []byte
+	lastResponseID  uint32
+	lastResponseSet bool
+
 	// Retransmission
 	LastSentMsg     []byte
 	RetransmitTime  time.Time

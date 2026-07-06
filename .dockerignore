@@ -11,4 +11,5 @@ ai/
 test/
 !test/scripts/ze_api.py
 !test/perf/configs/
+!test/ipsec-interop/ze-linux
 *.md

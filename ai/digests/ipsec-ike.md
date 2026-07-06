@@ -114,17 +114,24 @@ tree.
     0xFF probes every 20s (`established.go:46-55`, `keepalive.go:43`).
 14. **Maintenance loop.** `maintainSA` (`established.go:65`) runs a 1s ticker:
     sends DPD probes when due (`dpd.shouldSend`, `dpd.go:49`, `sendDPD` `dpd.go:70`)
-    and tears the tunnel down on timeout (`dpd.go:60`); rekeys the Child SA on soft
-    lifetime expiry (`rekeyChildSA`, `established.go:113`, `rekey.go:78`); rekeys the
-    IKE SA on its own soft lifetime (`rekeyIKESA`, `established.go:134`,
-    `rekey.go:146`); tears down on either hard-lifetime expiry
-    (`established.go:125-149`). A 30s ticker re-announces the route so a
-    late-subscribing redistribute-orchestrator still sees it (`established.go:82-93`).
-15. **Established-SA inbound.** `handleEstablishedInbound` (`fsm.go:203`,
-    `inbound.go:13`) routes `ExchangeInformational` → `handleInformational`
-    (`inbound.go:27`, DPD probe/response or peer DELETE) and
-    `ExchangeCreateChildSA` → `handleCreateChildSA` (`inbound.go:58`), which only
-    classifies and logs (new child / child rekey / IKE rekey), see gotchas.
+    and tears the tunnel down on timeout (`dpd.go:60`); on Child SA soft-lifetime
+    expiry INITIATES a real CREATE_CHILD_SA rekey (`initiateChildRekey`,
+    `rekey.go`, `established.go`) and tracks it in `PeerSession.pendingRekey`; on
+    IKE SA soft expiry initiates an IKE-SA rekey (`initiateIKERekey`, KE mandatory);
+    completion is driven by the inbound response (item 15). Hard-expiry teardown is
+    suppressed while a rekey is in flight (`ps.pendingRekey == nil` guard); an
+    unanswered rekey retransmits then tears down (`serviceRekeyRetransmit`). A 30s
+    ticker re-announces the route (`established.go:82-93`).
+15. **Established-SA inbound (owner-loop, spec-ipsec-13).** Post-establishment
+    packets are routed off the shared `dispatchInbound` goroutine to the owning
+    `PeerSession.inbound` channel (`routeInbound`, `register.go`) so `maintainSA`
+    is the single owner of SA/childSA state. `handleOwnedInbound` (`inbound.go`)
+    applies RFC 7296 §2.3 message-ID validation (`classifyInbound`, `msgid.go`),
+    decrypts the SK payload (`decryptAndParse`), and drives the CREATE_CHILD_SA
+    rekey (initiator: `applyChildRekeyResponse`/`applyIKERekeyResponse` + Delete of
+    the old SA; responder: `respondChildRekey`) and INFORMATIONAL/Delete/DPD. The
+    old `handleEstablishedInbound`/`handleCreateChildSA` log-only path (`inbound.go`)
+    remains only as the no-owner fallback on the `handleInbound` state switch.
 16. **Shutdown.** `PeerSession.Stop` (`reconcile.go:104`) closes `stopCh`;
     `maintainSA`'s select picks it up and calls `cleanupChild`
     (`established.go:87`, `established.go:154`), which removes the XFRM SA/policy
@@ -144,9 +151,10 @@ tree.
 | `engine/table.go` | `SATable`: SPI-pair keyed map (insert/lookup/update-key/remove) |
 | `engine/established.go` | post-AUTH lifecycle: first Child SA, DPD/rekey ticker, cleanup |
 | `engine/child.go` | `ChildSA`, ESP key derivation, XFRM SA + policy install/remove |
-| `engine/rekey.go` | `lifetimeState` (soft/hard, jittered), Child SA + IKE SA rekey (local-only, see gotchas) |
+| `engine/rekey.go` | `lifetimeState` (soft/hard, jittered); real CREATE_CHILD_SA rekey: `initiateChildRekey`/`applyChildRekeyResponse`/`respondChildRekey`, `initiateIKERekey`/`applyIKERekeyResponse`, `resolveRekeyCollision` |
+| `engine/msgid.go` | RFC 7296 §2.3 message-ID window (`classifyInbound`/`cacheResponse`), `pendingRekey` state |
 | `engine/dpd.go` | `dpdState`, unencrypted DPD probe send + timeout detection |
-| `engine/inbound.go` | established-SA INFORMATIONAL/CREATE_CHILD_SA classification (no decrypt, no reply) |
+| `engine/inbound.go` | owner-loop established-SA handling: `handleOwnedInbound` (decrypt, msg-ID, rekey both roles, INFORMATIONAL/Delete); legacy log-only classifiers as no-owner fallback |
 | `engine/eap_auth.go` | MSK-derived AUTH, NAT-T send wrapper (`sendWithNATT`), EAP session construction |
 | `engine/events.go` | `vpn-ipsec/{sa,child}-{up,down,rekey}` EventBus registrations |
 | `engine/redistribute.go` | `"ipsec"` redistribute source registration, `RouteChangeBatch` emit per Child SA TS |
@@ -176,26 +184,30 @@ tree.
   a fresh inbound IKE_SA_INIT into a new responder SA. EAP is likewise
   initiator-side only (`eap/peer.go`); `eap/eap.go` is server-side scaffolding for
   future responder work.
-- **Rekey never talks to the peer.** Neither `rekeyChildSA` (`rekey.go:78`) nor
-  `rekeyIKESA` (`rekey.go:146`) calls `tr.Send`, both derive new keys purely
-  locally. `rekeyIKESA` explicitly "simulates" the DH exchange with itself
-  (`dh.SharedSecret(dh.PublicKey)`, `rekey.go:174`) instead of running a real
-  CREATE_CHILD_SA exchange, so after a rekey the local side's new keys are never
-  agreed with the remote peer, this is a known-incomplete path (matches
-  `plan/learned/742-ipsec-8-ikev2-child-xfrm.md`'s "self-DH until CREATE_CHILD_SA
-  wire exchange is encrypted"), not something later specs closed.
-  `crypto.DeriveChildSAKeysPFS` (`keys.go:138`) exists for a real PFS rekey but is
-  never called anywhere outside tests.
-- **Established-state INFORMATIONAL/CREATE_CHILD_SA never decrypt the SK payload.**
-  `handleInformational`/`handleCreateChildSA` (`inbound.go:27`, `inbound.go:58`)
-  type-switch directly on the payloads produced by the plain `msg.ReadFrom`
-  (`fsm.go:180`) with no call to `decryptSKPayload`. A real peer's encrypted
-  INFORMATIONAL/CREATE_CHILD_SA message parses as a single opaque `PayloadSK` and
-  matches none of the `switch` cases, so it is silently ignored. This is internally
-  consistent with `sendDPD` (`dpd.go:70-103`), which builds and sends a bare,
-  **unencrypted** INFORMATIONAL message despite RFC 7296 §1.4 requiring SK wrapping
-  for every post-IKE_SA_INIT exchange, Ze's own DPD probes round-trip against
-  itself but this path is not RFC-conformant against a real peer.
+- **Rekey is a real CREATE_CHILD_SA wire exchange (spec-ipsec-13, closed the 742
+  self-DH deferral).** The local-roll `rekeyChildSA`/`rekeyIKESA` are gone. The
+  owner loop builds an SK-encrypted CREATE_CHILD_SA (`initiateChildRekey` /
+  `initiateIKERekey`, `rekey.go`), sends it, correlates the response by message ID,
+  derives keys from the peer's Nr/KEr (`applyChildRekeyResponse` /
+  `applyIKERekeyResponse`), installs the new SA before removing the old
+  (make-before-break) and Deletes the old (`sendDeleteESP` / `sendDeleteIKE`).
+  Interop-verified vs strongSwan 5.9.14 (`test/ipsec-interop/scenarios/05-child-rekey`).
+  IKE-SA rekey is INITIATOR-only (Ze logs+drops a peer-initiated IKE rekey; the SK
+  encrypt/decrypt direction is initiator-only, deferred to spec-ipsec-14).
+  Child rekey is non-PFS (matches `createFirstChildSA`); `DeriveChildSAKeysPFS`
+  remains unused. SK header framing is exchange-parameterized (`buildEncryptedMessageEx`).
+- **Established-SA inbound decrypts and acts (owner loop).** `handleOwnedInbound`
+  (`inbound.go`) calls `decryptAndParse` → `decryptSKPayload` and drives the rekey /
+  INFORMATIONAL exchanges. The former log-only `handleCreateChildSA`/`handleInformational`
+  path survives only as the no-owner fallback on the `handleInbound` state switch.
+- **`sendDPD` is still unencrypted (pre-existing, out of spec-ipsec-13 scope).**
+  `sendDPD` (`dpd.go`) builds and sends a bare, **unencrypted** INFORMATIONAL
+  despite RFC 7296 §1.4 requiring SK wrapping for every post-IKE_SA_INIT exchange;
+  DPD defaults on (`config.go:26`, interval 30, cannot be 0). The owner loop DOES
+  answer inbound encrypted INFORMATIONAL requests, and the DPD probe *response* now
+  clears the wait, correlated by message ID against the outstanding probe
+  (`dpdState.probeMsgID` / `matchesProbe`, rejecting replays). The remaining gap is
+  the unencrypted outbound probe itself (a separate DPD spec).
 - **`dataplane.Get()` returns nil until `Load("xfrm")` succeeds** (called once at
   `runEngine` start, `engine/register.go:173`); `createFirstChildSA` then silently skips
   the kernel install and only logs at Debug (`child.go:162-165`), easy to mistake
