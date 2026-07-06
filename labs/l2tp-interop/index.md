@@ -13,7 +13,7 @@ Two scenarios: full PPP/IPv4 dataplane proof with cleanup verification, and a su
  - **Proves:** Full L2TP control tunnel, PPP LCP/IPCP negotiation, kernel pppN creation, BGP redistribution
  - **Peer:** Real xl2tpd/pppd (LAC), optionally FRR as BGP peer
  - **Requires:** Docker and a host kernel with PPPoL2TP support (Docker Desktop on macOS typically lacks this -- use the QEMU path instead)
- - **Source:** [docs/architecture/testing/l2tp-interop.md](https://github.com/ze-software/ze/blob/main/docs/architecture/testing/l2tp-interop.md)
+ - **Source:** [docs/labs/l2tp-interop.md](https://github.com/ze-software/ze/blob/main/docs/labs/l2tp-interop.md)
 
 ```
 # Docker lab, all scenarios

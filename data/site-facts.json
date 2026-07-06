@@ -16,11 +16,11 @@
     "targets": 7
   },
   "tests": {
-    "e2e": 1342,
+    "e2e": 1344,
     "e2e_display": "1,300+",
     "fuzz": 364,
     "fuzz_display": "360+",
-    "unit": 64030,
+    "unit": 64064,
     "unit_display": "64,000+"
   }
 }

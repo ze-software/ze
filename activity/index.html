@@ -27,7 +27,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css?v=fa925661d3" />
+        <link rel="stylesheet" href="../assets/site.css?v=5876b4a2f7" />
         <style>
 
         .activity-page {
@@ -507,30 +507,199 @@
                     <span>Ze</span>
                 </a>
                 <div id="site-nav-links" class="nav-links">
-                    <a href="../#status">Status</a>
-                    <a href="../#try">Try</a>
                     <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-project">Project
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-start">Start
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                    <div class="nav-dropdown-panel" id="nav-panel-project">
+                    <div class="nav-dropdown-panel" id="nav-panel-start">
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Overview</span>
+                        <span class="nav-dropdown-label">First steps</span>
+                        <a class="nav-dropdown-item" href="../docs/guide/quickstart/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/guide/ze-install/">
+                            <span class="nav-dropdown-icon">💿</span>
+                            <span><strong>Install Ze</strong><small>Run Ze on Linux or as a bootable appliance</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/features/configuration/">
+                            <span class="nav-dropdown-icon">⚙️</span>
+                            <span><strong>Configuration</strong><small>The YANG-modeled config shape Ze uses everywhere</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon">⌨️</span>
+                            <span><strong>CLI Basics</strong><small>Diff, commit, history, and operator commands</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Before you run</span>
+                        <a class="nav-dropdown-item" href="../roadmap/">
+                            <span class="nav-dropdown-icon">🗺️</span>
+                            <span><strong>Project Status</strong><small>What is ready today and where Ze is still young</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../faq/">
+                            <span class="nav-dropdown-icon">?</span>
+                            <span><strong>FAQ</strong><small>Common questions before committing time to Ze</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/features/plugins/">
+                            <span class="nav-dropdown-icon">🔌</span>
+                            <span><strong>Plugin Catalog</strong><small>Search every runtime plugin by purpose, config, or dependency</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-evaluate">Evaluate
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-evaluate">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Capabilities</span>
                         <a class="nav-dropdown-item" href="../features/">
                             <span class="nav-dropdown-icon">🧩</span>
                             <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
                         </a>
-                        <a class="nav-dropdown-item" href="../docs/features/plugins/">
-                            <span class="nav-dropdown-icon">🔌</span>
-                            <span><strong>Plugins</strong><small>Search every runtime plugin by purpose, config, or dependency</small></span>
-                        </a>
                         <a class="nav-dropdown-item" href="../compare/">
                             <span class="nav-dropdown-icon">⚖️</span>
-                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, VyOS, and more</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../performance/">
+                            <span class="nav-dropdown-icon">⚡</span>
+                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
                         </a>
                     </div>
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Reference</span>
+                        <span class="nav-dropdown-label">Trust</span>
+                        <a class="nav-dropdown-item" href="../quality/">
+                            <span class="nav-dropdown-icon">✓</span>
+                            <span><strong>Code Quality</strong><small>Tests, QEMU, fuzzing, and mutation checks</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../dependencies/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../security/">
+                            <span class="nav-dropdown-icon">🔒</span>
+                            <span><strong>Security</strong><small>Security policy and vulnerability reporting</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-docs">Docs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-docs">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Hub</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../docs/">
+                            <span class="nav-dropdown-icon">📚</span>
+                            <span><strong>Documentation</strong><small>All docs, organized by what you want to do</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Core docs</span>
+                        <a class="nav-dropdown-item" href="../docs/features/configuration/">
+                            <span class="nav-dropdown-icon">⚙️</span>
+                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon">⌨️</span>
+                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/architecture/">
+                            <span class="nav-dropdown-icon">🏗️</span>
+                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Operator guides</span>
+                        <a class="nav-dropdown-item" href="../docs/guide/production-diagnostics/">
+                            <span class="nav-dropdown-icon">🩺</span>
+                            <span><strong>Production Diagnostics</strong><small>Start from symptoms and debug safely</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/guide/monitoring/">
+                            <span class="nav-dropdown-icon">📈</span>
+                            <span><strong>Monitoring</strong><small>Metrics, health, and operational visibility</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/guide/vpp/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-examples">Examples
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-examples">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Deployment examples</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../usage/">
+                            <span class="nav-dropdown-icon">🧰</span>
+                            <span><strong>Usage Examples</strong><small>Complete deployment examples for real network roles</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../usage/as112/">
+                            <span class="nav-dropdown-icon">112</span>
+                            <span><strong>AS112 Anycast DNS</strong><small>Ze as an AS112 DNS server with real router peers</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../usage/exabgp-migration/">
+                            <span class="nav-dropdown-icon">🔀</span>
+                            <span><strong>ExaBGP Migration</strong><small>A practical path from ExaBGP process scripts</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Runnable labs</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../labs/">
+                            <span class="nav-dropdown-icon">🧪</span>
+                            <span><strong>Testing Labs</strong><small>Interop proof you can run yourself against real daemons</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/bgp-interop/">
+                            <span class="nav-dropdown-icon">🌐</span>
+                            <span><strong>BGP Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/l2tp-interop/">
+                            <span class="nav-dropdown-icon">🔌</span>
+                            <span><strong>L2TP Access</strong><small>Ze as LNS vs real xl2tpd</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/pppoe-interop/">
+                            <span class="nav-dropdown-icon">📡</span>
+                            <span><strong>PPPoE Access</strong><small>Ze vs real accel-ppp access concentrator</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/ipsec-interop/">
+                            <span class="nav-dropdown-icon">🔒</span>
+                            <span><strong>IPsec / IKEv2</strong><small>Ze as IKE initiator vs strongSwan</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Systems</span>
+                        <a class="nav-dropdown-item" href="../labs/vpp-dataplane/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/appliance-install/">
+                            <span class="nav-dropdown-icon">💿</span>
+                            <span><strong>Appliance Installer</strong><small>HTTP/PXE, ISO, Ventoy, and real boots</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/looking-glass-graph/">
+                            <span class="nav-dropdown-icon">🔭</span>
+                            <span><strong>Looking Glass Graph</strong><small>Realistic UK topology, real external ASNs</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../labs/vlan-qos/">
+                            <span class="nav-dropdown-icon">🏷️</span>
+                            <span><strong>VLAN QoS</strong><small>802.1p PCP tagging, actually on the wire</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-reference">Reference
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-reference">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Generated references</span>
                         <a class="nav-dropdown-item" href="../cli/">
                             <span class="nav-dropdown-icon">⌨️</span>
                             <span><strong>CLI Reference</strong><small>379 commands, generated from the live binary</small></span>
@@ -544,29 +713,15 @@
                             <span><strong>Command Equivalents</strong><small>Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS</small></span>
                         </a>
                     </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Quality</span>
-                        <a class="nav-dropdown-item" href="../quality/">
-                            <span class="nav-dropdown-icon">✓</span>
-                            <span><strong>Code Quality</strong><small>How Ze proves code quality with tests, QEMU, fuzzing, and gomu mutation checks</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../dependencies/">
-                            <span class="nav-dropdown-icon">📦</span>
-                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../performance/">
-                            <span class="nav-dropdown-icon">⚡</span>
-                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
-                        </a>
-                    </div>
                     </div>
                     </div>
                     <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-journey">Journey
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-project">Project
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                    <div class="nav-dropdown-panel" id="nav-panel-journey">
+                    <div class="nav-dropdown-panel" id="nav-panel-project">
                     <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Progress</span>
                         <a class="nav-dropdown-item" href="../roadmap/">
                             <span class="nav-dropdown-icon">🗺️</span>
                             <span><strong>Roadmap</strong><small>The path to a first release you can trust</small></span>
@@ -584,145 +739,23 @@
                             <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
                         </a>
                     </div>
-                    </div>
-                    </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-docs">Docs
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel" id="nav-panel-docs">
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Hub</span>
-                        <a class="nav-dropdown-item nav-dropdown-feature" href="../docs/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>Documentation</strong><small>All docs, organised by what you want to do</small></span>
+                        <span class="nav-dropdown-label">Community</span>
+                        <a class="nav-dropdown-item" href="../blog/">
+                            <span class="nav-dropdown-icon">✍</span>
+                            <span><strong>Blog</strong><small>Longer project notes and release stories</small></span>
                         </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Getting started</span>
-                        <a class="nav-dropdown-item" href="../docs/guide/quickstart/">
-                            <span class="nav-dropdown-icon">🚀</span>
-                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        <a class="nav-dropdown-item" href="../talks/">
+                            <span class="nav-dropdown-icon">🎤</span>
+                            <span><strong>Talks</strong><small>Presentations and conference material</small></span>
                         </a>
-                        <a class="nav-dropdown-item" href="../docs/features/configuration/">
-                            <span class="nav-dropdown-icon">⚙️</span>
-                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../docs/features/cli-commands/">
-                            <span class="nav-dropdown-icon">⌨️</span>
-                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../docs/features/formatting/">
-                            <span class="nav-dropdown-icon">🪄</span>
-                            <span><strong>Output Formatting</strong><small>Pipe operators: table, json, yaml, match, count</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../docs/architecture/">
-                            <span class="nav-dropdown-icon">🏗️</span>
-                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
-                        </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Deep dives</span>
-                        <a class="nav-dropdown-item" href="../docs/features/mcp-integration/">
-                            <span class="nav-dropdown-icon">🤖</span>
-                            <span><strong>MCP Integration</strong><small>AI-assisted operations</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../docs/features/web-interface/">
-                            <span class="nav-dropdown-icon">🖥️</span>
-                            <span><strong>Web Interface</strong><small>HTMX config editor and admin panel</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../docs/guide/vpp/">
-                            <span class="nav-dropdown-icon">📦</span>
-                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../docs/guide/benchmarking/">
-                            <span class="nav-dropdown-icon">📊</span>
-                            <span><strong>Benchmarking</strong><small>ze-perf architecture, flags, JSON output</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../docs/guide/exabgp-migration/">
-                            <span class="nav-dropdown-icon">🔀</span>
-                            <span><strong>Migrating from ExaBGP</strong><small>Convert configs and bridge process scripts</small></span>
+                        <a class="nav-dropdown-item" href="../contribute/">
+                            <span class="nav-dropdown-icon">🤝</span>
+                            <span><strong>Contribute</strong><small>How to send code, reports, and interop results</small></span>
                         </a>
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-usage">Usage
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel" id="nav-panel-usage">
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Hub</span>
-                        <a class="nav-dropdown-item nav-dropdown-feature" href="../usage/">
-                            <span class="nav-dropdown-icon">🧰</span>
-                            <span><strong>Usage</strong><small>Complete deployment examples for real network roles</small></span>
-                        </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Network examples</span>
-                        <a class="nav-dropdown-item" href="../usage/as112/">
-                            <span class="nav-dropdown-icon">112</span>
-                            <span><strong>AS112 Anycast DNS</strong><small>Ze as an AS112 DNS server with VyOS, Junos, Cisco IOS XR, BIRD, and FRR peers</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-labs">Labs
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel" id="nav-panel-labs">
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Hub</span>
-                        <a class="nav-dropdown-item nav-dropdown-feature" href="../labs/">
-                            <span class="nav-dropdown-icon">🧪</span>
-                            <span><strong>Labs</strong><small>Interop proof you can run yourself against real daemons</small></span>
-                        </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Protocols</span>
-                        <a class="nav-dropdown-item" href="../labs/bgp-interop/">
-                            <span class="nav-dropdown-icon">🌐</span>
-                            <span><strong>BGP Protocol Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../labs/l2tp-interop/">
-                            <span class="nav-dropdown-icon">🔌</span>
-                            <span><strong>L2TP PPP/NCP Interop</strong><small>Ze as LNS vs real xl2tpd</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../labs/pppoe-interop/">
-                            <span class="nav-dropdown-icon">📡</span>
-                            <span><strong>PPPoE Interop</strong><small>vs real accel-ppp access concentrator</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../labs/ipsec-interop/">
-                            <span class="nav-dropdown-icon">🔒</span>
-                            <span><strong>IPsec / IKEv2 Interop</strong><small>Ze as IKE initiator vs strongSwan</small></span>
-                        </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Systems</span>
-                        <a class="nav-dropdown-item" href="../labs/vlan-qos/">
-                            <span class="nav-dropdown-icon">🏷️</span>
-                            <span><strong>VLAN QoS Wire-Level Proof</strong><small>802.1p PCP tagging, actually on the wire</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../labs/looking-glass-graph/">
-                            <span class="nav-dropdown-icon">🔭</span>
-                            <span><strong>Looking Glass Graph Demo</strong><small>Realistic UK topology, real external ASNs</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../labs/appliance-install/">
-                            <span class="nav-dropdown-icon">💿</span>
-                            <span><strong>Appliance Installer Evidence</strong><small>HTTP/PXE, ISO, Ventoy, real boots</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="../labs/vpp-dataplane/">
-                            <span class="nav-dropdown-icon">🚀</span>
-                            <span><strong>VPP Dataplane Evidence</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
-                    <a href="../blog/">Blog</a>
-                    <a href="../talks/">Talks</a>
-                    <a href="../faq/">FAQ</a>
-                    <a href="../contribute/">Contribute</a>
                     <a
                         class="nav-badge nav-badge-search"
                         href="../search/"
@@ -792,7 +825,7 @@
                 </div>
                 <div class="activity-widget reveal" aria-label="Activity heatmap">
 <section class="stats" aria-label="Summary">
-        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">1,787,380</strong></div>
+        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">1,791,655</strong></div>
         <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">198</strong></div>
         <div class="stat"><span id="peak-label">Peak line day</span><strong id="peak-value">68,057</strong></div>
         <div class="stat"><span>Days shown</span><strong>365</strong></div>
@@ -1231,7 +1264,7 @@
 <div class="day-cell" data-date="2026-07-03" data-date-label="Fri 03 Jul 2026" data-lines="3816" data-lines-display="3,816" data-lines-level="1" data-commits="31" data-commits-display="31" data-commits-level="2" data-level="1" aria-label="Fri 03 Jul 2026: 3,816 lines added, 31 commits" tabindex="0"></div>
 <div class="day-cell" data-date="2026-07-04" data-date-label="Sat 04 Jul 2026" data-lines="2022" data-lines-display="2,022" data-lines-level="1" data-commits="7" data-commits-display="7" data-commits-level="1" data-level="1" aria-label="Sat 04 Jul 2026: 2,022 lines added, 7 commits" tabindex="0"></div>
 <div class="day-cell" data-date="2026-07-05" data-date-label="Sun 05 Jul 2026" data-lines="6732" data-lines-display="6,732" data-lines-level="1" data-commits="13" data-commits-display="13" data-commits-level="1" data-level="1" aria-label="Sun 05 Jul 2026: 6,732 lines added, 13 commits" tabindex="0"></div>
-<div class="day-cell" data-date="2026-07-06" data-date-label="Mon 06 Jul 2026" data-lines="546" data-lines-display="546" data-lines-level="1" data-commits="1" data-commits-display="1" data-commits-level="1" data-level="1" aria-label="Mon 06 Jul 2026: 546 lines added, 1 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-07-06" data-date-label="Mon 06 Jul 2026" data-lines="4821" data-lines-display="4,821" data-lines-level="1" data-commits="12" data-commits-display="12" data-commits-level="1" data-level="1" aria-label="Mon 06 Jul 2026: 4,821 lines added, 12 commits" tabindex="0"></div>
 <div class="day-cell outside" data-date="2026-07-07" data-date-label="Tue 07 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 07 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell outside" data-date="2026-07-08" data-date-label="Wed 08 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 08 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell outside" data-date="2026-07-09" data-date-label="Thu 09 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 09 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
@@ -1248,33 +1281,33 @@
 <div class="go-bucket">
             <h3>Total Code</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>5,548</strong></div>
-<div class="stat"><span>Total lines</span><strong>1,144,744</strong></div>
-<div class="stat"><span>Code</span><strong>852,282</strong></div>
-<div class="stat"><span>Blank</span><strong>131,247</strong></div>
-<div class="stat"><span>Comments</span><strong>161,215</strong></div>
+<div class="stat"><span>Files</span><strong>5,558</strong></div>
+<div class="stat"><span>Total lines</span><strong>1,147,376</strong></div>
+<div class="stat"><span>Code</span><strong>854,169</strong></div>
+<div class="stat"><span>Blank</span><strong>131,461</strong></div>
+<div class="stat"><span>Comments</span><strong>161,746</strong></div>
             </div>
             
         </div>
 <div class="go-bucket">
             <h3>Production</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>3,361</strong></div>
-<div class="stat"><span>Total lines</span><strong>599,197</strong></div>
-<div class="stat"><span>Code</span><strong>446,814</strong></div>
-<div class="stat"><span>Blank</span><strong>63,864</strong></div>
-<div class="stat"><span>Comments</span><strong>88,519</strong></div>
+<div class="stat"><span>Files</span><strong>3,365</strong></div>
+<div class="stat"><span>Total lines</span><strong>600,742</strong></div>
+<div class="stat"><span>Code</span><strong>447,872</strong></div>
+<div class="stat"><span>Blank</span><strong>63,970</strong></div>
+<div class="stat"><span>Comments</span><strong>88,900</strong></div>
             </div>
             
         </div>
 <div class="go-bucket">
             <h3>Test</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>2,187</strong></div>
-<div class="stat"><span>Total lines</span><strong>545,547</strong></div>
-<div class="stat"><span>Code</span><strong>405,468</strong></div>
-<div class="stat"><span>Blank</span><strong>67,383</strong></div>
-<div class="stat"><span>Comments</span><strong>72,696</strong></div>
+<div class="stat"><span>Files</span><strong>2,193</strong></div>
+<div class="stat"><span>Total lines</span><strong>546,634</strong></div>
+<div class="stat"><span>Code</span><strong>406,297</strong></div>
+<div class="stat"><span>Blank</span><strong>67,491</strong></div>
+<div class="stat"><span>Comments</span><strong>72,846</strong></div>
             </div>
             
         </div>
@@ -1346,7 +1379,7 @@
         </main>
 
 <script>
-const metricSummaries = {"lines":{"totalLabel":"Total added lines","totalValue":"1,787,380","activeLabel":"Days with added lines","activeValue":"198","peakLabel":"Peak line day","peakValue":"68,057","topHeading":"Top Added-Line Days","topColumn":"Added lines","thresholdLabel":"Line thresholds","thresholdValue":"13,612, 27,223, 40,835, 54,446"},"commits":{"totalLabel":"Total commits","totalValue":"4,437","activeLabel":"Days with commits","activeValue":"198","peakLabel":"Peak commit day","peakValue":"93","topHeading":"Top Commit Days","topColumn":"Commits","thresholdLabel":"Commit thresholds","thresholdValue":"19, 38, 56, 75"}};
+const metricSummaries = {"lines":{"totalLabel":"Total added lines","totalValue":"1,791,655","activeLabel":"Days with added lines","activeValue":"198","peakLabel":"Peak line day","peakValue":"68,057","topHeading":"Top Added-Line Days","topColumn":"Added lines","thresholdLabel":"Line thresholds","thresholdValue":"13,612, 27,223, 40,835, 54,446"},"commits":{"totalLabel":"Total commits","totalValue":"4,448","activeLabel":"Days with commits","activeValue":"198","peakLabel":"Peak commit day","peakValue":"93","topHeading":"Top Commit Days","topColumn":"Commits","thresholdLabel":"Commit thresholds","thresholdValue":"19, 38, 56, 75"}};
 let currentMetric = "lines";
 const cells = Array.from(document.querySelectorAll(".activity-grid .day-cell"));
 const buttons = Array.from(document.querySelectorAll(".metric-switch button"));
@@ -1453,49 +1486,12 @@ for (const cell of cells) {
 setMetric("lines");
 </script>
 
-        <script src="../assets/site.js?v=79779d6bdd" defer></script>
+        <script src="../assets/site.js?v=99f4fc1725" defer></script>
 
         <footer>
             <div class="footer-inner">
-                <div class="footer-columns">
-                    <div class="footer-col">
-                        <h3>Project</h3>
-                        <a href="../features/">Features</a>
-                        <a href="../docs/features/plugins/">Plugins</a>
-                        <a href="../cli/">CLI Reference</a>
-                        <a href="../dependencies/">Dependencies</a>
-                        <a href="../performance/">Performance</a>
-                        <a href="../compare/">Compare</a>
-                        <a href="../roadmap/">Roadmap</a>
-                        <a href="../milestones/">Milestones</a>
-                        <a href="../changes/">Changes</a>
-                        <a href="../activity/">Activity</a>
-                    </div>
-                    <div class="footer-col">
-                        <h3>Learn</h3>
-                        <a href="../docs/">Documentation</a>
-                        <a href="../usage/">Usage</a>
-                        <a href="../docs/guide/quickstart/">Quickstart</a>
-                        <a href="../docs/architecture/">Architecture</a>
-                        <a href="../labs/">Labs</a>
-                        <a href="../blog/">Blog</a>
-                        <a href="../talks/">Talks</a>
-                        <a href="../faq/">FAQ</a>
-                    </div>
-                    <div class="footer-col">
-                        <h3>Community</h3>
-                        <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>
-                        <a href="../contribute/">Contribute</a>
-                        <a href="../security/">Security</a>
-                        <a href="../code-of-conduct/">Code of Conduct</a>
-                        <a href="https://github.com/ze-software/ze" target="_blank" rel="noopener">GitHub</a>
-                        <a href="https://codeberg.org/thomas-mangin/ze" target="_blank" rel="noopener">Codeberg</a>
-                        <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">Issues</a>
-                    </div>
-                </div>
                 <div class="footer-bottom">
                     <a href="../license/">Ze is AGPLv3 open source.</a>
-                    <a href="../style-guide/">Style Guide</a>
                 </div>
             </div>
         </footer>

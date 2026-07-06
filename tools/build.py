@@ -80,6 +80,7 @@ import sitelib  # noqa: E402
 STEPS = [
     "docs",
     "usage",
+    "labdetails",
     "blog",
     "activity",
     "compare",
@@ -146,6 +147,30 @@ USAGE_PAGES = [
             "configs for FRR, BIRD, VyOS, Junos, and Cisco IOS XR."
         ),
         "../../",
+        "services",
+    ),
+    (
+        "exabgp-migration/index.md",
+        "usage/exabgp-migration/index.html",
+        "Convert an ExaBGP config and run existing process scripts with Ze.",
+        "../../",
+        "automate",
+    ),
+]
+
+LAB_DETAIL_PAGES = [
+    (
+        "labs/l2tp-interop.md",
+        "labs/l2tp-interop/architecture/index.html",
+        "Peer-isolated Docker lab details for full L2TP PPP/NCP/kernel dataplane evidence.",
+        "../../../",
+        "services",
+    ),
+    (
+        "labs/pppoe-interop.md",
+        "labs/pppoe-interop/architecture/index.html",
+        "Peer-isolated Docker lab details for Ze PPPoE client interop with accel-ppp.",
+        "../../../",
         "services",
     ),
 ]
@@ -280,6 +305,20 @@ def step_usage():
             journey_label="Usage",
         )
     return 0
+
+def step_labdetails():
+    render_doc = load_module("render-doc")
+    for source_name, dest_rel, desc, root, cat in LAB_DETAIL_PAGES:
+        render_doc.render(
+            MAIN_REPO / "docs" / source_name,
+            GH_PAGES / dest_rel,
+            root,
+            desc,
+            cat=cat,
+            journey_label="Lab details",
+        )
+    return 0
+
 
 
 
@@ -530,6 +569,7 @@ def step_links():
 STEP_FUNCS = {
     "docs": step_docs,
     "usage": step_usage,
+    "labdetails": step_labdetails,
     "blog": step_blog,
     "activity": step_activity,
     "compare": step_compare,
@@ -594,7 +634,11 @@ def check_llms_md_siblings():
             hrefs.extend(e["href"] for e in column if "href" in e)
 
     for href in hrefs:
-        md_path = GH_PAGES / href / "index.md"
+        path = href.split("#", 1)[0]
+        if path in ("", "index.html"):
+            md_path = GH_PAGES / "index.md"
+        else:
+            md_path = GH_PAGES / path / "index.md"
         if not md_path.exists():
             sitelib.warn(
                 "llms.txt links %s to an index.md that doesn't exist "

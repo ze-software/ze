@@ -101,11 +101,15 @@ def local_md_url(href: str) -> str:
     if href.startswith("http://") or href.startswith("https://"):
         return href
     href = href.lstrip("/")
-    if href.endswith("/"):
-        href = href + "index.md"
-    elif not href.endswith(".md") and not href.endswith(".html"):
-        href = href + "/index.md"
-    return SITE_BASE + href
+    path, sep, fragment = href.partition("#")
+    suffix = ("#" + fragment) if sep else ""
+    if path in ("", "index.html"):
+        path = "index.md"
+    elif path.endswith("/"):
+        path = path + "index.md"
+    elif not path.endswith(".md") and not path.endswith(".html"):
+        path = path + "/index.md"
+    return SITE_BASE + path + suffix
 
 
 def local_web_url(href: str) -> str:
@@ -155,9 +159,9 @@ def render_intro():
         [
             "# Ze",
             "",
-            "> Open, programmable network OS for Linux. Ze speaks BGP, IS-IS, and OSPF, manages interfaces, programs the FIB, and gives operators a CLI, web UI, telemetry, looking glass, API, and plugin system around one coherent configuration model.",
+            "> Open routing for white-label hardware. Ze is an open, programmable network OS for Linux that speaks BGP, IS-IS, and OSPF, manages interfaces, programs the FIB, and gives operators a CLI, web UI, telemetry, looking glass, API, and plugin system around one coherent configuration model.",
             "",
-            "Built for people who want a network stack they can inspect, automate, and extend. ExaBGP users get a migration path to a more performant codebase. Pre-release: no tagged versions yet, built continuously from the main branch. AGPLv3 open source.",
+            "Pre-release: no tagged versions yet, built continuously from the main branch. AGPLv3 open source. See ExaBGP [migration path](usage/exabgp-migration/index.md).",
             "",
             "This file is intentionally denormalized for AI use. It includes the high-signal product inventory and then the normal page map, so common questions should not require fetching many separate pages. Page links still point at Markdown `index.md` files first, with rendered web URLs beside them for humans.",
             "",

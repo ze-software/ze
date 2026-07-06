@@ -1,8 +1,8 @@
 # Ze
 
-> Open, programmable network OS for Linux. Ze speaks BGP, IS-IS, and OSPF, manages interfaces, programs the FIB, and gives operators a CLI, web UI, telemetry, looking glass, API, and plugin system around one coherent configuration model.
+> Open routing for white-label hardware. Ze is an open, programmable network OS for Linux that speaks BGP, IS-IS, and OSPF, manages interfaces, programs the FIB, and gives operators a CLI, web UI, telemetry, looking glass, API, and plugin system around one coherent configuration model.
 
-Built for people who want a network stack they can inspect, automate, and extend. ExaBGP users get a migration path to a more performant codebase. Pre-release: no tagged versions yet, built continuously from the main branch. AGPLv3 open source.
+Pre-release: no tagged versions yet, built continuously from the main branch. AGPLv3 open source. See ExaBGP [migration path](usage/exabgp-migration/index.md).
 
 This file is intentionally denormalized for AI use. It includes the high-signal product inventory and then the normal page map, so common questions should not require fetching many separate pages. Page links still point at Markdown `index.md` files first, with rendered web URLs beside them for humans.
 
@@ -788,73 +788,81 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 
 Every link points to the page Markdown mirror first. The web URL is the human-rendered version of the same page.
 
-## Project
+## Start
 
-### Overview
+### First steps
+- [Quickstart](https://ze-software.net/docs/guide/quickstart/index.md): Two BGP peers in under 5 minutes (web: https://ze-software.net/docs/guide/quickstart/)
+- [Install Ze](https://ze-software.net/docs/guide/ze-install/index.md): Run Ze on Linux or as a bootable appliance (web: https://ze-software.net/docs/guide/ze-install/)
+- [Configuration](https://ze-software.net/docs/features/configuration/index.md): The YANG-modeled config shape Ze uses everywhere (web: https://ze-software.net/docs/features/configuration/)
+- [CLI Basics](https://ze-software.net/docs/features/cli-commands/index.md): Diff, commit, history, and operator commands (web: https://ze-software.net/docs/features/cli-commands/)
+### Before you run
+- [Project Status](https://ze-software.net/roadmap/index.md): What is ready today and where Ze is still young (web: https://ze-software.net/roadmap/)
+- [FAQ](https://ze-software.net/faq/index.md): Common questions before committing time to Ze (web: https://ze-software.net/faq/)
+- [Plugin Catalog](https://ze-software.net/docs/features/plugins/index.md): Search every runtime plugin by purpose, config, or dependency (web: https://ze-software.net/docs/features/plugins/)
+
+## Evaluate
+
+### Capabilities
 - [Features](https://ze-software.net/features/index.md): 46 features, color-coded by category (web: https://ze-software.net/features/)
-- [Plugins](https://ze-software.net/docs/features/plugins/index.md): Search every runtime plugin by purpose, config, or dependency (web: https://ze-software.net/docs/features/plugins/)
-- [Compare](https://ze-software.net/compare/index.md): How Ze stacks up against BIRD, FRR, and more (web: https://ze-software.net/compare/)
-### Reference
-- [CLI Reference](https://ze-software.net/cli/index.md): 379 commands, generated from the live binary (web: https://ze-software.net/cli/)
-- [Configuration Reference](https://ze-software.net/config-reference/index.md): 35 sections, indexed from live YANG (web: https://ze-software.net/config-reference/)
-- [Command Equivalents](https://ze-software.net/command-equivalents/index.md): Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS (web: https://ze-software.net/command-equivalents/)
-### Quality
-- [Code Quality](https://ze-software.net/quality/index.md): How Ze proves code quality with tests, QEMU, fuzzing, and gomu mutation checks (web: https://ze-software.net/quality/)
-- [Dependencies](https://ze-software.net/dependencies/index.md): 39 direct packages, generated from go.mod (web: https://ze-software.net/dependencies/)
+- [Compare](https://ze-software.net/compare/index.md): How Ze stacks up against BIRD, FRR, VyOS, and more (web: https://ze-software.net/compare/)
 - [Performance](https://ze-software.net/performance/index.md): Measured BGP benchmarks, not claims (web: https://ze-software.net/performance/)
-
-## Journey
-
-- [Roadmap](https://ze-software.net/roadmap/index.md): The path to a first release you can trust (web: https://ze-software.net/roadmap/)
-- [Milestones](https://ze-software.net/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/milestones/)
-- [Changes](https://ze-software.net/changes/index.md): 30 weekly updates, newest first (web: https://ze-software.net/changes/)
-- [Activity](https://ze-software.net/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/activity/)
+### Trust
+- [Code Quality](https://ze-software.net/quality/index.md): Tests, QEMU, fuzzing, and mutation checks (web: https://ze-software.net/quality/)
+- [Dependencies](https://ze-software.net/dependencies/index.md): 39 direct packages, generated from go.mod (web: https://ze-software.net/dependencies/)
+- [Security](https://ze-software.net/security/index.md): Security policy and vulnerability reporting (web: https://ze-software.net/security/)
 
 ## Docs
 
 ### Hub
-- [Documentation](https://ze-software.net/docs/index.md): All docs, organised by what you want to do (web: https://ze-software.net/docs/)
-### Getting started
-- [Quickstart](https://ze-software.net/docs/guide/quickstart/index.md): Two BGP peers in under 5 minutes (web: https://ze-software.net/docs/guide/quickstart/)
+- [Documentation](https://ze-software.net/docs/index.md): All docs, organized by what you want to do (web: https://ze-software.net/docs/)
+### Core docs
 - [Configuration](https://ze-software.net/docs/features/configuration/index.md): YANG-modeled, one model for everything (web: https://ze-software.net/docs/features/configuration/)
 - [CLI Commands](https://ze-software.net/docs/features/cli-commands/index.md): SSH CLI with diff, commit, and history (web: https://ze-software.net/docs/features/cli-commands/)
-- [Output Formatting](https://ze-software.net/docs/features/formatting/index.md): Pipe operators: table, json, yaml, match, count (web: https://ze-software.net/docs/features/formatting/)
 - [Architecture](https://ze-software.net/docs/architecture/index.md): How the pieces fit together (web: https://ze-software.net/docs/architecture/)
-### Deep dives
-- [MCP Integration](https://ze-software.net/docs/features/mcp-integration/index.md): AI-assisted operations (web: https://ze-software.net/docs/features/mcp-integration/)
-- [Web Interface](https://ze-software.net/docs/features/web-interface/index.md): HTMX config editor and admin panel (web: https://ze-software.net/docs/features/web-interface/)
+### Operator guides
+- [Production Diagnostics](https://ze-software.net/docs/guide/production-diagnostics/index.md): Start from symptoms and debug safely (web: https://ze-software.net/docs/guide/production-diagnostics/)
+- [Monitoring](https://ze-software.net/docs/guide/monitoring/index.md): Metrics, health, and operational visibility (web: https://ze-software.net/docs/guide/monitoring/)
 - [VPP Dataplane](https://ze-software.net/docs/guide/vpp/index.md): FIB, traffic, and firewall via VPP (web: https://ze-software.net/docs/guide/vpp/)
-- [Benchmarking](https://ze-software.net/docs/guide/benchmarking/index.md): ze-perf architecture, flags, JSON output (web: https://ze-software.net/docs/guide/benchmarking/)
-- [Migrating from ExaBGP](https://ze-software.net/docs/guide/exabgp-migration/index.md): Convert configs and bridge process scripts (web: https://ze-software.net/docs/guide/exabgp-migration/)
 
-## Usage
+## Examples
 
-### Hub
-- [Usage](https://ze-software.net/usage/index.md): Complete deployment examples for real network roles (web: https://ze-software.net/usage/)
-### Network examples
-- [AS112 Anycast DNS](https://ze-software.net/usage/as112/index.md): Ze as an AS112 DNS server with VyOS, Junos, Cisco IOS XR, BIRD, and FRR peers (web: https://ze-software.net/usage/as112/)
-
-## Labs
-
-### Hub
-- [Labs](https://ze-software.net/labs/index.md): Interop proof you can run yourself against real daemons (web: https://ze-software.net/labs/)
-### Protocols
-- [BGP Protocol Interop](https://ze-software.net/labs/bgp-interop/index.md): Real FRR, BIRD, and GoBGP sessions (web: https://ze-software.net/labs/bgp-interop/)
-- [L2TP PPP/NCP Interop](https://ze-software.net/labs/l2tp-interop/index.md): Ze as LNS vs real xl2tpd (web: https://ze-software.net/labs/l2tp-interop/)
-- [PPPoE Interop](https://ze-software.net/labs/pppoe-interop/index.md): vs real accel-ppp access concentrator (web: https://ze-software.net/labs/pppoe-interop/)
-- [IPsec / IKEv2 Interop](https://ze-software.net/labs/ipsec-interop/index.md): Ze as IKE initiator vs strongSwan (web: https://ze-software.net/labs/ipsec-interop/)
+### Deployment examples
+- [Usage Examples](https://ze-software.net/usage/index.md): Complete deployment examples for real network roles (web: https://ze-software.net/usage/)
+- [AS112 Anycast DNS](https://ze-software.net/usage/as112/index.md): Ze as an AS112 DNS server with real router peers (web: https://ze-software.net/usage/as112/)
+- [ExaBGP Migration](https://ze-software.net/usage/exabgp-migration/index.md): A practical path from ExaBGP process scripts (web: https://ze-software.net/usage/exabgp-migration/)
+### Runnable labs
+- [Testing Labs](https://ze-software.net/labs/index.md): Interop proof you can run yourself against real daemons (web: https://ze-software.net/labs/)
+- [BGP Interop](https://ze-software.net/labs/bgp-interop/index.md): Real FRR, BIRD, and GoBGP sessions (web: https://ze-software.net/labs/bgp-interop/)
+- [L2TP Access](https://ze-software.net/labs/l2tp-interop/index.md): Ze as LNS vs real xl2tpd (web: https://ze-software.net/labs/l2tp-interop/)
+- [PPPoE Access](https://ze-software.net/labs/pppoe-interop/index.md): Ze vs real accel-ppp access concentrator (web: https://ze-software.net/labs/pppoe-interop/)
+- [IPsec / IKEv2](https://ze-software.net/labs/ipsec-interop/index.md): Ze as IKE initiator vs strongSwan (web: https://ze-software.net/labs/ipsec-interop/)
 ### Systems
-- [VLAN QoS Wire-Level Proof](https://ze-software.net/labs/vlan-qos/index.md): 802.1p PCP tagging, actually on the wire (web: https://ze-software.net/labs/vlan-qos/)
-- [Looking Glass Graph Demo](https://ze-software.net/labs/looking-glass-graph/index.md): Realistic UK topology, real external ASNs (web: https://ze-software.net/labs/looking-glass-graph/)
-- [Appliance Installer Evidence](https://ze-software.net/labs/appliance-install/index.md): HTTP/PXE, ISO, Ventoy, real boots (web: https://ze-software.net/labs/appliance-install/)
-- [VPP Dataplane Evidence](https://ze-software.net/labs/vpp-dataplane/index.md): FIB, traffic, and firewall in a real VPP daemon (web: https://ze-software.net/labs/vpp-dataplane/)
+- [VPP Dataplane](https://ze-software.net/labs/vpp-dataplane/index.md): FIB, traffic, and firewall in a real VPP daemon (web: https://ze-software.net/labs/vpp-dataplane/)
+- [Appliance Installer](https://ze-software.net/labs/appliance-install/index.md): HTTP/PXE, ISO, Ventoy, and real boots (web: https://ze-software.net/labs/appliance-install/)
+- [Looking Glass Graph](https://ze-software.net/labs/looking-glass-graph/index.md): Realistic UK topology, real external ASNs (web: https://ze-software.net/labs/looking-glass-graph/)
+- [VLAN QoS](https://ze-software.net/labs/vlan-qos/index.md): 802.1p PCP tagging, actually on the wire (web: https://ze-software.net/labs/vlan-qos/)
+
+## Reference
+
+### Generated references
+- [CLI Reference](https://ze-software.net/cli/index.md): 379 commands, generated from the live binary (web: https://ze-software.net/cli/)
+- [Configuration Reference](https://ze-software.net/config-reference/index.md): 35 sections, indexed from live YANG (web: https://ze-software.net/config-reference/)
+- [Command Equivalents](https://ze-software.net/command-equivalents/index.md): Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS (web: https://ze-software.net/command-equivalents/)
+
+## Project
+
+### Progress
+- [Roadmap](https://ze-software.net/roadmap/index.md): The path to a first release you can trust (web: https://ze-software.net/roadmap/)
+- [Milestones](https://ze-software.net/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/milestones/)
+- [Changes](https://ze-software.net/changes/index.md): 30 weekly updates, newest first (web: https://ze-software.net/changes/)
+- [Activity](https://ze-software.net/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/activity/)
+### Community
+- [Blog](https://ze-software.net/blog/index.md): Longer project notes and release stories (web: https://ze-software.net/blog/)
+- [Talks](https://ze-software.net/talks/index.md): Presentations and conference material (web: https://ze-software.net/talks/)
+- [Contribute](https://ze-software.net/contribute/index.md): How to send code, reports, and interop results (web: https://ze-software.net/contribute/)
 
 ## More
 
-- [Blog](https://ze-software.net/blog/index.md): editorial articles (web: https://ze-software.net/blog/)
-- [Talks](https://ze-software.net/talks/index.md) (web: https://ze-software.net/talks/)
-- [FAQ](https://ze-software.net/faq/index.md) (web: https://ze-software.net/faq/)
-- [Contribute](https://ze-software.net/contribute/index.md) (web: https://ze-software.net/contribute/)
 - [Discord](https://discord.gg/T8s7CjPDne): community and support
 - [GitHub](https://github.com/ze-software/ze): mirror, issues
 - [Codeberg](https://codeberg.org/thomas-mangin/ze): canonical repository

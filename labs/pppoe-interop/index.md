@@ -13,7 +13,7 @@ A peer-isolated Docker lab proves Ze's PPPoE client discovers, negotiates PPP, a
  - **Proves:** RFC 2516 PPPoE discovery + PPP negotiation against a real access concentrator, not a stub
  - **Peer:** Real accel-ppp access concentrator
  - **Requires:** Docker, or the QEMU path with a staged kernel
- - **Source:** [docs/architecture/testing/pppoe-interop.md](https://github.com/ze-software/ze/blob/main/docs/architecture/testing/pppoe-interop.md)
+ - **Source:** [docs/labs/pppoe-interop.md](https://github.com/ze-software/ze/blob/main/docs/labs/pppoe-interop.md)
 
 ```
 # Docker lab

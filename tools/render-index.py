@@ -172,73 +172,107 @@ def render_blog_teaser_card(post, i, topics):
 
 BODY = """            <section class="hero" aria-labelledby="hero-title">
                 <div>
-                    <div class="hero-brand">
-                        <a
-                            href="zeledon/"
-                            aria-label="Meet Zeledon, the Ze mascot"
+                    <aside class="hero-start-panel" aria-label="Start with Ze">
+                        <div class="hero-start-intro">
+                            <div class="hero-start-brand">
+                                <a
+                                    href="zeledon/"
+                                    aria-label="Meet Zeledon, the Ze mascot"
+                                >
+                                    <img
+                                        class="hero-mascot"
+                                        src="assets/zeledon.svg"
+                                        alt="Zeledon, the Ze bird mascot"
+                                        width="134"
+                                        height="134"
+                                    />
+                                </a>
+                                <h1 id="hero-title" class="hero-title-sr">Ze open routing for white-label hardware</h1>
+                            </div>
+                            <p class="hero-start-lead">
+                                Ze creates appliances or makes Linux speak
+                                <strong class="hl blue">BGP</strong>, IS-IS,
+                                and OSPF, manages interfaces, programs the FIB,
+                                and gives operators a CLI, web UI, telemetry,
+                                looking glass, API, and plugin system around
+                                one coherent configuration model.
+                            </p>
+                            <div class="hero-start-copy">
+                                <span class="hero-start-kicker"
+                                    >Open routing for white-label hardware</span
+                                >
+                                <p>
+                                    Ze is an open, programmable network OS for
+                                    Linux: BGP core, YANG configuration,
+                                    operator interfaces, generated references,
+                                    runnable labs, inspectable automation hooks,
+                                    extension points, and an
+                                    <strong class="hl blue">ExaBGP</strong>
+                                    <a href="usage/exabgp-migration/"
+                                        >migration path</a
+                                    >
+                                    to a more performant codebase.
+                                </p>
+                            </div>
+                        </div>
+                        <nav
+                            class="hero-start-actions"
+                            aria-label="Start with Ze shortcuts"
                         >
-                            <img
-                                class="hero-mascot"
-                                src="assets/zeledon.svg"
-                                alt="Zeledon, the Ze bird mascot"
-                                width="68"
-                                height="68"
-                            />
-                        </a>
-                        <h1 id="hero-title">ze</h1>
-                    </div>
-                    <p class="eyebrow">
-                        Open, programmable network OS for Linux
-                    </p>
-                    <p class="lead">
-                        Ze creates appliances or makes Linux speak
-                        <strong class="hl blue">BGP</strong>, IS-IS, and OSPF,
-                        manages interfaces, programs the FIB, and gives
-                        operators a CLI, web UI, telemetry, looking glass,
-                        API, and plugin system around one coherent
-                        configuration model.
-                    </p>
-                    <p class="sublead">
-                        Built for people who want a network stack they can
-                        inspect, automate, and extend.
-                        <strong class="hl blue">ExaBGP</strong> users get a
-                        migration path to a more performant codebase.
-                    </p>
-                    <div class="actions">
-                        <a
-                            class="button primary"
-                            href="docs/guide/quickstart/"
-                            >Quick Start</a
-                        >
-                        <a
-                            class="button"
-                            href="docs/"
-                            >Read Docs</a
-                        >
-                        <a
-                            class="button"
-                            href="https://discord.gg/T8s7CjPDne"
-                            target="_blank"
-                            rel="noopener"
-                            >Get Help</a
-                        >
-                    </div>
-                </div>
-                <div class="terminal hero-terminal" aria-label="Ze CLI session">
-                    <div class="terminal-dots">
-                        <span></span><span></span><span></span>
-                            <span class="terminal-title">bin/ze cli</span>
-                    </div>
-                    <div class="terminal-body">
-                        <pre><span class="term-comment"># start the daemon</span>
-<span class="term-prompt">$</span> bin/ze example.conf
-level=INFO  msg="hub ready" subsystem=hub plugins=1 peers=1 listen=":179"
-level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=10.0.0.2
-
-<span class="term-comment"># from another terminal</span>
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "show bgp peer list"
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "monitor event"</pre>
-                    </div>
+                            <a
+                                class="hero-start-action hero-start-action-primary search-trigger"
+                                href="#search"
+                                aria-expanded="false"
+                                ><strong>Search the site</strong
+                                ><small
+                                    >Find commands, labs, guides, and generated
+                                    references.</small
+                                ></a
+                            >
+                            <a
+                                class="hero-start-action"
+                                href="docs/guide/quickstart/"
+                                ><strong>Quickstart</strong
+                                ><small
+                                    >Bring up two BGP peers in under five
+                                    minutes.</small
+                                ></a
+                            >
+                            <a
+                                class="hero-start-action"
+                                href="docs/guide/ze-install/"
+                                ><strong>Install Ze</strong
+                                ><small
+                                    >Run Ze on Linux or as a bootable
+                                    appliance.</small
+                                ></a
+                            >
+                            <a class="hero-start-action" href="faq/"
+                                ><strong>FAQ</strong
+                                ><small
+                                    >Get answers before you commit time.</small
+                                ></a
+                            >
+                            <a class="hero-start-action" href="roadmap/"
+                                ><strong>Project status</strong
+                                ><small
+                                    >Check what is ready and what is still
+                                    young.</small
+                                ></a
+                            >
+                            <a
+                                class="hero-start-action"
+                                href="https://discord.gg/T8s7CjPDne"
+                                target="_blank"
+                                rel="noopener"
+                                ><strong>Ask on Discord</strong
+                                ><small
+                                    >Talk to the project before you spend a
+                                    weekend.</small
+                                ></a
+                            >
+                        </nav>
+                    </aside>
                 </div>
             </section>
 
@@ -406,8 +440,9 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
 <span class="term-comment"># start</span>
 <span class="term-prompt">$</span> bin/ze <span class="term-cmd">start</span>
 
-<span class="term-comment"># connect to the CLI</span>
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span></pre>
+<span class="term-comment"># from another terminal</span>
+<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "show bgp peer list"
+<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "monitor event"</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
@@ -436,7 +471,7 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
                             >
                             <a href="compare/"
                                 >Compare
-                                <span>how Ze stacks up -- and where it's still behind</span></a
+                                <span>how Ze stacks up and where it's still behind</span></a
                             >
                             <a href="labs/"
                                 >Labs

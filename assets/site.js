@@ -139,7 +139,10 @@ document.addEventListener("DOMContentLoaded", function () {
         if (active && active.closest(".nav-dropdown")) active.blur();
     });
 
-    var searchBadge = document.querySelector(".nav-badge-search");
+    var searchTriggers = Array.prototype.slice.call(
+        document.querySelectorAll(".nav-badge-search, .search-trigger"),
+    );
+    var searchBadge = searchTriggers[0];
     if (searchBadge) {
         var root = searchBadge.getAttribute("href").replace(/search\/$/, "");
         var records = null;
@@ -302,11 +305,17 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         }
 
+        function setExpanded(value) {
+            searchTriggers.forEach(function (trigger) {
+                trigger.setAttribute("aria-expanded", value);
+            });
+        }
+
         function open() {
             if (!overlay.hidden) return;
             previousFocus = document.activeElement;
             overlay.hidden = false;
-            searchBadge.setAttribute("aria-expanded", "true");
+            setExpanded("true");
             document.body.classList.add("search-open");
             setBackgroundInert(true);
             load();
@@ -317,7 +326,7 @@ document.addEventListener("DOMContentLoaded", function () {
         function close() {
             if (overlay.hidden) return;
             overlay.hidden = true;
-            searchBadge.setAttribute("aria-expanded", "false");
+            setExpanded("false");
             document.body.classList.remove("search-open");
             setBackgroundInert(false);
             if (previousFocus && typeof previousFocus.focus === "function") {
@@ -352,9 +361,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 first.focus();
             }
         });
-        searchBadge.addEventListener("click", function (event) {
-            event.preventDefault();
-            open();
+        searchTriggers.forEach(function (trigger) {
+            trigger.addEventListener("click", function (event) {
+                event.preventDefault();
+                open();
+            });
         });
         closeButton.addEventListener("click", close);
         document.addEventListener("keydown", function (event) {

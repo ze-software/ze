@@ -164,7 +164,7 @@
               "desc": "Use when checking behavior against real peers."
             },
             {
-              "href": "docs/guide/exabgp-migration/",
+              "href": "usage/exabgp-migration/",
               "label": "ExaBGP migration",
               "desc": "Use when comparing automation workflows."
             },
@@ -664,6 +664,106 @@
         }
       ]
     },
+    "labs/l2tp-interop/": {
+      "eyebrow": "L2TP lab",
+      "groups": [
+        {
+          "title": "Lab detail",
+          "links": [
+            {
+              "href": "labs/l2tp-interop/architecture/",
+              "label": "L2TP lab architecture",
+              "desc": "Docker topology, prerequisites, scenarios, and runner layout."
+            },
+            {
+              "href": "labs/",
+              "label": "All labs",
+              "desc": "Return to the lab index."
+            },
+            {
+              "href": "docs/guide/l2tp/",
+              "label": "L2TP guide",
+              "desc": "Configuration and operator behavior."
+            }
+          ]
+        }
+      ]
+    },
+    "labs/l2tp-interop/architecture/": {
+      "eyebrow": "L2TP lab",
+      "groups": [
+        {
+          "title": "Nearby",
+          "links": [
+            {
+              "href": "labs/l2tp-interop/",
+              "label": "L2TP access lab",
+              "desc": "Return to the published lab page."
+            },
+            {
+              "href": "labs/pppoe-interop/architecture/",
+              "label": "PPPoE lab architecture",
+              "desc": "The paired access-protocol lab."
+            },
+            {
+              "href": "docs/guide/l2tp/",
+              "label": "L2TP guide",
+              "desc": "Configuration and operator behavior."
+            }
+          ]
+        }
+      ]
+    },
+    "labs/pppoe-interop/": {
+      "eyebrow": "PPPoE lab",
+      "groups": [
+        {
+          "title": "Lab detail",
+          "links": [
+            {
+              "href": "labs/pppoe-interop/architecture/",
+              "label": "PPPoE lab architecture",
+              "desc": "Docker topology, prerequisites, scenarios, and runner layout."
+            },
+            {
+              "href": "labs/",
+              "label": "All labs",
+              "desc": "Return to the lab index."
+            },
+            {
+              "href": "docs/guide/pppoe/",
+              "label": "PPPoE guide",
+              "desc": "Configuration and operator behavior."
+            }
+          ]
+        }
+      ]
+    },
+    "labs/pppoe-interop/architecture/": {
+      "eyebrow": "PPPoE lab",
+      "groups": [
+        {
+          "title": "Nearby",
+          "links": [
+            {
+              "href": "labs/pppoe-interop/",
+              "label": "PPPoE access lab",
+              "desc": "Return to the published lab page."
+            },
+            {
+              "href": "labs/l2tp-interop/architecture/",
+              "label": "L2TP lab architecture",
+              "desc": "The paired access-protocol lab."
+            },
+            {
+              "href": "docs/guide/pppoe/",
+              "label": "PPPoE guide",
+              "desc": "Configuration and operator behavior."
+            }
+          ]
+        }
+      ]
+    },
     "usage/": {
       "eyebrow": "Usage",
       "groups": [
@@ -674,6 +774,11 @@
               "href": "usage/as112/",
               "label": "AS112 anycast DNS",
               "desc": "Ze config, peer configs, and lab evidence in one shape."
+            },
+            {
+              "href": "usage/exabgp-migration/",
+              "label": "ExaBGP migration",
+              "desc": "Convert configs and bridge existing process scripts."
             }
           ]
         },
@@ -1004,9 +1109,9 @@
               "desc": "Return to the deployment shapes."
             },
             {
-              "href": "docs/guide/as112/",
-              "label": "AS112 reference",
-              "desc": "Plugin config, commands, and RFC notes."
+              "href": "docs/",
+              "label": "Documentation hub",
+              "desc": "Return to guides and references."
             },
             {
               "href": "docs/features/bgp-protocol/",

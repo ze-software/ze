@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="assets/site.css?v=fa925661d3" />
+        <link rel="stylesheet" href="assets/site.css?v=5876b4a2f7" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -39,30 +39,199 @@
                     <span>Menu</span>
                 </button>
                 <div id="site-nav-links" class="nav-links">
-                    <a href="#status">Status</a>
-                    <a href="#try">Try</a>
                     <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-project">Project
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-start">Start
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                    <div class="nav-dropdown-panel" id="nav-panel-project">
+                    <div class="nav-dropdown-panel" id="nav-panel-start">
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Overview</span>
+                        <span class="nav-dropdown-label">First steps</span>
+                        <a class="nav-dropdown-item" href="docs/guide/quickstart/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="docs/guide/ze-install/">
+                            <span class="nav-dropdown-icon">💿</span>
+                            <span><strong>Install Ze</strong><small>Run Ze on Linux or as a bootable appliance</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="docs/features/configuration/">
+                            <span class="nav-dropdown-icon">⚙️</span>
+                            <span><strong>Configuration</strong><small>The YANG-modeled config shape Ze uses everywhere</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon">⌨️</span>
+                            <span><strong>CLI Basics</strong><small>Diff, commit, history, and operator commands</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Before you run</span>
+                        <a class="nav-dropdown-item" href="roadmap/">
+                            <span class="nav-dropdown-icon">🗺️</span>
+                            <span><strong>Project Status</strong><small>What is ready today and where Ze is still young</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="faq/">
+                            <span class="nav-dropdown-icon">?</span>
+                            <span><strong>FAQ</strong><small>Common questions before committing time to Ze</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="docs/features/plugins/">
+                            <span class="nav-dropdown-icon">🔌</span>
+                            <span><strong>Plugin Catalog</strong><small>Search every runtime plugin by purpose, config, or dependency</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-evaluate">Evaluate
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-evaluate">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Capabilities</span>
                         <a class="nav-dropdown-item" href="features/">
                             <span class="nav-dropdown-icon">🧩</span>
                             <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
                         </a>
-                        <a class="nav-dropdown-item" href="docs/features/plugins/">
-                            <span class="nav-dropdown-icon">🔌</span>
-                            <span><strong>Plugins</strong><small>Search every runtime plugin by purpose, config, or dependency</small></span>
-                        </a>
                         <a class="nav-dropdown-item" href="compare/">
                             <span class="nav-dropdown-icon">⚖️</span>
-                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, and more</small></span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, VyOS, and more</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="performance/">
+                            <span class="nav-dropdown-icon">⚡</span>
+                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
                         </a>
                     </div>
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Reference</span>
+                        <span class="nav-dropdown-label">Trust</span>
+                        <a class="nav-dropdown-item" href="quality/">
+                            <span class="nav-dropdown-icon">✓</span>
+                            <span><strong>Code Quality</strong><small>Tests, QEMU, fuzzing, and mutation checks</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="dependencies/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="security/">
+                            <span class="nav-dropdown-icon">🔒</span>
+                            <span><strong>Security</strong><small>Security policy and vulnerability reporting</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-docs">Docs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-docs">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Hub</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="docs/">
+                            <span class="nav-dropdown-icon">📚</span>
+                            <span><strong>Documentation</strong><small>All docs, organized by what you want to do</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Core docs</span>
+                        <a class="nav-dropdown-item" href="docs/features/configuration/">
+                            <span class="nav-dropdown-icon">⚙️</span>
+                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon">⌨️</span>
+                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="docs/architecture/">
+                            <span class="nav-dropdown-icon">🏗️</span>
+                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Operator guides</span>
+                        <a class="nav-dropdown-item" href="docs/guide/production-diagnostics/">
+                            <span class="nav-dropdown-icon">🩺</span>
+                            <span><strong>Production Diagnostics</strong><small>Start from symptoms and debug safely</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="docs/guide/monitoring/">
+                            <span class="nav-dropdown-icon">📈</span>
+                            <span><strong>Monitoring</strong><small>Metrics, health, and operational visibility</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="docs/guide/vpp/">
+                            <span class="nav-dropdown-icon">📦</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-examples">Examples
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-examples">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Deployment examples</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="usage/">
+                            <span class="nav-dropdown-icon">🧰</span>
+                            <span><strong>Usage Examples</strong><small>Complete deployment examples for real network roles</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="usage/as112/">
+                            <span class="nav-dropdown-icon">112</span>
+                            <span><strong>AS112 Anycast DNS</strong><small>Ze as an AS112 DNS server with real router peers</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="usage/exabgp-migration/">
+                            <span class="nav-dropdown-icon">🔀</span>
+                            <span><strong>ExaBGP Migration</strong><small>A practical path from ExaBGP process scripts</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Runnable labs</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="labs/">
+                            <span class="nav-dropdown-icon">🧪</span>
+                            <span><strong>Testing Labs</strong><small>Interop proof you can run yourself against real daemons</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="labs/bgp-interop/">
+                            <span class="nav-dropdown-icon">🌐</span>
+                            <span><strong>BGP Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="labs/l2tp-interop/">
+                            <span class="nav-dropdown-icon">🔌</span>
+                            <span><strong>L2TP Access</strong><small>Ze as LNS vs real xl2tpd</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="labs/pppoe-interop/">
+                            <span class="nav-dropdown-icon">📡</span>
+                            <span><strong>PPPoE Access</strong><small>Ze vs real accel-ppp access concentrator</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="labs/ipsec-interop/">
+                            <span class="nav-dropdown-icon">🔒</span>
+                            <span><strong>IPsec / IKEv2</strong><small>Ze as IKE initiator vs strongSwan</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Systems</span>
+                        <a class="nav-dropdown-item" href="labs/vpp-dataplane/">
+                            <span class="nav-dropdown-icon">🚀</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="labs/appliance-install/">
+                            <span class="nav-dropdown-icon">💿</span>
+                            <span><strong>Appliance Installer</strong><small>HTTP/PXE, ISO, Ventoy, and real boots</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="labs/looking-glass-graph/">
+                            <span class="nav-dropdown-icon">🔭</span>
+                            <span><strong>Looking Glass Graph</strong><small>Realistic UK topology, real external ASNs</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="labs/vlan-qos/">
+                            <span class="nav-dropdown-icon">🏷️</span>
+                            <span><strong>VLAN QoS</strong><small>802.1p PCP tagging, actually on the wire</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-reference">Reference
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-reference">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Generated references</span>
                         <a class="nav-dropdown-item" href="cli/">
                             <span class="nav-dropdown-icon">⌨️</span>
                             <span><strong>CLI Reference</strong><small>379 commands, generated from the live binary</small></span>
@@ -76,29 +245,15 @@
                             <span><strong>Command Equivalents</strong><small>Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS</small></span>
                         </a>
                     </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Quality</span>
-                        <a class="nav-dropdown-item" href="quality/">
-                            <span class="nav-dropdown-icon">✓</span>
-                            <span><strong>Code Quality</strong><small>How Ze proves code quality with tests, QEMU, fuzzing, and gomu mutation checks</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="dependencies/">
-                            <span class="nav-dropdown-icon">📦</span>
-                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="performance/">
-                            <span class="nav-dropdown-icon">⚡</span>
-                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
-                        </a>
-                    </div>
                     </div>
                     </div>
                     <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-journey">Journey
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-project">Project
                         <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                    <div class="nav-dropdown-panel" id="nav-panel-journey">
+                    <div class="nav-dropdown-panel" id="nav-panel-project">
                     <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Progress</span>
                         <a class="nav-dropdown-item" href="roadmap/">
                             <span class="nav-dropdown-icon">🗺️</span>
                             <span><strong>Roadmap</strong><small>The path to a first release you can trust</small></span>
@@ -116,145 +271,23 @@
                             <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
                         </a>
                     </div>
-                    </div>
-                    </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-docs">Docs
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel" id="nav-panel-docs">
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Hub</span>
-                        <a class="nav-dropdown-item nav-dropdown-feature" href="docs/">
-                            <span class="nav-dropdown-icon">📚</span>
-                            <span><strong>Documentation</strong><small>All docs, organised by what you want to do</small></span>
+                        <span class="nav-dropdown-label">Community</span>
+                        <a class="nav-dropdown-item" href="blog/">
+                            <span class="nav-dropdown-icon">✍</span>
+                            <span><strong>Blog</strong><small>Longer project notes and release stories</small></span>
                         </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Getting started</span>
-                        <a class="nav-dropdown-item" href="docs/guide/quickstart/">
-                            <span class="nav-dropdown-icon">🚀</span>
-                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        <a class="nav-dropdown-item" href="talks/">
+                            <span class="nav-dropdown-icon">🎤</span>
+                            <span><strong>Talks</strong><small>Presentations and conference material</small></span>
                         </a>
-                        <a class="nav-dropdown-item" href="docs/features/configuration/">
-                            <span class="nav-dropdown-icon">⚙️</span>
-                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="docs/features/cli-commands/">
-                            <span class="nav-dropdown-icon">⌨️</span>
-                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="docs/features/formatting/">
-                            <span class="nav-dropdown-icon">🪄</span>
-                            <span><strong>Output Formatting</strong><small>Pipe operators: table, json, yaml, match, count</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="docs/architecture/">
-                            <span class="nav-dropdown-icon">🏗️</span>
-                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
-                        </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Deep dives</span>
-                        <a class="nav-dropdown-item" href="docs/features/mcp-integration/">
-                            <span class="nav-dropdown-icon">🤖</span>
-                            <span><strong>MCP Integration</strong><small>AI-assisted operations</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="docs/features/web-interface/">
-                            <span class="nav-dropdown-icon">🖥️</span>
-                            <span><strong>Web Interface</strong><small>HTMX config editor and admin panel</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="docs/guide/vpp/">
-                            <span class="nav-dropdown-icon">📦</span>
-                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="docs/guide/benchmarking/">
-                            <span class="nav-dropdown-icon">📊</span>
-                            <span><strong>Benchmarking</strong><small>ze-perf architecture, flags, JSON output</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="docs/guide/exabgp-migration/">
-                            <span class="nav-dropdown-icon">🔀</span>
-                            <span><strong>Migrating from ExaBGP</strong><small>Convert configs and bridge process scripts</small></span>
+                        <a class="nav-dropdown-item" href="contribute/">
+                            <span class="nav-dropdown-icon">🤝</span>
+                            <span><strong>Contribute</strong><small>How to send code, reports, and interop results</small></span>
                         </a>
                     </div>
                     </div>
                     </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-usage">Usage
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel" id="nav-panel-usage">
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Hub</span>
-                        <a class="nav-dropdown-item nav-dropdown-feature" href="usage/">
-                            <span class="nav-dropdown-icon">🧰</span>
-                            <span><strong>Usage</strong><small>Complete deployment examples for real network roles</small></span>
-                        </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Network examples</span>
-                        <a class="nav-dropdown-item" href="usage/as112/">
-                            <span class="nav-dropdown-icon">112</span>
-                            <span><strong>AS112 Anycast DNS</strong><small>Ze as an AS112 DNS server with VyOS, Junos, Cisco IOS XR, BIRD, and FRR peers</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
-                    <div class="nav-dropdown">
-                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-labs">Labs
-                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <div class="nav-dropdown-panel" id="nav-panel-labs">
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Hub</span>
-                        <a class="nav-dropdown-item nav-dropdown-feature" href="labs/">
-                            <span class="nav-dropdown-icon">🧪</span>
-                            <span><strong>Labs</strong><small>Interop proof you can run yourself against real daemons</small></span>
-                        </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Protocols</span>
-                        <a class="nav-dropdown-item" href="labs/bgp-interop/">
-                            <span class="nav-dropdown-icon">🌐</span>
-                            <span><strong>BGP Protocol Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="labs/l2tp-interop/">
-                            <span class="nav-dropdown-icon">🔌</span>
-                            <span><strong>L2TP PPP/NCP Interop</strong><small>Ze as LNS vs real xl2tpd</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="labs/pppoe-interop/">
-                            <span class="nav-dropdown-icon">📡</span>
-                            <span><strong>PPPoE Interop</strong><small>vs real accel-ppp access concentrator</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="labs/ipsec-interop/">
-                            <span class="nav-dropdown-icon">🔒</span>
-                            <span><strong>IPsec / IKEv2 Interop</strong><small>Ze as IKE initiator vs strongSwan</small></span>
-                        </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Systems</span>
-                        <a class="nav-dropdown-item" href="labs/vlan-qos/">
-                            <span class="nav-dropdown-icon">🏷️</span>
-                            <span><strong>VLAN QoS Wire-Level Proof</strong><small>802.1p PCP tagging, actually on the wire</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="labs/looking-glass-graph/">
-                            <span class="nav-dropdown-icon">🔭</span>
-                            <span><strong>Looking Glass Graph Demo</strong><small>Realistic UK topology, real external ASNs</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="labs/appliance-install/">
-                            <span class="nav-dropdown-icon">💿</span>
-                            <span><strong>Appliance Installer Evidence</strong><small>HTTP/PXE, ISO, Ventoy, real boots</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="labs/vpp-dataplane/">
-                            <span class="nav-dropdown-icon">🚀</span>
-                            <span><strong>VPP Dataplane Evidence</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
-                        </a>
-                    </div>
-                    </div>
-                    </div>
-                    <a href="blog/">Blog</a>
-                    <a href="talks/">Talks</a>
-                    <a href="faq/">FAQ</a>
-                    <a href="contribute/">Contribute</a>
                     <a
                         class="nav-badge nav-badge-search"
                         href="search/"
@@ -288,71 +321,105 @@
 
             <section class="hero" aria-labelledby="hero-title">
                 <div>
-                    <div class="hero-brand">
-                        <a
-                            href="zeledon/"
-                            aria-label="Meet Zeledon, the Ze mascot"
+                    <aside class="hero-start-panel" aria-label="Start with Ze">
+                        <div class="hero-start-intro">
+                            <div class="hero-start-brand">
+                                <a
+                                    href="zeledon/"
+                                    aria-label="Meet Zeledon, the Ze mascot"
+                                >
+                                    <img
+                                        class="hero-mascot"
+                                        src="assets/zeledon.svg"
+                                        alt="Zeledon, the Ze bird mascot"
+                                        width="134"
+                                        height="134"
+                                    />
+                                </a>
+                                <h1 id="hero-title" class="hero-title-sr">Ze open routing for white-label hardware</h1>
+                            </div>
+                            <p class="hero-start-lead">
+                                Ze creates appliances or makes Linux speak
+                                <strong class="hl blue">BGP</strong>, IS-IS,
+                                and OSPF, manages interfaces, programs the FIB,
+                                and gives operators a CLI, web UI, telemetry,
+                                looking glass, API, and plugin system around
+                                one coherent configuration model.
+                            </p>
+                            <div class="hero-start-copy">
+                                <span class="hero-start-kicker"
+                                    >Open routing for white-label hardware</span
+                                >
+                                <p>
+                                    Ze is an open, programmable network OS for
+                                    Linux: BGP core, YANG configuration,
+                                    operator interfaces, generated references,
+                                    runnable labs, inspectable automation hooks,
+                                    extension points, and an
+                                    <strong class="hl blue">ExaBGP</strong>
+                                    <a href="usage/exabgp-migration/"
+                                        >migration path</a
+                                    >
+                                    to a more performant codebase.
+                                </p>
+                            </div>
+                        </div>
+                        <nav
+                            class="hero-start-actions"
+                            aria-label="Start with Ze shortcuts"
                         >
-                            <img
-                                class="hero-mascot"
-                                src="assets/zeledon.svg"
-                                alt="Zeledon, the Ze bird mascot"
-                                width="68"
-                                height="68"
-                            />
-                        </a>
-                        <h1 id="hero-title">ze</h1>
-                    </div>
-                    <p class="eyebrow">
-                        Open, programmable network OS for Linux
-                    </p>
-                    <p class="lead">
-                        Ze creates appliances or makes Linux speak
-                        <strong class="hl blue">BGP</strong>, IS-IS, and OSPF,
-                        manages interfaces, programs the FIB, and gives
-                        operators a CLI, web UI, telemetry, looking glass,
-                        API, and plugin system around one coherent
-                        configuration model.
-                    </p>
-                    <p class="sublead">
-                        Built for people who want a network stack they can
-                        inspect, automate, and extend.
-                        <strong class="hl blue">ExaBGP</strong> users get a
-                        migration path to a more performant codebase.
-                    </p>
-                    <div class="actions">
-                        <a
-                            class="button primary"
-                            href="docs/guide/quickstart/"
-                            >Quick Start</a
-                        >
-                        <a
-                            class="button"
-                            href="docs/"
-                            >Read Docs</a
-                        >
-                        <a
-                            class="button"
-                            href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener"
-                            >Get Help</a
-                        >
-                    </div>
-                </div>
-                <div class="terminal hero-terminal" aria-label="Ze CLI session">
-                    <div class="terminal-dots">
-                        <span></span><span></span><span></span>
-                            <span class="terminal-title">bin/ze cli</span>
-                    </div>
-                    <div class="terminal-body">
-                        <pre><span class="term-comment"># start the daemon</span>
-<span class="term-prompt">$</span> bin/ze example.conf
-level=INFO  msg="hub ready" subsystem=hub plugins=1 peers=1 listen=":179"
-level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=10.0.0.2
-
-<span class="term-comment"># from another terminal</span>
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "show bgp peer list"
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "monitor event"</pre>
-                    </div>
+                            <a
+                                class="hero-start-action hero-start-action-primary search-trigger"
+                                href="#search"
+                                aria-expanded="false"
+                                ><strong>Search the site</strong
+                                ><small
+                                    >Find commands, labs, guides, and generated
+                                    references.</small
+                                ></a
+                            >
+                            <a
+                                class="hero-start-action"
+                                href="docs/guide/quickstart/"
+                                ><strong>Quickstart</strong
+                                ><small
+                                    >Bring up two BGP peers in under five
+                                    minutes.</small
+                                ></a
+                            >
+                            <a
+                                class="hero-start-action"
+                                href="docs/guide/ze-install/"
+                                ><strong>Install Ze</strong
+                                ><small
+                                    >Run Ze on Linux or as a bootable
+                                    appliance.</small
+                                ></a
+                            >
+                            <a class="hero-start-action" href="faq/"
+                                ><strong>FAQ</strong
+                                ><small
+                                    >Get answers before you commit time.</small
+                                ></a
+                            >
+                            <a class="hero-start-action" href="roadmap/"
+                                ><strong>Project status</strong
+                                ><small
+                                    >Check what is ready and what is still
+                                    young.</small
+                                ></a
+                            >
+                            <a
+                                class="hero-start-action"
+                                href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener"
+                                ><strong>Ask on Discord</strong
+                                ><small
+                                    >Talk to the project before you spend a
+                                    weekend.</small
+                                ></a
+                            >
+                        </nav>
+                    </aside>
                 </div>
             </section>
 
@@ -549,8 +616,9 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
 <span class="term-comment"># start</span>
 <span class="term-prompt">$</span> bin/ze <span class="term-cmd">start</span>
 
-<span class="term-comment"># connect to the CLI</span>
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span></pre>
+<span class="term-comment"># from another terminal</span>
+<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "show bgp peer list"
+<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "monitor event"</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
@@ -579,7 +647,7 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
                             >
                             <a href="compare/"
                                 >Compare
-                                <span>how Ze stacks up -- and where it's still behind</span></a
+                                <span>how Ze stacks up and where it's still behind</span></a
                             >
                             <a href="labs/"
                                 >Labs
@@ -722,49 +790,12 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
             </section>
         </main>
 
-        <script src="assets/site.js?v=79779d6bdd" defer></script>
+        <script src="assets/site.js?v=99f4fc1725" defer></script>
 
         <footer>
             <div class="footer-inner">
-                <div class="footer-columns">
-                    <div class="footer-col">
-                        <h3>Project</h3>
-                        <a href="features/">Features</a>
-                        <a href="docs/features/plugins/">Plugins</a>
-                        <a href="cli/">CLI Reference</a>
-                        <a href="dependencies/">Dependencies</a>
-                        <a href="performance/">Performance</a>
-                        <a href="compare/">Compare</a>
-                        <a href="roadmap/">Roadmap</a>
-                        <a href="milestones/">Milestones</a>
-                        <a href="changes/">Changes</a>
-                        <a href="activity/">Activity</a>
-                    </div>
-                    <div class="footer-col">
-                        <h3>Learn</h3>
-                        <a href="docs/">Documentation</a>
-                        <a href="usage/">Usage</a>
-                        <a href="docs/guide/quickstart/">Quickstart</a>
-                        <a href="docs/architecture/">Architecture</a>
-                        <a href="labs/">Labs</a>
-                        <a href="blog/">Blog</a>
-                        <a href="talks/">Talks</a>
-                        <a href="faq/">FAQ</a>
-                    </div>
-                    <div class="footer-col">
-                        <h3>Community</h3>
-                        <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>
-                        <a href="contribute/">Contribute</a>
-                        <a href="security/">Security</a>
-                        <a href="code-of-conduct/">Code of Conduct</a>
-                        <a href="https://github.com/ze-software/ze" target="_blank" rel="noopener">GitHub</a>
-                        <a href="https://codeberg.org/thomas-mangin/ze" target="_blank" rel="noopener">Codeberg</a>
-                        <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">Issues</a>
-                    </div>
-                </div>
                 <div class="footer-bottom">
                     <a href="license/">Ze is AGPLv3 open source.</a>
-                    <a href="style-guide/">Style Guide</a>
                 </div>
             </div>
         </footer>

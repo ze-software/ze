@@ -58,7 +58,7 @@ in the repository.
 
 There is no formal "good first issue" label yet. The most useful things an
 outside contributor can do right now are the ones that need real routing
-experience: run a lab peer, migrate an [ExaBGP config](../../docs/guide/exabgp-migration/),
+experience: run a lab peer, migrate an [ExaBGP config](../../usage/exabgp-migration/),
 stand up a looking glass, or run the [interop labs](../../labs/) and report
 what does not match. Come and ask on [Discord](https://discord.gg/T8s7CjPDne)
 where help is most valuable at the moment.

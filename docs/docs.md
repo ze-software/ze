@@ -18,7 +18,7 @@ Learning-oriented pages that take you from nothing to a working setup.
 Task-oriented pages for when you have a specific job to get done and already
 know your way around.
 
-- [Migrating from ExaBGP](guide/exabgp-migration/): convert an ExaBGP config and run existing process scripts.
+- [ExaBGP migration](../usage/exabgp-migration/): convert an ExaBGP config and run existing process scripts.
 - [Firewall](guide/firewall/) and [policy routing](guide/policy-routing/).
 - [OSPF](guide/ospf/), [IS-IS](guide/isis/), and [static routes](guide/static-routes/).
 - [PPPoE](guide/pppoe/) and [L2TP](guide/l2tp/) access concentration.
@@ -46,6 +46,7 @@ it is, not just how to use it.
 - [Architecture](architecture/): how the engine, config model, plugins, and operator surfaces fit together.
 - [Compare](../compare/): how Ze stacks up against BIRD, FRR, GoBGP, and others, including where it is still behind.
 - [Performance](../performance/): measured BGP benchmarks, with the method, not marketing numbers.
+- [VPP deployment reference](research/vpp-deployment-reference/): startup.conf, NIC, LCP, and deployment notes behind the VPP guide.
 - [Labs](../labs/): interop proof you can run yourself against real FRR, BIRD, strongSwan, and more.
 - [Usage examples](../usage/): complete network deployment shapes, starting with Ze as an AS112 anycast DNS node.
 

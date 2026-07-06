@@ -645,98 +645,19 @@ def patch_brand_home_href(html_text, root):
     )
 
 
-# (heading, [(path relative to site root, label), ...]) -- local links only,
-# rooted through `root` at render time. External links (Discord, GitHub,
-# Codeberg, Issues) are appended separately since they never take a root
-# prefix.
-FOOTER_LOCAL_COLUMNS = [
-    (
-        "Project",
-        [
-            ("features/", "Features"),
-            ("docs/features/plugins/", "Plugins"),
-            ("cli/", "CLI Reference"),
-            ("dependencies/", "Dependencies"),
-            ("performance/", "Performance"),
-            ("compare/", "Compare"),
-            ("roadmap/", "Roadmap"),
-            ("milestones/", "Milestones"),
-            ("changes/", "Changes"),
-            ("activity/", "Activity"),
-        ],
-    ),
-    (
-        "Learn",
-        [
-            ("docs/", "Documentation"),
-            ("usage/", "Usage"),
-            ("docs/guide/quickstart/", "Quickstart"),
-            ("docs/architecture/", "Architecture"),
-            ("labs/", "Labs"),
-            ("blog/", "Blog"),
-            ("talks/", "Talks"),
-            ("faq/", "FAQ"),
-        ],
-    ),
-]
-
-
 def footer_html(root):
-    """Full <footer> markup: a three-column sitemap (Project / Learn /
-    Community) plus a bottom bar (license, Style Guide) -- replaces the
-    single flat row of five links every page used to carry. Used both by
-    page_foot() for generated pages and by patch_footer() to refresh the
-    same markup inside hand-authored pages, so the two can never drift
-    apart the way nav content once did before data/nav.json existed."""
-    out = ["        <footer>\n", '            <div class="footer-inner">\n']
-    out.append('                <div class="footer-columns">\n')
-    for heading, links in FOOTER_LOCAL_COLUMNS:
-        out.append('                    <div class="footer-col">\n')
-        out.append("                        <h3>%s</h3>\n" % heading)
-        for path, label in links:
-            out.append(
-                '                        <a href="%s">%s</a>\n'
-                % (rooted_href(root, path), label)
-            )
-        out.append("                    </div>\n")
-    out.append('                    <div class="footer-col">\n')
-    out.append("                        <h3>Community</h3>\n")
-    out.append(
-        '                        <a href="%s" target="_blank" rel="noopener">Discord</a>\n'
-        % DISCORD_INVITE
+    """Full <footer> markup: just the licensing line. The footer is not a
+    sitemap and not a second call-to-action block."""
+    return (
+        "        <footer>\n"
+        '            <div class="footer-inner">\n'
+        '                <div class="footer-bottom">\n'
+        '                    <a href="%s">Ze is AGPLv3 open source.</a>\n'
+        "                </div>\n"
+        "            </div>\n"
+        "        </footer>"
+        % html.escape(rooted_href(root, "license/"), quote=True)
     )
-    out.append(
-        '                        <a href="%scontribute/">Contribute</a>\n' % root
-    )
-    out.append('                        <a href="%ssecurity/">Security</a>\n' % root)
-    out.append(
-        '                        <a href="%scode-of-conduct/">Code of Conduct</a>\n'
-        % root
-    )
-    out.append(
-        '                        <a href="https://github.com/%s" target="_blank" rel="noopener">GitHub</a>\n'
-        % GITHUB_REPO
-    )
-    out.append(
-        '                        <a href="%s" target="_blank" rel="noopener">Codeberg</a>\n'
-        % CODEBERG_REPO
-    )
-    out.append(
-        '                        <a href="https://github.com/%s/issues" target="_blank" rel="noopener">Issues</a>\n'
-        % GITHUB_REPO
-    )
-    out.append("                    </div>\n")
-    out.append("                </div>\n")
-    out.append('                <div class="footer-bottom">\n')
-    out.append(
-        '                    <a href="%slicense/">Ze is AGPLv3 open source.</a>\n'
-        % root
-    )
-    out.append('                    <a href="%sstyle-guide/">Style Guide</a>\n' % root)
-    out.append("                </div>\n")
-    out.append("            </div>\n")
-    out.append("        </footer>")
-    return "".join(out)
 
 
 FOOTER_START_RE = re.compile(r"[ \t]*<footer>")
