@@ -31,8 +31,12 @@ type blobStorage struct {
 	store     *zefs.BlobStore
 	blobPath  string
 	configDir string
-	mu        sync.RWMutex         // protects metas
+	mu        sync.RWMutex         // protects metas + writeObserver
 	metas     map[string]*fileMeta // per-key metadata
+	// writeObserver, when set, is called after every successful WriteFile with the
+	// RESOLVED key. Used by the managed-config server to push config-changed when a
+	// per-client config blob is written. Set via SetWriteObserver; nil = no observer.
+	writeObserver func(key string)
 }
 
 // NewBlob returns a Storage backed by a zefs blob store at blobPath.
@@ -125,8 +129,28 @@ func (s *blobStorage) WriteFile(name string, data []byte, _ fs.FileMode) error {
 		s.metas[key] = &fileMeta{}
 	}
 	s.metas[key].modTime = time.Now()
+	obs := s.writeObserver
 	s.mu.Unlock()
+	// Notify outside the lock: the observer may do network I/O (config-changed push)
+	// or re-enter storage, and must never block or deadlock the write path.
+	if obs != nil {
+		obs(key)
+	}
 	return nil
+}
+
+// SetWriteObserver registers fn to be called after every successful WriteFile with
+// the resolved blob key. It affects only blob-backed storage; on filesystem storage
+// it is a no-op and returns false. Set once at startup before writes begin.
+func SetWriteObserver(s Storage, fn func(key string)) bool {
+	bs, ok := s.(*blobStorage)
+	if !ok {
+		return false
+	}
+	bs.mu.Lock()
+	bs.writeObserver = fn
+	bs.mu.Unlock()
+	return true
 }
 
 func (s *blobStorage) Remove(name string) error {

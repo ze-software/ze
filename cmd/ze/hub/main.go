@@ -900,6 +900,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			f.Close() //nolint:errcheck,gosec // best-effort readiness signal
 		}
 	}
+	// Serve managed fleet clients declared under hub server blocks (answers
+	// config-fetch, pushes config-changed). No-op unless a server block has client
+	// entries and storage is blob-backed. Independent of the outbound managed client.
+	startManagedServer(managedCtx, store, hubConfig)
+
 	if managedClient != nil && storage.IsBlobStorage(store) {
 		go managed.RunManagedClient(managedCtx, *managedClient)
 	}

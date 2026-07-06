@@ -192,6 +192,10 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_traffic_usage_ingress_bytes_total` | GaugeVec | interface, src_ip | traffic-usage (track-ip) |
 | `ze_traffic_usage_egress_bytes_total` | GaugeVec | interface, dst_ip | traffic-usage (track-ip) |
 | `ze_traffic_usage_map_entries` | GaugeVec | interface, map | traffic-usage |
+| `ze_managed_clients_connected` | Gauge | | managed (hub server) |
+| `ze_managed_config_fetch_total` | CounterVec | result | managed (hub server) |
+| `ze_managed_config_changed_pushed_total` | Counter | | managed (hub server) |
+<!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer metric registration -->
 
 <!-- source: internal/plugins/trafficusage/metrics.go -- BindMetrics -->
 

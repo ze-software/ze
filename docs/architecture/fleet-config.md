@@ -1,6 +1,10 @@
 # Managed Configuration
 
-**Status:** Implemented (foundation -- background hub connection active, first-boot bootstrap, all 17 ACs)
+**Status:** Implemented. The client half (outbound connection, fetch, cache, reconnect) and the
+hub-serving half are both wired. The hub serves managed clients through a dedicated managed-config
+TLS listener that reuses the shared auth + MuxConn primitives (see "Architecture" below).
+<!-- source: internal/component/plugin/server/managed_serve.go -- ManagedServer (dedicated listener + serving loop) -->
+<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer (wires ManagedServer from hub config) -->
 
 **Purpose:** Document the architecture for centralized configuration where ze instances fetch their config from a hub over TLS, with local ZeFS backup for partition resilience.
 
@@ -96,19 +100,25 @@ plugin {
 
 ## Architecture
 
-### No New Server
+### Dedicated managed listener (reuses auth + transport)
 
-The hub (`plugin { hub { } }`) already provides:
-- TLS listener with certificate management
-- Token authentication (`#0 auth {"token":"...","name":"..."}`)
+The hub already provides the auth and transport primitives:
+- Per-client token authentication (`#0 auth {"token":"...","name":"..."}`) via `AuthenticateWithLookup`
 - MuxConn multiplexed RPCs (`#id verb [json]\n`)
-- Connection tracking by name
-<!-- source: internal/component/hub/ -- hub TLS infrastructure -->
+<!-- source: internal/component/plugin/ipc/tls.go -- AuthenticateWithLookup, StartListeners -->
 <!-- source: pkg/plugin/rpc/ -- MuxConn -->
+
+Managed clients do NOT flow through the plugin `PluginAcceptor`: that acceptor routes an
+authenticated connection to a `WaitForPlugin(name)` waiter, and only engine-spawned plugin
+processes register as waiters, so a managed client (which connects inbound at any time, with no
+waiter) would be dropped. Instead the hub runs a **dedicated managed-config TLS listener** bound
+to each `server` block that declares `client` entries. It reuses `AuthenticateWithLookup` (per-
+client secret) and MuxConn, so no new auth or wire protocol is introduced.
+<!-- source: internal/component/plugin/server/managed_serve.go -- ManagedServer -->
 
 Managed configuration adds:
 - Per-client secrets in `server` blocks (instead of one shared secret)
-- `config-fetch` and `config-changed` RPCs handled by the hub
+- `config-fetch` and `config-changed` RPCs answered by the managed listener
 - Client configs stored as entries in the hub's ZeFS blob
 
 ### Roles
@@ -136,9 +146,20 @@ At `#0 auth`, the hub looks up the token against the `client` entries nested und
 
 ### Config Storage (Hub Side)
 
-Client configs are entries in the hub's ZeFS blob, keyed by client name. The exact key format follows the blob namespace convention (see `spec-blob-namespaces`).
+Client configs are entries in the hub's ZeFS blob, keyed by client name at
+`file/active/client-<name>.conf` (the `file/active/` namespace per `spec-blob-namespaces`; the
+`client-` prefix avoids collision with the hub's own config file).
+<!-- source: internal/component/plugin/server/managed_serve.go -- ClientConfigKey -->
 
-The admin manages these using existing blob tools (`ze data ls`, `ze config edit`, SSH editor).
+The admin manages these using existing blob tools (`ze data`, `ze config edit`, SSH editor). When
+a client's config blob is written, the hub pushes `config-changed` to that client if it is
+connected (a storage write-observer maps the written key back to the client name).
+<!-- source: internal/component/config/storage/blob.go -- SetWriteObserver -->
+<!-- source: cmd/ze/hub/managed_server.go -- write-observer wiring -->
+
+The managed listener exposes Prometheus metrics: `ze_managed_clients_connected` (gauge),
+`ze_managed_config_fetch_total{result}`, and `ze_managed_config_changed_pushed_total`.
+<!-- source: internal/component/plugin/server/managed_serve.go -- metric registration -->
 
 ### Config Storage (Client Side)
 
