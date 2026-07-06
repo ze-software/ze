@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css?v=cbf7fc8780" />
+        <link rel="stylesheet" href="../assets/site.css?v=2b9e232e42" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -284,8 +284,11 @@
 
 
             <section aria-labelledby="cli-title" class="md-content reveal cat-operate">
-                <h1 id="cli-title">CLI Reference</h1>
-                <p>379 commands across 42 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Reference</span>
+                    <h1 id="cli-title">CLI Reference</h1>
+                    <p>379 commands across 42 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>
+                </div>
                 <div class="cli-search-wrap">
                     <input id="cli-search" type="search" autocomplete="off" placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." aria-label="Filter commands" />
                     <div id="cli-suggestions" class="cli-suggestions" hidden></div>

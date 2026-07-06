@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=cbf7fc8780" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=2b9e232e42" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -283,13 +283,16 @@
             </aside>
 
             <section class="md-content reveal cat-services">
-<h1>L2TPv2 LNS subsystem</h1>
-<p>Ze includes a native L2TPv2 (RFC 2661) LNS/LAC implementation used as a
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1>L2TPv2 LNS subsystem</h1>
+    <p>Ze includes a native L2TPv2 (RFC 2661) LNS/LAC implementation used as a
 BNG (Broadband Network Gateway) component: it terminates L2TP tunnels
 over UDP, runs PPP negotiation (LCP, authentication, IPCP/IPv6CP),
 assigns peer IPs, and hands the kernel data plane to the <code>l2tp_ppp</code>
 module via netlink. Subscriber routes are tracked for redistribution
 into the protocol RIB.</p>
+</div>
 <p>This page covers operator-facing use: configuration, the CLI surface,
 PPP negotiation, authentication, IP pools, traffic shaping, RADIUS,
 metrics, the web UI, reload semantics, and how subscriber routes flow

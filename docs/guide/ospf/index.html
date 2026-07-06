@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=cbf7fc8780" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=2b9e232e42" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -283,8 +283,11 @@
             </aside>
 
             <section class="md-content reveal cat-routing">
-<h1>OSPF</h1>
-<p>Ze includes an experimental native OSPF engine under the <code>ospf</code> config root. The same engine drives OSPFv2 for IPv4 and OSPFv3 for the <code>address-family ipv6</code> subsection: interface and neighbor state, LSDB flooding, SPF, ABR/NSSA policy, redistribution, and route installation are shared; the wire codec, raw transport, and prefix strategy are address-family specific.</p>
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1>OSPF</h1>
+    <p>Ze includes an experimental native OSPF engine under the <code>ospf</code> config root. The same engine drives OSPFv2 for IPv4 and OSPFv3 for the <code>address-family ipv6</code> subsection: interface and neighbor state, LSDB flooding, SPF, ABR/NSSA policy, redistribution, and route installation are shared; the wire codec, raw transport, and prefix strategy are address-family specific.</p>
+</div>
 <!-- source: internal/plugins/ospf/register.go -- registerOSPF -->
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- ospf config root -->
 <!-- source: internal/plugins/ospf/codec_v6.go -- v6Codec -->

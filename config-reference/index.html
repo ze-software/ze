@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css?v=cbf7fc8780" />
+        <link rel="stylesheet" href="../assets/site.css?v=2b9e232e42" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -284,8 +284,11 @@
 
 
             <section aria-labelledby="config-ref-title" class="md-content reveal cat-platform">
-                <h1 id="config-ref-title">Configuration Reference</h1>
-                <p>The complete Ze configuration in one place: <strong>35 sections</strong> (26 provided by plugins, the rest core), generated live from the YANG schema with <code>ze yang tree</code>. Every level -- sections and the containers inside them -- is browsed the same way: pick a setting to step into it, or search across the whole configuration. Where a setting is provided by a plugin, its owner and YANG source are shown. See the <a href="../docs/features/configuration/">Configuration guide</a> for a narrative walkthrough of BGP peer config specifically.</p>
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Reference</span>
+                    <h1 id="config-ref-title">Configuration Reference</h1>
+                    <p>The complete Ze configuration in one place: <strong>35 sections</strong> (26 provided by plugins, the rest core), generated live from the YANG schema with <code>ze yang tree</code>. Every level -- sections and the containers inside them -- is browsed the same way: pick a setting to step into it, or search across the whole configuration. Where a setting is provided by a plugin, its owner and YANG source are shown. See the <a href="../docs/features/configuration/">Configuration guide</a> for a narrative walkthrough of BGP peer config specifically.</p>
+                </div>
                 <div class="config-explorer" data-config-explorer>
 <script>document.documentElement.classList.add("config-js")</script>
                 <input id="config-search" type="search" placeholder="Search the whole configuration (setting, type, plugin)..." aria-label="Search the configuration" />

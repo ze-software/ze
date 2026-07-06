@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=cbf7fc8780" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=2b9e232e42" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -283,7 +283,6 @@
             </aside>
 
             <section class="md-content reveal cat-observe">
-<h1>Self-Documenting System</h1>
 <!-- source: internal/component/config/yang/cli/main.go -- ze schema subcommands -->
 <!-- source: internal/plugins/env/env.go -- ze env subcommands -->
 <!-- source: cmd/ze/help_ai.go -- ze help ai output -->
@@ -292,10 +291,14 @@
 <!-- source: scripts/docvalid/commands.go -- make ze-validate-commands -->
 <!-- source: scripts/docvalid/doc_drift.go -- make ze-doc-drift -->
 
-<p>Ze is self-documenting: every plugin, environment variable, RPC, event type, and CLI command
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Feature</span>
+    <h1>Self-Documenting System</h1>
+    <p>Ze is self-documenting: every plugin, environment variable, RPC, event type, and CLI command
 is registered at startup and discoverable at runtime. Nothing exists unregistered -- the
 system enforces this with compile-time registration (<code>init()</code>) and runtime abort on
 unregistered access (<code>env.MustRegister()</code>).</p>
+</div>
 <h2>Runtime Introspection</h2>
 <table>
 <thead>

@@ -1,3 +1,5 @@
+Mascot
+
 # Zeledon.
 
 Ze's mascot, and the voice behind the weekly updates.

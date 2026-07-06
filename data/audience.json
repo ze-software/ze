@@ -1,27 +1,42 @@
 {
     "run": [
         {
-            "title": "As a Daemon",
+            "title": "Run as a daemon",
+            "label": "Daemon",
+            "category": "operate",
+            "chips": ["Existing Linux", "systemd-ready"],
             "body": "Runs on any existing Linux distro, managed by systemd or your process manager of choice. The easier on-ramp if you're fitting Ze into infrastructure you already run.",
             "link": {"href": "docs/guide/quickstart/", "label": "Quickstart", "sublabel": "daemon install"}
         },
         {
-            "title": "As an Appliance",
+            "title": "Run as an appliance",
+            "label": "Appliance",
+            "category": "platform",
+            "chips": ["gokrazy image", "Read-only rootfs"],
             "body": "A dedicated bootable image built with gokrazy for purpose-built hardware: read-only rootfs, no shell, no package manager, automatic process supervision.",
             "link": {"href": "docs/guide/ze-install/", "label": "Install guide", "sublabel": "PXE, ISO, or Ventoy"}
         }
     ],
     "who": [
         {
-            "title": "BGP Operators",
+            "title": "BGP operators",
+            "label": "Routing",
+            "category": "routing",
+            "chips": ["Peering", "Policy", "RPKI"],
             "body": "People who understand peering, route servers, policy, RPKI, and the pain of debugging control-plane state."
         },
         {
-            "title": "Network Builders",
+            "title": "Network builders",
+            "label": "Builder",
+            "category": "platform",
+            "chips": ["Appliances", "Labs", "Automation"],
             "body": "People building Linux appliances, labs, automation systems, test harnesses, or routing experiments."
         },
         {
-            "title": "ExaBGP Users",
+            "title": "ExaBGP users",
+            "label": "Migration",
+            "category": "automate",
+            "chips": ["Programmable", "Migration"],
             "body": "People with existing ExaBGP workflows who want a path toward a fuller programmable network stack."
         }
     ]

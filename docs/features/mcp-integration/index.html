@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=cbf7fc8780" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=2b9e232e42" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -283,11 +283,14 @@
             </aside>
 
             <section class="md-content reveal cat-automate">
-<h1>MCP Integration</h1>
 <!-- source: internal/component/mcp/handler.go -- MCP HTTP handler -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 
-<p>Ze includes an MCP (Model Context Protocol) server that makes the BGP daemon <strong>AI-ready</strong>. Any AI assistant (Claude, GPT, or custom agents) can connect via MCP and fully control Ze -- the same operations available through the CLI are accessible programmatically through typed tools.</p>
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Feature</span>
+    <h1>MCP Integration</h1>
+    <p>Ze includes an MCP (Model Context Protocol) server that makes the BGP daemon <strong>AI-ready</strong>. Any AI assistant (Claude, GPT, or custom agents) can connect via MCP and fully control Ze -- the same operations available through the CLI are accessible programmatically through typed tools.</p>
+</div>
 <h2>AI-Ready BGP Operations</h2>
 <p>The MCP server exposes typed tools with structured parameters, so AI assistants can manage BGP without parsing CLI output:</p>
 <table>

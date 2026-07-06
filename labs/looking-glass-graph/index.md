@@ -1,3 +1,5 @@
+Demo lab
+
 # Looking Glass Graph Demo
 
 A realistic UK topology with real external ASNs, populating the Looking Glass topology graph -- the one lab that's actually browsable today.

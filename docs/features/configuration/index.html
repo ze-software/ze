@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=cbf7fc8780" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=2b9e232e42" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -283,13 +283,16 @@
             </aside>
 
             <section class="md-content reveal cat-operate">
-<h1>Configuration</h1>
-<p>This page walks through BGP peer configuration specifically, since it is
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Feature</span>
+    <h1>Configuration</h1>
+    <p>This page walks through BGP peer configuration specifically, since it is
 the most-configured surface. For every other subsystem's config syntax
 (interfaces, firewall, L2TP, DHCP, and the rest of Ze's 38 plugin groups),
 see the generated <a href="https://ze-software.net/config-reference/">Configuration
 Reference</a>, built
 straight from each plugin's own YANG module.</p>
+</div>
 <h3>Peer Settings</h3>
 <p>Peers are keyed by name (<code>peer &lt;name&gt; { }</code>) with IP and AS in nested containers:</p>
 <table>

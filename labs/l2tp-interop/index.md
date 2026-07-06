@@ -1,3 +1,5 @@
+Protocol lab
+
 # L2TP PPP/NCP Interop
 
 Ze as an LNS against a real `xl2tpd`/`pppd` LAC, with FRR proving that a subscriber route makes it all the way into BGP.

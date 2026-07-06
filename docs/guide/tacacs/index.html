@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=cbf7fc8780" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=2b9e232e42" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -283,11 +283,14 @@
             </aside>
 
             <section class="md-content reveal cat-secure">
-<h1>TACACS+ AAA</h1>
-<p>Ze authenticates SSH logins against TACACS+ servers (RFC 8907) when the
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1>TACACS+ AAA</h1>
+    <p>Ze authenticates SSH logins against TACACS+ servers (RFC 8907) when the
 <code>system.authentication.tacacs</code> block is present. Local bcrypt users keep
 working as the fallback so an unreachable server cannot lock you out of the
 device.</p>
+</div>
 <h2>What it does</h2>
 <table>
 <thead>

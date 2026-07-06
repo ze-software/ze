@@ -1,3 +1,5 @@
+Appliance lab
+
 # Appliance Installer Evidence
 
 The installer boots and completes for real in QEMU -- across HTTP/PXE, ISO, and Ventoy-on-FAT paths, plus failure-path and rescue scenarios.

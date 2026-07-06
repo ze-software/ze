@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=cbf7fc8780" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=2b9e232e42" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -283,17 +283,20 @@
             </aside>
 
             <section class="md-content reveal cat-observe">
-<h1>Flow Export</h1>
 <!-- source: internal/plugins/flowexport/exporter.go -- Exporter, Status, per-collector senders -->
 <!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- YANG config -->
 <!-- source: internal/plugins/flowexport/cmd_show.go -- ze-show:flow-export RPC -->
 <!-- source: internal/plugins/flowexport/metrics.go -- ze_flowexport_* Prometheus metrics -->
 
-<p>Ze exports interface counters and per-flow records to external collectors over
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1>Flow Export</h1>
+    <p>Ze exports interface counters and per-flow records to external collectors over
 UDP. The <code>flowexport</code> component is a registered component: it loads only when a
 <code>flow-export { }</code> section is present in the config. Counter polling is driven by
 the interface rate tracker's snapshot callback; per-flow records come from
 packet sampling and from periodic conntrack table dumps.</p>
+</div>
 <p>Because counter export consumes the interface rate tracker, configuring
 <code>flow-export { }</code> automatically pulls in the interface plugin (a registered
 dependency). You do not need to add a separate <code>interface { }</code> section just to
