@@ -665,6 +665,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         var targets = [];
         Array.prototype.slice.call(document.querySelectorAll(".md-content table")).forEach(function (table) {
+            if (table.classList.contains("cmd-eq-table") || table.closest(".command-equivalents")) return;
             if (productHeaderCount(table) < 2) return;
             var section = sectionFor(table);
             Array.prototype.slice.call(table.querySelectorAll("tbody tr")).forEach(function (row) {
@@ -741,6 +742,213 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     }
+    function columnSelectorClean(text) {
+        return (text || "").replace(/\s+/g, " ").trim();
+    }
+
+    function columnSelectorList(text) {
+        return (text || "").split(",").map(function (item) {
+            return columnSelectorClean(item);
+        }).filter(Boolean);
+    }
+
+    function initColumnSelector(config) {
+        var host = config.host;
+        if (!host || host.getAttribute("data-column-selector-ready") === "true") return null;
+        var tables = config.tables || [];
+        if (!tables.length && config.targetSelector) {
+            tables = Array.prototype.slice.call(document.querySelectorAll(config.targetSelector));
+        }
+        if (!tables.length && config.content) {
+            tables = Array.prototype.slice.call(config.content.querySelectorAll(config.tableSelector || "table"));
+        }
+        tables = tables.filter(function (table) { return table && table.rows && table.rows.length; });
+        if (!tables.length) return null;
+
+        var explicitLabels = columnSelectorList(config.columns || "");
+        var explicitByKey = {};
+        explicitLabels.forEach(function (label) {
+            explicitByKey[label.toLowerCase()] = label;
+        });
+        var columns = {};
+        var order = [];
+
+        tables.forEach(function (table) {
+            var header = table.tHead && table.tHead.rows.length ? table.tHead.rows[0] : table.rows[0];
+            Array.prototype.slice.call(header.cells).forEach(function (cell, index) {
+                var label = config.labelResolver
+                    ? config.labelResolver(cell.textContent, cell, table, index)
+                    : columnSelectorClean(cell.textContent);
+                if (!label) return;
+                if (explicitLabels.length) {
+                    label = explicitByKey[columnSelectorClean(label).toLowerCase()] || "";
+                    if (!label) return;
+                }
+                if (!columns[label]) {
+                    columns[label] = [];
+                    order.push(label);
+                }
+                columns[label].push({ table: table, index: index });
+            });
+        });
+
+        if (order.length < (config.minColumns || 1)) return null;
+
+        var defaultLabels = columnSelectorList(config.defaultVisible || "");
+        var defaultKeys = {};
+        defaultLabels.forEach(function (label) {
+            defaultKeys[label.toLowerCase()] = true;
+        });
+        var state = {};
+        order.forEach(function (label) {
+            state[label] = !defaultLabels.length || defaultKeys[label.toLowerCase()];
+        });
+        if (!order.some(function (label) { return state[label]; })) state[order[0]] = true;
+
+        var fieldset = document.createElement("fieldset");
+        fieldset.className = config.fieldsetClass || "column-selector-fieldset";
+        fieldset.setAttribute("data-column-selector-fieldset", "");
+        fieldset.innerHTML = "<legend>" + (config.legend || "Show columns") + "</legend>";
+        var controls = {};
+        var mode = config.mode === "buttons" ? "buttons" : "checks";
+
+        function visibleLabels() {
+            return order.filter(function (label) { return state[label]; });
+        }
+
+        function setColumn(entry, visible) {
+            Array.prototype.slice.call(entry.table.rows).forEach(function (row) {
+                var cell = row.cells[entry.index];
+                if (!cell) return;
+                cell.hidden = !visible;
+                cell.classList.toggle("column-selector-hidden", !visible);
+                cell.classList.toggle("compare-column-hidden", !visible);
+            });
+        }
+
+        function syncControls() {
+            order.forEach(function (label) {
+                var control = controls[label];
+                if (!control) return;
+                if (control.tagName === "INPUT") {
+                    control.checked = state[label];
+                } else {
+                    control.setAttribute("aria-pressed", state[label] ? "true" : "false");
+                }
+            });
+        }
+
+        function applyColumns() {
+            var visible = visibleLabels();
+            order.forEach(function (label) {
+                columns[label].forEach(function (entry) {
+                    setColumn(entry, state[label]);
+                });
+            });
+            tables.forEach(function (table) {
+                table.classList.add("column-selector-active");
+                table.style.setProperty("--visible-column-count", String(visible.length));
+                table.setAttribute("data-visible-column-count", String(visible.length));
+            });
+            syncControls();
+            if (config.updateStatus && config.status) {
+                var kind = config.kind || "columns";
+                config.status.textContent = "Showing " + visible.length + " of " + order.length + " " + kind + ": " + visible.join(", ") + ".";
+            }
+        }
+
+        function setOne(label, visible) {
+            state[label] = visible;
+            if (!order.some(function (item) { return state[item]; })) state[label] = true;
+            applyColumns();
+        }
+
+        order.forEach(function (label) {
+            if (mode === "buttons") {
+                var button = document.createElement("button");
+                button.type = "button";
+                button.className = "column-selector-button";
+                button.textContent = label;
+                button.setAttribute("aria-pressed", state[label] ? "true" : "false");
+                button.addEventListener("click", function () {
+                    setOne(label, !state[label]);
+                });
+                controls[label] = button;
+                fieldset.appendChild(button);
+                return;
+            }
+            var wrapper = document.createElement("label");
+            wrapper.className = config.toggleClass || "column-selector-toggle";
+            var input = document.createElement("input");
+            input.type = "checkbox";
+            input.value = label;
+            input.checked = state[label];
+            input.addEventListener("change", function () {
+                setOne(label, input.checked);
+            });
+            controls[label] = input;
+            wrapper.appendChild(input);
+            wrapper.appendChild(document.createTextNode(label));
+            fieldset.appendChild(wrapper);
+        });
+
+        if (config.actions) {
+            var actions = document.createElement("div");
+            actions.className = "column-selector-actions";
+            var allButton = document.createElement("button");
+            allButton.type = "button";
+            allButton.textContent = "All";
+            allButton.addEventListener("click", function () {
+                order.forEach(function (label) { state[label] = true; });
+                applyColumns();
+            });
+            var defaultButton = document.createElement("button");
+            defaultButton.type = "button";
+            defaultButton.textContent = "Default";
+            defaultButton.addEventListener("click", function () {
+                order.forEach(function (label) {
+                    state[label] = !defaultLabels.length || defaultKeys[label.toLowerCase()];
+                });
+                if (!order.some(function (label) { return state[label]; })) state[order[0]] = true;
+                applyColumns();
+            });
+            actions.appendChild(allButton);
+            actions.appendChild(defaultButton);
+            fieldset.appendChild(actions);
+        }
+
+        host.insertBefore(fieldset, config.insertBefore || null);
+        host.setAttribute("data-column-selector-ready", "true");
+        applyColumns();
+        return { fieldset: fieldset, columns: columns, order: order, apply: applyColumns };
+    }
+
+    function initGenericColumnSelectors() {
+        Array.prototype.slice.call(document.querySelectorAll("[data-column-selector]")).forEach(function (root) {
+            var status = root.querySelector("[data-column-selector-status]");
+            if (!status) {
+                status = document.createElement("p");
+                status.className = "column-selector-status";
+                status.setAttribute("data-column-selector-status", "");
+                status.setAttribute("aria-live", "polite");
+                root.appendChild(status);
+            }
+            initColumnSelector({
+                host: root,
+                targetSelector: root.getAttribute("data-column-selector-target"),
+                columns: root.getAttribute("data-column-selector-columns"),
+                defaultVisible: root.getAttribute("data-column-selector-default"),
+                mode: root.getAttribute("data-column-selector-mode"),
+                legend: root.getAttribute("data-column-selector-label"),
+                kind: root.getAttribute("data-column-selector-kind") || "columns",
+                actions: root.getAttribute("data-column-selector-actions") === "true",
+                status: status,
+                insertBefore: status,
+                updateStatus: true,
+            });
+        });
+    }
+
     function initComparisonFilters() {
         var productMatchers = [
             ["Ze", /^ze(?: evidence)?$/],
@@ -766,72 +974,19 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         function initColumnControls(tool, content, status) {
-            var tables = Array.prototype.slice.call(content.querySelectorAll("table"));
-            var columns = {};
-            var order = [];
-
-            tables.forEach(function (table) {
-                if (!table.rows.length) return;
-                var header = table.tHead && table.tHead.rows.length ? table.tHead.rows[0] : table.rows[0];
-                Array.prototype.slice.call(header.cells).forEach(function (cell, index) {
-                    var label = productLabel(cell.textContent);
-                    if (!label) return;
-                    if (!columns[label]) {
-                        columns[label] = [];
-                        order.push(label);
-                    }
-                    columns[label].push({ table: table, index: index });
-                });
+            initColumnSelector({
+                host: tool,
+                content: content,
+                tableSelector: "table",
+                labelResolver: productLabel,
+                legend: "Show products",
+                mode: "checks",
+                fieldsetClass: "compare-columns column-selector-fieldset column-selector-checks",
+                toggleClass: "compare-column-toggle column-selector-toggle",
+                insertBefore: status,
+                minColumns: 3,
+                updateStatus: false,
             });
-
-            if (order.length < 3) return;
-
-            var fieldset = document.createElement("fieldset");
-            fieldset.className = "compare-columns";
-            fieldset.setAttribute("data-compare-columns", "");
-            fieldset.innerHTML = '<legend>Show products</legend>';
-            var inputs = [];
-
-            function setColumn(entry, visible) {
-                Array.prototype.slice.call(entry.table.rows).forEach(function (row) {
-                    var cell = row.cells[entry.index];
-                    if (!cell) return;
-                    cell.hidden = !visible;
-                    cell.classList.toggle("compare-column-hidden", !visible);
-                });
-            }
-
-            function applyColumns() {
-                order.forEach(function (label) {
-                    var input = fieldset.querySelector('input[value="' + label + '"]');
-                    var visible = !input || input.checked;
-                    columns[label].forEach(function (entry) {
-                        setColumn(entry, visible);
-                    });
-                });
-            }
-
-            order.forEach(function (label) {
-                var wrapper = document.createElement("label");
-                wrapper.className = "compare-column-toggle";
-                var input = document.createElement("input");
-                input.type = "checkbox";
-                input.value = label;
-                input.checked = true;
-                input.addEventListener("change", function () {
-                    if (!inputs.some(function (node) { return node.checked; })) {
-                        input.checked = true;
-                    }
-                    applyColumns();
-                });
-                inputs.push(input);
-                wrapper.appendChild(input);
-                wrapper.appendChild(document.createTextNode(label));
-                fieldset.appendChild(wrapper);
-            });
-
-            tool.insertBefore(fieldset, status);
-            applyColumns();
         }
 
         var tools = Array.prototype.slice.call(document.querySelectorAll("[data-compare-filter]"));
@@ -927,6 +1082,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     initFeatureTooltips();
+    initGenericColumnSelectors();
     initComparisonFilters();
     initSourceLinks();
 });

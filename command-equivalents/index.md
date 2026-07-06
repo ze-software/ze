@@ -1,10 +1,76 @@
 # Command Equivalents
 
-379 live Ze commands. 100 have curated vendor mappings. One row per Ze command. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+379 live Ze commands. 47 have vendor CLI today. 100 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+
+## Commands with vendor CLI
+
+These rows have at least one listed vendor command.
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
+| `clear interface counters` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-counters/) |
+| `clear interface name <name> counters` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-name-counters/) |
+| `request commit` | Daemon | - | - | - | `commit` | [details](request-commit/) |
+| `request halt` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-halt/) |
+| `request peer refresh <selector>` | Daemon | `clear bgp neighbor <peer> soft-inbound` | `clear bgp ipv4 unicast <peer> soft in` | - | `reset bgp <peer> soft in` | [details](request-peer-refresh/) |
+| `request peer <selector> teardown [cease-subcode]` | Daemon | `clear bgp neighbor <peer>` | `clear bgp ipv4 unicast <peer>` | - | `reset bgp <peer>` | [details](request-peer-teardown/) |
+| `request reboot` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-reboot/) |
+| `request reload` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-reload/) |
+| `request shutdown` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-shutdown/) |
+| `resolve dns a <hostname>` | Read-only | - | - | - | `show dns` | [details](resolve-dns-a/) |
+| `resolve dns aaaa <hostname>` | Read-only | - | - | - | `show dns` | [details](resolve-dns-aaaa/) |
+| `resolve dns ptr <ip-address>` | Read-only | - | - | - | `show dns` | [details](resolve-dns-ptr/) |
+| `resolve ping <target> [source <ip>] [count <n>] [size <bytes>]` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](resolve-ping/) |
+| `resolve traceroute <target> [source <ip>] [max-hops N] [timeout D] [probes N]` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](resolve-traceroute/) |
+| `show arp` | Read-only | - | - | - | `show arp` | [details](show-arp/) |
+| `show bgp peer <selector> rib [scope\|filters\|terminal]` | Read-only | `show route advertising-protocol bgp <peer>`<br>`show route receive-protocol bgp <peer>` | - | - | - | [details](show-bgp-peer-rib/) |
+| `show bgp rib best` | Read-only | `show route <prefix> protocol bgp`<br>`show route protocol bgp` | `show bgp ipv4 unicast`<br>`show bgp ipv4 unicast <prefix>` | - | `show ip bgp <prefix>` | [details](show-bgp-rib-best/) |
+| `show bgp summary` | Read-only | `show bgp summary` | `show bgp ipv4 unicast summary`<br>`show bgp summary` | `show router bgp summary` | `show bgp ipv4 summary`<br>`show ip bgp summary` | [details](show-bgp-summary/) |
+| `show config diff` | Read-only | - | - | - | `compare`<br>`show configuration` | [details](show-config-diff/) |
+| `show config dump` | Read-only | - | - | - | `compare`<br>`show configuration` | [details](show-config-dump/) |
+| `show config fmt` | Read-only | - | - | - | `compare`<br>`show configuration` | [details](show-config-fmt/) |
+| `show config history` | Read-only | - | - | - | `compare`<br>`show configuration` | [details](show-config-history/) |
+| `show dns cache list` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-list/) |
+| `show dns cache record <name>` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-record/) |
+| `show dns cache stats` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-stats/) |
+| `show dns lookup <hostname> [<type>]` | Read-only | - | - | - | `show dns` | [details](show-dns-lookup/) |
+| `show doctor` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-doctor/) |
+| `show errors` | Read-only | - | - | - | `show log` | [details](show-errors/) |
+| `show health` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-health/) |
+| `show interface brief` | Read-only | - | - | - | `show interfaces` | [details](show-interface-brief/) |
+| `show interface name <name> detail` | Read-only | - | - | - | `show interfaces <name>` | [details](show-interface-name-detail/) |
+| `show log recent [<component>] [<count>] [<level>]` | Read-only | - | - | - | `show log` | [details](show-log-recent/) |
+| `show neighbor [<family>]` | Read-only | - | - | - | `show arp` | [details](show-neighbor/) |
+| `show ping [<count>] [<dest>] [<timeout>]` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](show-ping/) |
+| `show route [<limit>] [<prefix>]` | Read-only | `show route` | - | - | `show ip route` | [details](show-route/) |
+| `show route lookup` | Read-only | `show route <prefix>` | - | - | `show ip route <prefix>` | [details](show-route-lookup/) |
+| `show system cpu` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-system-cpu/) |
+| `show system date` | Read-only | - | - | - | `show date`<br>`show ntp` | [details](show-system-date/) |
+| `show system memory` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-system-memory/) |
+| `show system ntp` | Read-only | - | - | - | `show date`<br>`show ntp` | [details](show-system-ntp/) |
+| `show system ntp peers` | Read-only | - | - | - | `show date`<br>`show ntp` | [details](show-system-ntp-peers/) |
+| `show system platform` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-system-platform/) |
+| `show traceroute [<dest>] [<max-hops>] [<probes>] [<timeout>]` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](show-traceroute/) |
+| `show uptime` | Read-only | - | - | - | `show system uptime` | [details](show-uptime/) |
+| `show version` | Read-only | - | - | - | `show system uptime` | [details](show-version/) |
+| `show warnings` | Read-only | - | - | - | `show log` | [details](show-warnings/) |
+| `validate config` | Offline | - | - | - | `commit` | [details](validate-config/) |
+
+## Full live command catalog
+
+Rows without vendor CLI remain visible so missing coverage is explicit.
+
+
+### announce
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
 | `announce <unicast\|blackhole\|flowspec> <args> [tag <key> <value>] [for <duration>]` | Daemon | - | - | - | - | [details](announce/) |
+
+### clear
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `clear bgp rib in` | Daemon | - | - | - | - | [details](clear-bgp-rib-in/) |
 | `clear bgp rib out` | Daemon | - | - | - | - | [details](clear-bgp-rib-out/) |
 | `clear debug` | Offline | - | - | - | - | [details](clear-debug/) |
@@ -23,6 +89,11 @@
 | `clear ospf neighbor` | Daemon | - | - | - | - | [details](clear-ospf-neighbor/) |
 | `clear ospf process` | Daemon | - | - | - | - | [details](clear-ospf-process/) |
 | `clear vpn ipsec sa` | Daemon | - | - | - | - | [details](clear-vpn-ipsec-sa/) |
+
+### create
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `create interface address <name> <prefix>` | Daemon | - | - | - | - | [details](create-interface-address/) |
 | `create interface bridge name <name>` | Daemon | - | - | - | - | [details](create-interface-bridge-name/) |
 | `create interface bridge name <name> address <prefix>` | Daemon | - | - | - | - | [details](create-interface-bridge-name-address/) |
@@ -32,22 +103,57 @@
 | `create interface dummy name <name> unit <vid>` | Daemon | - | - | - | - | [details](create-interface-dummy-name-unit/) |
 | `create interface unit <parent> <vid>` | Daemon | - | - | - | - | [details](create-interface-unit/) |
 | `create interface veth name <name> <peer>` | Daemon | - | - | - | - | [details](create-interface-veth-name/) |
+
+### debug
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `debug ip ospf inject opaque scope <link\|area\|as> id <opaque-id>` | Daemon | - | - | - | - | [details](debug-ip-ospf-inject-opaque/) |
 | `debug ipv6 ospf inject lsa scope <link\|area\|as> type <ls-type>` | Daemon | - | - | - | - | [details](debug-ipv6-ospf-inject-lsa/) |
 | `debug ospf inject disable` | Daemon | - | - | - | - | [details](debug-ospf-inject-disable/) |
 | `debug ospf inject enable` | Daemon | - | - | - | - | [details](debug-ospf-inject-enable/) |
+
+### delete
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `delete bgp peer <selector>` | Daemon | - | - | - | - | [details](delete-bgp-peer/) |
 | `delete debug module` | Offline | - | - | - | - | [details](delete-debug-module/) |
 | `delete debug profile name` | Offline | - | - | - | - | [details](delete-debug-profile-name/) |
 | `delete interface name <name>` | Daemon | - | - | - | - | [details](delete-interface-name/) |
 | `delete interface name <name> address <prefix>` | Daemon | - | - | - | - | [details](delete-interface-name-address/) |
 | `delete interface name <name> unit` | Daemon | - | - | - | - | [details](delete-interface-name-unit/) |
+
+### doctor
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `doctor` | Offline | - | - | - | - | [details](doctor/) |
+
+### explain
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `explain` | Offline | - | - | - | - | [details](explain/) |
+
+### generate
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `generate wireguard keypair` | Offline | - | - | - | - | [details](generate-wireguard-keypair/) |
+
+### help
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `help` | Read-only | - | - | - | - | [details](help/) |
 | `help ai` | Offline | - | - | - | - | [details](help-ai/) |
 | `help command` | Offline | - | - | - | - | [details](help-command/) |
+
+### monitor
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `monitor bgp` | Read-only | - | - | - | - | [details](monitor-bgp/) |
 | `monitor event` | Read-only | - | - | - | - | [details](monitor-event/) |
 | `monitor interface rate` | Read-only | - | - | - | - | [details](monitor-interface-rate/) |
@@ -56,8 +162,18 @@
 | `monitor traceroute` | Read-only | - | - | - | - | [details](monitor-traceroute/) |
 | `monitor traffic-stat [<name>]` | Read-only | - | - | - | - | [details](monitor-traffic-stat/) |
 | `monitor vpn ipsec` | Read-only | - | - | - | - | [details](monitor-vpn-ipsec/) |
+
+### peer
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `peer raw <selector>` | Daemon | - | - | - | - | [details](peer-raw/) |
 | `peer update <selector>` | Daemon | - | - | - | - | [details](peer-update/) |
+
+### plugin
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `plugin ack` | Read-only | - | - | - | - | [details](plugin-ack/) |
 | `plugin command complete` | Read-only | - | - | - | - | [details](plugin-command-complete/) |
 | `plugin command help` | Read-only | - | - | - | - | [details](plugin-command-help/) |
@@ -68,6 +184,11 @@
 | `plugin session bye` | Read-only | - | - | - | - | [details](plugin-session-bye/) |
 | `plugin session ping` | Read-only | - | - | - | - | [details](plugin-session-ping/) |
 | `plugin session ready` | Read-only | - | - | - | - | [details](plugin-session-ready/) |
+
+### request
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `request as112 healthcheck [target <ip>]` | Daemon | - | - | - | - | [details](request-as112-healthcheck/) |
 | `request bgp rib inject` | Daemon | - | - | - | - | [details](request-bgp-rib-inject/) |
 | `request bgp rib withdraw` | Daemon | - | - | - | - | [details](request-bgp-rib-withdraw/) |
@@ -99,6 +220,11 @@
 | `request shutdown` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-shutdown/) |
 | `request subscribe` | Daemon | - | - | - | - | [details](request-subscribe/) |
 | `request unsubscribe` | Daemon | - | - | - | - | [details](request-unsubscribe/) |
+
+### resolve
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `resolve cymru asn-name <asn>` | Read-only | - | - | - | - | [details](resolve-cymru-asn-name/) |
 | `resolve dns a <hostname>` | Read-only | - | - | - | `show dns` | [details](resolve-dns-a/) |
 | `resolve dns aaaa <hostname>` | Read-only | - | - | - | `show dns` | [details](resolve-dns-aaaa/) |
@@ -110,11 +236,21 @@
 | `resolve peeringdb max-prefix <asn>` | Read-only | - | - | - | - | [details](resolve-peeringdb-max-prefix/) |
 | `resolve ping <target> [source <ip>] [count <n>] [size <bytes>]` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](resolve-ping/) |
 | `resolve traceroute <target> [source <ip>] [max-hops N] [timeout D] [probes N]` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](resolve-traceroute/) |
+
+### set
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `set debug active name` | Offline | - | - | - | - | [details](set-debug-active-name/) |
 | `set debug module` | Offline | - | - | - | - | [details](set-debug-module/) |
 | `set debug profile name` | Offline | - | - | - | - | [details](set-debug-profile-name/) |
 | `set debug timeout` | Offline | - | - | - | - | [details](set-debug-timeout/) |
 | `set system file-descriptors [<limit>]` | Daemon | - | - | - | - | [details](set-system-file-descriptors/) |
+
+### show
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `show aaa accounting` | Read-only | - | - | - | - | [details](show-aaa-accounting/) |
 | `show announcements [tag <key>] [selector <pattern>] [family <fam>]` | Read-only | - | - | - | - | [details](show-announcements/) |
 | `show anomaly detect` | Read-only | - | - | - | - | [details](show-anomaly-detect/) |
@@ -359,8 +495,23 @@
 | `show yang completion` | Read-only | - | - | - | - | [details](show-yang-completion/) |
 | `show yang doc` | Read-only | - | - | - | - | [details](show-yang-doc/) |
 | `show yang tree` | Read-only | - | - | - | - | [details](show-yang-tree/) |
+
+### skills
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `skills` | Offline | - | - | - | - | [details](skills/) |
+
+### support
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `support` | Offline | - | - | - | - | [details](support/) |
+
+### system
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `system command complete` | Read-only | - | - | - | - | [details](system-command-complete/) |
 | `system command help` | Read-only | - | - | - | - | [details](system-command-help/) |
 | `system command list` | Read-only | - | - | - | - | [details](system-command-list/) |
@@ -369,6 +520,11 @@
 | `system subsystem list` | Read-only | - | - | - | - | [details](system-subsystem-list/) |
 | `system version api` | Read-only | - | - | - | - | [details](system-version-api/) |
 | `system version software` | Read-only | - | - | - | - | [details](system-version-software/) |
+
+### update
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `update bgp irr all` | Daemon | - | - | - | - | [details](update-bgp-irr-all/) |
 | `update bgp irr as-set <as-set>` | Daemon | - | - | - | - | [details](update-bgp-irr-as-set/) |
 | `update bgp irr asn <asn>` | Daemon | - | - | - | - | [details](update-bgp-irr-asn/) |
@@ -381,7 +537,17 @@
 | `update system firmware download` | Daemon | - | - | - | - | [details](update-system-firmware-download/) |
 | `update system firmware restart` | Daemon | - | - | - | - | [details](update-system-firmware-restart/) |
 | `update system firmware rollback` | Daemon | - | - | - | - | [details](update-system-firmware-rollback/) |
+
+### validate
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `validate config` | Offline | - | - | - | `commit` | [details](validate-config/) |
+
+### withdraw
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
 | `withdraw tag <key> <value\|*> \| withdraw tag * \| withdraw id <N> \| withdraw all` | Daemon | - | - | - | - | [details](withdraw/) |
 
 ## Vendor-only gaps

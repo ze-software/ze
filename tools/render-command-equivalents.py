@@ -214,6 +214,24 @@ def vendor_commands(row, vendor_id):
     commands.sort(key=lambda pair: (CONFIDENCE_ORDER.get(pair[1].get("confidence", "unknown"), 9), pair[1].get("command", "")))
     return commands
 
+def row_has_vendor_commands(row, vendor_ids):
+    return any(vendor_commands(row, vendor_id) for vendor_id in vendor_ids)
+
+
+def row_vendor_command_count(row, vendor_ids):
+    return sum(len(vendor_commands(row, vendor_id)) for vendor_id in vendor_ids)
+
+
+def vendor_coverage(rows, vendor_ids):
+    coverage = {}
+    for vendor_id in vendor_ids:
+        vendor_rows = [row for row in rows if vendor_commands(row, vendor_id)]
+        coverage[vendor_id] = {
+            "rows": len(vendor_rows),
+            "commands": sum(len(vendor_commands(row, vendor_id)) for row in rows),
+        }
+    return coverage
+
 
 def source_links(refs, sources):
     links = []
@@ -259,7 +277,7 @@ def search_text(row, vendor_ids):
     return one_line(" ".join(terms)).lower()
 
 
-def render_index_row(row, vendor_ids):
+def render_index_row(row, vendor_ids, row_id_prefix="cmd-eq-"):
     command = row["command"]
     mode = command.get("mode", "")
     mode_label = MODE_LABELS.get(mode, mode)
@@ -269,26 +287,119 @@ def render_index_row(row, vendor_ids):
     ]
     cells.extend('<td>%s</td>' % compact_vendor_cell(row, vendor_id) for vendor_id in vendor_ids)
     cells.append('<td class="cmd-eq-detail-link"><a href="%s/">details</a></td>' % html.escape(row["slug"], quote=True))
-    return '<tr id="cmd-eq-%s" data-search="%s">%s</tr>' % (
-        html.escape(row["slug"], quote=True),
+    row_class = "cmd-eq-has-vendor" if row_has_vendor_commands(row, vendor_ids) else "cmd-eq-no-vendor"
+    row_id = ""
+    if row_id_prefix is not None:
+        row_id = ' id="%s%s"' % (html.escape(row_id_prefix, quote=True), html.escape(row["slug"], quote=True))
+    return '<tr%s class="%s" data-search="%s">%s</tr>' % (
+        row_id,
+        row_class,
         html.escape(search_text(row, vendor_ids), quote=True),
         "".join(cells),
     )
 
 
-def render_index_group(label, rows, vendor_ids, vendor_labels):
+def render_command_table(rows, vendor_ids, vendor_labels, row_id_prefix="cmd-eq-"):
     parts = [
-        '<details class="cmd-eq-group" id="%s" open>' % slugify("cmd-eq-group-", label),
-        '<summary>%s <span class="cmd-eq-count">%d</span></summary>' % (html.escape(label), len(rows)),
         '<div class="cmd-eq-table-wrap">',
         '<table class="cmd-eq-table cmd-eq-compact"><thead><tr><th>Ze</th>',
     ]
     for vendor_id in vendor_ids:
         parts.append("<th>%s</th>" % html.escape(vendor_labels[vendor_id]))
     parts.append("<th>Details</th></tr></thead><tbody>")
-    parts.extend(render_index_row(row, vendor_ids) for row in rows)
-    parts.append("</tbody></table></div></details>")
+    parts.extend(render_index_row(row, vendor_ids, row_id_prefix=row_id_prefix) for row in rows)
+    parts.append("</tbody></table></div>")
     return "\n".join(parts)
+
+
+def render_index_group(label, rows, vendor_ids, vendor_labels):
+    equivalent_count = sum(1 for row in rows if row_has_vendor_commands(row, vendor_ids))
+    reviewed_count = sum(1 for row in rows if row["entries"])
+    count_bits = []
+    if equivalent_count:
+        count_bits.append("%d equivalent" % equivalent_count)
+    if reviewed_count and reviewed_count != equivalent_count:
+        count_bits.append("%d reviewed" % reviewed_count)
+    count_bits.append("%d total" % len(rows))
+    parts = [
+        '<details class="cmd-eq-group" id="%s" open>' % slugify("cmd-eq-group-", label),
+        '<summary>%s <span class="cmd-eq-count">%s</span></summary>' % (html.escape(label), html.escape(", ".join(count_bits))),
+        render_command_table(rows, vendor_ids, vendor_labels),
+        "</details>",
+    ]
+    return "\n".join(parts)
+
+
+def render_equivalence_overview(rows, vendor_ids, vendor_labels, reviewed_count, equivalent_count):
+    coverage = vendor_coverage(rows, vendor_ids)
+    total_vendor_commands = sum(item["commands"] for item in coverage.values())
+    parts = [
+        '<section class="cmd-eq-overview" aria-labelledby="cmd-eq-overview-title">',
+        '<div class="cmd-eq-overview-copy">',
+        '<h2 id="cmd-eq-overview-title">Where equivalents exist</h2>',
+        "<p>%d Ze commands have at least one vendor CLI equivalent today. %d commands have been reviewed for migration intent, including gaps where a direct vendor command is not listed.</p>"
+        % (equivalent_count, reviewed_count),
+        "<p>The rows with actual vendor CLI are pulled forward below so the useful equivalents are visible before the complete generated catalog.</p>",
+        "</div>",
+        '<div class="cmd-eq-coverage-grid" aria-label="Vendor equivalent coverage">',
+    ]
+    for vendor_id in vendor_ids:
+        item = coverage[vendor_id]
+        row_label = "command" if item["rows"] == 1 else "commands"
+        line_label = "line" if item["commands"] == 1 else "lines"
+        parts.append(
+            '<article><span>%s</span><strong>%d</strong><small>Ze %s, %d command %s</small></article>'
+            % (
+                html.escape(vendor_labels[vendor_id]),
+                item["rows"],
+                row_label,
+                item["commands"],
+                line_label,
+            )
+        )
+    parts.extend(
+        [
+            '<article class="cmd-eq-coverage-total"><span>Total</span><strong>%d</strong><small>vendor command lines</small></article>'
+            % total_vendor_commands,
+            "</div>",
+            "</section>",
+        ]
+    )
+    return "\n".join(parts)
+
+
+def render_equivalent_spotlight(rows, vendor_ids, vendor_labels):
+    mapped_rows = [row for row in rows if row_has_vendor_commands(row, vendor_ids)]
+    if not mapped_rows:
+        return ""
+    parts = [
+        '<details class="cmd-eq-panel cmd-eq-mapped-first" open>',
+        '<summary>Commands with vendor CLI <span class="cmd-eq-count">%d</span></summary>' % len(mapped_rows),
+        '<p class="cmd-eq-panel-note">This table contains only rows where at least one vendor column has a curated command. Use the full catalog below to inspect reviewed gaps and every live Ze command.</p>',
+        render_command_table(mapped_rows, vendor_ids, vendor_labels, row_id_prefix=None),
+        "</details>",
+    ]
+    return "\n".join(parts)
+
+def render_vendor_selector(vendor_ids, vendor_labels):
+    labels = [vendor_labels[vendor_id] for vendor_id in vendor_ids]
+    default_label = vendor_labels["vyos"] if "vyos" in vendor_labels else labels[0]
+    return (
+        '<div class="column-selector cmd-eq-column-selector" data-column-selector '
+        'data-column-selector-target=".command-equivalents .cmd-eq-table" '
+        'data-column-selector-columns="%s" '
+        'data-column-selector-default="%s" '
+        'data-column-selector-mode="buttons" '
+        'data-column-selector-actions="true" '
+        'data-column-selector-label="Compare vendors" '
+        'data-column-selector-kind="vendors">'
+        '<p class="column-selector-status" data-column-selector-status aria-live="polite"></p>'
+        "</div>"
+    ) % (
+        html.escape(",".join(labels), quote=True),
+        html.escape(default_label, quote=True),
+    )
+
 
 
 def render_sources(mapping):
@@ -340,7 +451,8 @@ def render_vendor_only(vendor_only, vendor_ids, vendor_labels):
 
 
 def render_index(rows, groups, vendor_only, mapping, commands, vendor_ids, vendor_labels):
-    mapped_count = len([row for row in rows if row["entries"]])
+    reviewed_count = len([row for row in rows if row["entries"]])
+    equivalent_count = len([row for row in rows if row_has_vendor_commands(row, vendor_ids)])
     title = "Command Equivalents - Ze"
     desc = "One-line Ze command map with side-by-side Junos MX, IOS XR, Nokia SR OS, and VyOS equivalents."
     root = "../"
@@ -358,7 +470,7 @@ def render_index(rows, groups, vendor_only, mapping, commands, vendor_ids, vendo
     out.append(
         sitelib.page_hero(
             "Command Equivalents",
-            "One line per live Ze command. Vendor commands sit side by side as curated migration hints, not as exhaustive vendor CLI catalogs; follow <strong>details</strong> for descriptions, notes, confidence, and sources.",
+            "One line per live Ze command, with vendor CLI surfaced first when a curated equivalent exists. The full catalog still includes reviewed gaps; a dash means no equivalent has been listed yet.",
             "Reference",
             h1_id="command-equivalents-title",
             lead_html=True,
@@ -366,10 +478,17 @@ def render_index(rows, groups, vendor_only, mapping, commands, vendor_ids, vendo
     )
     out.append('<div class="cmd-eq-stats">')
     out.append('<div><strong>%d</strong><span>live Ze commands</span></div>' % len(commands))
-    out.append('<div><strong>%d</strong><span>commands with vendor mappings</span></div>' % mapped_count)
+    out.append('<div><strong>%d</strong><span>commands with vendor CLI</span></div>' % equivalent_count)
+    out.append('<div><strong>%d</strong><span>reviewed command rows</span></div>' % reviewed_count)
     out.append('<div><strong>%d</strong><span>curated mapping intents</span></div>' % len(mapping.get("entries", [])))
     out.append('<div><strong>%d</strong><span>vendor-only gap notes</span></div>' % len(vendor_only))
     out.append("</div>")
+    out.append(render_equivalence_overview(rows, vendor_ids, vendor_labels, reviewed_count, equivalent_count))
+    out.append(render_vendor_selector(vendor_ids, vendor_labels))
+    out.append(render_equivalent_spotlight(rows, vendor_ids, vendor_labels))
+    out.append('<section class="cmd-eq-full-catalog" aria-labelledby="cmd-eq-full-catalog-title">')
+    out.append('<h2 id="cmd-eq-full-catalog-title">Full live command catalog</h2>')
+    out.append('<p class="cmd-eq-panel-note">Search every generated Ze command, reviewed mapping note, and listed vendor command. Rows without vendor CLI remain visible so missing coverage is explicit.</p>')
     out.append('<div class="cmd-eq-search-wrap">')
     out.append('<input id="cmd-eq-search" type="search" autocomplete="off" placeholder="Search Ze, Junos, IOS XR, SR OS, or VyOS commands..." aria-label="Search command equivalents" />')
     out.append('<div id="cmd-eq-search-count" class="cmd-eq-search-count" aria-live="polite"></div>')
@@ -378,12 +497,25 @@ def render_index(rows, groups, vendor_only, mapping, commands, vendor_ids, vendo
     for label, grouped_rows in groups:
         out.append(render_index_group(label, grouped_rows, vendor_ids, vendor_labels))
     out.append(render_vendor_only(vendor_only, vendor_ids, vendor_labels))
+    out.append("</section>")
     out.append(render_sources(mapping))
     out.append("</section>")
     body = "\n".join(out)
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_text(body + "\n" + FILTER_SCRIPT + "\n" + sitelib.page_foot(root))
-    sitelib.write_markdown_sibling(DEST, render_index_markdown(rows, groups, vendor_only, vendor_ids, vendor_labels, commands, mapped_count))
+    sitelib.write_markdown_sibling(
+        DEST,
+        render_index_markdown(
+            rows,
+            groups,
+            vendor_only,
+            vendor_ids,
+            vendor_labels,
+            commands,
+            reviewed_count,
+            equivalent_count,
+        ),
+    )
 
 
 def render_args(command):
@@ -507,17 +639,11 @@ def clean_stale_detail_dirs(rows):
             print("removed stale command detail -> %s" % child)
 
 
-def render_index_markdown(rows, groups, vendor_only, vendor_ids, vendor_labels, commands, mapped_count):
-    lines = [
-        "# Command Equivalents",
-        "",
-        "%d live Ze commands. %d have curated vendor mappings. One row per Ze command. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs." % (len(commands), mapped_count),
-        "",
-        "| Ze | Mode | " + " | ".join(vendor_labels[vendor_id] for vendor_id in vendor_ids) + " | Details |",
-        "| --- | --- | " + " | ".join("---" for _ in vendor_ids) + " | --- |",
-    ]
-    for _, grouped_rows in groups:
-        for row in grouped_rows:
+def render_index_markdown(rows, groups, vendor_only, vendor_ids, vendor_labels, commands, reviewed_count, equivalent_count):
+    def append_command_table(lines, table_rows):
+        lines.append("| Ze | Mode | " + " | ".join(vendor_labels[vendor_id] for vendor_id in vendor_ids) + " | Details |")
+        lines.append("| --- | --- | " + " | ".join("---" for _ in vendor_ids) + " | --- |")
+        for row in table_rows:
             command = row["command"]
             cells = ["`%s`" % md_cell(command_display_path(command)), md_cell(MODE_LABELS.get(command.get("mode", ""), command.get("mode", "")))]
             for vendor_id in vendor_ids:
@@ -525,6 +651,31 @@ def render_index_markdown(rows, groups, vendor_only, vendor_ids, vendor_labels, 
                 cells.append("<br>".join(commands_for_vendor) if commands_for_vendor else "-")
             cells.append("[%s](%s/)" % ("details", row["slug"]))
             lines.append("| " + " | ".join(cells) + " |")
+
+    equivalent_rows = [row for row in rows if row_has_vendor_commands(row, vendor_ids)]
+    lines = [
+        "# Command Equivalents",
+        "",
+        "%d live Ze commands. %d have vendor CLI today. %d have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs." % (len(commands), equivalent_count, reviewed_count),
+        "",
+        "## Commands with vendor CLI",
+        "",
+        "These rows have at least one listed vendor command.",
+        "",
+    ]
+    append_command_table(lines, equivalent_rows)
+    lines.extend(
+        [
+            "",
+            "## Full live command catalog",
+            "",
+            "Rows without vendor CLI remain visible so missing coverage is explicit.",
+            "",
+        ]
+    )
+    for _, grouped_rows in groups:
+        lines.extend(["", "### %s" % grouped_rows[0]["group"], ""])
+        append_command_table(lines, grouped_rows)
     if vendor_only:
         lines.extend(["", "## Vendor-only gaps", ""])
         lines.append("| Intent | " + " | ".join(vendor_labels[vendor_id] for vendor_id in vendor_ids) + " | Notes |")
