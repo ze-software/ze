@@ -1,0 +1,148 @@
+# Spec: finish-l2tp
+
+| Field | Value |
+|-------|-------|
+| Status | skeleton |
+| Depends | - |
+| Phase | - |
+| Updated | 2026-07-06 |
+
+## Post-Compaction Recovery
+
+**Re-read these after context compaction:**
+1. This spec file (you're reading it now)
+2. `.claude/rules/planning.md` - workflow rules
+3. `git log -p plan/deferrals.md` (pre-2026-07-06) - original deferral rows + evidence
+
+## Task
+
+Close the remaining L2TP test-coverage and documentation gaps. Core L2TP subsystem shipped (7b/7c done); these are proof-run and unit-level residuals.
+
+This is a consolidation skeleton created from verified deferral survivors (backlog triage 2026-07-06). Each item below was confirmed still-open against the codebase with a producing `file:line`. Split into phases when picked up; the sections after Task are lightweight scaffolding to be filled at design time.
+
+### Work items (migrated from the 2026-07-06 deferral triage; `L#` = row in the pre-triage `plan/deferrals.md`)
+
+- **Release-proof run (L44)** - interop harness complete (`ze-deployment-l2tp-ppp-test`, xl2tpd/pppd LAC + FRR lab). Open item is the release-proof RUN on a host with `/dev/ppp` + PPPoL2TP kernel support.
+- **accel-ppp LCP-Opened+MTU `.ci` (L162)** - needs `/dev/ppp` + root + accel-ppp peer.
+- **offline-show-tunnels `.ci` (L194)** - `ze l2tp show tunnels` SSH-creds round-trip; needs ci-harness SSH-cred plumbing.
+- **NCP unit-test gaps (L41,L42,L43)** - backend-error injection (L41, mock `addAddrP2PErr` never set), renegotiation-after-Opened behavioural (L42), IPCP DNS Configure-Reject absorb (L43, `ncp.go:444` unexercised).
+- **LCP restart-counter (L163)** - restart-timer landed; IRC/ZRC restart-counter/backoff + AckRcvd coverage still deferred.
+- **ppp component-imports doc row (L164)** - `docs/architecture/core-design.md` component-imports table has no `ppp` row.
+
+## Required Reading
+
+### Source files / docs
+
+- [ ] `internal/component/l2tp/ppp/ncp.go` (absorb/error paths at :444,:696)
+  -> Constraint: verify current behaviour against this source before designing.
+- [ ] `internal/component/l2tp/ppp/session_run.go` (LCP restart timer / IRC-ZRC at :206,:306,:896)
+  -> Constraint: verify current behaviour against this source before designing.
+- [ ] `test/l2tp-interop/`, `mk/test-integration.mk:112` (interop harness)
+  -> Constraint: verify current behaviour against this source before designing.
+
+## Current Behavior (MANDATORY)
+
+**Source files read:** (re-read at design time; line numbers are pre-triage references)
+
+- [ ] `internal/component/l2tp/ppp/ncp.go`
+- [ ] `internal/component/l2tp/ppp/session_run.go`
+
+**Behavior to preserve:**
+- All existing behaviour of the listed files; this backlog work only adds the missing pieces named in the Task work items.
+
+**Behavior to change:**
+- Only the specific gaps enumerated in the Task work items.
+
+## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+
+### Entry Point
+- L2TP/PPP session establishment against a LAC; `ze l2tp show` CLI
+
+### Transformation Path
+1. A LAC establishes an L2TP tunnel + PPP session
+2. NCP negotiates addresses/DNS; LCP restart timer governs retransmit
+3. Operator queries state via `ze l2tp show tunnels`
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| LAC -> LNS | L2TP control + PPP over the wire | [ ] |
+| CLI -> daemon | `ze l2tp show` over SSH | [ ] |
+
+### Integration Points
+- `internal/component/l2tp/ppp/`
+- `test/l2tp-interop/`
+- `docs/architecture/core-design.md`
+
+### Architectural Verification
+- [ ] No bypassed layers (data flows through intended path)
+- [ ] No unintended coupling (components remain isolated)
+- [ ] No duplicated functionality (extends existing, doesn't recreate)
+- [ ] Registration over hardcoding - new commands/views/families/handlers register and are core-discovered, not hardcoded into a core/shared package (`ai/rules/plugin-self-containment.md`)
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | The verified `file:line` evidence in the Task items still holds at design time | 2026-07-06 backlog triage | Re-scope the item | grep/LSP at design time | unvalidated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | Scope drift when the umbrella is split into per-item specs | Item needs its own design doc | Split into a dedicated spec and re-point |
+
+## Wiring Test (MANDATORY)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| Real LAC establishes PPP against ze LNS | → | LCP reaches Opened + MTU set | (fill during design) |
+| `ze l2tp show tunnels` against a live daemon | → | tunnel state rendered | (fill during design) |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | (define per work item when this skeleton moves to `design`) | (define at design time) |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| (define at design time) | (define at design time) | per Task work item | |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| accel-ppp-lcp, offline-show-tunnels (new) (`.ci`) | test/l2tp-interop, test/plugin | LNS behaviour vs a real LAC / live daemon | |
+
+## Files to Modify
+
+- `internal/component/l2tp/ppp/ncp.go` - see Task work items
+- `internal/component/l2tp/ppp/session_run.go` - see Task work items
+
+## Implementation Steps
+
+1. **Phase: split** - if the umbrella covers unrelated items, split into per-item specs first.
+2. **Phase: design** - for the chosen item, re-verify the `file:line` evidence and fill the Data Flow / Wiring / AC sections above.
+3. **Phase: wiring** - register entry points, write the failing wiring test.
+4. **Phase: implement (TDD)** - write test, fail, implement, pass, per work item.
+5. **Full verification** - `make ze-verify`.
+6. **Complete spec** - fill audit tables, write `plan/learned/NNN-<name>.md`, two-commit closure.
+
+## Checklist
+
+### Goal Gates (MUST pass)
+- [ ] Every chosen work item has feature code + test
+- [ ] Wiring Test table complete (concrete test names, none deferred)
+- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] Registration over hardcoding respected
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+
+## Notes
+- Skeleton = captured intent, not a designed spec (see `ai/rules/deferral-tracking.md`). Moves to `design` when someone picks it up.
