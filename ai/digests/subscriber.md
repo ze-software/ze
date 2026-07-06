@@ -268,6 +268,6 @@ asks a kernel worker to build the PPPoX/L2TP kernel socket before handing fds to
 - `plan/learned/669-bng-5-pppoe.md`: PPPoE subsystem lifecycle design
 - `docs/research/l2tpv2-ze-integration.md`: PPP driver + per-session goroutine design, transport boundary
 - `docs/architecture/wire/l2tp.md`: L2TPv2 wire format reference
-- `docs/architecture/testing/l2tp-interop.md`: L2TP interop test harness notes
-- `docs/architecture/testing/pppoe-interop.md`: PPPoE interop test harness notes
+- `docs/labs/l2tp-interop.md`: L2TP interop test harness notes
+- `docs/labs/pppoe-interop.md`: PPPoE interop test harness notes
 - `ai/PACKAGE-MAP.md`: per-package index (search `l2tp/` for the full subtree list)
