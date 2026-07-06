@@ -6,8 +6,17 @@ and which backend work is needed to offer it. As backends mature
 (nftables, VPP classifier, VPP FIB dump, neighbor dump, etc.),
 commands move from `planned` to `shipped` without a fresh design pass.
 
-This is a roadmap document, not a user reference. For what ze ships
-today, see `docs/guide/command-reference.md`.
+This is a historical roadmap seed, not a user reference and not the current
+cross-vendor migration surface. For what ze ships today, see
+`docs/guide/command-reference.md`. For generated Ze-to-vendor lookup, use the
+[website Command Equivalents page](https://ze-software.net/command-equivalents/).
+Code-tree readers can inspect the maintained data and generator on the
+`gh-pages` branch:
+[`data/command-equivalents.json`](https://codeberg.org/thomas-mangin/ze/src/branch/gh-pages/data/command-equivalents.json)
+and
+[`tools/render-command-equivalents.py`](https://codeberg.org/thomas-mangin/ze/src/branch/gh-pages/tools/render-command-equivalents.py).
+<!-- source: ../gh-pages/tools/render-command-equivalents.py -- load_inputs, build_rows -->
+<!-- source: ../gh-pages/data/command-equivalents.json -- vendor mapping -->
 
 ## How to read this
 

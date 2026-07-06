@@ -68,8 +68,8 @@ IS-IS is a native link-state IGP (ISO/IEC 10589, RFC 1195/5301/5305/5308) implem
    (`dis_wiring.go:120-121`); unchanged role still re-records the elected pseudo-node and
    re-originates on a membership change (`dis_wiring.go:123-140`).
 9. **Own-LSP origination.** `originate()` (`lsdb_wiring.go:161`, serialized by `e.origMu`)
-   builds `NodeInfo` (`lsdb_wiring.go:402`) and, per level, `LevelState` (`lsdb_wiring.go:419`)
-  , TLV 22 neighbors (a broadcast circuit's Up neighbors collapse to ONE star entry pointing
+   builds `NodeInfo` (`lsdb_wiring.go:402`) and, per level, `LevelState` (`lsdb_wiring.go:419`):
+   TLV 22 neighbors (a broadcast circuit's Up neighbors collapse to ONE star entry pointing
    at the elected pseudo-node, `lsdb_wiring.go:465-483`), TLV 132/232 interface addresses, and
    TLV 135/236 connected + redistributed + RFC 2966-leaked prefixes. `originationUnchanged`
    (`lsdb_wiring.go:217`) skips a no-op re-origination unless a refresh is due

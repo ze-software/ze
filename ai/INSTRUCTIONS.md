@@ -69,27 +69,29 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 **Components** (`internal/component/`) are independent unless they explicitly depend on each other; `config`, `command`, and `plugin` are infrastructure components nearly everything uses.
 
 <!-- BEGIN GENERATED: arch-components (scripts/dev/arch_map.py; make ze-regen) -->
-42 directories under `internal/component/`:
+43 directories under `internal/component/`:
 
 aaa, aihelp, api, authz, bfd, bgp, cli, cmd, command, config, debug, doctor,
 engine, firewall, gnmi, gokrazy, host, hub, iface, ike, l2tp, lg, managed,
 mcp, mpls, ping, pki, plugin, radius, resolve, ssh, storage, support, sysctl,
-sysrib, tacacs, telemetry, traceroute, traffic, trafficstat, vpp, web
+sysrib, tacacs, telemetry, traceroute, traffic, trafficfeature, trafficstat,
+vpp, web
 <!-- END GENERATED: arch-components -->
 
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
 
 <!-- BEGIN GENERATED: arch-system-plugins (scripts/dev/arch_map.py; make ze-regen) -->
-61 directories under `internal/plugins/`:
+63 directories under `internal/plugins/`:
 
-aaa-cmd, completion, config-archive-cmd, config-cli, config-schema,
-config-storage, config-yang, connect, connected, copp, cos, crashes, ddos,
-debug, dhcpserver, diag, env, exabgp, explain, fib, firewall, flowexport,
-flowexport-cmd, flowspec-firewall, geodns, gnmi-cmd, host, host-cmd, iface,
-imageserver, init, isis, kernel, ldp, local, log, meta, mpls-cmd, mrt, ntp,
-ospf, passwd, ping-cmd, pki-cmd, policyroute, provision, resolve-cmd,
-routingtable, rsvpte, signal, skills, static, storage-cmd, support, systemd,
-tftpserver, traceroute-cmd, traffic, traffic-cmd, trafficusage, update-cmd
+aaa-cmd, anomaly, as112, completion, config-archive-cmd, config-cli,
+config-schema, config-storage, config-yang, connect, connected, copp, cos,
+crashes, ddos, debug, dhcpserver, diag, env, exabgp, explain, fib, firewall,
+flowexport, flowexport-cmd, flowspec-firewall, geodns, gnmi-cmd, host,
+host-cmd, iface, imageserver, init, isis, kernel, ldp, local, log, meta,
+mpls-cmd, mrt, ntp, ospf, passwd, ping-cmd, pki-cmd, policyroute, provision,
+resolve-cmd, routingtable, rsvpte, signal, skills, static, storage-cmd,
+support, systemd, tftpserver, traceroute-cmd, traffic, traffic-cmd,
+trafficusage, update-cmd
 <!-- END GENERATED: arch-system-plugins -->
 
 **BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.
