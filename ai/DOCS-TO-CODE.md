@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 267 design docs, 2834 files
+Total: 269 design docs, 2838 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -311,6 +311,7 @@ Total: 267 design docs, 2834 files
 | `internal/component/plugin/server/command_registry.go` | plugin process management |
 | `internal/component/plugin/server/config.go` | plugin server configuration |
 | `internal/component/plugin/server/dispatch.go` | plugin RPC dispatch |
+| `internal/component/plugin/server/dispatch_cached.go` | plugin RPC dispatch (rs-fastpath-3) |
 | `internal/component/plugin/server/engine_event.go` | engine-side stream pub/sub |
 | `internal/component/plugin/server/event_monitor.go` | event monitoring |
 | `internal/component/plugin/server/events.go` | NLRI codec via plugin RPC |
@@ -2297,6 +2298,11 @@ Total: 267 design docs, 2834 files
 | `internal/component/config/transaction/solver.go` | operation graph solver |
 | `internal/component/iface/operation.go` | iface-owned operation decomposition |
 
+## `plan/learned/1070-forked-route-install.md`
+
+- `internal/component/plugin/server/dispatch_route.go` -- forked route install via Loc-RIB RPC
+- `internal/plugins/routeinstall/sink.go` -- forked route install via Loc-RIB RPC
+
 ## `plan/learned/415-prefix-data.md`
 
 - `internal/component/resolve/peeringdb/client.go` -- PeeringDB client for prefix update
@@ -3734,6 +3740,10 @@ Total: 267 design docs, 2834 files
 ## `plan/spec-iface-resolve-2-resolver.md`
 
 - `internal/component/iface/resolve_integration_linux_test.go` -- resolver os-name remapping.
+
+## `plan/spec-ipsec-13-rekey-wire.md`
+
+- `internal/component/ike/engine/msgid.go` -- RFC 7296 §2.3 message-ID handling
 
 ## `plan/spec-isis-10-auth.md`
 

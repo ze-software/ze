@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 593 packages, 593 described, 0 TODO
+Total: 594 packages, 594 described, 0 TODO
 
 
 ## `cmd/ze/`
@@ -654,6 +654,7 @@ Total: 593 packages, 593 described, 0 TODO
 | `internal/plugins/policyroute/yang` | embeds and registers the policy-route plugin's YANG command and configuration schemas |  |
 | `internal/plugins/provision` | implements the ze provision command that runs DHCP, PXE, and TFTP servers for remote device installation |  |
 | `internal/plugins/resolve-cmd/yang` | embeds and registers the resolve command plugin's YANG schema |  |
+| `internal/plugins/routeinstall` | provides the RouteSink a FORKED route-installing plugin (OSPF, IS-IS) uses in place of a direct Loc-RIB write |  |
 | `internal/plugins/routingtable` | Named routing table registry: maps names to kernel table IDs |  |
 | `internal/plugins/routingtable/yang` | embeds and registers the routing-table plugin's YANG configuration schema |  |
 | `internal/plugins/rsvpte` | implements RSVP-TE (RFC 3209) for explicitly-routed MPLS LSPs with bandwidth reservation | rsvp-te |
