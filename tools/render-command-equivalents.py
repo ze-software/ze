@@ -609,12 +609,11 @@ def render_detail_page(row, mapping, vendor_ids, vendor_labels, sources):
     out.append('<section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">')
     out.append(
         sitelib.page_hero(
-            "<code>%s</code>" % html.escape(command_display_path(command)),
+            command_display_path(command),
             "Command details and vendor equivalents for %s."
             % html.escape(command_display_path(command)),
             "Command map",
             h1_id="command-equivalent-detail-title",
-            title_html=True,
         )
     )
     out.append('<div class="cmd-detail-grid">')
