@@ -91,7 +91,7 @@ Requires **Go 1.26+** on a macOS or Linux development host. Windows is not a sup
 |------|-----------|
 | Try Ze for the first time | [Quick Start](docs/guide/quickstart.md) |
 | Announce routes to my upstream | [Route Injection](docs/guide/route-injection.md) |
-| Migrate from ExaBGP | [ExaBGP Migration](docs/guide/exabgp-migration.md) |
+| Migrate from ExaBGP | [ExaBGP Migration](docs/exabgp/exabgp-migration.md) |
 | Monitor BGP sessions | [Monitoring](docs/guide/monitoring.md) |
 | Restart without dropping routes | [Graceful Restart](docs/guide/graceful-restart.md) |
 | Validate routes against RPKI | [RPKI](docs/guide/rpki.md) |

@@ -28,7 +28,7 @@ This directory contains user guides, feature inventories, implementation referen
 | Understand plugins | `plugin-overview.md`, then `guide/plugins.md` or `plugin-development/README.md` |
 | Check command/API behavior | `guide/command-reference.md`, `architecture/api/commands.md` |
 | Check config syntax | `config-reference.md`, `guide/configuration.md` |
-| Migrate from ExaBGP | `guide/exabgp-migration.md`, `exabgp/` |
+| Migrate from ExaBGP | `exabgp/exabgp-migration.md`, `exabgp/` |
 
 ## Relationships
 

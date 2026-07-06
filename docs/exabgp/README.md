@@ -12,4 +12,4 @@ describe the migration and compatibility tooling.
 
 The migration is external tooling only: the engine itself has zero ExaBGP
 format awareness. See `../../internal/exabgp/` for the implementation and
-`../guide/exabgp-migration.md` for the operator-facing guide.
+`exabgp-migration.md` for the operator-facing guide.

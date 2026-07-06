@@ -118,7 +118,7 @@ add the annotation to the new files.
 | Directory | Annotation |
 |-----------|------------|
 | `internal/chaos` | `// Design: docs/architecture/chaos-web-dashboard.md - chaos framework` |
-| `internal/exabgp` | `// Design: docs/guide/exabgp-migration.md - ExaBGP migration and bridge` |
+| `internal/exabgp` | `// Design: docs/exabgp/exabgp-migration.md - ExaBGP migration and bridge` |
 | `internal/test` | `// Design: docs/architecture/testing/ci-format.md - test infrastructure` |
 | `pkg/plugin/rpc` | `// Design: docs/architecture/api/ipc_protocol.md - plugin RPC types` |
 | `pkg/plugin/sdk` | `// Design: docs/architecture/api/process-protocol.md - plugin SDK` |

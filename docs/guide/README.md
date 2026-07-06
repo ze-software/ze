@@ -15,7 +15,7 @@
 | Back up config on commit or a schedule | [Config Archive](config-archive.md) |
 | Manage config through a browser | [Web Interface](web-interface.md) |
 | Automate ze from scripts or tools | [REST and gRPC API](api.md) |
-| Migrate from ExaBGP | [ExaBGP Migration](exabgp-migration.md) |
+| Migrate from ExaBGP | [ExaBGP Migration](../exabgp/exabgp-migration.md) |
 | Run Ze in production | [Operations](operations.md) |
 | Run Ze in Docker | [Docker](docker.md) |
 | Build a VM appliance for an N100 PC | [VM Appliance](appliance.md) |
@@ -81,7 +81,7 @@
 | [Operational Reports](operational-reports.md) | Warnings, errors, and the report bus |
 | [Audit Trail](audit.md) | `show audit`, config commit/discard records, auth-fail records |
 | [Benchmarking](benchmarking.md) | `ze-perf` cross-implementation latency benchmark |
-| [ExaBGP Migration](exabgp-migration.md) | Config conversion and plugin compatibility bridge |
+| [ExaBGP Migration](../exabgp/exabgp-migration.md) | Config conversion and plugin compatibility bridge |
 | [Chaos Testing](chaos-testing.md) | Fault injection, deterministic replay, property validation |
 | [Fleet Configuration](fleet-config.md) | Centralized config management for multi-node deployments |
 | [TACACS+ AAA](tacacs.md) | RFC 8907 SSH authentication and command accounting |

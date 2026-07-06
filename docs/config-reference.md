@@ -342,5 +342,5 @@ Ze uses typed, registered environment variables for runtime tuning. See
 | Architecture overview | [architecture.md](architecture.md) |
 | Plugin guide | [guide/plugins.md](guide/plugins.md) |
 | Quick start | [guide/quickstart.md](guide/quickstart.md) |
-| ExaBGP migration | [guide/exabgp-migration.md](guide/exabgp-migration.md) |
+| ExaBGP migration | [exabgp/exabgp-migration.md](exabgp/exabgp-migration.md) |
 | Command reference | [guide/command-reference.md](guide/command-reference.md) |
