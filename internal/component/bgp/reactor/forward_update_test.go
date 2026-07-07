@@ -364,11 +364,12 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates:   cache,
-		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
-		fwdPool:         testPool,
-		egressFilters:   []filterapi.EgressFilterFunc{egressFilter},
-		attrModHandlers: map[uint8]filterapi.AttrModHandler{250: markerHandler},
+		recentUpdates:      cache,
+		peers:              map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+		fwdPool:            testPool,
+		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
+		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
+		attrModHandlers:    map[uint8]filterapi.AttrModHandler{250: markerHandler},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -469,11 +470,12 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates:   cache,
-		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
-		fwdPool:         testPool,
-		egressFilters:   []filterapi.EgressFilterFunc{egressFilter},
-		attrModHandlers: map[uint8]filterapi.AttrModHandler{251: panicHandler},
+		recentUpdates:      cache,
+		peers:              map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+		fwdPool:            testPool,
+		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
+		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
+		attrModHandlers:    map[uint8]filterapi.AttrModHandler{251: panicHandler},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -564,11 +566,12 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates:   cache,
-		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
-		fwdPool:         testPool,
-		egressFilters:   []filterapi.EgressFilterFunc{egressFilter},
-		attrModHandlers: map[uint8]filterapi.AttrModHandler{}, // empty: no handler for code 252
+		recentUpdates:      cache,
+		peers:              map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+		fwdPool:            testPool,
+		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
+		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
+		attrModHandlers:    map[uint8]filterapi.AttrModHandler{}, // empty: no handler for code 252
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -795,9 +798,10 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 			peerA.Settings().PeerKey(): peerA,
 			peerB.Settings().PeerKey(): peerB,
 		},
-		fwdPool:         testPool,
-		egressFilters:   []filterapi.EgressFilterFunc{egressFilter},
-		attrModHandlers: map[uint8]filterapi.AttrModHandler{250: markerHandler},
+		fwdPool:            testPool,
+		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
+		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
+		attrModHandlers:    map[uint8]filterapi.AttrModHandler{250: markerHandler},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 

@@ -276,10 +276,18 @@ type Reactor struct {
 	processSpawner  plugin.ProcessSpawner // PluginManager for process lifecycle (nil = Server self-manages)
 
 	// Peer filter chains: collected from plugin registry at startup.
-	// Ingress: called before caching/dispatching received UPDATEs.
-	// Egress: called per destination peer during ForwardUpdate.
-	ingressFilters []filterapi.IngressFilterFunc
-	egressFilters  []filterapi.EgressFilterFunc
+	// Egress: the in-process egress filter funcs, still consumed directly by the
+	// RS fast path (forward_rs.go) and the forwardFacts/build sites.
+	egressFilters []filterapi.EgressFilterFunc
+	// orderedIngressSteps is the unified, stage-ordered ingress pipeline: the
+	// registered in-process ingress filters plus the reactor-bound per-peer policy
+	// chain (FilterStagePeerChain), merge-sorted so the cross-system order is a
+	// declared property. Built once in startAPIServer; the per-UPDATE pass in
+	// notifyMessageReceiver iterates it (see filter_ordered.go).
+	orderedIngressSteps []orderedIngressStep
+	// orderedEgressSteps is the egress twin, used by forwardUpdateCore only: the
+	// in-process egress filters plus the export policy chain, in declared order.
+	orderedEgressSteps []orderedEgressStep
 	// Attr mod handlers: per-attribute-code handlers for progressive build.
 	// Keyed by attribute type code (uint8). Collected from registry at startup.
 	attrModHandlers map[uint8]filterapi.AttrModHandler
@@ -1186,9 +1194,13 @@ func (r *Reactor) startAPIServer() error {
 		r.eventDispatcher.SetEventBus(r.eventBus)
 	}
 	r.messageReceiver = r.eventDispatcher
-	r.ingressFilters = filterapi.IngressFilters()
 	r.egressFilters = filterapi.EgressFilters()
 	r.attrModHandlers = attrModHandlersWithDefaults()
+	// Unified, stage-ordered filter pipelines: the registered in-process filters
+	// merge-sorted with the reactor-bound per-peer policy chain (FilterStagePeerChain).
+	// Built once here (r.api is set by now); the per-UPDATE passes only iterate them.
+	r.orderedIngressSteps = buildOrderedIngressSteps()
+	r.orderedEgressSteps = buildOrderedEgressSteps()
 	r.AddPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
 	r.SetAPIProcessCount(len(r.config.Plugins))
 

@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1089 summaries
+Total: 1090 summaries
 
 ## 000-099
 
@@ -1153,3 +1153,4 @@ Total: 1089 summaries
 | 1075 | unify-rpc-dispatch | `plan/learned/1075-unify-rpc-dispatch.md` |
 | 1076 | Structural gates are never a known-red | `plan/learned/1076-structural-gate-known-red.md` |
 | 1077 | unify-buffer-lifetime | `plan/learned/1077-unify-buffer-lifetime.md` |
+| 1078 | Unify Filters | `plan/learned/1078-unify-filters.md` |

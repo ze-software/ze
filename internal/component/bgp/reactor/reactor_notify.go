@@ -9,7 +9,6 @@ package reactor
 import (
 	"maps"
 	"net/netip"
-	"unsafe"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
@@ -387,10 +386,13 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		}
 	}
 
-	// Ingress peer filter chain: reject routes before caching/dispatching.
-	// Only for received UPDATEs. Filter closures check peer role, OTC, etc.
+	// Unified ingress filter pass: ONE stage-ordered pipeline over the in-process
+	// filters (loop, community, redistribute, OTC) and the reactor-bound per-peer
+	// policy chain (FilterStagePeerChain, which sorts LAST -- after OTC). This
+	// replaces the former two back-to-back blocks; the cross-system order is now a
+	// declared Stage, not code position. Only for received UPDATEs.
 	var routeMeta map[string]any
-	if direction == rpc.DirectionReceived && wireUpdate != nil && len(r.ingressFilters) > 0 {
+	if direction == rpc.DirectionReceived && wireUpdate != nil && len(r.orderedIngressSteps) > 0 {
 		src := filterapi.PeerFilterInfo{
 			Address:  peerAddr,
 			PeerAS:   peerInfo.PeerAS,
@@ -412,16 +414,42 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		}
 		payload := wireUpdate.Payload()
 		var ingressMeta map[string]any
-		for _, filter := range r.ingressFilters {
-			if ingressMeta == nil {
-				ingressMeta = make(map[string]any, 2)
+		for i := range r.orderedIngressSteps {
+			step := &r.orderedIngressSteps[i]
+			var res ingressStepResult
+			if step.policyChain {
+				// The external per-peer chain runs last, on the (possibly
+				// in-process-modified) payload. No-op accept when the peer has no
+				// import filters or no API server (hot-path gate inside).
+				res = r.runIngressPolicyChain(peer, peerAddr, peerInfo.PeerAS, wireUpdate, payload)
+			} else {
+				if ingressMeta == nil {
+					ingressMeta = make(map[string]any, 2)
+				}
+				accept, modifiedPayload := safeIngressFilter(step.inproc, src, payload, ingressMeta)
+				res = ingressStepResult{accept: accept, modifiedPayload: modifiedPayload}
 			}
-			accept, modifiedPayload := safeIngressFilter(filter, src, payload, ingressMeta)
-			if !accept {
-				return false // Route rejected by ingress filter; don't cache or dispatch.
+			// Honor a policy teardown request (e.g. filter_family tear-down):
+			// queue a NOTIFICATION + session close for the session read loop to
+			// run after this callback (session_read.go), and drop the route.
+			// peer.session is the session whose read goroutine invoked us.
+			if res.teardown {
+				if hasPeer && peer.session != nil {
+					code := message.NotifyErrorCode(res.notifyCode)
+					subcode := res.notifySubcode
+					if res.notifyCode == 0 {
+						code = message.NotifyCease
+						subcode = message.NotifyCeaseConnectionRejected
+					}
+					peer.session.requestPolicyTeardown(code, subcode)
+				}
+				return false
 			}
-			if modifiedPayload != nil {
-				payload = modifiedPayload
+			if !res.accept {
+				return false // Route rejected by filter; don't cache or dispatch.
+			}
+			if res.modifiedPayload != nil {
+				payload = res.modifiedPayload
 				// Create new WireUpdate from modified payload.
 				// The modified buffer is heap-allocated (not from pool).
 				wireUpdate = wireu.NewWireUpdate(payload, wireUpdate.SourceCtxID())
@@ -452,81 +480,6 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			sourcePeerStr = peer.addrString
 		} else {
 			sourcePeerStr = peerAddr.String()
-		}
-	}
-
-	// Policy filter chain: external plugin filters (after in-process filters).
-	// Only for received UPDATEs when the peer has import filters configured.
-	if direction == rpc.DirectionReceived && wireUpdate != nil && hasPeer {
-		if filters := peer.settings.ImportFilters; len(filters) > 0 && r.api != nil {
-			attrsWire, _ := wireUpdate.Attrs()
-			var scratchArr [65536]byte
-			scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, wireUpdate, nil)
-			updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
-			res := PolicyFilterChain(filters, "import", peerAddr.String(), peerInfo.PeerAS,
-				updateText, r.policyFilterFunc(wireUpdate.Payload()),
-			)
-			// Honor a policy teardown request (e.g. filter_family tear-down):
-			// queue a NOTIFICATION + session close for the session read loop to
-			// run after this callback (session_read.go), and drop the route.
-			// peer.session is the session whose read goroutine invoked us.
-			if res.Teardown {
-				if peer.session != nil {
-					code := message.NotifyErrorCode(res.NotifyCode)
-					subcode := res.NotifySubcode
-					if res.NotifyCode == 0 {
-						code = message.NotifyCease
-						subcode = message.NotifyCeaseConnectionRejected
-					}
-					peer.session.requestPolicyTeardown(code, subcode)
-				}
-				return false
-			}
-			if res.Action == PolicyReject {
-				return false // Route rejected by policy filter; don't cache or dispatch.
-			}
-			// A raw=true filter may return a full UPDATE-body replacement (e.g.
-			// MP_REACH/MP_UNREACH surgery the text delta cannot express). It is
-			// terminal: use it verbatim instead of the text-delta path.
-			if raw := decodeFilterRawOverride(res.Raw); raw != nil {
-				wireUpdate = wireu.NewWireUpdate(raw, wireUpdate.SourceCtxID())
-				wireUpdate.SetMessageID(messageID)
-				newAttrsWire, parseErr := wireUpdate.Attrs()
-				msg.RawBytes = raw
-				msg.WireUpdate = wireUpdate
-				msg.AttrsWire = newAttrsWire
-				msg.ParseError = parseErr
-			} else if res.Text != updateText {
-				// Wire-level dirty tracking: convert text delta to wire attribute
-				// modifications. Same pattern as in-process ingress filter
-				// modification above (lines 337-352). Additionally, when the
-				// filter chain produced a per-prefix modify (subset of the
-				// legacy IPv4 NLRI section), pass the re-encoded prefix bytes
-				// to buildModifiedPayload so step 8 of the progressive build
-				// writes the filtered NLRI tail instead of copying the original.
-				var importMods filterapi.ModAccumulator
-				// Parse each filter text exactly once; the three extractors
-				// share the maps read-only (spec filter-delta-parse-once).
-				origAttrs := parseFilterAttrs(updateText)
-				modAttrs := parseFilterAttrs(res.Text)
-				textDeltaToModOps(origAttrs, modAttrs, &importMods)
-				srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
-				srcASN4 := srcCtx != nil && srcCtx.ASN4()
-				ExtractRemovePrivateASOps(modAttrs, attrsWire, srcASN4, peerInfo.PeerAS, &importMods)
-				ExtractASPathPrependOps(modAttrs, peer.settings.LocalAS, &importMods)
-				nlriOverride := extractLegacyNLRIOverride(updateText, res.Text)
-				if importMods.Len() > 0 || nlriOverride != nil {
-					if modPayload, _ := buildModifiedPayload(wireUpdate.Payload(), &importMods, r.attrModHandlers, nil, nlriOverride); modPayload != nil {
-						wireUpdate = wireu.NewWireUpdate(modPayload, wireUpdate.SourceCtxID())
-						wireUpdate.SetMessageID(messageID)
-						newAttrsWire, parseErr := wireUpdate.Attrs()
-						msg.RawBytes = modPayload
-						msg.WireUpdate = wireUpdate
-						msg.AttrsWire = newAttrsWire
-						msg.ParseError = parseErr
-					}
-				}
-			}
 		}
 	}
 

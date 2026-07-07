@@ -13,7 +13,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"unsafe"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
@@ -471,59 +470,35 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		if facts.rsClient && len(communityStripBytes) > 0 {
 			mods.Op(8, filterapi.AttrModRemove, communityStripBytes)
 		}
-		if len(a.r.egressFilters) > 0 {
+		// Unified egress filter pass: ONE stage-ordered pipeline over the in-process
+		// egress filters (community, gr, role) and the export policy chain
+		// (FilterStagePeerChain, which sorts LAST). In-process steps defer their
+		// mutations into the shared `mods`; the policy chain step reads the ORIGINAL
+		// payload and produces a full wire override. Replaces the former two
+		// back-to-back blocks; the cross-system order is now a declared Stage.
+		var exportWireOverride *wireu.WireUpdate
+		if len(a.r.orderedEgressSteps) > 0 {
 			destFilter := facts.filterInfo
 			payload := update.WireUpdate.Payload()
 			suppressed := false
-			for _, filter := range a.r.egressFilters {
-				if !safeEgressFilter(filter, srcFilter, destFilter, payload, update.Meta, &mods) {
+			for i := range a.r.orderedEgressSteps {
+				step := &a.r.orderedEgressSteps[i]
+				var res egressStepResult
+				if step.policyChain {
+					res = a.r.runEgressPolicyChain(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, update.WireUpdate)
+				} else {
+					res = egressStepResult{accept: safeEgressFilter(step.inproc, srcFilter, destFilter, payload, update.Meta, &mods)}
+				}
+				if !res.accept {
 					suppressed = true
 					break
+				}
+				if res.wireOverride != nil {
+					exportWireOverride = res.wireOverride
 				}
 			}
 			if suppressed {
 				continue
-			}
-		}
-		var exportWireOverride *wireu.WireUpdate
-		if len(facts.exportFilters) > 0 && a.r.api != nil {
-			attrsWire, attrErr := update.WireUpdate.Attrs()
-			if attrErr != nil {
-				fwdLogger().Debug("attrs extraction for export filter",
-					"peer", facts.addr, "error", attrErr)
-			}
-			var scratchArr [65536]byte
-			scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, update.WireUpdate, nil)
-			updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
-			res := PolicyFilterChain(facts.exportFilters, "export", facts.addrStr, facts.peerAS,
-				updateText, a.r.policyFilterFunc(update.WireUpdate.Payload()),
-			)
-			if res.Action == PolicyReject {
-				continue
-			}
-			// A raw=true filter may return a full UPDATE-body replacement (e.g.
-			// MP_REACH/MP_UNREACH surgery the text delta cannot express). It is
-			// terminal: use it verbatim instead of the text-delta path. Teardown
-			// is import-only (gated in policyFilterFunc), so it never fires here.
-			if raw := decodeFilterRawOverride(res.Raw); raw != nil {
-				exportWireOverride = wireu.NewWireUpdate(raw, update.WireUpdate.SourceCtxID())
-			} else if res.Text != updateText {
-				var exportMods filterapi.ModAccumulator
-				// Parse each filter text exactly once; the three extractors
-				// share the maps read-only (spec filter-delta-parse-once).
-				origAttrs := parseFilterAttrs(updateText)
-				modAttrs := parseFilterAttrs(res.Text)
-				textDeltaToModOps(origAttrs, modAttrs, &exportMods)
-				srcCtx := bgpctx.Registry.Get(update.WireUpdate.SourceCtxID())
-				srcASN4 := srcCtx != nil && srcCtx.ASN4()
-				ExtractRemovePrivateASOps(modAttrs, attrsWire, srcASN4, facts.peerAS, &exportMods)
-				ExtractASPathPrependOps(modAttrs, facts.localAS, &exportMods)
-				nlriOverride := extractLegacyNLRIOverride(updateText, res.Text)
-				if exportMods.Len() > 0 || nlriOverride != nil {
-					if modPayload, _ := buildModifiedPayload(update.WireUpdate.Payload(), &exportMods, a.r.attrModHandlers, nil, nlriOverride); modPayload != nil {
-						exportWireOverride = wireu.NewWireUpdate(modPayload, update.WireUpdate.SourceCtxID())
-					}
-				}
 			}
 		}
 

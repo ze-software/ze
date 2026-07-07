@@ -385,6 +385,74 @@ func TestEgressFilterOrdering(t *testing.T) {
 	}
 }
 
+// TestPeerChainStageSortsLast verifies that FilterStagePeerChain orders after
+// every in-process stage, so the reactor's per-peer policy chain (bound at that
+// stage) runs LAST -- after Protocol, Policy, and Annotation. This reproduces the
+// historical two-block order (whole in-process pass, THEN the external chain) and
+// is the ordering guard for the filter-unification refactor.
+//
+// VALIDATES: spec-unify-filters R-1 / AC-2 -- policy chain runs after OTC (Annotation).
+// PREVENTS: a regression that places the external chain before Annotation.
+func TestPeerChainStageSortsLast(t *testing.T) {
+	if FilterStageProtocol >= FilterStagePolicy ||
+		FilterStagePolicy >= FilterStageAnnotation ||
+		FilterStageAnnotation >= FilterStagePeerChain {
+		t.Fatalf("stage constants not strictly increasing: protocol=%d policy=%d annotation=%d peerchain=%d",
+			FilterStageProtocol, FilterStagePolicy, FilterStageAnnotation, FilterStagePeerChain)
+	}
+
+	snap := Snapshot()
+	t.Cleanup(func() { Restore(snap) })
+	ResetForTest()
+
+	// Register one probe per in-process stage plus one at the peer-chain stage.
+	registerNoop(t, "annotation-otc", FilterStageAnnotation, 0)
+	registerNoop(t, "protocol-loop", FilterStageProtocol, 0)
+	registerNoop(t, "peerchain-probe", FilterStagePeerChain, 0)
+	registerNoop(t, "policy-community", FilterStagePolicy, 0)
+
+	got := IngressOrdered()
+	want := []string{"protocol-loop", "policy-community", "annotation-otc", "peerchain-probe"}
+	if len(got) != len(want) {
+		t.Fatalf("IngressOrdered() len = %d, want %d", len(got), len(want))
+	}
+	for i, w := range want {
+		if got[i].Name != w {
+			t.Errorf("IngressOrdered()[%d].Name = %q, want %q (full: %v)", i, got[i].Name, w, names(got))
+		}
+	}
+}
+
+// TestLessOrderMatchesSort verifies the exported comparator is stage, then
+// priority, then name -- the same key sortedFilters uses -- so the reactor can
+// merge-sort a non-registered step into the same order.
+func TestLessOrderMatchesSort(t *testing.T) {
+	// Stage dominates.
+	if !LessOrder("z", FilterStagePolicy, 99, "a", FilterStageAnnotation, 0) {
+		t.Error("lower stage must sort first regardless of priority/name")
+	}
+	// Priority breaks a stage tie.
+	if !LessOrder("z", FilterStagePolicy, 0, "a", FilterStagePolicy, 10) {
+		t.Error("lower priority must sort first within a stage")
+	}
+	// Name breaks a stage+priority tie.
+	if !LessOrder("alpha", FilterStagePolicy, 0, "bravo", FilterStagePolicy, 0) {
+		t.Error("name must break a stage+priority tie")
+	}
+	// The peer-chain stage sorts after Annotation.
+	if !LessOrder("otc", FilterStageAnnotation, 0, "chain", FilterStagePeerChain, 0) {
+		t.Error("Annotation must sort before FilterStagePeerChain")
+	}
+}
+
+func names(fs []Filter) []string {
+	out := make([]string, len(fs))
+	for i, f := range fs {
+		out[i] = f.Name
+	}
+	return out
+}
+
 // TestRegisterValidation verifies Register rejects invalid filters.
 //
 // VALIDATES: Empty name, no funcs, and duplicate name all error.

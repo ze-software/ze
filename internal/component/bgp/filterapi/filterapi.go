@@ -135,6 +135,14 @@ const (
 	FilterStageProtocol   int = 0   // RFC-mandated checks (loop detection, RFC 4271/4456)
 	FilterStagePolicy     int = 100 // Operator-configured filtering (community, prefix, IRR)
 	FilterStageAnnotation int = 200 // Protocol modifications that stamp routes (OTC/RFC 9234)
+	// FilterStagePeerChain orders the external per-peer configured filter chain
+	// (the text/RPC PolicyFilterChain). It runs AFTER all in-process filters,
+	// including Annotation, because the reactor historically ran the whole
+	// in-process pass before the external chain. No in-process filter registers
+	// at this stage; the reactor binds the per-peer chain as a single ordered
+	// step here so the cross-system order is a declared property, not code
+	// position.
+	FilterStagePeerChain int = 300
 )
 
 // AttrOp describes a single attribute modification operation.
@@ -244,15 +252,46 @@ func sortedFilters(hasFunc func(Filter) bool) []Filter {
 		}
 	}
 	sort.Slice(entries, func(i, j int) bool {
-		if entries[i].Stage != entries[j].Stage {
-			return entries[i].Stage < entries[j].Stage
-		}
-		if entries[i].Priority != entries[j].Priority {
-			return entries[i].Priority < entries[j].Priority
-		}
-		return entries[i].Name < entries[j].Name
+		return LessOrder(
+			entries[i].Name, entries[i].Stage, entries[i].Priority,
+			entries[j].Name, entries[j].Stage, entries[j].Priority,
+		)
 	})
 	return entries
+}
+
+// LessOrder reports whether a pipeline entry keyed (nameA, stageA, priorityA)
+// sorts before one keyed (nameB, stageB, priorityB): stage first, then priority,
+// then name. It is the single source of truth for filter-pipeline ordering,
+// exported so a consumer (the reactor) can merge-sort a non-registered step -- its
+// per-peer policy chain at FilterStagePeerChain -- into the same order as the
+// registered filters without duplicating the sort key.
+func LessOrder(nameA string, stageA, priorityA int, nameB string, stageB, priorityB int) bool {
+	if stageA != stageB {
+		return stageA < stageB
+	}
+	if priorityA != priorityB {
+		return priorityA < priorityB
+	}
+	return nameA < nameB
+}
+
+// IngressOrdered returns all registered filters that declare an ingress function,
+// sorted by stage, then priority, then name -- the same order as IngressFilters,
+// but carrying each filter's ordering keys (Name/Stage/Priority) alongside the
+// func so a consumer can merge-sort additional externally-owned steps (the
+// reactor's per-peer policy chain at FilterStagePeerChain) into the same order.
+func IngressOrdered() []Filter {
+	mu.RLock()
+	defer mu.RUnlock()
+	return sortedFilters(func(f Filter) bool { return f.Ingress != nil })
+}
+
+// EgressOrdered is the egress twin of IngressOrdered.
+func EgressOrdered() []Filter {
+	mu.RLock()
+	defer mu.RUnlock()
+	return sortedFilters(func(f Filter) bool { return f.Egress != nil })
 }
 
 // IngressFilters returns all registered ingress filter functions,

@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 271 design docs, 2847 files
+Total: 272 design docs, 2849 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -125,6 +125,7 @@ Total: 271 design docs, 2847 files
 | `internal/component/bgp/filterapi/filterapi.go` | BGP route filter pipeline |
 | `internal/component/bgp/filterapi/filterapi_test.go` | BGP route filter pipeline |
 | `internal/component/bgp/reactor/egress_inject_filter.go` | egress filter for originated routes |
+| `internal/component/bgp/reactor/filter_ordered.go` | unified BGP route filter pipeline |
 | `internal/component/bgp/reactor/peer_stats.go` | peer statistics for operational commands |
 | `internal/component/gnmi/capabilities.go` | gNMI Capabilities RPC |
 | `internal/component/gnmi/errors.go` | gNMI error definitions |
@@ -3952,6 +3953,10 @@ Total: 271 design docs, 2847 files
 ## `plan/spec-ospf-ext-6-ti-lfa.md`
 
 - `internal/core/rib/locrib/candidate_backup_test.go` -- Path backup carry-through (AC-13,
+
+## `plan/spec-unify-filters.md`
+
+- `internal/component/bgp/reactor/unified_filter_order_test.go` -- unified stage-ordered filter pipeline
 
 ## `plan/spec-vlan-qos-lab.md`
 

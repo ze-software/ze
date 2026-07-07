@@ -629,26 +629,37 @@ then string keys are produced off the forward critical path.
 
 Per-peer inbound filtering runs in the reactor on every received UPDATE,
 **before** the bytes are cached and **before** the StructuredEvent is dispatched.
-Two filter chains run in order:
+All ingress filtering runs in **one stage-ordered pass** over
+`r.orderedIngressSteps` (built once at `startAPIServer`). The pass merges two
+kinds of executor, ordered by declared Stage, then Priority, then name -- never by
+code position:
 
-1. **In-process ingress filters** (`reactor.ingressFilters`, registered via
-   `filterapi.IngressFilters()`). Signature
+1. **In-process ingress filters** (registered via `filterapi.Register`, ordered by
+   `filterapi` Stage: Protocol `loop` → Policy `bgp-filter-community` /
+   `bgp-redistribute` → Annotation `bgp-role`/OTC). Signature
    `func(source PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modifiedPayload []byte)`.
    `accept=false` drops the route (no caching, no dispatch). A non-nil
-   `modifiedPayload` REPLACES the original bytes for caching and downstream
-   delivery; the reactor builds a fresh `WireUpdate` over the modified payload
-   and updates `RawMessage.RawBytes / WireUpdate / AttrsWire`. The modified
-   buffer is heap-allocated (not pool-backed).
+   `modifiedPayload` REPLACES the original bytes; the reactor builds a fresh
+   `WireUpdate` and updates `RawMessage.RawBytes / WireUpdate / AttrsWire`. The
+   modified buffer is heap-allocated (not pool-backed).
 
-2. **External-plugin import policy filter chain** (`peer.settings.ImportFilters`,
-   resolved via `filter { import [...] }` config). Runs `PolicyFilterChain`
-   with `direction="import"`. Returns `Accept` / `Reject` / `Modify`. `Reject`
-   drops the route. `Modify` produces a modified text representation, which the
-   reactor converts to wire-attribute mod operations (`ModAccumulator`) and
-   applies via the same `buildModifiedPayload` progressive build used on the
-   egress path. The result replaces the cached `WireUpdate`.
+2. **The external-plugin per-peer policy chain** (`peer.settings.ImportFilters`,
+   resolved via `filter { import [...] }` config), which the reactor binds as ONE
+   ordered step at `filterapi.FilterStagePeerChain` (300) -- so it sorts **after**
+   every in-process filter, including OTC. It runs `PolicyFilterChain` with
+   `direction="import"` only when the peer has configured import filters and the
+   API server is present (text serialization is gated to that case). `Reject`
+   drops the route; `Teardown` closes the session (import only); a raw override or
+   a `Modify` text delta is converted to wire-attribute mods (`ModAccumulator`)
+   and rebuilds the cached `WireUpdate` via the same `buildModifiedPayload`
+   progressive build used on the egress path.
 
-After both chains run, the cached `WireUpdate` is the **canonical post-filter
+Because the external chain is a declared terminal stage (not a second back-to-back
+code block), the cross-system order is inspectable and a future filter registered
+at any stage below 300 interleaves correctly. The observable order is
+`Protocol < Policy (in-process) < Annotation/OTC < external per-peer chain`.
+
+After the pass, the cached `WireUpdate` is the **canonical post-filter
 representation** that every downstream consumer sees: forwarders read it from
 the recent-updates cache when they call `ForwardUpdate` / `ForwardUpdatesDirect`;
 state trackers read it via the StructuredEvent's `RawMessage` pointer.
@@ -659,8 +670,9 @@ depending on path); the original wire buffer is released when the
 "copy on modify" principle (`rules/design-principles.md`) applies to ingress
 filtering as well as egress.
 
-<!-- source: internal/component/bgp/reactor/reactor_notify.go -- ingress filter chain (line ~302) and import policy filter chain (line ~357) -->
-<!-- source: internal/component/bgp/filterapi/filterapi.go -- IngressFilterFunc contract -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver unified ordered ingress pass -->
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- orderedIngressStep, buildOrderedIngressSteps, runIngressPolicyChain -->
+<!-- source: internal/component/bgp/filterapi/filterapi.go -- FilterStagePeerChain, IngressFilterFunc contract -->
 
 ### Route Metadata and Modification Accumulator
 
@@ -718,6 +730,14 @@ external plugin filters. Filters are referenced by `<plugin>:<filter>` in
 Ingress:  Wire → In-process (mandatory) → Default filters → Policy chain (user) → Cache
 Egress:   Cache → In-process (mandatory) → Default filters → Policy chain (user) → Wire (per-peer)
 ```
+
+Both the ingress pass and the egress pass in `forwardUpdateCore` run as a single
+stage-ordered pipeline: the in-process filters and the external user policy chain
+are merge-sorted by declared Stage, with the per-peer policy chain bound at the
+terminal `filterapi.FilterStagePeerChain`, so "Policy chain (user)" above is an
+ordering property rather than a separate hardcoded code block.
+
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- orderedIngressStep/orderedEgressStep merge-sort at FilterStagePeerChain -->
 
 Three categories of filters:
 
