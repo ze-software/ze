@@ -251,12 +251,19 @@ func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistCo
 		if entry.NextHop.IsValid() {
 			nhop = entry.NextHop.String()
 		}
+		// Prefer the per-entry origin AS when the producer set one (BGP best-paths
+		// each carry their own origin AS); fall back to the batch OriginASN for
+		// producers that model themselves as a single-ASN virtual router (as112).
+		effectiveOriginASN := originASN
+		if entry.OriginAS != 0 {
+			effectiveOriginASN = entry.OriginAS
+		}
 		consumer.InjectRoute(ctx, fam, configredist.RouteEntry{
 			Prefix:    entry.Prefix.String(),
 			NextHop:   nhop,
 			Source:    source,
 			Peer:      peer,
-			OriginASN: originASN,
+			OriginASN: effectiveOriginASN,
 			Community: community,
 		})
 		return

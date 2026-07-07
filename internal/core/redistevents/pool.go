@@ -71,7 +71,9 @@ func ReleaseBatch(b *RouteChangeBatch) {
 	}
 	// Zero each entry so we do not retain references via Prefix / NextHop
 	// after release. netip.Prefix and netip.Addr are value types, so this is
-	// a small fixed-size memset.
+	// a small fixed-size memset. clear() resets EVERY entry field, including
+	// value-type additions like Metric and OriginAS, so a recycled batch never
+	// leaks a prior route's per-entry data -- no per-field reset is needed here.
 	clear(b.Entries)
 	b.Entries = b.Entries[:0]
 	b.Protocol = ProtocolUnspecified

@@ -1145,7 +1145,10 @@ that destination -- so an import under `destination bgp` no longer satisfies
 ### Redistribute Origin ASN and Community
 
 The redistribute payload carries two generic, protocol-agnostic attribute fields so a source can originate routes as a virtual router with its own identity: `RouteChangeBatch.OriginASN` (when nonzero the consumer emits the `origin igp origin-as <asn>` directive) and `RouteChangeBatch.Community` (a standard-community list rendered as `community [ ... ]`). `origin-as` is distinct from a verbatim `as-path`: the reactor applies the normal export rule to it, synthesizing AS_PATH `[asn]` for iBGP peers and `[localAS, asn]` for eBGP peers (`buildBatchASPath`/`writeASPath`), so an eBGP peer sees ze's own AS first (enforce-first-as safe). A verbatim `as-path` stays untouched (route-server transparency). Both fields default to zero/nil, so every existing producer stays byte-for-byte unchanged. The `as112` plugin is the first user: it announces its covering prefixes under a configurable origin AS (default 112) and community list, while the pipeline itself stays protocol-agnostic.
-<!-- source: internal/core/redistevents/events.go -- RouteChangeBatch.OriginASN/Community -->
+
+Origin AS also exists at per-entry granularity as `RouteChangeEntry.OriginAS`, because a source such as BGP carries a distinct origin AS on every best-path prefix that one batch-level `OriginASN` cannot express. The consumer prefers the per-entry `OriginAS` when nonzero and falls back to the batch `OriginASN` otherwise, so the as112 single-ASN case is unchanged. The BGP RIB-to-redistribute bridge (`EmitBestChange`/`convertBestChange`) populates it (plus the per-entry `Metric`) losslessly from the winning `BestChangeEntry`, and skips-with-a-warn (never silently drops) any best-change action it cannot map to add/remove.
+<!-- source: internal/core/redistevents/events.go -- RouteChangeBatch.OriginASN/Community + RouteChangeEntry.OriginAS -->
+<!-- source: internal/component/bgp/redistribute/producer.go -- EmitBestChange/convertBestChange lossless bridge (Metric + OriginAS, log-and-count unknown action) -->
 <!-- source: internal/component/bgp/redistribute/consumer.go -- formatAnnounce -->
 
 ### FIB VPP

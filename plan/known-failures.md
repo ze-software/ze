@@ -64,6 +64,19 @@ BGP forwarding/update pools do not run (the peer never establishes). The cap-512
 buffer is elsewhere; the captured crash stack will pin it. Owner: in-progress
 this session (debugging continues).
 
+### `ze-tier-check` -- `internal/plugins/routeinstall` unclassified non-engine placement, pre-existing
+
+Observed 2026-07-07 (`make ze-verify` stage 02 `ze-tier-check`):
+`internal/plugins/routeinstall: unclassified non-engine placement; add a
+scripts/dev/tier_non_engine_categories.txt row or move it to the mechanical
+tier`. The package was added by commit `f5057cd2a` ("plugin,ospf,isis: forked
+route install via Loc-RIB RPC", learned 1070) without a
+`scripts/dev/tier_non_engine_categories.txt` row. Pre-existing on `main` before
+the `spec-unify-route-events` session, which touched no `routeinstall` or
+tier-manifest file (verified: `git status` shows neither). Owner: the
+forked-route-install author must pick the package's tier category
+(framework vs mechanical) and add the manifest row.
+
 ## Harness notes (not failures)
 
 The full plugin suite shows load-induced flakiness under max parallelism -- e.g.
@@ -72,6 +85,18 @@ two full `--all` suites back-to-back melts down (resource exhaustion: ~50
 timeouts, ~200 "failures"). Triage individual tests in isolation; treat a
 contiguous block of failures or a spike of timeouts in `--all` as a
 harness/resource artifact, not real regressions.
+
+### `sync.Pool` capacity/identity unit flakes under full-suite GC pressure
+
+Observed 2026-07-07 in a full `ze-verify` run (stage 07 `ze-unit-test-cached`):
+`internal/core/textbuf` `TestPoolPreservesCapacityWithoutString` (`"128" is not
+greater than or equal to "300"`) and `internal/core/bufpool`
+`TestGetReturnsSameBufferAfterPut`. Both assert a `sync.Pool` preserves a
+buffer's capacity/identity across Get/Put, which the GC can invalidate under the
+memory pressure of the full parallel suite. textbuf passes 5/5 in isolation
+(`go test ./internal/core/textbuf/ -run TestPoolPreservesCapacityWithoutString
+-count=5`). Same non-deterministic class as learned 881. Triage in isolation;
+not a regression from an unrelated change.
 
 ### `internal/component/l2tp` `TestPeerTeardownWithdrawsSubscriberRoute` -- genuine `-race` data race, load-sensitive
 

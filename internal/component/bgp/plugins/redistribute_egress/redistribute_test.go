@@ -366,6 +366,56 @@ func TestHandleBatchUnknownProtocol(t *testing.T) {
 	assert.Empty(t, consumer.snapshotInjected())
 }
 
+// VALIDATES: AC-5 -- a nonzero per-entry OriginAS is preferred over the batch
+// OriginASN; a zero per-entry OriginAS falls back to the batch OriginASN,
+// preserving the as112 single-ASN virtual-router behavior.
+// PREVENTS: BGP best-paths redistributed with their own per-prefix origin AS
+// being flattened to one batch-level ASN (or losing their origin AS entirely).
+func TestHandleBatchPrefersEntryOriginAS(t *testing.T) {
+	resetState(t)
+
+	id := redistevents.RegisterProtocol("fakeredist")
+	bgpID, _ := redistevents.ProtocolIDOf("bgp")
+	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
+	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
+		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
+	}))
+	consumer := registerBGPConsumer(t)
+
+	// Nonzero per-entry OriginAS wins over the batch OriginASN.
+	handleBatch(context.Background(), skipIDs(bgpID), &redistevents.RouteChangeBatch{
+		Protocol:  id,
+		AFI:       afiIPv4,
+		SAFI:      safiUnicst,
+		OriginASN: 65001,
+		Entries: []redistevents.RouteChangeEntry{{
+			Action:   redistevents.ActionAdd,
+			Prefix:   netip.MustParsePrefix("10.0.0.1/32"),
+			OriginAS: 64512,
+		}},
+	})
+
+	inj := consumer.snapshotInjected()
+	require.Len(t, inj, 1)
+	assert.Equal(t, uint32(64512), inj[0].entry.OriginASN, "per-entry OriginAS must win over batch OriginASN")
+
+	// Zero per-entry OriginAS falls back to the batch OriginASN.
+	handleBatch(context.Background(), skipIDs(bgpID), &redistevents.RouteChangeBatch{
+		Protocol:  id,
+		AFI:       afiIPv4,
+		SAFI:      safiUnicst,
+		OriginASN: 65001,
+		Entries: []redistevents.RouteChangeEntry{{
+			Action: redistevents.ActionAdd,
+			Prefix: netip.MustParsePrefix("10.0.0.2/32"),
+		}},
+	})
+
+	inj = consumer.snapshotInjected()
+	require.Len(t, inj, 2)
+	assert.Equal(t, uint32(65001), inj[1].entry.OriginASN, "zero per-entry OriginAS falls back to batch OriginASN")
+}
+
 // VALIDATES: subscribe() listens to every producer; same-protocol loop prevention is per-consumer.
 // PREVENTS: a source such as BGP being skipped globally, which would block BGP -> OSPF redistribution.
 func TestSubscribeIncludesConsumerProtocolProducer(t *testing.T) {

@@ -5,6 +5,9 @@
 package redistribute
 
 import (
+	"log/slog"
+	"sync/atomic"
+
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
@@ -13,6 +16,16 @@ import (
 )
 
 const protocolName = "bgp"
+
+// unknownActionSkips counts best-change entries the bridge could not map to a
+// redistribution action (an action outside add/update/withdraw). Such entries
+// are skipped with a warn log rather than the old silent drop, so a future
+// RouteAction enumerant reaching the bridge surfaces loudly instead of
+// vanishing from redistribution (spec R-2). Package-level atomic because the
+// bridge has no injected metrics registry; the warn log is the production
+// signal and this counter is the assertable evidence that the skip was counted,
+// not silently dropped (read by the same-package bridge test).
+var unknownActionSkips atomic.Uint64
 
 // ProtocolID is the generic redistribution protocol identity for BGP best paths.
 var ProtocolID = redistevents.RegisterProtocol(protocolName)
@@ -56,11 +69,27 @@ func convertBestChange(in *ribevents.BestChangeEntry) (redistevents.RouteChangeE
 	case bgptypes.RouteActionWithdraw:
 		action = redistevents.ActionRemove
 	default:
+		// Not add/update/withdraw: the bridge cannot map it to a redistribution
+		// action. Skip loudly (count + warn) instead of the old silent drop, so
+		// a RouteAction that reaches the bridge unmapped fails visibly rather
+		// than vanishing from redistribution with no diagnostic (spec R-2).
+		unknownActionSkips.Add(1)
+		// Log the raw code alongside the stringer: an unmapped enumerant's
+		// String() falls back to "unspecified", so the numeric code is what
+		// actually identifies the offending action.
+		slog.Warn("bgp redistribute bridge: unmapped best-change action, skipping entry",
+			"action", in.Action, "action_code", uint8(in.Action), "prefix", in.Prefix)
 		return redistevents.RouteChangeEntry{}, false
 	}
+	// Carry every field the source populates. Metric and OriginAS are set on
+	// add/update by the RIB best-path selection (rib_bestchange.go) and are 0 on
+	// withdraw (where the consumer ignores them); copying unconditionally keeps
+	// the bridge lossless without a per-action branch.
 	return redistevents.RouteChangeEntry{
-		Action:  action,
-		Prefix:  in.Prefix,
-		NextHop: in.NextHop,
+		Action:   action,
+		Prefix:   in.Prefix,
+		NextHop:  in.NextHop,
+		Metric:   in.Metric,
+		OriginAS: in.OriginAS,
 	}, true
 }

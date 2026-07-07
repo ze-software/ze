@@ -129,6 +129,16 @@ type RouteChangeEntry struct {
 	NextHop netip.Addr
 	Metric  uint32
 	Table   uint32
+
+	// OriginAS is the per-entry origin AS the redistributed route carries into a
+	// consumer that models locally-originated routes with an AS_PATH (BGP emits
+	// `origin igp origin-as <OriginAS>`). It exists because a batch has one
+	// OriginASN but BGP best-paths each have their own origin AS, so the single
+	// batch field cannot express them; the consumer prefers this per-entry value
+	// when nonzero and falls back to the batch OriginASN otherwise. Zero -- the
+	// default for every non-BGP producer -- preserves the batch-level behavior.
+	// Value type; reset by the pool's clear(); no allocation.
+	OriginAS uint32
 }
 
 // RouteChangeBatch is the payload of (<protocol>, "route-change"). One batch
