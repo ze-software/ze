@@ -3,6 +3,14 @@
 Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before Any
 Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
 
+**Scope: non-deterministic (flaky/environmental) TEST reds only.** Deterministic
+structural gates (`ze-lint`, `ze-tier-check`, `ze-vet-evidence`,
+`ze-plugin-boundary-check`, `ze-iface-resolution-check`, `ze-cli-grammar-check`,
+`ze-verify-wiring-docs`) are NEVER logged here -- a red means the tree is
+structurally broken; fix it at the source. `scripts/dev/commit_helper.py` enforces
+this by refusing `--unverified` while a structural gate is red (see
+`ai/rules/git-safety.md` "Structural Gates Are Never Known-Red").
+
 **Status 2026-07-04: three open entries (below).**
 `TestBuildCommandTreeEnsureExists` (config/yang) is now resolved (stale test
 retargeted to the typed name selector -- see Resolved). A new open entry, the
@@ -64,19 +72,6 @@ BGP forwarding/update pools do not run (the peer never establishes). The cap-512
 buffer is elsewhere; the captured crash stack will pin it. Owner: in-progress
 this session (debugging continues).
 
-### `ze-tier-check` -- `internal/plugins/routeinstall` unclassified non-engine placement, pre-existing
-
-Observed 2026-07-07 (`make ze-verify` stage 02 `ze-tier-check`):
-`internal/plugins/routeinstall: unclassified non-engine placement; add a
-scripts/dev/tier_non_engine_categories.txt row or move it to the mechanical
-tier`. The package was added by commit `f5057cd2a` ("plugin,ospf,isis: forked
-route install via Loc-RIB RPC", learned 1070) without a
-`scripts/dev/tier_non_engine_categories.txt` row. Pre-existing on `main` before
-the `spec-unify-route-events` session, which touched no `routeinstall` or
-tier-manifest file (verified: `git status` shows neither). Owner: the
-forked-route-install author must pick the package's tier category
-(framework vs mechanical) and add the manifest row.
-
 ## Harness notes (not failures)
 
 The full plugin suite shows load-induced flakiness under max parallelism -- e.g.
@@ -111,6 +106,20 @@ synchronize via a channel. Owner: whichever session next touches
 `internal/component/l2tp/reactor_test.go`.
 
 ## Resolved
+
+### 2026-07-07 -- `ze-tier-check` `routeinstall` unclassified non-engine placement -> moved to core
+
+**Resolved 2026-07-07.** Root cause: `internal/plugins/routeinstall` (added by
+`f5057cd2a`, learned 1070) is a pure client-side library -- no `sdk.NewWithConn`,
+no `init`/`register.go`, imports only `internal/core/*` + `pkg/plugin/rpc` -- so
+the tier gate correctly flagged it as an unclassified non-engine placement in the
+plugin tier. It was NOT a flaky/environmental failure and should never have been
+parked here; a deterministic structural gate red means the tree is broken. Fixed
+by moving it to `internal/core/rib/routeinstall` (beside `locrib`, its in-process
+twin), which is outside the audited areas, so no manifest row or fake registration
+is needed. `ze-tier-check` + `TestEnginePlacement` green. To stop this class from
+being waved through again, `commit_helper.py` now refuses to treat a deterministic
+structural gate as a bypassable known-red (see `ai/rules/git-safety.md`).
 
 ### 2026-07-04 -- `config/yang` `TestBuildCommandTreeEnsureExists` -> stale test retargeted
 

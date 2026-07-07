@@ -27,7 +27,7 @@ const DefaultAdminDistance uint8 = 110
 // RouteSink receives Loc-RIB install/remove operations when the installer has no
 // local Loc-RIB (a forked subprocess, where locrib.Default() returns nil). The
 // forked wiring installs one via SetRemoteSink; it ships each op to the engine
-// over RPC (internal/plugins/routeinstall). In-process (loc != nil) the local RIB
+// over RPC (internal/core/rib/routeinstall). In-process (loc != nil) the local RIB
 // is always preferred and the sink is unused.
 type RouteSink interface {
 	InsertForward(fam family.Family, prefix netip.Prefix, p locrib.Path)
@@ -112,7 +112,7 @@ type installedRoute struct {
 
 // NewInstaller constructs an IPv4-unicast OSPF installer (the OSPFv2 family). loc may be
 // nil in a forked plugin subprocess; the forked wiring then calls SetRemoteSink so
-// install/remove ship to the engine over RPC (internal/plugins/routeinstall). With neither
+// install/remove ship to the engine over RPC (internal/core/rib/routeinstall). With neither
 // a local Loc-RIB nor a remote sink, install/remove are no-ops but snapshots still track
 // the computed route table.
 func NewInstaller(loc *locrib.RIB) *Installer {

@@ -56,7 +56,7 @@ const DefaultAdminDistance uint8 = 115
 // RouteSink receives Loc-RIB install/remove operations when the installer has no
 // local Loc-RIB (a forked subprocess, where locrib.Default() returns nil). The
 // forked wiring installs one via SetRemoteSink; it ships each op to the engine over
-// RPC (internal/plugins/routeinstall). In-process (loc != nil) the local RIB is
+// RPC (internal/core/rib/routeinstall). In-process (loc != nil) the local RIB is
 // always preferred and the sink is unused.
 type RouteSink interface {
 	InsertForward(fam family.Family, prefix netip.Prefix, p locrib.Path)

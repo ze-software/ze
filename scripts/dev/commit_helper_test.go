@@ -255,6 +255,68 @@ func TestCommitHelperVerifyGate(t *testing.T) {
 	mustContain(t, out, "verify=UNVERIFIED (known-red: test)")
 }
 
+// VALIDATES: a DETERMINISTIC STRUCTURAL GATE red recorded in
+// tmp/ze-verify-failures.json (here ze-tier-check) is NOT bypassable by
+// --unverified, while a flaky TEST-stage red (ze-functional-test) still is.
+// PREVENTS: parking a structural gate (e.g. a misplaced module tier like
+// routeinstall) in plan/known-failures.md and shipping it red on main.
+func TestCommitHelperStructuralGateNotBypassable(t *testing.T) {
+	root := makeCommitHelperFixture(t)
+	writeFixture(t, root, ".gitignore", "tmp/*\n")
+	writeFixture(t, root, "note.md", "n\n")
+	scriptDir := filepath.Join(root, "scripts", "dev")
+	if err := os.MkdirAll(scriptDir, 0o755); err != nil {
+		t.Fatalf("mkdir scripts/dev: %v", err)
+	}
+	statusScript := filepath.Join(scriptDir, "verify-status.sh")
+	if err := os.WriteFile(statusScript, []byte("#!/bin/bash\necho 'STALE: test'\nexit 1\n"), 0o755); err != nil {
+		t.Fatalf("write verify-status.sh: %v", err)
+	}
+
+	// A structural gate (ze-tier-check) red must block even with --unverified.
+	writeFixture(t, root, "tmp/ze-verify-failures.json", `{
+  "mode": "ze-verify",
+  "exit_code": 2,
+  "combined_log": "tmp/ze-verify.log",
+  "generated_at": "2026-07-07T00:00:00Z",
+  "stages": [
+    {"stage": "ze-tier-check", "exit_code": 2, "detail-log": "tmp/verify/02-ze-tier-check.log"}
+  ]
+}
+`)
+	_, stderr, code := runCommitHelper(t, root,
+		"--repo", root, "create", "--session", "aaaa0000",
+		"--subject", "tools: gated", "--file", "note.md", "--replace",
+		"--unverified", "trying to wave it through",
+	)
+	if code == 0 {
+		t.Fatalf("expected non-zero exit: a structural gate red must block --unverified\nstderr:\n%s", stderr)
+	}
+	mustContain(t, stderr, "STRUCTURAL GATE")
+	mustContain(t, stderr, "ze-tier-check")
+
+	// Control: a flaky TEST-stage red (ze-functional-test) stays bypassable.
+	writeFixture(t, root, "tmp/ze-verify-failures.json", `{
+  "mode": "ze-verify",
+  "exit_code": 1,
+  "combined_log": "tmp/ze-verify.log",
+  "generated_at": "2026-07-07T00:00:00Z",
+  "stages": [
+    {"stage": "ze-functional-test", "exit_code": 1, "detail-log": "tmp/verify/09-ze-functional-test.log"}
+  ]
+}
+`)
+	out, stderr2, code2 := runCommitHelper(t, root,
+		"--repo", root, "create", "--session", "aaaa0000",
+		"--subject", "tools: gated", "--file", "note.md", "--replace",
+		"--unverified", "known-red: flaky functional suite",
+	)
+	if code2 != 0 {
+		t.Fatalf("expected success: a flaky TEST red is bypassable with --unverified, got %d\nstderr:\n%s", code2, stderr2)
+	}
+	mustContain(t, out, "verify=UNVERIFIED (known-red: flaky functional suite)")
+}
+
 func makeCommitHelperFixture(t *testing.T) string {
 	t.Helper()
 	root := filepath.Join(repoRoot(t), "tmp", "commit-helper-test", strings.ReplaceAll(t.Name(), "/", "-"))
@@ -264,7 +326,7 @@ func makeCommitHelperFixture(t *testing.T) string {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatalf("create fixture root: %v", err)
 	}
-	runFixtureCommand(t, root, "git", "init")
+	runFixtureCommand(t, root, "init")
 	t.Cleanup(func() { _ = os.RemoveAll(root) })
 	return root
 }
@@ -274,13 +336,15 @@ func runCommitHelper(t *testing.T, fixtureRoot string, args ...string) (string, 
 	return runFixtureCommandAllowError(t, fixtureRoot, "python3", append([]string{filepath.Join(repoRoot(t), "scripts", "dev", "commit_helper.py")}, args...)...)
 }
 
-func runFixtureCommand(t *testing.T, dir, name string, args ...string) string {
+// runFixtureCommand runs `git <args...>` in dir, failing the test on a non-zero
+// exit. Every fixture uses git, so the command name is fixed; no caller uses the
+// output, so nothing is returned (unparam).
+func runFixtureCommand(t *testing.T, dir string, args ...string) {
 	t.Helper()
-	stdout, stderr, code := runFixtureCommandAllowError(t, dir, name, args...)
+	stdout, stderr, code := runFixtureCommandAllowError(t, dir, "git", args...)
 	if code != 0 {
-		t.Fatalf("%s %s failed with %d\nstdout:\n%s\nstderr:\n%s", name, strings.Join(args, " "), code, stdout, stderr)
+		t.Fatalf("git %s failed with %d\nstdout:\n%s\nstderr:\n%s", strings.Join(args, " "), code, stdout, stderr)
 	}
-	return strings.TrimSpace(stdout)
 }
 
 func runFixtureCommandAllowError(t *testing.T, dir, name string, args ...string) (string, string, int) {

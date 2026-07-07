@@ -154,15 +154,15 @@ func runSpecClosure(t *testing.T, fixtureRoot string, args ...string) (string, s
 
 func configFixtureGit(t *testing.T, root string) {
 	t.Helper()
-	runFixtureCommand(t, root, "git", "config", "user.email", "test@example.com")
-	runFixtureCommand(t, root, "git", "config", "user.name", "Ze Test")
-	runFixtureCommand(t, root, "git", "config", "commit.gpgsign", "false")
+	runFixtureCommand(t, root, "config", "user.email", "test@example.com")
+	runFixtureCommand(t, root, "config", "user.name", "Ze Test")
+	runFixtureCommand(t, root, "config", "commit.gpgsign", "false")
 }
 
 func commitFixtureAll(t *testing.T, root, message string) {
 	t.Helper()
-	runFixtureCommand(t, root, "git", "add", "-A")
-	runFixtureCommand(t, root, "git", "commit", "-m", message)
+	runFixtureCommand(t, root, "add", "-A")
+	runFixtureCommand(t, root, "commit", "-m", message)
 	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
 		t.Fatalf("fixture is not a git repo: %v", err)
 	}

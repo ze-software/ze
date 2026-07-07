@@ -73,7 +73,7 @@ work" via an RPC, not a fail-fast guard.
 
 - `pkg/plugin/rpc/types.go` (RouteInstall/RouteRemove envelope), `pkg/plugin/sdk/sdk_engine.go` (SDK methods)
 - `internal/component/plugin/server/dispatch_route.go` (+ `dispatch.go` switch, `server.go` fields; `dispatch_cached.go` extracted to keep dispatch.go < 1000)
-- `internal/plugins/routeinstall/sink.go` (shared forked sink + retry)
+- `internal/core/rib/routeinstall/sink.go` (shared forked sink + retry)
 - `internal/plugins/ospf/{spf/install.go,spf_wiring.go,register.go}`, `internal/plugins/isis/{spf/install.go,spf_wiring.go,register.go}`
 - `test/plugin/forked-route-install.ci` (sysrib, darwin), `test/plugin/forked-route-install-kernel.ci` (kernel, QEMU)
 - `docs/architecture/api/process-protocol.md`

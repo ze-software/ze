@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/routeinstall"
 	ospfspf "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/spf"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/routeinstall"
 )
 
 func (e *engine) initSPF() {

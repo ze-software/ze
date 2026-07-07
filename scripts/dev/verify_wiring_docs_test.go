@@ -89,7 +89,7 @@ if issues:
 
 // VALIDATES: a symbol merely relocated (file deleted at the old path, re-added
 // at a new path) is NOT reported as a new unwired symbol, even when it has no
-// production reference -- a behaviour-preserving move (e.g. a component<->plugin
+// production reference -- a behavior-preserving move (e.g. a component<->plugin
 // tier migration) introduces no new API.
 // PREVENTS: every package relocation false-flagging the unwired helpers it carries.
 func TestVerifyWiringDocsIgnoresRelocatedSymbol(t *testing.T) {

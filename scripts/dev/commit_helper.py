@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import json
 import os
 import re
 import secrets
@@ -54,7 +55,6 @@ FORBIDDEN_COMMIT_SCRIPT_PATHS = {
     "AGENTS.md",
     "CLAUDE.md",
 }
-
 
 
 @dataclass(frozen=True)
@@ -482,6 +482,50 @@ def verify_status(repo: Path) -> tuple[str, str]:
     return ("fresh" if proc.returncode == 0 else "stale"), (out[0] if out else "")
 
 
+# Deterministic structural gates in `make ze-verify` (the non-test stages in
+# scripts/status/verify_run.go stagesForMode). Unlike the unit/functional/exabgp
+# TEST stages, these NEVER fail for flaky or environmental reasons: a red means
+# the tree is structurally broken -- a module-tier misplacement, a lint or vet
+# violation, a broken plugin boundary, an unresolved iface, or a stale wiring
+# index. They are therefore NOT eligible to be parked in plan/known-failures.md
+# or waved through with --unverified. See ai/rules/git-safety.md.
+STRUCTURAL_GATES = frozenset(
+    {
+        "ze-lint",
+        "ze-lint-changed",
+        "ze-tier-check",
+        "ze-iface-resolution-check",
+        "ze-plugin-boundary-check",
+        "ze-cli-grammar-check",
+        "ze-verify-wiring-docs",
+        "ze-vet-evidence",
+    }
+)
+
+
+def structural_gate_reds(repo: Path) -> list[str]:
+    """Structural-gate stages recorded red by the last `make ze-verify` run.
+
+    Reads tmp/ze-verify-failures.json, which verify_run.go rewrites after EVERY
+    run (green or red, unconditionally), so a stale red cannot linger past a
+    green verify: a fixed-and-reverified tree clears this. Returns [] when the
+    artifact is missing or unreadable -- mirroring verify_status(), the gate
+    never invents a red it cannot confirm. Preserves stage order.
+    """
+    path = repo / "tmp" / "ze-verify-failures.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    reds: list[str] = []
+    for st in data.get("stages", []) if isinstance(data, dict) else []:
+        if not isinstance(st, dict):
+            continue
+        if st.get("exit_code", 0) != 0 and st.get("stage") in STRUCTURAL_GATES:
+            reds.append(st["stage"])
+    return reds
+
+
 def _read_head(path: Path, n: int) -> str:
     try:
         with open(path, encoding="utf-8", errors="replace") as fh:
@@ -640,13 +684,35 @@ def create(args: argparse.Namespace) -> int:
     # commit" from honor-system into an enforced, overridable gate. See
     # ai/rules/git-safety.md.
     vstate, detail = verify_status(repo)
-    if vstate == "stale" and not args.unverified:
-        raise UsageError(
-            "ze-verify is not FRESH-green (" + (detail or "unknown") + ").\n"
-            "  Run `make ze-verify` (or `make ze-verify-changed`) until green, then\n"
-            '  commit, OR pass --unverified "<reason>" to commit anyway (owner\n'
-            "  override, or a known-red logged in plan/known-failures.md)."
-        )
+    if vstate == "stale":
+        # A DETERMINISTIC STRUCTURAL GATE red (tier/lint/vet/plugin-boundary/
+        # iface-resolution/cli-grammar/wiring-docs) is never flaky or
+        # environmental: it means the tree is structurally broken. Such a red is
+        # NOT bypassable by --unverified or a plan/known-failures.md known-red
+        # (those cover flaky TEST stages only). This closes the hole that let a
+        # misplaced-tier gate (routeinstall) be parked as "pre-existing" and
+        # shipped red on main. See ai/rules/git-safety.md.
+        gate_reds = structural_gate_reds(repo)
+        if gate_reds:
+            raise UsageError(
+                "ze-verify has a DETERMINISTIC STRUCTURAL GATE red that "
+                "--unverified cannot bypass: " + ", ".join(gate_reds) + ".\n"
+                "  Structural gates (tier/lint/vet/plugin-boundary/iface-resolution/\n"
+                "  cli-grammar/wiring-docs) never fail for flaky or environmental\n"
+                "  reasons -- a red means the tree is structurally broken. They are\n"
+                "  NOT eligible for --unverified or a plan/known-failures.md known-red.\n"
+                "  Fix it at the source, then re-run `make " + gate_reds[0] + "` (or\n"
+                "  `make ze-verify`) until green. If you already fixed it, that re-run\n"
+                "  refreshes tmp/ze-verify-failures.json and clears this."
+            )
+        if not args.unverified:
+            raise UsageError(
+                "ze-verify is not FRESH-green (" + (detail or "unknown") + ").\n"
+                "  Run `make ze-verify` (or `make ze-verify-changed`) until green, then\n"
+                '  commit, OR pass --unverified "<reason>" to commit anyway (owner\n'
+                "  override, or a flaky/environmental known-red logged in\n"
+                "  plan/known-failures.md; structural gates are never eligible)."
+            )
     # Discovery-index gate: the generated maps (ai/PACKAGE-MAP.md,
     # ai/DOCS-TO-CODE.md, ai/LEARNED-FULL-INDEX.md) must match the committed
     # sources. With no CI, this is the only place the freshness is enforced.
@@ -824,7 +890,8 @@ def build_parser() -> argparse.ArgumentParser:
     create_cmd.add_argument(
         "--unverified",
         help="reason to allow a commit when ze-verify is not FRESH-green "
-        "(owner override, or a known-red logged in plan/known-failures.md)",
+        "(owner override, or a flaky/environmental known-red logged in "
+        "plan/known-failures.md; deterministic structural gates are never eligible)",
     )
     create_cmd.add_argument(
         "--stale-index-ok",

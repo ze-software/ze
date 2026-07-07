@@ -452,6 +452,7 @@ Total: 594 packages, 594 described, 0 TODO
 | `internal/core/report` | is the single place where Ze subsystems push operator-visible warnings and errors |  |
 | `internal/core/resolve` | selects the storage backend and default config filename for ze |  |
 | `internal/core/rib/locrib` | implements the unified, sharded Loc-RIB that arbitrates best paths across routing protocols |  |
+| `internal/core/rib/routeinstall` | provides the RouteSink a FORKED route-installing plugin (OSPF, IS-IS) uses in place of a direct Loc-RIB write |  |
 | `internal/core/rib/store` | provides a generic prefix-keyed route store backed by a BART trie |  |
 | `internal/core/routewatch` | subscribes to kernel route changes via netlink and fans them out to handlers |  |
 | `internal/core/routingtable` | maps routing-table names to kernel table IDs |  |
@@ -654,7 +655,6 @@ Total: 594 packages, 594 described, 0 TODO
 | `internal/plugins/policyroute/yang` | embeds and registers the policy-route plugin's YANG command and configuration schemas |  |
 | `internal/plugins/provision` | implements the ze provision command that runs DHCP, PXE, and TFTP servers for remote device installation |  |
 | `internal/plugins/resolve-cmd/yang` | embeds and registers the resolve command plugin's YANG schema |  |
-| `internal/plugins/routeinstall` | provides the RouteSink a FORKED route-installing plugin (OSPF, IS-IS) uses in place of a direct Loc-RIB write |  |
 | `internal/plugins/routingtable` | Named routing table registry: maps names to kernel table IDs |  |
 | `internal/plugins/routingtable/yang` | embeds and registers the routing-table plugin's YANG configuration schema |  |
 | `internal/plugins/rsvpte` | implements RSVP-TE (RFC 3209) for explicitly-routed MPLS LSPs with bandwidth reservation | rsvp-te |

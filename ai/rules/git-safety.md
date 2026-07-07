@@ -162,6 +162,28 @@ under `tmp/verify/`, `tmp/ze-verify-failures.log`,
 [ ] 2. Failure from current work: fix + re-run. Pre-existing: fix after primary task in separate commit; if >10 min, log to `plan/known-failures.md`.
 ```
 
+### Structural Gates Are Never Known-Red (BLOCKING)
+
+The item-2 "log to `plan/known-failures.md`" path is for **non-deterministic**
+failures only -- flaky or environmental TEST reds (load-sensitive races,
+GC-pressure pool flakes, host-specific listener probes). A **deterministic
+structural gate** is NEVER eligible: `ze-lint`, `ze-tier-check`,
+`ze-vet-evidence`, `ze-plugin-boundary-check`, `ze-iface-resolution-check`,
+`ze-cli-grammar-check`, and `ze-verify-wiring-docs` fail only when the tree is
+structurally broken (a misplaced module tier, a lint/vet violation, a broken
+plugin boundary, an unresolved iface, a stale wiring index). Such a red must be
+fixed at the source before any commit -- do not park it, do not `--unverified`
+past it.
+
+This is enforced, not honor-system: `scripts/dev/commit_helper.py create` reads
+`tmp/ze-verify-failures.json` (which `verify_run.go` rewrites after every run) and
+refuses to prepare a script while any structural gate is red, even with
+`--unverified` (`structural_gate_reds` / `STRUCTURAL_GATES`). A green verify
+rewrites the artifact, so a fixed-and-reverified gate clears automatically. This
+closed the hole that let a misplaced-tier gate (`routeinstall`) be logged as
+"pre-existing" and ship red on `main` for a week (see `plan/known-failures.md`
+Resolved 2026-07-07).
+
 ### Thomas Owner Override: Commit Without Verify
 
 Thomas owns the repository and may explicitly override the `ze-verify`
