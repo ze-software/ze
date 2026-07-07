@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -147,4 +148,101 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	marshaled, err := directResultResponse(result)
 	require.NoError(t, err)
 	assert.JSONEq(t, string(marshaled), string(direct), "JSON and Direct results diverged")
+}
+
+// TestEngineOpInjectWireRouteJSONFallback exercises the inject-wire-route JSON
+// codec fallback end-to-end (AC-6): dispatch the wire method through the Direct
+// path, prove opInjectWireRoute unmarshals rpc.InjectWireRouteInput and forwards
+// the round-tripped protocol/peer/body to the registered route injector, and that
+// an unregistered injector fails closed.
+//
+// VALIDATES: AC-6 -- inject-wire-route has a working non-typed (JSON codec) path.
+// PREVENTS: a silent regression in the InjectWireRouteInput round-trip, the
+//
+//	GetRouteInjector wiring, or the "no route injector registered" guard.
+//
+// Not parallel: mutates the process-global route injector (saved/restored).
+func TestEngineOpInjectWireRouteJSONFallback(t *testing.T) {
+	s := &Server{}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	defer s.cancel()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "inject-json"})
+
+	prev := rpc.GetRouteInjector()
+	defer rpc.RegisterRouteInjector(prev)
+
+	// Unregistered: fail closed with an explicit error, no panic.
+	rpc.RegisterRouteInjector(nil)
+	_, err := s.dispatchPluginRPCDirect(proc, rpc.MethodInjectWireRoute,
+		json.RawMessage(`{"protocol":"bmp","peer-key":"p","update-body":"AQID"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no route injector registered")
+
+	// Registered: the injector receives the round-tripped values; base64 "AQID"
+	// decodes to 0x01 0x02 0x03.
+	var gotProto, gotPeer string
+	var gotBody []byte
+	rpc.RegisterRouteInjector(func(protocol, peerKey string, updateBody []byte) error {
+		gotProto, gotPeer, gotBody = protocol, peerKey, updateBody
+		return nil
+	})
+	res, err := s.dispatchPluginRPCDirect(proc, rpc.MethodInjectWireRoute,
+		json.RawMessage(`{"protocol":"bmp","peer-key":"peer-1","update-body":"AQID"}`))
+	require.NoError(t, err)
+	assert.Nil(t, res, "inject-wire-route returns no result payload")
+	assert.Equal(t, "bmp", gotProto)
+	assert.Equal(t, "peer-1", gotPeer)
+	assert.Equal(t, []byte{0x01, 0x02, 0x03}, gotBody)
+}
+
+// TestEngineOpBatchValidateJSONFallback exercises the batch-validate JSON codec
+// fallback end-to-end (AC-6): dispatch the wire method through the Direct path,
+// prove opBatchValidate unmarshals rpc.BatchValidateInput, forwards the decisions
+// to the registered batch validator, and marshals the *BatchValidateResult back;
+// and that an unregistered validator fails closed.
+//
+// VALIDATES: AC-6 -- batch-validate has a working non-typed (JSON codec) path.
+// PREVENTS: a silent regression in the BatchValidateInput/Result round-trip, the
+//
+//	GetBatchValidator wiring, or the "no batch validator registered" guard.
+//
+// Not parallel: mutates the process-global batch validator (saved/restored).
+func TestEngineOpBatchValidateJSONFallback(t *testing.T) {
+	s := &Server{}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	defer s.cancel()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "batch-json"})
+
+	prev := rpc.GetBatchValidator()
+	defer rpc.RegisterBatchValidator(prev)
+
+	// Unregistered: fail closed with an explicit error.
+	rpc.RegisterBatchValidator(nil)
+	_, err := s.dispatchPluginRPCDirect(proc, rpc.MethodBatchValidate,
+		json.RawMessage(`{"decisions":[]}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no batch validator registered")
+
+	// Registered: the validator receives the round-tripped decision and its
+	// result marshals back through directResultResponse. ValidationDecision has
+	// no JSON tags, so keys are the Go field names.
+	var got []rpc.ValidationDecision
+	rpc.RegisterBatchValidator(func(decisions []rpc.ValidationDecision) (*rpc.BatchValidateResult, error) {
+		got = decisions
+		return &rpc.BatchValidateResult{Accepted: 2, Rejected: 1, Early: 0}, nil
+	})
+	res, err := s.dispatchPluginRPCDirect(proc, rpc.MethodBatchValidate,
+		json.RawMessage(`{"decisions":[{"Accept":true,"PeerAddr":"10.0.0.1","Family":"ipv4/unicast","Prefix":"10.0.0.0/24","PathID":7,"ValState":1}]}`))
+	require.NoError(t, err)
+
+	require.Len(t, got, 1)
+	assert.True(t, got[0].Accept)
+	assert.Equal(t, "10.0.0.1", got[0].PeerAddr)
+	assert.Equal(t, uint32(7), got[0].PathID)
+	assert.Equal(t, uint8(1), got[0].ValState)
+
+	var out rpc.BatchValidateResult
+	require.NoError(t, json.Unmarshal(res, &out))
+	assert.Equal(t, 2, out.Accepted)
+	assert.Equal(t, 1, out.Rejected)
 }
