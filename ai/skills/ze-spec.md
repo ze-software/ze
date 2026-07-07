@@ -252,6 +252,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
    - Files to Modify/Create (from design)
    - Integration Checklist + Documentation Update Checklist (from the Feature Surface Gate -- every applicable row named with a file; N/A rows justified)
    - Implementation Steps
+   - Review Gate section: keep the template's empty Run tables. `/ze-implement`'s /ze-review gate fills them by running `/ze-review` (the BLOCKING Review Gate) before closure. Never delete this section from the produced spec.
 3. Run Pre-Spec Verification:
    - All checkboxes `[ ]` (never `[x]`)
    - No code snippets
@@ -261,6 +262,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
    - All reading entries have `→ Decision:` or `→ Constraint:`
    - Wiring test rows all have concrete test names
    - Integration Checklist and Documentation Update Checklist present, every row answered Yes (file) or N/A (reason) -- never left as empty template placeholders. The doctor-check row is answered if the feature adds any runtime dependency.
+   - Review Gate section present (from the template), Run tables left empty -- it is filled at implementation time by `/ze-review`, not now
 
 #### Spec Independence Test (MANDATORY)
 

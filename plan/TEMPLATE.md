@@ -258,16 +258,16 @@
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan — check what exists |
 | 3. Wiring phase | Wiring Test table — register entry points, write failing wiring tests |
 | 4. Implement (TDD) | Implementation phases below (write-test-fail-implement-pass per phase) |
-| 5. /ze-review gate | Review Gate section — run `/ze-review`; fix every BLOCKER/ISSUE; re-run until only NOTEs remain (BEFORE full verification) |
-| 6. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
-| 7. Critical review | Critical Review Checklist below |
-| 8. Fix issues | Fix every issue from critical review |
-| 9. Re-verify | Re-run stage 6 |
-| 10. Repeat 7-9 | Until clean |
-| 11. Deliverables review | Deliverables Checklist below |
-| 12. Security review | Security Review Checklist below |
-| 13. Re-verify | Re-run stage 6 |
-| 14. Present summary | Executive Summary Report per `ai/rules/planning.md` |
+| 5. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 6. Critical review | Critical Review Checklist below |
+| 7. Fix issues | Fix every issue from critical review |
+| 8. Re-verify | Re-run stage 5 |
+| 9. Repeat 6-8 | Until clean |
+| 10. Deliverables review | Deliverables Checklist below |
+| 11. Security review | Security Review Checklist below |
+| 12. Documentation review | Documentation Update Checklist below |
+| 13. /ze-review gate | Review Gate section — run `/ze-review`; fix every BLOCKER/ISSUE; re-run until 0 BLOCKER/0 ISSUE (final review gate before closure) |
+| 14. Present summary + close | Executive Summary Report; two-commit closure per `ai/rules/planning.md` |
 
 ### Implementation Phases
 
@@ -437,10 +437,10 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 
 ## Review Gate
 
-<!-- BLOCKING (rules/planning.md Completion Checklist step 7): -->
-<!-- Run /ze-review BEFORE the final testing/verify step. Record the findings here. -->
+<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
+<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
 <!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
-<!-- Loop until the review returns only NOTEs (or nothing). Paste the final clean run. -->
+<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
 ### Run 1 (initial)

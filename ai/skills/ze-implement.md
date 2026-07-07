@@ -7,7 +7,7 @@ description: Implement Spec
 
 Implement the selected spec end-to-end with built-in review loops.
 
-See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl verification), `/ze-verify` (run tests)
+See also: `/ze-review` (the BLOCKING Review Gate this runs before closure), `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl verification), `/ze-verify` (run tests)
 
 ## Spec Sections Used by Each Stage
 
@@ -23,7 +23,8 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 | 11. Deliverables review | **Deliverables Checklist** (verification methods per deliverable) |
 | 12. Security review | **Security Review Checklist** (feature-specific concerns) |
 | 14. Documentation review | **Documentation Update Checklist** (per-category doc updates) |
-| 15. Close + commit | Entire spec (extraction recipe), `plan/learned/METHODOLOGY.md` |
+| 15. /ze-review gate | **Review Gate** section (run `/ze-review` over the full diff, record each run, loop to 0 BLOCKER/0 ISSUE) |
+| 16. Close + commit | Entire spec (extraction recipe), `plan/learned/METHODOLOGY.md` |
 
 ## Steps
 
@@ -111,9 +112,18 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
     - Every factual doc update MUST include or update a `<!-- source: path -- symbol -->` anchor immediately after the claim.
     - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, external socket, kernel module, listen port, external binary, TLS cert), verify a corresponding `ze doctor` check exists per `ai/rules/doctor-checks.md`. Add missing checks and register diagnostic codes in `internal/core/diagnostic/codes.go`.
     - Write the doc updates, run `make ze-doc-test`, and record the result in the spec's Documentation Updates or Pre-Commit Verification section. Include docs in Commit A.
-15. **Close spec and present commit (BLOCKING -- do ALL of this BEFORE presenting the commit script):**
+15. **/ze-review gate (BLOCKING -- the final review before closure):** Steps 7-14 check the diff against the spec's own checklists. This gate runs the generic adversarial `/ze-review` over the COMPLETE diff -- including every fix those reviews produced -- and loops until it is clean. It satisfies the Review Gate defined in `ai/rules/planning.md`; the inline reviews do not substitute for it (they check the spec's own checklists; `/ze-review` checks what nobody planned for).
+    - Invoke `/ze-review` on the uncommitted changes. It runs its own automated pre-checks (`make ze-validate`, `scripts/dev/audit-test-relaxation.py`) as its step 0.
+    - Record every finding in the spec's **Review Gate** section: fill the `### Run 1 (initial)` table (Severity / Finding / Location / Action). Do NOT tick the `[ ]` Final-status markers -- they are template markers; the evidence is the pasted run.
+    - Fix every BLOCKER and ISSUE (anything above NOTE) per `ai/rules/diagnosis-before-fix.md`: write the root cause traced to `file:line`, take the `[source]` fix, and record it under `### Fixes applied`. NOTE-only findings do not block -- record them and proceed.
+    - Re-run `make ze-lint && make ze-unit-test && make ze-functional-test`.
+    - Re-run `/ze-review`; add a `### Run 2+` block. Loop until a run reports 0 BLOCKER and 0 ISSUE. No cap on re-runs -- each fix is new code that needs a fresh review. If the same finding survives 3 fix attempts (3-Fix Rule, `ai/rules/anti-rationalization.md`), STOP and ask the user.
+    - Paste the final clean run into the Review Gate section. The gate is satisfied only when the last run shows 0 BLOCKER, 0 ISSUE.
+16. **Close spec and present commit (BLOCKING -- do ALL of this BEFORE presenting the commit script):**
+    Precondition: the spec's **Review Gate** section (step 15) shows a final `/ze-review` run with
+    0 BLOCKER and 0 ISSUE. Do not prepare the commit script until it does.
     The user runs the commit script and considers the work FINISHED. They will not come back
-    to ask "what's next" or "close the spec now." There is no step 16. The script is the
+    to ask "what's next" or "close the spec now." There is no step 17. The script is the
     final deliverable. Everything below MUST be in that single script.
 
     a. Write the learned summary to `plan/learned/NNN-<spec-stem>.md` following `plan/learned/METHODOLOGY.md`.
@@ -147,3 +157,4 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 - If the spec has a **Risks & Assumptions** section containing only template placeholder rows, STOP and ask the user to complete it (or confirm there are genuinely none). Specs created before the section existed are exempt -- do not retrofit without user request.
 - Before reporting done, re-read the spec and confirm each item is actually implemented in the code
 - Before reporting done, verify documentation stayed current: source anchors for changed files checked, examples validated against code, and `make ze-doc-test` run when docs changed
+- **The /ze-review gate (step 15) is BLOCKING and is not optional.** Closure (step 16) may not prepare the commit script until the spec's **Review Gate** section shows a final `/ze-review` run with 0 BLOCKER and 0 ISSUE. The inline reviews in steps 7-14 do NOT satisfy this gate -- they check the spec's own checklists, `/ze-review` checks what nobody planned for. This is the Review Gate from `ai/rules/planning.md`.
