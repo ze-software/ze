@@ -1,0 +1,33 @@
+    :root {
+        --space-1: 0.25rem;
+        --space-2: 0.5rem;
+        --space-3: 0.75rem;
+        --space-4: 1rem;
+        --space-5: 1.25rem;
+        --space-6: 1.5rem;
+        --space-8: 2rem;
+        --radius-sm: 0.5rem;
+        --radius-md: 0.6rem;
+        --radius-lg: 0.85rem;
+        --radius-xl: 1rem;
+        --radius-2xl: 1.15rem;
+        --radius-pill: 999px;
+        --type-micro: 0.68rem;
+        --type-kicker: 0.72rem;
+        --type-small: 0.82rem;
+        --type-ui: 0.9rem;
+        --type-body: 0.96rem;
+        --shadow-clay: var(--clay);
+        --shadow-lifted: 0 0.8rem 1.4rem rgba(80, 45, 120, 0.14);
+        --shadow-panel: 0 1.5rem 3rem rgba(40, 20, 55, 0.09);
+        --hero-cta-gradient: linear-gradient(
+            105deg,
+            var(--grape-deep),
+            var(--pink-deep) 55%,
+            var(--tangerine-deep)
+        );
+        --hero-cta-foreground: #fffafc;
+        --hero-cta-muted: rgba(255, 250, 252, 0.9);
+        --control-surface: rgba(255, 255, 255, 0.72);
+        --control-border: rgba(255, 255, 255, 0.92);
+    }

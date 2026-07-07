@@ -5,12 +5,13 @@ Checks data/page-links.json plus generated HTML anchor policy:
   * page-link external URLs are unique by normalized URL.
   * page-link groups do not repeat the same external page.
   * generated external anchors use target="_blank" and rel="noopener".
-  * page-link external URLs are reachable, following redirects.
+  * page-link external URLs are reachable when network checking is requested.
 
-By default the network reachability check is scoped to data/page-links.json,
-because command-equivalent source citations include many vendor deep links that
-are useful evidence but noisy for every local build. Pass --all-html to check
-all unique external hrefs found in generated site HTML as well.
+Network reachability is opt-in because command-equivalent source citations
+include many vendor deep links that are useful evidence but noisy for every
+local build. Pass --check-network to check data/page-links.json external URLs.
+Pass --all-html with --check-network to check every unique generated external
+href as well.
 """
 
 import argparse
@@ -182,11 +183,12 @@ def check_reachable(named_urls):
     return errors
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--all-html", action="store_true", help="also check reachability for every unique generated external href")
-    parser.add_argument("--skip-network", action="store_true", help="skip reachability and only validate data and generated anchor policy")
-    args = parser.parse_args()
+    parser.add_argument("--check-network", action="store_true", help="check external URL reachability; off by default")
+    parser.add_argument("--skip-network", action="store_true", help="skip reachability; accepted for build.py and explicit non-network validation")
+    args = parser.parse_args(argv)
 
     data = load_page_links()
     errors = []
@@ -195,7 +197,7 @@ def main():
     anchors = scan_html_external_links()
     errors.extend(check_html_anchor_policy(anchors))
 
-    if not args.skip_network:
+    if args.check_network and not args.skip_network:
         named_urls = {
             "page-links:%s" % ref: item["url"]
             for ref, item in data.get("external", {}).items()
@@ -209,8 +211,11 @@ def main():
         for err in errors:
             print("error: " + err, file=sys.stderr)
         return 1
-    scope = "all generated external hrefs" if args.all_html else "data/page-links.json external URLs"
-    print("validated external links: %s, %d generated external anchors" % (scope, len(anchors)))
+    if args.check_network and not args.skip_network:
+        scope = "all generated external hrefs" if args.all_html else "data/page-links.json external URLs"
+        print("validated external links: %s, %d generated external anchors" % (scope, len(anchors)))
+    else:
+        print("validated page-link data and external anchor policy: %d generated external anchors (network skipped)" % len(anchors))
     return 0
 
 

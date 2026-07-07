@@ -146,61 +146,7 @@ EXTRA_HEAD = """        <style>
 """
 
 
-FILTER_SCRIPT = """        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                var buttons = document.querySelectorAll(".legend button");
-                var items = document.querySelectorAll(".tl-item[data-cat]");
-                var quarters = document.querySelectorAll(".tl-quarter[data-quarter]");
-
-                function applyFilter(cat) {
-                    items.forEach(function (item) {
-                        item.classList.toggle(
-                            "filtered-out",
-                            cat !== null && item.dataset.cat !== cat,
-                        );
-                    });
-                    quarters.forEach(function (q) {
-                        var visible = q.querySelector(
-                            ".tl-item[data-cat]:not(.filtered-out)",
-                        );
-                        q.style.display = visible ? "" : "none";
-                    });
-                }
-
-                function pressOnly(activeBtn) {
-                    buttons.forEach(function (other) {
-                        other.setAttribute(
-                            "aria-pressed",
-                            other === activeBtn ? "true" : "false",
-                        );
-                    });
-                }
-
-                buttons.forEach(function (btn) {
-                    btn.addEventListener("click", function () {
-                        var wasPressed =
-                            btn.getAttribute("aria-pressed") === "true";
-                        pressOnly(null);
-                        if (wasPressed) {
-                            applyFilter(null);
-                        } else {
-                            btn.setAttribute("aria-pressed", "true");
-                            applyFilter(btn.dataset.cat);
-                        }
-                    });
-                });
-
-                var hashCat = location.hash.replace("#", "");
-                var hashBtn = hashCat
-                    ? document.querySelector('.legend button[data-cat="' + hashCat + '"]')
-                    : null;
-                if (hashBtn) {
-                    pressOnly(hashBtn);
-                    applyFilter(hashCat);
-                }
-            });
-        </script>
-"""
+FILTER_SCRIPT = ""
 
 
 def render_item(m):
@@ -280,7 +226,7 @@ def render(data):
     out.append("            </section>")
 
     body = "\n".join(out)
-    dest_text = body + "\n" + FILTER_SCRIPT + "\n" + sitelib.page_foot("../")
+    dest_text = body + "\n" + sitelib.page_foot("../")
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_text(dest_text)
     sitelib.write_markdown_sibling(DEST, render_markdown(data))

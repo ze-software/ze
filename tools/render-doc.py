@@ -106,6 +106,54 @@ def wrap_journey_hero(body_html, label):
     return FIRST_H1_RE.sub(h1_only_repl, body_html, count=1)
 
 
+def _toc_label(text):
+    return re.sub(r"<[^>]+>", "", text or "").strip()
+
+
+def _toc_items(tokens):
+    items = []
+    for token in tokens or []:
+        children = _toc_items(token.get("children", []))
+        if token.get("level", 0) < 2:
+            items.extend(children)
+            continue
+        label = _toc_label(token.get("name", ""))
+        anchor = token.get("id", "")
+        if not label or not anchor:
+            items.extend(children)
+            continue
+        child_html = ""
+        if children:
+            child_html = "\n<ol>\n%s\n</ol>" % "\n".join(children)
+        items.append(
+            '<li><a href="#%s">%s</a>%s</li>'
+            % (html.escape(anchor, quote=True), html.escape(label), child_html)
+        )
+    return items
+
+
+def render_doc_toc(tokens):
+    items = _toc_items(tokens)
+    if not items:
+        return ""
+    return (
+        '<nav class="doc-toc" aria-labelledby="doc-toc-title">'
+        '<h2 id="doc-toc-title">On this page</h2>'
+        "<ol>\n%s\n</ol></nav>" % "\n".join(items)
+    )
+
+
+def insert_doc_toc(body_html, toc_html):
+    if not toc_html:
+        return body_html
+    marker = "</div>"
+    pos = body_html.find(marker)
+    if pos == -1:
+        return toc_html + "\n" + body_html
+    end = pos + len(marker)
+    return body_html[:end] + "\n" + toc_html + body_html[end:]
+
+
 TD_RE = re.compile(r"<td([^>]*)>((?:(?!</td>).)*)</td>", re.S)
 TAG_RE = re.compile(r"<[^>]+>")
 
@@ -357,9 +405,9 @@ def render(
 ):
     md_text = source.read_text()
     title = first_h1(md_text)
-    body_html = markdown.markdown(
-        md_text, extensions=["tables", "fenced_code", "sane_lists"]
-    )
+    md = markdown.Markdown(extensions=["tables", "fenced_code", "sane_lists", "toc"])
+    body_html = md.convert(md_text)
+    toc_html = render_doc_toc(md.toc_tokens)
     body_html = relayout_evidence_cells(body_html)
     body_html = colorcode_cells(body_html)
     md_out = md_text
@@ -369,6 +417,7 @@ def render(
     body_html = wrap_journey_hero(
         body_html, journey_label or default_journey_label(dest, doc_rel)
     )
+    body_html = insert_doc_toc(body_html, toc_html)
     section_class = "md-content reveal cat-%s" % cat if cat else "md-content reveal"
     full_title = "%s - Ze" % title
     head = sitelib.page_head(

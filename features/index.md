@@ -477,7 +477,7 @@ Implemented and tested, not yet production-proven.
 
 Aspirations with written, reviewed specs. Nothing here is usable today.
 
-> Every card links to a pending spec in the main repo's <code>plan/</code> directory, where captured intent moves from skeleton to design to ready to in-progress, and a spec is deleted only when the work ships.
+> Every card links to a pending spec in the main repo's `plan/` directory, where captured intent moves from skeleton to design to ready to in-progress, and a spec is deleted only when the work ships.
 
 ### OSPF L3VPN PE-CE
 

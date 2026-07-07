@@ -1,0 +1,22 @@
+    @media (max-width: 1080px) {
+        main.has-page-sidebar {
+            display: flex;
+            flex-direction: column;
+            width: min(var(--max), calc(100% - 2rem));
+        }
+
+        main.has-page-sidebar > :not(.page-sidebar) {
+            order: 1;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .page-sidebar {
+            order: 2;
+            position: relative;
+            top: auto;
+            max-height: min(24rem, 45vh);
+            margin: 0.5rem 0 1.2rem;
+            overscroll-behavior: contain;
+        }
+    }

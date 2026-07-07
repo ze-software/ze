@@ -314,10 +314,10 @@ BROWSER_SCRIPT = """        <script>
                             "<td>" + ownerTag(ps) + "</td>" +
                             "<td>" + desc + "</td></tr>";
                     }
-                    return '<table class="config-index"><thead><tr>' +
+                    return '<div class="config-index-wrap"><table class="config-index"><thead><tr>' +
                         '<th scope="col">Setting</th><th scope="col">Provided by</th>' +
                         '<th scope="col">Description</th></tr></thead><tbody>' +
-                        rows + "</tbody></table>";
+                        rows + "</tbody></table></div>";
                 }
 
                 function renderCrumbs(P) {
@@ -389,9 +389,9 @@ BROWSER_SCRIPT = """        <script>
                     var head = '<p class="config-index-count">' + results.length +
                         ' match "' + esc(q) + '"</p>';
                     level.innerHTML = head + (results.length
-                        ? '<table class="config-index"><thead><tr><th scope="col">Path</th>' +
+                        ? '<div class="config-index-wrap"><table class="config-index"><thead><tr><th scope="col">Path</th>' +
                           '<th scope="col">Provided by</th><th scope="col">Description</th>' +
-                          "</tr></thead><tbody>" + rows + "</tbody></table>"
+                          "</tr></thead><tbody>" + rows + "</tbody></table></div>"
                         : "");
                 }
 

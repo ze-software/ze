@@ -6,7 +6,8 @@ Usage:
     tools/build.py --only docs,nav  # just the listed steps
 
 Steps (default order, also the --only vocabulary):
-    docs      main/docs/*.md -> docs/**/index.html      (data/nav.json MANIFEST in render-docs.py)
+    css       assets/css/site.css imports -> assets/site.css (tools/render-css.py)
+    docs      main/docs/*.md -> docs/**/index.html      (tools/page_registry.py DOCS_MANIFEST)
     usage    usage/*.md -> usage/**/index.html      (tools/render-doc.py)
     blog      blog/posts/*.md (editorial articles) -> blog/**/index.html
               (tools/render-blog.py) -- empty until articles are added
@@ -45,6 +46,8 @@ Steps (default order, also the --only vocabulary):
               pages have no Markdown source of their own to publish as-is
     links     patch generated external links so they use target="_blank" and
               rel="noopener" consistently; always runs after selected steps
+    linkcheck validate page-links data and generated external-anchor policy
+              without network reachability; always runs after links
     llms      data/nav.json + live counts -> llms.txt      (tools/render-llms-txt.py)
               -- always runs; there is no way to regenerate the site without
               also regenerating llms.txt, so it can never silently go stale.
@@ -76,8 +79,10 @@ GH_PAGES = HERE.parent
 
 sys.path.insert(0, str(HERE))
 import sitelib  # noqa: E402
+import page_registry  # noqa: E402
 
 STEPS = [
+    "css",
     "docs",
     "usage",
     "labdetails",
@@ -106,147 +111,12 @@ STEPS = [
     "timeline",
     "nav",
     "links",
+    "linkcheck",
     "search",
     "seo",
     "llms",
 ]
 
-NAV_PATCH_TARGETS = [
-    ("zeledon/index.html", "../"),
-    ("style-guide/index.html", "../"),
-    ("performance/index.html", "../"),
-    ("labs/index.html", "../"),
-    ("labs/appliance-install/index.html", "../../"),
-    ("labs/bgp-interop/index.html", "../../"),
-    ("labs/ipsec-interop/index.html", "../../"),
-    ("labs/l2tp-interop/index.html", "../../"),
-    ("labs/looking-glass-graph/index.html", "../../"),
-    ("labs/pppoe-interop/index.html", "../../"),
-    ("labs/vlan-qos/index.html", "../../"),
-    ("labs/vpp-dataplane/index.html", "../../"),
-]
-
-USAGE_DESC = (
-    "Deployment examples for using Ze in a real network, with adjacent router "
-    "configs and the lab evidence behind each shape."
-)
-
-USAGE_PAGES = [
-    (
-        "index.md",
-        "usage/index.html",
-        USAGE_DESC,
-        "../",
-        None,
-    ),
-    (
-        "as112/index.md",
-        "usage/as112/index.html",
-        (
-            "Use Ze as an AS112 anycast DNS node inside a network, with peer "
-            "configs for FRR, BIRD, VyOS, Junos, and Cisco IOS XR."
-        ),
-        "../../",
-        "services",
-    ),
-    (
-        "exabgp-migration/index.md",
-        "usage/exabgp-migration/index.html",
-        "Convert an ExaBGP config and run existing process scripts with Ze.",
-        "../../",
-        "automate",
-    ),
-]
-
-LAB_DETAIL_PAGES = [
-    (
-        "labs/l2tp-interop.md",
-        "labs/l2tp-interop/architecture/index.html",
-        "Peer-isolated Docker lab details for full L2TP PPP/NCP/kernel dataplane evidence.",
-        "../../../",
-        "services",
-    ),
-    (
-        "labs/pppoe-interop.md",
-        "labs/pppoe-interop/architecture/index.html",
-        "Peer-isolated Docker lab details for Ze PPPoE client interop with accel-ppp.",
-        "../../../",
-        "services",
-    ),
-]
-
-
-COMPARE_DESC = (
-    "Comparison hub for Ze against BGP daemons and router network operating systems."
-)
-
-COMPARE_PAGES = [
-    (
-        "comparison.md",
-        "compare/index.html",
-        COMPARE_DESC,
-        "../",
-        "routing",
-    ),
-    (
-        "bgp.md",
-        "compare/bgp/index.html",
-        "How Ze compares to mature BGP daemon implementations, including where it is still behind.",
-        "../../",
-        "routing",
-    ),
-    (
-        "nos.md",
-        "compare/nos/index.html",
-        "How Ze compares to VyOS and freeRtr as full router operating systems.",
-        "../../",
-        "platform",
-    ),
-]
-
-QUALITY_DESC = (
-    "How Ze proves code quality with unit tests, functional scenarios, QEMU, "
-    "fuzzing, gomu mutation testing, and release evidence."
-)
-
-QUALITY_PAGES = [
-    (
-        "quality.md",
-        "quality/index.html",
-        QUALITY_DESC,
-        "../",
-    ),
-    (
-        "functional-ci.md",
-        "quality/functional-ci/index.html",
-        "How to write and run Ze functional .ci tests.",
-        "../../",
-    ),
-    (
-        "browser-editor.md",
-        "quality/browser-editor/index.html",
-        "How to write and run Ze browser .wb tests and editor .et tests.",
-        "../../",
-    ),
-    (
-        "unit-fuzz-mutation.md",
-        "quality/unit-fuzz-mutation/index.html",
-        "How to write and run Ze unit tests, fuzz targets, and gomu mutation checks.",
-        "../../",
-    ),
-    (
-        "qemu-interop-release.md",
-        "quality/qemu-interop-release/index.html",
-        "How to run Ze QEMU, interop, deployment, performance, and release evidence.",
-        "../../",
-    ),
-    (
-        "verify-debugging.md",
-        "quality/verify-debugging/index.html",
-        "How Ze verify, failure routing, traces, and debug logging work.",
-        "../../",
-    ),
-]
 
 CONTRIBUTE_DESC = (
     "How to contribute to Ze: the CLA, how the project is funded, and where to start."
@@ -286,6 +156,12 @@ def load_module(stem):
     spec.loader.exec_module(module)
     return module
 
+def step_css():
+    render_css = load_module("render-css")
+    return render_css.main()
+
+
+
 
 def step_docs():
     render_docs = load_module("render-docs")
@@ -295,26 +171,26 @@ def step_docs():
 
 def step_usage():
     render_doc = load_module("render-doc")
-    for source_name, dest_rel, desc, root, cat in USAGE_PAGES:
+    for page in page_registry.USAGE_PAGES:
         render_doc.render(
-            GH_PAGES / "usage" / source_name,
-            GH_PAGES / dest_rel,
-            root,
-            desc,
-            cat=cat,
+            GH_PAGES / "usage" / page.source,
+            GH_PAGES / page.dest,
+            page_registry.page_root_for_dest(page.dest),
+            page.desc,
+            cat=page.cat,
             journey_label="Usage",
         )
     return 0
 
 def step_labdetails():
     render_doc = load_module("render-doc")
-    for source_name, dest_rel, desc, root, cat in LAB_DETAIL_PAGES:
+    for page in page_registry.LAB_DETAIL_PAGES:
         render_doc.render(
-            MAIN_REPO / "docs" / source_name,
-            GH_PAGES / dest_rel,
-            root,
-            desc,
-            cat=cat,
+            MAIN_REPO / "docs" / page.source,
+            GH_PAGES / page.dest,
+            page_registry.page_root_for_dest(page.dest),
+            page.desc,
+            cat=page.cat,
             journey_label="Lab details",
         )
     return 0
@@ -334,13 +210,13 @@ def step_activity():
 
 def step_compare():
     render_doc = load_module("render-doc")
-    for source_name, dest_rel, desc, root, cat in COMPARE_PAGES:
+    for page in page_registry.COMPARE_PAGES:
         render_doc.render(
-            GH_PAGES / "compare" / source_name,
-            GH_PAGES / dest_rel,
-            root,
-            desc,
-            cat=cat,
+            GH_PAGES / "compare" / page.source,
+            GH_PAGES / page.dest,
+            page_registry.page_root_for_dest(page.dest),
+            page.desc,
+            cat=page.cat,
         )
     return 0
 
@@ -366,13 +242,13 @@ def step_deps():
 
 def step_quality():
     render_doc = load_module("render-doc")
-    for source_name, dest_rel, desc, root in QUALITY_PAGES:
+    for page in page_registry.QUALITY_PAGES:
         render_doc.render(
-            GH_PAGES / "quality" / source_name,
-            GH_PAGES / dest_rel,
-            root,
-            desc,
-            cat="observe",
+            GH_PAGES / "quality" / page.source,
+            GH_PAGES / page.dest,
+            page_registry.page_root_for_dest(page.dest),
+            page.desc,
+            cat=page.cat,
         )
     return 0
 
@@ -534,7 +410,8 @@ def step_llms():
 
 
 def step_nav():
-    for rel, root in NAV_PATCH_TARGETS:
+    for rel in page_registry.NAV_PATCH_TARGETS:
+        root = page_registry.page_root_for_dest(rel)
         path = GH_PAGES / rel
         text = sitelib.patch_navblock(path.read_text(), root)
         text = sitelib.patch_brand_home_href(text, root)
@@ -566,7 +443,13 @@ def step_links():
     return 0
 
 
+def step_linkcheck():
+    check_page_links = load_module("check-page-links")
+    return check_page_links.main(["--skip-network"])
+
+
 STEP_FUNCS = {
+    "css": step_css,
     "docs": step_docs,
     "usage": step_usage,
     "labdetails": step_labdetails,
@@ -596,6 +479,7 @@ STEP_FUNCS = {
     "llms": step_llms,
     "nav": step_nav,
     "links": step_links,
+    "linkcheck": step_linkcheck,
     "search": step_search,
     "seo": step_seo,
 }
@@ -722,7 +606,7 @@ def main():
         if rc:
             failures.append(step)
 
-    if "links" not in steps:
+    if "links" not in steps and "linkcheck" not in steps:
         # Runs even when --only excludes it: external links should consistently
         # open in fresh tabs after any generator rewrites a page.
         print("=== links (always runs) ===")
@@ -735,6 +619,17 @@ def main():
             if rc:
                 failures.append("links")
 
+
+    if "linkcheck" not in steps:
+        print("=== linkcheck (always runs) ===")
+        try:
+            rc = step_linkcheck()
+        except Exception as exc:
+            print("error: step linkcheck raised %r" % exc, file=sys.stderr)
+            failures.append("linkcheck")
+        else:
+            if rc:
+                failures.append("linkcheck")
     if "llms" not in steps:
         # Runs even when --only excludes it: llms.txt must never go stale
         # relative to whatever this invocation just changed.

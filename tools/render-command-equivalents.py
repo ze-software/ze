@@ -485,14 +485,17 @@ def render_index(rows, groups, vendor_only, mapping, commands, vendor_ids, vendo
     out.append("</div>")
     out.append(render_equivalence_overview(rows, vendor_ids, vendor_labels, reviewed_count, equivalent_count))
     out.append(render_vendor_selector(vendor_ids, vendor_labels))
-    out.append(render_equivalent_spotlight(rows, vendor_ids, vendor_labels))
-    out.append('<section class="cmd-eq-full-catalog" aria-labelledby="cmd-eq-full-catalog-title">')
-    out.append('<h2 id="cmd-eq-full-catalog-title">Full live command catalog</h2>')
-    out.append('<p class="cmd-eq-panel-note">Search every generated Ze command, reviewed mapping note, and listed vendor command. Rows without vendor CLI remain visible so missing coverage is explicit.</p>')
+    out.append('<section class="cmd-eq-search-shelf" aria-labelledby="cmd-eq-search-title">')
+    out.append('<h2 id="cmd-eq-search-title">Search the command map</h2>')
+    out.append('<p class="cmd-eq-panel-note">Search every generated Ze command, reviewed mapping note, and listed vendor command. Rows without vendor CLI remain visible in the full catalog so missing coverage is explicit.</p>')
     out.append('<div class="cmd-eq-search-wrap">')
     out.append('<input id="cmd-eq-search" type="search" autocomplete="off" placeholder="Search Ze, Junos, IOS XR, SR OS, or VyOS commands..." aria-label="Search command equivalents" />')
     out.append('<div id="cmd-eq-search-count" class="cmd-eq-search-count" aria-live="polite"></div>')
     out.append("</div>")
+    out.append("</section>")
+    out.append(render_equivalent_spotlight(rows, vendor_ids, vendor_labels))
+    out.append('<section class="cmd-eq-full-catalog" aria-labelledby="cmd-eq-full-catalog-title">')
+    out.append('<h2 id="cmd-eq-full-catalog-title">Full live command catalog</h2>')
     out.append('<noscript><p>JavaScript is disabled. Browser find works across the side-by-side command table.</p></noscript>')
     for label, grouped_rows in groups:
         out.append(render_index_group(label, grouped_rows, vendor_ids, vendor_labels))
@@ -502,7 +505,7 @@ def render_index(rows, groups, vendor_only, mapping, commands, vendor_ids, vendo
     out.append("</section>")
     body = "\n".join(out)
     DEST.parent.mkdir(parents=True, exist_ok=True)
-    DEST.write_text(body + "\n" + FILTER_SCRIPT + "\n" + sitelib.page_foot(root))
+    DEST.write_text(body + "\n" + sitelib.page_foot(root))
     sitelib.write_markdown_sibling(
         DEST,
         render_index_markdown(
@@ -732,52 +735,7 @@ def render_detail_markdown(row, mapping, vendor_ids, vendor_labels):
     return "\n".join(lines).strip() + "\n"
 
 
-FILTER_SCRIPT = """        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                var input = document.getElementById("cmd-eq-search");
-                var counter = document.getElementById("cmd-eq-search-count");
-                var groups = Array.prototype.slice.call(document.querySelectorAll(".cmd-eq-group"));
-                if (!input) return;
-
-                function applyFilter() {
-                    var q = input.value.trim().toLowerCase();
-                    var visible = 0;
-                    groups.forEach(function (group) {
-                        var rows = Array.prototype.slice.call(group.querySelectorAll("tbody tr"));
-                        var groupVisible = 0;
-                        rows.forEach(function (row) {
-                            var haystack = row.getAttribute("data-search") || row.textContent.toLowerCase();
-                            var match = q === "" || haystack.indexOf(q) !== -1;
-                            row.style.display = match ? "" : "none";
-                            if (match) {
-                                visible += 1;
-                                groupVisible += 1;
-                            }
-                        });
-                        group.style.display = groupVisible ? "" : "none";
-                        if (q !== "") group.open = groupVisible > 0;
-                    });
-                    if (counter) {
-                        counter.textContent = q === "" ? "" : visible + " matching commands";
-                    }
-                }
-
-                input.addEventListener("input", applyFilter);
-                if (location.hash) {
-                    var target = document.getElementById(location.hash.slice(1));
-                    if (target && target.tagName === "TR") {
-                        var group = target.closest(".cmd-eq-group");
-                        if (group) group.open = true;
-                        window.setTimeout(function () {
-                            target.scrollIntoView({ block: "center" });
-                            target.classList.add("cmd-eq-highlight");
-                            window.setTimeout(function () { target.classList.remove("cmd-eq-highlight"); }, 2000);
-                        }, 50);
-                    }
-                }
-            });
-        </script>
-"""
+FILTER_SCRIPT = ""
 
 
 def main():

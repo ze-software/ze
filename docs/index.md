@@ -1,59 +1,65 @@
 # Documentation
 
-Everything written about Ze, organised by what you are trying to do. If you
-are new, start at the top and work down. If you already know Ze, jump
-straight to the reference.
+Pick the path that matches your intent. Start with the card that describes the
+job you are trying to do, then follow the links inside that path.
 
-## Start here
-
-Learning-oriented pages that take you from nothing to a working setup.
-
-- [Quickstart](guide/quickstart/): two BGP peers talking in under five minutes.
-- [Install Ze](guide/ze-install/): the daemon on an existing Linux box, or a bootable appliance.
-- [Configuration](features/configuration/): the one YANG model that describes everything Ze does.
-- [CLI commands](features/cli-commands/): the SSH CLI, with diff, commit, and history.
-
-## How-to guides
-
-Task-oriented pages for when you have a specific job to get done and already
-know your way around.
-
-- [ExaBGP migration](../usage/exabgp-migration/): convert an ExaBGP config and run existing process scripts.
-- [Firewall](guide/firewall/) and [policy routing](guide/policy-routing/).
-- [OSPF](guide/ospf/), [IS-IS](guide/isis/), and [static routes](guide/static-routes/).
-- [PPPoE](guide/pppoe/) and [L2TP](guide/l2tp/) access concentration.
-- [Flow export](guide/flow-export/), [monitoring](guide/monitoring/), and [MRT analysis](guide/mrt-analysis/).
-- [AS112](guide/as112/), [TACACS+](guide/tacacs/), and the [audit trail](guide/audit/).
-- [VPP dataplane](guide/vpp/), [benchmarking](guide/benchmarking/), and [production diagnostics](guide/production-diagnostics/).
-
-The [command reference](guide/command-reference/) lists every CLI command in one place.
-
-## Reference
-
-Information-oriented pages you look things up in. Accurate, complete, and
-generated from the running system where possible, not written by hand.
-
-- [Features](../features/): every capability, colour-coded by category and marked by status.
-- [CLI reference](../cli/): all 350 commands, generated from the live binary.
-- [Configuration reference](../config-reference/): the whole config as one searchable tree, from live YANG.
-- [Dependencies](../dependencies/): every direct Go package and why it is there.
-
-## Understand the design
-
-Explanation-oriented pages for when you want to know why Ze is built the way
-it is, not just how to use it.
-
-- [Architecture](architecture/): how the engine, config model, plugins, and operator surfaces fit together.
-- [Compare](../compare/): how Ze stacks up against BIRD, FRR, GoBGP, and others, including where it is still behind.
-- [Performance](../performance/): measured BGP benchmarks, with the method, not marketing numbers.
-- [VPP deployment reference](research/vpp-deployment-reference/): startup.conf, NIC, LCP, and deployment notes behind the VPP guide.
-- [Labs](../labs/): interop proof you can run yourself against real FRR, BIRD, strongSwan, and more.
-- [Usage examples](../usage/): complete network deployment shapes, starting with Ze as an AS112 anycast DNS node.
-
-## Keep up and get involved
-
-- [Roadmap](../roadmap/): the path to the first release.
-- [Changes](../changes/): what shipped, week by week.
-- [Blog](../blog/): the longer story behind each week's work.
-- [FAQ](../faq/): the questions people ask before they commit time to Ze.
-- [Contribute](../contribute/): how the project takes code, bug reports, and interop results.
+<div class="docs-path-grid cards" aria-label="Documentation paths">
+    <article class="card docs-path-card cat-operate">
+        <span class="cat">Start</span>
+        <h2>Get Ze running</h2>
+        <p>Learning-oriented pages that take you from a blank shell to a working setup.</p>
+        <div class="link-list">
+            <a href="guide/quickstart/">Quickstart <span>two BGP peers talking in under five minutes</span></a>
+            <a href="guide/ze-install/">Install Ze <span>daemon install or bootable appliance</span></a>
+            <a href="features/configuration/">Configuration <span>the YANG model Ze uses everywhere</span></a>
+            <a href="features/cli-commands/"><code>CLI</code> commands <span>diff, commit, history, and operator commands</span></a>
+        </div>
+    </article>
+    <article class="card docs-path-card cat-routing">
+        <span class="cat">Operate</span>
+        <h2>Do a specific job</h2>
+        <p>Task-oriented guides for protocol setup, access services, migration, and diagnostics.</p>
+        <div class="link-list">
+            <a href="../usage/exabgp-migration/">ExaBGP migration <span>convert an existing config and process scripts</span></a>
+            <a href="guide/firewall/">Firewall and policy routing <span>protect and steer traffic</span></a>
+            <a href="guide/ospf/">OSPF, IS-IS, and static routes <span>bring routing protocols online</span></a>
+            <a href="guide/pppoe/">PPPoE and L2TP <span>access concentration paths</span></a>
+            <a href="guide/monitoring/">Monitoring and diagnostics <span>flow export, MRT, and production checks</span></a>
+        </div>
+    </article>
+    <article class="card docs-path-card cat-platform">
+        <span class="cat">Reference</span>
+        <h2>Look up generated facts</h2>
+        <p>Information-oriented pages generated from live data where possible.</p>
+        <div class="link-list">
+            <a href="../features/">Features <span>capabilities by category and maturity</span></a>
+            <a href="../cli/">CLI reference <span>all generated commands in one place</span></a>
+            <a href="../config-reference/">Configuration reference <span>the whole config as a searchable tree</span></a>
+            <a href="../dependencies/">Dependencies <span>direct Go packages and why they exist</span></a>
+        </div>
+    </article>
+    <article class="card docs-path-card cat-automate">
+        <span class="cat">Design</span>
+        <h2>Understand the system</h2>
+        <p>Explanation pages for architecture, comparisons, performance, labs, and deployment shapes.</p>
+        <div class="link-list">
+            <a href="architecture/">Architecture <span>engine, config, plugins, and operator surfaces</span></a>
+            <a href="../compare/">Compare <span>Ze against BIRD, FRR, GoBGP, and others</span></a>
+            <a href="../performance/">Performance <span>measured BGP benchmarks and methodology</span></a>
+            <a href="research/vpp-deployment-reference/">VPP deployment reference <span>startup.conf, NIC, LCP, and notes</span></a>
+            <a href="../labs/">Labs and usage examples <span>interop proof and deployment shapes</span></a>
+        </div>
+    </article>
+    <article class="card docs-path-card cat-secure">
+        <span class="cat">Community</span>
+        <h2>Keep up and contribute</h2>
+        <p>Project context for people deciding whether to try Ze or help shape it.</p>
+        <div class="link-list">
+            <a href="../roadmap/">Roadmap <span>the path to the first release</span></a>
+            <a href="../changes/">Changes <span>what shipped, week by week</span></a>
+            <a href="../blog/">Blog <span>longer notes behind the work</span></a>
+            <a href="../faq/">FAQ <span>answers before you commit time</span></a>
+            <a href="../contribute/">Contribute <span>code, bug reports, and interop results</span></a>
+        </div>
+    </article>
+</div>

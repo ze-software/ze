@@ -58,16 +58,22 @@ gh-pages/
     command-equivalents.json              -- curated vendor equivalents keyed by Ze CLI paths;
                                               render-command-equivalents.py joins it to live
                                               data/cli-commands.json and emits unmapped rows
-    page-links.json                     -- right-rail page navigation, external project quick links,
+    page-links.json                       -- right-rail page navigation, external project quick links,
                                               and reader-intent related links used by sitelib.py
   tools/
+    render-css.py                         -- expands assets/css/site.css imports into
+                                              the published assets/site.css bundle
     sitelib.py                            -- shared nav/head/foot chrome, imported by every
                                               render-*.py; also the navblock patcher for pages
                                               with no dedicated generator, and the Markdown-mirror
                                               machinery (see "Markdown mirrors" below)
+    page_registry.py                      -- central registry for docs manifest, generated Markdown
+                                              page sets, hand-authored nav patch targets, and
+                                              destination-derived site roots
     build.py                              -- regenerates the entire site in one command
     check-page-links.py                   -- validates page-links.json external URLs, duplicate
-                                              external pages, and generated external link targets
+                                              external pages, generated external link targets, and
+                                              optional network reachability
     render-docs.py / render-doc.py        -- ../main/docs/*.md -> docs/**/index.html (also used
                                               directly for compare/comparison.md -> compare/index.html
                                               and contribute/contribute.md -> contribute/index.html)
@@ -112,11 +118,77 @@ but their nav block is still patched from `data/nav.json` by `tools/build.py`
 (the `nav` step) so they can never drift from the mega-menu on every other
 page.
 
-Run `./update-website.sh` (repo root) or `tools/build.py` directly -- same
+Run `./update-website.sh` (repo root) or `tools/build.py` directly, same
 thing, the script is just a short, obvious name to reach for. Pass `--only`
 with comma-separated step names from `tools/build.py` (for example
-`config,plugins,search,seo`) to regenerate a subset. Watch stderr for drift
-warnings and per-step failures.
+`config,plugins,search,seo`) to regenerate a subset. The `links` and
+`linkcheck` steps run in the default order. If omitted from `--only`,
+`tools/build.py` runs them after selected steps, with
+`tools/check-page-links.py --skip-network` after external link patching and
+before the automatic `llms.txt` refresh. Watch stderr for drift warnings and
+per-step failures.
+
+### Website architecture
+
+- **Data sources.** Published pages come from structured data and Markdown:
+  `data/nav.json` owns top navigation and the `llms.txt` page map,
+  `data/page-links.json` owns page sidebars and related links,
+  `data/features.json`, `data/audience.json`, `data/milestones.json`,
+  `data/dependencies.json`, and `data/command-equivalents.json` own their
+  matching generated pages, and `data/plugin-registry.json` is generated from
+  `../main/internal/**/register.go` plus local `PLUGIN.md` metadata. Markdown
+  sources live either in this worktree (`usage/`, `compare/`, `quality/`,
+  `contribute/`, `faq/`, `roadmap/`, `license/`, `docs/docs.md`) or in
+  `../main/docs/` for product documentation and lab architecture detail.
+- **Page registry.** `tools/page_registry.py` centralizes the small lists that
+  decide which Markdown files are rendered by generic document renderers:
+  the main docs manifest, usage pages, lab detail pages, compare pages,
+  quality pages, and hand-authored pages whose nav, footer, asset versions,
+  sidebar, and Markdown sibling are patched by the `nav` step. It stores
+  site-relative destination paths, not hand-written root strings. Builders call
+  `page_registry.page_root_for_dest(dest)` so a moved page gets the correct
+  `../` depth from its destination path.
+- **Renderers.** `tools/build.py` is the orchestrator. It loads hyphenated
+  renderer scripts by file path, preserves the documented `--only` step names,
+  and collects failures instead of stopping at the first broken page. Generic
+  Markdown pages go through `tools/render-doc.py`; the main repo docs batch
+  goes through `tools/render-docs.py` using `page_registry.DOCS_MANIFEST` and a
+  temporary cross-doc link manifest. Specialized renderers own pages whose
+  content is computed from data, live Ze output, git history, Go module data,
+  or extracted plugin and YANG facts.
+- **Generated assets.** Renderers write `index.html` plus an AI-readable
+  `index.md` sibling for every published page outside `presentations/`.
+  `tools/render-search-index.py` writes search data, `tools/render-seo.py`
+  writes SEO artifacts, `tools/render-llms-txt.py` writes `llms.txt`, and
+  feed or catalog renderers write their derived XML, JSON, or detail pages.
+  Do not edit generated HTML directly when a Markdown source, JSON data file,
+  extractor, or renderer produced it.
+- **Validation gates.** `tools/build.py` runs drift warning hooks before page
+  generation, records per-step failures, always patches generated external
+  links, then always runs `tools/check-page-links.py --skip-network`.
+  That gate validates `data/page-links.json`, duplicate external page usage,
+  and generated external anchor policy without touching the network. Network
+  reachability stays opt-in with
+  `tools/check-page-links.py --check-network` or
+  `tools/check-page-links.py --check-network --all-html`.
+- **CSS source layers.** `assets/site.css` is generated from
+  `assets/css/site.css` by `tools/render-css.py`. The source manifest imports
+  `10-base.css`, the legacy bulk stylesheet, followed by smaller extracted
+  files for tokens, shared components, and responsive fixes. Keep new CSS in
+  the smallest source file that matches the concern, then run the `css` build
+  step so every generated page gets the correct asset hash.
+- **JS behavior model.** `assets/site.js` provides progressive enhancement for
+  shared behavior such as reveal effects, navigation, search-like controls,
+  and generated page explorers. Pages must remain meaningful from server
+  rendered HTML and data attributes; JavaScript may enhance interaction but
+  must not become the source of truth for content, navigation, or evidence.
+- **Verification commands.** Use targeted commands, not a project-wide build,
+  while editing architecture scripts:
+  `python3 -m py_compile tools/page_registry.py tools/build.py tools/render-docs.py tools/check-page-links.py`,
+  `python3 tools/check-page-links.py --skip-network`, and, when you need to
+  prove the build wiring rather than regenerate every page,
+  `tools/build.py --only links`. Use `tools/check-page-links.py --check-network`
+  only when external reachability is the thing being verified.
 
 ### Markdown mirrors
 

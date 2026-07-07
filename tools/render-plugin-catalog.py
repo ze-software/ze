@@ -448,7 +448,7 @@ def render_group(group):
         label=esc(group["label"]),
         count=len(group["plugins"]),
         plural="" if len(group["plugins"]) == 1 else "s",
-        deck=sitelib.bold(esc(group["deck"])),
+        deck=sitelib.bold(group["deck"]),
         cards=cards,
     )
 

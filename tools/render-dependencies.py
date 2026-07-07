@@ -88,7 +88,7 @@ def render_row(module, version, why):
     return ("<tr><td><code>%s</code></td><td><code>%s</code></td><td>%s</td></tr>") % (
         html.escape(module),
         html.escape(version),
-        sitelib.bold(html.escape(why)),
+        sitelib.bold(why),
     )
 
 
@@ -107,30 +107,7 @@ def render_group(category, versions):
     return "\n".join(parts)
 
 
-FILTER_SCRIPT = """        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                var input = document.getElementById("dep-search");
-                var groups = document.querySelectorAll(".dep-group");
-                if (!input) return;
-                input.addEventListener("input", function () {
-                    var q = input.value.trim().toLowerCase();
-                    groups.forEach(function (group) {
-                        var rows = group.querySelectorAll("tbody tr");
-                        var anyVisible = false;
-                        rows.forEach(function (row) {
-                            var match = q === "" || row.textContent.toLowerCase().indexOf(q) !== -1;
-                            row.style.display = match ? "" : "none";
-                            if (match) anyVisible = true;
-                        });
-                        group.style.display = anyVisible ? "" : "none";
-                        if (q !== "") {
-                            group.open = anyVisible;
-                        }
-                    });
-                });
-            });
-        </script>
-"""
+FILTER_SCRIPT = ""
 
 
 def render_markdown(versions, data, total):
@@ -196,7 +173,7 @@ def render(versions, data):
 
     body = "\n".join(out)
     DEST.parent.mkdir(parents=True, exist_ok=True)
-    DEST.write_text(body + "\n" + FILTER_SCRIPT + "\n" + sitelib.page_foot(root))
+    DEST.write_text(body + "\n" + sitelib.page_foot(root))
     sitelib.write_markdown_sibling(DEST, render_markdown(versions, data, total))
     print(
         "rendered %d dependencies (%d groups) -> %s (+ index.md)"

@@ -236,130 +236,7 @@ def render_markdown(commands, groups):
     return "\n".join(parts).strip() + "\n"
 
 
-FILTER_SCRIPT = """        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                var input = document.getElementById("cli-search");
-                var suggestions = document.getElementById("cli-suggestions");
-                var groups = document.querySelectorAll(".cli-group");
-                if (!input) return;
-
-                var commands = [];
-                groups.forEach(function (group) {
-                    var label = group.querySelector("summary").firstChild.textContent.trim();
-                    group.querySelectorAll("tbody tr").forEach(function (row) {
-                        commands.push({
-                            id: row.id,
-                            path: row.cells[0].textContent.trim(),
-                            desc: row.cells[2].textContent.trim(),
-                            group: label,
-                            row: row,
-                            details: group,
-                        });
-                    });
-                });
-
-                function highlight(row) {
-                    row.classList.add("cli-row-highlight");
-                    window.setTimeout(function () {
-                        row.classList.remove("cli-row-highlight");
-                    }, 2000);
-                }
-
-                function jumpTo(c) {
-                    c.details.open = true;
-                    if (suggestions) suggestions.hidden = true;
-                    history.replaceState(null, "", "#" + c.id);
-                    c.row.scrollIntoView({ block: "center" });
-                    highlight(c.row);
-                }
-
-                function applyRowFilter(q) {
-                    groups.forEach(function (group) {
-                        var rows = group.querySelectorAll("tbody tr");
-                        var anyVisible = false;
-                        rows.forEach(function (row) {
-                            var match = q === "" || row.textContent.toLowerCase().indexOf(q) !== -1;
-                            row.style.display = match ? "" : "none";
-                            if (match) anyVisible = true;
-                        });
-                        group.style.display = anyVisible ? "" : "none";
-                        if (q !== "") {
-                            group.open = anyVisible;
-                        }
-                    });
-                }
-
-                function renderSuggestions(q) {
-                    if (!suggestions) return;
-                    if (q === "") {
-                        suggestions.hidden = true;
-                        suggestions.innerHTML = "";
-                        return;
-                    }
-                    var matches = commands.filter(function (c) {
-                        return (
-                            c.path.toLowerCase().indexOf(q) !== -1 ||
-                            c.desc.toLowerCase().indexOf(q) !== -1
-                        );
-                    }).slice(0, 20);
-                    suggestions.innerHTML = "";
-                    if (!matches.length) {
-                        suggestions.hidden = true;
-                        return;
-                    }
-                    matches.forEach(function (c) {
-                        var btn = document.createElement("button");
-                        btn.type = "button";
-                        var code = document.createElement("code");
-                        code.textContent = c.path;
-                        var group = document.createElement("span");
-                        group.className = "cli-suggestion-group";
-                        group.textContent = c.group;
-                        btn.appendChild(code);
-                        btn.appendChild(group);
-                        btn.addEventListener("click", function () {
-                            jumpTo(c);
-                        });
-                        suggestions.appendChild(btn);
-                    });
-                    suggestions.hidden = false;
-                }
-
-                input.addEventListener("input", function () {
-                    var q = input.value.trim().toLowerCase();
-                    applyRowFilter(q);
-                    renderSuggestions(q);
-                });
-
-                input.addEventListener("keydown", function (e) {
-                    if (e.key === "Escape" && suggestions) suggestions.hidden = true;
-                });
-
-                document.addEventListener("click", function (e) {
-                    if (
-                        suggestions &&
-                        !suggestions.hidden &&
-                        e.target !== input &&
-                        !suggestions.contains(e.target)
-                    ) {
-                        suggestions.hidden = true;
-                    }
-                });
-
-                if (location.hash) {
-                    var target = document.getElementById(location.hash.slice(1));
-                    if (target && target.tagName === "TR") {
-                        var details = target.closest(".cli-group");
-                        if (details) details.open = true;
-                        window.setTimeout(function () {
-                            target.scrollIntoView({ block: "center" });
-                            highlight(target);
-                        }, 50);
-                    }
-                }
-            });
-        </script>
-"""
+FILTER_SCRIPT = ""
 
 
 def render(commands, groups):
@@ -409,7 +286,7 @@ def render(commands, groups):
 
     body = "\n".join(out)
     DEST.parent.mkdir(parents=True, exist_ok=True)
-    DEST.write_text(body + "\n" + FILTER_SCRIPT + "\n" + sitelib.page_foot(root))
+    DEST.write_text(body + "\n" + sitelib.page_foot(root))
     sitelib.write_markdown_sibling(DEST, render_markdown(commands, groups))
     print(
         "rendered %d commands (%d groups) -> %s (+ index.md)"

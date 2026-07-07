@@ -15,6 +15,7 @@ import html
 import json
 import pathlib
 
+import models
 import sitelib
 import sitefacts
 
@@ -188,22 +189,21 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                     />
                                 </a>
                             </div>
-                            <p class="hero-start-lead">
-                                Ze creates appliances or makes Linux speak
-                                <strong class="hl blue">BGP</strong>, IS-IS,
-                                and OSPF with one YANG configuration model,
-                                operator surfaces, telemetry, and plugins.
-                            </p>
                             <div class="hero-start-copy">
-                                <span class="hero-start-kicker"
-                                    >Linux network OS</span
-                                >
                                 <h1 id="hero-title" class="hero-start-title">
                                     Open routing for
                                     <span class="nowrap">white-label</span>
                                     hardware
                                 </h1>
-                                <p>
+                            </div>
+                            <div class="hero-start-lead-wrap">
+                                <p class="hero-start-lead">
+                                    Ze creates appliances or makes Linux (server or appliance) speak
+                                    <strong class="hl blue">BGP</strong>, <strong class="hl blue">IS-IS</strong>,
+                                    and <strong class="hl blue">OSPF</strong> with one <strong class="hl blue">YANG</strong> configuration model,
+                                    operator surfaces, <strong class="hl blue">telemetry</strong>, and <strong class="hl blue">plugins</strong>.
+                                </p>
+                                <p class="hero-start-lead">
                                     Native routing protocols, generated
                                     references, runnable labs, inspectable
                                     automation hooks, and an
@@ -226,7 +226,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                 ><strong>Search the site</strong
                                 ><small
                                     >Find commands, labs, guides, and generated
-                                    references.</small
+                                    references. <span class="search-shortcut-hint" aria-hidden="true"><kbd>⌘K</kbd><span>or</span><kbd>⌘/</kbd></span></small
                                 ></a
                             >
                             <a
@@ -245,30 +245,6 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                 ><small
                                     >Run Ze on Linux or as a bootable
                                     appliance.</small
-                                ></a
-                            >
-                            <a class="hero-start-action" href="faq/"
-                                ><strong>FAQ</strong
-                                ><small
-                                    >Get answers before you commit time.</small
-                                ></a
-                            >
-                            <a class="hero-start-action" href="roadmap/"
-                                ><strong>Project status</strong
-                                ><small
-                                    >Check what is ready and what is still
-                                    young.</small
-                                ></a
-                            >
-                            <a
-                                class="hero-start-action"
-                                href="https://discord.gg/T8s7CjPDne"
-                                target="_blank"
-                                rel="noopener"
-                                ><strong>Ask on Discord</strong
-                                ><small
-                                    >Talk to the project before you spend a
-                                    weekend.</small
                                 ></a
                             >
                         </nav>
@@ -478,6 +454,22 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                 <span>real interop proof you can run yourself</span></a
                             >
                         </div>
+                        <div class="link-list home-secondary-routes">
+                            <a href="faq/"
+                                >FAQ <span>answers before you commit time</span></a
+                            >
+                            <a href="roadmap/"
+                                >Project status
+                                <span>what is ready and what is still young</span></a
+                            >
+                            <a
+                                href="https://discord.gg/T8s7CjPDne"
+                                target="_blank"
+                                rel="noopener"
+                                >Ask on Discord
+                                <span>talk to the project before a weekend build</span></a
+                            >
+                        </div>
                     </div>
                 </div>
             </section>
@@ -568,7 +560,7 @@ def render(data):
 
 
 def main():
-    data = json.loads(DATA.read_text())
+    data = models.validate_audience(json.loads(DATA.read_text()))
     render(data)
     return 0
 

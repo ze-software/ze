@@ -1,7 +1,83 @@
 document.documentElement.classList.add("js");
 
 document.addEventListener("DOMContentLoaded", function () {
-    var reveals = Array.prototype.slice.call(document.querySelectorAll(".reveal"));
+    var ENT = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
+    var siteRootCache = null;
+    var frontendVocab = null;
+    var frontendVocabPromise = null;
+
+    function slice(nodes) {
+        return Array.prototype.slice.call(nodes || []);
+    }
+
+    function esc(s) {
+        return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+            return ENT[c];
+        });
+    }
+
+    function textLower(text) {
+        return String(text || "").toLowerCase();
+    }
+
+    function cleanLabel(text) {
+        return String(text || "").replace(/\s+/g, " ").replace(/`/g, "").trim();
+    }
+
+    function escapeRegExp(text) {
+        return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    function siteRootFromScript() {
+        if (siteRootCache !== null) return siteRootCache;
+        var script = document.querySelector('script[src*="assets/site.js"]');
+        if (!script) {
+            siteRootCache = "";
+            return siteRootCache;
+        }
+        var src = script.getAttribute("src") || "";
+        var clean = src.split("#")[0].split("?")[0];
+        var marker = "assets/site.js";
+        var at = clean.indexOf(marker);
+        siteRootCache = at === -1 ? "" : clean.slice(0, at);
+        return siteRootCache;
+    }
+
+    function loadFrontendVocab() {
+        if (frontendVocab) return Promise.resolve(frontendVocab);
+        if (frontendVocabPromise) return frontendVocabPromise;
+        if (!window.fetch) {
+            frontendVocab = {};
+            return Promise.resolve(frontendVocab);
+        }
+        frontendVocabPromise = fetch(siteRootFromScript() + "data/frontend-vocab.json")
+            .then(function (response) {
+                if (!response.ok) throw new Error("vocab");
+                return response.json();
+            })
+            .then(function (data) {
+                frontendVocab = data || {};
+                return frontendVocab;
+            })
+            .catch(function () {
+                frontendVocab = {};
+                return frontendVocab;
+            });
+        return frontendVocabPromise;
+    }
+
+    function debounce(fn, ms) {
+        var timer;
+        return function () {
+            var args = arguments;
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+                fn.apply(null, args);
+            }, ms);
+        };
+    }
+
+    var reveals = slice(document.querySelectorAll(".reveal"));
     if (reveals.length) {
         if (!("IntersectionObserver" in window)) {
             reveals.forEach(function (el) {
@@ -99,7 +175,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!trigger) return;
         trigger.addEventListener("click", function (event) {
             event.preventDefault();
-            var open = !dropdown.classList.contains("is-open");
+            var open = __omp_shell("dropdown.classList.contains(\"is-open\");")
             document.querySelectorAll(".nav-dropdown.is-open").forEach(function (other) {
                 if (other !== dropdown) setDropdown(other, false);
             });
@@ -139,12 +215,113 @@ document.addEventListener("DOMContentLoaded", function () {
         if (active && active.closest(".nav-dropdown")) active.blur();
     });
 
-    var searchTriggers = Array.prototype.slice.call(
-        document.querySelectorAll(".nav-badge-search, .search-trigger"),
-    );
-    var searchBadge = searchTriggers[0];
-    if (searchBadge) {
-        var root = searchBadge.getAttribute("href").replace(/search\/$/, "");
+    function searchTokens(query) {
+        return String(query || "").toLowerCase().split(/\s+/).filter(Boolean);
+    }
+
+    function normalizeSearchRecord(record) {
+        var title = record.displayTitle || record.title || "";
+        var section = record.displaySection || record.section || "";
+        var text = record.text || "";
+        return {
+            title: record.title || title,
+            displayTitle: title,
+            section: record.section || section,
+            displaySection: section,
+            url: record.url || "",
+            text: text,
+            titleLower: textLower((record.title || "") + " " + title),
+            sectionLower: textLower((record.section || "") + " " + section),
+            textLower: textLower(text),
+        };
+    }
+
+    function normalizeSearchRecords(data) {
+        return (data || []).map(normalizeSearchRecord);
+    }
+
+    function searchSnippet(text, tokens) {
+        var source = String(text || "");
+        var low = source.toLowerCase();
+        var at = -1;
+        for (var i = 0; i < tokens.length; i++) {
+            var p = low.indexOf(tokens[i]);
+            if (p !== -1 && (at === -1 || p < at)) at = p;
+        }
+        if (at === -1) at = 0;
+        var start = Math.max(0, at - 60);
+        var frag = source.slice(start, start + 200);
+        if (start > 0) frag = "..." + frag;
+        if (start + 200 < source.length) frag = frag + "...";
+        frag = esc(frag);
+        tokens.forEach(function (token) {
+            if (!token) return;
+            var re = new RegExp("(" + escapeRegExp(token) + ")", "ig");
+            frag = frag.replace(re, "<mark>$1</mark>");
+        });
+        return frag;
+    }
+
+    function scoreSearchRecord(record, tokens) {
+        var total = 0;
+        for (var i = 0; i < tokens.length; i++) {
+            var token = tokens[i];
+            var hit = 0;
+            if (record.titleLower.indexOf(token) !== -1) hit += 12;
+            if (record.sectionLower.indexOf(token) !== -1) hit += 4;
+            var bodyHits = record.textLower.split(token).length - 1;
+            if (bodyHits > 0) hit += Math.min(bodyHits, 5);
+            if (hit === 0) return 0;
+            total += hit;
+        }
+        return total;
+    }
+
+    function renderSearchResults(config) {
+        var query = config.query;
+        var records = config.records || [];
+        var list = config.list;
+        var status = config.status;
+        var root = config.root || "";
+        var limit = config.limit || 30;
+        var emptyPrefix = config.emptyPrefix || '"';
+        var emptySuffix = config.emptySuffix || emptyPrefix;
+        var tokens = searchTokens(query);
+        list.innerHTML = "";
+        if (!tokens.length) {
+            status.textContent = "";
+            return [];
+        }
+        var scored = [];
+        for (var i = 0; i < records.length; i++) {
+            var score = scoreSearchRecord(records[i], tokens);
+            if (score > 0) scored.push([score, records[i]]);
+        }
+        scored.sort(function (a, b) { return b[0] - a[0]; });
+        status.textContent = scored.length
+            ? scored.length + " result" + (scored.length === 1 ? "" : "s")
+            : "No results for " + emptyPrefix + query + emptySuffix + ".";
+        scored.slice(0, limit).forEach(function (pair) {
+            var record = pair[1];
+            var li = document.createElement("li");
+            li.className = "search-result";
+            li.innerHTML =
+                '<a href="' + esc(root + record.url) + '"><span class="search-result-title">' +
+                esc(record.displayTitle || record.title) + '</span> <span class="chip">' +
+                esc(record.displaySection || record.section) + '</span></a>' +
+                '<p class="search-result-snippet">' + searchSnippet(record.text, tokens) + "</p>";
+            list.appendChild(li);
+        });
+        return scored;
+    }
+
+    function initSearchOverlay() {
+        var searchTriggers = slice(document.querySelectorAll(".nav-badge-search, .search-trigger"));
+        var searchBadge = searchTriggers[0];
+        if (!searchBadge) return;
+
+        var badgeHref = searchBadge.getAttribute("href") || siteRootFromScript() + "search/";
+        var root = badgeHref.replace(/search\/?$/, "");
         var records = null;
         var loading = false;
         var previousFocus = null;
@@ -163,96 +340,38 @@ document.addEventListener("DOMContentLoaded", function () {
             "</div>" +
             '<input type="search" class="search-overlay-input" ' +
             'placeholder="Search docs, config, CLI, blog..." ' +
-            'aria-label="Search the site" />' +
+            'aria-label="Search the site" aria-describedby="search-overlay-help" />' +
+            '<p id="search-overlay-help" class="search-overlay-help search-overlay-shortcuts">Press Ctrl+K, ⌘K, or / to search. Press Escape to close.</p>' +
             '<p class="search-overlay-status" role="status" aria-live="polite"></p>' +
             '<ul class="search-overlay-results" aria-label="Search results"></ul>' +
             "</div>";
         document.body.appendChild(overlay);
+
         var input = overlay.querySelector(".search-overlay-input");
         var status = overlay.querySelector(".search-overlay-status");
         var list = overlay.querySelector(".search-overlay-results");
         var closeButton = overlay.querySelector(".search-overlay-close");
-        var ENT = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
 
-        function esc(s) {
-            return String(s).replace(/[&<>"]/g, function (c) {
-                return ENT[c];
-            });
-        }
+        searchTriggers.forEach(function (trigger) {
+            trigger.setAttribute("aria-haspopup", "dialog");
+            trigger.setAttribute("aria-expanded", "false");
+            trigger.setAttribute("aria-keyshortcuts", "Control+K Meta+K /");
+        });
 
-        function snippet(text, tokens) {
-            var low = text.toLowerCase();
-            var at = -1;
-            for (var i = 0; i < tokens.length; i++) {
-                var p = low.indexOf(tokens[i]);
-                if (p !== -1 && (at === -1 || p < at)) at = p;
-            }
-            if (at === -1) at = 0;
-            var start = Math.max(0, at - 60);
-            var frag = text.slice(start, start + 200);
-            if (start > 0) frag = "..." + frag;
-            if (start + 200 < text.length) frag = frag + "...";
-            frag = esc(frag);
-            tokens.forEach(function (t) {
-                if (!t) return;
-                var re = new RegExp(
-                    "(" + t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")",
-                    "ig",
-                );
-                frag = frag.replace(re, "<mark>$1</mark>");
-            });
-            return frag;
-        }
-
-        function score(r, tokens) {
-            var title = (r.titleLower || r.title.toLowerCase());
-            var section = (r.sectionLower || (r.section || "").toLowerCase());
-            var text = (r.textLower || r.text.toLowerCase());
-            var total = 0;
-            for (var i = 0; i < tokens.length; i++) {
-                var t = tokens[i];
-                var hit = 0;
-                if (title.indexOf(t) !== -1) hit += 12;
-                if (section.indexOf(t) !== -1) hit += 4;
-                var n = text.split(t).length - 1;
-                if (n > 0) hit += Math.min(n, 5);
-                if (hit === 0) return 0;
-                total += hit;
-            }
-            return total;
-        }
-
-        function run(q) {
-            list.innerHTML = "";
+        function run(query) {
             if (!records) {
+                list.innerHTML = "";
                 status.textContent = loading ? "Loading index..." : "";
                 return;
             }
-            var tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
-            if (!tokens.length) {
-                status.textContent = "";
-                return;
-            }
-            var scored = [];
-            for (var i = 0; i < records.length; i++) {
-                var s = score(records[i], tokens);
-                if (s > 0) scored.push([s, records[i]]);
-            }
-            scored.sort(function (a, b) { return b[0] - a[0]; });
-            status.textContent = scored.length
-                ? scored.length + " result" + (scored.length === 1 ? "" : "s")
-                : 'No results for "' + q + '".';
-            scored.slice(0, 30).forEach(function (pair) {
-                var r = pair[1];
-                var li = document.createElement("li");
-                li.className = "search-result";
-                li.innerHTML =
-                    '<a href="' + esc(root + (r.url || "")) +
-                    '"><span class="search-result-title">' + esc(r.title) +
-                    '</span> <span class="chip">' + esc(r.section) + "</span></a>" +
-                    '<p class="search-result-snippet">' + snippet(r.text, tokens) +
-                    "</p>";
-                list.appendChild(li);
+            renderSearchResults({
+                query: query,
+                records: records,
+                list: list,
+                status: status,
+                root: root,
+                limit: 30,
+                emptyQuote: '"',
             });
         }
 
@@ -261,14 +380,9 @@ document.addEventListener("DOMContentLoaded", function () {
             loading = true;
             status.textContent = "Loading index...";
             fetch(root + "data/search-index.json")
-                .then(function (r) { return r.json(); })
+                .then(function (response) { return response.json(); })
                 .then(function (data) {
-                    records = data.map(function (record) {
-                        record.titleLower = record.title.toLowerCase();
-                        record.sectionLower = (record.section || "").toLowerCase();
-                        record.textLower = record.text.toLowerCase();
-                        return record;
-                    });
+                    records = normalizeSearchRecords(data);
                     loading = false;
                     run(input.value);
                 })
@@ -281,7 +395,7 @@ document.addEventListener("DOMContentLoaded", function () {
         function setBackgroundInert(on) {
             if (on) {
                 inerted = [];
-                Array.prototype.slice.call(document.body.children).forEach(function (el) {
+                slice(document.body.children).forEach(function (el) {
                     if (el === overlay || el.tagName === "SCRIPT") return;
                     inerted.push({ el: el, aria: el.getAttribute("aria-hidden"), inert: el.inert });
                     el.setAttribute("aria-hidden", "true");
@@ -298,11 +412,10 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         function focusable() {
-            return Array.prototype.slice.call(
-                overlay.querySelectorAll('a[href], button:not([disabled]), input:not([disabled])'),
-            ).filter(function (el) {
-                return el.offsetWidth || el.offsetHeight || el === document.activeElement;
-            });
+            return slice(overlay.querySelectorAll('a[href], button:not([disabled]), input:not([disabled])'))
+                .filter(function (el) {
+                    return el.offsetWidth || el.offsetHeight || el === document.activeElement;
+                });
         }
 
         function setExpanded(value) {
@@ -334,11 +447,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }
 
-        var debounceTimer;
-        input.addEventListener("input", function () {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(function () { run(input.value); }, 120);
-        });
+        input.addEventListener("input", debounce(function () { run(input.value); }, 120));
         overlay.addEventListener("click", function (event) {
             if (event.target.hasAttribute("data-close")) close();
         });
@@ -390,369 +499,522 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    function initSourceLinks() {
-        var sources = [
-            {
-                match: /^(internal|pkg|cmd|docs|schema|test|plan|mk|scripts)\//,
-                base: "https://codeberg.org/thomas-mangin/ze/src/branch/main/",
-                forge: "forgejo",
-            },
-            {
-                match: /^(interface-definitions|include|data|python|smoketest|op-mode-definitions)\//,
-                base: "https://github.com/vyos/vyos-1x/blob/current/",
-                forge: "github",
-            },
-            {
-                match: /^src\/conf_mode\//,
-                base: "https://github.com/vyos/vyos-1x/blob/current/",
-                forge: "github",
-            },
-            {
-                match: /^Makefile$/,
-                base: "https://github.com/vyos/vyos-1x/blob/current/",
-                forge: "github",
-            },
-            {
-                match: /^(src\/org\/freertr|cfg|misc)\//,
-                base: "https://codeberg.org/mc36/freeRtr/src/branch/master/",
-                forge: "forgejo",
-            },
-        ];
+    function initSearchPage() {
+        var input = document.getElementById("site-search");
+        var status = document.getElementById("search-status");
+        var list = document.getElementById("search-results");
+        if (!input || !status || !list) return;
 
-        function lineAnchor(forge, start, end) {
-            if (!start) return "";
-            if (forge === "github") return "#L" + start + (end ? "-L" + end : "");
-            return "#L" + start + (end ? "-L" + end : "");
-        }
-
-        function sourceFor(text) {
-            var match = text.trim().match(/^([^\s:]+)(?::(\d+)(?:-(\d+))?(?:,\d+(?:-\d+)?)*)?$/);
-            if (!match) return "";
-            var path = match[1];
-            var javaDirs = {
-                cfg: "src/org/freertr/cfg/",
-                rtr: "src/org/freertr/rtr/",
-                tab: "src/org/freertr/tab/",
-                ip: "src/org/freertr/ip/",
-                serv: "src/org/freertr/serv/",
-                clnt: "src/org/freertr/clnt/",
-                user: "src/org/freertr/user/",
-                ifc: "src/org/freertr/ifc/",
-                prt: "src/org/freertr/prt/",
-            };
-            Object.keys(javaDirs).some(function (prefix) {
-                if (path.indexOf("/") !== -1 || !new RegExp("^" + prefix + "[A-Za-z0-9_]*\\.java$").test(path)) {
-                    return false;
-                }
-                path = javaDirs[prefix] + path;
-                return true;
+        var records = null;
+        function run(query) {
+            if (!records) return;
+            renderSearchResults({
+                query: query,
+                records: records,
+                list: list,
+                status: status,
+                root: siteRootFromScript(),
+                limit: 40,
+                emptyPrefix: "\u201c",
+                emptySuffix: "\u201d",
             });
-            for (var i = 0; i < sources.length; i++) {
-                if (!sources[i].match.test(path)) continue;
-                return sources[i].base + path + lineAnchor(sources[i].forge, match[2], match[3]);
-            }
-            return "";
         }
 
-        Array.prototype.slice.call(document.querySelectorAll(".md-content code")).forEach(function (code) {
-            if (code.closest("a")) return;
-            var href = sourceFor(code.textContent);
-            if (!href) return;
-            var link = document.createElement("a");
-            link.className = "source-link";
-            link.href = href;
-            link.target = "_blank";
-            link.rel = "noopener";
-            link.setAttribute("aria-label", "Open source evidence " + code.textContent.trim());
-            code.parentNode.insertBefore(link, code);
-            link.appendChild(code);
+        var params = new URLSearchParams(location.search);
+        var initial = params.get("q") || "";
+        if (initial) input.value = initial;
+
+        status.textContent = "Loading index...";
+        fetch(siteRootFromScript() + "data/search-index.json")
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                records = normalizeSearchRecords(data);
+                status.textContent = "";
+                if (input.value) run(input.value);
+            })
+            .catch(function () {
+                status.textContent = "Could not load the search index.";
+            });
+
+        input.addEventListener("input", debounce(function () {
+            run(input.value);
+            var url = new URL(location);
+            if (input.value) url.searchParams.set("q", input.value);
+            else url.searchParams.delete("q");
+            history.replaceState(null, "", url);
+        }, 120));
+    }
+
+    function pressedCategory(buttons, activeButton) {
+        buttons.forEach(function (button) {
+            button.setAttribute("aria-pressed", button === activeButton ? "true" : "false");
         });
     }
 
+    function findButtonForCategory(buttons, category) {
+        for (var i = 0; i < buttons.length; i++) {
+            if (buttons[i].getAttribute("data-cat") === category) return buttons[i];
+        }
+        return null;
+    }
+
+    function initCategoryFilter(config) {
+        var buttons = slice(document.querySelectorAll(config.buttonSelector));
+        var items = slice(document.querySelectorAll(config.itemSelector));
+        if (!buttons.length || !items.length) return;
+
+        var containers = slice(document.querySelectorAll(config.containerSelector || ""));
+        var status = config.statusSelector ? document.querySelector(config.statusSelector) : null;
+        var empty = config.emptySelector ? document.querySelector(config.emptySelector) : null;
+        var categoryAttr = config.categoryAttr || "data-cat";
+        var listAttr = config.listAttr || null;
+
+        function itemMatches(item, category) {
+            if (!category) return true;
+            if (listAttr) {
+                return (item.getAttribute(listAttr) || "").split(/\s+/).indexOf(category) !== -1;
+            }
+            return item.getAttribute(categoryAttr) === category;
+        }
+
+        function updateStatus(category, shown) {
+            if (!status) return;
+            var total = items.length;
+            if (!category) {
+                status.textContent = "Showing all " + total + " " + (config.statusName || "items") + ".";
+            } else {
+                status.textContent = "Showing " + shown + " " + (config.statusName || "items") + " for " + category + ".";
+            }
+        }
+
+        function applyFilter(category) {
+            var shown = 0;
+            items.forEach(function (item) {
+                var hit = itemMatches(item, category);
+                item.classList.toggle("filtered-out", !hit);
+                if (hit) shown += 1;
+            });
+            containers.forEach(function (container) {
+                var visible = container.querySelector(config.visibleSelector);
+                container.style.display = visible ? "" : "none";
+            });
+            if (empty) empty.classList.toggle("filtered-out", shown !== 0);
+            updateStatus(category, shown);
+        }
+
+        buttons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                var wasPressed = button.getAttribute("aria-pressed") === "true";
+                pressedCategory(buttons, null);
+                if (wasPressed) {
+                    applyFilter(null);
+                    return;
+                }
+                button.setAttribute("aria-pressed", "true");
+                applyFilter(button.getAttribute("data-cat"));
+            });
+        });
+
+        var hashCat = location.hash.replace("#", "");
+        var hashButton = hashCat ? findButtonForCategory(buttons, hashCat) : null;
+        if (hashButton) {
+            pressedCategory(buttons, hashButton);
+            applyFilter(hashCat);
+        } else {
+            updateStatus(null, items.length);
+        }
+    }
+
+    function initFeatureFilters() {
+        initCategoryFilter({
+            buttonSelector: ".legend button[data-cat]",
+            itemSelector: ".card[data-cat]",
+            containerSelector: "section[data-cards]",
+            visibleSelector: ".card[data-cat]:not(.filtered-out)",
+            statusSelector: "#feature-filter-status",
+            statusName: "features",
+        });
+    }
+
+    function initTimelineFilters() {
+        initCategoryFilter({
+            buttonSelector: ".legend button[data-cat]",
+            itemSelector: ".tl-item[data-cat]",
+            containerSelector: ".tl-quarter[data-quarter]",
+            visibleSelector: ".tl-item[data-cat]:not(.filtered-out)",
+            statusName: "milestones",
+        });
+    }
+
+    function initChangesFilters() {
+        initCategoryFilter({
+            buttonSelector: ".ch-filters button[data-cat]",
+            itemSelector: ".ch-week[data-cats]",
+            listAttr: "data-cats",
+            emptySelector: ".ch-empty",
+            statusName: "weeks",
+        });
+    }
+
+    function initDependencyFilter() {
+        var input = document.getElementById("dep-search");
+        var groups = slice(document.querySelectorAll(".dep-group"));
+        if (!input || !groups.length) return;
+        input.addEventListener("input", function () {
+            var query = input.value.trim().toLowerCase();
+            groups.forEach(function (group) {
+                var rows = slice(group.querySelectorAll("tbody tr"));
+                var anyVisible = false;
+                rows.forEach(function (row) {
+                    var match = query === "" || row.textContent.toLowerCase().indexOf(query) !== -1;
+                    row.style.display = match ? "" : "none";
+                    if (match) anyVisible = true;
+                });
+                group.style.display = anyVisible ? "" : "none";
+                if (query !== "") group.open = anyVisible;
+            });
+        });
+    }
+
+    function initCliCatalogFilter() {
+        var input = document.getElementById("cli-search");
+        var suggestions = document.getElementById("cli-suggestions");
+        var groups = slice(document.querySelectorAll(".cli-group"));
+        if (!input || !groups.length) return;
+
+        var commands = [];
+        groups.forEach(function (group) {
+            var summary = group.querySelector("summary");
+            var label = summary && summary.firstChild ? summary.firstChild.textContent.trim() : "";
+            slice(group.querySelectorAll("tbody tr")).forEach(function (row) {
+                commands.push({
+                    id: row.id,
+                    path: row.cells[0].textContent.trim(),
+                    desc: row.cells[2].textContent.trim(),
+                    group: label,
+                    row: row,
+                    details: group,
+                });
+            });
+        });
+
+        function highlight(row) {
+            row.classList.add("cli-row-highlight");
+            window.setTimeout(function () {
+                row.classList.remove("cli-row-highlight");
+            }, 2000);
+        }
+
+        function jumpTo(command) {
+            command.details.open = true;
+            if (suggestions) suggestions.hidden = true;
+            history.replaceState(null, "", "#" + command.id);
+            command.row.scrollIntoView({ block: "center" });
+            highlight(command.row);
+        }
+
+        function applyRowFilter(query) {
+            groups.forEach(function (group) {
+                var rows = slice(group.querySelectorAll("tbody tr"));
+                var anyVisible = false;
+                rows.forEach(function (row) {
+                    var match = query === "" || row.textContent.toLowerCase().indexOf(query) !== -1;
+                    row.style.display = match ? "" : "none";
+                    if (match) anyVisible = true;
+                });
+                group.style.display = anyVisible ? "" : "none";
+                if (query !== "") group.open = anyVisible;
+            });
+        }
+
+        function renderSuggestions(query) {
+            if (!suggestions) return;
+            if (query === "") {
+                suggestions.hidden = true;
+                suggestions.innerHTML = "";
+                return;
+            }
+            var matches = commands.filter(function (command) {
+                return command.path.toLowerCase().indexOf(query) !== -1 ||
+                    command.desc.toLowerCase().indexOf(query) !== -1;
+            }).slice(0, 20);
+            suggestions.innerHTML = "";
+            if (!matches.length) {
+                suggestions.hidden = true;
+                return;
+            }
+            matches.forEach(function (command) {
+                var button = document.createElement("button");
+                button.type = "button";
+                var code = document.createElement("code");
+                code.textContent = command.path;
+                var group = document.createElement("span");
+                group.className = "cli-suggestion-group";
+                group.textContent = command.group;
+                button.appendChild(code);
+                button.appendChild(group);
+                button.addEventListener("click", function () {
+                    jumpTo(command);
+                });
+                suggestions.appendChild(button);
+            });
+            suggestions.hidden = false;
+        }
+
+        input.addEventListener("input", function () {
+            var query = input.value.trim().toLowerCase();
+            applyRowFilter(query);
+            renderSuggestions(query);
+        });
+        input.addEventListener("keydown", function (event) {
+            if (event.key === "Escape" && suggestions) suggestions.hidden = true;
+        });
+        document.addEventListener("click", function (event) {
+            if (suggestions && !suggestions.hidden && event.target !== input && !suggestions.contains(event.target)) {
+                suggestions.hidden = true;
+            }
+        });
+
+        if (location.hash) {
+            var target = document.getElementById(location.hash.slice(1));
+            if (target && target.tagName === "TR") {
+                var details = target.closest(".cli-group");
+                if (details) details.open = true;
+                window.setTimeout(function () {
+                    target.scrollIntoView({ block: "center" });
+                    highlight(target);
+                }, 50);
+            }
+        }
+    }
+
+    function initCommandEquivalentFilter() {
+        var input = document.getElementById("cmd-eq-search");
+        var counter = document.getElementById("cmd-eq-search-count");
+        var groups = slice(document.querySelectorAll(".cmd-eq-group"));
+        var mappedFirst = document.querySelector(".cmd-eq-mapped-first");
+        if (!input || !groups.length) return;
+
+        function filterRows(container, query, countMatches) {
+            var rows = slice(container.querySelectorAll("tbody tr"));
+            var visible = 0;
+            rows.forEach(function (row) {
+                var haystack = row.getAttribute("data-search") || row.textContent.toLowerCase();
+                var match = query === "" || haystack.indexOf(query) !== -1;
+                row.style.display = match ? "" : "none";
+                if (match) visible += 1;
+            });
+            container.style.display = visible ? "" : "none";
+            if (query !== "" && "open" in container) container.open = visible > 0;
+            return countMatches ? visible : 0;
+        }
+
+        function applyFilter() {
+            var query = input.value.trim().toLowerCase();
+            var visible = 0;
+            if (mappedFirst) filterRows(mappedFirst, query, false);
+            groups.forEach(function (group) {
+                visible += filterRows(group, query, true);
+            });
+            if (counter) counter.textContent = query === "" ? "" : visible + " matching commands";
+        }
+
+        input.addEventListener("input", applyFilter);
+        if (location.hash) {
+            var target = document.getElementById(location.hash.slice(1));
+            if (target && target.tagName === "TR") {
+                var group = target.closest(".cmd-eq-group");
+                if (group) group.open = true;
+                window.setTimeout(function () {
+                    target.scrollIntoView({ block: "center" });
+                    target.classList.add("cmd-eq-highlight");
+                    window.setTimeout(function () { target.classList.remove("cmd-eq-highlight"); }, 2000);
+                }, 50);
+            }
+        }
+    }
+
+    function initSourceLinks() {
+        var codes = slice(document.querySelectorAll(".md-content code"));
+        if (!codes.length) return;
+        loadFrontendVocab().then(function (vocab) {
+            var sources = (vocab.sourceLinks || []).map(function (source) {
+                return {
+                    match: new RegExp(source.match),
+                    base: source.base,
+                    forge: source.forge,
+                };
+            });
+            var javaDirs = vocab.sourceJavaDirs || {};
+            if (!sources.length) return;
+
+            function lineAnchor(forge, start, end) {
+                if (!start) return "";
+                if (forge === "github") return "#L" + start + (end ? "-L" + end : "");
+                return "#L" + start + (end ? "-L" + end : "");
+            }
+
+            function sourceFor(text) {
+                var match = text.trim().match(/^([^\s:]+)(?::(\d+)(?:-(\d+))?(?:,\d+(?:-\d+)?)*)?$/);
+                if (!match) return "";
+                var path = match[1];
+                Object.keys(javaDirs).some(function (prefix) {
+                    if (path.indexOf("/") !== -1 || !new RegExp("^" + prefix + "[A-Za-z0-9_]*\\.java$").test(path)) {
+                        return false;
+                    }
+                    path = javaDirs[prefix] + path;
+                    return true;
+                });
+                for (var i = 0; i < sources.length; i++) {
+                    if (!sources[i].match.test(path)) continue;
+                    return sources[i].base + path + lineAnchor(sources[i].forge, match[2], match[3]);
+                }
+                return "";
+            }
+
+            codes.forEach(function (code) {
+                if (code.closest("a")) return;
+                var href = sourceFor(code.textContent);
+                if (!href) return;
+                var link = document.createElement("a");
+                link.className = "source-link";
+                link.href = href;
+                link.target = "_blank";
+                link.rel = "noopener";
+                link.setAttribute("aria-label", "Open source evidence " + code.textContent.trim());
+                code.parentNode.insertBefore(link, code);
+                link.appendChild(code);
+            });
+        });
+    }
 
     function initFeatureTooltips() {
-        var productNames = [
-            "Ze",
-            "VyOS",
-            "freeRtr",
-            "BIRD 3",
-            "BIRD 2",
-            "FRR",
-            "OpenBGPd",
-            "GoBGP",
-            "bio-rd",
-            "ExaBGP",
-            "RustyBGP",
-            "rustbgpd",
-        ];
-        var acronymGlossary = [
-            ["AFI/SAFI", "AFI/SAFI (Address Family Identifier / Subsequent Address Family Identifier)"],
-            ["ASN", "ASN (Autonomous System Number)"],
-            ["BGP", "BGP (Border Gateway Protocol)"],
-            ["BGP-LS", "BGP-LS (BGP Link-State)"],
-            ["BFD", "BFD (Bidirectional Forwarding Detection)"],
-            ["BMP", "BMP (BGP Monitoring Protocol)"],
-            ["CoPP", "CoPP (Control Plane Policing)"],
-            ["CLI", "CLI (Command Line Interface)"],
-            ["DNS", "DNS (Domain Name System)"],
-            ["DHCP", "DHCP (Dynamic Host Configuration Protocol)"],
-            ["ECMP", "ECMP (Equal-Cost Multipath)"],
-            ["EVPN", "EVPN (Ethernet VPN)"],
-            ["FIB", "FIB (Forwarding Information Base)"],
-            ["gNMI", "gNMI (gRPC Network Management Interface)"],
-            ["gRPC", "gRPC (remote procedure call API)"],
-            ["GR", "GR (Graceful Restart)"],
-            ["GRE", "GRE (Generic Routing Encapsulation)"],
-            ["GRETAP", "GRETAP (GRE Ethernet tap tunnel)"],
-            ["GTSM", "GTSM (Generalized TTL Security Mechanism)"],
-            ["HTMX", "HTMX (HTML-over-the-wire frontend library)"],
-            ["HTTP", "HTTP (Hypertext Transfer Protocol)"],
-            ["IGMP", "IGMP (Internet Group Management Protocol)"],
-            ["IGP", "IGP (Interior Gateway Protocol)"],
-            ["IPFIX", "IPFIX (IP Flow Information Export)"],
-            ["IPIP", "IPIP (IP-in-IP tunnel)"],
-            ["IPsec", "IPsec (IP Security)"],
-            ["IS-IS", "IS-IS (Intermediate System to Intermediate System routing)"],
-            ["JSON", "JSON (JavaScript Object Notation)"],
-            ["L2TP", "L2TP (Layer 2 Tunneling Protocol)"],
-            ["LAG", "LAG (Link Aggregation Group)"],
-            ["LDP", "LDP (Label Distribution Protocol)"],
-            ["LLDP", "LLDP (Link Layer Discovery Protocol)"],
-            ["LLGR", "LLGR (Long-Lived Graceful Restart)"],
-            ["LOCAL_PREF", "LOCAL_PREF (BGP local preference)"],
-            ["MACsec", "MACsec (IEEE 802.1AE link encryption)"],
-            ["MCP", "MCP (Model Context Protocol)"],
-            ["MED", "MED (BGP Multi-Exit Discriminator)"],
-            ["MPLS", "MPLS (Multiprotocol Label Switching)"],
-            ["MRT", "MRT (Multi-threaded Routing Toolkit dump format)"],
-            ["MSDP", "MSDP (Multicast Source Discovery Protocol)"],
-            ["MTU", "MTU (Maximum Transmission Unit)"],
-            ["MUP", "MUP (Mobile User Plane)"],
-            ["MVPN", "MVPN (Multicast VPN)"],
-            ["NAT", "NAT (Network Address Translation)"],
-            ["NETCONF", "NETCONF (Network Configuration Protocol)"],
-            ["NPTv6", "NPTv6 (IPv6 Network Prefix Translation)"],
-            ["OSPF", "OSPF (Open Shortest Path First)"],
-            ["PBR", "PBR (Policy-Based Routing)"],
-            ["PIM", "PIM (Protocol Independent Multicast)"],
-            ["PKI", "PKI (Public Key Infrastructure)"],
-            ["PPP", "PPP (Point-to-Point Protocol)"],
-            ["PPPoE", "PPPoE (PPP over Ethernet)"],
-            ["PTP", "PTP (Precision Time Protocol)"],
-            ["QoS", "QoS (Quality of Service)"],
-            ["QinQ", "QinQ (stacked VLAN tagging)"],
-            ["REST", "REST (HTTP resource API style)"],
-            ["RFC", "RFC (IETF Request for Comments)"],
-            ["RIB", "RIB (Routing Information Base)"],
-            ["RIPng", "RIPng (Routing Information Protocol next generation)"],
-            ["RPKI", "RPKI (Resource Public Key Infrastructure)"],
-            ["RSVP-TE", "RSVP-TE (Resource Reservation Protocol Traffic Engineering)"],
-            ["RTC", "RTC (Route Target Constraint)"],
-            ["RTR", "RTR (RPKI-to-Router protocol)"],
-            ["SDK", "SDK (Software Development Kit)"],
-            ["SNMP", "SNMP (Simple Network Management Protocol)"],
-            ["SRv6", "SRv6 (Segment Routing over IPv6)"],
-            ["SSH", "SSH (Secure Shell)"],
-            ["TACACS+", "TACACS+ (Terminal Access Controller Access-Control System Plus)"],
-            ["TCP-AO", "TCP-AO (TCP Authentication Option)"],
-            ["TCP MD5", "TCP MD5 (TCP MD5 Signature Option)"],
-            ["TFTP", "TFTP (Trivial File Transfer Protocol)"],
-            ["TTL", "TTL (Time To Live)"],
-            ["TUN/TAP", "TUN/TAP (virtual network tunnel or tap devices)"],
-            ["VLAN", "VLAN (Virtual LAN)"],
-            ["VPLS", "VPLS (Virtual Private LAN Service)"],
-            ["VPP", "VPP (Vector Packet Processing)"],
-            ["VPN", "VPN (Virtual Private Network)"],
-            ["VRF", "VRF (Virtual Routing and Forwarding)"],
-            ["VXLAN", "VXLAN (Virtual Extensible LAN)"],
-            ["WWAN", "WWAN (Wireless Wide Area Network)"],
-            ["XDP", "XDP (eXpress Data Path)"],
-            ["YANG", "YANG (data modeling language for network config)"],
-        ];
-        var featureGlossary = {
-            "language": "Implementation language or runtime used by the project.",
-            "license": "Project license for the compared codebase.",
-            "primary interface": "Main operator or automation surface, such as CLI, HTTP API, gRPC, or SSH.",
-            "first release": "Approximate first public release year used for context, not a quality score.",
-            "multithreaded": "Whether the implementation can run useful routing work across multiple threads or workers.",
-            "multithread model": "How concurrency is structured, such as goroutines, worker threads, processes, or per-peer tasks.",
-            "plugin architecture": "Whether the project has an extension mechanism for loading or registering features outside the core.",
-            "yang-modeled config": "Whether configuration is modeled with YANG or a similar schema-backed network config model.",
-            "afi/safi": "BGP address family coverage. AFI selects the network family and SAFI selects the service type carried by BGP.",
-            "route redistribution / protocol import-export": "Moving routes learned or produced by one protocol into another protocol, for example connected or static routes into BGP or IS-IS.",
-            "is-is route leaking": "Controlled movement of routes between IS-IS Level 1 and Level 2 areas so reachability crosses the IS-IS hierarchy.",
-            "cross-vrf route leaking": "Controlled movement of routes between separate VRF routing tables.",
-            "rib / fib programming": "Ability to install routes into an internal routing table and push forwarding entries into the kernel or dataplane.",
-            "vrf / routing instances": "Separate routing tables and interface bindings, usually used for tenant or service separation.",
-            "policy-based routing": "Forwarding packets according to policy rules, such as source, mark, interface, or application criteria, not only destination prefix.",
-            "vpp interface backend or vpp interface surface": "Whether the project can configure or target VPP-backed interfaces or exposes VPP-specific interface configuration.",
-            "interface management model": "How the project represents and applies interface configuration across Linux, VPP, or other backends.",
-            "native/p4/xdp dataplane helpers": "Project-owned support for programmable or accelerated dataplanes such as P4 or XDP, beyond normal Linux networking.",
-            "generated command reference/cache": "Machine-generated command documentation or command metadata used by the CLI or docs.",
-            "generated registries/schema artifacts": "Generated files built from source declarations, such as plugin registries, schema imports, command caches, or feature catalogs. This row asks whether the project has machine-built wiring for features and configuration rather than only hand-maintained lists.",
-            "generated composition roots": "Generated startup wiring that imports or registers every component or plugin so the runtime discovers all shipped features.",
-            "startup/command registration ownership": "Whether each feature owns its startup hooks and commands, so removing that feature also removes its CLI, config, and runtime wiring.",
-            "schema validation": "Validation that config or API input follows the declared schema before it is applied.",
-            "machine-readable config schema": "Whether automation can read a formal schema for configuration fields, types, and constraints.",
-            "external plugin sdk/api": "Documented interfaces for external code to extend the product without changing the core source tree.",
-            "internal and external plugin process model": "Whether extensions run in-process, as child processes, or both, and how they communicate with the core.",
-            "external process integration": "A mechanism for external helper processes to receive events, provide commands, or extend runtime behavior.",
-            "external process protocol": "A documented wire protocol used by out-of-process plugins or integrations.",
-            "protobuf/grpc api boundary": "A typed API boundary defined with protobuf and exposed through gRPC.",
-            "source-owned protocol implementations": "Protocol engines implemented in the project's own source tree rather than only configured through an external daemon.",
-            "allocation/zero-copy tuning patterns": "Code patterns that reduce allocations and avoid unnecessary copies on hot paths.",
-            "test seams and injectable components": "Interfaces or constructors that let tests replace real dependencies with controlled implementations.",
-            "config verify/apply/rollback model": "Configuration workflow for checking a candidate config, applying it, and reverting safely when needed.",
-            "candidate/draft config model": "A separate not-yet-active configuration tree that can be edited and checked before commit.",
-            "commit confirm": "A safety workflow that automatically rolls back a config change unless the operator confirms it.",
-            "control-plane hardening/sysctls": "Settings that protect the control plane or tune kernel network behavior, often through sysctl values.",
-            "named copp feature": "A named Control Plane Policing feature that rate-limits or filters traffic destined to the router itself.",
-            "mcp / ai integration": "Integration with the Model Context Protocol or AI assistant tooling.",
-            "compile-time feature selection": "Build tags, package selection, or build profiles that choose which features are compiled into an image or binary.",
-            "non-systemd appliance mode": "A runtime mode for appliance images that does not rely on systemd as the init or service manager.",
-            "seed/bootstrap config database": "Initial configuration storage used to bring up a fresh install or appliance image.",
-            "doctor/check framework": "Built-in checks that diagnose host readiness, runtime problems, or configuration issues.",
-            "symptom-based diagnostics": "Diagnostics organized around observed symptoms, with explanations and remediation hints.",
-            "verify/release evidence gates": "Automated checks used to prove a build, release, or documentation set is coherent before publishing.",
-            "mutation testing": "Tests that deliberately alter code or logic to confirm the test suite catches meaningful regressions.",
-            "runtime route injection": "Ability to add or withdraw routes at runtime without editing static configuration and restarting.",
-            "hot reconfiguration (no restart)": "Changing runtime configuration without restarting the daemon or losing existing sessions.",
-            "plugin-based policy": "Route policy implemented by registered plugins rather than only a built-in filter language.",
-            "external process policy": "Route policy implemented through helper processes outside the daemon.",
-            "custom filter language": "A project-specific policy language for matching and transforming routes.",
-            "named policy definitions": "Reusable named policy objects that can be attached to peers, protocols, or import and export chains.",
-            "route server and route reflector": "BGP roles that redistribute routes between clients without acting like a normal transit router.",
-            "route server mode": "BGP route-server behavior for Internet exchange style peering, usually preserving client next-hop and policy semantics.",
-            "dynamic neighbors": "Ability to accept or instantiate peers from ranges, listen sockets, or discovered addresses rather than only static peer entries.",
-            "looking glass": "Operator or public route visibility interface for inspecting peers, prefixes, paths, and routing decisions.",
-            "recursive next-hop": "Resolving a BGP next-hop through another route before programming forwarding.",
-            "multipath/ecmp": "Installing multiple equal-cost paths for the same destination so traffic can be load-shared.",
-        };
+        var tables = slice(document.querySelectorAll(".md-content table"));
+        if (!tables.length) return;
+        loadFrontendVocab().then(function (vocab) {
+            var productNames = vocab.productNames || [];
+            var acronymGlossary = vocab.acronymGlossary || [];
+            var featureGlossary = vocab.featureGlossary || {};
+            if (!productNames.length) return;
 
-        function cleanLabel(text) {
-            return text.replace(/\s+/g, " ").replace(/`/g, "").trim();
-        }
-
-        function productHeaderCount(table) {
-            if (!table.rows.length) return 0;
-            var header = table.tHead && table.tHead.rows.length ? table.tHead.rows[0] : table.rows[0];
-            return Array.prototype.slice.call(header.cells).filter(function (cell) {
-                var label = cleanLabel(cell.textContent);
-                return productNames.indexOf(label) !== -1;
-            }).length;
-        }
-
-        function escapeRegExp(text) {
-            return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        }
-
-        function expandedLabel(label) {
-            var expansions = [];
-            acronymGlossary.slice().sort(function (a, b) { return b[0].length - a[0].length; }).forEach(function (entry) {
-                var pattern = new RegExp("(^|[^A-Za-z0-9+/-])" + escapeRegExp(entry[0]) + "(?=$|[^A-Za-z0-9+/-])");
-                if (pattern.test(label)) expansions.push(entry[1]);
-            });
-            if (!expansions.length) return label;
-            return label + " (" + expansions.join("; ") + ")";
-        }
-
-        function sectionFor(node) {
-            var current = node;
-            while (current) {
-                current = current.previousElementSibling;
-                if (current && current.tagName === "H2") return cleanLabel(current.textContent);
+            function productHeaderCount(table) {
+                if (!table.rows.length) return 0;
+                var header = table.tHead && table.tHead.rows.length ? table.tHead.rows[0] : table.rows[0];
+                return slice(header.cells).filter(function (cell) {
+                    var label = cleanLabel(cell.textContent);
+                    return productNames.indexOf(label) !== -1;
+                }).length;
             }
-            return "";
-        }
 
-        function descriptionFor(label, section) {
-            var key = cleanLabel(label).toLowerCase();
-            if (featureGlossary[key]) return featureGlossary[key];
-            var description = "Compares product support for " + expandedLabel(label) + ".";
-            description += " Read across the product columns. Yes or Present means supporting evidence was found, Partial means incomplete or delegated support, Unclear means the evidence was not strong enough, and No or Not found means the inspected sources did not show support.";
-            if (section) description += " Section: " + section + ".";
-            return description;
-        }
-
-        var targets = [];
-        Array.prototype.slice.call(document.querySelectorAll(".md-content table")).forEach(function (table) {
-            if (table.classList.contains("cmd-eq-table") || table.closest(".command-equivalents")) return;
-            if (productHeaderCount(table) < 2) return;
-            var section = sectionFor(table);
-            Array.prototype.slice.call(table.querySelectorAll("tbody tr")).forEach(function (row) {
-                var cell = row.cells[0];
-                if (!cell || cell.querySelector(".feature-help")) return;
-                var label = cleanLabel(cell.textContent);
-                if (!label || label === "---") return;
-                var help = document.createElement("span");
-                var description = descriptionFor(label, section);
-                help.className = "feature-help";
-                help.tabIndex = 0;
-                help.textContent = label;
-                help.title = description;
-                help.setAttribute("aria-label", label + ": " + description);
-                help.setAttribute("data-feature-help", description);
-                cell.textContent = "";
-                cell.appendChild(help);
-                targets.push(help);
-            });
-        });
-
-        if (!targets.length) return;
-
-        var popover = document.createElement("div");
-        popover.className = "feature-tooltip-popover";
-        popover.id = "feature-tooltip-popover";
-        popover.setAttribute("role", "tooltip");
-        popover.hidden = true;
-        document.body.appendChild(popover);
-
-        function position(target) {
-            var rect = target.getBoundingClientRect();
-            var tip = popover.getBoundingClientRect();
-            var margin = 12;
-            var left = Math.max(margin, Math.min(rect.left, window.innerWidth - tip.width - margin));
-            var top = rect.bottom + 10;
-            if (top + tip.height > window.innerHeight - margin) {
-                top = Math.max(margin, rect.top - tip.height - 10);
+            function expandedLabel(label) {
+                var expansions = [];
+                acronymGlossary.slice().sort(function (a, b) { return b[0].length - a[0].length; }).forEach(function (entry) {
+                    var pattern = new RegExp("(^|[^A-Za-z0-9+/-])" + escapeRegExp(entry[0]) + "(?=$|[^A-Za-z0-9+/-])");
+                    if (pattern.test(label)) expansions.push(entry[1]);
+                });
+                if (!expansions.length) return label;
+                return label + " (" + expansions.join("; ") + ")";
             }
-            popover.style.left = left + "px";
-            popover.style.top = top + "px";
-        }
 
-        function show(target) {
-            popover.textContent = target.getAttribute("data-feature-help");
-            popover.hidden = false;
-            popover.setAttribute("data-visible", "true");
-            target.setAttribute("aria-describedby", popover.id);
-            position(target);
-        }
+            function sectionFor(node) {
+                var current = node;
+                while (current) {
+                    current = current.previousElementSibling;
+                    if (current && current.tagName === "H2") return cleanLabel(current.textContent);
+                }
+                return "";
+            }
 
-        function hide(target) {
-            popover.removeAttribute("data-visible");
+            function descriptionFor(label, section) {
+                var key = cleanLabel(label).toLowerCase();
+                if (featureGlossary[key]) return featureGlossary[key];
+                var description = "Compares product support for " + expandedLabel(label) + ".";
+                description += " Read across the product columns. Yes or Present means supporting evidence was found, Partial means incomplete or delegated support, Unclear means the evidence was not strong enough, and No or Not found means the inspected sources did not show support.";
+                if (section) description += " Section: " + section + ".";
+                return description;
+            }
+
+            var targets = [];
+            tables.forEach(function (table) {
+                if (table.classList.contains("cmd-eq-table") || table.closest(".command-equivalents")) return;
+                if (productHeaderCount(table) < 2) return;
+                var section = sectionFor(table);
+                slice(table.querySelectorAll("tbody tr")).forEach(function (row) {
+                    var cell = row.cells[0];
+                    if (!cell || cell.querySelector(".feature-help")) return;
+                    var label = cleanLabel(cell.textContent);
+                    if (!label || label === "---") return;
+                    var help = document.createElement("span");
+                    var description = descriptionFor(label, section);
+                    help.className = "feature-help";
+                    help.tabIndex = 0;
+                    help.textContent = label;
+                    help.title = description;
+                    help.setAttribute("aria-label", label + ": " + description);
+                    help.setAttribute("data-feature-help", description);
+                    cell.textContent = "";
+                    cell.appendChild(help);
+                    targets.push(help);
+                });
+            });
+
+            if (!targets.length) return;
+
+            var popover = document.createElement("div");
+            popover.className = "feature-tooltip-popover";
+            popover.id = "feature-tooltip-popover";
+            popover.setAttribute("role", "tooltip");
             popover.hidden = true;
-            if (target) target.removeAttribute("aria-describedby");
-        }
+            document.body.appendChild(popover);
 
-        targets.forEach(function (target) {
-            target.addEventListener("mouseenter", function () { show(target); });
-            target.addEventListener("mouseleave", function () { hide(target); });
-            target.addEventListener("focus", function () { show(target); });
-            target.addEventListener("blur", function () { hide(target); });
-        });
-        window.addEventListener("scroll", function () {
-            var active = document.activeElement;
-            if (active && active.classList && active.classList.contains("feature-help") && !popover.hidden) {
-                position(active);
+            function position(target) {
+                var rect = target.getBoundingClientRect();
+                var tip = popover.getBoundingClientRect();
+                var margin = 12;
+                var left = Math.max(margin, Math.min(rect.left, window.innerWidth - tip.width - margin));
+                var top = rect.bottom + 10;
+                if (top + tip.height > window.innerHeight - margin) {
+                    top = Math.max(margin, rect.top - tip.height - 10);
+                }
+                popover.style.left = left + "px";
+                popover.style.top = top + "px";
             }
-        }, true);
-        window.addEventListener("resize", function () {
-            var active = document.activeElement;
-            if (active && active.classList && active.classList.contains("feature-help") && !popover.hidden) {
-                position(active);
+
+            function show(target) {
+                popover.textContent = target.getAttribute("data-feature-help");
+                popover.hidden = false;
+                popover.setAttribute("data-visible", "true");
+                target.setAttribute("aria-describedby", popover.id);
+                position(target);
             }
+
+            function hide(target) {
+                popover.removeAttribute("data-visible");
+                popover.hidden = true;
+                if (target) target.removeAttribute("aria-describedby");
+            }
+
+            targets.forEach(function (target) {
+                target.addEventListener("mouseenter", function () { show(target); });
+                target.addEventListener("mouseleave", function () { hide(target); });
+                target.addEventListener("focus", function () { show(target); });
+                target.addEventListener("blur", function () { hide(target); });
+            });
+            window.addEventListener("scroll", function () {
+                var active = document.activeElement;
+                if (active && active.classList && active.classList.contains("feature-help") && !popover.hidden) {
+                    position(active);
+                }
+            }, true);
+            window.addEventListener("resize", function () {
+                var active = document.activeElement;
+                if (active && active.classList && active.classList.contains("feature-help") && !popover.hidden) {
+                    position(active);
+                }
+            });
         });
     }
+
     function columnSelectorClean(text) {
         return (text || "").replace(/\s+/g, " ").trim();
     }
@@ -768,10 +1030,10 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!host || host.getAttribute("data-column-selector-ready") === "true") return null;
         var tables = config.tables || [];
         if (!tables.length && config.targetSelector) {
-            tables = Array.prototype.slice.call(document.querySelectorAll(config.targetSelector));
+            tables = slice(document.querySelectorAll(config.targetSelector));
         }
         if (!tables.length && config.content) {
-            tables = Array.prototype.slice.call(config.content.querySelectorAll(config.tableSelector || "table"));
+            tables = slice(config.content.querySelectorAll(config.tableSelector || "table"));
         }
         tables = tables.filter(function (table) { return table && table.rows && table.rows.length; });
         if (!tables.length) return null;
@@ -786,7 +1048,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         tables.forEach(function (table) {
             var header = table.tHead && table.tHead.rows.length ? table.tHead.rows[0] : table.rows[0];
-            Array.prototype.slice.call(header.cells).forEach(function (cell, index) {
+            slice(header.cells).forEach(function (cell, index) {
                 var label = config.labelResolver
                     ? config.labelResolver(cell.textContent, cell, table, index)
                     : columnSelectorClean(cell.textContent);
@@ -812,7 +1074,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
         var state = {};
         order.forEach(function (label) {
-            state[label] = !defaultLabels.length || defaultKeys[label.toLowerCase()];
+            state[label] = __omp_shell("defaultLabels.length || defaultKeys[label.toLowerCase()];")
         });
         if (!order.some(function (label) { return state[label]; })) state[order[0]] = true;
 
@@ -828,10 +1090,10 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         function setColumn(entry, visible) {
-            Array.prototype.slice.call(entry.table.rows).forEach(function (row) {
+            slice(entry.table.rows).forEach(function (row) {
                 var cell = row.cells[entry.index];
                 if (!cell) return;
-                cell.hidden = !visible;
+                cell.hidden = __omp_shell("visible;")
                 cell.classList.toggle("column-selector-hidden", !visible);
                 cell.classList.toggle("compare-column-hidden", !visible);
             });
@@ -918,7 +1180,7 @@ document.addEventListener("DOMContentLoaded", function () {
             defaultButton.textContent = "Default";
             defaultButton.addEventListener("click", function () {
                 order.forEach(function (label) {
-                    state[label] = !defaultLabels.length || defaultKeys[label.toLowerCase()];
+                    state[label] = __omp_shell("defaultLabels.length || defaultKeys[label.toLowerCase()];")
                 });
                 if (!order.some(function (label) { return state[label]; })) state[order[0]] = true;
                 applyColumns();
@@ -935,7 +1197,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function initGenericColumnSelectors() {
-        Array.prototype.slice.call(document.querySelectorAll("[data-column-selector]")).forEach(function (root) {
+        slice(document.querySelectorAll("[data-column-selector]")).forEach(function (root) {
             var status = root.querySelector("[data-column-selector-status]");
             if (!status) {
                 status = document.createElement("p");
@@ -961,139 +1223,186 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function initComparisonFilters() {
-        var productMatchers = [
-            ["Ze", /^ze(?: evidence)?$/],
-            ["VyOS", /^vyos(?: evidence)?$/],
-            ["freeRtr", /^freertr(?: evidence)?$/],
-            ["BIRD 3", /^bird 3$/],
-            ["BIRD 2", /^bird 2$/],
-            ["FRR", /^frr$/],
-            ["OpenBGPd", /^openbgpd$/],
-            ["GoBGP", /^gobgp$/],
-            ["bio-rd", /^bio-rd$/],
-            ["ExaBGP", /^exabgp$/],
-            ["RustyBGP", /^rustybgp$/],
-            ["rustbgpd", /^rustbgpd$/],
-        ];
-
-        function productLabel(text) {
-            var normalized = text.replace(/\s+/g, " ").trim().toLowerCase();
-            for (var i = 0; i < productMatchers.length; i++) {
-                if (productMatchers[i][1].test(normalized)) return productMatchers[i][0];
-            }
-            return "";
-        }
-
-        function initColumnControls(tool, content, status) {
-            initColumnSelector({
-                host: tool,
-                content: content,
-                tableSelector: "table",
-                labelResolver: productLabel,
-                legend: "Show products",
-                mode: "checks",
-                fieldsetClass: "compare-columns column-selector-fieldset column-selector-checks",
-                toggleClass: "compare-column-toggle column-selector-toggle",
-                insertBefore: status,
-                minColumns: 3,
-                updateStatus: false,
-            });
-        }
-
-        var tools = Array.prototype.slice.call(document.querySelectorAll("[data-compare-filter]"));
-        tools.forEach(function (tool) {
-            var input = tool.querySelector("[data-compare-search]");
-            var select = tool.querySelector("[data-compare-section]");
-            var status = tool.querySelector("[data-compare-status]");
-            var content = tool.closest(".md-content");
-            if (!input || !select || !status || !content) return;
-            initColumnControls(tool, content, status);
-
-            var headings = Array.prototype.slice.call(content.querySelectorAll("h2"));
-            var groups = headings.map(function (heading, index) {
-                var nodes = [];
-                var node = heading.nextElementSibling;
-                while (node && node.tagName !== "H2") {
-                    if (node !== tool) nodes.push(node);
-                    node = node.nextElementSibling;
-                }
-                var rows = [];
-                nodes.forEach(function (groupNode) {
-                    Array.prototype.slice.call(groupNode.querySelectorAll("tbody tr")).forEach(function (row) {
-                        row.compareText = row.textContent.toLowerCase();
-                        rows.push(row);
-                    });
-                });
-                var option = document.createElement("option");
-                option.value = String(index);
-                option.textContent = heading.textContent.trim();
-                select.appendChild(option);
-                return {
-                    heading: heading,
-                    nodes: nodes,
-                    rows: rows,
-                    value: option.value,
-                    text: (heading.textContent + " " + nodes.map(function (n) {
-                        return n.textContent;
-                    }).join(" ")).toLowerCase(),
-                };
+        var tools = slice(document.querySelectorAll("[data-compare-filter]"));
+        if (!tools.length) return;
+        loadFrontendVocab().then(function (vocab) {
+            var productMatchers = (vocab.productMatchers || []).map(function (entry) {
+                return { label: entry.label, pattern: new RegExp(entry.pattern) };
             });
 
-            function setHidden(node, hidden) {
-                node.classList.toggle("compare-hidden", hidden);
+            function productLabel(text) {
+                var normalized = text.replace(/\s+/g, " ").trim().toLowerCase();
+                for (var i = 0; i < productMatchers.length; i++) {
+                    if (productMatchers[i].pattern.test(normalized)) return productMatchers[i].label;
+                }
+                return "";
             }
 
-            function applyFilter() {
-                var query = input.value.trim().toLowerCase();
-                var wanted = select.value;
-                var visibleGroups = 0;
-                var visibleRows = 0;
-                var totalRows = 0;
+            function initColumnControls(tool, content, status) {
+                initColumnSelector({
+                    host: tool,
+                    content: content,
+                    tableSelector: "table",
+                    labelResolver: productLabel,
+                    legend: "Show products",
+                    mode: "checks",
+                    fieldsetClass: "compare-columns column-selector-fieldset column-selector-checks",
+                    toggleClass: "compare-column-toggle column-selector-toggle",
+                    insertBefore: status,
+                    minColumns: 3,
+                    updateStatus: false,
+                });
+            }
 
-                groups.forEach(function (group) {
-                    var sectionAllowed = !wanted || wanted === group.value;
-                    var groupTextMatch = !query || group.text.indexOf(query) !== -1;
-                    var groupRowsVisible = 0;
+            tools.forEach(function (tool) {
+                var input = tool.querySelector("[data-compare-search]");
+                var select = tool.querySelector("[data-compare-section]");
+                var status = tool.querySelector("[data-compare-status]");
+                var content = tool.closest(".md-content");
+                if (!input || !select || !status || !content) return;
+                initColumnControls(tool, content, status);
 
-                    group.rows.forEach(function (row) {
-                        totalRows += 1;
-                        var rowMatch = sectionAllowed && (!query || row.compareText.indexOf(query) !== -1);
-                        setHidden(row, !rowMatch);
-                        if (rowMatch) {
-                            visibleRows += 1;
-                            groupRowsVisible += 1;
-                        }
+                var headings = slice(content.querySelectorAll("h2"));
+                var groups = headings.map(function (heading, index) {
+                    var nodes = [];
+                    var node = heading.nextElementSibling;
+                    while (node && node.tagName !== "H2") {
+                        if (node !== tool) nodes.push(node);
+                        node = node.nextElementSibling;
+                    }
+                    var rows = [];
+                    nodes.forEach(function (groupNode) {
+                        slice(groupNode.querySelectorAll("tbody tr")).forEach(function (row) {
+                            row.compareText = row.textContent.toLowerCase();
+                            rows.push(row);
+                        });
                     });
-
-                    var showGroup = sectionAllowed && (!query || groupTextMatch || groupRowsVisible > 0);
-                    setHidden(group.heading, !showGroup);
-                    group.nodes.forEach(function (node) {
-                        if (node.tagName === "TABLE") {
-                            setHidden(node, !sectionAllowed || (query && group.rows.length && groupRowsVisible === 0));
-                        } else {
-                            setHidden(node, !showGroup);
-                        }
-                    });
-                    if (showGroup) visibleGroups += 1;
+                    var option = document.createElement("option");
+                    option.value = String(index);
+                    option.textContent = heading.textContent.trim();
+                    select.appendChild(option);
+                    return {
+                        heading: heading,
+                        nodes: nodes,
+                        rows: rows,
+                        value: option.value,
+                        text: (heading.textContent + " " + nodes.map(function (n) {
+                            return n.textContent;
+                        }).join(" ")).toLowerCase(),
+                    };
                 });
 
-                if (!groups.length) {
-                    status.textContent = "No sections found.";
-                } else if (!query && !wanted) {
-                    status.textContent = totalRows + " table rows across " + groups.length + " sections.";
-                } else {
-                    status.textContent = visibleRows + " matching table rows in " + visibleGroups + " sections.";
+                function setHidden(node, hidden) {
+                    node.classList.toggle("compare-hidden", hidden);
                 }
-            }
 
-            input.addEventListener("input", applyFilter);
-            select.addEventListener("change", applyFilter);
-            applyFilter();
+                function applyFilter() {
+                    var query = input.value.trim().toLowerCase();
+                    var wanted = select.value;
+                    var visibleGroups = 0;
+                    var visibleRows = 0;
+                    var totalRows = 0;
+
+                    groups.forEach(function (group) {
+                        var sectionAllowed = __omp_shell("wanted || wanted === group.value;")
+                        var groupTextMatch = __omp_shell("query || group.text.indexOf(query) !== -1;")
+                        var groupRowsVisible = 0;
+
+                        group.rows.forEach(function (row) {
+                            totalRows += 1;
+                            var rowMatch = sectionAllowed && (!query || row.compareText.indexOf(query) !== -1);
+                            setHidden(row, !rowMatch);
+                            if (rowMatch) {
+                                visibleRows += 1;
+                                groupRowsVisible += 1;
+                            }
+                        });
+
+                        var showGroup = sectionAllowed && (!query || groupTextMatch || groupRowsVisible > 0);
+                        setHidden(group.heading, !showGroup);
+                        group.nodes.forEach(function (node) {
+                            if (node.tagName === "TABLE") {
+                                setHidden(node, !sectionAllowed || (query && group.rows.length && groupRowsVisible === 0));
+                            } else {
+                                setHidden(node, !showGroup);
+                            }
+                        });
+                        if (showGroup) visibleGroups += 1;
+                    });
+
+                    if (!groups.length) {
+                        status.textContent = "No sections found.";
+                    } else if (!query && !wanted) {
+                        status.textContent = totalRows + " table rows across " + groups.length + " sections.";
+                    } else {
+                        status.textContent = visibleRows + " matching table rows in " + visibleGroups + " sections.";
+                    }
+                }
+
+                input.addEventListener("input", applyFilter);
+                select.addEventListener("change", applyFilter);
+                applyFilter();
+            });
         });
     }
 
+    function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(text);
+        }
+        return new Promise(function (resolve, reject) {
+            var textarea = document.createElement("textarea");
+            textarea.value = text;
+            textarea.setAttribute("readonly", "");
+            textarea.style.position = "fixed";
+            textarea.style.left = "-9999px";
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand("copy");
+                document.body.removeChild(textarea);
+                resolve();
+            } catch (err) {
+                document.body.removeChild(textarea);
+                reject(err);
+            }
+        });
+    }
+
+    function initCodeCopyButtons() {
+        slice(document.querySelectorAll("pre > code")).forEach(function (code) {
+            var pre = code.parentNode;
+            if (!pre || pre.querySelector(".code-copy-button")) return;
+            var button = document.createElement("button");
+            button.type = "button";
+            button.className = "code-copy-button";
+            button.textContent = "Copy";
+            button.setAttribute("aria-label", "Copy code block");
+            button.addEventListener("click", function () {
+                copyText(code.textContent).then(function () {
+                    button.textContent = "Copied";
+                    window.setTimeout(function () { button.textContent = "Copy"; }, 1600);
+                }).catch(function () {
+                    button.textContent = "Copy failed";
+                    window.setTimeout(function () { button.textContent = "Copy"; }, 1600);
+                });
+            });
+            pre.classList.add("code-copy-wrap");
+            pre.appendChild(button);
+        });
+    }
+
+    initSearchOverlay();
+    initSearchPage();
+    initFeatureFilters();
+    initTimelineFilters();
+    initChangesFilters();
+    initDependencyFilter();
+    initCliCatalogFilter();
+    initCommandEquivalentFilter();
     initFeatureTooltips();
     initGenericColumnSelectors();
     initComparisonFilters();
     initSourceLinks();
+    initCodeCopyButtons();
 });

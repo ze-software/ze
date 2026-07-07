@@ -323,52 +323,7 @@ INDEX_CSS = """        <style>
 # week carries every category it touched in data-cats (space-separated), so
 # clicking a category shows every week that touched it (a week matches more
 # than one). #hash arrives pre-filtered, like features/#routing.
-FILTER_SCRIPT = """        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                var buttons = document.querySelectorAll(".ch-filters button");
-                var weeks = document.querySelectorAll(".ch-week[data-cats]");
-                var empty = document.querySelector(".ch-empty");
-
-                function applyFilter(cat) {
-                    var shown = 0;
-                    weeks.forEach(function (w) {
-                        var hit = cat === null || w.dataset.cats.split(" ").indexOf(cat) !== -1;
-                        w.classList.toggle("filtered-out", !hit);
-                        if (hit) shown++;
-                    });
-                    if (empty) empty.classList.toggle("filtered-out", shown !== 0);
-                }
-
-                function pressOnly(activeBtn) {
-                    buttons.forEach(function (other) {
-                        other.setAttribute("aria-pressed", other === activeBtn ? "true" : "false");
-                    });
-                }
-
-                buttons.forEach(function (btn) {
-                    btn.addEventListener("click", function () {
-                        var wasPressed = btn.getAttribute("aria-pressed") === "true";
-                        pressOnly(null);
-                        if (wasPressed) {
-                            applyFilter(null);
-                        } else {
-                            btn.setAttribute("aria-pressed", "true");
-                            applyFilter(btn.dataset.cat);
-                        }
-                    });
-                });
-
-                var hashCat = location.hash.replace("#", "");
-                var hashBtn = hashCat
-                    ? document.querySelector('.ch-filters button[data-cat="' + hashCat + '"]')
-                    : null;
-                if (hashBtn) {
-                    pressOnly(hashBtn);
-                    applyFilter(hashCat);
-                }
-            });
-        </script>
-"""
+FILTER_SCRIPT = ""
 
 # Legend order matches the Features page (sitelib.CATEGORIES), with the
 # neutral meta bucket last.
@@ -443,7 +398,6 @@ def render_index_html(weeks):
     )
     out.append("                </div>")
     out.append("            </section>")
-    out.append(FILTER_SCRIPT)
     return "\n".join(out)
 
 

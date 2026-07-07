@@ -15,6 +15,9 @@ experimental and nobody remembered to bump it).
 import json
 import pathlib
 
+import html
+
+import models
 import sitelib
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -70,9 +73,13 @@ def render_markdown(data, feature_count):
     return "\n".join(parts).strip() + "\n"
 
 
+def esc(value):
+    return html.escape(str(value), quote=True)
+
+
 def render_chip(chip):
     cls = "chip mode" if chip["mode"] else "chip"
-    return '<span class="%s">%s</span>' % (cls, chip["text"])
+    return '<span class="%s">%s</span>' % (cls, esc(chip["text"]))
 
 
 def render_card(card):
@@ -81,14 +88,14 @@ def render_card(card):
         extra += " " + card["status"]
     parts = [
         '<article class="card feature-card%s cat-%s" data-cat="%s">'
-        % (extra, card["category"], card["category"])
+        % (esc(extra), esc(card["category"]), esc(card["category"]))
     ]
-    parts.append('<span class="cat">%s</span>' % card["category"].capitalize())
+    parts.append('<span class="cat">%s</span>' % esc(card["category"].capitalize()))
     if card["status"]:
-        parts.append('<span class="status">%s</span>' % STATUS_LABELS[card["status"]])
+        parts.append('<span class="status">%s</span>' % esc(STATUS_LABELS[card["status"]]))
     href = card["href"] if card["external"] else "../" + card["href"]
     link_attrs = ' target="_blank" rel="noopener"' if card["external"] else ""
-    parts.append('<h3><a href="%s"%s>%s</a></h3>' % (href, link_attrs, card["title"]))
+    parts.append('<h3><a href="%s"%s>%s</a></h3>' % (esc(href), link_attrs, esc(card["title"])))
     parts.append('<div class="chips">')
     for chip in card["chips"]:
         parts.append(render_chip(chip))
@@ -105,18 +112,18 @@ def render_section(section):
     parts = []
     parts.append(
         '            <section id="%s" aria-labelledby="%s-title" data-cards>'
-        % (section["id"], section["id"])
+        % (esc(section["id"]), esc(section["id"]))
     )
     parts.append('                <div class="section-head reveal">')
     parts.append(
         '                    <h2 id="%s-title">%s</h2>'
-        % (section["id"], section["heading"])
+        % (esc(section["id"]), esc(section["heading"]))
     )
-    parts.append("                    <p>%s</p>" % section["lead"])
+    parts.append("                    <p>%s</p>" % esc(section["lead"]))
     parts.append("                </div>")
     if section["note"]:
         parts.append('                <div class="section-note reveal">')
-        parts.append("                    <p>%s</p>" % section["note"])
+        parts.append("                    <p>%s</p>" % sitelib.bold(section["note"]))
         parts.append("                </div>")
     parts.append('                <div class="cards feature-grid reveal">')
     for card in section["cards"]:
@@ -126,64 +133,7 @@ def render_section(section):
     return "\n".join(parts)
 
 
-FILTER_SCRIPT = """        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                var buttons = document.querySelectorAll(".legend button");
-                var cards = document.querySelectorAll(".card[data-cat]");
-                var sections = document.querySelectorAll("section[data-cards]");
-
-                function applyFilter(cat) {
-                    cards.forEach(function (card) {
-                        card.classList.toggle(
-                            "filtered-out",
-                            cat !== null && card.dataset.cat !== cat,
-                        );
-                    });
-                    sections.forEach(function (section) {
-                        var visible = section.querySelector(
-                            ".card[data-cat]:not(.filtered-out)",
-                        );
-                        section.style.display = visible ? "" : "none";
-                    });
-                }
-
-                function pressOnly(activeBtn) {
-                    buttons.forEach(function (other) {
-                        other.setAttribute(
-                            "aria-pressed",
-                            other === activeBtn ? "true" : "false",
-                        );
-                    });
-                }
-
-                buttons.forEach(function (btn) {
-                    btn.addEventListener("click", function () {
-                        var wasPressed =
-                            btn.getAttribute("aria-pressed") === "true";
-                        pressOnly(null);
-                        if (wasPressed) {
-                            applyFilter(null);
-                        } else {
-                            btn.setAttribute("aria-pressed", "true");
-                            applyFilter(btn.dataset.cat);
-                        }
-                    });
-                });
-
-                // A homepage category link (e.g. features/#operate) arrives
-                // pre-filtered instead of dumping the visitor on an
-                // unfiltered page of 44 cards after they picked one category.
-                var hashCat = location.hash.replace("#", "");
-                var hashBtn = hashCat
-                    ? document.querySelector('.legend button[data-cat="' + hashCat + '"]')
-                    : null;
-                if (hashBtn) {
-                    pressOnly(hashBtn);
-                    applyFilter(hashCat);
-                }
-            });
-        </script>
-"""
+FILTER_SCRIPT = ""
 
 
 def render(data):
@@ -191,6 +141,7 @@ def render(data):
     core = next(s for s in data["sections"] if s["id"] == "core")
     experimental = next(s for s in data["sections"] if s["id"] == "experimental")
     feature_count = len(core["cards"]) + len(experimental["cards"])
+    category_counts = sitelib.feature_counts_by_category()
 
     title = "Features - Ze"
     desc = (
@@ -228,10 +179,13 @@ def render(data):
     )
     for cat in sitelib.CATEGORIES:
         out.append(
-            '                    <button class="cat-%s" data-cat="%s" aria-pressed="false">%s</button>'
-            % (cat, cat, cat.capitalize())
+            '                    <button class="cat-%s" data-cat="%s" aria-pressed="false" aria-label="Filter features by %s, %d features">%s <span class="legend-count" aria-hidden="true">%d</span></button>'
+            % (cat, cat, cat.capitalize(), category_counts.get(cat, 0), cat.capitalize(), category_counts.get(cat, 0))
         )
     out.append("                </div>")
+    out.append(
+        '                <p id="feature-filter-status" class="feature-filter-status search-status" aria-live="polite"></p>'
+    )
     out.append("            </section>")
     out.append("")
 
@@ -240,7 +194,7 @@ def render(data):
         out.append("")
 
     body = "\n".join(out)
-    dest_text = body + "\n" + FILTER_SCRIPT + "\n" + sitelib.page_foot(root)
+    dest_text = body + "\n" + sitelib.page_foot(root)
     DEST.write_text(dest_text)
     sitelib.write_markdown_sibling(DEST, render_markdown(data, feature_count))
     print(
@@ -255,7 +209,7 @@ def render(data):
 
 
 def main():
-    data = json.loads(DATA.read_text())
+    data = models.validate_features(json.loads(DATA.read_text()))
     render(data)
     return 0
 

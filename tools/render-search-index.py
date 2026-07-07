@@ -60,7 +60,7 @@ BODY_CAP = 8000
 # name in every section stays findable.
 CONFIG_BODY_CAP = 12000
 
-RECORD_FIELD_ORDER = ["title", "url", "section", "text"]
+RECORD_FIELD_ORDER = ["title", "displayTitle", "url", "section", "displaySection", "text"]
 
 
 HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
@@ -91,8 +91,22 @@ def url_for(rel_dir):
 def title_for(md_text, rel_dir):
     m = FIRST_H1_RE.search(md_text)
     if m:
-        return m.group(1).strip()
-    return rel_dir.rsplit("/", 1)[-1] if rel_dir else "Ze"
+        return strip_markdown(m.group(1))
+    return strip_markdown(rel_dir.rsplit("/", 1)[-1] if rel_dir else "Ze")
+
+
+def make_record(title, url, section, text):
+    """Return the browser search record with display-safe title fields."""
+    display_title = strip_markdown(title)
+    display_section = strip_markdown(section)
+    return {
+        "title": display_title,
+        "displayTitle": display_title,
+        "url": url,
+        "section": display_section,
+        "displaySection": display_section,
+        "text": text,
+    }
 
 
 def section_for(rel_dir):
@@ -144,29 +158,29 @@ def build_config_records():
     # A landing record so "configuration reference" and bare section-name
     # queries also reach the top of the explorer, not only a deep section.
     records.append(
-        {
-            "title": "Configuration Reference",
-            "url": CONFIG_REF_DIR + "/",
-            "section": CONFIG_REF_DIR,
-            "text": (
+        make_record(
+            "Configuration Reference",
+            CONFIG_REF_DIR + "/",
+            CONFIG_REF_DIR,
+            (
                 "The complete Ze configuration as one searchable tree of "
                 "sections, generated from the YANG schema. Sections: "
                 + ", ".join(names)
                 + "."
             )[:BODY_CAP],
-        }
+        )
     )
     for name in names:
         heads, descs = [], []
         flatten_section(tree[name], heads, descs)
         body = " ".join(heads + descs)
         records.append(
-            {
-                "title": name,
-                "url": "%s/#%s" % (CONFIG_REF_DIR, name),
-                "section": CONFIG_REF_DIR,
-                "text": body[:CONFIG_BODY_CAP],
-            }
+            make_record(
+                name,
+                "%s/#%s" % (CONFIG_REF_DIR, name),
+                CONFIG_REF_DIR,
+                body[:CONFIG_BODY_CAP],
+            )
         )
     return records
 
@@ -222,12 +236,12 @@ def main():
         text = md_path.read_text()
         body = strip_markdown(text)
         records.append(
-            {
-                "title": title_for(text, rel_dir),
-                "url": url_for(rel_dir),
-                "section": section_for(rel_dir),
-                "text": body[:BODY_CAP],
-            }
+            make_record(
+                title_for(text, rel_dir),
+                url_for(rel_dir),
+                section_for(rel_dir),
+                body[:BODY_CAP],
+            )
         )
         seen.add(url_for(rel_dir))
 
@@ -237,17 +251,17 @@ def main():
     # so the front page is searchable too.
     if "" not in seen:
         records.append(
-            {
-                "title": "Ze - Open, Programmable Network OS For Linux",
-                "url": "",
-                "section": "Home",
-                "text": (
+            make_record(
+                "Ze - Open, Programmable Network OS For Linux",
+                "",
+                "Home",
+                (
                     "Ze is an open, programmable network OS for Linux, built "
                     "around a native BGP, OSPF, and IS-IS engine, operator "
                     "interfaces, telemetry, and a plugin system around one "
                     "configuration model."
                 ),
-            }
+            )
         )
 
     records.sort(key=lambda r: r["url"])
@@ -267,116 +281,8 @@ SEARCH_BODY = """            <section class="md-content reveal" aria-labelledby=
                 </div>
                 <p id="search-status" class="search-status" aria-live="polite"></p>
                 <ol id="search-results" class="search-results"></ol>
+                <noscript><p>JavaScript is disabled. Browse from the <a href="../docs/">documentation hub</a> instead.</p></noscript>
             </section>
-            <script>
-            (function () {
-                var idxUrl = "../data/search-index.json";
-                var input = document.getElementById("site-search");
-                var status = document.getElementById("search-status");
-                var list = document.getElementById("search-results");
-                var records = null;
-
-                function esc(s) {
-                    return s.replace(/[&<>"]/g, function (c) {
-                        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
-                    });
-                }
-                function href(url) { return "../" + (url || ""); }
-
-                function snippet(text, tokens) {
-                    var low = text.toLowerCase(), at = -1;
-                    for (var i = 0; i < tokens.length; i++) {
-                        var p = low.indexOf(tokens[i]);
-                        if (p !== -1 && (at === -1 || p < at)) at = p;
-                    }
-                    if (at === -1) at = 0;
-                    var start = Math.max(0, at - 60);
-                    var frag = text.slice(start, start + 200);
-                    if (start > 0) frag = "..." + frag;
-                    if (start + 200 < text.length) frag = frag + "...";
-                    frag = esc(frag);
-                    tokens.forEach(function (t) {
-                        if (!t) return;
-                        var re = new RegExp("(" + t.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&") + ")", "ig");
-                        frag = frag.replace(re, "<mark>$1</mark>");
-                    });
-                    return frag;
-                }
-
-                function score(r, tokens) {
-                    var title = r.title.toLowerCase();
-                    var section = (r.section || "").toLowerCase();
-                    var text = r.text.toLowerCase();
-                    var total = 0;
-                    for (var i = 0; i < tokens.length; i++) {
-                        var t = tokens[i], hit = 0;
-                        if (title.indexOf(t) !== -1) { hit += 12; }
-                        if (section.indexOf(t) !== -1) { hit += 4; }
-                        var n = text.split(t).length - 1;
-                        if (n > 0) { hit += Math.min(n, 5); }
-                        if (hit === 0) return 0; // every token must appear somewhere
-                        total += hit;
-                    }
-                    return total;
-                }
-
-                function run(q) {
-                    if (!records) return;
-                    var tokens = q.toLowerCase().split(/\\s+/).filter(Boolean);
-                    list.innerHTML = "";
-                    if (!tokens.length) { status.textContent = ""; return; }
-                    var scored = [];
-                    for (var i = 0; i < records.length; i++) {
-                        var s = score(records[i], tokens);
-                        if (s > 0) scored.push([s, records[i]]);
-                    }
-                    scored.sort(function (a, b) { return b[0] - a[0]; });
-                    var top = scored.slice(0, 40);
-                    status.textContent = scored.length
-                        ? scored.length + " result" + (scored.length === 1 ? "" : "s")
-                        : "No results for \\u201c" + q + "\\u201d.";
-                    top.forEach(function (pair) {
-                        var r = pair[1];
-                        var li = document.createElement("li");
-                        li.className = "search-result";
-                        li.innerHTML =
-                            '<a href="' + href(r.url) + '"><span class="search-result-title">' +
-                            esc(r.title) + '</span> <span class="chip">' + esc(r.section) +
-                            '</span></a><p class="search-result-snippet">' +
-                            snippet(r.text, tokens) + "</p>";
-                        list.appendChild(li);
-                    });
-                }
-
-                function debounce(fn, ms) {
-                    var t; return function () {
-                        clearTimeout(t);
-                        t = setTimeout(fn, ms);
-                    };
-                }
-
-                var params = new URLSearchParams(location.search);
-                var initial = params.get("q") || "";
-                if (initial) input.value = initial;
-
-                status.textContent = "Loading index...";
-                fetch(idxUrl).then(function (r) { return r.json(); }).then(function (data) {
-                    records = data;
-                    status.textContent = "";
-                    if (input.value) run(input.value);
-                }).catch(function () {
-                    status.textContent = "Could not load the search index.";
-                });
-
-                input.addEventListener("input", debounce(function () {
-                    run(input.value);
-                    var u = new URL(location);
-                    if (input.value) u.searchParams.set("q", input.value);
-                    else u.searchParams.delete("q");
-                    history.replaceState(null, "", u);
-                }, 120));
-            })();
-            </script>
 """
 
 SEARCH_MD = (

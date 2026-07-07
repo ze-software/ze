@@ -18,6 +18,7 @@ import urllib.request
 from html.parser import HTMLParser
 from urllib.parse import urljoin
 
+import models
 import sitefacts
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -225,7 +226,7 @@ def _nav_search_badge(root):
         '<svg viewBox="0 0 512 512" fill="currentColor" aria-hidden="true">'
         '<path d="%s"/></svg>'
         "</span>\n"
-        '                        <span class="nav-badge-count nav-badge-search-label">Search</span>\n'
+        '                        <span class="nav-badge-count nav-badge-search-label">Search <span class="search-shortcut-hint" aria-hidden="true"><kbd>⌘K</kbd><span>/</span></span></span>\n'
         "                    </a>\n"
     ) % (html.escape(root, quote=True), html.escape(SEARCH_ICON_PATH, quote=True))
 
@@ -259,7 +260,7 @@ def nav_item(root, href, icon, title, desc, feature=False):
     cls = "nav-dropdown-item nav-dropdown-feature" if feature else "nav-dropdown-item"
     return (
         '                        <a class="%s" href="%s">\n'
-        '                            <span class="nav-dropdown-icon">%s</span>\n'
+        '                            <span class="nav-dropdown-icon" aria-hidden="true">%s</span>\n'
         "                            <span><strong>%s</strong><small>%s</small></span>\n"
         "                        </a>\n"
     ) % (
@@ -328,7 +329,7 @@ def live_counts():
 def load_nav_data():
     global _nav_data_cache
     if _nav_data_cache is None:
-        data = json.loads((DATA_DIR / "nav.json").read_text())
+        data = models.validate_nav(json.loads((DATA_DIR / "nav.json").read_text()))
         counts = live_counts()
         for dropdown in data.get("dropdowns", []):
             for column in dropdown.get("columns", []):
@@ -765,6 +766,9 @@ PAGE_SIDEBAR_RE = re.compile(
     re.DOTALL,
 )
 
+MAIN_CLOSE_RE = re.compile(r"[ \t]*</main>")
+
+
 
 def _main_open_tag(match, has_sidebar):
     attrs = match.group("attrs")
@@ -792,12 +796,16 @@ def patch_page_sidebar(html_text, root, page_key):
     m = MAIN_OPEN_RE.search(html_text)
     if not m:
         raise ValueError("no <main> found")
-    return (
-        html_text[: m.start()]
-        + _main_open_tag(m, bool(sidebar))
-        + sidebar
-        + html_text[m.end() :]
-    )
+    close = MAIN_CLOSE_RE.search(html_text, m.end())
+    if not close:
+        raise ValueError("no </main> found")
+    patched = html_text[: m.start()] + _main_open_tag(m, bool(sidebar)) + html_text[m.end() :]
+    if not sidebar:
+        return patched
+    close = MAIN_CLOSE_RE.search(patched, m.end())
+    if not close:
+        raise ValueError("no </main> found after patch")
+    return patched[: close.start()] + sidebar + patched[close.start() :]
 
 
 _FONT_REF_RE = re.compile(r"https://fonts\.googleapis\.com/css2\?family=Poppins[^\"']+display=swap")
@@ -923,10 +931,9 @@ PAGE_HEAD = """<!doctype html>
         </header>
 
         <main id="top"{main_class} tabindex="-1">
-{page_sidebar}
 """
 
-PAGE_FOOT = """        </main>
+PAGE_FOOT = """{page_sidebar}        </main>
 
         <script src="{site_js}" defer></script>
 
@@ -936,6 +943,8 @@ PAGE_FOOT = """        </main>
 """
 
 
+_PENDING_PAGE_SIDEBAR = ""
+
 def page_head(title, desc, root, og_title=None, og_desc=None, extra_head="", page_key=None):
     page_title = str(title)
     page_desc = str(desc)
@@ -943,6 +952,8 @@ def page_head(title, desc, root, og_title=None, og_desc=None, extra_head="", pag
     social_desc = str(og_desc if og_desc is not None else desc)
     og_image = OG_IMAGE
     sidebar = page_sidebar(root, page_key)
+    global _PENDING_PAGE_SIDEBAR
+    _PENDING_PAGE_SIDEBAR = sidebar
     main_class = ' class="has-page-sidebar"' if sidebar else ""
     return PAGE_HEAD.format(
         title=html.escape(page_title),
@@ -958,13 +969,16 @@ def page_head(title, desc, root, og_title=None, og_desc=None, extra_head="", pag
         extra_head=extra_head,
         json_ld=structured_data_script(),
         main_class=main_class,
-        page_sidebar=sidebar,
     )
 
 
 def page_foot(root):
+    global _PENDING_PAGE_SIDEBAR
+    sidebar = _PENDING_PAGE_SIDEBAR
+    _PENDING_PAGE_SIDEBAR = ""
     return PAGE_FOOT.format(
         root=root,
+        page_sidebar=sidebar,
         site_js=asset_url(root, "assets/site.js"),
         footer=footer_html(root),
     )
@@ -975,13 +989,13 @@ CODE_RE = re.compile(r"`([^`]+?)`")
 
 
 def bold(text):
-    """Convert Zeledon-style **bold** and `code` markers to <strong>/<code>
-    for card bullet text pulled out of data/*.json -- avoids storing raw
-    HTML in data. Code-span content is HTML-escaped first: unescaped, a
-    literal "<code>" placeholder inside backticks (meant as display text,
-    e.g. `` `ze explain <code>` ``) gets parsed as a real opening tag by the
-    browser instead of shown as text, swallowing everything after it."""
-    text = CODE_RE.sub(lambda m: "<code>%s</code>" % html.escape(m.group(1)), text)
+    """Convert Zeledon-style **bold** and `code` markers to safe inline HTML.
+
+    Data files store text plus a tiny markup vocabulary, not raw HTML. Escape
+    the whole string first, then turn the allowed markers into tags.
+    """
+    text = html.escape(str(text), quote=False)
+    text = CODE_RE.sub(lambda m: "<code>%s</code>" % m.group(1), text)
     return BOLD_RE.sub(r"<strong>\1</strong>", text)
 
 
