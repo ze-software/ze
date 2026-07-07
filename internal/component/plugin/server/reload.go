@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"sync"
 
@@ -175,23 +174,23 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	running := s.reactor.GetConfigTree()
 
 	// Compute diff.
-	diff := diffMaps(running, newTree)
-	if len(diff.added) == 0 && len(diff.removed) == 0 && len(diff.changed) == 0 {
+	diff := config.DiffMaps(running, newTree)
+	if len(diff.Added) == 0 && len(diff.Removed) == 0 && len(diff.Changed) == 0 {
 		logger().Info("config reload: no changes")
 		return nil // No changes
 	}
 
 	logger().Debug("config reload diff",
-		"added", len(diff.added), "removed", len(diff.removed), "changed", len(diff.changed))
+		"added", len(diff.Added), "removed", len(diff.Removed), "changed", len(diff.Changed))
 
 	// Collect removed config keys for deferred stop (after verify+apply succeeds).
 	// Stopping plugins before the transaction is proven risks divergence: if
 	// verify/apply fails, the stopped plugins are gone and cannot be restarted
 	// with their old config.
 	var removedKeys []string
-	if len(diff.removed) > 0 {
-		removedKeys = make([]string, 0, len(diff.removed))
-		for k := range diff.removed {
+	if len(diff.Removed) > 0 {
+		removedKeys = make([]string, 0, len(diff.Removed))
+		for k := range diff.Removed {
 			removedKeys = append(removedKeys, k)
 		}
 	}
@@ -200,9 +199,9 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	// When a user adds fib { kernel { } } to their config, the fib-kernel plugin
 	// needs to start before we can send it config.
 	var autoLoaded []string
-	if len(diff.added) > 0 {
-		addedKeys := make([]string, 0, len(diff.added))
-		for k := range diff.added {
+	if len(diff.Added) > 0 {
+		addedKeys := make([]string, 0, len(diff.Added))
+		for k := range diff.Added {
 			addedKeys = append(addedKeys, k)
 		}
 		var autoLoadErr error
@@ -293,96 +292,25 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	return nil
 }
 
-// configDiff holds the difference between two config maps.
-// Local to the plugin package to avoid import cycles with internal/config.
-type configDiff struct {
-	added   map[string]any
-	removed map[string]any
-	changed map[string]diffPair
-}
-
-// diffPair holds old and new values for a changed key.
-type diffPair struct {
-	Old any `json:"old"`
-	New any `json:"new"`
-}
-
-// diffMaps computes a deep diff between two map[string]any.
-// Nested maps are compared recursively with slash-separated key paths.
-// Equivalent to config.DiffMaps — duplicated here to avoid import cycle.
-func diffMaps(old, newMap map[string]any) *configDiff {
-	diff := &configDiff{
-		added:   make(map[string]any),
-		removed: make(map[string]any),
-		changed: make(map[string]diffPair),
-	}
-	diffMapsRecursive(old, newMap, "", diff)
-	return diff
-}
-
-// diffMapsRecursive performs recursive comparison with path prefix.
-func diffMapsRecursive(old, newMap map[string]any, prefix string, diff *configDiff) {
-	if old == nil {
-		old = make(map[string]any)
-	}
-	if newMap == nil {
-		newMap = make(map[string]any)
-	}
-
-	for k, oldVal := range old {
-		key := diffJoinPath(prefix, k)
-		if _, exists := newMap[k]; !exists {
-			diff.removed[key] = oldVal
-		}
-	}
-
-	for k, newVal := range newMap {
-		key := diffJoinPath(prefix, k)
-		oldVal, exists := old[k]
-
-		if !exists {
-			diff.added[key] = newVal
-			continue
-		}
-
-		oldMap, oldIsMap := oldVal.(map[string]any)
-		newSubMap, newIsMap := newVal.(map[string]any)
-
-		switch {
-		case oldIsMap && newIsMap:
-			diffMapsRecursive(oldMap, newSubMap, key, diff)
-		case oldIsMap != newIsMap:
-			diff.changed[key] = diffPair{Old: oldVal, New: newVal}
-		case !reflect.DeepEqual(oldVal, newVal):
-			diff.changed[key] = diffPair{Old: oldVal, New: newVal}
-		}
-	}
-}
-
-// diffJoinPath joins prefix and key with the config path separator.
-func diffJoinPath(prefix, key string) string {
-	return config.AppendPath(prefix, key)
-}
-
 // rootHasChanges returns true if the diff contains changes under the given root.
 // Checks config key paths: "bgp" matches "bgp", "bgp/peer", "bgp/peer/foo", etc.
-func rootHasChanges(diff *configDiff, root string) bool {
+func rootHasChanges(diff *config.ConfigDiff, root string) bool {
 	if root == "*" {
-		return len(diff.added) > 0 || len(diff.removed) > 0 || len(diff.changed) > 0
+		return len(diff.Added) > 0 || len(diff.Removed) > 0 || len(diff.Changed) > 0
 	}
 
 	prefix := root + config.PathSep
-	for k := range diff.added {
+	for k := range diff.Added {
 		if k == root || strings.HasPrefix(k, prefix) {
 			return true
 		}
 	}
-	for k := range diff.removed {
+	for k := range diff.Removed {
 		if k == root || strings.HasPrefix(k, prefix) {
 			return true
 		}
 	}
-	for k := range diff.changed {
+	for k := range diff.Changed {
 		if k == root || strings.HasPrefix(k, prefix) {
 			return true
 		}
@@ -397,9 +325,9 @@ type diffRootData struct {
 	changed map[string]any
 }
 
-// buildDiffSections converts a configDiff into per-root ConfigDiffSections.
+// buildDiffSections converts a config.ConfigDiff into per-root ConfigDiffSections.
 // Groups flat config keys (e.g., "bgp/peer/foo") by their top-level root ("bgp").
-func buildDiffSections(diff *configDiff) []rpc.ConfigDiffSection {
+func buildDiffSections(diff *config.ConfigDiff) []rpc.ConfigDiffSection {
 	roots := make(map[string]*diffRootData)
 
 	ensure := func(root string) *diffRootData {
@@ -415,15 +343,15 @@ func buildDiffSections(diff *configDiff) []rpc.ConfigDiffSection {
 		return r
 	}
 
-	for k, v := range diff.added {
+	for k, v := range diff.Added {
 		r := ensure(topLevelRoot(k))
 		r.added[k] = v
 	}
-	for k, v := range diff.removed {
+	for k, v := range diff.Removed {
 		r := ensure(topLevelRoot(k))
 		r.removed[k] = v
 	}
-	for k, v := range diff.changed {
+	for k, v := range diff.Changed {
 		r := ensure(topLevelRoot(k))
 		r.changed[k] = v
 	}

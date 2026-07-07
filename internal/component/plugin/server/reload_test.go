@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
@@ -832,40 +833,9 @@ func TestHasConfigLoader(t *testing.T) {
 	assert.True(t, s.HasConfigLoader(), "should be true after SetConfigLoader")
 }
 
-// TestDiffMapsLocal verifies the local diffMaps implementation.
-//
-// VALIDATES: Diff computation matches expected behavior for add/remove/change.
-// PREVENTS: Diff logic bugs causing incorrect reload decisions.
-func TestDiffMapsLocal(t *testing.T) {
-	t.Parallel()
-
-	old := map[string]any{
-		"bgp": map[string]any{
-			"router-id": "1.2.3.4",
-			"peer": map[string]any{
-				"p1": map[string]any{"address": "10.0.0.1"},
-			},
-		},
-		"environment": map[string]any{"log": "info"},
-	}
-
-	newMap := map[string]any{
-		"bgp": map[string]any{
-			"router-id": "5.6.7.8", // Changed
-			"peer": map[string]any{
-				"p1": map[string]any{"address": "10.0.0.1"}, // Same
-				"p2": map[string]any{"address": "10.0.0.2"}, // Added
-			},
-		},
-		// environment removed
-	}
-
-	diff := diffMaps(old, newMap)
-
-	assert.Contains(t, diff.changed, "bgp/router-id")
-	assert.Contains(t, diff.added, "bgp/peer/p2")
-	assert.Contains(t, diff.removed, "environment")
-}
+// test-relax: TestDiffMapsLocal removed — the private server-local map-diff helper it
+// exercised is deleted; the surviving canonical config.DiffMaps is covered by the 12
+// tests in internal/component/config/diff_test.go (spec-unify-config-diff, R-2).
 
 // TestRootHasChanges verifies root matching for diff filtering.
 //
@@ -874,10 +844,10 @@ func TestDiffMapsLocal(t *testing.T) {
 func TestRootHasChanges(t *testing.T) {
 	t.Parallel()
 
-	diff := &configDiff{
-		added:   map[string]any{"bgp/peer/p2": "added"},
-		removed: map[string]any{"environment": "removed"},
-		changed: map[string]diffPair{"bgp/router-id": {Old: "old", New: "new"}},
+	diff := &config.ConfigDiff{
+		Added:   map[string]any{"bgp/peer/p2": "added"},
+		Removed: map[string]any{"environment": "removed"},
+		Changed: map[string]config.DiffPair{"bgp/router-id": {Old: "old", New: "new"}},
 	}
 
 	assert.True(t, rootHasChanges(diff, "bgp"))
@@ -960,14 +930,14 @@ func TestReloadConfigWildcardRoot(t *testing.T) {
 	reactor.mu.Unlock()
 }
 
-// TestDiffPairJSONKeys verifies that diffPair marshals with kebab-case keys.
+// TestDiffPairJSONKeys verifies that config.DiffPair marshals with kebab-case keys.
 //
 // VALIDATES: JSON output uses "old"/"new" not "Old"/"New".
 // PREVENTS: PascalCase JSON keys violating ze JSON format standard.
 func TestDiffPairJSONKeys(t *testing.T) {
 	t.Parallel()
 
-	dp := diffPair{Old: "before", New: "after"}
+	dp := config.DiffPair{Old: "before", New: "after"}
 	j, err := json.Marshal(dp)
 	require.NoError(t, err)
 
@@ -985,10 +955,10 @@ func TestDiffPairJSONKeys(t *testing.T) {
 func TestBuildDiffSections(t *testing.T) {
 	t.Parallel()
 
-	diff := &configDiff{
-		added:   map[string]any{"bgp/peer/p2": "new-peer"},
-		removed: map[string]any{"environment/log": "info"},
-		changed: map[string]diffPair{"bgp/router-id": {Old: "1.2.3.4", New: "5.6.7.8"}},
+	diff := &config.ConfigDiff{
+		Added:   map[string]any{"bgp/peer/p2": "new-peer"},
+		Removed: map[string]any{"environment/log": "info"},
+		Changed: map[string]config.DiffPair{"bgp/router-id": {Old: "1.2.3.4", New: "5.6.7.8"}},
 	}
 
 	sections := buildDiffSections(diff)
@@ -1246,8 +1216,8 @@ func TestReloadTxVerifyReceivesFullSubtree(t *testing.T) {
 	// top level (the mistake fixed here). Assert that neither shape leaks
 	// through so a future regression is caught immediately.
 	assert.NotContains(t, data, "bgp/router-id", "plugin must not see diff-shaped keys at top level")
-	assert.NotContains(t, bgp, "old", "plugin must not see diffPair fields")
-	assert.NotContains(t, bgp, "new", "plugin must not see diffPair fields")
+	assert.NotContains(t, bgp, "old", "plugin must not see DiffPair fields")
+	assert.NotContains(t, bgp, "new", "plugin must not see DiffPair fields")
 }
 
 // TestReloadTxApplyBGPLast verifies that the "bgp" participant receives

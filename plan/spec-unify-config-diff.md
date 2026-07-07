@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-06 |
+| Phase | 1/6 |
+| Updated | 2026-07-07 |
 
 ## Post-Compaction Recovery
 
@@ -120,9 +120,9 @@ cited import cycle does not exist today and plans the migration of package `serv
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No import cycle blocks `server` from calling `config.DiffMaps`. | `reload.go:16` already imports `internal/component/config` and the repo compiles; grep shows `config` (and the `internal/component/plugin`, `internal/component/plugin/registry` packages it imports) never import `internal/component/plugin/server`. | Would need option (a): move diff to a `internal/core/` leaf. | `go build ./internal/component/plugin/server/...` after switching the call, plus `grep -rl plugin/server internal/component/config` returns nothing. | unvalidated |
-| A-2 | `config.DiffMaps` produces a byte-identical diff and JSON to the private `diffMaps`. | Both bodies read identically (nil-fill, removed, added/recurse/`reflect.DeepEqual`); `DiffPair` and `diffPair` share json tags `old`/`new`. | Plugin apply payloads or `ze config diff` output would drift. | `TestDiffPairJSONKeys`, `TestBuildDiffSections`, and the `TestReloadConfig*` integration tests pass unchanged after migration. | unvalidated |
-| A-3 | `ze-tier-check` / `dep_audit.py` stay green. | The `server -> config` edge already exists; a method call adds no graph edge. | Would require category reclassification. | `make ze-tier-check`. | unvalidated |
+| A-1 | No import cycle blocks `server` from calling `config.DiffMaps`. | `reload.go:16` already imports `internal/component/config` and the repo compiles; grep shows `config` (and the `internal/component/plugin`, `internal/component/plugin/registry` packages it imports) never import `internal/component/plugin/server`. | Would need option (a): move diff to a `internal/core/` leaf. | `go build ./internal/component/plugin/server/...` after switching the call, plus `grep -rl plugin/server internal/component/config` returns nothing. | confirmed — full `plugin/server` package builds+tests green; the only files under `config/` importing `plugin/server` are CLI *subpackages* (`config/archive/cmd`, `config/yang/cli`, `config/schema/cli`), separate Go packages above both in the tier graph; the top-level `config` package's sole match (`plugin_verify.go`) is a comment. |
+| A-2 | `config.DiffMaps` produces a byte-identical diff and JSON to the private `diffMaps`. | Both bodies read identically (nil-fill, removed, added/recurse/`reflect.DeepEqual`); `DiffPair` and `diffPair` share json tags `old`/`new`. | Plugin apply payloads or `ze config diff` output would drift. | `TestDiffPairJSONKeys`, `TestBuildDiffSections`, and the `TestReloadConfig*` integration tests pass unchanged after migration. | confirmed — `TestDiffPairJSONKeys`, `TestBuildDiffSections`, `TestReloadConfig{VerifyThenApply,PerRootFiltering,RootRemoved,WildcardRoot}`, `TestReloadTx*` all green (15/15) after migration. |
+| A-3 | `ze-tier-check` / `dep_audit.py` stay green. | The `server -> config` edge already exists; a method call adds no graph edge. | Would require category reclassification. | `make ze-tier-check`. | confirmed — `make ze-tier-check` exit 0 (engine + non-engine placement clean, 28 manifest rows). |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -184,8 +184,8 @@ No user-facing behavior change; existing test suite passes with no regressions.
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 12 | Internal architecture changed? | [ ] Maybe - if any doc names the private `diffMaps` as intentional | grep `docs/` for `diffMaps` / "import cycle"; update if a stale claim exists |
-| 16 | Any changed source file referenced by doc source anchors? | [ ] Check | Grep `docs/` for `source: internal/component/plugin/server/reload.go` and `.../config/diff.go` |
+| 12 | Internal architecture changed? | No | `grep -rn 'diffMaps\|import cycle' docs/` → no doc names the private `diffMaps` or the `config`↔`server` "import cycle"; the only "import cycle" mentions are unrelated packages (wire/context, plugin blank import, freertr comparison). Nothing to update. |
+| 16 | Any changed source file referenced by doc source anchors? | No (no update needed) | `hub-architecture.md:688` anchors `config/diff.go` ("config diff computation") — that file is UNCHANGED and is now the sole diff impl, so the anchor is still correct. No anchor references `reload.go`/`reload_tx.go` (only unrelated `l2tp/subsystem_reload.go`). |
 
 ## Files to Create
 - None - this is a deletion/consolidation refactor; no new files.
@@ -277,83 +277,142 @@ Not applicable - no protocol or wire behavior changes.
 ## Implementation Summary
 
 ### What Was Implemented
--
+- Deleted the private map-diff duplicate in package `server`: `configDiff`, `diffPair`,
+  `diffMaps`, `diffMapsRecursive`, `diffJoinPath` (was `reload.go:296-365`).
+- Switched the sole producer `reloadConfig` (`reload.go`) from `diffMaps(...)` to
+  `config.DiffMaps(...)`, renaming the field reads `added/removed/changed` → `Added/Removed/Changed`.
+- Retyped the consumers `rootHasChanges` and `buildDiffSections` (`reload.go`) and
+  `runTxCoordinator` / `buildTxInputs` (`reload_tx.go`) from `*configDiff` to `*config.ConfigDiff`.
+- Removed the now-unused `reflect` import from `reload.go`; added the top-level `config`
+  import to `reload_tx.go` (it previously imported only `config/transaction`).
+- Kept `diffRootData` and `topLevelRoot` (grouping helpers, not part of the duplicated algorithm).
+- Tests: deleted `TestDiffMapsLocal` (superseded by `config/diff_test.go`'s 12 tests, marked
+  `// test-relax:`); migrated `TestRootHasChanges`, `TestDiffPairJSONKeys`, `TestBuildDiffSections`
+  to construct `config.ConfigDiff` / `config.DiffPair`; reworded two assertion messages in
+  `TestReloadTxVerifyReceivesFullSubtree` from "diffPair fields" to "DiffPair fields".
 
 ### Bugs Found/Fixed
--
+- None. Pure internal refactor; no behavioral defect surfaced.
 
 ### Documentation Updates
--
+- None required (see Documentation Update Checklist — no doc names the private `diffMaps` or
+  the stale "import cycle"; no `source:` anchor points at the changed files).
 
 ### Deviations from Plan
--
+- None. Two extra mechanical touches beyond the spec's Files to Modify, both forced by the
+  compiler and consistent with the refactor: removing the `reflect` import from `reload.go`
+  (its only use was in the deleted body) and reversing two assertion-message strings so AC-3's
+  grep stays at zero. Neither changes behavior.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Collapse two diff implementations into one | Done | `reload.go:177` calls `config.DiffMaps` | Private duplicate deleted |
+| Preserve plugin JSON payloads (`old`/`new` keys) | Done | `config.DiffPair` json tags (`diff.go:19-22`) | `TestDiffPairJSONKeys`, `TestBuildDiffSections` green |
+| Preserve `ze config diff` output | Done | `config/diff.go` untouched | `config` package tests green |
+| Prove no import cycle | Done | A-1 confirmed | package builds + tier-check green |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `config/diff_test.go` (12) + `server` tests (15/15) green | Behavior parity |
+| AC-2 | Done | `TestDiffPairJSONKeys`, `TestBuildDiffSections` green | `old`/`new` keys preserved byte-identically |
+| AC-3 | Done | `grep diffMaps\|configDiff\|diffPair\|diffMapsRecursive\|diffJoinPath` in `server` = 0 | Duplicate fully deleted |
+| AC-4 | Done | `make ze-tier-check` exit 0 | No new package edge |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestDiffMaps*` (12) | Unchanged/green | `config/diff_test.go` | Canonical, now sole impl |
+| `TestRootHasChanges` | Migrated/green | `reload_test.go:846` | `config.ConfigDiff` literal |
+| `TestDiffPairJSONKeys` | Migrated/green | `reload_test.go:939` | `config.DiffPair` literal |
+| `TestBuildDiffSections` | Migrated/green | `reload_test.go:957` | `config.ConfigDiff` literal |
+| `TestDiffMapsLocal` | Deleted | (removed, `test-relax:` marker at `reload_test.go:836`) | Superseded by `config/diff_test.go` |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/plugin/server/reload.go` | Done | Duplicate deleted; producer + consumers migrated; `reflect` import removed |
+| `internal/component/plugin/server/reload_tx.go` | Done | Two signatures retyped; `config` import added |
+| `internal/component/plugin/server/reload_test.go` | Done | 3 tests migrated, 1 deleted, 2 messages reworded |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 4 requirements, 4 ACs, 5 test rows, 3 files
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** `reflect` import removal + 2 assertion-message rewordings (mechanical, see Deviations)
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| One diff implementation, duplicate deleted | functional test + grep | `test/traffic/002-reload-apply.ci` green; AC-3 grep returns zero matches in package `server` |
+| One diff implementation, duplicate deleted | functional test + grep | `make ze-reload-test` 24/24 PASS (exercises `reloadConfig` → `config.DiffMaps` → `buildDiffSections` end-to-end over plugin IPC, incl. `commit-transactional`, `commit-verify-reject`, `test-tx-protocol-*`); AC-3 grep returns zero matches in package `server` |
+| Behavior preserved (JSON payloads, CLI diff) | unit test | `TestDiffPairJSONKeys` + `TestBuildDiffSections` green (`old`/`new` keys byte-identical); `config` package `TestDiffMaps*` green (`ze config diff` untouched) |
+| Cited import cycle does not exist | build + tier-check | `plugin/server` package builds + tests green; `make ze-tier-check` exit 0 (no new edge) |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE |  | file:line |  |
+| 1 | NOTE (pre-existing, out of scope) | `ze-validate` flags `TxLocked`/`FullReloadFunc`/`HasFullReloadFunc`/`ReloadFull` as having no cross-package non-test caller. Confirmed present verbatim in `HEAD` before this diff (lines 78/106/119/124); surfaced only because `ze-validate` re-scans the whole changed file. `ze-validate` is a post-verify advisory target (Makefile:309), not in the commit gate. | `reload.go:77,105,118,123` | None — not introduced by this spec; fixing unrelated Server API dead-code would be unauthorized scope creep. |
+| 2 | NOTE (resolved) | `audit-test-relaxation.py` flags the `TestDiffMapsLocal` removal (`[RELAXED]`, documented). | `reload_test.go:836` | Valid relaxation: the private `server.diffMaps` it tested is deleted (removed feature) and coverage is replaced by `config/diff_test.go` (12 tests). Reason documented in `// test-relax:` marker. |
 
 ### Fixes applied
--
+- None required. No BLOCKER/ISSUE introduced by this diff. Both NOTEs are pre-existing/valid.
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+**Review outcome:** 0 BLOCKER, 0 ISSUE from this diff. Wiring: no new symbols (deletion +
+retype only); `config.DiffMaps` already wired (used by `ze config diff` + `reloadConfig`).
+Removed-behavior audit: `diffMaps` invariant re-established byte-identically by
+`config.DiffMaps`; `TestDiffMapsLocal` coverage is a strict subset of `config/diff_test.go`;
+3 migrated tests keep identical assertions; 2 reworded assertion messages keep identical
+assertions. Functional coverage: reload 24/24, ui 145/145, managed 13/13. 2 NOTEs above are
+pre-existing (ze-validate) or valid documented relaxation (test-relax).
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/plugin/server/reload.go` | yes | edited; package builds + tests green |
+| `internal/component/plugin/server/reload_tx.go` | yes | edited; package builds + tests green |
+| `internal/component/plugin/server/reload_test.go` | yes | edited; 15/15 tests green |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Behavior parity | `config/diff_test.go` (12) + `server` 15/15 green; `ze-reload-test` 24/24 |
+| AC-2 | JSON `old`/`new` preserved | `TestDiffPairJSONKeys`, `TestBuildDiffSections` green |
+| AC-3 | Duplicate deleted | `grep 'diffMaps\|configDiff\|diffPair\|diffMapsRecursive\|diffJoinPath' internal/component/plugin/server/` → 0 matches |
+| AC-4 | No new package edge | `make ze-tier-check` exit 0 |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| commit/SIGHUP reload → `config.DiffMaps` → `buildDiffSections` → plugin IPC | `bin/ze-test bgp reload` (reload suite, 24/24 PASS) | yes |
+| web commit transactional reload | ui suite (145/145 PASS) | yes |
+| managed config push reload | managed suite (13/13 PASS) | yes |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | package builds + tests green; only `config/*/cli` subpackages import `plugin/server`, not top-level `config` |
+| A-2 | confirmed | `TestDiffPairJSONKeys`, `TestBuildDiffSections`, `TestReloadConfig*`, `TestReloadTx*` green (15/15) |
+| A-3 | confirmed | `make ze-tier-check` exit 0 |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| No doc names the private `diffMaps` / this code's "import cycle" | `grep -rn 'diffMaps\|import cycle' docs/` → only OTHER packages (wire/context, plugin blank import, freertr comparison); none about `config`↔`server` diff | yes |
+| Anchor `hub-architecture.md:688` → `config/diff.go` | re-read: claim is "config diff computation" pointing at `config/diff.go` (unchanged, now the SOLE diff impl); change makes it more accurate, no update | yes |
+| No anchor points at changed files `reload.go`/`reload_tx.go` | `grep -rn 'source:.*reload.go\|reload_tx.go' docs/` → only `l2tp/subsystem_reload.go` (unrelated) | yes |
 
 ## Checklist
 

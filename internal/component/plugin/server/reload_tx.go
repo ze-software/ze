@@ -13,6 +13,7 @@ import (
 	"slices"
 	"sort"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -36,7 +37,7 @@ const bgpParticipantName = "bgp"
 // rollback (apply failed), or gateway misconfiguration. Callers use the
 // returned error verbatim as the reload error so operators see the same
 // message they did on the legacy RPC loop.
-func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin, diff *configDiff, runningTree, candidateTree map[string]any) error {
+func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin, diff *config.ConfigDiff, runningTree, candidateTree map[string]any) error {
 	if len(affected) == 0 {
 		return nil
 	}
@@ -258,7 +259,7 @@ func marshalOperationRoot(tree map[string]any, root string) (string, error) {
 // Wildcard config roots (["*"]) are expanded to the concrete (sorted)
 // list of roots present in the diff, because the orchestrator's
 // filterDiffs does exact match lookups and has no wildcard awareness.
-func buildTxInputs(affected []affectedPlugin, diff *configDiff) ([]transaction.Participant, map[string][]transaction.DiffSection, map[string][]rpc.ConfigSection, error) {
+func buildTxInputs(affected []affectedPlugin, diff *config.ConfigDiff) ([]transaction.Participant, map[string][]transaction.DiffSection, map[string][]rpc.ConfigSection, error) {
 	diffMap := make(map[string][]transaction.DiffSection)
 	for _, section := range buildDiffSections(diff) {
 		diffMap[section.Root] = append(diffMap[section.Root], transaction.DiffSection{
