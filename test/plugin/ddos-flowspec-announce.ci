@@ -1,0 +1,80 @@
+# Test: the ddos-flowspec responder's rendered update-text command reaches the
+# wire as a valid RFC 8955 FlowSpec UPDATE. Drives the exact grammar
+# renderFlowspecCommand produces (internal/plugins/ddos/flowspec/responder.go)
+# via the plugin send() path and asserts the peer receives the FlowSpec route
+# with the traffic-rate (rate-limit) extended community.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418010100
+# FlowSpec UPDATE: MP_REACH (nexthop 127.0.0.1 = nhop self), destination
+# 192.0.2.0/24 + protocol tcp + destination-port 80, with the traffic-rate
+# (rate-limit:9600) extended community.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064800E15000185047F000001000B0118C00002038106058150C010088006000046160000
+EOF_PEER
+
+# Plugin script sends the responder's rendered announce command.
+tmpfs=ddos-flowspec-announce.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+
+from ze_api import ready, send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    ready()
+    send('peer * update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24')
+    send('peer * update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination 192.0.2.0/24 protocol =6 destination-port =80')
+    wait_for_ack(expected_count=2)
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external ddos-flowspec-announce {
+		run ./ddos-flowspec-announce.run
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process ddos-flowspec-announce {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-nlri-flowspec -:stdin=ze-bgp:timeout=10s

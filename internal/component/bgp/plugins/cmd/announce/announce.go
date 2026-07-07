@@ -3,6 +3,7 @@
 package announce
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -11,8 +12,10 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/nlri"
@@ -41,6 +44,10 @@ var (
 	errUnknownFamily          = errors.New("unknown family")
 	errMissingWithdrawKeyword = errors.New("withdraw requires: tag, id, or all")
 	errTagTooLong             = errors.New("tag key or value exceeds 128 characters")
+
+	errFlowspecRequiresAction    = errors.New("flowspec announce requires an action: rate-limit <bytes-per-sec> or discard")
+	errRateLimitRequiresBytes    = errors.New("rate-limit requires a bytes-per-second value")
+	errMissingFlowspecComponents = errors.New("flowspec announce requires at least one match component (e.g. destination <prefix>)")
 )
 
 var (
@@ -306,11 +313,106 @@ parseOpts:
 	return announceAndTrack(reg, bgpReactor, sel, batch, opts, "cli")
 }
 
-func handleAnnounceFlowspec(_ *pluginserver.CommandContext, _ bgptypes.BGPReactor, _ *Registry, _ []string) (*plugin.Response, error) {
-	return &plugin.Response{
-		Status: plugin.StatusError,
-		Error:  "flowspec announce not yet implemented",
-	}, errors.New("flowspec announce not yet implemented")
+// handleAnnounceFlowspec originates a tracked FlowSpec rule on demand. Grammar:
+//
+//	announce flowspec <components...> (rate-limit <bytes-per-sec> | discard) [tag <k> <v>] [for <dur>]
+//
+// The match components (destination/source/protocol/port/tcp-flags/...) are
+// encoded into a FlowSpec NLRI through the family registration seam (the same
+// encoder the update-text path uses), so no direct dependency on the flowspec
+// NLRI plugin is introduced. The action becomes an RFC 8955 traffic-rate
+// extended community (rate 0 == discard).
+func handleAnnounceFlowspec(ctx *pluginserver.CommandContext, bgpReactor bgptypes.BGPReactor, reg *Registry, args []string) (*plugin.Response, error) {
+	components, actionArgs, optArgs, err := splitFlowspecArgs(args)
+	if err != nil {
+		return nil, err
+	}
+	if len(components) == 0 {
+		return nil, errMissingFlowspecComponents
+	}
+
+	fam, ok := family.LookupFamily(flowspecFamilyName(components))
+	if !ok {
+		return nil, errMissingFlowspecComponents
+	}
+
+	flowNLRI, err := encodeFlowspecNLRI(fam, components)
+	if err != nil {
+		return nil, err
+	}
+
+	builder := attribute.NewBuilder()
+	builder.SetOrigin(0) // IGP
+	ecs, _, err := route.ParseExtendedCommunities(actionArgs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid flowspec action: %w", err)
+	}
+	for _, ec := range ecs {
+		builder.AddExtendedCommunity(ec)
+	}
+
+	opts, err := parseTrailingOpts(optArgs)
+	if err != nil {
+		return nil, err
+	}
+
+	sel := selector.ParseDefault(ctx.PeerSelector())
+	batch := bgptypes.NLRIBatch{
+		Family:  fam,
+		NLRIs:   []nlri.NLRI{flowNLRI},
+		NextHop: bgptypes.NewNextHopSelf(),
+		Attrs:   builder,
+	}
+	return announceAndTrack(reg, bgpReactor, sel, batch, opts, "cli")
+}
+
+// splitFlowspecArgs separates the match components from the traffic action and
+// the trailing tag/for options. An action is mandatory (no fabricated default):
+// `rate-limit <bps>` maps to a traffic-rate function, `discard` to a traffic-rate
+// of 0. Everything before the action keyword is a component token.
+func splitFlowspecArgs(args []string) (components, action, opts []string, err error) {
+	for i := range args {
+		switch strings.ToLower(args[i]) {
+		case "discard":
+			return args[:i], []string{"discard"}, args[i+1:], nil
+		case "rate-limit":
+			if i+1 >= len(args) {
+				return nil, nil, nil, errRateLimitRequiresBytes
+			}
+			return args[:i], []string{"traffic-rate", "0", args[i+1], "bytes"}, args[i+2:], nil
+		case kwTag, kwFor:
+			return nil, nil, nil, errFlowspecRequiresAction
+		}
+	}
+	return nil, nil, nil, errFlowspecRequiresAction
+}
+
+// flowspecFamilyName picks "ipv4/flow" vs "ipv6/flow" from the destination or
+// source prefix (a v6 prefix always contains ':'), defaulting to ipv4/flow.
+func flowspecFamilyName(components []string) string {
+	for i := 0; i+1 < len(components); i++ {
+		switch strings.ToLower(components[i]) {
+		case "destination", "source":
+			if strings.Contains(components[i+1], ":") {
+				return "ipv6/flow"
+			}
+		}
+	}
+	return "ipv4/flow"
+}
+
+// encodeFlowspecNLRI builds a FlowSpec NLRI from component tokens via the family
+// registration seam, mirroring the update-text path's encodeViaRegistry.
+func encodeFlowspecNLRI(fam family.Family, components []string) (nlri.NLRI, error) {
+	hexStr, err := registry.EncodeNLRIByFamily(fam.String(), components)
+	if err != nil {
+		return nil, fmt.Errorf("%s encode: %w", fam, err)
+	}
+	wireBytes, err := hex.DecodeString(strings.ToLower(hexStr))
+	if err != nil {
+		return nil, fmt.Errorf("%s hex decode: %w", fam, err)
+	}
+	return nlri.NewWireNLRI(fam, wireBytes, false)
 }
 
 func handleWithdraw(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

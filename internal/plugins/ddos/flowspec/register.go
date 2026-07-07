@@ -1,6 +1,7 @@
 package flowspec
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -50,12 +51,28 @@ func init() {
 	}
 }
 
+// sdkDispatcher is the production routeDispatcher: it sends rendered update-text
+// commands to the BGP engine via the plugin SDK's UpdateRoute over the RPC path.
+type sdkDispatcher struct {
+	p   *sdk.Plugin
+	ctx context.Context
+}
+
+func (d sdkDispatcher) Dispatch(command string) error {
+	_, _, err := d.p.UpdateRoute(d.ctx, flowspecSelector, command)
+	return err
+}
+
 func runEngine(conn net.Conn) int {
 	log := logger()
 	log.Debug("ddos-flowspec plugin starting")
 
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
+
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
+	dispatcher := sdkDispatcher{p: p, ctx: ctx}
 
 	var resp *responder
 	defer activeResponder.Store(nil)
@@ -111,7 +128,7 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		resp = newResponder(cfg)
+		resp = newResponder(cfg, dispatcher)
 		activeResponder.Store(resp)
 		subscribe(bus, resp)
 		log.Info("ddos-flowspec: configured", "response-level", cfg.ResponseLevel, "action", cfg.Action)
@@ -138,7 +155,7 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		resp = newResponder(cfg)
+		resp = newResponder(cfg, dispatcher)
 		activeResponder.Store(resp)
 		subscribe(bus, resp)
 		return nil
@@ -146,8 +163,6 @@ func runEngine(conn net.Conn) int {
 
 	p.OnConfigRollback(func(_ string) error { return nil })
 
-	ctx, cancel := sdk.SignalContext()
-	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,

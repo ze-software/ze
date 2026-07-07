@@ -19,11 +19,17 @@ const (
 
 	// responseEnforce is the response-level that actually announces (vs "alert").
 	responseEnforce = "enforce"
+
+	// FlowSpec traffic actions (the `action` leaf enum values).
+	actionRateLimit = "rate-limit"
+	actionDiscard   = "discard"
 )
 
 type Config struct {
 	ResponseLevel         string         `json:"response-level"`
 	Action                string         `json:"action"`
+	RateLimitBytes        uint64         `json:"rate-limit-bytes"`
+	rateLimitBytesSet     bool           // whether rate-limit-bytes was present in config (0 is a valid explicit value)
 	HoldDown              int            `json:"hold-down"`
 	ProbeInterval         int            `json:"probe-interval"`
 	ProbeWindow           int            `json:"probe-window"`
@@ -37,8 +43,10 @@ type Config struct {
 
 func DefaultConfig() *Config {
 	return &Config{
-		ResponseLevel:         "alert",
-		Action:                "rate-limit",
+		ResponseLevel: "alert",
+		// Action has no default: the operator must choose rate-limit or discard
+		// (YANG `mandatory`). A bare/absent block runs in alert mode and never
+		// announces, so Action stays empty and unused.
 		HoldDown:              300,
 		ProbeInterval:         60,
 		ProbeWindow:           10,
@@ -72,6 +80,12 @@ func ParseConfig(data string) (*Config, error) {
 	}
 	if v, ok := m["action"].(string); ok {
 		cfg.Action = v
+	}
+	if v, ok := m["rate-limit-bytes"]; ok {
+		cfg.rateLimitBytesSet = true
+		if n, ok := toInt(v); ok && n >= 0 {
+			cfg.RateLimitBytes = uint64(n)
+		}
 	}
 	if v, ok := m["hold-down"]; ok {
 		if n, ok := toInt(v); ok {
@@ -132,9 +146,15 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("response-level %q must be alert or enforce", c.ResponseLevel)
 	}
 	switch c.Action {
-	case "rate-limit", "discard":
+	case actionRateLimit, actionDiscard:
 	default:
 		return fmt.Errorf("action %q must be rate-limit or discard", c.Action)
+	}
+	// action rate-limit announces an RFC 8955 traffic-rate; the operator must
+	// state the byte rate explicitly (no fabricated default). A zero rate is a
+	// valid choice (== discard); an ABSENT rate is a config error.
+	if c.Action == actionRateLimit && !c.rateLimitBytesSet {
+		return fmt.Errorf("action rate-limit requires rate-limit-bytes (use action discard, or rate-limit-bytes 0, for a drop)")
 	}
 	if c.HoldDown < 1 || c.HoldDown > 86400 {
 		return fmt.Errorf("hold-down %d out of range [1, 86400]", c.HoldDown)

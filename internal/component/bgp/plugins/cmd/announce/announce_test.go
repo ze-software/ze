@@ -12,9 +12,32 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+
+	// Blank import registers the ipv4/flow family + in-process NLRI encoder so the
+	// registry-seam path in handleAnnounceFlowspec (encodeFlowspecNLRI) resolves.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/flowspec"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 )
+
+// captureReactor is a minimal BGPReactor fake: it embeds the interface (so the
+// unused methods exist) and records the batch that AnnounceNLRIBatch dispatches.
+type captureReactor struct {
+	bgptypes.BGPReactor
+	sel   *selector.Selector
+	batch bgptypes.NLRIBatch
+	calls int
+}
+
+func (r *captureReactor) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
+	r.sel = sel
+	r.batch = batch
+	r.calls++
+	return nil
+}
 
 func mustParsePrefix(t *testing.T, s string) netip.Prefix {
 	t.Helper()
@@ -78,6 +101,130 @@ func TestParseDuration(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSplitFlowspecArgs(t *testing.T) {
+	// VALIDATES: component/action/opts split; boundary -- rate-limit requires a
+	// value; an action is mandatory (no fabricated default).
+	tests := []struct {
+		name       string
+		args       []string
+		wantComp   []string
+		wantAction []string
+		wantOpts   []string
+		wantErr    bool
+	}{
+		{
+			"rate-limit with tag",
+			[]string{"destination", "10.0.0.0/24", "protocol", "=6", "rate-limit", "100000", "tag", "ddos", "udp"},
+			[]string{"destination", "10.0.0.0/24", "protocol", "=6"},
+			[]string{"traffic-rate", "0", "100000", "bytes"},
+			[]string{"tag", "ddos", "udp"},
+			false,
+		},
+		{
+			"discard",
+			[]string{"destination", "10.0.0.0/24", "discard"},
+			[]string{"destination", "10.0.0.0/24"},
+			[]string{"discard"},
+			[]string{},
+			false,
+		},
+		{"rate-limit missing value", []string{"destination", "10.0.0.0/24", "rate-limit"}, nil, nil, nil, true},
+		{"no action", []string{"destination", "10.0.0.0/24"}, nil, nil, nil, true},
+		{"opts before action", []string{"destination", "10.0.0.0/24", "tag", "x", "y"}, nil, nil, nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			comp, action, opts, err := splitFlowspecArgs(tt.args)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantComp, comp)
+			assert.Equal(t, tt.wantAction, action)
+			assert.Equal(t, tt.wantOpts, opts)
+		})
+	}
+}
+
+func TestFlowspecFamilyName(t *testing.T) {
+	tests := []struct {
+		name       string
+		components []string
+		want       string
+	}{
+		{"v4 destination", []string{"destination", "10.0.0.0/24", "protocol", "=6"}, "ipv4/flow"},
+		{"v6 destination", []string{"destination", "2001:db8::/32"}, "ipv6/flow"},
+		{"v6 source", []string{"source", "2001:db8::/48", "destination", "2001:db8:1::/48"}, "ipv6/flow"},
+		{"no prefix defaults v4", []string{"protocol", "=17", "destination-port", "=53"}, "ipv4/flow"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, flowspecFamilyName(tt.components))
+		})
+	}
+}
+
+func TestEncodeFlowspecNLRIBuildsWireRoute(t *testing.T) {
+	// Integration: handleAnnounceFlowspec builds the FlowSpec NLRI via the family
+	// registration seam (encodeFlowspecNLRI). Proves the v4 and v6 paths produce a
+	// valid flow NLRI without a direct dependency on the flowspec plugin.
+	cases := []struct {
+		name       string
+		components []string
+		wantFamily string
+	}{
+		{"v4", []string{"destination", "192.0.2.0/24", "protocol", "=6", "destination-port", "=80"}, "ipv4/flow"},
+		{"v6", []string{"destination", "2001:db8::/32", "protocol", "=17"}, "ipv6/flow"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fam, ok := family.LookupFamily(flowspecFamilyName(tc.components))
+			require.True(t, ok, "%s family must be registered", tc.wantFamily)
+			n, err := encodeFlowspecNLRI(fam, tc.components)
+			require.NoError(t, err)
+			require.NotNil(t, n)
+			assert.Equal(t, tc.wantFamily, n.Family().String())
+		})
+	}
+}
+
+func TestHandleAnnounceFlowspec(t *testing.T) {
+	// Drives the full CLI verb through a fake reactor and asserts the dispatched
+	// NLRIBatch: correct family, a single flow NLRI, and next-hop self (required
+	// for the FlowSpec MP_REACH_NLRI). Covers rate-limit, discard, and v6.
+	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch) error { return nil })
+	ctx := &pluginserver.CommandContext{}
+
+	cases := []struct {
+		name       string
+		args       []string
+		wantFamily string
+	}{
+		{"rate-limit v4", []string{"destination", "192.0.2.0/24", "protocol", "=6", "destination-port", "=80", "rate-limit", "9600"}, "ipv4/flow"},
+		{"discard v4", []string{"destination", "203.0.113.5/32", "discard"}, "ipv4/flow"},
+		{"rate-limit v6", []string{"destination", "2001:db8::/32", "rate-limit", "1000"}, "ipv6/flow"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rctr := &captureReactor{}
+			resp, err := handleAnnounceFlowspec(ctx, rctr, reg, tc.args)
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			require.Equal(t, 1, rctr.calls, "verb must dispatch exactly one batch")
+			assert.Equal(t, tc.wantFamily, rctr.batch.Family.String())
+			require.Len(t, rctr.batch.NLRIs, 1)
+			assert.True(t, rctr.batch.NextHop.IsSelf(), "flowspec origination uses next-hop self")
+		})
+	}
+
+	// An action is mandatory: components with no rate-limit/discard is an error.
+	rctr := &captureReactor{}
+	_, err := handleAnnounceFlowspec(ctx, rctr, reg, []string{"destination", "192.0.2.0/24"})
+	require.Error(t, err, "missing action must error")
+	assert.Equal(t, 0, rctr.calls, "nothing dispatched on error")
 }
 
 func TestParseTrailingOptsTag(t *testing.T) {

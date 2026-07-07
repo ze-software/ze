@@ -131,6 +131,7 @@ ddos {
     flowspec {
         response-level enforce
         action rate-limit
+        rate-limit-bytes 1000000
         hold-down 300
         probe-interval 60
         allowlist 10.0.0.0/8
@@ -142,8 +143,15 @@ Once the attack is characterized, a surgical BGP FlowSpec rule is announced to t
 configured upstream peer, matching the attack's protocol, ports, and flags. The
 FlowSpec responder waits for characterization by default rather than acting on the
 fast signal: announcing upstream blinds the box behind the filter, so the rule
-must be right the first time. The default action is `rate-limit` (non-zero rate)
-rather than `discard`, preserving legitimate traffic.
+must be right the first time. The `action` is mandatory (no default, because
+neither choice is universally safe): `rate-limit` announces an RFC 8955
+traffic-rate of `rate-limit-bytes` bytes/sec (preserving legitimate traffic up to
+that rate), while `discard` drops the whole characterized flow. A `rate-limit-bytes`
+of `0` is valid and is equivalent to `discard`; `action rate-limit` without a
+`rate-limit-bytes` is a configuration error (no rate is fabricated).
+<!-- source: internal/plugins/ddos/flowspec/config.go -- Validate: action mandatory; rate-limit requires rate-limit-bytes; 0 == discard -->
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- renderFlowspecCommand emits update text extended-community [rate-limit:<bps>] nlri <fam> add <components> -->
+
 
 **Blackhole fallback.** With `blackhole-fallback true`, a `critical`-severity
 attack (peak >= 5x threshold) engages an immediate upstream `discard` on the fast
@@ -219,7 +227,8 @@ prevent poisoning.
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
 | `response-level` | `alert` | alert, enforce | `alert` logs only; `enforce` announces FlowSpec |
-| `action` | `rate-limit` | rate-limit, discard | FlowSpec traffic-action: rate-limit preserves legitimate traffic |
+| `action` | (required) | rate-limit, discard | Mandatory FlowSpec traffic-action (no default). `rate-limit` needs `rate-limit-bytes` and preserves legitimate traffic up to that rate; `discard` drops the flow |
+| `rate-limit-bytes` | (none) | 0..max bytes/s | Required when `action` is `rate-limit`; the RFC 8955 traffic-rate. `0` is valid and equals `discard`. Ignored for `discard` |
 | `hold-down` | `300` | 1-86400 s | Minimum seconds before the first leak-probe |
 | `probe-interval` | `60` | 1-3600 s | Seconds between leak-probe attempts |
 | `probe-window` | `10` | 1-300 s | Seconds to observe leaked traffic during a probe |

@@ -414,6 +414,21 @@ func TestRunFlowSpecDecodeTextFormat(t *testing.T) {
 //
 // VALIDATES: Plugin accepts JSON input and encodes to wire bytes.
 // PREVENTS: Missing JSON encode support, breaking round-trip encode/decode.
+// TestEncodeFlowSpecProtocolOperatorEquivalence verifies `protocol =N` and
+// `protocol N` (and the name form) encode identically: the '=' equality operator
+// is accepted and is a no-op for the equality-only protocol component.
+func TestEncodeFlowSpecProtocolOperatorEquivalence(t *testing.T) {
+	t.Parallel()
+	bare, err := EncodeFlowSpecComponents(IPv4FlowSpec, []string{"destination", "10.0.0.0/24", "protocol", "6"})
+	require.NoError(t, err)
+
+	for _, form := range []string{"=6", "=tcp", "tcp"} {
+		got, err := EncodeFlowSpecComponents(IPv4FlowSpec, []string{"destination", "10.0.0.0/24", "protocol", form})
+		require.NoError(t, err, "protocol %s", form)
+		assert.Equal(t, bare, got, "protocol %s must encode identically to bare 6", form)
+	}
+}
+
 func TestEncodeJSONFormat(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

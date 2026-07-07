@@ -2066,6 +2066,49 @@ func TestParseUpdateText_FlowSpecBasic(t *testing.T) {
 	assert.Equal(t, flowspec.FlowDestPrefix, fs.Components()[0].Type())
 }
 
+// TestParseUpdateText_FlowSpecResponderGrammar validates that the ddos-flowspec
+// responder's rendered update-text grammar (renderFlowspecCommand in
+// internal/plugins/ddos/flowspec/responder.go) parses through the real tokeniser
+// for both v4 and v6. Guards spec-ddos-flowspec-wire assumptions A-2 (grammar
+// accepted verbatim) and A-5 (v6 uses the `destination` keyword, not
+// `destination-ipv6`). Tokens mirror renderFlowspecCommand output minus the
+// leading `update text`.
+func TestParseUpdateText_FlowSpecResponderGrammar(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			"v4 rate-limit full (protocol =6)",
+			[]string{"extended-community", "[rate-limit:9600]", "nlri", "ipv4/flow", "add",
+				"destination", "192.0.2.0/24", "protocol", "=6", "destination-port", "=80", "source-port", "=1024", "tcp-flags", "syn&ack"},
+		},
+		{
+			"v4 bare protocol parses same as =6",
+			[]string{"nlri", "ipv4/flow", "add", "destination", "192.0.2.0/24", "protocol", "6"},
+		},
+		{
+			"v4 discard as rate 0",
+			[]string{"extended-community", "[rate-limit:0]", "nlri", "ipv4/flow", "add", "destination", "203.0.113.5/32"},
+		},
+		{
+			"v6 rate-limit uses destination keyword",
+			[]string{"extended-community", "[rate-limit:1000]", "nlri", "ipv6/flow", "add", "destination", "2001:db8::/32", "protocol", "=17"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ParseUpdateText(tt.args)
+			require.NoError(t, err)
+			require.Len(t, result.Groups, 1)
+			require.Len(t, result.Groups[0].Announce, 1)
+			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
+			require.NotEmpty(t, fs.Components())
+			assert.Equal(t, flowspec.FlowDestPrefix, fs.Components()[0].Type())
+		})
+	}
+}
+
 // TestParseUpdateText_FlowSpecProtocol verifies protocol component parsing.
 //
 // VALIDATES: Protocol names (tcp/udp/icmp) and numbers translate correctly.

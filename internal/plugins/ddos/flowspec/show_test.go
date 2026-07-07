@@ -31,7 +31,7 @@ func TestShowDdosFlowspecNoResponder(t *testing.T) {
 }
 
 func TestShowDdosFlowspecActive(t *testing.T) {
-	r := newResponder(DefaultConfig())
+	r := newResponder(DefaultConfig(), &fakeDispatcher{})
 	r.active = true
 	r.target = ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("198.51.100.0/24"), Proto: 17, DstPort: 53}
 	activeResponder.Store(r)

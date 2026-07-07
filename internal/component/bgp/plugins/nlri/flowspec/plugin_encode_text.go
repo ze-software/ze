@@ -248,6 +248,12 @@ func parseProtocolComponentText(args []string) (FlowComponent, int, error) {
 			break
 		}
 
+		// Accept an optional '=' equality operator so `protocol =6` and
+		// `protocol 6` (likewise `=tcp`/`tcp`) parse identically, consistent with
+		// the port/numeric components which accept the '=' operator. Protocol is
+		// an equality-only match, so '=' is the natural and only operator.
+		token = strings.TrimPrefix(token, "=")
+
 		// Try name first
 		if num, ok := protocolNameToNumber[token]; ok {
 			protocols = append(protocols, num)

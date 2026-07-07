@@ -7,21 +7,20 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
 )
 
-func withNoopAnnounce() func() {
-	origA := announceFunc
-	origW := withdrawFunc
-	announceFunc = func(_ flowspecMatch, _ string) error { return nil }
-	withdrawFunc = func(_ flowspecMatch) error { return nil }
-	return func() {
-		announceFunc = origA
-		withdrawFunc = origW
-	}
+// fakeDispatcher records the commands the responder would send to the engine.
+type fakeDispatcher struct {
+	cmds []string
+	err  error
+}
+
+func (f *fakeDispatcher) Dispatch(cmd string) error {
+	f.cmds = append(f.cmds, cmd)
+	return f.err
 }
 
 func TestIgnoresDetectorClearWhileMitigating(t *testing.T) {
 	// VALIDATES: AC-12 -- AttackCleared does not withdraw while mitigating
-	defer withNoopAnnounce()()
-	r := newResponder(&Config{ResponseLevel: "enforce", HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600})
+	r := newResponder(&Config{ResponseLevel: "enforce", HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600}, &fakeDispatcher{})
 	r.onCharacterized(&ddosevent.AttackCharacterized{
 		Target: ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17},
 	})
@@ -38,19 +37,22 @@ func TestIgnoresDetectorClearWhileMitigating(t *testing.T) {
 
 func TestAlertModeDoesNotAnnounce(t *testing.T) {
 	// VALIDATES: AC-6 -- alert mode logs, does not announce
-	r := newResponder(&Config{ResponseLevel: "alert", HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600})
+	disp := &fakeDispatcher{}
+	r := newResponder(&Config{ResponseLevel: "alert", HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600}, disp)
 	r.onCharacterized(&ddosevent.AttackCharacterized{
 		Target: ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17},
 	})
 	if r.active {
 		t.Error("alert mode should not activate mitigation")
 	}
+	if len(disp.cmds) != 0 {
+		t.Errorf("alert mode must not dispatch, got %v", disp.cmds)
+	}
 }
 
 func TestEnforceModeAnnouncesOnCharacterized(t *testing.T) {
 	// VALIDATES: AC-7 -- flowspec announces the precise rule from AttackCharacterized
-	defer withNoopAnnounce()()
-	r := newResponder(&Config{ResponseLevel: "enforce", HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600})
+	r := newResponder(&Config{ResponseLevel: "enforce", HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600}, &fakeDispatcher{})
 	r.onCharacterized(&ddosevent.AttackCharacterized{
 		Target: ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17, DstPort: 53},
 		Family: ddosevent.FamilyUDPFlood,
@@ -63,8 +65,7 @@ func TestEnforceModeAnnouncesOnCharacterized(t *testing.T) {
 func TestFlowspecWaitsForCharacterized(t *testing.T) {
 	// VALIDATES: AC-8 -- a fast AttackDetected does NOT announce upstream when
 	// the blackhole-fallback policy is off; flowspec waits for characterization.
-	defer withNoopAnnounce()()
-	r := newResponder(&Config{ResponseLevel: "enforce", HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600})
+	r := newResponder(&Config{ResponseLevel: "enforce", HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600}, &fakeDispatcher{})
 	r.onDetected(&ddosevent.AttackDetected{
 		Target:   ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32")},
 		Severity: ddosevent.SeverityCritical, // even critical waits without the policy
@@ -77,12 +78,11 @@ func TestFlowspecWaitsForCharacterized(t *testing.T) {
 func TestBlackholeFallbackOnCritical(t *testing.T) {
 	// VALIDATES: AC-14 -- with blackhole-fallback enabled, a critical fast signal
 	// engages an immediate discard; a non-critical one still waits.
-	defer withNoopAnnounce()()
 	newR := func() *responder {
 		return newResponder(&Config{
 			ResponseLevel: "enforce", BlackholeFallback: true,
 			HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600,
-		})
+		}, &fakeDispatcher{})
 	}
 
 	crit := newR()
@@ -106,8 +106,7 @@ func TestBlackholeFallbackOnCritical(t *testing.T) {
 
 func TestProbeTickWithdraws(t *testing.T) {
 	// VALIDATES: AC-5 -- probe-driven withdraw after sub-rate window
-	defer withNoopAnnounce()()
-	r := newResponder(&Config{ResponseLevel: "enforce", HoldDown: 2, ProbeInterval: 3, ProbeWindow: 2, ProbeRate: 1000000, BackoffCap: 3600})
+	r := newResponder(&Config{ResponseLevel: "enforce", HoldDown: 2, ProbeInterval: 3, ProbeWindow: 2, ProbeRate: 1000000, BackoffCap: 3600}, &fakeDispatcher{})
 	r.onCharacterized(&ddosevent.AttackCharacterized{
 		Target: ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17},
 	})
@@ -124,16 +123,101 @@ func TestProbeTickWithdraws(t *testing.T) {
 }
 
 func TestAllowlistedTargetNotAnnounced(t *testing.T) {
-	defer withNoopAnnounce()()
 	r := newResponder(&Config{
 		ResponseLevel: "enforce",
 		Allowlist:     []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 		HoldDown:      300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600,
-	})
+	}, &fakeDispatcher{})
 	r.onCharacterized(&ddosevent.AttackCharacterized{
 		Target: ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17},
 	})
 	if r.active {
 		t.Error("allowlisted target should not be mitigated")
+	}
+}
+
+func TestResponderAnnounceEmitsUpdateText(t *testing.T) {
+	// VALIDATES: AC-1 -- enforce + characterized emits the update-text add command
+	// with the traffic-rate ext-community and the characterized components.
+	disp := &fakeDispatcher{}
+	r := newResponder(&Config{
+		ResponseLevel: "enforce", Action: "rate-limit", RateLimitBytes: 9600,
+		HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600,
+	}, disp)
+	r.onCharacterized(&ddosevent.AttackCharacterized{
+		Target: ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("192.0.2.0/24"), Proto: 6, DstPort: 80},
+	})
+	if len(disp.cmds) != 1 {
+		t.Fatalf("expected 1 dispatched command, got %d: %v", len(disp.cmds), disp.cmds)
+	}
+	want := "update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination 192.0.2.0/24 protocol =6 destination-port =80"
+	if disp.cmds[0] != want {
+		t.Errorf("announce command mismatch:\n got %q\nwant %q", disp.cmds[0], want)
+	}
+}
+
+func TestResponderWithdrawEmitsDel(t *testing.T) {
+	// VALIDATES: AC-3 -- leak-probe clear emits a matching del re-rendered from
+	// the stored match, with no ext-community (flowspec key is the NLRI).
+	disp := &fakeDispatcher{}
+	r := newResponder(&Config{
+		ResponseLevel: "enforce", Action: "rate-limit", RateLimitBytes: 9600,
+		HoldDown: 2, ProbeInterval: 3, ProbeWindow: 2, ProbeRate: 1000000, BackoffCap: 3600,
+	}, disp)
+	r.onCharacterized(&ddosevent.AttackCharacterized{
+		Target: ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("192.0.2.0/24"), Proto: 6, DstPort: 80},
+	})
+	for range 10 {
+		r.probeTick(0)
+	}
+	if r.active {
+		t.Fatal("should be withdrawn after probe clears")
+	}
+	last := disp.cmds[len(disp.cmds)-1]
+	want := "update text nlri ipv4/flow del destination 192.0.2.0/24 protocol =6 destination-port =80"
+	if last != want {
+		t.Errorf("withdraw command mismatch:\n got %q\nwant %q", last, want)
+	}
+}
+
+func TestBuildFlowspecUpdateText(t *testing.T) {
+	// VALIDATES: renderer grammar (spec "Responder Renderer Grammar") across
+	// discard/rate-limit-0 equivalence, v6, tcp-flags, and del.
+	tests := []struct {
+		name   string
+		match  flowspecMatch
+		action string
+		rate   uint64
+		mode   string
+		want   string
+	}{
+		{
+			"rate-limit v4 full", flowspecMatch{DstPrefix: netip.MustParsePrefix("192.0.2.0/24"), Proto: 6, DstPort: 80, SrcPort: 1024, TCPFlags: 0x12}, "rate-limit", 9600, "add",
+			"update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination 192.0.2.0/24 protocol =6 destination-port =80 source-port =1024 tcp-flags syn&ack",
+		},
+		{
+			"discard v4 dst-only", flowspecMatch{DstPrefix: netip.MustParsePrefix("203.0.113.5/32")}, "discard", 0, "add",
+			"update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination 203.0.113.5/32",
+		},
+		{
+			"rate-limit 0 equals discard", flowspecMatch{DstPrefix: netip.MustParsePrefix("203.0.113.5/32")}, "rate-limit", 0, "add",
+			"update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination 203.0.113.5/32",
+		},
+		{
+			"v6 with protocol", flowspecMatch{DstPrefix: netip.MustParsePrefix("2001:db8::/32"), Proto: 17}, "rate-limit", 1000, "add",
+			"update text extended-community [rate-limit:1000] nhop self nlri ipv6/flow add destination 2001:db8::/32 protocol =17",
+		},
+		{
+			"del omits ext-community", flowspecMatch{DstPrefix: netip.MustParsePrefix("192.0.2.0/24"), Proto: 6, DstPort: 80}, "", 0, "del",
+			"update text nlri ipv4/flow del destination 192.0.2.0/24 protocol =6 destination-port =80",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := renderFlowspecCommand(tc.match, tc.action, tc.rate, tc.mode)
+			if got != tc.want {
+				t.Errorf("\n got %q\nwant %q", got, tc.want)
+			}
+		})
 	}
 }

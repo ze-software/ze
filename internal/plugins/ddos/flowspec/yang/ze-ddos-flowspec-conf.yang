@@ -24,8 +24,12 @@ module ze-ddos-flowspec-conf {
           enum rate-limit;
           enum discard;
         }
-        default rate-limit;
-        description "FlowSpec traffic-action: rate-limit (non-zero rate) or discard (rate 0).";
+        mandatory true;
+        description "FlowSpec traffic-action. Mandatory, with no default because neither drop nor rate-limit is universally safe: discard announces an RFC 8955 traffic-rate of 0 (drops the characterized attack flow); rate-limit announces a byte rate and requires an explicit rate-limit-bytes. A rate-limit-bytes of 0 is a valid choice and is equivalent to discard on the wire.";
+      }
+      leaf rate-limit-bytes {
+        type uint64 { range "0..max"; }
+        description "Bytes per second announced in the RFC 8955 traffic-rate extended community. Required (and validated) when action is rate-limit; there is no default because no rate is universally safe. A value of 0 is valid and encodes the same traffic-rate-0 as discard. Not used when action is discard. Set it to the per-flow rate you are willing to pass to the victim during mitigation.";
       }
       leaf hold-down {
         type uint32 { range "1..86400"; }

@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var loggerPtr atomic.Pointer[slog.Logger]
@@ -25,33 +26,100 @@ func logger() *slog.Logger {
 	return slog.Default()
 }
 
-var announceFunc = func(_ flowspecMatch, _ string) error {
-	logger().Warn("ddos-flowspec: announce stub (cp-survival-4 not yet wired)")
-	return nil
+// routeDispatcher sends a rendered update-text command to the BGP engine. The
+// production implementation (register.go) wraps the plugin SDK's UpdateRoute;
+// tests inject a fake. The responder is a separate process and cannot reach the
+// in-process tag registry, so origination goes through the update-text path.
+type routeDispatcher interface {
+	Dispatch(command string) error
 }
 
-var withdrawFunc = func(_ flowspecMatch) error {
-	logger().Warn("ddos-flowspec: withdraw stub (cp-survival-4 not yet wired)")
-	return nil
+// flowspecSelector announces to all peers; the engine only sends flow NLRI to
+// peers that negotiated the flow family, so "*" self-scopes to flow-capable
+// neighbors without a dedicated upstream config leaf.
+const flowspecSelector = "*"
+
+// tcpFlagBits maps each TCP-flag bit to its canonical FlowSpec token, low bit
+// first. The parser (parseFlowTCPFlagMatches) accepts symbolic names ONLY -- no
+// numeric form -- so tcp-flags MUST render as names, AND-joined with '&'.
+var tcpFlagBits = []struct {
+	bit  uint8
+	name string
+}{
+	{0x01, "fin"}, {0x02, "syn"}, {0x04, "rst"}, {0x08, "psh"},
+	{0x10, "ack"}, {0x20, "urg"}, {0x40, "ece"}, {0x80, "cwr"},
+}
+
+// renderFlowspecCommand builds the update-text command for one flowspec rule.
+// mode is "add" or "del"; "del" omits the traffic-action extended community
+// because the flowspec key is the NLRI alone, so a withdraw re-rendered from the
+// same match byte-matches the announced components. Grammar is pinned against
+// nlri/flowspec/config_builder.go and internal/exabgp/bridge/bridge_test.go.
+func renderFlowspecCommand(m flowspecMatch, action string, rateBytes uint64, mode string) string {
+	var b textbuf.Buffer
+	b.Str("update text")
+	if mode == "add" {
+		rate := rateBytes
+		if action == blackholeAction { // discard == traffic-rate 0
+			rate = 0
+		}
+		b.Str(" extended-community [rate-limit:").Uint(rate).Byte(']')
+		// A next-hop is REQUIRED for the FlowSpec MP_REACH_NLRI: ze drops an
+		// origination with no next-hop before the wire (proven by
+		// test/plugin/ddos-flowspec-announce.ci and the interop scenarios). The
+		// action lives in the ext-community, so "self" is the correct originator
+		// next-hop. Withdraw (MP_UNREACH) needs none.
+		b.Str(" nhop self")
+	}
+	fam := "ipv4/flow"
+	if m.DstPrefix.Addr().Is6() {
+		fam = "ipv6/flow"
+	}
+	b.Str(" nlri ").Str(fam).Byte(' ').Str(mode)
+	b.Str(" destination ").Str(m.DstPrefix.String())
+	if m.Proto != 0 {
+		b.Str(" protocol =").Uint(uint64(m.Proto))
+	}
+	if m.DstPort != 0 {
+		b.Str(" destination-port =").Uint(uint64(m.DstPort))
+	}
+	if m.SrcPort != 0 {
+		b.Str(" source-port =").Uint(uint64(m.SrcPort))
+	}
+	if m.TCPFlags != 0 {
+		b.Str(" tcp-flags ")
+		first := true
+		for _, f := range tcpFlagBits {
+			if m.TCPFlags&f.bit != 0 {
+				if !first {
+					b.Byte('&')
+				}
+				b.Str(f.name)
+				first = false
+			}
+		}
+	}
+	return b.String()
 }
 
 type responder struct {
-	mu     sync.Mutex
-	cfg    *Config
-	active bool
-	target ddosevent.VectorTuple
-	match  flowspecMatch
-	probe  *probe
+	mu         sync.Mutex
+	cfg        *Config
+	dispatcher routeDispatcher
+	active     bool
+	target     ddosevent.VectorTuple
+	match      flowspecMatch
+	probe      *probe
 }
 
-func newResponder(cfg *Config) *responder {
-	return &responder{cfg: cfg}
+func newResponder(cfg *Config, dispatcher routeDispatcher) *responder {
+	return &responder{cfg: cfg, dispatcher: dispatcher}
 }
 
 // blackholeAction is the flowspec traffic action for the critical-severity
 // fallback: discard everything to the victim (RTBH-style), engaged without
 // waiting for characterization.
-const blackholeAction = "discard"
+const blackholeAction = actionDiscard
 
 // onDetected does NOT announce in the normal case (AC-8): announcing upstream
 // blinds the box behind the filter, so the rule must be precise -- flowspec waits
@@ -103,7 +171,8 @@ func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
 // enforce/allowlist/!active.
 func (r *responder) announce(target ddosevent.VectorTuple, action, reason string) {
 	r.match = buildMatch(target)
-	if err := announceFunc(r.match, action); err != nil {
+	cmd := renderFlowspecCommand(r.match, action, r.cfg.RateLimitBytes, "add")
+	if err := r.dispatcher.Dispatch(cmd); err != nil {
 		logger().Error("ddos-flowspec: announce failed", "error", err)
 		return
 	}
@@ -141,7 +210,8 @@ func (r *responder) probeTick(observedBps float64) {
 }
 
 func (r *responder) withdraw() {
-	if err := withdrawFunc(r.match); err != nil {
+	cmd := renderFlowspecCommand(r.match, "", 0, "del")
+	if err := r.dispatcher.Dispatch(cmd); err != nil {
 		logger().Error("ddos-flowspec: withdraw failed", "error", err)
 	}
 	r.active = false
