@@ -1,6 +1,6 @@
 # Ze
 
-**[ze-software.github.io/ze](https://ze-software.github.io/ze)**
+**[ze-software.net](https://ze-software.net)**
 
 > **Pre-release** -- Ze is under active development and has not been released yet. The core BGP engine works and is extensively tested (as of 2026-04: 12,800+ unit tests, 900+ functional tests, 57 fuzz targets, chaos testing, and 35 Docker-based interop scenarios against FRR, BIRD, GoBGP, OpenBGPd, FreeRtr, RustyBGP, and rustbgpd), but some advanced features are still incomplete. APIs and config syntax may change.
 
