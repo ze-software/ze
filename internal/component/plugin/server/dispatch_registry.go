@@ -1,0 +1,340 @@
+// Design: docs/architecture/api/process-protocol.md — plugin RPC dispatch
+// Related: dispatch.go — dispatchPluginRPC / dispatchPluginRPCDirect / wireBridgeDispatch
+//          dispatch_cached.go, dispatch_route.go — op handlers for cached/route ops
+//
+// unify-rpc-dispatch: a single method registry for plugin->engine RPCs. Before
+// this, every operation lived in up to three hand-maintained tables keyed by
+// magic strings -- the JSON socket switch, the in-process Direct switch, and the
+// wireBridgeDispatch Set* list -- plus a fourth branch table in the SDK. Nothing
+// forced them to agree and coverage drifted (subscribe/unsubscribe had no typed
+// slot; route-install/remove had no Direct arm; inject-wire-route/batch-validate
+// had no JSON path). Here each operation is exactly ONE engineOp entry from which
+// the JSON path, the Direct path, and the typed DirectBridge slot all derive, so
+// adding an operation touches one place and the paths cannot drift.
+
+package server
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+
+	plugipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+)
+
+// engineOp is one plugin->engine RPC operation. A single entry drives all three
+// transports:
+//   - the JSON socket path (dispatchPluginRPC -> serveEngineOpJSON),
+//   - the in-process Direct path (dispatchPluginRPCDirect -> serveEngineOpDirect),
+//   - and, when typedWire is non-nil, the typed DirectBridge fast-path slot
+//     (wireBridgeDispatch iterates entries that declare one).
+type engineOp struct {
+	// method is the ze-plugin-engine:* wire method string (rpc.Method* constant).
+	method string
+
+	// handle unmarshals params, runs the shared CORE handler, and returns the
+	// value to marshal (or nil). proc is PASSED, never captured, so the entry is
+	// a single package-level value with zero per-request closure allocation (R-3).
+	// On failure it returns an error: an *rpc.RPCCallError carries the exact
+	// detail to relay, a plain error is relayed verbatim. Both serve wrappers
+	// derive the sent message from the same error, so the JSON and Direct paths
+	// cannot diverge (AC-2).
+	handle func(s *Server, proc *process.Process, params json.RawMessage) (any, error)
+
+	// typedWire, when non-nil, installs this op's typed DirectBridge slot on the
+	// process bridge -- the hot-path escape hatch that skips JSON marshal and
+	// passes native Go values. nil means "no typed slot" (subscribe/unsubscribe,
+	// route-install/route-remove), exactly matching the pre-unification coverage.
+	typedWire func(s *Server, proc *process.Process, b *rpc.DirectBridge)
+}
+
+// engineOps is the single source of truth for plugin->engine runtime RPCs. The
+// JSON path, the Direct path, and the Bridge wiring all derive from this table;
+// TestPluginRPCRegistryCoversAllPaths guards the method set and the typed set.
+var engineOps = []engineOp{
+	{
+		method: rpc.MethodUpdateRoute,
+		handle: (*Server).opUpdateRoute,
+		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
+			b.SetUpdateRouteSel(func(sel *selector.Selector, command string, meta map[string]any) (uint32, uint32, error) {
+				return s.handleUpdateRouteSelDirect(proc, sel, command, meta)
+			})
+		},
+	},
+	{
+		method: rpc.MethodDispatchCommand,
+		handle: (*Server).opDispatchCommand,
+		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
+			b.SetDispatchCommand(func(command string) (*rpc.DispatchCommandOutput, error) {
+				return s.dispatchCommand(proc, command)
+			})
+		},
+	},
+	{
+		method: rpc.MethodDispatchCommandArgs,
+		handle: (*Server).opDispatchCommandArgs,
+		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
+			b.SetDispatchCommandArgs(func(command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
+				return s.dispatchCommandArgs(proc, command, args, peer)
+			})
+		},
+	},
+	{
+		method: rpc.MethodSubscribeEvents,
+		handle: (*Server).opSubscribeEvents,
+		// No typed slot: low-frequency, string-only. Same as before unification.
+	},
+	{
+		method: rpc.MethodUnsubscribeEvents,
+		handle: (*Server).opUnsubscribeEvents,
+	},
+	{
+		method: rpc.MethodEmitEvent,
+		handle: (*Server).opEmitEvent,
+		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
+			b.SetEmitEvent(func(namespace, eventType, direction, peerAddress, event string) (int, error) {
+				return s.deliverEvent(proc, namespace, eventType, direction, peerAddress, event)
+			})
+		},
+	},
+	{
+		method: rpc.MethodForwardCached,
+		handle: (*Server).opForwardCached,
+		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
+			b.SetForwardCached(func(_ context.Context, ids []uint64, destinations []string) error {
+				return s.forwardCached(proc, ids, destinations)
+			})
+		},
+	},
+	{
+		method: rpc.MethodReleaseCached,
+		handle: (*Server).opReleaseCached,
+		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
+			b.SetReleaseCached(func(_ context.Context, ids []uint64) error {
+				return s.releaseCached(proc, ids)
+			})
+		},
+	},
+	{
+		method: rpc.MethodRouteInstall,
+		handle: (*Server).opRouteInstall,
+		// No typed slot: forked-plugin batch path, socket/Direct only.
+	},
+	{
+		method: rpc.MethodRouteRemove,
+		handle: (*Server).opRouteRemove,
+	},
+	{
+		method: rpc.MethodInjectWireRoute,
+		handle: (*Server).opInjectWireRoute,
+		typedWire: func(_ *Server, _ *process.Process, b *rpc.DirectBridge) {
+			b.SetInjectWireRoute(func(protocol, peerKey string, updateBody []byte) error {
+				fn := rpc.GetRouteInjector()
+				if fn == nil {
+					return errors.New("inject-wire-route: no route injector registered")
+				}
+				return fn(protocol, peerKey, updateBody)
+			})
+		},
+	},
+	{
+		method: rpc.MethodBatchValidate,
+		handle: (*Server).opBatchValidate,
+		typedWire: func(_ *Server, _ *process.Process, b *rpc.DirectBridge) {
+			b.SetBatchValidate(func(decisions []rpc.ValidationDecision) (*rpc.BatchValidateResult, error) {
+				fn := rpc.GetBatchValidator()
+				if fn == nil {
+					return nil, errors.New("batch-validate: no batch validator registered")
+				}
+				return fn(decisions)
+			})
+		},
+	},
+}
+
+// engineOpTable indexes engineOps by method for O(1) lookup. Built once at
+// package init; the pointers into the engineOps backing array are stable because
+// the slice is never reallocated after init.
+var engineOpTable = buildEngineOpTable()
+
+func buildEngineOpTable() map[string]*engineOp {
+	m := make(map[string]*engineOp, len(engineOps))
+	for i := range engineOps {
+		m[engineOps[i].method] = &engineOps[i]
+	}
+	return m
+}
+
+// lookupEngineOp returns the registered op for method, or nil if none. A nil
+// result is the fail-closed signal the dispatch paths turn into "unknown method".
+func lookupEngineOp(method string) *engineOp {
+	return engineOpTable[method]
+}
+
+// serveEngineOpJSON runs an op for the JSON socket path: call the shared handler,
+// then write the socket via SendResult / SendError. The error detail is the raw
+// message (rpcErrMessage), matching what serveEngineOpDirect puts in the returned
+// RPCCallError so external and in-process callers see identical error text (AC-2).
+func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, op *engineOp) {
+	result, err := op.handle(s, proc, req.Params)
+	if err != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, rpcErrMessage(err)); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+	if sendErr := conn.SendResult(s.ctx, req.ID, result); sendErr != nil {
+		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+	}
+}
+
+// serveEngineOpDirect runs an op for the in-process Direct path: call the shared
+// handler, then return the marshaled result JSON (no socket envelope). Errors are
+// returned as *rpc.RPCCallError, matching the SDK's CallRPC protocol; an error
+// that is already an RPCCallError passes through unwrapped so its detail is not
+// double-prefixed.
+func (s *Server) serveEngineOpDirect(proc *process.Process, op *engineOp, params json.RawMessage) (json.RawMessage, error) {
+	result, err := op.handle(s, proc, params)
+	if err != nil {
+		var callErr *rpc.RPCCallError
+		if errors.As(err, &callErr) {
+			return nil, callErr
+		}
+		return nil, &rpc.RPCCallError{Message: err.Error()}
+	}
+	return directResultResponse(result)
+}
+
+// rpcErrMessage returns the raw error detail to send on the wire. For an
+// *rpc.RPCCallError it returns the bare Message (RPCCallError.Error() would
+// prepend "rpc error: ", which the plugin adds again on receipt); for any other
+// error it returns Error() verbatim.
+func rpcErrMessage(err error) string {
+	var callErr *rpc.RPCCallError
+	if errors.As(err, &callErr) && callErr.Message != "" {
+		return callErr.Message
+	}
+	return err.Error()
+}
+
+// opUpdateRoute is the shared handler for update-route (JSON + Direct). It
+// dispatches the peer-scoped command string through the standard dispatcher.
+func (s *Server) opUpdateRoute(proc *process.Process, params json.RawMessage) (any, error) {
+	var tb textbuf.Buffer
+	var input rpc.UpdateRouteInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid update-route params: ").Err(err).String()}
+	}
+	peer := input.PeerSelector
+	if peer == "" {
+		peer = "*"
+	}
+	cmdCtx := &CommandContext{
+		Server:         s,
+		Process:        proc,
+		RequestContext: s.Context(),
+		Peer:           peer,
+		Meta:           input.Meta,
+	}
+	// Route injection commands are always peer-scoped subcommands
+	// (e.g., "update text ...", "announce route ..."). Prepend unconditionally.
+	dispatchCmd := tb.Str("peer ").Str(peer).Byte(' ').Str(input.Command).String()
+	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
+	if err != nil {
+		if errors.Is(err, ErrSilent) {
+			return &rpc.UpdateRouteOutput{}, nil
+		}
+		return nil, &rpc.RPCCallError{Message: err.Error()}
+	}
+	return extractUpdateRouteOutput(resp), nil
+}
+
+// opDispatchCommand is the shared handler for dispatch-command (JSON + Direct).
+// It delegates to the s.dispatchCommand core (identity, dispatch, {status,data}).
+func (s *Server) opDispatchCommand(proc *process.Process, params json.RawMessage) (any, error) {
+	var input rpc.DispatchCommandInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		var tb textbuf.Buffer
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid dispatch-command params: ").Err(err).String()}
+	}
+	return s.dispatchCommand(proc, input.Command)
+}
+
+// opDispatchCommandArgs is the shared handler for dispatch-command-args.
+func (s *Server) opDispatchCommandArgs(proc *process.Process, params json.RawMessage) (any, error) {
+	var input rpc.DispatchCommandArgsInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		var tb textbuf.Buffer
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid dispatch-command-args params: ").Err(err).String()}
+	}
+	return s.dispatchCommandArgs(proc, input.Command, input.Args, input.Peer)
+}
+
+// opSubscribeEvents is the shared handler for subscribe-events.
+func (s *Server) opSubscribeEvents(proc *process.Process, params json.RawMessage) (any, error) {
+	var input rpc.SubscribeEventsInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		var tb textbuf.Buffer
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid subscribe params: ").Err(err).String()}
+	}
+	if s.subscriptions == nil {
+		return nil, &rpc.RPCCallError{Message: "subscription manager not available"}
+	}
+	s.registerSubscriptions(proc, &input)
+	return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
+}
+
+// opUnsubscribeEvents is the shared handler for unsubscribe-events. It ignores
+// params (there are none) and clears all of the process's subscriptions.
+func (s *Server) opUnsubscribeEvents(proc *process.Process, _ json.RawMessage) (any, error) {
+	if s.subscriptions == nil {
+		return nil, &rpc.RPCCallError{Message: "subscription manager not available"}
+	}
+	s.subscriptions.ClearProcess(proc)
+	return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
+}
+
+// opEmitEvent is the shared handler for emit-event. s.emitEvent unmarshals its
+// own params and returns *rpc.RPCCallError on failure.
+func (s *Server) opEmitEvent(proc *process.Process, params json.RawMessage) (any, error) {
+	return s.emitEvent(proc, params)
+}
+
+// opInjectWireRoute is the JSON-codec fallback for inject-wire-route (AC-6): a
+// forked/external plugin with no typed slot reaches the process-wide route
+// injector over the socket instead of erroring "bridge not available".
+func (s *Server) opInjectWireRoute(_ *process.Process, params json.RawMessage) (any, error) {
+	var input rpc.InjectWireRouteInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		var tb textbuf.Buffer
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid inject-wire-route params: ").Err(err).String()}
+	}
+	fn := rpc.GetRouteInjector()
+	if fn == nil {
+		return nil, &rpc.RPCCallError{Message: "inject-wire-route: no route injector registered"}
+	}
+	if err := fn(input.Protocol, input.PeerKey, input.UpdateBody); err != nil {
+		return nil, &rpc.RPCCallError{Message: err.Error()}
+	}
+	return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
+}
+
+// opBatchValidate is the JSON-codec fallback for batch-validate (AC-6): a
+// forked/external plugin reaches the process-wide batch validator over the socket
+// instead of hand-rolling a stride-6 string through dispatch-command-args.
+func (s *Server) opBatchValidate(_ *process.Process, params json.RawMessage) (any, error) {
+	var input rpc.BatchValidateInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		var tb textbuf.Buffer
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid batch-validate params: ").Err(err).String()}
+	}
+	fn := rpc.GetBatchValidator()
+	if fn == nil {
+		return nil, &rpc.RPCCallError{Message: "batch-validate: no batch validator registered"}
+	}
+	return fn(input.Decisions)
+}

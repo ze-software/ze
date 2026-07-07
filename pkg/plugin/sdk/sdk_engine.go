@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -44,7 +43,7 @@ func (p *Plugin) UpdateRouteSelWithMeta(ctx context.Context, sel *selector.Selec
 // Pass nil meta for routes without metadata (equivalent to UpdateRoute).
 func (p *Plugin) UpdateRouteWithMeta(ctx context.Context, peerSelector, command string, meta map[string]any) (announced, withdrawn uint32, err error) {
 	input := &rpc.UpdateRouteInput{PeerSelector: peerSelector, Command: command, Meta: meta}
-	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:update-route", input)
+	result, err := p.callEngineWithResult(ctx, rpc.MethodUpdateRoute, input)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -74,7 +73,7 @@ func (p *Plugin) ForwardCached(ctx context.Context, updateIDs []uint64, destinat
 	}
 	// Slow path: JSON-based RPC (external plugins or pre-startup).
 	input := &rpc.ForwardCachedInput{IDs: updateIDs, Destinations: destinations}
-	_, err := p.callEngineWithResult(ctx, "ze-plugin-engine:forward-cached", input)
+	_, err := p.callEngineWithResult(ctx, rpc.MethodForwardCached, input)
 	return err
 }
 
@@ -86,7 +85,7 @@ func (p *Plugin) ReleaseCached(ctx context.Context, updateIDs []uint64) error {
 		return p.bridge.ReleaseCached(ctx, updateIDs)
 	}
 	input := &rpc.ReleaseCachedInput{IDs: updateIDs}
-	_, err := p.callEngineWithResult(ctx, "ze-plugin-engine:release-cached", input)
+	_, err := p.callEngineWithResult(ctx, rpc.MethodReleaseCached, input)
 	return err
 }
 
@@ -100,7 +99,7 @@ func (p *Plugin) ReleaseCached(ctx context.Context, updateIDs []uint64) error {
 // re-resolves it to its own numeric ProtocolID.
 func (p *Plugin) RouteInstall(ctx context.Context, routes []rpc.RouteInstallEntry) (installed uint32, err error) {
 	input := &rpc.RouteInstallInput{Routes: routes}
-	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:route-install", input)
+	result, err := p.callEngineWithResult(ctx, rpc.MethodRouteInstall, input)
 	if err != nil {
 		return 0, err
 	}
@@ -116,7 +115,7 @@ func (p *Plugin) RouteInstall(ctx context.Context, routes []rpc.RouteInstallEntr
 // the forked route-installing path. Returns the number of routes withdrawn.
 func (p *Plugin) RouteRemove(ctx context.Context, routes []rpc.RouteRemoveEntry) (removed uint32, err error) {
 	input := &rpc.RouteRemoveInput{Routes: routes}
-	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:route-remove", input)
+	result, err := p.callEngineWithResult(ctx, rpc.MethodRouteRemove, input)
 	if err != nil {
 		return 0, err
 	}
@@ -128,54 +127,39 @@ func (p *Plugin) RouteRemove(ctx context.Context, routes []rpc.RouteRemoveEntry)
 }
 
 // InjectWireRoute sends raw BGP UPDATE body bytes to the RIB under a named
-// protocol. Zero-copy via DirectBridge typed handler (no hex encoding).
-// Used by the BMP plugin to inject Route Monitoring routes.
+// protocol. Zero-copy via DirectBridge typed handler (no hex encoding) for
+// in-process plugins; a forked/external plugin with no typed slot falls back to
+// the JSON codec over the socket (rpc.MethodInjectWireRoute). The method has no
+// ctx parameter, so the fallback uses a background context.
 func (p *Plugin) InjectWireRoute(protocol, peerKey string, updateBody []byte) error {
 	if p.bridge != nil && p.bridge.HasInjectWireRoute() {
 		return p.bridge.InjectWireRoute(protocol, peerKey, updateBody)
 	}
-	return fmt.Errorf("inject-wire-route: bridge not available")
+	input := &rpc.InjectWireRouteInput{Protocol: protocol, PeerKey: peerKey, UpdateBody: updateBody}
+	_, err := p.callEngineWithResult(context.Background(), rpc.MethodInjectWireRoute, input)
+	return err
 }
 
 // BatchValidate sends a batch of RPKI validation decisions to adj-rib-in.
-// Fast path: typed DirectBridge dispatch (no string serialization).
-// Slow path: builds stride-6 string args and falls back to DispatchCommandArgs.
+// Fast path: typed DirectBridge dispatch (no string serialization). Slow path:
+// the JSON codec over the socket (rpc.MethodBatchValidate) for forked/external
+// plugins without a typed slot.
 func (p *Plugin) BatchValidate(ctx context.Context, decisions []rpc.ValidationDecision) (*rpc.BatchValidateResult, error) {
 	if p.bridge != nil && p.bridge.HasBatchValidate() {
 		return p.bridge.BatchValidate(decisions)
 	}
-	args := make([]string, 0, len(decisions)*6)
-	var buf [20]byte
-	for i := range decisions {
-		d := &decisions[i]
-		var action, stateStr string
-		if d.Accept {
-			action = "a"
-			stateStr = "2"
-			if d.ValState == 1 {
-				stateStr = "1"
-			}
-		} else {
-			action = "r"
-			stateStr = "0"
-		}
-		pathIDStr := string(strconv.AppendUint(buf[:0], uint64(d.PathID), 10))
-		args = append(args, action, d.PeerAddr, d.Family, d.Prefix, pathIDStr, stateStr)
-	}
-	status, data, err := p.DispatchCommandArgs(ctx, "request bgp adj-rib-in batch-validate", args, "")
+	input := &rpc.BatchValidateInput{Decisions: decisions}
+	result, err := p.callEngineWithResult(ctx, rpc.MethodBatchValidate, input)
 	if err != nil {
 		return nil, err
 	}
-	if status != rpc.StatusDone {
-		return nil, fmt.Errorf("batch-validate: status %s", status)
-	}
-	var result rpc.BatchValidateResult
-	if len(data) > 0 {
-		if err := json.Unmarshal(data, &result); err != nil {
+	var out rpc.BatchValidateResult
+	if len(result) > 0 {
+		if err := json.Unmarshal(result, &out); err != nil {
 			return nil, fmt.Errorf("batch-validate: unmarshal result: %w", err)
 		}
 	}
-	return &result, nil
+	return &out, nil
 }
 
 // DispatchCommand dispatches a command through the engine's command dispatcher.
@@ -190,7 +174,7 @@ func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status st
 		out, err = p.bridge.DispatchCommand(command)
 	} else {
 		input := &rpc.DispatchCommandInput{Command: command}
-		out, err = p.dispatchCommandRPC(ctx, "ze-plugin-engine:dispatch-command", input, "dispatch-command")
+		out, err = p.dispatchCommandRPC(ctx, rpc.MethodDispatchCommand, input, "dispatch-command")
 	}
 
 	return dispatchCommandResult(out, err)
@@ -206,7 +190,7 @@ func (p *Plugin) DispatchCommandArgs(ctx context.Context, command string, args [
 		out, err = p.bridge.DispatchCommandArgs(command, args, peer)
 	} else {
 		input := &rpc.DispatchCommandArgsInput{Command: command, Args: args, Peer: peer}
-		out, err = p.dispatchCommandRPC(ctx, "ze-plugin-engine:dispatch-command-args", input, "dispatch-command-args")
+		out, err = p.dispatchCommandRPC(ctx, rpc.MethodDispatchCommandArgs, input, "dispatch-command-args")
 	}
 
 	return dispatchCommandResult(out, err)
@@ -251,7 +235,7 @@ func (p *Plugin) EmitEvent(ctx context.Context, namespace, eventType, direction,
 		PeerAddress: peerAddress,
 		Event:       event,
 	}
-	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:emit-event", input)
+	result, err := p.callEngineWithResult(ctx, rpc.MethodEmitEvent, input)
 	if err != nil {
 		return 0, err
 	}
@@ -265,12 +249,12 @@ func (p *Plugin) EmitEvent(ctx context.Context, namespace, eventType, direction,
 // SubscribeEvents requests event delivery from the engine.
 func (p *Plugin) SubscribeEvents(ctx context.Context, events, peers []string, format string) error {
 	input := &rpc.SubscribeEventsInput{Events: events, Peers: peers, Format: format}
-	return p.callEngine(ctx, "ze-plugin-engine:subscribe-events", input)
+	return p.callEngine(ctx, rpc.MethodSubscribeEvents, input)
 }
 
 // UnsubscribeEvents stops event delivery from the engine.
 func (p *Plugin) UnsubscribeEvents(ctx context.Context) error {
-	return p.callEngine(ctx, "ze-plugin-engine:unsubscribe-events", nil)
+	return p.callEngine(ctx, rpc.MethodUnsubscribeEvents, nil)
 }
 
 // DecodeNLRI requests NLRI decoding from the engine via the plugin registry.

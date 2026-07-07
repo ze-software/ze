@@ -14,82 +14,37 @@ import (
 	"net/netip"
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	plugipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// handleForwardCachedRPC handles ze-plugin-engine:forward-cached from a plugin
-// (pipe path). rs-fastpath-3.
-func (s *Server) handleForwardCachedRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
-	var input rpc.ForwardCachedInput
-	if err := json.Unmarshal(req.Params, &input); err != nil {
-		var tb textbuf.Buffer
-		if sendErr := conn.SendError(s.ctx, req.ID, tb.Str("invalid forward-cached params: ").Str(err.Error()).String()); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-	if err := s.forwardCached(proc, input.IDs, input.Destinations); err != nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-	if sendErr := conn.SendResult(s.ctx, req.ID, nil); sendErr != nil {
-		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
-	}
-}
-
-// handleForwardCachedDirect is the bridge (no-socket-I/O) variant of
-// handleForwardCachedRPC. rs-fastpath-3.
-func (s *Server) handleForwardCachedDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
+// opForwardCached is the shared handler for forward-cached (JSON + Direct),
+// registered as the engineOp for rpc.MethodForwardCached. rs-fastpath-3.
+func (s *Server) opForwardCached(proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.ForwardCachedInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid forward-cached params: ").Err(err).String()}
 	}
 	if err := s.forwardCached(proc, input.IDs, input.Destinations); err != nil {
-		return nil, &rpc.RPCCallError{Message: err.Error()}
+		return nil, err
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
 }
 
-// handleReleaseCachedRPC handles ze-plugin-engine:release-cached from a plugin
-// (pipe path). rs-fastpath-3.
-func (s *Server) handleReleaseCachedRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
-	var input rpc.ReleaseCachedInput
-	if err := json.Unmarshal(req.Params, &input); err != nil {
-		var tb textbuf.Buffer
-		if sendErr := conn.SendError(s.ctx, req.ID, tb.Str("invalid release-cached params: ").Str(err.Error()).String()); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-	if err := s.releaseCached(proc, input.IDs); err != nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-	if sendErr := conn.SendResult(s.ctx, req.ID, nil); sendErr != nil {
-		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
-	}
-}
-
-// handleReleaseCachedDirect is the bridge variant of handleReleaseCachedRPC.
-// rs-fastpath-3.
-func (s *Server) handleReleaseCachedDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
+// opReleaseCached is the shared handler for release-cached (JSON + Direct),
+// registered as the engineOp for rpc.MethodReleaseCached. rs-fastpath-3.
+func (s *Server) opReleaseCached(proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.ReleaseCachedInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid release-cached params: ").Err(err).String()}
 	}
 	if err := s.releaseCached(proc, input.IDs); err != nil {
-		return nil, &rpc.RPCCallError{Message: err.Error()}
+		return nil, err
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
 }
 
 // forwardCached is the shared implementation of the forward-cached RPC. It

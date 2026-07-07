@@ -112,7 +112,7 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
     authorizer allows everything. Typed inter-plugin dispatch (peer-scoped RPCs)
     goes through `isAuthorizedCommandArgs`
     (`internal/component/plugin/server/command.go:519-532`, called from
-    `internal/component/plugin/server/dispatch.go:712`), which prefers
+    `internal/component/plugin/server/dispatch.go:437`), which prefers
     `aaa.CommandArgsAuthorizer` (`aaa/command_args.go:22-24`) over the
     reconstructed legacy string so selector scoping survives; see
     `ai/digests/plugin-transport.md` for the dispatch mechanics.

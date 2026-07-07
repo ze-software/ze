@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1086 summaries
+Total: 1087 summaries
 
 ## 000-099
 
@@ -1150,3 +1150,4 @@ Total: 1086 summaries
 | 1072 | IKE Responder Role (handshake + EAP-server + IKE-rekey responder) | `plan/learned/1072-ipsec-14-responder.md` |
 | 1073 | DDoS FlowSpec Origination (wire the responder + announce flowspec verb) | `plan/learned/1073-ddos-flowspec-wire.md` |
 | 1074 | unify-route-events | `plan/learned/1074-unify-route-events.md` |
+| 1075 | unify-rpc-dispatch | `plan/learned/1075-unify-rpc-dispatch.md` |

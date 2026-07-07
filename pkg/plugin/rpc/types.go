@@ -24,6 +24,29 @@ const (
 	StatusOK    = "ok"
 )
 
+// Plugin->engine runtime RPC method strings. Single source of truth: the
+// engine's method registry (internal/component/plugin/server) and the plugin
+// SDK (pkg/plugin/sdk) both reference these, so the string a caller sends and
+// the string the engine dispatches on cannot drift (unify-rpc-dispatch, AC-4).
+// Each maps to exactly one registry entry from which the JSON socket path, the
+// in-process Direct path, and (where a typed descriptor is declared) the
+// DirectBridge fast-path slot all derive. Codec RPCs (decode-nlri, encode-nlri,
+// ...) route through the plugin registry and are not listed here.
+const (
+	MethodUpdateRoute         = "ze-plugin-engine:update-route"
+	MethodDispatchCommand     = "ze-plugin-engine:dispatch-command"
+	MethodDispatchCommandArgs = "ze-plugin-engine:dispatch-command-args"
+	MethodSubscribeEvents     = "ze-plugin-engine:subscribe-events"
+	MethodUnsubscribeEvents   = "ze-plugin-engine:unsubscribe-events"
+	MethodEmitEvent           = "ze-plugin-engine:emit-event"
+	MethodForwardCached       = "ze-plugin-engine:forward-cached"
+	MethodReleaseCached       = "ze-plugin-engine:release-cached"
+	MethodRouteInstall        = "ze-plugin-engine:route-install"
+	MethodRouteRemove         = "ze-plugin-engine:route-remove"
+	MethodInjectWireRoute     = "ze-plugin-engine:inject-wire-route"
+	MethodBatchValidate       = "ze-plugin-engine:batch-validate"
+)
+
 // DeclareRegistrationInput is the input for ze-plugin-engine:declare-registration (Stage 1).
 type DeclareRegistrationInput struct {
 	Families               []FamilyDecl          `json:"families,omitempty"`
@@ -383,6 +406,28 @@ type RouteRemoveInput struct {
 // RouteRemoveOutput is the output for ze-plugin-engine:route-remove.
 type RouteRemoveOutput struct {
 	Removed uint32 `json:"removed"` // routes withdrawn from the engine Loc-RIB
+}
+
+// InjectWireRouteInput is the JSON-codec fallback input for
+// ze-plugin-engine:inject-wire-route. The typed DirectBridge slot
+// (InjectWireRouteHandler) is the hot path for in-process plugins; this shape
+// gives forked/external plugins (with no typed slot) a defined socket path
+// instead of an ad-hoc "bridge not available" error. UpdateBody is the BGP
+// UPDATE payload (RFC 4271 Section 4.3, without the 19-byte header); it wire-
+// encodes as base64 in JSON.
+type InjectWireRouteInput struct {
+	Protocol   string `json:"protocol"`
+	PeerKey    string `json:"peer-key"`
+	UpdateBody []byte `json:"update-body"`
+}
+
+// BatchValidateInput is the JSON-codec fallback input for
+// ze-plugin-engine:batch-validate. The typed DirectBridge slot
+// (BatchValidateHandler) is the hot path for in-process plugins; this shape
+// gives forked/external plugins a defined socket path instead of a hand-rolled
+// stride-6 string encoding through dispatch-command-args.
+type BatchValidateInput struct {
+	Decisions []ValidationDecision `json:"decisions"`
 }
 
 // DispatchCommandInput is the input for ze-plugin-engine:dispatch-command.

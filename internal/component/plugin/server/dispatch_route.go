@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net/netip"
 
-	plugipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
@@ -45,63 +44,52 @@ type routeKey struct {
 	instance uint32
 }
 
-// handleRouteInstallRPC handles ze-plugin-engine:route-install from a forked
-// route-installing plugin: it applies the batch to the engine's Loc-RIB and records
-// the routes under the plugin name for disconnect cleanup.
+// opRouteInstall is the shared handler for route-install (registered as the
+// engineOp for rpc.MethodRouteInstall): it applies the batch to the engine's
+// Loc-RIB and records the routes under the plugin name for disconnect cleanup.
+// Before unification this existed only on the JSON switch; deriving it from the
+// registry gives it a Direct arm too (AC-5), a pure addition.
 //
 // the input/apply/output types differ and merging them via generics hurts clarity.
 //
 //nolint:dupl // route-install and route-remove are deliberately parallel handlers;
-func (s *Server) handleRouteInstallRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
+func (s *Server) opRouteInstall(proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.RouteInstallInput
-	if err := json.Unmarshal(req.Params, &input); err != nil {
+	if err := json.Unmarshal(params, &input); err != nil {
 		s.routeCounter().With(proc.Name(), "install", "error").Inc()
 		var tb textbuf.Buffer
-		s.sendRouteErr(conn, proc, req.ID, tb.Str("invalid route-install params: ").Str(err.Error()).String())
-		return
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid route-install params: ").Err(err).String()}
 	}
 	keys, err := applyRouteInstall(locrib.Default(), input)
 	if err != nil {
 		s.routeCounter().With(proc.Name(), "install", "error").Inc()
-		s.sendRouteErr(conn, proc, req.ID, err.Error())
-		return
+		return nil, err
 	}
 	s.recordInstalled(proc.Name(), keys)
 	s.routeCounter().With(proc.Name(), "install", "ok").Inc()
-	if sendErr := conn.SendResult(s.ctx, req.ID, &rpc.RouteInstallOutput{Installed: uint32(len(keys))}); sendErr != nil {
-		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
-	}
+	return &rpc.RouteInstallOutput{Installed: uint32(len(keys))}, nil
 }
 
-// handleRouteRemoveRPC handles ze-plugin-engine:route-remove: it withdraws the
-// batch from the engine's Loc-RIB and drops the routes from the plugin's tracking.
+// opRouteRemove is the shared handler for route-remove (registered as the
+// engineOp for rpc.MethodRouteRemove): it withdraws the batch from the engine's
+// Loc-RIB and drops the routes from the plugin's tracking.
 //
-//nolint:dupl // parallel with handleRouteInstallRPC by design; see the note there.
-func (s *Server) handleRouteRemoveRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
+//nolint:dupl // parallel with opRouteInstall by design; see the note there.
+func (s *Server) opRouteRemove(proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.RouteRemoveInput
-	if err := json.Unmarshal(req.Params, &input); err != nil {
+	if err := json.Unmarshal(params, &input); err != nil {
 		s.routeCounter().With(proc.Name(), "remove", "error").Inc()
 		var tb textbuf.Buffer
-		s.sendRouteErr(conn, proc, req.ID, tb.Str("invalid route-remove params: ").Str(err.Error()).String())
-		return
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid route-remove params: ").Err(err).String()}
 	}
 	keys, err := applyRouteRemove(locrib.Default(), input)
 	if err != nil {
 		s.routeCounter().With(proc.Name(), "remove", "error").Inc()
-		s.sendRouteErr(conn, proc, req.ID, err.Error())
-		return
+		return nil, err
 	}
 	s.unrecordInstalled(proc.Name(), keys)
 	s.routeCounter().With(proc.Name(), "remove", "ok").Inc()
-	if sendErr := conn.SendResult(s.ctx, req.ID, &rpc.RouteRemoveOutput{Removed: uint32(len(keys))}); sendErr != nil {
-		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
-	}
-}
-
-func (s *Server) sendRouteErr(conn *plugipc.PluginConn, proc *process.Process, id uint64, msg string) {
-	if err := conn.SendError(s.ctx, id, msg); err != nil {
-		logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", err)
-	}
+	return &rpc.RouteRemoveOutput{Removed: uint32(len(keys))}, nil
 }
 
 // routeCounter lazily builds ze_route_install_rpc_total from the configured metrics

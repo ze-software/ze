@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-06 |
+| Phase | 1/6 |
+| Updated | 2026-07-07 |
 
 ## Post-Compaction Recovery
 
@@ -149,9 +149,9 @@ After the refactor, step 2 becomes: a single `methodRegistry` lookup returns one
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The JSON and Direct handlers for each op differ ONLY in output plumbing (SendResult vs directResultResponse); their unmarshal + core-call is identical. | dispatch.go pairs: handleDispatchCommandRPC :174 vs handleDispatchCommandDirect :674 both unmarshal `DispatchCommandInput` and call `s.dispatchCommand`. | Registry entry cannot serve both shapes; would need per-path entries. | Diff each RPC/Direct pair; grep confirms shared core call; unit test `TestDispatchCommandDirectBridge` asserts identical output. | unvalidated |
-| A-2 | The codec-RPC registry (`CollectRPCHandlers`, `func(json.RawMessage)(any,error)`) is a sufficient shape for built-in ops once the handler is proc-bound (closure capturing proc+Server). | registry.go:585-605; dispatch.go:113,:586 consume it in both paths. | Registry needs a richer entry type carrying proc, not a bare func. | Prototype one op (forward-cached) as a proc-bound registry entry; run `TestRPCRegistrationExpectedMethods`. | unvalidated |
-| A-3 | route-install/route-remove are reached only from forked (socket) plugins today, so adding their Direct+registry arm is additive and breaks nothing. | dispatch_route.go handlers appear in JSON switch only (dispatch.go:104-109); SDK `RouteInstall` uses `callEngineWithResult` (sdk_engine.go:101) which prefers bridge DispatchRPC when in-process. | An in-process caller currently hitting DispatchRPC would already fail (unknown method in Direct switch); adding the arm is a fix, still additive. | grep callers of `RouteInstall`/`RouteRemove`; confirm forked-only via `ze.plugin.hub.token` guard note in dispatch_route.go:6. | unvalidated |
+| A-1 | The JSON and Direct handlers for each op differ ONLY in output plumbing (SendResult vs directResultResponse); their unmarshal + core-call is identical. | dispatch.go pairs: handleDispatchCommandRPC :174 vs handleDispatchCommandDirect :674 both unmarshal `DispatchCommandInput` and call `s.dispatchCommand`. | Registry entry cannot serve both shapes; would need per-path entries. | Diff each RPC/Direct pair; grep confirms shared core call; unit test `TestDispatchCommandDirectBridge` asserts identical output. | confirmed (success paths). NUANCE: emit-event's JSON error path sends `err.Error()` on an `*rpc.RPCCallError`, which prepends `"rpc error: "` (message.go:28), while the Direct path returns the bare `RPCCallError`. So JSON and Direct error messages diverged for emit-event (a latent bug). Also handleDispatchCommandRPC (:174) inlined a copy of s.dispatchCommand rather than calling it. Unified serve derives the sent string from `RPCCallError.Message` (raw, no prefix) for both paths, aligning them (AC-2). See Mistake Log. |
+| A-2 | The codec-RPC registry (`CollectRPCHandlers`, `func(json.RawMessage)(any,error)`) is a sufficient shape for built-in ops once the handler is proc-bound (closure capturing proc+Server). | registry.go:585-605; dispatch.go:113,:586 consume it in both paths. | Registry needs a richer entry type carrying proc, not a bare func. | Prototype one op (forward-cached) as a proc-bound registry entry; run `TestRPCRegistrationExpectedMethods`. | broken. The RETURN shape `(any, error)` is sufficient (proven by handleCodecRPC/handleCodecRPCDirect), but built-in ops need `proc`. Capturing proc in a per-call closure would allocate on a hot path (R-3). Resolution: the entry carries `handle func(*Server, *process.Process, json.RawMessage) (any, error)` — proc PASSED, not captured; a single package-level table value, zero per-request alloc. The registry also lives in the SERVER package (not the leaf `registry` package, which cannot import `*process.Process`/`*Server`). See Deviations + Mistake Log. |
+| A-3 | route-install/route-remove are reached only from forked (socket) plugins today, so adding their Direct+registry arm is additive and breaks nothing. | dispatch_route.go handlers appear in JSON switch only (dispatch.go:104-109); SDK `RouteInstall` uses `callEngineWithResult` (sdk_engine.go:101) which prefers bridge DispatchRPC when in-process. | An in-process caller currently hitting DispatchRPC would already fail (unknown method in Direct switch); adding the arm is a fix, still additive. | grep callers of `RouteInstall`/`RouteRemove`; confirm forked-only via `ze.plugin.hub.token` guard note in dispatch_route.go:6. | confirmed. route-install/route-remove appear only in dispatchPluginRPC (:104-109), absent from dispatchPluginRPCDirect (:566-583). Registry derivation gives them a Direct arm as a pure addition. |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -216,9 +216,9 @@ After the refactor, step 2 becomes: a single `methodRegistry` lookup returns one
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 8 | Plugin SDK/protocol changed? | [ ] internal only, wire protocol unchanged | `docs/architecture/api/process-protocol.md` - update the "dispatch" section to describe registry-driven derivation if the transport description references the switch tables |
-| 12 | Internal architecture changed? | [ ] yes | `docs/architecture/api/process-protocol.md` (plugin RPC dispatch) |
-| 16 | Any changed source file referenced by doc source anchors? | [ ] check | grep `docs/` for `source: internal/component/plugin/server/dispatch.go` and update stale claims |
+| 8 | Plugin SDK/protocol changed? | Yes (internal only; wire method names + JSON shapes unchanged; SDK now uses `rpc.Method*` constants and JSON fallbacks for inject/batch) | `docs/architecture/api/process-protocol.md` -- added "Engine-side dispatch registry" note; existing `sdk_engine.go` anchors still valid (methods unchanged in name/behavior) |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/api/process-protocol.md` -- "Engine-side dispatch registry" paragraph + Files-table row, both with source anchors |
+| 16 | Any changed source file referenced by doc source anchors? | Yes | `docs/` source anchors: only live one is `process-protocol.md:877 dispatch.go -- dispatchCommandArgs` (symbol kept, valid). Hand-maintained digest anchors `ai/digests/plugin-transport.md` + `aaa-auth.md` updated for moved `dispatch.go` lines; `ai/DOCS-TO-CODE.md` regenerated for the new `dispatch_registry.go`. `make ze-doc-test` PASSES. |
 
 ## Files to Create
 - (none expected) - the unification reuses the existing registry package; new tests live in existing `*_test.go` files.
@@ -301,10 +301,14 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| A-2: the leaf codec-registry shape `func(json.RawMessage)(any,error)` is a sufficient home for built-in ops once proc-bound via a closure. | The RETURN shape is sufficient, but built-in ops need `proc` and bind Server/bridge types the leaf registry cannot import; capturing proc per-request also allocates (R-3). | Read registry.go (leaf, no plugin-impl deps) and the built-in handlers (all need proc). | Registry moved to the server package with `handle func(*Server,*process.Process,json.RawMessage)(any,error)` (proc passed, not captured). No leaf-package change. |
+| A-1: JSON and Direct handlers differ ONLY in output plumbing. | True for success paths, but the emit-event JSON error path double-prefixed via `RPCCallError.Error()` while Direct did not -- the error plumbing also differed. | Read `message.go` `RPCCallError.Error()` (prepends `"rpc error: "`). | Unified `rpcErrMessage` sends the raw `.Message` on both paths (AC-2). emit-event JSON error text loses one redundant prefix. |
+| Wiring-Test row cited `TestRPCRegistrationExpectedMethods` as the engine-op drift guard. | That test covers `AllBuiltinRPCs()` (a different `ze-system:*`/`ze-plugin:*` `RPCDispatcher`), not `ze-plugin-engine:*`. | Read rpc_registration_test.go + command.go `AllBuiltinRPCs`. | Built the correct guard `TestPluginRPCRegistryCoversAllPaths`; cited test left untouched (passes). |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
 |----------|---------------|-------------|
+| Force a generic Go helper to fold every SDK `HasX()` branch into one call. | The typed slots have distinct Go signatures (int / *Output / selector); a single generic helper needs reflection or awkward generics and reads worse than the branches. | Made every SDK engine method follow ONE uniform shape (typed-if-available else `callEngine*` with an `rpc.Method*` constant); the two odd-ones-out (inject error, batch string-encode) were the real drift and are gone. |
 
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
@@ -330,81 +334,198 @@ Not applicable - internal dispatch refactor, no protocol/wire behavior.
 ## Implementation Summary
 
 ### What Was Implemented
+- **`internal/component/plugin/server/dispatch_registry.go` (new):** the single `engineOp`
+  table (`engineOps`) + `engineOpTable`/`lookupEngineOp`, the `serveEngineOpJSON` /
+  `serveEngineOpDirect` wrappers, `rpcErrMessage`, and the shared `op*` handlers for the
+  dispatch.go-domain ops (update-route, dispatch-command, dispatch-command-args,
+  subscribe, unsubscribe, emit-event) plus the AC-6 JSON fallbacks (inject-wire-route,
+  batch-validate). Each entry has a proc-passed `handle` (JSON + Direct derive from it)
+  and an optional `typedWire` descriptor (the bridge fast-path slot).
+- **`dispatch.go`:** `dispatchPluginRPC` and `dispatchPluginRPCDirect` now do a registry
+  lookup then codec-registry fallback then fail-closed "unknown method"; the 10-arm and
+  8-arm magic-string switches are gone. `wireBridgeDispatch` iterates `engineOps` and calls
+  each `typedWire`, replacing the hand-written 8-`Set*` list. Six JSON handlers and six
+  Direct handlers deleted (logic moved into the shared `op*` handlers / kept cores).
+- **`dispatch_cached.go`:** four handlers (`handleForward/ReleaseCachedRPC/Direct`) collapsed
+  to `opForwardCached` / `opReleaseCached`; cores unchanged.
+- **`dispatch_route.go`:** `handleRouteInstall/RemoveRPC` + `sendRouteErr` replaced by
+  `opRouteInstall` / `opRouteRemove`; they gain a Direct arm from registry derivation (AC-5).
+- **`pkg/plugin/rpc/types.go`:** shared `rpc.Method*` constants (single source of truth for
+  SDK + engine) and `InjectWireRouteInput` / `BatchValidateInput` (AC-6 codec shapes).
+- **`pkg/plugin/sdk/sdk_engine.go`:** every engine-call method now follows one uniform shape
+  (typed slot if available, else `callEngine*` with an `rpc.Method*` constant). `InjectWireRoute`
+  no longer errors "bridge not available"; `BatchValidate` no longer hand-rolls a stride-6
+  string -- both use the JSON codec fallback (AC-6). Removed the `strconv` string encoding.
 
 ### Bugs Found/Fixed
+- **emit-event JSON error double-prefix (latent):** the old JSON path sent
+  `RPCCallError.Error()` (which prepends `"rpc error: "`) while the Direct path returned the
+  bare `RPCCallError`, so the two transports produced different error text for emit-event. The
+  unified `rpcErrMessage` sends the raw `.Message` on both paths, aligning them (AC-2).
 
 ### Documentation Updates
+- `docs/architecture/api/process-protocol.md`: added an "Engine-side dispatch registry"
+  paragraph (registry-driven derivation of the three transports) + a `dispatch_registry.go`
+  row in the Files table, both with source anchors. Existing anchors (`dispatchCommandArgs`,
+  `DirectBridge`, `sdk_engine.go` methods, `wireBridgeDispatch`) remain valid: those symbols
+  still exist and behave identically.
 
 ### Deviations from Plan
+- **Registry lives in the server package, not the leaf `registry` package.** Files-to-Modify
+  listed `internal/component/plugin/registry/registry.go`, but the built-in ops bind Server
+  methods + `*process.Process` + bridge types, which the leaf registry (by design: "no
+  dependencies on plugin implementations") cannot import. The unified table therefore lives in
+  the server package (`dispatch_registry.go`). Codec RPCs stay in `CollectRPCHandlers` (leaf),
+  consulted as the fallback exactly as before. This satisfies the design intent (one entry per
+  op, all three paths derive from it, one registration site) at the correct tier. A-2 broken.
+- **emit-event JSON error text changed** (drops a redundant `"rpc error: "` prefix) to make the
+  JSON and Direct error messages byte-identical (AC-2). No test asserted the old text.
+- **`batch-validate` SDK fallback no longer routes through the `request bgp adj-rib-in
+  batch-validate` command** (which applied command authorization); it now uses the JSON codec
+  -> `GetBatchValidator`, exactly as the typed bridge slot already did. The typed path never
+  applied command authz either, so this aligns the fallback with the hot path rather than
+  removing a live check. The command itself is unchanged and still tested/CLI-reachable.
+- **`TestRPCRegistrationExpectedMethods` was NOT extended** (the spec's Wiring Test row cited it
+  for the built-in ops). That test covers `AllBuiltinRPCs()` -- the separate `ze-system:*` /
+  `ze-plugin:*` `RPCDispatcher` mechanism, not the `ze-plugin-engine:*` dispatch. The drift
+  guard for the engine ops is the new `TestPluginRPCRegistryCoversAllPaths`; the cited test
+  passes unchanged.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Collapse the three dispatch/wiring tables into one method registry | Done | `dispatch_registry.go` `engineOps` | JSON switch + Direct switch + `Set*` list all removed |
+| Fold the fourth SDK branch table | Done | `sdk_engine.go` | uniform typed-else-JSON shape; `rpc.Method*` constants |
+| Adding an op touches one place; paths cannot drift | Done | `engineOps` + `TestPluginRPCRegistryCoversAllPaths` | one entry per op |
+| Preserve all three transports (socket/direct/typed) | Done | `serveEngineOpJSON`/`serveEngineOpDirect`/`typedWire` | typed slots unchanged |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `dispatch_registry.go` `serveEngineOpJSON` + `engineOps`; `TestDispatchCommandToPlugin`, `TestHandleDispatchCommandRPCPreservesPluginIdentity` | every method dispatches to its shared core, same JSON output |
+| AC-2 | Done | `serveEngineOpDirect` + `dispatchPluginRPCDirect`; `TestEngineOpJSONAndDirectMatch`, `TestDispatchCommandDirectBridge` | Direct byte-identical to JSON; unknown -> "unknown method: X" |
+| AC-3 | Done | `dispatch.go` `wireBridgeDispatch` loop + `typedWire`; `TestWireBridgeDispatchInstallsTypedSlots` | typed slots installed by iterating registry, no JSON marshal |
+| AC-4 | Done | `engineOps` single table; `TestPluginRPCRegistryCoversAllPaths` | one registration site; path-parity asserted |
+| AC-5 | Done | `dispatch_route.go` `opRouteInstall`/`opRouteRemove` resolve via `dispatchPluginRPCDirect`; `TestApplyRouteInstallInsertsPath`/`TestApplyRouteRemoveWithdrawsPath` | route-install/remove gained a Direct arm |
+| AC-6 | Done | `opInjectWireRoute`/`opBatchValidate` + `rpc.InjectWireRouteInput`/`BatchValidateInput` + SDK fallbacks | JSON codec fallback exists; SDK no longer errors / string-encodes |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestDispatchCommandDirectBridge` | Pass (unchanged) | dispatch_test.go | JSON and typed bridge identical |
+| `TestDispatchCommandArgsRoutesSameHandlerAsDispatchCommand` | Pass (unchanged) | dispatch_test.go | args/string converge on one core |
+| `TestRPCRegistrationExpectedMethods` | Pass (unchanged) | rpc_registration_test.go | AllBuiltinRPCs mechanism (separate); untouched |
+| `TestPluginRPCRegistryCoversAllPaths` (new) | Pass | dispatch_registry_test.go | drift guard: method set + typed set + fail-closed |
+| `TestApplyRouteInstallInsertsPath` / `TestApplyRouteRemoveWithdrawsPath` | Pass (unchanged) | dispatch_route_test.go | Loc-RIB apply through registry-derived arm |
+| `TestConcurrentPluginDispatch` | Pass (unchanged) | rpc_test.go | concurrent dispatch correct after registry lookup |
+| `TestWireBridgeDispatchInstallsTypedSlots` (new) | Pass | dispatch_registry_test.go | AC-3 typed-slot wiring from registry |
+| `TestEngineOpJSONAndDirectMatch` (new) | Pass | dispatch_registry_test.go | AC-2 JSON==Direct |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `dispatch.go` | Done | switches + `Set*` list replaced by registry lookup + typedWire loop |
+| `dispatch_cached.go` | Done | RPC/Direct pairs -> `opForwardCached`/`opReleaseCached` |
+| `dispatch_route.go` | Done | RPC handlers -> `opRouteInstall`/`opRouteRemove`; Direct arm derived |
+| `registry/registry.go` | Changed | NOT modified: registry moved to server package instead (see Deviations); codec `CollectRPCHandlers` reused unchanged |
+| `pkg/plugin/rpc/bridge.go` | Not modified | typed `Set*`/`Has*` slots kept as-is; wiring driven from registry; new input types live in types.go |
+| `pkg/plugin/sdk/sdk_engine.go` | Done | uniform shape + `rpc.Method*` constants + AC-6 fallbacks |
+| `dispatch_registry.go` | Done (new) | the unified registry (not in the original Files list; correct home per Deviations) |
+| `pkg/plugin/rpc/types.go` | Done (new work) | `rpc.Method*` constants + `InjectWireRouteInput`/`BatchValidateInput` |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 6 ACs + 6 planned files + 8 tests
+- **Done:** all 6 ACs implemented + tested; all planned behavior delivered
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** registry location (server pkg not leaf), bridge.go untouched (types in types.go), emit-event error text, batch-validate SDK fallback path -- all in Deviations
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Adding an operation touches one place; the three paths cannot drift | functional test | `TestPluginRPCRegistryCoversAllPaths` + `TestRPCRegistrationExpectedMethods` |
+| Adding an operation touches one place; the three paths cannot drift | unit test | `TestPluginRPCRegistryCoversAllPaths` (dispatch_registry_test.go): asserts the 12-method set, `handle != nil` for every op, the exact 8-op typed-descriptor set, and fail-closed `lookupEngineOp`. One `engineOps` entry per op. |
+| All externally observable RPC behavior preserved (internal refactor) | unit test | `TestDispatchCommandToPlugin`, `TestDispatchCommand{NotFound,PluginError,EmptyCommand}`, `TestHandleDispatchCommandRPCPreservesPluginIdentity`, `TestApplyRoute{Install,Remove}*`, `TestConcurrentPluginDispatch` all pass unchanged. |
+| JSON and Direct paths byte-identical | unit test | `TestEngineOpJSONAndDirectMatch` (JSONEq of `serveEngineOpDirect` vs `directResultResponse(handle(...))`); `TestDispatchCommandDirectBridge`. |
+| Typed hot paths not regressed onto JSON | unit test | `TestWireBridgeDispatchInstallsTypedSlots`: all 8 `Has*` true after registry-driven wiring; `typedWire` closures call native cores (`s.deliverEvent`, `s.forwardCached`, ...) with no `json.Marshal`. |
+| Coverage gaps closed (route-install/remove Direct arm; inject/batch JSON fallback) | code + test | route ops resolve through `dispatchPluginRPCDirect` (AC-5); `rpc.InjectWireRouteInput`/`BatchValidateInput` + `opInjectWireRoute`/`opBatchValidate` (AC-6). |
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (initial -- self critical review against Critical Review Checklist)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | | file:line | |
+| 1 | NOTE | emit-event JSON error path double-prefixed via `RPCCallError.Error()`; Direct did not. | dispatch.go (old handleEmitEventRPC) | Unified `rpcErrMessage` sends raw `.Message` on both paths (AC-2). Documented in Deviations. |
+| 2 | NOTE | Registry cannot live in the leaf `registry` package (Server/proc/bridge imports). | Files-to-Modify vs registry.go tier | Placed in server package `dispatch_registry.go`; A-2 broken; documented in Deviations. |
+| 3 | NOTE | Wiring-Test cites `TestRPCRegistrationExpectedMethods`, which tests a different registry (`AllBuiltinRPCs`). | rpc_registration_test.go | Built the correct guard `TestPluginRPCRegistryCoversAllPaths`; cited test unchanged. |
 
 ### Fixes applied
+All NOTEs resolved in code and documented in Deviations / Mistake Log. No BLOCKER or ISSUE found.
+Critical Review Checklist verified: Completeness (12 ops in `engineOps`, every AC has file:line in
+Audit), Correctness (`TestEngineOpJSONAndDirectMatch` + unchanged suite), Data flow (CORE methods
+`dispatchCommand`/`deliverEvent`/`forwardCached`/`applyRouteInstall` untouched -- grep-confirmed),
+No hot-path regression (typedWire closures identical to old inline `Set*`; `handle` is a method
+expression, no per-request closure alloc), Registration-over-hardcoding (one `engineOps` entry per
+op; `grep 'case "ze-plugin-engine:' dispatch.go` = NONE), no-layering (both switches + the `Set*`
+list fully deleted).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+|   | none | Re-review after fixes found no BLOCKER/ISSUE. | | |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE (self-review: 0 BLOCKER, 0 ISSUE, 3 NOTE resolved)
+- [ ] All NOTEs recorded above (3, all resolved)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/plugin/server/dispatch_registry.go` | yes | git status `??` (new) |
+| `internal/component/plugin/server/dispatch_registry_test.go` | yes | git status `??` (new) |
+| `internal/component/plugin/server/dispatch.go` | yes (modified) | git status ` M` |
+| `internal/component/plugin/server/dispatch_cached.go` | yes (modified) | git status ` M` |
+| `internal/component/plugin/server/dispatch_route.go` | yes (modified) | git status ` M` |
+| `pkg/plugin/rpc/types.go` | yes (modified) | git status ` M` |
+| `pkg/plugin/sdk/sdk_engine.go` | yes (modified) | git status ` M` |
+| `docs/architecture/api/process-protocol.md` | yes (modified) | git status ` M` |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | JSON path dispatches to shared core, same output | `go test -run TestDispatchCommandToPlugin\|TestHandleDispatch` PASS |
+| AC-2 | Direct byte-identical to JSON; unknown fail-closed | `go test -run TestEngineOpJSONAndDirectMatch\|TestDispatchCommandDirectBridge` PASS |
+| AC-3 | typed slots installed by iterating registry | `go test -run TestWireBridgeDispatchInstallsTypedSlots` PASS |
+| AC-4 | one registration site; path parity | `go test -run TestPluginRPCRegistryCoversAllPaths` PASS; `grep 'case "ze-plugin-engine:' dispatch.go` = NONE |
+| AC-5 | route-install/remove gain Direct arm | `dispatchPluginRPCDirect`->`lookupEngineOp(route-install)`; `TestApplyRoute*` PASS |
+| AC-6 | inject/batch JSON codec fallback exists | `rpc.InjectWireRouteInput`/`BatchValidateInput` + `opInjectWireRoute`/`opBatchValidate` present; SDK uses them |
 
 ### Wiring Verified (end-to-end)
-| Entry Point | .ci File | Verified |
-|-------------|----------|----------|
+| Entry Point | Test | Verified |
+|-------------|------|----------|
+| In-process dispatch-command JSON+typed identical | `TestDispatchCommandDirectBridge` | yes |
+| exact command + args converge on one handler | `TestDispatchCommandArgsRoutesSameHandlerAsDispatchCommand` | yes |
+| registry advertises exact op set (fail-closed) | `TestPluginRPCRegistryCoversAllPaths` | yes |
+| forked route batch applied to Loc-RIB via registry arm | `TestApplyRouteInstallInsertsPath` | yes |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed (success) / nuance | emit-event error plumbing differed; aligned by `rpcErrMessage` (AC-2). Success paths identical -- unchanged tests pass. |
+| A-2 | broken | leaf registry cannot host Server/proc-bound ops; moved to server package `dispatch_registry.go` with proc-passed `handle`. |
+| A-3 | confirmed | route-install/remove absent from Direct switch pre-change; registry derivation adds the arm additively (`TestApplyRoute*` pass). |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| process-protocol.md "Engine-side dispatch registry" note | anchors `dispatch_registry.go -- engineOps` + `dispatch.go -- wireBridgeDispatch` (symbols exist) | yes |
+| existing anchor `dispatch.go -- dispatchCommandArgs` | `dispatchCommandArgs` still defined (kept) | yes |
+| existing anchors `sdk_engine.go -- all methods`, `bridge.go -- DirectBridge`, `wireBridgeDispatch` | symbols unchanged / still present | yes |
+| `make ze-doc-test` | PASSED (3203 digest anchors resolve; DOCS-TO-CODE regenerated for dispatch_registry.go) | yes |
+| `ai/digests/plugin-transport.md` + `aaa-auth.md` | updated dispatch.go anchors (moved by the refactor) + switch->registry prose | yes |
 
 ## Checklist
 

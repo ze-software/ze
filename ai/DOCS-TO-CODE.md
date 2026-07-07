@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 270 design docs, 2842 files
+Total: 270 design docs, 2843 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -312,6 +312,7 @@ Total: 270 design docs, 2842 files
 | `internal/component/plugin/server/config.go` | plugin server configuration |
 | `internal/component/plugin/server/dispatch.go` | plugin RPC dispatch |
 | `internal/component/plugin/server/dispatch_cached.go` | plugin RPC dispatch (rs-fastpath-3) |
+| `internal/component/plugin/server/dispatch_registry.go` | plugin RPC dispatch |
 | `internal/component/plugin/server/engine_event.go` | engine-side stream pub/sub |
 | `internal/component/plugin/server/event_monitor.go` | event monitoring |
 | `internal/component/plugin/server/events.go` | NLRI codec via plugin RPC |
@@ -2303,7 +2304,7 @@ Total: 270 design docs, 2842 files
 ## `plan/learned/1070-forked-route-install.md`
 
 - `internal/component/plugin/server/dispatch_route.go` -- forked route install via Loc-RIB RPC
-- `internal/plugins/routeinstall/sink.go` -- forked route install via Loc-RIB RPC
+- `internal/core/rib/routeinstall/sink.go` -- forked route install via Loc-RIB RPC
 
 ## `plan/learned/1072-ipsec-14-responder.md`
 

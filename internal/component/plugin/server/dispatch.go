@@ -5,7 +5,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -71,41 +70,15 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 	}
 }
 
-// dispatchPluginRPC handles a single plugin->engine RPC request.
-// Unknown or empty methods get an explicit error per ze's fail-on-unknown rule.
-// Generic RPCs (update-route, subscribe, unsubscribe) are handled directly.
-// Codec RPCs (decode-nlri, encode-nlri, etc.) are delegated via rpcFallback.
+// dispatchPluginRPC handles a single plugin->engine RPC request over the socket
+// (JSON) transport. It resolves the method through the unified engine-op registry
+// (built-in ops), then the codec-RPC registry (decode-nlri, ...), and otherwise
+// returns an explicit "unknown method" error per ze's fail-on-unknown rule. The
+// serve wrapper (serveEngineOpJSON) owns the shared unmarshal/dispatch/SendResult
+// plumbing so every built-in op is exactly one registry entry.
 func (s *Server) dispatchPluginRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
-	switch req.Method {
-	case "ze-plugin-engine:update-route":
-		s.handleUpdateRouteRPC(proc, conn, req)
-		return
-	case "ze-plugin-engine:dispatch-command":
-		s.handleDispatchCommandRPC(proc, conn, req)
-		return
-	case "ze-plugin-engine:dispatch-command-args":
-		s.handleDispatchCommandArgsRPC(proc, conn, req)
-		return
-	case "ze-plugin-engine:subscribe-events":
-		s.handleSubscribeEventsRPC(proc, conn, req)
-		return
-	case "ze-plugin-engine:unsubscribe-events":
-		s.handleUnsubscribeEventsRPC(proc, conn, req)
-		return
-	case "ze-plugin-engine:emit-event":
-		s.handleEmitEventRPC(proc, conn, req)
-		return
-	case "ze-plugin-engine:forward-cached":
-		s.handleForwardCachedRPC(proc, conn, req)
-		return
-	case "ze-plugin-engine:release-cached":
-		s.handleReleaseCachedRPC(proc, conn, req)
-		return
-	case "ze-plugin-engine:route-install":
-		s.handleRouteInstallRPC(proc, conn, req)
-		return
-	case "ze-plugin-engine:route-remove":
-		s.handleRouteRemoveRPC(proc, conn, req)
+	if op := lookupEngineOp(req.Method); op != nil {
+		s.serveEngineOpJSON(proc, conn, req, op)
 		return
 	}
 
@@ -115,127 +88,9 @@ func (s *Server) dispatchPluginRPC(proc *process.Process, conn *plugipc.PluginCo
 		return
 	}
 
-	if err := conn.SendError(s.ctx, req.ID, "unknown method: "+req.Method); err != nil {
-		logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", err)
-	}
-}
-
-// handleUpdateRouteRPC handles ze-plugin-engine:update-route from a plugin.
-// Dispatches the command string through the standard command dispatcher.
-func (s *Server) handleUpdateRouteRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
-	var input rpc.UpdateRouteInput
-	if err := json.Unmarshal(req.Params, &input); err != nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, "invalid update-route params: "+err.Error()); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-	cmdCtx := &CommandContext{
-		Server:         s,
-		Process:        proc,
-		RequestContext: s.Context(),
-		Peer:           input.PeerSelector,
-		Meta:           input.Meta,
-	}
-	if cmdCtx.Peer == "" {
-		cmdCtx.Peer = "*"
-	}
-
-	// Route injection commands are always peer-scoped subcommands
-	// (e.g., "update text ...", "announce route ..."). Prepend unconditionally.
-	// Peer lifecycle actions (teardown, pause, etc.) use dispatch-command instead.
 	var tb textbuf.Buffer
-	dispatchCmd := tb.Str("peer ").Str(cmdCtx.Peer).Byte(' ').Str(input.Command).String()
-
-	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
-	if err != nil {
-		if errors.Is(err, ErrSilent) {
-			if sendErr := conn.SendResult(s.ctx, req.ID, &rpc.UpdateRouteOutput{}); sendErr != nil {
-				logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
-			}
-			return
-		}
-		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-
-	output := extractUpdateRouteOutput(resp)
-
-	if sendErr := conn.SendResult(s.ctx, req.ID, output); sendErr != nil {
-		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
-	}
-}
-
-// handleDispatchCommandRPC handles ze-plugin-engine:dispatch-command from a plugin.
-// Dispatches the command string through the standard command dispatcher and returns
-// the full {status, data} response, enabling inter-plugin communication.
-func (s *Server) handleDispatchCommandRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
-	var input rpc.DispatchCommandInput
-	if err := json.Unmarshal(req.Params, &input); err != nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, "invalid dispatch-command params: "+err.Error()); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-
-	// Set plugin name as username so authorization rules apply to plugin-dispatched
-	// commands. Without this, the empty username causes authz to return Allow for all
-	// commands, bypassing any configured authorization profiles.
-	cmdCtx := &CommandContext{
-		Server:         s,
-		Process:        proc,
-		RequestContext: s.Context(),
-		Username:       func() string { var tb textbuf.Buffer; return tb.Str("plugin:").Str(proc.Name()).String() }(),
-	}
-
-	resp, err := s.dispatcher.Dispatch(cmdCtx, input.Command)
-	if err != nil {
-		if errors.Is(err, ErrSilent) {
-			if sendErr := conn.SendResult(s.ctx, req.ID, &rpc.DispatchCommandOutput{Status: plugin.StatusDone}); sendErr != nil {
-				logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
-			}
-			return
-		}
-		if s.ctx.Err() != nil {
-			logger().Debug("dispatch-command failed (shutting down)", "plugin", proc.Name(), "command", input.Command, "error", err)
-		} else {
-			logger().Error("dispatch-command failed", "plugin", proc.Name(), "command", input.Command, "error", err)
-		}
-		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-
-	output := responseToDispatchOutput(resp)
-	if sendErr := conn.SendResult(s.ctx, req.ID, output); sendErr != nil {
-		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
-	}
-}
-
-// handleDispatchCommandArgsRPC handles ze-plugin-engine:dispatch-command-args from a plugin.
-// Dispatches an exact registered command with pre-tokenized args, avoiding the
-// command-string tokenizer while preserving dispatch-command output semantics.
-func (s *Server) handleDispatchCommandArgsRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
-	var input rpc.DispatchCommandArgsInput
-	if err := json.Unmarshal(req.Params, &input); err != nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, "invalid dispatch-command-args params: "+err.Error()); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-
-	output, err := s.dispatchCommandArgs(proc, input.Command, input.Args, input.Peer)
-	if err != nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-	if sendErr := conn.SendResult(s.ctx, req.ID, output); sendErr != nil {
-		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+	if err := conn.SendError(s.ctx, req.ID, tb.Str("unknown method: ").Str(req.Method).String()); err != nil {
+		logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", err)
 	}
 }
 
@@ -307,59 +162,6 @@ func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.Subscri
 			sub.PeerFilter = &PeerFilter{Selector: input.Peers[0]}
 		}
 		s.subscriptions.Add(proc, sub)
-	}
-}
-
-// handleSubscribeEventsRPC handles ze-plugin-engine:subscribe-events from a plugin.
-func (s *Server) handleSubscribeEventsRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
-	var input rpc.SubscribeEventsInput
-	if err := json.Unmarshal(req.Params, &input); err != nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, "invalid subscribe params: "+err.Error()); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-
-	if s.subscriptions == nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, "subscription manager not available"); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-
-	s.registerSubscriptions(proc, &input)
-	if sendErr := conn.SendResult(s.ctx, req.ID, nil); sendErr != nil {
-		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
-	}
-}
-
-// handleUnsubscribeEventsRPC handles ze-plugin-engine:unsubscribe-events from a plugin.
-func (s *Server) handleUnsubscribeEventsRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
-	if s.subscriptions == nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, "subscription manager not available"); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-
-	s.subscriptions.ClearProcess(proc)
-	if sendErr := conn.SendResult(s.ctx, req.ID, nil); sendErr != nil {
-		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
-	}
-}
-
-// handleEmitEventRPC handles ze-plugin-engine:emit-event from a plugin.
-// Finds matching subscribers and delivers the event string to each.
-func (s *Server) handleEmitEventRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
-	result, err := s.emitEvent(proc, req.Params)
-	if err != nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
-	if sendErr := conn.SendResult(s.ctx, req.ID, result); sendErr != nil {
-		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 	}
 }
 
@@ -562,24 +364,8 @@ func (s *Server) handleCodecRPC(proc *process.Process, conn *plugipc.PluginConn,
 // directly (not wrapped in a {"result":...} envelope). Errors are returned as
 // *rpc.RPCCallError, matching the SDK's CallRPC protocol.
 func (s *Server) dispatchPluginRPCDirect(proc *process.Process, method string, params json.RawMessage) (json.RawMessage, error) {
-	// Known plugin→engine RPCs
-	switch method {
-	case "ze-plugin-engine:update-route":
-		return s.handleUpdateRouteDirect(proc, params)
-	case "ze-plugin-engine:dispatch-command":
-		return s.handleDispatchCommandDirect(proc, params)
-	case "ze-plugin-engine:dispatch-command-args":
-		return s.handleDispatchCommandArgsDirect(proc, params)
-	case "ze-plugin-engine:subscribe-events":
-		return s.handleSubscribeEventsDirect(proc, params)
-	case "ze-plugin-engine:unsubscribe-events":
-		return s.handleUnsubscribeEventsDirect(proc)
-	case "ze-plugin-engine:emit-event":
-		return s.handleEmitEventDirect(proc, params)
-	case "ze-plugin-engine:forward-cached":
-		return s.handleForwardCachedDirect(proc, params)
-	case "ze-plugin-engine:release-cached":
-		return s.handleReleaseCachedDirect(proc, params)
+	if op := lookupEngineOp(method); op != nil {
+		return s.serveEngineOpDirect(proc, op, params)
 	}
 
 	// Try registered RPC handlers (codec RPCs, etc.)
@@ -590,42 +376,6 @@ func (s *Server) dispatchPluginRPCDirect(proc *process.Process, method string, p
 	// Unknown methods get an explicit error per ze's fail-on-unknown rule
 	var tb textbuf.Buffer
 	return nil, &rpc.RPCCallError{Message: tb.Str("unknown method: ").Str(method).String()}
-}
-
-// handleUpdateRouteDirect handles update-route without socket I/O.
-// Returns marshaled result JSON on success, or *rpc.RPCCallError on failure.
-func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
-	var input rpc.UpdateRouteInput
-	if err := json.Unmarshal(params, &input); err != nil {
-		var tb textbuf.Buffer
-		return nil, &rpc.RPCCallError{Message: tb.Str("invalid update-route params: ").Err(err).String()}
-	}
-
-	cmdCtx := &CommandContext{
-		Server:         s,
-		Process:        proc,
-		RequestContext: s.Context(),
-		Peer:           input.PeerSelector,
-		Meta:           input.Meta,
-	}
-	if cmdCtx.Peer == "" {
-		cmdCtx.Peer = "*"
-	}
-
-	var tb textbuf.Buffer
-	dispatchCmd := tb.Str("peer ").Str(cmdCtx.Peer).Byte(' ').Str(input.Command).String()
-
-	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
-	if err != nil {
-		if errors.Is(err, ErrSilent) {
-			return directResultResponse(&rpc.UpdateRouteOutput{})
-		}
-		return nil, &rpc.RPCCallError{Message: err.Error()}
-	}
-
-	output := extractUpdateRouteOutput(resp)
-
-	return directResultResponse(output)
 }
 
 // handleUpdateRouteSelDirect handles update-route with a typed *selector.Selector.
@@ -667,36 +417,6 @@ func extractUpdateRouteOutput(resp *plugin.Response) *rpc.UpdateRouteOutput {
 		output.Withdrawn = r.Withdrawn
 	}
 	return output
-}
-
-// handleDispatchCommandDirect handles dispatch-command without socket I/O.
-// Unmarshals params, delegates to dispatchCommand, wraps result as JSON.
-func (s *Server) handleDispatchCommandDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
-	var input rpc.DispatchCommandInput
-	if err := json.Unmarshal(params, &input); err != nil {
-		var tb textbuf.Buffer
-		return nil, &rpc.RPCCallError{Message: tb.Str("invalid dispatch-command params: ").Err(err).String()}
-	}
-	out, err := s.dispatchCommand(proc, input.Command)
-	if err != nil {
-		return nil, &rpc.RPCCallError{Message: err.Error()}
-	}
-	return directResultResponse(out)
-}
-
-// handleDispatchCommandArgsDirect handles dispatch-command-args without socket I/O.
-// Unmarshals params, delegates to dispatchCommandArgs, wraps result as JSON.
-func (s *Server) handleDispatchCommandArgsDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
-	var input rpc.DispatchCommandArgsInput
-	if err := json.Unmarshal(params, &input); err != nil {
-		var tb textbuf.Buffer
-		return nil, &rpc.RPCCallError{Message: tb.Str("invalid dispatch-command-args params: ").Err(err).String()}
-	}
-	out, err := s.dispatchCommandArgs(proc, input.Command, input.Args, input.Peer)
-	if err != nil {
-		return nil, &rpc.RPCCallError{Message: err.Error()}
-	}
-	return directResultResponse(out)
 }
 
 // dispatchCommandArgs is the core dispatch-command-args logic shared by JSON and typed paths.
@@ -769,43 +489,6 @@ func (s *Server) dispatchCommand(proc *process.Process, command string) (*rpc.Di
 	return responseToDispatchOutput(resp), nil
 }
 
-// handleSubscribeEventsDirect handles subscribe-events without socket I/O.
-// Returns marshaled result JSON on success, or *rpc.RPCCallError on failure.
-func (s *Server) handleSubscribeEventsDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
-	var input rpc.SubscribeEventsInput
-	if err := json.Unmarshal(params, &input); err != nil {
-		var tb textbuf.Buffer
-		return nil, &rpc.RPCCallError{Message: tb.Str("invalid subscribe params: ").Err(err).String()}
-	}
-
-	if s.subscriptions == nil {
-		return nil, &rpc.RPCCallError{Message: "subscription manager not available"}
-	}
-
-	s.registerSubscriptions(proc, &input)
-	return directResultResponse(nil)
-}
-
-// handleUnsubscribeEventsDirect handles unsubscribe-events without socket I/O.
-// Returns marshaled result JSON on success, or *rpc.RPCCallError on failure.
-func (s *Server) handleUnsubscribeEventsDirect(proc *process.Process) (json.RawMessage, error) {
-	if s.subscriptions == nil {
-		return nil, &rpc.RPCCallError{Message: "subscription manager not available"}
-	}
-
-	s.subscriptions.ClearProcess(proc)
-	return directResultResponse(nil)
-}
-
-// handleEmitEventDirect handles emit-event without socket I/O.
-func (s *Server) handleEmitEventDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
-	result, err := s.emitEvent(proc, params)
-	if err != nil {
-		return nil, err
-	}
-	return directResultResponse(result)
-}
-
 // handleCodecRPCDirect handles codec RPCs without socket I/O.
 // Returns marshaled result JSON on success, or *rpc.RPCCallError on failure.
 func handleCodecRPCDirect(codec func(json.RawMessage) (any, error), params json.RawMessage) (json.RawMessage, error) {
@@ -829,52 +512,31 @@ func directResultResponse(data any) (json.RawMessage, error) {
 	return result, nil
 }
 
-// wireBridgeDispatch sets up the DirectBridge's DispatchRPC handler for an internal
-// plugin's process. Called after the 5-stage startup completes for internal plugins.
+// wireBridgeDispatch sets up the DirectBridge for an internal plugin's process
+// after the 5-stage startup completes. The generic DispatchRPC handler covers
+// every registered op via dispatchPluginRPCDirect (JSON-shaped fallback); the
+// typed fast-path slots that skip JSON entirely are installed by iterating the
+// engine-op registry and invoking each entry's typedWire descriptor, so the
+// slot set derives from the same table as the JSON and Direct paths -- no
+// hand-written Set* list to drift (AC-3).
 func (s *Server) wireBridgeDispatch(proc *process.Process) {
-	if proc.Bridge() == nil {
+	b := proc.Bridge()
+	if b == nil {
 		return
 	}
-	proc.Bridge().SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
+	b.SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
 		return s.dispatchPluginRPCDirect(proc, method, params)
 	})
 
-	// Typed fast paths: skip JSON marshal/unmarshal, delegate to shared core methods.
-	proc.Bridge().SetEmitEvent(func(namespace, eventType, direction, peerAddress, event string) (int, error) {
-		return s.deliverEvent(proc, namespace, eventType, direction, peerAddress, event)
-	})
-	proc.Bridge().SetDispatchCommand(func(command string) (*rpc.DispatchCommandOutput, error) {
-		return s.dispatchCommand(proc, command)
-	})
-	proc.Bridge().SetDispatchCommandArgs(func(command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
-		return s.dispatchCommandArgs(proc, command, args, peer)
-	})
-	proc.Bridge().SetUpdateRouteSel(func(sel *selector.Selector, command string, meta map[string]any) (uint32, uint32, error) {
-		return s.handleUpdateRouteSelDirect(proc, sel, command, meta)
-	})
-	// rs-fastpath-3: typed fast paths for forward-cached + release-cached.
-	proc.Bridge().SetForwardCached(func(_ context.Context, ids []uint64, destinations []string) error {
-		return s.forwardCached(proc, ids, destinations)
-	})
-	proc.Bridge().SetReleaseCached(func(_ context.Context, ids []uint64) error {
-		return s.releaseCached(proc, ids)
-	})
-	// bmp-6: typed fast path for inject-wire-route (BMP -> RIB zero-copy).
-	proc.Bridge().SetInjectWireRoute(func(protocol, peerKey string, updateBody []byte) error {
-		fn := rpc.GetRouteInjector()
-		if fn == nil {
-			return errors.New("inject-wire-route: no route injector registered")
+	// Typed fast paths: skip JSON marshal/unmarshal, delegate to shared core
+	// methods. Only ops that declare a typedWire descriptor get a native slot;
+	// the rest (subscribe/unsubscribe, route-install/route-remove) intentionally
+	// have none and fall through to the generic DispatchRPC handler above.
+	for i := range engineOps {
+		if engineOps[i].typedWire != nil {
+			engineOps[i].typedWire(s, proc, b)
 		}
-		return fn(protocol, peerKey, updateBody)
-	})
-	// rpki batching: typed fast path for batch-validate (rpki -> adj-rib-in, no string serialization).
-	proc.Bridge().SetBatchValidate(func(decisions []rpc.ValidationDecision) (*rpc.BatchValidateResult, error) {
-		fn := rpc.GetBatchValidator()
-		if fn == nil {
-			return nil, errors.New("batch-validate: no batch validator registered")
-		}
-		return fn(decisions)
-	})
+	}
 }
 
 // cleanupProcess handles cleanup when a process exits.

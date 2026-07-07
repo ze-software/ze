@@ -375,7 +375,7 @@ programs the kernel exactly as for an in-process installer. Each entry carries t
 redistribute protocol **name** (not the numeric `ProtocolID`, which is per-process):
 the engine re-resolves it to its own id via `redistevents.RegisterProtocol`.
 <!-- source: internal/component/plugin/server/dispatch_route.go -- applyRouteInstall -->
-<!-- source: internal/plugins/routeinstall/sink.go -- Sink -->
+<!-- source: internal/core/rib/routeinstall/sink.go -- Sink -->
 
 ---
 
@@ -662,6 +662,19 @@ flow through `bridge.CallbackCh()`.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->
 <!-- source: internal/component/plugin/server/startup.go -- handleProcessStartupRPC, SetBridge -->
 
+**Engine-side dispatch registry:** all three transports for a plugin-to-engine RPC
+(the socket JSON path, the in-process Direct path, and the typed `DirectBridge`
+fast-path slot) derive from a single method registry -- one `engineOp` entry per
+operation carrying the `rpc.Method*` wire string, a `proc`-passed handler shared by
+the JSON and Direct paths, and an optional typed-slot descriptor. `wireBridgeDispatch`
+installs the typed slots by iterating the entries that declare a descriptor (not a
+hand-written `Set*` list), and `dispatchPluginRPC` / `dispatchPluginRPCDirect` resolve
+the method through the same table, so adding an operation touches one place and the
+JSON / Direct / bridge paths cannot drift. The `rpc.Method*` constants are shared with
+the SDK caller so the sent and dispatched method strings stay in lockstep.
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- engineOps, engineOp, lookupEngineOp -->
+<!-- source: internal/component/plugin/server/dispatch.go -- dispatchPluginRPC, dispatchPluginRPCDirect, wireBridgeDispatch -->
+
 **Runtime hot path (after bridge activates):**
 
 | Direction | Socket path (before) | Direct path (after) |
@@ -696,6 +709,7 @@ callback channels, and later `SendCallback` / `ExecuteCommand` calls fail fast.
 | File | Purpose |
 |------|---------|
 | `pkg/plugin/rpc/bridge.go` | `DirectBridge`, `BridgedConn`, `Bridger`, `BridgeCallback`, `SendCallback`, `CloseCallbacks` |
+| `internal/component/plugin/server/dispatch_registry.go` | `engineOp`, `engineOps` (the unified plugin-to-engine method registry), `serveEngineOpJSON`, `serveEngineOpDirect` |
 | `pkg/plugin/sdk/sdk_callbacks.go` | `initCallbackDefaults`, `On*` wrappers, `callbackHandler` registry |
 | `pkg/plugin/sdk/sdk_dispatch.go` | `eventLoop`, `bridgeEventLoop`, `getCallback` -- generic dispatch |
 | `internal/component/plugin/process/process.go` | Bridge creation in `startInternal()`, bridge check in `deliverBatch()`, `CloseCallbacks` in `Stop()` |
