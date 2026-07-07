@@ -39,6 +39,12 @@ type RawMessage struct {
 // IsAsyncSafe reports whether this message's RawBytes can be safely used after
 // the callback returns. Returns false for zero-copy received UPDATEs where
 // RawBytes points to a buffer that may be reused.
+//
+// The callback return is the lifetime boundary (contract A): a false result
+// means RawBytes is a Borrow into a recyclable receive buffer that a consumer
+// must Own via WireUpdate.Snapshot before the boundary. In debug builds the
+// buffer is poisoned at recycle, so a borrow read after the boundary is caught.
+// See docs/architecture/memory/lifetime-contracts.md.
 func (m *RawMessage) IsAsyncSafe() bool {
 	return m.WireUpdate == nil
 }

@@ -11,12 +11,55 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/core/memguard"
 	"codeberg.org/thomas-mangin/ze/internal/test/sim"
 )
 
 // emptyPayload is a minimal valid UPDATE payload for cache tests.
 // Format: WithdrawnLen(2)=0 + AttrLen(2)=0.
 var emptyPayload = []byte{0, 0, 0, 0}
+
+// TestWireUpdateBufferPoisonedAfterRecycle proves contract-A enforcement: a
+// received-UPDATE borrow into a reactor read buffer reads poison after the
+// reactor recycles the buffer (ReturnReadBuffer) in debug builds, so a
+// subscriber that retained RawBytes without WireUpdate.Snapshot is caught. In
+// release builds the recycle leaves the buffer intact (the borrow reads stale
+// bytes, as today).
+//
+// VALIDATES: Debug builds make a retained RawBytes read after recycle loud (AC-3).
+//
+// PREVENTS: A structured subscriber silently reading the next message's bytes
+// through a RawBytes slice it never owned.
+func TestWireUpdateBufferPoisonedAfterRecycle(t *testing.T) {
+	// Acquire a real 4K read buffer, as the session read loop does.
+	h := bufMuxStd.Get()
+	require.NotNil(t, h.Buf, "read buffer pool must hand out a buffer")
+
+	// Fill with recognizable live bytes and simulate a subscriber retaining a
+	// RawBytes slice into the buffer past the handler (no Snapshot).
+	for i := range h.Buf {
+		h.Buf[i] = 0x5A
+	}
+	retained := h.Buf[19 : 19+16]
+	require.False(t, memguard.IsPoisonedForTest(h.Buf), "a live buffer is not poisoned")
+
+	// The reactor recycles the buffer when the cache evicts the entry.
+	ReturnReadBuffer(h)
+
+	if memguard.Enabled {
+		// The whole slot is poisoned; the retained borrow aliases it and so no
+		// longer reads its live bytes. (IsPoisoned is checked on the poisoned
+		// slot itself — a sub-slice at a non-period-aligned offset would see the
+		// repeating pattern out of phase.)
+		require.True(t, memguard.IsPoisonedForTest(h.Buf),
+			"debug: the recycled receive buffer is poisoned end-to-end")
+		require.NotEqual(t, byte(0x5A), retained[0],
+			"debug: a RawBytes borrow into the recycled buffer no longer reads live data")
+	} else {
+		require.Equal(t, byte(0x5A), retained[0],
+			"release: recycle does not touch the buffer; the borrow reads stale-but-unpoisoned bytes")
+	}
+}
 
 // newTestUpdate creates a ReceivedUpdate with messageID set on WireUpdate.
 func newTestUpdate(id uint64) *ReceivedUpdate {

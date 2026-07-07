@@ -31,6 +31,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/core/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/memguard"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/source"
@@ -118,6 +119,13 @@ func putBuildBuf(h BufHandle) {
 func ReturnReadBuffer(h BufHandle) {
 	if h.Buf == nil || h.ID == noPoolBufID {
 		return
+	}
+	if memguard.Enabled {
+		// Poison the whole slot before it re-enters the pool so a retained
+		// RawBytes borrow into it (a received-UPDATE slice not owned via
+		// WireUpdate.Snapshot) reads poison in debug rather than the next
+		// message's bytes. Contract A; docs/architecture/memory/lifetime-contracts.md.
+		memguard.Poison(h.Buf)
 	}
 	// Route by len(h.Buf), not cap(). Slices into backing arrays have
 	// cap = len(backing) - offset, which varies by position. But len()

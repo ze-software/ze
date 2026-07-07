@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 270 design docs, 2843 files
+Total: 271 design docs, 2847 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1141,6 +1141,15 @@ Total: 270 design docs, 2843 files
 | `internal/component/mcp/streamable_tools.go` | Tool dispatch and task management |
 | `internal/component/mcp/task_state.go` | MCP task state machine (2025-11-25) |
 | `internal/component/mcp/tasks.go` | MCP task registry and worker orchestration |
+
+## `docs/architecture/memory/lifetime-contracts.md`
+
+| File | Topic |
+|------|-------|
+| `internal/core/memguard/memguard.go` | shared "held past boundary" vocabulary |
+| `internal/core/memguard/memguard_test.go` |  |
+| `internal/core/memguard/poison_debug.go` |  |
+| `internal/core/memguard/poison_release.go` |  |
 
 ## `docs/architecture/mrt.md`
 

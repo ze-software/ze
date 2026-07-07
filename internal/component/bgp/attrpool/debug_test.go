@@ -99,3 +99,40 @@ func TestDebugLengthInvalidHandle(t *testing.T) {
 	require.True(t, strings.Contains(err.Error(), "handle="),
 		"debug build must attach handle detail, got %q", err.Error())
 }
+
+// TestDebugStaleHandleAfterReuse proves the ABA guard: in debug builds a
+// released slot is never reused, so a stale handle to it stays dead and Get
+// reports ErrSlotDead instead of silently resolving to a different route's
+// bytes. Against pre-guard code this fails because Intern reuses the freed slot
+// (dead=false) and Get(stale) returns route B's bytes with no error.
+//
+// VALIDATES: Debug builds turn attrpool slot-reuse ABA into a loud ErrSlotDead (AC-1).
+//
+// PREVENTS: A stale attribute Handle resolving to another route's bytes after
+// its slot is re-interned (silent route-data corruption).
+func TestDebugStaleHandleAfterReuse(t *testing.T) {
+	require.False(t, slotReuseEnabled, "debug build must disable slot reuse")
+
+	// Single shard so both payloads land in shard 0 with deterministic slots.
+	p, err := NewWithShards(0, 1024, 1)
+	require.NoError(t, err)
+
+	hOld := mustIntern(t, p, []byte("route-A-attributes"))
+	require.NoError(t, p.Release(hOld))
+
+	// Intern different data. In debug this must NOT reuse hOld's freed slot.
+	hNew := mustIntern(t, p, []byte("route-B-attributes"))
+	require.NotEqual(t, hOld.shardSlot(), hNew.shardSlot(),
+		"debug build must not reuse a freed slot (ABA guard)")
+
+	// The stale handle must error, not resolve to route B's bytes.
+	got, err := p.Get(hOld)
+	require.ErrorIs(t, err, ErrSlotDead,
+		"stale handle after reuse must report ErrSlotDead, not another route's bytes")
+	require.Nil(t, got)
+
+	// The new handle still reads its own data.
+	gotNew, err := p.Get(hNew)
+	require.NoError(t, err)
+	require.Equal(t, []byte("route-B-attributes"), gotNew)
+}

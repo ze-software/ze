@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/memguard"
 )
 
 // ErrPoolShutdown is returned when operations are attempted on a shutdown pool.
@@ -328,8 +330,10 @@ func (s *shard) intern(data []byte) (Handle, error) {
 	// (which uses IsIdle) doesn't need to see them as activity.
 	s.lastActivity.Store(time.Now().UnixNano())
 
-	// Check slot limit under lock (no race)
-	if len(s.slots) >= MaxSlotsPerShard && len(s.freeSlots) == 0 {
+	// Check slot limit under lock (no race). In debug builds freed slots are
+	// not reused (ABA guard), so a non-empty free list does not relieve the
+	// limit; slotReuseEnabled folds this back to the original check in release.
+	if len(s.slots) >= MaxSlotsPerShard && (!slotReuseEnabled || len(s.freeSlots) == 0) {
 		return InvalidHandle, ErrPoolFull
 	}
 
@@ -343,9 +347,11 @@ func (s *shard) intern(data []byte) (Handle, error) {
 	buf.data = append(buf.data, data...)
 	buf.pos += len(data)
 
-	// Allocate or reuse slot
+	// Allocate or reuse slot. Debug builds never reuse (slotReuseEnabled=false):
+	// a freed slot stays dead so a stale handle to it trips ErrSlotDead instead
+	// of resolving to this new occupant's bytes.
 	var slotIdx uint32
-	if len(s.freeSlots) > 0 {
+	if slotReuseEnabled && len(s.freeSlots) > 0 {
 		slotIdx = s.freeSlots[len(s.freeSlots)-1]
 		s.freeSlots = s.freeSlots[:len(s.freeSlots)-1]
 		sl := &s.slots[slotIdx]
@@ -457,22 +463,41 @@ func (s *shard) release(h Handle) error {
 	s.buffers[bufIdx].refCount.Add(-1)
 
 	if sl.refCount <= 0 {
-		sl.dead = true
-
-		// Remove from index - handle may point to either buffer
-		// Must delete to prevent stale entry causing wrong data after slot reuse
-		buf := &s.buffers[bufIdx]
-		if len(buf.data) > 0 {
-			offset := sl.offsets[bufIdx]
-			bufferKey := bytesToString(buf.data[offset : offset+uint32(sl.length)])
-			delete(s.index, bufferKey)
-		}
-
-		// Add slot to free list for reuse
-		s.freeSlots = append(s.freeSlots, slotIdx)
+		s.retireSlot(sl, slotIdx, bufIdx)
 	}
 
 	return nil
+}
+
+// retireSlot marks a slot dead, evicts its dedup index entry, poisons its bytes
+// in debug builds, and returns it to the free list. Called with the shard lock
+// held once refCount reaches zero. slotIdx/bufIdx address the slot's live bytes.
+//
+// The index delete must precede the poison: delete hashes the current bytes to
+// find the entry, so poisoning first would leak a stale index entry. Poisoning
+// the freed region makes any borrowed slice still reading it surface as poison
+// in debug; in release memguard.Enabled folds the poison away (zero cost, bytes
+// stay intact until compaction reclaims the space).
+//
+// The raw-slice poison targets only the caller's bufIdx. A slot migrated
+// mid-compaction has live bytes in the other buffer, so a raw slice borrowed
+// from a post-migration Get into that buffer would not be poisoned here; the
+// stale-handle case is still caught unconditionally by validateHandle's
+// dead-slot check, so this only narrows the secondary raw-slice canary.
+func (s *shard) retireSlot(sl *slot, slotIdx, bufIdx uint32) {
+	sl.dead = true
+
+	buf := &s.buffers[bufIdx]
+	if len(buf.data) > 0 {
+		offset := sl.offsets[bufIdx]
+		bufferKey := bytesToString(buf.data[offset : offset+uint32(sl.length)])
+		delete(s.index, bufferKey)
+		if memguard.Enabled {
+			memguard.Poison(buf.data[offset : offset+uint32(sl.length)])
+		}
+	}
+
+	s.freeSlots = append(s.freeSlots, slotIdx)
 }
 
 // Shutdown marks the pool as shutdown, rejecting new operations.
@@ -589,17 +614,7 @@ func (s *shard) releaseBySlot(localSlot uint32) error {
 	s.buffers[bufIdx].refCount.Add(-1)
 
 	if sl.refCount <= 0 {
-		sl.dead = true
-
-		// Remove from index - must delete to prevent stale entry after slot reuse
-		buf := &s.buffers[bufIdx]
-		if len(buf.data) > 0 {
-			offset := sl.offsets[bufIdx]
-			bufferKey := bytesToString(buf.data[offset : offset+uint32(sl.length)])
-			delete(s.index, bufferKey)
-		}
-
-		s.freeSlots = append(s.freeSlots, localSlot)
+		s.retireSlot(sl, localSlot, bufIdx)
 	}
 
 	return nil

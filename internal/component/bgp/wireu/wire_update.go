@@ -170,6 +170,11 @@ func (u *WireUpdate) MPUnreach() (MPUnreachWire, error) {
 // Snapshot returns a new WireUpdate with an owned copy of the payload.
 // Use when the original payload references a pool buffer that may be
 // reused before all consumers finish reading (e.g., fire-and-forget delivery).
+//
+// This is buffer-lifetime contract A: an eager Own-by-copy taken before the
+// fire-and-forget delivery boundary, so the returned WireUpdate no longer
+// borrows the recyclable receive buffer. See
+// docs/architecture/memory/lifetime-contracts.md.
 func (u *WireUpdate) Snapshot() *WireUpdate {
 	owned := make([]byte, len(u.payload))
 	copy(owned, u.payload)

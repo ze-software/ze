@@ -2,9 +2,26 @@ package attrpool
 
 import (
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// TestReleaseBuildHandleABIUnchanged pins the Handle ABI to a packed uint32 in
+// every build. The debug ABA guard deliberately avoids widening the Handle to
+// carry a generation field (which would double footprint across millions of
+// route entries); this test fails loudly if a generation is ever packed as a
+// wider handle.
+//
+// VALIDATES: Handle stays 32 bits, no generation field, in release and debug (AC-5).
+//
+// PREVENTS: A regression that grows the Handle and doubles RouteEntry/bestpath
+// memory for every route.
+func TestReleaseBuildHandleABIUnchanged(t *testing.T) {
+	require.Equal(t, uintptr(4), unsafe.Sizeof(Handle(0)),
+		"Handle must stay a packed uint32 (4 bytes) in every build")
+}
 
 // TestHandleValid verifies that Valid() correctly identifies valid handles.
 //

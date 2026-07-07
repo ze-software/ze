@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/memguard"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -1601,9 +1602,45 @@ func TestForwardHandleBytesLazyCopy(t *testing.T) {
 
 	h.Release()
 	h.Release()
-	// Bytes after full Release still returns the copy (GC decides
-	// lifetime; Release does not zero buf).
-	assert.Equal(t, byte(0x01), h.Bytes()[0])
+	// After full Release the behavior is build-variant: release builds leave buf
+	// intact (GC decides lifetime), debug builds poison it as the contract-C
+	// canary. This is added coverage, not a relaxation.
+	if memguard.Enabled {
+		assert.True(t, memguard.IsPoisonedForTest(h.Bytes()),
+			"debug: buf is poisoned after final Release")
+	} else {
+		assert.Equal(t, byte(0x01), h.Bytes()[0],
+			"release: Release does not zero buf; Bytes still returns the copy")
+	}
+}
+
+// TestForwardHandleBytesAfterReleasePoisoned proves the contract-C canary: in
+// debug builds the owned copy is poisoned on final Release, so a subscriber that
+// reads Bytes() after its matching Release reads poison, not the live wire
+// bytes. In release builds the same test asserts Bytes() still returns the copy.
+// Against pre-canary code the debug branch fails (Release was a bare decrement).
+//
+// VALIDATES: Debug builds turn read-after-Release on a forward handle loud (AC-2).
+//
+// PREVENTS: A RIB Change subscriber silently reading recycled UPDATE bytes after
+// releasing its reference.
+func TestForwardHandleBytesAfterReleasePoisoned(t *testing.T) {
+	source := []byte{0x01, 0x02, 0x03, 0x04}
+	h, ok := newForwardHandle(source).(*ribForwardHandle)
+	require.True(t, ok)
+
+	h.AddRef()
+	require.Equal(t, source, h.Bytes(), "before release, Bytes returns the owned copy")
+
+	h.Release() // final release: refs 1 -> 0
+
+	if memguard.Enabled {
+		require.True(t, memguard.IsPoisonedForTest(h.Bytes()),
+			"debug: Bytes() after final Release must be poisoned, not the live copy")
+	} else {
+		require.Equal(t, source, h.Bytes(),
+			"release: Release does not zero buf; Bytes() still returns the copy")
+	}
 }
 
 // TestObserveForwardHandlesLogsOnNonNil captures the observer's log

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/memguard"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 )
 
@@ -61,8 +62,18 @@ func (h *ribForwardHandle) AddRef() {
 
 // Release decrements the reference count. Typically called off-lock
 // from the subscriber's worker after it has finished with Bytes.
+//
+// On the final Release (count reaches zero) debug builds poison the owned copy
+// so a subscriber that reads Bytes() after its matching Release reads the poison
+// pattern instead of live wire bytes (the contract-C canary; see
+// docs/architecture/memory/lifetime-contracts.md). buf is nil when AddRef was
+// never called, and Poison no-ops on nil. In release builds memguard.Enabled is
+// a false constant, so this folds back to the bare decrement — no added cost.
 func (h *ribForwardHandle) Release() {
-	h.refs.Add(-1)
+	n := h.refs.Add(-1)
+	if memguard.Enabled && n <= 0 {
+		memguard.Poison(h.buf)
+	}
 }
 
 // Bytes returns the retained copy of the UPDATE wire bytes. Returns
@@ -72,7 +83,8 @@ func (h *ribForwardHandle) Release() {
 // Safe to call from any goroutine between the subscriber's AddRef
 // and matching Release. After all AddRefs have been matched by Release
 // and no one retains the interface value, the handle (and buf) become
-// GC-eligible.
+// GC-eligible. In debug builds buf is poisoned on the final Release, so a
+// contract-violating read after Release returns the poison pattern.
 func (h *ribForwardHandle) Bytes() []byte {
 	return h.buf
 }

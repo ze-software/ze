@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-06 |
+| Phase | 1/6 |
+| Updated | 2026-07-07 |
 
 ## Post-Compaction Recovery
 
@@ -112,10 +112,10 @@ A BGP UPDATE arrives on a peer's receive buffer in the reactor. Its bytes flow i
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The `attrpool.Handle` is fully packed (1+5+26 bits) with no spare bit for an always-on generation tag | `internal/component/bgp/attrpool/handle.go:15-33` bit-layout comment | If wrong, a generation could be packed into the existing uint32 with no ABI widening, simplifying the fix | Re-read handle.go bit layout; confirm slot uses the full 26 bits (it does: `shardIDBits=4` + `shardSlotBits=22`) | unvalidated |
-| A-2 | A debug-build "do not reuse freed slots" rule turns stale-after-reuse into the already-detected `ErrSlotDead` | `pool.go:347-360` (free-slot reuse) + `validate_debug.go:26-29` (dead check) | If a released slot must be reused even in debug (e.g. a test asserts reuse), this detector cannot be debug-only and needs the 64-bit generation instead | Grep attrpool tests for reuse assertions; add a debug-gated branch in `intern` and run the suite | unvalidated |
-| A-3 | The reactor owns the receive-buffer recycle point and can poison it in debug before reuse | `server/events.go:307-320` (buffer freed via cache Activate/Decrement) + `recent_cache.go` retainCount/Decrement | If the buffer is recycled outside a single reactor-owned site, poisoning needs to hook multiple places | Trace the Decrement -> reuse path in `recent_cache.go`/`bufmux.go`; place one debug poison call at the reuse point | unvalidated |
-| A-4 | No production code depends on reading `attrpool` dead-slot bytes or post-Release `Bytes()` (the poison would only ever hit a bug) | `pool.go:459-473` (dead slot marked, bytes intact until compaction); `forward_handle.go:64-78` | If some path legitimately reads after release, poison would corrupt valid data -- but that path would already be a lifetime bug | Debug run of full `ze-test` with poison enabled; any failure is a real retained-pointer bug to fix at source | unvalidated |
+| A-1 | The `attrpool.Handle` is fully packed (1+5+26 bits) with no spare bit for an always-on generation tag | `internal/component/bgp/attrpool/handle.go:15-33` bit-layout comment | If wrong, a generation could be packed into the existing uint32 with no ABI widening, simplifying the fix | Re-read handle.go bit layout; confirm slot uses the full 26 bits (it does: `shardIDBits=4` + `shardSlotBits=22`) | **confirmed** (handle.go:15-33 + 42-54: all 32 bits used, 26-bit slot split 4+22, no spare bit) |
+| A-2 | A debug-build "do not reuse freed slots" rule turns stale-after-reuse into the already-detected `ErrSlotDead` | `pool.go:347-360` (free-slot reuse) + `validate_debug.go:26-29` (dead check) | If a released slot must be reused even in debug (e.g. a test asserts reuse), this detector cannot be debug-only and needs the 64-bit generation instead | Grep attrpool tests for reuse assertions; add a debug-gated branch in `intern` and run the suite | **confirmed-with-refinement** — validate rejects dead slots in BOTH builds (validate_debug.go:26-29 + validate_release.go:24-27), so no-reuse → stale handle hits `ErrSlotDead`. Refinement: three existing tests assert release-only behavior and are made build-aware (skip/branch in debug), NOT the 64-bit fallback: `TestInternReuseDuringCompactionKeepsData` (compaction_test.go:276) and `TestSlotReuseStaleIndexEntry` (pool_test.go:966) hard-assert reuse; `TestForwardHandleBytesLazyCopy` (rib_bestchange_test.go) asserts buf-not-zeroed after Release. Reuse is a memory optimization, not mandatory in debug, so the design holds. |
+| A-3 | The reactor owns the receive-buffer recycle point and can poison it in debug before reuse | `server/events.go:307-320` (buffer freed via cache Activate/Decrement) + `recent_cache.go` retainCount/Decrement | If the buffer is recycled outside a single reactor-owned site, poisoning needs to hook multiple places | Trace the Decrement -> reuse path in `recent_cache.go`/`bufmux.go`; place one debug poison call at the reuse point | **confirmed** — the single receive-buffer recycle site is `ReturnReadBuffer` (session.go:118), called by cache evictLocked/Delete and the forward paths; `returnReadBuffer` (session.go:572) delegates to it. Poison `h.Buf` there before the mux return. |
+| A-4 | No production code depends on reading `attrpool` dead-slot bytes or post-Release `Bytes()` (the poison would only ever hit a bug) | `pool.go:459-473` (dead slot marked, bytes intact until compaction); `forward_handle.go:64-78` | If some path legitimately reads after release, poison would corrupt valid data -- but that path would already be a lifetime bug | Debug run of full `ze-test` with poison enabled; any failure is a real retained-pointer bug to fix at source | **pending full-debug-suite** — touched-package debug baseline is GREEN (attrpool/rib/reactor/redistevents/types/wireu all `ok` under `-tags debug`); final `go test -tags debug ./...` validates the rest. |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -256,60 +256,133 @@ A BGP UPDATE arrives on a peer's receive buffer in the reactor. Its bytes flow i
 ## Implementation Summary
 
 ### What Was Implemented
-- (stub -- design status)
+- **Decision recorded:** the three (really four) contracts stay SEPARATE; the enforcement and vocabulary are unified. No type merged. Handle stays uint32 (64-bit widening deferred).
+- **`internal/core/memguard`** (NEW leaf): the one build-tagged poison primitive. `poison_debug.go` (`Enabled=true`, real `Poison`/`IsPoisoned`, rotating `{0xDE,0xAD,0xBE,0xEF}` pattern) / `poison_release.go` (`Enabled=false`, no-op). Callers gate slice-arg construction on `if memguard.Enabled` so release builds dead-code-eliminate the guard, the poison, and the slice header.
+- **Contract B (attrpool):** `const slotReuseEnabled` in the existing `validate_debug.go`(false)/`validate_release.go`(true) split; `intern` gates free-slot reuse (and the pool-full check) on it, so debug never reuses a freed slot → a stale handle trips the existing `ErrSlotDead`. Extracted `retireSlot` (DRYs `release`/`releaseBySlot`) which poisons dead-slot bytes under `if memguard.Enabled`.
+- **Contract C (rib `forward_handle.go`):** `Release` poisons the owned `buf` on the final decrement (`if memguard.Enabled && n <= 0`); `h.refs.Add(-1)` still always runs, so release behavior is the unchanged bare decrement.
+- **Contract A (reactor `session.go` `ReturnReadBuffer`):** poisons `h.Buf` at the single receive-buffer recycle site before the mux return.
+- **Contract D (`redistevents` `ReleaseBatch`):** debug poisons entries via a struct sentinel (`poisonReleasedEntries`: scalar fields `0xDEADBEEF`, `Action=actionPoison`, netip fields left zero so their pointers stay nil/GC-safe) instead of `clear()`; release still `clear()`s. Byte-poison is unsafe here because `netip.Addr`/`Prefix` carry a `z` pointer.
+- **Vocabulary doc** `docs/architecture/memory/lifetime-contracts.md` (Boundary/Borrow/Retain/Own) with a `<!-- source: -->` anchor per contract; doc-comments on `Snapshot` and `IsAsyncSafe` reference it.
 
 ### Bugs Found/Fixed
-- (stub -- design status)
+- No production bug found (the debug suite passed, confirming A-4: no production path reads dead-slot or post-release bytes). The silent lifetime hazards the spec targets are now caught loudly in debug.
 
 ### Documentation Updates
-- (stub -- design status)
+- NEW `docs/architecture/memory/lifetime-contracts.md` (shared vocabulary + 4 contract anchors).
+- Doc-comments: `wireu/wire_update.go` `Snapshot`, `types/rawmessage.go` `IsAsyncSafe`, `rib/forward_handle.go` `Release`/`Bytes`, `attrpool` `validate_*.go` `slotReuseEnabled`, `redistevents/pool.go` `ReleaseBatch`/`poisonReleasedEntries`.
 
 ### Deviations from Plan
-- (stub -- design status)
+- **Phase order:** memguard (spec Phase 2) was built before the characterization tests (spec Phase 1) because the contract-C/D characterization tests import `memguard.IsPoisoned`. Per-phase TDD (write the failing debug test, then implement) was used within Phases 3-5 instead of a single up-front Phase 1. Same red-then-green discipline.
+- **Test build-awareness (A-2 refinement):** three existing tests assert release-only behavior that the debug enforcement intentionally changes; made build-aware rather than the 64-bit fallback. `TestInternReuseDuringCompactionKeepsData` and `TestSlotReuseStaleIndexEntry` skip in debug (conditional `if !slotReuseEnabled`, annotated `// test-relax:`); `TestForwardHandleBytesLazyCopy` tail and `TestRouteChangeBatchPoolResetsOriginAS` branch on `memguard.Enabled` (added coverage, no assertion removed).
+- **Contract-A test assertion:** `TestWireUpdateBufferPoisonedAfterRecycle` checks `IsPoisoned` on the whole recycled slot (not a sub-slice) because the repeating 4-byte pattern is phase-aligned to the slot's index 0; a retained sub-slice at a non-period-aligned offset reads poison out of phase. The test asserts the slot is poisoned end-to-end and the retained borrow no longer reads its live bytes.
+- **Contract D poison mechanism:** struct sentinel, not `memguard.Poison`, because `netip` pointers preclude safe byte-poison (documented in the vocabulary doc and Known Limitations). Still gated on `memguard.Enabled`.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Decide duplication vs distinct layers, with evidence | Done | Key Design Decisions + vocabulary doc | Distinct layers (mutually-exclusive copy semantics); keep separate |
+| Preserve all externally observable behavior | Done | release paths unchanged; all release tests green | Poison/no-reuse are debug-only |
+| Close the enforcement gaps (silent → loud) | Done | AC-1..AC-3, AC-6 tests | Each contract now errors/poisons in debug |
+| One shared vocabulary | Done | `docs/architecture/memory/lifetime-contracts.md` | Boundary/Borrow/Retain/Own, 4 anchors |
+| One shared poison helper | Done | `internal/core/memguard` | Contracts A/B/C; D uses gated struct sentinel (netip pointers) |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDebugStaleHandleAfterReuse` (debug PASS) | stale handle → `ErrSlotDead`, slot not reused |
+| AC-2 | Done | `TestForwardHandleBytesAfterReleasePoisoned` (debug PASS) | `Bytes()` after Release is poisoned |
+| AC-3 | Done | `TestWireUpdateBufferPoisonedAfterRecycle` (debug PASS) | recycled receive buffer poisoned; borrow no longer reads live bytes |
+| AC-4 | Done | grep: one `memguard.Poison`; 4 doc anchors reference the vocabulary | D's struct sentinel documented as the netip exception |
+| AC-5 | Done | `TestReleaseBuildHandleABIUnchanged` (uint32); release tests green; lint clean both tags | no per-Get cost; poison behind `if memguard.Enabled` |
+| AC-6 | Done | `TestReleaseBatchPoisonsEntries` (debug PASS) | entries poisoned (0xDEADBEEF), not zero |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestDebugStaleHandleAfterReuse` | Done | `attrpool/debug_test.go` | AC-1 |
+| `TestForwardHandleBytesAfterReleasePoisoned` | Done | `rib/rib_bestchange_test.go` | AC-2 (build-aware, both builds) |
+| `TestWireUpdateBufferPoisonedAfterRecycle` | Done | `reactor/recent_cache_test.go` | AC-3 |
+| `TestReleaseBatchPoisonsEntries` | Done | `redistevents/pool_test.go` | AC-6 |
+| `TestReleaseBuildHandleABIUnchanged` | Done | `attrpool/handle_test.go` | AC-5 ABI, both builds |
+| `TestSlotReuseStaleIndexEntry` | Preserved (skips in debug) | `attrpool/pool_test.go` | regression; release-only reuse |
+| `TestDebugValidationCatchesDeadSlot` | Preserved | `attrpool/debug_test.go` | dead-slot regression, still fires |
+| `TestRawMessageIsAsyncSafe` | Preserved | `types/types_test.go` | contract preserved |
+| memguard `TestPoisonRoundTrip` / `TestPoisonEmptyAndNil` / `TestIsPoisonedRejectsPartialMatch` | Done | `memguard/memguard_test.go` | primitive, both builds |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `attrpool/pool.go` | Done | reuse gate, `retireSlot` poison |
+| `attrpool/validate_debug.go` / `validate_release.go` | Done | `slotReuseEnabled` const |
+| `rib/forward_handle.go` | Done | Release poison canary |
+| `reactor/session.go` (`ReturnReadBuffer`) | Done | receive-buffer poison (the actual recycle site; `recent_cache.go`/`bufmux.go` not needed) |
+| `redistevents/pool.go` | Done | struct-sentinel poison |
+| `internal/core/memguard/poison.go` | Done (as `memguard.go` + `poison_debug.go` + `poison_release.go`) | build-tag split |
+| `types/rawmessage.go`, `wireu/wire_update.go` | Done | vocabulary doc-comments |
+| `docs/architecture/memory/lifetime-contracts.md` | Done | new vocabulary doc |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 6 ACs + 5 requirements + planned files/tests
+- **Done:** all ACs, all requirements, all planned files (with the noted file-name/location adaptations)
+- **Partial:** none
+- **Skipped:** none (the two reuse tests are *conditionally skipped in debug only* by design, not dropped; they run and pass in release)
+- **Changed:** phase order, three tests made build-aware, contract-D sentinel mechanism (all in Deviations)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/core/memguard/{memguard,poison_debug,poison_release,memguard_test}.go` | Yes | written this session; tests pass both builds |
+| `docs/architecture/memory/lifetime-contracts.md` | Yes | new vocabulary doc, 4 anchors |
+| `attrpool/{pool,validate_debug,validate_release,debug_test,handle_test,pool_test,compaction_test}.go` | Yes | modified |
+| `rib/{forward_handle,rib_bestchange_test}.go` | Yes | modified |
+| `reactor/{session,recent_cache_test}.go` | Yes | modified |
+| `redistevents/{pool,pool_test}.go` | Yes | modified |
+| `{wireu/wire_update,types/rawmessage}.go` | Yes | doc-comment updates |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | stale handle → ErrSlotDead | `TestDebugStaleHandleAfterReuse` PASS (debug) |
+| AC-2 | Bytes() after Release poisoned | `TestForwardHandleBytesAfterReleasePoisoned` PASS (debug) |
+| AC-3 | recycled receive buffer poisoned | `TestWireUpdateBufferPoisonedAfterRecycle` PASS (debug) |
+| AC-4 | one poison helper + vocabulary | `rg "func Poison"` → memguard only; 4 contracts ref lifetime-contracts.md |
+| AC-5 | Handle uint32, no release cost | `TestReleaseBuildHandleABIUnchanged` PASS; lint clean both tags; release tests green |
+| AC-6 | entries poisoned not zeroed | `TestReleaseBatchPoisonsEntries` PASS (debug) |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| redistribute OSPF→BGP forwards through RIB Change/forward path | `test/ospf/ospf-redist-bgp.ci` | Yes — `make ze-ospf-test` PASS (ospf-redist-bgp 60 checks); release behavior unchanged |
+| redistribute IS-IS→BGP forwards | `test/isis/isis-redist-bgp.ci` | Yes — `make ze-isis-test` PASS (isis-redist-bgp 11 checks) |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | handle.go:15-33/42-54 — 32 bits fully packed, no spare bit |
+| A-2 | confirmed-with-refinement | validate rejects dead in both builds; 3 release-only tests made build-aware (not 64-bit fallback) |
+| A-3 | confirmed | `ReturnReadBuffer` (session.go:118) is the single recycle site; poison placed there |
+| A-4 | confirmed | previously-failing pkgs (config/doctor/plugin-all/dnsserver) + all touched pkgs pass under `-tags "debug ze_core <features>"` in BOTH builds → no production path reads dead/post-release bytes |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| vocabulary doc anchors resolve to real symbols | 4 `<!-- source: -->` anchors → memguard/attrpool/rib/reactor/redistevents/wireu/types | Yes |
+| Snapshot / IsAsyncSafe doc-comments reference vocabulary | wire_update.go / rawmessage.go edited | Yes |
+| `ze-doc-test` | run in Phase 6 verification | Yes — PASS (after `make ze-discovery-index` regenerated the 3 indexes) |
+
+## Review Gate
+
+Result: **0 BLOCKER, 0 ISSUE.**
+
+| Pass | Source | Findings | Disposition |
+|------|--------|----------|-------------|
+| Automated | `make ze-validate` | 1 real (`memguard.IsPoisoned` no non-test caller) + 20 pre-existing exports in touched files | Fixed via `IsPoisonedForTest` rename (`*ForTest` convention, validate.py:372); 20 pre-existing = false positives (ze-validate is post-verify, not in ze-verify) |
+| Automated | `audit-test-relaxation.py` | 3 documented `[RELAXED]` | All legitimate: 2 reuse tests skip in debug (release-only reuse path, still run in release), 1 redistevents assertion made robust to sync.Pool non-determinism (exact value still checked deterministically on backing[0]) |
+| Manual | own pass (logic/concurrency/perf/altitude) | 0 BLOCKER/ISSUE | release path byte-identical (all poison behind `if memguard.Enabled`); retireSlot extraction faithful; guards correct |
+| Independent | fresh-eyes agent (correctness/concurrency/hidden-behavior) | 0 BLOCKER/ISSUE, 3 NOTE | All 3 NOTEs addressed (comment/doc accuracy: redistevents "0.0.0.0/0" rationale corrected, debug churn ceiling documented, migration-case canary gap noted) |
+
+Verification: full debug suite (proper tags) PASS; touched packages PASS release+debug under `-race`; ospf/isis redist functional PASS; tier-check PASS; doc-test PASS; lint clean both tags. Pre-existing `internal/plugins/ospf` `TestVirtualLinkResolutionDrivesRuntime` data race (`virtual_link.go:160`) reproduces in a pure release build without this change — out of scope.

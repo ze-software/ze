@@ -245,6 +245,14 @@ func TestCompactionPerShardValidHandles(t *testing.T) {
 // The interleaving is driven deterministically via same-package access to the
 // shard's compaction state and free list — no scheduler, no timing.
 func TestInternReuseDuringCompactionKeepsData(t *testing.T) {
+	// test-relax: this test exercises the release-only reuse-during-compaction
+	// path; debug builds disable slot reuse as the ABA guard
+	// (spec-unify-buffer-lifetime), so the precondition is deliberately absent
+	// there. It still runs and must pass in the default (release) build. See
+	// docs/architecture/memory/lifetime-contracts.md.
+	if !slotReuseEnabled {
+		t.Skip("slot reuse disabled in debug builds (ABA guard)")
+	}
 	// Single shard so every payload lands in shard 0 and slot indices are
 	// deterministic: A=0, B=1, C=2.
 	p, err := NewWithShards(7, 1024, 1)

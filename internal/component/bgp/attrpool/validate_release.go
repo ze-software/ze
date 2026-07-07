@@ -4,6 +4,13 @@
 
 package attrpool
 
+// slotReuseEnabled controls whether intern reuses freed slots. Release builds
+// reuse them: slot reuse is the memory optimization that keeps the slot table
+// bounded under route churn. Debug builds set this false to detect
+// stale-after-reuse (ABA); see validate_debug.go and
+// docs/architecture/memory/lifetime-contracts.md.
+const slotReuseEnabled = true
+
 // validateHandle checks handle validity in release builds.
 // Operates within a single shard; the handle's per-shard slot indexes s.slots.
 // Returns error if invalid.

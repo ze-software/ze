@@ -14,7 +14,11 @@
 
 package redistevents
 
-import "sync"
+import (
+	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/memguard"
+)
 
 // EntriesCap is the seeded capacity for a fresh batch's Entries slice. Sized
 // to accommodate typical bursts (L2TP session events, connected-route mass
@@ -69,12 +73,22 @@ func ReleaseBatch(b *RouteChangeBatch) {
 	if b == nil {
 		return
 	}
-	// Zero each entry so we do not retain references via Prefix / NextHop
-	// after release. netip.Prefix and netip.Addr are value types, so this is
-	// a small fixed-size memset. clear() resets EVERY entry field, including
-	// value-type additions like Metric and OriginAS, so a recycled batch never
-	// leaks a prior route's per-entry data -- no per-field reset is needed here.
-	clear(b.Entries)
+	// Drop per-entry references (Prefix / NextHop) so a recycled batch never
+	// leaks a prior route's data. clear() resets EVERY entry field, including
+	// value-type additions like Metric and OriginAS, so no per-field reset is
+	// needed. Debug builds poison instead of clearing: a batch read after this
+	// synchronous-dispatch boundary then surfaces a recognizable sentinel in the
+	// scalar fields (Action/Metric/Table/OriginAS) rather than a plausible-looking
+	// zero. Prefix/NextHop stay zero either way -- a zero netip is already
+	// IsValid()==false (not 0.0.0.0/0) and its z pointer must stay nil for GC
+	// safety, so those fields carry no sentinel (contract D;
+	// docs/architecture/memory/lifetime-contracts.md). memguard.Enabled folds the
+	// branch away in release.
+	if memguard.Enabled {
+		poisonReleasedEntries(b.Entries)
+	} else {
+		clear(b.Entries)
+	}
 	b.Entries = b.Entries[:0]
 	b.Protocol = ProtocolUnspecified
 	b.AFI = 0
@@ -86,4 +100,34 @@ func ReleaseBatch(b *RouteChangeBatch) {
 	// clearing it would corrupt the producer's data.
 	b.Community = nil
 	batchPool.Put(b)
+}
+
+// actionPoison is an out-of-range RouteAction written into released entries in
+// debug builds. It is never a valid action (Add/Remove), so a poisoned entry
+// read after release is unmistakable.
+const actionPoison RouteAction = 0xEE
+
+// poisonReleasedEntries overwrites each released entry's SCALAR fields with a
+// recognizable sentinel (debug builds only, gated by the caller on
+// memguard.Enabled) so a batch retained past its synchronous-dispatch boundary
+// reads an obviously-invalid Action/Metric/Table/OriginAS instead of a
+// plausible-looking zero.
+//
+// RouteChangeEntry embeds netip.Addr/Prefix, whose internal pointer must stay
+// nil for GC safety, so this cannot raw byte-poison the struct (a fabricated
+// pointer would crash the GC). It therefore poisons only the scalar fields and
+// leaves the netip fields zero -- a zero netip is already IsValid()==false, so
+// it needs no sentinel, and its nil z pointer is GC-safe. The struct assignment
+// also drops the prior entry's Prefix/NextHop references, matching clear()'s
+// no-leak guarantee. See docs/architecture/memory/lifetime-contracts.md (D).
+func poisonReleasedEntries(entries []RouteChangeEntry) {
+	const mark uint32 = 0xDEADBEEF
+	for i := range entries {
+		entries[i] = RouteChangeEntry{
+			Action:   actionPoison,
+			Metric:   mark,
+			Table:    mark,
+			OriginAS: mark,
+		}
+	}
 }

@@ -6,6 +6,14 @@ package attrpool
 
 import "fmt"
 
+// slotReuseEnabled controls whether intern reuses freed slots. Debug builds
+// disable reuse so a released slot stays dead: a stale Handle to it then trips
+// ErrSlotDead (the ABA guard) instead of silently resolving to the next
+// occupant's bytes. The Handle is fully packed (no bit for a generation tag),
+// so refusing reuse is the only zero-ABI way to detect stale-after-reuse.
+// See docs/architecture/memory/lifetime-contracts.md.
+const slotReuseEnabled = false
+
 // validateHandle checks handle validity in debug builds.
 // Operates within a single shard; the handle's per-shard slot indexes s.slots.
 // Returns error if invalid, with detailed message for debugging.

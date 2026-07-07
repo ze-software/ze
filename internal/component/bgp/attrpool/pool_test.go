@@ -944,6 +944,13 @@ func TestNewSlotsDuringCompaction(t *testing.T) {
 //
 // PREVENTS: Dedup returning stale handle that reads wrong data after slot reuse.
 func TestSlotReuseStaleIndexEntry(t *testing.T) {
+	// test-relax: this test exercises the release-only slot-reuse path; debug
+	// builds disable reuse as the ABA guard (spec-unify-buffer-lifetime), so the
+	// precondition is deliberately absent there. It still runs and must pass in
+	// the default (release) build. See docs/architecture/memory/lifetime-contracts.md.
+	if !slotReuseEnabled {
+		t.Skip("slot reuse disabled in debug builds (ABA guard)")
+	}
 	p := mustNewWithIdx(t, 0, 1024)
 
 	// Slot reuse and dedup happen within a single shard, so the "different"

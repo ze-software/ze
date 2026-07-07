@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 594 packages, 594 described, 0 TODO
+Total: 595 packages, 595 described, 0 TODO
 
 
 ## `cmd/ze/`
@@ -436,6 +436,7 @@ Total: 594 packages, 594 described, 0 TODO
 | `internal/core/iface/events` | defines event constants for the interface component |  |
 | `internal/core/ipc` | routes and serializes plugin RPC method calls for the IPC wire protocol |  |
 | `internal/core/ipc/yang` | embeds the ze plugin and system YANG modules and registers them with the config loader |  |
+| `internal/core/memguard` | is the one build-tagged poison primitive shared by every buffer-lifetime contract in ze |  |
 | `internal/core/metrics` | provides metric collection interfaces and backends |  |
 | `internal/core/mplsfib` | defines the event channel carrying MPLS forwarding entries from label-distribution sources to the kernel FIB |  |
 | `internal/core/naming` | validates configuration node names against the shared node-name pattern |  |
