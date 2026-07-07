@@ -2305,6 +2305,11 @@ Total: 270 design docs, 2842 files
 - `internal/component/plugin/server/dispatch_route.go` -- forked route install via Loc-RIB RPC
 - `internal/plugins/routeinstall/sink.go` -- forked route install via Loc-RIB RPC
 
+## `plan/learned/1072-ipsec-14-responder.md`
+
+- `internal/component/ike/engine/responder.go` -- IKE responder handshake (mirror of the initiator)
+- `internal/component/ike/engine/responder_eap.go` -- IKE responder EAP authenticator
+
 ## `plan/learned/415-prefix-data.md`
 
 - `internal/component/resolve/peeringdb/client.go` -- PeeringDB client for prefix update
@@ -3746,11 +3751,6 @@ Total: 270 design docs, 2842 files
 ## `plan/spec-ipsec-13-rekey-wire.md`
 
 - `internal/component/ike/engine/msgid.go` -- RFC 7296 §2.3 message-ID handling
-
-## `plan/spec-ipsec-14-responder.md`
-
-- `internal/component/ike/engine/responder.go` -- IKE responder handshake (mirror of the initiator)
-- `internal/component/ike/engine/responder_eap.go` -- IKE responder EAP authenticator
 
 ## `plan/spec-isis-10-auth.md`
 

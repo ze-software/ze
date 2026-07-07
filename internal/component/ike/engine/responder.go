@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-14-responder.md -- IKE responder handshake (mirror of the initiator)
+// Design: plan/learned/1072-ipsec-14-responder.md -- IKE responder handshake (mirror of the initiator)
 // RFC: rfc/short/rfc7296.md -- IKE_SA_INIT / IKE_AUTH responder (Sections 1.2, 2.4, 2.15)
 
 package engine

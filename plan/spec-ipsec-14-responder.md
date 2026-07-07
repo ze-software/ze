@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | ipsec-7 (engine), ipsec-8 (child), ipsec-9 (EAP/NAT), ipsec-13 (rekey wire, SK-header generalization + owner loop) |
 | Phase | 14 |
-| Updated | 2026-07-06 |
+| Updated | 2026-07-07 |
 
 ## Post-Compaction Recovery
 
@@ -397,11 +397,16 @@ Add `// RFC 7296 Section X.Y: "<quoted>"` above: responder proposal selection (Â
 | File | Status | Notes |
 |------|--------|-------|
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 7 acceptance criteria (AC-1..AC-7)
+- **Done:** 7 (all demonstrated by cited functions + unit tests; interop 07/09 per the ike session's Review Gate)
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+### Closure (2026-07-07)
+- Implementation landed in commit `fd77d7453`; learned summary `plan/learned/1072-ipsec-14-responder.md` (committed); spec first tracked in `213902882`.
+- Closed on user request. This session did NOT re-run the ipsec interop suite; the AC/interop evidence above is the ike session's own Review Gate. This session independently spot-checked that every cited symbol, file, and interop scenario exists in the committed tree (all present).
+- Per `ai/rules/planning.md` "Design references survive closure", the `// Design:` headers in `responder.go` and `responder_eap.go` were re-pointed from this spec to `plan/learned/1072-ipsec-14-responder.md` before removal.
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
