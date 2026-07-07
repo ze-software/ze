@@ -123,6 +123,28 @@ func ProtocolIDOf(name string) (ProtocolID, bool) {
 	return id, ok
 }
 
+// WouldLoop reports whether redistributing a route from the source protocol
+// into the dest protocol would form a loop. It is the single definition of the
+// redistribution loop invariant -- "a protocol's routes must never be
+// redistributed back into itself" -- and returns true iff the two canonical
+// protocol names are equal. All three guard sites call it: the config
+// evaluator's ImportRule.Accept, the egress fan-out's per-consumer skip, and
+// the late-join replay's whole-batch drop.
+//
+// Name-keyed BY DESIGN -- it compares protocol NAMES, not ProtocolIDs. The
+// config evaluator must reject origin==importing even for source names that are
+// never registered as producers (config-only names), so an ID-keyed predicate
+// would fail-open for them. The registry is a bijection (RegisterProtocol
+// allocates a fresh ProtocolID per name), so for any registered protocol
+// name-equality is exactly the ID-equality the runtime guards previously used;
+// both runtime guards already resolve the source name via
+// ProtocolName(b.Protocol) before calling this, so name-keying adds no lookup.
+// Do NOT "optimize" this to compare ProtocolIDs -- that regresses the config
+// evaluator for unregistered names.
+func WouldLoop(source, dest string) bool {
+	return source == dest
+}
+
 // ResetForTest clears the registry. Tests call this to start from a clean
 // slate. NOT for production use.
 func ResetForTest() {

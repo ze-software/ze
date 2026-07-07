@@ -211,8 +211,9 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		logger().Warn("redistribute-orchestrator: replay batch from unregistered ProtocolID", "id", b.Protocol)
 		return
 	}
-	// Loop prevention: a bgp-sourced batch is never redistributed back into bgp.
-	if id, ok := redistevents.ProtocolIDOf(bgpDestination); ok && id == b.Protocol {
+	// Loop prevention (whole-batch drop): a bgp-sourced batch is never
+	// redistributed back into bgp on the single-destination replay path.
+	if redistevents.WouldLoop(name, bgpDestination) {
 		return
 	}
 

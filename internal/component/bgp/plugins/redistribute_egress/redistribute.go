@@ -212,7 +212,9 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 			logger().Warn(Name+": consumer not found", "consumer", cname)
 			continue
 		}
-		if id, ok := redistevents.ProtocolIDOf(cname); ok && id == b.Protocol {
+		// Loop prevention (per-consumer skip): don't fan a source protocol's
+		// batch back into that same protocol's consumer; others still receive it.
+		if redistevents.WouldLoop(name, cname) {
 			if m := getMetrics(); m != nil {
 				m.filteredProtocolTotal.Inc()
 			}

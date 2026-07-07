@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 )
 
 // RedistRoute represents a route flowing through the redistribution engine.
@@ -43,7 +44,9 @@ type ImportRule struct {
 //   - neither its specific source nor umbrella origin matches the rule's source
 //   - its family is not in the allowed list (when families is non-empty)
 func (r ImportRule) Accept(route RedistRoute, importingProtocol string) bool {
-	if route.Origin == importingProtocol {
+	// Loop prevention: one shared definition of the invariant (redistevents.WouldLoop),
+	// also enforced at the two runtime guards in redistribute_egress.
+	if redistevents.WouldLoop(route.Origin, importingProtocol) {
 		return false
 	}
 	// Destination scoping (R-3): a rule parsed under `destination <proto>` is
@@ -58,9 +61,10 @@ func (r ImportRule) Accept(route RedistRoute, importingProtocol string) bool {
 	return len(r.Families) == 0 || slices.Contains(r.Families, route.Family)
 }
 
-// Evaluate checks a route against a set of import rules for a given
-// importing protocol. Returns true if any rule accepts the route.
-func Evaluate(route RedistRoute, rules []ImportRule, importingProtocol string) bool {
+// evaluate checks a route against a set of import rules for a given importing
+// protocol. Returns true if any rule accepts the route. Package-internal: the
+// exported surface is Evaluator.Accept, which delegates here.
+func evaluate(route RedistRoute, rules []ImportRule, importingProtocol string) bool {
 	for i := range rules {
 		if rules[i].Accept(route, importingProtocol) {
 			return true

@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- redistribution evaluator
-// Related: route.go -- RedistRoute, ImportRule, Evaluate
+// Related: route.go -- RedistRoute, ImportRule, evaluate
 // Related: registry.go -- source registry for protocol lookup
 
 package redistribute
@@ -49,7 +49,7 @@ func (e *Evaluator) Reload(rules []ImportRule) {
 func (e *Evaluator) Accept(route RedistRoute, importingProtocol string) bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return Evaluate(route, e.rules, importingProtocol)
+	return evaluate(route, e.rules, importingProtocol)
 }
 
 // Rules returns a deep copy of the current import rules (for diagnostics/CLI).

@@ -147,7 +147,7 @@ func TestAcceptEmptyFamiliesAllowsAll(t *testing.T) {
 
 // TestEvaluateMultipleRules verifies evaluation across multiple import rules.
 //
-// VALIDATES: Evaluate returns true if any rule accepts the route.
+// VALIDATES: evaluate returns true if any rule accepts the route.
 // PREVENTS: First-match-only or all-must-match logic errors.
 func TestEvaluateMultipleRules(t *testing.T) {
 	rules := []ImportRule{
@@ -207,7 +207,7 @@ func TestEvaluateMultipleRules(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, Evaluate(tt.route, rules, tt.proto))
+			assert.Equal(t, tt.want, evaluate(tt.route, rules, tt.proto))
 		})
 	}
 }
@@ -218,8 +218,8 @@ func TestEvaluateMultipleRules(t *testing.T) {
 // PREVENTS: Nil/empty rules accidentally accepting everything.
 func TestEvaluateEmptyRules(t *testing.T) {
 	route := RedistRoute{Origin: "ospf", Family: family.IPv4Unicast, Source: "ospf"}
-	assert.False(t, Evaluate(route, nil, "bgp"))
-	assert.False(t, Evaluate(route, []ImportRule{}, "bgp"))
+	assert.False(t, evaluate(route, nil, "bgp"))
+	assert.False(t, evaluate(route, []ImportRule{}, "bgp"))
 }
 
 // TestImportRuleDestinationScoped verifies R-3: an ImportRule parsed under a

@@ -265,6 +265,55 @@ class TestCrossPackageWiring(unittest.TestCase):
         )
         self.assertEqual(self._wiring_with_verb_decl(decl, "VerbGo"), [])
 
+    def test_type_wired_via_constructor_return(self):
+        """A type reached only through an exported constructor/accessor that
+        returns it (NewEvaluator() *Evaluator, Global() *Evaluator) is wired:
+        cross-package callers use `:=` and never spell the type name."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "alpha"
+            pkg.mkdir(parents=True)
+            pkg2 = root / "internal" / "beta"
+            pkg2.mkdir(parents=True)
+
+            (pkg / "eval.go").write_text(
+                "package alpha\n\n"
+                "type Evaluator struct{}\n\n"
+                "func NewEvaluator() *Evaluator { return &Evaluator{} }\n"
+            )
+            # Consumer builds one via the constructor and never spells the type.
+            (pkg2 / "consumer.go").write_text(
+                'package beta\n\nimport "alpha"\n\n'
+                "func Use() { ev := alpha.NewEvaluator(); _ = ev }\n"
+            )
+
+            findings = check_cross_package_wiring(root, ["internal/alpha/eval.go"])
+            self.assertEqual(findings, [], f"unexpected findings: {findings}")
+
+    def test_type_returned_by_unused_constructor_still_flagged(self):
+        """The constructor-seam leniency must not over-suppress: a type whose
+        only constructor itself has no cross-package caller stays flagged."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "alpha"
+            pkg.mkdir(parents=True)
+
+            (pkg / "eval.go").write_text(
+                "package alpha\n\n"
+                "type Evaluator struct{}\n\n"
+                "func NewEvaluator() *Evaluator { return &Evaluator{} }\n"
+            )
+
+            findings = check_cross_package_wiring(root, ["internal/alpha/eval.go"])
+            self.assertTrue(
+                any(
+                    f.message
+                    == "exported symbol Evaluator has no cross-package non-test caller"
+                    for f in findings
+                ),
+                f"Evaluator should stay flagged; got: {findings}",
+            )
+
     def test_value_only_spec_does_not_inherit_type(self):
         """A value-only spec (`X = expr`, no type) after a typed spec must NOT
         be attributed to the enum type, matching Go's iota rules (NOTE 1)."""

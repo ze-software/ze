@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestEvaluatorAccept verifies the evaluator delegates to Evaluate correctly.
+// TestEvaluatorAccept verifies the evaluator delegates to evaluate correctly.
 //
 // VALIDATES: Evaluator.Accept applies rules with loop prevention.
 // PREVENTS: Rules not loaded or not checked.

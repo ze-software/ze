@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1091 summaries
+Total: 1092 summaries
 
 ## 000-099
 
@@ -1155,3 +1155,4 @@ Total: 1091 summaries
 | 1077 | unify-buffer-lifetime | `plan/learned/1077-unify-buffer-lifetime.md` |
 | 1078 | Unify Filters | `plan/learned/1078-unify-filters.md` |
 | 1079 | unify-config-diff | `plan/learned/1079-unify-config-diff.md` |
+| 1080 | unify-redist-loop-guard | `plan/learned/1080-unify-redist-loop-guard.md` |

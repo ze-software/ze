@@ -289,6 +289,70 @@ def _type_used_as_field_in_pkg(root: Path, pkg_dir: str, type_name: str) -> bool
     return False
 
 
+def _func_return_signature(line: str) -> str | None:
+    """The return-signature text of an exported func/method declaration on line.
+
+    Balances parentheses from the parameter-list open so a func-typed parameter's
+    inner ')' and a multi-value return tuple '(*T, error)' are both handled. The
+    receiver of a method is consumed by EXPORTED_FUNC_RE's optional group, so the
+    balance starts at the PARAMETER list, never the receiver. Returns None when
+    the line is not an exported func declaration.
+    """
+    m = EXPORTED_FUNC_RE.match(line)
+    if not m:
+        return None
+    i = m.end() - 1  # index of the '(' opening the parameter list
+    depth = 0
+    n = len(line)
+    while i < n:
+        c = line[i]
+        if c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+            if depth == 0:
+                break
+        i += 1
+    return line[i + 1 :].split("{", 1)[0]
+
+
+def _type_returned_by_wired_func(
+    root: Path, pkg_dir: str, type_name: str, search_dirs: list[str]
+) -> bool:
+    """True if an exported same-package func returns type_name and is itself wired.
+
+    A type reached only through an exported constructor or accessor
+    (NewEvaluator() *Evaluator, Global() *Evaluator) is never spelled by name in
+    another package: idiomatic callers write `ev := pkg.Global()` and let type
+    inference name it. The bare-name grep therefore undercounts. If any exported
+    function whose return signature names the type has a cross-package caller, the
+    type is produced across a package boundary and is wired -- flagging it is a
+    false positive (the constructor-seam case, sibling to the constants and
+    struct-field cases above).
+    """
+    pkg_path = root / pkg_dir
+    if not pkg_path.is_dir():
+        return False
+    word = re.compile(r"(?<![\w.])" + re.escape(type_name) + r"\b")
+    for go_file in sorted(pkg_path.glob("*.go")):
+        if go_file.name.endswith("_test.go"):
+            continue
+        try:
+            content = go_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for line in content.splitlines():
+            ret = _func_return_signature(line)
+            if ret is None or not word.search(ret):
+                continue
+            func_name = EXPORTED_FUNC_RE.match(line).group(1)
+            if func_name == type_name:
+                continue  # its own constructor name collision; ignore
+            if _has_cross_pkg_ref(root, func_name, pkg_dir, search_dirs):
+                return True
+    return False
+
+
 def _pkg_exported_interface_methods(root: Path, pkg_dir: str) -> set[str]:
     """Method names declared by exported interfaces in pkg_dir's non-test files.
 
@@ -388,6 +452,7 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
                 for const in _exported_consts_of_type(root, pkg_dir, sym)
             )
             or _type_used_as_field_in_pkg(root, pkg_dir, sym)
+            or _type_returned_by_wired_func(root, pkg_dir, sym, search_dirs)
         ):
             continue
 

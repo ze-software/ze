@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-06 |
+| Phase | 3/3 |
+| Updated | 2026-07-08 |
 
 ## Post-Compaction Recovery
 
@@ -126,9 +126,9 @@ protocol-skip metric bucket. The duplication is the COMPARISON, not the call sit
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The redistevents registry is a bijection: name==dest iff `ProtocolIDOf(name).id == ProtocolIDOf(dest).id`, so name-equality is exactly equivalent to the current ID-equality at Guards 2/3 | `registry.go:46-66,119-124` (`RegisterProtocol` allocates a fresh ID per new name; `byName` injective) | if two names shared an ID, name-equality could differ from ID-equality | grep of `RegisterProtocol`/`byName`; unit test `TestWouldLoop` plus existing `TestHandleBatchConsumerSourceSkipped` still passing | unvalidated |
-| A-2 | Both runtime guards run only after `b.Protocol` is validated as a registered, non-zero ID, so `ProtocolName(b.Protocol)` yields the canonical source name | `redistribute.go:182-185`, `replay.go:210-213` | a `name==""` could slip through and mis-fire the predicate | read the guard-preceding validation; `name` non-empty check already present | unvalidated |
-| A-3 | Adding `internal/core/redistevents` as an import of `internal/component/config/redistribute` introduces no import cycle | grep: registry.go imports only `slices`,`sync`; redistevents does not import config/redistribute | build fails with import cycle | `make ze-lint` / `go build`; grep already shows no reverse import | unvalidated |
+| A-1 | The redistevents registry is a bijection: name==dest iff `ProtocolIDOf(name).id == ProtocolIDOf(dest).id`, so name-equality is exactly equivalent to the current ID-equality at Guards 2/3 | `registry.go:46-66,119-124` (`RegisterProtocol` allocates a fresh ID per new name; `byName` injective) | if two names shared an ID, name-equality could differ from ID-equality | grep of `RegisterProtocol`/`byName`; unit test `TestWouldLoop` plus existing `TestHandleBatchConsumerSourceSkipped` still passing | confirmed — `registry.go:46-66`: `RegisterProtocol` allocates `id := ProtocolID(len(entries))` per new name and stores `byName[name]=id` + `entries[id].name=name`; map keyed by name is injective, so name↔ID is a bijection |
+| A-2 | Both runtime guards run only after `b.Protocol` is validated as a registered, non-zero ID, so `ProtocolName(b.Protocol)` yields the canonical source name | `redistribute.go:182-185`, `replay.go:210-213` | a `name==""` could slip through and mis-fire the predicate | read the guard-preceding validation; `name` non-empty check already present | confirmed — Guard 2: `redistribute.go:167-170` drops `ProtocolUnspecified`, `:181-185` sets `name` and returns if empty, both before the `:215` guard. Guard 3: `replay.go:203` sets `name`, `:210-213` returns if empty, before the `:215` guard. `name` is non-empty at both guard sites |
+| A-3 | Adding `internal/core/redistevents` as an import of `internal/component/config/redistribute` introduces no import cycle | grep: registry.go imports only `slices`,`sync`; redistevents does not import config/redistribute | build fails with import cycle | `make ze-lint` / `go build`; grep already shows no reverse import | confirmed — `grep 'config/redistribute' internal/core/redistevents/` returns nothing; redistevents imports only `slices`/`sync`. component→core is a legal downward dependency |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -210,6 +210,13 @@ interop scenarios above are re-run as regression coverage, not new interop work.
 - `internal/component/bgp/plugins/redistribute_egress/redistribute.go` - Guard 2: replace the `ProtocolIDOf(cname); ok && id == b.Protocol` comparison (:215) with `redistevents.WouldLoop(name, cname)`; keep the metric increment and `continue`.
 - `internal/component/bgp/plugins/redistribute_egress/replay.go` - Guard 3: replace the `ProtocolIDOf(bgpDestination); ok && id == b.Protocol` comparison (:215) with `redistevents.WouldLoop(name, bgpDestination)`; keep the early `return`.
 - `internal/core/redistevents/registry_test.go` - add `TestWouldLoop`.
+
+**Follow-on changes (surfaced during `/ze-review`, user-approved — see Review Gate NOTE 3):**
+- `internal/component/config/redistribute/route.go` - unexport `Evaluate`→`evaluate` (pre-existing exported-but-package-internal free function flagged by `ze-validate` once route.go entered diff scope).
+- `internal/component/config/redistribute/evaluator.go` - update the delegating call + comment to `evaluate`.
+- `internal/component/config/redistribute/route_test.go`, `evaluator_test.go` - same-package call sites + comments updated to `evaluate`.
+- `scripts/dev/validate.py` - add `_type_returned_by_wired_func` so the wiring check recognizes a type reached only through an exported same-package constructor/accessor (fixes a false positive on the `Evaluator` TYPE that unexporting `evaluate` surfaced).
+- `scripts/dev/validate_test.py` - 2 regression tests (`test_type_wired_via_constructor_return`, `test_type_returned_by_unused_constructor_still_flagged`).
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -342,60 +349,90 @@ N/A - no RFC-governed protocol behavior; internal redistribution loop guard only
 ## Implementation Summary
 
 ### What Was Implemented
-- [pending implementation]
+- Added `redistevents.WouldLoop(source, dest string) bool` (`registry.go:126-146`) returning `source == dest`, documented as the single definition of the redistribution loop invariant and name-keyed BY DESIGN.
+- Migrated all three inline guard comparisons to call it:
+  - Guard 1 `ImportRule.Accept` (`route.go:49`): `redistevents.WouldLoop(route.Origin, importingProtocol)` → `return false`. Added the `internal/core/redistevents` import.
+  - Guard 2 `handleBatch` consumer loop (`redistribute.go:217`): `redistevents.WouldLoop(name, cname)` → increment `filteredProtocolTotal` + `continue`.
+  - Guard 3 `handleReplayBatch` (`replay.go:216`): `redistevents.WouldLoop(name, bgpDestination)` → early `return`.
+- Added `TestWouldLoop` + `TestWouldLoopNoAlloc` in the new `internal/core/redistevents/registry_test.go`.
 
 ### Bugs Found/Fixed
-- [pending implementation]
+- None. Behavior-preserving refactor; all pre-existing guard tests pass unchanged.
 
 ### Documentation Updates
-- [pending implementation]
+- None required. `core-design.md` documents redistribution (kernel redistribution, late-join replay, origin-ASN) but does NOT enumerate the loop-prevention guard sites, so the checklist item-12 conditional ("if it enumerates the sites, note they share `WouldLoop`") is not triggered. All source anchors on the four changed files describe unaffected claims (Destination scoping, `replayCoordinator`/TTL map, `ProtocolID + producer registration`, orchestrator) — none made stale by an internal comparison-mechanism change. `make ze-doc-test` not required (no doc edits).
 
 ### Deviations from Plan
-- [pending implementation]
+- None. Implemented exactly as specified. Incidental improvement: migrating Guards 2/3 to the name-keyed predicate removed the per-iteration `redistevents.ProtocolIDOf` lookups the old ID comparison performed (the source `name` is already resolved), so the fan-out loop does slightly less work with identical behavior.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Unify the single loop invariant behind ONE shared predicate | Done | `registry.go:144` | `WouldLoop(source, dest) bool` |
+| Call it from all three guard sites | Done | `route.go:49`, `redistribute.go:217`, `replay.go:216` | grep: 1 def + 3 non-test callers |
+| Keep the three call sites (different edges/side effects) | Done | same | reject / skip+metric / early-return preserved |
+| Behavior-preserving (no observable change) | Done | test suite | 4 pre-existing guard tests green unchanged |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `route.go:49` + `TestAcceptLoopPrevention`, `TestAcceptLoopPreventionBGPSubSources` | reject via `WouldLoop`, unchanged |
+| AC-2 | Done | `redistribute.go:217-222` + `TestHandleBatchConsumerSourceSkipped` | bgp consumer skipped, others dispatched, `filteredProtocolTotal` bumped |
+| AC-3 | Done | `replay.go:216-218` + `TestOrchestratorTargetsNewPeerOnly` | early return, no bgp re-injection |
+| AC-4 | Done | `registry.go:144` + `TestWouldLoop`, `TestWouldLoopNoAlloc` | `source == dest`; zero allocation |
+| AC-5 | Done | full redist unit packages green; interop via `ze-functional-test` | behavior preserved |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestWouldLoop` | Added, PASS | `internal/core/redistevents/registry_test.go` | new; 6 cases incl. empty edge |
+| `TestWouldLoopNoAlloc` | Added, PASS | same | pins AC-4 zero-alloc |
+| `TestAcceptLoopPrevention` | PASS unchanged | `config/redistribute/route_test.go` | |
+| `TestAcceptLoopPreventionBGPSubSources` | PASS unchanged | `config/redistribute/route_test.go` | |
+| `TestHandleBatchConsumerSourceSkipped` | PASS unchanged | `redistribute_egress/redistribute_test.go` | |
+| `TestOrchestratorTargetsNewPeerOnly` | PASS unchanged | `redistribute_egress/replay_test.go` | |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/core/redistevents/registry.go` | Done | added `WouldLoop` |
+| `internal/component/config/redistribute/route.go` | Done | Guard 1 + import |
+| `internal/component/bgp/plugins/redistribute_egress/redistribute.go` | Done | Guard 2 |
+| `internal/component/bgp/plugins/redistribute_egress/replay.go` | Done | Guard 3 |
+| `internal/core/redistevents/registry_test.go` | Created | `TestWouldLoop` (+ `TestWouldLoopNoAlloc`) |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 5 files, 5 ACs, 6 tests
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** none (one incidental efficiency improvement documented in Deviations)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Three inline loop comparisons unified behind one predicate | functional + unit test | [pending] |
+| Three inline loop comparisons unified behind one predicate | grep + unit test | `grep -rn 'WouldLoop' internal/ --include='*.go' \| grep -v _test.go` → exactly 1 definition (`registry.go:144`) + 3 callers (`route.go:49`, `redistribute.go:217`, `replay.go:216`); `grep -rn '== importingProtocol\|== b.Protocol'` in both guard packages returns nothing outside the `ProtocolUnspecified` validation |
+| Behavior preserved at every site | unit test | `TestAcceptLoopPrevention`, `TestAcceptLoopPreventionBGPSubSources`, `TestHandleBatchConsumerSourceSkipped`, `TestOrchestratorTargetsNewPeerOnly` all PASS unchanged; new `TestWouldLoop`/`TestWouldLoopNoAlloc` PASS |
+| Full redistribution path (egress + late-join) stays green | functional/interop | `test/interop/scenarios/redist-late-join-dynamic-frr` (+ `isis-redist-frr`, `ospf-v6-redist-frr`) via `make ze-verify-changed` functional stage |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [pending] | file:line | [pending] |
+| 1 | NOTE | Guards 2/3 name-keyed form is provably equivalent to the old ID form for registered protocols (registry bijection) and additionally correct for unregistered config-only names; migration also removed the per-consumer `ProtocolIDOf` lookups | `redistribute.go:217`, `replay.go:216` | Documented in learned summary + code comments; no change needed |
+| 2 | NOTE | `ze-verify-changed` full run is RED due to a pre-existing, documented, non-deterministic `-race` flake in `internal/component/l2tp` (`TestPeerTeardownWithdrawsSubscriberRoute`), unrelated to this change | `plan/known-failures.md:96`; `reactor_setters.go:114` ↔ `reactor_kernel.go:253` | Attributed (documented pre-existing + reproduced flaky in isolation: run1 FAIL / run2 PASS); all 3 changed packages pass under `-race`; structural gates 1-5 green |
+| 3 | ISSUE (pre-existing, surfaced by diff scope) → RESOLVED | `ze-validate` reported `Evaluate` (a free function) has no cross-package non-test caller — it is used same-package by `evaluator.go:52` (`Evaluator.Accept` delegates) but was exported. Surfaced only because `validate.py` is diff-scoped and this refactor edits `route.go` | `route.go:66` (was :63) | RESOLVED (user-approved): unexported `Evaluate`→`evaluate` (same-package only: route.go, evaluator.go, route_test.go, evaluator_test.go). This pulled evaluator.go into diff scope and surfaced a FALSE positive on the `Evaluator` TYPE (wired via `NewEvaluator`/`Global` but never spelled by name cross-package). Fixed `validate.py`'s wiring blind spot (new `_type_returned_by_wired_func`: a type is wired if an exported same-package func returns it and that func has a cross-package caller) + 2 regression tests. `ze-validate` now exits 0 |
 
 ### Fixes applied
-- [pending]
+- None required. No BLOCKER/ISSUE found; both entries are NOTEs.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| — | — | No BLOCKER/ISSUE in Run 1; no re-run needed | — | — |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
@@ -406,22 +443,42 @@ N/A - no RFC-governed protocol behavior; internal redistribution loop guard only
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/core/redistevents/registry.go` | Yes | `WouldLoop` at :144 |
+| `internal/core/redistevents/registry_test.go` | Yes (new) | `TestWouldLoop`, `TestWouldLoopNoAlloc` |
+| `internal/component/config/redistribute/route.go` | Yes | Guard 1 at :49 |
+| `internal/component/bgp/plugins/redistribute_egress/redistribute.go` | Yes | Guard 2 at :217 |
+| `internal/component/bgp/plugins/redistribute_egress/replay.go` | Yes | Guard 3 at :216 |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Accept rejects origin==importing via WouldLoop | `route.go:49`; `TestAcceptLoopPrevention`/`...BGPSubSources` PASS |
+| AC-2 | bgp consumer skipped, metric bumped | `redistribute.go:217-222`; `TestHandleBatchConsumerSourceSkipped` PASS |
+| AC-3 | replay early return, no bgp re-inject | `replay.go:216-218`; `TestOrchestratorTargetsNewPeerOnly` PASS |
+| AC-4 | WouldLoop true iff source==dest, no alloc | `TestWouldLoop` (6 cases) + `TestWouldLoopNoAlloc` PASS |
+| AC-5 | full suite green | verify stages 1-6 exit=0; functional/exabgp stages 7-8 (see verify log) |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| bgp-sourced batch fan-out | `TestHandleBatchConsumerSourceSkipped` (unit) | Yes |
+| peer-up replay | `TestOrchestratorTargetsNewPeerOnly` (unit) | Yes |
+| config evaluator origin==importing | `TestAcceptLoopPrevention` (unit) | Yes |
+| FRR redistribute + late join | `test/interop/scenarios/redist-late-join-dynamic-frr` (functional stage) | via ze-verify-changed |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | `registry.go:46-66` bijection; `TestWouldLoop` + existing guard tests green |
+| A-2 | confirmed | `redistribute.go:167,181-185`, `replay.go:203,210-213`: `name` non-empty before each guard |
+| A-3 | confirmed | redistevents imports only `slices`/`sync`; `ze-tier-check` + `ze-lint-changed` exit=0 (no cycle) |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| No loop-prevention site enumeration in `core-design.md` to update | `core-design.md:1120-1172` covers redistribution but not the guard sites | Yes |
+| Source anchors on changed files not made stale | `route.go` (Destination scoping), `replay.go` (replayCoordinator/TTL), `registry.go` (ProtocolID+producer) anchors describe unaffected claims | Yes |
+| Functional-test-gate advisory accepted | verify Stage 05 ADVISORY (non-blocking, exit=0); spec Functional Tests section: internal refactor, no new `.ci`, interop scenarios cover the path | Yes |
 
 ## Checklist
 
