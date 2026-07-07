@@ -104,6 +104,12 @@ USAGE_PAGES = [
         "Convert an ExaBGP config and run existing process scripts with Ze.",
         "automate",
     ),
+    MarkdownPage(
+        "bgp-performance/index.md",
+        "usage/bgp-performance/index.html",
+        "Route-server performance tests with ze-perf sender, receiver, and JSON reports.",
+        "automate",
+    ),
 ]
 
 LAB_DETAIL_PAGES = [

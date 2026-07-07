@@ -1420,7 +1420,7 @@ Distributed denial-of-service detection and mitigation subsystem.
 - **flowspec** `container`
   *Provided by `ddos-flowspec` ([ze-ddos-flowspec-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang))*
   - **action** `enumeration`
-    FlowSpec traffic-action: rate-limit (non-zero rate) or discard (rate 0).
+    FlowSpec traffic-action. Mandatory, with no default because neither drop nor rate-limit is universally safe: discard announces an RFC 8955 traffic-rate of 0 (drops the characterized attack flow); rate-limit announces a byte rate and requires an explicit rate-limit-bytes. A rate-limit-bytes of 0 is a valid choice and is equivalent to discard on the wire.
   - **allowlist** `string[]`
     Prefixes that must never be announced for mitigation.
   - **announce-rate-limit** `uint16`
@@ -1439,6 +1439,8 @@ Distributed denial-of-service detection and mitigation subsystem.
     Bits per second to allow during a leak-probe.
   - **probe-window** `uint16`
     Seconds to observe leaked traffic during a probe.
+  - **rate-limit-bytes** `uint64`
+    Bytes per second announced in the RFC 8955 traffic-rate extended community. Required (and validated) when action is rate-limit; there is no default because no rate is universally safe. A value of 0 is valid and encodes the same traffic-rate-0 as discard. Not used when action is discard. Set it to the per-flow rate you are willing to pass to the victim during mitigation.
   - **response-level** `enumeration`
     Action on attack detection: alert (log only) or enforce (announce FlowSpec).
 - **flowtriq** `container`

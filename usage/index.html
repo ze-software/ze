@@ -180,6 +180,10 @@
                             <span class="nav-dropdown-icon" aria-hidden="true">🔀</span>
                             <span><strong>ExaBGP Migration</strong><small>A practical path from ExaBGP process scripts</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="../usage/bgp-performance/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">perf</span>
+                            <span><strong>BGP performance tests</strong><small>Route-server performance tests with Ze</small></span>
+                        </a>
                     </div>
                     <div class="nav-dropdown-col">
                         <span class="nav-dropdown-label">Runnable labs</span>
@@ -352,6 +356,12 @@
 <td>Existing ExaBGP config and process scripts are converted or bridged into Ze</td>
 <td>The migration command, compatibility bridge, and staged workflow are linked to implementation sources</td>
 </tr>
+<tr>
+<td><a href="bgp-performance/">BGP performance testing with Ze</a></td>
+<td>Ze provides the sender, receiver, timing, and JSON report for a route-server performance test</td>
+<td>FRR, BIRD, Ze, or another DUT receives and exports generated BGP routes</td>
+<td>Existing Ze performance tooling supplies the report; the page links to AMS-IX, LINX, and bgperf prior art</td>
+</tr>
 </tbody>
 </table>
 <h2 id="what-belongs-here">What belongs here</h2>
@@ -376,6 +386,10 @@
                     <a class="page-sidebar-link" href="../usage/exabgp-migration/">
                         <span class="page-sidebar-link-label">ExaBGP migration</span>
                         <small>Convert configs and bridge existing process scripts.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../usage/bgp-performance/">
+                        <span class="page-sidebar-link-label">BGP performance testing with Ze</span>
+                        <small>Use Ze as the tester for route-server performance runs inspired by bgperf.</small>
                     </a>
                 </section>
                 <section class="page-sidebar-group">

@@ -55,6 +55,16 @@
       "url": "https://github.com/Exa-Networks/exabgp",
       "desc": "Programmable BGP speaker used as a migration reference."
     },
+    "amsix-route-server-test": {
+      "label": "AMS-IX route-server test",
+      "url": "https://ripe64.ripe.net/presentations/49-Follow_Up_AMS-IX_route-server_test_Euro-IX_20th_RIPE64.pdf",
+      "desc": "RIPE64 route-server performance slides using ExaBGP as a testing tool."
+    },
+    "bgp-performance": {
+      "label": "bgp-performance",
+      "url": "https://github.com/job/bgp-performance",
+      "desc": "Job Snijders' bgperf2-based BGP performance analysis suite."
+    },
     "bio-rd": {
       "label": "bio-rd",
       "url": "https://github.com/bio-routing/bio-rd",
@@ -464,6 +474,11 @@
               "desc": "Longer notes on performance design."
             },
             {
+              "href": "usage/bgp-performance/",
+              "label": "BGP performance testing with Ze",
+              "desc": "Use ze-perf to recreate route-server performance tests with sender, DUT, receiver, and JSON."
+            },
+            {
               "href": "quality/qemu-interop-release/",
               "label": "Release evidence",
               "desc": "Where performance fits in verification."
@@ -779,6 +794,11 @@
               "href": "usage/exabgp-migration/",
               "label": "ExaBGP migration",
               "desc": "Convert configs and bridge existing process scripts."
+            },
+            {
+              "href": "usage/bgp-performance/",
+              "label": "BGP performance testing with Ze",
+              "desc": "Use Ze as the tester for route-server performance runs inspired by bgperf."
             }
           ]
         },
@@ -799,6 +819,42 @@
               "href": "labs/",
               "label": "Lab evidence",
               "desc": "Interop proof against real daemons."
+            }
+          ]
+        }
+      ]
+    },
+    "usage/bgp-performance/": {
+      "eyebrow": "Usage example",
+      "groups": [
+        {
+          "title": "Run the test",
+          "links": [
+            {
+              "href": "performance/",
+              "label": "Performance",
+              "desc": "Current public benchmark summary."
+            },
+            {
+              "href": "docs/guide/benchmarking/",
+              "label": "Benchmarking guide",
+              "desc": "How to run ze-perf and read JSON output."
+            },
+            {
+              "href": "docs/performance/",
+              "label": "Performance results",
+              "desc": "Generated benchmark tables and methodology."
+            }
+          ]
+        },
+        {
+          "title": "Prior art",
+          "links": [
+            {
+              "external": "amsix-route-server-test"
+            },
+            {
+              "external": "bgp-performance"
             }
           ]
         }

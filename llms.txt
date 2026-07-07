@@ -830,6 +830,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [Usage Examples](https://ze-software.net/usage/index.md): Complete deployment examples for real network roles (web: https://ze-software.net/usage/)
 - [AS112 Anycast DNS](https://ze-software.net/usage/as112/index.md): Ze as an AS112 DNS server with real router peers (web: https://ze-software.net/usage/as112/)
 - [ExaBGP Migration](https://ze-software.net/usage/exabgp-migration/index.md): A practical path from ExaBGP process scripts (web: https://ze-software.net/usage/exabgp-migration/)
+- [BGP performance tests](https://ze-software.net/usage/bgp-performance/index.md): Route-server performance tests with Ze (web: https://ze-software.net/usage/bgp-performance/)
 ### Runnable labs
 - [Testing Labs](https://ze-software.net/labs/index.md): Interop proof you can run yourself against real daemons (web: https://ze-software.net/labs/)
 - [BGP Interop](https://ze-software.net/labs/bgp-interop/index.md): Real FRR, BIRD, and GoBGP sessions (web: https://ze-software.net/labs/bgp-interop/)

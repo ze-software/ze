@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>BGP performance testing with Ze - Ze</title>
+        <meta name="description" content="Route-server performance tests with ze-perf sender, receiver, and JSON reports." />
+        <meta property="og:title" content="BGP performance testing with Ze - Ze" />
+        <meta property="og:description" content="Route-server performance tests with ze-perf sender, receiver, and JSON reports." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="BGP performance testing with Ze - Ze" />
+        <meta name="twitter:description" content="Route-server performance tests with ze-perf sender, receiver, and JSON reports." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../assets/site.css?v=adbbfadb2b" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <button class="nav-menu-toggle" type="button" aria-controls="site-nav-links" aria-expanded="false">
+                    <span class="nav-menu-toggle-bars" aria-hidden="true"></span>
+                    <span>Menu</span>
+                </button>
+                <div id="site-nav-links" class="nav-links">
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-start">Start
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-start">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">First steps</span>
+                        <a class="nav-dropdown-item" href="../../docs/guide/quickstart/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🚀</span>
+                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/guide/ze-install/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">💿</span>
+                            <span><strong>Install Ze</strong><small>Run Ze on Linux or as a bootable appliance</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/configuration/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚙️</span>
+                            <span><strong>Configuration</strong><small>The YANG-modeled config shape Ze uses everywhere</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⌨️</span>
+                            <span><strong>CLI Basics</strong><small>Diff, commit, history, and operator commands</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Before you run</span>
+                        <a class="nav-dropdown-item" href="../../roadmap/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🗺️</span>
+                            <span><strong>Project Status</strong><small>What is ready today and where Ze is still young</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../faq/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">?</span>
+                            <span><strong>FAQ</strong><small>Common questions before committing time to Ze</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/plugins/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔌</span>
+                            <span><strong>Plugin Catalog</strong><small>Search every runtime plugin by purpose, config, or dependency</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-evaluate">Evaluate
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-evaluate">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Capabilities</span>
+                        <a class="nav-dropdown-item" href="../../features/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
+                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../compare/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚖️</span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, VyOS, and more</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../performance/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚡</span>
+                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Trust</span>
+                        <a class="nav-dropdown-item" href="../../quality/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">✓</span>
+                            <span><strong>Code Quality</strong><small>Tests, QEMU, fuzzing, and mutation checks</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../dependencies/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📦</span>
+                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../security/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔒</span>
+                            <span><strong>Security</strong><small>Security policy and vulnerability reporting</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-docs">Docs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-docs">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Hub</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../docs/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📚</span>
+                            <span><strong>Documentation</strong><small>All docs, organized by what you want to do</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Core docs</span>
+                        <a class="nav-dropdown-item" href="../../docs/features/configuration/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚙️</span>
+                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⌨️</span>
+                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/architecture/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏗️</span>
+                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Operator guides</span>
+                        <a class="nav-dropdown-item" href="../../docs/guide/production-diagnostics/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🩺</span>
+                            <span><strong>Production Diagnostics</strong><small>Start from symptoms and debug safely</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/guide/monitoring/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📈</span>
+                            <span><strong>Monitoring</strong><small>Metrics, health, and operational visibility</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../docs/guide/vpp/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📦</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-examples">Examples
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-examples">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Deployment examples</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../usage/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧰</span>
+                            <span><strong>Usage Examples</strong><small>Complete deployment examples for real network roles</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../usage/as112/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">112</span>
+                            <span><strong>AS112 Anycast DNS</strong><small>Ze as an AS112 DNS server with real router peers</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../usage/exabgp-migration/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔀</span>
+                            <span><strong>ExaBGP Migration</strong><small>A practical path from ExaBGP process scripts</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../usage/bgp-performance/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">perf</span>
+                            <span><strong>BGP performance tests</strong><small>Route-server performance tests with Ze</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Runnable labs</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../labs/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧪</span>
+                            <span><strong>Testing Labs</strong><small>Interop proof you can run yourself against real daemons</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/bgp-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🌐</span>
+                            <span><strong>BGP Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/l2tp-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔌</span>
+                            <span><strong>L2TP Access</strong><small>Ze as LNS vs real xl2tpd</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/pppoe-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📡</span>
+                            <span><strong>PPPoE Access</strong><small>Ze vs real accel-ppp access concentrator</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/ipsec-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔒</span>
+                            <span><strong>IPsec / IKEv2</strong><small>Ze as IKE initiator vs strongSwan</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Systems</span>
+                        <a class="nav-dropdown-item" href="../../labs/vpp-dataplane/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🚀</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/appliance-install/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">💿</span>
+                            <span><strong>Appliance Installer</strong><small>HTTP/PXE, ISO, Ventoy, and real boots</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/looking-glass-graph/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔭</span>
+                            <span><strong>Looking Glass Graph</strong><small>Realistic UK topology, real external ASNs</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../labs/vlan-qos/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏷️</span>
+                            <span><strong>VLAN QoS</strong><small>802.1p PCP tagging, actually on the wire</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-reference">Reference
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-reference">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Generated references</span>
+                        <a class="nav-dropdown-item" href="../../cli/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⌨️</span>
+                            <span><strong>CLI Reference</strong><small>379 commands, generated from the live binary</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../config-reference/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧬</span>
+                            <span><strong>Configuration Reference</strong><small>35 sections, indexed from live YANG</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../command-equivalents/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">↔️</span>
+                            <span><strong>Command Equivalents</strong><small>Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-project">Project
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-project">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Progress</span>
+                        <a class="nav-dropdown-item" href="../../roadmap/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🗺️</span>
+                            <span><strong>Roadmap</strong><small>The path to a first release you can trust</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../milestones/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏁</span>
+                            <span><strong>Milestones</strong><small>Landmark features, oldest to newest</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../changes/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧾</span>
+                            <span><strong>Changes</strong><small>What shipped, week by week</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../activity/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📈</span>
+                            <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Community</span>
+                        <a class="nav-dropdown-item" href="../../blog/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">✍</span>
+                            <span><strong>Blog</strong><small>Longer project notes and release stories</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../talks/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🎤</span>
+                            <span><strong>Talks</strong><small>Presentations and conference material</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../contribute/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🤝</span>
+                            <span><strong>Contribute</strong><small>How to send code, reports, and interop results</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <a
+                        class="nav-badge nav-badge-search"
+                        href="../../search/"
+                        aria-label="Search the site"
+                        aria-expanded="false"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/></svg></span>
+                        <span class="nav-badge-count nav-badge-search-label">Search <span class="search-shortcut-hint" aria-hidden="true"><kbd>⌘K</kbd><span>/</span></span></span>
+                    </a>
+                    <a
+                        class="nav-badge"
+                        href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener"
+                        aria-label="Ze Discord"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 640 512" fill="currentColor" aria-hidden="true"><path d="M524.531,69.836a1.5,1.5,0,0,0-.764-.7A485.065,485.065,0,0,0,404.081,32.03a1.816,1.816,0,0,0-1.923.91,337.461,337.461,0,0,0-14.9,30.6,447.848,447.848,0,0,0-134.426,0,309.541,309.541,0,0,0-15.135-30.6,1.89,1.89,0,0,0-1.924-.91A483.689,483.689,0,0,0,116.085,69.137a1.712,1.712,0,0,0-.788.676C39.068,183.651,18.186,294.69,28.43,404.354a2.016,2.016,0,0,0,.765,1.375A487.666,487.666,0,0,0,176.02,479.918a1.9,1.9,0,0,0,2.063-.676A348.2,348.2,0,0,0,208.12,430.4a1.86,1.86,0,0,0-1.019-2.588,321.173,321.173,0,0,1-45.868-21.853,1.885,1.885,0,0,1-.185-3.126c3.082-2.309,6.166-4.711,9.109-7.137a1.819,1.819,0,0,1,1.9-.256c96.229,43.917,200.41,43.917,295.5,0a1.812,1.812,0,0,1,1.924.233c2.944,2.426,6.027,4.851,9.132,7.16a1.884,1.884,0,0,1-.162,3.126,301.407,301.407,0,0,1-45.89,21.83,1.875,1.875,0,0,0-1,2.611,391.055,391.055,0,0,0,30.014,48.815,1.864,1.864,0,0,0,2.063.7A486.048,486.048,0,0,0,610.7,405.729a1.882,1.882,0,0,0,.765-1.352C623.729,277.594,590.933,167.465,524.531,69.836ZM222.491,337.58c-28.972,0-52.844-26.587-52.844-59.239S193.056,219.1,222.491,219.1c29.665,0,53.306,26.82,52.843,59.239C275.334,310.993,251.924,337.58,222.491,337.58Zm195.38,0c-28.971,0-52.843-26.587-52.843-59.239S388.437,219.1,417.871,219.1c29.667,0,53.307,26.82,52.844,59.239C470.715,310.993,447.538,337.58,417.871,337.58Z"/></svg></span>
+                        <span class="nav-badge-count">Discord</span>
+                    </a>
+                    <a
+                        class="nav-badge"
+                        href="https://github.com/ze-software/ze" target="_blank" rel="noopener"
+                        aria-label="Ze on GitHub, 39 stars"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 496 512" fill="currentColor" aria-hidden="true"><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        <span class="nav-badge-count">39</span>
+                    </a>
+                </div>
+            </nav>
+        </header>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-automate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Usage</span>
+    <h1 id="bgp-performance-testing-with-ze">BGP performance testing with Ze</h1>
+    <p>A route-server performance test is simple in outline: create a route source, connect it to a device under test, watch a monitor peer, and publish how many routes arrived and how long convergence took.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#what-a-good-test-answers">What a good test answers</a></li>
+<li><a href="#topology">Topology</a></li>
+<li><a href="#fastest-working-test">Fastest working test</a></li>
+<li><a href="#a-100k-route-run">A 100k route run</a></li>
+<li><a href="#frr-as-the-dut">FRR as the DUT</a></li>
+<li><a href="#bird-as-the-dut">BIRD as the DUT</a></li>
+<li><a href="#what-ze-reports">What Ze reports</a></li>
+<li><a href="#what-to-publish-with-the-number">What to publish with the number</a></li>
+<li><a href="#how-close-ze-is-to-the-full-route-server-test">How close Ze is to the full route-server test</a></li>
+<li><a href="#prior-art">Prior art</a></li>
+<li><a href="#lab-evidence">Lab evidence</a></li>
+</ol></nav>
+<p>AMS-IX used ExaBGP as a lightweight BGP route source. bgperf formalized the same idea with tester, target, and monitor containers. Ze can run that shape with <code>ze-perf</code>: Ze supplies the sender and receiver, the target is whatever BGP speaker you want to test, and the output is a repeatable report instead of a stopwatch and screenshots.</p>
+<p>This page shows Ze in the tester role. The DUT can be FRR, BIRD, GoBGP, OpenBGPD, a route-server appliance, or Ze itself.</p>
+<!-- source: ../main/internal/perf/cli/cmd_run.go -- ze-perf sender, receiver, repeat, JSON, and output flags -->
+<!-- source: ../main/internal/perf/result.go -- result fields -->
+<!-- source: ../main/test/perf/run.py -- Docker DUT benchmark runner -->
+
+<h2 id="what-a-good-test-answers">What a good test answers</h2>
+<p>A performance test has to answer these questions, and publish the evidence for each.</p>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Evidence to publish</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Can the DUT establish the sessions?</td>
+<td>Sender and receiver BGP sessions reach Established</td>
+</tr>
+<tr>
+<td>Can the DUT ingest the route set?</td>
+<td>Expected route count arrives at the receiver</td>
+</tr>
+<tr>
+<td>Did it lose routes?</td>
+<td><code>routes-lost</code> is zero</td>
+</tr>
+<tr>
+<td>How long did convergence take?</td>
+<td><code>convergence-ms</code>, throughput, and latency percentiles from <code>ze-perf</code></td>
+</tr>
+<tr>
+<td>Does the result repeat?</td>
+<td>Several iterations, warmups discarded, standard deviation reported</td>
+</tr>
+<tr>
+<td>Can someone reproduce it?</td>
+<td>DUT config, route count, family, batch size, hardware, runtime, and raw JSON</td>
+</tr>
+</tbody>
+</table>
+<p>A good run proves a complete path: generated routes enter the DUT, pass through the DUT policy and RIB path, leave the DUT, and arrive at a real BGP receiver. A route count alone is wiring. A repeated run with zero loss and published inputs is evidence.</p>
+<h2 id="topology">Topology</h2>
+<p>The test is three nodes: a sender and a receiver that Ze runs, with the device under test between them.</p>
+<pre><code>ze-perf sender  ---&gt;  DUT under test  ---&gt;  ze-perf receiver
+AS 65001             AS 65000             AS 65002
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>AS</th>
+<th>Played by</th>
+<th>Job</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sender</td>
+<td>65001</td>
+<td><code>ze-perf</code></td>
+<td>Generate the route set and inject it into the DUT</td>
+</tr>
+<tr>
+<td>Device under test</td>
+<td>65000</td>
+<td>FRR, BIRD, GoBGP, OpenBGPD, Ze, or another BGP speaker</td>
+<td>Receive the routes, apply policy, and re-advertise them</td>
+</tr>
+<tr>
+<td>Receiver</td>
+<td>65002</td>
+<td><code>ze-perf</code></td>
+<td>Record when each prefix arrives</td>
+</tr>
+</tbody>
+</table>
+<p><code>ze-perf</code> matches the prefixes the sender injected against the ones the receiver saw, so it can report convergence, throughput, latency percentiles, withdrawal time, and lost routes. In bgperf terms, the sender is the tester, the DUT is the target, and the receiver is the monitor.</p>
+<h2 id="fastest-working-test">Fastest working test</h2>
+<p>Use the existing Docker runner from the main Ze checkout when you want the whole setup built for you.</p>
+<pre><code class="language-text">python3 test/perf/run.py --build --test frr
+ze-perf report test/perf/results/*.json
+</code></pre>
+<p>Run a smaller wiring test first when you are adding a new DUT target.</p>
+<pre><code class="language-text">ze-perf run \
+  --dut-addr 172.31.0.2 \
+  --dut-asn 65000 \
+  --dut-name frr \
+  --routes 10 \
+  --repeat 1 \
+  --warmup-runs 0
+</code></pre>
+<p>If 10 routes do not converge, fix the BGP sessions or DUT policy before running a scale test.</p>
+<h2 id="a-100k-route-run">A 100k route run</h2>
+<p>This is the Ze equivalent of using ExaBGP as the injector in the original route-server tests.</p>
+<pre><code class="language-text">ze-perf run \
+  --dut-addr 172.31.0.2 \
+  --dut-asn 65000 \
+  --dut-name frr \
+  --sender-addr 172.31.0.10 \
+  --sender-asn 65001 \
+  --receiver-addr 172.31.0.11 \
+  --receiver-asn 65002 \
+  --routes 100000 \
+  --repeat 10 \
+  --warmup-runs 2 \
+  --iter-delay 3s \
+  --output results/frr-100k.json
+</code></pre>
+<p>The sender and receiver addresses must be valid local addresses in the lab where <code>ze-perf</code> runs. The Docker runner handles that wiring. In a manual lab, bind those addresses on the host or run <code>ze-perf</code> in the right network namespace.</p>
+<p>Then render the report.</p>
+<pre><code class="language-text">ze-perf report results/frr-100k.json
+</code></pre>
+<p>Use <code>--family ipv6/unicast</code> for IPv6. Use <code>--force-mp</code> to encode IPv4 NLRI through MP_REACH_NLRI and test the DUT multiprotocol path. Use <code>--batch-size 1</code> when you want one prefix per UPDATE instead of packed UPDATEs.</p>
+<h2 id="frr-as-the-dut">FRR as the DUT</h2>
+<p>This FRR config accepts the Ze sender and exports the received routes to the Ze receiver.</p>
+<pre><code class="language-text">frr defaults traditional
+hostname dut-frr
+log stdout informational
+!
+route-map ACCEPT permit 10
+!
+router bgp 65000
+ bgp router-id 172.31.0.2
+ no bgp ebgp-requires-policy
+ neighbor 172.31.0.10 remote-as 65001
+ neighbor 172.31.0.11 remote-as 65002
+ !
+ address-family ipv4 unicast
+  neighbor 172.31.0.10 activate
+  neighbor 172.31.0.10 route-map ACCEPT in
+  neighbor 172.31.0.11 activate
+  neighbor 172.31.0.11 route-map ACCEPT out
+ exit-address-family
+!
+</code></pre>
+<p>Useful checks while debugging:</p>
+<pre><code class="language-text">show bgp ipv4 unicast summary
+show bgp ipv4 unicast 10.0.0.0/24
+</code></pre>
+<p><code>PfxRcd</code> on the sender neighbor should reach the generated route count. The receiver side should receive the same count.</p>
+<h2 id="bird-as-the-dut">BIRD as the DUT</h2>
+<p>This BIRD 2 config imports routes from the Ze sender and exports them to the Ze receiver.</p>
+<pre><code class="language-text">log stderr all;
+router id 172.31.0.2;
+
+protocol device {
+}
+
+protocol bgp ze_sender {
+    local 172.31.0.2 as 65000;
+    neighbor 172.31.0.10 as 65001;
+    ipv4 {
+        import all;
+        export none;
+    };
+}
+
+protocol bgp ze_receiver {
+    local 172.31.0.2 as 65000;
+    neighbor 172.31.0.11 as 65002;
+    ipv4 {
+        import none;
+        export all;
+    };
+}
+</code></pre>
+<p>Useful checks:</p>
+<pre><code class="language-text">birdc show protocols
+birdc show route count
+</code></pre>
+<h2 id="what-ze-reports">What Ze reports</h2>
+<p><code>ze-perf</code> reports the fields that are easy to lose when the test is driven by an external injector.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Why it matters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>convergence-ms</code></td>
+<td>Time from the sender writing the first UPDATE to the receiver collecting the expected routes</td>
+</tr>
+<tr>
+<td><code>throughput-rps</code></td>
+<td>Sustained route propagation rate over the convergence window</td>
+</tr>
+<tr>
+<td><code>latency-p50-ms</code>, <code>latency-p90-ms</code>, <code>latency-p99-ms</code>, <code>latency-max-ms</code></td>
+<td>Per-route propagation distribution</td>
+</tr>
+<tr>
+<td><code>withdrawal-ms</code></td>
+<td>Time for the receiver to become idle after withdrawal</td>
+</tr>
+<tr>
+<td><code>routes-lost</code></td>
+<td>Route loss, which invalidates a throughput claim until fixed</td>
+</tr>
+<tr>
+<td><code>repeat</code>, <code>warmup-runs</code>, <code>repeat-kept</code></td>
+<td>How much measurement stability the run has</td>
+</tr>
+<tr>
+<td><code>seed</code>, <code>family</code>, <code>force-mp</code>, <code>batch-size</code></td>
+<td>Inputs needed to reproduce the route stream</td>
+</tr>
+</tbody>
+</table>
+<p>Use JSON for anything you intend to publish.</p>
+<pre><code class="language-text">ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --routes 100000 --output result.json
+</code></pre>
+<h2 id="what-to-publish-with-the-number">What to publish with the number</h2>
+<p>Publish the method with the result.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Why it matters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DUT name, version, commit, and config</td>
+<td>Policy and defaults change results</td>
+</tr>
+<tr>
+<td>Hardware or VM shape</td>
+<td>CPU, memory, and virtualization dominate control-plane tests</td>
+</tr>
+<tr>
+<td>Runtime</td>
+<td>Bare metal, Docker, Colima, QEMU, and VM networking are different tests</td>
+</tr>
+<tr>
+<td>Route source</td>
+<td>Synthetic routes, MRT replay, and production captures stress different code paths</td>
+</tr>
+<tr>
+<td>Peer shape</td>
+<td>One large peer and many small peers find different bugs</td>
+</tr>
+<tr>
+<td>Route count and family</td>
+<td>IPv4 inline NLRI, IPv4 MP_REACH, and IPv6 MP_REACH exercise different paths</td>
+</tr>
+<tr>
+<td>Batch size</td>
+<td>Packed UPDATEs and one prefix per UPDATE are different workloads</td>
+</tr>
+<tr>
+<td>Repeats and warmups</td>
+<td>One run is a smoke test</td>
+</tr>
+<tr>
+<td>Lost routes</td>
+<td>Loss must be explained before throughput matters</td>
+</tr>
+<tr>
+<td>Raw JSON</td>
+<td>The number can be checked later</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-close-ze-is-to-the-full-route-server-test">How close Ze is to the full route-server test</h2>
+<p>Ze already covers the core of the test: sender, DUT, receiver, route count, convergence, loss, and repeatable output.</p>
+<p>The current <code>ze-perf</code> shape is one sender session and one receiver session. That is enough to test route propagation and DUT table pressure. It is not the same as hundreds of independent BGP client sessions in one run.</p>
+<p>If the target is the full AMS-IX or bgperf style route-server scale test, the useful Ze feature would be a multi-peer mode:</p>
+<table>
+<thead>
+<tr>
+<th>Missing shape</th>
+<th>Feature to add</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>500 small route-server clients</td>
+<td>N sender sessions, each with its own local address, ASN, and route slice</td>
+</tr>
+<tr>
+<td>MRT replay as route source</td>
+<td>Route input from MRT, with <code>count</code> and <code>skip</code> controls</td>
+</tr>
+<tr>
+<td>External generator with Ze monitor</td>
+<td>Receiver-only mode that records first route, last route, loss, and receive window</td>
+</tr>
+<tr>
+<td>Per-client reporting</td>
+<td>JSON grouped by sender peer and route family</td>
+</tr>
+</tbody>
+</table>
+<p>That would let Ze reproduce the full route-server topology while keeping Ze's timing and JSON reporting.</p>
+<h2 id="prior-art">Prior art</h2>
+<p>AMS-IX published route-server performance slides at RIPE64 with 500 IPv4 peers, 128,000 prefixes, BIRD table-mode comparisons, an MTU test with 1012 IPv6 peers, and a note to check out ExaBGP as a lightweight tool to open BGP sessions and inject prefixes: <a href="https://ripe64.ripe.net/presentations/49-Follow_Up_AMS-IX_route-server_test_Euro-IX_20th_RIPE64.pdf" target="_blank" rel="noopener">AMS-IX Route-Server Performance Test</a>.</p>
+<p>Job Snijders' <code>bgp-performance</code> repository is a bgperf2-based performance suite. Its docs describe a target, monitor, and tester topology, and its MRT mode can use ExaBGP as an MRT injector: <a href="https://github.com/job/bgp-performance" target="_blank" rel="noopener">job/bgp-performance</a>, <a href="https://github.com/job/bgp-performance/blob/master/docs/how_bgperf_works.md" target="_blank" rel="noopener">how bgperf works</a>, and <a href="https://github.com/job/bgp-performance/blob/master/docs/mrt.md" target="_blank" rel="noopener">MRT injection</a>.</p>
+<h2 id="lab-evidence">Lab evidence</h2>
+<p>Ze's automated performance evidence already wires sender, DUT, and receiver the same way.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What it proves</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/perf/cli/cmd_run.go</code></span></span></td>
+<td><code>ze-perf run</code> accepts DUT, sender, receiver, repeat, warmup, JSON, output, family, MP, and batch flags</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/perf/result.go</code></span></span></td>
+<td>JSON results include convergence, throughput, latency percentiles, withdrawal time, lost routes, seed, family, and repeat metadata</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>test/perf/run.py</code></span></span></td>
+<td>The Docker runner benchmarks Ze, FRR, BIRD, GoBGP, rustbgpd, RustyBGP, freeRtr, and OpenBGPD</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>test/perf/configs/</code></span></span></td>
+<td>DUT configs are stored with the test runner rather than hidden in a report</td>
+</tr>
+</tbody>
+</table>
+<p>Run the Ze performance suite from the main checkout:</p>
+<pre><code class="language-text">python3 test/perf/run.py --build --test frr bird gobgp
+ze-perf report test/perf/results/*.json
+</code></pre>
+<p>The full benchmarking guide is at <a href="../../docs/guide/benchmarking/">docs/guide/benchmarking</a>.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Usage example</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Run the test</h2>
+                    <a class="page-sidebar-link" href="../../performance/">
+                        <span class="page-sidebar-link-label">Performance</span>
+                        <small>Current public benchmark summary.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/guide/benchmarking/">
+                        <span class="page-sidebar-link-label">Benchmarking guide</span>
+                        <small>How to run ze-perf and read JSON output.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/performance/">
+                        <span class="page-sidebar-link-label">Performance results</span>
+                        <small>Generated benchmark tables and methodology.</small>
+                    </a>
+                </section>
+                <section class="page-sidebar-group">
+                    <h2>Prior art</h2>
+                    <a class="page-sidebar-link" href="https://ripe64.ripe.net/presentations/49-Follow_Up_AMS-IX_route-server_test_Euro-IX_20th_RIPE64.pdf" target="_blank" rel="noopener">
+                        <span class="page-sidebar-link-label">AMS-IX route-server test</span>
+                        <small>RIPE64 route-server performance slides using ExaBGP as a testing tool.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="https://github.com/job/bgp-performance" target="_blank" rel="noopener">
+                        <span class="page-sidebar-link-label">bgp-performance</span>
+                        <small>Job Snijders&#x27; bgperf2-based BGP performance analysis suite.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js?v=97537ff540" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

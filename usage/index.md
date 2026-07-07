@@ -10,6 +10,7 @@ They are deployment examples, with the Ze config, the adjacent network config, a
 | --- | --- | --- | --- |
 | [AS112 anycast DNS inside a network](as112/) | Authoritative AS112 DNS sink plus BGP origin for the AS112 covering prefixes | VyOS, Junos, Cisco IOS XR, BIRD, and FRR receive the routes from Ze | Existing AS112 interop scenarios cover the DNS server, BGP redistribution, origin AS, communities, and the covering-prefix guard |
 | [ExaBGP migration](exabgp-migration/) | Ze as a replacement engine for an existing ExaBGP deployment | Existing ExaBGP config and process scripts are converted or bridged into Ze | The migration command, compatibility bridge, and staged workflow are linked to implementation sources |
+| [BGP performance testing with Ze](bgp-performance/) | Ze provides the sender, receiver, timing, and JSON report for a route-server performance test | FRR, BIRD, Ze, or another DUT receives and exports generated BGP routes | Existing Ze performance tooling supplies the report; the page links to AMS-IX, LINX, and bgperf prior art |
 
 ## What belongs here
 

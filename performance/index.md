@@ -32,7 +32,7 @@ $ bin/ze-perf report --doc test/perf/results/*.json
 
 Docker (Colima on macOS). `ze-perf` works against any BGP implementation, not just Ze -- point it at your own DUT.
 
- [Benchmarking guide architecture, flags, JSON output](https://ze-software.net/docs/guide/benchmarking/)
+ [Benchmarking guide architecture, flags, JSON output](https://ze-software.net/docs/guide/benchmarking/) [BGP performance tests with Ze sender, receiver, DUT, JSON](https://ze-software.net/usage/bgp-performance/)
 
 ## Performance evidence in the labs.
 

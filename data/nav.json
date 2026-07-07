@@ -64,7 +64,8 @@
                     {"label_only": "Deployment examples"},
                     {"href": "usage/", "icon": "🧰", "title": "Usage Examples", "desc": "Complete deployment examples for real network roles", "feature": true},
                     {"href": "usage/as112/", "icon": "112", "title": "AS112 Anycast DNS", "desc": "Ze as an AS112 DNS server with real router peers"},
-                    {"href": "usage/exabgp-migration/", "icon": "🔀", "title": "ExaBGP Migration", "desc": "A practical path from ExaBGP process scripts"}
+                    {"href": "usage/exabgp-migration/", "icon": "🔀", "title": "ExaBGP Migration", "desc": "A practical path from ExaBGP process scripts"},
+                    {"href": "usage/bgp-performance/", "icon": "perf", "title": "BGP performance tests", "desc": "Route-server performance tests with Ze"}
                 ],
                 [
                     {"label_only": "Runnable labs"},
