@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 269 design docs, 2838 files
+Total: 270 design docs, 2842 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1074,6 +1074,7 @@ Total: 269 design docs, 2838 files
 | File | Topic |
 |------|-------|
 | `cmd/ze/hub/managed.go` | managed client runtime commit wiring |
+| `cmd/ze/hub/managed_server.go` | hub managed-config server startup wiring |
 | `cmd/ze/hub/managed_test.go` | managed client runtime commit wiring |
 | `internal/component/managed/client.go` | managed client connection lifecycle |
 | `internal/component/managed/doc.go` | managed client component |
@@ -1081,6 +1082,7 @@ Total: 269 design docs, 2838 files
 | `internal/component/managed/heartbeat.go` | heartbeat liveness detection |
 | `internal/component/managed/reconnect.go` | reconnect backoff |
 | `internal/component/plugin/server/managed.go` | hub-side managed config handlers |
+| `internal/component/plugin/server/managed_serve.go` | hub-side managed config server (dedicated listener) |
 | `pkg/fleet/doc.go` | managed config shared types |
 | `pkg/fleet/envelope.go` | managed config RPC payloads |
 | `pkg/fleet/version.go` | config version hashing |
@@ -3744,6 +3746,11 @@ Total: 269 design docs, 2838 files
 ## `plan/spec-ipsec-13-rekey-wire.md`
 
 - `internal/component/ike/engine/msgid.go` -- RFC 7296 §2.3 message-ID handling
+
+## `plan/spec-ipsec-14-responder.md`
+
+- `internal/component/ike/engine/responder.go` -- IKE responder handshake (mirror of the initiator)
+- `internal/component/ike/engine/responder_eap.go` -- IKE responder EAP authenticator
 
 ## `plan/spec-isis-10-auth.md`
 

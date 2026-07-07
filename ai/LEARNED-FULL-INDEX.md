@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1082 summaries
+Total: 1085 summaries
 
 ## 000-099
 
@@ -1146,3 +1146,6 @@ Total: 1082 summaries
 | 1068 | Digest Anchor Validator and Subsystem Digest Expansion | `plan/learned/1068-digest-anchor-validator.md` |
 | 1069 | IKE/Child SA Rekey: Real CREATE_CHILD_SA Wire Exchange | `plan/learned/1069-ipsec-13-rekey-wire.md` |
 | 1070 | Forked Route Install via Loc-RIB RPC | `plan/learned/1070-forked-route-install.md` |
+| 1071 | Managed Hub Server (wire the dead server) | `plan/learned/1071-managed-hub-server.md` |
+| 1072 | IKE Responder Role (handshake + EAP-server + IKE-rekey responder) | `plan/learned/1072-ipsec-14-responder.md` |
+| 1073 | DDoS FlowSpec Origination (wire the responder + announce flowspec verb) | `plan/learned/1073-ddos-flowspec-wire.md` |
