@@ -451,6 +451,31 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 - Generated SSH password is only visible in the gokrazy ring buffer. If the instance restarts before the operator retrieves it, the password is lost. SSH key auth (from IMDS) is the primary access method.
 - ze-cloud-init does not handle instance metadata refreshes after first boot (e.g., SSH key rotation via IMDS). Key rotation requires config-push or a rebuilt image.
 
+## Review Gate
+
+<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
+<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
+<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
+<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
+<!-- NOTE-only findings do not block — record them and proceed. -->
+
+### Run 1 (initial)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+
+### Fixes applied
+- [short bullet per BLOCKER/ISSUE, naming the file and change]
+
+### Run 2+ (re-runs until clean)
+<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+
+### Final status
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [ ] All NOTEs recorded above (or explicitly "none")
+
 ## Checklist
 
 ### Goal Gates (MUST pass)

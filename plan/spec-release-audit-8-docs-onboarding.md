@@ -368,3 +368,28 @@ This audit spec has no implementation phase. Future fix specs should be created 
 | Source-anchor trust | Source anchors should point to real files and not silently false-positive as stale paths |
 | Link safety | Local Markdown link checker should reject paths outside the repository unless explicitly allowed |
 | Release evidence integrity | Docs validation must not mutate generated files during a read-only check |
+
+## Review Gate
+
+<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
+<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
+<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
+<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
+<!-- NOTE-only findings do not block — record them and proceed. -->
+
+### Run 1 (initial)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+
+### Fixes applied
+- [short bullet per BLOCKER/ISSUE, naming the file and change]
+
+### Run 2+ (re-runs until clean)
+<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+
+### Final status
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [ ] All NOTEs recorded above (or explicitly "none")

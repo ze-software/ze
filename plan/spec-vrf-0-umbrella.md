@@ -471,3 +471,28 @@ No Phase 1 work needs to be redone when VRF is implemented.
 - Conntrack zones (uint16) give per-VRF connection tracking isolation without network namespaces. The firewall assigns `ct zone set <N>` in raw/prerouting for each VRF's interfaces. This means the same 5-tuple in two VRFs is tracked as two independent connections. Zone 0 is the default VRF. Zone ID can default to the routing table ID (both uint, both per-VRF, natural 1:1 mapping) or be explicitly configured.
 - Conntrack helpers (modprobe) and nf_conntrack_max are global (per-netns, and Ze uses one netns). They belong under `system conntrack`, not per-VRF. Per-VRF timeout overrides are possible via nftables `ct timeout` objects assigned per firewall chain, which is a firewall feature, not a system config feature.
 - Network namespaces remain an option for hard isolation if the market demands it (regulatory, multi-tenant). The architecture does not block this: a future `vrf <name> { isolation namespace; }` could switch the backend from VRF device to netns. But the process model implications are significant (separate sockets, separate conntrack, separate sysctl) and would be a separate design effort.
+
+## Review Gate
+
+<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
+<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
+<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
+<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
+<!-- NOTE-only findings do not block — record them and proceed. -->
+
+### Run 1 (initial)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+
+### Fixes applied
+- [short bullet per BLOCKER/ISSUE, naming the file and change]
+
+### Run 2+ (re-runs until clean)
+<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+
+### Final status
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [ ] All NOTEs recorded above (or explicitly "none")
