@@ -189,6 +189,18 @@ func (r *spyRegistry) gaugeVec(name string) *spyGaugeVec {
 	return r.gaugeVecs[name]
 }
 
+func (r *spyRegistry) counter(name string) *spyCounter {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.counters[name]
+}
+
+func (r *spyRegistry) counterVec(name string) *spyCounterVec {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.counterVecs[name]
+}
+
 // --- Tests ---
 
 // TestUpdatePeriodicMetrics_SetsOverflowGauges verifies that updatePeriodicMetrics
