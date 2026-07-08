@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 273 design docs, 2854 files
+Total: 273 design docs, 2859 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -775,6 +775,7 @@ Total: 273 design docs, 2854 files
 | `internal/component/bgp/plugins/gr/gr.go` | graceful restart plugin |
 | `internal/component/bgp/plugins/gr/gr_egress.go` | LLGR egress filter |
 | `internal/component/bgp/plugins/gr/gr_llgr.go` | LLGR capability decode and format |
+| `internal/component/bgp/plugins/gr/gr_removal.go` | graceful restart peer-removal cleanup |
 | `internal/component/bgp/plugins/gr/gr_state.go` | graceful restart state management |
 | `internal/component/bgp/plugins/hostname/hostname.go` | hostname capability plugin |
 | `internal/component/bgp/plugins/llnh/llnh.go` | link-local next-hop plugin |
@@ -804,8 +805,10 @@ Total: 273 design docs, 2854 files
 | `internal/component/bgp/reactor/api_sync.go` | API process synchronization |
 | `internal/component/bgp/reactor/config.go` | config tree parsing (PeersFromTree) |
 | `internal/component/bgp/reactor/config_capabilities.go` | BGP capability parsing from config tree |
+| `internal/component/bgp/reactor/default_originate_raw.go` | default-originate raw-filter guard |
 | `internal/component/bgp/reactor/delivery.go` | BGP reactor event loop |
 | `internal/component/bgp/reactor/filter/loop.go` | route loop detection ingress filter |
+| `internal/component/bgp/reactor/filter/loop_metrics.go` | loop-filter Prometheus metrics |
 | `internal/component/bgp/reactor/filter_chain.go` | policy filter chain |
 | `internal/component/bgp/reactor/filter_chain_test.go` | policy filter chain tests |
 | `internal/component/bgp/reactor/filter_delta.go` | policy filter wire-level dirty tracking |
@@ -1469,6 +1472,8 @@ Total: 273 design docs, 2854 files
 | `internal/component/web/cli_terminal.go` | CLI terminal mode and rendering helpers |
 | `internal/component/web/decorator.go` | Display-time value decoration |
 | `internal/component/web/decorator_asn.go` | ASN name resolution via Team Cymru DNS |
+| `internal/component/web/decorator_community.go` | well-known BGP community name resolution |
+| `internal/component/web/decorator_reverse_dns.go` | reverse DNS (PTR) name resolution |
 | `internal/component/web/editor.go` | Per-user editor management |
 | `internal/component/web/handler.go` | URL routing and content negotiation |
 | `internal/component/web/handler_admin.go` | Admin command handlers |

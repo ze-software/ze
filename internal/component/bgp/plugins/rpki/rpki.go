@@ -37,7 +37,8 @@ import (
 type rpkiMetrics struct {
 	vrpsCached         metrics.Gauge      // VRPs currently in ROA cache
 	sessionsActive     metrics.Gauge      // active RTR sessions
-	validationOutcomes metrics.CounterVec // validation results (labels: result)
+	validationOutcomes metrics.CounterVec // origin validation results (labels: result)
+	aspaOutcomes       metrics.CounterVec // ASPA path verification results (labels: result)
 }
 
 // rpkiMetricsPtr stores RPKI metrics, set by SetMetricsRegistry.
@@ -49,7 +50,8 @@ func SetMetricsRegistry(reg metrics.Registry) {
 	m := &rpkiMetrics{
 		vrpsCached:         reg.Gauge("ze_rpki_vrps_cached", "VRPs currently in ROA cache."),
 		sessionsActive:     reg.Gauge("ze_rpki_sessions_active", "Active RTR cache sessions."),
-		validationOutcomes: reg.CounterVec("ze_rpki_validation_outcomes_total", "RPKI validation outcomes.", []string{"result"}),
+		validationOutcomes: reg.CounterVec("ze_rpki_validation_outcomes_total", "RPKI origin validation outcomes.", []string{"result"}),
+		aspaOutcomes:       reg.CounterVec("ze_rpki_aspa_outcomes_total", "ASPA path verification outcomes.", []string{"result"}),
 	}
 	rpkiMetricsPtr.Store(m)
 }
@@ -632,6 +634,10 @@ func (rp *RPKIPlugin) buildDecisions(batch []validationRequest) []rpc.Validation
 		req := &batch[i]
 		if m != nil {
 			m.validationOutcomes.With(validationStateString(req.state)).Inc()
+			// ASPA outcome, only when ASPA verification was active for the route.
+			if req.aspaState != aspaStateNone {
+				m.aspaOutcomes.With(aspaStateString(req.aspaState)).Inc()
+			}
 		}
 
 		reject := req.state == ValidationInvalid
