@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 1/3 (1 audit+glossary, 2 rename decision, 3 verify+close) |
 | Updated | 2026-07-08 |
 
 ## Post-Compaction Recovery
@@ -56,7 +56,7 @@ This is a skeleton (captured intent). Moves to `design` when picked up.
 **Source files read:** (anchors verified this session, 2026-07-08)
 - [ ] `internal/component/bgp/wireu/doc.go` - "Package wireu implements lazy-parsed BGP UPDATE messages with zero-copy iterators over wire bytes"
   → Constraint: "u" means UPDATE; the name is opaque to every reader; the glossary child decides rename vs glossary-entry-only.
-- [ ] `ai/rules/naming.md` - current naming conventions (file/package casing, forbidden `utils`/`helpers`/`common`/`misc`)
+- [ ] `ai/rules/naming.md` - ~~current naming conventions (file/package casing, forbidden `utils`/`helpers`/`common`/`misc`)~~ Correction (2026-07-08 audit): the file is 16 lines -- the "ze" naming table + YANG suffixes + a pointer to `config-naming.md`; it contains NO forbidden-names list and no package-casing rules. The glossary is a genuinely new section.
   → Constraint: the glossary is a new section here, consistent with the existing rules.
 
 **Behavior to preserve:**
@@ -103,8 +103,8 @@ This is a skeleton (captured intent). Moves to `design` when picked up.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The glossary can document existing terms without forcing any rename beyond an approved shortlist | 610-package tree; glossary-first decision in the umbrella | glossary implies churn; scope creep | keep the glossary descriptive; renames only from a user-approved list | unvalidated |
-| A-2 | `wireu` is the only actively misleading name worth a rename | umbrella review; `wireu/doc.go` read this session | more names need renaming; larger shortlist | list candidate opaque names at design; user approves the final shortlist | unvalidated |
+| A-1 | The glossary can document existing terms without forcing any rename beyond an approved shortlist | 610-package tree; glossary-first decision in the umbrella | glossary implies churn; scope creep | keep the glossary descriptive; renames only from a user-approved list | **confirmed** (2026-07-08): glossary is descriptive, grounded in `ai/PACKAGE-MAP.md` responsibilities; Files to Modify stayed docs-only (`naming.md`, `wireu/doc.go`, this spec) |
+| A-2 | `wireu` is the only actively misleading name worth a rename | umbrella review; `wireu/doc.go` read this session | more names need renaming; larger shortlist | list candidate opaque names at design; user approves the final shortlist | **confirmed** (2026-07-08): candidate scan found only `wireu` cross-cutting; the `bgp/plugins/{gr,rs,rr,llnh,capa}` short names are established BGP jargon local to that namespace. User decided KEEP + document (shortlist empty), citing 47 importer files and rib-arch conflict risk |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -157,6 +157,98 @@ Wiring is the discoverable rule doc plus an optional deterministic rename
 4. **Full verification** - `make ze-rules-index` clean; `go build ./...` green if a rename ran.
 5. **Complete spec** - learned summary, two-commit closure per `ai/rules/planning.md`.
 
+## Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Correctness (R-2) | Every glossary term matches the actual `doc.go`/PACKAGE-MAP responsibility of the packages cited; no term defined against how a package is wished to be |
+| Completeness | All seven terms + the `cli`/`cmd`/`command` trio + the four rib-named packages defined; `wireu` decision recorded with rationale |
+| No churn (A-1/R-1) | Zero package renames unless user-approved; Files to Modify stays docs-only in the keep case |
+| Consistency | Glossary does not contradict `ai/rules/plugin-design.md` proximity/registration rules or `ai/rules/config-naming.md` |
+| CLI grammar / Doctor / YANG / Prometheus | N/A - documentation only, no runtime surface |
+
+## Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Glossary section in `ai/rules/naming.md` | grep the file for the term table (packet/message/wire/session/engine/transport/reactor) |
+| Trio + rib disambiguation present | grep `naming.md` for `component/command` and `core/rib/locrib` |
+| INDEX row current | `make ze-rules-index` produces no diff |
+| `wireu` decision executed | keep-case: `doc.go` names the expansion and points at the glossary; rename-case: `go build ./...` green, zero `wireu` references remain |
+
+## Security Review Checklist
+
+| Check | What to look for |
+|-------|-----------------|
+| No runtime surface | Documentation-only change (keep case); rename case is a mechanical path rewrite with no logic change, proven by build + existing tests |
+
+## Documentation Update Checklist (BLOCKING)
+
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1-11, 13-15 | user feature / config / CLI / API / plugin / guide / wire / SDK / RFC / test infra / comparison / metadata / counters / inventory | no | contributor-facing naming rule only |
+| 12 | Internal architecture changed? | yes | `ai/rules/naming.md` (the glossary IS the change); `ai/rules/INDEX.md` regenerated |
+| 16 | Source anchors on changed files? | verify | grep `docs/ ai/` for anchors naming `naming.md` / `wireu` |
+| 17 | Examples elsewhere? | verify | grep docs for `wireu` mentions if renamed |
+
+## Review Gate
+
+<!-- Filled by /ze-implement step 15: run /ze-review over the complete diff, loop to 0 BLOCKER / 0 ISSUE. -->
+
+### Run 1 (initial) -- 2026-07-08, full uncommitted diff. 0 BLOCKER, 0 ISSUE, 2 NOTE.
+Pre-checks: `make ze-validate` exit 0 (the 6 gh-pages anchor reds seen during
+layout-2 are gone); `audit-test-relaxation.py` clean. Diff = `ai/rules/naming.md`
+(glossary), `internal/component/bgp/wireu/doc.go` (comment only),
+`ai/PACKAGE-MAP.md` (regenerated after the doc-comment change), this spec.
+Wiring/functional/logic/security/performance: no runtime surface -- the only
+code change is a package comment; `go vet` clean. Removed-behavior: the original
+doc.go sentence is preserved verbatim inside the expanded comment. R-2: every
+glossary definition quotes the package's generated PACKAGE-MAP responsibility.
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | NOTE | `ai/rules/INDEX.md` one-liner for naming.md unchanged (derives from the "When to read" header); glossary is discoverable via the existing naming row and ai/INDEX.md:55 | ai/rules/INDEX.md | acknowledged -- freshness check green pre and post |
+| 2 | NOTE | 8 pre-existing `check_doc_links.py` breaks remain, none introduced or touched by this diff | ai/LEARNED-INDEX.md:250-252 et al. | out of diff; already recorded in layout-2's Review Gate |
+
+### Fixes applied
+- None required: Run 1 reported 0 BLOCKER, 0 ISSUE.
+
+### Run 2+ (re-runs until clean)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| - | - | Run 1 was already clean; no fixes applied, so no re-run required | - | - |
+
+### Final status
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [ ] All NOTEs recorded above (or explicitly "none")
+(Evidence: Run 1 table above is the final clean run -- 0 BLOCKER, 0 ISSUE, 2 NOTEs recorded.)
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `ai/rules/naming.md` glossary section | yes | "## Package-Naming Glossary" + trio + rib tables present (this session's Edit; `rules_index.py --check` green) |
+| `internal/component/bgp/wireu/doc.go` expanded | yes | comment names "wire UPDATE" + keep decision; `go vet` exit 0 |
+| `ai/PACKAGE-MAP.md` regenerated | yes | `make ze-discovery-index` exit 0; 1-line diff (wireu row) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Glossary defines the 7 terms + trio + 4 rib packages; INDEX current | glossary tables in `naming.md` grounded in PACKAGE-MAP quotes; `rules_index.py --check`: "79 rules, up to date"; discoverable via ai/INDEX.md:55 |
+| AC-2 | `wireu` decision recorded and executed | user decision 2026-07-08: KEEP + document; `doc.go` expanded with expansion + rationale; glossary `wireu` row; zero packages renamed |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | docs-only diff (naming.md, doc.go comment, regenerated PACKAGE-MAP, spec); zero renames |
+| A-2 | confirmed | candidate scan: only `wireu` cross-cutting; user approved empty rename shortlist (keep + document) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Glossary definitions match package reality | each row quotes the package's `ai/PACKAGE-MAP.md` responsibility (generated from doc comments); `plugins/routingtable` wrap claim cites `registry.go:5-8` | yes -- `make ze-doc-test` exit 0 after `ze-discovery-index` |
+
 ## Checklist
 
 ### Goal Gates (MUST pass)
@@ -171,6 +263,16 @@ Wiring is the discoverable rule doc plus an optional deterministic rename
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
+
+TDD evidence (2026-07-08): fail-first does not apply -- the only checkable
+surface is the rules-index freshness, and `rules_index.py --check` stayed green
+before AND after the glossary section because the INDEX one-liner derives from
+the rule's "When to read" header, which this change does not touch (the glossary
+is discoverable via the existing naming row). Recorded honestly rather than
+manufacturing a red. Post-change verification: `rules_index.py --check` "79
+rules, up to date"; `go vet ./internal/component/bgp/wireu/` exit 0;
+`check_doc_links.py` unchanged (the same 8 pre-existing breaks, none new);
+`make ze-doc-test` run below (Pre-Commit Verification).
 
 ## Notes
 - Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.

@@ -230,7 +230,7 @@ Total: 598 packages, 598 described, 0 TODO
 | `internal/component/bgp/textparse` | provides a zero-allocation tokenizer and keyword resolution for BGP text commands |  |
 | `internal/component/bgp/transaction` | manages named BGP commits that queue route announcements and withdrawals until they are ended or rolled back |  |
 | `internal/component/bgp/types` | defines shared BGP-specific types for routes, next-hops, and reactor interfaces |  |
-| `internal/component/bgp/wireu` | implements lazy-parsed BGP UPDATE messages with zero-copy iterators over wire bytes |  |
+| `internal/component/bgp/wireu` | ("wire UPDATE") implements lazy-parsed BGP UPDATE messages with zero-copy iterators over wire bytes |  |
 | `internal/component/bgp/yang` | embeds the YANG schemas for BGP configuration and API |  |
 
 ## `internal/component/`
