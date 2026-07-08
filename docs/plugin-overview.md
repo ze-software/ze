@@ -36,7 +36,10 @@ in is decided by **dependency direction**, not by the registration mechanism:
 for platform plugins that other plugins depend on (BGP, iface, the RIB),
 `internal/plugins/` for edge plugins nothing depends on (NTP, static, IS-IS,
 OSPF). A config-driven engine (`sdk.NewWithConn`) in the wrong tier fails the
-`make ze-tier-check` gate. Full rule and the audit tool:
+`make ze-tier-check` gate, as does a new `internal/core/` import of
+`internal/component/` or `internal/plugins/` (core is the leaf tier; the
+grandfathered pairs live in the shrink-only `scripts/dev/core_import_baseline.txt`).
+Full rule and the audit tool:
 [`ai/rules/module-tiers.md`](../ai/rules/module-tiers.md).
 <!-- source: ai/rules/module-tiers.md -- tier taxonomy and the engine-placement gate -->
 <!-- source: scripts/dev/dep_audit.py -- dep audit report + Path C --check gate -->

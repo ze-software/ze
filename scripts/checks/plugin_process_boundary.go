@@ -14,10 +14,10 @@
 // (iface.SubscribeCollectNotify -- both refuse), ddos-detect
 // (iface.SubscribeCollectNotify + trafficstat.EnsureGlobal/Global -- warns).
 //
-// It scans every plugin package (any directory containing a
-// sdk.NewWithConn( call site, under internal/plugins/ or
-// internal/component/bgp/plugins/) for calls to the dangerousCalls list
-// below. Per file, the local identifier for each watched import path is
+// It scans every package under the generator's plugin search roots
+// (pluginDirs + nestedPluginDomains in scripts/codegen/plugin_imports.go,
+// derived at runtime -- see loadScanRootsFrom) for calls to the
+// dangerousCalls list below. Per file, the local identifier for each watched import path is
 // resolved from that file's own import declarations (go/parser, imports
 // only) rather than assumed to be the package's default name, so a renamed
 // import (e.g. `ifcomp "internal/component/iface"`) is still caught. A match
@@ -48,6 +48,7 @@ import (
 	"go/token"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -110,12 +111,61 @@ var guardPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`\bwarnIfExternal\(`),
 }
 
-// scanRoots are the directories that hold plugin packages subject to the
-// internal/external process-placement choice (registry.Registration.RunEngine,
-// started via internal/component/plugin/process.go's startInternal/startExternal).
-var scanRoots = []string{
-	"internal/plugins",
-	"internal/component/bgp/plugins",
+// generatorSource is the plugin-namespace source of truth: the composition-
+// root generator whose pluginDirs + nestedPluginDomains lists say where plugin
+// packages (subject to the internal/external process-placement choice) live.
+// The scan roots are DERIVED from it at runtime -- never a second hardcoded
+// list -- so a namespace added to the generator is automatically scanned
+// (spec-layout-0-umbrella child 2; same single-discovery-source rule as
+// dep_audit.py's parse_plugin_dirs, tiers blocker B-1).
+const generatorSource = "scripts/codegen/plugin_imports.go"
+
+// parseStringList extracts the quoted elements of `var <name> = []string{...}`
+// from the generator source text. Mirrors dep_audit.py's _parse_string_list.
+func parseStringList(text, name string) []string {
+	re := regexp.MustCompile(`var ` + regexp.QuoteMeta(name) + ` = \[\]string\{([^}]*)\}`)
+	m := re.FindStringSubmatch(text)
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, q := range regexp.MustCompile(`"([^"]+)"`).FindAllStringSubmatch(m[1], -1) {
+		out = append(out, q[1])
+	}
+	return out
+}
+
+// loadScanRootsFrom derives the scan roots from the generator file at path:
+// every pluginDirs entry plus internal/component/<domain>/plugins for every
+// nestedPluginDomains entry, deduplicated. It fails loud when pluginDirs
+// cannot be parsed (a generator refactor must break the gate visibly, never
+// silently scan nothing).
+func loadScanRootsFrom(genPath string) ([]string, error) {
+	raw, err := os.ReadFile(genPath)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", genPath, err)
+	}
+	text := string(raw)
+	pluginDirs := parseStringList(text, "pluginDirs")
+	if len(pluginDirs) == 0 {
+		return nil, fmt.Errorf("%s: could not parse pluginDirs -- gate cannot run safely", genPath)
+	}
+	seen := map[string]bool{}
+	var roots []string
+	add := func(rel string) {
+		if rel == "" || seen[rel] {
+			return
+		}
+		seen[rel] = true
+		roots = append(roots, rel)
+	}
+	for _, rel := range pluginDirs {
+		add(rel)
+	}
+	for _, domain := range parseStringList(text, "nestedPluginDomains") {
+		add(path.Join("internal/component", domain, "plugins"))
+	}
+	return roots, nil
 }
 
 type finding struct {
@@ -309,17 +359,33 @@ func scan(roots []string) ([]finding, error) {
 func main() {
 	jsonOut := false
 	selftest := false
+	printRoots := false
 	for _, a := range os.Args[1:] {
 		switch a {
 		case "--json":
 			jsonOut = true
 		case "--selftest":
 			selftest = true
+		case "--print-roots":
+			printRoots = true
 		}
 	}
 
 	if selftest {
 		os.Exit(runSelftest())
+	}
+
+	scanRoots, err := loadScanRootsFrom(generatorSource)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "plugin-process-boundary: %v\n", err)
+		os.Exit(2)
+	}
+
+	if printRoots {
+		for _, r := range scanRoots {
+			fmt.Println(r)
+		}
+		return
 	}
 
 	unguarded, err := scan(scanRoots)
@@ -450,6 +516,35 @@ import _ "`+ifacePkg+`"
 	check(byPkg[guardedPkg], "guarded package (guard in a sibling file) wrongly flagged")
 	blankPkg := filepath.ToSlash(filepath.Join(dir, "internal/plugins/blankimport"))
 	check(byPkg[blankPkg], "blank import wrongly flagged")
+
+	// --- scan-root derivation from the generator (spec-layout-2) ---
+	// A fixture generator file must yield pluginDirs + the expanded
+	// nestedPluginDomains, deduplicated; an unparseable pluginDirs must be a
+	// loud error, never an empty (scan-nothing) result.
+	write("scripts/codegen/plugin_imports.go", `package main
+
+var pluginDirs = []string{
+	"internal/plugins",
+	"internal/component/firewall/plugins",
+	"internal/plugins",
+}
+
+var nestedPluginDomains = []string{
+	"l2tp",
+}
+`)
+	roots, rerr := loadScanRootsFrom(filepath.Join(dir, "scripts/codegen/plugin_imports.go"))
+	check(rerr != nil, "fixture generator parse errored")
+	wantRoots := []string{
+		"internal/plugins",
+		"internal/component/firewall/plugins",
+		"internal/component/l2tp/plugins",
+	}
+	check(!slices.Equal(roots, wantRoots), "derived roots wrong (dedup + nested expansion)")
+
+	write("scripts/codegen/broken.go", "package main\n// no pluginDirs here\n")
+	_, berr := loadScanRootsFrom(filepath.Join(dir, "scripts/codegen/broken.go"))
+	check(berr == nil, "unparseable pluginDirs did not fail loud")
 
 	if len(failed) > 0 {
 		fmt.Fprintln(os.Stderr, "plugin-process-boundary selftest FAILED:")

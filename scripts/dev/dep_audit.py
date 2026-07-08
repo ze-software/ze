@@ -29,7 +29,8 @@ Usage:
 Report exit code: 0 always.
 Gate (--check) exit codes: 0 = compliant (or only baselined), 2 = a new misplaced
 engine, stale baseline entry, illegal/unclassified non-engine placement, manifest
-error, or pluginDirs parse failure.
+error, pluginDirs parse failure, or a new/stale internal/core upward import
+(core import-direction gate, baseline: scripts/dev/core_import_baseline.txt).
 
 Module-tier rule (see ai/rules/module-tiers.md): a config-driven engine
 (`sdk.NewWithConn`) at a top-level subsystem MUST live in internal/component/ if a
@@ -761,14 +762,127 @@ def non_engine_category_gate(root: str, module: str, edges: dict) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Core import-direction gate (internal/core must not import upward)
+# ---------------------------------------------------------------------------
+#
+# internal/core is the leaf library tier (ai/rules/module-tiers.md): it may not
+# import internal/component or internal/plugins. The grandfathered violations
+# live in a shrink-only baseline at PAIR granularity (importer file + imported
+# package), each row annotated with its fix route, so a fixed pair left behind
+# is a stale-entry failure and a NEW upward import in an already-baselined file
+# is still caught. See plan/spec-layout-0-umbrella.md (child 2).
+
+CORE_IMPORT_BASELINE = "scripts/dev/core_import_baseline.txt"
+CORE_AREA_PREFIX = "internal/core/"
+CORE_FORBIDDEN = ("internal/component", "internal/plugins")
+CORE_FIX_ROUTES = ("hand-fixable", "generator-fixable", "needs-design")
+
+
+def core_direction_violations(root: str, module: str, edges: dict) -> set:
+    """(importer-file, imported-package) pairs where internal/core imports a
+    package under internal/component or internal/plugins. Test files count:
+    the grandfathered set includes internal/core/ipc/yang_test.go."""
+    out = set()
+    bases = tuple(module + "/" + p for p in CORE_FORBIDDEN)
+    for imported, importers in edges.items():
+        if not any(imported == b or imported.startswith(b + "/") for b in bases):
+            continue
+        rel = imported[len(module) + 1 :]
+        for imp in importers:
+            if imp.startswith(CORE_AREA_PREFIX):
+                out.add((imp, rel))
+    return out
+
+
+def read_core_import_baseline(root: str) -> tuple[set, list]:
+    """Parse the shrink-only baseline: '<core-file> <imported-package>
+    <fix-route>: <rationale>' rows. Returns (pairs, errors); an illegal fix
+    route is an error so nothing can be baselined without a named route."""
+    path = os.path.join(root, CORE_IMPORT_BASELINE)
+    pairs, errors = set(), []
+    if not os.path.exists(path):
+        return pairs, errors
+    for lineno, line in enumerate(open(path, encoding="utf-8"), 1):
+        raw = line.strip()
+        if not raw or raw.startswith("#"):
+            continue
+        parts = raw.split(None, 2)
+        if len(parts) != 3:
+            errors.append(
+                f"{CORE_IMPORT_BASELINE}:{lineno}: expected "
+                "'<core-file> <imported-package> <fix-route>: <rationale>'"
+            )
+            continue
+        route = parts[2].split(":", 1)[0].strip()
+        if route not in CORE_FIX_ROUTES:
+            errors.append(
+                f"{CORE_IMPORT_BASELINE}:{lineno}: fix route {route!r} "
+                f"not one of {sorted(CORE_FIX_ROUTES)}"
+            )
+            continue
+        pairs.add((parts[0], parts[1]))
+    return pairs, errors
+
+
+def core_direction_gate(root: str, module: str, edges: dict) -> int:
+    current = core_direction_violations(root, module, edges)
+    baseline, errors = read_core_import_baseline(root)
+    if errors:
+        print(f"FAIL: {CORE_IMPORT_BASELINE} malformed:", file=sys.stderr)
+        for err in errors:
+            print(f"  {err}", file=sys.stderr)
+        return 2
+    new = current - baseline
+    stale = baseline - current
+    if new:
+        print(
+            "FAIL: new upward import(s) from internal/core -- wrong direction:",
+            file=sys.stderr,
+        )
+        for imp, pkg in sorted(new):
+            print(f"  {imp} imports {pkg}", file=sys.stderr)
+        print(
+            "  Rule: internal/core is the leaf tier and imports neither "
+            "internal/component nor internal/plugins (ai/rules/module-tiers.md).",
+            file=sys.stderr,
+        )
+        print(
+            f"  A deliberate, spec-referenced exception goes in {CORE_IMPORT_BASELINE} "
+            "with a fix route (hand-fixable / generator-fixable / needs-design).",
+            file=sys.stderr,
+        )
+    if stale:
+        print(
+            "FAIL: stale core-import baseline row(s) -- the upward import is "
+            f"gone, remove from {CORE_IMPORT_BASELINE}:",
+            file=sys.stderr,
+        )
+        for imp, pkg in sorted(stale):
+            print(f"  {imp} imports {pkg}", file=sys.stderr)
+    if new or stale:
+        return 2
+    if current:
+        files = sorted({imp for imp, _ in current})
+        print(
+            f"OK: core import direction clean; {len(current)} pair(s) in "
+            f"{len(files)} file(s) baselined (pending fix)."
+        )
+    else:
+        print("OK: core import direction clean; no exceptions (baseline empty).")
+    return 0
+
+
 def run_gate(root: str, module: str, edges: dict) -> int:
     """Combined --check gate: engine placement, non-engine category manifest,
-    disableable imports, and .golangci.yml manifest drift."""
+    core import direction, disableable imports, and .golangci.yml manifest
+    drift."""
     engine_rc = engine_placement_gate(root, module, edges)
     non_engine_rc = non_engine_category_gate(root, module, edges)
+    core_rc = core_direction_gate(root, module, edges)
     dis_rc = disableable_gate(root, module, edges)
     golangci_rc = golangci_drift_gate(root)
-    return engine_rc or non_engine_rc or dis_rc or golangci_rc
+    return engine_rc or non_engine_rc or core_rc or dis_rc or golangci_rc
 
 
 def engine_placement_gate(root: str, module: str, edges: dict) -> int:
@@ -1114,6 +1228,100 @@ def selftest() -> int:
         with contextlib.redirect_stderr(io.StringIO()):
             assert golangci_drift_gate(mroot) == 2, (
                 "gate missing from golangci build-tags should fail"
+            )
+
+    # --- core import-direction gate (spec-layout-2): internal/core must not ---
+    # --- import internal/component or internal/plugins (isolated fixtures) ---
+    with tempfile.TemporaryDirectory() as croot:
+        cmod = "example.com/m"
+        w(croot, "go.mod", f"module {cmod}\n")
+        # core -> core import: allowed, never a violation.
+        w(croot, "internal/core/clean/lib.go", "package clean\n")
+        w(
+            croot,
+            "internal/core/ok/self.go",
+            f'package ok\nimport _ "{cmod}/internal/core/clean"\n',
+        )
+        # core -> component import (non-test): violation.
+        w(
+            croot,
+            "internal/core/bad/uses.go",
+            f'package bad\nimport _ "{cmod}/internal/component/thing"\n',
+        )
+        # core -> plugins import (test file): also a violation (tests count --
+        # the real grandfathered set includes internal/core/ipc/yang_test.go).
+        w(
+            croot,
+            "internal/core/bad/uses_test.go",
+            f'package bad\nimport _ "{cmod}/internal/plugins/thingp"\n',
+        )
+        # component -> component import: out of scope for this gate.
+        w(
+            croot,
+            "internal/component/other/lib.go",
+            f'package other\nimport _ "{cmod}/internal/component/thing"\n',
+        )
+        cedges = collect_edges(croot, cmod)
+        cviol = core_direction_violations(croot, cmod, cedges)
+        cexpect = {
+            ("internal/core/bad/uses.go", "internal/component/thing"),
+            ("internal/core/bad/uses_test.go", "internal/plugins/thingp"),
+        }
+        assert cviol == cexpect, f"core-direction violations {cviol} != {cexpect}"
+
+        with contextlib.redirect_stderr(io.StringIO()):
+            assert core_direction_gate(croot, cmod, cedges) == 2, (
+                "missing baseline: new upward imports should fail"
+            )
+        w(
+            croot,
+            CORE_IMPORT_BASELINE,
+            "# core import-direction baseline -- selftest fixture\n"
+            "internal/core/bad/uses.go\tinternal/component/thing\t"
+            "hand-fixable: selftest fixture\n"
+            "internal/core/bad/uses_test.go\tinternal/plugins/thingp\t"
+            "needs-design: selftest fixture\n",
+        )
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert core_direction_gate(croot, cmod, cedges) == 0, (
+                "fully baselined pairs should pass"
+            )
+        # a NEW pair in an already-baselined FILE must still fail (pair
+        # granularity, not file granularity).
+        w(
+            croot,
+            "internal/core/bad/more.go",
+            f'package bad\nimport _ "{cmod}/internal/component/second"\n',
+        )
+        cedges = collect_edges(croot, cmod)
+        with contextlib.redirect_stderr(io.StringIO()):
+            assert core_direction_gate(croot, cmod, cedges) == 2, (
+                "new pair in a baselined package should fail"
+            )
+        os.remove(os.path.join(croot, "internal/core/bad/more.go"))
+        # stale baseline row (import gone) must fail until the row is removed.
+        with open(
+            os.path.join(croot, CORE_IMPORT_BASELINE), "a", encoding="utf-8"
+        ) as fh:
+            fh.write(
+                "internal/core/gone/x.go\tinternal/component/thing\t"
+                "hand-fixable: stale fixture\n"
+            )
+        cedges = collect_edges(croot, cmod)
+        with contextlib.redirect_stderr(io.StringIO()):
+            assert core_direction_gate(croot, cmod, cedges) == 2, (
+                "stale baseline row should fail (shrink-only)"
+            )
+        # malformed fix route must fail loud, not silently baseline.
+        w(
+            croot,
+            CORE_IMPORT_BASELINE,
+            "internal/core/bad/uses.go\tinternal/component/thing\t"
+            "wontfix: not a legal route\n",
+        )
+        with contextlib.redirect_stderr(io.StringIO()):
+            assert core_direction_gate(croot, cmod, cedges) == 2, (
+                "illegal fix route should fail"
             )
 
     print("dep_audit selftest OK")

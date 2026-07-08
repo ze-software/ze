@@ -4,7 +4,7 @@
 
 ## The problem
 
-A Ze plugin can run **internal** (a goroutine sharing the daemon's own process, wired via `internal/component/plugin/process.go`'s `startInternal`) or **external** (a forked subprocess talking only over TLS/RPC, via `startExternal`). Plugin code is supposed to reach the engine only through the SDK's RPC layer, which handles this difference transparently.
+A Ze plugin can run **internal** (a goroutine sharing the daemon's own process, wired via `internal/component/plugin/process/process.go`'s `startInternal`) or **external** (a forked subprocess talking only over TLS/RPC, via `startExternal`). Plugin code is supposed to reach the engine only through the SDK's RPC layer, which handles this difference transparently.
 
 A plugin that instead calls a plain exported Go function in another `internal/component/*` package -- reaching straight into that package's shared, process-local state -- works perfectly when the plugin happens to run internal (same memory), and silently does nothing useful when it runs external: the call mutates the *subprocess's own disconnected copy* of that package's state. No error, no panic, no log line. The feature just quietly never works.
 
@@ -29,6 +29,7 @@ Do not copy-paste the severity choice between plugins -- judge each one on what 
 
 ## The mechanical check
 
-`make ze-plugin-boundary-check` (wired into `ze-verify`/`ze-verify-changed`) runs `scripts/checks/plugin_process_boundary.go`: it scans every plugin package under `internal/plugins/` and `internal/component/bgp/plugins/` for calls to a maintained dangerous-pattern list, and fails if a plugin package contains one with no `.IsInternal()`/`warnIfExternal(` call anywhere in that same package. This is a presence heuristic (it does not prove the guard actually covers the call at runtime), the same rigor level as the sibling `ze-iface-resolution-check`.
+`make ze-plugin-boundary-check` (wired into `ze-verify`/`ze-verify-changed`) runs `scripts/checks/plugin_process_boundary.go`: it scans every package under the generator's plugin search roots -- derived at runtime from `scripts/codegen/plugin_imports.go`'s `pluginDirs` + `nestedPluginDomains` (13 namespaces today, including `internal/component/l2tp/plugins/` and `internal/component/firewall/plugins/`), never a second hardcoded list -- for calls to a maintained dangerous-call list, and fails if a plugin package contains one with no `.IsInternal()`/`warnIfExternal(` call anywhere in that same package. `--print-roots` shows the derived set. This is a presence heuristic (it does not prove the guard actually covers the call at runtime), the same rigor level as the sibling `ze-iface-resolution-check`.
+<!-- source: scripts/checks/plugin_process_boundary.go -- loadScanRootsFrom -->
 
-Add a new dangerous-pattern entry to `scripts/checks/plugin_process_boundary.go`'s `dangerousPatterns` list whenever a new instance of this class is found and fixed, so the check stays current. Add a new `allowlist` entry only for a package's own legitimate calls to its own function.
+Add a new entry to `scripts/checks/plugin_process_boundary.go`'s `dangerousCalls` list whenever a new instance of this class is found and fixed, so the check stays current. Add a new `allowlist` entry only for a package's own legitimate calls to its own function.

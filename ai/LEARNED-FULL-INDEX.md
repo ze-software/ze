@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1100 summaries
+Total: 1101 summaries
 
 ## 000-099
 
@@ -1164,3 +1164,4 @@ Total: 1100 summaries
 | 1086 | Claude Runs the Commit Script | `plan/learned/1086-claude-runs-commit-script.md` |
 | 1087 | lint-linux-platform | `plan/learned/1087-lint-linux-platform.md` |
 | 1088 | layout-1-hygiene | `plan/learned/1088-layout-1-hygiene.md` |
+| 1089 | layout-2-core-import-gate | `plan/learned/1089-layout-2-core-import-gate.md` |

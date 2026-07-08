@@ -11,6 +11,7 @@ package main
 import (
 	"context"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -33,6 +34,35 @@ func TestNoUnguardedPluginProcessBoundaryCall(t *testing.T) {
 	}
 	if !strings.Contains(string(out), "plugin-process-boundary: OK") {
 		t.Fatalf("plugin_process_boundary.go did not report OK:\n%s", out)
+	}
+}
+
+// TestBoundaryScanRootsDerivedFromGenerator asserts the checker derives its
+// scan roots from the generator's plugin-namespace source of truth
+// (scripts/codegen/plugin_imports.go pluginDirs + nestedPluginDomains) rather
+// than a private hardcoded list. The l2tp and firewall nested plugin
+// namespaces hold sdk.NewWithConn engines that the old two-root list never
+// scanned (spec-layout-0-umbrella child 2).
+// PREVENTS: a plugin namespace added to the generator being silently
+// invisible to the process-boundary guard.
+func TestBoundaryScanRootsDerivedFromGenerator(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "go", "run", "scripts/checks/plugin_process_boundary.go", "--print-roots")
+	cmd.Dir = repoRoot(t)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("plugin_process_boundary.go --print-roots failed:\n%s", out)
+	}
+	for _, root := range []string{
+		"internal/plugins",
+		"internal/component/bgp/plugins",
+		"internal/component/l2tp/plugins",
+		"internal/component/firewall/plugins",
+	} {
+		if !slices.Contains(strings.Split(strings.TrimSpace(string(out)), "\n"), root) {
+			t.Errorf("derived scan roots missing %q:\n%s", root, out)
+		}
 	}
 }
 

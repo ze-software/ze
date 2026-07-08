@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 1/3 (1 gate, 2 boundary roots, 3 verify+docs) |
 | Updated | 2026-07-08 |
 
 ## Post-Compaction Recovery
@@ -32,7 +32,11 @@ Umbrella gaps 1 and 2. Two mechanical, additive, baseline-protected build gates:
   l2tp (4 engines) and firewall (1 engine) nested plugins are also scanned. Triage
   every new finding before enabling; never weaken existing findings.
 
-This is a skeleton (captured intent). Moves to `design` when picked up.
+~~This is a skeleton (captured intent). Moves to `design` when picked up.~~
+Picked up 2026-07-08: design completed in-session (producers read: `dep_audit.py`
+full, `plugin_process_boundary.go` full, `plugin_imports.go` roots section); the
+four review checklists + Review Gate + Pre-Commit Verification sections were added
+before coding per the layout-1 closure lesson (umbrella "Child 1 COMPLETE" section).
 
 ## Required Reading
 
@@ -108,9 +112,9 @@ This is a skeleton (captured intent). Moves to `design` when picked up.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Exactly 5 files under `internal/core/` import `internal/component/`, and none import `internal/plugins/` | repo-wide grep this session (2026-07-08) | baseline seeded wrong; gate fails on day one | re-run the grep during the audit step, paste output into this spec | unvalidated |
-| A-2 | `dep_audit.py` holds a usable import graph and is the correct home for the direction check | `dep_audit.py` `--check` gate read this session; tiers B-1 | a separate script is needed; more wiring | already partly confirmed; re-read `dep_audit.py` structure at design | unvalidated |
-| A-3 | l2tp/firewall nested plugins use the same SDK/DirectBridge mechanics the boundary checker assumes | `sdk.NewWithConn` grep hits in their `register.go` | scan-root extension flags false positives | run extended checker, triage every new finding before enabling | unvalidated |
+| A-1 | Exactly 5 files under `internal/core/` import `internal/component/`, and none import `internal/plugins/` | repo-wide grep this session (2026-07-08) | baseline seeded wrong; gate fails on day one | re-run the grep during the audit step, paste output into this spec | **confirmed** (2026-07-08 audit): 5 files, 10 import pairs, 0 `internal/plugins` hits. Pairs: `doctor_registry.go`->{config/storage,host,plugin}, `types.go`->plugin, `resolve.go`->config/storage, `ipc/yang/register.go`->config/yang, `ipc/yang_test.go`->{config/yang,bgp/plugins/rib/yang,bgp/yang,hub/yang} |
+| A-2 | `dep_audit.py` holds a usable import graph and is the correct home for the direction check | `dep_audit.py` `--check` gate read this session; tiers B-1 | a separate script is needed; more wiring | already partly confirmed; re-read `dep_audit.py` structure at design | **confirmed** (2026-07-08): `collect_edges` (dep_audit.py:101) already maps imported-pkg -> importer files repo-wide; gates compose in `run_gate` (:764); `--selftest` harness (:832); wired via Makefile:288-290 (`ze-tier-check`) |
+| A-3 | l2tp/firewall nested plugins use the same SDK/DirectBridge mechanics the boundary checker assumes | `sdk.NewWithConn` grep hits in their `register.go` | scan-root extension flags false positives | run extended checker, triage every new finding before enabling | **confirmed** (2026-07-08): extended checker over all 13 derived roots reports `plugin-process-boundary: OK` -- ZERO new findings, nothing to triage (R-2 dissolved); all five historical selftest fixtures stay green |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -170,6 +174,108 @@ Wiring is the gates and their selftests (contributor-facing; N/A for a `.ci`).
 4. **Full verification** - `make ze-verify` green on the real tree; selftests pass.
 5. **Complete spec** - learned summary, two-commit closure per `ai/rules/planning.md`.
 
+## Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Correctness | Baseline is shrink-only: a fixed pair left in the baseline is a stale-entry failure (same semantics as `tier_migration_baseline.txt`); a NEW upward import in an already-baselined file is still a failure (pair granularity, not file granularity) |
+| Completeness | Every AC has file:line evidence; gate messages name the importer file, the imported package, and `ai/rules/module-tiers.md` |
+| Data flow | The direction gate reads the existing `collect_edges` graph (dep_audit.py:101); no second import parser introduced |
+| Registration over hardcoding | The boundary checker derives its scan roots from the generator's `pluginDirs`/`nestedPluginDomains`; the hardcoded `scanRoots` list is deleted, not kept alongside |
+| No-layering | Old hardcoded list fully removed in the same change (`ai/rules/no-layering.md`) |
+| CLI grammar | N/A - no CLI commands added |
+| Doctor checks | N/A - no runtime dependencies added |
+| YANG validation | N/A - no YANG leaves |
+| Prometheus counters | N/A - build-time gates, no runtime state |
+
+## Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Core import-direction gate wired into verify | `python3 scripts/dev/dep_audit.py --selftest` green (includes direction fixtures); `--check` green on the real tree; `make ze-tier-check` runs both |
+| Shrink-only baseline with exactly the 5 known files (10 pairs) | read `scripts/dev/core_import_baseline.txt`; diff against the A-1 grep output |
+| Boundary checker covers all generator namespaces | checker `--print-roots` output includes `internal/component/l2tp/plugins` and `internal/component/firewall/plugins`; parity test in `plugin_process_boundary_test.go` |
+| Five historical boundary selftest fixtures stay green | `go run scripts/checks/plugin_process_boundary.go --selftest` OK |
+| `ai/rules/module-tiers.md` cross-reference | grep the file for the direction-gate mention |
+| `ai/rules/INDEX.md` current | `make ze-rules-index` (or its check) clean |
+
+## Security Review Checklist
+
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | Both gates parse only repo files (Go source + the generator + baselines); no external input, no network |
+| Boundary-check regressions | Extending scan roots must not weaken existing findings: the five historical selftest fixture cases stay green; every NEW finding in newly scanned roots is triaged (guard present vs real bug) before the gate ships |
+| Fail-loud parsing | An unparseable `pluginDirs` (generator refactor) must fail the checker loudly (exit 2), never silently scan nothing (mirrors dep_audit.py:513-516) |
+
+## Documentation Update Checklist (BLOCKING)
+
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1-9 | user feature / config / CLI / API / plugin / guide / wire / SDK / RFC | no | contributor-facing build gates only; no runtime surface |
+| 10 | Test infrastructure changed? | no | verify stage list unchanged (`ze-tier-check` / `ze-plugin-boundary-check` already exist, Makefile:288,305) |
+| 11 | Daemon comparison? | no | - |
+| 12 | Internal architecture changed? | yes | `ai/rules/module-tiers.md` (direction-gate cross-reference); `ai/rules/plugin-process-boundary.md` (scan-root derivation replaces the hardcoded two-root claim); `ai/rules/INDEX.md` regenerated |
+| 13-15 | metadata / counters / inventory | no | - |
+| 16 | Source anchors on changed files? | verify | grep `docs/ ai/` for anchors naming `dep_audit.py` / `plugin_process_boundary.go` and refresh stale claims |
+| 17 | Examples elsewhere? | verify | grep for `scanRoots` mentions outside the checker |
+
+## Review Gate
+
+<!-- Filled by /ze-implement step 15: run /ze-review over the complete diff, loop to 0 BLOCKER / 0 ISSUE. -->
+
+### Run 1 (initial) -- 2026-07-08, full uncommitted diff. 0 BLOCKER, 0 ISSUE, 3 NOTE.
+Pre-checks: `audit-test-relaxation.py` clean ("no tests deleted or weakened").
+`make ze-validate` exit 2 on 6 pre-existing `../gh-pages/` anchors (sibling
+checkout absent in this environment; files untouched by this diff, last changed
+in `24db32871`) -- filtered as out-of-diff per the review's false-positive table.
+Wiring: every new symbol reachable (`core_direction_gate` <- `run_gate` <-
+`--check` <- `ze-tier-check` <- `ze-verify`; `loadScanRootsFrom` <- checker
+`main`). Removed-behavior: old two scan roots are a strict subset of the 13
+derived roots; no protection lost. Test-relaxation: additions only.
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | NOTE | `parseStringList` (Go) and `_parse_string_list` (Python) would both include a commented-out `"..."` entry inside the var block; shared, consistent limitation, no such entries exist in the generator today | scripts/checks/plugin_process_boundary.go (parseStringList); scripts/dev/dep_audit.py (_parse_string_list) | acknowledged (kept symmetric with the existing Python parser) |
+| 2 | NOTE | 6 pre-existing `ze-validate` anchor failures reference the absent `../gh-pages/` sibling checkout | docs/contributing/gh-pages.md:22-23, docs/guide/command-catalogue.md:18-19, docs/guide/command-reference.md:23-24 | out of diff; recorded for a future hygiene pass |
+| 3 | NOTE | 8 pre-existing `check_doc_links.py` breaks remain (was 9; this spec fixed the plugin-process-boundary.md one in passing) | ai/LEARNED-INDEX.md:249-251 et al. | out of diff; recorded |
+
+### Fixes applied
+- None required: Run 1 reported 0 BLOCKER, 0 ISSUE.
+
+### Run 2+ (re-runs until clean)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| - | - | Run 1 was already clean (0 BLOCKER, 0 ISSUE); no fixes were applied after it, so no re-run is required (a re-run reviews fixes, and there are none) | - | - |
+
+### Final status
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [ ] All NOTEs recorded above (or explicitly "none")
+(Evidence: Run 1 table above is the final clean run -- 0 BLOCKER, 0 ISSUE, 3 NOTEs recorded.)
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `scripts/dev/core_import_baseline.txt` | yes | created this session; 10 rows + header (Write tool, verified by `--check` reading it: "10 pair(s) in 5 file(s) baselined") |
+| `scripts/dev/dep_audit.py` (extended) | yes | `core_direction_gate` in `run_gate`; `--selftest` exit 0 |
+| `scripts/checks/plugin_process_boundary.go` (derived roots) | yes | `loadScanRootsFrom` + `--print-roots`; hardcoded `scanRoots` var deleted |
+| `scripts/checks/plugin_process_boundary_test.go` (parity) | yes | `TestBoundaryScanRootsDerivedFromGenerator` passing |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | New upward import fails naming file + rule doc | selftest fixture: unbaselined `internal/core/bad/uses.go` -> exit 2; message text "Rule: internal/core is the leaf tier ... (ai/rules/module-tiers.md)"; real-tree pre-baseline run listed all 10 pairs with file + package |
+| AC-2 | Baseline exactly the 5 files, pair-granular, shrink-only | baseline rows match the A-1 pair list 1:1; selftest proves stale row -> exit 2 AND new-pair-in-baselined-file -> exit 2; illegal fix route -> exit 2 |
+| AC-3 | Roots derived, l2tp/firewall scanned, five historical fixtures green | `--print-roots` output (13 roots incl. both namespaces); `--selftest` OK (historical cases + derivation + fail-loud cases); parity test green |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | audit grep 2026-07-08: 5 files / 10 pairs / 0 plugins-imports; matches gate output exactly |
+| A-2 | confirmed | gate implemented inside `run_gate` (dep_audit.py) reusing `collect_edges`; no new script, no Makefile change needed (ze-tier-check already runs `--selftest` + `--check`, Makefile:288-290) |
+| A-3 | confirmed | extended scan over 13 roots: zero findings ("plugin-process-boundary: OK"); nothing to triage |
+
 ## Checklist
 
 ### Goal Gates (MUST pass)
@@ -185,6 +291,41 @@ Wiring is the gates and their selftests (contributor-facing; N/A for a `.ci`).
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 
+TDD evidence (2026-07-08):
+- Gate fixtures written first; `python3 scripts/dev/dep_audit.py --selftest` FAILED
+  with `NameError` at the new core-direction block (traceback ends at the
+  `core_direction_violations` call) before implementation; after implementation:
+  `dep_audit selftest OK`, exit 0.
+- Real-tree red proven before baseline seed: `--check` exit 2 listing exactly the
+  10 A-1 pairs; after seeding `scripts/dev/core_import_baseline.txt`: exit 0 with
+  "OK: core import direction clean; 10 pair(s) in 5 file(s) baselined".
+- Parity test written first; `go test ./scripts/checks/ -run
+  TestBoundaryScanRootsDerivedFromGenerator` FAILED ("derived scan roots missing
+  internal/plugins ..." x4) before implementation; after: full
+  `go test ./scripts/checks/` exit 0, checker `--selftest` OK, `--print-roots`
+  lists 13 roots including `internal/component/l2tp/plugins` and
+  `internal/component/firewall/plugins`, real scan OK.
+- Gates re-run through make: `ze-tier-check` exit 0, `ze-plugin-boundary-check`
+  exit 0, `ze-doc-test` exit 0 (after fixing the one glob anchor it caught,
+  `docs/features/rfc-status.md:83` -- see Deviations note in Notes).
+
 ## Notes
-- Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.
-- Umbrella / siblings: `plan/spec-layout-0-umbrella.md`, `plan/spec-layout-1-hygiene.md`, `plan/spec-layout-3-naming-glossary.md`, `plan/spec-layout-4-protocol-skeleton.md`.
+
+Deviations (2026-07-08):
+- `docs/features/rfc-status.md:83` fixed in-passing (outside Files to Modify): its
+  source anchor used a `*` glob which `check_path_exists`
+  (scripts/dev/code_to_docs.py:62-65) never expands, failing `make ze-doc-test`.
+  Root-cause fix at the owning layer (the anchor, not glob support in the
+  validator): anchor now names the real directory `internal/component/bgp/plugins/nlri/`.
+  Pre-existing red, surfaced by this spec's doc-gate run.
+- `docs/plugin-overview.md` gate description extended with the core-direction rule
+  (row 16 of the Documentation checklist: its anchored claim describes the
+  `ze-tier-check` gate whose scope this spec widened).
+- `ai/rules/plugin-process-boundary.md` also had a stale `dangerousPatterns`
+  symbol name (actual: `dangerousCalls`, checker line 81) and a stale
+  `internal/component/plugin/process.go` path (actual:
+  `internal/component/plugin/process/process.go`, startInternal/startExternal at
+  lines 457/460); both corrected while updating the scan-root claim.
+
+- ~~Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.~~ (picked up + designed 2026-07-08, see Task)
+- Umbrella / siblings: `plan/spec-layout-0-umbrella.md`, child 1 closed (`plan/learned/1088-layout-1-hygiene.md`), `plan/spec-layout-3-naming-glossary.md`, `plan/spec-layout-4-protocol-skeleton.md`.
