@@ -154,8 +154,8 @@ func TestTriggerArmsBackboneRun(t *testing.T) {
 		return fakeTimer{}
 	}
 
-	if c.RunCount() != 0 {
-		t.Fatalf("fresh Computer already ran SPF: RunCount=%d", c.RunCount())
+	if c.runCount() != 0 {
+		t.Fatalf("fresh Computer already ran SPF: runCount=%d", c.runCount())
 	}
 	c.Trigger()
 
@@ -171,8 +171,8 @@ func TestTriggerArmsBackboneRun(t *testing.T) {
 
 	// Fire the throttle timer: the armed run computes SPF over the P2P+stub topology.
 	captured()
-	if c.RunCount() != 1 {
-		t.Fatalf("armed run did not compute SPF: RunCount=%d, want 1", c.RunCount())
+	if c.runCount() != 1 {
+		t.Fatalf("armed run did not compute SPF: runCount=%d, want 1", c.runCount())
 	}
 	if len(c.Routes()) == 0 {
 		t.Fatalf("armed run installed no routes over the P2P+stub topology")

@@ -33,7 +33,7 @@ func newTestRIBManager(t *testing.T) *RIBManager {
 	}
 	p := sdk.NewWithConn("rib-test", pluginEnd)
 	t.Cleanup(func() { _ = p.Close() })
-	return NewRIBManager(p)
+	return newRIBManager(p)
 }
 
 // TestParseEvent_SentFormat verifies parsing of sent UPDATE events.
@@ -1753,12 +1753,12 @@ func TestExtractCandidate_PoolWiring(t *testing.T) {
 	assert.Equal(t, uint32(65001), c.FirstAS, "FirstAS=65001 from pool")
 }
 
-// TestPeerMetaCleanup_ClearAndRelease verifies peerMeta is cleaned up by
+// TestPeerMetadataCleanup_ClearAndRelease verifies peerMeta is cleaned up by
 // inboundEmptyJSON (clear bgp rib in) and releaseRoutesJSON (request bgp rib release-routes).
 //
 // VALIDATES: peerMeta deleted alongside ribInPool in clear and release paths.
 // PREVENTS: peerMeta memory leak when routes are cleared or GR-released.
-func TestPeerMetaCleanup_ClearAndRelease(t *testing.T) {
+func TestPeerMetadataCleanup_ClearAndRelease(t *testing.T) {
 	t.Run("clear bgp rib in", func(t *testing.T) {
 		r := newTestRIBManager(t)
 		peerJSON := mustMarshal(t, map[string]any{
@@ -2439,7 +2439,7 @@ func TestInjectRoute_IPv6NhopRealPeerNoCapability(t *testing.T) {
 
 	// Simulate a real peer with metadata but no ExtendedNextHop capability.
 	// ContextID 0 means no encoding context (JSON event path, no structured event).
-	r.peerMeta[netip.MustParseAddr("10.0.0.1")] = &PeerMeta{PeerASN: 65000, LocalASN: 65001, ContextID: 0}
+	r.peerMeta[netip.MustParseAddr("10.0.0.1")] = &peerMetadata{PeerASN: 65000, LocalASN: 65001, ContextID: 0}
 
 	// ContextID 0 = no capability info, should accept with warning.
 	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
@@ -2458,7 +2458,7 @@ func TestInjectRoute_IPv6NhopRealPeerContextNoExtNH(t *testing.T) {
 	ctx := bgpctx.NewEncodingContext(nil, nil, bgpctx.DirectionRecv)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
-	r.peerMeta[netip.MustParseAddr("10.0.0.1")] = &PeerMeta{PeerASN: 65000, LocalASN: 65001, ContextID: ctxID}
+	r.peerMeta[netip.MustParseAddr("10.0.0.1")] = &peerMetadata{PeerASN: 65000, LocalASN: 65001, ContextID: ctxID}
 
 	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "nhop", "2001:db8::1",

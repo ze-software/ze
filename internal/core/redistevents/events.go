@@ -32,6 +32,7 @@ import (
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/replay"
 )
 
 // EventType is the canonical event-type string under each protocol's
@@ -51,21 +52,16 @@ const (
 )
 
 // ReplayRequest is the payload of the (redistribute, replay-request) event.
-// It carries an opaque correlation token the orchestrator allocates on a BGP
-// peer's down->up edge; each producer echoes the token verbatim into the
-// ReplayID of the RouteChangeBatch(es) it re-emits. The producer never learns
-// the peer -- the orchestrator alone holds the ReplayID -> peer mapping, so
-// the returning batch stays peer-agnostic.
+// It aliases the shared replay.Request: the redistribute orchestrator allocates
+// a per-peer correlation token on a BGP peer's down->up edge, and each producer
+// echoes the token verbatim into the ReplayID of the RouteChangeBatch(es) it
+// re-emits. The producer never learns the peer -- the orchestrator alone holds
+// the ReplayID -> peer mapping, so the returning batch stays peer-agnostic.
 //
-// Payload-carrying (via events.Register), unlike ribevents' payload-less
-// RegisterSignal: ribevents broadcasts an untargeted full-table replay to all
-// consumers, whereas we must correlate a returning batch to the one new peer
-// by token.
-type ReplayRequest struct {
-	// ReplayID is the opaque correlation token. Nonzero (the orchestrator
-	// allocates from a monotonic generation counter, so 0 is never handed out).
-	ReplayID uint64 `json:"replay-id"`
-}
+// The identical replay.Request type is the request payload for the two
+// broadcast hops (bgp-rib, system-rib), where it carries replay.Broadcast and
+// the handler ignores the token; see internal/core/replay.
+type ReplayRequest = replay.Request
 
 // ReplayRequestEvent is the shared typed handle for (redistribute,
 // replay-request). The orchestrator calls ReplayRequestEvent.Emit(bus, ...);
@@ -199,7 +195,7 @@ type RouteChangeBatch struct {
 }
 
 // IsReplay reports whether this batch answers a replay request (nonzero
-// ReplayID) rather than carrying a normal incremental change. Derived from
-// ReplayID so there is no second source of truth (a separate Replay bool) to
-// keep consistent.
-func (b *RouteChangeBatch) IsReplay() bool { return b.ReplayID != 0 }
+// ReplayID) rather than carrying a normal incremental change. Derived from the
+// shared replay.IsReplay predicate over ReplayID, so there is no second source
+// of truth (a separate Replay bool) to keep consistent.
+func (b *RouteChangeBatch) IsReplay() bool { return replay.IsReplay(b.ReplayID) }

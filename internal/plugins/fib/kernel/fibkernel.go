@@ -27,6 +27,7 @@ import (
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	mplsfibevents "codeberg.org/thomas-mangin/ze/internal/core/mplsfib"
+	"codeberg.org/thomas-mangin/ze/internal/core/replay"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -459,8 +460,8 @@ func (f *fibKernel) run(ctx context.Context, flushOnStop bool) {
 	defer unsubMPLS()
 
 	// Request full-table replay from sysrib so we populate even if sysrib
-	// started before us. Signal event, no payload.
-	if _, err := sysribevents.ReplayRequest.Emit(eb); err != nil {
+	// started before us. Broadcast hop: the token addresses every consumer.
+	if _, err := sysribevents.ReplayRequest.Emit(eb, &replay.Request{ReplayID: replay.Broadcast}); err != nil {
 		logger().Warn("fib-kernel: replay-request emit failed", "error", err)
 	}
 

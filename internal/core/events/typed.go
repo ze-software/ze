@@ -18,9 +18,9 @@
 //
 // For signal-only events with no payload, use RegisterSignal:
 //
-//   var ReplayRequest = events.RegisterSignal("bgp-rib", "replay-request")
-//   ReplayRequest.Emit(bus)
-//   ReplayRequest.Subscribe(bus, func() { ... })
+//   var CacheFlush = events.RegisterSignal("example", "cache-flush")
+//   CacheFlush.Emit(bus)
+//   CacheFlush.Subscribe(bus, func() { ... })
 
 package events
 
@@ -207,7 +207,7 @@ func Register[T any](namespace, eventType string) *Event[T] {
 // RegisterSignal declares a no-payload (signal) event and returns the handle.
 // Call from package init:
 //
-//	var ReplayRequest = events.RegisterSignal("bgp-rib", "replay-request")
+//	var CacheFlush = events.RegisterSignal("example", "cache-flush")
 //
 // Panics with "BUG:" prefix if (namespace, eventType) was already registered
 // as a typed event. Two init calls with the same (ns, et) as signals are
@@ -297,16 +297,4 @@ func AsString(fn func(string)) func(any) {
 		logger().Warn("eventbus: AsString wrapper received non-string payload, dropping (further drops of this type on this wrapper suppressed)",
 			"got", typ)
 	}
-}
-
-// IsSignal reports whether (namespace, eventType) is registered as a signal
-// (no-payload) event.
-func IsSignal(namespace, eventType string) bool {
-	typeRegistryMu.RLock()
-	defer typeRegistryMu.RUnlock()
-	typ, ok := typeRegistry[typeKey{namespace: namespace, eventType: eventType}]
-	if !ok {
-		return false
-	}
-	return typ == reflect.TypeFor[signalType]()
 }

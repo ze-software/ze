@@ -32,7 +32,7 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 
 	pluginDone := make(chan int, 1)
 	go func() {
-		pluginDone <- RunRIBPlugin(pluginEnd)
+		pluginDone <- runRIBPlugin(pluginEnd)
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -157,7 +157,7 @@ func TestRIBPluginStageOrdering(t *testing.T) {
 
 	pluginDone := make(chan int, 1)
 	go func() {
-		pluginDone <- RunRIBPlugin(pluginEnd)
+		pluginDone <- runRIBPlugin(pluginEnd)
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

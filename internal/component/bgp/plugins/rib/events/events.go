@@ -10,11 +10,13 @@
 package events
 
 import (
+	"encoding/json"
 	"net/netip"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/replay"
 )
 
 // Namespace is the event namespace for the BGP RIB plugin.
@@ -83,12 +85,18 @@ type BestChangeEntry struct {
 }
 
 // BestChangeBatch is the payload of (bgp-rib, best-change). One batch is
-// emitted per (protocol, family) combination. The Replay flag distinguishes
-// a full-table replay batch from an incremental change batch.
+// emitted per (protocol, family) combination. IsReplay() distinguishes a
+// full-table replay batch from an incremental change batch.
 type BestChangeBatch struct {
-	Protocol string            `json:"protocol"`         // always "bgp" for the BGP RIB plugin
-	Family   family.Family     `json:"family"`           // typed family; JSON "ipv4/unicast" etc. via MarshalText
-	Replay   bool              `json:"replay,omitempty"` // true for full-table replay batches
+	Protocol string        `json:"protocol"` // always "bgp" for the BGP RIB plugin
+	Family   family.Family `json:"family"`   // typed family; JSON "ipv4/unicast" etc. via MarshalText
+	// ReplayID is the replay correlation token echoed from the replay request.
+	// For this broadcast hop it is 0 (incremental) or replay.Broadcast
+	// (full-table replay). It is the single source of truth for the replay
+	// marker; the historical `replay` boolean wire tag is derived from it in
+	// MarshalJSON, so external plugin processes see an unchanged JSON contract
+	// while in-process code has no second field to keep consistent (json:"-").
+	ReplayID uint64            `json:"-"`
 	Changes  []BestChangeEntry `json:"changes"`
 	// FromLocRIB marks a batch built in-process from a unified Loc-RIB Change
 	// (sysrib's changeToBatch), as opposed to an independent per-protocol event.
@@ -101,11 +109,48 @@ type BestChangeBatch struct {
 	FromLocRIB bool `json:"-"`
 }
 
+// IsReplay reports whether this batch is a full-table replay (nonzero token)
+// rather than an incremental change, via the shared replay predicate.
+func (b *BestChangeBatch) IsReplay() bool { return replay.IsReplay(b.ReplayID) }
+
+// MarshalJSON preserves the historical `replay` boolean wire tag (external
+// plugin processes decode it) while keeping ReplayID as the single source of
+// truth: `replay` is emitted only for a replay batch and omitted otherwise.
+// The `alias` type strips the method set so json.Marshal does not recurse.
+func (b *BestChangeBatch) MarshalJSON() ([]byte, error) {
+	type alias BestChangeBatch
+	return json.Marshal(struct {
+		*alias
+		Replay bool `json:"replay,omitempty"`
+	}{alias: (*alias)(b), Replay: b.IsReplay()})
+}
+
+// UnmarshalJSON maps the historical `replay` boolean back onto the token so a
+// decoded batch reports IsReplay() correctly (round-trip symmetry with
+// MarshalJSON). A true `replay` decodes to the broadcast token.
+func (b *BestChangeBatch) UnmarshalJSON(data []byte) error {
+	type alias BestChangeBatch
+	aux := struct {
+		*alias
+		Replay bool `json:"replay,omitempty"`
+	}{alias: (*alias)(b)}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if aux.Replay {
+		b.ReplayID = replay.Broadcast
+	}
+	return nil
+}
+
 // BestChange is the typed handle for (bgp-rib, best-change). Producers call
 // BestChange.Emit(bus, batch); consumers call BestChange.Subscribe(bus, h).
 var BestChange = events.Register[*BestChangeBatch](Namespace, EventBestChange)
 
-// ReplayRequest is the typed handle for (bgp-rib, replay-request). Signal
-// event with no payload — downstream consumers (e.g., sysrib) use it to
-// request a full-table replay on startup.
-var ReplayRequest = events.RegisterSignal(Namespace, EventReplayRequest)
+// ReplayRequest is the typed handle for (bgp-rib, replay-request). It carries
+// the shared replay.Request; downstream consumers (e.g., sysrib) emit it with
+// replay.Broadcast to request a full-table replay on startup. The handler
+// ignores the token because this hop is broadcast (every subscriber receives
+// the full table); the payload exists so all three replay hops share one
+// request vocabulary.
+var ReplayRequest = events.Register[*replay.Request](Namespace, EventReplayRequest)

@@ -80,14 +80,14 @@ func TestSPFExplainNoRecompute(t *testing.T) {
 		lastCandidates: []RouteEntry{route("10.9.0.0/24", 10, RouteIntraArea, o1)},
 		runs:           7,
 	}
-	beforeRuns := c.RunCount()
+	beforeRuns := c.runCount()
 	beforeRoutes := len(c.Routes())
 
 	_ = c.ExplainSnapshot()
 	_ = c.ExplainSnapshot()
 
-	if c.RunCount() != beforeRuns {
-		t.Fatalf("explain changed run count: %d -> %d", beforeRuns, c.RunCount())
+	if c.runCount() != beforeRuns {
+		t.Fatalf("explain changed run count: %d -> %d", beforeRuns, c.runCount())
 	}
 	if len(c.Routes()) != beforeRoutes {
 		t.Fatalf("explain changed the installed route set")

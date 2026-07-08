@@ -15,6 +15,7 @@ import (
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/replay"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -168,8 +169,9 @@ func (f *fibP4) run(ctx context.Context, flushOnStop bool) {
 	unsub := sysribevents.BestChange.Subscribe(eb, f.processEvent)
 	defer unsub()
 
-	// Request full-table replay from sysrib.
-	if _, err := sysribevents.ReplayRequest.Emit(eb); err != nil {
+	// Request full-table replay from sysrib. Broadcast hop: the token addresses
+	// every consumer.
+	if _, err := sysribevents.ReplayRequest.Emit(eb, &replay.Request{ReplayID: replay.Broadcast}); err != nil {
 		logger().Warn("fib-p4: replay-request emit failed", "error", err)
 	}
 

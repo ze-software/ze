@@ -187,9 +187,9 @@ func poolNames() []poolNameEntry {
 // metricsUpdateInterval is how often RIB metrics gauges are refreshed.
 const metricsUpdateInterval = 10 * time.Second
 
-// PeerMeta stores per-peer metadata for best-path comparison and capability lookup.
+// peerMetadata stores per-peer metadata for best-path comparison and capability lookup.
 // Extracted from received UPDATE events (nested peer format) and structured events.
-type PeerMeta struct {
+type peerMetadata struct {
 	PeerASN   uint32           // peer's AS number
 	LocalASN  uint32           // local AS number (for eBGP/iBGP detection)
 	RouterID  uint32           // remote peer's BGP Identifier (for best-path step 7)
@@ -246,7 +246,7 @@ type RIBManager struct {
 	peerUp map[netip.Addr]bool
 
 	// peerMeta tracks per-peer metadata for best-path comparison.
-	peerMeta map[netip.Addr]*PeerMeta // peer address -> metadata
+	peerMeta map[netip.Addr]*peerMetadata // peer address -> metadata
 
 	// retainedPeers tracks peers whose Adj-RIB-In is retained during GR.
 	// RFC 4724: When a GR-capable peer goes down, routes are retained until
@@ -494,7 +494,7 @@ func (r *RIBManager) SetLocRIB(loc *locrib.RIB) {
 	}
 }
 
-// NewRIBManager returns a fully-initialized RIBManager bound to the given SDK
+// newRIBManager returns a fully-initialized RIBManager bound to the given SDK
 // plugin handle. Every map and the shared bestPathInterner are allocated, and
 // maximumPaths is pre-set to the RFC 4271 single best-path default so that
 // any consumer reading it before Stage 2 configure delivery sees 1, not the
@@ -503,7 +503,7 @@ func (r *RIBManager) SetLocRIB(loc *locrib.RIB) {
 // Tests pass a plugin handle wired to a closed net.Pipe (see newTestRIBManager).
 // This is the only constructor; bypassing it with a zero-value struct literal
 // panics on the first intern call against the nil map.
-func NewRIBManager(plugin *sdk.Plugin) *RIBManager {
+func newRIBManager(plugin *sdk.Plugin) *RIBManager {
 	r := &RIBManager{
 		plugin: plugin,
 		ribInPool: map[redistevents.ProtocolID]map[string]*storage.PeerRIB{
@@ -513,7 +513,7 @@ func NewRIBManager(plugin *sdk.Plugin) *RIBManager {
 		ribOut:           make(map[netip.Addr]map[family.Family]map[ribOutKey]ribOutEntry),
 		ribOutSource:     make(map[family.Family]map[ribOutKey]ribOutSourceRef),
 		peerUp:           make(map[netip.Addr]bool),
-		peerMeta:         make(map[netip.Addr]*PeerMeta),
+		peerMeta:         make(map[netip.Addr]*peerMetadata),
 		retainedPeers:    make(map[netip.Addr]bool),
 		grState:          make(map[netip.Addr]*peerGRState),
 		bestPrev:         newBestPrevShards(),
@@ -525,9 +525,9 @@ func NewRIBManager(plugin *sdk.Plugin) *RIBManager {
 	return r
 }
 
-// RunRIBPlugin runs the RIB plugin using the SDK RPC protocol.
+// runRIBPlugin runs the RIB plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunRIBPlugin(conn net.Conn) int {
+func runRIBPlugin(conn net.Conn) int {
 	logger().Debug("bgp rib plugin starting (RPC)")
 
 	p := sdk.NewWithConn("bgp-rib", conn)
@@ -537,7 +537,7 @@ func RunRIBPlugin(conn net.Conn) int {
 	// Built-in commands registered here; plugins register via RegisterRIBCommand.
 	registerBuiltinCommands()
 
-	r := NewRIBManager(p)
+	r := newRIBManager(p)
 	activeManager.Store(r)
 	defer activeManager.Store(nil)
 
@@ -628,8 +628,9 @@ func RunRIBPlugin(conn net.Conn) int {
 			go r.runMetricsLoop(ctx)
 		}
 		// Subscribe to replay requests from downstream consumers (e.g., sysrib).
-		// When a subscriber emits (rib, replay-request), replay the full
-		// best-path table. The handler ignores the payload (always empty).
+		// When a subscriber emits (bgp-rib, replay-request), replay the full
+		// best-path table. This hop is broadcast, so the handler ignores the
+		// request token except to stamp it onto the emitted batches.
 		if eb := getEventBus(); eb != nil {
 			ribevents.ReplayRequest.Subscribe(eb, r.replayBestPaths)
 		}
@@ -887,7 +888,7 @@ func (r *RIBManager) handleReceived(event *Event) {
 	defer r.peerMu.Unlock()
 
 	// Track peer metadata for best-path comparison (eBGP/iBGP detection).
-	r.updatePeerMeta(event, peerAddr)
+	r.updatePeerMetadata(event, peerAddr)
 
 	r.handleReceivedPool(event, peerAddr)
 }
@@ -1103,16 +1104,16 @@ func (r *RIBManager) handleState(event *Event) {
 	}
 }
 
-// updatePeerMeta extracts and stores peer metadata from received events.
+// updatePeerMetadata extracts and stores peer metadata from received events.
 // Uses the nested peer format which includes both local and peer ASN.
 // Caller must hold write lock.
-func (r *RIBManager) updatePeerMeta(event *Event, peerAddr netip.Addr) {
+func (r *RIBManager) updatePeerMetadata(event *Event, peerAddr netip.Addr) {
 	peerASN := event.GetPeerASN()
 	localASN := getLocalASN(event)
 	if peerASN == 0 && localASN == 0 {
 		return
 	}
-	r.peerMeta[peerAddr] = &PeerMeta{
+	r.peerMeta[peerAddr] = &peerMetadata{
 		PeerASN:  peerASN,
 		LocalASN: localASN,
 	}

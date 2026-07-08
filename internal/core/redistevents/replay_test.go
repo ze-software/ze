@@ -1,12 +1,29 @@
 package redistevents
 
 import (
+	"encoding/json"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 
 	"github.com/stretchr/testify/assert"
 )
+
+// TestReplayBatchJSONTagsStable pins the external JSON contract on the replay
+// vocabulary: the replay-request payload marshals its correlation token under
+// "replay-id" (the tag external, forked producers decode), and a
+// RouteChangeBatch derives IsReplay() from its ReplayID (the single marker
+// source). Holds before and after the type moves to the internal/core/replay
+// leaf via alias (spec-unify-replay, A-4/AC-7).
+func TestReplayBatchJSONTagsStable(t *testing.T) {
+	data, err := json.Marshal(ReplayRequest{ReplayID: 42})
+	assert.NoError(t, err)
+	assert.Contains(t, string(data), `"replay-id":42`,
+		"replay-request must marshal the token under \"replay-id\"")
+
+	assert.True(t, (&RouteChangeBatch{ReplayID: 7}).IsReplay(), "nonzero ReplayID is a replay")
+	assert.False(t, (&RouteChangeBatch{}).IsReplay(), "zero ReplayID is not a replay")
+}
 
 // VALIDATES: the ReplayRequest event is registered as a payload-carrying typed
 // event (not a payload-less signal like ribevents) so the orchestrator can
@@ -19,8 +36,8 @@ func TestReplayRequestEventRegistered(t *testing.T) {
 	assert.Equal(t, ReplayRequestEventType, ReplayRequestEvent.EventType())
 
 	// Registered as a payload-carrying event, NOT a signal.
-	assert.False(t, events.IsSignal(ReplayNamespace, ReplayRequestEventType),
-		"ReplayRequest must be payload-carrying, not a signal")
+	_, isSignal := events.PayloadInfo(ReplayNamespace, ReplayRequestEventType)
+	assert.False(t, isSignal, "ReplayRequest must be payload-carrying, not a signal")
 
 	// Zero value of the payload token is 0.
 	var r ReplayRequest

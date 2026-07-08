@@ -22,6 +22,7 @@ import (
 	bgpredist "codeberg.org/thomas-mangin/ze/internal/component/bgp/redistribute"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/replay"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/store"
 )
@@ -1095,11 +1096,12 @@ func extractMPNextHopAddr(b storage.Bundle) netip.Addr {
 }
 
 // replayBestPaths emits the entire current best-path table as one batch per
-// family. Used when a downstream consumer (e.g. rib) sends
-// (rib, replay-request). The Replay flag in the payload distinguishes a
-// replay batch from a normal incremental change batch.
-// Caller MUST NOT hold r.peerMu.
-func (r *RIBManager) replayBestPaths() {
+// family. Used when a downstream consumer (e.g. sysrib) sends
+// (bgp-rib, replay-request). This hop is broadcast, so the request's token is
+// ignored except to stamp it onto the batches (replay.Broadcast), which makes
+// IsReplay() report true and distinguishes a replay batch from an incremental
+// one. Caller MUST NOT hold r.peerMu.
+func (r *RIBManager) replayBestPaths(req *replay.Request) {
 	eb := getEventBus()
 	if eb == nil {
 		return
@@ -1158,7 +1160,7 @@ func (r *RIBManager) replayBestPaths() {
 		batch := &bestChangeBatch{
 			Protocol: "bgp",
 			Family:   famName,
-			Replay:   true,
+			ReplayID: req.ReplayID,
 			Changes:  changes,
 		}
 		if _, err := ribevents.BestChange.Emit(eb, batch); err != nil {

@@ -14,6 +14,7 @@ import (
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"codeberg.org/thomas-mangin/ze/internal/core/replay"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 )
 
@@ -227,6 +228,38 @@ func TestSysRIBPublishChange(t *testing.T) {
 	require.Len(t, batch.Changes, 1)
 	assert.Equal(t, bgptypes.RouteActionAdd, batch.Changes[0].Action)
 	assert.Equal(t, "bgp", batch.Changes[0].Protocol)
+}
+
+// TestBroadcastReplayCharacterization pins A-1/AC-2: sysrib's consumer path
+// (processEvent) treats a replay-marked incoming batch identically to an
+// incremental one. The replay marker is not read on the consumer side, so
+// swapping the Replay bool for a token-derived marker cannot change behavior.
+func TestBroadcastReplayCharacterization(t *testing.T) {
+	bus := newTestEventBus()
+	setEventBus(bus)
+	t.Cleanup(clearEventBus)
+
+	entry := []incomingChange{{
+		Action:   bgptypes.RouteActionAdd,
+		Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:  netip.MustParseAddr("192.168.1.1"),
+		Priority: 20,
+	}}
+
+	// Incremental incoming batch (token 0).
+	sInc := newSysRIB()
+	famInc, changesInc := sInc.processEvent(makePayload("bgp", family.IPv4Unicast, entry))
+
+	// Same batch, marked as a full-table replay (broadcast token). A fresh
+	// sysrib so no state carries over from the incremental case.
+	sRep := newSysRIB()
+	repBatch := makePayload("bgp", family.IPv4Unicast, entry)
+	repBatch.ReplayID = replay.Broadcast
+	require.True(t, repBatch.IsReplay(), "batch must report as a replay")
+	famRep, changesRep := sRep.processEvent(repBatch)
+
+	assert.Equal(t, famInc, famRep, "family must not depend on the replay marker")
+	assert.Equal(t, changesInc, changesRep, "consumer output must be identical for replay vs incremental")
 }
 
 // VALIDATES: AC-4 -- No change event when same route is re-announced.

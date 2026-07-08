@@ -24,6 +24,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"codeberg.org/thomas-mangin/ze/internal/core/replay"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -778,9 +779,11 @@ func publishChanges(changes []outgoingChange, fam family.Family) {
 	}
 }
 
-// replayBest publishes the current system best table as batch events.
-// Used for full-table replay when a downstream subscriber requests it.
-func (s *sysRIB) replayBest() {
+// replayBest publishes the current system best table as batch events. Used for
+// full-table replay when a downstream subscriber (e.g. a FIB backend) requests
+// it. This hop is broadcast, so the request's token is ignored except to stamp
+// it onto the batches (replay.Broadcast), which makes IsReplay() report true.
+func (s *sysRIB) replayBest(req *replay.Request) {
 	eb := getEventBus()
 	if eb == nil {
 		return
@@ -809,9 +812,9 @@ func (s *sysRIB) replayBest() {
 
 	for famName, changes := range changesByFamily {
 		batch := &outgoingBatch{
-			Family:  famName,
-			Replay:  true,
-			Changes: changes,
+			Family:   famName,
+			ReplayID: req.ReplayID,
+			Changes:  changes,
 		}
 		if _, err := sysribevents.BestChange.Emit(eb, batch); err != nil {
 			logger().Warn("sysrib: replay emit failed", "error", err)
@@ -889,7 +892,8 @@ func (s *sysRIB) run(ctx context.Context) {
 				publishChanges(changes, fam)
 			}
 		})
-		if _, err := ribevents.ReplayRequest.Emit(eb); err != nil {
+		// Broadcast hop: ask the BGP RIB to replay its whole best-path table.
+		if _, err := ribevents.ReplayRequest.Emit(eb, &replay.Request{ReplayID: replay.Broadcast}); err != nil {
 			logger().Warn("sysrib: replay-request emit failed", "error", err)
 		}
 	}

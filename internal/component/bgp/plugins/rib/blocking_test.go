@@ -49,7 +49,7 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 	// then enter the event loop.
 	pluginDone := make(chan int, 1)
 	go func() {
-		pluginDone <- RunRIBPlugin(pluginEnd)
+		pluginDone <- runRIBPlugin(pluginEnd)
 	}()
 
 	ctx := context.Background()

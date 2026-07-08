@@ -72,6 +72,28 @@ BGP forwarding/update pools do not run (the peer never establishes). The cap-512
 buffer is elsewhere; the captured crash stack will pin it. Owner: in-progress
 this session (debugging continues).
 
+### `internal/plugins/ospf` -- data race in `virtual_link.go`, `-race` only, pre-existing
+
+Observed 2026-07-08 in `ze-verify-changed` (`-race`): `go test -race
+./internal/plugins/ospf` reports a `WARNING: DATA RACE` -- write at
+`virtual_link.go:160` in `(*engine).onVirtualLinksResolved()` racing a concurrent
+access. Intermittent (a targeted `-race` rerun of the virtual-link tests passed).
+`virtual_link.go` is untouched by the unify-replay change (`spec-unify-replay`);
+it surfaced only because that change touches the widely-imported `redistevents`
+leaf, pulling `internal/plugins/ospf` into the changed-package `-race` closure.
+A real concurrency bug to fix at the source, not the replay change's doing. Owner:
+OSPF concurrency (an OSPF session is actively working this subsystem in a worktree).
+
+### `internal/chaos/inprocess` `TestInProcessChaosReconnect` -- flaky under `-race`
+
+Observed 2026-07-08 in `ze-verify-changed` (`-race`): `assert.Greater(established,
+1)` failed with `established==1` at `runner_test.go:688`. Timing-dependent: chaos
+rate 1.0 should disconnect and re-establish the peer, but under the `-race` build's
+slowdown the re-establishment did not complete within the test window. Passes 3/3
+without `-race`. Unrelated to unify-replay -- `established` counts peer-FSM
+establishments, not route replay, and `internal/chaos/inprocess` is untouched.
+Owner: whoever next hardens chaos-reconnect timing for `-race`.
+
 ## Harness notes (not failures)
 
 The full plugin suite shows load-induced flakiness under max parallelism -- e.g.

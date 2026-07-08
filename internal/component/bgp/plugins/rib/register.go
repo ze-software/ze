@@ -26,7 +26,7 @@ func init() {
 		Features:    "yang",
 		ConfigRoots: []string{"bgp"},
 		YANG:        ribyang.ZeRibYANG,
-		RunEngine:   RunRIBPlugin,
+		RunEngine:   runRIBPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},

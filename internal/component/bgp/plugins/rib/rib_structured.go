@@ -136,11 +136,11 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// peer (newBest == nil, havePrev == true). The orphan writes are
 	// wasted work, not lost state.
 	r.peerMu.Lock()
-	// Compare against the cached PeerMeta on a stack-local candidate so
+	// Compare against the cached peerMetadata on a stack-local candidate so
 	// rapid-flap sessions with unchanging (PeerASN, LocalASN, ContextID)
 	// skip both the heap alloc AND the map write. Only when the struct
 	// changes do we take the address (triggering the escape).
-	candidate := PeerMeta{
+	candidate := peerMetadata{
 		PeerASN:   se.PeerAS,
 		LocalASN:  se.LocalAS,
 		RouterID:  se.RouterID,

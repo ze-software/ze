@@ -83,8 +83,8 @@ func TestBackupClassRendering(t *testing.T) {
 }
 
 func TestRouteTypeNamesAndRanks(t *testing.T) {
-	// String, routeTypeName and routeTypeRank must agree across all four real types
-	// plus the out-of-range fallback (which must never masquerade as a real type).
+	// String and routeTypeRank must agree across all four real types plus the
+	// out-of-range fallback (which must never masquerade as a real type).
 	cases := []struct {
 		rt   RouteType
 		name string
@@ -101,9 +101,9 @@ func TestRouteTypeNamesAndRanks(t *testing.T) {
 		if got := tc.rt.String(); got != tc.name {
 			t.Fatalf("RouteType(%d).String() = %q, want %q", tc.rt, got, tc.name)
 		}
-		if got := routeTypeName(tc.rt); got != tc.name {
-			t.Fatalf("routeTypeName(%d) = %q, want %q", tc.rt, got, tc.name)
-		}
+		// test-relax: routeTypeName was an exact duplicate of RouteType.String()
+		// and was deleted (goconst de-dup); the String() assertion above already
+		// pins the same name-per-type mapping this asserted.
 		if got := routeTypeRank(tc.rt); got != tc.rank {
 			t.Fatalf("routeTypeRank(%d) = %d, want %d", tc.rt, got, tc.rank)
 		}

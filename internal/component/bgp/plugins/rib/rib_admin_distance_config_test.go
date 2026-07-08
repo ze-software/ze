@@ -118,7 +118,7 @@ func TestExtractAdminDistanceConfigPartial(t *testing.T) {
 // TestAdminDistanceDefaults verifies that a freshly constructed RIBManager
 // has the classical Cisco/Juniper defaults pre-loaded.
 //
-// VALIDATES: NewRIBManager seeds 20/200 so any best-path mirror fired
+// VALIDATES: newRIBManager seeds 20/200 so any best-path mirror fired
 // before Stage 2 configure delivery stamps sane values.
 // PREVENTS: AdminDistance atomic zero-value (0) reaching locrib and
 // beating every other protocol.
@@ -143,7 +143,7 @@ func TestAdminDistanceAppliedEBGP(t *testing.T) {
 	r.SetLocRIB(loc)
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
-	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
@@ -174,7 +174,7 @@ func TestAdminDistanceAppliedIBGP(t *testing.T) {
 	r.SetLocRIB(loc)
 
 	peerAddr := netip.MustParseAddr("192.0.2.2")
-	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65000, LocalASN: 65000}
+	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65000, LocalASN: 65000}
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 1, 0)

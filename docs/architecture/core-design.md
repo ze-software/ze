@@ -1138,8 +1138,16 @@ connect, or a peer added by a later config apply) would otherwise never receive 
 route -- unlike OSPF/IS-IS redistribute consumers, whose routes live in the
 flooded/synchronized link-state DB and reach a new adjacency via database exchange.
 
-The BGP path closes this gap with a **re-emit-on-request** mechanism modeled on
-`ribevents.ReplayRequest`. The redistribute orchestrator subscribes to peer `state`
+The BGP path closes this gap with a **re-emit-on-request** mechanism. All three
+late-join replay hops (`bgp-rib`, `system-rib`, `redistribute`) share one request
+vocabulary in `internal/core/replay`: a `replay.Request{ReplayID}` opaque token
+payload, a reserved `replay.Broadcast` sentinel, and the `replay.IsReplay(token)`
+marker predicate. The `bgp-rib` and `system-rib` hops are the BROADCAST case (the
+token is `replay.Broadcast`, the handler ignores it and walks its whole table for
+every subscriber); the `redistribute` hop below is the TARGETED case, where the
+token addresses one new peer. Broadcast is simply the case where the token
+addresses everyone, which a payload-carrying request absorbs but a payload-less
+signal could not. The redistribute orchestrator subscribes to peer `state`
 events (like the watchdog). On a peer's down->up edge it allocates a monotonic
 `ReplayID`, records `ReplayID -> peer` in a bounded, TTL-evicted map, and emits
 `redistevents.ReplayRequest{ReplayID}` (only when an import feeds BGP). Each producer
@@ -1159,7 +1167,8 @@ under, and `Accept(route, importingProtocol)` requires the importing protocol to
 that destination -- so an import under `destination bgp` no longer satisfies
 `Accept(_, "ospf")`. An empty `Destination` stays destination-agnostic (back-compat).
 <!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- replayCoordinator, onPeerUp, handleReplayBatch, ReplayID->peer TTL map -->
-<!-- source: internal/core/redistevents/events.go -- ReplayRequest event + ReplayID field + IsReplay -->
+<!-- source: internal/core/replay/replay.go -- shared Request token, Broadcast sentinel, IsReplay marker (all three replay hops) -->
+<!-- source: internal/core/redistevents/events.go -- ReplayRequest (alias of replay.Request) + RouteChangeBatch.ReplayID + IsReplay -->
 <!-- source: internal/component/config/redistribute/route.go -- ImportRule.Destination, destination-scoped Accept -->
 
 ### Redistribute Origin ASN and Community

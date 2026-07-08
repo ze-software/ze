@@ -36,9 +36,9 @@ type ExplainEntry struct {
 	Candidates    []ExplainCandidate `json:"candidates"`
 }
 
-// RunCount returns the number of completed SPF computations (read-only). The explain view
+// runCount returns the number of completed SPF computations (read-only). The explain view
 // never increments it, so a test can assert an explain call did not recompute.
-func (c *Computer) RunCount() uint64 {
+func (c *Computer) runCount() uint64 {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.runs
@@ -51,22 +51,6 @@ func (c *Computer) ExplainSnapshot() []ExplainEntry {
 	cands := append([]RouteEntry(nil), c.lastCandidates...)
 	c.mu.Unlock()
 	return explainRoutes(winners, cands)
-}
-
-// routeTypeName renders a RouteType as a stable JSON name.
-func routeTypeName(t RouteType) string {
-	switch t {
-	case RouteIntraArea:
-		return "intra-area"
-	case RouteInterArea:
-		return "inter-area"
-	case RouteExternalType1:
-		return "external-type-1"
-	case RouteExternalType2:
-		return "external-type-2"
-	default:
-		return "unknown"
-	}
 }
 
 // explainRoutes is the pure explain logic over the winners + candidate set.
@@ -86,14 +70,14 @@ func explainRoutes(winners, candidates []RouteEntry) []ExplainEntry {
 		entry := ExplainEntry{
 			Prefix:        key,
 			Area:          w.AreaID.String(),
-			WinningType:   routeTypeName(w.Type),
+			WinningType:   w.Type.String(),
 			WinningMetric: w.Metric,
 			Origin:        w.Origin.String(),
 			Reason:        explainReason(w, cands),
 		}
 		for _, cand := range cands {
 			entry.Candidates = append(entry.Candidates, ExplainCandidate{
-				Type:   routeTypeName(cand.Type),
+				Type:   cand.Type.String(),
 				Metric: cand.Metric,
 				Origin: cand.Origin.String(),
 				Area:   cand.AreaID.String(),
@@ -122,12 +106,12 @@ func explainReason(w RouteEntry, cands []RouteEntry) string {
 	var tb textbuf.Buffer
 	switch {
 	case differentTypes:
-		return tb.Str("path-type preference (RFC 2328 Section 16.4): ").Str(routeTypeName(w.Type)).
+		return tb.Str("path-type preference (RFC 2328 Section 16.4): ").Str(w.Type.String()).
 			Str(" preferred over lower-preference candidates").String()
 	case moreThanOne:
 		return tb.Str("lowest cost ").Uint(w.Metric).Str(" among equal-preference ").
-			Str(routeTypeName(w.Type)).Str(" paths").String()
+			Str(w.Type.String()).Str(" paths").String()
 	default:
-		return tb.Str("only path (").Str(routeTypeName(w.Type)).Str(")").String()
+		return tb.Str("only path (").Str(w.Type.String()).Str(")").String()
 	}
 }

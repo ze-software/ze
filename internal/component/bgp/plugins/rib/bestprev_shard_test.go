@@ -69,7 +69,7 @@ func TestParallelCheckBestPathChangeNoLostWrites(t *testing.T) {
 	peerAddr := netip.MustParseAddr("10.0.0.1")
 	peerRIB := storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr] = peerRIB
-	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 
 	var wg sync.WaitGroup
 	for g := range goroutines {
@@ -132,7 +132,7 @@ func TestConcurrentDownVsUpdate(t *testing.T) {
 				peerRIB = storage.NewPeerRIB(peerAddr.String())
 				r.bgpPeers[peerAddr] = peerRIB
 			}
-			r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+			r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 			r.peerMu.Unlock()
 
 			prefix := []byte{32, 10, 0, 0, byte(i)}
@@ -203,7 +203,7 @@ func TestParallelMultiPeerNoLostWrites(t *testing.T) {
 			r.peerMu.Lock()
 			peerRIB := storage.NewPeerRIB(peerAddr.String())
 			r.bgpPeers[peerAddr] = peerRIB
-			r.peerMeta[peerAddr] = &PeerMeta{PeerASN: uint32(65000 + p + 1), LocalASN: 65000}
+			r.peerMeta[peerAddr] = &peerMetadata{PeerASN: uint32(65000 + p + 1), LocalASN: 65000}
 			r.peerMu.Unlock()
 
 			// Phase 2+3: PeerRIB.Insert uses its own lock; checkBestPathChange
