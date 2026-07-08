@@ -52,3 +52,56 @@ func TestDefaultOriginateFilterFailsClosedOnMalformedRef(t *testing.T) {
 	ok := peer.defaultOriginateFilterAccepts("missing-colon", fam, prefix, nh)
 	assert.False(t, ok, "malformed filter ref must fail closed")
 }
+
+// fakeFilterRawInfo is a filterRawInfo stub that reports a fixed raw flag and
+// records the plugin/filter names it was queried with.
+type fakeFilterRawInfo struct {
+	raw       bool
+	gotPlugin string
+	gotFilter string
+}
+
+func (f *fakeFilterRawInfo) FilterInfo(pluginName, filterName string) ([]string, bool) {
+	f.gotPlugin, f.gotFilter = pluginName, filterName
+	return nil, f.raw
+}
+
+// TestDefaultOriginateRejectsRawFilter verifies a filter declared raw=true is
+// rejected as a default-originate gate: the synthetic default route has no wire
+// bytes, so a raw filter would evaluate empty hex and decide on nothing.
+//
+// VALIDATES: L119 -- raw filters bound to default-originate-filter must not
+// silently gate on empty hex; fail-closed instead.
+// PREVENTS: a raw filter accepting/rejecting the default route based on an empty
+// raw payload, silently emitting or suppressing 0.0.0.0/0.
+func TestDefaultOriginateRejectsRawFilter(t *testing.T) {
+	info := &fakeFilterRawInfo{raw: true}
+	rejected := defaultOriginateRejectsRawFilter(info, "policy:raw-thing", "192.0.2.1")
+	assert.True(t, rejected, "a raw=true filter must be rejected for default-originate")
+	assert.Equal(t, "policy", info.gotPlugin, "ref must be split on ':' before the raw lookup")
+	assert.Equal(t, "raw-thing", info.gotFilter)
+}
+
+// TestDefaultOriginateAllowsNonRawFilter verifies a text (raw=false) filter is
+// not blocked by the raw guard and proceeds to the normal dry-run.
+//
+// VALIDATES: L119 -- the raw guard only blocks raw filters, leaving text gates working.
+// PREVENTS: the raw guard over-reaching and disabling legitimate text filters.
+func TestDefaultOriginateAllowsNonRawFilter(t *testing.T) {
+	info := &fakeFilterRawInfo{raw: false}
+	rejected := defaultOriginateRejectsRawFilter(info, "policy:text-gate", "192.0.2.1")
+	assert.False(t, rejected, "a text filter must not be blocked by the raw guard")
+}
+
+// TestDefaultOriginateRawGuardIgnoresMalformedRef verifies the raw guard leaves a
+// ref without a ':' alone (the caller's colon check already fails it closed), and
+// does not perform a lookup on a bogus split.
+//
+// VALIDATES: L119 -- the raw guard defers malformed refs to the existing check.
+// PREVENTS: double-handling / a lookup with an empty filter name.
+func TestDefaultOriginateRawGuardIgnoresMalformedRef(t *testing.T) {
+	info := &fakeFilterRawInfo{raw: true}
+	rejected := defaultOriginateRejectsRawFilter(info, "no-colon", "192.0.2.1")
+	assert.False(t, rejected, "malformed ref must be left to the caller's colon check")
+	assert.Empty(t, info.gotPlugin, "no lookup should happen on a malformed ref")
+}

@@ -101,6 +101,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 | GR restart with selection-deferral configured | → | deferral timer governs best-path selection | (fill during design) |
 | Peer removed (reactor `RemovePeer`) | → | reactor emits `OnPeerStateChange(Down, ReasonPeerRemoved)`; GR deletes per-peer `ze_gr_*` labels + skips retention | `reactor.TestDoRemovePeerReturnsRemovedIdentity`, `reactor.TestRemovePeerNilDispatcherNoPanic`, `gr.TestHandleEventStateRemoved_SkipsActivationAndDeletesLabels`, `gr.TestStateRemovedTombstonePreventsLaterActivation` |
 | Config reload / UPDATE received / wire read (real event paths) | → | reactor increments `ze_config_reloads_total`, `ze_config_reload_errors_total{parse}`, `ze_peer_messages_received_total{update}`, session/flap counters, `ze_wire_bytes_received_total` | `reactor.TestReloadIncrementsConfigReloadCounter`, `reactor.TestReloadParseErrorIncrementsErrorCounter`, `reactor.TestPeerEventsIncrementChurnCounters`, `reactor.TestSessionReadIncrementsWireBytesCounter` |
+| default-originate bound to a `raw=true` filter | → | `defaultOriginateFilterAccepts` fails closed (no default route) + logs an actionable warning; text filters unaffected | `reactor.TestDefaultOriginateRejectsRawFilter`, `reactor.TestDefaultOriginateAllowsNonRawFilter`, `reactor.TestDefaultOriginateRawGuardIgnoresMalformedRef` |
 
 ## Acceptance Criteria
 
@@ -109,6 +110,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 | AC-1 | (define per work item when this skeleton moves to `design`) | (define at design time) |
 | AC-6 (item 6, DONE) | A peer with a live `ze_gr_timer_expired_total{peer}` series is removed from config | Reactor emits `SessionStateDown`/`ReasonPeerRemoved`; GR stops timers, drops caps, deletes `ze_gr_stale_routes{peer}` + `ze_gr_timer_expired_total{peer}`, and does not activate route retention; a racing teardown `down` cannot re-activate GR |
 | AC-5 (item 5, DONE) | A successful/failed `Reload()`, a received UPDATE, a session flap, and a wire read run through the real reactor/peer/session producers | Spy registry observes exact increments: `ze_config_reloads_total`+1 (and +1 again on re-reload), `ze_config_reload_errors_total{error_type="parse"}`+1 with success counter unmoved, `ze_peer_messages_received_total{type="update"}`+3, `ze_peer_sessions_established_total`/`ze_peer_state_transitions_total`/`ze_peer_session_flaps_total`+1, `ze_wire_bytes_received_total` = OPEN+KEEPALIVE lengths |
+| AC-2 (item 2, DONE) | A `default-originate-filter` references a filter the plugin declared `raw=true` | `defaultOriginateFilterAccepts` fails closed (returns false, default route not originated) and logs an actionable warning ("bind a text filter instead"); a `raw=false` filter is unaffected and proceeds to the normal dry-run; a malformed ref is left to the existing colon check |
 
 ## 🧪 TDD Test Plan
 
@@ -181,7 +183,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 |------|----------|--------|-------|
 | 6 GR per-peer metric-label cleanup | L27 | DONE (committed separately) | Reactor `RemovePeer` emits `SessionStateDown`/`rpc.ReasonPeerRemoved`; GR deletes per-peer series + tombstones. Tests: `gr_removal_test.go`, `peer_removed_test.go`. |
 | 5 Prometheus behavioral spy tests | L25 | DONE (committed separately) | Added `counter`/`counterVec` spy accessors + `reactor_metrics_behavioral_test.go` (4 tests) driving real producers (`Reload`, `IncrUpdatesReceived`, `updatePeerStateMetric`, `readAndProcessMessage`) with exact-delta assertions. RED verified by temporarily neutering `session_read.go:129` (reverted). Test-only; no production change. |
-| 2 Raw-mode default-originate-filter | L119 | todo | |
+| 2 Raw-mode default-originate-filter | L119 | DONE (committed separately) | Runtime fail-closed guard (matches existing malformed-ref style): `default_originate_raw.go` `defaultOriginateRejectsRawFilter` + `filterRawInfo` seam, wired into `defaultOriginateFilterAccepts`. A raw filter can't gate the synthetic default route (no wire bytes -> empty hex); reject + warn. Tests: 3 in `peer_initial_sync_test.go`. Chose reject-at-runtime over pre-encode: default-originate is a pure accept/reject gate, the text form already describes the fixed default route, and the codebase validates these refs at runtime not config-load. |
 | 4 Decorators v2 | L89 | todo | |
 | 3 AS-Confederation OTC | L88 | todo | |
 | 7 Prometheus phase 6 | L84 | todo | |

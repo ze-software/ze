@@ -720,6 +720,13 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 			"peer", p.settings.Address.String(), "filter", filterName)
 		return false
 	}
+	// A raw filter operates on the received UPDATE's wire bytes, but the
+	// default-originate route is synthetic and has none: the filter would
+	// evaluate empty hex and decide on nothing. Fail-closed so the operator
+	// switches to a text filter rather than shipping a default gated on nothing.
+	if defaultOriginateRejectsRawFilter(p.reactor.api, filterName, p.settings.Address.String()) {
+		return false
+	}
 	// Synthesize the update text the filter would see for this default route.
 	// Format matches the ingress/egress policy text contract:
 	//   "origin igp next-hop <ip> nlri <family> add <prefix>"
