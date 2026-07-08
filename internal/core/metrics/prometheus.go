@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md — Prometheus metrics backend
 // Overview: metrics.go — metric collection interfaces
-// Related: server.go — HTTP server exposing Prometheus metrics
+// Related: exporter_hook.go — StartExporter seam that serves Handler() over HTTP
 
 package metrics
 
@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -28,6 +29,7 @@ type PrometheusRegistry struct {
 	histograms    map[string]Histogram
 	histogramVecs map[string]HistogramVec
 	mu            sync.RWMutex
+	runtimeOnce   sync.Once
 }
 
 // NewPrometheusRegistry creates a PrometheusRegistry with a fresh
@@ -218,6 +220,20 @@ func (r *PrometheusRegistry) HistogramVec(name, help string, buckets []float64, 
 	r.histogramVecs[name] = wrapped
 
 	return wrapped
+}
+
+// RegisterRuntimeCollectors registers the standard Go runtime (go_*) and process
+// (process_*) collectors: goroutine count, GC pauses, heap/allocation stats, and
+// process CPU/memory/FD usage. Call once at startup after creating the registry.
+// Guarded so repeat calls are a safe no-op (the underlying MustRegister would
+// otherwise panic on a duplicate collector).
+func (r *PrometheusRegistry) RegisterRuntimeCollectors() {
+	r.runtimeOnce.Do(func() {
+		r.registry.MustRegister(
+			collectors.NewGoCollector(),
+			collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		)
+	})
 }
 
 // Handler returns an HTTP handler that serves the /metrics endpoint.

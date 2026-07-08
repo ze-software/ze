@@ -31,6 +31,8 @@ func Start(tree map[string]any, log *slog.Logger) (*metrics.PrometheusRegistry, 
 	}
 
 	reg := metrics.NewPrometheusRegistry()
+	// Phase 6: expose Go runtime (go_*) and process (process_*) metrics.
+	reg.RegisterRuntimeCollectors()
 	srv := &server{}
 	if err := srv.start(reg, cfg); err != nil {
 		log.Warn("metrics server failed to start", "error", err)
