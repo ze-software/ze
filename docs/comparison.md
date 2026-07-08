@@ -9,7 +9,7 @@ A feature comparison of open-source BGP daemon implementations.
 > project's own documentation before making decisions. Corrections and updates are welcome
 > via the [issue tracker](https://codeberg.org/thomas-mangin/ze/issues).
 
-Last updated: 2026-07-02
+Last updated: 2026-07-08
 
 ## Overview
 
@@ -42,7 +42,7 @@ Last updated: 2026-07-02
 | IPv6 FlowSpec | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
 | VPN FlowSpec | Yes | No | No | No | No | Yes | No | No | No | No | Yes |
 | BGP-LS (RFC 7752) | Decode (40 TLVs) | No | No | No | No | Yes | No | Decode | No | No | Yes |
-| SR Policy | No | No | No | No | No | Yes | No | No | No | No | Partial |
+| SR Policy | Yes | No | No | No | No | Yes | No | No | No | No | Partial |
 | IPv4/IPv6 MUP | Yes | No | No | No | No | No | No | No | No | No | Yes |
 | IPv4/IPv6 MVPN | Decode | No | No | No | No | No | No | No | No | No | Yes |
 | IPv4 RTC (RFC 4684) | Decode | No | No | No | No | No | No | Yes | No | No | Yes |
@@ -58,7 +58,7 @@ Last updated: 2026-07-02
 | Enhanced Route Refresh (RFC 7313) | Yes | Yes | Yes | Yes | Yes | No | No | Yes | No | Yes | Yes |
 | Graceful Restart (RFC 4724) | Yes | Yes | Yes | Yes | Yes | Yes | No | Partial | No | Yes | Yes |
 | Long-Lived GR (RFC 9494) | Yes | Yes | Yes | Partial | No | Yes | No | No | No | Yes | Yes |
-| Notification GR (RFC 8538) | Yes | No | No | No | Yes | Yes | No | No | No | Yes | No |
+| Notification GR (RFC 8538) | No | No | No | No | Yes | Yes | No | No | No | Yes | No |
 | Add-Path (RFC 7911) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Rx only | Yes | Yes |
 | Paths-Limit (draft-abraitis) | Yes | No | No | Yes | No | No | No | Yes | No | No | No |
 | Extended Messages (RFC 8654) | Yes | Yes | Yes | Yes | Yes | No | No | Yes | No | Yes | Yes |
@@ -296,7 +296,7 @@ processes and injects routes from them. It is a route injector/receiver, not a r
 | ORIGINATOR_ID | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | No | Yes | Yes |
 | Stale route demotion (GR) | Yes | Yes | Yes | Yes | Yes | Yes | No | N/A | No | Yes | Yes |
 | RPKI preference | Yes | Yes | Yes | Yes | Yes | Yes | No | N/A | Yes | Yes | Yes |
-| AIGP | Yes | No | No | Yes | No | Yes | No | N/A | No | No | Yes |
+| AIGP | No | No | No | Yes | No | Yes | No | N/A | No | No | Yes |
 | IGP cost to next-hop | Yes | Yes | Yes | Yes | Yes | No | No | N/A | No | No | Yes |
 | Recursive next-hop | Yes | Yes | Yes | Yes | Yes | No | No | N/A | No | No | Yes |
 | Multipath/ECMP | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | No | Partial | Yes |
@@ -430,9 +430,7 @@ After the detail tables above: the gaps, stated plainly, not buried in a
 - **No privilege separation** — a signature feature of at least one other implementation in this table.
 - **BFD integration is "Partial"** — several other implementations here have full support.
 - **No embeddable library mode** — at least two other implementations in this table offer one.
-- **No custom filter language** — several implementations here have their own filter DSL; Ze relies on plugin chains instead.
-- **No SR Policy support.**
-- **No Confederation, no Multi-Topology IS-IS (RFC 5120)** — Ze's IS-IS matches the single-topology default other implementations ship, but not their optional multi-topology extension.
+- **No custom filter language** — several implementations here have their own filter DSL; Ze relies on plugin chains instead.- **No Confederation, no Multi-Topology IS-IS (RFC 5120)** — Ze's IS-IS matches the single-topology default other implementations ship, but not their optional multi-topology extension.
 - **Pre-release, first release 2026** — sitting in the same table as implementations with years to decades of production hardening (one dates to 1998).
 - **Performance is not yet benchmarked at scale.** Go carries an estimated 10-15% CPU overhead versus C/Rust implementations; this has not been measured under load. See [Performance Trade-offs](DESIGN.md#performance-trade-offs).
 
