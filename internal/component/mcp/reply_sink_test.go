@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // VALIDATES: jsonReplySink.WriteFrame emits a single application/json body.
@@ -134,7 +136,9 @@ func TestSSEReplySink_MultipleFrames(t *testing.T) {
 // request or notification, or leaking 404 when the id is unknown.
 func TestStreamable_JSONRPCResponseBranch(t *testing.T) {
 	cfg := StreamableConfig{
-		Dispatch: func(cmd, _, _ string) (string, error) { return "ok:" + cmd, nil },
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok:"+cmd)), nil
+		},
 	}
 	srv, hs, cleanup := newTestStreamable(t, cfg)
 	defer cleanup()
@@ -211,7 +215,9 @@ func TestStreamable_JSONRPCResponseBranch(t *testing.T) {
 // PREVENTS: a malicious or stale client probing ids to leak which are live.
 func TestStreamable_JSONRPCResponseUnknownID(t *testing.T) {
 	cfg := StreamableConfig{
-		Dispatch: func(cmd, _, _ string) (string, error) { return "ok", nil },
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
+		},
 	}
 	_, hs, cleanup := newTestStreamable(t, cfg)
 	defer cleanup()
@@ -242,7 +248,9 @@ func TestStreamable_JSONRPCResponseUnknownID(t *testing.T) {
 // PREVENTS: a client that omits id from a response leaking past validation.
 func TestStreamable_JSONRPCResponseEmptyID(t *testing.T) {
 	cfg := StreamableConfig{
-		Dispatch: func(cmd, _, _ string) (string, error) { return "ok", nil },
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
+		},
 	}
 	_, hs, cleanup := newTestStreamable(t, cfg)
 	defer cleanup()
@@ -279,7 +287,9 @@ func TestStreamable_JSONRPCResponseEmptyID(t *testing.T) {
 // error response.
 func TestStreamable_JSONRPCResponseErrorBranch(t *testing.T) {
 	cfg := StreamableConfig{
-		Dispatch: func(cmd, _, _ string) (string, error) { return "ok", nil },
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
+		},
 	}
 	srv, hs, cleanup := newTestStreamable(t, cfg)
 	defer cleanup()
@@ -338,7 +348,9 @@ func TestStreamable_JSONRPCResponseErrorBranch(t *testing.T) {
 // and the server accepting it as "empty content, Action=accept".
 func TestStreamable_JSONRPCResponseContentNotObject(t *testing.T) {
 	cfg := StreamableConfig{
-		Dispatch: func(cmd, _, _ string) (string, error) { return "ok", nil },
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
+		},
 	}
 	srv, hs, cleanup := newTestStreamable(t, cfg)
 	defer cleanup()

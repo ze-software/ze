@@ -53,7 +53,9 @@ func buildLGService(deps ServiceDeps) (Service, error) {
 	cfg := lg.LGConfig{
 		ListenAddrs: deps.LGAddrs,
 		TLS:         deps.LGTLS,
-		Dispatch:    func(cmd string) (string, error) { return dispatch(cmd, "", "") },
+		// The unified dispatcher is passed through directly; the lg server
+		// renders each typed response at its edge with a zero-value caller.
+		Dispatch: dispatch,
 		DecorateASN: func(asn string) string {
 			if resolvers == nil || resolvers.Cymru == nil {
 				return ""

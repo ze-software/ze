@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 func TestResources_ListWalksEmbeddedFS(t *testing.T) {
@@ -140,7 +142,9 @@ func TestResources_ReadBinaryUsesBlob(t *testing.T) {
 
 func TestResources_ReadNoCapability(t *testing.T) {
 	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Dispatch: func(cmd, _, _ string) (string, error) { return "ok", nil },
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
+		},
 	})
 	defer cleanup()
 
@@ -166,7 +170,9 @@ func TestResources_ReadNoCapability(t *testing.T) {
 
 func TestResources_ListNoCapability(t *testing.T) {
 	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Dispatch: func(cmd, _, _ string) (string, error) { return "ok", nil },
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
+		},
 	})
 	defer cleanup()
 
@@ -192,7 +198,9 @@ func TestResources_ListNoCapability(t *testing.T) {
 
 func TestResources_ListWithCapability(t *testing.T) {
 	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Dispatch: func(cmd, _, _ string) (string, error) { return "ok", nil },
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
+		},
 	})
 	defer cleanup()
 
@@ -218,7 +226,9 @@ func TestResources_ListWithCapability(t *testing.T) {
 
 func TestResources_ReadWithCapability(t *testing.T) {
 	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Dispatch: func(cmd, _, _ string) (string, error) { return "ok", nil },
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
+		},
 	})
 	defer cleanup()
 
@@ -252,7 +262,9 @@ func TestResources_ReadWithCapability(t *testing.T) {
 
 func TestInitialize_ServerAdvertisesResources(t *testing.T) {
 	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Dispatch: func(cmd, _, _ string) (string, error) { return "ok", nil },
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
+		},
 	})
 	defer cleanup()
 
@@ -283,7 +295,9 @@ func TestInitialize_ServerAdvertisesResources(t *testing.T) {
 
 func TestInitialize_ClientCapabilityResources(t *testing.T) {
 	srv, hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Dispatch: func(cmd, _, _ string) (string, error) { return "ok", nil },
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
+		},
 	})
 	defer cleanup()
 

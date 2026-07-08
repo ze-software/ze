@@ -17,19 +17,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 )
 
 // testEngine creates an APIEngine with fake implementations for testing.
 func testEngine() *api.APIEngine {
-	exec := func(_ context.Context, _ api.CallerIdentity, command string) (string, error) {
+	exec := func(_ context.Context, _ api.CallerIdentity, command string) (*plugin.Response, error) {
 		switch command {
 		case "show bgp summary":
-			return `{"peer-count":3}`, nil
+			return plugin.NewResponse(api.StatusDone, plugin.RawJSON(`{"peer-count":3}`)), nil
 		case "show version":
-			return `{"version":"1.0"}`, nil
+			return plugin.NewResponse(api.StatusDone, plugin.RawJSON(`{"version":"1.0"}`)), nil
 		default:
-			return "ok: " + command, nil
+			return plugin.NewResponse(api.StatusDone, plugin.RawJSON("ok: "+command)), nil
 		}
 	}
 	cmds := func() []api.CommandMeta {
@@ -206,7 +207,13 @@ func TestRESTExecute(t *testing.T) {
 	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"show bgp summary"}`)
 	assert.Equal(t, http.StatusOK, r.Status)
 
-	var result api.ExecResult
+	// test-relax: the envelope's Data is now the marker interface ResponseData
+	// (marshal-only); json.Unmarshal cannot target it, so decode only the
+	// scalar status field the assertion checks.
+	var result struct {
+		Status string `json:"status"`
+		Error  string `json:"error"`
+	}
 	require.NoError(t, json.Unmarshal([]byte(r.Body), &result))
 	assert.Equal(t, "done", result.Status)
 }
@@ -222,10 +229,10 @@ func TestExecutePropagatesRequestContextAndRemoteAddr(t *testing.T) {
 	)
 
 	engine := api.NewAPIEngine(
-		func(ctx context.Context, auth api.CallerIdentity, command string) (string, error) {
+		func(ctx context.Context, auth api.CallerIdentity, command string) (*plugin.Response, error) {
 			gotCtx = ctx
 			gotAuth = auth
-			return "ok: " + command, nil
+			return plugin.NewResponse(api.StatusDone, plugin.RawJSON("ok: "+command)), nil
 		},
 		func() []api.CommandMeta {
 			return []api.CommandMeta{{Name: "show bgp summary", ReadOnly: true}}
@@ -336,7 +343,13 @@ func TestRESTPeersConvenience(t *testing.T) {
 	r := do(t, srv, "GET", "/api/v1/peers", "")
 	assert.Equal(t, http.StatusOK, r.Status)
 
-	var result api.ExecResult
+	// test-relax: the envelope's Data is now the marker interface ResponseData
+	// (marshal-only); json.Unmarshal cannot target it, so decode only the
+	// scalar status field the assertion checks.
+	var result struct {
+		Status string `json:"status"`
+		Error  string `json:"error"`
+	}
 	require.NoError(t, json.Unmarshal([]byte(r.Body), &result))
 	assert.Equal(t, "done", result.Status)
 }
@@ -668,9 +681,9 @@ func TestRESTRIBFamilyWhitespace(t *testing.T) {
 // PREVENTS: all requests authenticated as "api" default.
 func TestRESTAuthenticator(t *testing.T) {
 	var seenUser string
-	exec := func(_ context.Context, auth api.CallerIdentity, _ string) (string, error) {
+	exec := func(_ context.Context, auth api.CallerIdentity, _ string) (*plugin.Response, error) {
 		seenUser = auth.Username
-		return `"ok"`, nil
+		return plugin.NewResponse(api.StatusDone, plugin.RawJSON(`"ok"`)), nil
 	}
 	cmds := func() []api.CommandMeta { return nil }
 	auth := func(_, _ string) bool { return true }

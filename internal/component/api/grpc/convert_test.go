@@ -8,6 +8,7 @@ import (
 
 	zepb "codeberg.org/thomas-mangin/ze/api/proto"
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 func TestExecuteRequestRoundTrip(t *testing.T) {
@@ -23,7 +24,7 @@ func TestExecuteRequestRoundTrip(t *testing.T) {
 	assert.Equal(t, caller, req.Caller)
 
 	// Convert result back to proto.
-	result := &api.ExecResult{Status: api.StatusDone, Data: "ok"}
+	result := &api.ExecResult{Status: api.StatusDone, Data: plugin.RawJSON("ok")}
 	resp := execResultToProto(result)
 	assert.Equal(t, api.StatusDone, resp.Status)
 	assert.Equal(t, "", resp.Error)

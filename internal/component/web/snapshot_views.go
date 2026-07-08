@@ -9,9 +9,12 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // viewSpec describes one read-only live view (neighbor or database) of a protocol.
@@ -40,7 +43,7 @@ func (h *snapshotHandlers) dispatchJSON(command, username, remoteAddr string) (j
 	if h.dispatch == nil {
 		return nil, h.errNoDispatch
 	}
-	out, err := h.dispatch(command, username, remoteAddr)
+	out, err := h.dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: remoteAddr}, command)
 	if err != nil {
 		return nil, err
 	}

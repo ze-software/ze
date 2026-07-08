@@ -7,7 +7,12 @@ package hub
 // PREVENTS: an ASN decorator misparse (overflow/garbage) and a no-op build
 // being treated as a failure.
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+)
 
 func TestParseASNForDecorator(t *testing.T) {
 	cases := []struct {
@@ -33,7 +38,9 @@ func TestParseASNForDecorator(t *testing.T) {
 
 func TestBuildLGService_NotConfigured(t *testing.T) {
 	// No listen addresses -> the factory skips (nil service, nil error).
-	svc, err := buildLGService(ServiceDeps{Dispatch: func(string, string, string) (string, error) { return "", nil }})
+	svc, err := buildLGService(ServiceDeps{Dispatch: func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
+		return plugin.NewResponse(plugin.StatusDone, nil), nil
+	}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

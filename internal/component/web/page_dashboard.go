@@ -11,12 +11,14 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"html/template"
 	"net/http"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/health"
 )
 
@@ -171,7 +173,7 @@ func HandleDashboardEventsPage(renderer *Renderer, r *http.Request, dispatch Com
 		username := GetUsernameFromRequest(r)
 
 		// Fetch namespaces for the filter dropdown.
-		nsOutput, nsErr := dispatch("show event namespaces", username, r.RemoteAddr)
+		nsOutput, nsErr := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, "show event namespaces")
 		if nsErr == nil && nsOutput != "" {
 			data.Namespaces = parseNamespaces(nsOutput)
 		}
@@ -181,7 +183,7 @@ func HandleDashboardEventsPage(renderer *Renderer, r *http.Request, dispatch Com
 		if selectedNS != "" {
 			cmd += " namespace " + selectedNS
 		}
-		output, err := dispatch(cmd, username, r.RemoteAddr)
+		output, err := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, cmd)
 		if err == nil && output != "" {
 			data.Rows = parseEventOutput(output)
 		}

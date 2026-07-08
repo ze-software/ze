@@ -18,16 +18,21 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // fakeDispatch returns a canned JSON payload for a given command and records the
 // command it was asked to run.
 func fakeISISDispatch(payload string, gotCmd *string) CommandDispatcher {
-	return func(command, _, _ string) (string, error) {
+	return func(_ context.Context, _ plugin.CallerIdentity, command string) (*plugin.Response, error) {
 		if gotCmd != nil {
 			*gotCmd = command
 		}
-		return payload, nil
+		if payload == "" {
+			return plugin.NewResponse(plugin.StatusDone, nil), nil
+		}
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(payload)), nil
 	}
 }
 

@@ -4,6 +4,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -16,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -258,7 +260,7 @@ func executeTerminalOperational(dispatch CommandDispatcher, username, remoteAddr
 		var tb textbuf.Buffer
 		return tb.Str("pipe error: ").Str(pipeErr).String()
 	}
-	output, err := dispatch(cmdStr, username, remoteAddr)
+	output, err := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: remoteAddr}, cmdStr)
 	if err != nil {
 		var tb textbuf.Buffer
 		return tb.Str("error: ").Err(err).String()

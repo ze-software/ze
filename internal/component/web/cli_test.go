@@ -22,6 +22,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang"   // Required by ze-bgp-conf.yang.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/yang" // Register interface YANG for scoped terminal tests.
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 )
 
@@ -442,9 +443,9 @@ func TestTerminalModeCommand(t *testing.T) {
 func TestTerminalModeOperationalSwitching(t *testing.T) {
 	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
 	var seen []string
-	dispatch := func(command, username, remoteAddr string) (string, error) {
-		seen = append(seen, command+"|"+username+"|"+remoteAddr)
-		return `{"namespaces":[{"namespace":"test","count":1}]}`, nil
+	dispatch := func(_ context.Context, caller plugin.CallerIdentity, command string) (*plugin.Response, error) {
+		seen = append(seen, command+"|"+caller.Username+"|"+caller.RemoteAddr)
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"namespaces":[{"namespace":"test","count":1}]}`)), nil
 	}
 	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, dispatch, nil, nil)
 

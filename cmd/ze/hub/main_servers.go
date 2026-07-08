@@ -5,8 +5,7 @@
 package hub
 
 import (
-	"encoding/json"
-	"errors"
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -22,35 +21,46 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-// serverDispatcherWithSurface creates a CommandDispatcher with fixed audit surface attribution.
-func serverDispatcherWithSurface(s *pluginserver.Server, surface string) func(command, username, remoteAddr string) (string, error) {
-	return func(input, username, remoteAddr string) (string, error) {
+// serverDispatcher builds the single unified command dispatcher for a surface.
+// The returned plugin.CommandDispatcher constructs a request-scoped
+// CommandContext from the caller identity and dispatches through the plugin
+// server, returning the typed *plugin.Response so each surface renders at its
+// own edge (text surfaces via plugin.CommandDispatcher.JSON; the API engine
+// carries typed Data to the REST/gRPC transport). This replaces the two
+// copy-pasted flatten adapters (serverDispatcherWithSurface + apiExecutor); the
+// flatten sequence now lives once in plugin.ResponseJSON.
+//
+// Audit surface attribution uses caller.Surface when the caller sets it (the
+// REST and gRPC transports set it per request); otherwise the fixed `surface`
+// default applies (web, ssh, mcp, cli dispatchers built in main.go).
+func serverDispatcher(s *pluginserver.Server, surface string) plugin.CommandDispatcher {
+	return func(ctx context.Context, caller plugin.CallerIdentity, command string) (*plugin.Response, error) {
 		d := s.Dispatcher()
 		if d == nil {
-			return "", errServerNotReady
+			return nil, errServerNotReady
 		}
-		ctx := &pluginserver.CommandContext{Server: s, Username: username, RemoteAddr: remoteAddr, Surface: surface}
-		resp, err := d.Dispatch(ctx, input)
-		if err != nil {
-			return "", err
+		srf := surface
+		if caller.Surface != "" {
+			srf = caller.Surface
 		}
-		if resp == nil {
-			return "", nil
+		cmdCtx := &pluginserver.CommandContext{
+			Server:     s,
+			Username:   caller.Username,
+			RemoteAddr: caller.RemoteAddr,
+			Surface:    srf,
 		}
-		if resp.Error != "" {
-			return "", errors.New(resp.Error)
+		// Thread a genuine per-request context: the REST/gRPC transport passes
+		// its request ctx so the command cancels with the request. Text surfaces
+		// (web/mcp/lg/chaos/ssh/cli) have no request-scoped context and pass
+		// context.Background(); leaving RequestContext nil then makes
+		// CommandContext.Context() fall back to the server context, so an
+		// in-flight command still cancels on daemon shutdown -- matching the
+		// pre-unification serverDispatcherWithSurface, which never set
+		// RequestContext.
+		if ctx != nil && ctx != context.Background() {
+			cmdCtx.RequestContext = ctx
 		}
-		if resp.Status == plugin.StatusError {
-			return "", errors.New("unknown error")
-		}
-		if resp.Data == nil {
-			return "", nil
-		}
-		b, jsonErr := json.Marshal(resp.Data)
-		if jsonErr != nil {
-			return "", fmt.Errorf("marshal response: %w", jsonErr)
-		}
-		return string(b), nil
+		return d.Dispatch(cmdCtx, command)
 	}
 }
 

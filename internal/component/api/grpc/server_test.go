@@ -17,6 +17,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+
 	zepb "codeberg.org/thomas-mangin/ze/api/proto"
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
@@ -24,12 +26,12 @@ import (
 
 // testEngine creates an APIEngine with fake implementations.
 func testEngine() *api.APIEngine {
-	exec := func(_ context.Context, _ api.CallerIdentity, command string) (string, error) {
+	exec := func(_ context.Context, _ api.CallerIdentity, command string) (*plugin.Response, error) {
 		switch command {
 		case "bgp summary":
-			return `{"peer-count":3}`, nil
+			return plugin.NewResponse(api.StatusDone, plugin.RawJSON(`{"peer-count":3}`)), nil
 		default:
-			return "ok: " + command, nil
+			return plugin.NewResponse(api.StatusDone, plugin.RawJSON("ok: "+command)), nil
 		}
 	}
 	cmds := func() []api.CommandMeta {
@@ -233,9 +235,9 @@ func TestExecuteUsesPeerRemoteAddr(t *testing.T) {
 	var gotAuth api.CallerIdentity
 
 	engine := api.NewAPIEngine(
-		func(_ context.Context, auth api.CallerIdentity, command string) (string, error) {
+		func(_ context.Context, auth api.CallerIdentity, command string) (*plugin.Response, error) {
 			gotAuth = auth
-			return "ok: " + command, nil
+			return plugin.NewResponse(api.StatusDone, plugin.RawJSON("ok: "+command)), nil
 		},
 		func() []api.CommandMeta {
 			return []api.CommandMeta{{Name: "bgp summary", ReadOnly: true}}
@@ -522,8 +524,8 @@ func TestGRPCExecuteEmptyCommand(t *testing.T) {
 // VALIDATES: Execute with denied auth returns PermissionDenied.
 // PREVENTS: auth bypass in gRPC path.
 func TestGRPCExecutePermissionDenied(t *testing.T) {
-	exec := func(_ context.Context, _ api.CallerIdentity, _ string) (string, error) {
-		return "", errors.New("should not reach")
+	exec := func(_ context.Context, _ api.CallerIdentity, _ string) (*plugin.Response, error) {
+		return nil, errors.New("should not reach")
 	}
 	cmds := func() []api.CommandMeta { return nil }
 	auth := func(_, _ string) bool { return false }
@@ -629,9 +631,9 @@ func TestNewGRPCServer_RejectsNonLoopbackAuthenticatedPlaintext(t *testing.T) {
 // PREVENTS: all gRPC requests authenticated as "api" default.
 func TestGRPCAuthenticator(t *testing.T) {
 	var seenUser string
-	exec := func(_ context.Context, auth api.CallerIdentity, _ string) (string, error) {
+	exec := func(_ context.Context, auth api.CallerIdentity, _ string) (*plugin.Response, error) {
 		seenUser = auth.Username
-		return `"ok"`, nil
+		return plugin.NewResponse(api.StatusDone, plugin.RawJSON(`"ok"`)), nil
 	}
 	cmds := func() []api.CommandMeta { return nil }
 	auth := func(_, _ string) bool { return true }

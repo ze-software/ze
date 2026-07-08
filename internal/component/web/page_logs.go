@@ -10,10 +10,13 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"html/template"
 	"net/http"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // LogTableData is the template payload for warning/error log tables.
@@ -90,7 +93,7 @@ func fillOperationalRows(data *LogTableData, dispatch CommandDispatcher, r *http
 		return
 	}
 	username := GetUsernameFromRequest(r)
-	output, err := dispatch(command, username, r.RemoteAddr)
+	output, err := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, command)
 	if err != nil {
 		data.EmptyMessage = operationalUnavailableMessage
 		data.EmptyHint = operationalUnavailableHint

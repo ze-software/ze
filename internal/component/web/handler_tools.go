@@ -15,6 +15,7 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"html/template"
@@ -25,6 +26,7 @@ import (
 	"unicode/utf8"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -172,7 +174,7 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 		// Dispatch through the standard pipeline. Authz, accounting, and
 		// peer-selector extraction live there; this handler only constructs
 		// the trusted command and identity.
-		output, dispatchErr := dispatch(res.Command, username, r.RemoteAddr)
+		output, dispatchErr := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, res.Command)
 		if dispatchErr != nil {
 			data := errorOverlay(toolID, contextPath, tool, dispatchErr.Error())
 			data.Command = res.Command

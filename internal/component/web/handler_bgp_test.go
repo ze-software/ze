@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 )
 
@@ -315,8 +317,8 @@ func TestFetchBGPSummaryPeersJSON(t *testing.T) {
 		`{"name":"peer-b","state":"Idle","uptime":"0s",` +
 		`"updates-received":0,"updates-sent":0,"keepalives-received":0,"keepalives-sent":0}` +
 		`]}}`
-	dispatch := func(command, username, remoteAddr string) (string, error) {
-		return jsonOutput, nil
+	dispatch := func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(jsonOutput)), nil
 	}
 	r := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	live := fetchBGPSummaryPeers(r, dispatch)

@@ -29,10 +29,12 @@ func TestAPIExecutorPropagatesRequestContextAndRemoteAddr(t *testing.T) {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "ok"}}, nil
 	}, "test api")
 
-	exec := apiExecutor(server)
+	exec := serverDispatcher(server, "")
 	requestCtx := context.WithValue(context.Background(), ctxKey{}, "trace-id")
 
-	output, err := exec(requestCtx, api.CallerIdentity{
+	// exec.JSON dispatches then flattens the typed response to the JSON string
+	// text surfaces render -- the same path the two old hub adapters produced.
+	output, err := exec.JSON(requestCtx, api.CallerIdentity{
 		Username:   "alice",
 		RemoteAddr: "198.51.100.10:4444",
 	}, "test api")
@@ -44,6 +46,41 @@ func TestAPIExecutorPropagatesRequestContextAndRemoteAddr(t *testing.T) {
 	assert.Equal(t, "198.51.100.10:4444", seen.RemoteAddr)
 	assert.Same(t, requestCtx, seen.Context())
 	assert.Equal(t, "trace-id", seen.Context().Value(ctxKey{}))
+}
+
+// VALIDATES: serverDispatcher does NOT pin a text surface's dispatch to the
+// never-canceled context.Background(); it leaves RequestContext nil so
+// CommandContext.Context() falls back to the server context (which cancels on
+// daemon shutdown), while a genuine per-request context (REST/gRPC) IS threaded.
+// PREVENTS: in-flight web/mcp/lg/ssh/cli commands surviving daemon shutdown
+// because Background never cancels (regression from the envelope unification).
+func TestServerDispatcherContextThreading(t *testing.T) {
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+
+	var seen *pluginserver.CommandContext
+	server.Dispatcher().Register("test ctx", func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+		seen = ctx
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "test ctx")
+
+	d := serverDispatcher(server, "web")
+
+	// Text surface: passes Background -> RequestContext must stay nil so the
+	// dispatch inherits the server context (cancels on shutdown).
+	_, err = d(context.Background(), plugin.CallerIdentity{}, "test ctx")
+	require.NoError(t, err)
+	require.NotNil(t, seen)
+	assert.Nil(t, seen.RequestContext, "context.Background() must not be threaded as the request context")
+
+	// API surface: a real per-request context is threaded through unchanged.
+	seen = nil
+	type ctxKey struct{}
+	reqCtx := context.WithValue(context.Background(), ctxKey{}, "trace")
+	_, err = d(reqCtx, plugin.CallerIdentity{}, "test ctx")
+	require.NoError(t, err)
+	require.NotNil(t, seen)
+	assert.Same(t, reqCtx, seen.RequestContext, "a genuine per-request context must be threaded")
 }
 
 // VALIDATES: API streaming uses pluginserver streaming handlers with caller metadata and accounting.

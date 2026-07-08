@@ -24,10 +24,12 @@ runtime request, see the gotcha below.
 
 **A. Request path: external client → dispatch → handler**
 
-1. **Composition.** `buildAPIEngine` (`cmd/ze/hub/api.go:105`) builds one `*api.APIEngine`
-   (`api.NewAPIEngine`, `engine.go:53`) shared by REST and gRPC: `apiExecutor(server)`
-   (`cmd/ze/hub/api.go:116`) becomes the `Executor`, `apiCommandLister(server)` (`cmd/ze/hub/api.go:317`) the
-   `CommandSource`, and `apiStreamSource(server)` (`cmd/ze/hub/api.go:159`) the `StreamSource`.
+1. **Composition.** `buildAPIEngine` (`cmd/ze/hub/api.go:107`) builds one `*api.APIEngine`
+   (`api.NewAPIEngine`, `engine.go:57`) shared by REST and gRPC: `serverDispatcher(server, "")`
+   (`cmd/ze/hub/api.go:108`, defined `cmd/ze/hub/main_servers.go:36`) becomes the `Executor` --
+   the single unified `plugin.CommandDispatcher` every surface shares; `apiCommandLister(server)`
+   (`cmd/ze/hub/api.go:281`) the `CommandSource`, and `apiStreamSource(server)` (`cmd/ze/hub/api.go:123`)
+   the `StreamSource`.
 2. **HTTP entry.** `POST /api/v1/execute` → `RESTServer.handleExecute` (`rest/server.go:508`)
    decodes `{"command":"...","params":{...}}`, then `fromRESTExecuteRequest`
    (`rest/convert.go:11`) calls `api.BuildCommand` (`requests.go:69`) to append each JSON
@@ -39,18 +41,24 @@ runtime request, see the gotcha below.
    request via `fromProtoExecuteRequest` (`grpc/convert.go:12`); auth interceptors
    (`authUnaryInterceptor`, `grpc/server.go:414`; `checkAuth`, `:436`) inject username/read-only
    into the context before the handler runs.
-4. **Engine gate + execute.** Both transports call `APIEngine.Execute` (`engine.go:92`): a
-   read-only caller (`CallerIdentity.ReadOnly`, `types.go:48`) is rejected unless
-   `commandReadOnly(req.Command)` (`engine.go:144`), a longest-registered-name prefix scan
+4. **Engine gate + execute.** Both transports call `APIEngine.Execute` (`engine.go:96`): a
+   read-only caller (`CallerIdentity.ReadOnly`; `CallerIdentity` is now an alias of
+   `plugin.CallerIdentity`, `types.go:54`) is rejected unless
+   `commandReadOnly(req.Command)` (`engine.go:145`), a longest-registered-name prefix scan
    over `CommandSource`, says the command is safe; an optional `AuthChecker` is consulted
-   next (`engine.go:100`); only then is `e.executor(ctx, caller, command)` invoked
-   (`engine.go:107`). The raw string result is JSON-sniffed (`engine.go:117`) so structured
-   command output round-trips as `any`, not a doubly-escaped string.
-5. **Executor → Dispatcher.** `apiExecutor` (`cmd/ze/hub/api.go:116`) builds a
-   `pluginserver.CommandContext{Server, RequestContext, Username, RemoteAddr, Surface}`
-   (`cmd/ze/hub/api.go:122`) and calls `s.Dispatcher().Dispatch(cmdCtx, command)` (`cmd/ze/hub/api.go:129`,
-   `Server.Dispatcher()` at `internal/component/plugin/server/server.go:305`), the single
-   shared command dispatcher used by REST, gRPC, SSH/CLI, and plugin-to-plugin calls alike.
+   next (`engine.go:104`); only then is `e.executor(ctx, caller, command)` invoked
+   (`engine.go:111`). The executor is the unified `plugin.CommandDispatcher`, so it returns a
+   typed `*plugin.Response` directly; `Execute` returns it unchanged (`engine.go:124`) with NO
+   marshal-to-string then re-parse round trip -- typed `Data` flows to the transport edge
+   (DESIGN-REVIEW finding 3).
+5. **Executor → Dispatcher.** `serverDispatcher` (`cmd/ze/hub/main_servers.go:36`) builds a
+   `pluginserver.CommandContext{Server, Username, RemoteAddr, Surface}`
+   (`cmd/ze/hub/main_servers.go:46`; it sets `RequestContext` only for a genuine per-request ctx,
+   not for a text surface's `context.Background()`) and calls `d.Dispatch(cmdCtx, command)`
+   (`cmd/ze/hub/main_servers.go:63`, `Server.Dispatcher()` at
+   `internal/component/plugin/server/server.go:305`), the single shared command dispatcher used
+   by REST, gRPC, SSH/CLI, web, mcp, lg, and plugin-to-plugin calls alike. `serverDispatcher`
+   replaced the former per-surface `apiExecutor`/`serverDispatcherWithSurface` pair.
 6. **Tokenize + match.** `Dispatcher.Dispatch` (`internal/component/plugin/server/command.go:538`)
    calls `tokenize` (`internal/component/plugin/server/command.go:867`, quote-aware, rejects backslashes) then
    `matchBuiltinTokens` (`internal/component/plugin/server/command.go:552`, defined `:356`), which walks `sortedKeys`, builtin
@@ -105,11 +113,13 @@ runtime request, see the gotcha below.
     `*RPCCallError` (`pkg/plugin/rpc/message.go:23`) built by `parseRPCError`. `SendExecuteCommand` unmarshals
     the payload into `rpc.ExecuteCommandOutput` (`internal/component/plugin/ipc/rpc.go:277`). `routeToProcess` wraps the
     result into `plugin.Response{Status, Data: plugin.RawJSON(...)}` (`internal/component/plugin/server/command.go:852-857`),
-    which is what `Dispatch` returns to `apiExecutor`.
-14. **Back up to the client.** `apiExecutor` (`cmd/ze/hub/api.go:116`) marshals `resp.Data` to a JSON
-    string (`cmd/ze/hub/api.go:145`); `APIEngine.Execute` re-parses it into `any` (`engine.go:117`) so the
-    REST/gRPC envelope carries structured JSON, not an escaped string; REST writes it via
-    `writeJSON` (`rest/server.go:930`), gRPC via `execResultToProto` (`grpc/convert.go:74`).
+    which is what `Dispatch` returns to the executor (`serverDispatcher`).
+14. **Back up to the client.** `serverDispatcher` returns the typed `*plugin.Response` unchanged;
+    `APIEngine.Execute` returns it directly (`engine.go:124`) with NO marshal-to-string then
+    re-parse (finding 3), so the REST/gRPC envelope carries the typed `Data` to its edge and
+    marshals it once: REST via `writeJSON` (`rest/server.go:930`), gRPC via `execResultToProto`
+    (`grpc/convert.go:74`). Because the re-parse is gone, REST/gRPC JSON now preserves the
+    plugin's object key order and full int64 fidelity rather than the old sorted-keys/float64 form.
 
 **C. Streaming / monitor event path**
 
@@ -117,15 +127,15 @@ runtime request, see the gotcha below.
     (`rest/server.go:839`); gRPC `zeServiceImpl.Stream` (`grpc/server.go:523`). Both call
     `APIEngine.Stream` (`engine.go:130`), which re-applies the same read-only/auth gates as
     `Execute` before invoking the `StreamSource`.
-16. **Handler resolution.** `apiStreamSource` (`cmd/ze/hub/api.go:159`) requires authorization up front
-    (`d.IsAuthorized`, `cmd/ze/hub/api.go:183`, exported at `internal/component/plugin/server/command.go:485`), resolves a handler via
-    `pluginserver.GetStreamingHandlerForCommand(command)` (`cmd/ze/hub/api.go:169`, defined
+16. **Handler resolution.** `apiStreamSource` (`cmd/ze/hub/api.go:123`) requires authorization up front
+    (`d.IsAuthorized`, `cmd/ze/hub/api.go:147`, exported at `internal/component/plugin/server/command.go:485`), resolves a handler via
+    `pluginserver.GetStreamingHandlerForCommand(command)` (`cmd/ze/hub/api.go:133`, defined
     `internal/component/plugin/server/handler.go:112`), e.g. `monitor event` was registered
     as `pluginserver.StreamEventMonitor` (`internal/component/plugin/server/event_monitor.go:49`)
     by `internal/component/bgp/plugins/cmd/monitor/monitor.go:46`, then runs it in a goroutine
-    (`cmd/ze/hub/api.go:191`) writing into an `apiStreamLineWriter` (`cmd/ze/hub/api.go:217`, `Write` at `:237`) that
+    (`cmd/ze/hub/api.go:155`) writing into an `apiStreamLineWriter` (`cmd/ze/hub/api.go:193`, `Write` at `:201`) that
     buffers partial writes and emits one channel message per full line (max 1 MiB/line,
-    `cmd/ze/hub/api.go:155`).
+    `cmd/ze/hub/api.go:119`).
 17. **Delivery.** REST relays each channel line as an SSE frame, `data: <line>\n\n`
     (`rest/server.go:875`); gRPC relays each line as `CommandResponse{Status: done, Data:
     []byte(line)}` (`grpc/server.go:546-552`). Both loops select on the channel and
@@ -140,7 +150,7 @@ runtime request, see the gotcha below.
     (`:23`) built by the daemon's `ConfigEditorFactory`; `Set`/`Delete`/`Diff` (`:172`,
     `:211`, `:221`) mutate the session's candidate tree; `Commit` (`:231`) runs the
     `ConfigValidationHook` then either the `ConfigCommitHook` (daemon reload path,
-    wired at `cmd/ze/hub/api.go:66-67`) or a plain `Editor.Save()`. Idle sessions are reaped by
+    wired at `cmd/ze/hub/api.go:65`) or a plain `Editor.Save()`. Idle sessions are reaped by
     `RunCleanup`/`CleanExpired` (`config_session.go:132`, `:101`) on `DefaultSessionTimeout`
     (30 min, `:57`).
 
@@ -159,7 +169,7 @@ runtime request, see the gotcha below.
 | File | Role |
 |------|------|
 | `engine.go` | `APIEngine`: `Execute`/`Stream`/`ListCommands`/`DescribeCommand`, auth + read-only gating |
-| `types.go` | `CommandMeta`, `ParamMeta`, `ExecResult`, `CallerIdentity`, status/auth-command constants |
+| `types.go` | `CommandMeta`, `ParamMeta`, `ExecResult` (alias of `plugin.Response`), `CallerIdentity` (alias of `plugin.CallerIdentity`), status/auth-command constants |
 | `requests.go` | Domain request structs (`ExecuteRequest`, `ConfigSetRequest`, ...), `BuildCommand` |
 | `config_session.go` | `ConfigSessionManager`/`ConfigSession`/`ConfigEditor`: per-user config edit sessions |
 | `schema.go` | `CommandSchema`/`OpenAPISchema`: JSON Schema + OpenAPI generation from `CommandMeta` |
@@ -177,7 +187,8 @@ runtime request, see the gotcha below.
 | `pkg/plugin/rpc/mux.go` | `MuxConn`: correlation-ID multiplexing, `readLoop`, `interpretResponse` |
 | `pkg/plugin/rpc/message.go` | `Request`, `ParseLine`, `AppendRequest`/`AppendResult`/`AppendError` (wire line codec) |
 | `pkg/plugin/rpc/framing.go` | `FrameReader`/`FrameWriter`: newline-delimited framing, 16 MB message cap |
-| `internal/component/plugin/types.go` | `Response`/`RawJSON`: the command-result envelope threaded through the whole flow |
+| `internal/component/plugin/types.go` | `Response`/`RawJSON`/`Text`: the unified command-result envelope threaded through the whole flow |
+| `internal/component/plugin/dispatch.go` | `CommandDispatcher` (the one dispatcher type), `CallerIdentity`, `ResponseJSON` flatten helper + `.JSON` method (text-surface edge rendering) |
 | `cmd/ze/hub/api.go` | Composition root: wires `APIEngine` to the plugin server's `Dispatcher` and streaming registry |
 
 ## Invariants & gotchas
@@ -204,7 +215,7 @@ runtime request, see the gotcha below.
   (`internal/component/plugin/server/command.go:867`), so REST/gRPC commands are exactly as expressive, and exactly as
   string-shaped, as an SSH command.
 - **Identity is transport-injected, never client-supplied.** `CallerIdentity.Username`
-  (`types.go:50`) comes from the REST bearer-token authenticator (`rest/server.go:425`) or
+  (`CallerIdentity` = `plugin.CallerIdentity`, `types.go:54`) comes from the REST bearer-token authenticator (`rest/server.go:425`) or
   gRPC metadata interceptor (`grpc/server.go:414`), never from the request body/proto; the
   RPC path enforces the same rule (`RPCParams` has no username field,
   `internal/component/plugin/server/server.go:56-58`).
@@ -226,7 +237,7 @@ runtime request, see the gotcha below.
 - **Config sessions are a separate authority path.** `ConfigSessionManager` methods
   (`config_session.go`) are reachable only through REST/gRPC-specific routes with their own
   `requireWriteAccess` checks (`rest/server.go:474`, `grpc/server.go:592`) using
-  `ConfigAuth*` command strings (`types.go:65-71`) as the authorization subject, they never
+  `ConfigAuth*` command strings (`types.go:65-69`) as the authorization subject, they never
   pass through `Dispatcher.Dispatch` or the plugin registry at all.
 
 ## See also

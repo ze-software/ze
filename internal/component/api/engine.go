@@ -6,10 +6,11 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // Errors returned by the engine.
@@ -18,10 +19,13 @@ var (
 	ErrNotFound     = errors.New("command not found")
 )
 
-// Executor runs a command and returns its raw output.
-// The transport context plus caller metadata are passed through so the
-// implementation can build a request-scoped CommandContext.
-type Executor func(ctx context.Context, caller CallerIdentity, command string) (string, error)
+// Executor runs a command on behalf of a caller and returns the typed
+// response. It is an alias for the unified plugin.CommandDispatcher: the API
+// engine is one more consumer of the single command dispatcher every surface
+// shares. Returning *plugin.Response (not a flattened string) lets typed Data
+// flow to the REST/gRPC edge without an intermediate marshal-to-string then
+// unmarshal-to-any round trip.
+type Executor = plugin.CommandDispatcher
 
 // CommandSource returns all available commands with metadata.
 type CommandSource func() []CommandMeta
@@ -104,23 +108,20 @@ func (e *APIEngine) Execute(ctx context.Context, req *ExecuteRequest) (*ExecResu
 		}, ErrUnauthorized
 	}
 
-	output, err := e.executor(ctx, req.Caller, req.Command)
+	resp, err := e.executor(ctx, req.Caller, req.Command)
 	if err != nil {
 		return &ExecResult{
 			Status: StatusError,
 			Error:  err.Error(),
 		}, err
 	}
-
-	// Try to parse output as JSON for structured responses.
-	var structured any
-	if json.Valid([]byte(output)) {
-		if jsonErr := json.Unmarshal([]byte(output), &structured); jsonErr == nil {
-			return &ExecResult{Status: StatusDone, Data: structured}, nil
-		}
+	// The executor is the unified command dispatcher: it already returns the
+	// typed envelope with typed Data. Carry it straight to the transport edge
+	// (finding 3) -- no marshal-to-string then unmarshal-to-any round trip.
+	if resp == nil {
+		return &ExecResult{Status: StatusDone}, nil
 	}
-
-	return &ExecResult{Status: StatusDone, Data: output}, nil
+	return resp, nil
 }
 
 // Stream starts a streaming command and returns a channel that delivers events.

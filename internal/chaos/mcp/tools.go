@@ -3,6 +3,7 @@
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
@@ -33,8 +35,11 @@ var sortedControlActions = func() string {
 // ControlDispatcher sends control commands to the chaos scheduler.
 type ControlDispatcher func(cmd web.ControlCommand) error
 
-// CommandDispatcher executes a chaos orchestrator command.
-type CommandDispatcher func(command string) (string, error)
+// CommandDispatcher executes a chaos orchestrator command and returns the
+// typed response. It is an alias for the unified plugin.CommandDispatcher; the
+// chaos MCP provider renders the JSON string at its edge via
+// CommandDispatcher.JSON with a zero-value caller identity.
+type CommandDispatcher = plugin.CommandDispatcher
 
 // Provider implements mcp.ToolProvider for the chaos MCP server.
 type Provider struct {
@@ -373,7 +378,7 @@ func (p *Provider) toolExecute(args json.RawMessage) map[string]any {
 		return zemcp.ErrResult("missing required argument: command")
 	}
 
-	result, err := p.Execute(input.Command)
+	result, err := p.Execute.JSON(context.Background(), plugin.CallerIdentity{}, input.Command)
 	if err != nil {
 		return zemcp.ErrResult(err.Error())
 	}

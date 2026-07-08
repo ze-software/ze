@@ -446,11 +446,17 @@ type DispatchCommandArgsInput struct {
 	Peer    string   `json:"peer,omitempty"`
 }
 
-// DispatchCommandOutput is the output for ze-plugin-engine:dispatch-command.
-// Preserves the full {status, data} response from the dispatcher, unlike
-// update-route which extracts only route counters.
+// DispatchCommandOutput is the serialized cross-process wire projection of the
+// unified in-process command-result envelope (internal/component/plugin.Response)
+// for ze-plugin-engine:dispatch-command. It preserves the full {status, data,
+// error} shape but carries Data as json.RawMessage rather than a typed payload:
+// the receiving process decodes the result without the concrete Go type, so the
+// raw-JSON field is mandatory. This is deliberately NOT merged into
+// plugin.Response -- it is a distinct transport layer at the process boundary,
+// sharing the "done"/"error" status vocabulary. Unlike update-route (which
+// extracts only route counters), it preserves the complete response.
 type DispatchCommandOutput struct {
-	Status string          `json:"status"`         // "done" or "error"
+	Status string          `json:"status"`         // "done" or "error" (see plugin.StatusDone/StatusError)
 	Data   json.RawMessage `json:"data,omitempty"` // raw JSON response data (single-decode)
 	Error  string          `json:"error,omitempty"`
 }

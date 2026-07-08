@@ -5,11 +5,13 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"html/template"
 	"net/http"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -28,7 +30,7 @@ func fetchBGPSummaryPeers(r *http.Request, dispatch CommandDispatcher) map[strin
 		return nil
 	}
 	username := GetUsernameFromRequest(r)
-	output, err := dispatch("show bgp summary", username, r.RemoteAddr)
+	output, err := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, "show bgp summary")
 	if err != nil || output == "" {
 		return nil
 	}

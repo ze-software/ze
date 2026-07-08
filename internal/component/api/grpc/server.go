@@ -611,12 +611,17 @@ func (s *zeConfigServiceImpl) GetRunningConfig(ctx context.Context, _ *zepb.Empt
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if str, ok := result.Data.(string); ok {
-		return &zepb.ConfigResponse{Config: str}, nil
-	}
 	b, jsonErr := json.Marshal(result.Data)
 	if jsonErr != nil {
 		return nil, status.Error(codes.Internal, jsonErr.Error())
+	}
+	// The running config arrives as typed Data on the unified envelope. It may
+	// marshal to a bare JSON string literal (raw config text) or to a JSON
+	// object; unwrap the string literal so the config text is returned verbatim,
+	// matching the prior marshal-then-reparse behavior.
+	var str string
+	if json.Unmarshal(b, &str) == nil {
+		return &zepb.ConfigResponse{Config: str}, nil
 	}
 	return &zepb.ConfigResponse{Config: string(b)}, nil
 }

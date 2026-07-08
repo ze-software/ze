@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aihelp"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 )
 
@@ -36,10 +37,12 @@ type ToolProvider interface {
 	CallTool(name string, args json.RawMessage) map[string]any
 }
 
-// CommandDispatcher executes a Ze command and returns its output.
-// Username and remoteAddr carry the authenticated caller's identity so that
+// CommandDispatcher executes a Ze command and returns the typed response. It
+// is an alias for the unified plugin.CommandDispatcher every surface shares;
+// the MCP handlers render the JSON string at their edge via
+// CommandDispatcher.JSON, threading the authenticated caller's identity so
 // authorization and accounting apply to MCP surfaces, not only SSH.
-type CommandDispatcher func(command, username, remoteAddr string) (string, error)
+type CommandDispatcher = plugin.CommandDispatcher
 
 // Handler returns an HTTP handler that speaks MCP JSON-RPC (2024-11-05 profile).
 // Each POST carries a JSON-RPC request; the response is a JSON-RPC response.
@@ -269,7 +272,7 @@ var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]a
 			}
 			input.Command = cmd
 		}
-		result, err := s.dispatch(input.Command, s.username, s.remoteAddr)
+		result, err := s.dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, input.Command)
 		if err != nil {
 			return ErrResult(err.Error())
 		}
@@ -380,7 +383,7 @@ func noSpaces(field, value string) error {
 
 // run dispatches a command and returns the result as MCP content.
 func (s *server) run(command string) map[string]any {
-	output, err := s.dispatch(command, s.username, s.remoteAddr)
+	output, err := s.dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
 	if err != nil {
 		return ErrResult(err.Error())
 	}

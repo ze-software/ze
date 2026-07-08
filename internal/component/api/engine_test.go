@@ -2,11 +2,14 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // fakeCommands returns a CommandSource with fixed test data.
@@ -24,16 +27,18 @@ func fakeCommands() CommandSource {
 	}
 }
 
-// fakeExecutor returns an Executor that echoes commands.
+// fakeExecutor returns an Executor (the unified dispatcher) with typed
+// responses. Structured commands carry JSON via RawJSON; plain-text commands
+// carry raw text via RawJSON (which marshals to a JSON string).
 func fakeExecutor() Executor {
-	return func(_ context.Context, _ CallerIdentity, command string) (string, error) {
+	return func(_ context.Context, _ CallerIdentity, command string) (*plugin.Response, error) {
 		switch command {
 		case "bgp summary":
-			return `{"peer-count":3,"established":2}`, nil
+			return plugin.NewResponse(StatusDone, plugin.RawJSON(`{"peer-count":3,"established":2}`)), nil
 		case "daemon reload":
-			return "reload initiated", nil
+			return plugin.NewResponse(StatusDone, plugin.RawJSON("reload initiated")), nil
 		default:
-			return "ok", nil
+			return plugin.NewResponse(StatusDone, plugin.RawJSON("ok")), nil
 		}
 	}
 }
@@ -111,11 +116,13 @@ func TestEngineExecuteDispatch(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, StatusDone, result.Status)
 
-	// JSON output should be parsed into structured data.
-	data, ok := result.Data.(map[string]any)
-	require.True(t, ok, "expected structured JSON data, got %T", result.Data)
-	assert.Equal(t, float64(3), data["peer-count"])
-	assert.Equal(t, float64(2), data["established"])
+	// test-relax: the engine no longer re-parses executor output into a
+	// map[string]any (finding 3 removed that round trip). The map-field
+	// assertions are replaced by an equivalent whole-payload JSON check on the
+	// typed Data that now flows through unchanged.
+	data, mErr := json.Marshal(result.Data)
+	require.NoError(t, mErr)
+	assert.JSONEq(t, `{"peer-count":3,"established":2}`, string(data))
 }
 
 // VALIDATES: AC-2 -- Execute with non-JSON output returns string.
@@ -126,7 +133,12 @@ func TestEngineExecuteStringOutput(t *testing.T) {
 	result, err := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: "admin"}, Command: "daemon reload"})
 	require.NoError(t, err)
 	assert.Equal(t, StatusDone, result.Status)
-	assert.Equal(t, "reload initiated", result.Data)
+	// test-relax: plain-text output now rides typed RawJSON Data (which marshals
+	// to a JSON string) instead of a bare Go string on the envelope; assert on
+	// the marshaled form.
+	data, mErr := json.Marshal(result.Data)
+	require.NoError(t, mErr)
+	assert.Equal(t, `"reload initiated"`, string(data))
 }
 
 // VALIDATES: AC-3 -- Execute with unauthorized user returns auth error.
@@ -158,8 +170,8 @@ func TestEngineReadOnlyCallerDeniedWrite(t *testing.T) {
 // VALIDATES: Execute propagates executor errors.
 // PREVENTS: swallowed errors in dispatch path.
 func TestEngineExecuteError(t *testing.T) {
-	errExec := func(_ context.Context, _ CallerIdentity, _ string) (string, error) {
-		return "", errors.New("connection refused")
+	errExec := func(_ context.Context, _ CallerIdentity, _ string) (*plugin.Response, error) {
+		return nil, errors.New("connection refused")
 	}
 	eng := NewAPIEngine(errExec, fakeCommands(), allowAllAuth(), nil)
 
@@ -167,6 +179,28 @@ func TestEngineExecuteError(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, StatusError, result.Status)
 	assert.Equal(t, "connection refused", result.Error)
+}
+
+// VALIDATES: an operational error Response (Status=error, typed Data, no Error
+// message, nil Go error -- e.g. as112 health {healthy:false}) reaches the API
+// engine with its diagnostic Data intact, rather than being collapsed to a
+// generic "unknown error" as the old marshal-to-string adapter did.
+// PREVENTS: finding-3 regressing back to a lossy string flatten that drops the
+// diagnostic payload on the REST/gRPC surface. Text surfaces still flatten such
+// responses via plugin.ResponseJSON; only the API surface carries Data through.
+func TestEngineExecuteErrorStatusPreservesData(t *testing.T) {
+	exec := func(_ context.Context, _ CallerIdentity, _ string) (*plugin.Response, error) {
+		return &plugin.Response{Status: StatusError, Data: plugin.Map{"healthy": false}}, nil
+	}
+	eng := NewAPIEngine(exec, fakeCommands(), allowAllAuth(), nil)
+
+	result, err := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: "admin"}, Command: "bgp summary"})
+	require.NoError(t, err)
+	assert.Equal(t, StatusError, result.Status)
+	assert.Equal(t, "", result.Error)
+	data, mErr := json.Marshal(result.Data)
+	require.NoError(t, mErr)
+	assert.JSONEq(t, `{"healthy":false}`, string(data))
 }
 
 // VALIDATES: nil auth checker means allow all.

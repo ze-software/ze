@@ -5,6 +5,7 @@
 package web
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -16,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/show"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -349,7 +351,7 @@ func (h *L2TPHandlers) HandleL2TPDisconnect() http.HandlerFunc {
 			http.Error(w, "command dispatch not available", http.StatusServiceUnavailable)
 			return
 		}
-		output, execErr := h.Dispatch(cmd, username, r.RemoteAddr)
+		output, execErr := h.Dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, cmd)
 
 		if NegotiateContentType(r) == formatJSON {
 			result := map[string]any{

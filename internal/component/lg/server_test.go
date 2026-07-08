@@ -9,24 +9,31 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // mockDispatch returns a dispatcher that returns fixed JSON for known commands.
+// Each fixed JSON payload rides the unified envelope as RawJSON, so the looking
+// glass renders identical bytes at its edge via CommandDispatcher.JSON.
 func mockDispatch() CommandDispatcher {
-	return func(cmd string) (string, error) {
+	return func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+		var out string
 		switch {
 		case cmd == "bgp status":
-			return `{"router-id":"1.2.3.4","version":"test","start-time":"2026-01-01T00:00:00Z"}`, nil
+			out = `{"router-id":"1.2.3.4","version":"test","start-time":"2026-01-01T00:00:00Z"}`
 		case cmd == "show bgp summary":
-			return `[{"name":"peer1","peer-address":"10.0.0.1","remote-as":"65001","state":"established","state-changed":"2026-01-15T10:00:00Z","routes-received":"100","routes-accepted":"95","routes-sent":"50","routes-filtered":"5"}]`, nil
+			out = `[{"name":"peer1","peer-address":"10.0.0.1","remote-as":"65001","state":"established","state-changed":"2026-01-15T10:00:00Z","routes-received":"100","routes-accepted":"95","routes-sent":"50","routes-filtered":"5"}]`
 		case strings.Contains(cmd, "show bgp rib") && strings.Contains(cmd, "count"):
-			return `{"count":100}`, nil
+			out = `{"count":100}`
 		case strings.HasPrefix(cmd, "show bgp rib best"):
-			return `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001],"local-preference":100}]}`, nil
+			out = `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001],"local-preference":100}]}`
 		case strings.HasPrefix(cmd, "show bgp rib"), strings.Contains(cmd, "show bgp rib"):
-			return `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001,65002],"local-preference":100,"med":0,"peer-address":"10.0.0.1","community":["65000:100","65001:200"],"large-community":["65000:0:100"]}]}`, nil
+			out = `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001,65002],"local-preference":100,"med":0,"peer-address":"10.0.0.1","community":["65000:100","65001:200"],"large-community":["65000:0:100"]}]}`
+		default:
+			out = `{"error":"unknown command"}`
 		}
-		return `{"error":"unknown command"}`, nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(out)), nil
 	}
 }
 

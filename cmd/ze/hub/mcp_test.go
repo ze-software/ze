@@ -15,11 +15,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 func mockMCPDispatch() zemcp.CommandDispatcher {
-	return func(_, _, _ string) (string, error) {
-		return `{"status":"ok"}`, nil
+	return func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"status":"ok"}`)), nil
 	}
 }
 

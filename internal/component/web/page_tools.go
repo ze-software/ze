@@ -11,6 +11,7 @@
 package web
 
 import (
+	"context"
 	"html/template"
 	"net/http"
 	"net/netip"
@@ -18,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -270,7 +272,7 @@ func dispatchToolCommand(r *http.Request, dispatch CommandDispatcher, cmd string
 	}
 
 	username := GetUsernameFromRequest(r)
-	output, err := dispatch(cmd, username, r.RemoteAddr)
+	output, err := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, cmd)
 	if err != nil {
 		errMsg := err.Error()
 		if output != "" {

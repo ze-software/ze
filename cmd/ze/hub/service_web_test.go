@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 func TestServiceRegistry_BuildsWeb(t *testing.T) {
@@ -25,9 +26,11 @@ func TestServiceRegistry_BuildsWeb(t *testing.T) {
 	}
 
 	services := buildServices(ServiceDeps{
-		Store:       store,
-		ConfigPath:  "config.conf",
-		Dispatch:    func(string, string, string) (string, error) { return "", nil },
+		Store:      store,
+		ConfigPath: "config.conf",
+		Dispatch: func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, nil), nil
+		},
 		WebEnabled:  true,
 		WebAddrs:    []string{"127.0.0.1:0"},
 		InsecureWeb: true,

@@ -19,6 +19,7 @@ import (
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 )
 
@@ -65,7 +66,7 @@ type sshStandaloneInputs struct {
 	Storage       storage.Storage
 	ConfigPath    string
 	EphemeralFile string
-	Dispatch      func(command, username, remoteAddr string) (string, error)
+	Dispatch      plugin.CommandDispatcher
 	ReloadFn      func() error
 	Log           *slog.Logger
 }

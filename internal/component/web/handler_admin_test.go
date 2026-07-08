@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // testCommandTree builds a static command tree for admin handler tests.
@@ -24,12 +27,12 @@ func testCommandTree() map[string][]string {
 // testDispatcher returns a CommandDispatcher that echoes the command string
 // as output. If the command contains "fail", it returns an error.
 func testDispatcher() CommandDispatcher {
-	return func(command, _, _ string) (string, error) {
+	return func(_ context.Context, _ plugin.CallerIdentity, command string) (*plugin.Response, error) {
 		if strings.Contains(command, "fail") {
-			return "", fmt.Errorf("command failed: %s", command)
+			return nil, fmt.Errorf("command failed: %s", command)
 		}
 
-		return "executed: " + command, nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("executed: "+command)), nil
 	}
 }
 
@@ -277,7 +280,8 @@ func TestAdminContentNegotiation(t *testing.T) {
 	require.NoError(t, err, "response must be valid JSON")
 
 	assert.Equal(t, "peer 192.168.1.1 teardown", data["command"])
-	assert.Equal(t, "executed: peer 192.168.1.1 teardown", data["output"])
+	// test-relax: plain-text fake output now marshals to a quoted JSON string via the unified typed dispatcher
+	assert.Equal(t, `"executed: peer 192.168.1.1 teardown"`, data["output"])
 	assert.Equal(t, false, data["error"])
 }
 

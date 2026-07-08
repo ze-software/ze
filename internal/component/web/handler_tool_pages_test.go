@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,15 +12,19 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // mockDispatcher returns a CommandDispatcher that records the command and
 // returns a fixed output string with no error.
 func mockDispatcher(output string) (CommandDispatcher, *string) {
 	var captured string
-	d := func(command, _, _ string) (string, error) {
+	d := func(_ context.Context, _ plugin.CallerIdentity, command string) (*plugin.Response, error) {
 		captured = command
-		return output, nil
+		if output == "" {
+			return plugin.NewResponse(plugin.StatusDone, nil), nil
+		}
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(output)), nil
 	}
 	return d, &captured
 }

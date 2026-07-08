@@ -21,6 +21,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
@@ -46,9 +47,11 @@ type ServiceDeps struct {
 	Store      storage.Storage
 	ConfigPath string
 	Resolvers  *resolve.Resolvers
-	// Dispatch is the generic command surface (server dispatcher); a service
-	// adapts it to its own narrower dispatcher type internally.
-	Dispatch func(command, username, remoteAddr string) (string, error)
+	// Dispatch is the unified command dispatcher (plugin.CommandDispatcher). It
+	// stays generic infrastructure -- the plugin package, not a service package
+	// -- so the always-on registry still names no service type. A service adapts
+	// it (rendering typed *plugin.Response at its edge via .JSON) internally.
+	Dispatch plugin.CommandDispatcher
 
 	// Looking-glass resolved binding (pilot).
 	LGAddrs []string
@@ -84,7 +87,7 @@ type mcpServiceDeps struct {
 	Token    string
 	Config   zeconfig.MCPListenConfig
 	ConfigOK bool
-	Dispatch func(command, username, remoteAddr string) (string, error)
+	Dispatch plugin.CommandDispatcher
 	Commands func() []commandMeta
 	Recorder audit.Recorder
 }

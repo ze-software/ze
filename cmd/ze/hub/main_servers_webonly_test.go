@@ -3,15 +3,20 @@
 package hub
 
 import (
+	"context"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 )
+
+// wodCaller is the fixed caller identity these web-only dispatcher tests pass.
+var wodCaller = plugin.CallerIdentity{Username: "alice", RemoteAddr: "127.0.0.1"}
 
 // TestWebOnlyDispatcherFriendlyError verifies that webOnlyDispatcher answers
 // event commands from the local ring but returns a friendly, daemon-oriented
@@ -24,7 +29,7 @@ func TestWebOnlyDispatcherFriendlyError(t *testing.T) {
 	dispatch := webOnlyDispatcher(ring)
 
 	// Operational command the stub cannot serve.
-	_, err := dispatch("show ping 1.1.1.1", "alice", "127.0.0.1")
+	_, err := dispatch.JSON(context.Background(), wodCaller, "show ping 1.1.1.1")
 	if err == nil {
 		t.Fatal("expected an error for an unsupported operational command")
 	}
@@ -38,7 +43,7 @@ func TestWebOnlyDispatcherFriendlyError(t *testing.T) {
 
 	// Event commands still work from the local ring.
 	ring.Append("web", "server.started")
-	if _, nsErr := dispatch("show event namespaces", "alice", "127.0.0.1"); nsErr != nil {
+	if _, nsErr := dispatch.JSON(context.Background(), wodCaller, "show event namespaces"); nsErr != nil {
 		t.Fatalf("show event namespaces should succeed in web-only mode: %v", nsErr)
 	}
 }
@@ -52,21 +57,21 @@ func TestWebOnlyDispatcherFriendlyError(t *testing.T) {
 // PREVENTS: decode command reaching a dispatcher that doesn't handle it.
 func TestWithBGPDecodeInterceptsDecodeCommand(t *testing.T) {
 	var innerCalled bool
-	inner := zeweb.CommandDispatcher(func(cmd, user, addr string) (string, error) {
+	inner := zeweb.CommandDispatcher(func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
 		innerCalled = true
-		return "inner:" + cmd, nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.Text("inner:"+cmd)), nil
 	})
 	dispatch := withBGPDecode(inner)
 
 	// A valid KEEPALIVE hex produces real decoder output, not the inner dispatcher.
-	out, err := dispatch("show bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", "alice", "127.0.0.1")
+	out, err := dispatch.JSON(context.Background(), wodCaller, "show bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304")
 	require.NoError(t, err)
 	assert.False(t, innerCalled, "decode must be handled in-process, not forwarded")
 	assert.Contains(t, out, "KEEPALIVE")
 
 	// A non-decode command passes through to the inner dispatcher.
 	innerCalled = false
-	out, err = dispatch("show ping 1.1.1.1", "alice", "127.0.0.1")
+	out, err = dispatch.JSON(context.Background(), wodCaller, "show ping 1.1.1.1")
 	require.NoError(t, err)
 	assert.True(t, innerCalled, "non-decode commands must reach the inner dispatcher")
 	assert.Equal(t, "inner:show ping 1.1.1.1", out)
@@ -81,11 +86,11 @@ func TestWithBGPDecodeInterceptsDecodeCommand(t *testing.T) {
 func TestWithBGPDecodeNilInner(t *testing.T) {
 	dispatch := withBGPDecode(nil)
 
-	out, err := dispatch("show bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", "alice", "127.0.0.1")
+	out, err := dispatch.JSON(context.Background(), wodCaller, "show bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304")
 	require.NoError(t, err)
 	assert.Contains(t, out, "KEEPALIVE")
 
-	_, err = dispatch("show ping 1.1.1.1", "alice", "127.0.0.1")
+	_, err = dispatch.JSON(context.Background(), wodCaller, "show ping 1.1.1.1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "running daemon")
 }

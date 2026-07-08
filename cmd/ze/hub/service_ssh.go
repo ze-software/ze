@@ -234,7 +234,7 @@ func sshBuildStandaloneImpl(in *sshStandaloneInputs) func() {
 	dispatch := in.Dispatch
 	srv.SetExecutorFactory(func(username, remoteAddr string) zessh.CommandExecutor {
 		return func(input string) (string, error) {
-			return dispatch(input, username, remoteAddr)
+			return dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: remoteAddr}, input)
 		}
 	})
 

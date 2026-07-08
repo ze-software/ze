@@ -6,7 +6,6 @@ package hub
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -18,7 +17,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	zeconfigcmd "codeberg.org/thomas-mangin/ze/internal/component/config/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
@@ -102,52 +100,18 @@ func buildUserAuthenticator(users []authz.UserConfig) func(string) (string, bool
 }
 
 // buildAPIEngine creates the shared API engine wired to the plugin server.
+// The executor is the unified serverDispatcher: the API engine consumes the
+// same command dispatcher every surface shares, and the REST/gRPC transports
+// set the audit surface per request via CallerIdentity.Surface (the "" fixed
+// default here is never used because the transports always set it).
 func buildAPIEngine(server *pluginserver.Server) *api.APIEngine {
-	exec := apiExecutor(server)
+	exec := serverDispatcher(server, "")
 	cmds := apiCommandLister(server)
 	auth := func(_, _ string) bool {
 		// Bearer token auth handled at transport level.
 		return true
 	}
 	return api.NewAPIEngine(exec, cmds, auth, apiStreamSource(server))
-}
-
-// apiExecutor creates an Executor from the plugin server's dispatcher.
-func apiExecutor(s *pluginserver.Server) api.Executor {
-	return func(ctx context.Context, auth api.CallerIdentity, command string) (string, error) {
-		d := s.Dispatcher()
-		if d == nil {
-			return "", errServerNotReady
-		}
-		cmdCtx := &pluginserver.CommandContext{
-			Server:         s,
-			RequestContext: ctx,
-			Username:       auth.Username,
-			RemoteAddr:     auth.RemoteAddr,
-			Surface:        auth.Surface,
-		}
-		resp, err := d.Dispatch(cmdCtx, command)
-		if err != nil {
-			return "", err
-		}
-		if resp == nil {
-			return "", nil
-		}
-		if resp.Error != "" {
-			return "", errors.New(resp.Error)
-		}
-		if resp.Status == plugin.StatusError {
-			return "", errors.New("unknown error")
-		}
-		if resp.Data == nil {
-			return "", nil
-		}
-		b, jsonErr := json.Marshal(resp.Data)
-		if jsonErr != nil {
-			return "", fmt.Errorf("marshal response: %w", jsonErr)
-		}
-		return string(b), nil
-	}
 }
 
 const (

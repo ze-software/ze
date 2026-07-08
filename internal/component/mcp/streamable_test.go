@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 )
 
@@ -20,7 +21,9 @@ import (
 func newTestStreamable(t *testing.T, cfg StreamableConfig) (*Streamable, *httptest.Server, func()) {
 	t.Helper()
 	if cfg.Dispatch == nil {
-		cfg.Dispatch = func(cmd, _, _ string) (string, error) { return "ok: " + cmd, nil }
+		cfg.Dispatch = func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok: "+cmd)), nil
+		}
 	}
 	srv, err := NewStreamable(cfg)
 	if err != nil {
@@ -603,7 +606,9 @@ func TestStreamableLoopbackOriginAcceptedWhenAllowListEmpty(t *testing.T) {
 
 func TestStreamableNewStreamableRejectsBadOrigin(t *testing.T) {
 	_, err := NewStreamable(StreamableConfig{
-		Dispatch:       func(_, _, _ string) (string, error) { return "", nil },
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, nil), nil
+		},
 		AllowedOrigins: []string{"not a url"},
 	})
 	if err == nil {
@@ -836,7 +841,9 @@ func TestStreamableIDNOriginEndToEnd(t *testing.T) {
 
 func TestStreamableNewStreamableRejectsMaxLifetimeShorterThanTTL(t *testing.T) {
 	_, err := NewStreamable(StreamableConfig{
-		Dispatch:           func(_, _, _ string) (string, error) { return "", nil },
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, nil), nil
+		},
 		SessionTTL:         30 * time.Minute,
 		MaxSessionLifetime: 10 * time.Minute,
 	})
@@ -1133,7 +1140,9 @@ func TestStreamable_InitializeReadsClientCapabilities(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			srv, hs, cleanup := newTestStreamable(t, StreamableConfig{
-				Dispatch: func(cmd, _, _ string) (string, error) { return "ok", nil },
+				Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+					return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
+				},
 			})
 			defer cleanup()
 

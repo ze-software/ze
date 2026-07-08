@@ -41,6 +41,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/version"
 )
@@ -59,10 +60,11 @@ var lgLogger = slogutil.Logger("lg.server")
 // maxSSEClients limits concurrent SSE connections to prevent resource exhaustion.
 const maxSSEClients = 100
 
-// CommandDispatcher sends a command string to the engine and returns the
-// JSON response. This is the same interface used by the web UI for admin
-// commands.
-type CommandDispatcher func(cmd string) (string, error)
+// CommandDispatcher sends a command to the engine and returns the typed
+// response. It is an alias for the unified plugin.CommandDispatcher every
+// surface shares; the looking glass renders the JSON string at its edge via
+// CommandDispatcher.JSON with a zero-value caller identity (public, read-only).
+type CommandDispatcher = plugin.CommandDispatcher
 
 // ASNDecorator resolves an AS number string to an organization name.
 // Returns empty string on failure (graceful degradation).
@@ -533,7 +535,10 @@ func (s *LGServer) Shutdown(ctx context.Context) error {
 // On dispatch error, returns a JSON error envelope so callers can surface
 // the failure reason instead of showing a generic "engine unavailable".
 func (s *LGServer) query(cmd string) string {
-	result, err := s.dispatch(cmd)
+	// The looking glass is public and read-only: dispatch with a zero-value
+	// caller identity (no username/remote-addr; the injected dispatcher supplies
+	// the fixed surface). Render the typed response to its JSON string here.
+	result, err := s.dispatch.JSON(context.Background(), plugin.CallerIdentity{}, cmd)
 	if err != nil {
 		s.logger.Warn("dispatch error", "command", cmd, "error", err)
 		b, _ := json.Marshal(map[string]any{"error": err.Error()})

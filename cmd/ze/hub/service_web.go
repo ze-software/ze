@@ -28,6 +28,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	zegokrazy "codeberg.org/thomas-mangin/ze/internal/component/gokrazy"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
@@ -137,7 +138,7 @@ func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 // webOnlyDispatcher creates a minimal CommandDispatcher backed by a local event
 // ring. Used by RunWebOnly where no plugin server exists.
 func webOnlyDispatcher(ring *pluginserver.EventRing) zeweb.CommandDispatcher {
-	return func(command, _, _ string) (string, error) {
+	return func(_ context.Context, _ plugin.CallerIdentity, command string) (*plugin.Response, error) {
 		switch {
 		case strings.HasPrefix(command, "show event namespaces"):
 			counts := ring.NamespaceCounts()
@@ -147,9 +148,9 @@ func webOnlyDispatcher(ring *pluginserver.EventRing) zeweb.CommandDispatcher {
 			}
 			b, err := json.Marshal(map[string]any{"namespaces": rows})
 			if err != nil {
-				return "", err
+				return nil, err
 			}
-			return string(b), nil
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(b)), nil
 
 		case strings.HasPrefix(command, "show event recent"):
 			namespace := ""
@@ -167,12 +168,12 @@ func webOnlyDispatcher(ring *pluginserver.EventRing) zeweb.CommandDispatcher {
 			}
 			b, err := json.Marshal(map[string]any{"events": out, "count": len(out)})
 			if err != nil {
-				return "", err
+				return nil, err
 			}
-			return string(b), nil
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(b)), nil
 
 		default:
-			return "", errWebOnlyUnavailable
+			return nil, errWebOnlyUnavailable
 		}
 	}
 }
@@ -190,15 +191,22 @@ var errWebOnlyUnavailable = errors.New("operational commands require a running d
 // works in both full-daemon and web-only modes (F5/AC-8).
 func withBGPDecode(inner zeweb.CommandDispatcher) zeweb.CommandDispatcher {
 	const prefix = "show bgp decode "
-	return func(command, username, remoteAddr string) (string, error) {
+	return func(ctx context.Context, caller plugin.CallerIdentity, command string) (*plugin.Response, error) {
 		if strings.HasPrefix(command, prefix) {
 			hex := strings.TrimSpace(command[len(prefix):])
-			return bgpcli.DecodeHexPacket(hex, "", "", false)
+			// DecodeHexPacket returns human-readable text (outputJSON=false);
+			// carry it as pre-rendered Text so the web tool renders it verbatim
+			// rather than re-quoting/escaping it through JSON marshaling.
+			decoded, err := bgpcli.DecodeHexPacket(hex, "", "", false)
+			if err != nil {
+				return nil, err
+			}
+			return plugin.NewResponse(plugin.StatusDone, plugin.Text(decoded)), nil
 		}
 		if inner != nil {
-			return inner(command, username, remoteAddr)
+			return inner(ctx, caller, command)
 		}
-		return "", errWebOnlyUnavailable
+		return nil, errWebOnlyUnavailable
 	}
 }
 

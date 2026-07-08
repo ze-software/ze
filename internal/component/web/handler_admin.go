@@ -6,12 +6,14 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -52,11 +54,12 @@ type CommandParameter struct {
 	Placeholder string
 }
 
-// CommandDispatcher executes an admin command and returns the output.
-// The command string is the full command path (e.g., "peer 192.168.1.1 teardown").
-// Username and remoteAddr carry the authenticated caller's identity so that
+// CommandDispatcher executes an admin command and returns the typed response.
+// It is an alias for the unified plugin.CommandDispatcher every surface shares;
+// the web handlers render the JSON string at their edge via
+// CommandDispatcher.JSON, threading the authenticated caller's identity so that
 // authorization and accounting apply to web and MCP surfaces, not only SSH.
-type CommandDispatcher func(command, username, remoteAddr string) (string, error)
+type CommandDispatcher = plugin.CommandDispatcher
 
 // HandleAdminView returns an HTTP handler that serves the admin command tree
 // using finder-style column navigation (same layout as config). Leaf commands
@@ -150,7 +153,7 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 		}
 
 		username := GetUsernameFromRequest(r)
-		output, execErr := dispatch(commandStr, username, r.RemoteAddr)
+		output, execErr := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, commandStr)
 
 		result := CommandResultData{
 			CommandName: commandStr,

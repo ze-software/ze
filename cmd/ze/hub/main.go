@@ -566,11 +566,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 
-	// Command dispatchers for user surfaces (use plugin server, not reactor directly).
-	webDispatch := serverDispatcherWithSurface(apiServer, audit.Web)
-	sshDispatch := serverDispatcherWithSurface(apiServer, audit.SSH)
-	mcpDispatch := serverDispatcherWithSurface(apiServer, audit.MCP)
-	cliDispatch := serverDispatcherWithSurface(apiServer, audit.CLI)
+	// Command dispatchers for user surfaces (use plugin server, not reactor
+	// directly). Each is the unified plugin.CommandDispatcher with fixed audit
+	// surface attribution; text surfaces flatten via plugin.CommandDispatcher.JSON.
+	webDispatch := serverDispatcher(apiServer, audit.Web)
+	sshDispatch := serverDispatcher(apiServer, audit.SSH)
+	mcpDispatch := serverDispatcher(apiServer, audit.MCP)
+	cliDispatch := serverDispatcher(apiServer, audit.CLI)
 
 	// Create shared resolvers for web UI, looking glass, and MCP.
 	sc := system.ExtractSystemConfig(loadResult.Tree)
@@ -917,7 +919,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	if cliAttach {
 		zecli.RunAttached(func(command string) (string, error) {
-			return cliDispatch(command, "root", "local")
+			return cliDispatch.JSON(context.Background(), zePlugin.CallerIdentity{Username: "root", RemoteAddr: "local"}, command)
 		})
 		fmt.Println("CLI detached. Press Ctrl+C to stop daemon.")
 	}

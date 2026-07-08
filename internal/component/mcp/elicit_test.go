@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // mockSink is a test-only replySink that captures frames in memory.
@@ -603,9 +605,9 @@ func TestZeExecute_MissingCommandElicits(t *testing.T) {
 
 	dispatched := make(chan string, 1)
 	runner := &server{
-		dispatch: func(cmd, _, _ string) (string, error) {
+		dispatch: func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
 			dispatched <- cmd
-			return "executed: " + cmd, nil
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("executed: "+cmd)), nil
 		},
 		session: sess,
 	}
@@ -654,8 +656,10 @@ func TestZeExecute_MissingCommandNoCapability(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	runner := &server{
-		dispatch: func(cmd, _, _ string) (string, error) { return "unreachable", nil },
-		session:  sess,
+		dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("unreachable")), nil
+		},
+		session: sess,
 	}
 	result := toolHandlers["ze_execute"](runner, json.RawMessage(`{"command":""}`))
 	if result["isError"] != true {

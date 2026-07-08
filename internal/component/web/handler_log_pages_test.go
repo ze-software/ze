@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // workbenchForLogs creates a workbench handler with optional dispatch and broker.
@@ -201,8 +202,8 @@ func TestLogErrorsUnavailableWithoutDispatch(t *testing.T) {
 // standalone mode where "show warnings" is not available), both log pages show
 // the honest "unavailable" message, never the "all good" empty state (F4/AC-9).
 func TestLogPagesDispatchError(t *testing.T) {
-	failing := func(_, _, _ string) (string, error) {
-		return "", errors.New("operational commands require a running daemon")
+	failing := func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+		return nil, errors.New("operational commands require a running daemon")
 	}
 
 	for _, tc := range []struct {

@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // TestServiceRegistry_BuildsMCP proves the hub builds MCP via the construction
@@ -34,8 +35,10 @@ func TestServiceRegistry_BuildsMCP(t *testing.T) {
 
 	svc, err := buildMCPService(ServiceDeps{
 		MCP: &mcpServiceDeps{
-			Addrs:    []string{addr},
-			Dispatch: func(_, _, _ string) (string, error) { return `{"status":"ok"}`, nil },
+			Addrs: []string{addr},
+			Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+				return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"status":"ok"}`)), nil
+			},
 			Commands: func() []commandMeta { return nil },
 		},
 	})
@@ -63,7 +66,9 @@ func TestBuildMCPService_NotConfigured(t *testing.T) {
 
 	// No listen addresses -> skip.
 	svc, err = buildMCPService(ServiceDeps{MCP: &mcpServiceDeps{
-		Dispatch: func(_, _, _ string) (string, error) { return "", nil },
+		Dispatch: func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, nil), nil
+		},
 	}})
 	require.NoError(t, err)
 	require.Nil(t, svc, "no listen addresses must skip")

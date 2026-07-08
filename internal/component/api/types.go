@@ -5,7 +5,11 @@
 
 package api
 
-import "net"
+import (
+	"net"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+)
 
 // IsLoopbackAddr returns true if the host portion of addr resolves to a
 // loopback address or is literally "localhost". Used by REST and gRPC
@@ -38,27 +42,22 @@ type ParamMeta struct {
 	Required    bool   // Mandatory in YANG
 }
 
-// ExecResult is the standard API response envelope.
-type ExecResult struct {
-	Status string `json:"status"`          // "done", "error", or "partial"
-	Data   any    `json:"data,omitempty"`  // Payload
-	Error  string `json:"error,omitempty"` // Error message (when status is "error")
-}
+// ExecResult is the standard API response envelope. It is an alias for the
+// unified command-result envelope plugin.Response; the API transports render
+// the same {status, data, error} shape every other surface produces. See
+// internal/component/plugin/dispatch.go.
+type ExecResult = plugin.Response
 
-// CallerIdentity carries trusted caller metadata for an API request.
-// Populated by the transport after authentication; not an auth credential.
-type CallerIdentity struct {
-	Username   string
-	RemoteAddr string
-	Surface    string
-	// ReadOnly means the transport admitted the caller with read-only access only.
-	ReadOnly bool
-}
+// CallerIdentity carries trusted caller metadata for an API request. It is an
+// alias for the unified plugin.CallerIdentity, relocated to the plugin
+// infrastructure package so the shared CommandDispatcher type can reference it.
+type CallerIdentity = plugin.CallerIdentity
 
-// Status constants for ExecResult.
+// Status constants for ExecResult. Sourced from the single definition in the
+// plugin package so the "done"/"error" literals live in exactly one place.
 const (
-	StatusDone  = "done"
-	StatusError = "error"
+	StatusDone  = plugin.StatusDone
+	StatusError = plugin.StatusError
 )
 
 // Config session authorization command strings shared by REST and gRPC.

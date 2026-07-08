@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/health"
 )
 
@@ -178,9 +180,9 @@ func TestDashboardEventsEmptyState(t *testing.T) {
 
 func TestDashboardEventsNamespaceFilter(t *testing.T) {
 	var capturedCmd string
-	dispatch := func(command, _, _ string) (string, error) {
+	dispatch := func(_ context.Context, _ plugin.CallerIdentity, command string) (*plugin.Response, error) {
 		capturedCmd = command
-		return "", nil
+		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	}
 	tree := config.NewTree()
 	handler := workbenchForDashboard(t, tree, dispatch)

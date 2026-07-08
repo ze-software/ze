@@ -14,15 +14,20 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 func testSnapshotHandlers(payload string, gotCmd *string) *snapshotHandlers {
 	return &snapshotHandlers{
-		dispatch: func(command, _, _ string) (string, error) {
+		dispatch: func(_ context.Context, _ plugin.CallerIdentity, command string) (*plugin.Response, error) {
 			if gotCmd != nil {
 				*gotCmd = command
 			}
-			return payload, nil
+			if payload == "" {
+				return plugin.NewResponse(plugin.StatusDone, nil), nil
+			}
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(payload)), nil
 		},
 		errNoDispatch:  errors.New("dispatch unavailable"),
 		unavailableMsg: "test engine unavailable",
@@ -71,8 +76,10 @@ func TestSnapshotViewHTML(t *testing.T) {
 }
 
 func TestSSESnapshotNewlineSafety(t *testing.T) {
-	// A valid-JSON payload with an embedded newline must not split the SSE frame: the
-	// newline is continued as a fresh `data:` line so it stays one event.
+	// A valid-JSON payload with an embedded newline must not split the SSE frame. The
+	// unified dispatcher flattens the snapshot through json.Marshal, which compacts
+	// insignificant whitespace, so the embedded newline is normalized away before the
+	// snapshot reaches the SSE writer and the frame stays one intact event.
 	h := testSnapshotHandlers("{\n\"k\":1}", nil)
 	v := viewSpec{command: "show test", title: "T", streamPath: "/t/stream", eventName: "neighbors"}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -93,10 +100,14 @@ func TestSSESnapshotNewlineSafety(t *testing.T) {
 	}
 
 	body := rec.Body.String()
-	if strings.Count(body, "data: ") < 2 {
-		t.Errorf("embedded newline not continued as a data line (frame may split): %q", body)
+	// test-relax: the unified typed dispatcher flattens the snapshot via json.Marshal,
+	// which compacts insignificant whitespace, so the embedded newline is normalized away
+	// before the payload reaches the SSE writer. The frame therefore carries the compacted
+	// snapshot as a single intact `data:` line and stays one event rather than splitting.
+	if !strings.Contains(body, "data: {\"k\":1}\n\n") {
+		t.Errorf("compacted snapshot not emitted as a single intact SSE data frame: %q", body)
 	}
-	// No bare "\n\n" inside the payload region that would terminate the event early.
+	// The raw newline must never leak into the frame (which would terminate the event early).
 	if strings.Contains(body, "{\n\"k\"") {
 		t.Errorf("raw newline leaked into the SSE frame: %q", body)
 	}

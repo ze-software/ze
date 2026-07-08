@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // fakeDispatcher returns a CommandDispatcher that records the command,
@@ -28,11 +29,17 @@ type fakeDispatcher struct {
 }
 
 func (f *fakeDispatcher) dispatch() CommandDispatcher {
-	return func(command, username, remoteAddr string) (string, error) {
+	return func(_ context.Context, caller plugin.CallerIdentity, command string) (*plugin.Response, error) {
 		f.command = command
-		f.username = username
-		f.remote = remoteAddr
-		return f.response, f.err
+		f.username = caller.Username
+		f.remote = caller.RemoteAddr
+		if f.err != nil {
+			return nil, f.err
+		}
+		if f.response == "" {
+			return plugin.NewResponse(plugin.StatusDone, nil), nil
+		}
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(f.response)), nil
 	}
 }
 
