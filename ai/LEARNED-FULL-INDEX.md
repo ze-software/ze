@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1098 summaries
+Total: 1100 summaries
 
 ## 000-099
 
@@ -1162,3 +1162,5 @@ Total: 1098 summaries
 | 1084 | radius-admin-backend | `plan/learned/1084-radius-admin-backend.md` |
 | 1085 | unify-tree-deactivation | `plan/learned/1085-unify-tree-deactivation.md` |
 | 1086 | Claude Runs the Commit Script | `plan/learned/1086-claude-runs-commit-script.md` |
+| 1087 | lint-linux-platform | `plan/learned/1087-lint-linux-platform.md` |
+| 1088 | layout-1-hygiene | `plan/learned/1088-layout-1-hygiene.md` |
