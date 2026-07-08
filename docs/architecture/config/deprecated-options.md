@@ -29,7 +29,7 @@ peer upstream1 {
 }
 ```
 
-**Migration:** `ze config migrate config.conf -o config-v3.conf`
+**Migration:** `ze config migrate -o config-v3.conf config.conf`
 
 ---
 
@@ -136,7 +136,7 @@ ze config validate config.conf
 ze config migrate --dry-run config.conf
 
 # Apply migration to new file
-ze config migrate config.conf -o config-v3.conf
+ze config migrate -o config-v3.conf config.conf
 ```
 
 See [config-migration.md](../../config-migration.md) for full details.

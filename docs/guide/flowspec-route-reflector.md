@@ -23,122 +23,74 @@ This page uses these addresses:
 | `edge-a` | Ze or router client | `10.0.0.11` | `65000` |
 | `edge-b` | Ze or router client | `10.0.0.12` | `65000` |
 
-## 2. Write the Ze config
+## 2. Update the active zefs config
+
+Keep the active configuration in `database.zefs`. The commands below read the current active config, normalize it to set format, append the route-reflector settings, render the import file, validate the result, import it back into zefs, and reload the daemon. They do not create `/etc/ze/edge-01.conf`.
 
 ```bash
-sudo tee /etc/ze/edge-01.conf >/dev/null <<'EOF'
-plugin {
-    internal bgp-rr {
-        use bgp-rr
-    }
-}
+set -euo pipefail
 
-bgp {
-    router-id 10.0.0.1
-    session {
-        asn {
-            local 65000
-        }
-    }
+umask 077
+CONFIG_SET="$(mktemp)"
+CONFIG_IMPORT="$(mktemp)"
+trap 'rm -f "$CONFIG_SET" "$CONFIG_IMPORT"' EXIT
 
-    peer mitigation-upstream {
-        description "Upstream FlowSpec receiver"
-        connection {
-            remote {
-                ip 10.0.0.2
-            }
-            local {
-                ip 10.0.0.1
-            }
-            ttl {
-                min 255
-            }
-        }
-        session {
-            asn {
-                local 65000
-                remote 65000
-            }
-            route-reflector-client false
-            cluster-id 10.0.0.1
-            next-hop unchanged
-            family {
-                ipv4/flow {
-                    mode enable
-                    prefix {
-                        maximum 1000
-                    }
-                }
-            }
-        }
-        process bgp-rr {
-        }
-    }
+sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o "$CONFIG_SET" -
 
-    peer edge-a {
-        description "FlowSpec client edge-a"
-        connection {
-            remote {
-                ip 10.0.0.11
-            }
-            local {
-                ip 10.0.0.1
-            }
-        }
-        session {
-            asn {
-                local 65000
-                remote 65000
-            }
-            route-reflector-client true
-            cluster-id 10.0.0.1
-            next-hop unchanged
-            family {
-                ipv4/flow {
-                    mode enable
-                    prefix {
-                        maximum 1000
-                    }
-                }
-            }
-        }
-        process bgp-rr {
-        }
-    }
+cat >>"$CONFIG_SET" <<'EOF'
+set plugin internal bgp-rr use bgp-rr
 
-    peer edge-b {
-        description "FlowSpec client edge-b"
-        connection {
-            remote {
-                ip 10.0.0.12
-            }
-            local {
-                ip 10.0.0.1
-            }
-        }
-        session {
-            asn {
-                local 65000
-                remote 65000
-            }
-            route-reflector-client true
-            cluster-id 10.0.0.1
-            next-hop unchanged
-            family {
-                ipv4/flow {
-                    mode enable
-                    prefix {
-                        maximum 1000
-                    }
-                }
-            }
-        }
-        process bgp-rr {
-        }
-    }
-}
+set bgp router-id 10.0.0.1
+set bgp session asn local 65000
+
+set bgp peer mitigation-upstream description "Upstream FlowSpec receiver"
+set bgp peer mitigation-upstream connection remote ip 10.0.0.2
+set bgp peer mitigation-upstream connection local ip 10.0.0.1
+set bgp peer mitigation-upstream connection ttl min 255
+set bgp peer mitigation-upstream session asn local 65000
+set bgp peer mitigation-upstream session asn remote 65000
+set bgp peer mitigation-upstream session route-reflector-client disable
+set bgp peer mitigation-upstream session cluster-id 10.0.0.1
+set bgp peer mitigation-upstream session next-hop unchanged
+set bgp peer mitigation-upstream session family ipv4/flow mode enable
+set bgp peer mitigation-upstream session family ipv4/flow prefix maximum 1000
+set bgp peer mitigation-upstream process bgp-rr
+
+set bgp peer edge-a description "FlowSpec client edge-a"
+set bgp peer edge-a connection remote ip 10.0.0.11
+set bgp peer edge-a connection local ip 10.0.0.1
+set bgp peer edge-a session asn local 65000
+set bgp peer edge-a session asn remote 65000
+set bgp peer edge-a session route-reflector-client enable
+set bgp peer edge-a session cluster-id 10.0.0.1
+set bgp peer edge-a session next-hop unchanged
+set bgp peer edge-a session family ipv4/flow mode enable
+set bgp peer edge-a session family ipv4/flow prefix maximum 1000
+set bgp peer edge-a process bgp-rr
+
+set bgp peer edge-b description "FlowSpec client edge-b"
+set bgp peer edge-b connection remote ip 10.0.0.12
+set bgp peer edge-b connection local ip 10.0.0.1
+set bgp peer edge-b session asn local 65000
+set bgp peer edge-b session asn remote 65000
+set bgp peer edge-b session route-reflector-client enable
+set bgp peer edge-b session cluster-id 10.0.0.1
+set bgp peer edge-b session next-hop unchanged
+set bgp peer edge-b session family ipv4/flow mode enable
+set bgp peer edge-b session family ipv4/flow prefix maximum 1000
+set bgp peer edge-b process bgp-rr
 EOF
-sudo chmod 0600 /etc/ze/edge-01.conf
+
+/usr/local/bin/ze config migrate --format hierarchical -o "$CONFIG_IMPORT" "$CONFIG_SET"
+/usr/local/bin/ze config validate "$CONFIG_IMPORT"
+sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
+sudo systemctl reload ze.service
+```
+
+Expected validation output:
+
+```text
+configuration valid: /tmp/tmp.XXXXXXXXXX
 ```
 
 What matters:
@@ -148,27 +100,13 @@ What matters:
 | `plugin internal bgp-rr { use bgp-rr }` | Starts the in-process route reflector plugin. |
 | `process bgp-rr { }` on each peer | Binds the peer to the declared plugin name. |
 | `family ipv4/flow` | Negotiates FlowSpec NLRI with the peer. |
-| `route-reflector-client true` on edge clients | Routes from clients are reflected to all clients and non-clients. |
+| `route-reflector-client enable` on edge clients | Routes from clients are reflected to all clients and non-clients. |
 | `next-hop unchanged` | Keeps the mitigation next-hop unchanged. Change this only when your design requires next-hop rewrite. |
 | `cluster-id 10.0.0.1` | Uses a stable route reflector cluster ID. |
 
 The plugin dependency `bgp-adj-rib-in` is added by the plugin dependency resolver. There is no separate route-reflector config root.
 
-## 3. Validate, import, and reload
-
-```bash
-sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
-sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
-sudo systemctl reload ze.service
-```
-
-Expected validation output:
-
-```text
-configuration valid: /etc/ze/edge-01.conf
-```
-
-## 4. Verify sessions and reflector state
+## 3. Verify sessions and reflector state
 
 ```bash
 export XDG_RUNTIME_DIR=/run/ze
@@ -179,7 +117,7 @@ export XDG_RUNTIME_DIR=/run/ze
 
 If a peer does not show the FlowSpec family, check the remote router address-family configuration first. Ze cannot reflect a family that was not negotiated.
 
-## 5. Inject a test FlowSpec rule
+## 4. Inject a test FlowSpec rule
 
 The reflector only reflects FlowSpec it *receives*, so originate the test rule from a peer that announces toward the reflector, not from the reflector itself. The rule below matches TCP traffic to `10.0.0.0/8` with destination port 80.
 
@@ -202,7 +140,7 @@ Then confirm `edge-a` and `edge-b` received the reflected rule with `show rr pee
 
 The `bgp-rr` plugin forwards cached UPDATEs and the reactor applies the route-reflection rules, including source exclusion, client to all, non-client to clients only, `ORIGINATOR_ID`, `CLUSTER_LIST`, and next-hop policy.
 
-## 6. Router-side shape
+## 5. Router-side shape
 
 On a conventional router, configure the Ze node as an iBGP route reflector and enable the FlowSpec address family. Vendor syntax differs, but the intent is always the same:
 
@@ -215,7 +153,7 @@ address-family ipv4 flowspec
 
 If the router expects TTL security, match the Ze `ttl min 255` policy on the router. If the router uses TCP MD5, add the same `connection md5 password` block to each Ze peer.
 
-## 7. Operations
+## 6. Operations
 
 ```bash
 export XDG_RUNTIME_DIR=/run/ze

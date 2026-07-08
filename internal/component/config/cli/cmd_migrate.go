@@ -42,9 +42,9 @@ func cmdMigrate(args []string) int {
 			},
 			Examples: []string{
 				"ze config migrate config.conf                          # Convert to set format (stdout)",
-				"ze config migrate config.conf -o new.conf              # Convert to new file",
+				"ze config migrate -o new.conf config.conf              # Convert to new file",
 				"ze config migrate --format hierarchical config.conf    # Explicit hierarchical output",
-				"ze config migrate config.conf --dry-run                # Preview transformations",
+				"ze config migrate --dry-run config.conf                # Preview transformations",
 				"ze config migrate --list                               # List available transformations",
 				"cat config.conf | ze config migrate -                  # Read from stdin",
 			},

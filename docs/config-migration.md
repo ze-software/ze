@@ -16,7 +16,7 @@ ze config validate myconfig.conf
 ze config migrate --dry-run myconfig.conf
 
 # Migrate to new file
-ze config migrate myconfig.conf -o myconfig-v3.conf
+ze config migrate -o myconfig-v3.conf myconfig.conf
 
 # Format/normalize a v3 config
 ze config fmt myconfig.conf
@@ -199,7 +199,7 @@ Transformations:
 2 applied, 3 skipped.
 
 # Write to new file
-$ ze config migrate old.conf -o new.conf
+$ ze config migrate -o new.conf old.conf
 
 # Pipe from stdin
 cat old.conf | ze config migrate -
