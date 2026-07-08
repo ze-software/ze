@@ -444,6 +444,14 @@ func (m *grStateManager) handleLLSTExpired(peerAddr string, fam family.Family, o
 	}
 }
 
+// removePeer clears all GR/LLGR state and stops all timers for a peer that has
+// been removed from configuration. Safe to call for a peer with no state.
+func (m *grStateManager) removePeer(peerAddr string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.clearPeerLocked(peerAddr)
+}
+
 // clearPeerLocked removes GR/LLGR state for a peer, stopping all active timers.
 // Must be called with m.mu held.
 func (m *grStateManager) clearPeerLocked(peerAddr string) {

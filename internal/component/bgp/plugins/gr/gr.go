@@ -90,7 +90,11 @@ type grPlugin struct {
 	mu           sync.Mutex
 	peerCaps     map[string]*grPeerCap   // peerAddr -> last seen GR capability from OPEN
 	peerLLGRCaps map[string]*llgrPeerCap // peerAddr -> last seen LLGR capability from OPEN
-	state        *grStateManager         // RFC 4724 Receiving Speaker state machine
+	// removedPeers tombstones peers deconfigured via a SessionStateDown with
+	// reason rpc.ReasonPeerRemoved, so a racing teardown "down" for the same
+	// peer does not re-activate GR. Cleared when the peer re-establishes.
+	removedPeers map[string]bool
+	state        *grStateManager // RFC 4724 Receiving Speaker state machine
 }
 
 // RunGRPlugin runs the GR plugin using the SDK RPC protocol.
@@ -106,6 +110,7 @@ func RunGRPlugin(conn net.Conn) int {
 		sdk:          p,
 		peerCaps:     make(map[string]*grPeerCap),
 		peerLLGRCaps: make(map[string]*llgrPeerCap),
+		removedPeers: make(map[string]bool),
 	}
 
 	// Create state manager with callbacks for GR and LLGR lifecycle events.
@@ -341,6 +346,15 @@ func (gp *grPlugin) extractGRCaps(peerAddr string, data []byte, foundGR bool) bo
 func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionState, reason string) {
 	switch state { //nolint:exhaustive // only up/down are actionable for GR
 	case rpc.SessionStateDown:
+		// Peer deconfigured: release GR state + per-peer metrics, do not retain.
+		if reason == rpc.ReasonPeerRemoved {
+			gp.onPeerRemoved(peerAddr)
+			return
+		}
+		// A teardown "down" racing a just-processed removal must not re-activate GR.
+		if gp.consumeRemovedTombstone(peerAddr) {
+			return
+		}
 		wasNotification := reason == "notification"
 
 		gp.mu.Lock()
@@ -356,6 +370,8 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 		}
 
 	case rpc.SessionStateUp:
+		gp.clearRemovedTombstone(peerAddr) // peer is back; allow future GR
+
 		gp.mu.Lock()
 		newCap := gp.peerCaps[peerAddr]
 		newLLGRCap := gp.peerLLGRCaps[peerAddr]
@@ -498,6 +514,15 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 	switch state {
 	case "down":
 		reason, _ := payload["reason"].(string)
+		// Peer deconfigured: release GR state + per-peer metrics, do not retain.
+		if reason == rpc.ReasonPeerRemoved {
+			gp.onPeerRemoved(peerAddr)
+			return
+		}
+		// A teardown "down" racing a just-processed removal must not re-activate GR.
+		if gp.consumeRemovedTombstone(peerAddr) {
+			return
+		}
 		wasNotification := reason == "notification"
 
 		gp.mu.Lock()
@@ -517,6 +542,8 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		}
 
 	case "up":
+		gp.clearRemovedTombstone(peerAddr) // peer is back; allow future GR
+
 		gp.mu.Lock()
 		newCap := gp.peerCaps[peerAddr]
 		newLLGRCap := gp.peerLLGRCaps[peerAddr]

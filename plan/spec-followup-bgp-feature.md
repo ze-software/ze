@@ -99,13 +99,14 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | GR restart with selection-deferral configured | → | deferral timer governs best-path selection | (fill during design) |
-| Peer removed | → | GR per-peer metric labels are deleted | (fill during design) |
+| Peer removed (reactor `RemovePeer`) | → | reactor emits `OnPeerStateChange(Down, ReasonPeerRemoved)`; GR deletes per-peer `ze_gr_*` labels + skips retention | `reactor.TestDoRemovePeerReturnsRemovedIdentity`, `reactor.TestRemovePeerNilDispatcherNoPanic`, `gr.TestHandleEventStateRemoved_SkipsActivationAndDeletesLabels`, `gr.TestStateRemovedTombstonePreventsLaterActivation` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | (define per work item when this skeleton moves to `design`) | (define at design time) |
+| AC-6 (item 6, DONE) | A peer with a live `ze_gr_timer_expired_total{peer}` series is removed from config | Reactor emits `SessionStateDown`/`ReasonPeerRemoved`; GR stops timers, drops caps, deletes `ze_gr_stale_routes{peer}` + `ze_gr_timer_expired_total{peer}`, and does not activate route retention; a racing teardown `down` cannot re-activate GR |
 
 ## 🧪 TDD Test Plan
 
@@ -172,5 +173,18 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 
+## Per-Item Progress
+
+| Item | Deferral | Status | Notes |
+|------|----------|--------|-------|
+| 6 GR per-peer metric-label cleanup | L27 | DONE (committed separately) | Reactor `RemovePeer` emits `SessionStateDown`/`rpc.ReasonPeerRemoved`; GR deletes per-peer series + tombstones. Tests: `gr_removal_test.go`, `peer_removed_test.go`. |
+| 5 Prometheus behavioral spy tests | L25 | todo | |
+| 2 Raw-mode default-originate-filter | L119 | todo | |
+| 4 Decorators v2 | L89 | todo | |
+| 3 AS-Confederation OTC | L88 | todo | |
+| 7 Prometheus phase 6 | L84 | todo | |
+| 1 GR advanced (selection-deferral, VPN ATTR_SET, hard-reset) | L81,L86 | todo | |
+
 ## Notes
 - Skeleton = captured intent, not a designed spec (see `ai/rules/deferral-tracking.md`). Moves to `design` when someone picks it up.
+- Being implemented item-by-item (smallest-first), each committed separately. Umbrella stays open until all 7 land or remaining items are re-deferred.

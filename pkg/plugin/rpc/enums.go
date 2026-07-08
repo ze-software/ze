@@ -369,6 +369,15 @@ const (
 	SessionStateCount       SessionState = 3
 )
 
+// ReasonPeerRemoved is the SessionStateDown reason emitted when a peer is
+// removed from configuration (deconfigured), as opposed to a transient session
+// drop. Plugins use it to release all per-peer state rather than treating the
+// down as recoverable: e.g. Graceful Restart skips route retention and deletes
+// its per-peer Prometheus series instead of starting a restart timer. Emitted
+// unconditionally by the reactor's removePeer (not via the FSM teardown), so it
+// fires even for peers that are not Established at removal time.
+const ReasonPeerRemoved = "removed"
+
 func (s SessionState) String() string {
 	switch s {
 	case SessionStateUp:

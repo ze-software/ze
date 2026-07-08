@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // parsePeerAddrToKey converts a peer address string (bare IP or "ip:port") to a
@@ -197,6 +199,25 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 // RemovePeer removes a peer from the reactor.
 // Looks up by address, trying default port first then searching by IP.
 func (r *Reactor) RemovePeer(addr netip.Addr) error {
+	removed, err := r.doRemovePeer(addr)
+	if err != nil {
+		return err
+	}
+	// Notify plugins the peer was removed, AFTER releasing r.mu: plugin event
+	// delivery may block, so it must not run under the reactor lock. Emitted
+	// unconditionally here (not via the FSM teardown, which only fires for
+	// Established peers) so it also reaches peers that were mid-reconnect at
+	// removal time. GR uses reason rpc.ReasonPeerRemoved to delete its per-peer
+	// ze_gr_* series and skip route retention.
+	if removed != nil && r.eventDispatcher != nil {
+		r.eventDispatcher.OnPeerStateChange(removed, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
+	}
+	return nil
+}
+
+// doRemovePeer performs the locked peer-removal work and returns the removed
+// peer's identity so RemovePeer can notify plugins after releasing r.mu.
+func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -205,7 +226,7 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 
 	key, peer, exists := r.findPeerKeyByAddr(addr)
 	if !exists {
-		return ErrPeerNotFound
+		return nil, ErrPeerNotFound
 	}
 
 	settings := peer.Settings()
@@ -322,7 +343,21 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 		}
 	}
 
-	return nil
+	// Build the removed peer's identity for the post-unlock plugin notification.
+	removed := &plugin.PeerInfo{
+		Address:         settings.Address,
+		LocalAddress:    settings.LocalAddress,
+		AddressStr:      peer.addrString,
+		LocalAddressStr: peer.localAddrString,
+		Name:            settings.Name,
+		GroupName:       settings.GroupName,
+		LocalAS:         settings.LocalAS,
+		PeerAS:          settings.PeerAS,
+		RouterID:        settings.RouterID,
+		State:           peer.State().PluginState(),
+	}
+
+	return removed, nil
 }
 
 // AddDynamicPeer adds a peer with the given configuration from the plugin API.
