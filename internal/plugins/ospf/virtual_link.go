@@ -384,36 +384,56 @@ func (e *engine) virtualLocalAddrLocked(rt *virtualLinkRuntime) netip.Addr {
 // table, so origination emits the Type-4 / RouterLinkTypeVirtual record only once the
 // adjacency is Full. A Down (unreachable) link contributes nothing.
 func (e *engine) virtualLinkTopology() []ospflsdb.InterfaceInfo {
+	// The runtime map is guarded by e.mu, but the *virtualLinkRuntime objects it holds are
+	// mutated in place under e.mu by onVirtualLinksResolved (cost, localAddr, cfg on
+	// reconfigure). Snapshotting pointers and reading their fields after the unlock would
+	// race those writes, so snapshot VALUES here: the copies below share nothing mutable
+	// (virtualLinkConfig is a pure-value struct) and are safe to read lock-free.
+	type virtualLinkView struct {
+		name      string
+		cfg       virtualLinkConfig
+		cost      uint16
+		ifaceID   uint32
+		localAddr netip.Addr
+	}
 	e.mu.Lock()
-	rts := make([]*virtualLinkRuntime, 0, len(e.virtualLinks))
+	views := make([]virtualLinkView, 0, len(e.virtualLinks))
 	for _, rt := range e.virtualLinks {
-		if rt.reachable {
-			rts = append(rts, rt)
+		if !rt.reachable {
+			continue
 		}
+		views = append(views, virtualLinkView{
+			name:      rt.name,
+			cfg:       rt.cfg,
+			cost:      rt.cost,
+			ifaceID:   rt.ifaceID,
+			localAddr: rt.localAddr,
+		})
 	}
 	rid := e.cfg.RouterID
 	isV6 := e.dispatch != nil && e.dispatch.codec.IsV6()
 	e.mu.Unlock()
 
-	out := make([]ospflsdb.InterfaceInfo, 0, len(rts))
-	for _, rt := range rts {
+	out := make([]ospflsdb.InterfaceInfo, 0, len(views))
+	for i := range views {
+		v := &views[i]
 		info := ospflsdb.InterfaceInfo{
-			Name:               rt.name,
+			Name:               v.name,
 			AreaID:             types.BackboneArea,
 			AreaType:           areaTypeNormal,
 			NetworkType:        ospflsdb.NetworkVirtual,
 			State:              virtualStatePointToPoint,
-			VirtualTransitArea: rt.cfg.TransitArea,
-			Cost:               rt.cost,
+			VirtualTransitArea: v.cfg.TransitArea,
+			Cost:               v.cost,
 			RouterID:           rid,
-			InterfaceID:        rt.ifaceID,
-			RetransmitInterval: rt.cfg.RetransmitInterval,
-			TransmitDelay:      rt.cfg.TransmitDelay,
-			Neighbors:          e.virtualNeighbors(rt),
+			InterfaceID:        v.ifaceID,
+			RetransmitInterval: v.cfg.RetransmitInterval,
+			TransmitDelay:      v.cfg.TransmitDelay,
+			Neighbors:          e.virtualNeighbors(v.name),
 			IsV6:               isV6,
 		}
-		if !isV6 && rt.localAddr.Is4() {
-			info.Address = rt.localAddr.As4()
+		if !isV6 && v.localAddr.Is4() {
+			info.Address = v.localAddr.As4()
 		}
 		out = append(out, info)
 	}
@@ -422,11 +442,13 @@ func (e *engine) virtualLinkTopology() []ospflsdb.InterfaceInfo {
 
 // virtualNeighbors reads the synthetic interface's neighbor adjacency from the neighbor
 // table, so origination sees the neighbor Full only when the routed adjacency has formed.
-func (e *engine) virtualNeighbors(rt *virtualLinkRuntime) []ospflsdb.NeighborInfo {
+// It takes the (immutable) synthetic interface name rather than a *virtualLinkRuntime so no
+// runtime pointer escapes e.mu: virtualLinkTopology calls it lock-free from a value snapshot.
+func (e *engine) virtualNeighbors(name string) []ospflsdb.NeighborInfo {
 	if e.neighbors == nil {
 		return nil
 	}
-	flood := e.neighbors.FloodNeighbors(rt.name)
+	flood := e.neighbors.FloodNeighbors(name)
 	out := make([]ospflsdb.NeighborInfo, 0, len(flood))
 	for _, n := range flood {
 		out = append(out, ospflsdb.NeighborInfo{RouterID: n.RouterID, Address: n.Address, State: n.State, InterfaceID: n.InterfaceID})

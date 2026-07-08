@@ -93,6 +93,13 @@ func TestTwoVirtualLinksSameTransit(t *testing.T) {
 // runtime up (reachable, cost) and down (unreachable).
 func TestVirtualLinkResolutionDrivesRuntime(t *testing.T) {
 	e := newEngine(nil)
+	// onVirtualLinksResolved re-triggers SPF (RFC 2328 sec 16.1); the live computer's 50ms
+	// back-off timer would then re-enter the callback on its own goroutine and write the
+	// runtime fields this test reads (a data race), and, with no transit topology configured,
+	// resolve the link back down (a latent flake). This test drives the callback directly to
+	// assert its synchronous effect, so stop the computer up front: triggerSPF becomes a
+	// no-op and the callback runs inline, leaving the runtime owned by this goroutine.
+	e.spf.Stop()
 	cfg := defaultOSPFConfig()
 	cfg.present = true
 	cfg.RouterID = vlRID(t, "1.1.1.1")

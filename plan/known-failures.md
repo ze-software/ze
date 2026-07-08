@@ -72,18 +72,6 @@ BGP forwarding/update pools do not run (the peer never establishes). The cap-512
 buffer is elsewhere; the captured crash stack will pin it. Owner: in-progress
 this session (debugging continues).
 
-### `internal/plugins/ospf` -- data race in `virtual_link.go`, `-race` only, pre-existing
-
-Observed 2026-07-08 in `ze-verify-changed` (`-race`): `go test -race
-./internal/plugins/ospf` reports a `WARNING: DATA RACE` -- write at
-`virtual_link.go:160` in `(*engine).onVirtualLinksResolved()` racing a concurrent
-access. Intermittent (a targeted `-race` rerun of the virtual-link tests passed).
-`virtual_link.go` is untouched by the unify-replay change (`spec-unify-replay`);
-it surfaced only because that change touches the widely-imported `redistevents`
-leaf, pulling `internal/plugins/ospf` into the changed-package `-race` closure.
-A real concurrency bug to fix at the source, not the replay change's doing. Owner:
-OSPF concurrency (an OSPF session is actively working this subsystem in a worktree).
-
 ### `internal/chaos/inprocess` `TestInProcessChaosReconnect` -- flaky under `-race`
 
 Observed 2026-07-08 in `ze-verify-changed` (`-race`): `assert.Greater(established,
@@ -128,6 +116,32 @@ synchronize via a channel. Owner: whichever session next touches
 `internal/component/l2tp/reactor_test.go`.
 
 ## Resolved
+
+### 2026-07-08 -- `internal/plugins/ospf` `virtual_link.go` `-race` data race -> two bugs fixed at source
+
+**Resolved 2026-07-08.** The reported write was `virtual_link.go:160`
+(`rt.reachable = r.Reachable` in `(*engine).onVirtualLinksResolved`); a `-race`
+rerun surfaced the missing second stack, which pinned TWO distinct bugs:
+
+1. **Production pointer escape.** `virtualLinkTopology()` guarded the
+   `e.virtualLinks` map with `e.mu` but snapshotted `*virtualLinkRuntime` pointers
+   and read their mutable fields (`cost`, `localAddr`, `cfg`) AFTER unlocking,
+   racing `onVirtualLinksResolved`'s writes -- the retransmit loop
+   (`instance.go:730` -> `originateSelfLSAs` -> `virtualLinkTopology`) is a real
+   lock-free reader. Fixed by snapshotting VALUES under `e.mu` (`virtualLinkConfig`
+   is a pure-value struct); `virtualNeighbors` now takes the name string so no
+   runtime pointer escapes the lock.
+2. **The reported race (test).** `TestVirtualLinkResolutionDrivesRuntime` drove
+   `onVirtualLinksResolved` directly, which re-triggers SPF; the live computer's
+   50ms back-off timer re-entered the callback on its own goroutine and wrote
+   `rt.reachable`/`rt.cost` (`virtual_link.go:160`) while the test read them
+   lock-free (`virtual_link_test.go:119`). In production the callback only ever
+   runs on the single SPF goroutine, so the overlap is test-only. Fixed with
+   `e.spf.Stop()` up front (callback runs synchronously); also removes a latent
+   flake -- with no transit topology the async run resolves the link back down.
+
+Verified: `go test -race ./internal/plugins/ospf` full package PASS; the reported
+test x50 and all `Virtual*` x10 PASS under `-race`; `make ze-lint-changed` green.
 
 ### 2026-07-07 -- `ze-tier-check` `routeinstall` unclassified non-engine placement -> moved to core
 
