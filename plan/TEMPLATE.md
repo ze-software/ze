@@ -229,7 +229,7 @@
 | 6 | Has a user guide page? | [ ] | `docs/guide/<topic>.md` |
 | 7 | Wire format changed? | [ ] | `docs/architecture/wire/*.md` |
 | 8 | Plugin SDK/protocol changed? | [ ] | `ai/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
-| 9 | RFC behavior implemented? | [ ] | `rfc/short/rfcNNNN.md` |
+| 9 | RFC behavior implemented, changed, or newly proven? | [ ] | `rfc/short/rfcNNNN.md` (summary) and `docs/features/rfc-status.md` (status ledger row with source anchors) |
 | 10 | Test infrastructure changed? | [ ] | `docs/functional-tests.md` |
 | 11 | Affects daemon comparison? | [ ] | `docs/comparison.md` |
 | 12 | Internal architecture changed? | [ ] | `docs/architecture/core-design.md` or subsystem doc |

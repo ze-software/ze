@@ -17,6 +17,7 @@ Apply this rule when adding or changing any of these:
 | Runtime dependency or readiness condition | Agents must verify the host with `ze doctor` before starting Ze |
 | Structural decision, repeated gotcha, or workflow change | Agents must find it through the learned index or a rule before repeating the mistake |
 | New BGP family, SAFI, or capability | Agents must update migration schema, route converter, bridge, and compat tests (`ai/patterns/bgp-family.md`) |
+| RFC-level protocol behavior added, changed, or newly proven | The standards ledger drives user and design decisions; a stale RFC status misleads both |
 
 Private refactors with no new surface still trigger this rule when they change a
 pattern future work must follow.
@@ -28,6 +29,7 @@ Update every row that applies:
 | What changed | Required update |
 |--------------|-----------------|
 | User-facing behavior | Specific file under `docs/`, with source anchors per `ai/rules/documentation.md` |
+| RFC support status (protocol behavior implemented, changed, or newly proven) | The matching `docs/features/rfc-status.md` row (Status, Implemented coverage, Remaining) with a source anchor to the producing `file:line`; reconcile `docs/comparison.md` and `docs/features.md` when the support level changes |
 | Agent-facing command or contract | `docs/features/ai-first.md`, `docs/guide/mcp/overview.md` if MCP-visible, and `ai/rules/agent-tooling.md` if workflow changes |
 | CLI command grammar or command availability | `ai/rules/cli-grammar.md` or `ai/rules/pipe-completeness.md`, plus command validation docs if needed |
 | New tool or make target | `ai/INDEX.md` Dev Tools or keyword map, plus the owning `docs/contributing/` or `docs/architecture/testing/` page |

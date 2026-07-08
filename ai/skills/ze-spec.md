@@ -153,7 +153,7 @@ If an annotation wouldn't help someone make a design choice, it's too vague. Rew
    - Behavior that must be preserved (unless user says otherwise)
    - Write `→ Constraint:` noting preservation requirements
 4. Trace data flow per `ai/rules/data-flow-tracing.md`
-5. RFC check: verify `rfc/short/rfcNNNN.md` summaries exist for referenced RFCs
+5. RFC check: verify `rfc/short/rfcNNNN.md` summaries exist for referenced RFCs, and note any `docs/features/rfc-status.md` row the spec will add or change so the standards ledger stays synced (per `ai/rules/discovery-updates.md`)
 6. Fill the spec's **Key Insights** summary (minimal context to resume after compaction)
 7. Present research findings to user:
    - Current behavior (what the code does now)
