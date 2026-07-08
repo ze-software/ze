@@ -20,8 +20,8 @@
 | L2VPN VPLS | `l2vpn/vpls` | 25/65 | Yes | Yes | Yes |
 | BGP-LS | `bgp-ls/bgp-ls` | 16388/71 | No | Yes | No |
 | BGP-LS VPN | `bgp-ls/bgp-ls-vpn` | 16388/72 | No | Yes | No |
-| IPv4 MVPN | `ipv4/mvpn` | 1/5 | No | Yes | No |
-| IPv6 MVPN | `ipv6/mvpn` | 2/5 | No | Yes | No |
+| IPv4 MVPN | `ipv4/mvpn` | 1/5 | Yes | Yes | Partial |
+| IPv6 MVPN | `ipv6/mvpn` | 2/5 | Yes | Yes | Partial |
 | IPv4 RTC | `ipv4/rtc` | 1/132 | No | Yes | No |
 | IPv4 MUP | `ipv4/mup` | 1/85 | Yes | Yes | Yes |
 | IPv6 MUP | `ipv6/mup` | 2/85 | Yes | Yes | Yes |
@@ -53,9 +53,9 @@
 | Graceful Restart | 64 | RFC 4724 | Session preservation across restarts (Restarting Speaker: R-bit via zefs marker on `ze signal restart`) |
 | Long-Lived GR | 71 | RFC 9494 | Extended stale route retention with LLGR_STALE community and depreference |
 | BGP Role | 9 | RFC 9234 | Peer relationship role |
-| Hostname | 73 | draft | FQDN capability |
+| Hostname | 73 | RFC 8516 | FQDN capability |
 | Software Version | 75 | draft | Software version advertisement |
-| Link-Local Next Hop | 77 | — | IPv6 link-local as next-hop |
+| Link-Local Next Hop | 77 | RFC 2545 + draft | IPv6 link-local as next-hop |
 | PATHS-LIMIT | 76 | draft-abraitis-idr-addpath-paths-limit | Per-family path count limit for ADD-PATH |
 
 <!-- source: internal/core/bgp/capability/capability.go -- capability code constants -->

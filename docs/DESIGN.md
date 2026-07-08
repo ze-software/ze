@@ -563,8 +563,8 @@ For the full table with RFC references and plugin attribution, see `docs/feature
 | IPv6 MUP | 2/85 | Yes | Yes | Yes |
 | BGP-LS | 16388/71 | No | Yes | No |
 | BGP-LS VPN | 16388/72 | No | Yes | No |
-| IPv4 MVPN | 1/5 | No | Yes | No |
-| IPv6 MVPN | 2/5 | No | Yes | No |
+| IPv4 MVPN | 1/5 | Yes | Yes | Partial |
+| IPv6 MVPN | 2/5 | Yes | Yes | Partial |
 | IPv4 RTC | 1/132 | No | Yes | No |
 
 Families are registered dynamically by plugins via `PluginRegistry.Register()`, not

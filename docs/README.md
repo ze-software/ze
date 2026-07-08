@@ -9,6 +9,7 @@ This directory contains user guides, feature inventories, implementation referen
 | Orientation | `architecture.md`, `DESIGN.md`, `why-ze.md` | Code plus current feature inventory | Explain what Ze is and where it fits |
 | User guide | `guide/` | YANG schemas, command handlers, plugins | Operator-facing setup and feature usage |
 | Feature inventory | `features.md`, `features/` | Source anchors and status labels | Current shipped, partial, experimental, and rejected capabilities |
+| RFC status | `features/rfc-status.md` | Source anchors, tests, implementation notes, and explicit gaps | Standards support ledger with what is implemented and what is left |
 | Architecture reference | `architecture/` | Go packages named in source anchors | Internal design, data flow, wire format, config, testing, and decisions |
 | API and wire reference | `architecture/api/`, `architecture/wire/` | YANG RPC schemas, parser/encoder code | External command, plugin IPC, text, JSON, and BGP wire contracts |
 | Plugin development | `plugin-overview.md`, `plugin-development/` | Plugin registry, SDK, RPC packages | How built-in and external plugins are registered, started, and called |
@@ -24,6 +25,7 @@ This directory contains user guides, feature inventories, implementation referen
 | Run Ze | `guide/README.md` |
 | Check project status | `guide/status.md` |
 | Check feature support | `features.md` |
+| Check RFC support and gaps | `features/rfc-status.md` |
 | Understand architecture | `architecture.md`, then `architecture/core-design.md` |
 | Understand plugins | `plugin-overview.md`, then `guide/plugins.md` or `plugin-development/README.md` |
 | Check command/API behavior | `guide/command-reference.md`, `architecture/api/commands.md` |
