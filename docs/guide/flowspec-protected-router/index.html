@@ -350,13 +350,12 @@
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#1-start-from-an-installed-ze-node">1. Start from an installed Ze node</a></li>
-<li><a href="#2-write-the-config">2. Write the config</a></li>
-<li><a href="#3-validate-import-and-reload">3. Validate, import, and reload</a></li>
-<li><a href="#4-check-the-firewall-backend">4. Check the firewall backend</a></li>
-<li><a href="#5-test-with-a-safe-flowspec-rule">5. Test with a safe FlowSpec rule</a></li>
-<li><a href="#6-protect-the-bgp-session-itself">6. Protect the BGP session itself</a></li>
-<li><a href="#7-automatic-ddos-flowspec-policy">7. Automatic DDoS FlowSpec policy</a></li>
-<li><a href="#8-common-rollback">8. Common rollback</a></li>
+<li><a href="#2-update-the-active-zefs-config">2. Update the active zefs config</a></li>
+<li><a href="#3-check-the-firewall-backend">3. Check the firewall backend</a></li>
+<li><a href="#4-test-with-a-safe-flowspec-rule">4. Test with a safe FlowSpec rule</a></li>
+<li><a href="#5-protect-the-bgp-session-itself">5. Protect the BGP session itself</a></li>
+<li><a href="#6-automatic-ddos-flowspec-policy">6. Automatic DDoS FlowSpec policy</a></li>
+<li><a href="#7-common-rollback">7. Common rollback</a></li>
 </ol></nav>
 <p>The example enables the nft firewall backend, starts the <code>flowspec-firewall</code> bridge plugin, accepts FlowSpec from an iBGP route reflector, and adds a conservative control-plane policing rule for TCP/179.</p>
 <!-- source: internal/plugins/flowspec-firewall/register.go -- plugin name and firewall dependency -->
@@ -399,89 +398,63 @@
 </tr>
 </tbody>
 </table>
-<h2 id="2-write-the-config">2. Write the config</h2>
-<pre><code class="language-bash">sudo tee /etc/ze/edge-01.conf &gt;/dev/null &lt;&lt;'EOF'
-plugin {
-    internal flowspec-firewall {
-        use flowspec-firewall
-    }
-}
+<h2 id="2-update-the-active-zefs-config">2. Update the active zefs config</h2>
+<p>Keep the active configuration in <code>database.zefs</code>. The commands below read the current active config, normalize it to set format, append the FlowSpec protection settings, render the import file, validate the result, import it back into zefs, and reload the daemon. They do not create <code>/etc/ze/edge-01.conf</code>.</p>
+<pre><code class="language-bash">set -euo pipefail
 
-firewall {
-    backend nft
-}
+umask 077
+CONFIG_SET=&quot;$(mktemp)&quot;
+CONFIG_IMPORT=&quot;$(mktemp)&quot;
+trap 'rm -f &quot;$CONFIG_SET&quot; &quot;$CONFIG_IMPORT&quot;' EXIT
 
-control-plane-protection {
-    bgp {
-        rate 100/second
-        burst 20
-        protected-port [ 179 ]
-        trusted-source [ 203.0.113.1/32 203.0.113.2/32 ]
-        over-limit-policy drop
-    }
-}
+sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o &quot;$CONFIG_SET&quot; -
 
-ddos {
-    flowspec {
-        response-level enforce
-        action rate-limit
-        rate-limit-bytes 1000000
-        hold-down 300
-        probe-interval 60
-        probe-window 10
-        probe-rate 1000000
-        announce-rate-limit 10
-        max-mitigation-duration 3600
-        backoff-cap 3600
-        blackhole-fallback false
-        allowlist [ 192.0.2.0/24 2001:db8::/32 ]
-    }
-}
+cat &gt;&gt;&quot;$CONFIG_SET&quot; &lt;&lt;'EOF'
+set plugin internal flowspec-firewall use flowspec-firewall
 
-bgp {
-    router-id 192.0.2.10
-    session {
-        asn {
-            local 65010
-        }
-    }
+set firewall backend nft
 
-    peer flowspec-rr {
-        description &quot;FlowSpec route reflector&quot;
-        connection {
-            remote {
-                ip 203.0.113.1
-            }
-            local {
-                ip 192.0.2.10
-            }
-            md5 {
-                password &quot;change-this-md5-secret&quot;
-            }
-            ttl {
-                min 255
-            }
-        }
-        session {
-            asn {
-                local 65010
-                remote 65010
-            }
-            family {
-                ipv4/flow {
-                    mode enable
-                    prefix {
-                        maximum 1000
-                    }
-                }
-            }
-        }
-        process flowspec-firewall {
-        }
-    }
-}
+set control-plane-protection bgp rate 100/second
+set control-plane-protection bgp burst 20
+set control-plane-protection bgp protected-port 179
+set control-plane-protection bgp trusted-source [ 203.0.113.1/32 203.0.113.2/32 ]
+set control-plane-protection bgp over-limit-policy drop
+
+set ddos flowspec response-level enforce
+set ddos flowspec action rate-limit
+set ddos flowspec rate-limit-bytes 1000000
+set ddos flowspec hold-down 300
+set ddos flowspec probe-interval 60
+set ddos flowspec probe-window 10
+set ddos flowspec probe-rate 1000000
+set ddos flowspec announce-rate-limit 10
+set ddos flowspec max-mitigation-duration 3600
+set ddos flowspec backoff-cap 3600
+set ddos flowspec blackhole-fallback disable
+set ddos flowspec allowlist [ 192.0.2.0/24 2001:db8::/32 ]
+
+set bgp router-id 192.0.2.10
+set bgp session asn local 65010
+
+set bgp peer flowspec-rr description &quot;FlowSpec route reflector&quot;
+set bgp peer flowspec-rr connection remote ip 203.0.113.1
+set bgp peer flowspec-rr connection local ip 192.0.2.10
+set bgp peer flowspec-rr connection md5 password change-this-md5-secret
+set bgp peer flowspec-rr connection ttl min 255
+set bgp peer flowspec-rr session asn local 65010
+set bgp peer flowspec-rr session asn remote 65010
+set bgp peer flowspec-rr session family ipv4/flow mode enable
+set bgp peer flowspec-rr session family ipv4/flow prefix maximum 1000
+set bgp peer flowspec-rr process flowspec-firewall
 EOF
-sudo chmod 0600 /etc/ze/edge-01.conf
+
+/usr/local/bin/ze config migrate --format hierarchical -o &quot;$CONFIG_IMPORT&quot; &quot;$CONFIG_SET&quot;
+/usr/local/bin/ze config validate &quot;$CONFIG_IMPORT&quot;
+sudo /usr/local/bin/ze config import --name edge-01.conf &quot;$CONFIG_IMPORT&quot;
+sudo systemctl reload ze.service
+</code></pre>
+<p>Expected validation output:</p>
+<pre><code class="language-text">configuration valid: /tmp/tmp.XXXXXXXXXX
 </code></pre>
 <p>What each block does:</p>
 <table>
@@ -523,15 +496,7 @@ sudo chmod 0600 /etc/ze/edge-01.conf
 </tbody>
 </table>
 <p><code>over-limit-policy drop</code> is intentionally strict. During first turn-up you can use <code>accept</code> to observe without dropping, then switch to <code>drop</code> after counters and logs look correct.</p>
-<h2 id="3-validate-import-and-reload">3. Validate, import, and reload</h2>
-<pre><code class="language-bash">sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
-sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
-sudo systemctl reload ze.service
-</code></pre>
-<p>Expected validation output:</p>
-<pre><code class="language-text">configuration valid: /etc/ze/edge-01.conf
-</code></pre>
-<h2 id="4-check-the-firewall-backend">4. Check the firewall backend</h2>
+<h2 id="3-check-the-firewall-backend">3. Check the firewall backend</h2>
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
 /usr/local/bin/ze cli -c &quot;show bgp peer list&quot;
 /usr/local/bin/ze show warnings
@@ -559,7 +524,7 @@ sudo nft list ruleset | sed -n '/table inet flowspec/,+80p'
 </tr>
 </tbody>
 </table>
-<h2 id="5-test-with-a-safe-flowspec-rule">5. Test with a safe FlowSpec rule</h2>
+<h2 id="4-test-with-a-safe-flowspec-rule">4. Test with a safe FlowSpec rule</h2>
 <p>The bridge only programs nftables from FlowSpec that <code>edge-01</code> <em>receives</em>, so the rule must be announced from a peer toward <code>edge-01</code>, not injected on <code>edge-01</code> itself. Use a lab prefix first. The example below drops TCP traffic to <code>10.0.0.0/8</code> port 80.</p>
 <p>If the source (<code>flowspec-rr</code>, <code>203.0.113.1</code>) is a Ze node, announce toward <code>edge-01</code> (<code>192.0.2.10</code>) with the required <code>peer &lt;selector&gt;</code> prefix:</p>
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
@@ -571,7 +536,7 @@ sudo nft list ruleset | sed -n '/table inet flowspec/,+80p'
 <p>Withdraw the test rule from the same source:</p>
 <pre><code class="language-bash">/usr/local/bin/ze cli -c &quot;peer 192.0.2.10 update text nlri ipv4/flow del destination 10.0.0.0/8 protocol tcp destination-port =80&quot;
 </code></pre>
-<h2 id="6-protect-the-bgp-session-itself">6. Protect the BGP session itself</h2>
+<h2 id="5-protect-the-bgp-session-itself">5. Protect the BGP session itself</h2>
 <p>The example uses three layers:</p>
 <table>
 <thead>
@@ -596,7 +561,7 @@ sudo nft list ruleset | sed -n '/table inet flowspec/,+80p'
 </tbody>
 </table>
 <p>Make the remote router match these settings. If the peer is not single-hop, do not use <code>ttl min 255</code> without matching the actual TTL design.</p>
-<h2 id="7-automatic-ddos-flowspec-policy">7. Automatic DDoS FlowSpec policy</h2>
+<h2 id="6-automatic-ddos-flowspec-policy">6. Automatic DDoS FlowSpec policy</h2>
 <p>The <code>ddos flowspec</code> block controls how Ze announces upstream FlowSpec mitigations when the DDoS detection pipeline emits characterized attacks.</p>
 <table>
 <thead>
@@ -635,12 +600,12 @@ sudo nft list ruleset | sed -n '/table inet flowspec/,+80p'
 </tbody>
 </table>
 <p>If you only want inbound FlowSpec-to-nftables filtering, keep the <code>flowspec-firewall</code> and BGP blocks and remove <code>ddos flowspec</code>.</p>
-<h2 id="8-common-rollback">8. Common rollback</h2>
-<pre><code class="language-bash">sudo cp /etc/ze/edge-01.conf /etc/ze/edge-01.conf.before-flowspec
-sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
+<h2 id="7-common-rollback">7. Common rollback</h2>
+<pre><code class="language-bash">sudo /usr/local/bin/ze config history edge-01.conf
+sudo /usr/local/bin/ze config rollback 1 edge-01.conf
 sudo systemctl reload ze.service
 </code></pre>
-<p>To stop enforcing received FlowSpec while keeping the BGP session, remove the <code>process flowspec-firewall</code> binding and the <code>plugin internal flowspec-firewall</code> block, validate, import, and reload.</p>
+<p>Use the revision number from <code>ze config history</code>. To stop enforcing received FlowSpec while keeping the BGP session, remove the <code>process flowspec-firewall</code> binding and the <code>plugin internal flowspec-firewall</code> line with the same zefs update pattern, validate, import, and reload.</p>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>

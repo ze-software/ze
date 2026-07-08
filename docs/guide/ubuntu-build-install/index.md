@@ -120,81 +120,54 @@ sudo test -s /etc/ze/database.zefs
 
 This creates the zefs bootstrap admin. Keep it as a recovery user until you have tested the configured users below.
 
-## 5. Create the first config with SSH and RBAC
+## 5. Create the first config in zefs
 
-Hash the configured user passwords before putting them in a file. Static imported config should use the `password` leaf with a bcrypt hash. The interactive config editor can use `plaintext-password`, but a copied file should not persist plaintext.
+Keep the active configuration inside `database.zefs`. Do not create `/etc/ze/edge-01.conf` as a second source of truth. Build the candidate with set-format lines, render the import file, validate it, then load it into zefs with one `ze config import` command.
+
+Hash the configured user passwords before writing the candidate. This keeps plaintext out of shell history, process arguments, and the zefs command history.
 
 ```bash
 ADMIN_HASH="$(printf '%s\n' 'CHANGE_ME_BOOTSTRAP' | /usr/local/bin/ze passwd)"
 NOC_HASH="$(printf '%s\n' 'CHANGE_ME_NOC' | /usr/local/bin/ze passwd)"
 
-sudo install -m 0600 /dev/null /etc/ze/edge-01.conf
-sudo tee /etc/ze/edge-01.conf >/dev/null <<EOF
-environment {
-    ssh {
-        enabled true
-        server main {
-            ip 0.0.0.0
-            port 2222
-        }
-        idle-timeout 600
-        max-sessions 32
-    }
-}
+umask 077
+CONFIG_SET="$(mktemp)"
+CONFIG_IMPORT="$(mktemp)"
+trap 'rm -f "$CONFIG_SET" "$CONFIG_IMPORT"' EXIT
 
-system {
-    authentication {
-        user admin {
-            password "$ADMIN_HASH"
-            profile [ admin ]
-        }
-        user noc {
-            password "$NOC_HASH"
-            profile [ read-only ]
-        }
-    }
-    authorization {
-        profile admin {
-            run {
-                default-action allow
-            }
-            edit {
-                default-action allow
-            }
-        }
-        profile read-only {
-            run {
-                default-action allow
-            }
-            edit {
-                default-action deny
-            }
-        }
-    }
-}
+cat >"$CONFIG_SET" <<EOF
+set environment ssh enabled enable
+set environment ssh server main ip 0.0.0.0
+set environment ssh server main port 2222
+set environment ssh idle-timeout 600
+set environment ssh max-sessions 32
+
+set system authentication user admin password "$ADMIN_HASH"
+set system authentication user admin profile admin
+set system authentication user noc password "$NOC_HASH"
+set system authentication user noc profile read-only
+
+set system authorization profile admin run default-action allow
+set system authorization profile admin edit default-action allow
+set system authorization profile read-only run default-action allow
+set system authorization profile read-only edit default-action deny
 EOF
-sudo chmod 0600 /etc/ze/edge-01.conf
-```
 
-The explicit `admin` user matters. Once any configured user has profile assignments, unassigned users are denied by local RBAC. Defining `admin` in config keeps the bootstrap name usable with an explicit `admin` profile.
-
-## 6. Validate and import the config into zefs
-
-`ze start` reads the active config from zefs. The instance name from `ze init` was `edge-01`, so import the file as `edge-01.conf`.
-
-```bash
-sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
-sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
+/usr/local/bin/ze config migrate --format hierarchical -o "$CONFIG_IMPORT" "$CONFIG_SET"
+/usr/local/bin/ze config validate "$CONFIG_IMPORT"
+sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
 sudo /usr/local/bin/ze config ls
 ```
 
 Expected validation output:
 
 ```text
-configuration valid: /etc/ze/edge-01.conf
+configuration valid: /tmp/tmp.XXXXXXXXXX
 ```
 
-## 7. Install and start systemd
+The explicit `admin` user matters. Once any configured user has profile assignments, unassigned users are denied by local RBAC. Defining `admin` in config keeps the bootstrap name usable with an explicit `admin` profile. `ze start` reads the active `edge-01.conf` config from zefs.
+
+## 6. Install and start systemd
 
 ```bash
 sudo /usr/local/bin/ze install systemd --start
@@ -211,7 +184,7 @@ export XDG_RUNTIME_DIR=/run/ze
 /usr/local/bin/ze cli -c "help"
 ```
 
-## 8. Test SSH login and RBAC
+## 7. Test SSH login and RBAC
 
 The `admin` user can run operational and edit commands. The `noc` user can run operational commands but cannot edit config.
 
@@ -227,30 +200,34 @@ If the server listens on a management address, connect remotely with `--remote h
 ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --remote 192.0.2.10:2222 --user noc -c "help"
 ```
 
-## 9. Add features
+## 8. Add features
 
 There are two kinds of feature work.
 
 | Feature type | What you change | Example |
 | --- | --- | --- |
 | Compiled service | Build tags or the default `make build` path | `ze_lg` compiles the looking glass server |
-| Runtime feature | Config blocks and plugin declarations | `environment looking-glass`, `plugin internal bgp-rr`, `firewall backend nft` |
+| Runtime feature | Config lines and plugin declarations | `environment looking-glass`, `plugin internal bgp-rr`, `firewall backend nft` |
 
-For normal installs, keep the default binary and add runtime features in config. The rest of the howto pages use this pattern:
-
-```text
-plugin {
-    internal bgp-rr {
-        use bgp-rr
-    }
-}
-```
-
-After editing the config, validate it, import it under the active name, and reload the daemon.
+For normal installs, keep the default binary and add runtime features to the active zefs config. The feature pages use this pattern: read the current zefs entry, normalize it to set format, append set-format lines, render a checked import file, validate, import, and reload.
 
 ```bash
-sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
-sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
+set -euo pipefail
+
+umask 077
+CONFIG_SET="$(mktemp)"
+CONFIG_IMPORT="$(mktemp)"
+trap 'rm -f "$CONFIG_SET" "$CONFIG_IMPORT"' EXIT
+
+sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o "$CONFIG_SET" -
+
+cat >>"$CONFIG_SET" <<'EOF'
+set plugin internal bgp-rr use bgp-rr
+EOF
+
+/usr/local/bin/ze config migrate --format hierarchical -o "$CONFIG_IMPORT" "$CONFIG_SET"
+/usr/local/bin/ze config validate "$CONFIG_IMPORT"
+sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service
 ```
 
@@ -263,7 +240,7 @@ Use the pages below as feature-specific starting points:
 | [FlowSpec protected router](../flowspec-protected-router/index.md) | nft firewall backend, control-plane policing, FlowSpec firewall bridge |
 | [Looking glass](../looking-glass-howto/index.md) | public read-only HTTP looking glass and birdwatcher-compatible API |
 
-## 10. Stop or roll back
+## 9. Stop or roll back
 
 ```bash
 sudo systemctl stop ze.service

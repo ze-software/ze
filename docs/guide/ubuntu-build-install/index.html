@@ -353,12 +353,11 @@
 <li><a href="#2-build-ze">2. Build Ze</a></li>
 <li><a href="#3-install-the-binary">3. Install the binary</a></li>
 <li><a href="#4-create-databasezefs">4. Create database.zefs</a></li>
-<li><a href="#5-create-the-first-config-with-ssh-and-rbac">5. Create the first config with SSH and RBAC</a></li>
-<li><a href="#6-validate-and-import-the-config-into-zefs">6. Validate and import the config into zefs</a></li>
-<li><a href="#7-install-and-start-systemd">7. Install and start systemd</a></li>
-<li><a href="#8-test-ssh-login-and-rbac">8. Test SSH login and RBAC</a></li>
-<li><a href="#9-add-features">9. Add features</a></li>
-<li><a href="#10-stop-or-roll-back">10. Stop or roll back</a></li>
+<li><a href="#5-create-the-first-config-in-zefs">5. Create the first config in zefs</a></li>
+<li><a href="#6-install-and-start-systemd">6. Install and start systemd</a></li>
+<li><a href="#7-test-ssh-login-and-rbac">7. Test SSH login and RBAC</a></li>
+<li><a href="#8-add-features">8. Add features</a></li>
+<li><a href="#9-stop-or-roll-back">9. Stop or roll back</a></li>
 </ol></nav>
 <p>The commands assume Ubuntu 24.04 or newer, <code>sudo</code>, and an <code>amd64</code> or <code>arm64</code> host. Replace <code>edge-01</code> and every password before running them on a real box.</p>
 <!-- source: scripts/dev/dev-setup.py -- Ubuntu package names and setup helper -->
@@ -442,69 +441,45 @@ printf 'admin\nCHANGE_ME_BOOTSTRAP\n\n\nedge-01\n' | sudo /usr/local/bin/ze init
 sudo test -s /etc/ze/database.zefs
 </code></pre>
 <p>This creates the zefs bootstrap admin. Keep it as a recovery user until you have tested the configured users below.</p>
-<h2 id="5-create-the-first-config-with-ssh-and-rbac">5. Create the first config with SSH and RBAC</h2>
-<p>Hash the configured user passwords before putting them in a file. Static imported config should use the <code>password</code> leaf with a bcrypt hash. The interactive config editor can use <code>plaintext-password</code>, but a copied file should not persist plaintext.</p>
+<h2 id="5-create-the-first-config-in-zefs">5. Create the first config in zefs</h2>
+<p>Keep the active configuration inside <code>database.zefs</code>. Do not create <code>/etc/ze/edge-01.conf</code> as a second source of truth. Build the candidate with set-format lines, render the import file, validate it, then load it into zefs with one <code>ze config import</code> command.</p>
+<p>Hash the configured user passwords before writing the candidate. This keeps plaintext out of shell history, process arguments, and the zefs command history.</p>
 <pre><code class="language-bash">ADMIN_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_BOOTSTRAP' | /usr/local/bin/ze passwd)&quot;
 NOC_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_NOC' | /usr/local/bin/ze passwd)&quot;
 
-sudo install -m 0600 /dev/null /etc/ze/edge-01.conf
-sudo tee /etc/ze/edge-01.conf &gt;/dev/null &lt;&lt;EOF
-environment {
-    ssh {
-        enabled true
-        server main {
-            ip 0.0.0.0
-            port 2222
-        }
-        idle-timeout 600
-        max-sessions 32
-    }
-}
+umask 077
+CONFIG_SET=&quot;$(mktemp)&quot;
+CONFIG_IMPORT=&quot;$(mktemp)&quot;
+trap 'rm -f &quot;$CONFIG_SET&quot; &quot;$CONFIG_IMPORT&quot;' EXIT
 
-system {
-    authentication {
-        user admin {
-            password &quot;$ADMIN_HASH&quot;
-            profile [ admin ]
-        }
-        user noc {
-            password &quot;$NOC_HASH&quot;
-            profile [ read-only ]
-        }
-    }
-    authorization {
-        profile admin {
-            run {
-                default-action allow
-            }
-            edit {
-                default-action allow
-            }
-        }
-        profile read-only {
-            run {
-                default-action allow
-            }
-            edit {
-                default-action deny
-            }
-        }
-    }
-}
+cat &gt;&quot;$CONFIG_SET&quot; &lt;&lt;EOF
+set environment ssh enabled enable
+set environment ssh server main ip 0.0.0.0
+set environment ssh server main port 2222
+set environment ssh idle-timeout 600
+set environment ssh max-sessions 32
+
+set system authentication user admin password &quot;$ADMIN_HASH&quot;
+set system authentication user admin profile admin
+set system authentication user noc password &quot;$NOC_HASH&quot;
+set system authentication user noc profile read-only
+
+set system authorization profile admin run default-action allow
+set system authorization profile admin edit default-action allow
+set system authorization profile read-only run default-action allow
+set system authorization profile read-only edit default-action deny
 EOF
-sudo chmod 0600 /etc/ze/edge-01.conf
-</code></pre>
-<p>The explicit <code>admin</code> user matters. Once any configured user has profile assignments, unassigned users are denied by local RBAC. Defining <code>admin</code> in config keeps the bootstrap name usable with an explicit <code>admin</code> profile.</p>
-<h2 id="6-validate-and-import-the-config-into-zefs">6. Validate and import the config into zefs</h2>
-<p><code>ze start</code> reads the active config from zefs. The instance name from <code>ze init</code> was <code>edge-01</code>, so import the file as <code>edge-01.conf</code>.</p>
-<pre><code class="language-bash">sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
-sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
+
+/usr/local/bin/ze config migrate --format hierarchical -o &quot;$CONFIG_IMPORT&quot; &quot;$CONFIG_SET&quot;
+/usr/local/bin/ze config validate &quot;$CONFIG_IMPORT&quot;
+sudo /usr/local/bin/ze config import --name edge-01.conf &quot;$CONFIG_IMPORT&quot;
 sudo /usr/local/bin/ze config ls
 </code></pre>
 <p>Expected validation output:</p>
-<pre><code class="language-text">configuration valid: /etc/ze/edge-01.conf
+<pre><code class="language-text">configuration valid: /tmp/tmp.XXXXXXXXXX
 </code></pre>
-<h2 id="7-install-and-start-systemd">7. Install and start systemd</h2>
+<p>The explicit <code>admin</code> user matters. Once any configured user has profile assignments, unassigned users are denied by local RBAC. Defining <code>admin</code> in config keeps the bootstrap name usable with an explicit <code>admin</code> profile. <code>ze start</code> reads the active <code>edge-01.conf</code> config from zefs.</p>
+<h2 id="6-install-and-start-systemd">6. Install and start systemd</h2>
 <pre><code class="language-bash">sudo /usr/local/bin/ze install systemd --start
 systemctl status ze.service --no-pager
 </code></pre>
@@ -514,7 +489,7 @@ systemctl status ze.service --no-pager
 /usr/local/bin/ze status
 /usr/local/bin/ze cli -c &quot;help&quot;
 </code></pre>
-<h2 id="8-test-ssh-login-and-rbac">8. Test SSH login and RBAC</h2>
+<h2 id="7-test-ssh-login-and-rbac">7. Test SSH login and RBAC</h2>
 <p>The <code>admin</code> user can run operational and edit commands. The <code>noc</code> user can run operational commands but cannot edit config.</p>
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
 ZE_SSH_PASSWORD='CHANGE_ME_BOOTSTRAP' /usr/local/bin/ze cli --user admin -c &quot;help&quot;
@@ -523,7 +498,7 @@ ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --user noc -c &quot;help&q
 <p>If the server listens on a management address, connect remotely with <code>--remote host:port</code>, using the host and port from <code>environment ssh</code>.</p>
 <pre><code class="language-bash">ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --remote 192.0.2.10:2222 --user noc -c &quot;help&quot;
 </code></pre>
-<h2 id="9-add-features">9. Add features</h2>
+<h2 id="8-add-features">8. Add features</h2>
 <p>There are two kinds of feature work.</p>
 <table>
 <thead>
@@ -541,21 +516,28 @@ ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --user noc -c &quot;help&q
 </tr>
 <tr>
 <td>Runtime feature</td>
-<td>Config blocks and plugin declarations</td>
+<td>Config lines and plugin declarations</td>
 <td><code>environment looking-glass</code>, <code>plugin internal bgp-rr</code>, <code>firewall backend nft</code></td>
 </tr>
 </tbody>
 </table>
-<p>For normal installs, keep the default binary and add runtime features in config. The rest of the howto pages use this pattern:</p>
-<pre><code class="language-text">plugin {
-    internal bgp-rr {
-        use bgp-rr
-    }
-}
-</code></pre>
-<p>After editing the config, validate it, import it under the active name, and reload the daemon.</p>
-<pre><code class="language-bash">sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
-sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
+<p>For normal installs, keep the default binary and add runtime features to the active zefs config. The feature pages use this pattern: read the current zefs entry, normalize it to set format, append set-format lines, render a checked import file, validate, import, and reload.</p>
+<pre><code class="language-bash">set -euo pipefail
+
+umask 077
+CONFIG_SET=&quot;$(mktemp)&quot;
+CONFIG_IMPORT=&quot;$(mktemp)&quot;
+trap 'rm -f &quot;$CONFIG_SET&quot; &quot;$CONFIG_IMPORT&quot;' EXIT
+
+sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o &quot;$CONFIG_SET&quot; -
+
+cat &gt;&gt;&quot;$CONFIG_SET&quot; &lt;&lt;'EOF'
+set plugin internal bgp-rr use bgp-rr
+EOF
+
+/usr/local/bin/ze config migrate --format hierarchical -o &quot;$CONFIG_IMPORT&quot; &quot;$CONFIG_SET&quot;
+/usr/local/bin/ze config validate &quot;$CONFIG_IMPORT&quot;
+sudo /usr/local/bin/ze config import --name edge-01.conf &quot;$CONFIG_IMPORT&quot;
 sudo systemctl reload ze.service
 </code></pre>
 <p>Use the pages below as feature-specific starting points:</p>
@@ -585,7 +567,7 @@ sudo systemctl reload ze.service
 </tr>
 </tbody>
 </table>
-<h2 id="10-stop-or-roll-back">10. Stop or roll back</h2>
+<h2 id="9-stop-or-roll-back">9. Stop or roll back</h2>
 <pre><code class="language-bash">sudo systemctl stop ze.service
 sudo /usr/local/bin/ze uninstall systemd
 sudo /usr/local/bin/ze uninstall local

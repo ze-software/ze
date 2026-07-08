@@ -351,13 +351,11 @@
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#1-start-from-the-ubuntu-install-page">1. Start from the Ubuntu install page</a></li>
 <li><a href="#2-decide-the-profiles">2. Decide the profiles</a></li>
-<li><a href="#3-hash-passwords">3. Hash passwords</a></li>
-<li><a href="#4-write-the-config">4. Write the config</a></li>
-<li><a href="#5-validate-import-and-reload">5. Validate, import, and reload</a></li>
-<li><a href="#6-test-each-account">6. Test each account</a></li>
-<li><a href="#7-add-ssh-public-keys">7. Add SSH public keys</a></li>
-<li><a href="#8-add-tacacs-later">8. Add TACACS+ later</a></li>
-<li><a href="#9-operational-checks">9. Operational checks</a></li>
+<li><a href="#3-build-and-load-a-set-format-update">3. Build and load a set-format update</a></li>
+<li><a href="#4-test-each-account">4. Test each account</a></li>
+<li><a href="#5-add-ssh-public-keys">5. Add SSH public keys</a></li>
+<li><a href="#6-add-tacacs-later">6. Add TACACS+ later</a></li>
+<li><a href="#7-operational-checks">7. Operational checks</a></li>
 </ol></nav>
 <p>The example keeps <code>admin</code> as a recovery account, adds a read-only NOC user, adds an operator user, enables SSH on TCP/2222, and applies profile-based command authorization.</p>
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user and environment.ssh -->
@@ -432,98 +430,63 @@
 </tbody>
 </table>
 <p>The entries use prefix matching. <code>match "debug"</code> matches <code>debug ospf ...</code>, but not <code>show debug ...</code>.</p>
-<h2 id="3-hash-passwords">3. Hash passwords</h2>
-<p>Use <code>ze passwd</code> before writing a static config file. This keeps plaintext out of <code>/etc/ze/edge-01.conf</code>.</p>
-<pre><code class="language-bash">ADMIN_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_BOOTSTRAP' | /usr/local/bin/ze passwd)&quot;
+<h2 id="3-build-and-load-a-set-format-update">3. Build and load a set-format update</h2>
+<p>Use <code>ze passwd</code> before writing stored config values. This keeps plaintext out of shell history, process arguments, and the zefs command history.</p>
+<p>The commands below read the current active config from zefs, convert it to set format, append the SSH and RBAC changes, render the import file, validate the result, then load it back into zefs with one <code>ze config import</code> command. Unrelated existing config sections stay in the candidate because they came from <code>ze config cat</code>.</p>
+<pre><code class="language-bash">set -euo pipefail
+
+ADMIN_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_BOOTSTRAP' | /usr/local/bin/ze passwd)&quot;
 NOC_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_NOC' | /usr/local/bin/ze passwd)&quot;
 OPERATOR_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_OPERATOR' | /usr/local/bin/ze passwd)&quot;
-</code></pre>
-<p>If you use the interactive config editor later, <code>plaintext-password "secret"</code> is safe there because the commit hook stores only the bcrypt <code>password</code> leaf. For a file you import directly, use the hash form shown here.</p>
-<h2 id="4-write-the-config">4. Write the config</h2>
-<pre><code class="language-bash">sudo tee /etc/ze/edge-01.conf &gt;/dev/null &lt;&lt;EOF
-environment {
-    ssh {
-        enabled true
-        server main {
-            ip 0.0.0.0
-            port 2222
-        }
-        idle-timeout 600
-        max-sessions 32
-    }
-}
 
-system {
-    authentication {
-        user admin {
-            password &quot;$ADMIN_HASH&quot;
-            profile [ admin ]
-        }
-        user noc {
-            password &quot;$NOC_HASH&quot;
-            profile [ read-only ]
-        }
-        user operator {
-            password &quot;$OPERATOR_HASH&quot;
-            profile [ operator ]
-        }
-    }
-    authorization {
-        profile admin {
-            run {
-                default-action allow
-            }
-            edit {
-                default-action allow
-            }
-        }
-        profile read-only {
-            run {
-                default-action allow
-                entry 10 {
-                    action deny
-                    match &quot;debug&quot;
-                }
-                entry 20 {
-                    action deny
-                    match &quot;clear&quot;
-                }
-            }
-            edit {
-                default-action deny
-            }
-        }
-        profile operator {
-            run {
-                default-action allow
-            }
-            edit {
-                default-action deny
-                entry 10 {
-                    action allow
-                    match &quot;configure&quot;
-                }
-                entry 20 {
-                    action allow
-                    match &quot;commit&quot;
-                }
-            }
-        }
-    }
-}
+umask 077
+CONFIG_SET=&quot;$(mktemp)&quot;
+CONFIG_IMPORT=&quot;$(mktemp)&quot;
+trap 'rm -f &quot;$CONFIG_SET&quot; &quot;$CONFIG_IMPORT&quot;' EXIT
+
+sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o &quot;$CONFIG_SET&quot; -
+
+cat &gt;&gt;&quot;$CONFIG_SET&quot; &lt;&lt;EOF
+set environment ssh enabled enable
+set environment ssh server main ip 0.0.0.0
+set environment ssh server main port 2222
+set environment ssh idle-timeout 600
+set environment ssh max-sessions 32
+
+set system authentication user admin password &quot;$ADMIN_HASH&quot;
+set system authentication user admin profile admin
+set system authentication user noc password &quot;$NOC_HASH&quot;
+set system authentication user noc profile read-only
+set system authentication user operator password &quot;$OPERATOR_HASH&quot;
+set system authentication user operator profile operator
+
+set system authorization profile admin run default-action allow
+set system authorization profile admin edit default-action allow
+
+set system authorization profile read-only run default-action allow
+set system authorization profile read-only run entry 10 action deny
+set system authorization profile read-only run entry 10 match debug
+set system authorization profile read-only run entry 20 action deny
+set system authorization profile read-only run entry 20 match clear
+set system authorization profile read-only edit default-action deny
+
+set system authorization profile operator run default-action allow
+set system authorization profile operator edit default-action deny
+set system authorization profile operator edit entry 10 action allow
+set system authorization profile operator edit entry 10 match configure
+set system authorization profile operator edit entry 20 action allow
+set system authorization profile operator edit entry 20 match commit
 EOF
-sudo chmod 0600 /etc/ze/edge-01.conf
-</code></pre>
-<p>Keep the explicit <code>admin</code> stanza. Once <code>system.authorization.profile</code> exists and users have assignments, RBAC denies unassigned users. If you leave the zefs bootstrap admin outside the config, it can authenticate but fail authorization.</p>
-<h2 id="5-validate-import-and-reload">5. Validate, import, and reload</h2>
-<pre><code class="language-bash">sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
-sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
+
+/usr/local/bin/ze config migrate --format hierarchical -o &quot;$CONFIG_IMPORT&quot; &quot;$CONFIG_SET&quot;
+/usr/local/bin/ze config validate &quot;$CONFIG_IMPORT&quot;
+sudo /usr/local/bin/ze config import --name edge-01.conf &quot;$CONFIG_IMPORT&quot;
 sudo systemctl reload ze.service
 </code></pre>
 <p>If Ze is not managed by systemd yet, start it after importing:</p>
 <pre><code class="language-bash">sudo /usr/local/bin/ze start
 </code></pre>
-<h2 id="6-test-each-account">6. Test each account</h2>
+<h2 id="4-test-each-account">4. Test each account</h2>
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
 
 ZE_SSH_PASSWORD='CHANGE_ME_BOOTSTRAP' \
@@ -542,56 +505,47 @@ ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
 <p>The command should be rejected by authorization. Check the daemon logs if it succeeds.</p>
 <pre><code class="language-bash">journalctl -u ze.service -n 100 --no-pager
 </code></pre>
-<h2 id="7-add-ssh-public-keys">7. Add SSH public keys</h2>
+<h2 id="5-add-ssh-public-keys">5. Add SSH public keys</h2>
 <p>Each public key has a local name, a key type, and the base64 body of the SSH public key. The key value is the middle field of a line from <code>~/.ssh/id_ed25519.pub</code>.</p>
-<pre><code class="language-bash">ALICE_KEY=&quot;$(awk '{print $2}' /home/alice/.ssh/id_ed25519.pub)&quot;
+<pre><code class="language-bash">set -euo pipefail
 
-sudo tee -a /etc/ze/edge-01.conf &gt;/dev/null &lt;&lt;EOF
+ALICE_KEY=&quot;$(cut -d' ' -f2 /home/alice/.ssh/id_ed25519.pub)&quot;
 
-# Add inside: system authentication user operator
-# public-keys alice-laptop {
-#     type ssh-ed25519
-#     key &quot;$ALICE_KEY&quot;
-# }
+umask 077
+CONFIG_SET=&quot;$(mktemp)&quot;
+CONFIG_IMPORT=&quot;$(mktemp)&quot;
+trap 'rm -f &quot;$CONFIG_SET&quot; &quot;$CONFIG_IMPORT&quot;' EXIT
+
+sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o &quot;$CONFIG_SET&quot; -
+
+cat &gt;&gt;&quot;$CONFIG_SET&quot; &lt;&lt;EOF
+set system authentication user operator public-keys alice-laptop type ssh-ed25519
+set system authentication user operator public-keys alice-laptop key &quot;$ALICE_KEY&quot;
 EOF
+
+/usr/local/bin/ze config migrate --format hierarchical -o &quot;$CONFIG_IMPORT&quot; &quot;$CONFIG_SET&quot;
+/usr/local/bin/ze config validate &quot;$CONFIG_IMPORT&quot;
+sudo /usr/local/bin/ze config import --name edge-01.conf &quot;$CONFIG_IMPORT&quot;
+sudo systemctl reload ze.service
 </code></pre>
-<p>For a real edit, put the block inside the <code>user operator</code> stanza:</p>
-<pre><code class="language-text">public-keys alice-laptop {
-    type ssh-ed25519
-    key &quot;AAAAC3NzaC1lZDI1NTE5AAAA...&quot;
-}
-</code></pre>
-<p>Then validate, import, and reload again.</p>
-<h2 id="8-add-tacacs-later">8. Add TACACS+ later</h2>
-<p>Local users stay useful as break-glass accounts. TACACS+ can be added under <code>system.authentication.tacacs</code> and mapped back to the same local authorization profiles.</p>
-<pre><code class="language-text">system {
-    authentication {
-        tacacs {
-            server 10.0.0.1 {
-                port 49
-                key &quot;SHARED_SECRET&quot;
-            }
-            timeout 5
-            authorization true
-            accounting true
-        }
-        tacacs-profile 15 {
-            profile [ admin ]
-        }
-        tacacs-profile 1 {
-            profile [ read-only ]
-        }
-    }
-}
+<h2 id="6-add-tacacs-later">6. Add TACACS+ later</h2>
+<p>Local users stay useful as break-glass accounts. TACACS+ can be added under <code>system.authentication.tacacs</code> and mapped back to the same local authorization profiles. Use the same zefs update pattern as above and append these set-format lines:</p>
+<pre><code class="language-text">set system authentication tacacs server 10.0.0.1 port 49
+set system authentication tacacs server 10.0.0.1 key SHARED_SECRET
+set system authentication tacacs timeout 5
+set system authentication tacacs authorization enable
+set system authentication tacacs accounting enable
+set system authentication tacacs-profile 15 profile admin
+set system authentication tacacs-profile 1 profile read-only
 </code></pre>
 <p>TACACS+ authentication is tried before local bcrypt. A server rejection stops the chain. A server outage falls back to local authentication, so break-glass local users can still log in. <code>strict-fallback true</code> does not block that login; it makes command <em>authorization</em> fail closed (deny) during a TACACS outage instead of falling back to the local RBAC profiles.</p>
-<h2 id="9-operational-checks">9. Operational checks</h2>
+<h2 id="7-operational-checks">7. Operational checks</h2>
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
 /usr/local/bin/ze show audit
 /usr/local/bin/ze show aaa accounting
 /usr/local/bin/ze show warnings
 </code></pre>
-<p>Use <code>admin</code> to recover from a broken profile, then correct the config, validate it, import it, and reload.</p>
+<p>Use <code>admin</code> to recover from a broken profile, then correct the config in zefs, validate it, and reload.</p>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>

@@ -22,103 +22,54 @@ Example topology:
 | public HTTP | looking glass | `0.0.0.0:8443` | n/a |
 | local SSH | operator CLI | `127.0.0.1:2222` | n/a |
 
-## 2. Write the config
+## 2. Update the active zefs config
+
+Keep the active configuration in `database.zefs`. The commands below read the current active config, normalize it to set format, append the looking-glass settings, render the import file, validate the result, import it back into zefs, and reload the daemon. They do not create `/etc/ze/edge-01.conf`.
 
 ```bash
-ADMIN_HASH="$(printf '%s\n' 'CHANGE_ME_BOOTSTRAP' | /usr/local/bin/ze passwd)"
+set -euo pipefail
 
-sudo tee /etc/ze/edge-01.conf >/dev/null <<EOF
-environment {
-    looking-glass {
-        enabled true
-        server public {
-            ip 0.0.0.0
-            port 8443
-        }
-        tls false
-    }
-    ssh {
-        enabled true
-        server ops {
-            ip 127.0.0.1
-            port 2222
-        }
-    }
-}
+umask 077
+CONFIG_SET="$(mktemp)"
+CONFIG_IMPORT="$(mktemp)"
+trap 'rm -f "$CONFIG_SET" "$CONFIG_IMPORT"' EXIT
 
-system {
-    authentication {
-        user admin {
-            password "$ADMIN_HASH"
-            profile [ admin ]
-        }
-    }
-    authorization {
-        profile admin {
-            run {
-                default-action allow
-            }
-            edit {
-                default-action allow
-            }
-        }
-    }
-}
+sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o "$CONFIG_SET" -
 
-bgp {
-    router-id 198.51.100.10
-    session {
-        asn {
-            local 65020
-        }
-    }
+cat >>"$CONFIG_SET" <<'EOF'
+set environment looking-glass enabled enable
+set environment looking-glass server public ip 0.0.0.0
+set environment looking-glass server public port 8443
+set environment looking-glass tls disable
 
-    peer rs1 {
-        description "Route server peer"
-        connection {
-            remote {
-                ip 198.51.100.1
-            }
-            local {
-                ip 198.51.100.10
-            }
-        }
-        session {
-            asn {
-                local 65020
-                remote 65000
-            }
-            family {
-                ipv4/unicast {
-                    prefix {
-                        maximum 1000000
-                    }
-                }
-            }
-        }
-    }
-}
+set environment ssh server main ip 127.0.0.1
+set environment ssh server main port 2222
+
+set bgp router-id 198.51.100.10
+set bgp session asn local 65020
+set bgp peer rs1 description "Route server peer"
+set bgp peer rs1 connection remote ip 198.51.100.1
+set bgp peer rs1 connection local ip 198.51.100.10
+set bgp peer rs1 session asn local 65020
+set bgp peer rs1 session asn remote 65000
+set bgp peer rs1 session family ipv4/unicast prefix maximum 1000000
 EOF
-sudo chmod 0600 /etc/ze/edge-01.conf
-```
 
-The looking glass server defaults are `ip 0.0.0.0`, `port 8443`, and `tls false`; the values are shown explicitly so the copy-paste config is clear.
-
-## 3. Validate, import, and reload
-
-```bash
-sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
-sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
+/usr/local/bin/ze config migrate --format hierarchical -o "$CONFIG_IMPORT" "$CONFIG_SET"
+/usr/local/bin/ze config validate "$CONFIG_IMPORT"
+sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service
 ```
 
 Expected validation output:
 
 ```text
-configuration valid: /etc/ze/edge-01.conf
+configuration valid: /tmp/tmp.XXXXXXXXXX
 ```
 
-## 4. Open the UI
+The looking glass server defaults are `ip 0.0.0.0`, `port 8443`, and `tls false`; the values are shown explicitly so the copy-paste config is clear. The example keeps SSH on localhost by updating the existing `server main` listener from the Ubuntu install guide.
+
+## 3. Open the UI
 
 From a browser:
 
@@ -136,7 +87,7 @@ curl -fsS http://127.0.0.1:8443/api/looking-glass/protocols/bgp
 curl -fsS 'http://127.0.0.1:8443/api/looking-glass/routes/prefix?prefix=10.0.0.0/24'
 ```
 
-## 5. Birdwatcher-compatible API paths
+## 4. Birdwatcher-compatible API paths
 
 The looking glass exposes birdwatcher-style read-only endpoints under `/api/looking-glass/`.
 
@@ -155,7 +106,7 @@ Additional endpoints exist for filtered, exported, and no-export routes, route c
 
 The UI under `/lg/` uses the same data and adds the peer table, route lookup, route search, and AS-path graph.
 
-## 6. Publish it safely
+## 5. Publish it safely
 
 The looking glass is read-only, but it still publishes topology and routing information. Common deployment choices:
 
@@ -180,7 +131,7 @@ environment {
 }
 ```
 
-## 7. Operations
+## 6. Operations
 
 ```bash
 export XDG_RUNTIME_DIR=/run/ze
