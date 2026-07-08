@@ -187,10 +187,22 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 | 5 Prometheus behavioral spy tests | L25 | DONE (committed separately) | Added `counter`/`counterVec` spy accessors + `reactor_metrics_behavioral_test.go` (4 tests) driving real producers (`Reload`, `IncrUpdatesReceived`, `updatePeerStateMetric`, `readAndProcessMessage`) with exact-delta assertions. RED verified by temporarily neutering `session_read.go:129` (reverted). Test-only; no production change. |
 | 2 Raw-mode default-originate-filter | L119 | DONE (committed separately) | Runtime fail-closed guard (matches existing malformed-ref style): `default_originate_raw.go` `defaultOriginateRejectsRawFilter` + `filterRawInfo` seam, wired into `defaultOriginateFilterAccepts`. A raw filter can't gate the synthetic default route (no wire bytes -> empty hex); reject + warn. Tests: 3 in `peer_initial_sync_test.go`. Chose reject-at-runtime over pre-encode: default-originate is a pure accept/reject gate, the text form already describes the fixed default route, and the codebase validates these refs at runtime not config-load. |
 | 4 Decorators v2 | L89 | DONE (committed separately) | Two web display decorators (RPKI-status already shipped via bgp/plugins/rpki_decorator): `reverse-dns` (IP→PTR via `resolvers.DNS.ResolvePTR`) wired to `connection.remote.ip` YANG leaf; `community-name` (well-known community→RFC name, reuses `attribute.Community.String()`, no resolver). Both registered in `service_web.go`. Tests: `decorator_reverse_dns_test.go`, `decorator_community_test.go`, + schema wiring assertion in `yang_schema_test.go`. Community leaf wiring deferred (no community leaf exists in BGP YANG; decorator registered + available). |
-| 3 AS-Confederation OTC | L88 | todo | |
+| 3 AS-Confederation OTC | L88 | RE-DEFERRED (blocked on confederation-member support) | See "Item 3 re-deferral" below. Verified against code: ze is a single-AS speaker with no confed-id/member-AS config, so RFC 9234 §5 confederation rules are vacuously satisfied and the existing single-AS OTC egress is already §5-correct. Implementing true confederation OTC requires first building confederation-member support (large, separate feature). |
 | 7 Prometheus phase 6 | L84 | todo | |
 | 1 GR advanced (selection-deferral, VPN ATTR_SET, hard-reset) | L81,L86 | todo | |
+
+## Item 3 re-deferral (AS-Confederation OTC, L88)
+
+**Decision (2026-07-08, user):** re-defer unchanged; no code change.
+
+**Verified evidence:**
+- ze is a single-AS speaker: `role.getLocalASN()` (role.go:66) returns one `filterLocalASN`, set from config (role.go:158). There is **no** confederation-member configuration in ze (no confed-id, no member-AS list). The only confederation code is AS_PATH segment parsing (AS_CONFED_SEQUENCE/SET, RFC 5065/6793) at `attribute/aspath.go:33-34` and the skip in `reactor_wire.go:125` — wire-level pass-through, not local confederation identity.
+- OTC egress stamps the single local AS (`otc.go:429`), and `checkOTCEgress` (`otc.go:201`) suppresses OTC-tagged routes to Provider/Peer/RS. Per RFC 9234 §5 ("On egress from the Internet-facing AS, the OTC Attribute MUST NOT contain a value other than the Internet-facing ASN"), this is already correct for a non-confederation speaker.
+- RFC 9234 §5's confederation-specific rules (OTC value MUST equal the Confederation Identifier, not a Member-AS) bind only a speaker that **is** a confederation. With exactly one AS, they are vacuously satisfied. §5 also states OTC/Roles between confederation members is NOT RECOMMENDED.
+
+**Why re-deferred, not implemented:** true confederation OTC requires first building AS-confederation-member support (confed-id + member-AS config, confederation-eBGP session semantics, AS_CONFED segment origination), a large feature far beyond "advanced OTC." Tracked for a future dedicated confederation spec.
 
 ## Notes
 - Skeleton = captured intent, not a designed spec (see `ai/rules/deferral-tracking.md`). Moves to `design` when someone picks it up.
 - Being implemented item-by-item (smallest-first), each committed separately. Umbrella stays open until all 7 land or remaining items are re-deferred.
+- Item 3 (L88) re-deferred (see above); items 6, 5, 2, 4 done+committed; items 7, 1 remaining.
