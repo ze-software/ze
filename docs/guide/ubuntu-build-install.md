@@ -1,0 +1,274 @@
+# Build and install Ze on Ubuntu
+
+This page starts from a blank Ubuntu server and leaves you with an installed `ze` binary, a `database.zefs`, an SSH listener, a systemd service, and one place to add Ze features.
+
+The commands assume Ubuntu 24.04 or newer, `sudo`, and an `amd64` or `arm64` host. Replace `edge-01` and every password before running them on a real box.
+
+<!-- source: scripts/dev/dev-setup.py -- Ubuntu package names and setup helper -->
+<!-- source: Makefile -- build target and default feature tags -->
+<!-- source: internal/plugins/init/main.go -- ze init input format and database.zefs creation -->
+<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- SSH server and user config -->
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- authorization profile config -->
+
+## 1. Install build tools
+
+Ubuntu's packaged Go may lag the version Ze needs, so install Go from `go.dev` and let `apt` provide the rest.
+
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+  ca-certificates \
+  curl \
+  git \
+  build-essential \
+  make \
+  python3 \
+  pipx \
+  jq \
+  protobuf-compiler
+```
+
+Install Go 1.26. Pick the current 1.26 patch release from <https://go.dev/dl/> if a newer patch exists.
+
+```bash
+GO_VERSION=1.26.0
+GO_ARCH="$(dpkg --print-architecture)"
+case "$GO_ARCH" in
+  amd64|arm64) ;;
+  *) echo "unsupported Go architecture: $GO_ARCH" >&2; exit 1 ;;
+esac
+
+curl -fsSLO "https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf "go${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
+
+cat >> "$HOME/.profile" <<'EOF'
+export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH
+EOF
+export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH
+
+go version
+```
+
+Optional tools for appliance and ISO work:
+
+```bash
+sudo apt-get install -y qemu-system-x86 e2fsprogs xorriso grub-efi-amd64-bin
+```
+
+Ze also ships a setup checker. It uses the same tool list as the developer and appliance checks.
+
+```bash
+git clone https://codeberg.org/thomas-mangin/ze.git
+cd ze
+make ze-setup CHECK=1 || true
+```
+
+In check mode (`CHECK=1`) this lists anything missing as `[missing] <tool>` and exits non-zero. Run plain `make ze-setup` without `CHECK=1` to have it print the `sudo apt-get install ...` commands for the missing packages. It never runs `sudo` for you.
+
+## 2. Build Ze
+
+`make build` compiles the normal Ze binary and helper binaries.
+
+```bash
+cd ~/ze
+make build
+```
+
+Expected files:
+
+```bash
+ls -1 bin/ze bin/ze-setup bin/ze-test bin/ze-chaos bin/ze-perf
+```
+
+`make build` also produces `bin/ze-appliance`, `bin/ze-stripped`, and `bin/ze-analyze`.
+
+The default build includes the feature gates listed in `feature-gates.txt` through `ZE_FEATURES` in the Makefile. Services such as SSH, web, REST, gRPC, gNMI, telemetry, looking glass, OSPF, IS-IS, LDP, and RSVP-TE are compiled in by the normal `make build` path.
+
+If you deliberately want a smaller custom binary, override the feature set. `ZE_TAGS` only *appends* to the full default feature set, so overriding `ZE_FEATURES` (or using the `ze-stripped` target, or `go build -tags ze_core`) is what actually shrinks the binary. This is for packagers and lab work, not the normal install path.
+
+```bash
+make ze ZE_FEATURES="ze_ssh ze_lg ze_web"
+```
+
+## 3. Install the binary
+
+Install the built binary into `/usr/local/bin/ze` and create the default config directory.
+
+```bash
+sudo ./bin/ze install local --prefix /usr/local
+/usr/local/bin/ze version
+```
+
+`/usr/local/bin/ze` uses `/etc/ze` as its config directory.
+
+## 4. Create `database.zefs`
+
+`ze init` creates `/etc/ze/database.zefs`. It stores the bootstrap admin user, the SSH client defaults, and the instance name. The input lines are:
+
+1. username
+2. password
+3. SSH host for local CLI credentials, empty means `127.0.0.1`
+4. SSH port for local CLI credentials, empty means `2222`
+5. instance name, used as the default config filename
+
+```bash
+sudo install -d -m 0700 /etc/ze
+printf 'admin\nCHANGE_ME_BOOTSTRAP\n\n\nedge-01\n' | sudo /usr/local/bin/ze init
+sudo test -s /etc/ze/database.zefs
+```
+
+This creates the zefs bootstrap admin. Keep it as a recovery user until you have tested the configured users below.
+
+## 5. Create the first config with SSH and RBAC
+
+Hash the configured user passwords before putting them in a file. Static imported config should use the `password` leaf with a bcrypt hash. The interactive config editor can use `plaintext-password`, but a copied file should not persist plaintext.
+
+```bash
+ADMIN_HASH="$(printf '%s\n' 'CHANGE_ME_BOOTSTRAP' | /usr/local/bin/ze passwd)"
+NOC_HASH="$(printf '%s\n' 'CHANGE_ME_NOC' | /usr/local/bin/ze passwd)"
+
+sudo install -m 0600 /dev/null /etc/ze/edge-01.conf
+sudo tee /etc/ze/edge-01.conf >/dev/null <<EOF
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 0.0.0.0
+            port 2222
+        }
+        idle-timeout 600
+        max-sessions 32
+    }
+}
+
+system {
+    authentication {
+        user admin {
+            password "$ADMIN_HASH"
+            profile [ admin ]
+        }
+        user noc {
+            password "$NOC_HASH"
+            profile [ read-only ]
+        }
+    }
+    authorization {
+        profile admin {
+            run {
+                default-action allow
+            }
+            edit {
+                default-action allow
+            }
+        }
+        profile read-only {
+            run {
+                default-action allow
+            }
+            edit {
+                default-action deny
+            }
+        }
+    }
+}
+EOF
+sudo chmod 0600 /etc/ze/edge-01.conf
+```
+
+The explicit `admin` user matters. Once any configured user has profile assignments, unassigned users are denied by local RBAC. Defining `admin` in config keeps the bootstrap name usable with an explicit `admin` profile.
+
+## 6. Validate and import the config into zefs
+
+`ze start` reads the active config from zefs. The instance name from `ze init` was `edge-01`, so import the file as `edge-01.conf`.
+
+```bash
+sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
+sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
+sudo /usr/local/bin/ze config ls
+```
+
+Expected validation output:
+
+```text
+configuration valid: /etc/ze/edge-01.conf
+```
+
+## 7. Install and start systemd
+
+```bash
+sudo /usr/local/bin/ze install systemd --start
+systemctl status ze.service --no-pager
+```
+
+The generated unit starts `/usr/local/bin/ze start`, uses `/etc/ze` as `ZE_CONFIG_DIR`, and sets the runtime directory to `/run/ze`.
+
+For local operator commands from the shell, either run as root with the same config directory, or point the CLI at the systemd runtime socket:
+
+```bash
+export XDG_RUNTIME_DIR=/run/ze
+/usr/local/bin/ze status
+/usr/local/bin/ze cli -c "help"
+```
+
+## 8. Test SSH login and RBAC
+
+The `admin` user can run operational and edit commands. The `noc` user can run operational commands but cannot edit config.
+
+```bash
+export XDG_RUNTIME_DIR=/run/ze
+ZE_SSH_PASSWORD='CHANGE_ME_BOOTSTRAP' /usr/local/bin/ze cli --user admin -c "help"
+ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --user noc -c "help"
+```
+
+If the server listens on a management address, connect remotely with `--remote host:port`, using the host and port from `environment ssh`.
+
+```bash
+ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --remote 192.0.2.10:2222 --user noc -c "help"
+```
+
+## 9. Add features
+
+There are two kinds of feature work.
+
+| Feature type | What you change | Example |
+| --- | --- | --- |
+| Compiled service | Build tags or the default `make build` path | `ze_lg` compiles the looking glass server |
+| Runtime feature | Config blocks and plugin declarations | `environment looking-glass`, `plugin internal bgp-rr`, `firewall backend nft` |
+
+For normal installs, keep the default binary and add runtime features in config. The rest of the howto pages use this pattern:
+
+```text
+plugin {
+    internal bgp-rr {
+        use bgp-rr
+    }
+}
+```
+
+After editing the config, validate it, import it under the active name, and reload the daemon.
+
+```bash
+sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
+sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
+sudo systemctl reload ze.service
+```
+
+Use the pages below as feature-specific starting points:
+
+| Page | Adds |
+| --- | --- |
+| [Operator access with SSH and RBAC](operator-access-rbac.md) | Local users, profiles, public keys, TACACS+ pointers |
+| [FlowSpec route reflector](flowspec-route-reflector.md) | `bgp-rr`, iBGP FlowSpec clients, route-reflector-client flags |
+| [FlowSpec protected router](flowspec-protected-router.md) | nft firewall backend, control-plane policing, FlowSpec firewall bridge |
+| [Looking glass](looking-glass-howto.md) | public read-only HTTP looking glass and birdwatcher-compatible API |
+
+## 10. Stop or roll back
+
+```bash
+sudo systemctl stop ze.service
+sudo /usr/local/bin/ze uninstall systemd
+sudo /usr/local/bin/ze uninstall local
+```
+
+Use `--purge` only when you want to remove `/etc/ze` and `database.zefs`.
