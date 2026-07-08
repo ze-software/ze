@@ -51,13 +51,13 @@ func serverDispatcher(s *pluginserver.Server, surface string) plugin.CommandDisp
 		}
 		// Thread a genuine per-request context: the REST/gRPC transport passes
 		// its request ctx so the command cancels with the request. Text surfaces
-		// (web/mcp/lg/chaos/ssh/cli) have no request-scoped context and pass
-		// context.Background(); leaving RequestContext nil then makes
-		// CommandContext.Context() fall back to the server context, so an
-		// in-flight command still cancels on daemon shutdown -- matching the
-		// pre-unification serverDispatcherWithSurface, which never set
-		// RequestContext.
-		if ctx != nil && ctx != context.Background() {
+		// (web/mcp/lg/chaos/ssh/cli) have no request-scoped context and pass a
+		// never-canceling placeholder (context.Background(), or context.TODO());
+		// leaving RequestContext nil then makes CommandContext.Context() fall
+		// back to the server context, so an in-flight command still cancels on
+		// daemon shutdown -- matching the pre-unification
+		// serverDispatcherWithSurface, which never set RequestContext.
+		if ctx != nil && ctx != context.Background() && ctx != context.TODO() {
 			cmdCtx.RequestContext = ctx
 		}
 		return d.Dispatch(cmdCtx, command)

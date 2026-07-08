@@ -73,6 +73,14 @@ func TestServerDispatcherContextThreading(t *testing.T) {
 	require.NotNil(t, seen)
 	assert.Nil(t, seen.RequestContext, "context.Background() must not be threaded as the request context")
 
+	// context.TODO() is the other never-canceling placeholder and must be
+	// treated identically (server-context fallback, not a pinned request ctx).
+	seen = nil
+	_, err = d(context.TODO(), plugin.CallerIdentity{}, "test ctx")
+	require.NoError(t, err)
+	require.NotNil(t, seen)
+	assert.Nil(t, seen.RequestContext, "context.TODO() must not be threaded as the request context")
+
 	// API surface: a real per-request context is threaded through unchanged.
 	seen = nil
 	type ctxKey struct{}
