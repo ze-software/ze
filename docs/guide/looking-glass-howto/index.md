@@ -124,7 +124,6 @@ From a browser:
 
 ```text
 http://198.51.100.10:8443/lg/peers
-http://198.51.100.10:8443/lg/lookup
 http://198.51.100.10:8443/lg/search
 http://198.51.100.10:8443/lg/graph?prefix=10.10.1.0/24&mode=aspath
 ```
@@ -152,6 +151,8 @@ The looking glass exposes birdwatcher-style read-only endpoints under `/api/look
 | `/api/looking-glass/routes/prefix?prefix=10.0.0.0/24` | exact or containing prefix lookup |
 | `/api/looking-glass/routes/search?prefix=10.0.0.0/24` | prefix search |
 
+Additional endpoints exist for filtered, exported, and no-export routes, route counts, and BMP-derived tables.
+
 The UI under `/lg/` uses the same data and adds the peer table, route lookup, route search, and AS-path graph.
 
 ## 6. Publish it safely
@@ -164,7 +165,7 @@ The looking glass is read-only, but it still publishes topology and routing info
 | Reverse proxy on the same host | `ip 127.0.0.1`, proxy handles TLS and policy |
 | Internal only | bind to a management address and filter at the network edge |
 
-If Ze terminates TLS itself, set `tls true` and make sure the zefs database is present so certificates can be stored.
+If Ze terminates TLS itself, set `tls true`. This requires a zefs blob store to hold the certificate, so create one first with `ze init` (see [Build and install Ze on Ubuntu](../ubuntu-build-install/index.md)); otherwise startup fails with `looking glass TLS requires blob storage (run ze init first)`.
 
 ```text
 environment {

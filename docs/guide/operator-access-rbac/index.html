@@ -569,7 +569,7 @@ EOF
         tacacs {
             server 10.0.0.1 {
                 port 49
-                key &quot;$9$encrypted-key&quot;
+                key &quot;SHARED_SECRET&quot;
             }
             timeout 5
             authorization true
@@ -584,7 +584,7 @@ EOF
     }
 }
 </code></pre>
-<p>TACACS+ authentication is tried before local bcrypt. A server rejection stops the chain. A server outage falls back to local users unless <code>strict-fallback true</code> is set.</p>
+<p>TACACS+ authentication is tried before local bcrypt. A server rejection stops the chain. A server outage falls back to local authentication, so break-glass local users can still log in. <code>strict-fallback true</code> does not block that login; it makes command <em>authorization</em> fail closed (deny) during a TACACS outage instead of falling back to the local RBAC profiles.</p>
 <h2 id="9-operational-checks">9. Operational checks</h2>
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
 /usr/local/bin/ze show audit

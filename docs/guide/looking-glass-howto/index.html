@@ -491,7 +491,6 @@ sudo systemctl reload ze.service
 <h2 id="4-open-the-ui">4. Open the UI</h2>
 <p>From a browser:</p>
 <pre><code class="language-text">http://198.51.100.10:8443/lg/peers
-http://198.51.100.10:8443/lg/lookup
 http://198.51.100.10:8443/lg/search
 http://198.51.100.10:8443/lg/graph?prefix=10.10.1.0/24&amp;mode=aspath
 </code></pre>
@@ -544,6 +543,7 @@ curl -fsS 'http://127.0.0.1:8443/api/looking-glass/routes/prefix?prefix=10.0.0.0
 </tr>
 </tbody>
 </table>
+<p>Additional endpoints exist for filtered, exported, and no-export routes, route counts, and BMP-derived tables.</p>
 <p>The UI under <code>/lg/</code> uses the same data and adds the peer table, route lookup, route search, and AS-path graph.</p>
 <h2 id="6-publish-it-safely">6. Publish it safely</h2>
 <p>The looking glass is read-only, but it still publishes topology and routing information. Common deployment choices:</p>
@@ -569,7 +569,7 @@ curl -fsS 'http://127.0.0.1:8443/api/looking-glass/routes/prefix?prefix=10.0.0.0
 </tr>
 </tbody>
 </table>
-<p>If Ze terminates TLS itself, set <code>tls true</code> and make sure the zefs database is present so certificates can be stored.</p>
+<p>If Ze terminates TLS itself, set <code>tls true</code>. This requires a zefs blob store to hold the certificate, so create one first with <code>ze init</code> (see <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a>); otherwise startup fails with <code>looking glass TLS requires blob storage (run ze init first)</code>.</p>
 <pre><code class="language-text">environment {
     looking-glass {
         enabled true

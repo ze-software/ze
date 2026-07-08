@@ -28,7 +28,7 @@ This page uses these addresses:
 ```bash
 sudo tee /etc/ze/edge-01.conf >/dev/null <<'EOF'
 plugin {
-    internal rr {
+    internal bgp-rr {
         use bgp-rr
     }
 }
@@ -71,7 +71,7 @@ bgp {
                 }
             }
         }
-        process rr {
+        process bgp-rr {
         }
     }
 
@@ -102,7 +102,7 @@ bgp {
                 }
             }
         }
-        process rr {
+        process bgp-rr {
         }
     }
 
@@ -133,7 +133,7 @@ bgp {
                 }
             }
         }
-        process rr {
+        process bgp-rr {
         }
     }
 }
@@ -145,8 +145,8 @@ What matters:
 
 | Config | Why |
 | --- | --- |
-| `plugin internal rr { use bgp-rr }` | Starts the in-process route reflector plugin. |
-| `process rr { }` on each peer | Binds the peer to the declared plugin name. |
+| `plugin internal bgp-rr { use bgp-rr }` | Starts the in-process route reflector plugin. |
+| `process bgp-rr { }` on each peer | Binds the peer to the declared plugin name. |
 | `family ipv4/flow` | Negotiates FlowSpec NLRI with the peer. |
 | `route-reflector-client true` on edge clients | Routes from clients are reflected to all clients and non-clients. |
 | `next-hop unchanged` | Keeps the mitigation next-hop unchanged. Change this only when your design requires next-hop rewrite. |
@@ -181,24 +181,24 @@ If a peer does not show the FlowSpec family, check the remote router address-fam
 
 ## 5. Inject a test FlowSpec rule
 
-From a peer or from a lab shell that can inject into the session, send a simple drop rule. The rule below matches TCP traffic to `10.0.0.0/8` with destination port 80.
+The reflector only reflects FlowSpec it *receives*, so originate the test rule from a peer that announces toward the reflector, not from the reflector itself. The rule below matches TCP traffic to `10.0.0.0/8` with destination port 80.
 
-```text
-update text extended-community discard \
-  nlri ipv4/flow add \
-  destination 10.0.0.0/8 \
-  protocol tcp \
-  destination-port =80
+If the source peer (`mitigation-upstream`, `10.0.0.2`) is itself a Ze node, announce toward the reflector (`10.0.0.1`) with the required `peer <selector>` prefix:
+
+```bash
+export XDG_RUNTIME_DIR=/run/ze
+/usr/local/bin/ze cli -c "peer 10.0.0.1 update text extended-community discard nlri ipv4/flow add destination 10.0.0.0/8 protocol tcp destination-port =80"
 ```
+
+The `peer <selector>` prefix is required; the update command does not dispatch without it. On a non-Ze source, use that router's FlowSpec origination syntax instead.
 
 Withdraw it with the same match components:
 
-```text
-update text nlri ipv4/flow del \
-  destination 10.0.0.0/8 \
-  protocol tcp \
-  destination-port =80
+```bash
+/usr/local/bin/ze cli -c "peer 10.0.0.1 update text nlri ipv4/flow del destination 10.0.0.0/8 protocol tcp destination-port =80"
 ```
+
+Then confirm `edge-a` and `edge-b` received the reflected rule with `show rr peers` or the client's own FlowSpec table.
 
 The `bgp-rr` plugin forwards cached UPDATEs and the reactor applies the route-reflection rules, including source exclusion, client to all, non-client to clients only, `ORIGINATOR_ID`, `CLUSTER_LIST`, and next-hop policy.
 
@@ -230,6 +230,6 @@ Common mistakes:
 | Symptom | Check |
 | --- | --- |
 | Peer up but no FlowSpec routes | Confirm `ipv4/flow` was negotiated on both sides. |
-| Updates are reflected back to the origin | Confirm the source peer is bound to `process rr` and is visible in `show rr peers`. |
+| Updates are reflected back to the origin | Confirm the source peer is bound to `process bgp-rr` and is visible in `show rr peers`. |
 | Clients do not receive non-client routes | Confirm client peers have `route-reflector-client true`. |
-| Config validates but plugin is absent at runtime | Confirm the binary was built with the default plugin set and the `plugin internal rr` block was imported into the active config. |
+| Config validates but plugin is absent at runtime | Confirm the binary was built with the default plugin set and the `plugin internal bgp-rr` block was imported into the active config. |

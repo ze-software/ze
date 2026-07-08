@@ -195,9 +195,7 @@ def _nav_badge(href, aria_label, icon_path, icon_viewbox, count_text):
     return (
         "                    <a\n"
         '                        class="nav-badge"\n'
-        '                        href="%s"\n'
-        '                        target="_blank"\n'
-        '                        rel="noopener"\n'
+        '                        href="%s" target="_blank" rel="noopener"\n'
         '                        aria-label="%s"\n'
         "                    >\n"
         '                        <span class="nav-badge-icon">'

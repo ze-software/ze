@@ -406,7 +406,7 @@
 <h2 id="2-write-the-ze-config">2. Write the Ze config</h2>
 <pre><code class="language-bash">sudo tee /etc/ze/edge-01.conf &gt;/dev/null &lt;&lt;'EOF'
 plugin {
-    internal rr {
+    internal bgp-rr {
         use bgp-rr
     }
 }
@@ -449,7 +449,7 @@ bgp {
                 }
             }
         }
-        process rr {
+        process bgp-rr {
         }
     }
 
@@ -480,7 +480,7 @@ bgp {
                 }
             }
         }
-        process rr {
+        process bgp-rr {
         }
     }
 
@@ -511,7 +511,7 @@ bgp {
                 }
             }
         }
-        process rr {
+        process bgp-rr {
         }
     }
 }
@@ -528,11 +528,11 @@ sudo chmod 0600 /etc/ze/edge-01.conf
 </thead>
 <tbody>
 <tr>
-<td><code>plugin internal rr { use bgp-rr }</code></td>
+<td><code>plugin internal bgp-rr { use bgp-rr }</code></td>
 <td>Starts the in-process route reflector plugin.</td>
 </tr>
 <tr>
-<td><code>process rr { }</code> on each peer</td>
+<td><code>process bgp-rr { }</code> on each peer</td>
 <td>Binds the peer to the declared plugin name.</td>
 </tr>
 <tr>
@@ -570,19 +570,16 @@ sudo systemctl reload ze.service
 </code></pre>
 <p>If a peer does not show the FlowSpec family, check the remote router address-family configuration first. Ze cannot reflect a family that was not negotiated.</p>
 <h2 id="5-inject-a-test-flowspec-rule">5. Inject a test FlowSpec rule</h2>
-<p>From a peer or from a lab shell that can inject into the session, send a simple drop rule. The rule below matches TCP traffic to <code>10.0.0.0/8</code> with destination port 80.</p>
-<pre><code class="language-text">update text extended-community discard \
-  nlri ipv4/flow add \
-  destination 10.0.0.0/8 \
-  protocol tcp \
-  destination-port =80
+<p>The reflector only reflects FlowSpec it <em>receives</em>, so originate the test rule from a peer that announces toward the reflector, not from the reflector itself. The rule below matches TCP traffic to <code>10.0.0.0/8</code> with destination port 80.</p>
+<p>If the source peer (<code>mitigation-upstream</code>, <code>10.0.0.2</code>) is itself a Ze node, announce toward the reflector (<code>10.0.0.1</code>) with the required <code>peer &lt;selector&gt;</code> prefix:</p>
+<pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
+/usr/local/bin/ze cli -c &quot;peer 10.0.0.1 update text extended-community discard nlri ipv4/flow add destination 10.0.0.0/8 protocol tcp destination-port =80&quot;
 </code></pre>
+<p>The <code>peer &lt;selector&gt;</code> prefix is required; the update command does not dispatch without it. On a non-Ze source, use that router's FlowSpec origination syntax instead.</p>
 <p>Withdraw it with the same match components:</p>
-<pre><code class="language-text">update text nlri ipv4/flow del \
-  destination 10.0.0.0/8 \
-  protocol tcp \
-  destination-port =80
+<pre><code class="language-bash">/usr/local/bin/ze cli -c &quot;peer 10.0.0.1 update text nlri ipv4/flow del destination 10.0.0.0/8 protocol tcp destination-port =80&quot;
 </code></pre>
+<p>Then confirm <code>edge-a</code> and <code>edge-b</code> received the reflected rule with <code>show rr peers</code> or the client's own FlowSpec table.</p>
 <p>The <code>bgp-rr</code> plugin forwards cached UPDATEs and the reactor applies the route-reflection rules, including source exclusion, client to all, non-client to clients only, <code>ORIGINATOR_ID</code>, <code>CLUSTER_LIST</code>, and next-hop policy.</p>
 <h2 id="6-router-side-shape">6. Router-side shape</h2>
 <p>On a conventional router, configure the Ze node as an iBGP route reflector and enable the FlowSpec address family. Vendor syntax differs, but the intent is always the same:</p>
@@ -614,7 +611,7 @@ address-family ipv4 flowspec
 </tr>
 <tr>
 <td>Updates are reflected back to the origin</td>
-<td>Confirm the source peer is bound to <code>process rr</code> and is visible in <code>show rr peers</code>.</td>
+<td>Confirm the source peer is bound to <code>process bgp-rr</code> and is visible in <code>show rr peers</code>.</td>
 </tr>
 <tr>
 <td>Clients do not receive non-client routes</td>
@@ -622,7 +619,7 @@ address-family ipv4 flowspec
 </tr>
 <tr>
 <td>Config validates but plugin is absent at runtime</td>
-<td>Confirm the binary was built with the default plugin set and the <code>plugin internal rr</code> block was imported into the active config.</td>
+<td>Confirm the binary was built with the default plugin set and the <code>plugin internal bgp-rr</code> block was imported into the active config.</td>
 </tr>
 </tbody>
 </table>

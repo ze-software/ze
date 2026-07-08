@@ -240,7 +240,7 @@ def source_links(refs, sources):
         if not source:
             continue
         links.append(
-            '<a href="%s">%s</a>'
+            '<a href="%s" target="_blank" rel="noopener">%s</a>'
             % (html.escape(source.get("url", ""), quote=True), html.escape(source.get("label", ref)))
         )
     if not links:
@@ -408,13 +408,13 @@ def render_sources(mapping):
     if mapping.get("sources"):
         parts.append("<h2>Local sources</h2><ul>")
         for ref, source in sorted(mapping["sources"].items()):
-            parts.append('<li><a href="%s">%s</a> <code>%s</code></li>' % (html.escape(source["url"], quote=True), html.escape(source["label"]), html.escape(ref)))
+            parts.append('<li><a href="%s" target="_blank" rel="noopener">%s</a> <code>%s</code></li>' % (html.escape(source["url"], quote=True), html.escape(source["label"]), html.escape(ref)))
         parts.append("</ul>")
     parts.append("<h2>Vendor documents</h2>")
     for vendor in mapping.get("vendors", {}).values():
         parts.append("<h3>%s</h3><ul>" % html.escape(vendor["label"]))
         for doc in vendor.get("documentation", []):
-            parts.append('<li><a href="%s">%s</a> <code>%s</code></li>' % (html.escape(doc["url"], quote=True), html.escape(doc["label"]), html.escape(doc["id"])))
+            parts.append('<li><a href="%s" target="_blank" rel="noopener">%s</a> <code>%s</code></li>' % (html.escape(doc["url"], quote=True), html.escape(doc["label"]), html.escape(doc["id"])))
         parts.append("</ul>")
     parts.append("</details>")
     return "\n".join(parts)

@@ -463,9 +463,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                 <span>what is ready and what is still young</span></a
                             >
                             <a
-                                href="https://discord.gg/T8s7CjPDne"
-                                target="_blank"
-                                rel="noopener"
+                                href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener"
                                 >Ask on Discord
                                 <span>talk to the project before a weekend build</span></a
                             >

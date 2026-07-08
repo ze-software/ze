@@ -414,6 +414,7 @@ def render(
     if manifest is not None:
         body_html = rewrite_doc_links(body_html, doc_rel, manifest, dest_rel_dir)
         md_out = rewrite_doc_links_markdown(md_text, doc_rel, manifest, dest_rel_dir)
+    body_html = sitelib.patch_external_link_targets(body_html)
     body_html = wrap_journey_hero(
         body_html, journey_label or default_journey_label(dest, doc_rel)
     )

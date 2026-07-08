@@ -208,7 +208,7 @@ system {
         tacacs {
             server 10.0.0.1 {
                 port 49
-                key "$9$encrypted-key"
+                key "SHARED_SECRET"
             }
             timeout 5
             authorization true
@@ -224,7 +224,7 @@ system {
 }
 ```
 
-TACACS+ authentication is tried before local bcrypt. A server rejection stops the chain. A server outage falls back to local users unless `strict-fallback true` is set.
+TACACS+ authentication is tried before local bcrypt. A server rejection stops the chain. A server outage falls back to local authentication, so break-glass local users can still log in. `strict-fallback true` does not block that login; it makes command *authorization* fail closed (deny) during a TACACS outage instead of falling back to the local RBAC profiles.
 
 ## 9. Operational checks
 

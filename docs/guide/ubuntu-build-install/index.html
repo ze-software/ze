@@ -408,7 +408,7 @@ go version
 cd ze
 make ze-setup CHECK=1 || true
 </code></pre>
-<p>On Ubuntu, <code>make ze-setup</code> prints <code>sudo apt-get install ...</code> commands for anything missing. It does not run <code>sudo</code> for you.</p>
+<p>In check mode (<code>CHECK=1</code>) this lists anything missing as <code>[missing] &lt;tool&gt;</code> and exits non-zero. Run plain <code>make ze-setup</code> without <code>CHECK=1</code> to have it print the <code>sudo apt-get install ...</code> commands for the missing packages. It never runs <code>sudo</code> for you.</p>
 <h2 id="2-build-ze">2. Build Ze</h2>
 <p><code>make build</code> compiles the normal Ze binary and helper binaries.</p>
 <pre><code class="language-bash">cd ~/ze
@@ -417,9 +417,10 @@ make build
 <p>Expected files:</p>
 <pre><code class="language-bash">ls -1 bin/ze bin/ze-setup bin/ze-test bin/ze-chaos bin/ze-perf
 </code></pre>
+<p><code>make build</code> also produces <code>bin/ze-appliance</code>, <code>bin/ze-stripped</code>, and <code>bin/ze-analyze</code>.</p>
 <p>The default build includes the feature gates listed in <code>feature-gates.txt</code> through <code>ZE_FEATURES</code> in the Makefile. Services such as SSH, web, REST, gRPC, gNMI, telemetry, looking glass, OSPF, IS-IS, LDP, and RSVP-TE are compiled in by the normal <code>make build</code> path.</p>
-<p>If you deliberately want a smaller custom binary, pass your own tags. This is for packagers and lab work, not the normal install path.</p>
-<pre><code class="language-bash">ZE_TAGS=&quot;ze_ssh ze_lg ze_web&quot; make ze
+<p>If you deliberately want a smaller custom binary, override the feature set. <code>ZE_TAGS</code> only <em>appends</em> to the full default feature set, so overriding <code>ZE_FEATURES</code> (or using the <code>ze-stripped</code> target, or <code>go build -tags ze_core</code>) is what actually shrinks the binary. This is for packagers and lab work, not the normal install path.</p>
+<pre><code class="language-bash">make ze ZE_FEATURES=&quot;ze_ssh ze_lg ze_web&quot;
 </code></pre>
 <h2 id="3-install-the-binary">3. Install the binary</h2>
 <p>Install the built binary into <code>/usr/local/bin/ze</code> and create the default config directory.</p>
@@ -498,7 +499,7 @@ sudo chmod 0600 /etc/ze/edge-01.conf
 <p><code>ze start</code> reads the active config from zefs. The instance name from <code>ze init</code> was <code>edge-01</code>, so import the file as <code>edge-01.conf</code>.</p>
 <pre><code class="language-bash">sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
 sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
-sudo /usr/local/bin/ze config ls file/active
+sudo /usr/local/bin/ze config ls
 </code></pre>
 <p>Expected validation output:</p>
 <pre><code class="language-text">configuration valid: /etc/ze/edge-01.conf
@@ -519,8 +520,8 @@ systemctl status ze.service --no-pager
 ZE_SSH_PASSWORD='CHANGE_ME_BOOTSTRAP' /usr/local/bin/ze cli --user admin -c &quot;help&quot;
 ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --user noc -c &quot;help&quot;
 </code></pre>
-<p>If the server listens on a management address, connect remotely by passing the host and port used in <code>environment ssh</code>.</p>
-<pre><code class="language-bash">ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --host 192.0.2.10 --port 2222 --user noc -c &quot;help&quot;
+<p>If the server listens on a management address, connect remotely with <code>--remote host:port</code>, using the host and port from <code>environment ssh</code>.</p>
+<pre><code class="language-bash">ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --remote 192.0.2.10:2222 --user noc -c &quot;help&quot;
 </code></pre>
 <h2 id="9-add-features">9. Add features</h2>
 <p>There are two kinds of feature work.</p>
@@ -541,13 +542,13 @@ ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --user noc -c &quot;help&q
 <tr>
 <td>Runtime feature</td>
 <td>Config blocks and plugin declarations</td>
-<td><code>environment looking-glass</code>, <code>plugin internal rr</code>, <code>firewall backend nft</code></td>
+<td><code>environment looking-glass</code>, <code>plugin internal bgp-rr</code>, <code>firewall backend nft</code></td>
 </tr>
 </tbody>
 </table>
 <p>For normal installs, keep the default binary and add runtime features in config. The rest of the howto pages use this pattern:</p>
 <pre><code class="language-text">plugin {
-    internal rr {
+    internal bgp-rr {
         use bgp-rr
     }
 }

@@ -144,10 +144,10 @@ configuration valid: /etc/ze/edge-01.conf
 export XDG_RUNTIME_DIR=/run/ze
 /usr/local/bin/ze cli -c "show bgp peer list"
 /usr/local/bin/ze show warnings
-sudo nft list ruleset | sed -n '/table inet ze_/,+80p'
+sudo nft list ruleset | sed -n '/table inet flowspec/,+80p'
 ```
 
-The FlowSpec bridge generates an nft table named from the Ze owner `flowspec`. It creates base chains for forwarded traffic and local input traffic when rules exist:
+The FlowSpec bridge generates an nft table named `flowspec`. It creates base chains for forwarded traffic and local input traffic when rules exist:
 
 | Chain | Hook | Used for |
 | --- | --- | --- |
@@ -156,29 +156,25 @@ The FlowSpec bridge generates an nft table named from the Ze owner `flowspec`. I
 
 ## 5. Test with a safe FlowSpec rule
 
-Use a lab prefix first. The example below drops TCP traffic to `10.0.0.0/8` port 80.
+The bridge only programs nftables from FlowSpec that `edge-01` *receives*, so the rule must be announced from a peer toward `edge-01`, not injected on `edge-01` itself. Use a lab prefix first. The example below drops TCP traffic to `10.0.0.0/8` port 80.
 
-```text
-update text extended-community discard \
-  nlri ipv4/flow add \
-  destination 10.0.0.0/8 \
-  protocol tcp \
-  destination-port =80
-```
-
-Check that nftables received a rule:
+If the source (`flowspec-rr`, `203.0.113.1`) is a Ze node, announce toward `edge-01` (`192.0.2.10`) with the required `peer <selector>` prefix:
 
 ```bash
-sudo nft list table inet ze_flowspec
+export XDG_RUNTIME_DIR=/run/ze
+/usr/local/bin/ze cli -c "peer 192.0.2.10 update text extended-community discard nlri ipv4/flow add destination 10.0.0.0/8 protocol tcp destination-port =80"
 ```
 
-Withdraw the test rule:
+On a non-Ze source, use that router's FlowSpec origination syntax instead. Then, on `edge-01`, check that nftables received a rule:
 
-```text
-update text nlri ipv4/flow del \
-  destination 10.0.0.0/8 \
-  protocol tcp \
-  destination-port =80
+```bash
+sudo nft list table inet flowspec
+```
+
+Withdraw the test rule from the same source:
+
+```bash
+/usr/local/bin/ze cli -c "peer 192.0.2.10 update text nlri ipv4/flow del destination 10.0.0.0/8 protocol tcp destination-port =80"
 ```
 
 ## 6. Protect the BGP session itself

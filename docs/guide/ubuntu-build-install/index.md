@@ -64,7 +64,7 @@ cd ze
 make ze-setup CHECK=1 || true
 ```
 
-On Ubuntu, `make ze-setup` prints `sudo apt-get install ...` commands for anything missing. It does not run `sudo` for you.
+In check mode (`CHECK=1`) this lists anything missing as `[missing] <tool>` and exits non-zero. Run plain `make ze-setup` without `CHECK=1` to have it print the `sudo apt-get install ...` commands for the missing packages. It never runs `sudo` for you.
 
 ## 2. Build Ze
 
@@ -81,12 +81,14 @@ Expected files:
 ls -1 bin/ze bin/ze-setup bin/ze-test bin/ze-chaos bin/ze-perf
 ```
 
+`make build` also produces `bin/ze-appliance`, `bin/ze-stripped`, and `bin/ze-analyze`.
+
 The default build includes the feature gates listed in `feature-gates.txt` through `ZE_FEATURES` in the Makefile. Services such as SSH, web, REST, gRPC, gNMI, telemetry, looking glass, OSPF, IS-IS, LDP, and RSVP-TE are compiled in by the normal `make build` path.
 
-If you deliberately want a smaller custom binary, pass your own tags. This is for packagers and lab work, not the normal install path.
+If you deliberately want a smaller custom binary, override the feature set. `ZE_TAGS` only *appends* to the full default feature set, so overriding `ZE_FEATURES` (or using the `ze-stripped` target, or `go build -tags ze_core`) is what actually shrinks the binary. This is for packagers and lab work, not the normal install path.
 
 ```bash
-ZE_TAGS="ze_ssh ze_lg ze_web" make ze
+make ze ZE_FEATURES="ze_ssh ze_lg ze_web"
 ```
 
 ## 3. Install the binary
@@ -183,7 +185,7 @@ The explicit `admin` user matters. Once any configured user has profile assignme
 ```bash
 sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
 sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
-sudo /usr/local/bin/ze config ls file/active
+sudo /usr/local/bin/ze config ls
 ```
 
 Expected validation output:
@@ -219,10 +221,10 @@ ZE_SSH_PASSWORD='CHANGE_ME_BOOTSTRAP' /usr/local/bin/ze cli --user admin -c "hel
 ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --user noc -c "help"
 ```
 
-If the server listens on a management address, connect remotely by passing the host and port used in `environment ssh`.
+If the server listens on a management address, connect remotely with `--remote host:port`, using the host and port from `environment ssh`.
 
 ```bash
-ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --host 192.0.2.10 --port 2222 --user noc -c "help"
+ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --remote 192.0.2.10:2222 --user noc -c "help"
 ```
 
 ## 9. Add features
@@ -232,13 +234,13 @@ There are two kinds of feature work.
 | Feature type | What you change | Example |
 | --- | --- | --- |
 | Compiled service | Build tags or the default `make build` path | `ze_lg` compiles the looking glass server |
-| Runtime feature | Config blocks and plugin declarations | `environment looking-glass`, `plugin internal rr`, `firewall backend nft` |
+| Runtime feature | Config blocks and plugin declarations | `environment looking-glass`, `plugin internal bgp-rr`, `firewall backend nft` |
 
 For normal installs, keep the default binary and add runtime features in config. The rest of the howto pages use this pattern:
 
 ```text
 plugin {
-    internal rr {
+    internal bgp-rr {
         use bgp-rr
     }
 }
