@@ -191,7 +191,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 | 4 Decorators v2 | L89 | DONE (committed separately) | Two web display decorators (RPKI-status already shipped via bgp/plugins/rpki_decorator): `reverse-dns` (IP→PTR via `resolvers.DNS.ResolvePTR`) wired to `connection.remote.ip` YANG leaf; `community-name` (well-known community→RFC name, reuses `attribute.Community.String()`, no resolver). Both registered in `service_web.go`. Tests: `decorator_reverse_dns_test.go`, `decorator_community_test.go`, + schema wiring assertion in `yang_schema_test.go`. Community leaf wiring deferred (no community leaf exists in BGP YANG; decorator registered + available). |
 | 3 AS-Confederation OTC | L88 | RE-DEFERRED (blocked on confederation-member support) | See "Item 3 re-deferral" below. Verified against code: ze is a single-AS speaker with no confed-id/member-AS config, so RFC 9234 §5 confederation rules are vacuously satisfied and the existing single-AS OTC egress is already §5-correct. Implementing true confederation OTC requires first building confederation-member support (large, separate feature). |
 | 7 Prometheus phase 6 | L84 | DONE (3 sub-commits) | 7a: `RegisterRuntimeCollectors` on `PrometheusRegistry` (go_*/process_* via vendored collectors subpkg), called from telemetry exporter. 7b: `ze_bgp_as_path_loop_detected_total{peer}` in the loop filter (`SetMetricsRegistry` wired from reactor metrics-enable block, since the loop filter isn't a run plugin). 7c: `ze_rpki_aspa_outcomes_total{result}` in `buildDecisions` (RPKI origin validation already metered). Tests: `runtime_collectors_test.go`, `loop_metrics_test.go`, `aspa_metrics_test.go`. |
-| 1 GR advanced (selection-deferral, VPN ATTR_SET, hard-reset) | L81,L86 | todo | |
+| 1 GR advanced (selection-deferral, VPN ATTR_SET, hard-reset) | L81,L86 | DEFERRED to `plan/spec-gr-advanced.md` | Split by RFC/subsystem (2026-07-08). Two genuine GR features (hard-reset RFC 8538, selection-deferral timer RFC 4724 §4.1) captured in the destination spec with verified Current Behavior. VPN ATTR_SET (RFC 6368) is an L3VPN feature mis-bundled here; deferred further to a future L3VPN spec (recorded in `spec-gr-advanced.md` "Known Limitations / Deferred"). ze is GR-Helper-only today; both in-scope features add negotiation/restarting-speaker behaviour that does not exist yet. |
 
 ## Item 3 re-deferral (AS-Confederation OTC, L88)
 
@@ -207,4 +207,8 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 ## Notes
 - Skeleton = captured intent, not a designed spec (see `ai/rules/deferral-tracking.md`). Moves to `design` when someone picks it up.
 - Being implemented item-by-item (smallest-first), each committed separately. Umbrella stays open until all 7 land or remaining items are re-deferred.
-- Item 3 (L88) re-deferred (see above); items 6, 5, 2, 4 done+committed; items 7, 1 remaining.
+- Item 3 (L88) re-deferred (see above); items 6, 5, 2, 4, 7 done+committed.
+- Item 1 (L81,L86) deferred 2026-07-08 to a dedicated destination spec `plan/spec-gr-advanced.md`
+  (hard-reset RFC 8538 + selection-deferral timer RFC 4724 §4.1 in scope; VPN ATTR_SET RFC 6368
+  split further to a future L3VPN spec). With this, all 7 umbrella items are done or deferred
+  with a destination — the umbrella can be closed (two-commit closure) when the user chooses.
