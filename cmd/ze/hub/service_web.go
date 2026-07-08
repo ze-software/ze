@@ -290,6 +290,12 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	if resolvers != nil && resolvers.Cymru != nil {
 		decorators.Register(zeweb.NewASNNameDecoratorFromCymru(resolvers.Cymru))
 	}
+	if resolvers != nil && resolvers.DNS != nil {
+		decorators.Register(zeweb.NewReverseDNSDecoratorFromResolver(resolvers.DNS))
+	}
+	// community-name maps well-known community values to their RFC names via the
+	// in-process registry; no external resolver needed.
+	decorators.Register(zeweb.NewCommunityNameDecorator())
 	renderer.SetDecorators(decorators)
 
 	srv, err := zeweb.NewWebServer(zeweb.WebConfig{

@@ -309,6 +309,7 @@ module ze-bgp-conf {
                             }
                         }
                     }
+                    ze:decorate "reverse-dns";
                     description "Peer IP address or 'dynamic' for dynamic peer groups";
                 }
                 leaf port {

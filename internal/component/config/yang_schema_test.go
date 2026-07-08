@@ -174,6 +174,21 @@ func TestYANGSchemaDecorateExtension(t *testing.T) {
 	ridLeaf, ok := routerID.(*LeafNode)
 	require.True(t, ok)
 	assert.Empty(t, ridLeaf.Decorate, "router-id should not be decorated")
+
+	// Peer connection.remote.ip should have ze:decorate "reverse-dns" (decorators-v2, L119).
+	connNode := peer.Get("connection")
+	require.NotNil(t, connNode)
+	connContainer, ok := connNode.(*ContainerNode)
+	require.True(t, ok)
+	remoteNode := connContainer.Get("remote")
+	require.NotNil(t, remoteNode)
+	remoteContainer, ok := remoteNode.(*ContainerNode)
+	require.True(t, ok)
+	remoteIP := remoteContainer.Get("ip")
+	require.NotNil(t, remoteIP)
+	remoteIPLeaf, ok := remoteIP.(*LeafNode)
+	require.True(t, ok)
+	assert.Equal(t, "reverse-dns", remoteIPLeaf.Decorate, "peer connection.remote.ip should have ze:decorate reverse-dns")
 }
 
 func TestYANGSchemaSyntaxHints(t *testing.T) {
