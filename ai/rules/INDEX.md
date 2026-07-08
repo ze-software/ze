@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 79 rules
+Total: 80 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -75,6 +75,7 @@ Total: 79 rules
 | Plugin Process Boundary | Writing or reviewing a plugin that calls another in-process package's plain exported function directly (not through DirectBridge/DispatchCommand) to register a callback, fetch a live backend handle,... | `ai/rules/plugin-process-boundary.md` |
 | Plugin Self-Containment (BLOCKING) | This is the load-bearing invariant of the registration architecture. It is the "delete the folder" test from `ai/rules/plugin-design.md` (Proximity Principle), stated for the full user-facing... | `ai/rules/plugin-self-containment.md` |
 | Ze Project Knowledge | One-line lesson + rule pointer. Full root-cause in the linked learned summary. | `ai/rules/project-knowledge.md` |
+| Protocol Subpackage Skeleton (advisory) | creating a new protocol implementation, adding the first subpackages to a single-package protocol, or reorganizing a protocol's module layout. | `ai/rules/protocol-skeleton.md` |
 | QEMU Integration Testing | Linux-only code (`//go:build linux`) MUST ship with integration tests that run in the QEMU Alpine VM. "Needs real hardware" is never a valid reason to skip tests. Virtual substitutes exist for every... | `ai/rules/qemu-testing.md` |
 | Quality Standards | All checks must pass before claiming "done." | `ai/rules/quality.md` |
 | Registration-Based Dispatch | Switch-based dispatch: - Hides available commands from help/completion systems - Requires editing the dispatcher when adding a command (violates open/closed) - Cannot provide "did you mean?"... | `ai/rules/registration-dispatch.md` |

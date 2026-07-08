@@ -288,6 +288,7 @@ _ze-verify-changed-impl: ze-lint-changed ze-tier-check ze-iface-resolution-check
 ze-tier-check:
 	@python3 scripts/dev/dep_audit.py --selftest
 	@python3 scripts/dev/dep_audit.py --check
+	@python3 scripts/dev/protocol_skeleton_report.py
 
 # No-direct-resolution gate (plan/spec-iface-resolve-0-umbrella.md AC-U1,
 # sub-spec 7): interface consumers must resolve logical names via the shared
