@@ -1,13 +1,33 @@
 package bgpconfig
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
+
+// refs builds a FilterRef chain from canonical strings, mapping an "inactive:"
+// prefix to the structural deactivation flag. Shared by bgpconfig tests to keep
+// filter chains expressed compactly against the post-refactor []FilterRef API.
+func refs(names ...string) []filterapi.FilterRef {
+	if len(names) == 0 {
+		return nil
+	}
+	out := make([]filterapi.FilterRef, len(names))
+	for i, n := range names {
+		if rest, ok := strings.CutPrefix(n, "inactive:"); ok {
+			out[i] = filterapi.FilterRef{Name: rest, Inactive: true}
+		} else {
+			out[i] = filterapi.FilterRef{Name: n}
+		}
+	}
+	return out
+}
 
 // TestFilterRegistryEmpty verifies nil policy tree returns empty registry.
 //
@@ -128,7 +148,7 @@ func TestValidateFilterNamesAllValid(t *testing.T) {
 	reg, err := BuildFilterRegistry(policyTree, policySchema)
 	require.NoError(t, err)
 
-	err = reg.ValidateFilterNames([]string{"foo", "bar"}, "peer 10.0.0.1 import")
+	err = reg.ValidateFilterNames(refs("foo", "bar"), "peer 10.0.0.1 import")
 	assert.NoError(t, err)
 }
 
@@ -147,7 +167,7 @@ func TestValidateFilterNamesUnknown(t *testing.T) {
 	reg, err := BuildFilterRegistry(policyTree, policySchema)
 	require.NoError(t, err)
 
-	err = reg.ValidateFilterNames([]string{"foo", "missing"}, "peer 10.0.0.1 import")
+	err = reg.ValidateFilterNames(refs("foo", "missing"), "peer 10.0.0.1 import")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "peer 10.0.0.1 import")
 	assert.Contains(t, err.Error(), "missing")
@@ -168,7 +188,7 @@ func TestValidateFilterNamesInactivePrefix(t *testing.T) {
 	reg, err := BuildFilterRegistry(policyTree, policySchema)
 	require.NoError(t, err)
 
-	err = reg.ValidateFilterNames([]string{"inactive:foo"}, "peer 10.0.0.1 export")
+	err = reg.ValidateFilterNames(refs("inactive:foo"), "peer 10.0.0.1 export")
 	assert.NoError(t, err)
 }
 
@@ -187,7 +207,7 @@ func TestValidateFilterNamesInactiveUnknown(t *testing.T) {
 	reg, err := BuildFilterRegistry(policyTree, policySchema)
 	require.NoError(t, err)
 
-	err = reg.ValidateFilterNames([]string{"inactive:bar"}, "peer 10.0.0.1 export")
+	err = reg.ValidateFilterNames(refs("inactive:bar"), "peer 10.0.0.1 export")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "bar")
 }
@@ -207,7 +227,7 @@ func TestValidateFilterNamesColonSkipped(t *testing.T) {
 	reg, err := BuildFilterRegistry(policyTree, policySchema)
 	require.NoError(t, err)
 
-	err = reg.ValidateFilterNames([]string{"rpki:validate", "foo"}, "peer 10.0.0.1 import")
+	err = reg.ValidateFilterNames(refs("rpki:validate", "foo"), "peer 10.0.0.1 import")
 	assert.NoError(t, err, "colon names should be skipped, plain names validated")
 }
 
@@ -218,6 +238,6 @@ func TestValidateFilterNamesColonSkipped(t *testing.T) {
 func TestValidateFilterNamesInactiveColonSkipped(t *testing.T) {
 	reg := &FilterRegistry{entries: make(map[string]FilterEntry)}
 
-	err := reg.ValidateFilterNames([]string{"inactive:rpki:validate"}, "peer 10.0.0.1 import")
+	err := reg.ValidateFilterNames(refs("inactive:rpki:validate"), "peer 10.0.0.1 import")
 	assert.NoError(t, err)
 }

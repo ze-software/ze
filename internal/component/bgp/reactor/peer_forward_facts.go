@@ -50,7 +50,7 @@ type peerForwardFacts struct {
 	localASReplaceAS bool
 	name             string
 	groupName        string
-	exportFilters    []string
+	exportFilters    []filterapi.FilterRef
 
 	clusterID      uint32
 	clusterIDBytes [4]byte

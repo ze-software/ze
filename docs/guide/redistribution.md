@@ -66,7 +66,7 @@ Example: `rpki:validate`, `community:scrub`.
 
 ## Deactivating Filters
 
-Default filters can be deactivated per-peer using the `inactive:` prefix:
+Default filters can be deactivated per-peer using the inline `inactive:` prefix:
 
 ```
 bgp {
@@ -78,6 +78,12 @@ bgp {
 }
 ```
 
+The `inactive:` prefix is an input shorthand: it is normalized at parse time into
+an out-of-band per-member deactivation marker (the stored filter name stays
+clean), so on serialize it round-trips to the canonical `inactive: import
+no-self-as` statement form. The deactivated ref stays in the chain but is
+skipped at runtime.
+
 In the CLI editor, use `deactivate` and `activate`:
 
 ```
@@ -85,7 +91,9 @@ deactivate bgp peer special filter import no-self-as
 activate bgp peer special filter import no-self-as
 ```
 
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- inactive: prefix skipping -->
+<!-- source: internal/component/config/parser_list.go -- stripInactiveMemberPrefix (inline inactive: normalization) -->
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain builds []FilterRef with Inactive -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain skips FilterRef.Inactive -->
 
 ## Chain Order
 

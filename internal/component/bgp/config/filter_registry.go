@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
@@ -77,18 +78,18 @@ func (r *FilterRegistry) Len() int {
 	return len(r.entries)
 }
 
-// ValidateFilterNames checks that policy filter names in the list exist in the registry.
-// Skips names with "inactive:" prefix (deactivated filters are syntactically valid).
-// Skips names containing ":" after stripping inactive: (external plugin filters validated
-// at runtime, not parse time -- plugins register at stage 1, after config parsing).
-func (r *FilterRegistry) ValidateFilterNames(names []string, context string) error {
-	for _, name := range names {
-		clean := strings.TrimPrefix(name, "inactive:")
-		if strings.Contains(clean, ":") {
+// ValidateFilterNames checks that policy filter names in the chain exist in the
+// registry. Deactivated refs are validated the same as active ones (deactivation
+// is a structural bool on FilterRef, not part of the name).
+// Skips names containing ":" (external plugin filters validated at runtime, not
+// parse time -- plugins register at stage 1, after config parsing).
+func (r *FilterRegistry) ValidateFilterNames(refs []filterapi.FilterRef, context string) error {
+	for _, ref := range refs {
+		if strings.Contains(ref.Name, ":") {
 			continue // external plugin filter (plugin:filter), validated at runtime
 		}
-		if _, ok := r.entries[clean]; !ok {
-			return fmt.Errorf("%s: unknown filter %q", context, clean)
+		if _, ok := r.entries[ref.Name]; !ok {
+			return fmt.Errorf("%s: unknown filter %q", context, ref.Name)
 		}
 	}
 	return nil

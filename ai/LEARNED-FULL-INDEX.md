@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1096 summaries
+Total: 1097 summaries
 
 ## 000-099
 
@@ -1160,3 +1160,4 @@ Total: 1096 summaries
 | 1082 | unify-response-envelope | `plan/learned/1082-unify-response-envelope.md` |
 | 1083 | unify-startup | `plan/learned/1083-unify-startup.md` |
 | 1084 | radius-admin-backend | `plan/learned/1084-radius-admin-backend.md` |
+| 1085 | unify-tree-deactivation | `plan/learned/1085-unify-tree-deactivation.md` |

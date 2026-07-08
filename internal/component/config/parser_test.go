@@ -833,7 +833,8 @@ func TestInsertMultiValue(t *testing.T) {
 	}
 }
 
-// VALIDATES: DeactivateMultiValue adds inactive: prefix to leaf-list value.
+// VALIDATES: DeactivateMultiValue marks a leaf-list member deactivated
+// out-of-band; the effective view drops it while the structural view keeps it.
 // PREVENTS: Deactivation silently ignored for missing values.
 func TestDeactivateMultiValue(t *testing.T) {
 	tree := NewTree()
@@ -841,11 +842,17 @@ func TestDeactivateMultiValue(t *testing.T) {
 
 	err := tree.DeactivateMultiValue("import", "no-self-as")
 	require.NoError(t, err)
-	require.Equal(t, []string{"inactive:no-self-as", "reject-bogons"}, tree.GetSlice("import"))
+	// Effective view: deactivated member excluded. No "inactive:" string.
+	require.Equal(t, []string{"reject-bogons"}, tree.GetSlice("import"))
+	if _, inactive := tree.MultiValueMemberState("import", "no-self-as"); true {
+		require.True(t, inactive, "no-self-as recorded deactivated out-of-band")
+	}
+	require.Equal(t, []MemberState{{Value: "no-self-as", Inactive: true}, {Value: "reject-bogons"}},
+		tree.GetMultiValuesState("import"))
 
-	// Verify values map in sync.
+	// Verify values map in sync (active-only join).
 	v, _ := tree.Get("import")
-	require.Equal(t, "inactive:no-self-as reject-bogons", v)
+	require.Equal(t, "reject-bogons", v)
 
 	// Deactivating nonexistent value fails.
 	err = tree.DeactivateMultiValue("import", "missing")
@@ -857,17 +864,21 @@ func TestDeactivateMultiValue(t *testing.T) {
 	assert.Contains(t, err.Error(), "already deactivated")
 }
 
-// VALIDATES: ActivateMultiValue removes inactive: prefix from leaf-list value.
-// PREVENTS: Activation silently ignored for values without prefix.
+// VALIDATES: ActivateMultiValue clears the out-of-band deactivation marker.
+// PREVENTS: Activation silently ignored for members that are not deactivated.
 func TestActivateMultiValue(t *testing.T) {
 	tree := NewTree()
-	tree.SetSlice("import", []string{"inactive:no-self-as", "reject-bogons"})
+	tree.SetSlice("import", []string{"no-self-as", "reject-bogons"})
+	require.NoError(t, tree.DeactivateMultiValue("import", "no-self-as"))
 
 	err := tree.ActivateMultiValue("import", "no-self-as")
 	require.NoError(t, err)
 	require.Equal(t, []string{"no-self-as", "reject-bogons"}, tree.GetSlice("import"))
+	if _, inactive := tree.MultiValueMemberState("import", "no-self-as"); true {
+		require.False(t, inactive, "no-self-as reactivated")
+	}
 
-	// Activating value without inactive: prefix fails.
+	// Activating a member that is not deactivated fails.
 	err = tree.ActivateMultiValue("import", "reject-bogons")
 	require.Error(t, err)
 }

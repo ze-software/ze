@@ -193,12 +193,31 @@ func diffBracketLeaf(lines *[]diffLine, orig, mod *config.Tree, name, prefix str
 	}
 }
 
-func diffValueOrArray(lines *[]diffLine, orig, mod *config.Tree, name, prefix string) {
-	origItems := orig.GetSlice(name)
-	modItems := mod.GetSlice(name)
+// memberDisplay renders a leaf-list's members for the tree diff, marking any
+// deactivated member with the inactive: prefix. Per-member deactivation lives
+// out-of-band on the Tree; reconstructing the compact prefix here keeps a
+// deactivation change visible in the diff (byte-identical to the pre-refactor
+// in-band display) rather than silently dropping the member.
+func memberDisplay(tree *config.Tree, name string) []string {
+	state := tree.GetMultiValuesState(name)
+	if len(state) == 0 {
+		return nil
+	}
+	out := make([]string, len(state))
+	var tb textbuf.Buffer
+	for i, m := range state {
+		if m.Inactive {
+			out[i] = tb.Reset().Str("inactive:").Str(m.Value).String()
+		} else {
+			out[i] = m.Value
+		}
+	}
+	return out
+}
 
-	origText := formatSlice(origItems)
-	modText := formatSlice(modItems)
+func diffValueOrArray(lines *[]diffLine, orig, mod *config.Tree, name, prefix string) {
+	origText := formatSlice(memberDisplay(orig, name))
+	modText := formatSlice(memberDisplay(mod, name))
 
 	var tb textbuf.Buffer
 	switch {

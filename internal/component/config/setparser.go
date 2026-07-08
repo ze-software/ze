@@ -249,15 +249,21 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if len(tokens) == 0 {
 			return nil // structural-only: no value to set
 		}
-		items := bracketItems(tokens)
-		if err := validateValueOrArrayItems(valueOrArray, name, items, lineNum); err != nil {
+		// Normalize an inline "inactive:" member prefix into the out-of-band
+		// marker (same accepted input form as the hierarchical parser), so the
+		// stored member value stays clean and is validated clean.
+		clean, deactivated := stripInactiveMemberPrefix(bracketItems(tokens))
+		if err := validateValueOrArrayItems(valueOrArray, name, clean, lineNum); err != nil {
 			return err
 		}
 		// Add-member merge: each line appends missing members (JunOS set
 		// semantics); members land in the multi-value store the serializers
 		// read, with the scalar map kept in sync for Get() callers.
-		for _, item := range items {
+		for _, item := range clean {
 			tree.AddMultiValueMember(name, item)
+		}
+		for _, member := range deactivated {
+			_ = tree.DeactivateMultiValue(name, member)
 		}
 		return nil
 	}

@@ -17,6 +17,7 @@ import (
 	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -126,8 +127,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			ClusterID:            s.ClusterID,
 			NextHopMode:          s.NextHopMode,
 			NextHopAddress:       s.NextHopAddress,
-			ImportFilters:        s.ImportFilters,
-			ExportFilters:        s.ExportFilters,
+			ImportFilters:        filterapi.FilterRefStrings(s.ImportFilters),
+			ExportFilters:        filterapi.FilterRefStrings(s.ExportFilters),
 
 			OpensReceived:         stats.OpensReceived,
 			OpensSent:             stats.OpensSent,

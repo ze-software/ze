@@ -390,13 +390,15 @@ func TestLoopDetectionDefaultAutoPopulation(t *testing.T) {
 	require.Len(t, peers, 1)
 
 	ps := peers[0]
-	assert.Contains(t, ps.ImportFilters, "my-loop", "loop-detection should auto-populate in import chain")
+	assert.True(t, filterChainContains(ps.ImportFilters, "my-loop"), "loop-detection should auto-populate in import chain")
 	assert.Equal(t, uint8(3), ps.LoopAllowOwnAS, "auto-populated filter settings should be applied")
 }
 
-// TestLoopDetectionInactiveDisables verifies inactive: suppresses loop detection.
+// TestLoopDetectionInactiveDisables verifies a deactivated loop-detection filter
+// sets LoopDisabled on PeerSettings via the structural FilterRef.Inactive flag
+// (AC-3) -- no "inactive:" string prefix is involved on the value path.
 //
-// VALIDATES: inactive: on a loop-detection filter sets LoopDisabled on PeerSettings.
+// VALIDATES: deactivating a loop-detection filter sets LoopDisabled on PeerSettings.
 // PREVENTS: Deactivated loop detection still enforced by the in-process filter.
 func TestLoopDetectionInactiveDisables(t *testing.T) {
 	tree := config.NewTree()
@@ -408,10 +410,15 @@ func TestLoopDetectionInactiveDisables(t *testing.T) {
 	policy.AddListEntry("loop-detection", "my-loop", ldEntry)
 	bgp.SetContainer("policy", policy)
 
-	// Peer with inactive: on the loop-detection filter.
+	// Peer whose loop-detection filter is deactivated out-of-band (the member
+	// value stays clean; deactivation is a sibling marker).
 	peerTree := buildMinimalPeer("10.0.0.1", "65001", "auto")
 	filterTree := config.NewTree()
-	filterTree.SetSlice("import", []string{"inactive:my-loop"})
+	filterTree.SetSlice("import", []string{"my-loop"})
+	require.NoError(t, filterTree.DeactivateMultiValue("import", "my-loop"))
+	if _, inactive := filterTree.MultiValueMemberState("import", "my-loop"); true {
+		require.True(t, inactive, "my-loop deactivated out-of-band")
+	}
 	peerTree.SetContainer("filter", filterTree)
 
 	bgp.AddListEntry("peer", "peer1", peerTree)

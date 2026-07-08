@@ -254,7 +254,7 @@ func serializeBlameTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 			// Same form as the plain hierarchical serializer: bare members
 			// plus one `inactive: <leaf> <member>` line per deactivated
 			// member, never the internal "inactive:" prefix.
-			bare, inactiveMembers := splitInactiveMembers(items)
+			bare, inactiveMembers := splitInactiveMembers(items, tree.inactiveMembers[name])
 			writeBlameGutter(b, meta, name)
 			b.Str(prefix)
 			if tree.inactiveValues[name] {

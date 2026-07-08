@@ -2,10 +2,32 @@
 package reactor
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 )
+
+// frefs builds a FilterRef chain from canonical strings, treating an
+// "inactive:" prefix as the structural deactivation flag. It lets these tests
+// keep expressing chains in the compact string form they were written against
+// while exercising the post-refactor []FilterRef API.
+func frefs(names ...string) []filterapi.FilterRef {
+	if len(names) == 0 {
+		return nil
+	}
+	out := make([]filterapi.FilterRef, len(names))
+	for i, n := range names {
+		if rest, ok := strings.CutPrefix(n, "inactive:"); ok {
+			out[i] = filterapi.FilterRef{Name: rest, Inactive: true}
+		} else {
+			out[i] = filterapi.FilterRef{Name: n}
+		}
+	}
+	return out
+}
 
 // TestPolicyFilterChainAccept verifies accept passes through unchanged.
 //
@@ -18,7 +40,7 @@ func TestPolicyFilterChainAccept(t *testing.T) {
 		return PolicyResponse{Action: PolicyAccept}
 	}
 	res := PolicyFilterChain(
-		[]string{"test:accept"}, "import", "10.0.0.1", 65001,
+		frefs("test:accept"), "import", "10.0.0.1", 65001,
 		"origin igp as-path 65001 65002", fn,
 	)
 	assert.Equal(t, PolicyAccept, res.Action)
@@ -37,7 +59,7 @@ func TestPolicyFilterChainReject(t *testing.T) {
 		return PolicyResponse{Action: PolicyReject}
 	}
 	res := PolicyFilterChain(
-		[]string{"test:reject", "test:never"}, "import", "10.0.0.1", 65001,
+		frefs("test:reject", "test:never"), "import", "10.0.0.1", 65001,
 		"origin igp", fn,
 	)
 	assert.Equal(t, PolicyReject, res.Action)
@@ -54,7 +76,7 @@ func TestPolicyFilterChainModify(t *testing.T) {
 		return PolicyResponse{Action: PolicyModify, Delta: "local-preference 200"}
 	}
 	res := PolicyFilterChain(
-		[]string{"test:modify"}, "import", "10.0.0.1", 65001,
+		frefs("test:modify"), "import", "10.0.0.1", 65001,
 		"origin igp local-preference 100", fn,
 	)
 	assert.Equal(t, PolicyAccept, res.Action)
@@ -83,7 +105,7 @@ func TestPolicyFilterChainPipedTransform(t *testing.T) {
 		return PolicyResponse{Action: PolicyAccept}
 	}
 	res := PolicyFilterChain(
-		[]string{"a:set200", "b:set300", "c:accept"}, "import", "10.0.0.1", 65001,
+		frefs("a:set200", "b:set300", "c:accept"), "import", "10.0.0.1", 65001,
 		"origin igp local-preference 100", fn,
 	)
 	assert.Equal(t, PolicyAccept, res.Action)
@@ -104,7 +126,7 @@ func TestPolicyFilterChainShortCircuit(t *testing.T) {
 		return PolicyResponse{Action: PolicyAccept}
 	}
 	res := PolicyFilterChain(
-		[]string{"a:accept", "b:reject", "c:never"}, "import", "10.0.0.1", 65001,
+		frefs("a:accept", "b:reject", "c:never"), "import", "10.0.0.1", 65001,
 		"origin igp", fn,
 	)
 	assert.Equal(t, PolicyReject, res.Action)
@@ -131,7 +153,7 @@ func TestPolicyFilterChainInactiveSkipped(t *testing.T) {
 		called = append(called, plugin+":"+filter)
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	PolicyFilterChain([]string{"inactive:rpki:validate", "community:scrub"}, "import", "10.0.0.1", 65001, "origin igp", fn)
+	PolicyFilterChain(frefs("inactive:rpki:validate", "community:scrub"), "import", "10.0.0.1", 65001, "origin igp", fn)
 	assert.Equal(t, []string{"community:scrub"}, called, "inactive filter should not be called")
 }
 
@@ -147,7 +169,7 @@ func TestPolicyFilterChainDispatch(t *testing.T) {
 		gotDir = dir
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	PolicyFilterChain([]string{"rpki:validate"}, "import", "10.0.0.1", 65001, "origin igp", fn)
+	PolicyFilterChain(frefs("rpki:validate"), "import", "10.0.0.1", 65001, "origin igp", fn)
 	assert.Equal(t, "rpki", gotPlugin)
 	assert.Equal(t, "validate", gotFilter)
 	assert.Equal(t, "import", gotDir)
@@ -168,7 +190,7 @@ func TestPolicyFilterChainTeardown(t *testing.T) {
 		return PolicyResponse{Action: PolicyAccept}
 	}
 	res := PolicyFilterChain(
-		[]string{"fam:kill", "test:never"}, "import", "10.0.0.1", 65001,
+		frefs("fam:kill", "test:never"), "import", "10.0.0.1", 65001,
 		"origin igp", fn,
 	)
 	assert.Equal(t, PolicyReject, res.Action)
@@ -193,7 +215,7 @@ func TestPolicyFilterChainRawTerminal(t *testing.T) {
 		return PolicyResponse{Action: PolicyAccept}
 	}
 	res := PolicyFilterChain(
-		[]string{"fam:strip", "test:never"}, "import", "10.0.0.1", 65001,
+		frefs("fam:strip", "test:never"), "import", "10.0.0.1", 65001,
 		"origin igp", fn,
 	)
 	assert.Equal(t, PolicyModify, res.Action)

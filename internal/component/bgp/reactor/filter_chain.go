@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -172,17 +173,17 @@ type PolicyFilterFunc func(pluginName, filterName, direction, peer string, peerA
 // raw rewrite cannot be composed with downstream text deltas (the text was
 // derived from the original payload). A teardown request also short-circuits and
 // drops the route.
-func PolicyFilterChain(filterRefs []string, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) PolicyChainResult {
+func PolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) PolicyChainResult {
 	if len(filterRefs) == 0 {
 		return PolicyChainResult{Action: PolicyAccept, Text: updateText}
 	}
 
 	current := updateText
 	for _, ref := range filterRefs {
-		if strings.HasPrefix(ref, "inactive:") {
+		if ref.Inactive {
 			continue
 		}
-		pluginName, filterName, _ := strings.Cut(ref, ":")
+		pluginName, filterName, _ := strings.Cut(ref.Name, ":")
 		result := callFilter(pluginName, filterName, direction, peer, peerAS, current)
 
 		// Teardown short-circuits: the session is going away, so drop the route.

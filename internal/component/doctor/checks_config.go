@@ -121,14 +121,16 @@ func checkFilterRefs(filter *config.Tree, defined map[string]bool, path string) 
 	var diags []diagnostic.Diagnostic
 	var tb textbuf.Buffer
 	for _, dir := range []string{"import", "export"} {
-		refs := filter.GetSlice(dir)
-		for _, ref := range refs {
-			name := filterInstanceName(ref)
+		// Use the structural member view so deactivated refs are validated too:
+		// a deactivated ref to an undefined filter is still a latent config
+		// error worth flagging. The member value is clean (no inactive: prefix).
+		for _, m := range filter.GetMultiValuesState(dir) {
+			name := filterInstanceName(m.Value)
 			if len(defined) == 0 || !defined[name] {
 				diags = append(diags, diagnostic.Diagnostic{
 					Code:     "doctor-config-reference",
 					Severity: diagnostic.SeverityError,
-					Message:  tb.Reset().Str(path).Byte('/').Str(dir).Str(": references undefined filter '").Str(ref).Byte('\'').String(),
+					Message:  tb.Reset().Str(path).Byte('/').Str(dir).Str(": references undefined filter '").Str(m.Value).Byte('\'').String(),
 				})
 			}
 		}

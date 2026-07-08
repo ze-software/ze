@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 
@@ -262,8 +263,8 @@ type Peer struct {
 	// dynImportFilters/dynExportFilters store the original unresolved filter
 	// chains for dynamic peers. Captured on first Established transition so
 	// reconnections re-resolve from the template, not from stale resolved values.
-	dynImportFilters []string
-	dynExportFilters []string
+	dynImportFilters []filterapi.FilterRef
+	dynExportFilters []filterapi.FilterRef
 
 	// Collision detection (RFC 4271 §6.8):
 	// When an incoming connection arrives while we're in OpenConfirm,

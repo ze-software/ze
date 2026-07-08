@@ -673,7 +673,7 @@ func serializeAnnotatedSetChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 
 	case *ValueOrArrayNode:
 		if items := tree.multiValues[name]; len(items) > 0 {
-			bare, inactive := splitInactiveMembers(items)
+			bare, inactive := splitInactiveMembers(items, tree.inactiveMembers[name])
 			if len(inactive) > 0 || tree.inactiveValues[name] {
 				inactiveSet := make(map[string]bool, len(inactive))
 				for _, m := range inactive {

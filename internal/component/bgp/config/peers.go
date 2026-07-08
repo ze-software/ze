@@ -9,11 +9,11 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/redistribute"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -605,17 +605,15 @@ func applyLoopDetectionConfig(bgpContainer *config.Tree, peerIndex map[string]*r
 	}
 
 	for _, ps := range peerIndex {
-		for _, filterName := range ps.ImportFilters {
-			inactive := strings.HasPrefix(filterName, "inactive:")
-			clean := strings.TrimPrefix(filterName, "inactive:")
-			entry, ok := ldEntries[clean]
+		for _, ref := range ps.ImportFilters {
+			entry, ok := ldEntries[ref.Name]
 			if !ok {
 				continue
 			}
 
 			// If the loop-detection filter is deactivated, suppress the
 			// in-process LoopIngress for this peer.
-			if inactive {
+			if ref.Inactive {
 				ps.LoopDisabled = true
 				break
 			}
@@ -669,17 +667,16 @@ func prependDefaultFilters(bgpContainer *config.Tree, peerIndex map[string]*reac
 			if filterChainContains(ps.ImportFilters, dflt) {
 				continue
 			}
-			ps.ImportFilters = append([]string{dflt}, ps.ImportFilters...)
+			ps.ImportFilters = append([]filterapi.FilterRef{{Name: dflt}}, ps.ImportFilters...)
 		}
 	}
 }
 
-// filterChainContains checks if a filter chain contains a name,
-// accounting for the inactive: prefix.
-func filterChainContains(chain []string, name string) bool {
+// filterChainContains checks if a filter chain contains a name, regardless of
+// the ref's deactivation state.
+func filterChainContains(chain []filterapi.FilterRef, name string) bool {
 	for _, entry := range chain {
-		clean := strings.TrimPrefix(entry, "inactive:")
-		if clean == name {
+		if entry.Name == name {
 			return true
 		}
 	}

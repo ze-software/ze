@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md -- bgp/policy/family-filter config parsing
+// Related: handler.go -- family-filter runtime handler and export-chain guard
 
 package filter_family
 
@@ -111,9 +112,9 @@ func exportChain(m map[string]any) []string {
 
 // exportRefInstanceName returns the family-filter instance name a chain ref points
 // to, or "" if the ref targets another plugin. Accepts bgp-filter-family:NAME,
-// family-filter:NAME, and a bare NAME; an inactive: prefix is tolerated.
+// family-filter:NAME, and a bare NAME. Refs arrive clean via ToMap (per-member
+// deactivation is out-of-band), so there is no inactive: prefix to strip.
 func exportRefInstanceName(ref string) string {
-	ref = strings.TrimPrefix(ref, "inactive:")
 	if before, after, found := strings.Cut(ref, ":"); found {
 		if before == "bgp-filter-family" || before == "family-filter" {
 			return after

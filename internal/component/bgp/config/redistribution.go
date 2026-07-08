@@ -6,21 +6,38 @@ package bgpconfig
 import (
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
-// extractFilterChain extracts import and export filter lists from a config tree.
-// Returns raw name slices from the "filter" container. Validation against the
-// filter registry is the caller's responsibility.
-func extractFilterChain(tree *config.Tree) (importFilters, exportFilters []string) {
+// extractFilterChain extracts import and export filter chains from a config
+// tree. Each ref carries the clean filter name plus its per-member deactivation
+// state (read out-of-band via GetMultiValuesState); no "inactive:" prefix is
+// ever glued into a name. Validation against the filter registry is the
+// caller's responsibility.
+func extractFilterChain(tree *config.Tree) (importFilters, exportFilters []filterapi.FilterRef) {
 	fc := tree.GetContainer("filter")
 	if fc == nil {
 		return nil, nil
 	}
 
-	return fc.GetMultiValues("import"), fc.GetMultiValues("export")
+	return memberStatesToFilterRefs(fc.GetMultiValuesState("import")),
+		memberStatesToFilterRefs(fc.GetMultiValuesState("export"))
+}
+
+// memberStatesToFilterRefs maps the config Tree's structural member view onto
+// the reactor's FilterRef chain type.
+func memberStatesToFilterRefs(states []config.MemberState) []filterapi.FilterRef {
+	if len(states) == 0 {
+		return nil
+	}
+	refs := make([]filterapi.FilterRef, len(states))
+	for i, s := range states {
+		refs[i] = filterapi.FilterRef{Name: s.Value, Inactive: s.Inactive}
+	}
+	return refs
 }
 
 // canonicalizeFilterRefs rewrites each chain ref to its canonical
@@ -36,70 +53,54 @@ func extractFilterChain(tree *config.Tree) (importFilters, exportFilters []strin
 //     up in the filter registry to find its type, then resolved via the type
 //     map to the plugin)
 //
-// The `inactive:` prefix is preserved around the rewrite: an inactive form
-// like `inactive:prefix-list:CUSTOMERS` or `inactive:CUSTOMERS` stays
-// `inactive:<plugin>:<filter>` after canonicalization.
+// Deactivation state (FilterRef.Inactive) is carried structurally and preserved
+// across the rewrite; the name itself is always clean (no `inactive:` prefix).
 //
 // Refs that cannot be resolved (plain name not in registry; unknown prefix)
 // are left untouched so existing validation paths can still report a clean
 // error with the user-facing token instead of a synthetic one.
-func canonicalizeFilterRefs(chain []string, reg *FilterRegistry) []string {
+func canonicalizeFilterRefs(chain []filterapi.FilterRef, reg *FilterRegistry) []filterapi.FilterRef {
 	if len(chain) == 0 {
 		return chain
 	}
-	out := make([]string, len(chain))
+	out := make([]filterapi.FilterRef, len(chain))
 	typesMap := registry.FilterTypesMap()
 	for i, ref := range chain {
-		out[i] = canonicalizeOne(ref, reg, typesMap)
+		out[i] = filterapi.FilterRef{Name: canonicalizeOne(ref.Name, reg, typesMap), Inactive: ref.Inactive}
 	}
 	return out
 }
 
-// canonicalizeOne resolves a single chain ref. See canonicalizeFilterRefs.
-func canonicalizeOne(ref string, reg *FilterRegistry, typesMap map[string]string) string {
-	inactive := false
-	clean := ref
-	if strings.HasPrefix(clean, "inactive:") {
-		inactive = true
-		clean = strings.TrimPrefix(clean, "inactive:")
-	}
-
-	wrap := func(s string) string {
-		if inactive {
-			var tb textbuf.Buffer
-			return tb.Str("inactive:").Str(s).String()
-		}
-		return s
-	}
-
+// canonicalizeOne resolves a single chain ref name. See canonicalizeFilterRefs.
+func canonicalizeOne(name string, reg *FilterRegistry, typesMap map[string]string) string {
 	// Typed form: prefix:name
-	if before, after, found := strings.Cut(clean, ":"); found {
+	if before, after, found := strings.Cut(name, ":"); found {
 		// If the prefix is a known filter type, rewrite to the plugin form.
 		if plugin, ok := typesMap[before]; ok {
 			var tb textbuf.Buffer
-			return wrap(tb.Str(plugin).Byte(':').Str(after).String())
+			return tb.Str(plugin).Byte(':').Str(after).String()
 		}
 		// Otherwise assume it is already a plugin process name (e.g.,
 		// `bgp-filter-prefix:CUSTOMERS`) and pass through.
-		return wrap(clean)
+		return name
 	}
 
 	// Plain name: look up in the filter registry to find its YANG list type,
 	// then resolve the type to the owning plugin.
 	if reg != nil {
-		if entry, ok := reg.Lookup(clean); ok {
+		if entry, ok := reg.Lookup(name); ok {
 			if plugin, ok := typesMap[entry.Type]; ok {
 				var tb textbuf.Buffer
-				return wrap(tb.Str(plugin).Byte(':').Str(clean).String())
+				return tb.Str(plugin).Byte(':').Str(name).String()
 			}
 		}
 	}
-	return wrap(clean)
+	return name
 }
 
-// concatFilters concatenates multiple filter slices into a single ordered chain.
+// concatFilters concatenates multiple filter chains into a single ordered chain.
 // Nil slices are skipped. Returns nil if all inputs are empty.
-func concatFilters(chains ...[]string) []string {
+func concatFilters(chains ...[]filterapi.FilterRef) []filterapi.FilterRef {
 	n := 0
 	for _, c := range chains {
 		n += len(c)
@@ -108,7 +109,7 @@ func concatFilters(chains ...[]string) []string {
 		return nil
 	}
 
-	result := make([]string, 0, n)
+	result := make([]filterapi.FilterRef, 0, n)
 	for _, c := range chains {
 		result = append(result, c...)
 	}

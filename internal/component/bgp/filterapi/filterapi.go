@@ -7,8 +7,8 @@
 // chains and attribute-modification handlers. It also carries plugin-owned
 // reactor capabilities that follow the same init()-time registration model,
 // such as route-server (RS) fast-path forwarding (EnableRSForwarding). It is
-// a leaf package (stdlib only) so filter plugins, the reactor, and protocol
-// filters can all import it without cycles.
+// a near-leaf package (stdlib plus the core textbuf string builder) so filter
+// plugins, the reactor, and protocol filters can all import it without cycles.
 //
 // These types are BGP-owned: other protocols (OSPF, IS-IS) would define
 // their own filter seam packages following the same registration pattern.
@@ -24,6 +24,8 @@ import (
 	"net/netip"
 	"sort"
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // PeerFilterInfo holds BGP peer metadata for filter decisions.
@@ -38,7 +40,39 @@ type PeerFilterInfo struct {
 	GroupName    string     // Group name (empty if standalone peer)
 	AllowOwnAS   uint8      // Loop detection: number of own-AS occurrences to tolerate (0 = reject on first)
 	ClusterID    uint32     // Loop detection: explicit cluster-id (0 = use RouterID)
-	LoopDisabled bool       // Loop detection deactivated for this peer (inactive: prefix)
+	LoopDisabled bool       // Loop detection deactivated for this peer (FilterRef.Inactive)
+}
+
+// FilterRef is one entry in a peer's import/export filter chain: the canonical
+// filter name plus whether the operator deactivated it. Deactivated refs stay
+// in the chain (so loop detection can still suppress the default ingress via
+// LoopDisabled) but are never executed. It replaces the former in-band
+// "inactive:" name prefix, so deactivation is a structural bool rather than a
+// string convention any consumer must parse.
+type FilterRef struct {
+	Name     string
+	Inactive bool
+}
+
+// FilterRefStrings renders a filter chain to the canonical string form used at
+// display/API boundaries (the peer/policy commands and the birdwatcher-style
+// plugin protocol), re-attaching the "inactive:" prefix for deactivated refs so
+// that user-facing and plugin-facing output stays byte-identical. This is the
+// one presentation seam that reconstructs the prefix; no logic path does.
+func FilterRefStrings(refs []FilterRef) []string {
+	if len(refs) == 0 {
+		return nil
+	}
+	var tb textbuf.Buffer
+	out := make([]string, len(refs))
+	for i, ref := range refs {
+		if ref.Inactive {
+			out[i] = tb.Reset().Str("inactive:").Str(ref.Name).String()
+		} else {
+			out[i] = ref.Name
+		}
+	}
+	return out
 }
 
 // IngressFilterFunc is called for received UPDATEs before caching and dispatching.

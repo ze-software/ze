@@ -21,7 +21,7 @@ func BenchmarkFilterDispatch_ZeroAlloc(b *testing.B) {
 		return PolicyResponse{Action: PolicyAccept}
 	}
 
-	filters := []string{"test:accept"}
+	filters := frefs("test:accept")
 
 	b.ReportAllocs()
 	b.ResetTimer()

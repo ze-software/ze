@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"maps"
 	"sort"
-	"strings"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -31,20 +30,29 @@ type Tree struct {
 	valuesOrder    []string            // Preserves insertion order for value keys
 	multiValues    map[string][]string // For multiple inline values (e.g., multiple mup entries)
 	inactiveValues map[string]bool     // Leaf-level deactivation; sibling to values, not encoded in the value string
-	containers     map[string]*Tree
-	lists          map[string]map[string]*Tree
-	listOrder      map[string][]string // Preserves insertion order for list keys
+	// inactiveMembers records per-member leaf-list deactivation, keyed by
+	// leaf name then member value. Sibling to multiValues -- the member value
+	// stays clean in multiValues (never carries an "inactive:" prefix), and the
+	// effective-config accessors (GetSlice/GetMultiValues/ToMap) exclude any
+	// member marked here. Serialize/diff/reactor read the raw slice + this map
+	// via GetMultiValuesState. Leaf-lists are sets (no duplicate members), so
+	// keying by value is unambiguous.
+	inactiveMembers map[string]map[string]bool
+	containers      map[string]*Tree
+	lists           map[string]map[string]*Tree
+	listOrder       map[string][]string // Preserves insertion order for list keys
 }
 
 // NewTree creates an empty config tree.
 func NewTree() *Tree {
 	return &Tree{
-		values:         make(map[string]string),
-		multiValues:    make(map[string][]string),
-		inactiveValues: make(map[string]bool),
-		containers:     make(map[string]*Tree),
-		lists:          make(map[string]map[string]*Tree),
-		listOrder:      make(map[string][]string),
+		values:          make(map[string]string),
+		multiValues:     make(map[string][]string),
+		inactiveValues:  make(map[string]bool),
+		inactiveMembers: make(map[string]map[string]bool),
+		containers:      make(map[string]*Tree),
+		lists:           make(map[string]map[string]*Tree),
+		listOrder:       make(map[string][]string),
 	}
 }
 
@@ -107,6 +115,7 @@ func (t *Tree) pruneInactiveLeaves() {
 	for name := range t.inactiveValues {
 		delete(t.values, name)
 		delete(t.multiValues, name)
+		delete(t.inactiveMembers, name)
 	}
 	if len(t.valuesOrder) > 0 {
 		filtered := t.valuesOrder[:0]
@@ -150,26 +159,85 @@ func (t *Tree) AppendValue(name, value string) {
 	t.multiValues[name] = append(t.multiValues[name], value)
 }
 
-// GetMultiValues returns all values for a multi-value field.
+// GetMultiValues returns the active (non-deactivated) members of a multi-value
+// field in order. Deactivated members are excluded -- "deactivated" means "not
+// in effect", consistent with the whole-leaf path. Callers needing every member
+// plus its deactivation state (serialize, diff, reactor filter chain) must use
+// GetMultiValuesState.
 func (t *Tree) GetMultiValues(name string) []string {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	return t.multiValues[name]
+	return t.activeMembersLocked(name)
 }
 
-// SetSlice stores a leaf-list value as a string slice, preserving token boundaries.
+// SetSlice stores a leaf-list value as a string slice, preserving token
+// boundaries. Replacing the whole leaf-list clears any stale per-member
+// deactivation markers for the name.
 func (t *Tree) SetSlice(name string, items []string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.multiValues[name] = items
+	delete(t.inactiveMembers, name)
 }
 
-// GetSlice returns a leaf-list value as a string slice.
-// Returns nil if the key is not set.
+// GetSlice returns the active (non-deactivated) members of a leaf-list as a
+// string slice in order. Returns nil if the key is not set or every member is
+// deactivated. See GetMultiValues for the deactivation contract.
 func (t *Tree) GetSlice(name string) []string {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	return t.multiValues[name]
+	return t.activeMembersLocked(name)
+}
+
+// MemberState is one leaf-list member together with its deactivation state,
+// returned by GetMultiValuesState for consumers that need the full ordered
+// member list (serialize, diff, the reactor filter chain).
+type MemberState struct {
+	Value    string
+	Inactive bool
+}
+
+// GetMultiValuesState returns every member of a leaf-list in order, each tagged
+// with whether it is deactivated. Unlike GetSlice/GetMultiValues it does NOT
+// drop deactivated members -- it is the structural view.
+func (t *Tree) GetMultiValuesState(name string) []MemberState {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	items := t.multiValues[name]
+	if len(items) == 0 {
+		return nil
+	}
+	im := t.inactiveMembers[name]
+	out := make([]MemberState, len(items))
+	for i, v := range items {
+		out[i] = MemberState{Value: v, Inactive: im[v]}
+	}
+	return out
+}
+
+// activeMembersLocked returns a copy of the active (non-deactivated) members of
+// a leaf-list in order. Caller MUST hold t.mu (read or write).
+func (t *Tree) activeMembersLocked(name string) []string {
+	items := t.multiValues[name]
+	if len(items) == 0 {
+		return nil
+	}
+	im := t.inactiveMembers[name]
+	if len(im) == 0 {
+		out := make([]string, len(items))
+		copy(out, items)
+		return out
+	}
+	out := make([]string, 0, len(items))
+	for _, v := range items {
+		if !im[v] {
+			out = append(out, v)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // Clone creates a deep copy of the Tree.
@@ -197,6 +265,13 @@ func (t *Tree) Clone() *Tree {
 
 	// Clone inactiveValues (leaf-level deactivation markers)
 	maps.Copy(clone.inactiveValues, t.inactiveValues)
+
+	// Clone inactiveMembers (per-member leaf-list deactivation markers)
+	for name, members := range t.inactiveMembers {
+		copied := make(map[string]bool, len(members))
+		maps.Copy(copied, members)
+		clone.inactiveMembers[name] = copied
+	}
 
 	// Clone containers (deep). v.Clone() takes v.mu.RLock(); a different
 	// mutex from t.mu, so no reentrancy risk.
@@ -618,18 +693,16 @@ const (
 	InsertAfter  = "after"
 )
 
-// inactiveValuePrefix marks a deactivated member inside a multi-value list.
-const inactiveValuePrefix = "inactive:"
-
 // syncMultiValueToValueLocked updates the values map to match multiValues for
-// a key. Caller MUST hold t.mu.Lock().
+// a key, mirroring only the ACTIVE members (deactivated members are excluded,
+// consistent with the effective-config accessors). Caller MUST hold t.mu.Lock().
 func (t *Tree) syncMultiValueToValueLocked(name string) {
-	items := t.multiValues[name]
-	if len(items) == 0 {
+	active := t.activeMembersLocked(name)
+	if len(active) == 0 {
 		delete(t.values, name)
 		return
 	}
-	t.setLocked(name, textbuf.Join(items, " "))
+	t.setLocked(name, textbuf.Join(active, " "))
 }
 
 // InsertMultiValue inserts a value into a multi-value list at the specified position.
@@ -675,15 +748,15 @@ func (t *Tree) InsertMultiValue(name, value, position, ref string) error {
 
 // AddMultiValueMember appends a member to a leaf-list if not already present
 // (JunOS add-member semantics: each set appends, duplicates are no-ops).
-// A member already present in its deactivated form ("inactive:" prefix) also
-// counts as present — set does not re-activate it. Keeps the scalar values
-// map in sync (joined copy) like InsertMultiValue.
+// A member already present in deactivated form also counts as present — set
+// does not re-activate it (the deactivation marker is left untouched). Keeps
+// the scalar values map in sync (joined copy) like InsertMultiValue.
 func (t *Tree) AddMultiValueMember(name, value string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	items := t.multiValues[name]
-	if multiValueIndex(items, value) >= 0 || multiValueIndex(items, inactiveValuePrefix+value) >= 0 {
+	if multiValueIndex(items, value) >= 0 {
 		return
 	}
 	t.multiValues[name] = append(items, value)
@@ -703,20 +776,15 @@ func (t *Tree) HasMultiValueMember(name, value string) bool {
 func (t *Tree) MultiValueMemberState(name, value string) (present, inactive bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	items := t.multiValues[name]
-	if multiValueIndex(items, value) >= 0 {
-		return true, false
-	}
-	if multiValueIndex(items, inactiveValuePrefix+value) >= 0 {
-		return true, true
+	if multiValueIndex(t.multiValues[name], value) >= 0 {
+		return true, t.inactiveMembers[name][value]
 	}
 	return false, false
 }
 
-// RemoveMultiValueMember removes one member from a leaf-list (active or
-// deactivated form). Returns false if the member is not present.
-// Keeps the scalar values map in sync; removing the last member clears
-// both maps.
+// RemoveMultiValueMember removes one member from a leaf-list. Returns false if
+// the member is not present. Also clears any deactivation marker for it. Keeps
+// the scalar values map in sync; removing the last member clears the maps.
 func (t *Tree) RemoveMultiValueMember(name, value string) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -724,12 +792,15 @@ func (t *Tree) RemoveMultiValueMember(name, value string) bool {
 	items := t.multiValues[name]
 	idx := multiValueIndex(items, value)
 	if idx < 0 {
-		idx = multiValueIndex(items, inactiveValuePrefix+value)
-	}
-	if idx < 0 {
 		return false
 	}
 	t.multiValues[name] = append(items[:idx], items[idx+1:]...)
+	if im := t.inactiveMembers[name]; im != nil {
+		delete(im, value)
+		if len(im) == 0 {
+			delete(t.inactiveMembers, name)
+		}
+	}
 	if len(t.multiValues[name]) == 0 {
 		delete(t.multiValues, name)
 	}
@@ -737,47 +808,42 @@ func (t *Tree) RemoveMultiValueMember(name, value string) bool {
 	return true
 }
 
-// DeactivateMultiValue adds "inactive:" prefix to a value in a multi-value list.
-// Returns an error if the value is already deactivated or not found.
+// DeactivateMultiValue marks a leaf-list member deactivated out-of-band (the
+// member value stays clean in multiValues). Returns an error if the value is
+// already deactivated or not found.
 func (t *Tree) DeactivateMultiValue(name, value string) error {
-	if strings.HasPrefix(value, "inactive:") {
-		return fmt.Errorf("%q is already deactivated", value)
-	}
-
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	items := t.multiValues[name]
-	if multiValueIndex(items, "inactive:"+value) >= 0 {
+	if multiValueIndex(t.multiValues[name], value) < 0 {
+		return fmt.Errorf("%q not found in %s", value, name)
+	}
+	if t.inactiveMembers[name][value] {
 		return fmt.Errorf("%q is already deactivated in %s", value, name)
 	}
-	for i, item := range items {
-		if item == value {
-			var tb textbuf.Buffer
-			items[i] = tb.Str("inactive:").Str(value).String()
-			t.syncMultiValueToValueLocked(name)
-			return nil
-		}
+	if t.inactiveMembers[name] == nil {
+		t.inactiveMembers[name] = make(map[string]bool)
 	}
-	return fmt.Errorf("%q not found in %s", value, name)
+	t.inactiveMembers[name][value] = true
+	t.syncMultiValueToValueLocked(name)
+	return nil
 }
 
-// ActivateMultiValue removes "inactive:" prefix from a value in a multi-value list.
+// ActivateMultiValue clears the deactivation marker for a leaf-list member.
+// Returns an error if the member is not currently deactivated.
 func (t *Tree) ActivateMultiValue(name, value string) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	items := t.multiValues[name]
-	var tb textbuf.Buffer
-	target := tb.Str("inactive:").Str(value).String()
-	for i, item := range items {
-		if item == target {
-			items[i] = value
-			t.syncMultiValueToValueLocked(name)
-			return nil
-		}
+	if !t.inactiveMembers[name][value] {
+		return fmt.Errorf("inactive:%s not found in %s", value, name)
 	}
-	return fmt.Errorf("inactive:%s not found in %s", value, name)
+	delete(t.inactiveMembers[name], value)
+	if len(t.inactiveMembers[name]) == 0 {
+		delete(t.inactiveMembers, name)
+	}
+	t.syncMultiValueToValueLocked(name)
+	return nil
 }
 
 // multiValueIndex returns the index of value in items, or -1 if not found.
@@ -811,11 +877,18 @@ func (t *Tree) ToMap() map[string]any {
 		result[k] = v
 	}
 
-	for k, v := range t.multiValues {
-		if len(v) == 1 {
-			result[k] = v[0]
-		} else if len(v) > 1 {
-			result[k] = v
+	// Emit only ACTIVE members: a deactivated leaf-list member is not part of
+	// the effective config delivered to plugins (consistent with GetSlice and
+	// the whole-leaf inactive path). Never leaks an "inactive:" string.
+	for k := range t.multiValues {
+		active := t.activeMembersLocked(k)
+		switch len(active) {
+		case 0:
+			// wholly deactivated leaf-list: omit
+		case 1:
+			result[k] = active[0]
+		default:
+			result[k] = active
 		}
 	}
 

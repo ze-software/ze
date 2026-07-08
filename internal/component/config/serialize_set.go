@@ -157,7 +157,7 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 
 	case *ValueOrArrayNode:
 		if items := tree.multiValues[name]; len(items) > 0 {
-			bare, inactive := splitInactiveMembers(items)
+			bare, inactive := splitInactiveMembers(items, tree.inactiveMembers[name])
 			if len(inactive) > 0 || tree.inactiveValues[name] {
 				emitValueOrArrayNop(b, tree, name, prefix, bare, inactive)
 			} else {
@@ -198,17 +198,17 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 	}
 }
 
-// splitInactiveMembers separates leaf-list items into bare member values
-// (with any "inactive:" prefix stripped) and the list of members that were
-// deactivated. The bare slice preserves order, deactivated members included.
-func splitInactiveMembers(items []string) (bare, inactive []string) {
+// splitInactiveMembers separates leaf-list items into the full ordered member
+// list (bare) and the subset that is deactivated. Deactivation is read from the
+// out-of-band inactiveSet (a Tree.inactiveMembers[name] map); the member values
+// in items are always clean and never carry an "inactive:" prefix. This is the
+// single split point shared by every serializer/diff renderer.
+func splitInactiveMembers(items []string, inactiveSet map[string]bool) (bare, inactive []string) {
 	bare = make([]string, len(items))
 	for i, item := range items {
-		if member, ok := strings.CutPrefix(item, inactiveValuePrefix); ok {
-			bare[i] = member
-			inactive = append(inactive, member)
-		} else {
-			bare[i] = item
+		bare[i] = item
+		if inactiveSet[item] {
+			inactive = append(inactive, item)
 		}
 	}
 	return bare, inactive
@@ -606,11 +606,11 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 			entries = meta.entries[name]
 		}
 		if hasMemberEntries(entries) {
-			writeLeafListMemberLines(b, name, prefix, items, entries)
+			writeLeafListMemberLines(b, name, prefix, items, tree.inactiveMembers[name], entries)
 			return
 		}
 		if len(items) > 0 {
-			bare, inactive := splitInactiveMembers(items)
+			bare, inactive := splitInactiveMembers(items, tree.inactiveMembers[name])
 			if len(inactive) > 0 || tree.inactiveValues[name] {
 				emitMetaValueOrArrayNop(b, meta, tree, name, prefix, bare, inactive)
 			} else {
@@ -675,8 +675,8 @@ func findMemberAddEntry(entries []MetaEntry, member string) *MetaEntry {
 // session removed. This per-member form is what makes concurrent add-member
 // sessions mergeable; it round-trips through the set parser's member-merge.
 // Caller must hold tree.mu.RLock and meta.mu.RLock (see serializeSetMetaNode).
-func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []string, entries []MetaEntry) {
-	bare, inactive := splitInactiveMembers(items)
+func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []string, inactiveMembers map[string]bool, entries []MetaEntry) {
+	bare, inactive := splitInactiveMembers(items, inactiveMembers)
 	inactiveSet := make(map[string]bool, len(inactive))
 	for _, m := range inactive {
 		inactiveSet[m] = true

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -363,13 +364,13 @@ func (r *Reactor) scheduleDynamicPeerCleanup(peer *Peer) {
 
 // resolveFilterVars replaces $remote_as, $local_as, $remote_ip in filter names.
 // Inline in reactor to avoid an import cycle with bgp/config.
-func resolveFilterVars(filters []string, localAS, remoteAS uint32, remoteIP string) []string {
+func resolveFilterVars(filters []filterapi.FilterRef, localAS, remoteAS uint32, remoteIP string) []filterapi.FilterRef {
 	if len(filters) == 0 {
 		return filters
 	}
 	hasVar := false
 	for _, f := range filters {
-		if strings.ContainsRune(f, '$') {
+		if strings.ContainsRune(f.Name, '$') {
 			hasVar = true
 			break
 		}
@@ -379,16 +380,16 @@ func resolveFilterVars(filters []string, localAS, remoteAS uint32, remoteIP stri
 	}
 	las := textbuf.StringUint32(localAS)
 	ras := textbuf.StringUint32(remoteAS)
-	resolved := make([]string, len(filters))
+	resolved := make([]filterapi.FilterRef, len(filters))
 	for i, f := range filters {
-		if !strings.ContainsRune(f, '$') {
+		if !strings.ContainsRune(f.Name, '$') {
 			resolved[i] = f
 			continue
 		}
-		f = strings.ReplaceAll(f, "$remote_as", ras)
-		f = strings.ReplaceAll(f, "$local_as", las)
-		f = strings.ReplaceAll(f, "$remote_ip", remoteIP)
-		resolved[i] = f
+		name := strings.ReplaceAll(f.Name, "$remote_as", ras)
+		name = strings.ReplaceAll(name, "$local_as", las)
+		name = strings.ReplaceAll(name, "$remote_ip", remoteIP)
+		resolved[i] = filterapi.FilterRef{Name: name, Inactive: f.Inactive}
 	}
 	return resolved
 }

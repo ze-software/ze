@@ -1,0 +1,35 @@
+# Test: parser accepts the inline `[ inactive:MEMBER ... ]` deactivation
+# shorthand and normalizes it into the out-of-band per-member marker.
+# This is the compact operator-facing form (deactivate a member directly in
+# the bracket); it is normalized at the parse boundary so the stored member
+# value is clean and validates clean -- including on a TYPED leaf-list (system
+# name-server, ip-address), which the pre-refactor in-band form could not do.
+# On serialize it round-trips to the canonical `inactive: <leaf> <member>`
+# statement form (covered by unit tests).
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	name-server [ inactive:8.8.8.8 9.9.9.9 ]
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -
+expect=exit:code=0

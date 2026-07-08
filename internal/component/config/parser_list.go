@@ -399,26 +399,57 @@ func (p *Parser) collectValueOrArrayItems(name string) (items []string, bracket 
 }
 
 // storeValueOrArray validates collected leaf-list items against the schema
-// and stores them (slice for GetSlice, joined string for Get).
+// and stores them (slice for GetSlice, joined string for Get). An inline
+// "inactive:" member prefix (the compact deactivation form operators may write
+// directly in a bracket list, e.g. `import [ inactive:no-self-as ... ]`) is
+// normalized here into the out-of-band per-member marker: the stored member
+// value is clean and validated clean, so no value ever carries the prefix.
 func (p *Parser) storeValueOrArray(tree *Tree, name string, node *ValueOrArrayNode, items []string, tok Token) error {
+	clean, deactivated := stripInactiveMemberPrefix(items)
+
 	// Validate enum values if the schema defines valid values
 	if node.ValidValues != nil {
-		for _, item := range items {
+		for _, item := range clean {
 			if !containsString(node.ValidValues, item) {
 				return p.errorf(tok, "invalid value for %s: %q (valid: %s)", name, item, textbuf.Join(node.ValidValues, ", "))
 			}
 		}
 	}
-	for _, item := range items {
+	for _, item := range clean {
 		if err := validateValuePatterns(node.Type, node.Patterns, item); err != nil {
 			return p.errorf(tok, "invalid value for %s: %v", name, err)
 		}
 	}
 
-	// Store as slice for GetSlice() and as string for Get()
-	tree.SetSlice(name, items)
-	tree.Set(name, textbuf.Join(items, " "))
+	// Store clean members; scalar mirror is the (active-only) joined string.
+	tree.SetSlice(name, clean)
+	tree.Set(name, textbuf.Join(clean, " "))
+	for _, member := range deactivated {
+		// Ignore "already deactivated" on a repeated prefixed member: the
+		// marker is idempotent and the member value is already recorded.
+		_ = tree.DeactivateMultiValue(name, member)
+	}
 	return nil
+}
+
+// stripInactiveMemberPrefix splits leaf-list items into their clean values (any
+// leading "inactive:" removed) and the subset that carried the prefix. It is the
+// parse-boundary inverse of the serializer's inactive-member rendering: the
+// prefix is an accepted input form but is never stored on a value.
+func stripInactiveMemberPrefix(items []string) (clean, deactivated []string) {
+	clean = make([]string, len(items))
+	for i, item := range items {
+		// Require a non-empty remainder: a bare "inactive:" token (e.g. a stray
+		// space in `[ inactive: X ]`) is kept literal, not turned into an empty
+		// member, so validation rejects it instead of a silent empty ref.
+		if rest, ok := strings.CutPrefix(item, "inactive:"); ok && rest != "" {
+			clean[i] = rest
+			deactivated = append(deactivated, rest)
+		} else {
+			clean[i] = item
+		}
+	}
+	return clean, deactivated
 }
 
 func validateInlineListChildValue(list *ListNode, childName, value string) error {

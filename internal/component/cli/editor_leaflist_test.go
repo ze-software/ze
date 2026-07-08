@@ -37,6 +37,22 @@ func committedNameServers(t *testing.T, configPath string) []string {
 	return system.GetSlice("name-server")
 }
 
+// committedNameServerState re-reads the committed config and returns the full
+// ordered member view (including deactivated members, tagged), for tests that
+// must observe per-member deactivation surviving commit.
+func committedNameServerState(t *testing.T, configPath string) []config.MemberState {
+	t.Helper()
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	tree, _, err := config.NewSetParser(schema).ParseWithMeta(stripSchemaStamp(string(data)))
+	require.NoError(t, err)
+	system := tree.GetContainer("system")
+	require.NotNil(t, system, "committed config should contain the system container")
+	return system.GetMultiValuesState("name-server")
+}
+
 // stripSchemaStamp drops the leading "# ze-schema:" comment line so the
 // set parser sees only set/delete lines.
 func stripSchemaStamp(content string) string {
@@ -324,8 +340,12 @@ system {
 	require.Empty(t, result.Conflicts)
 
 	members := committedNameServers(t, configPath)
-	assert.Equal(t, []string{"1.1.1.1", "9.9.9.9", "inactive:8.8.8.8"}, members,
-		"insert position and deactivation must survive commit exactly")
+	assert.Equal(t, []string{"1.1.1.1", "9.9.9.9"}, members,
+		"active members survive commit in order (deactivated member excluded from effective view)")
+	assert.Equal(t, []config.MemberState{
+		{Value: "1.1.1.1"}, {Value: "9.9.9.9"}, {Value: "8.8.8.8", Inactive: true},
+	}, committedNameServerState(t, configPath),
+		"insert position and per-member deactivation must survive commit exactly")
 
 	require.NoError(t, ed.ActivateLeafListValue([]string{"system"}, "name-server", "8.8.8.8"),
 		"activate must work in session mode")

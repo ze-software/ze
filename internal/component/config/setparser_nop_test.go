@@ -150,10 +150,16 @@ func TestNopLeafListMemberRoundTrip(t *testing.T) {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	items := tree.GetMultiValues("name-server")
-	require.Len(t, items, 2)
-	assert.Equal(t, "8.8.8.8", items[0])
-	assert.Equal(t, "inactive:1.1.1.1", items[1])
+	// Effective (active-only) view excludes the deactivated member; the
+	// structural view retains it, tagged inactive (out-of-band, value clean).
+	active := tree.GetMultiValues("name-server")
+	require.Len(t, active, 1)
+	assert.Equal(t, "8.8.8.8", active[0])
+
+	state := tree.GetMultiValuesState("name-server")
+	require.Len(t, state, 2)
+	assert.Equal(t, MemberState{Value: "8.8.8.8", Inactive: false}, state[0])
+	assert.Equal(t, MemberState{Value: "1.1.1.1", Inactive: true}, state[1])
 
 	output := SerializeSet(tree, schema)
 	assert.Equal(t, input, output)

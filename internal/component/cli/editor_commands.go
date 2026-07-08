@@ -704,7 +704,7 @@ func (e *Editor) InsertLeafListValue(path []string, leafListName, value, positio
 	return nil
 }
 
-// DeactivateLeafListValue adds "inactive:" prefix to a value in a leaf-list.
+// DeactivateLeafListValue marks a leaf-list member deactivated (out-of-band).
 func (e *Editor) DeactivateLeafListValue(path []string, leafListName, value string) error {
 	if e.session != nil {
 		return e.writeThroughMemberOp(path, config.StructuralOpDeactivateMember, leafListName, value, "", "")
@@ -725,7 +725,7 @@ func (e *Editor) DeactivateLeafListValue(path []string, leafListName, value stri
 	return nil
 }
 
-// ActivateLeafListValue removes "inactive:" prefix from a value in a leaf-list.
+// ActivateLeafListValue clears a leaf-list member's deactivation marker.
 func (e *Editor) ActivateLeafListValue(path []string, leafListName, value string) error {
 	if e.session != nil {
 		return e.writeThroughMemberOp(path, config.StructuralOpActivateMember, leafListName, value, "", "")

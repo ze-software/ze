@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -384,12 +385,13 @@ type PeerSettings struct {
 
 	// ImportFilters is the ordered import filter chain for this peer.
 	// Cumulative: bgp-level + group-level + peer-level, in order.
-	// Each entry is a "<plugin>:<filter>" string.
-	ImportFilters []string
+	// Each entry carries the canonical "<plugin>:<filter>" name plus its
+	// deactivation state (deactivated refs stay in the chain but are skipped).
+	ImportFilters []filterapi.FilterRef
 
 	// ExportFilters is the ordered export filter chain for this peer.
 	// Cumulative: bgp-level + group-level + peer-level, in order.
-	ExportFilters []string
+	ExportFilters []filterapi.FilterRef
 
 	// LoopAllowOwnAS is the number of own-AS occurrences to tolerate in AS_PATH.
 	// From loop-detection filter config. 0 = reject on first (RFC 4271 Section 9 default).

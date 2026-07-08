@@ -308,9 +308,27 @@ different members never conflict, and commit applies each member operation
 idempotently. Ordered operations (insert position, deactivate, activate) are
 recorded as structural ops (`insert-member`, `deactivate-member`,
 `activate-member`) so the exact position survives the change-file → draft →
-commit chain. Deactivated members serialize as individual `nop <path> <member>` lines
-(active members as `set`, deactivated as `nop`) — never as a raw
-`inactive:` item, which would fail item validation on reparse.
+commit chain.
+
+Per-member deactivation is stored **out-of-band** on the `Tree`
+(`inactiveMembers`, sibling to the member slice): the member value itself is
+never rewritten, so it stays clean for every reader. Effective-config accessors
+(`GetSlice`/`GetMultiValues`/`ToMap`) return active members only; the structural
+view (`GetMultiValuesState`) reports every member with its deactivation flag.
+
+Two on-disk input forms deactivate a member, and both are accepted:
+- the canonical **statement** form the serializer emits — the member stays bare
+  in the leaf/`set` line plus a follow-up `inactive: <leaf> <member>`
+  (hierarchical) or `nop <path> <member>` (set-format) line;
+- the compact **inline** form `<leaf> [ inactive:MEMBER ... ]`, normalized at the
+  parse boundary into the out-of-band marker.
+
+Serialization always emits the statement form (active members as `set`,
+deactivated as `nop`) — a raw `inactive:` item is never written to a value.
+Trade-off of the inline form: a member value that legitimately begins with
+`inactive:` can only be expressed via the statement form.
+<!-- source: internal/component/config/tree.go -- Tree.inactiveMembers, GetMultiValuesState -->
+<!-- source: internal/component/config/parser_list.go -- stripInactiveMemberPrefix (inline-form normalization) -->
 <!-- source: internal/component/config/meta.go -- MetaEntry.Member -->
 <!-- source: internal/component/config/change_file.go -- StructuralOpInsertMember -->
 <!-- source: internal/component/config/serialize_set.go -- writeLeafListMemberLines, emitValueOrArrayNop -->

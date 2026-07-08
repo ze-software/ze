@@ -230,7 +230,7 @@ func TestReactorForwardRSFallback(t *testing.T) {
 	dst1 := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
 	// dst2 has export filters -- should be skipped.
 	dst2 := makeRSPeer(t, "10.0.0.3", 65003, ctx, ctxID)
-	dst2.settings.ExportFilters = []string{"bgp-rs:test-filter"}
+	dst2.settings.ExportFilters = frefs("bgp-rs:test-filter")
 	dst2.refreshForwardFacts()
 
 	var dispatched []fwdItem

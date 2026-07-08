@@ -9,6 +9,138 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestStripInactiveMemberPrefix: the parse-boundary normalizer strips a real
+// inline "inactive:MEMBER" prefix but leaves a bare "inactive:" token literal
+// (so validation rejects the stray-space case rather than emitting an empty
+// member) and leaves unprefixed members untouched.
+func TestStripInactiveMemberPrefix(t *testing.T) {
+	clean, deactivated := stripInactiveMemberPrefix([]string{"inactive:8.8.8.8", "9.9.9.9"})
+	assert.Equal(t, []string{"8.8.8.8", "9.9.9.9"}, clean)
+	assert.Equal(t, []string{"8.8.8.8"}, deactivated)
+
+	// Bare "inactive:" (no member) is kept literal, never turned into "".
+	clean, deactivated = stripInactiveMemberPrefix([]string{"inactive:", "9.9.9.9"})
+	assert.Equal(t, []string{"inactive:", "9.9.9.9"}, clean)
+	assert.Empty(t, deactivated)
+
+	// No prefix: untouched, nothing deactivated.
+	clean, deactivated = stripInactiveMemberPrefix([]string{"a", "b"})
+	assert.Equal(t, []string{"a", "b"}, clean)
+	assert.Empty(t, deactivated)
+}
+
+// TestEffectiveAccessorsActiveOnly: the effective-config accessors (GetSlice,
+// GetMultiValues, ToMap) exclude a deactivated leaf-list member, while the
+// structural accessors (GetMultiValuesState, MultiValueMemberState) still report it.
+// A deactivated member never appears as a plain active value nor as an
+// "inactive:"-prefixed string.
+//
+// VALIDATES: AC-2 -- active-only effective view; structural view retains state.
+// PREVENTS: a deactivated member leaking into effective config as an active
+// value or as a raw inactive: string.
+func TestEffectiveAccessorsActiveOnly(t *testing.T) {
+	tree := NewTree()
+	tree.SetSlice("name-server", []string{"9.9.9.9", "8.8.8.8"})
+	require.NoError(t, tree.DeactivateMultiValue("name-server", "8.8.8.8"))
+
+	// Effective accessors: deactivated member excluded, values clean.
+	assert.Equal(t, []string{"9.9.9.9"}, tree.GetSlice("name-server"))
+	assert.Equal(t, []string{"9.9.9.9"}, tree.GetMultiValues("name-server"))
+	assert.Equal(t, "9.9.9.9", tree.ToMap()["name-server"], "ToMap emits only the active member")
+	for _, v := range tree.GetSlice("name-server") {
+		assert.NotContains(t, v, "inactive:", "no inactive: string in the effective view")
+	}
+
+	// Structural accessors: deactivated member retained, tagged.
+	present88, inactive88 := tree.MultiValueMemberState("name-server", "8.8.8.8")
+	assert.True(t, present88 && inactive88, "8.8.8.8 present and deactivated")
+	present99, inactive99 := tree.MultiValueMemberState("name-server", "9.9.9.9")
+	assert.True(t, present99 && !inactive99, "9.9.9.9 present and active")
+	assert.Equal(t, []MemberState{{Value: "9.9.9.9"}, {Value: "8.8.8.8", Inactive: true}},
+		tree.GetMultiValuesState("name-server"))
+
+	// Whole leaf-list deactivated -> effective view empty; ToMap omits the key.
+	require.NoError(t, tree.DeactivateMultiValue("name-server", "9.9.9.9"))
+	assert.Nil(t, tree.GetSlice("name-server"))
+	assert.NotContains(t, tree.ToMap(), "name-server")
+}
+
+// TestInlineInactiveMemberPrefixNormalized: the compact inline deactivation
+// form `leaf [ inactive:MEMBER ... ]` (an accepted operator input, e.g. a
+// deactivated filter ref written directly in the bracket) is normalized at the
+// parse boundary into the out-of-band per-member marker. The stored member
+// value stays clean, the effective view excludes it, and it round-trips.
+//
+// VALIDATES: the inline inactive: member prefix keeps working as input
+// (hierarchical and set-format) after the move to out-of-band deactivation.
+// PREVENTS: the inline form silently storing "inactive:X" as a literal member.
+func TestInlineInactiveMemberPrefixNormalized(t *testing.T) {
+	schema := testLeafListSchema(t)
+
+	cases := []struct {
+		name  string
+		parse func(string) (*Tree, error)
+		input string
+	}{
+		{"hierarchical", func(s string) (*Tree, error) { return NewParser(schema).Parse(s) },
+			"system {\n\tname-server [ inactive:8.8.8.8 9.9.9.9 ]\n}\n"},
+		{"set-format", func(s string) (*Tree, error) { return NewSetParser(schema).Parse(s) },
+			"set system name-server [ inactive:8.8.8.8 9.9.9.9 ]\n"},
+	}
+	wantState := []MemberState{{Value: "8.8.8.8", Inactive: true}, {Value: "9.9.9.9"}}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tree, err := tc.parse(tc.input)
+			require.NoError(t, err)
+			system := tree.GetContainer("system")
+			require.NotNil(t, system)
+
+			// Stored clean, out-of-band marker set, effective view excludes it.
+			assert.Equal(t, []string{"9.9.9.9"}, system.GetSlice("name-server"))
+			_, inactive := system.MultiValueMemberState("name-server", "8.8.8.8")
+			assert.True(t, inactive, "8.8.8.8 recorded deactivated out-of-band")
+			assert.Equal(t, wantState, system.GetMultiValuesState("name-server"))
+
+			// No raw prefix reaches serialized output; round-trip is stable.
+			out := SerializeSet(tree, schema)
+			assert.NotContains(t, out, "inactive:8.8.8.8",
+				"the inline prefix must normalize away, not persist on a value")
+			tree2, err := NewSetParser(schema).Parse(out)
+			require.NoError(t, err)
+			assert.Equal(t, wantState, tree2.GetContainer("system").GetMultiValuesState("name-server"))
+		})
+	}
+}
+
+// TestInlineInactiveFilterMember: the inline inactive: shorthand also works on
+// an untyped (filter-name) leaf-list -- the case operators most commonly write,
+// deactivating a filter reference directly in the chain. Complements the typed
+// name-server coverage in TestInlineInactiveMemberPrefixNormalized.
+//
+// VALIDATES: inline inactive: on `filter import` normalizes to the out-of-band
+// marker and serializes to the canonical statement form.
+func TestInlineInactiveFilterMember(t *testing.T) {
+	schema := testLeafListSchema(t)
+	tree, err := NewParser(schema).Parse(
+		"bgp {\n\tfilter {\n\t\timport [ inactive:no-self-as reject-bogons ]\n\t}\n}\n")
+	require.NoError(t, err)
+	filter := tree.GetContainer("bgp").GetContainer("filter")
+	require.NotNil(t, filter)
+
+	assert.Equal(t, []string{"reject-bogons"}, filter.GetSlice("import"),
+		"deactivated filter ref is excluded from the effective chain")
+	_, inactive := filter.MultiValueMemberState("import", "no-self-as")
+	assert.True(t, inactive, "no-self-as recorded deactivated out-of-band")
+	assert.Equal(t, []MemberState{{Value: "no-self-as", Inactive: true}, {Value: "reject-bogons"}},
+		filter.GetMultiValuesState("import"))
+
+	// Serializes to the canonical statement form, never the inline prefix.
+	out := Serialize(tree, schema)
+	assert.NotContains(t, out, "inactive:no-self-as", "inline prefix must not round-trip on a value")
+	assert.Contains(t, out, "inactive: import no-self-as", "canonical statement form on serialize")
+}
+
 // testLeafListSchema returns the full YANG schema (system name-server is the
 // reference plain leaf-list: ValueOrArrayNode, ip-address items).
 func testLeafListSchema(t *testing.T) *Schema {
@@ -195,7 +327,9 @@ func TestSetFormatDeactivatedMemberRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	system := tree.GetContainer("system")
 	require.NotNil(t, system)
-	require.Equal(t, []string{"9.9.9.9", "inactive:8.8.8.8"}, system.GetSlice("name-server"))
+	require.Equal(t, []string{"9.9.9.9"}, system.GetSlice("name-server"))
+	require.Equal(t, []MemberState{{Value: "9.9.9.9"}, {Value: "8.8.8.8", Inactive: true}},
+		system.GetMultiValuesState("name-server"))
 
 	for _, out := range []string{
 		SerializeSet(tree, schema),
@@ -212,8 +346,11 @@ func TestSetFormatDeactivatedMemberRoundTrip(t *testing.T) {
 		require.NoError(t, parseErr, "serialized form must reparse")
 		system2 := tree2.GetContainer("system")
 		require.NotNil(t, system2)
-		assert.Equal(t, []string{"9.9.9.9", "inactive:8.8.8.8"}, system2.GetSlice("name-server"),
-			"deactivated member must survive the round-trip")
+		assert.Equal(t, []string{"9.9.9.9"}, system2.GetSlice("name-server"),
+			"active member survives the round-trip")
+		assert.Equal(t, []MemberState{{Value: "9.9.9.9"}, {Value: "8.8.8.8", Inactive: true}},
+			system2.GetMultiValuesState("name-server"),
+			"deactivated member must survive the round-trip, tagged inactive out-of-band")
 	}
 }
 
@@ -247,8 +384,11 @@ func TestHierarchicalDeactivatedMemberRoundTrip(t *testing.T) {
 	require.NoError(t, parseErr, "serialized form must reparse")
 	system2 := tree2.GetContainer("system")
 	require.NotNil(t, system2)
-	assert.Equal(t, []string{"9.9.9.9", "inactive:8.8.8.8"}, system2.GetSlice("name-server"),
-		"deactivated member must survive the round-trip")
+	assert.Equal(t, []string{"9.9.9.9"}, system2.GetSlice("name-server"),
+		"active member survives the round-trip")
+	assert.Equal(t, []MemberState{{Value: "9.9.9.9"}, {Value: "8.8.8.8", Inactive: true}},
+		system2.GetMultiValuesState("name-server"),
+		"deactivated member must survive the round-trip, tagged inactive out-of-band")
 	assert.False(t, system2.IsLeafInactive("name-server"),
 		"member deactivation must not deactivate the whole leaf")
 }
@@ -304,7 +444,11 @@ func TestHierarchicalSingleDeactivatedMemberRoundTrip(t *testing.T) {
 	require.NoError(t, parseErr, "serialized form must reparse: %s", out)
 	system2 := tree2.GetContainer("system")
 	require.NotNil(t, system2)
-	assert.Equal(t, []string{"inactive:8.8.8.8"}, system2.GetSlice("name-server"))
+	// The sole member is deactivated -> effective config is empty, but the
+	// member survives structurally, tagged inactive.
+	assert.Nil(t, system2.GetSlice("name-server"))
+	assert.Equal(t, []MemberState{{Value: "8.8.8.8", Inactive: true}},
+		system2.GetMultiValuesState("name-server"))
 	assert.False(t, system2.IsLeafInactive("name-server"),
 		"member deactivation must not deactivate the whole leaf")
 }

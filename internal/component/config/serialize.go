@@ -41,12 +41,8 @@ func canInlineContainer(tree *Tree) bool {
 	}
 	// A deactivated leaf-list member needs its own `inactive: <leaf>
 	// <member>` statement line, which inline form cannot carry.
-	for _, items := range tree.multiValues {
-		for _, item := range items {
-			if strings.HasPrefix(item, inactiveValuePrefix) {
-				return false
-			}
-		}
+	if len(tree.inactiveMembers) > 0 {
+		return false
 	}
 	return (len(tree.values)+len(tree.multiValues)) == 1 &&
 		len(tree.containers) == 0 && len(tree.lists) == 0
@@ -313,7 +309,7 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 			// hierarchical analog of the set-format `inactive <path>
 			// <member>` line): the raw "inactive:" prefix would fail item
 			// validation (e.g. ip-address) on reparse.
-			bare, inactiveMembers := splitInactiveMembers(items)
+			bare, inactiveMembers := splitInactiveMembers(items, tree.inactiveMembers[name])
 			b.Str(prefix)
 			if tree.inactiveValues[name] {
 				b.Str("inactive: ")

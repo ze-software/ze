@@ -192,7 +192,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 // Teardown is import-only and never fires on export. Unlike ingress, this reads the
 // original payload: egress in-process filters defer their edits into the shared
 // ModAccumulator, so the payload is never rewritten in the egress pass.
-func (r *Reactor) runEgressPolicyChain(exportFilters []string, destAddrStr string, destPeerAS, destLocalAS uint32, wireUpdate *wireu.WireUpdate) egressStepResult {
+func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, destAddrStr string, destPeerAS, destLocalAS uint32, wireUpdate *wireu.WireUpdate) egressStepResult {
 	if len(exportFilters) == 0 || r.api == nil {
 		return egressStepResult{accept: true}
 	}

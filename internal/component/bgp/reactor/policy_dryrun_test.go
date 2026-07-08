@@ -30,7 +30,7 @@ func TestTracePolicyFilterChain(t *testing.T) {
 			return PolicyResponse{Action: PolicyAccept}
 		}
 		action, text, trace := TracePolicyFilterChain(
-			[]string{"plug:FILTER1"}, "export", "10.0.0.1", 65001, "origin igp", call,
+			frefs("plug:FILTER1"), "export", "10.0.0.1", 65001, "origin igp", call,
 		)
 		if action != PolicyAccept {
 			t.Errorf("action = %v, want PolicyAccept", action)
@@ -62,7 +62,7 @@ func TestTracePolicyFilterChain(t *testing.T) {
 			return PolicyResponse{Action: PolicyAccept}
 		}
 		action, text, trace := TracePolicyFilterChain(
-			[]string{"plug:DENY", "plug:AFTER"}, "import", "10.0.0.1", 65001, "origin igp", call,
+			frefs("plug:DENY", "plug:AFTER"), "import", "10.0.0.1", 65001, "origin igp", call,
 		)
 		if action != PolicyReject {
 			t.Errorf("action = %v, want PolicyReject", action)
@@ -86,7 +86,7 @@ func TestTracePolicyFilterChain(t *testing.T) {
 			return PolicyResponse{Action: PolicyModify, Delta: "med 200"}
 		}
 		action, text, trace := TracePolicyFilterChain(
-			[]string{"plug:SET_MED"}, "export", "10.0.0.1", 65001, "origin igp med 100", call,
+			frefs("plug:SET_MED"), "export", "10.0.0.1", 65001, "origin igp med 100", call,
 		)
 		if action != PolicyAccept {
 			t.Errorf("action = %v, want PolicyAccept", action)
@@ -112,7 +112,7 @@ func TestTracePolicyFilterChain(t *testing.T) {
 			return PolicyResponse{Action: PolicyAccept}
 		}
 		action, _, trace := TracePolicyFilterChain(
-			[]string{"inactive:plug:SKIP", "plug:KEEP"}, "export", "10.0.0.1", 65001, "origin igp", call,
+			frefs("inactive:plug:SKIP", "plug:KEEP"), "export", "10.0.0.1", 65001, "origin igp", call,
 		)
 		if action != PolicyAccept {
 			t.Errorf("action = %v, want PolicyAccept", action)
@@ -136,7 +136,7 @@ func TestTracePolicyFilterChain(t *testing.T) {
 			return PolicyResponse{Action: PolicyAccept}
 		}
 		action, text, trace := TracePolicyFilterChain(
-			[]string{"plug:PASS", "plug:SET_MED"}, "export", "10.0.0.1", 65001, "origin igp med 100", call,
+			frefs("plug:PASS", "plug:SET_MED"), "export", "10.0.0.1", 65001, "origin igp med 100", call,
 		)
 		if action != PolicyAccept {
 			t.Errorf("action = %v, want PolicyAccept", action)
@@ -159,11 +159,11 @@ func TestTracePolicyFilterChain(t *testing.T) {
 // VALIDATES: resolveFilterOverride finds canonical ref by plain name.
 // PREVENTS: Single-filter override failing to match.
 func TestResolveFilterOverride(t *testing.T) {
-	chain := []string{
+	chain := frefs(
 		"bgp-filter-prefix:CUSTOMERS",
 		"bgp-filter-remove-private-as:STRIP",
 		"inactive:bgp-filter-prefix:DENY",
-	}
+	)
 
 	tests := []struct {
 		name    string

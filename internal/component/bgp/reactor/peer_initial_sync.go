@@ -12,6 +12,7 @@ import (
 	"time"
 	"unsafe"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -732,7 +733,7 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
 
 	res := PolicyFilterChain(
-		[]string{filterName},
+		[]filterapi.FilterRef{{Name: filterName}},
 		"export",
 		p.settings.Address.String(),
 		p.settings.PeerAS,

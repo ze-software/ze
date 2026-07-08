@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_prefix"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -58,8 +59,8 @@ bgp {
 	require.Len(t, peers, 1)
 
 	ps := peers[0]
-	assert.Equal(t, []string{"rpki:validate", "community:scrub"}, ps.ImportFilters)
-	assert.Equal(t, []string{"aspath:prepend"}, ps.ExportFilters)
+	assert.Equal(t, refs("rpki:validate", "community:scrub"), ps.ImportFilters)
+	assert.Equal(t, refs("aspath:prepend"), ps.ExportFilters)
 }
 
 // TestFilterChainResolution verifies bgp > group > peer cumulative merging.
@@ -108,7 +109,7 @@ bgp {
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
-	assert.Equal(t, []string{"a:x", "b:y", "c:z"}, peers[0].ImportFilters)
+	assert.Equal(t, refs("a:x", "b:y", "c:z"), peers[0].ImportFilters)
 }
 
 // TestFilterStandalonePeer verifies standalone peers get bgp-level filters.
@@ -150,8 +151,8 @@ bgp {
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
-	assert.Equal(t, []string{"global:filter"}, peers[0].ImportFilters)
-	assert.Equal(t, []string{"peer:export"}, peers[0].ExportFilters)
+	assert.Equal(t, refs("global:filter"), peers[0].ImportFilters)
+	assert.Equal(t, refs("peer:export"), peers[0].ExportFilters)
 }
 
 // TestFilterEmpty verifies empty filter block is valid.
@@ -239,8 +240,8 @@ bgp {
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
-	assert.Contains(t, peers[0].ImportFilters, "my-filter")
-	assert.Contains(t, peers[0].ExportFilters, "another-filter")
+	assert.True(t, filterChainContains(peers[0].ImportFilters, "my-filter"))
+	assert.True(t, filterChainContains(peers[0].ExportFilters, "another-filter"))
 }
 
 // TestFilterUnknownNameRejectsAtParse verifies typos in filter names fail at parse time.
@@ -322,7 +323,7 @@ bgp {
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
-	assert.Contains(t, peers[0].ImportFilters, "rpki:validate")
+	assert.True(t, filterChainContains(peers[0].ImportFilters, "rpki:validate"))
 }
 
 // TestCanonicalizePlainPrefixRef verifies plain filter names resolve through
@@ -343,17 +344,17 @@ func TestCanonicalizePlainPrefixRef(t *testing.T) {
 	assert.Equal(t, "bgp-filter-prefix:CUSTOMERS", got)
 }
 
-// TestCanonicalizeInactivePlainRef verifies inactive: prefix is preserved
-// around plain name canonicalization.
+// TestCanonicalizeInactivePlainRef verifies the structural deactivation flag is
+// preserved around plain name canonicalization while the name is rewritten.
 //
-// VALIDATES: AC-7 -- inactive state survives plain-name resolution.
-// PREVENTS: inactive: stripped or inactive filter reactivated by canonicalization.
+// VALIDATES: inactive state survives plain-name resolution.
+// PREVENTS: FilterRef.Inactive dropped or an inactive filter reactivated by
+// canonicalization.
 func TestCanonicalizeInactivePlainRef(t *testing.T) {
 	reg := &FilterRegistry{entries: map[string]FilterEntry{
 		"CUSTOMERS": {Name: "CUSTOMERS", Type: "prefix-list"},
 	}}
-	typesMap := registry.FilterTypesMap()
 
-	got := canonicalizeOne("inactive:CUSTOMERS", reg, typesMap)
-	assert.Equal(t, "inactive:bgp-filter-prefix:CUSTOMERS", got)
+	got := canonicalizeFilterRefs([]filterapi.FilterRef{{Name: "CUSTOMERS", Inactive: true}}, reg)
+	assert.Equal(t, []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS", Inactive: true}}, got)
 }

@@ -23,7 +23,7 @@ import (
 // records per-filter trace entries. It reuses the same PolicyFilterFunc and
 // semantics as PolicyFilterChain (reject short-circuits, default accept,
 // inactive filters skipped) but captures each filter's decision.
-func TracePolicyFilterChain(filterRefs []string, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) (PolicyAction, string, []plugin.PolicyTraceEntry) {
+func TracePolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) (PolicyAction, string, []plugin.PolicyTraceEntry) {
 	if len(filterRefs) == 0 {
 		return PolicyAccept, updateText, nil
 	}
@@ -32,15 +32,15 @@ func TracePolicyFilterChain(filterRefs []string, direction, peer string, peerAS 
 	current := updateText
 
 	for _, ref := range filterRefs {
-		if strings.HasPrefix(ref, "inactive:") {
+		if ref.Inactive {
 			continue
 		}
-		pluginName, filterName, _ := strings.Cut(ref, ":")
+		pluginName, filterName, _ := strings.Cut(ref.Name, ":")
 		result := callFilter(pluginName, filterName, direction, peer, peerAS, current)
 
 		entry := plugin.PolicyTraceEntry{
 			Filter:    filterName,
-			Canonical: ref,
+			Canonical: ref.Name,
 		}
 
 		switch result.Action {
@@ -98,7 +98,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	// rather than reading it after the lock is released. peerAS/localAS are
 	// fixed at NewPeer and safe to read in the same critical section.
 	r := a.r
-	var filterRefs []string
+	var filterRefs []filterapi.FilterRef
 	var peerAS, localAS uint32
 	found := false
 	r.mu.RLock()
@@ -112,9 +112,9 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		localAS = s.LocalAS
 		switch direction {
 		case directionImport:
-			filterRefs = append([]string(nil), s.ImportFilters...)
+			filterRefs = append([]filterapi.FilterRef(nil), s.ImportFilters...)
 		case directionExport:
-			filterRefs = append([]string(nil), s.ExportFilters...)
+			filterRefs = append([]filterapi.FilterRef(nil), s.ExportFilters...)
 		}
 		break
 	}
@@ -130,7 +130,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		if ref == "" {
 			return nil, errFilterNotFound
 		}
-		filterRefs = []string{ref}
+		filterRefs = []filterapi.FilterRef{{Name: ref}}
 	}
 
 	// Validate the UPDATE body parses correctly before proceeding.
@@ -264,18 +264,18 @@ func wireModVerb(action uint8) string {
 // with an empty trace, misleading the operator into thinking the filter is
 // permissive. Returning "" makes the handler report "filter not found"
 // instead.
-func resolveFilterOverride(name string, chain []string) string {
+func resolveFilterOverride(name string, chain []filterapi.FilterRef) string {
 	for _, ref := range chain {
-		if strings.HasPrefix(ref, "inactive:") {
+		if ref.Inactive {
 			continue
 		}
-		if ref == name {
-			return ref
+		if ref.Name == name {
+			return ref.Name
 		}
 		// Match by filter instance name (after first colon, e.g. "plugin:FILTER" -> "FILTER").
-		if _, after, ok := strings.Cut(ref, ":"); ok {
+		if _, after, ok := strings.Cut(ref.Name, ":"); ok {
 			if after == name {
-				return ref
+				return ref.Name
 			}
 		}
 	}

@@ -1,8 +1,10 @@
 # Test: parser accepts `inactive: <leaf-list> <member>;` member deactivation
 # Validates the hierarchical serializer's deactivated-member form on a TYPED
 # leaf-list (system name-server, ip-address): the member stays bare in the
-# leaf line and the follow-up inactive: statement marks it. The old internal
-# form (`name-server [ inactive:8.8.8.8 ]`) failed per-item type validation.
+# leaf line and the follow-up inactive: statement marks it. This is the
+# canonical serialized form. The compact inline form
+# (`name-server [ inactive:8.8.8.8 ]`) is also accepted as input and normalized
+# to this form -- see parse-inactive-leaflist-member-inline.ci.
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer peer1 {
