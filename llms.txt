@@ -16,7 +16,7 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - License and repos: AGPLv3. Canonical repository: https://codeberg.org/thomas-mangin/ze. GitHub mirror: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 46 shipped or experimental feature cards, 6 roadmap cards, 379 CLI commands, 35 config sections, 91 plugin registrations, 39 direct Go dependencies, 30 weekly change entries.
 - Test evidence counts: 64,100+ unit tests, 360+ fuzz targets, 1,300+ end-to-end transcript steps, 101 interop scenarios across 7 target implementations.
-- Generated date: 2026-07-07.
+- Generated date: 2026-07-08.
 
 ## Quality and verification model
 
@@ -793,6 +793,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ### First steps
 - [Quickstart](https://ze-software.net/docs/guide/quickstart/index.md): Two BGP peers in under 5 minutes (web: https://ze-software.net/docs/guide/quickstart/)
 - [Install Ze](https://ze-software.net/docs/guide/ze-install/index.md): Run Ze on Linux or as a bootable appliance (web: https://ze-software.net/docs/guide/ze-install/)
+- [Ubuntu build](https://ze-software.net/docs/guide/ubuntu-build-install/index.md): Compile, install, create zefs, and start SSH (web: https://ze-software.net/docs/guide/ubuntu-build-install/)
 - [Configuration](https://ze-software.net/docs/features/configuration/index.md): The YANG-modeled config shape Ze uses everywhere (web: https://ze-software.net/docs/features/configuration/)
 - [CLI Basics](https://ze-software.net/docs/features/cli-commands/index.md): Diff, commit, history, and operator commands (web: https://ze-software.net/docs/features/cli-commands/)
 ### Before you run
@@ -813,16 +814,20 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ## Docs
 
-### Hub
+### Hub and core
 - [Documentation](https://ze-software.net/docs/index.md): All docs, organized by what you want to do (web: https://ze-software.net/docs/)
-### Core docs
 - [Configuration](https://ze-software.net/docs/features/configuration/index.md): YANG-modeled, one model for everything (web: https://ze-software.net/docs/features/configuration/)
 - [CLI Commands](https://ze-software.net/docs/features/cli-commands/index.md): SSH CLI with diff, commit, and history (web: https://ze-software.net/docs/features/cli-commands/)
 - [Architecture](https://ze-software.net/docs/architecture/index.md): How the pieces fit together (web: https://ze-software.net/docs/architecture/)
-### Operator guides
+### Operate
 - [Production Diagnostics](https://ze-software.net/docs/guide/production-diagnostics/index.md): Start from symptoms and debug safely (web: https://ze-software.net/docs/guide/production-diagnostics/)
 - [Monitoring](https://ze-software.net/docs/guide/monitoring/index.md): Metrics, health, and operational visibility (web: https://ze-software.net/docs/guide/monitoring/)
 - [VPP Dataplane](https://ze-software.net/docs/guide/vpp/index.md): FIB, traffic, and firewall via VPP (web: https://ze-software.net/docs/guide/vpp/)
+- [Looking Glass](https://ze-software.net/docs/guide/looking-glass-howto/index.md): Publish read-only BGP visibility (web: https://ze-software.net/docs/guide/looking-glass-howto/)
+### Access and mitigation
+- [SSH and RBAC](https://ze-software.net/docs/guide/operator-access-rbac/index.md): Local users, profiles, and operator access (web: https://ze-software.net/docs/guide/operator-access-rbac/)
+- [FlowSpec Route Reflector](https://ze-software.net/docs/guide/flowspec-route-reflector/index.md): Reflect FlowSpec routes to clients (web: https://ze-software.net/docs/guide/flowspec-route-reflector/)
+- [FlowSpec Protection](https://ze-software.net/docs/guide/flowspec-protected-router/index.md): Turn FlowSpec into nftables and protect BGP (web: https://ze-software.net/docs/guide/flowspec-protected-router/)
 
 ## Examples
 

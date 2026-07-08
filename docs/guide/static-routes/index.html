@@ -54,6 +54,10 @@
                             <span class="nav-dropdown-icon" aria-hidden="true">💿</span>
                             <span><strong>Install Ze</strong><small>Run Ze on Linux or as a bootable appliance</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/ubuntu-build-install/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🐧</span>
+                            <span><strong>Ubuntu build</strong><small>Compile, install, create zefs, and start SSH</small></span>
+                        </a>
                         <a class="nav-dropdown-item" href="../../../docs/features/configuration/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚙️</span>
                             <span><strong>Configuration</strong><small>The YANG-modeled config shape Ze uses everywhere</small></span>
@@ -123,14 +127,11 @@
                     </button>
                     <div class="nav-dropdown-panel" id="nav-panel-docs">
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Hub</span>
+                        <span class="nav-dropdown-label">Hub and core</span>
                         <a class="nav-dropdown-item nav-dropdown-feature" href="../../../docs/">
                             <span class="nav-dropdown-icon" aria-hidden="true">📚</span>
                             <span><strong>Documentation</strong><small>All docs, organized by what you want to do</small></span>
                         </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Core docs</span>
                         <a class="nav-dropdown-item" href="../../../docs/features/configuration/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚙️</span>
                             <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
@@ -145,7 +146,7 @@
                         </a>
                     </div>
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Operator guides</span>
+                        <span class="nav-dropdown-label">Operate</span>
                         <a class="nav-dropdown-item" href="../../../docs/guide/production-diagnostics/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🩺</span>
                             <span><strong>Production Diagnostics</strong><small>Start from symptoms and debug safely</small></span>
@@ -157,6 +158,25 @@
                         <a class="nav-dropdown-item" href="../../../docs/guide/vpp/">
                             <span class="nav-dropdown-icon" aria-hidden="true">📦</span>
                             <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/looking-glass-howto/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔭</span>
+                            <span><strong>Looking Glass</strong><small>Publish read-only BGP visibility</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Access and mitigation</span>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/operator-access-rbac/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔐</span>
+                            <span><strong>SSH and RBAC</strong><small>Local users, profiles, and operator access</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/flowspec-route-reflector/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔁</span>
+                            <span><strong>FlowSpec Route Reflector</strong><small>Reflect FlowSpec routes to clients</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/flowspec-protected-router/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🛡️</span>
+                            <span><strong>FlowSpec Protection</strong><small>Turn FlowSpec into nftables and protect BGP</small></span>
                         </a>
                     </div>
                     </div>
@@ -181,7 +201,7 @@
                             <span><strong>ExaBGP Migration</strong><small>A practical path from ExaBGP process scripts</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../../usage/bgp-performance/">
-                            <span class="nav-dropdown-icon" aria-hidden="true">perf</span>
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚡</span>
                             <span><strong>BGP performance tests</strong><small>Route-server performance tests with Ze</small></span>
                         </a>
                     </div>
@@ -565,9 +585,17 @@ framework. BGP redistribute can import static routes:</p>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../../docs/guide/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
                         <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../command-equivalents/">
                         <span class="page-sidebar-link-label">Command equivalents</span>

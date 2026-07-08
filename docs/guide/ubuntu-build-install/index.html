@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Build and install Ze on Ubuntu - Ze</title>
+        <meta name="description" content="Ze documentation: guide/ubuntu-build-install.md" />
+        <meta property="og:title" content="Build and install Ze on Ubuntu - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/ubuntu-build-install.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Build and install Ze on Ubuntu - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/ubuntu-build-install.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=adbbfadb2b" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <button class="nav-menu-toggle" type="button" aria-controls="site-nav-links" aria-expanded="false">
+                    <span class="nav-menu-toggle-bars" aria-hidden="true"></span>
+                    <span>Menu</span>
+                </button>
+                <div id="site-nav-links" class="nav-links">
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-start">Start
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-start">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">First steps</span>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/quickstart/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🚀</span>
+                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/ze-install/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">💿</span>
+                            <span><strong>Install Ze</strong><small>Run Ze on Linux or as a bootable appliance</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/ubuntu-build-install/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🐧</span>
+                            <span><strong>Ubuntu build</strong><small>Compile, install, create zefs, and start SSH</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/configuration/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚙️</span>
+                            <span><strong>Configuration</strong><small>The YANG-modeled config shape Ze uses everywhere</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⌨️</span>
+                            <span><strong>CLI Basics</strong><small>Diff, commit, history, and operator commands</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Before you run</span>
+                        <a class="nav-dropdown-item" href="../../../roadmap/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🗺️</span>
+                            <span><strong>Project Status</strong><small>What is ready today and where Ze is still young</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../faq/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">?</span>
+                            <span><strong>FAQ</strong><small>Common questions before committing time to Ze</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/plugins/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔌</span>
+                            <span><strong>Plugin Catalog</strong><small>Search every runtime plugin by purpose, config, or dependency</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-evaluate">Evaluate
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-evaluate">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Capabilities</span>
+                        <a class="nav-dropdown-item" href="../../../features/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
+                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../compare/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚖️</span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, VyOS, and more</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../performance/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚡</span>
+                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Trust</span>
+                        <a class="nav-dropdown-item" href="../../../quality/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">✓</span>
+                            <span><strong>Code Quality</strong><small>Tests, QEMU, fuzzing, and mutation checks</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../dependencies/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📦</span>
+                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../security/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔒</span>
+                            <span><strong>Security</strong><small>Security policy and vulnerability reporting</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-docs">Docs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-docs">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Hub and core</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../../docs/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📚</span>
+                            <span><strong>Documentation</strong><small>All docs, organized by what you want to do</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/configuration/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚙️</span>
+                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⌨️</span>
+                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/architecture/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏗️</span>
+                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Operate</span>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/production-diagnostics/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🩺</span>
+                            <span><strong>Production Diagnostics</strong><small>Start from symptoms and debug safely</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/monitoring/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📈</span>
+                            <span><strong>Monitoring</strong><small>Metrics, health, and operational visibility</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/vpp/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📦</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/looking-glass-howto/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔭</span>
+                            <span><strong>Looking Glass</strong><small>Publish read-only BGP visibility</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Access and mitigation</span>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/operator-access-rbac/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔐</span>
+                            <span><strong>SSH and RBAC</strong><small>Local users, profiles, and operator access</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/flowspec-route-reflector/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔁</span>
+                            <span><strong>FlowSpec Route Reflector</strong><small>Reflect FlowSpec routes to clients</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/flowspec-protected-router/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🛡️</span>
+                            <span><strong>FlowSpec Protection</strong><small>Turn FlowSpec into nftables and protect BGP</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-examples">Examples
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-examples">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Deployment examples</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../../usage/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧰</span>
+                            <span><strong>Usage Examples</strong><small>Complete deployment examples for real network roles</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../usage/as112/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">112</span>
+                            <span><strong>AS112 Anycast DNS</strong><small>Ze as an AS112 DNS server with real router peers</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../usage/exabgp-migration/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔀</span>
+                            <span><strong>ExaBGP Migration</strong><small>A practical path from ExaBGP process scripts</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../usage/bgp-performance/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚡</span>
+                            <span><strong>BGP performance tests</strong><small>Route-server performance tests with Ze</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Runnable labs</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../../labs/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧪</span>
+                            <span><strong>Testing Labs</strong><small>Interop proof you can run yourself against real daemons</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/bgp-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🌐</span>
+                            <span><strong>BGP Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/l2tp-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔌</span>
+                            <span><strong>L2TP Access</strong><small>Ze as LNS vs real xl2tpd</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/pppoe-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📡</span>
+                            <span><strong>PPPoE Access</strong><small>Ze vs real accel-ppp access concentrator</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/ipsec-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔒</span>
+                            <span><strong>IPsec / IKEv2</strong><small>Ze as IKE initiator vs strongSwan</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Systems</span>
+                        <a class="nav-dropdown-item" href="../../../labs/vpp-dataplane/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🚀</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/appliance-install/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">💿</span>
+                            <span><strong>Appliance Installer</strong><small>HTTP/PXE, ISO, Ventoy, and real boots</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/looking-glass-graph/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔭</span>
+                            <span><strong>Looking Glass Graph</strong><small>Realistic UK topology, real external ASNs</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/vlan-qos/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏷️</span>
+                            <span><strong>VLAN QoS</strong><small>802.1p PCP tagging, actually on the wire</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-reference">Reference
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-reference">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Generated references</span>
+                        <a class="nav-dropdown-item" href="../../../cli/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⌨️</span>
+                            <span><strong>CLI Reference</strong><small>379 commands, generated from the live binary</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../config-reference/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧬</span>
+                            <span><strong>Configuration Reference</strong><small>35 sections, indexed from live YANG</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../command-equivalents/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">↔️</span>
+                            <span><strong>Command Equivalents</strong><small>Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-project">Project
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-project">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Progress</span>
+                        <a class="nav-dropdown-item" href="../../../roadmap/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🗺️</span>
+                            <span><strong>Roadmap</strong><small>The path to a first release you can trust</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../milestones/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏁</span>
+                            <span><strong>Milestones</strong><small>Landmark features, oldest to newest</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../changes/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧾</span>
+                            <span><strong>Changes</strong><small>What shipped, week by week</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../activity/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📈</span>
+                            <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Community</span>
+                        <a class="nav-dropdown-item" href="../../../blog/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">✍</span>
+                            <span><strong>Blog</strong><small>Longer project notes and release stories</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../talks/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🎤</span>
+                            <span><strong>Talks</strong><small>Presentations and conference material</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../contribute/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🤝</span>
+                            <span><strong>Contribute</strong><small>How to send code, reports, and interop results</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <a
+                        class="nav-badge nav-badge-search"
+                        href="../../../search/"
+                        aria-label="Search the site"
+                        aria-expanded="false"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/></svg></span>
+                        <span class="nav-badge-count nav-badge-search-label">Search <span class="search-shortcut-hint" aria-hidden="true"><kbd>⌘K</kbd><span>/</span></span></span>
+                    </a>
+                    <a
+                        class="nav-badge"
+                        href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener"
+                        aria-label="Ze Discord"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 640 512" fill="currentColor" aria-hidden="true"><path d="M524.531,69.836a1.5,1.5,0,0,0-.764-.7A485.065,485.065,0,0,0,404.081,32.03a1.816,1.816,0,0,0-1.923.91,337.461,337.461,0,0,0-14.9,30.6,447.848,447.848,0,0,0-134.426,0,309.541,309.541,0,0,0-15.135-30.6,1.89,1.89,0,0,0-1.924-.91A483.689,483.689,0,0,0,116.085,69.137a1.712,1.712,0,0,0-.788.676C39.068,183.651,18.186,294.69,28.43,404.354a2.016,2.016,0,0,0,.765,1.375A487.666,487.666,0,0,0,176.02,479.918a1.9,1.9,0,0,0,2.063-.676A348.2,348.2,0,0,0,208.12,430.4a1.86,1.86,0,0,0-1.019-2.588,321.173,321.173,0,0,1-45.868-21.853,1.885,1.885,0,0,1-.185-3.126c3.082-2.309,6.166-4.711,9.109-7.137a1.819,1.819,0,0,1,1.9-.256c96.229,43.917,200.41,43.917,295.5,0a1.812,1.812,0,0,1,1.924.233c2.944,2.426,6.027,4.851,9.132,7.16a1.884,1.884,0,0,1-.162,3.126,301.407,301.407,0,0,1-45.89,21.83,1.875,1.875,0,0,0-1,2.611,391.055,391.055,0,0,0,30.014,48.815,1.864,1.864,0,0,0,2.063.7A486.048,486.048,0,0,0,610.7,405.729a1.882,1.882,0,0,0,.765-1.352C623.729,277.594,590.933,167.465,524.531,69.836ZM222.491,337.58c-28.972,0-52.844-26.587-52.844-59.239S193.056,219.1,222.491,219.1c29.665,0,53.306,26.82,52.843,59.239C275.334,310.993,251.924,337.58,222.491,337.58Zm195.38,0c-28.971,0-52.843-26.587-52.843-59.239S388.437,219.1,417.871,219.1c29.667,0,53.307,26.82,52.844,59.239C470.715,310.993,447.538,337.58,417.871,337.58Z"/></svg></span>
+                        <span class="nav-badge-count">Discord</span>
+                    </a>
+                    <a
+                        class="nav-badge"
+                        href="https://github.com/ze-software/ze" target="_blank" rel="noopener"
+                        aria-label="Ze on GitHub, 39 stars"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 496 512" fill="currentColor" aria-hidden="true"><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        <span class="nav-badge-count">39</span>
+                    </a>
+                </div>
+            </nav>
+        </header>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-platform">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="build-and-install-ze-on-ubuntu">Build and install Ze on Ubuntu</h1>
+    <p>This page starts from a blank Ubuntu server and leaves you with an installed <code>ze</code> binary, a <code>database.zefs</code>, an SSH listener, a systemd service, and one place to add Ze features.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#1-install-build-tools">1. Install build tools</a></li>
+<li><a href="#2-build-ze">2. Build Ze</a></li>
+<li><a href="#3-install-the-binary">3. Install the binary</a></li>
+<li><a href="#4-create-databasezefs">4. Create database.zefs</a></li>
+<li><a href="#5-create-the-first-config-with-ssh-and-rbac">5. Create the first config with SSH and RBAC</a></li>
+<li><a href="#6-validate-and-import-the-config-into-zefs">6. Validate and import the config into zefs</a></li>
+<li><a href="#7-install-and-start-systemd">7. Install and start systemd</a></li>
+<li><a href="#8-test-ssh-login-and-rbac">8. Test SSH login and RBAC</a></li>
+<li><a href="#9-add-features">9. Add features</a></li>
+<li><a href="#10-stop-or-roll-back">10. Stop or roll back</a></li>
+</ol></nav>
+<p>The commands assume Ubuntu 24.04 or newer, <code>sudo</code>, and an <code>amd64</code> or <code>arm64</code> host. Replace <code>edge-01</code> and every password before running them on a real box.</p>
+<!-- source: scripts/dev/dev-setup.py -- Ubuntu package names and setup helper -->
+<!-- source: Makefile -- build target and default feature tags -->
+<!-- source: internal/plugins/init/main.go -- ze init input format and database.zefs creation -->
+<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- SSH server and user config -->
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- authorization profile config -->
+
+<h2 id="1-install-build-tools">1. Install build tools</h2>
+<p>Ubuntu's packaged Go may lag the version Ze needs, so install Go from <code>go.dev</code> and let <code>apt</code> provide the rest.</p>
+<pre><code class="language-bash">sudo apt-get update
+sudo apt-get install -y \
+  ca-certificates \
+  curl \
+  git \
+  build-essential \
+  make \
+  python3 \
+  pipx \
+  jq \
+  protobuf-compiler
+</code></pre>
+<p>Install Go 1.26. Pick the current 1.26 patch release from <a href="https://go.dev/dl/" target="_blank" rel="noopener">https://go.dev/dl/</a> if a newer patch exists.</p>
+<pre><code class="language-bash">GO_VERSION=1.26.0
+GO_ARCH=&quot;$(dpkg --print-architecture)&quot;
+case &quot;$GO_ARCH&quot; in
+  amd64|arm64) ;;
+  *) echo &quot;unsupported Go architecture: $GO_ARCH&quot; &gt;&amp;2; exit 1 ;;
+esac
+
+curl -fsSLO &quot;https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz&quot;
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf &quot;go${GO_VERSION}.linux-${GO_ARCH}.tar.gz&quot;
+
+cat &gt;&gt; &quot;$HOME/.profile&quot; &lt;&lt;'EOF'
+export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH
+EOF
+export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH
+
+go version
+</code></pre>
+<p>Optional tools for appliance and ISO work:</p>
+<pre><code class="language-bash">sudo apt-get install -y qemu-system-x86 e2fsprogs xorriso grub-efi-amd64-bin
+</code></pre>
+<p>Ze also ships a setup checker. It uses the same tool list as the developer and appliance checks.</p>
+<pre><code class="language-bash">git clone https://codeberg.org/thomas-mangin/ze.git
+cd ze
+make ze-setup CHECK=1 || true
+</code></pre>
+<p>On Ubuntu, <code>make ze-setup</code> prints <code>sudo apt-get install ...</code> commands for anything missing. It does not run <code>sudo</code> for you.</p>
+<h2 id="2-build-ze">2. Build Ze</h2>
+<p><code>make build</code> compiles the normal Ze binary and helper binaries.</p>
+<pre><code class="language-bash">cd ~/ze
+make build
+</code></pre>
+<p>Expected files:</p>
+<pre><code class="language-bash">ls -1 bin/ze bin/ze-setup bin/ze-test bin/ze-chaos bin/ze-perf
+</code></pre>
+<p>The default build includes the feature gates listed in <code>feature-gates.txt</code> through <code>ZE_FEATURES</code> in the Makefile. Services such as SSH, web, REST, gRPC, gNMI, telemetry, looking glass, OSPF, IS-IS, LDP, and RSVP-TE are compiled in by the normal <code>make build</code> path.</p>
+<p>If you deliberately want a smaller custom binary, pass your own tags. This is for packagers and lab work, not the normal install path.</p>
+<pre><code class="language-bash">ZE_TAGS=&quot;ze_ssh ze_lg ze_web&quot; make ze
+</code></pre>
+<h2 id="3-install-the-binary">3. Install the binary</h2>
+<p>Install the built binary into <code>/usr/local/bin/ze</code> and create the default config directory.</p>
+<pre><code class="language-bash">sudo ./bin/ze install local --prefix /usr/local
+/usr/local/bin/ze version
+</code></pre>
+<p><code>/usr/local/bin/ze</code> uses <code>/etc/ze</code> as its config directory.</p>
+<h2 id="4-create-databasezefs">4. Create <code>database.zefs</code></h2>
+<p><code>ze init</code> creates <code>/etc/ze/database.zefs</code>. It stores the bootstrap admin user, the SSH client defaults, and the instance name. The input lines are:</p>
+<ol>
+<li>username</li>
+<li>password</li>
+<li>SSH host for local CLI credentials, empty means <code>127.0.0.1</code></li>
+<li>SSH port for local CLI credentials, empty means <code>2222</code></li>
+<li>instance name, used as the default config filename</li>
+</ol>
+<pre><code class="language-bash">sudo install -d -m 0700 /etc/ze
+printf 'admin\nCHANGE_ME_BOOTSTRAP\n\n\nedge-01\n' | sudo /usr/local/bin/ze init
+sudo test -s /etc/ze/database.zefs
+</code></pre>
+<p>This creates the zefs bootstrap admin. Keep it as a recovery user until you have tested the configured users below.</p>
+<h2 id="5-create-the-first-config-with-ssh-and-rbac">5. Create the first config with SSH and RBAC</h2>
+<p>Hash the configured user passwords before putting them in a file. Static imported config should use the <code>password</code> leaf with a bcrypt hash. The interactive config editor can use <code>plaintext-password</code>, but a copied file should not persist plaintext.</p>
+<pre><code class="language-bash">ADMIN_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_BOOTSTRAP' | /usr/local/bin/ze passwd)&quot;
+NOC_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_NOC' | /usr/local/bin/ze passwd)&quot;
+
+sudo install -m 0600 /dev/null /etc/ze/edge-01.conf
+sudo tee /etc/ze/edge-01.conf &gt;/dev/null &lt;&lt;EOF
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 0.0.0.0
+            port 2222
+        }
+        idle-timeout 600
+        max-sessions 32
+    }
+}
+
+system {
+    authentication {
+        user admin {
+            password &quot;$ADMIN_HASH&quot;
+            profile [ admin ]
+        }
+        user noc {
+            password &quot;$NOC_HASH&quot;
+            profile [ read-only ]
+        }
+    }
+    authorization {
+        profile admin {
+            run {
+                default-action allow
+            }
+            edit {
+                default-action allow
+            }
+        }
+        profile read-only {
+            run {
+                default-action allow
+            }
+            edit {
+                default-action deny
+            }
+        }
+    }
+}
+EOF
+sudo chmod 0600 /etc/ze/edge-01.conf
+</code></pre>
+<p>The explicit <code>admin</code> user matters. Once any configured user has profile assignments, unassigned users are denied by local RBAC. Defining <code>admin</code> in config keeps the bootstrap name usable with an explicit <code>admin</code> profile.</p>
+<h2 id="6-validate-and-import-the-config-into-zefs">6. Validate and import the config into zefs</h2>
+<p><code>ze start</code> reads the active config from zefs. The instance name from <code>ze init</code> was <code>edge-01</code>, so import the file as <code>edge-01.conf</code>.</p>
+<pre><code class="language-bash">sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
+sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
+sudo /usr/local/bin/ze config ls file/active
+</code></pre>
+<p>Expected validation output:</p>
+<pre><code class="language-text">configuration valid: /etc/ze/edge-01.conf
+</code></pre>
+<h2 id="7-install-and-start-systemd">7. Install and start systemd</h2>
+<pre><code class="language-bash">sudo /usr/local/bin/ze install systemd --start
+systemctl status ze.service --no-pager
+</code></pre>
+<p>The generated unit starts <code>/usr/local/bin/ze start</code>, uses <code>/etc/ze</code> as <code>ZE_CONFIG_DIR</code>, and sets the runtime directory to <code>/run/ze</code>.</p>
+<p>For local operator commands from the shell, either run as root with the same config directory, or point the CLI at the systemd runtime socket:</p>
+<pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
+/usr/local/bin/ze status
+/usr/local/bin/ze cli -c &quot;help&quot;
+</code></pre>
+<h2 id="8-test-ssh-login-and-rbac">8. Test SSH login and RBAC</h2>
+<p>The <code>admin</code> user can run operational and edit commands. The <code>noc</code> user can run operational commands but cannot edit config.</p>
+<pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
+ZE_SSH_PASSWORD='CHANGE_ME_BOOTSTRAP' /usr/local/bin/ze cli --user admin -c &quot;help&quot;
+ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --user noc -c &quot;help&quot;
+</code></pre>
+<p>If the server listens on a management address, connect remotely by passing the host and port used in <code>environment ssh</code>.</p>
+<pre><code class="language-bash">ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --host 192.0.2.10 --port 2222 --user noc -c &quot;help&quot;
+</code></pre>
+<h2 id="9-add-features">9. Add features</h2>
+<p>There are two kinds of feature work.</p>
+<table>
+<thead>
+<tr>
+<th>Feature type</th>
+<th>What you change</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Compiled service</td>
+<td>Build tags or the default <code>make build</code> path</td>
+<td><code>ze_lg</code> compiles the looking glass server</td>
+</tr>
+<tr>
+<td>Runtime feature</td>
+<td>Config blocks and plugin declarations</td>
+<td><code>environment looking-glass</code>, <code>plugin internal rr</code>, <code>firewall backend nft</code></td>
+</tr>
+</tbody>
+</table>
+<p>For normal installs, keep the default binary and add runtime features in config. The rest of the howto pages use this pattern:</p>
+<pre><code class="language-text">plugin {
+    internal rr {
+        use bgp-rr
+    }
+}
+</code></pre>
+<p>After editing the config, validate it, import it under the active name, and reload the daemon.</p>
+<pre><code class="language-bash">sudo /usr/local/bin/ze config validate /etc/ze/edge-01.conf
+sudo /usr/local/bin/ze config import --name edge-01.conf /etc/ze/edge-01.conf
+sudo systemctl reload ze.service
+</code></pre>
+<p>Use the pages below as feature-specific starting points:</p>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th>Adds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../operator-access-rbac/">Operator access with SSH and RBAC</a></td>
+<td>Local users, profiles, public keys, TACACS+ pointers</td>
+</tr>
+<tr>
+<td><a href="../flowspec-route-reflector/">FlowSpec route reflector</a></td>
+<td><code>bgp-rr</code>, iBGP FlowSpec clients, route-reflector-client flags</td>
+</tr>
+<tr>
+<td><a href="../flowspec-protected-router/">FlowSpec protected router</a></td>
+<td>nft firewall backend, control-plane policing, FlowSpec firewall bridge</td>
+</tr>
+<tr>
+<td><a href="../looking-glass-howto/">Looking glass</a></td>
+<td>public read-only HTTP looking glass and birdwatcher-compatible API</td>
+</tr>
+</tbody>
+</table>
+<h2 id="10-stop-or-roll-back">10. Stop or roll back</h2>
+<pre><code class="language-bash">sudo systemctl stop ze.service
+sudo /usr/local/bin/ze uninstall systemd
+sudo /usr/local/bin/ze uninstall local
+</code></pre>
+<p>Use <code>--purge</code> only when you want to remove <code>/etc/ze</code> and <code>database.zefs</code>.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js?v=97537ff540" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Authentication - Ze</title>
+        <meta name="description" content="Ze documentation: guide/authentication.md" />
+        <meta property="og:title" content="Authentication - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/authentication.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Authentication - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/authentication.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=adbbfadb2b" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <button class="nav-menu-toggle" type="button" aria-controls="site-nav-links" aria-expanded="false">
+                    <span class="nav-menu-toggle-bars" aria-hidden="true"></span>
+                    <span>Menu</span>
+                </button>
+                <div id="site-nav-links" class="nav-links">
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-start">Start
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-start">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">First steps</span>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/quickstart/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🚀</span>
+                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/ze-install/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">💿</span>
+                            <span><strong>Install Ze</strong><small>Run Ze on Linux or as a bootable appliance</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/ubuntu-build-install/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🐧</span>
+                            <span><strong>Ubuntu build</strong><small>Compile, install, create zefs, and start SSH</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/configuration/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚙️</span>
+                            <span><strong>Configuration</strong><small>The YANG-modeled config shape Ze uses everywhere</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⌨️</span>
+                            <span><strong>CLI Basics</strong><small>Diff, commit, history, and operator commands</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Before you run</span>
+                        <a class="nav-dropdown-item" href="../../../roadmap/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🗺️</span>
+                            <span><strong>Project Status</strong><small>What is ready today and where Ze is still young</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../faq/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">?</span>
+                            <span><strong>FAQ</strong><small>Common questions before committing time to Ze</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/plugins/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔌</span>
+                            <span><strong>Plugin Catalog</strong><small>Search every runtime plugin by purpose, config, or dependency</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-evaluate">Evaluate
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-evaluate">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Capabilities</span>
+                        <a class="nav-dropdown-item" href="../../../features/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
+                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../compare/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚖️</span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, VyOS, and more</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../performance/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚡</span>
+                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Trust</span>
+                        <a class="nav-dropdown-item" href="../../../quality/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">✓</span>
+                            <span><strong>Code Quality</strong><small>Tests, QEMU, fuzzing, and mutation checks</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../dependencies/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📦</span>
+                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../security/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔒</span>
+                            <span><strong>Security</strong><small>Security policy and vulnerability reporting</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-docs">Docs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-docs">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Hub and core</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../../docs/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📚</span>
+                            <span><strong>Documentation</strong><small>All docs, organized by what you want to do</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/configuration/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚙️</span>
+                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⌨️</span>
+                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/architecture/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏗️</span>
+                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Operate</span>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/production-diagnostics/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🩺</span>
+                            <span><strong>Production Diagnostics</strong><small>Start from symptoms and debug safely</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/monitoring/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📈</span>
+                            <span><strong>Monitoring</strong><small>Metrics, health, and operational visibility</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/vpp/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📦</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/looking-glass-howto/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔭</span>
+                            <span><strong>Looking Glass</strong><small>Publish read-only BGP visibility</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Access and mitigation</span>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/operator-access-rbac/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔐</span>
+                            <span><strong>SSH and RBAC</strong><small>Local users, profiles, and operator access</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/flowspec-route-reflector/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔁</span>
+                            <span><strong>FlowSpec Route Reflector</strong><small>Reflect FlowSpec routes to clients</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/flowspec-protected-router/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🛡️</span>
+                            <span><strong>FlowSpec Protection</strong><small>Turn FlowSpec into nftables and protect BGP</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-examples">Examples
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-examples">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Deployment examples</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../../usage/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧰</span>
+                            <span><strong>Usage Examples</strong><small>Complete deployment examples for real network roles</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../usage/as112/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">112</span>
+                            <span><strong>AS112 Anycast DNS</strong><small>Ze as an AS112 DNS server with real router peers</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../usage/exabgp-migration/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔀</span>
+                            <span><strong>ExaBGP Migration</strong><small>A practical path from ExaBGP process scripts</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../usage/bgp-performance/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚡</span>
+                            <span><strong>BGP performance tests</strong><small>Route-server performance tests with Ze</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Runnable labs</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../../labs/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧪</span>
+                            <span><strong>Testing Labs</strong><small>Interop proof you can run yourself against real daemons</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/bgp-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🌐</span>
+                            <span><strong>BGP Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/l2tp-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔌</span>
+                            <span><strong>L2TP Access</strong><small>Ze as LNS vs real xl2tpd</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/pppoe-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📡</span>
+                            <span><strong>PPPoE Access</strong><small>Ze vs real accel-ppp access concentrator</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/ipsec-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔒</span>
+                            <span><strong>IPsec / IKEv2</strong><small>Ze as IKE initiator vs strongSwan</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Systems</span>
+                        <a class="nav-dropdown-item" href="../../../labs/vpp-dataplane/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🚀</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/appliance-install/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">💿</span>
+                            <span><strong>Appliance Installer</strong><small>HTTP/PXE, ISO, Ventoy, and real boots</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/looking-glass-graph/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔭</span>
+                            <span><strong>Looking Glass Graph</strong><small>Realistic UK topology, real external ASNs</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/vlan-qos/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏷️</span>
+                            <span><strong>VLAN QoS</strong><small>802.1p PCP tagging, actually on the wire</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-reference">Reference
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-reference">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Generated references</span>
+                        <a class="nav-dropdown-item" href="../../../cli/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⌨️</span>
+                            <span><strong>CLI Reference</strong><small>379 commands, generated from the live binary</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../config-reference/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧬</span>
+                            <span><strong>Configuration Reference</strong><small>35 sections, indexed from live YANG</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../command-equivalents/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">↔️</span>
+                            <span><strong>Command Equivalents</strong><small>Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-project">Project
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-project">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Progress</span>
+                        <a class="nav-dropdown-item" href="../../../roadmap/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🗺️</span>
+                            <span><strong>Roadmap</strong><small>The path to a first release you can trust</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../milestones/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏁</span>
+                            <span><strong>Milestones</strong><small>Landmark features, oldest to newest</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../changes/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧾</span>
+                            <span><strong>Changes</strong><small>What shipped, week by week</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../activity/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📈</span>
+                            <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Community</span>
+                        <a class="nav-dropdown-item" href="../../../blog/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">✍</span>
+                            <span><strong>Blog</strong><small>Longer project notes and release stories</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../talks/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🎤</span>
+                            <span><strong>Talks</strong><small>Presentations and conference material</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../contribute/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🤝</span>
+                            <span><strong>Contribute</strong><small>How to send code, reports, and interop results</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <a
+                        class="nav-badge nav-badge-search"
+                        href="../../../search/"
+                        aria-label="Search the site"
+                        aria-expanded="false"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/></svg></span>
+                        <span class="nav-badge-count nav-badge-search-label">Search <span class="search-shortcut-hint" aria-hidden="true"><kbd>⌘K</kbd><span>/</span></span></span>
+                    </a>
+                    <a
+                        class="nav-badge"
+                        href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener"
+                        aria-label="Ze Discord"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 640 512" fill="currentColor" aria-hidden="true"><path d="M524.531,69.836a1.5,1.5,0,0,0-.764-.7A485.065,485.065,0,0,0,404.081,32.03a1.816,1.816,0,0,0-1.923.91,337.461,337.461,0,0,0-14.9,30.6,447.848,447.848,0,0,0-134.426,0,309.541,309.541,0,0,0-15.135-30.6,1.89,1.89,0,0,0-1.924-.91A483.689,483.689,0,0,0,116.085,69.137a1.712,1.712,0,0,0-.788.676C39.068,183.651,18.186,294.69,28.43,404.354a2.016,2.016,0,0,0,.765,1.375A487.666,487.666,0,0,0,176.02,479.918a1.9,1.9,0,0,0,2.063-.676A348.2,348.2,0,0,0,208.12,430.4a1.86,1.86,0,0,0-1.019-2.588,321.173,321.173,0,0,1-45.868-21.853,1.885,1.885,0,0,1-.185-3.126c3.082-2.309,6.166-4.711,9.109-7.137a1.819,1.819,0,0,1,1.9-.256c96.229,43.917,200.41,43.917,295.5,0a1.812,1.812,0,0,1,1.924.233c2.944,2.426,6.027,4.851,9.132,7.16a1.884,1.884,0,0,1-.162,3.126,301.407,301.407,0,0,1-45.89,21.83,1.875,1.875,0,0,0-1,2.611,391.055,391.055,0,0,0,30.014,48.815,1.864,1.864,0,0,0,2.063.7A486.048,486.048,0,0,0,610.7,405.729a1.882,1.882,0,0,0,.765-1.352C623.729,277.594,590.933,167.465,524.531,69.836ZM222.491,337.58c-28.972,0-52.844-26.587-52.844-59.239S193.056,219.1,222.491,219.1c29.665,0,53.306,26.82,52.843,59.239C275.334,310.993,251.924,337.58,222.491,337.58Zm195.38,0c-28.971,0-52.843-26.587-52.843-59.239S388.437,219.1,417.871,219.1c29.667,0,53.307,26.82,52.844,59.239C470.715,310.993,447.538,337.58,417.871,337.58Z"/></svg></span>
+                        <span class="nav-badge-count">Discord</span>
+                    </a>
+                    <a
+                        class="nav-badge"
+                        href="https://github.com/ze-software/ze" target="_blank" rel="noopener"
+                        aria-label="Ze on GitHub, 39 stars"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 496 512" fill="currentColor" aria-hidden="true"><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        <span class="nav-badge-count">39</span>
+                    </a>
+                </div>
+            </nav>
+        </header>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-secure">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="authentication">Authentication</h1>
+    <p>Ze supports multiple SSH login users defined in the daemon's configuration,
+in addition to the bootstrap super-admin written to <code>database.zefs</code> by
+<code>ze init</code>. This guide covers adding YANG-configured users, hashing their
+passwords, and connecting as them with the <code>ze</code> CLI.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#two-sources-of-users">Two sources of users</a>
+<ol>
+<li><a href="#disabling-the-super-admin">Disabling the super-admin</a></li>
+</ol></li>
+<li><a href="#adding-a-user">Adding a user</a>
+<ol>
+<li><a href="#step-1-hash-a-password">Step 1: hash a password</a></li>
+<li><a href="#step-2-declare-the-user-in-yang">Step 2: declare the user in YANG</a></li>
+<li><a href="#step-3-reload">Step 3: reload</a></li>
+</ol></li>
+<li><a href="#logging-in-as-a-yang-user">Logging in as a YANG user</a>
+<ol>
+<li><a href="#tab-completion-ze-completion">Tab completion (ze completion)</a></li>
+</ol></li>
+<li><a href="#ssh-public-key-authentication">SSH public key authentication</a>
+<ol>
+<li><a href="#adding-a-public-key">Adding a public key</a></li>
+<li><a href="#supported-key-types">Supported key types</a></li>
+<li><a href="#connecting-with-a-key">Connecting with a key</a></li>
+<li><a href="#password-and-key-coexistence">Password and key coexistence</a></li>
+<li><a href="#scope">Scope</a></li>
+</ol></li>
+<li><a href="#why-two-leaves-instead-of-auto-detecting-the-format">Why two leaves instead of auto-detecting the format</a></li>
+<li><a href="#notes-on-plaintext-lifetime">Notes on plaintext lifetime</a></li>
+<li><a href="#things-that-do-not-work">Things that do NOT work</a></li>
+<li><a href="#reference">Reference</a></li>
+</ol></nav>
+<h2 id="two-sources-of-users">Two sources of users</h2>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Where stored</th>
+<th>Created by</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>zefs super-admin</td>
+<td><code>database.zefs</code> (<code>meta/auth/local/{username,password}</code>)</td>
+<td><code>ze init</code></td>
+<td>Bootstrap and recovery -- the operator who set the box up</td>
+</tr>
+<tr>
+<td>YANG users</td>
+<td><code>system.authentication.user &lt;name&gt;</code></td>
+<td>Config edit</td>
+<td>Day-to-day operators, auditors, scripts</td>
+</tr>
+</tbody>
+</table>
+<p>The daemon merges both sources at config load: any login attempt is checked
+against the combined list. YANG users work only when the config is loaded.</p>
+<p>When a YANG user has the same name as the zefs super-admin, the YANG entry
+takes precedence and the zefs entry is dropped. This lets operators override
+the bootstrap password via configuration without a stale zefs hash remaining
+as a backdoor.</p>
+<h3 id="disabling-the-super-admin">Disabling the super-admin</h3>
+<p>Setting <code>meta/instance/admin-disabled</code> to <code>"true"</code> in the zefs database
+(via <code>admin-enabled: false</code> in the appliance config) disables the super-admin
+on all surfaces: SSH, web, API, and serial console. The serial console
+returns "local admin login disabled" and denies access (fail-closed), unlike
+the missing-database case which grants access for emergency recovery.</p>
+<!-- source: internal/plugins/init/main.go -- RunWithReader entries -->
+<!-- source: cmd/ze/hub/main_servers.go -- usersFromZefsDB -->
+
+<h2 id="adding-a-user">Adding a user</h2>
+<h3 id="step-1-hash-a-password">Step 1: hash a password</h3>
+<p><code>ze passwd</code> takes plaintext on stdin or via interactive prompt and prints
+a bcrypt hash to stdout. The hash uses cost 10 (the same as <code>ze init</code>).</p>
+<pre><code>$ echo &quot;secret&quot; | ze passwd
+$2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
+</code></pre>
+<p>Interactive use prompts twice for confirmation.</p>
+<!-- source: internal/plugins/passwd/main.go -- runImpl -->
+
+<h3 id="step-2-declare-the-user-in-yang">Step 2: declare the user in YANG</h3>
+<p>Two equivalent ways to set the password:</p>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>When to use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>password "$2a$10$..."</code></td>
+<td>You already have a hash (from <code>ze passwd</code>, fleet automation, or a backup)</td>
+</tr>
+<tr>
+<td><code>plaintext-password "secret"</code></td>
+<td>You want to type the plaintext and let the commit hook hash it (Junos style)</td>
+</tr>
+</tbody>
+</table>
+<p>Example using the plaintext form:</p>
+<pre><code>system {
+    authentication {
+        user alice {
+            plaintext-password &quot;secret&quot;
+        }
+    }
+}
+</code></pre>
+<p>After <code>commit</code> (or <code>ze config set --no-reload</code>), the persisted file contains
+only the bcrypt hash; the <code>plaintext-password</code> leaf is removed and never
+written to disk. This matches Junos's <code>plain-text-password</code> behaviour.</p>
+<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user -->
+<!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
+
+<h3 id="step-3-reload">Step 3: reload</h3>
+<p>The daemon picks up the new user on the next config reload. Existing
+sessions are not interrupted.</p>
+<h2 id="logging-in-as-a-yang-user">Logging in as a YANG user</h2>
+<p>Any <code>ze</code> CLI tool accepts a <code>--user</code>/<code>-u</code> flag to override the zefs
+super-admin username. The password is read from <code>ze.ssh.password</code> (env
+var) or, if stdin is a terminal, prompted interactively.</p>
+<pre><code># As super-admin (default)
+ze cli
+
+# As alice, password from env (CI / scripts)
+ZE_SSH_PASSWORD=secret ze cli --user alice
+
+# As alice, password prompted (interactive)
+ze cli -u alice
+
+# Single command, then exit
+ze cli -u alice -c &quot;show version&quot;
+</code></pre>
+<!-- source: internal/core/ssh/client/client.go -- ReadCredentialsWithFlags -->
+
+<p>The same flag works on <code>ze bgp plugin cli</code>, <code>ze signal</code>, <code>ze config set</code>,
+<code>ze config edit</code>, and <code>ze interface migrate</code>.</p>
+<h3 id="tab-completion-ze-completion">Tab completion (<code>ze completion</code>)</h3>
+<p>Tab completion runs silently in the shell and does not accept flags. To
+have completions resolve as a non-super-admin user, set the env var in
+your shell profile:</p>
+<pre><code>export ZE_SSH_USERNAME=alice
+export ZE_SSH_PASSWORD=...   # or use a key-locked secret store
+</code></pre>
+<h2 id="ssh-public-key-authentication">SSH public key authentication</h2>
+<p>Users can authenticate to the SSH server with public keys instead of (or in
+addition to) passwords. Each user can have multiple named keys.</p>
+<h3 id="adding-a-public-key">Adding a public key</h3>
+<p>Extract the base64 key data from an existing SSH public key file. Given a
+key file like:</p>
+<pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGtK... alice@laptop
+</code></pre>
+<p>The three parts are: type, base64 data, comment. Configure the type and
+base64 data in the user's <code>public-keys</code> block:</p>
+<pre><code>system {
+    authentication {
+        user alice {
+            password &quot;$2a$10$...&quot;
+            profile admin
+            public-keys laptop {
+                type ssh-ed25519
+                key AAAAC3NzaC1lZDI1NTE5AAAAIGtK...
+            }
+            public-keys workstation {
+                type ssh-rsa
+                key AAAAB3NzaC1yc2EAAAADAQABAAAB...
+            }
+        }
+    }
+}
+</code></pre>
+<p>The key name (<code>laptop</code>, <code>workstation</code>) is an identifier only. It appears in
+no protocol exchange but helps distinguish multiple keys for the same user.</p>
+<h3 id="supported-key-types">Supported key types</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Algorithm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ssh-ed25519</code></td>
+<td>Ed25519 (recommended)</td>
+</tr>
+<tr>
+<td><code>ssh-rsa</code></td>
+<td>RSA</td>
+</tr>
+<tr>
+<td><code>ecdsa-sha2-nistp256</code></td>
+<td>ECDSA P-256</td>
+</tr>
+<tr>
+<td><code>ecdsa-sha2-nistp384</code></td>
+<td>ECDSA P-384</td>
+</tr>
+<tr>
+<td><code>ecdsa-sha2-nistp521</code></td>
+<td>ECDSA P-521</td>
+</tr>
+</tbody>
+</table>
+<h3 id="connecting-with-a-key">Connecting with a key</h3>
+<p>Standard SSH clients work directly:</p>
+<pre><code>ssh -i ~/.ssh/id_ed25519 -p 2222 alice@router
+</code></pre>
+<h3 id="password-and-key-coexistence">Password and key coexistence</h3>
+<p>A user can have both a password and public keys. The SSH server tries public
+key authentication first; if no key matches, it falls back to password
+authentication. The web UI uses passwords only; public keys are
+SSH-specific.</p>
+<h3 id="scope">Scope</h3>
+<p>Public key configuration applies to YANG-configured users only. The zefs
+super-admin (created by <code>ze init</code>) authenticates with a password.</p>
+<!-- source: internal/component/ssh/pubkey.go -- matchPublicKey -->
+<!-- source: internal/component/ssh/ssh.go -- wish.WithPublicKeyAuth -->
+
+<h2 id="why-two-leaves-instead-of-auto-detecting-the-format">Why two leaves instead of auto-detecting the format</h2>
+<p>The canonical <code>password</code> leaf is marked <code>ze:bcrypt</code> -- the parser stores
+the value verbatim and never tries to apply the <code>$9$</code> reversible
+obfuscation used for other sensitive fields. Bcrypt is one-way; mixing
+it with <code>$9$</code> would be a footgun.</p>
+<p>If you write a literal plaintext directly on <code>password</code>:</p>
+<pre><code>user alice {
+    password &quot;secret&quot;     # WRONG -- not a bcrypt hash
+}
+</code></pre>
+<p>then <code>ze config validate</code> emits a warning, the daemon logs a warning at
+load, and the user cannot authenticate (bcrypt compare fails). Use
+<code>plaintext-password</code> (auto-hashed) or <code>ze passwd</code> (manual) instead.</p>
+<!-- source: internal/component/config/password_hash.go -- CheckBcryptLeaves -->
+
+<h2 id="notes-on-plaintext-lifetime">Notes on plaintext lifetime</h2>
+<p>While an interactive <code>ze config edit</code> session is open, the plaintext value
+of <code>plaintext-password</code> is held in-memory by the editor and persisted to a
+zefs draft blob (mode 0o600) by <code>SaveDraft</code>. The plaintext is converted to
+the bcrypt hash and the ephemeral leaf is removed at commit; the draft is
+deleted afterward. Plaintext never appears in the canonical config file
+nor in commit metadata, but does briefly live in the local zefs database
+during the editing session.</p>
+<p>The bcrypt algorithm only considers the first 72 bytes of input. <code>ze passwd</code>
+rejects oversize input outright with a clear error so the user does not get
+a hash that validates only a prefix of their intended passphrase. The
+commit hook accepts oversize input (preserving an existing config) but emits
+a <code>slog.Warn</code> so the truncation surfaces in daemon logs.</p>
+<h2 id="things-that-do-not-work">Things that do NOT work</h2>
+<table>
+<thead>
+<tr>
+<th>Attempt</th>
+<th>Why it fails</th>
+<th>Use this instead</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze cli --user alice</code> from a non-TTY script with no <code>ZE_SSH_PASSWORD</code></td>
+<td class="cell-no">✕</td>
+<td>Set <code>ZE_SSH_PASSWORD</code> in CI</td>
+</tr>
+<tr>
+<td><code>--password</code> flag on <code>ze cli</code></td>
+<td>Not implemented -- passwords in argv leak to <code>ps</code> and shell history</td>
+<td>Env var or interactive prompt</td>
+</tr>
+<tr>
+<td>Reading the YANG bcrypt hash and passing it as <code>ZE_SSH_PASSWORD</code></td>
+<td>The daemon's <code>CheckPassword</code> does plaintext-bcrypt comparison and timing-safe equality with the SAME hash; it works for the super-admin only because zefs stores the same bytes the daemon stores</td>
+<td>Use the plaintext password; the daemon hashes on receive</td>
+</tr>
+<tr>
+<td>Forgetting to add the user, then trying to log in as them</td>
+<td>Daemon authenticator has no entry, returns <code>SSH auth failure source=local</code></td>
+<td>Add user, reload config</td>
+</tr>
+</tbody>
+</table>
+<h2 id="reference">Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>YANG schema</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/ssh/yang/ze-ssh-conf.yang</code></span></span></td>
+</tr>
+<tr>
+<td>Public key matching</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/ssh/pubkey.go</code></span></span></td>
+</tr>
+<tr>
+<td>Commit-time hashing helper</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/config/password_hash.go</code></span></span></td>
+</tr>
+<tr>
+<td>Validator</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/cli/validator.go</code></span></span></td>
+</tr>
+<tr>
+<td>SSH server password handler</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/ssh/ssh.go</code></span></span></td>
+</tr>
+<tr>
+<td>Local authenticator</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/authz/auth.go</code></span></span></td>
+</tr>
+<tr>
+<td>Client credential resolver</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/ssh/client/client.go</code></span></span></td>
+</tr>
+<tr>
+<td><code>ze passwd</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/plugins/passwd/main.go</code></span></span></td>
+</tr>
+</tbody>
+</table>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js?v=97537ff540" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

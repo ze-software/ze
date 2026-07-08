@@ -1427,7 +1427,7 @@ The password for a non-super-admin user must come from `ze.ssh.password`
 (env) or an interactive prompt. There is intentionally no `--password`
 flag (passwords in argv leak into shell history and `ps`).
 
-See [authentication.md](https://github.com/ze-software/ze/blob/main/docs/guide/authentication.md) for the full multi-user workflow.
+See [authentication.md](../authentication/index.md) for the full multi-user workflow.
 <!-- source: internal/core/ssh/client/client.go -- ReadCredentialsWithFlags -->
 <!-- source: docs/guide/authentication.md -- Logging in as a YANG user -->
 

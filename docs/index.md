@@ -11,6 +11,7 @@ job you are trying to do, then follow the links inside that path.
         <div class="link-list">
             <a href="guide/quickstart/">Quickstart <span>two BGP peers talking in under five minutes</span></a>
             <a href="guide/ze-install/">Install Ze <span>daemon install or bootable appliance</span></a>
+            <a href="guide/ubuntu-build-install/">Build on Ubuntu <span>compile, install, create zefs, set up SSH</span></a>
             <a href="features/configuration/">Configuration <span>the YANG model Ze uses everywhere</span></a>
             <a href="features/cli-commands/"><code>CLI</code> commands <span>diff, commit, history, and operator commands</span></a>
         </div>
@@ -21,6 +22,10 @@ job you are trying to do, then follow the links inside that path.
         <p>Task-oriented guides for protocol setup, access services, migration, and diagnostics.</p>
         <div class="link-list">
             <a href="../usage/exabgp-migration/">ExaBGP migration <span>convert an existing config and process scripts</span></a>
+            <a href="guide/operator-access-rbac/">SSH and RBAC <span>local users, profiles, and operator access</span></a>
+            <a href="guide/flowspec-route-reflector/">FlowSpec route reflector <span>reflect FlowSpec routes to iBGP clients</span></a>
+            <a href="guide/flowspec-protected-router/">FlowSpec protected router <span>turn FlowSpec into nftables protection</span></a>
+            <a href="guide/looking-glass-howto/">Looking glass <span>publish read-only BGP visibility</span></a>
             <a href="guide/firewall/">Firewall and policy routing <span>protect and steer traffic</span></a>
             <a href="guide/ospf/">OSPF, IS-IS, and static routes <span>bring routing protocols online</span></a>
             <a href="guide/pppoe/">PPPoE and L2TP <span>access concentration paths</span></a>

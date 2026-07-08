@@ -8,6 +8,7 @@
                     {"label_only": "First steps"},
                     {"href": "docs/guide/quickstart/", "icon": "🚀", "title": "Quickstart", "desc": "Two BGP peers in under 5 minutes"},
                     {"href": "docs/guide/ze-install/", "icon": "💿", "title": "Install Ze", "desc": "Run Ze on Linux or as a bootable appliance"},
+                    {"href": "docs/guide/ubuntu-build-install/", "icon": "🐧", "title": "Ubuntu build", "desc": "Compile, install, create zefs, and start SSH"},
                     {"href": "docs/features/configuration/", "icon": "⚙️", "title": "Configuration", "desc": "The YANG-modeled config shape Ze uses everywhere"},
                     {"href": "docs/features/cli-commands/", "icon": "⌨️", "title": "CLI Basics", "desc": "Diff, commit, history, and operator commands"}
                 ],
@@ -40,20 +41,24 @@
             "label": "Docs",
             "columns": [
                 [
-                    {"label_only": "Hub"},
-                    {"href": "docs/", "icon": "📚", "title": "Documentation", "desc": "All docs, organized by what you want to do", "feature": true}
-                ],
-                [
-                    {"label_only": "Core docs"},
+                    {"label_only": "Hub and core"},
+                    {"href": "docs/", "icon": "📚", "title": "Documentation", "desc": "All docs, organized by what you want to do", "feature": true},
                     {"href": "docs/features/configuration/", "icon": "⚙️", "title": "Configuration", "desc": "YANG-modeled, one model for everything"},
                     {"href": "docs/features/cli-commands/", "icon": "⌨️", "title": "CLI Commands", "desc": "SSH CLI with diff, commit, and history"},
                     {"href": "docs/architecture/", "icon": "🏗️", "title": "Architecture", "desc": "How the pieces fit together"}
                 ],
                 [
-                    {"label_only": "Operator guides"},
+                    {"label_only": "Operate"},
                     {"href": "docs/guide/production-diagnostics/", "icon": "🩺", "title": "Production Diagnostics", "desc": "Start from symptoms and debug safely"},
                     {"href": "docs/guide/monitoring/", "icon": "📈", "title": "Monitoring", "desc": "Metrics, health, and operational visibility"},
-                    {"href": "docs/guide/vpp/", "icon": "📦", "title": "VPP Dataplane", "desc": "FIB, traffic, and firewall via VPP"}
+                    {"href": "docs/guide/vpp/", "icon": "📦", "title": "VPP Dataplane", "desc": "FIB, traffic, and firewall via VPP"},
+                    {"href": "docs/guide/looking-glass-howto/", "icon": "🔭", "title": "Looking Glass", "desc": "Publish read-only BGP visibility"}
+                ],
+                [
+                    {"label_only": "Access and mitigation"},
+                    {"href": "docs/guide/operator-access-rbac/", "icon": "🔐", "title": "SSH and RBAC", "desc": "Local users, profiles, and operator access"},
+                    {"href": "docs/guide/flowspec-route-reflector/", "icon": "🔁", "title": "FlowSpec Route Reflector", "desc": "Reflect FlowSpec routes to clients"},
+                    {"href": "docs/guide/flowspec-protected-router/", "icon": "🛡️", "title": "FlowSpec Protection", "desc": "Turn FlowSpec into nftables and protect BGP"}
                 ]
             ]
         },
@@ -65,7 +70,7 @@
                     {"href": "usage/", "icon": "🧰", "title": "Usage Examples", "desc": "Complete deployment examples for real network roles", "feature": true},
                     {"href": "usage/as112/", "icon": "112", "title": "AS112 Anycast DNS", "desc": "Ze as an AS112 DNS server with real router peers"},
                     {"href": "usage/exabgp-migration/", "icon": "🔀", "title": "ExaBGP Migration", "desc": "A practical path from ExaBGP process scripts"},
-                    {"href": "usage/bgp-performance/", "icon": "perf", "title": "BGP performance tests", "desc": "Route-server performance tests with Ze"}
+                    {"href": "usage/bgp-performance/", "icon": "⚡", "title": "BGP performance tests", "desc": "Route-server performance tests with Ze"}
                 ],
                 [
                     {"label_only": "Runnable labs"},

@@ -564,9 +564,19 @@
               "desc": "Start two BGP peers quickly."
             },
             {
+              "href": "docs/guide/ubuntu-build-install/",
+              "label": "Build on Ubuntu",
+              "desc": "Compile, install, create zefs, and enable SSH."
+            },
+            {
               "href": "docs/guide/production-diagnostics/",
               "label": "Production diagnostics",
               "desc": "Start from symptoms and debug safely."
+            },
+            {
+              "href": "docs/guide/operator-access-rbac/",
+              "label": "SSH and RBAC",
+              "desc": "Configure users, profiles, and operator access."
             },
             {
               "href": "docs/guide/command-reference/",
@@ -1201,9 +1211,19 @@
               "desc": "Start from a minimal working setup."
             },
             {
+              "href": "docs/guide/ubuntu-build-install/",
+              "label": "Build on Ubuntu",
+              "desc": "Install Ze, create zefs, and start SSH."
+            },
+            {
               "href": "docs/guide/production-diagnostics/",
               "label": "Production diagnostics",
               "desc": "Debug by symptom when something is wrong."
+            },
+            {
+              "href": "docs/guide/operator-access-rbac/",
+              "label": "SSH and RBAC",
+              "desc": "Set up operator accounts and profiles."
             },
             {
               "href": "command-equivalents/",

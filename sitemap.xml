@@ -1609,6 +1609,12 @@
     <loc>https://ze-software.net/docs/guide/audit/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/authentication/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/authorization/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/benchmarking/</loc>
   </url>
   <url>
@@ -1621,16 +1627,28 @@
     <loc>https://ze-software.net/docs/guide/flow-export/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/flowspec-protected-router/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/flowspec-route-reflector/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/isis/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/l2tp/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/guide/looking-glass-howto/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/guide/monitoring/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/mrt-analysis/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/operator-access-rbac/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/ospf/</loc>
@@ -1652,6 +1670,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/tacacs/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/guide/ubuntu-build-install/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/guide/vpp/</loc>

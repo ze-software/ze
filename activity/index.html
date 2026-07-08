@@ -522,6 +522,10 @@
                             <span class="nav-dropdown-icon" aria-hidden="true">💿</span>
                             <span><strong>Install Ze</strong><small>Run Ze on Linux or as a bootable appliance</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="../docs/guide/ubuntu-build-install/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🐧</span>
+                            <span><strong>Ubuntu build</strong><small>Compile, install, create zefs, and start SSH</small></span>
+                        </a>
                         <a class="nav-dropdown-item" href="../docs/features/configuration/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚙️</span>
                             <span><strong>Configuration</strong><small>The YANG-modeled config shape Ze uses everywhere</small></span>
@@ -591,14 +595,11 @@
                     </button>
                     <div class="nav-dropdown-panel" id="nav-panel-docs">
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Hub</span>
+                        <span class="nav-dropdown-label">Hub and core</span>
                         <a class="nav-dropdown-item nav-dropdown-feature" href="../docs/">
                             <span class="nav-dropdown-icon" aria-hidden="true">📚</span>
                             <span><strong>Documentation</strong><small>All docs, organized by what you want to do</small></span>
                         </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Core docs</span>
                         <a class="nav-dropdown-item" href="../docs/features/configuration/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚙️</span>
                             <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
@@ -613,7 +614,7 @@
                         </a>
                     </div>
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Operator guides</span>
+                        <span class="nav-dropdown-label">Operate</span>
                         <a class="nav-dropdown-item" href="../docs/guide/production-diagnostics/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🩺</span>
                             <span><strong>Production Diagnostics</strong><small>Start from symptoms and debug safely</small></span>
@@ -625,6 +626,25 @@
                         <a class="nav-dropdown-item" href="../docs/guide/vpp/">
                             <span class="nav-dropdown-icon" aria-hidden="true">📦</span>
                             <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/guide/looking-glass-howto/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔭</span>
+                            <span><strong>Looking Glass</strong><small>Publish read-only BGP visibility</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Access and mitigation</span>
+                        <a class="nav-dropdown-item" href="../docs/guide/operator-access-rbac/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔐</span>
+                            <span><strong>SSH and RBAC</strong><small>Local users, profiles, and operator access</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/guide/flowspec-route-reflector/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔁</span>
+                            <span><strong>FlowSpec Route Reflector</strong><small>Reflect FlowSpec routes to clients</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../docs/guide/flowspec-protected-router/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🛡️</span>
+                            <span><strong>FlowSpec Protection</strong><small>Turn FlowSpec into nftables and protect BGP</small></span>
                         </a>
                     </div>
                     </div>
@@ -649,7 +669,7 @@
                             <span><strong>ExaBGP Migration</strong><small>A practical path from ExaBGP process scripts</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../usage/bgp-performance/">
-                            <span class="nav-dropdown-icon" aria-hidden="true">perf</span>
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚡</span>
                             <span><strong>BGP performance tests</strong><small>Route-server performance tests with Ze</small></span>
                         </a>
                     </div>
@@ -798,8 +818,8 @@
                 </div>
                 <div class="activity-widget reveal" aria-label="Activity heatmap">
 <section class="stats" aria-label="Summary">
-        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">1,797,199</strong></div>
-        <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">199</strong></div>
+        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">1,798,588</strong></div>
+        <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">200</strong></div>
         <div class="stat"><span id="peak-label">Peak line day</span><strong id="peak-value">68,057</strong></div>
         <div class="stat"><span>Days shown</span><strong>365</strong></div>
         <div class="metric-control">
@@ -807,7 +827,7 @@
                 <button type="button" data-metric="lines" aria-pressed="true">Added Lines</button>
                 <button type="button" data-metric="commits" aria-pressed="false">Commits</button>
             </div>
-            <div class="pill">2025-07-08 to 2026-07-07</div>
+            <div class="pill">2025-07-09 to 2026-07-08</div>
         </div>
     </section>
                     <div class="dashboard-grid">
@@ -871,10 +891,10 @@
                 </div>
                 <div class="chart-body">
                     <div class="weekday-labels" aria-hidden="true"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div>
-                    <div class="activity-grid" role="img" aria-label="Daily activity from 2025-07-08 to 2026-07-07">
+                    <div class="activity-grid" role="img" aria-label="Daily activity from 2025-07-09 to 2026-07-08">
 <div class="day-cell outside pre-repo" data-date="2025-07-06" data-date-label="Sun 06 Jul 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 06 Jul 2025: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell outside pre-repo" data-date="2025-07-07" data-date-label="Mon 07 Jul 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 07 Jul 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-07-08" data-date-label="Tue 08 Jul 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 08 Jul 2025: 0 lines added, 0 commits" tabindex="0"></div>
+<div class="day-cell outside pre-repo" data-date="2025-07-08" data-date-label="Tue 08 Jul 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 08 Jul 2025: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell pre-repo" data-date="2025-07-09" data-date-label="Wed 09 Jul 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 09 Jul 2025: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell pre-repo" data-date="2025-07-10" data-date-label="Thu 10 Jul 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 10 Jul 2025: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell pre-repo" data-date="2025-07-11" data-date-label="Fri 11 Jul 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 11 Jul 2025: 0 lines added, 0 commits" tabindex="0"></div>
@@ -1238,8 +1258,8 @@
 <div class="day-cell" data-date="2026-07-04" data-date-label="Sat 04 Jul 2026" data-lines="2022" data-lines-display="2,022" data-lines-level="1" data-commits="7" data-commits-display="7" data-commits-level="1" data-level="1" aria-label="Sat 04 Jul 2026: 2,022 lines added, 7 commits" tabindex="0"></div>
 <div class="day-cell" data-date="2026-07-05" data-date-label="Sun 05 Jul 2026" data-lines="6732" data-lines-display="6,732" data-lines-level="1" data-commits="13" data-commits-display="13" data-commits-level="1" data-level="1" aria-label="Sun 05 Jul 2026: 6,732 lines added, 13 commits" tabindex="0"></div>
 <div class="day-cell" data-date="2026-07-06" data-date-label="Mon 06 Jul 2026" data-lines="8603" data-lines-display="8,603" data-lines-level="1" data-commits="16" data-commits-display="16" data-commits-level="1" data-level="1" aria-label="Mon 06 Jul 2026: 8,603 lines added, 16 commits" tabindex="0"></div>
-<div class="day-cell" data-date="2026-07-07" data-date-label="Tue 07 Jul 2026" data-lines="1762" data-lines-display="1,762" data-lines-level="1" data-commits="12" data-commits-display="12" data-commits-level="1" data-level="1" aria-label="Tue 07 Jul 2026: 1,762 lines added, 12 commits" tabindex="0"></div>
-<div class="day-cell outside" data-date="2026-07-08" data-date-label="Wed 08 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 08 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-07-07" data-date-label="Tue 07 Jul 2026" data-lines="2949" data-lines-display="2,949" data-lines-level="1" data-commits="19" data-commits-display="19" data-commits-level="1" data-level="1" aria-label="Tue 07 Jul 2026: 2,949 lines added, 19 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-07-08" data-date-label="Wed 08 Jul 2026" data-lines="202" data-lines-display="202" data-lines-level="1" data-commits="2" data-commits-display="2" data-commits-level="1" data-level="1" aria-label="Wed 08 Jul 2026: 202 lines added, 2 commits" tabindex="0"></div>
 <div class="day-cell outside" data-date="2026-07-09" data-date-label="Thu 09 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 09 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell outside" data-date="2026-07-10" data-date-label="Fri 10 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 10 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell outside" data-date="2026-07-11" data-date-label="Sat 11 Jul 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 11 Jul 2026: 0 lines added, 0 commits" tabindex="0"></div>
@@ -1254,33 +1274,33 @@
 <div class="go-bucket">
             <h3>Total Code</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>5,569</strong></div>
-<div class="stat"><span>Total lines</span><strong>1,151,649</strong></div>
-<div class="stat"><span>Code</span><strong>857,307</strong></div>
-<div class="stat"><span>Blank</span><strong>131,802</strong></div>
-<div class="stat"><span>Comments</span><strong>162,540</strong></div>
+<div class="stat"><span>Files</span><strong>5,576</strong></div>
+<div class="stat"><span>Total lines</span><strong>1,152,565</strong></div>
+<div class="stat"><span>Code</span><strong>857,770</strong></div>
+<div class="stat"><span>Blank</span><strong>131,880</strong></div>
+<div class="stat"><span>Comments</span><strong>162,915</strong></div>
             </div>
             
         </div>
 <div class="go-bucket">
             <h3>Production</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>3,370</strong></div>
-<div class="stat"><span>Total lines</span><strong>602,822</strong></div>
-<div class="stat"><span>Code</span><strong>449,315</strong></div>
-<div class="stat"><span>Blank</span><strong>64,119</strong></div>
-<div class="stat"><span>Comments</span><strong>89,388</strong></div>
+<div class="stat"><span>Files</span><strong>3,374</strong></div>
+<div class="stat"><span>Total lines</span><strong>603,188</strong></div>
+<div class="stat"><span>Code</span><strong>449,438</strong></div>
+<div class="stat"><span>Blank</span><strong>64,142</strong></div>
+<div class="stat"><span>Comments</span><strong>89,608</strong></div>
             </div>
             
         </div>
 <div class="go-bucket">
             <h3>Test</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>2,199</strong></div>
-<div class="stat"><span>Total lines</span><strong>548,827</strong></div>
-<div class="stat"><span>Code</span><strong>407,992</strong></div>
-<div class="stat"><span>Blank</span><strong>67,683</strong></div>
-<div class="stat"><span>Comments</span><strong>73,152</strong></div>
+<div class="stat"><span>Files</span><strong>2,202</strong></div>
+<div class="stat"><span>Total lines</span><strong>549,377</strong></div>
+<div class="stat"><span>Code</span><strong>408,332</strong></div>
+<div class="stat"><span>Blank</span><strong>67,738</strong></div>
+<div class="stat"><span>Comments</span><strong>73,307</strong></div>
             </div>
             
         </div>
@@ -1383,7 +1403,7 @@
         </main>
 
 <script>
-const metricSummaries = {"lines":{"totalLabel":"Total added lines","totalValue":"1,797,199","activeLabel":"Days with added lines","activeValue":"199","peakLabel":"Peak line day","peakValue":"68,057","topHeading":"Top Added-Line Days","topColumn":"Added lines","thresholdLabel":"Line thresholds","thresholdValue":"13,612, 27,223, 40,835, 54,446"},"commits":{"totalLabel":"Total commits","totalValue":"4,464","activeLabel":"Days with commits","activeValue":"199","peakLabel":"Peak commit day","peakValue":"93","topHeading":"Top Commit Days","topColumn":"Commits","thresholdLabel":"Commit thresholds","thresholdValue":"19, 38, 56, 75"}};
+const metricSummaries = {"lines":{"totalLabel":"Total added lines","totalValue":"1,798,588","activeLabel":"Days with added lines","activeValue":"200","peakLabel":"Peak line day","peakValue":"68,057","topHeading":"Top Added-Line Days","topColumn":"Added lines","thresholdLabel":"Line thresholds","thresholdValue":"13,612, 27,223, 40,835, 54,446"},"commits":{"totalLabel":"Total commits","totalValue":"4,473","activeLabel":"Days with commits","activeValue":"200","peakLabel":"Peak commit day","peakValue":"93","topHeading":"Top Commit Days","topColumn":"Commits","thresholdLabel":"Commit thresholds","thresholdValue":"19, 38, 56, 75"}};
 let currentMetric = "lines";
 const cells = Array.from(document.querySelectorAll(".activity-grid .day-cell"));
 const buttons = Array.from(document.querySelectorAll(".metric-switch button"));
