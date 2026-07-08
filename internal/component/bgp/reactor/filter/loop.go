@@ -113,6 +113,7 @@ func LoopIngress(src filterapi.PeerFilterInfo, payload []byte, _ map[string]any)
 						asnCount++
 						if asnCount > uint16(src.AllowOwnAS) {
 							logger().Debug("AS loop detected", "peer", src.Address, "local-asn", localASN, "count", asnCount, "allow", src.AllowOwnAS)
+							recordASPathLoop(src.Address.String())
 							return false, nil
 						}
 					}

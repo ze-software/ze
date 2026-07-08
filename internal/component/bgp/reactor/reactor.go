@@ -41,6 +41,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"               // init() registers raw message RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"            // init() registers update parsing RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter"
 	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -974,6 +975,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		r.rmetrics = initReactorMetrics(r.metricsRegistry, version,
 			routerID, textbuf.StringUint(uint64(r.config.LocalAS)))
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
+		// Wire the always-on protocol filters' metrics (loop detection) into the
+		// same registry; they self-register via filterapi, not as run plugins,
+		// so their ConfigureMetrics callback never fires.
+		filter.SetMetricsRegistry(r.metricsRegistry)
 		go r.metricsUpdateLoop()
 	}
 
