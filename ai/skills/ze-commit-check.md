@@ -5,8 +5,9 @@ description: Scoped Commit with Verification
 
 # Scoped Commit with Verification
 
-Prepare a user-run commit script with verification only when needed. Does NOT
-run git commit or git add directly. This is not a late implementation review.
+Prepare a commit script (verification only when needed) and run it yourself.
+Does NOT run git commit or git add as direct tool calls -- everything goes
+through the script. This is not a late implementation review.
 
 See also: `/ze-commit` (commit without verification), `/ze-verify` (standalone verification)
 
@@ -49,13 +50,15 @@ scripts/dev/commit_helper.py create \
   --file file3_test.go
 ```
 
-7. **Present to user:** Show only the included files, verification evidence or
-   skip reason, commit subject/body summary, generated message file path, and
-   generated script path. The user runs the script themselves.
+7. **Run and report:** Run the generated script yourself
+   (`bash tmp/commit-<SESSION>.sh`), then show the resulting commit SHA(s),
+   the included files, verification evidence or skip reason, commit
+   subject/body summary, generated message file path, and generated script
+   path.
 
 ## Rules
 
-- **NEVER run `git add` or `git commit` directly.** Write the commit script only.
+- **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the commit script, then run the script (`bash tmp/commit-<SESSION>.sh`).
 - Use `scripts/dev/commit_helper.py create` unless the commit shape cannot be expressed by the helper.
 - Always run `scripts/dev/verify-status.sh check` before any verify target. A FRESH PASS is authoritative and forbids rerunning `make ze-verify` or `make ze-verify-changed`.
 - If verification is STALE and required, run one required gate, then proceed from its result. Do not stack extra health checks or speculative gates.

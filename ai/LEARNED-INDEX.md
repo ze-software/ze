@@ -295,6 +295,7 @@ Agent rules, self-improvement, discovery paths, and development-time inventories
 - [835](plan/learned/835-commit-request-fast-path.md) -- Commit requests are a fast path: create the user-run helper script, skip late completeness reviews, and treat `verify-status.sh check` FRESH as a hard no-rerun signal for `make ze-verify`
 - [876](plan/learned/876-commit-helper-session-collision.md) -- Per-session tmp/ artifacts must embed a session-unique path component: the shared commit-session-id let a concurrent session's `--replace` overwrite another's prepared commit script; helper now keys the ID file by Claude session fingerprint
 - [1006](plan/learned/1006-feature-surface-gate.md) -- Feature Surface Gate generalizes the BGP Family Gate to all feature types: /ze-spec forces reading the matching pattern doc + filling the template Integration/Documentation checklists; /ze-review gains a doctor-check row (the surface gated nowhere else) and a discovery-index row; de-orphans `discovery-updates.md` from the skills
+- [1086](plan/learned/1086-claude-runs-commit-script.md) -- Claude runs the commit script itself (`bash tmp/commit-<SESSION>.sh`) instead of handing it to the user; the script -- not the human -- is what makes add + delete + commit atomic. Bare `git commit`/`git add` tool calls stay banned ("committing outside a script is not" allowed); no hook change (the `git commit` block still forces the script path); supersedes the "user runs the script" mechanism in [833]/[835]
 
 ## Testing
 

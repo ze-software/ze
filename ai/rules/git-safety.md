@@ -1,19 +1,23 @@
 # Git Safety
 
-**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the user-run commit-script path, and verify-status handling.
+**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, and verify-status handling.
 
 Rationale: `ai/rationale/git-safety.md`
 
 ## Commit Rules
 
-**FORBIDDEN from AI tool calls:** `git commit`, `git add`, `git rm`,
-`git restore --staged`, `git stash`. Sessions share staging -- a direct
-`git add` is visible to every other session's `git commit` and files
-cross-commit. Package add + commit into a single user-triggered script.
+**FORBIDDEN as direct AI tool calls:** `git commit`, `git add`, `git rm`,
+`git restore --staged`, `git stash`. Sessions share staging -- a bare
+`git add` from one tool call is visible to every other session's
+`git commit` and files cross-commit. So never issue these verbs as
+separate tool calls. Instead package add + delete + commit into a single
+script (so staging never sits open between calls, nothing left dangling),
+then run that script yourself: `bash tmp/commit-<SESSION>.sh`. Committing
+is allowed; committing outside a script is not.
 
 **Explicit commit requests are a fast path.** When the user asks for a
-commit, the implementation/review phase is over. Prepare the user-run
-commit script immediately. Do not re-audit the implementation, run late
+commit, the implementation/review phase is over. Prepare the commit
+script and run it immediately. Do not re-audit the implementation, run late
 completeness/remaining-work tables, inspect speculative companion artifacts,
 or rerun lint/tests just because commit was requested. Inspect only enough
 state to avoid staging unrelated, ignored, generated, or out-of-scope paths.
@@ -21,20 +25,23 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
 
 **Commit workflow:**
 1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a script path).
-2. Use `scripts/dev/commit_helper.py create` to write `tmp/commit-msg-<SESSION>-<tag>.txt` and `tmp/commit-<SESSION>.sh`. Pass `--file` once per explicit file, `--remove` for tracked deletions, `--replace` for the first logical commit, and `--append` for later commits in the same user-run script.
+2. Use `scripts/dev/commit_helper.py create` to write `tmp/commit-msg-<SESSION>-<tag>.txt` and `tmp/commit-<SESSION>.sh`. Pass `--file` once per explicit file, `--remove` for tracked deletions, `--replace` for the first logical commit, and `--append` for later commits in the same script.
 3. The helper writes executable scripts, uses `git commit -F <message-file>`, rejects ignored/generated paths, and refuses to overwrite an existing script unless `--replace` or `--append` is explicit. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a known-red logged in `plan/known-failures.md`). This makes "verify before commit" enforced rather than honor-system.
    It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`, `ai/LEARNED-FULL-INDEX.md`) is stale (run `make ze-regen`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header, a `plan/learned/*.md`) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
 4. Lesson learned check: when a commit changes agent workflow, rules, tooling, verification, or discovery surfaces, include `plan/learned/NNN-<name>.md` and `plan/learned/.counter` in `--file`. If no reusable lesson is useful, pass `--lesson-not-needed "<reason>"`. For known-required lessons, pass `--lesson-required`.
    Allocate the number with `scripts/dev/commit_helper.py learned-next <slug>` -- it picks max(existing file prefixes, .counter)+1, creates the file immediately, and bumps `.counter`, so concurrent sessions cannot allocate the same number. Never hand-read `.counter` to pick a number.
 5. If the helper cannot express the commit shape, hand-write the same `tmp/commit-<SESSION>.sh` pattern and `chmod +x` it. Do not use heredocs. Always use `git commit -F <file>`.
 6. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
-7. Report included files, message file, script path, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
+7. Run the finished script yourself: `bash tmp/commit-<SESSION>.sh`. Then report the resulting commit SHA(s), included files, message file, script path, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
 8. Before writing a commit script, read `.gitignore` and never `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. Only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
 
 `git commit`/`git add` inside the script is fine -- the ban is on
-direct AI tool invocations, not on what the script does when the user
-runs it. `git restore --staged <file>` is allowed inside a commit
-script only; all other `git restore` variants remain forbidden.
+direct AI tool invocations, not on what the script does when it runs.
+Run the finished script yourself with `bash tmp/commit-<SESSION>.sh`;
+because the tool call is `bash <script>`, not a bare `git commit`, it
+passes the hook that blocks the raw verbs. `git restore --staged <file>`
+is allowed inside a commit script only; all other `git restore` variants
+remain forbidden.
 
 **`git rm` safety:** before using `git rm` in a commit script, verify
 the file is tracked (`git ls-files --error-unmatch <file>`). For files

@@ -214,7 +214,7 @@ If a spec describes work that is **already implemented**, run the full Completio
           + Bump `plan/learned/.counter` and include `--file plan/learned/.counter`
           + include `--file ai/LEARNED-INDEX.md` if updated
         - **Commit B:** `scripts/dev/commit_helper.py create --append --remove plan/spec-<name>.md` (spec closure)
-        The user runs the generated script and the work is done. They will not come back for a
+        Run the generated script yourself and the work is done. There is no
         second step. If spec closure or learned summary is missing, it never happens.
         Disjoint systems (e.g., CLI and BGP encoding) get separate commits.
 ```

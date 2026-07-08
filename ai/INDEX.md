@@ -76,7 +76,7 @@ and gated fresh, so they never lie about the current code.
 
 | Task | Read first | Then use |
 |---|---|---|
-| Generate a user-run commit script | `ai/rules/git-safety.md` | Fast path: use `scripts/dev/commit_helper.py create`; if verification is considered, run `scripts/dev/verify-status.sh check` first and never rerun verify when FRESH |
+| Generate and run a commit script | `ai/rules/git-safety.md` | Fast path: use `scripts/dev/commit_helper.py create`, then run it yourself (`bash tmp/commit-<SESSION>.sh`); if verification is considered, run `scripts/dev/verify-status.sh check` first and never rerun verify when FRESH |
 
 ### Modifying Existing Code
 
@@ -180,7 +180,7 @@ artifact type. Check them whenever your work touches the described concern.
 
 | Tool | Location | Purpose |
 |------|----------|---------|
-| `commit_helper.py` | `scripts/dev/` | Generate commit message files and executable user-run commit scripts. Reuses `tmp/commit-session-id`, rejects ignored/generated paths, uses `git commit -F`, and requires a learned summary or explicit no-lesson reason for workflow/tooling/rule changes. |
+| `commit_helper.py` | `scripts/dev/` | Generate commit message files and executable commit scripts that Claude runs itself (`bash tmp/commit-<SESSION>.sh`). Reuses `tmp/commit-session-id`, rejects ignored/generated paths, uses `git commit -F`, and requires a learned summary or explicit no-lesson reason for workflow/tooling/rule changes. |
 | `digest_check.py` | `scripts/dev/` | Validate the `file:line` anchors in `ai/digests/*.md`: each resolves to a real file (subsystem-relative via the digest's `<!-- digest-base: -->` header) and an in-range line. Keeps the hand-maintained flow digests honest as code moves. Gate: `make ze-digest-check`, folded into `make ze-doc-test`. |
 | `spec-closure-check.py` | `scripts/dev/` | Detect specs implemented but never closed. `--list` shows the backlog in two tiers (high-confidence vs NEEDS VERIFICATION); `--spec <s>` exits 3 only for high-confidence (committed `plan/learned/NNN-<slug>.md` whose slug exactly equals the spec stem, spec `in-progress`, not an umbrella). Backs the Stop-hook closure gate. See `ai/rules/planning.md` "Closure Enforcement". |
 | `go_extract.go` | `scripts/dev/` | Move Go symbols between files |

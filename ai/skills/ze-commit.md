@@ -5,9 +5,9 @@ description: Scoped Commit
 
 # Scoped Commit
 
-Prepare a user-run commit script immediately. No verification, no health
-checks, no late completeness review. Does NOT run git commit or git add
-directly.
+Prepare a commit script and run it immediately. No verification, no health
+checks, no late completeness review. Does NOT run git commit or git add as
+direct tool calls -- everything goes through the script.
 
 See also: `/ze-commit-check` (commit with verification only when needed)
 
@@ -38,14 +38,15 @@ scripts/dev/commit_helper.py create \
   --file file3_test.go
 ```
 
-5. **Present to user:** Show only the included files, commit subject/body
-   summary, generated message file path, generated script path, and that
-   verification was skipped because `/ze-commit` is intentionally unchecked.
-   The user runs the script themselves.
+5. **Run and report:** Run the generated script yourself
+   (`bash tmp/commit-<SESSION>.sh`), then show the resulting commit SHA(s),
+   the included files, commit subject/body summary, generated message file
+   path, generated script path, and that verification was skipped because
+   `/ze-commit` is intentionally unchecked.
 
 ## Rules
 
-- **NEVER run `git add` or `git commit` directly.** Write the commit script only.
+- **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the commit script, then run the script (`bash tmp/commit-<SESSION>.sh`).
 - Use `scripts/dev/commit_helper.py create` unless the commit shape cannot be expressed by the helper.
 - Do not run `make ze-verify`, `make ze-verify-changed`, lint, health checks, completeness audits, recent-commit style reviews, or remaining-work scans for `/ze-commit`.
 - Never include spec files unless the user explicitly asks.

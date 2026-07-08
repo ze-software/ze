@@ -120,12 +120,11 @@ See also: `/ze-review` (the BLOCKING Review Gate this runs before closure), `/ze
     - Re-run `make ze-lint && make ze-unit-test && make ze-functional-test`.
     - Re-run `/ze-review`; add a `### Run 2+` block. Loop until a run reports 0 BLOCKER and 0 ISSUE. No cap on re-runs -- each fix is new code that needs a fresh review. If the same finding survives 3 fix attempts (3-Fix Rule, `ai/rules/anti-rationalization.md`), STOP and ask the user.
     - Paste the final clean run into the Review Gate section. The gate is satisfied only when the last run shows 0 BLOCKER, 0 ISSUE.
-16. **Close spec and present commit (BLOCKING -- do ALL of this BEFORE presenting the commit script):**
+16. **Close spec and commit (BLOCKING -- do ALL of this BEFORE running the commit script):**
     Precondition: the spec's **Review Gate** section (step 15) shows a final `/ze-review` run with
     0 BLOCKER and 0 ISSUE. Do not prepare the commit script until it does.
-    The user runs the commit script and considers the work FINISHED. They will not come back
-    to ask "what's next" or "close the spec now." There is no step 17. The script is the
-    final deliverable. Everything below MUST be in that single script.
+    Running the commit script finishes the work. There is no step 17. The script is the
+    final action. Everything below MUST be in that single script.
 
     a. Write the learned summary to `plan/learned/NNN-<spec-stem>.md` following `plan/learned/METHODOLOGY.md`.
        Number NNN: read `plan/learned/.counter` (contains the next available number).
@@ -138,7 +137,7 @@ See also: `/ze-review` (the BLOCKING Review Gate this runs before closure), `/ze
        - **Commit B (spec closure):** run `scripts/dev/commit_helper.py create --append --remove plan/<spec-name>` with the spec closure commit message.
        - Use `--lesson-required` for Commit A. Use `--lesson-not-needed "spec closure only; lesson is in Commit A"` for Commit B.
        - The helper owns the session ID, message files, executable script, ignored-path rejection, `git commit -F`, and learned-summary checks.
-    f. Present the generated script path, message files, commit subjects, and included files to the user. This is the end.
+    f. Run the generated script yourself (`bash tmp/commit-<SESSION>.sh`), then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files. This is the end.
 
     **Why one script, two commits, no follow-up:** the user will not ask for a second step.
     They will not remember that the spec needs closing. They will not prompt you for the

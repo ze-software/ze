@@ -43,7 +43,7 @@ Total: 79 rules
 | File Modularity | Each `.go` source file contains exactly one concern — a cohesive group of types and functions serving a single responsibility. | `ai/rules/file-modularity.md` |
 | Friction Reporting | During research, implementation, review, or verification, if you encounter a recurring problem pattern, repeated surprise, stale guidance, tooling friction, or wasted effort, report it immediately... | `ai/rules/friction-reporting.md` |
 | Functional Test Gate | Every user-facing behavior MUST have a functional test that exercises it through a user entry point. Unit tests (`_test.go`) prove internal logic. Functional tests (`.ci`, `.et`) prove the feature... | `ai/rules/functional-test-gate.md` |
-| Git Safety | Read before any git operation or writing a commit script; covers the AI-tool git bans, the user-run commit-script path, and verify-status handling. | `ai/rules/git-safety.md` |
+| Git Safety | Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, and verify-status handling. | `ai/rules/git-safety.md` |
 | Go Standards | Read before writing Go in Ze; covers env access, context handling, aliased imports, error wrapping, and other Ze-specific Go conventions. | `ai/rules/go-standards.md` |
 | Go Compiler Upgrade Checklist | Every Go compiler version bump (go.mod `go` directive change or toolchain update). | `ai/rules/go-upgrade-checklist.md` |
 | Goroutine Lifecycle | All goroutines MUST be long-lived workers. Never per-event goroutines in hot paths. | `ai/rules/goroutine-lifecycle.md` |

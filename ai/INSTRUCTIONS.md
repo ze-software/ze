@@ -8,15 +8,18 @@
 - NEVER run `git push`. Not to main, not to any branch, not from any worktree.
 - There is no scenario where pushing is acceptable. The user pushes manually.
 
-## git commit, git add, git rm: FORBIDDEN from the Bash tool
+## git commit, git add, git rm: FORBIDDEN as bare Bash tool calls
 - NEVER invoke `git commit`, `git add`, `git rm`, `git restore --staged`,
-  or `git stash` from a Bash tool call. Sessions share staging; cross-commits
-  result. Commit only via a script the user triggers.
+  or `git stash` as a direct Bash tool call. Sessions share staging;
+  cross-commits result. Commit only via a script that bundles add + delete
+  + commit in one go, then run that script yourself
+  (`bash tmp/commit-<SESSION>.sh`). Committing is allowed; committing
+  outside a script is not.
 - Use `scripts/dev/commit_helper.py` for commit scripts by default. It creates
   the session ID, message file, executable script, ignored-path checks, and
   learned-summary gate. Full rules live in `ai/rules/git-safety.md` under
   "Commit Rules". Read them before writing any commit script.
-- When the user asks for a commit, prepare the user-run commit script
+- When the user asks for a commit, prepare the commit script and run it
   immediately. Do not perform a late review or rerun gates just because
   commit was requested. If `scripts/dev/verify-status.sh check` is FRESH,
   never rerun `make ze-verify` or `make ze-verify-changed`.
