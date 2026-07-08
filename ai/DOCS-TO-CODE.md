@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 272 design docs, 2849 files
+Total: 272 design docs, 2850 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -331,6 +331,7 @@ Total: 272 design docs, 2849 files
 | `internal/component/plugin/server/session.go` | plugin process management |
 | `internal/component/plugin/server/startup.go` | 5-stage plugin startup protocol |
 | `internal/component/plugin/server/startup_autoload.go` | plugin auto-loading |
+| `internal/component/plugin/server/startup_driver.go` | 5-stage plugin startup protocol |
 | `internal/component/plugin/server/subscribe.go` | plugin process management |
 | `internal/component/plugin/server/subsystem.go` | plugin process management |
 | `internal/component/plugin/server/system.go` | plugin process management |

@@ -145,6 +145,22 @@ plugin cannot delay notification to the rest.
 - Prevents race conditions in multi-plugin configurations
 - Guarantees consistent state before BGP peers start
 
+**Shared stage-driver.** Both startup callers drive these five stages through a
+single implementation, `runStartupHandshake`, rather than each hard-coding the
+wire sequence. The driver owns the wire choreography -- reading each
+plugin-initiated request, validating its method string, responding, and sending
+the two engine-initiated callbacks -- while the caller-specific effects between
+stages are injected through a `startupSink`. The engine's `engineStartupSink`
+performs the full registration set (registry, families, capabilities, commands,
+subscriptions, bridge dispatch, reactor signaling) and synchronizes each tier
+through the `StartupCoordinator` barrier; the hub's `hubStartupSink` harvests the
+plugin's declared commands and schema, delivers nil config and nil registry, and
+runs with no barrier. A protocol change (a new method string, a reordered stage,
+an added validation) therefore touches one place.
+<!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake, startupSink -->
+<!-- source: internal/component/plugin/server/startup.go -- engineStartupSink -->
+<!-- source: internal/component/plugin/server/subsystem.go -- hubStartupSink -->
+
 **Filter Declaration (Stage 1):**
 
 Plugins may include a `filters` list in their `declare-registration` to offer named

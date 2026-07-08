@@ -6,7 +6,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -75,50 +74,6 @@ func (s *Server) stageTransition(proc *process.Process, pluginName string, compl
 		return false
 	}
 	return true
-}
-
-// stageProgression defines a two-step stage transition with an intermediate delivery.
-type stageProgression struct {
-	from, mid, to plugin.PluginStage
-	deliver       func(*process.Process)
-}
-
-// progressThroughStages handles the common pattern of two stage transitions with delivery between.
-func (s *Server) progressThroughStages(proc *process.Process, name string, p stageProgression) {
-	logger().Debug("server: progressThroughStages START", "plugin", name, "from", p.from, "mid", p.mid, "to", p.to)
-	// First transition: from -> mid
-	if !s.stageTransition(proc, name, p.from, p.mid) {
-		logger().Debug("server: progressThroughStages FAILED first transition", "plugin", name)
-		return
-	}
-	logger().Debug("server: progressThroughStages SetStage mid", "plugin", name, "mid", p.mid)
-	proc.SetStage(p.mid)
-
-	// Deliver content
-	if p.deliver != nil {
-		logger().Debug("server: progressThroughStages calling deliver", "plugin", name)
-		p.deliver(proc)
-		logger().Debug("server: progressThroughStages deliver done", "plugin", name)
-	}
-
-	// Second transition: mid -> to
-	logger().Debug("server: progressThroughStages second transition START", "plugin", name)
-	if !s.stageTransition(proc, name, p.mid, p.to) {
-		logger().Debug("server: progressThroughStages FAILED second transition", "plugin", name)
-		return
-	}
-	logger().Debug("server: progressThroughStages SetStage to", "plugin", name, "to", p.to)
-	proc.SetStage(p.to)
-	logger().Debug("server: progressThroughStages DONE", "plugin", name)
-}
-
-// handlePluginConflict logs and handles plugin registration conflicts.
-func (s *Server) handlePluginConflict(proc *process.Process, name, msg string, err error) {
-	if s.coordinator != nil {
-		s.coordinator.PluginFailed(proc.Index(), err.Error())
-	}
-	logger().Error(msg, "plugin", name, "error", err)
-	proc.Stop()
 }
 
 // runPluginStartup handles five-phase plugin startup:
@@ -502,9 +457,13 @@ func (s *Server) rollbackNonRunningStartupProcesses(pm *process.ProcessManager, 
 	}
 }
 
-// handleProcessStartupRPC handles the 5-stage plugin startup via YANG RPC protocol.
-// Reads plugin-initiated RPCs and sends engine-initiated callbacks over a single MuxConn.
-// Returns when startup is complete (StageRunning) or on error.
+// handleProcessStartupRPC runs the shared 5-stage startup handshake for a
+// tier-managed engine plugin. It initializes the process connection, then drives
+// runStartupHandshake with an engineStartupSink that performs the full engine
+// registration set and synchronizes the tier through the StartupCoordinator
+// barrier. Startup completion is reported through proc.Stage() (set by the
+// sink's Transition), not the returned error -- which is why the driver's error
+// is only logged here and the outer runPluginPhase inspects the process stage.
 func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	proc.SetStage(plugin.StageRegistration)
 
@@ -526,71 +485,62 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		logger().Error("rpc startup: init connections failed", "plugin", proc.Name(), "error", err)
 		return
 	}
-
-	conn := proc.Conn()
-	if conn == nil {
+	if proc.Conn() == nil {
 		logger().Debug("rpc startup: no connection (startup failed?)", "plugin", proc.Name())
 		return
 	}
 
-	// Stage 1: Read declare-registration from plugin (plugin-initiated)
-	req, err := conn.ReadRequest(s.ctx)
-	if err != nil {
-		logger().Error("rpc startup: read registration failed", "plugin", proc.Name(), "error", err)
-		return
+	if err := runStartupHandshake(s.ctx, &engineStartupSink{s: s, proc: proc}); err != nil {
+		logger().Debug("rpc startup: handshake ended before running", "plugin", proc.Name(), "error", err)
 	}
-	if req.Method != "ze-plugin-engine:declare-registration" {
-		if err := conn.SendError(s.ctx, req.ID, "expected declare-registration, got "+req.Method); err != nil {
-			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", err)
-		}
-		return
-	}
+}
 
-	var regInput rpc.DeclareRegistrationInput
-	if err := json.Unmarshal(req.Params, &regInput); err != nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, "invalid registration: "+err.Error()); sendErr != nil {
-			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
-	}
+// engineStartupSink adapts the engine Server to the shared startup driver. It
+// performs the full set of engine-side registrations between stages and
+// synchronizes concurrent plugins in a tier through the Server's
+// StartupCoordinator barrier (a nil coordinator, as in ad-hoc sessions, makes
+// every Transition an immediate success).
+type engineStartupSink struct {
+	s    *Server
+	proc *process.Process
+}
+
+func (e *engineStartupSink) conn() *plugipc.PluginConn { return e.proc.Conn() }
+
+// OnRegistration validates and applies the plugin's declare-registration:
+// doctor-check and enricher declarations, cache-consumer state, dependency
+// checks, the PluginRegistry row, declared runtime families (rolled back on
+// conflict), and proxy enrichers. A returned error's text is the exact message
+// the driver relays to the plugin; the failed process is torn down by
+// rollbackStartupProcess after the tier handshake completes.
+func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) error {
+	s, proc := e.s, e.proc
 
 	// Validate doctor check declarations before conversion.
-	if err := validateDoctorCheckDecls(regInput.DoctorChecks); err != nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, "invalid doctor check: "+err.Error()); sendErr != nil {
-			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
+	if err := validateDoctorCheckDecls(input.DoctorChecks); err != nil {
+		return fmt.Errorf("invalid doctor check: %w", err)
 	}
-
 	// Validate enricher declarations before proxy registration.
-	if err := validateEnricherDecls(regInput.Enrichers); err != nil {
-		var tb textbuf.Buffer
-		if sendErr := conn.SendError(s.ctx, req.ID, tb.Str("invalid enricher: ").Err(err).String()); sendErr != nil {
-			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		return
+	if err := validateEnricherDecls(input.Enrichers); err != nil {
+		return fmt.Errorf("invalid enricher: %w", err)
 	}
 
-	// Convert RPC input to engine registration type
-	reg := registrationFromRPC(&regInput)
+	// Convert RPC input to engine registration type.
+	reg := registrationFromRPC(input)
 	reg.Name = proc.Config().Name
 	proc.SetRegistration(reg)
-	proc.SetCacheConsumer(regInput.CacheConsumer)
-	if regInput.CacheConsumer && s.reactor != nil {
-		s.reactor.RegisterCacheConsumer(proc.Name(), regInput.CacheConsumerUnordered)
+	proc.SetCacheConsumer(input.CacheConsumer)
+	if input.CacheConsumer && s.reactor != nil {
+		s.reactor.RegisterCacheConsumer(proc.Name(), input.CacheConsumerUnordered)
 	}
 
-	// Validate declared dependencies against configured plugin set.
+	// Validate declared dependencies against the configured plugin set.
 	// Internal deps were auto-added by expandDependencies() in the config loader.
 	// External deps must be explicitly configured by the operator.
-	for _, dep := range regInput.Dependencies {
+	for _, dep := range input.Dependencies {
 		if !s.hasConfiguredPlugin(dep) {
-			errMsg := fmt.Sprintf("missing dependency: plugin %q requires %q", proc.Config().Name, dep)
-			if sendErr := conn.SendError(s.ctx, req.ID, errMsg); sendErr != nil {
-				logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
-			}
 			logger().Error("rpc startup: dependency not configured", "plugin", proc.Name(), "dependency", dep)
-			return
+			return fmt.Errorf("missing dependency: plugin %q requires %q", proc.Config().Name, dep)
 		}
 	}
 
@@ -600,137 +550,81 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	startupRegistrationMu.Lock()
 	if err := s.registry.Register(reg); err != nil {
 		startupRegistrationMu.Unlock()
-		if sendErr := conn.SendError(s.ctx, req.ID, "registration conflict: "+err.Error()); sendErr != nil {
-			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		s.handlePluginConflict(proc, reg.Name, "plugin registration conflict", err)
-		return
+		logger().Error("plugin registration conflict", "plugin", reg.Name, "error", err)
+		return fmt.Errorf("registration conflict: %w", err)
 	}
-	addedFamilies, err := registerPluginFamilies(regInput.Families)
+	addedFamilies, err := registerPluginFamilies(input.Families)
 	if err != nil {
 		s.registry.Unregister(reg.Name)
 		startupRegistrationMu.Unlock()
-		if sendErr := conn.SendError(s.ctx, req.ID, "family registration conflict: "+err.Error()); sendErr != nil {
-			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		s.handlePluginConflict(proc, reg.Name, "plugin family registration conflict", err)
-		return
+		logger().Error("plugin family registration conflict", "plugin", reg.Name, "error", err)
+		return fmt.Errorf("family registration conflict: %w", err)
 	}
 	s.rememberPluginFamilies(reg.Name, addedFamilies)
 	startupRegistrationMu.Unlock()
 
 	// Register proxy enrichers for declared show enrichers.
-	if len(regInput.Enrichers) > 0 {
-		registerProxyEnrichers(proc.Config().Name, regInput.Enrichers, conn)
+	if len(input.Enrichers) > 0 {
+		registerProxyEnrichers(proc.Config().Name, input.Enrichers, proc.Conn())
 	}
+	return nil
+}
 
-	// Send OK response
-	if err := conn.SendResult(s.ctx, req.ID, nil); err != nil {
-		return
+// DeliverConfig delivers the real config sections for the plugin's requested
+// roots. A send failure is fatal to this plugin's startup (barrier signaled,
+// process stopped, startupErr set for fatal-on-config plugins) and aborts the
+// driver; see deliverConfigRPC.
+func (e *engineStartupSink) deliverConfig(ctx context.Context) error {
+	return e.s.deliverConfigRPC(ctx, e.proc)
+}
+
+// OnCapabilities converts and registers the plugin's declared capabilities into
+// the capability injector. A conflict returns the exact plugin-facing message.
+func (e *engineStartupSink) onCapabilities(input *rpc.DeclareCapabilitiesInput) error {
+	caps := capabilitiesFromRPC(input)
+	caps.PluginName = e.proc.Config().Name
+	e.proc.SetCapabilities(caps)
+	if err := e.s.capInjector.AddPluginCapabilities(caps); err != nil {
+		logger().Error("plugin capability conflict", "plugin", caps.PluginName, "error", err)
+		return fmt.Errorf("capability conflict: %w", err)
 	}
+	return nil
+}
 
-	// Progress: Registration -> Config (deliver config) -> Capability
-	s.progressThroughStages(proc, reg.Name, stageProgression{
-		from: plugin.StageRegistration, mid: plugin.StageConfig, to: plugin.StageCapability,
-		deliver: func(p *process.Process) { s.deliverConfigRPC(p) },
-	})
+// DeliverRegistry shares the command registry with the plugin. The engine treats
+// a share-registry send failure as non-fatal (logged inside deliverRegistryRPC);
+// startup continues to the Ready stage, so this never aborts the driver.
+func (e *engineStartupSink) deliverRegistry(ctx context.Context) error {
+	e.s.deliverRegistryRPC(ctx, e.proc)
+	return nil
+}
 
-	if proc.Stage() < plugin.StageCapability {
-		return // Stage transition failed
-	}
+// OnReady registers startup subscriptions, wires bridge dispatch, and registers
+// the plugin's commands with the dispatcher -- all before the Ready->Running
+// barrier so every command is visible when the barrier releases.
+func (e *engineStartupSink) onReady(input *rpc.ReadyInput) error {
+	s, proc := e.s, e.proc
 
-	// Stage 3: Read declare-capabilities from plugin (plugin-initiated)
-	req, err = conn.ReadRequest(s.ctx)
-	if err != nil {
-		logger().Error("rpc startup: read capabilities failed", "plugin", proc.Name(), "error", err)
-		return
-	}
-	if req.Method != "ze-plugin-engine:declare-capabilities" {
-		if err := conn.SendError(s.ctx, req.ID, "expected declare-capabilities, got "+req.Method); err != nil {
-			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", err)
-		}
-		return
-	}
-
-	var capsInput rpc.DeclareCapabilitiesInput
-	if req.Params != nil {
-		if err := json.Unmarshal(req.Params, &capsInput); err != nil {
-			if sendErr := conn.SendError(s.ctx, req.ID, "invalid capabilities: "+err.Error()); sendErr != nil {
-				logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
-			}
-			return
-		}
-	}
-
-	// Convert and register capabilities
-	caps := capabilitiesFromRPC(&capsInput)
-	caps.PluginName = proc.Config().Name
-	proc.SetCapabilities(caps)
-
-	if err := s.capInjector.AddPluginCapabilities(caps); err != nil {
-		if sendErr := conn.SendError(s.ctx, req.ID, "capability conflict: "+err.Error()); sendErr != nil {
-			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
-		}
-		s.handlePluginConflict(proc, caps.PluginName, "plugin capability conflict", err)
-		return
-	}
-
-	// Send OK response
-	if err := conn.SendResult(s.ctx, req.ID, nil); err != nil {
-		return
-	}
-
-	// Progress: Capability -> Registry (deliver registry) -> Ready
-	s.progressThroughStages(proc, caps.PluginName, stageProgression{
-		from: plugin.StageCapability, mid: plugin.StageRegistry, to: plugin.StageReady,
-		deliver: func(p *process.Process) { s.deliverRegistryRPC(p) },
-	})
-
-	if proc.Stage() < plugin.StageReady {
-		return // Stage transition failed
-	}
-
-	// Stage 5: Read ready from plugin (plugin-initiated)
-	req, err = conn.ReadRequest(s.ctx)
-	if err != nil {
-		logger().Error("rpc startup: read ready failed", "plugin", proc.Name(), "error", err)
-		return
-	}
-	if req.Method != "ze-plugin-engine:ready" {
-		if err := conn.SendError(s.ctx, req.ID, "expected ready, got "+req.Method); err != nil {
-			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", err)
-		}
-		return
-	}
-
-	// Parse optional startup subscriptions from "ready" params.
 	// Registering subscriptions here (before SignalAPIReady) ensures the plugin
 	// receives events from the very first route send -- no race with the reactor.
-	var readyInput rpc.ReadyInput
-	if req.Params != nil {
-		if parseErr := json.Unmarshal(req.Params, &readyInput); parseErr != nil {
-			logger().Warn("rpc startup: invalid ready params", "plugin", proc.Name(), "error", parseErr)
-		}
-	}
-
-	if readyInput.Subscribe != nil && s.subscriptions != nil {
-		s.registerSubscriptions(proc, readyInput.Subscribe)
+	if input.Subscribe != nil && s.subscriptions != nil {
+		s.registerSubscriptions(proc, input.Subscribe)
 		logger().Debug("rpc startup: registered startup subscriptions",
-			"plugin", proc.Name(), "events", readyInput.Subscribe.Events)
+			"plugin", proc.Name(), "events", input.Subscribe.Events)
 	}
 
-	// Wire direct bridge dispatch BEFORE sending OK, so the engine's
-	// DispatchRPC handler is registered before the SDK calls SetReady().
-	// This prevents a race where the SDK takes the bridge path before
-	// the engine handler is wired.
+	// Wire direct bridge dispatch BEFORE the OK is sent (in the driver), so the
+	// engine's DispatchRPC handler is registered before the SDK calls SetReady()
+	// -- preventing a race where the SDK takes the bridge path before the engine
+	// handler is wired.
 	s.wireBridgeDispatch(proc)
 
-	// Register plugin commands with the dispatcher BEFORE sending the ready OK.
-	// Commands were declared in Stage 1 (PluginRegistry) but the dispatcher's
-	// CommandRegistry (used by dispatchPlugin) needs its own entries.
-	// Registering here — before the StageReady barrier — ensures all plugin
-	// commands are visible by the time the barrier releases and event loops
-	// can trigger inter-plugin dispatch (e.g., bgp-rs dispatching "adj-rib-in replay").
+	// Register plugin commands with the dispatcher. Commands were declared in
+	// Stage 1 (PluginRegistry) but the dispatcher's CommandRegistry (used by
+	// dispatchPlugin) needs its own entries. Registering here -- before the
+	// StageReady barrier -- ensures all plugin commands are visible by the time
+	// the barrier releases and event loops can trigger inter-plugin dispatch
+	// (e.g., bgp-rs dispatching "adj-rib-in replay").
 	if reg := proc.Registration(); reg == nil {
 		logger().Debug("no registration for plugin", "plugin", proc.Name())
 	} else {
@@ -759,41 +653,47 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 			}
 		}
 	}
+	return nil
+}
 
-	// Final stage transition: Ready -> Running
-	// Move the barrier BEFORE the OK response below. This ensures all plugins
-	// in the tier have registered their commands and reached StageReady
-	// before any of them receive OK and start their runtime event loop.
-	if !s.stageTransition(proc, proc.Name(), plugin.StageReady, plugin.StageRunning) {
-		return
-	}
-	proc.SetStage(plugin.StageRunning)
-
-	if s.reactor != nil {
-		s.reactor.SignalAPIReady()
-	}
-
-	// Send OK response (last message on the pipe for bridge transport).
-	if err := conn.SendResult(s.ctx, req.ID, nil); err != nil {
-		return
-	}
-
-	// If plugin requested bridge transport, switch PluginConn to use bridge
-	// for all future engine->plugin callbacks. The pipe is no longer used.
-	if readyInput.Transport == "bridge" && proc.Bridge() != nil {
-		conn.SetBridge(proc.Bridge())
-		logger().Debug("rpc startup: switched to bridge transport", "plugin", proc.Name())
+// OnRunning signals the reactor that a plugin's API is ready, after the
+// Ready->Running barrier and before the final OK.
+func (e *engineStartupSink) onRunning() {
+	if e.s.reactor != nil {
+		e.s.reactor.SignalAPIReady()
 	}
 }
 
+// PostReady switches the PluginConn to bridge transport when the plugin
+// requested it, after the final OK (the last message on the pipe).
+func (e *engineStartupSink) postReady(input *rpc.ReadyInput) {
+	if input.Transport == "bridge" && e.proc.Bridge() != nil {
+		e.proc.Conn().SetBridge(e.proc.Bridge())
+		logger().Debug("rpc startup: switched to bridge transport", "plugin", e.proc.Name())
+	}
+}
+
+// Transition advances the tier barrier from one stage to the next and records
+// the new process stage. A nil coordinator (ad-hoc session) makes stageTransition
+// an immediate success.
+func (e *engineStartupSink) transition(from, to plugin.PluginStage) bool {
+	if !e.s.stageTransition(e.proc, e.proc.Name(), from, to) {
+		return false
+	}
+	e.proc.SetStage(to)
+	return true
+}
+
 // deliverConfigRPC sends configuration to a plugin via RPC (Stage 2).
-// Sends ze-plugin-callback:configure RPC to the plugin.
-func (s *Server) deliverConfigRPC(proc *process.Process) {
+// Sends ze-plugin-callback:configure RPC to the plugin. Returns a non-nil error
+// (aborting the shared driver) only when the send fails; a build-sections error
+// is logged and delivery proceeds with whatever sections were built.
+func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) error {
 	reg := proc.Registration()
 	conn := proc.Conn()
 	if conn == nil {
 		logger().Error("deliverConfigRPC: connection closed", "plugin", proc.Name())
-		return
+		return errStartupConnClosed
 	}
 
 	var sections []rpc.ConfigSection
@@ -809,24 +709,28 @@ func (s *Server) deliverConfigRPC(proc *process.Process) {
 		}
 	}
 
-	if err := conn.SendConfigure(s.ctx, sections); err != nil {
+	if err := conn.SendConfigure(ctx, sections); err != nil {
 		logger().Error("deliverConfigRPC failed", "plugin", proc.Name(), "error", err)
 		s.coordinatorMu.Lock()
 		coord := s.coordinator
 		s.coordinatorMu.Unlock()
 		if coord != nil {
-			coord.PluginFailed(proc.Index(), fmt.Sprintf("configure failed: %v", err))
+			var tb textbuf.Buffer
+			coord.PluginFailed(proc.Index(), tb.Str("configure failed: ").Err(err).String())
 		}
 		proc.Stop()
 		if registry.IsFatalOnConfigError(proc.Name()) {
 			s.startupErr = fmt.Errorf("%s: %w", proc.Name(), err)
 		}
+		return err
 	}
+	return nil
 }
 
 // deliverRegistryRPC sends the command registry to a plugin via RPC (Stage 4).
-// Sends ze-plugin-callback:share-registry RPC to the plugin.
-func (s *Server) deliverRegistryRPC(proc *process.Process) {
+// Sends ze-plugin-callback:share-registry RPC to the plugin. A send failure is
+// logged but non-fatal: engine startup proceeds to the Ready stage.
+func (s *Server) deliverRegistryRPC(ctx context.Context, proc *process.Process) {
 	allCommands := s.registry.BuildCommandInfo()
 
 	totalCmds := 0
@@ -849,7 +753,7 @@ func (s *Server) deliverRegistryRPC(proc *process.Process) {
 		logger().Error("deliverRegistryRPC: connection closed", "plugin", proc.Name())
 		return
 	}
-	if err := conn.SendShareRegistry(s.ctx, commands); err != nil {
+	if err := conn.SendShareRegistry(ctx, commands); err != nil {
 		logger().Error("deliverRegistryRPC failed", "plugin", proc.Name(), "error", err)
 	}
 }

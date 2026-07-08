@@ -1,10 +1,10 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
+// Related: startup_driver.go — shared 5-stage handshake driver (hubStartupSink)
 
 package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -15,6 +15,7 @@ import (
 	"time"
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -125,93 +126,79 @@ func (h *SubsystemHandler) Start(ctx context.Context) error {
 	return nil
 }
 
-// completeProtocol runs the 5-stage startup protocol with the subsystem process.
+// completeProtocol runs the shared 5-stage startup protocol with the subsystem
+// process. It initializes the connection, then drives runStartupHandshake with a
+// hubStartupSink that harvests the plugin's declared commands and schema,
+// delivers nil config and nil registry, and runs with no barrier.
 func (h *SubsystemHandler) completeProtocol(ctx context.Context) error {
 	// Initialize connections from raw sockets (creates PluginConn wrappers).
 	if err := h.proc.InitConns(); err != nil {
 		return fmt.Errorf("init connections: %w", err)
 	}
-
-	conn := h.proc.Conn()
-	if conn == nil {
+	if h.proc.Conn() == nil {
 		return errSubsystemConnectionClosedBeforeProtocol
 	}
+	return runStartupHandshake(ctx, &hubStartupSink{h: h})
+}
 
-	// Stage 1: Read declare-registration from plugin (plugin-initiated)
-	req, err := conn.ReadRequest(ctx)
-	if err != nil {
-		return fmt.Errorf("stage 1 read: %w", err)
-	}
-	if req.Method != "ze-plugin-engine:declare-registration" {
-		_ = conn.SendError(ctx, req.ID, "expected declare-registration, got "+req.Method)
-		return fmt.Errorf("stage 1: expected declare-registration, got %s", req.Method)
-	}
+// hubStartupSink is the minimal startup sink for forked hub subsystems. The hub
+// orchestrator has no reactor, capability injector, dispatcher command registry
+// or config tree, so it only harvests the plugin's declared commands (for command
+// routing via FindHandler) and YANG schema (for RegisterSchemas), delivers nil
+// config and nil registry, and runs a single connection with no barrier.
+type hubStartupSink struct {
+	h *SubsystemHandler
+}
 
-	var regInput rpc.DeclareRegistrationInput
-	if err := json.Unmarshal(req.Params, &regInput); err != nil {
-		_ = conn.SendError(ctx, req.ID, "invalid registration: "+err.Error())
-		return fmt.Errorf("stage 1 parse: %w", err)
-	}
+func (hs *hubStartupSink) conn() *pluginipc.PluginConn { return hs.h.proc.Conn() }
 
-	// Extract commands from registration
-	for _, cmd := range regInput.Commands {
+// onRegistration harvests the declared commands and YANG schema into the
+// handler-local fields that FindHandler and RegisterSchemas read.
+func (hs *hubStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) error {
+	h := hs.h
+	for _, cmd := range input.Commands {
 		h.commands = append(h.commands, cmd.Name)
 	}
-
-	// Extract schema from registration
-	if regInput.Schema != nil {
+	if input.Schema != nil {
 		if h.schema == nil {
 			h.schema = &plugin.PluginSchemaDecl{}
 		}
-		h.schema.Yang = regInput.Schema.YANGText
-		h.schema.Module = regInput.Schema.Module
-		h.schema.Namespace = regInput.Schema.Namespace
-		h.schema.Handlers = regInput.Schema.Handlers
+		h.schema.Yang = input.Schema.YANGText
+		h.schema.Module = input.Schema.Module
+		h.schema.Namespace = input.Schema.Namespace
+		h.schema.Handlers = input.Schema.Handlers
 	}
-
-	// Send OK response
-	if err := conn.SendResult(ctx, req.ID, nil); err != nil {
-		return fmt.Errorf("stage 1 respond: %w", err)
-	}
-
-	// Stage 2: Send configure to plugin (engine-initiated)
-	if err := conn.SendConfigure(ctx, nil); err != nil {
-		return fmt.Errorf("stage 2 configure: %w", err)
-	}
-
-	// Stage 3: Read declare-capabilities from plugin (plugin-initiated)
-	req, err = conn.ReadRequest(ctx)
-	if err != nil {
-		return fmt.Errorf("stage 3 read: %w", err)
-	}
-	if req.Method != "ze-plugin-engine:declare-capabilities" {
-		_ = conn.SendError(ctx, req.ID, "expected declare-capabilities, got "+req.Method)
-		return fmt.Errorf("stage 3: expected declare-capabilities, got %s", req.Method)
-	}
-	if err := conn.SendResult(ctx, req.ID, nil); err != nil {
-		return fmt.Errorf("stage 3 respond: %w", err)
-	}
-
-	// Stage 4: Send share-registry to plugin (engine-initiated)
-	if err := conn.SendShareRegistry(ctx, nil); err != nil {
-		return fmt.Errorf("stage 4 share-registry: %w", err)
-	}
-
-	// Stage 5: Read ready from plugin (plugin-initiated)
-	req, err = conn.ReadRequest(ctx)
-	if err != nil {
-		return fmt.Errorf("stage 5 read: %w", err)
-	}
-	if req.Method != "ze-plugin-engine:ready" {
-		_ = conn.SendError(ctx, req.ID, "expected ready, got "+req.Method)
-		return fmt.Errorf("stage 5: expected ready, got %s", req.Method)
-	}
-	if err := conn.SendResult(ctx, req.ID, nil); err != nil {
-		return fmt.Errorf("stage 5 respond: %w", err)
-	}
-
 	return nil
 }
+
+// deliverConfig delivers nil config: the hub has no config tree to share.
+func (hs *hubStartupSink) deliverConfig(ctx context.Context) error {
+	if err := hs.h.proc.Conn().SendConfigure(ctx, nil); err != nil {
+		return fmt.Errorf("stage 2 configure: %w", err)
+	}
+	return nil
+}
+
+// onCapabilities is a no-op: the hub has no capability injector.
+func (hs *hubStartupSink) onCapabilities(*rpc.DeclareCapabilitiesInput) error { return nil }
+
+// deliverRegistry delivers nil registry: the hub has no command registry to share.
+func (hs *hubStartupSink) deliverRegistry(ctx context.Context) error {
+	if err := hs.h.proc.Conn().SendShareRegistry(ctx, nil); err != nil {
+		return fmt.Errorf("stage 4 share-registry: %w", err)
+	}
+	return nil
+}
+
+// onReady, onRunning, and postReady are no-ops: the hub registers no
+// subscriptions, wires no bridge, and signals no reactor.
+func (hs *hubStartupSink) onReady(*rpc.ReadyInput) error { return nil }
+func (hs *hubStartupSink) onRunning()                    {}
+func (hs *hubStartupSink) postReady(*rpc.ReadyInput)     {}
+
+// transition is an unconditional success: the hub runs one connection at a time
+// with no barrier.
+func (hs *hubStartupSink) transition(_, _ plugin.PluginStage) bool { return true }
 
 // Signal sends an OS signal to the subsystem's external process.
 // Returns an error if the process is not running or is internal (goroutine).

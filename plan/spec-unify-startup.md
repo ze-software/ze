@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-06 |
+| Phase | 4/4 |
+| Updated | 2026-07-08 |
 
 ## Post-Compaction Recovery
 
@@ -163,9 +163,9 @@ legitimately different part and belong behind an injected interface, not inside 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The two drivers speak byte-identical wire sequences (same five methods, same order, same callbacks) | Direct read of `startup.go:542-704` vs `subsystem.go:145-211`; both assert the same method strings | If they differ, a single shared driver would change one path's wire behavior | grep both files for the method strings; diff the read/send order; existing `TestSubsystemRPCProtocol` and `TestAdHocProcessHandshake` must still pass | unvalidated |
-| A-2 | The engine driver's `*Server` field usage can be factored behind a sink interface without needing the hub to build a `*Server` | `adhoc.go` already runs the engine driver with a nil coordinator; only `s.registry`/`s.capInjector`/`s.dispatcher`/`s.reactor` derefs remain caller-specific | If some effect is entangled with `*Server` internals that cannot be expressed through a sink, the hub cannot adopt the driver | Extract the sink interface; confirm the engine sink is a thin `*Server` adapter and the hub sink needs only a `process.Process` + conn | unvalidated |
-| A-3 | The hub path's nil config and nil registry are intentional, not a latent bug | `subsystem.go:178,196` pass nil unconditionally; hub has no config tree or command registry to deliver | If they were meant to deliver real data, preserving nil would freeze a bug | User/design confirmation plus `docs/architecture/api/process-protocol.md`; hub sink returns nil for both payloads by design | unvalidated |
+| A-1 | The two drivers speak byte-identical wire sequences (same five methods, same order, same callbacks) | Direct read of `startup.go:542-704` vs `subsystem.go:145-211`; both assert the same method strings | If they differ, a single shared driver would change one path's wire behavior | grep both files for the method strings; diff the read/send order; existing `TestSubsystemRPCProtocol` and `TestAdHocProcessHandshake` must still pass | confirmed — grep shows the three `ze-plugin-engine:*` request strings inline in both `startup.go` and `subsystem.go`; the two callback strings (`configure`, `share-registry`) already live once in `ipc/rpc.go`. Read of both paths confirms identical read→validate→respond→callback order. Baseline suite green. |
+| A-2 | The engine driver's `*Server` field usage can be factored behind a sink interface without needing the hub to build a `*Server` | `adhoc.go` already runs the engine driver with a nil coordinator; only `s.registry`/`s.capInjector`/`s.dispatcher`/`s.reactor` derefs remain caller-specific | If some effect is entangled with `*Server` internals that cannot be expressed through a sink, the hub cannot adopt the driver | Extract the sink interface; confirm the engine sink is a thin `*Server` adapter and the hub sink needs only a `process.Process` + conn | confirmed — every engine effect is reachable via a `*Server` method (`registry.Register`, `capInjector.AddPluginCapabilities`, `dispatcher.Registry().Register`, `registerSubscriptions`, `wireBridgeDispatch`, `reactor.SignalAPIReady`, `deliverConfigRPC`, `deliverRegistryRPC`); `engineStartupSink{s,proc}` wraps them; `hubStartupSink{h}` needs only `h.proc.Conn()`. |
+| A-3 | The hub path's nil config and nil registry are intentional, not a latent bug | `subsystem.go:178,196` pass nil unconditionally; hub has no config tree or command registry to deliver | If they were meant to deliver real data, preserving nil would freeze a bug | User/design confirmation plus `docs/architecture/api/process-protocol.md`; hub sink returns nil for both payloads by design | confirmed — `hub.Orchestrator` owns no reactor/config tree/dispatcher command registry (`hub.go`); nil is the only correct payload. Hub sink returns nil for both by design. |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -369,61 +369,100 @@ No RFC-governed wire behavior changes; the plugin startup handshake is an intern
 ## Implementation Summary
 
 ### What Was Implemented
-- [pending implementation]
+- New `internal/component/plugin/server/startup_driver.go`: the single shared wire choreography `runStartupHandshake(ctx, startupSink)` plus the `startupSink` interface and the three `ze-plugin-engine:*` method-string constants. The driver owns read→validate→respond for the three plugin-initiated stages and drives the two engine-initiated callbacks through sink hooks.
+- `startup.go`: `handleProcessStartupRPC` is now a thin wrapper that sets up the conn and calls the shared driver with `engineStartupSink` (full engine effects + `StartupCoordinator` barrier via `Transition`). Deleted the inline stage sequence, `progressThroughStages`, `stageProgression`, and `handlePluginConflict`. `deliverConfigRPC`/`deliverRegistryRPC` now take `ctx` and `deliverConfigRPC` returns an error so the driver aborts on config-send failure.
+- `subsystem.go`: `completeProtocol` is now a thin delegator to the shared driver with `hubStartupSink` (harvest commands/schema, nil config/registry, no barrier). Deleted the duplicated inline five-stage sequence.
+- New `startup_driver_test.go`: `TestSharedStartupDriverSinkDispatch` (hook order + barrier interleave), `TestSharedStartupDriverMethodMismatch` (AC-6 error string), `TestSharedStartupDriverRegistrationErrorAborts` (sink-error abort path).
 
 ### Bugs Found/Fixed
-- [pending implementation]
+- None. Pure structural refactor; behavior preserved.
 
 ### Documentation Updates
-- [pending implementation]
+- `docs/architecture/api/process-protocol.md`: added a "Shared stage-driver" note (single `runStartupHandshake` + injected `startupSink`) with source anchors to the three files. Verified: no stale "two separate drivers" claim existed to remove.
+- `ai/DOCS-TO-CODE.md`: regenerated (`make ze-discovery-index`) to register `startup_driver.go` under the process-protocol design doc.
 
 ### Deviations from Plan
-- [pending implementation]
+- The three conflict sites (registry/family/capability) no longer call the immediate `handlePluginConflict` (`coordinator.PluginFailed(realMessage)` + `proc.Stop()`). The uniform driver abort (`SendError` + return) plus the existing deferred `rollbackStartupProcess` + defer `PluginFailed("startup incomplete")` produce identical registry/family/process state and identical plugin-facing error strings. The Error log lines were kept inline in the engine sink. What changes is only the (untested, non-observable) coordinator failure message and the timing of `proc.Stop()` (both still occur before `runPluginPhase` returns). This preserves the mandated SendError-before-Stop ordering, which the alternative (sink calling `handlePluginConflict` before the driver's SendError) would have reversed. Recorded in the Mistake Log.
+- Config/registry delivery is modeled as sink methods (`DeliverConfig`/`DeliverRegistry`) rather than the spec's sketch of a `ConfigSections()` payload getter, because the two callers have genuinely divergent delivery-error policy (engine config-send failure = barrier abort + startupErr; engine registry-send failure = log-only/non-fatal; hub both = returned wrapped error). The payload build lives inside the sink method, which is still a per-caller effect behind the injected interface. The wire method strings for the callbacks remain single-located in `ipc/rpc.go`.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Unify wire choreography behind one shared stage-driver | Done | `startup_driver.go:runStartupHandshake` | Both callers delegate |
+| Preserve all externally observable behavior | Done | server + hub test suites pass (incl. -race) | Internal refactor |
+| Caller effects via injected interface, no per-caller switch in driver | Done | `startup_driver.go:startupSink`; `engineStartupSink` (startup.go), `hubStartupSink` (subsystem.go) | No branch on caller in the driver |
+| Delete the loser (inline `completeProtocol` sequence) | Done | `subsystem.go:completeProtocol` delegates; inline sequence removed | grep: no ReadRequest/SendResult left |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | grep: 3 request strings only in `startup_driver.go:33-35` | Callbacks single-located in `ipc/rpc.go` |
+| AC-2 | Done | `TestSubsystemRPCProtocol`, `TestSubsystemHandler`, `TestSubsystemManager` PASS | `hubStartupSink` harvests commands/schema, nil payloads |
+| AC-3 | Done | `TestRunPluginPhaseReturnsStageFailure` PASS | Barrier + per-stage-start deadline unchanged (`stageTransition`) |
+| AC-4 | Done | `TestPluginStartupRollsBackPartialRegistration`, `TestPluginStartupRollsBackFamiliesAfterLaterStageFailure` PASS | `rollbackStartupProcess` unchanged |
+| AC-5 | Done | `TestAdHocProcessHandshake`, `TestAdHocProcessRuntime`, `TestNewWithIO` PASS | nil-coordinator path via `engineStartupSink.Transition` |
+| AC-6 | Done | `TestSharedStartupDriverMethodMismatch` PASS; driver preserves exact "expected ... got ..." strings | Same for engine + hub callers |
+| AC-7 | Done | `TestSharedStartupDriverSinkDispatch` PASS; grep: `subsystem.go` has no inline stage sequence | `completeProtocol` is a delegator |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestSubsystemRPCProtocol` | PASS | subsystem_test.go | Hub path through shared driver |
+| `TestSubsystemHandler` / `TestSubsystemManager` | PASS | subsystem_test.go | Lifecycle/manager unchanged |
+| `TestAdHocProcessHandshake` / `TestAdHocProcessRuntime` | PASS | adhoc_test.go | Nil-coordinator engine path |
+| `TestPluginStartupRollsBackPartialRegistration` | PASS | startup_test.go | Rollback preserved |
+| `TestPluginStartupRollsBackFamiliesAfterLaterStageFailure` | PASS | startup_test.go | Family rollback preserved |
+| `TestRunPluginPhaseReturnsStageFailure` | PASS | startup_test.go | Barrier stage-failure preserved |
+| `TestRPCRegistrationToRegistry` / `TestRPCCapabilityToInjector` | PASS | rpc_registration_test.go | Registration/cap effects preserved |
+| `TestSharedStartupDriverSinkDispatch` (new) | PASS | startup_driver_test.go | Hook order + barrier interleave |
+| `TestSharedStartupDriverMethodMismatch` (new) | PASS | startup_driver_test.go | AC-6 error string |
+| `TestSharedStartupDriverRegistrationErrorAborts` (new) | PASS | startup_driver_test.go | Sink-error abort path |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `startup.go` | Modified | Thin wrapper + `engineStartupSink`; dead helpers removed |
+| `subsystem.go` | Modified | Thin `completeProtocol` + `hubStartupSink` |
+| `adhoc.go` | Unchanged | Nil-coordinator path works via new wrapper |
+| `startup_coordinator.go` | Unchanged | Barrier reached through `engineStartupSink.Transition` (nil = no-op) |
+| `startup_driver.go` | Created | Shared driver + sink interface + method constants |
+| `startup_driver_test.go` | Created | Characterization + abort/mismatch tests |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 7 ACs + 4 task requirements + 10 tests + 6 files
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 2 (documented in Deviations from Plan)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| One shared driver replaces two inline handshake implementations | functional test + grep | [pending] |
-| All externally observable behavior preserved | existing test suite | [pending] |
+| One shared driver replaces two inline handshake implementations | grep + new test | `grep '"ze-plugin-engine:declare-registration\|-capabilities\|:ready"'` under `server/` (non-test) returns only `startup_driver.go:33-35` (the constants). `subsystem.go` has no `ReadRequest`/`SendResult` stage sequence. `TestSharedStartupDriverSinkDispatch` asserts the driver calls hooks in stage order. |
+| All externally observable behavior preserved | existing test suite (engine + hub + ad-hoc) | `go test ./internal/component/plugin/server/...` PASS (incl. `-race`): rollback tests, `TestRunPluginPhaseReturnsStageFailure`, `TestAdHocProcess*`, `TestSubsystem*`, `TestRPCRegistration*`. `go test ./internal/component/hub/... ./test/hub/...` PASS. Engine plugins still reach `StageRunning` end-to-end (`TestRunPluginPhaseAllowsMissingOptionalDependency`). |
 
 ## Review Gate
 
 ### Run 1 (initial)
+Pre-checks: `make ze-validate` (see below), `audit-test-relaxation.py` = clean (no tests deleted/weakened). Commit-gate `make ze-verify-wiring-docs` = PASS. Full server+hub suite PASS with `-race`.
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed / deferred / acknowledged |
+| 1 | NOTE (fixed) | 14 sink methods exported but package-internal (implement an unexported interface) → flagged by `ze-validate` wiring check | `startup.go`, `subsystem.go` | fixed: unexported all sink methods (`onRegistration`, `deliverConfig`, `transition`, ...); `ze-validate` no longer flags them |
+| 2 | NOTE (pre-existing) | `SubsystemManager.FindHandler` / `AllCommands` / `AllSchemas` flagged "no cross-package non-test caller" | `subsystem.go:397/420/441` | acknowledged: present at HEAD (lines 410/433/454), surfaced only because `subsystem.go` is a changed file; same-package callers exist (`command.go`, `RegisterSchemas`); unrelated to this spec; commit-gate (`ze-verify-wiring-docs`) passes |
+| 3 | NOTE (intentional) | Conflict sites no longer call immediate `handlePluginConflict` | `startup.go` engine sink | acknowledged: behavior-preserving deviation (identical registry/family/proc state + plugin-facing errors via uniform driver abort + deferred rollback); see Deviations from Plan |
+
+No BLOCKER, no ISSUE. Correctness lenses applied (wiring, removed-behavior, logic, altitude, security, allocation, concurrency-with-`-race`); all sink hooks reachable from production entry points; deleted `progressThroughStages`/`stageProgression`/inline sequences all re-established in the shared driver.
 
 ### Fixes applied
-- [pending]
+- Finding 1: unexported the `startupSink` interface methods and all three implementations (`engineStartupSink`, `hubStartupSink`, test `recordingSink`) — idiomatic Go for a package-private interface. Re-verified: `ze-validate` down to the 3 pre-existing NOTEs; full suite + `-race` green.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| — | — | Run 2 after Finding-1 fix: 0 BLOCKER, 0 ISSUE (only pre-existing NOTE 2 + intentional NOTE 3 remain) | — | clean |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
@@ -434,22 +473,41 @@ No RFC-governed wire behavior changes; the plugin startup handshake is an intern
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/plugin/server/startup_driver.go` | Yes | created this session |
+| `internal/component/plugin/server/startup_driver_test.go` | Yes | created this session |
+| `internal/component/plugin/server/startup.go` | Yes | modified (engineStartupSink) |
+| `internal/component/plugin/server/subsystem.go` | Yes | modified (hubStartupSink) |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Method strings in one place | grep of 3 request strings under `server/` non-test → only `startup_driver.go:33-35` |
+| AC-2 | Hub harvests via shared driver | `TestSubsystemRPCProtocol` PASS |
+| AC-3 | Barrier preserved | `TestRunPluginPhaseReturnsStageFailure` PASS |
+| AC-4 | Rollback preserved | rollback tests PASS |
+| AC-5 | Ad-hoc nil-coordinator | `TestAdHocProcess*` PASS |
+| AC-6 | Same error strings | `TestSharedStartupDriverMethodMismatch` PASS |
+| AC-7 | Inline sequence deleted | grep `subsystem.go`: no ReadRequest/SendResult; `TestSharedStartupDriverSinkDispatch` PASS |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| Hub forks subsystem, completes handshake | `test/hub/startup_test.go` (Go, not .ci) | `go test ./test/hub/...` PASS |
+| Engine tier startup reaches StageRunning | `startup_test.go` | `TestRunPluginPhaseAllowsMissingOptionalDependency` asserts `StageRunning` |
+| Ad-hoc session over non-net.Conn | `adhoc_test.go` | `TestAdHocProcessHandshake` PASS |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | grep of method strings; both paths read the identical sequence; suite green |
+| A-2 | confirmed | `engineStartupSink{s,proc}` and `hubStartupSink{h}` both satisfy `startupSink`; hub sink needs only `proc.Conn()` |
+| A-3 | confirmed | hub has no reactor/config-tree/dispatcher registry (`hub.go`); nil is correct |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| process-protocol.md "Shared stage-driver" note | source anchors to startup_driver.go/startup.go/subsystem.go | `make ze-doc-test` PASS (all anchors resolve) |
+| ai/DOCS-TO-CODE.md registers startup_driver.go | `make ze-discovery-index` regenerated | doc-test drift check PASS |
 
 ## Checklist
 
