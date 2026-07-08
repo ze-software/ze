@@ -16,6 +16,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
+const (
+	procIRQDir     = "/proc/irq"
+	sysClassNetDir = "/sys/class/net"
+)
+
 func applyTuning(cfg TuningConfig) TuningResult {
 	var r TuningResult
 	if cfg.CPUGovernor != "" {
@@ -100,7 +105,7 @@ func applyIRQAffinity(cfg IRQAffinityConfig, r *TuningResult) {
 
 	applied := false
 	for _, irqNum := range irqs {
-		affinityPath := filepath.Join("/proc/irq", irqNum, "smp_affinity_list")
+		affinityPath := filepath.Join(procIRQDir, irqNum, "smp_affinity_list")
 		current, readErr := os.ReadFile(affinityPath) //nolint:gosec // procfs path
 		if readErr != nil {
 			continue
@@ -127,7 +132,7 @@ func applyIRQAffinity(cfg IRQAffinityConfig, r *TuningResult) {
 // /sys/class/net/<iface>/device/msi_irqs/. Returns nil if the
 // interface has no MSI IRQs (e.g. virtual interfaces).
 func findInterfaceIRQs(iface string) ([]string, error) {
-	msiDir := filepath.Join("/sys/class/net", iface, "device", "msi_irqs")
+	msiDir := filepath.Join(sysClassNetDir, iface, "device", "msi_irqs")
 	entries, err := os.ReadDir(msiDir)
 	if err != nil {
 		return nil, fmt.Errorf("read msi_irqs for %s: %w", iface, err)

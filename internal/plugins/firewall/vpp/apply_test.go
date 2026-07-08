@@ -104,7 +104,7 @@ func (f *fakeOps) nat44AddDelOutputInterface(swIfIndex interface_types.Interface
 	return nil
 }
 
-func (f *fakeOps) nat44AddDelInterfaceFeature(swIfIndex interface_types.InterfaceIndex, isInside bool, isAdd bool) error {
+func (f *fakeOps) nat44AddDelInterfaceFeature(swIfIndex interface_types.InterfaceIndex, isInside, isAdd bool) error {
 	side := "outside"
 	if isInside {
 		side = "inside"
@@ -139,7 +139,7 @@ func (f *fakeOps) policerClassifySetInterface(swIfIndex interface_types.Interfac
 	return nil
 }
 
-func (f *fakeOps) policerAddDel(name string, cir uint32, burst uint32, isPackets bool, isAdd bool) (uint32, error) {
+func (f *fakeOps) policerAddDel(name string, cir, burst uint32, isPackets, isAdd bool) (uint32, error) {
 	f.calls = append(f.calls, fmt.Sprintf("policerAddDel:%s:cir=%d:pps=%v:add=%v", name, cir, isPackets, isAdd))
 	f.nextIdx++
 	return f.nextIdx, nil

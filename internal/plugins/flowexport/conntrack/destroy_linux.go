@@ -32,7 +32,7 @@ func NewDestroyListener() (*DestroyListener, error) {
 	if err := conn.JoinGroup(unix.NFNLGRP_CONNTRACK_DESTROY); err != nil {
 		closeErr := conn.Close()
 		if closeErr != nil {
-			return nil, fmt.Errorf("conntrack destroy: join group: %w (close: %v)", err, closeErr)
+			return nil, fmt.Errorf("conntrack destroy: join group: %w (close: %w)", err, closeErr)
 		}
 		return nil, fmt.Errorf("conntrack destroy: join group: %w", err)
 	}

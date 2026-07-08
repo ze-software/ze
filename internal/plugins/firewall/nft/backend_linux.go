@@ -148,7 +148,7 @@ func (b *backend) applyChain(t *nftables.Table, sets map[string]*nftables.Set, c
 		}
 		c.Type = chainType
 		c.Hooknum = hooknum
-		c.Priority = nftables.ChainPriorityRef(nftables.ChainPriority(chain.Priority))
+		c.Priority = new(nftables.ChainPriority(chain.Priority))
 		c.Policy = &policy
 	}
 	b.conn.AddChain(c)
@@ -245,7 +245,7 @@ func (b *backend) applyFlowtable(t *nftables.Table, ft *firewall.Flowtable) erro
 		Table:    t,
 		Name:     ft.Name,
 		Hooknum:  hooknum,
-		Priority: nftables.FlowtablePriorityRef(nftables.FlowtablePriority(ft.Priority)),
+		Priority: new(nftables.FlowtablePriority(ft.Priority)),
 		Devices:  ft.Devices,
 	})
 	return nil

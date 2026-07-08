@@ -58,11 +58,12 @@ type bpfPortKey struct {
 	Pad      uint8
 }
 
-// newLRUMap returns a per-interface LRU hash map spec with the given key size.
-func newLRUMap(keySize, maxEntries uint32) *ebpf.MapSpec {
+// newLRUMap returns a per-interface LRU hash map spec. Both the port_proto
+// key ({u16 port; u8 proto; u8 pad}) and the IPv4 address key are 4 bytes.
+func newLRUMap(maxEntries uint32) *ebpf.MapSpec {
 	return &ebpf.MapSpec{
 		Type:       ebpf.LRUHash,
-		KeySize:    keySize,
+		KeySize:    4,
 		ValueSize:  8,
 		MaxEntries: maxEntries,
 	}
@@ -73,12 +74,12 @@ func newLRUMap(keySize, maxEntries uint32) *ebpf.MapSpec {
 // (so disabling track-ip removes both the maps and the per-packet IP work).
 func buildCollectionSpec(maxEntries uint32, trackIP bool) *ebpf.CollectionSpec {
 	maps := map[string]*ebpf.MapSpec{
-		mapPortIngress: newLRUMap(4, maxEntries),
-		mapPortEgress:  newLRUMap(4, maxEntries),
+		mapPortIngress: newLRUMap(maxEntries),
+		mapPortEgress:  newLRUMap(maxEntries),
 	}
 	if trackIP {
-		maps[mapIPIngress] = newLRUMap(4, maxEntries)
-		maps[mapIPEgress] = newLRUMap(4, maxEntries)
+		maps[mapIPIngress] = newLRUMap(maxEntries)
+		maps[mapIPEgress] = newLRUMap(maxEntries)
 	}
 
 	return &ebpf.CollectionSpec{

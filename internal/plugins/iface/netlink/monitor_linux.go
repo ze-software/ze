@@ -227,7 +227,10 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 			"index", au.LinkIndex)
 		return
 	}
-	ifaceName := nameVal.(string)
+	ifaceName, isStr := nameVal.(string)
+	if !isStr {
+		return
+	}
 	parent, unit, _ := resolveVLANUnit(ifaceName)
 	addr := au.LinkAddress.IP.String()
 	ones, _ := au.LinkAddress.Mask.Size()
@@ -267,7 +270,10 @@ func (m *monitor) handleNeighUpdate(nu netlink.NeighUpdate) {
 	if !ok {
 		return
 	}
-	ifaceName := nameVal.(string)
+	ifaceName, isStr := nameVal.(string)
+	if !isStr {
+		return
+	}
 
 	nk := neighKey{linkIndex: nu.LinkIndex, ip: nu.IP.String()}
 	isRouter := nu.Flags&netlink.NTF_ROUTER != 0

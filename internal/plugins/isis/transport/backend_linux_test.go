@@ -22,5 +22,5 @@ func TestHtonsRoundsTrip(t *testing.T) {
 
 func TestLinuxBackendIsBackend(t *testing.T) {
 	// VALIDATES: NewBackend returns the real Linux backend implementing Backend.
-	var _ Backend = NewBackend()
+	var _ = NewBackend()
 }

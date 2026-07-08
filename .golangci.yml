@@ -132,6 +132,7 @@ linters:
         - G706 # Log injection via taint — false positive on slog structured logging
 
     misspell:
+      # US spelling is the codebase convention (neighbor 1833:3, behavior 423:0, ...).
       locale: US
 
     nakedret:

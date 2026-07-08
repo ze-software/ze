@@ -74,7 +74,7 @@ func HandleCaptureInterface(_ *pluginserver.CommandContext, args []string) (*plu
 
 	switch ca.format {
 	case captureFormatText:
-		return captureText(ctx, conn, ca)
+		return captureText(ctx, conn, ca), nil
 	default:
 		return capturePcap(ctx, conn, ca)
 	}
@@ -134,7 +134,7 @@ func capturePcap(ctx context.Context, conn *packet.Conn, ca captureArgs) (*plugi
 	}, nil
 }
 
-func captureText(ctx context.Context, conn *packet.Conn, ca captureArgs) (*plugin.Response, error) {
+func captureText(ctx context.Context, conn *packet.Conn, ca captureArgs) *plugin.Response {
 	rb := make([]byte, maxCaptureSnapLen)
 	lines := make([]string, 0, min(ca.count, 256))
 	captured := 0
@@ -175,7 +175,7 @@ func captureText(ctx context.Context, conn *packet.Conn, ca captureArgs) (*plugi
 			"packets": captured,
 			"lines":   lines,
 		},
-	}, nil
+	}
 }
 
 func compileBPF(expr string) ([]bpf.RawInstruction, error) {

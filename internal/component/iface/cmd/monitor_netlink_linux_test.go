@@ -29,7 +29,7 @@ func TestParseNetlinkRouteMsg(t *testing.T) {
 		},
 	}
 
-	ev := routeUpdateToEvent(u)
+	ev := routeUpdateToEvent(&u)
 
 	if ev["type"] != "route" {
 		t.Errorf("type = %v, want route", ev["type"])
@@ -66,7 +66,7 @@ func TestParseNetlinkRouteMsgDelete(t *testing.T) {
 		},
 	}
 
-	ev := routeUpdateToEvent(u)
+	ev := routeUpdateToEvent(&u)
 
 	if ev["action"] != "del" {
 		t.Errorf("action = %v, want del", ev["action"])
@@ -79,7 +79,7 @@ func TestParseNetlinkRouteMsgDefault(t *testing.T) {
 		Route: netlink.Route{},
 	}
 
-	ev := routeUpdateToEvent(u)
+	ev := routeUpdateToEvent(&u)
 
 	if ev["prefix"] != "default" {
 		t.Errorf("prefix = %v, want default", ev["prefix"])

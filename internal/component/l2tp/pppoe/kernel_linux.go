@@ -5,11 +5,8 @@
 package pppoe
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -113,29 +110,6 @@ func closePPPoxFD(fd int) {
 	if fd >= 0 {
 		unix.Close(fd) //nolint:errcheck // shutdown
 	}
-}
-
-// probeKernelPPPoE checks that the kernel PPPoE module is loaded.
-func probeKernelPPPoE() error {
-	fd, err := unix.Socket(afPPPOX, unix.SOCK_STREAM, pxProtoOE)
-	if err == nil {
-		unix.Close(fd) //nolint:errcheck // probe
-		return nil
-	}
-	if moduleBuiltIn("pppoe") {
-		return nil
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := exec.CommandContext(ctx, "modprobe", "pppoe").Run(); err != nil { //nolint:gosec // constant arg
-		return fmt.Errorf("pppoe: failed to load kernel module: %w", err)
-	}
-	return nil
-}
-
-func moduleBuiltIn(name string) bool {
-	_, err := os.Stat("/sys/module/" + name)
-	return err == nil
 }
 
 func htons(v uint16) uint16 {

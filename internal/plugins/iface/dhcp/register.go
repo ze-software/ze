@@ -44,7 +44,7 @@ func init() {
 // newDHCPClientFromFactory creates and starts a DHCPClient, returning it as
 // a dhcpStopper interface. This bridges the iface package's factory callback
 // to the ifacedhcp package's concrete type.
-func newDHCPClientFromFactory(ifaceName string, unit string, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdLength int, duid, resolvConfPath string, hasStaticNameServers bool, routeMetric int) (iface.DHCPStopper, error) {
+func newDHCPClientFromFactory(ifaceName, unit string, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdLength int, duid, resolvConfPath string, hasStaticNameServers bool, routeMetric int) (iface.DHCPStopper, error) {
 	cfg := DHCPConfig{
 		Hostname:             hostname,
 		ClientID:             clientID,

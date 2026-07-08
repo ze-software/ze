@@ -28,7 +28,7 @@ func slewClock(offset time.Duration) error {
 	usec := offset.Microseconds()
 	tx := &syscall.Timex{
 		Modes:  0x0001, // ADJ_OFFSET
-		Offset: int64(usec),
+		Offset: usec,
 	}
 	if _, err := syscall.Adjtimex(tx); err != nil {
 		return fmt.Errorf("adjtimex: %w", err)

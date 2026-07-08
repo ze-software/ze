@@ -24,14 +24,16 @@ func startDHCPv6Server(ifname string, svc *IPv6Service, serverID DHCPv6DUID, all
 	lc := net.ListenConfig{
 		Control: func(_, _ string, c syscall.RawConn) error {
 			var opErr error
-			c.Control(func(fd uintptr) {
+			if ctrlErr := c.Control(func(fd uintptr) {
 				// SO_REUSEADDR allows concurrent sessions to each bind :547 on their own pppN
 				if err := unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEADDR, 1); err != nil {
 					opErr = err
 					return
 				}
 				opErr = unix.SetsockoptString(int(fd), unix.SOL_SOCKET, unix.SO_BINDTODEVICE, ifname)
-			})
+			}); ctrlErr != nil {
+				return ctrlErr
+			}
 			return opErr
 		},
 	}
@@ -48,13 +50,15 @@ func startDHCPv6Server(ifname string, svc *IPv6Service, serverID DHCPv6DUID, all
 		if ok {
 			rawConn, rcErr := udpConn.SyscallConn()
 			if rcErr == nil {
-				rawConn.Control(func(fd uintptr) {
+				if ctrlErr := rawConn.Control(func(fd uintptr) {
 					var mreq unix.IPv6Mreq
 					copy(mreq.Multiaddr[:], group.To16())
 					mreq.Interface = uint32(iface.Index)
 					//nolint:errcheck // best-effort multicast join; DHCPv6 still works via link-local unicast
 					unix.SetsockoptIPv6Mreq(int(fd), unix.IPPROTO_IPV6, unix.IPV6_JOIN_GROUP, &mreq)
-				})
+				}); ctrlErr != nil {
+					logger.Debug("ppp: DHCPv6 multicast join control failed", "error", ctrlErr)
+				}
 			}
 		}
 	}
@@ -65,7 +69,9 @@ func startDHCPv6Server(ifname string, svc *IPv6Service, serverID DHCPv6DUID, all
 
 	return func() {
 		cancel()
-		pc.Close()
+		if cerr := pc.Close(); cerr != nil {
+			logger.Warn("ppp: DHCPv6 close failed", "error", cerr)
+		}
 	}, nil
 }
 

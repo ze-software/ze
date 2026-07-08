@@ -270,7 +270,7 @@ func setMulticastOptions(fd, ifindex int, local [4]byte) error {
 	if err := unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_MULTICAST_TTL, 1); err != nil {
 		return fmt.Errorf("ospf/transport: setsockopt IP_MULTICAST_TTL: %w", err)
 	}
-	// RFC 2328 Appendix D.3: multicast loopback must not create a self-neighbour.
+	// RFC 2328 Appendix D.3: multicast loopback must not create a self-neighbor.
 	if err := unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_MULTICAST_LOOP, 0); err != nil {
 		return fmt.Errorf("ospf/transport: setsockopt IP_MULTICAST_LOOP: %w", err)
 	}

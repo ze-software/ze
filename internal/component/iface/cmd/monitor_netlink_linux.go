@@ -20,6 +20,12 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
+const (
+	actionNew     = "new"
+	actionDel     = "del"
+	prefixDefault = "default"
+)
+
 func streamNetlinkMonitor(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, args []string) error {
 	group, err := netlinkGroupFromArgs(args)
 	if err != nil {
@@ -82,7 +88,7 @@ func forwardRouteUpdates(ctx context.Context, ch <-chan netlink.RouteUpdate, out
 			if !ok {
 				return
 			}
-			ev := routeUpdateToEvent(update)
+			ev := routeUpdateToEvent(&update)
 			select {
 			case out <- ev:
 			case <-ctx.Done():
@@ -134,7 +140,9 @@ var ifNameCache sync.Map
 
 func ifName(index int) string {
 	if name, ok := ifNameCache.Load(index); ok {
-		return name.(string)
+		if s, isStr := name.(string); isStr {
+			return s
+		}
 	}
 	link, err := netlink.LinkByIndex(index)
 	if err != nil {
@@ -145,10 +153,10 @@ func ifName(index int) string {
 	return name
 }
 
-func routeUpdateToEvent(u netlink.RouteUpdate) map[string]any {
-	action := "new"
+func routeUpdateToEvent(u *netlink.RouteUpdate) map[string]any {
+	action := actionNew
 	if u.Type == unix.RTM_DELROUTE {
-		action = "del"
+		action = actionDel
 	}
 
 	ev := map[string]any{
@@ -160,7 +168,7 @@ func routeUpdateToEvent(u netlink.RouteUpdate) map[string]any {
 	if u.Dst != nil {
 		ev["prefix"] = u.Dst.String()
 	} else {
-		ev["prefix"] = "default"
+		ev["prefix"] = prefixDefault
 	}
 
 	if u.Gw != nil {
@@ -185,7 +193,7 @@ func routeUpdateToEvent(u netlink.RouteUpdate) map[string]any {
 func linkUpdateToEvent(u netlink.LinkUpdate) map[string]any {
 	action := "change"
 	if u.Header.Type == unix.RTM_DELLINK {
-		action = "del"
+		action = actionDel
 	}
 
 	attrs := u.Attrs()
@@ -223,9 +231,9 @@ func linkUpdateToEvent(u netlink.LinkUpdate) map[string]any {
 }
 
 func addrUpdateToEvent(u netlink.AddrUpdate) map[string]any {
-	action := "del"
+	action := actionDel
 	if u.NewAddr {
-		action = "new"
+		action = actionNew
 	}
 
 	ev := map[string]any{

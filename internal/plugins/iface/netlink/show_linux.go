@@ -132,7 +132,7 @@ func (b *netlinkBackend) LinkSpeedDuplex(name string) (int, string) {
 }
 
 // parseLinkSpeedDuplex turns the raw sysfs speed/duplex file contents into a
-// sanitised (Mbit/s, duplex) pair. A non-positive or unparseable speed becomes
+// sanitized (Mbit/s, duplex) pair. A non-positive or unparseable speed becomes
 // 0; only "full" and "half" are accepted as duplex, anything else (including
 // the kernel's "unknown") becomes "". Split out from the file reads so the
 // value handling is unit-testable without touching /sys.

@@ -42,7 +42,7 @@ func setListenIPTTL(fd int, ttl uint8) error {
 	v4Err := unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_TTL, int(ttl))
 	v6Err := unix.SetsockoptInt(fd, unix.IPPROTO_IPV6, unix.IPV6_UNICAST_HOPS, int(ttl))
 	if v4Err != nil && v6Err != nil {
-		return fmt.Errorf("setsockopt listen TTL=%d: IP_TTL=%v IPV6_UNICAST_HOPS=%v", ttl, v4Err, v6Err)
+		return fmt.Errorf("setsockopt listen TTL=%d: IP_TTL=%w IPV6_UNICAST_HOPS=%w", ttl, v4Err, v6Err)
 	}
 	return nil
 }

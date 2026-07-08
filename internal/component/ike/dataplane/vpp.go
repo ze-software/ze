@@ -294,17 +294,23 @@ func vppCryptoAlg(algo string, isAEAD bool) uint8 {
 
 // VPP integrity algorithm IDs matching VPP's ipsec_integ_alg_t enum.
 func vppIntegAlg(algo string, isAEAD bool) uint8 {
+	const (
+		integSHA256 = "sha256"
+		integSHA384 = "sha384"
+		integSHA512 = "sha512"
+		integSHA1   = "sha1"
+	)
 	if isAEAD {
 		return 0 // NONE for AEAD
 	}
 	switch algo {
-	case "sha256":
+	case integSHA256:
 		return 4 // IPSEC_API_INTEG_ALG_SHA_256_128
-	case "sha384":
+	case integSHA384:
 		return 5 // IPSEC_API_INTEG_ALG_SHA_384_192
-	case "sha512":
+	case integSHA512:
 		return 6 // IPSEC_API_INTEG_ALG_SHA_512_256
-	case "sha1":
+	case integSHA1:
 		return 2 // IPSEC_API_INTEG_ALG_SHA1_96
 	}
 	return 4

@@ -1,5 +1,5 @@
 // Design: plan/learned/727-diag-core.md -- TCP/UDP socket state from /proc/net (ss replacement)
-// Related: conntrack.go -- existing /proc reading pattern
+// Related: fd_linux.go -- existing /proc reading pattern
 //
 //go:build linux
 
@@ -21,12 +21,13 @@ func init() {
 }
 
 func handleShowSystemSockets(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	const protoTCP = "tcp"
 	proto := ""
 	state := ""
 	port := 0
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "tcp", "udp":
+		case protoTCP, "udp":
 			proto = args[i]
 		case "state":
 			if i+1 < len(args) {
@@ -46,8 +47,8 @@ func handleShowSystemSockets(_ *pluginserver.CommandContext, args []string) (*pl
 
 	var sockets []map[string]any
 
-	if proto == "" || proto == "tcp" {
-		tcp4, err := parseProcNetSockets("/proc/net/tcp", "tcp")
+	if proto == "" || proto == protoTCP {
+		tcp4, err := parseProcNetSockets("/proc/net/tcp", protoTCP)
 		if err == nil {
 			sockets = append(sockets, tcp4...)
 		}

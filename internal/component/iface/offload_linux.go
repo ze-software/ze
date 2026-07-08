@@ -26,6 +26,8 @@ const (
 	ethtoolSGRO = 0x0000002c // ETHTOOL_SGRO (set generic receive offload)
 )
 
+const sysClassNetDir = "/sys/class/net"
+
 // ethtoolValue mirrors struct ethtool_value { __u32 cmd; __u32 data; }.
 type ethtoolValue struct {
 	cmd  uint32
@@ -156,7 +158,7 @@ func setEthtoolFeature(fd int, ifaceName string, cmd, val uint32) error {
 
 // setEthtoolFeatureByName uses the ETHTOOL_SFEATURES API to set a named
 // feature. Used for hw-tc-offload which has no legacy per-feature ioctl.
-func setEthtoolFeatureByName(fd int, ifaceName string, feature string, enable bool) error {
+func setEthtoolFeatureByName(fd int, ifaceName, feature string, enable bool) error {
 	idx, err := findFeatureIndex(fd, ifaceName, feature)
 	if err != nil {
 		return err
@@ -255,7 +257,7 @@ func setSFeature(fd int, ifaceName string, idx uint32, enable bool) error {
 // /sys/class/net/<dev>/queues/rx-*/rps_cpus. Enable sets all CPUs;
 // disable sets 0 (no steering).
 func applyRPS(ifaceName string, enable bool) error {
-	pattern := filepath.Join("/sys/class/net", ifaceName, "queues", "rx-*", "rps_cpus")
+	pattern := filepath.Join(sysClassNetDir, ifaceName, "queues", "rx-*", "rps_cpus")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		return fmt.Errorf("rps glob: %w", err)
@@ -286,7 +288,7 @@ func applyRPS(ifaceName string, enable bool) error {
 // applyRFSQueues sets per-queue rps_flow_cnt for the named interface.
 // The global rps_sock_flow_entries is set once by applyRFSGlobal.
 func applyRFSQueues(ifaceName string, enable bool) error {
-	queuePattern := filepath.Join("/sys/class/net", ifaceName, "queues", "rx-*", "rps_flow_cnt")
+	queuePattern := filepath.Join(sysClassNetDir, ifaceName, "queues", "rx-*", "rps_flow_cnt")
 	matches, err := filepath.Glob(queuePattern)
 	if err != nil {
 		return fmt.Errorf("rfs glob: %w", err)

@@ -27,7 +27,7 @@ const (
 // initial burst of RAs followed by periodic RAs. Returns a cancel
 // function to stop the goroutine and close the socket.
 func startRASender(ifname string, logger *slog.Logger) (func(), error) {
-	conn, err := net.ListenPacket("ip6:ipv6-icmp", "::")
+	conn, err := (&net.ListenConfig{}).ListenPacket(context.Background(), "ip6:ipv6-icmp", "::")
 	if err != nil {
 		return nil, err
 	}
@@ -36,16 +36,22 @@ func startRASender(ifname string, logger *slog.Logger) (func(), error) {
 
 	iface, err := net.InterfaceByName(ifname)
 	if err != nil {
-		conn.Close()
+		if cerr := conn.Close(); cerr != nil {
+			logger.Warn("ppp: RA close failed", "error", cerr)
+		}
 		return nil, err
 	}
 
-	rawConn, rcErr := conn.(*net.IPConn).SyscallConn()
-	if rcErr == nil {
-		rawConn.Control(func(fd uintptr) {
-			//nolint:errcheck // best-effort bind; pppN is point-to-point so scope is already narrow
-			unix.SetsockoptString(int(fd), unix.SOL_SOCKET, unix.SO_BINDTODEVICE, ifname)
-		})
+	if ipConn, ok := conn.(*net.IPConn); ok {
+		rawConn, rcErr := ipConn.SyscallConn()
+		if rcErr == nil {
+			if ctrlErr := rawConn.Control(func(fd uintptr) {
+				//nolint:errcheck // best-effort bind; pppN is point-to-point so scope is already narrow
+				unix.SetsockoptString(int(fd), unix.SOL_SOCKET, unix.SO_BINDTODEVICE, ifname)
+			}); ctrlErr != nil {
+				logger.Debug("ppp: RA bind-to-device control failed", "error", ctrlErr)
+			}
+		}
 	}
 
 	// RFC 4861 Section 6.1.1: routers join the all-routers multicast
@@ -72,7 +78,9 @@ func startRASender(ifname string, logger *slog.Logger) (func(), error) {
 
 	return func() {
 		cancel()
-		conn.Close()
+		if cerr := conn.Close(); cerr != nil {
+			logger.Warn("ppp: RA close failed", "error", cerr)
+		}
 	}, nil
 }
 

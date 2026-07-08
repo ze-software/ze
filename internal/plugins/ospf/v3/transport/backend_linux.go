@@ -6,6 +6,8 @@
 package transport
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -104,7 +106,7 @@ func (linuxBackend) OpenInterface(name string, recordDrop DropRecorder) (Interfa
 	if err != nil {
 		return nil, err
 	}
-	conn, err := net.ListenPacket(listenNetwork, "::")
+	conn, err := (&net.ListenConfig{}).ListenPacket(context.Background(), listenNetwork, "::")
 	if err != nil {
 		return nil, fmt.Errorf("ospfv3/transport: listen %s needs CAP_NET_RAW: %w", listenNetwork, err)
 	}
@@ -128,7 +130,7 @@ func (linuxBackend) OpenInterface(name string, recordDrop DropRecorder) (Interfa
 
 // setupSocket binds the socket to the interface and sets the OSPFv3 multicast and
 // control-message options. RFC 5340 §2.9: hop limit 1 (link-local scope),
-// per-interface egress, loopback off (no self-neighbour).
+// per-interface egress, loopback off (no self-neighbor).
 func setupSocket(conn net.PacketConn, pc *ipv6.PacketConn, ifi *net.Interface) error {
 	ipc, ok := conn.(*net.IPConn)
 	if !ok {
@@ -271,7 +273,8 @@ func (li *linuxInterface) readLoop() {
 		}
 		n, cm, src, err := li.pc.ReadFrom(buf)
 		if err != nil {
-			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+			var ne net.Error
+			if errors.As(err, &ne) {
 				continue
 			}
 			if li.stopped() {

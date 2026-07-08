@@ -21,7 +21,7 @@ const dhcpTimeout = 10 * time.Second
 // sends. WithBroadcast(true) sets the BOOTP broadcast flag (0x8000).
 //
 // During DORA the client owns no IP, so it must ask the server to BROADCAST the
-// reply. A server that honours a clear flag instead unicasts the OFFER/ACK to
+// reply. A server that honors a clear flag instead unicasts the OFFER/ACK to
 // the offered address (yiaddr) and ARPs for it -- an address nobody answers yet
 // -- so the lease is never delivered and the installer never gets network.
 // iPXE and the old busybox udhcpc both set this flag; the pure-Go initrd

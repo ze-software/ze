@@ -127,12 +127,12 @@ func parseKmsgLine(line string) map[string]any {
 		return nil
 	}
 
-	semicolon := strings.IndexByte(line, ';')
-	if semicolon < 0 {
+	before, after, ok := strings.Cut(line, ";")
+	if !ok {
 		return nil
 	}
-	prefix := line[:semicolon]
-	message := line[semicolon+1:]
+	prefix := before
+	message := after
 
 	parts := strings.SplitN(prefix, ",", 4)
 	if len(parts) < 3 {

@@ -6,6 +6,7 @@ package system
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 
@@ -91,7 +92,11 @@ func applyTermios(path string, speed int) error {
 	if err != nil {
 		return fmt.Errorf("open %s: %w", path, err)
 	}
-	defer unix.Close(fd)
+	defer func() {
+		if cerr := unix.Close(fd); cerr != nil {
+			slog.Warn("close serial fd failed", "path", path, "error", cerr)
+		}
+	}()
 
 	termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
 	if err != nil {

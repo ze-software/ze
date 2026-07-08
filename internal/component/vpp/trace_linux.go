@@ -6,7 +6,10 @@ package vpp
 
 import (
 	"bufio"
+	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"strings"
 	"time"
@@ -31,11 +34,16 @@ func cliSocketPath() string {
 
 func execCLI(command string) (string, error) {
 	sock := cliSocketPath()
-	conn, err := net.DialTimeout("unix", sock, cliTimeout)
+	dialer := net.Dialer{Timeout: cliTimeout}
+	conn, err := dialer.DialContext(context.Background(), "unix", sock)
 	if err != nil {
 		return "", fmt.Errorf("vpp cli: dial %s: %w", sock, err)
 	}
-	defer conn.Close()
+	defer func() {
+		if cerr := conn.Close(); cerr != nil {
+			slog.Warn("vpp cli: close failed", "sock", sock, "error", cerr)
+		}
+	}()
 
 	if err := conn.SetDeadline(time.Now().Add(cliTimeout)); err != nil {
 		return "", fmt.Errorf("vpp cli: set deadline: %w", err)
@@ -53,7 +61,8 @@ func execCLI(command string) (string, error) {
 		sb.WriteByte('\n')
 	}
 	if err := scanner.Err(); err != nil {
-		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+		var netErr net.Error
+		if errors.As(err, &netErr) {
 			if sb.Len() > 0 {
 				return sb.String(), nil
 			}

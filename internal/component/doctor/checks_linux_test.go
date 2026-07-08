@@ -99,7 +99,8 @@ func TestCheckConntrackProcfs(t *testing.T) {
 	// PREVENTS: conntrack procfs dependency gaps being missed during readiness checks.
 	oldStat := statPath
 	oldAccess := accessPath
-	statPath = func(string) (os.FileInfo, error) { return nil, nil }
+	// os.DevNull always exists, so this simulates a present file (nil error).
+	statPath = func(string) (os.FileInfo, error) { return os.Stat(os.DevNull) }
 	accessPath = func(path string, _ uint32) error {
 		if strings.HasSuffix(path, "nf_conntrack_max") {
 			return os.ErrNotExist
@@ -261,7 +262,8 @@ func TestCheckRandomSeedGokrazyMissing(t *testing.T) {
 
 func TestCheckRandomSeedGokrazyPresent(t *testing.T) {
 	oldStat := statPath
-	statPath = func(string) (os.FileInfo, error) { return nil, nil }
+	// os.DevNull always exists, so this simulates a present file (nil error).
+	statPath = func(string) (os.FileInfo, error) { return os.Stat(os.DevNull) }
 	t.Cleanup(func() { statPath = oldStat })
 
 	diags := checkRandomSeed(&host.PlatformInfo{Type: host.PlatformGokrazy})
@@ -280,7 +282,8 @@ func TestCheckRandomSeedSystemdMissing(t *testing.T) {
 
 func TestCheckRandomSeedSystemdPresent(t *testing.T) {
 	oldStat := statPath
-	statPath = func(string) (os.FileInfo, error) { return nil, nil }
+	// os.DevNull always exists, so this simulates a present file (nil error).
+	statPath = func(string) (os.FileInfo, error) { return os.Stat(os.DevNull) }
 	t.Cleanup(func() { statPath = oldStat })
 
 	diags := checkRandomSeed(&host.PlatformInfo{Type: host.PlatformSystemd})

@@ -136,8 +136,9 @@ func connectedUDPSocket(listenerFD int, peerAddr netip.AddrPort) (int, error) {
 	var bindSA unix.Sockaddr
 	switch sa := localSA.(type) {
 	case *unix.SockaddrInet4:
-		bindSA = &unix.SockaddrInet4{Port: sa.Port}
-		copy(bindSA.(*unix.SockaddrInet4).Addr[:], sa.Addr[:])
+		v4 := &unix.SockaddrInet4{Port: sa.Port}
+		copy(v4.Addr[:], sa.Addr[:])
+		bindSA = v4
 	case *unix.SockaddrInet6:
 		bindSA = &unix.SockaddrInet4{Port: sa.Port}
 	default:

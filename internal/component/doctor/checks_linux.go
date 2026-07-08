@@ -37,9 +37,10 @@ const (
 	doctorMachineIDEnv   = "ze.test.doctor.machine-id-path"
 	doctorRandomSeedEnv  = "ze.test.doctor.random-seed-path"
 
-	capSysTime      = 25
-	dpdkSysfsDevDir = "/sys/bus/pci/devices"
-	machineIDPath   = "/etc/machine-id"
+	capSysTime       = 25
+	dpdkSysfsDevDir  = "/sys/bus/pci/devices"
+	sysClassBlockDir = "/sys/class/block"
+	machineIDPath    = "/etc/machine-id"
 
 	gokrazyRandomSeedPath = "/perm/random.seed"
 	systemdRandomSeedPath = "/var/lib/systemd/random-seed"
@@ -739,7 +740,7 @@ func checkSmartEnabled(tree *config.Tree) []diagnostic.Diagnostic {
 	accessible := 0
 	for _, e := range entries {
 		name := e.Name()
-		if _, statErr := os.Stat(filepath.Join("/sys/class/block", name, "partition")); statErr == nil {
+		if _, statErr := os.Stat(filepath.Join(sysClassBlockDir, name, "partition")); statErr == nil {
 			continue
 		}
 		checked++

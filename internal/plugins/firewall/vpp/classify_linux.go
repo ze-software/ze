@@ -70,7 +70,7 @@ func applyPrefixMaskMatch(mask, match []byte, prefix netip.Prefix, offset int) {
 	}
 	a4 := addr.As4()
 	prefixMask := prefixToMask(bits)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		mask[offset+i] = prefixMask[i]
 		match[offset+i] = a4[i] & prefixMask[i]
 	}
@@ -205,11 +205,11 @@ func limitToRate(limit *firewall.Limit) (uint32, error) {
 	case "second":
 		// rate is already per-second
 	case "minute":
-		rate = rate / 60
+		rate /= 60
 	case "hour":
-		rate = rate / 3600
+		rate /= 3600
 	case "day":
-		rate = rate / 86400
+		rate /= 86400
 	}
 	if limit.Dimension == firewall.RateDimensionBytes {
 		rate = rate * 8 / 1000

@@ -6,6 +6,7 @@ package disk
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"golang.org/x/sys/unix"
@@ -46,8 +47,10 @@ func sysLoopAttach(file string) (string, error) {
 		if openErr != nil {
 			continue
 		}
-		_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(loopFd), unix.LOOP_SET_FD, uintptr(backing.Fd()))
-		unix.Close(loopFd)
+		_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(loopFd), unix.LOOP_SET_FD, backing.Fd())
+		if cerr := unix.Close(loopFd); cerr != nil {
+			slog.Warn("close loop device failed", "dev", dev, "error", cerr)
+		}
 		if errno == 0 {
 			return dev, nil
 		}
@@ -61,5 +64,7 @@ func sysLoopDetach(dev string) {
 		return
 	}
 	unix.Syscall(unix.SYS_IOCTL, uintptr(fd), unix.LOOP_CLR_FD, 0) //nolint:errcheck // best-effort cleanup
-	unix.Close(fd)
+	if cerr := unix.Close(fd); cerr != nil {
+		slog.Warn("close loop device failed", "dev", dev, "error", cerr)
+	}
 }

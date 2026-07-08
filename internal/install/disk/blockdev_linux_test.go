@@ -7,7 +7,7 @@ package disk
 import "testing"
 
 func TestBlockdevRereadPartSignature(t *testing.T) {
-	var fn func(string) error = blkRereadPart
+	var fn = blkRereadPart
 	_ = fn
 }
 

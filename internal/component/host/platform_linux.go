@@ -66,10 +66,7 @@ func isGokrazy(info *PlatformInfo, root string) bool {
 	}
 	// /user/gokrazy directory exists on gokrazy images.
 	var tb textbuf.Buffer
-	if isDir(tb.Str(root).Str("/user/gokrazy").String()) {
-		return true
-	}
-	return false
+	return isDir(tb.Str(root).Str("/user/gokrazy").String())
 }
 
 // isContainer detects Docker, Podman, LXC, and similar container

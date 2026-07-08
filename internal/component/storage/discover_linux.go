@@ -10,17 +10,19 @@ import (
 	"path/filepath"
 )
 
+const sysClassBlockDir = "/sys/class/block"
+
 // discoverBlockDevices returns the names of top-level block devices
 // (partitions excluded) by walking /sys/class/block/.
 func discoverBlockDevices() []string {
-	entries, err := os.ReadDir("/sys/class/block")
+	entries, err := os.ReadDir(sysClassBlockDir)
 	if err != nil {
 		return nil
 	}
 	var devices []string
 	for _, e := range entries {
 		name := e.Name()
-		if isPartition(filepath.Join("/sys/class/block", name)) {
+		if isPartition(filepath.Join(sysClassBlockDir, name)) {
 			continue
 		}
 		devices = append(devices, name)

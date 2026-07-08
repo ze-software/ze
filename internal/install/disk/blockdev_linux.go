@@ -6,6 +6,7 @@ package disk
 
 import (
 	"fmt"
+	"log/slog"
 
 	"golang.org/x/sys/unix"
 )
@@ -28,7 +29,11 @@ func sysBlkRereadPart(disk string) error {
 	if err != nil {
 		return fmt.Errorf("open %s: %w", disk, err)
 	}
-	defer unix.Close(fd)
+	defer func() {
+		if cerr := unix.Close(fd); cerr != nil {
+			slog.Warn("close block device failed", "disk", disk, "error", cerr)
+		}
+	}()
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), unix.BLKRRPART, 0)
 	if errno != 0 {
 		return fmt.Errorf("BLKRRPART %s: %w", disk, errno)

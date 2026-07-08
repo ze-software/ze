@@ -321,8 +321,13 @@ func (b *backend) bindAllACLs(
 
 		foreignInput, foreignOutput := splitForeign(existing, zeACLSet)
 
-		mergedInput := append(foreignInput, zeInput[swIfIndex]...)
-		mergedOutput := append(foreignOutput, zeOutput[swIfIndex]...)
+		mergedInput := make([]uint32, 0, len(foreignInput)+len(zeInput[swIfIndex]))
+		mergedInput = append(mergedInput, foreignInput...)
+		mergedInput = append(mergedInput, zeInput[swIfIndex]...)
+
+		mergedOutput := make([]uint32, 0, len(foreignOutput)+len(zeOutput[swIfIndex]))
+		mergedOutput = append(mergedOutput, foreignOutput...)
+		mergedOutput = append(mergedOutput, zeOutput[swIfIndex]...)
 
 		acls := make([]uint32, 0, len(mergedInput)+len(mergedOutput))
 		acls = append(acls, mergedInput...)
@@ -578,7 +583,7 @@ func (g *govppOps) nat44AddDelOutputInterface(swIfIndex interface_types.Interfac
 	return nil
 }
 
-func (g *govppOps) nat44AddDelInterfaceFeature(swIfIndex interface_types.InterfaceIndex, isInside bool, isAdd bool) error {
+func (g *govppOps) nat44AddDelInterfaceFeature(swIfIndex interface_types.InterfaceIndex, isInside, isAdd bool) error {
 	flags := nat_types.NAT_IS_OUTSIDE
 	if isInside {
 		flags = nat_types.NAT_IS_INSIDE
@@ -709,7 +714,7 @@ func (g *govppOps) policerClassifySetInterface(swIfIndex interface_types.Interfa
 	return nil
 }
 
-func (g *govppOps) policerAddDel(name string, cir uint32, burst uint32, isPackets bool, isAdd bool) (uint32, error) {
+func (g *govppOps) policerAddDel(name string, cir, burst uint32, isPackets, isAdd bool) (uint32, error) {
 	cb := uint64(burst)
 	if cb == 0 {
 		cb = uint64(cir) * 1000 / 8

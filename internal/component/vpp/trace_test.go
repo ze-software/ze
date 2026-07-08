@@ -3,6 +3,7 @@
 package vpp
 
 import (
+	"context"
 	"net"
 	"path/filepath"
 	"strings"
@@ -15,21 +16,33 @@ func startMockCLI(t *testing.T, response string) string {
 	t.Helper()
 	dir := t.TempDir()
 	sock := filepath.Join(dir, "cli.sock")
-	ln, err := net.Listen("unix", sock)
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "unix", sock)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ln.Close() })
+	t.Cleanup(func() {
+		if cerr := ln.Close(); cerr != nil {
+			t.Logf("close listener: %v", cerr)
+		}
+	})
 
 	go func() {
 		conn, err := ln.Accept()
 		if err != nil {
 			return
 		}
-		defer conn.Close()
+		defer func() {
+			if cerr := conn.Close(); cerr != nil {
+				t.Logf("close conn: %v", cerr)
+			}
+		}()
 		buf := make([]byte, 4096)
-		conn.Read(buf)
-		conn.Write([]byte(response))
+		if _, rerr := conn.Read(buf); rerr != nil {
+			t.Logf("read: %v", rerr)
+		}
+		if _, werr := conn.Write([]byte(response)); werr != nil {
+			t.Logf("write: %v", werr)
+		}
 	}()
 	return sock
 }

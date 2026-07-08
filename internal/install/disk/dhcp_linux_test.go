@@ -16,7 +16,7 @@ import (
 )
 
 func TestDHCPAcquireSignature(t *testing.T) {
-	var fn func(string) (*dhcpLease, error) = dhcpAcquire
+	var fn = dhcpAcquire
 	_ = fn
 }
 

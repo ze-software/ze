@@ -1,5 +1,5 @@
 // Design: plan/learned/727-diag-core.md -- FD inspection from /proc/self/fd (lsof replacement)
-// Related: conntrack.go -- existing /proc reading pattern
+// Related: sockets_linux.go -- existing /proc reading pattern
 //
 //go:build linux
 
@@ -22,10 +22,11 @@ func init() {
 }
 
 func handleShowSystemFD(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	const detailMode = "detail"
 	mode := "summary"
 	for _, a := range args {
-		if a == "detail" {
-			mode = "detail"
+		if a == detailMode {
+			mode = detailMode
 		}
 	}
 
@@ -49,7 +50,7 @@ func handleShowSystemFD(_ *pluginserver.CommandContext, args []string) (*plugin.
 		"hard-limit": hardLimit,
 	}
 
-	if mode == "detail" {
+	if mode == detailMode {
 		details := make([]map[string]any, 0, len(fds))
 		for _, fd := range fds {
 			details = append(details, map[string]any{

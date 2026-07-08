@@ -31,7 +31,7 @@ func NewPsampleReader() (*PsampleReader, error) {
 	if err != nil {
 		closeErr := conn.Close()
 		if closeErr != nil {
-			return nil, fmt.Errorf("psample: get family %q: %w (close: %v)", psampleFamilyName, err, closeErr)
+			return nil, fmt.Errorf("psample: get family %q: %w (close: %w)", psampleFamilyName, err, closeErr)
 		}
 		return nil, fmt.Errorf("psample: get family %q: %w", psampleFamilyName, err)
 	}
@@ -46,7 +46,7 @@ func NewPsampleReader() (*PsampleReader, error) {
 	if groupID == 0 {
 		closeErr := conn.Close()
 		if closeErr != nil {
-			return nil, fmt.Errorf("psample: multicast group %q not found (close: %v)", "packets", closeErr)
+			return nil, fmt.Errorf("psample: multicast group %q not found (close: %w)", "packets", closeErr)
 		}
 		return nil, fmt.Errorf("psample: multicast group %q not found in family %q", "packets", psampleFamilyName)
 	}
@@ -54,7 +54,7 @@ func NewPsampleReader() (*PsampleReader, error) {
 	if err := conn.JoinGroup(groupID); err != nil {
 		closeErr := conn.Close()
 		if closeErr != nil {
-			return nil, fmt.Errorf("psample: join group %d: %w (close: %v)", groupID, err, closeErr)
+			return nil, fmt.Errorf("psample: join group %d: %w (close: %w)", groupID, err, closeErr)
 		}
 		return nil, fmt.Errorf("psample: join group %d: %w", groupID, err)
 	}
