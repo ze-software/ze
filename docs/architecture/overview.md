@@ -22,8 +22,13 @@ Key characteristics:
 
 ### Non-Goals
 
-- OSPF and IS-IS are not implemented in the current tree
 - Backwards compatibility with itself (no releases yet)
+
+OSPF and IS-IS have in-tree implementations under `internal/plugins/ospf` and
+`internal/plugins/isis` (adjacency, areas/circuits, authentication, BFD client);
+they are no longer a non-goal.
+<!-- source: internal/plugins/ospf, internal/plugins/isis -- IGP plugin trees (OSPF 245, IS-IS 94 non-test .go files, 2026-07-08) -->
+
 
 ---
 

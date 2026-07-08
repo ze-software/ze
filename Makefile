@@ -206,7 +206,7 @@ ze-docker:
 
 ze-lint:
 	@echo "Running ze linter..."
-	@golangci-lint run ./cmd/ze/... ./internal/... ./pkg/... ./parked/... ./test/...
+	@golangci-lint run ./cmd/ze/... ./internal/... ./pkg/... ./test/...
 
 ze-vet-evidence:
 	@echo "Vetting evidence scripts (GOOS=linux)..."

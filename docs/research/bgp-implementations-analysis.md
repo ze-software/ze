@@ -68,7 +68,7 @@ This analysis examined 12 BGP implementations across 4 categories to identify co
 
 | USP | Details | ZeBGP Adoption |
 |-----|---------|----------------|
-| **Complete Protocol Suite** | BGP + OSPF + IS-IS + LDP + BFD | Ze has BGP, BFD, LDP, RSVP-TE, and dataplane components; OSPF and IS-IS are not implemented |
+| **Complete Protocol Suite** | BGP + OSPF + IS-IS + LDP + BFD | Ze has BGP, OSPF, IS-IS, BFD, LDP, RSVP-TE, and dataplane components <!-- source: internal/plugins/ospf, internal/plugins/isis -- IGP plugin trees, 2026-07-08 --> |
 | **YANG/gRPC Northbound** | Modern management interface | Consider gRPC option |
 | **Topotests Framework** | Comprehensive topology testing | Adopt similar pattern |
 | **Route Maps** | Prefix-tree optimized policy | Already have filter system |

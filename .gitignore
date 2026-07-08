@@ -76,6 +76,7 @@ test/ipsec-interop/scenarios/*/ze.conf.resolved
 # Runtime / scratch artifacts that leak into the working tree from running ze
 /stderr
 /stdout
+screenlog.*
 etc/ze/*.tmp
 etc/ze/debug.zefs
 internal/appliance/build/
