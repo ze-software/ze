@@ -174,4 +174,4 @@ Wiring is the discoverable rule doc plus an optional deterministic rename
 
 ## Notes
 - Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.
-- Umbrella / siblings: `plan/spec-layout-0-umbrella.md`, `plan/spec-layout-1-hygiene.md`, `plan/spec-layout-2-core-import-gate.md`, `plan/spec-layout-4-protocol-skeleton.md`.
+- Umbrella / siblings: `plan/spec-layout-0-umbrella.md`, child 1 closed (`plan/learned/1088-layout-1-hygiene.md`), `plan/spec-layout-2-core-import-gate.md`, `plan/spec-layout-4-protocol-skeleton.md`.

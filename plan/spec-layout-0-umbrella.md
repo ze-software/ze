@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 1/4 (child 1 hygiene closed 2026-07-08, learned 1088; children 2-4 skeleton) |
 | Updated | 2026-07-08 |
 
 ## Post-Compaction Recovery
@@ -113,8 +113,9 @@ This is an **umbrella spec**. Each gap becomes a sequenced child spec (below).
 - [ ] `Makefile` - line 209 lints `./parked/...`; `prod.json` consumed by `Makefile` + `mk/appliance.mk` and documented in `docs/guide/appliance.md` (grep, this session)
   → Constraint: `prod.json` is NOT junk; it is appliance-build input carrying a real device address. Moving or renaming it is a user decision recorded in the hygiene child.
 - [ ] `.gitignore` - no rule for `screenlog.*`; `screenlog.0` is committed (git ls-files, this session)
-- [ ] Root-file consumers (grep, this session): `qos-map.md` referenced by `docs/guide/configuration.md`, `internal/plugins/cos/yang/ze-cos-conf.yang`, `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go`; `test-web` referenced by `docs/architecture/testing/runner-architecture.md`; `AI-NAVIGATION-AUDIT.md` referenced by `plan/learned/1067-generated-discovery-indexes.md`
-  → Constraint: every root-file move must update its non-`plan/` referrers in the same change; `plan/learned/` references stay as historical records (precedent: tiers Phase 2 results).
+- [ ] ~~Root-file consumers (grep, this session): `qos-map.md` referenced by `docs/guide/configuration.md`, `internal/plugins/cos/yang/ze-cos-conf.yang`, `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go`; `test-web` referenced by `docs/architecture/testing/runner-architecture.md`; `AI-NAVIGATION-AUDIT.md` referenced by `plan/learned/1067-generated-discovery-indexes.md`~~
+  → Correction (2026-07-08, child 1 audit, `plan/learned/1088-layout-1-hygiene.md`): WRONG -- these were bare-token grep hits, not references to the moved files. Every `qos-map` hit is the config keyword (`parseQoSMap`, `internal/component/iface/config.go:928,932`); the `test-web` and `AI-NAVIGATION-AUDIT` hits are learned-summary filenames/records. The relocations were clean renames with zero referrer edits; editing the listed files would have corrupted live config parsing.
+  → Constraint: every root-file move must update its non-`plan/` referrers in the same change; `plan/learned/` references stay as historical records (precedent: tiers Phase 2 results). Disambiguate keyword-vs-filename (grep the literal path, e.g. `qos-map\.md`) BEFORE trusting a referrer list.
 
 **Behavior to preserve:** (unless user explicitly said to change)
 - All runtime behavior. No package moves, no API changes, no wire changes.
@@ -176,8 +177,8 @@ This is an **umbrella spec**. Each gap becomes a sequenced child spec (below).
 | A-1 | Exactly 5 files under `internal/core/` import `internal/component/`, and none import `internal/plugins/` | repo-wide grep this session (2026-07-08) | baseline seeded wrong; gate fails on day one | re-run the grep during the child's audit step, paste output into the child spec | unvalidated |
 | A-2 | `dep_audit.py` already holds a usable import graph and is the correct home for the direction check | `ai/rules/module-tiers.md` (gate description); `plan/spec-tiers-0-umbrella.md` tiers-5 B-1 results | a separate script is needed; more wiring | read `dep_audit.py` structure during child design | unvalidated |
 | A-3 | The l2tp/firewall nested plugins use the same SDK/DirectBridge mechanics the boundary checker assumes | `sdk.NewWithConn` grep hits in their `register.go` files | scan-root extension flags false positives | run extended checker, triage every new finding before enabling the gate | unvalidated |
-| A-4 | Each root-file move has only the referrers found this session | grep across repo for each filename | broken link or build break after move | re-grep per file at move time; `check_doc_links.py` + `make ze-doc-test` after | unvalidated |
-| A-5 | `prod.json` disposition (keep at root, move, or strip the device address) is a decision the user will make at hygiene-child approval | Makefile + `mk/appliance.mk` consumers; content read this session | hygiene child blocked on one file | explicit user decision at hygiene child approval | unvalidated |
+| A-4 | Each root-file move has only the referrers found this session | grep across repo for each filename | broken link or build break after move | re-grep per file at move time; `check_doc_links.py` + `make ze-doc-test` after | **broken** (2026-07-08) -- the umbrella's referrer list was bare-token hits; the child-1 re-grep found ZERO real referrers (see Mistake Log + `plan/learned/1088-layout-1-hygiene.md`) |
+| A-5 | `prod.json` disposition (keep at root, move, or strip the device address) is a decision the user will make at hygiene-child approval | Makefile + `mk/appliance.mk` consumers; content read this session | hygiene child blocked on one file | explicit user decision at hygiene child approval | **confirmed** (2026-07-08) -- user chose keep-at-root unchanged; address is private RFC1918 |
 | A-6 | A protocol skeleton can be defined that fits BGP, BFD, IKE, IS-IS, OSPF, LDP without forcing renames of stable packages | holo precedent (uniform skeleton across 8 protocol crates); Ze's existing `yang//cmd//cli/` convention already uniform | skeleton rule stays advisory forever or fragments into per-protocol exceptions | design probe in child 4: table mapping every existing protocol module to the proposed skeleton | unvalidated |
 | A-7 | The reactor god package (69 non-test files, one package) is NOT already covered by the rib-arch set | grep for "reactor" in `plan/spec-rib-arch-0-umbrella.md` returned no decomposition scope this session | duplicate scope with rib-arch children | re-check the rib-arch umbrella + children when scheduling the candidate child | unvalidated |
 
@@ -189,7 +190,7 @@ This is an **umbrella spec**. Each gap becomes a sequenced child spec (below).
 | R-1 | The core-direction gate flags a legitimate future shim and blocks unrelated work | a PR/spec stalls on the gate with a defensible upward import | baseline accepts a new row ONLY with a spec reference in the rationale (same policy as `tier_non_engine_categories.txt` planned-violation rows) |
 | R-2 | Naming/skeleton rules trigger mass-rename churn across a 610-package tree | child spec's Files to Modify balloons | glossary-first: rules constrain NEW packages; renames limited to an explicit, user-approved shortlist (at most `wireu`), executed with the `migrate_module.py`-style deterministic tool |
 | R-3 | Collision with in-flight rib-arch specs touching `internal/component/bgp/` | merge conflicts in bgp trees | children 1-3 touch no bgp source; child 4 is a rule doc + advisory report only; the reactor-split candidate stays unscheduled until rib-arch lands |
-| R-4 | Relocating `qos-map.md` breaks YANG/test references that embed the path | `ze-cos-conf.yang` or the vlan-qos lab test fails | update all referrers in the same change; run the cos/iface tests + `make ze-doc-test` before presenting |
+| R-4 | ~~Relocating `qos-map.md` breaks YANG/test references that embed the path~~ DISSOLVED (2026-07-08): no YANG/test file embeds the path; the hits were the `qos-map` config keyword (A-4 broken) | `ze-cos-conf.yang` or the vlan-qos lab test fails | risk never existed; the move landed as a clean rename with `check_doc_links.py` showing no new breakage |
 | R-5 | Extending the boundary checker's roots surfaces pre-existing findings in l2tp/firewall plugins | extended checker exits non-zero on first run | triage each finding per its own rules (guard present vs real bug); real bugs get fixed or spec'd, never silenced |
 | R-6 | Umbrella scope creep into tiers-5 territory (core split, host tier) | a child starts proposing package moves | hard scope rule: any move between tiers is out of scope here; hand it to the tiers umbrella |
 | R-7 | The generated `internal/core/ipc/yang/register.go` upward import cannot be removed without a codegen change | yang_glue generator emits component imports into core | its baseline row names the generator as the fix route; if unfixable cheaply it stays baselined with a spec reference, never silently dropped from the gate |
@@ -259,7 +260,7 @@ Umbrella-level wiring is the gates themselves; per-change wiring lives in child 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `make ze-verify` end-to-end | existing verify pipeline | gates run inside verify; compliant tree green, planted violation red (proven in child 2 via fixture, not by dirtying the tree) | |
-| vlan-qos parse suite stays green after the qos-map move | `test/parse/iface-vlan-qos.ci`, `test/parse/iface-vlan-qos-invalid.ci`, `test/parse/cos-profile-conflict.ci`, `test/parse/iface-vpp-rejects-nonidentity-qos.ci` | these `.ci` tests reference `qos-map`; child 1 updates their references and re-runs them to prove the relocation broke nothing user-visible | |
+| vlan-qos parse suite stays green after the qos-map move | `test/parse/iface-vlan-qos.ci`, `test/parse/iface-vlan-qos-invalid.ci`, `test/parse/cos-profile-conflict.ci`, `test/parse/iface-vpp-rejects-nonidentity-qos.ci` | ~~these `.ci` tests reference `qos-map`; child 1 updates their references~~ Correction (2026-07-08): they use the `qos-map` config KEYWORD (`parseQoSMap`, `internal/component/iface/config.go:928,932`), not the moved file; child 1 correctly left them untouched and the suite's greenness proves the keyword surface was not disturbed | |
 | doc integrity after moves | `make ze-doc-test` + `scripts/dev/check_doc_links.py` | relocated files leave no dangling references | |
 
 ### Interop Tests (MANDATORY for protocol features)
@@ -279,9 +280,9 @@ relocations only; no protocol code path is modified.)
 - `.gitignore` - `screenlog.*` (child 1)
 - `Makefile` - drop `./parked/...` from the lint invocation, line 209 (child 1)
 - `docs/architecture/overview.md` - correct Non-Goals; refresh directory-structure table if touched rows are stale (child 1)
-- `docs/guide/configuration.md`, `internal/plugins/cos/yang/ze-cos-conf.yang`, `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` - `qos-map.md` path updates (child 1)
-- `test/parse/iface-vlan-qos.ci`, `test/parse/iface-vlan-qos-invalid.ci`, `test/parse/cos-profile-conflict.ci`, `test/parse/iface-vpp-rejects-nonidentity-qos.ci`, `test/vlan-qos-lab/run.sh` - `qos-map` references (child 1; re-grep at move time per A-4)
-- `docs/architecture/testing/runner-architecture.md` - `test-web` path update (child 1)
+- ~~`docs/guide/configuration.md`, `internal/plugins/cos/yang/ze-cos-conf.yang`, `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` - `qos-map.md` path updates (child 1)~~ NOT MODIFIED (2026-07-08): phantom referrers -- they carry the `qos-map` config keyword, not the file path (A-4 broken)
+- ~~`test/parse/iface-vlan-qos.ci`, `test/parse/iface-vlan-qos-invalid.ci`, `test/parse/cos-profile-conflict.ci`, `test/parse/iface-vpp-rejects-nonidentity-qos.ci`, `test/vlan-qos-lab/run.sh` - `qos-map` references (child 1; re-grep at move time per A-4)~~ NOT MODIFIED: the A-4 re-grep found only keyword uses; editing them would have corrupted config parsing
+- ~~`docs/architecture/testing/runner-architecture.md` - `test-web` path update (child 1)~~ NOT MODIFIED: its `test-web` hit is the learned-summary filename `868-test-web-parallel.md`, not the moved script
 - `Makefile` / `mk/appliance.mk` / `docs/guide/appliance.md` - only if the user decides to move `prod.json` (child 1)
 
 ### Integration Checklist
@@ -314,7 +315,7 @@ relocations only; no protocol code path is modified.)
 | 3 | CLI command added/changed? | [ ] no | - |
 | 4 | API/RPC added/changed? | [ ] no | - |
 | 5 | Plugin added/changed? | [ ] no | scan-root derivation changes no plugin behavior |
-| 6 | Has a user guide page? | [ ] yes (child 1) | `docs/guide/configuration.md` (qos-map path), `docs/guide/appliance.md` (only if prod.json moves) |
+| 6 | Has a user guide page? | [ ] no (resolved 2026-07-08) | ~~`docs/guide/configuration.md` (qos-map path)~~ keyword not path (A-4 broken); `docs/guide/appliance.md` untouched (prod.json stayed at root) |
 | 7 | Wire format changed? | [ ] no | - |
 | 8 | Plugin SDK/protocol changed? | [ ] no | - |
 | 9 | RFC behavior implemented/changed? | [ ] no | - |
@@ -337,7 +338,7 @@ relocations only; no protocol code path is modified.)
 
 | # | Child spec | Scope | Risk | Gated by |
 |---|-----------|-------|------|----------|
-| 1 | `spec-layout-1-hygiene.md` | Root cleanup: delete `screenlog.0` + gitignore; relocate `qos-map.md` (docs/research/), `AI-NAVIGATION-AUDIT.md` (plan/audits/), `test-web` (scripts/dev/) with referrer updates; remove `parked/` + Makefile lint edit; record the `prod.json` decision (user call: keep at root, move, or strip the device address); fix `docs/architecture/overview.md` Non-Goals + stale rows. No Go changes. | low | doc-link check + `make ze-doc-test` |
+| 1 | `spec-layout-1-hygiene.md` -- **COMPLETE** (closed 2026-07-08; `plan/learned/1088-layout-1-hygiene.md`) | Root cleanup: delete `screenlog.0` + gitignore; relocate `qos-map.md` (docs/research/), `AI-NAVIGATION-AUDIT.md` (plan/audits/), `test-web` (scripts/dev/) ~~with referrer updates~~ (zero real referrers, A-4 broken); remove `parked/` + Makefile lint edit; record the `prod.json` decision (kept at root, user decision); fix `docs/architecture/overview.md` Non-Goals + stale rows. No Go changes. | low | doc-link check + `make ze-doc-test` |
 | 2 | `spec-layout-2-core-import-gate.md` | Extend `dep_audit.py --check` with the core import-direction rule (`internal/core/` MUST NOT import `internal/component/` or `internal/plugins/`), seeded shrink-only baseline (5 files, fix-route annotations), selftest fixtures, `make ze-verify` wiring; derive `plugin_process_boundary.go` scan roots from the generator's plugin namespaces; triage any new boundary findings. Optionally fix the cheapest baseline entries; each fix shrinks the baseline. | low | child 2 selftests green; `make ze-verify` green |
 | 3 | `spec-layout-3-naming-glossary.md` | Package-naming glossary in `ai/rules/naming.md`: define `packet`/`message`/`wire`/`session`/`engine`/`transport`/`reactor` as package-name vocabulary; document the `cli`/`cmd`/`command` trio and the four rib-named packages (what each is, when to use which); decide the `wireu` rename question (rename via deterministic tool, or glossary entry only) and any doc.go clarifications. Rules constrain NEW packages; no mass renames. | med | user approval on the rename shortlist |
 | 4 | `spec-layout-4-protocol-skeleton.md` | `ai/rules/protocol-skeleton.md`: the standard subpackage skeleton for protocol implementations (holo-style: one learned layout fits all), which modules are required vs optional, and how existing protocols map to it; an advisory conformance report; applies to new protocols and opportunistically to touched code. No moves, no renames in this child. | med (design-heavy) | design probe table (A-6) approved |
@@ -346,6 +347,28 @@ relocations only; no protocol code path is modified.)
 Cross-references: children reference this umbrella and their predecessors by
 filename. Scope rule for every child: package moves between tiers belong to
 `plan/spec-tiers-0-umbrella.md`, never here.
+
+## Child 1 (hygiene) -- COMPLETE (2026-07-08)
+
+Implemented in commit `b652e176c`, closed in `5424c170f`, learned summary
+`plan/learned/1088-layout-1-hygiene.md` (added retroactively in `4db00c3bb`;
+the spec had planned number 1087, taken meanwhile by the linux-lint spec).
+
+Results (post-closure `/ze-review-spec` verified, 2026-07-08):
+- AC-6 satisfied: root clean (`git ls-files` shows only `prod.json` of the watched
+  names), `.gitignore:79` covers `screenlog.*`, `Makefile:209` no longer lints
+  `./parked/...`, all three relocations landed as clean renames (executable bit
+  preserved on `scripts/dev/test-web`), `prod.json` untouched.
+- AC-7 satisfied: both docs corrected with dated source anchors (OSPF 245 / IS-IS 94
+  non-test `.go` files); repo-wide grep for the stale claim finds zero hits.
+- A-4 broke (see Mistake Log): the umbrella's referrer list was bare-token grep hits;
+  the relocations needed zero referrer edits.
+
+Process gaps found by the post-closure review (recorded, not repairable in the
+deleted child spec): the closure ran without a `/ze-review` Review Gate and with
+child assumptions A-3/A-4 still marked unvalidated (evidence existed: A-3 via the
+clean lint after `parked/` removal, A-4 via the counts in the overview.md source
+anchor). Children 2-4 MUST fill their gate/assumption sections before commit B.
 
 ## Implementation Steps
 
@@ -456,6 +479,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| The umbrella's Current Behavior referrer list for `qos-map.md`/`test-web`/`AI-NAVIGATION-AUDIT.md` named real references needing updates on move (A-4) | Zero real referrers existed: every hit was the `qos-map` config keyword (`parseQoSMap`, `internal/component/iface/config.go:928,932`) or a learned-summary filename | Child 1 `/ze-implement` assumption audit disambiguated literal path (`qos-map\.md`) from bare token | Child 1 Files to Modify shrank to 4 files; following the umbrella as written would have corrupted live config keywords and broken the vlan-qos parse suite. Lesson in `plan/learned/1088-layout-1-hygiene.md` |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |

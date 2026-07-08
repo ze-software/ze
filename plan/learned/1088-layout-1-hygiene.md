@@ -40,6 +40,13 @@ touching runtime behavior.
   (`qos-map\.md`), not the bare token.
 - The overview correction's changelog comment ("previously claimed ... not implemented")
   itself tripped the AC-2 grep for the stale phrase; dropped it, kept only the source anchor.
+- Closure-process gaps (caught by post-closure `/ze-review-spec`, 2026-07-08): commit B ran
+  without a `/ze-review` Review Gate, with this summary not yet written (added retroactively
+  in `4db00c3bb`), and with A-3/A-4 still `unvalidated` in the committed spec although the
+  evidence existed (A-3: lint green after `parked/` removal; A-4: the OSPF/IS-IS counts in
+  the overview.md source anchor). Compact child specs still owe the planning.md closure
+  steps; the umbrella now instructs children 2-4 to fill gate/assumption sections before
+  commit B.
 
 ## Files
 
