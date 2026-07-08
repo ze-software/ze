@@ -38,6 +38,7 @@ job you are trying to do, then follow the links inside that path.
         <p>Information-oriented pages generated from live data where possible.</p>
         <div class="link-list">
             <a href="../features/">Features <span>capabilities by category and maturity</span></a>
+            <a href="features/rfc-status/">RFC status <span>implemented RFCs, partial support, and remaining gaps</span></a>
             <a href="../cli/">CLI reference <span>all generated commands in one place</span></a>
             <a href="../config-reference/">Configuration reference <span>the whole config as a searchable tree</span></a>
             <a href="../dependencies/">Dependencies <span>direct Go packages and why they exist</span></a>

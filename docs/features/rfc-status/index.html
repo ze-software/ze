@@ -1,0 +1,1532 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>RFC Implementation Status - Ze</title>
+        <meta name="description" content="Ze documentation: features/rfc-status.md" />
+        <meta property="og:title" content="RFC Implementation Status - Ze" />
+        <meta property="og:description" content="Ze documentation: features/rfc-status.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC Implementation Status - Ze" />
+        <meta name="twitter:description" content="Ze documentation: features/rfc-status.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=adbbfadb2b" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="../../../#top" aria-label="Ze home">
+                    <img src="../../../assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <button class="nav-menu-toggle" type="button" aria-controls="site-nav-links" aria-expanded="false">
+                    <span class="nav-menu-toggle-bars" aria-hidden="true"></span>
+                    <span>Menu</span>
+                </button>
+                <div id="site-nav-links" class="nav-links">
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-start">Start
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-start">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">First steps</span>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/quickstart/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🚀</span>
+                            <span><strong>Quickstart</strong><small>Two BGP peers in under 5 minutes</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/ze-install/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">💿</span>
+                            <span><strong>Install Ze</strong><small>Run Ze on Linux or as a bootable appliance</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/ubuntu-build-install/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🐧</span>
+                            <span><strong>Ubuntu build</strong><small>Compile, install, create zefs, and start SSH</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/configuration/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚙️</span>
+                            <span><strong>Configuration</strong><small>The YANG-modeled config shape Ze uses everywhere</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⌨️</span>
+                            <span><strong>CLI Basics</strong><small>Diff, commit, history, and operator commands</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Before you run</span>
+                        <a class="nav-dropdown-item" href="../../../roadmap/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🗺️</span>
+                            <span><strong>Project Status</strong><small>What is ready today and where Ze is still young</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../faq/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">?</span>
+                            <span><strong>FAQ</strong><small>Common questions before committing time to Ze</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/plugins/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔌</span>
+                            <span><strong>Plugin Catalog</strong><small>Search every runtime plugin by purpose, config, or dependency</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-evaluate">Evaluate
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-evaluate">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Capabilities</span>
+                        <a class="nav-dropdown-item" href="../../../features/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
+                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../compare/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚖️</span>
+                            <span><strong>Compare</strong><small>How Ze stacks up against BIRD, FRR, VyOS, and more</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../performance/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚡</span>
+                            <span><strong>Performance</strong><small>Measured BGP benchmarks, not claims</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Trust</span>
+                        <a class="nav-dropdown-item" href="../../../quality/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">✓</span>
+                            <span><strong>Code Quality</strong><small>Tests, QEMU, fuzzing, and mutation checks</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../dependencies/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📦</span>
+                            <span><strong>Dependencies</strong><small>39 direct packages, generated from go.mod</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../security/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔒</span>
+                            <span><strong>Security</strong><small>Security policy and vulnerability reporting</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-docs">Docs
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-docs">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Hub and core</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../../docs/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📚</span>
+                            <span><strong>Documentation</strong><small>All docs, organized by what you want to do</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/configuration/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚙️</span>
+                            <span><strong>Configuration</strong><small>YANG-modeled, one model for everything</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/cli-commands/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⌨️</span>
+                            <span><strong>CLI Commands</strong><small>SSH CLI with diff, commit, and history</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/architecture/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏗️</span>
+                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Operate</span>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/production-diagnostics/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🩺</span>
+                            <span><strong>Production Diagnostics</strong><small>Start from symptoms and debug safely</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/monitoring/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📈</span>
+                            <span><strong>Monitoring</strong><small>Metrics, health, and operational visibility</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/vpp/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📦</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall via VPP</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/looking-glass-howto/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔭</span>
+                            <span><strong>Looking Glass</strong><small>Publish read-only BGP visibility</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Access and mitigation</span>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/operator-access-rbac/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔐</span>
+                            <span><strong>SSH and RBAC</strong><small>Local users, profiles, and operator access</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/flowspec-route-reflector/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔁</span>
+                            <span><strong>FlowSpec Route Reflector</strong><small>Reflect FlowSpec routes to clients</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/guide/flowspec-protected-router/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🛡️</span>
+                            <span><strong>FlowSpec Protection</strong><small>Turn FlowSpec into nftables and protect BGP</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-examples">Examples
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-examples">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Deployment examples</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../../usage/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧰</span>
+                            <span><strong>Usage Examples</strong><small>Complete deployment examples for real network roles</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../usage/as112/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">112</span>
+                            <span><strong>AS112 Anycast DNS</strong><small>Ze as an AS112 DNS server with real router peers</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../usage/exabgp-migration/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔀</span>
+                            <span><strong>ExaBGP Migration</strong><small>A practical path from ExaBGP process scripts</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../usage/bgp-performance/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⚡</span>
+                            <span><strong>BGP performance tests</strong><small>Route-server performance tests with Ze</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Runnable labs</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="../../../labs/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧪</span>
+                            <span><strong>Testing Labs</strong><small>Interop proof you can run yourself against real daemons</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/bgp-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🌐</span>
+                            <span><strong>BGP Interop</strong><small>Real FRR, BIRD, and GoBGP sessions</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/l2tp-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔌</span>
+                            <span><strong>L2TP Access</strong><small>Ze as LNS vs real xl2tpd</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/pppoe-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📡</span>
+                            <span><strong>PPPoE Access</strong><small>Ze vs real accel-ppp access concentrator</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/ipsec-interop/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔒</span>
+                            <span><strong>IPsec / IKEv2</strong><small>Ze as IKE initiator vs strongSwan</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Systems</span>
+                        <a class="nav-dropdown-item" href="../../../labs/vpp-dataplane/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🚀</span>
+                            <span><strong>VPP Dataplane</strong><small>FIB, traffic, and firewall in a real VPP daemon</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/appliance-install/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">💿</span>
+                            <span><strong>Appliance Installer</strong><small>HTTP/PXE, ISO, Ventoy, and real boots</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/looking-glass-graph/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🔭</span>
+                            <span><strong>Looking Glass Graph</strong><small>Realistic UK topology, real external ASNs</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../labs/vlan-qos/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏷️</span>
+                            <span><strong>VLAN QoS</strong><small>802.1p PCP tagging, actually on the wire</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-reference">Reference
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-reference">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Generated references</span>
+                        <a class="nav-dropdown-item" href="../../../cli/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">⌨️</span>
+                            <span><strong>CLI Reference</strong><small>379 commands, generated from the live binary</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../config-reference/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧬</span>
+                            <span><strong>Configuration Reference</strong><small>35 sections, indexed from live YANG</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../command-equivalents/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">↔️</span>
+                            <span><strong>Command Equivalents</strong><small>Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../docs/features/rfc-status/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📜</span>
+                            <span><strong>RFC Status</strong><small>Implemented RFCs, partial support, and known gaps</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <div class="nav-dropdown">
+                    <button class="nav-dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nav-panel-project">Project
+                        <svg viewBox="0 0 12 8" fill="none" aria-hidden="true"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="nav-dropdown-panel" id="nav-panel-project">
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Progress</span>
+                        <a class="nav-dropdown-item" href="../../../roadmap/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🗺️</span>
+                            <span><strong>Roadmap</strong><small>The path to a first release you can trust</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../milestones/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏁</span>
+                            <span><strong>Milestones</strong><small>Landmark features, oldest to newest</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../changes/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧾</span>
+                            <span><strong>Changes</strong><small>What shipped, week by week</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../activity/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📈</span>
+                            <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Community</span>
+                        <a class="nav-dropdown-item" href="../../../blog/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">✍</span>
+                            <span><strong>Blog</strong><small>Longer project notes and release stories</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../talks/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🎤</span>
+                            <span><strong>Talks</strong><small>Presentations and conference material</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="../../../contribute/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🤝</span>
+                            <span><strong>Contribute</strong><small>How to send code, reports, and interop results</small></span>
+                        </a>
+                    </div>
+                    </div>
+                    </div>
+                    <a
+                        class="nav-badge nav-badge-search"
+                        href="../../../search/"
+                        aria-label="Search the site"
+                        aria-expanded="false"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/></svg></span>
+                        <span class="nav-badge-count nav-badge-search-label">Search <span class="search-shortcut-hint" aria-hidden="true"><kbd>⌘K</kbd><span>/</span></span></span>
+                    </a>
+                    <a
+                        class="nav-badge"
+                        href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener"
+                        aria-label="Ze Discord"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 640 512" fill="currentColor" aria-hidden="true"><path d="M524.531,69.836a1.5,1.5,0,0,0-.764-.7A485.065,485.065,0,0,0,404.081,32.03a1.816,1.816,0,0,0-1.923.91,337.461,337.461,0,0,0-14.9,30.6,447.848,447.848,0,0,0-134.426,0,309.541,309.541,0,0,0-15.135-30.6,1.89,1.89,0,0,0-1.924-.91A483.689,483.689,0,0,0,116.085,69.137a1.712,1.712,0,0,0-.788.676C39.068,183.651,18.186,294.69,28.43,404.354a2.016,2.016,0,0,0,.765,1.375A487.666,487.666,0,0,0,176.02,479.918a1.9,1.9,0,0,0,2.063-.676A348.2,348.2,0,0,0,208.12,430.4a1.86,1.86,0,0,0-1.019-2.588,321.173,321.173,0,0,1-45.868-21.853,1.885,1.885,0,0,1-.185-3.126c3.082-2.309,6.166-4.711,9.109-7.137a1.819,1.819,0,0,1,1.9-.256c96.229,43.917,200.41,43.917,295.5,0a1.812,1.812,0,0,1,1.924.233c2.944,2.426,6.027,4.851,9.132,7.16a1.884,1.884,0,0,1-.162,3.126,301.407,301.407,0,0,1-45.89,21.83,1.875,1.875,0,0,0-1,2.611,391.055,391.055,0,0,0,30.014,48.815,1.864,1.864,0,0,0,2.063.7A486.048,486.048,0,0,0,610.7,405.729a1.882,1.882,0,0,0,.765-1.352C623.729,277.594,590.933,167.465,524.531,69.836ZM222.491,337.58c-28.972,0-52.844-26.587-52.844-59.239S193.056,219.1,222.491,219.1c29.665,0,53.306,26.82,52.843,59.239C275.334,310.993,251.924,337.58,222.491,337.58Zm195.38,0c-28.971,0-52.843-26.587-52.843-59.239S388.437,219.1,417.871,219.1c29.667,0,53.307,26.82,52.844,59.239C470.715,310.993,447.538,337.58,417.871,337.58Z"/></svg></span>
+                        <span class="nav-badge-count">Discord</span>
+                    </a>
+                    <a
+                        class="nav-badge"
+                        href="https://github.com/ze-software/ze" target="_blank" rel="noopener"
+                        aria-label="Ze on GitHub, 39 stars"
+                    >
+                        <span class="nav-badge-icon"><svg viewBox="0 0 496 512" fill="currentColor" aria-hidden="true"><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        <span class="nav-badge-count">39</span>
+                    </a>
+                </div>
+            </nav>
+        </header>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Feature</span>
+    <h1 id="rfc-implementation-status">RFC Implementation Status</h1>
+    <p>This page is the public standards ledger for Ze. It lists RFCs that Ze implements, partially implements, intentionally does not implement, or has deferred. It is a product-support view, not a formal IETF compliance certificate: <code>Supported</code> means the behavior is implemented and tied to current source anchors; <code>Experimental</code> means implemented but still needs deployment evidence or hardening before production claims; <code>Partial</code> means a named subset is missing, intentionally skipped, or not proven; <code>Unsupported</code> means Ze explicitly does not implement it; <code>Future</code> means tracked but not shipped.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#bgp-base-protocol-capabilities-and-session-safety">BGP base protocol, capabilities, and session safety</a></li>
+<li><a href="#bgp-attributes-families-policy-and-nlri">BGP attributes, families, policy, and NLRI</a></li>
+<li><a href="#bgp-operations-telemetry-rpki-and-bfd-adjacent-standards">BGP operations, telemetry, RPKI, and BFD-adjacent standards</a></li>
+<li><a href="#is-is-ospf-mpls-and-traffic-engineering">IS-IS, OSPF, MPLS, and traffic engineering</a></li>
+<li><a href="#access-aaa-ppp-and-subscriber-services">Access, AAA, PPP, and subscriber services</a></li>
+<li><a href="#ipsec-ike-eap-and-kernel-security-associations">IPsec, IKE, EAP, and kernel security associations</a></li>
+<li><a href="#dns-provisioning-mrt-and-flow-telemetry">DNS, provisioning, MRT, and flow telemetry</a></li>
+<li><a href="#drafts-and-non-rfc-standards-tracked-near-rfc-work">Drafts and non-RFC standards tracked near RFC work</a></li>
+</ol></nav>
+<p>Reference summaries under <code>rfc/short/</code> are not implementation claims by themselves. A row belongs here only when current docs, source code, tests, or learned closure notes tie the RFC to a Ze feature.</p>
+<h2 id="bgp-base-protocol-capabilities-and-session-safety">BGP base protocol, capabilities, and session safety</h2>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Area</th>
+<th>Status</th>
+<th>Implemented coverage</th>
+<th>Remaining if not complete</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 4271</td>
+<td>BGP-4 base protocol</td>
+<td>Supported</td>
+<td>FSM, OPEN, UPDATE, NOTIFICATION, KEEPALIVE, core path attributes, session events.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 5492</td>
+<td>BGP capability advertisement</td>
+<td>Supported</td>
+<td>Capability TLV parser, encoder, unknown-capability ignore behavior, negotiated session view.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 4760</td>
+<td>Multiprotocol BGP</td>
+<td>Supported</td>
+<td>AFI/SAFI capability negotiation, MP_REACH_NLRI, MP_UNREACH_NLRI, family-specific UPDATE handling.</td>
+<td>RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.</td>
+</tr>
+<tr>
+<td>RFC 6793</td>
+<td>4-byte AS numbers</td>
+<td>Supported</td>
+<td>ASN4 capability, AS4_PATH, AS4_AGGREGATOR, AS_TRANS handling.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 2918</td>
+<td>Route Refresh</td>
+<td>Supported</td>
+<td>Route Refresh capability and ROUTE-REFRESH message handling.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 7313</td>
+<td>Enhanced Route Refresh</td>
+<td>Supported</td>
+<td>BoRR and EoRR support, capability checks, bounded route resend.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 7911</td>
+<td>ADD-PATH</td>
+<td>Supported</td>
+<td>Per-family send and receive modes, Path ID packing, NLRI path IDs where negotiated.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 8654</td>
+<td>BGP Extended Message</td>
+<td>Supported</td>
+<td>Extended message capability and 65535-byte message limit when negotiated.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 8950</td>
+<td>Extended Next Hop</td>
+<td>Supported</td>
+<td>IPv6 next-hop for IPv4 NLRI and negotiated extended next-hop lookup.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 5549</td>
+<td>Legacy extended next-hop encoding</td>
+<td>Supported</td>
+<td>Backward-compatible parser for the older format superseded by RFC 8950.</td>
+<td>Main public claim uses RFC 8950.</td>
+</tr>
+<tr>
+<td>RFC 4724</td>
+<td>Graceful Restart</td>
+<td>Supported</td>
+<td>GR capability, End-of-RIB markers, receiving-speaker stale handling, restart marker integration.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 9494</td>
+<td>Long-Lived Graceful Restart</td>
+<td>Supported</td>
+<td>LLGR capability state, LLGR_STALE community, route depreference during long-lived stale retention.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 9234</td>
+<td>BGP Role and OTC</td>
+<td>Supported</td>
+<td>Role capability negotiation, role mismatch NOTIFICATION, OTC egress stamping, OTC ingress leak detection and treat-as-withdraw, unicast-only (AFI 1/2, SAFI 1) OTC scoping.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 8516</td>
+<td>FQDN capability</td>
+<td>Supported</td>
+<td>Hostname capability code 73, decode support, per-peer hostname and domain advertisement.</td>
+<td>Some older plugin comments still reference the draft name.</td>
+</tr>
+<tr>
+<td>RFC 2545</td>
+<td>IPv6 next-hop handling</td>
+<td>Supported</td>
+<td>IPv6 MP_REACH next-hop parsing, including global plus link-local next-hop form.</td>
+<td>Capability code 77 is draft-based; RFC 2545 covers the next-hop wire behavior.</td>
+</tr>
+<tr>
+<td>RFC 4486</td>
+<td>BGP Cease subcodes and prefix maximum</td>
+<td>Supported</td>
+<td>Cease subcode catalog, max-prefix teardown, backoff, and operator reset paths.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 7607</td>
+<td>Prefix-limit enforcement context</td>
+<td>Supported</td>
+<td>Prefix-limit enforcement is called before route admission and documented with RFC 4486.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 9687</td>
+<td>Send Hold Timer</td>
+<td>Supported</td>
+<td>Send Hold Timer, auto duration <code>max(8min, 2x hold-time)</code>, NOTIFICATION code 8 on expiry.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 7606</td>
+<td>Revised UPDATE error handling</td>
+<td class="cell-partial">∿</td>
+<td>Structural UPDATE validation, treat-as-withdraw decisions, attribute-discard decisions, tests.</td>
+<td>Ze intentionally emits MP_UNREACH first and MP_REACH last, which is not fully compliant with Section 5.1 ordering guidance.</td>
+</tr>
+<tr>
+<td>RFC 8203</td>
+<td>Administrative Shutdown Communication</td>
+<td>Supported</td>
+<td>UTF-8 shutdown message for Cease/Admin Shutdown and Cease/Admin Reset.</td>
+<td>Sender keeps the conservative 128-byte RFC 8203 limit.</td>
+</tr>
+<tr>
+<td>RFC 9003</td>
+<td>Administrative Shutdown Communication update</td>
+<td>Supported</td>
+<td>Receiver accepts the updated UTF-8 format and 255-byte length field; invalid UTF-8 is stripped on send.</td>
+<td>Sender remains conservative at 128 bytes for interoperability.</td>
+</tr>
+<tr>
+<td>RFC 8538</td>
+<td>Notification GR</td>
+<td>Unsupported</td>
+<td>Cease Hard Reset subcode (9) name is known.</td>
+<td>The GR N-bit is decoded but not acted upon; routes are dropped on any NOTIFICATION, so RFC 8538 route retention is not implemented.</td>
+</tr>
+<tr>
+<td>RFC 5065</td>
+<td>BGP confederations</td>
+<td>Unsupported</td>
+<td>None claimed.</td>
+<td>Explicitly unsupported.</td>
+</tr>
+<tr>
+<td>RFC 2385</td>
+<td>TCP MD5</td>
+<td>Supported on supported kernels</td>
+<td>Per-peer MD5 password plumbing and OS-specific socket hooks.</td>
+<td>Platform availability depends on kernel support.</td>
+</tr>
+<tr>
+<td>RFC 5082</td>
+<td>GTSM and TTL security</td>
+<td>Supported on Linux</td>
+<td>TTL security settings and BFD/BGP TTL gates where supported.</td>
+<td>Platform availability depends on kernel support.</td>
+</tr>
+<tr>
+<td>RFC 5925</td>
+<td>TCP-AO</td>
+<td>Unsupported</td>
+<td>None claimed.</td>
+<td>Not implemented.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: docs/features/bgp-protocol.md -- BGP family, capability, and attribute inventory -->
+<!-- source: docs/architecture/wire/messages.md -- BGP message wire formats and shutdown communication -->
+<!-- source: docs/architecture/wire/attributes.md -- BGP path attribute status table -->
+<!-- source: docs/architecture/wire/mp-nlri-ordering.md -- RFC 7606 ordering decision -->
+<!-- source: docs/architecture/behavior/fsm-established.md -- prefix-limit, RFC 7606, and timer processing order -->
+<!-- source: internal/core/bgp/capability/capability.go -- capability codes, parsing, FQDN support -->
+<!-- source: internal/component/bgp/message/notification.go -- NOTIFICATION codes, Cease subcodes, shutdown data -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- RFC 9687 Send Hold Timer -->
+
+<h2 id="bgp-attributes-families-policy-and-nlri">BGP attributes, families, policy, and NLRI</h2>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Area</th>
+<th>Status</th>
+<th>Implemented coverage</th>
+<th>Remaining if not complete</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 1997</td>
+<td>Standard communities</td>
+<td>Supported</td>
+<td>COMMUNITY attribute parsing, encoding, JSON, and well-known names.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 3765</td>
+<td>NOPEER community</td>
+<td>Supported</td>
+<td>NOPEER well-known community parsing and text output.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 4360</td>
+<td>Extended communities</td>
+<td>Supported</td>
+<td>Extended community attribute parsing, encoding, JSON, and policy use.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 5701</td>
+<td>IPv6 extended communities</td>
+<td>Supported</td>
+<td>IPv6 extended community attribute support.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 8092</td>
+<td>Large communities</td>
+<td>Supported</td>
+<td>LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 length checks.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 4456</td>
+<td>Route Reflection</td>
+<td>Supported</td>
+<td>ORIGINATOR_ID, CLUSTER_LIST, route-reflector plugin behavior, cluster checks.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 7311</td>
+<td>AIGP attribute</td>
+<td class="cell-partial">∿</td>
+<td>AIGP wire encoding, decoding, JSON, and set/increment/decrement filters.</td>
+<td>AIGP is not consumed by best-path selection.</td>
+</tr>
+<tr>
+<td>RFC 4364</td>
+<td>BGP/MPLS IP VPNs</td>
+<td>Supported</td>
+<td>VPNv4 NLRI, RD, labels, route config, encode, and decode.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 4659</td>
+<td>VPNv6</td>
+<td>Supported</td>
+<td>VPNv6 NLRI and next-hop behavior through VPN family support.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 8277</td>
+<td>BGP Labeled Unicast</td>
+<td>Supported</td>
+<td>IPv4 and IPv6 labeled unicast NLRI, label stack handling, route config, and dataplane handoff.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 3032</td>
+<td>MPLS label stack encoding</td>
+<td>Supported as dependency</td>
+<td>20-bit label stack encoding and validation used by labeled unicast and VPN NLRI.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 4761</td>
+<td>VPLS NLRI</td>
+<td>Supported</td>
+<td>L2VPN VPLS family registration, encode, decode, and route config.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 4762</td>
+<td>VPLS architecture</td>
+<td>Supported at feature scope</td>
+<td>VPLS feature inventory and NLRI support tie the RFC to current behavior.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 7432</td>
+<td>EVPN</td>
+<td>Supported</td>
+<td>EVPN NLRI family, common header, route-type parsing, encode, and decode.</td>
+<td>Routes are announced via the <code>update text</code> API command; config-file route declaration is not implemented for EVPN.</td>
+</tr>
+<tr>
+<td>RFC 9136</td>
+<td>EVPN IP Prefix extensions</td>
+<td>Supported in EVPN scope</td>
+<td>EVPN implementation tracks the extension alongside RFC 7432.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 8955</td>
+<td>IPv4 FlowSpec</td>
+<td>Supported</td>
+<td>IPv4 FlowSpec and FlowSpec VPN NLRI encoding, decoding, route config, filters, and action communities.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 8956</td>
+<td>IPv6 FlowSpec</td>
+<td>Supported</td>
+<td>IPv6 FlowSpec and FlowSpec VPN family support.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 5575</td>
+<td>Earlier FlowSpec reference</td>
+<td>Supported as legacy reference</td>
+<td>Legacy FlowSpec action community behavior remains documented.</td>
+<td>Main public claim uses RFC 8955 and RFC 8956.</td>
+</tr>
+<tr>
+<td>RFC 7752</td>
+<td>BGP-LS</td>
+<td class="cell-partial">∿</td>
+<td>BGP-LS and BGP-LS VPN NLRI decode, including many TLVs.</td>
+<td>Encode and route config are not implemented; BGP_LS path attribute remains marked not implemented.</td>
+</tr>
+<tr>
+<td>RFC 9085</td>
+<td>BGP-LS Segment Routing extensions</td>
+<td class="cell-partial">∿</td>
+<td>Decoded as part of BGP-LS TLV coverage.</td>
+<td>Same BGP-LS encode and route-config gaps.</td>
+</tr>
+<tr>
+<td>RFC 9514</td>
+<td>BGP-LS SRv6 extensions</td>
+<td class="cell-partial">∿</td>
+<td>Decoded as part of BGP-LS SRv6 TLV coverage.</td>
+<td>Same BGP-LS encode and route-config gaps.</td>
+</tr>
+<tr>
+<td>RFC 4684</td>
+<td>Route Target Constraint</td>
+<td class="cell-partial">∿</td>
+<td>RTC NLRI decode.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 6514</td>
+<td>MVPN and PMSI Tunnel</td>
+<td class="cell-partial">∿</td>
+<td>MVPN NLRI decode, MVPN NLRI encode primitives, and config route parser for source-active, shared-tree join, and source-tree join routes.</td>
+<td>PMSI_TUNNEL path attribute remains marked not implemented; not all MVPN route types have config builders.</td>
+</tr>
+<tr>
+<td>RFC 9012</td>
+<td>Tunnel Encapsulation attribute</td>
+<td class="cell-partial">∿</td>
+<td>On-demand parsing of selected Tunnel Encapsulation sub-TLVs.</td>
+<td>Not exposed as a full feature claim.</td>
+</tr>
+<tr>
+<td>RFC 8669</td>
+<td>BGP Prefix-SID attribute</td>
+<td class="cell-partial">∿</td>
+<td>SRv6 Prefix-SID validation and filtering are recorded in learned notes.</td>
+<td>Architecture attribute table still says BGP_PREFIX_SID is not implemented; docs need reconciliation before a Supported claim.</td>
+</tr>
+<tr>
+<td>RFC 9252</td>
+<td>BGP SRv6 Service TLV</td>
+<td class="cell-partial">∿</td>
+<td>SRv6 Prefix-SID service TLV validation and RFC 7606 error handling are implemented in the learned closure.</td>
+<td>Shares the RFC 8669 documentation conflict.</td>
+</tr>
+<tr>
+<td>RFC 9830</td>
+<td>BGP SR Policy</td>
+<td>Supported</td>
+<td>IPv4 and IPv6 SR Policy NLRI encode, decode, and route config.</td>
+<td class="cell-no">✕</td>
+</tr>
+</tbody>
+</table>
+<!-- source: docs/architecture/wire/nlri.md -- NLRI family overview and wire formats -->
+<!-- source: docs/architecture/wire/nlri-flowspec.md -- FlowSpec NLRI wire format -->
+<!-- source: docs/architecture/wire/nlri-evpn.md -- EVPN NLRI wire format -->
+<!-- source: docs/architecture/wire/nlri-bgpls.md -- BGP-LS NLRI wire format -->
+<!-- source: internal/component/bgp/plugins/nlri/*/register.go -- family registrations and RFC metadata -->
+<!-- source: internal/component/bgp/plugins/nlri/mvpn/config.go -- MVPN config route parser -->
+<!-- source: plan/learned/776-srv6-prefix-sid.md -- SRv6 Prefix-SID implementation closure and doc conflict -->
+
+<h2 id="bgp-operations-telemetry-rpki-and-bfd-adjacent-standards">BGP operations, telemetry, RPKI, and BFD-adjacent standards</h2>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Area</th>
+<th>Status</th>
+<th>Implemented coverage</th>
+<th>Remaining if not complete</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 7854</td>
+<td>BMP v3</td>
+<td class="cell-partial">∿</td>
+<td>BMP receiver and sender, peer lifecycle, route monitoring messages, CLI and config.</td>
+<td>Loc-RIB route monitoring is deferred under RFC 9069.</td>
+</tr>
+<tr>
+<td>RFC 8671</td>
+<td>BMP Adj-RIB-Out</td>
+<td>Supported within BMP sender scope</td>
+<td>Adj-RIB-Out direction flag handling and sent-route monitoring.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 9069</td>
+<td>BMP Loc-RIB monitoring</td>
+<td>Future</td>
+<td>Tracked by BMP learned notes.</td>
+<td>Requires reconstructing wire UPDATEs from structured best-change batches.</td>
+</tr>
+<tr>
+<td>RFC 6811</td>
+<td>RPKI origin validation</td>
+<td>Supported</td>
+<td>Origin validation states, ROA/VRP lookup, default reject for invalid routes, fail-open guard.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 8210</td>
+<td>RPKI RTR</td>
+<td>Supported</td>
+<td>RTR cache sessions, VRP download, multi-cache merge, v1 fallback for ASPA path.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 6810</td>
+<td>Earlier RPKI RTR</td>
+<td>Supported as compatibility reference</td>
+<td>Comparison docs group RFC 6810 and RFC 8210 for RTR support.</td>
+<td>Main guide and registration use RFC 8210.</td>
+</tr>
+<tr>
+<td>RFC 9582</td>
+<td>RPKI RTR v2 ASPA records</td>
+<td>Supported</td>
+<td>ASPA PDU cache, full replacement semantics, RTR v2 negotiation.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 5880</td>
+<td>BFD base</td>
+<td class="cell-partial">∿</td>
+<td>BFD FSM, timers, jitter, echo advertisement, authentication, metrics, show commands.</td>
+<td>Feature remains Partial; demand mode is intentionally skipped and IPv6 transport coverage is not complete.</td>
+</tr>
+<tr>
+<td>RFC 5881</td>
+<td>BFD single-hop</td>
+<td class="cell-partial">∿</td>
+<td>Single-hop UDP 3784 sessions, TTL/GTSM gate, interface binding.</td>
+<td>IPv6 dual-bind and wider deployment proof remain tracked with BFD.</td>
+</tr>
+<tr>
+<td>RFC 5882</td>
+<td>BFD generic application</td>
+<td class="cell-partial">∿</td>
+<td>BFD integration model used by BGP and static next-hop tracking.</td>
+<td>Same BFD partial status.</td>
+</tr>
+<tr>
+<td>RFC 5883</td>
+<td>BFD multi-hop</td>
+<td class="cell-partial">∿</td>
+<td>Multi-hop UDP 4784 sessions and min-TTL floor.</td>
+<td>Same BFD partial status.</td>
+</tr>
+<tr>
+<td>RFC 9384</td>
+<td>BFD-triggered BGP Cease</td>
+<td>Supported within BFD</td>
+<td>BGP peer opt-in sends Cease subcode 10 when BFD reports forwarding path loss.</td>
+<td class="cell-no">✕</td>
+</tr>
+</tbody>
+</table>
+<!-- source: docs/guide/bmp.md -- BMP receiver and sender behavior -->
+<!-- source: internal/component/bgp/plugins/bmp/register.go -- BMP RFC registration -->
+<!-- source: docs/guide/rpki.md -- RPKI origin validation and ASPA behavior -->
+<!-- source: internal/component/bgp/plugins/rpki/register.go -- RPKI RFC registration -->
+<!-- source: docs/architecture/bfd.md -- BFD architecture and reference RFC list -->
+<!-- source: internal/component/bfd/auth/doc.go -- BFD authentication implementation -->
+
+<h2 id="is-is-ospf-mpls-and-traffic-engineering">IS-IS, OSPF, MPLS, and traffic engineering</h2>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Area</th>
+<th>Status</th>
+<th>Implemented coverage</th>
+<th>Remaining if not complete</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 1195</td>
+<td>Integrated IS-IS for IPv4</td>
+<td>Experimental</td>
+<td>Native IS-IS over Layer 2, L1/L2, broadcast and point-to-point circuits, TLV 132.</td>
+<td>Feature remains Experimental pending production hardening and deployment evidence.</td>
+</tr>
+<tr>
+<td>RFC 5301</td>
+<td>IS-IS dynamic hostname</td>
+<td>Experimental</td>
+<td>Dynamic hostname TLV support.</td>
+<td>Same IS-IS experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5303</td>
+<td>IS-IS point-to-point three-way</td>
+<td>Experimental</td>
+<td>Point-to-point adjacency behavior.</td>
+<td>Same IS-IS experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5304</td>
+<td>IS-IS HMAC-MD5 authentication</td>
+<td>Experimental</td>
+<td>Interface and level key-chain authentication.</td>
+<td>Same IS-IS experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5310</td>
+<td>IS-IS generic crypto authentication</td>
+<td>Experimental</td>
+<td>HMAC-SHA authentication path.</td>
+<td>Same IS-IS experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5305</td>
+<td>IS-IS wide metrics and TE TLVs</td>
+<td>Experimental</td>
+<td>Extended IS reachability and IPv4 reachability TLVs.</td>
+<td>Same IS-IS experimental status.</td>
+</tr>
+<tr>
+<td>RFC 2966</td>
+<td>IS-IS up/down bit</td>
+<td>Experimental</td>
+<td>Up/down bit retention and redistribution behavior.</td>
+<td>Same IS-IS experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5308</td>
+<td>IS-IS IPv6</td>
+<td>Experimental</td>
+<td>IPv6 reachability over the same IS-IS instance.</td>
+<td>Same IS-IS experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5120</td>
+<td>IS-IS multi-topology</td>
+<td>Unsupported</td>
+<td>None; IS-IS runs single-topology dual-stack only.</td>
+<td>Non-congruent IPv4/IPv6 topologies are out of scope; multi-topology TLVs are not implemented.</td>
+</tr>
+<tr>
+<td>RFC 2328</td>
+<td>OSPFv2</td>
+<td>Experimental</td>
+<td>Native OSPFv2 engine, raw protocol 89, LSDB, SPF, flooding, virtual links.</td>
+<td>Feature remains Experimental pending production hardening and deployment evidence.</td>
+</tr>
+<tr>
+<td>RFC 3101</td>
+<td>OSPF NSSA</td>
+<td>Experimental</td>
+<td>NSSA Type 7 origination, translator election, Type 7 to Type 5 translation, preference rules.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5709</td>
+<td>OSPFv2 HMAC-SHA authentication</td>
+<td>Experimental</td>
+<td>OSPFv2 cryptographic authentication path.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 7474</td>
+<td>OSPFv2 manual-key security extension</td>
+<td>Experimental</td>
+<td>Cryptographic authentication with per-packet-type replay protection (RFC 7474 defines no OSPFv2 authentication trailer; that construct is OSPFv3/RFC 7166).</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5340</td>
+<td>OSPFv3</td>
+<td>Experimental</td>
+<td>OSPFv3 IPv6 family, packet format, instance IDs, IPv6 LSAs.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5838</td>
+<td>OSPFv3 multiple address families</td>
+<td>Experimental</td>
+<td>Multi-AF OSPFv3 behavior.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 7166</td>
+<td>OSPFv3 authentication trailer</td>
+<td>Experimental</td>
+<td>OSPFv3 Authentication Trailer support.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 4552</td>
+<td>OSPFv3 IPsec authentication</td>
+<td>Experimental</td>
+<td>Manual AH/ESP IPsec config for OSPFv3 IPv6 interfaces, XFRM readiness check, SA and policy lifecycle.</td>
+<td>Manual keying only; feature remains under OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5250</td>
+<td>OSPFv2 opaque LSAs</td>
+<td>Experimental</td>
+<td>Opaque LSA framework and retention.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 3630</td>
+<td>OSPFv2 Traffic Engineering LSA</td>
+<td>Experimental</td>
+<td>TE LSA body and sub-TLV support.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5392</td>
+<td>OSPF inter-AS TE extensions</td>
+<td>Experimental</td>
+<td>Inter-AS TE sub-TLV support.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 7770</td>
+<td>OSPF Router Information LSA</td>
+<td>Experimental</td>
+<td>Router Information LSA body and multi-instance ordering.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 7684</td>
+<td>OSPF Extended Prefix and Link LSAs</td>
+<td>Experimental</td>
+<td>Extended Prefix and Extended Link LSA bodies and malformed TLV handling.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 3623</td>
+<td>OSPFv2 Graceful Restart</td>
+<td>Experimental</td>
+<td>Restarter and helper behavior.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5187</td>
+<td>OSPFv3 Graceful Restart</td>
+<td>Experimental</td>
+<td>Restarter and helper behavior for OSPFv3.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 8665</td>
+<td>OSPF Segment Routing extensions</td>
+<td>Experimental</td>
+<td>Segment Routing TLV encoding shared by OSPFv2 and OSPFv3 paths.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 8666</td>
+<td>OSPFv3 Segment Routing</td>
+<td>Experimental</td>
+<td>OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: SRGB/SRLB, index-to-label arithmetic, Prefix-SID and Adjacency-SID.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 8362</td>
+<td>OSPFv3 Extended LSAs</td>
+<td>Experimental</td>
+<td>Extended LSA framework used by OSPFv3 extensions.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5286</td>
+<td>Loop-Free Alternate FRR</td>
+<td>Experimental</td>
+<td>LFA and TI-LFA fast reroute: per-neighbor SPFs, loop-free / node-protecting / downstream backup selection, SR repair lists, multi-area suppression.</td>
+<td>Same OSPF experimental status.</td>
+</tr>
+<tr>
+<td>RFC 5036</td>
+<td>LDP</td>
+<td>Experimental</td>
+<td>UDP discovery, TCP session FSM, label information base, kernel MPLS integration.</td>
+<td>Feature remains Experimental, despite learned notes showing interop progress.</td>
+</tr>
+<tr>
+<td>RFC 3209</td>
+<td>RSVP-TE</td>
+<td>Experimental</td>
+<td>PATH and RESV signaling, ERO routing, bandwidth admission, soft-state refresh, teardown.</td>
+<td>Cross-vendor RSVP-TE interop remains constrained by available open daemons.</td>
+</tr>
+<tr>
+<td>RFC 2205</td>
+<td>RSVP base protocol</td>
+<td>Experimental</td>
+<td>RSVP base message handling used by RSVP-TE.</td>
+<td>Same RSVP-TE experimental status.</td>
+</tr>
+<tr>
+<td>RFC 4090</td>
+<td>RSVP-TE Fast Reroute</td>
+<td>Experimental</td>
+<td>Facility backup behavior.</td>
+<td>One-to-one detour backup was explicitly split to later work.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: docs/features.md -- IS-IS, OSPF, MPLS, LDP, and RSVP-TE feature statuses -->
+<!-- source: docs/architecture/wire/isis.md -- IS-IS wire and TLV behavior -->
+<!-- source: docs/architecture/wire/ospf.md -- OSPFv2 wire and extension behavior -->
+<!-- source: docs/architecture/wire/ospfv3.md -- OSPFv3 wire and extension behavior -->
+<!-- source: internal/plugins/ospf/config_ipsec.go -- RFC 4552 OSPFv3 IPsec config validation -->
+<!-- source: internal/plugins/ospf/ipsec_install.go -- RFC 4552 OSPFv3 IPsec XFRM installer -->
+<!-- source: plan/learned/920-mpls-ldp.md -- LDP learned closure -->
+<!-- source: plan/learned/921-mpls-rsvp-te.md -- RSVP-TE learned closure -->
+<!-- source: plan/learned/925-mpls-rsvp-te-fast-reroute.md -- RSVP-TE FRR learned closure -->
+
+<h2 id="access-aaa-ppp-and-subscriber-services">Access, AAA, PPP, and subscriber services</h2>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Area</th>
+<th>Status</th>
+<th>Implemented coverage</th>
+<th>Remaining if not complete</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 2661</td>
+<td>L2TPv2</td>
+<td class="cell-partial">∿</td>
+<td>LNS/LAC tunnel lifecycle, AVP codec, hidden AVPs, challenge/response, reliable control channel, HELLO, StopCCN, data sessions.</td>
+<td>Feature remains Partial; see L2TP guide for operational limits.</td>
+</tr>
+<tr>
+<td>RFC 1661</td>
+<td>PPP LCP</td>
+<td class="cell-partial">∿</td>
+<td>PPP LCP FSM, negotiation, echo keepalive, common NCP structure used by L2TP and PPPoE.</td>
+<td>Carries the L2TP and PPPoE Partial status.</td>
+</tr>
+<tr>
+<td>RFC 1334</td>
+<td>PAP</td>
+<td class="cell-partial">∿</td>
+<td>PAP authentication option through PPP auth handling.</td>
+<td>Carries the L2TP and PPPoE Partial status.</td>
+</tr>
+<tr>
+<td>RFC 1994</td>
+<td>CHAP</td>
+<td class="cell-partial">∿</td>
+<td>CHAP-MD5 authentication for PPP and tunnel auth contexts.</td>
+<td>Carries the L2TP and PPPoE Partial status.</td>
+</tr>
+<tr>
+<td>RFC 2759</td>
+<td>MS-CHAPv2</td>
+<td>Supported within PPP and IPsec EAP</td>
+<td>Mutual authentication in both the PPP and IPsec EAP paths; MPPE/MSK key derivation in the IPsec EAP path only.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 1332</td>
+<td>IPCP</td>
+<td class="cell-partial">∿</td>
+<td>IPv4 address negotiation and pool integration.</td>
+<td>Carries the L2TP and PPPoE Partial status.</td>
+</tr>
+<tr>
+<td>RFC 1877</td>
+<td>IPCP DNS options</td>
+<td class="cell-partial">∿</td>
+<td>Primary and secondary DNS option parsing and negotiation.</td>
+<td>Carries the L2TP and PPPoE Partial status.</td>
+</tr>
+<tr>
+<td>RFC 5072</td>
+<td>IPv6CP</td>
+<td class="cell-partial">∿</td>
+<td>Interface identifier negotiation and independent IPv6 NCP handling.</td>
+<td>IPv6 address assignment is outside IPv6CP and handled separately.</td>
+</tr>
+<tr>
+<td>RFC 2516</td>
+<td>PPPoE</td>
+<td class="cell-partial">∿</td>
+<td>Access concentrator discovery state machine, AC-Cookie, session tables, AF_PPPOX kernel sessions, shared PPP driver.</td>
+<td>Feature remains Partial.</td>
+</tr>
+<tr>
+<td>RFC 2865</td>
+<td>RADIUS authentication</td>
+<td>Supported for subscriber access</td>
+<td>Access-Accept profile extraction, Filter-Id, Session-Timeout, Idle-Timeout, VSAs, pool selection.</td>
+<td>Operator/admin login RADIUS (PAP) is a separate backend under <code>system/authentication/radius</code>; the profile attributes above are subscriber-access only.</td>
+</tr>
+<tr>
+<td>RFC 2866</td>
+<td>RADIUS accounting</td>
+<td>Supported for subscriber access</td>
+<td>Start, Stop, and Interim-Update accounting records.</td>
+<td>Admin/operator RADIUS accounting is not wired; the admin backend is authentication-only.</td>
+</tr>
+<tr>
+<td>RFC 2869</td>
+<td>RADIUS extensions</td>
+<td>Supported for subscriber access</td>
+<td>Gigaword counters and selected accounting extensions.</td>
+<td>Scoped to subscriber access.</td>
+</tr>
+<tr>
+<td>RFC 5176</td>
+<td>RADIUS CoA and Disconnect Message</td>
+<td>Supported for subscriber access</td>
+<td>CoA/DM listener for RADIUS-initiated changes and disconnects.</td>
+<td>Scoped to subscriber access.</td>
+</tr>
+<tr>
+<td>RFC 8907</td>
+<td>TACACS+</td>
+<td class="cell-partial">∿</td>
+<td>SSH login PAP auth, ordered failover, MD5 pseudo-pad encryption, command accounting, optional authorization, single-connect mode.</td>
+<td>Feature inventory still marks TACACS+ Partial while learned notes record several closed gaps.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: docs/guide/l2tp.md -- L2TP, PPP, IPCP, IPv6CP, RADIUS scope -->
+<!-- source: docs/guide/pppoe.md -- PPPoE access concentrator behavior -->
+<!-- source: docs/guide/tacacs.md -- TACACS+ status and limits -->
+<!-- source: docs/comparison.md -- RADIUS subscriber attributes and TACACS+ comparison rows -->
+<!-- source: internal/component/l2tp/ppp/ipcp.go -- RFC 1877 IPCP DNS options -->
+
+<h2 id="ipsec-ike-eap-and-kernel-security-associations">IPsec, IKE, EAP, and kernel security associations</h2>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Area</th>
+<th>Status</th>
+<th>Implemented coverage</th>
+<th>Remaining if not complete</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 7296</td>
+<td>IKEv2</td>
+<td>Supported</td>
+<td>Wire codec, cryptographic primitives, initiator and responder FSM, IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, INFORMATIONAL, rekey, DPD.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 4301</td>
+<td>IPsec architecture</td>
+<td>Supported</td>
+<td>SAD/SPD model projected through XFRM policies and route-based IPsec interfaces.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 4302</td>
+<td>Authentication Header</td>
+<td>Supported in OSPFv3 manual IPsec path</td>
+<td>AH algorithm planning and RFC 4552 OSPFv3 use.</td>
+<td>Scoped to configured manual IPsec support.</td>
+</tr>
+<tr>
+<td>RFC 4303</td>
+<td>ESP</td>
+<td>Supported</td>
+<td>ESP SA parameter model, protocol 50, tunnel and transport modes, XFRM installation, OSPFv3 manual ESP.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 3948</td>
+<td>UDP encapsulation of ESP</td>
+<td>Supported</td>
+<td>NAT-T non-ESP marker, UDP 4500 encapsulation, NAT keepalive, XFRM UDP encap attributes.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 4555</td>
+<td>MOBIKE</td>
+<td>Unsupported</td>
+<td>None; the IKE engine does not define the MOBIKE notify types (16396/16400) and does not handle UPDATE_SA_ADDRESSES.</td>
+<td>Responder role (announce MOBIKE_SUPPORTED, accept UPDATE_SA_ADDRESSES, migrate XFRM endpoints) is not implemented.</td>
+</tr>
+<tr>
+<td>RFC 3748</td>
+<td>EAP</td>
+<td>Supported in IPsec</td>
+<td>EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 5216</td>
+<td>EAP-TLS</td>
+<td>Supported in IPsec</td>
+<td>TLS handshake in EAP, fragmentation, MSK derivation feeding IKEv2 AUTH.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 5282</td>
+<td>IKEv2 AEAD algorithms</td>
+<td>Supported</td>
+<td>AES-GCM IKEv2 AEAD encryption and decryption framing.</td>
+<td class="cell-no">✕</td>
+</tr>
+</tbody>
+</table>
+<!-- source: docs/features.md -- IPsec feature rows -->
+<!-- source: internal/component/ike/wire/ -- IKEv2 wire format codec -->
+<!-- source: internal/component/ike/crypto/ -- IKEv2 cryptographic primitives -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- RFC 4301, RFC 4302, RFC 4303, and RFC 3948 dataplane model -->
+<!-- source: internal/component/ike/eap/ -- EAP framework, MS-CHAPv2, and EAP-TLS -->
+
+<h2 id="dns-provisioning-mrt-and-flow-telemetry">DNS, provisioning, MRT, and flow telemetry</h2>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Area</th>
+<th>Status</th>
+<th>Implemented coverage</th>
+<th>Remaining if not complete</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 1035</td>
+<td>DNS message behavior</td>
+<td>Supported</td>
+<td>DNS cache TTL handling, authoritative GeoDNS and AS112 response shaping.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 7871</td>
+<td>EDNS0 Client Subnet</td>
+<td>Supported</td>
+<td>GeoDNS client IP selection from EDNS0 client-subnet or packet source.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 7534</td>
+<td>AS112 operations</td>
+<td>Supported</td>
+<td>Authoritative sink for misdirected RFC 1918 and link-local reverse DNS.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 7535</td>
+<td>EMPTY.AS112.ARPA</td>
+<td>Supported</td>
+<td>EMPTY.AS112.ARPA DNAME-redirection zone.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 2131</td>
+<td>DHCPv4</td>
+<td>Supported</td>
+<td>DHCP server with DORA, leases, static mappings, PXE support.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 2132</td>
+<td>DHCP options</td>
+<td>Supported</td>
+<td>DHCP options used by DHCP server and PXE support.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 4578</td>
+<td>DHCP PXE options</td>
+<td>Supported</td>
+<td>PXE boot option injection for BIOS and UEFI bootfile selection.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 1350</td>
+<td>TFTP</td>
+<td>Supported</td>
+<td>Read-only TFTP server for PXE bootloader delivery.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 2347</td>
+<td>TFTP option negotiation</td>
+<td>Supported</td>
+<td>Option negotiation for TFTP provisioning paths.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 6396</td>
+<td>MRT</td>
+<td>Supported</td>
+<td>Daemon-side MRT recording, TABLE_DUMP_V2 snapshots, BGP4MP messages, analysis tools.</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>RFC 3954</td>
+<td>NetFlow v9</td>
+<td>Experimental</td>
+<td>Flow export templates and records over UDP.</td>
+<td>Flow export feature remains Experimental.</td>
+</tr>
+<tr>
+<td>RFC 7011</td>
+<td>IPFIX</td>
+<td>Experimental</td>
+<td>IPFIX export templates and records over UDP.</td>
+<td>Flow export feature remains Experimental.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: docs/guide/plugins.md -- DHCP, TFTP, GeoDNS, and AS112 plugin rows -->
+<!-- source: docs/guide/as112.md -- AS112 behavior -->
+<!-- source: docs/guide/ze-install.md -- DHCP, TFTP, and PXE provisioning flow -->
+<!-- source: docs/guide/mrt-analysis.md -- MRT recording and analysis -->
+<!-- source: docs/guide/flow-export.md -- NetFlow v9 and IPFIX flow export -->
+<!-- source: internal/core/dnsserver/client.go -- RFC 7871 client-subnet source selection -->
+<!-- source: internal/core/dnsserver/handler.go -- RFC 1035 authoritative response shaping -->
+
+<h2 id="drafts-and-non-rfc-standards-tracked-near-rfc-work">Drafts and non-RFC standards tracked near RFC work</h2>
+<p>These are not RFCs, but they sit next to RFC implementation status and are useful when reading the tables above.</p>
+<table>
+<thead>
+<tr>
+<th>Standard</th>
+<th>Area</th>
+<th>Status</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>draft-abraitis-idr-addpath-paths-limit</td>
+<td>BGP PATHS-LIMIT</td>
+<td>Supported</td>
+<td>Per-family path-count limit capability for ADD-PATH.</td>
+</tr>
+<tr>
+<td>draft-ietf-sidrops-aspa-verification</td>
+<td>ASPA path verification</td>
+<td>Supported</td>
+<td>ASPA validation algorithm, policy actions, and RPKI event output.</td>
+</tr>
+<tr>
+<td>draft-ietf-idr-linklocal-capability</td>
+<td>Link-local next-hop capability code 77</td>
+<td>Supported</td>
+<td>Capability declaration around RFC 2545 next-hop behavior.</td>
+</tr>
+<tr>
+<td>draft-ietf-idr-software-version</td>
+<td>BGP Software Version capability code 75</td>
+<td>Supported</td>
+<td>Software version advertisement plugin.</td>
+</tr>
+<tr>
+<td>ISO/IEC 10589</td>
+<td>IS-IS base protocol</td>
+<td>Experimental</td>
+<td>Base IS-IS protocol reference, paired with the IS-IS RFC rows above.</td>
+</tr>
+<tr>
+<td>sFlow v5</td>
+<td>sFlow export</td>
+<td>Experimental</td>
+<td>Flow export protocol alongside NetFlow v9 and IPFIX.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: docs/features.md -- feature status vocabulary and draft-backed feature rows -->
+<!-- source: docs/features/bgp-protocol.md -- draft-backed BGP capability rows -->
+<!-- source: docs/guide/rpki.md -- ASPA draft verification behavior -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Feature doc</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related research</h2>
+                    <a class="page-sidebar-link" href="../../../features/">
+                        <span class="page-sidebar-link-label">Feature catalog</span>
+                        <small>Return to the generated feature cards.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Browse by learning intent.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../compare/">
+                        <span class="page-sidebar-link-label">Comparisons</span>
+                        <small>Place the feature in external context.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality</span>
+                        <small>See the evidence behind the implementation.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js?v=97537ff540" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

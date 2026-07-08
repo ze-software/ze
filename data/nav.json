@@ -96,7 +96,8 @@
                     {"label_only": "Generated references"},
                     {"href": "cli/", "icon": "⌨️", "title": "CLI Reference", "desc": "%(cli_commands)s commands, generated from the live binary"},
                     {"href": "config-reference/", "icon": "🧬", "title": "Configuration Reference", "desc": "%(config_sections)s sections, indexed from live YANG"},
-                    {"href": "command-equivalents/", "icon": "↔️", "title": "Command Equivalents", "desc": "Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS"}
+                    {"href": "command-equivalents/", "icon": "↔️", "title": "Command Equivalents", "desc": "Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS"},
+                    {"href": "docs/features/rfc-status/", "icon": "📜", "title": "RFC Status", "desc": "Implemented RFCs, partial support, and known gaps"}
                 ]
             ]
         },

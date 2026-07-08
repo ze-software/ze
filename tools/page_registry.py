@@ -32,6 +32,7 @@ DOCS_MANIFEST = {
     "features/ai-first.md": "automate",
     "features/api-commands.md": "automate",
     "features/bgp-protocol.md": "routing",
+    "features/rfc-status.md": "routing",
     "features/cli-commands.md": "operate",
     "features/configuration.md": "operate",
     "features/dns-resolver.md": "services",

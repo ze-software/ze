@@ -140,6 +140,8 @@ per-step failures.
   sources live either in this worktree (`usage/`, `compare/`, `quality/`,
   `contribute/`, `faq/`, `roadmap/`, `license/`, `docs/docs.md`) or in
   `../main/docs/` for product documentation and lab architecture detail.
+  Top navigation dropdown entries in `data/nav.json` must use an emoji glyph
+  for `icon`, not a text abbreviation or label.
 - **Page registry.** `tools/page_registry.py` centralizes the small lists that
   decide which Markdown files are rendered by generic document renderers:
   the main docs manifest, usage pages, lab detail pages, compare pages,
