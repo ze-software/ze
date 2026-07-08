@@ -1163,6 +1163,7 @@ func TestDoctorCoverageCodesRegistered(t *testing.T) {
 		"doctor-bgp-listen",
 		"doctor-tacacs-unreachable",
 		"doctor-radius-unreachable",
+		"doctor-radius-admin-unreachable",
 		"doctor-bfd-port",
 		"doctor-pki-cert",
 		"doctor-ipsec-listen",
@@ -1557,6 +1558,7 @@ func TestDoctorDependencyInventory(t *testing.T) {
 		"listener/telemetry":       "doctor-listen-unavailable",
 		"external/tacacs":          "doctor-tacacs-unreachable",
 		"external/radius":          "doctor-radius-unreachable",
+		"external/radius-admin":    "doctor-radius-admin-unreachable",
 		"external/rpki":            "doctor-rpki-unreachable",
 		"external/bmp":             "doctor-bmp-unreachable",
 		"external/ntp-server":      "doctor-ntp-server-unreachable",
@@ -1606,7 +1608,7 @@ func TestDoctorDependencyInventory(t *testing.T) {
 		assert.NotNilf(t, meta, "dependency %s maps to unregistered code %s", dep, code)
 	}
 
-	const expectedTotal = 54
+	const expectedTotal = 55
 	total := len(covered) + len(excluded)
 	assert.Equal(t, expectedTotal, total,
 		"dependency inventory changed; update covered or excluded map (got %d)", total)

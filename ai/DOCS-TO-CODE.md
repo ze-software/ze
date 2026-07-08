@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 272 design docs, 2850 files
+Total: 273 design docs, 2854 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -38,6 +38,10 @@ Total: 272 design docs, 2850 files
 
 - `internal/core/bufpool/bufpool.go` -- "Pool strategy by goroutine shape"
 - `internal/core/bufpool/doc.go` -- "Pool strategy by goroutine shape"
+
+## `ai/rules/doctor-checks.md`
+
+- `internal/component/radius/doctor.go` -- RADIUS admin reachability readiness check
 
 ## `ai/rules/feature-gate-registration.md`
 
@@ -1370,6 +1374,7 @@ Total: 272 design docs, 2850 files
 | `internal/test/mock/irr/irr_test.go` | irr mock signature test |
 | `internal/test/mock/peeringdb/peeringdb.go` | deterministic PeeringDB mock server |
 | `internal/test/mock/peeringdb/peeringdb_test.go` | peeringdb mock signature test |
+| `internal/test/mock/radius/radius.go` | mock RADIUS server for AAA testing |
 | `internal/test/mock/rpki/rpki.go` | deterministic RPKI mock server |
 | `internal/test/mock/rpki/rpki_test.go` | rpki mock signature test |
 | `internal/test/mock/rtr/rtr.go` | mock RTR cache server for RPKI testing |
@@ -1978,7 +1983,9 @@ Total: 272 design docs, 2850 files
 | `internal/component/l2tp/timer.go` | timer goroutine for retransmit + hello deadlines |
 | `internal/component/radius/aaa.go` | RADIUS AAA backend |
 | `internal/component/radius/attr.go` | RADIUS attribute encoding |
+| `internal/component/radius/authenticator.go` | RADIUS admin authenticator |
 | `internal/component/radius/client.go` | RADIUS client transport |
+| `internal/component/radius/config.go` | RADIUS admin AAA config |
 | `internal/component/radius/dict.go` | RADIUS attribute dictionary |
 | `internal/component/radius/packet.go` | RADIUS wire format |
 | `internal/component/radius/pool.go` | RADIUS buffer pool |

@@ -428,6 +428,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-radius-unreachable"},
 	},
 	{
+		Code:        "doctor-radius-admin-unreachable",
+		Title:       "RADIUS admin servers unreachable",
+		Description: "No configured system/authentication/radius server answered an Access-Request probe, so operator logins via RADIUS may fall through to local or fail.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-radius-admin-unreachable"},
+	},
+	{
 		Code:        "doctor-traffic-usage-ebpf",
 		Title:       "traffic-usage eBPF unavailable",
 		Description: "The traffic-usage plugin is enabled but the kernel cannot load or attach its eBPF TCX programs (missing CAP_BPF/CAP_NET_ADMIN, no TCX support, or a non-Linux build). Byte accounting will not run.",

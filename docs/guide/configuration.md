@@ -1594,6 +1594,15 @@ commit. For end-to-end usage (login, hashing, multi-user setup) see
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
 
+Remote AAA backends authenticate operators against a central server, with local
+users as the fallback: `system.authentication.tacacs` (RFC 8907, see
+[tacacs.md](tacacs.md)) and `system.authentication.radius` (RFC 2865 operator
+login, see [radius.md](radius.md)). Both store their shared secret as a
+`ze:sensitive` leaf and fall through to local bcrypt when the server is
+unreachable.
+<!-- source: internal/component/radius/yang/ze-radius-conf.yang -- system.authentication.radius -->
+<!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs -->
+
 ### Authorization and web/API effects
 
 Authorization profiles apply to command dispatch and web config mutation.

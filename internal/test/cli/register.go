@@ -6,6 +6,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/mock/cymru"
 	"codeberg.org/thomas-mangin/ze/internal/test/mock/irr"
 	"codeberg.org/thomas-mangin/ze/internal/test/mock/peeringdb"
+	radiusmock "codeberg.org/thomas-mangin/ze/internal/test/mock/radius"
 	"codeberg.org/thomas-mangin/ze/internal/test/mock/rpki"
 	"codeberg.org/thomas-mangin/ze/internal/test/mock/rtr"
 	"codeberg.org/thomas-mangin/ze/internal/test/mock/tacacs"
@@ -43,6 +44,7 @@ func init() {
 	registerRoot("irr", irr.Run, "Deterministic IRR whois mock server (AS-SET expansion, prefix lookup)")
 	registerRoot("peeringdb", peeringdb.Run, "Deterministic PeeringDB mock server (ASN-derived prefix counts)")
 	registerRoot("rpki", rpki.Run, "Deterministic RPKI mock server (IP modulo for validation state)")
+	registerRoot("radius-mock", radiusmock.Run, "Mock RADIUS server (RFC 2865) for AAA admin-auth testing")
 	registerRoot("rtr-mock", rtr.Run, "Mock RTR cache server (explicit VRPs for RPKI testing)")
 	registerRoot("syslog", cmdSyslog, "Run syslog server for testing")
 	registerRoot("tacacs-mock", tacacs.Run, "Mock TACACS+ server (RFC 8907) for AAA testing")

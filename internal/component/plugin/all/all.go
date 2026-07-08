@@ -79,6 +79,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pki/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/radius/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/storage/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/sysctl/yang"

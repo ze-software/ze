@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 596 packages, 596 described, 0 TODO
+Total: 598 packages, 598 described, 0 TODO
 
 
 ## `cmd/ze/`
@@ -358,6 +358,7 @@ Total: 596 packages, 596 described, 0 TODO
 | `internal/component/plugin/server` | manages plugin process connections, the 5-stage startup protocol, and command dispatch |  |
 | `internal/component/plugin/yang` | embeds the YANG schema for plugin configuration |  |
 | `internal/component/radius` | implements a RADIUS client for RFC 2865 (authentication) and RFC 2866 (accounting) |  |
+| `internal/component/radius/yang` | embeds the radius component's YANG configuration schema and registers it with the config module registry |  |
 | `internal/component/resolve` | provides the Resolvers container that holds DNS, Cymru, PeeringDB, and IRR resolver instances |  |
 | `internal/component/resolve/cache` | provides a generic TTL cache used by Cymru, PeeringDB, and IRR resolvers |  |
 | `internal/component/resolve/cli` | provides the ze resolve subcommand for querying DNS, Team Cymru, PeeringDB, and IRR resolution services |  |
@@ -691,6 +692,7 @@ Total: 596 packages, 596 described, 0 TODO
 | `internal/test/mock/cymru` | implements a deterministic Team Cymru DNS mock server for tests |  |
 | `internal/test/mock/irr` | implements a deterministic IRR whois mock server for tests |  |
 | `internal/test/mock/peeringdb` | implements a deterministic PeeringDB HTTP mock server for tests |  |
+| `internal/test/mock/radius` | implements a mock RADIUS server (RFC 2865) for AAA testing |  |
 | `internal/test/mock/rpki` | implements a deterministic RPKI/RTR mock server for tests |  |
 | `internal/test/mock/rtr` | implements a mock RTR cache server for RPKI testing |  |
 | `internal/test/mock/tacacs` | implements a mock TACACS+ server for AAA testing |  |

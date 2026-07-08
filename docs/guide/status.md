@@ -41,7 +41,7 @@ All families decode. Most encode. Use `ze --plugins` to see the current state.
 
 ### Plugins
 
-The current binary reports 97 registered plugins and schemas covering protocol features, all address families, BFD, BMP, route filters, L2TP/PPP helpers, OSPF config wiring, firewall, traffic control, VPP, NTP, sysctl, FIB backends, route redistribution, and TACACS+ AAA. The plugin lifecycle uses a 5-stage handshake, newline-framed YANG RPC IPC, and DirectBridge for internal hot paths. Plugins can be written in any language.
+The current binary reports 97 registered plugins and schemas covering protocol features, all address families, BFD, BMP, route filters, L2TP/PPP helpers, OSPF config wiring, firewall, traffic control, VPP, NTP, sysctl, FIB backends, route redistribution, and TACACS+/RADIUS admin AAA. The plugin lifecycle uses a 5-stage handshake, newline-framed YANG RPC IPC, and DirectBridge for internal hot paths. Plugins can be written in any language.
 <!-- source: internal/component/plugin/all/all.go -- generated plugin imports -->
 
 | Plugin | Status |

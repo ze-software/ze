@@ -2,16 +2,17 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-06 |
+| Updated | 2026-07-08 |
 
-> **BLOCKING PRODUCT DECISION (A-1) before this leaves `design`:** the current empty
-> `radiusBackend.Build()` is a *deliberate* placeholder (`internal/component/radius/aaa.go:17-24`),
-> not an oversight. Admin-auth-via-RADIUS must be confirmed as wanted before promoting this
-> spec to `ready`/implementation. Many deployments deliberately use TACACS+ for device admin
-> and RADIUS only for subscribers. Do not implement until A-1 is resolved with the user.
+> **PRODUCT DECISION (A-1) RESOLVED 2026-07-08:** user confirmed admin-auth-via-RADIUS is
+> wanted. Implement the real `radiusBackend.Build()`. Shaping decisions confirmed the same day:
+> A-2 keep chain priority 50 (RADIUS tried first, ahead of tacacs=100/local=200); A-3 PAP
+> (RFC 2865 User-Password) for the MVP, CHAP/EAP deferred; A-4 map Access-Accept via a
+> configurable reply attribute (default Filter-Id) to ze RBAC profiles with a default-profile
+> fallback. See the Risks & Assumptions table.
 
 ## Post-Compaction Recovery
 
@@ -109,12 +110,12 @@ RADIUS path (`internal/component/l2tp/plugins/authradius/`) must remain byte-for
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | Admin-auth-via-RADIUS is a wanted feature | User asked for a spec; but `radius/aaa.go:17-24` empty Contribution is deliberate | Whole spec is moot | **User confirmation (BLOCKING)** | unvalidated |
-| A-2 | RADIUS should keep chain priority 50 (ahead of tacacs=100, local=200) | `radius/aaa.go:11`, `tacacs/register.go:20`, `authz/register.go:43-45` | Wrong auth precedence when both radius+tacacs configured | User confirmation; grep priorities | unvalidated |
-| A-3 | PAP (RFC 2865 User-Password, hidden per §5.2) is the acceptable admin auth method | `client.go:116-193` already hides User-Password; simplest for device admin | Need CHAP/EAP instead → larger scope | User confirmation; `rfc/short/rfc2865.md` | unvalidated |
-| A-4 | Access-Accept → ze profiles via a configurable reply attribute (default Filter-Id, RFC 2865 §5.11) with a default-profile fallback | Mirrors tacacs priv-lvl→profile (`authenticator.go:77-103`); Filter-Id is the RFC-standard authz carrier | Operators can't map RADIUS users to ze RBAC profiles | User confirmation; test with freeradius | unvalidated |
-| A-5 | `radius.Client.SendToServers` is safe to call from the login goroutine and is concurrency-safe | `client.go:304-316` used the same way by L2TP `handler.go:95` | Races/deadlock on concurrent logins | Read client; `-race` unit test | unvalidated |
-| A-6 | The AAA `BuildParams.ConfigTree` contains the full `system/authentication` subtree at Build time | tacacs reads it the same way (`config.go:36-109`) | Backend sees no config, stays empty | grep/read `buildAAABundle` (`infra_setup.go:30-43`) | unvalidated |
+| A-1 | Admin-auth-via-RADIUS is a wanted feature | User asked for a spec; but `radius/aaa.go:17-24` empty Contribution is deliberate | Whole spec is moot | **User confirmation (BLOCKING)** | **VALIDATED 2026-07-08 (user: yes, implement it)** |
+| A-2 | RADIUS should keep chain priority 50 (ahead of tacacs=100, local=200) | `radius/aaa.go:11`, `tacacs/register.go:20`, `authz/register.go:43-45` | Wrong auth precedence when both radius+tacacs configured | User confirmation; grep priorities | **VALIDATED 2026-07-08 (user: keep 50)** |
+| A-3 | PAP (RFC 2865 User-Password, hidden per §5.2) is the acceptable admin auth method | `client.go:116-193` already hides User-Password; simplest for device admin | Need CHAP/EAP instead → larger scope | User confirmation; `rfc/short/rfc2865.md` | **VALIDATED 2026-07-08 (user: PAP for MVP)** |
+| A-4 | Access-Accept → ze profiles via a configurable reply attribute (default Filter-Id, RFC 2865 §5.11) with a default-profile fallback | Mirrors tacacs priv-lvl→profile (`authenticator.go:77-103`); Filter-Id is the RFC-standard authz carrier | Operators can't map RADIUS users to ze RBAC profiles | User confirmation; test with freeradius | **VALIDATED 2026-07-08 (user: Filter-Id + default)** |
+| A-5 | `radius.Client.SendToServers` is safe to call from the login goroutine and is concurrency-safe | `client.go:304-316` used the same way by L2TP `handler.go:95` | Races/deadlock on concurrent logins | Read client; `-race` unit test | **VALIDATED 2026-07-08 (client.go mutex+atomic; each Authenticate builds its own Packet, so `SendToServers` mutating `pkt.Identifier` at :306 is per-call, no sharing)** |
+| A-6 | The AAA `BuildParams.ConfigTree` contains the full `system/authentication` subtree at Build time | tacacs reads it the same way (`config.go:36-109`) | Backend sees no config, stays empty | grep/read `buildAAABundle` (`infra_setup.go:30-43`) | **VALIDATED 2026-07-08 (`buildAAABundle` sets `ConfigTree: tree` at `infra_setup.go:37`; full tree)** |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -184,11 +185,12 @@ RADIUS path (`internal/component/l2tp/plugins/authradius/`) must remain byte-for
 ### Interop Tests
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `NN-radius-admin-freeradius` | `test/interop/scenarios/` | FreeRADIUS | Real Access-Request/Accept/Reject + Filter-Id profile mapping against a real RADIUS server | |
+| `NN-radius-admin-freeradius` | `test/interop/scenarios/` | FreeRADIUS | Real Access-Request/Accept/Reject + Filter-Id profile mapping against a real RADIUS server | **DEFERRED (user-approved 2026-07-08)** to follow-up spec `spec-radius-admin-interop-freeradius`. The interop harness (`test/interop/interop.py`) is a Docker-based BGP-peer harness with no RADIUS category; a dedicated FreeRADIUS category is a distinct infrastructure build. Coverage now: the functional `.ci` tests drive the **real** RADIUS wire protocol (production `radius` package encode/decode) end-to-end through the daemon SSH login, and the admin backend reuses the same `radius.Client` the L2TP subscriber path already exercises against real RADIUS servers, so the wire layer carries no new interop risk. |
 
 ### Future (deferring)
 - RADIUS **accounting** (Accounting-Request Start/Stop → an `Accountant` contribution) and **authorization** beyond profile mapping. Deferred to a phase 2; MVP is Authenticator-only. Requires user approval to defer.
-- CHAP / EAP admin auth methods (A-3 assumes PAP).
+- CHAP / EAP admin auth methods (A-3 assumes PAP). Skeleton follow-up specs created at closure per user request (`spec-radius-admin-chap`, `spec-radius-admin-eap`).
+- FreeRADIUS **interop** scenario — deferred to `spec-radius-admin-interop-freeradius` (user-approved 2026-07-08; see Interop Tests row).
 
 ## Files to Modify
 - `internal/component/radius/aaa.go` — replace empty `Build` with a real one (config → client → authenticator + Close).
@@ -333,15 +335,32 @@ RADIUS path (`internal/component/l2tp/plugins/authradius/`) must remain byte-for
 ## Goal Validation (BLOCKING)
 | Goal | Evidence Type | Concrete Evidence |
 |------|---------------|-------------------|
-| Operator can log in via RADIUS | functional + interop | `aaa-radius-admin.ci`, `NN-radius-admin-freeradius` |
-| RADIUS unreachable falls back to local | functional | `aaa-radius-fallback.ci` |
-| L2TP path unchanged | regression | L2TP radius tests green; empty `git diff` under authradius |
+| Operator can log in via RADIUS | functional | `test/plugin/aaa-radius-admin.ci` PASS (2026-07-08): SSH login `source=radius`, Filter-Id=admin → profile. Interop deferred (user-approved) to `spec-radius-admin-interop-freeradius`; wire protocol already exercised end-to-end by the `.ci` via the production `radius` package. |
+| RADIUS unreachable falls back to local | functional | `test/plugin/aaa-radius-fallback.ci` PASS (2026-07-08): server at 127.0.0.1:1 unreachable → `source=local`, `reject source=radius` (radius did not silently succeed). |
+| Config validated against schema | binary | `ze config validate` accepts a full radius config (IPv6 server, both profile-attribute enums, timeout 60/retries 10); rejects timeout 61, retries 11, port 65536, unknown profile-attribute. |
+| Doctor check wired | binary | `ze doctor --json radius.conf` emits `doctor-radius-admin-unreachable`; `ze explain doctor-radius-admin-unreachable` works. |
+| L2TP path unchanged | regression | `git diff --stat internal/component/l2tp/plugins/authradius/` empty (no files touched); L2TP radius tests unaffected. |
+| Concurrency safe | unit (-race) | `go test -race ./internal/component/radius/` green; each `Authenticate` builds its own `*Packet`. |
 
 ## Review Gate
-### Run 1 (initial)
+### Run 1 (initial — adversarial review 2026-07-08)
+0 BLOCKER. 2 ISSUE, 3 NOTE. 10 required behaviors verified correct (accept/reject/infra
+mapping, hidden User-Password, profile mapping, authBudget clamps, NAS-Identifier always
+present, Build lifecycle, mock decodeUserPassword chaining, concurrency safety, registration).
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | | (to be filled during /ze-implement) | | |
+| 1 | ISSUE | Client-init failure (unbindable `source-address`) returned an error from `Build`; the registry turns that into a fatal bundle failure and the hub then builds NO bundle -> SSH not built -> total lockout (opposite of R-4). Confirmed via `cmd/ze/hub/infra_setup.go:128-138`. | `internal/component/radius/aaa.go` | FIXED: `Build` now logs and returns an empty Contribution on client-init failure, so local/tacacs still authenticate. Test `TestRadiusBuildDegradesOnClientInitFailure`. |
+| 2 | ISSUE | Config comment claimed IPv6 server literals round-trip; the shared client is `udp4`, so an IPv6 server silently reads as unreachable while the YANG type accepts it. | `internal/component/radius/config.go:74` | FIXED: corrected the comment to the udp4/IPv4 reality; documented IPv4-only in the YANG `address` leaf and `docs/guide/radius.md`. Fail-safe (falls to local, doctor flags it); shared-client udp4 fix is out of scope. |
+| 3 | NOTE | `authBudget` doc comment inaccurate for `retries=0` (5s floor vs client's 0->3 coercion). | `internal/component/radius/authenticator.go:69` | FIXED: comment now states the retries=0 edge case; behavior is fail-safe (no code change needed). |
+| 4 | NOTE | Keyless server: doctor rejects (empty key -> unreachable) but the live path silently degrades (response-auth fails -> unreachable). | `config.go:77`, `doctor.go:68` | ACCEPTED: both are fail-safe; `key` is non-mandatory as in tacacs. Recorded. |
+| 5 | NOTE | `ze-test radius-mock` only emits Filter-Id, so a `.ci` cannot exercise `profile-attribute=class`. | `internal/test/mock/radius/radius.go:132` | ACCEPTED: the Class mapping path is unit-tested by `TestRadiusProfileMappingClass` (in-process reply server). Test-fidelity only. |
+
+### Run 2 (after fixes)
+Fixes are localized to `aaa.go` (degrade), `config.go`/YANG/docs (comment + IPv4 note), and
+`authenticator.go` (comment). `go test -race ./internal/component/radius/...` green including the
+new degrade test; `make ze-lint-changed` 0 issues. No new BLOCKER/ISSUE introduced; both ISSUEs
+resolved, all NOTEs recorded. Gate satisfied: 0 BLOCKER, 0 ISSUE.
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE

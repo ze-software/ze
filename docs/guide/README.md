@@ -36,7 +36,7 @@
 | [Config Deactivate](config-deactivate.md) | Junos-style inactive marking on any YANG node |
 | [Config Reload](config-reload.md) | Live reload, what changes live vs. requires restart |
 | [Environment Variables](environment-variables.md) | Runtime tuning via `ze.*` env vars |
-| [Authentication](authentication.md) | User database, SSH keys, TACACS+, bcrypt |
+| [Authentication](authentication.md) | User database, SSH keys, TACACS+, RADIUS, bcrypt |
 | [Audit Trail](audit.md) | Local structured records for config changes, reloads, and failed logins |
 | [Web Interface](web-interface.md) | HTTPS web UI for config viewing, editing, and admin commands |
 
@@ -85,6 +85,7 @@
 | [Chaos Testing](chaos-testing.md) | Fault injection, deterministic replay, property validation |
 | [Fleet Configuration](fleet-config.md) | Centralized config management for multi-node deployments |
 | [TACACS+ AAA](tacacs.md) | RFC 8907 SSH authentication and command accounting |
+| [RADIUS admin AAA](radius.md) | RFC 2865 operator login (SSH/web/MCP) with Filter-Id profile mapping |
 
 ## Reference
 

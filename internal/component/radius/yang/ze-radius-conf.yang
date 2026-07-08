@@ -1,0 +1,99 @@
+module ze-radius-conf {
+    namespace "urn:ze:radius:conf";
+    prefix radius;
+
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description "RADIUS admin-authentication configuration for Ze (RFC 2865)";
+
+    revision 2026-07-08 {
+        description "Initial revision: system/authentication/radius admin backend";
+    }
+
+    container system {
+        description "System-level settings";
+
+        container authentication {
+            description "System authentication settings";
+
+            container radius {
+                description
+                    "RADIUS server configuration for operator/admin login
+                     (SSH, web, MCP), RFC 2865. Separate from the L2TP
+                     subscriber RADIUS path, which lives under the l2tp root.";
+
+                list server {
+                    key "address";
+                    ordered-by user;
+                    description "RADIUS servers, tried in configured order";
+
+                    leaf address {
+                        type zt:ip-address;
+                        description
+                            "Server IPv4 address. RADIUS admin auth uses the
+                             shared udp4 client; an IPv6 literal will not
+                             resolve and reads as unreachable.";
+                    }
+
+                    leaf port {
+                        type uint16 {
+                            range "1..65535";
+                        }
+                        default 1812;
+                        description "UDP authentication port (default 1812)";
+                    }
+
+                    leaf key {
+                        type string;
+                        ze:sensitive;
+                        description "RADIUS shared secret (RFC 2865)";
+                    }
+                }
+
+                leaf timeout {
+                    type uint16 {
+                        range "1..60";
+                    }
+                    default 3;
+                    description "Per-server request timeout in seconds";
+                }
+
+                leaf retries {
+                    type uint8 {
+                        range "0..10";
+                    }
+                    default 3;
+                    description "Retransmit count per server before failover";
+                }
+
+                leaf source-address {
+                    type zt:ip-address;
+                    description "Source IP for outbound RADIUS requests";
+                }
+
+                leaf profile-attribute {
+                    type enumeration {
+                        enum filter-id {
+                            description "RADIUS Filter-Id (11), RFC 2865 Section 5.11";
+                        }
+                        enum class {
+                            description "RADIUS Class (25), RFC 2865 Section 5.25";
+                        }
+                    }
+                    default "filter-id";
+                    description
+                        "Access-Accept reply attribute whose value(s) name the
+                         ze authorization profile(s) for the user";
+                }
+
+                leaf-list default-profile {
+                    type string;
+                    description
+                        "Ze authorization profile name(s) assigned when the
+                         Access-Accept carries no profile-attribute";
+                }
+            }
+        }
+    }
+}
