@@ -121,11 +121,11 @@ func linkToInfo(link netlink.Link) iface.InterfaceInfo {
 // this -- and only when flow-export is configured.
 func (b *netlinkBackend) LinkSpeedDuplex(name string) (int, string) {
 	speedRaw := ""
-	if data, err := os.ReadFile("/sys/class/net/" + name + "/speed"); err == nil {
+	if data, err := os.ReadFile("/sys/class/net/" + name + "/speed"); err == nil { //nolint:gosec // fixed /sys/class/net base plus a kernel interface name; read-only sysfs
 		speedRaw = string(data)
 	}
 	duplexRaw := ""
-	if data, err := os.ReadFile("/sys/class/net/" + name + "/duplex"); err == nil {
+	if data, err := os.ReadFile("/sys/class/net/" + name + "/duplex"); err == nil { //nolint:gosec // fixed /sys/class/net base plus a kernel interface name; read-only sysfs
 		duplexRaw = string(data)
 	}
 	return parseLinkSpeedDuplex(speedRaw, duplexRaw)

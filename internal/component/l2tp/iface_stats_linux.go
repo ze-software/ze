@@ -13,7 +13,7 @@ import (
 // interface by reading /sys/class/net/<iface>/statistics/rx_bytes.
 // Returns 0 on any error (interface gone, non-existent, permission).
 func readIfaceRXBytes(iface string) uint64 {
-	data, err := os.ReadFile("/sys/class/net/" + iface + "/statistics/rx_bytes")
+	data, err := os.ReadFile("/sys/class/net/" + iface + "/statistics/rx_bytes") //nolint:gosec // fixed /sys/class/net base plus a kernel interface name; read-only sysfs
 	if err != nil {
 		return 0
 	}

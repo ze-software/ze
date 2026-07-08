@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 1/1 |
 | Updated | 2026-07-08 |
 
 ## Post-Compaction Recovery

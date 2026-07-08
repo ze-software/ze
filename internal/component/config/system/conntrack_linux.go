@@ -5,6 +5,7 @@
 package system
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -37,7 +38,7 @@ func LoadConntrackModules(modules []string) (loaded []string, errs []error) {
 			loaded = append(loaded, mod)
 			continue
 		}
-		cmd := exec.Command(modprobePath, kernelMod)
+		cmd := exec.CommandContext(context.Background(), modprobePath, kernelMod) //nolint:gosec // module validated against the ValidConntrackModule allowlist; modprobePath is resolved
 		if err := cmd.Run(); err != nil {
 			errs = append(errs, fmt.Errorf("conntrack: modprobe %s: %w", kernelMod, err))
 			continue

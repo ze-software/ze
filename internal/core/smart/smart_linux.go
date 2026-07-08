@@ -158,9 +158,9 @@ func detectNVMe(deviceName string) *Info {
 
 	var buf [512]byte
 	cmd := nvmePassthruCmd{
-		opcode:  0x02,       // Get Log Page
-		nsid:    0xFFFFFFFF, // global
-		addr:    uint64(uintptr(unsafe.Pointer(&buf[0]))),
+		opcode:  0x02,                                     // Get Log Page
+		nsid:    0xFFFFFFFF,                               // global
+		addr:    uint64(uintptr(unsafe.Pointer(&buf[0]))), //nolint:gosec // NVMe passthru ioctl requires the raw buffer address
 		dataLen: uint32(len(buf)),
 		cdw10:   0x02 | (127 << 16), // log page 0x02 (SMART), numdl=127 (128 dwords = 512 bytes)
 	}
@@ -341,9 +341,9 @@ func isSelfTestInProgressNVMe(deviceName string) bool {
 
 	var buf [564]byte
 	cmd := nvmePassthruCmd{
-		opcode:  0x02,       // Get Log Page
-		nsid:    0xFFFFFFFF, // global
-		addr:    uint64(uintptr(unsafe.Pointer(&buf[0]))),
+		opcode:  0x02,                                     // Get Log Page
+		nsid:    0xFFFFFFFF,                               // global
+		addr:    uint64(uintptr(unsafe.Pointer(&buf[0]))), //nolint:gosec // NVMe passthru ioctl requires the raw buffer address
 		dataLen: uint32(len(buf)),
 		cdw10:   0x06 | (uint32(len(buf)/4-1) << 16), // log page 0x06 (Device Self-test)
 	}

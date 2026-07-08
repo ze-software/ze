@@ -111,7 +111,7 @@ func applyRFSGlobal(cfg *ifaceConfig) {
 	} else {
 		value = "0"
 	}
-	if err := os.WriteFile(globalPath, []byte(value), 0o644); err != nil {
+	if err := os.WriteFile(globalPath, []byte(value), 0o600); err != nil {
 		loggerPtr.Load().Warn("iface offload: rfs global", "err", err)
 	}
 }
@@ -146,10 +146,10 @@ func setEthtoolFeature(fd int, ifaceName string, cmd, val uint32) error {
 	ev := ethtoolValue{cmd: cmd, data: val}
 	var ifr ifreqOffload
 	copy(ifr.name[:], ifaceName)
-	ifr.data = uintptr(unsafe.Pointer(&ev))
+	ifr.data = uintptr(unsafe.Pointer(&ev)) //nolint:gosec // ethtool SIOCETHTOOL ioctl requires a raw pointer to ethtoolValue
 
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, //nolint:gosec // SIOCETHTOOL requires raw ifreq pointer
-		uintptr(fd), uintptr(unix.SIOCETHTOOL), uintptr(unsafe.Pointer(&ifr)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
+		uintptr(fd), uintptr(unix.SIOCETHTOOL), uintptr(unsafe.Pointer(&ifr))) //nolint:gosec // ethtool SIOCETHTOOL ioctl requires a raw ifreq pointer
 	if errno != 0 {
 		return fmt.Errorf("ethtool cmd 0x%x on %s: %w", cmd, ifaceName, errno)
 	}
@@ -180,8 +180,8 @@ func ethtoolIoctl(fd int, ifaceName string, data unsafe.Pointer) error {
 	var ifr ifreqOffload
 	copy(ifr.name[:], ifaceName)
 	ifr.data = uintptr(data)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, //nolint:gosec // SIOCETHTOOL requires raw ifreq pointer
-		uintptr(fd), uintptr(unix.SIOCETHTOOL), uintptr(unsafe.Pointer(&ifr)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
+		uintptr(fd), uintptr(unix.SIOCETHTOOL), uintptr(unsafe.Pointer(&ifr))) //nolint:gosec // ethtool SIOCETHTOOL ioctl requires a raw ifreq pointer
 	if errno != 0 {
 		return errno
 	}
@@ -278,7 +278,7 @@ func applyRPS(ifaceName string, enable bool) error {
 	}
 
 	for _, path := range matches {
-		if err := os.WriteFile(path, []byte(value), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(value), 0o600); err != nil {
 			return fmt.Errorf("write %s: %w", path, err)
 		}
 	}
@@ -306,7 +306,7 @@ func applyRFSQueues(ifaceName string, enable bool) error {
 	}
 
 	for _, path := range matches {
-		if err := os.WriteFile(path, []byte(perQueue), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(perQueue), 0o600); err != nil {
 			return fmt.Errorf("write %s: %w", path, err)
 		}
 	}

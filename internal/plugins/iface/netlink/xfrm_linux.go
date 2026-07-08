@@ -68,7 +68,7 @@ func (b *netlinkBackend) GetXFRMInfo(name string) (iface.XFRMInfo, error) {
 
 	policies, err := netlink.XfrmPolicyList(netlink.FAMILY_ALL)
 	if err != nil {
-		return info, nil
+		return info, nil //nolint:nilerr // best-effort: XFRM policy list is optional enrichment, absent on error
 	}
 	for i := range policies {
 		p := &policies[i]

@@ -123,7 +123,7 @@ func capturePcap(ctx context.Context, conn *packet.Conn, ca captureArgs) (*plugi
 		captured++
 	}
 
-	return &plugin.Response{
+	return &plugin.Response{ //nolint:nilerr // partial capture returned on ctx deadline/cancel; not a Go error
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"format":   captureFormatPcap,

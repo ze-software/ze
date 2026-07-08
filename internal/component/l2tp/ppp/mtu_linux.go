@@ -43,6 +43,7 @@ const pppiocConnect = 0x4004743a
 
 func realConnect(chanFD, unitNum int) error {
 	val := int32(unitNum) //nolint:gosec // unitNum is small
+	//nolint:gosec // PPPIOCCONNECT's user pointer is the kernel's documented contract; no Go wrapper in golang.org/x/sys/unix
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
 		uintptr(chanFD),
 		uintptr(pppiocConnect),

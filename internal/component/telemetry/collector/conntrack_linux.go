@@ -124,7 +124,7 @@ func readConntrackMax() uint64 {
 }
 
 func readProcUint64(path string) uint64 {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // path is a compile-time-constant /proc path at all call sites
 	if err != nil {
 		return 0
 	}

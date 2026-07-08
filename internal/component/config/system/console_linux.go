@@ -5,6 +5,7 @@
 package system
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -126,7 +127,7 @@ func gettyActive(systemctl, device string) bool {
 	}
 
 	serviceName := "serial-getty@" + device + ".service"
-	cmd := exec.Command(systemctl, "is-active", "--quiet", serviceName)
+	cmd := exec.CommandContext(context.Background(), systemctl, "is-active", "--quiet", serviceName) //nolint:gosec // systemctl is LookPath-resolved; literal args plus a service name, run without a shell
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	cmd.Env = append(os.Environ(), "LANG=C")

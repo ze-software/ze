@@ -39,7 +39,7 @@ func handleSetSystemFD(_ *pluginserver.CommandContext, args []string) (*plugin.R
 		var err error
 		requested, err = strconv.ParseUint(args[0], 10, 64)
 		if err != nil || requested == 0 {
-			return &plugin.Response{Status: plugin.StatusError, Error: "invalid limit: " + args[0]}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: "invalid limit: " + args[0]}, nil //nolint:nilerr // invalid input surfaced via Response.Error, not a Go error (matches file:32)
 		}
 		if requested > current.Max {
 			msg := "requested " + args[0] + " exceeds hard limit " + textbuf.StringUint(current.Max)
