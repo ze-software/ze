@@ -115,6 +115,31 @@ func TestConfigUploadValidatesRejects(t *testing.T) {
 	assert.NotContains(t, string(committed), "garbage")
 }
 
+// VALIDATES: AC-4 -- when the reload hook rejects an uploaded config, the prior
+// committed content is restored (editor.go ApplyCommittedContent restore path)
+// and the client receives 500.
+// PREVENTS: the daemon being left with an on-disk config its reload rejected.
+func TestConfigUploadHookFailureRestores(t *testing.T) {
+	mgr, _ := newHandlerTestManager(t)
+	mgr.SetCommitHook(func() error { return errors.New("reload rejected") })
+
+	handler := HandleConfigUpload(mgr, func(_, _ string) error { return nil }, "cfg", adminWebAuthorizer(), nil)
+
+	form := url.Values{"config": {"bgp {\n\trouter-id 9.9.9.9\n\tsession { asn { local 65000; } }\n}\n"}}
+	req := postConfigRequest(t, "/config/upload", form, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	assert.Contains(t, rec.Body.String(), "applying config")
+
+	committed, readErr := mgr.CommittedConfig()
+	require.NoError(t, readErr)
+	assert.Contains(t, string(committed), "1.2.3.4", "prior config must be restored after hook failure")
+	assert.NotContains(t, string(committed), "9.9.9.9", "rejected config must not remain committed")
+}
+
 // VALIDATES: AC-1/AC-4 -- a read-only session cannot upload (403), config unchanged.
 // PREVENTS: RBAC bypass through the upload endpoint.
 func TestConfigUploadRBACDeny(t *testing.T) {

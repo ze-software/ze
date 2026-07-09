@@ -95,6 +95,45 @@ func TestProfilesInRequestContext(t *testing.T) {
 	}
 }
 
+func TestRouteGateRealAuthzChain(t *testing.T) {
+	// VALIDATES: AC-1 end-to-end -- the gate decision flows through the REAL
+	// chain: authz.Store section routing (isReadOnly=false -> Edit section),
+	// the builtin profiles' Edit defaults (read-only: Deny; admin: Allow), and
+	// the StoreAuthorizer adapter. Guards the rbac.go premise that the
+	// representative edit command is denied by the builtin read-only profile.
+	// PREVENTS: a stub-only test suite hiding a regression in any real link
+	// (section routing, builtin profile defaults, adapter mapping).
+	store := authz.NewStore()
+	store.AddProfile(authz.BuiltinReadOnlyProfile())
+	store.AddProfile(authz.BuiltinAdminProfile())
+	store.AssignProfiles("bob", []string{"read-only"})
+	store.AssignProfiles("root", []string{"admin"})
+	authorizer := authz.StoreAuthorizer{Store: store}
+
+	gate := RequireEditAuthz(authorizer, okHandler())
+
+	asUser := func(user string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/config/edit/", http.NoBody)
+		req = req.WithContext(withUsername(req.Context(), user))
+		rec := httptest.NewRecorder()
+		gate.ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := asUser("bob"); rec.Code != http.StatusForbidden {
+		t.Fatalf("read-only profile via real store: status %d, want 403", rec.Code)
+	}
+	if rec := asUser("root"); rec.Code != http.StatusOK {
+		t.Fatalf("admin profile via real store: status %d, want 200", rec.Code)
+	}
+
+	reqBob := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	reqBob = reqBob.WithContext(withUsername(reqBob.Context(), "bob"))
+	if CanEdit(reqBob, authorizer) {
+		t.Fatal("read-only profile via real store: CanEdit = true, want false")
+	}
+}
+
 func TestCanEditReflectsAuthorizer(t *testing.T) {
 	// VALIDATES: AC-1 -- CanEdit (used for nav hiding) mirrors the gate decision.
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
