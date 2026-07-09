@@ -23,7 +23,14 @@ type (
 	HelpSection = core.HelpSection
 	// HelpEntry is a single command, flag, or option in a help section.
 	HelpEntry = core.HelpEntry
+	// RenderWriter is the shared error-capturing writer for CLI render paths.
+	RenderWriter = core.RenderWriter
 )
+
+// NewRenderWriter returns a RenderWriter over w.
+func NewRenderWriter(w io.Writer) *RenderWriter {
+	return core.NewRenderWriter(w)
+}
 
 // WriteError writes a colored error message to w.
 func WriteError(w io.Writer, color bool, format string, a ...any) {

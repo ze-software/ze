@@ -153,11 +153,13 @@ func dispatchMain(args []string) int {
 	if len(args) > 0 {
 		switch args[0] {
 		case "--version", "-V":
-			fmt.Println(zeversion.Short())
-			return 0
+			rw := helpfmt.NewRenderWriter(os.Stdout)
+			rw.Line(zeversion.Short())
+			return rw.ExitCode()
 		case "--extended-version":
-			fmt.Println(zeversion.Extended())
-			return 0
+			rw := helpfmt.NewRenderWriter(os.Stdout)
+			rw.Line(zeversion.Extended())
+			return rw.ExitCode()
 		}
 	}
 

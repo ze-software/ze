@@ -65,24 +65,28 @@ func (p *Page) WriteOut() {
 }
 
 // WriteTo renders the help page to w. If color is true, applies ANSI codes.
+// Output routes through a RenderWriter so a broken pipe stops the render loop;
+// the byte stream is identical to the previous fmt.Fprintf implementation.
 func (p *Page) WriteTo(w io.Writer, color bool) {
-	wr := func(format string, a ...any) { fmt.Fprintf(w, format, a...) } //nolint:errcheck // help output to stderr
+	rw := NewRenderWriter(w)
+	var b textbuf.Buffer
 
 	// Header: "command - software" or "command - summary"
 	switch {
 	case p.Software != "":
-		wr("%s - %s\n", styled(color, styleCommand, p.Command), p.Software)
+		rw.Line(b.Reset().Str(styled(color, styleCommand, p.Command)).Str(" - ").Str(p.Software).String())
 	case p.Summary != "":
-		wr("%s - %s\n", styled(color, styleCommand, p.Command), styled(color, styleSummary, p.Summary))
+		rw.Line(b.Reset().Str(styled(color, styleCommand, p.Command)).Str(" - ").Str(styled(color, styleSummary, p.Summary)).String())
 	default:
-		wr("%s\n", styled(color, styleCommand, p.Command))
+		rw.Line(styled(color, styleCommand, p.Command))
 	}
 
 	// Usage
 	if len(p.Usage) > 0 {
-		wr("\n%s\n", styled(color, styleHeader, "Usage:"))
+		rw.Str("\n")
+		rw.Line(styled(color, styleHeader, "Usage:"))
 		for _, u := range p.Usage {
-			wr("  %s\n", highlightArgs(color, u))
+			rw.Line(b.Reset().Str("  ").Str(highlightArgs(color, u)).String())
 		}
 	}
 
@@ -91,33 +95,36 @@ func (p *Page) WriteTo(w io.Writer, color bool) {
 		if len(s.Entries) == 0 {
 			continue
 		}
-		wr("\n%s\n", styled(color, styleHeader, s.Title+":"))
+		rw.Str("\n")
+		rw.Line(styled(color, styleHeader, b.Reset().Str(s.Title).Byte(':').String()))
 		width := entryWidth(s.Entries)
 		for _, e := range s.Entries {
 			// Pad based on raw name length, then apply color.
-			// ANSI codes add bytes that fmt.Sprintf counts, so pad first.
-			padded := fmt.Sprintf("%-*s", width, e.Name)
-			wr("  %s %s\n", styleEntry(color, padded), Summary(e.Desc))
+			// ANSI codes add bytes, so pad the raw name first.
+			padded := b.Reset().PadRight(e.Name, width).String()
+			rw.Line(b.Reset().Str("  ").Str(styleEntry(color, padded)).Byte(' ').Str(Summary(e.Desc)).String())
 		}
 	}
 
 	// Examples
 	if len(p.Examples) > 0 {
-		wr("\n%s\n", styled(color, styleHeader, "Examples:"))
+		rw.Str("\n")
+		rw.Line(styled(color, styleHeader, "Examples:"))
 		for _, ex := range p.Examples {
-			wr("  %s\n", styled(color, styleExample, ex))
+			rw.Line(b.Reset().Str("  ").Str(styled(color, styleExample, ex)).String())
 		}
 	}
 
 	// See also
 	if len(p.SeeAlso) > 0 {
-		wr("\n%s\n", styled(color, styleHeader, "See also:"))
+		rw.Str("\n")
+		rw.Line(styled(color, styleHeader, "See also:"))
 		for _, sa := range p.SeeAlso {
-			wr("  %s\n", styled(color, styleExample, sa))
+			rw.Line(b.Reset().Str("  ").Str(styled(color, styleExample, sa)).String())
 		}
 	}
 
-	wr("\n")
+	rw.Str("\n")
 }
 
 // WriteError writes a colored error message to w.

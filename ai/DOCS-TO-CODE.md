@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 273 design docs, 2868 files
+Total: 273 design docs, 2869 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -978,6 +978,7 @@ Total: 273 design docs, 2868 files
 | `internal/core/audit/store.go` | audit log persistence |
 | `internal/core/dscp/dscp.go` | DSCP name-to-value map |
 | `internal/core/helpfmt/helpfmt.go` | CLI help formatting |
+| `internal/core/helpfmt/renderwriter.go` | CLI render write-error capture |
 | `internal/core/identity/identity.go` | stable machine identity via zefs |
 | `internal/core/identity/identity_test.go` | tests for machine identity resolution |
 | `internal/core/metrics/exporter_hook.go` | gated Prometheus HTTP exporter seam |

@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -195,15 +196,22 @@ func (e *Editor) PromptPendingEdit() PendingEditAction {
 	modTime := e.PendingEditTime()
 	timeStr := modTime.Format("2006-01-02 15:04")
 
-	fmt.Printf("\nFound uncommitted changes from %s.\n", timeStr)
-	fmt.Println("  [c] Continue editing")
-	fmt.Println("  [d] Discard and start fresh")
-	fmt.Println("  [v] View changes first")
-	fmt.Println("  [q] Quit")
+	// Route prompt output through a RenderWriter: if stdout is broken there is no
+	// way to interact, so a write error aborts the prompt as a quit.
+	rw := helpfmt.NewRenderWriter(os.Stdout)
+	var tb textbuf.Buffer
+	rw.Str(tb.Str("\nFound uncommitted changes from ").Str(timeStr).Str(".\n").String())
+	rw.Line("  [c] Continue editing")
+	rw.Line("  [d] Discard and start fresh")
+	rw.Line("  [v] View changes first")
+	rw.Line("  [q] Quit")
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
-		fmt.Print("Choice: ")
+		rw.Str("Choice: ")
+		if rw.Err() != nil {
+			return PendingEditQuit
+		}
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return PendingEditQuit
@@ -218,19 +226,19 @@ func (e *Editor) PromptPendingEdit() PendingEditAction {
 		case "v":
 			diff := e.PendingEditDiff()
 			if diff == "" {
-				fmt.Println("\nNo differences found.")
+				rw.Line("\nNo differences found.")
 			} else {
-				fmt.Println("\nChanges:")
-				fmt.Println(diff)
+				rw.Line("\nChanges:")
+				rw.Line(diff)
 			}
 			// After viewing, prompt again
-			fmt.Println("  [c] Continue editing")
-			fmt.Println("  [d] Discard and start fresh")
-			fmt.Println("  [q] Quit")
+			rw.Line("  [c] Continue editing")
+			rw.Line("  [d] Discard and start fresh")
+			rw.Line("  [q] Quit")
 		case "q":
 			return PendingEditQuit
 		default:
-			fmt.Println("Invalid choice. Enter c, d, v, or q.")
+			rw.Line("Invalid choice. Enter c, d, v, or q.")
 		}
 	}
 }

@@ -114,12 +114,16 @@ func init() {
 	binaryUsage = zeUsage
 }
 
-func printVersion(extended bool) {
+// printVersion writes the version line through a RenderWriter and returns the
+// exit code (non-zero on a broken pipe).
+func printVersion(extended bool) int {
+	rw := helpfmt.NewRenderWriter(os.Stdout)
 	if extended {
-		fmt.Println(zeversion.Extended())
+		rw.Line(zeversion.Extended())
 	} else {
-		fmt.Println(zeversion.Short())
+		rw.Line(zeversion.Short())
 	}
+	return rw.ExitCode()
 }
 
 func withPanicCapture(fn func() int) (exitCode int) {
@@ -267,11 +271,9 @@ func zeParseGlobalFlags(args []string) ([]string, int) {
 		case "--plugins":
 			return args, 0
 		case "--version", "-V":
-			printVersion(false)
-			return nil, 0
+			return nil, printVersion(false)
 		case "--extended-version":
-			printVersion(true)
-			return nil, 0
+			return nil, printVersion(true)
 		case "--help", "-h": //nolint:goconst // consistent pattern across cmd files
 			return args, 0
 		default:
@@ -435,8 +437,7 @@ func zeDispatch(args []string) int {
 
 func registerLocalCommands() {
 	registry.MustRegisterLocalMeta("show version", func(args []string) int {
-		printVersion(slices.Contains(args, "--extended"))
-		return 0
+		return printVersion(slices.Contains(args, "--extended"))
 	}, registry.Meta{
 		Description: "Show the running Ze version and build date",
 		Mode:        "offline",
@@ -472,8 +473,7 @@ func registerLocalCommands() {
 		Subs:        "--listen <addr>",
 	})
 	registry.MustRegisterRootHandler("help", func(_ *registry.RuntimeContext, args []string) int {
-		dispatchHelp(args)
-		return 0
+		return dispatchHelp(args)
 	}, registry.Meta{
 		Description: "Show available commands and how to use them",
 		Mode:        "offline",
@@ -497,17 +497,11 @@ func registerLocalCommands() {
 		Section:     registry.SectionSystem,
 		Subs:        "json, table, text, yaml, ndjson, match <pattern>, count, first <n>, last <n>, resolve",
 	})
-	registry.MustRegisterLocalMeta("help command", func(args []string) int {
-		printHelpCommand(args)
-		return 0
-	}, registry.Meta{
+	registry.MustRegisterLocalMeta("help command", printHelpCommand, registry.Meta{
 		Description: "List every command with its description. Use a filter to narrow the list.",
 		Mode:        "offline",
 	})
-	registry.MustRegisterLocalMeta("help ai", func(args []string) int {
-		printAIHelp(args)
-		return 0
-	}, registry.Meta{
+	registry.MustRegisterLocalMeta("help ai", printAIHelp, registry.Meta{
 		Description: "AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json).",
 		Mode:        "offline",
 	})
@@ -520,7 +514,7 @@ func newZeRuntimeContext() *registry.RuntimeContext {
 		ResolveStorage: func() any { return resolveStorage() },
 		Plugins:        zeFlags.plugins,
 		ConfigOverride: zeFlags.fileOverride,
-		PrintVersion:   printVersion,
+		PrintVersion:   versionPrinter,
 		WebPort:        zeFlags.webPort,
 		WebOnly:        zeFlags.webOnly,
 		InsecureWeb:    zeFlags.insecureWeb,
@@ -530,6 +524,12 @@ func newZeRuntimeContext() *registry.RuntimeContext {
 		ChaosRate:      zeFlags.chaosRate,
 	}
 }
+
+// versionPrinter adapts printVersion (which returns an exit code) to the void
+// RuntimeContext.PrintVersion field. The `ze version` root command returns 0
+// regardless; the non-zero-exit-on-write-error contract is honored on the
+// primary `ze --version` / `ze -V` path.
+func versionPrinter(extended bool) { printVersion(extended) }
 
 func dispatchRegisteredRoot(arg string, rctx *registry.RuntimeContext, rest []string) (code int, handled bool) {
 	handler := registry.LookupRoot(arg)
@@ -601,23 +601,25 @@ func detectConfigType(store storage.Storage, path string) config.ConfigType {
 	return config.ProbeConfigType(string(data))
 }
 
-func dispatchHelp(args []string) {
+func dispatchHelp(args []string) int {
 	switch {
 	case len(args) > 0 && args[0] == "command":
 		if slices.Contains(args[1:], "--help") || slices.Contains(args[1:], "-h") {
 			helpCommandUsage()
-		} else {
-			printHelpCommand(args[1:])
+			return 0
 		}
+		return printHelpCommand(args[1:])
 	case len(args) > 0 && args[0] == "ai":
 		// Canonical form: ze help ai [cli|api|mcp|dispatch|all] [--json].
-		printAIHelp(args[1:])
+		return printAIHelp(args[1:])
 	case aiHelpRequested(args):
 		// Deprecated alias: ze help --ai [--cli|--api|...]. Still accepted.
-		printAIHelp(args)
+		return printAIHelp(args)
 	case slices.Contains(args, "--help") || slices.Contains(args, "-h"):
 		helpUsage()
+		return 0
 	default:
 		zeUsage()
+		return 0
 	}
 }

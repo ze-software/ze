@@ -13,6 +13,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"slices"
 	"sort"
@@ -57,7 +58,15 @@ type commandEntry struct {
 }
 
 // printHelpCommand implements `ze help command [filter...] [--json] [--verbose]`.
-func printHelpCommand(args []string) {
+// Output routes through a helpfmt.RenderWriter so a broken pipe surfaces as a
+// non-zero exit; returns the exit code.
+func printHelpCommand(args []string) int {
+	return renderHelpCommand(os.Stdout, args)
+}
+
+// renderHelpCommand writes the catalog to w and returns the exit code. Split
+// from printHelpCommand so tests can drive a failing writer.
+func renderHelpCommand(w io.Writer, args []string) int {
 	jsonOutput := slices.Contains(args, "--json")
 	verbose := slices.Contains(args, "--verbose") || slices.Contains(args, "-v")
 	filter := extractCommandFilter(args)
@@ -68,14 +77,17 @@ func printHelpCommand(args []string) {
 		entries = filterCommands(entries, filter)
 	}
 
-	switch {
-	case jsonOutput:
-		printCommandJSON(entries)
-	case verbose:
-		printCommandVerbose(entries)
-	default:
-		printCommandTable(entries)
+	if jsonOutput {
+		return printCommandJSON(w, entries)
 	}
+
+	rw := helpfmt.NewRenderWriter(w)
+	if verbose {
+		printCommandVerbose(rw, entries)
+	} else {
+		printCommandTable(rw, entries)
+	}
+	return rw.ExitCode()
 }
 
 // extractCommandFilter returns the first positional argument (not a flag).
@@ -240,19 +252,22 @@ func filterCommands(entries []commandEntry, filter string) []commandEntry {
 	return filtered
 }
 
-// printCommandJSON writes entries as a JSON array to stdout.
-func printCommandJSON(entries []commandEntry) {
-	enc := json.NewEncoder(os.Stdout)
+// printCommandJSON writes entries as a JSON array to w and returns the exit code.
+func printCommandJSON(w io.Writer, entries []commandEntry) int {
+	rw := helpfmt.NewRenderWriter(w)
+	enc := json.NewEncoder(rw)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(entries); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err) //nolint:errcheck // one-shot error to stderr
+		return 1
 	}
+	return rw.ExitCode()
 }
 
-// printCommandVerbose writes a detailed entry for each command.
-func printCommandVerbose(entries []commandEntry) {
+// printCommandVerbose writes a detailed entry for each command through rw.
+func printCommandVerbose(rw *helpfmt.RenderWriter, entries []commandEntry) {
 	if len(entries) == 0 {
-		fmt.Fprintf(os.Stderr, "no commands found\n")
+		fmt.Fprintf(os.Stderr, "no commands found\n") //nolint:errcheck // one-shot diagnostic to stderr
 		return
 	}
 
@@ -263,11 +278,11 @@ func printCommandVerbose(entries []commandEntry) {
 	for i := range entries {
 		e := &entries[i]
 		if i > 0 {
-			fmt.Println()
+			rw.Line("")
 		}
 		// Command path
 		tb.Reset().Colored(c.BoldCyan).Str(e.Path).Colored(c.Reset)
-		fmt.Println(tb.Slice())
+		rw.Line(tb.Slice())
 
 		// Description (full, multi-line)
 		desc := e.Description
@@ -276,7 +291,7 @@ func printCommandVerbose(entries []commandEntry) {
 		}
 		for line := range strings.SplitSeq(desc, "\n") {
 			tb.Reset().Str("  ").Str(line)
-			fmt.Println(tb.Slice())
+			rw.Line(tb.Slice())
 		}
 
 		// Mode, wire method, backend, task support
@@ -284,31 +299,31 @@ func printCommandVerbose(entries []commandEntry) {
 		if e.WireMethod != "" {
 			tb.Str("  ").Colored(c.Dim).Str("wire: ").Str(e.WireMethod).Colored(c.Reset)
 		}
-		fmt.Println(tb.Slice())
+		rw.Line(tb.Slice())
 
 		if len(e.Backend) > 0 {
 			tb.Reset().Str("  ").Colored(c.BrightYellow).Str("backend: ").Colored(c.Reset).Str(textbuf.Join(e.Backend, ", "))
-			fmt.Println(tb.Slice())
+			rw.Line(tb.Slice())
 		}
 
 		if e.TaskSupport != "" {
 			tb.Reset().Str("  ").Colored(c.Dim).Str("task-support: ").Str(e.TaskSupport).Colored(c.Reset)
-			fmt.Println(tb.Slice())
+			rw.Line(tb.Slice())
 		}
 
 		// Arguments
 		if len(e.Args) > 0 {
 			tb.Reset().Str("  ").Colored(c.BrightYellow).Str("arguments:").Colored(c.Reset)
-			fmt.Println(tb.Slice())
+			rw.Line(tb.Slice())
 			for _, a := range e.Args {
 				tb.Reset().Str("    ").Str(a.Name).Str(" (").Str(a.Type).Str(")")
 				if a.Mandatory {
 					tb.Str(" REQUIRED")
 				}
-				fmt.Println(tb.Slice())
+				rw.Line(tb.Slice())
 				if len(a.Values) > 0 {
 					tb.Reset().Str("      values: ").Str(textbuf.Join(a.Values, ", "))
-					fmt.Println(tb.Slice())
+					rw.Line(tb.Slice())
 				}
 			}
 		}
@@ -316,10 +331,10 @@ func printCommandVerbose(entries []commandEntry) {
 		// Pipes
 		if e.GlobalPipes || len(e.Pipes) > 0 {
 			tb.Reset().Str("  ").Colored(c.BrightYellow).Str("pipes:").Colored(c.Reset)
-			fmt.Println(tb.Slice())
+			rw.Line(tb.Slice())
 			if e.GlobalPipes {
 				tb.Reset().Str("    ").Colored(c.Dim).Str("json, table, text, yaml, ndjson, match, count, resolve, origin, no-more").Colored(c.Reset)
-				fmt.Println(tb.Slice())
+				rw.Line(tb.Slice())
 			}
 			for _, p := range e.Pipes {
 				tb.Reset().Str("    ").Str(p.Name)
@@ -327,25 +342,25 @@ func printCommandVerbose(entries []commandEntry) {
 					tb.Str(" <value>")
 				}
 				tb.Str("  ").Colored(c.Dim).Str(p.Description).Colored(c.Reset)
-				fmt.Println(tb.Slice())
+				rw.Line(tb.Slice())
 			}
 		}
 
 		// Subcommands
 		if len(e.Subcommands) > 0 {
 			tb.Reset().Str("  ").Colored(c.BrightYellow).Str("subcommands: ").Colored(c.Reset).Str(textbuf.Join(e.Subcommands, ", "))
-			fmt.Println(tb.Slice())
+			rw.Line(tb.Slice())
 		}
 	}
-	fmt.Println()
+	rw.Line("")
 	tb.Reset().Int(int64(len(entries))).Str(" commands")
-	fmt.Println(tb.Slice())
+	rw.Line(tb.Slice())
 }
 
-// printCommandTable writes entries as a human-readable table to stdout.
-func printCommandTable(entries []commandEntry) {
+// printCommandTable writes entries as a human-readable table through rw.
+func printCommandTable(rw *helpfmt.RenderWriter, entries []commandEntry) {
 	if len(entries) == 0 {
-		fmt.Fprintf(os.Stderr, "no commands found\n")
+		fmt.Fprintf(os.Stderr, "no commands found\n") //nolint:errcheck // one-shot diagnostic to stderr
 		return
 	}
 
@@ -373,10 +388,10 @@ func printCommandTable(entries []commandEntry) {
 		}
 		pad := strings.Repeat(" ", width-len(e.Path))
 		tb.Reset().Str("  ").Colored(c.BoldCyan).Str(e.Path).Str(pad).Colored(c.Reset).Str("  ").Str(desc)
-		fmt.Println(tb.Slice())
+		rw.Line(tb.Slice())
 	}
-	fmt.Println()
-	fmt.Println(tb.Reset().Int(int64(len(entries))).Str(" commands").Slice())
+	rw.Line("")
+	rw.Line(tb.Reset().Int(int64(len(entries))).Str(" commands").Slice())
 }
 
 // helpCommandUsage prints usage for `ze help command`.

@@ -7,6 +7,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"slices"
 	"sort"
@@ -36,10 +37,19 @@ import (
 //
 // The legacy flag form (ze help --ai --api) is accepted as a hidden alias, so
 // section detection matches both "api" and "--api". --json stays a format flag.
-func printAIHelp(args []string) {
+//
+// Output routes through a helpfmt.RenderWriter: a write error (e.g. `ze help ai
+// | head` closing the pipe) is captured and returned as a non-zero exit code
+// instead of being silently swallowed.
+func printAIHelp(args []string) int {
+	return renderAIHelp(os.Stdout, args)
+}
+
+// renderAIHelp writes the reference to w and returns the exit code (non-zero on
+// a write error). Split from printAIHelp so tests can drive a failing writer.
+func renderAIHelp(w io.Writer, args []string) int {
 	if slices.Contains(args, "--json") {
-		printAIHelpJSON()
-		return
+		return printAIHelpJSON(w)
 	}
 
 	showCLI := hasSection(args, "cli")
@@ -57,54 +67,56 @@ func printAIHelp(args []string) {
 
 	summaryOnly := !showCLI && !showAPI && !showMCP && !showDispatch
 
-	fmt.Println("# Ze AI Reference")
-	fmt.Println("# Generated from code -- always matches this binary.")
-	fmt.Println()
+	rw := helpfmt.NewRenderWriter(w)
+	rw.Line("# Ze AI Reference")
+	rw.Line("# Generated from code -- always matches this binary.")
+	rw.Line("")
 
 	if summaryOnly {
-		printSummary()
-		return
+		printSummary(rw)
+		return rw.ExitCode()
 	}
 
 	if showCLI {
-		printCLICommands()
+		printCLICommands(rw)
 	}
 	if showAPI {
-		printAPICommands()
-		printUpdateSyntax()
-		printFamilies()
-		printAIPlugins()
-		printPeerSelectors()
-		printFamilyAttributes()
-		printRIBPipeline()
+		printAPICommands(rw)
+		printUpdateSyntax(rw)
+		printFamilies(rw)
+		printAIPlugins(rw)
+		printPeerSelectors(rw)
+		printFamilyAttributes(rw)
+		printRIBPipeline(rw)
 	}
 	if showDispatch {
-		printDispatchKeys()
+		printDispatchKeys(rw)
 	}
 	if showMCP {
-		printMCPTools()
+		printMCPTools(rw)
 	}
 
 	// Recipes and errors are useful in any detailed view.
 	if showCLI || showAPI || showMCP {
-		printServices()
-		printRecipes()
-		printCommonErrors()
+		printServices(rw)
+		printRecipes(rw)
+		printCommonErrors(rw)
 	}
 	if showCLI || showMCP {
-		printMinimalConfig()
+		printMinimalConfig(rw)
 	}
+	return rw.ExitCode()
 }
 
-func printSummary() {
-	fmt.Println("## Sections (use 'ze help ai <section>' for details)")
-	fmt.Println()
-	fmt.Println("  cli       CLI subcommands: ze bgp, ze config, ze show, ze signal, ...")
-	fmt.Println("  api       Daemon API: all RPC commands, update syntax, families, plugins")
-	fmt.Println("  mcp       MCP tools: ze_execute, ze_reference, ze_announce, ze_withdraw")
-	fmt.Println("  dispatch  Dispatch keys for daemon commands")
-	fmt.Println("  all       Everything")
-	fmt.Println()
+func printSummary(rw *helpfmt.RenderWriter) {
+	rw.Line("## Sections (use 'ze help ai <section>' for details)")
+	rw.Line("")
+	rw.Line("  cli       CLI subcommands: ze bgp, ze config, ze show, ze signal, ...")
+	rw.Line("  api       Daemon API: all RPC commands, update syntax, families, plugins")
+	rw.Line("  mcp       MCP tools: ze_execute, ze_reference, ze_announce, ze_withdraw")
+	rw.Line("  dispatch  Dispatch keys for daemon commands")
+	rw.Line("  all       Everything")
+	rw.Line("")
 
 	regs := registry.All()
 	var familyCount int
@@ -122,37 +134,38 @@ func printSummary() {
 	rpcCount := len(schemaReg.ListRPCs(""))
 	builtinCount := len(pluginserver.AllBuiltinRPCs())
 
-	fmt.Printf("  %d plugins, %d address families\n", len(regs), familyCount)
-	fmt.Printf("  %d YANG RPCs, %d builtin RPCs\n", rpcCount, builtinCount)
-	fmt.Println("  MCP tools: ze_execute, ze_reference (handcrafted) + per-group tools auto-generated from the YANG command registry")
-	fmt.Println()
-	fmt.Println("## Quick Start")
-	fmt.Println()
-	fmt.Println("  Daemon:  ze start --mcp 9718")
-	fmt.Println("  Or:      ze --mcp 9718 config.conf")
-	fmt.Println("  CLI:     ze cli")
-	fmt.Println("  Show:    ze show <command>")
-	fmt.Println("  Help:    ze help ai all")
+	var tb textbuf.Buffer
+	rw.Line(tb.Reset().Str("  ").Int(int64(len(regs))).Str(" plugins, ").Int(int64(familyCount)).Str(" address families").String())
+	rw.Line(tb.Reset().Str("  ").Int(int64(rpcCount)).Str(" YANG RPCs, ").Int(int64(builtinCount)).Str(" builtin RPCs").String())
+	rw.Line("  MCP tools: ze_execute, ze_reference (handcrafted) + per-group tools auto-generated from the YANG command registry")
+	rw.Line("")
+	rw.Line("## Quick Start")
+	rw.Line("")
+	rw.Line("  Daemon:  ze start --mcp 9718")
+	rw.Line("  Or:      ze --mcp 9718 config.conf")
+	rw.Line("  CLI:     ze cli")
+	rw.Line("  Show:    ze show <command>")
+	rw.Line("  Help:    ze help ai all")
 }
 
-func printCLICommands() {
-	fmt.Println("## CLI Subcommands")
-	fmt.Println()
-	fmt.Println("  ze [global-flags] <command> [options]")
-	fmt.Println()
-	fmt.Println("  Modes: [offline] no daemon needed  [daemon] requires running daemon  [setup] one-time setup")
-	fmt.Println()
-	fmt.Println("  Global flags:")
-	fmt.Println("    -d, --debug            Enable debug logging")
-	fmt.Println("    -f <file>              Use filesystem directly, bypass blob store")
-	fmt.Println("    --plugin <name>        Load plugin before starting (repeatable)")
-	fmt.Println("    --mcp <port>           Start MCP server on 127.0.0.1:<port>")
-	fmt.Println("    --web <port>           Start web server on 0.0.0.0:<port>")
-	fmt.Println("    --web-only             Web UI only, no daemon (config editing only)")
-	fmt.Println("    --insecure-web         Disable web auth (forces 127.0.0.1)")
-	fmt.Println("    --pprof <addr:port>    Start pprof HTTP server")
-	fmt.Println("    -V, --version          Show version")
-	fmt.Println()
+func printCLICommands(rw *helpfmt.RenderWriter) {
+	rw.Line("## CLI Subcommands")
+	rw.Line("")
+	rw.Line("  ze [global-flags] <command> [options]")
+	rw.Line("")
+	rw.Line("  Modes: [offline] no daemon needed  [daemon] requires running daemon  [setup] one-time setup")
+	rw.Line("")
+	rw.Line("  Global flags:")
+	rw.Line("    -d, --debug            Enable debug logging")
+	rw.Line("    -f <file>              Use filesystem directly, bypass blob store")
+	rw.Line("    --plugin <name>        Load plugin before starting (repeatable)")
+	rw.Line("    --mcp <port>           Start MCP server on 127.0.0.1:<port>")
+	rw.Line("    --web <port>           Start web server on 0.0.0.0:<port>")
+	rw.Line("    --web-only             Web UI only, no daemon (config editing only)")
+	rw.Line("    --insecure-web         Disable web auth (forces 127.0.0.1)")
+	rw.Line("    --pprof <addr:port>    Start pprof HTTP server")
+	rw.Line("    -V, --version          Show version")
+	rw.Line("")
 
 	// CLI tree. The subcommand list is static text that matches the dispatcher
 	// in cmd/ze/main.go. It changes rarely and is verified by functional tests.
@@ -160,21 +173,21 @@ func printCLICommands() {
 	for _, c := range cmds {
 		var tb textbuf.Buffer
 		tb.Str("  ze ").PadRight(c.Name, 14).Str(" [").PadRight(c.Mode, 7).Str("] ").Str(c.Description)
-		fmt.Println(tb.Slice())
+		rw.Line(tb.Slice())
 		if c.Subs != "" {
 			tb.Reset()
 			tb.Str("    ").Str(c.Subs)
-			fmt.Println(tb.Slice())
+			rw.Line(tb.Slice())
 		}
 	}
-	fmt.Println()
+	rw.Line("")
 }
 
-func printAPICommands() {
-	fmt.Println("## Daemon API Commands (YANG RPCs)")
-	fmt.Println()
-	fmt.Println("Format: wire-method (dispatch-key) description")
-	fmt.Println()
+func printAPICommands(rw *helpfmt.RenderWriter) {
+	rw.Line("## Daemon API Commands (YANG RPCs)")
+	rw.Line("")
+	rw.Line("Format: wire-method (dispatch-key) description")
+	rw.Line("")
 
 	wireToPath := cli.WireToPath()
 	schemaReg := aihelp.SchemaRegistry()
@@ -184,6 +197,7 @@ func printAPICommands() {
 		return rpcs[i].WireMethod < rpcs[j].WireMethod
 	})
 
+	var tb textbuf.Buffer
 	for _, rpc := range rpcs {
 		desc := rpc.Description
 		if desc == "" {
@@ -200,9 +214,9 @@ func printAPICommands() {
 
 		dispatch := wireToPath[rpc.WireMethod]
 		if dispatch != "" {
-			fmt.Printf("  %-44s (%-30s) %s%s\n", rpc.WireMethod, dispatch, desc, ro)
+			rw.Line(tb.Reset().Str("  ").PadRight(rpc.WireMethod, 44).Str(" (").PadRight(dispatch, 30).Str(") ").Str(desc).Str(ro).String())
 		} else {
-			fmt.Printf("  %-44s %-32s %s%s\n", rpc.WireMethod, "", desc, ro)
+			rw.Line(tb.Reset().Str("  ").PadRight(rpc.WireMethod, 44).Byte(' ').PadRight("", 32).Byte(' ').Str(desc).Str(ro).String())
 		}
 		for _, leaf := range rpc.Input {
 			req := ""
@@ -213,7 +227,7 @@ func printAPICommands() {
 			if leafDesc == "" {
 				leafDesc = leaf.Type
 			}
-			fmt.Printf("    %-24s %s%s\n", leaf.Name, leafDesc, req)
+			rw.Line(tb.Reset().Str("    ").PadRight(leaf.Name, 24).Byte(' ').Str(leafDesc).Str(req).String())
 		}
 	}
 
@@ -228,31 +242,31 @@ func printAPICommands() {
 		return builtins[i].WireMethod < builtins[j].WireMethod
 	})
 
-	for _, b := range builtins {
-		if shown[b.WireMethod] {
+	for _, bi := range builtins {
+		if shown[bi.WireMethod] {
 			continue
 		}
-		help := b.WireMethod
+		help := bi.WireMethod
 		ro := ""
-		dispatch := wireToPath[b.WireMethod]
+		dispatch := wireToPath[bi.WireMethod]
 		if dispatch != "" {
 			if pluginserver.IsReadOnlyPath(dispatch) {
 				ro = " [read-only]"
 			}
-			fmt.Printf("  %-44s (%-30s) %s%s\n", b.WireMethod, dispatch, help, ro)
+			rw.Line(tb.Reset().Str("  ").PadRight(bi.WireMethod, 44).Str(" (").PadRight(dispatch, 30).Str(") ").Str(help).Str(ro).String())
 		} else {
-			fmt.Printf("  %-44s %-32s %s%s\n", b.WireMethod, "", help, ro)
+			rw.Line(tb.Reset().Str("  ").PadRight(bi.WireMethod, 44).Byte(' ').PadRight("", 32).Byte(' ').Str(help).Str(ro).String())
 		}
 	}
-	fmt.Println()
+	rw.Line("")
 }
 
-func printDispatchKeys() {
-	fmt.Println("## Dispatch Keys (what you type)")
-	fmt.Println()
-	fmt.Println("These are the strings accepted by the daemon dispatcher.")
-	fmt.Println("Use with: ze cli -c \"<dispatch-key>\"")
-	fmt.Println()
+func printDispatchKeys(rw *helpfmt.RenderWriter) {
+	rw.Line("## Dispatch Keys (what you type)")
+	rw.Line("")
+	rw.Line("These are the strings accepted by the daemon dispatcher.")
+	rw.Line("Use with: ze cli -c \"<dispatch-key>\"")
+	rw.Line("")
 
 	wireToPath := cli.WireToPath()
 	builtins := pluginserver.AllBuiltinRPCs()
@@ -275,44 +289,45 @@ func printDispatchKeys() {
 		return entries[i].dispatch < entries[j].dispatch
 	})
 
-	fmt.Printf("  %-40s %s\n", "DISPATCH KEY", "WIRE METHOD")
+	var tb textbuf.Buffer
+	rw.Line(tb.Reset().Str("  ").PadRight("DISPATCH KEY", 40).Byte(' ').Str("WIRE METHOD").String())
 	for _, e := range entries {
-		fmt.Printf("  %-40s %s\n", e.dispatch, e.wireMethod)
+		rw.Line(tb.Reset().Str("  ").PadRight(e.dispatch, 40).Byte(' ').Str(e.wireMethod).String())
 	}
-	fmt.Println()
+	rw.Line("")
 }
 
-func printUpdateSyntax() {
-	fmt.Println("## Update Text Syntax")
-	fmt.Println()
-	fmt.Println("  peer <selector> update text [attributes] nlri <family> <action> <prefix>...")
-	fmt.Println()
-	fmt.Println("  Selectors:  * (all), <ip-address>, <peer-name>")
-	fmt.Println("  Actions:    add <prefix>, del <prefix>, eor")
-	fmt.Println()
-	fmt.Println("  Attributes (common):")
-	fmt.Println("    origin <igp|egp|incomplete>")
-	fmt.Println("    next-hop <ip-address>             (alias: nhop)")
-	fmt.Println("    local-preference <N>")
-	fmt.Println("    med <N>")
-	fmt.Println("    as-path [<asn> ...]")
-	fmt.Println("    community <value>                 (e.g. 65000:100, no-export)")
-	fmt.Println("    large-community <value>           (e.g. 65000:100:200)")
-	fmt.Println("    extended-community <value>")
-	fmt.Println()
-	fmt.Println("  Attributes (family-specific):")
-	fmt.Println("    path-id <N>                       (ADD-PATH path identifier)")
-	fmt.Println("    rd <value>                        (Route Distinguisher for VPN)")
-	fmt.Println("    label <N>                         (MPLS label for labeled/VPN)")
-	fmt.Println()
-	fmt.Println("  Example:")
-	fmt.Println("    peer * update text origin igp next-hop 1.1.1.1 local-preference 100 nlri ipv4/unicast add 10.0.0.0/24")
-	fmt.Println()
+func printUpdateSyntax(rw *helpfmt.RenderWriter) {
+	rw.Line("## Update Text Syntax")
+	rw.Line("")
+	rw.Line("  peer <selector> update text [attributes] nlri <family> <action> <prefix>...")
+	rw.Line("")
+	rw.Line("  Selectors:  * (all), <ip-address>, <peer-name>")
+	rw.Line("  Actions:    add <prefix>, del <prefix>, eor")
+	rw.Line("")
+	rw.Line("  Attributes (common):")
+	rw.Line("    origin <igp|egp|incomplete>")
+	rw.Line("    next-hop <ip-address>             (alias: nhop)")
+	rw.Line("    local-preference <N>")
+	rw.Line("    med <N>")
+	rw.Line("    as-path [<asn> ...]")
+	rw.Line("    community <value>                 (e.g. 65000:100, no-export)")
+	rw.Line("    large-community <value>           (e.g. 65000:100:200)")
+	rw.Line("    extended-community <value>")
+	rw.Line("")
+	rw.Line("  Attributes (family-specific):")
+	rw.Line("    path-id <N>                       (ADD-PATH path identifier)")
+	rw.Line("    rd <value>                        (Route Distinguisher for VPN)")
+	rw.Line("    label <N>                         (MPLS label for labeled/VPN)")
+	rw.Line("")
+	rw.Line("  Example:")
+	rw.Line("    peer * update text origin igp next-hop 1.1.1.1 local-preference 100 nlri ipv4/unicast add 10.0.0.0/24")
+	rw.Line("")
 }
 
-func printFamilies() {
-	fmt.Println("## Address Families")
-	fmt.Println()
+func printFamilies(rw *helpfmt.RenderWriter) {
+	rw.Line("## Address Families")
+	rw.Line("")
 
 	families := make(map[string][]string)
 	for _, reg := range registry.All() {
@@ -334,128 +349,130 @@ func printFamilies() {
 	}
 	sort.Strings(sorted)
 
+	var tb textbuf.Buffer
 	for _, fam := range sorted {
 		plugins := families[fam]
-		fmt.Printf("  %-24s (%s)\n", fam, textbuf.Join(plugins, ", "))
+		rw.Line(tb.Reset().Str("  ").PadRight(fam, 24).Str(" (").Str(textbuf.Join(plugins, ", ")).Byte(')').String())
 	}
-	fmt.Println()
+	rw.Line("")
 }
 
-func printAIPlugins() {
-	fmt.Println("## Plugins")
-	fmt.Println()
+func printAIPlugins(rw *helpfmt.RenderWriter) {
+	rw.Line("## Plugins")
+	rw.Line("")
 
 	regs := registry.All()
 	sort.Slice(regs, func(i, j int) bool {
 		return regs[i].Name < regs[j].Name
 	})
 
+	var tb textbuf.Buffer
 	for _, reg := range regs {
-		fmt.Printf("  %-24s %s\n", reg.Name, reg.Description)
+		rw.Line(tb.Reset().Str("  ").PadRight(reg.Name, 24).Byte(' ').Str(reg.Description).String())
 		if len(reg.RFCs) > 0 {
-			fmt.Printf("    RFCs: %s\n", textbuf.Join(reg.RFCs, ", "))
+			rw.Line(tb.Reset().Str("    RFCs: ").Str(textbuf.Join(reg.RFCs, ", ")).String())
 		}
 		if len(reg.Families) > 0 {
-			fmt.Printf("    Families: %s\n", textbuf.Join(reg.Families, ", "))
+			rw.Line(tb.Reset().Str("    Families: ").Str(textbuf.Join(reg.Families, ", ")).String())
 		}
 	}
-	fmt.Println()
+	rw.Line("")
 }
 
-func printMCPTools() {
-	fmt.Println("## MCP Tools (via --mcp <port>)")
-	fmt.Println()
-	fmt.Println("  Start: ze start --mcp <port>  or  ze --mcp <port> config.conf")
-	fmt.Println("  Connect: POST http://127.0.0.1:<port>/ with JSON-RPC body")
-	fmt.Println()
-	fmt.Println("  Tools are auto-generated from the YANG command registry at tools/list time.")
-	fmt.Println("  Each command group becomes a tool with an action enum. New YANG commands")
-	fmt.Println("  appear as MCP tools automatically.")
-	fmt.Println()
-	fmt.Println("  Handcrafted tools:")
-	fmt.Println("  ze_execute          Run any Ze command (escape hatch)")
-	fmt.Println("    command           Full command string (REQUIRED)")
-	fmt.Println()
-	fmt.Println("  ze_reference        Full AI reference for this daemon (same as 'ze help ai --json')")
-	fmt.Println()
-	fmt.Println("  Run tools/list against a live daemon to see the full tool inventory.")
-	fmt.Println()
-	fmt.Println("  JSON-RPC Example:")
-	fmt.Println(`    {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ze_execute","arguments":{"command":"summary"}}}`)
-	fmt.Println()
+func printMCPTools(rw *helpfmt.RenderWriter) {
+	rw.Line("## MCP Tools (via --mcp <port>)")
+	rw.Line("")
+	rw.Line("  Start: ze start --mcp <port>  or  ze --mcp <port> config.conf")
+	rw.Line("  Connect: POST http://127.0.0.1:<port>/ with JSON-RPC body")
+	rw.Line("")
+	rw.Line("  Tools are auto-generated from the YANG command registry at tools/list time.")
+	rw.Line("  Each command group becomes a tool with an action enum. New YANG commands")
+	rw.Line("  appear as MCP tools automatically.")
+	rw.Line("")
+	rw.Line("  Handcrafted tools:")
+	rw.Line("  ze_execute          Run any Ze command (escape hatch)")
+	rw.Line("    command           Full command string (REQUIRED)")
+	rw.Line("")
+	rw.Line("  ze_reference        Full AI reference for this daemon (same as 'ze help ai --json')")
+	rw.Line("")
+	rw.Line("  Run tools/list against a live daemon to see the full tool inventory.")
+	rw.Line("")
+	rw.Line("  JSON-RPC Example:")
+	rw.Line(`    {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ze_execute","arguments":{"command":"summary"}}}`)
+	rw.Line("")
 }
 
-func printPeerSelectors() {
-	fmt.Println("## Peer Selectors")
-	fmt.Println()
-	fmt.Println("  Most commands accept a peer selector to target specific peers.")
-	fmt.Println("  The reactor resolves selectors in priority order:")
-	fmt.Println()
-	fmt.Println("  *                All peers (default when omitted)")
-	fmt.Println("  192.168.1.1      Exact IP address")
-	fmt.Println("  my-peer          Peer name (from config, takes priority over IP)")
-	fmt.Println("  as65001          All peers with remote AS 65001 (case-insensitive)")
-	fmt.Println("  10.0.0.*         IP glob pattern (per-octet wildcard)")
-	fmt.Println("  !192.168.1.1     Exclusion: all peers except this one")
-	fmt.Println("  10.0.0.1,10.0.0.2  Comma-separated list (RIB commands only)")
-	fmt.Println()
+func printPeerSelectors(rw *helpfmt.RenderWriter) {
+	rw.Line("## Peer Selectors")
+	rw.Line("")
+	rw.Line("  Most commands accept a peer selector to target specific peers.")
+	rw.Line("  The reactor resolves selectors in priority order:")
+	rw.Line("")
+	rw.Line("  *                All peers (default when omitted)")
+	rw.Line("  192.168.1.1      Exact IP address")
+	rw.Line("  my-peer          Peer name (from config, takes priority over IP)")
+	rw.Line("  as65001          All peers with remote AS 65001 (case-insensitive)")
+	rw.Line("  10.0.0.*         IP glob pattern (per-octet wildcard)")
+	rw.Line("  !192.168.1.1     Exclusion: all peers except this one")
+	rw.Line("  10.0.0.1,10.0.0.2  Comma-separated list (RIB commands only)")
+	rw.Line("")
 }
 
-func printFamilyAttributes() {
-	fmt.Println("## Family-Specific Attributes")
-	fmt.Println()
-	fmt.Println("  Some update text attributes only apply to specific address families:")
-	fmt.Println()
-	fmt.Println("  path-id <N>        ADD-PATH peers only (any family, requires ADD-PATH capability)")
-	fmt.Println("  rd <value>         VPN families: ipv4/mpls-vpn, ipv6/mpls-vpn, l2vpn/evpn, l2vpn/vpls")
-	fmt.Println("  label <N>          Labeled/VPN: ipv4/mpls-label, ipv6/mpls-label, */vpn")
-	fmt.Println()
+func printFamilyAttributes(rw *helpfmt.RenderWriter) {
+	rw.Line("## Family-Specific Attributes")
+	rw.Line("")
+	rw.Line("  Some update text attributes only apply to specific address families:")
+	rw.Line("")
+	rw.Line("  path-id <N>        ADD-PATH peers only (any family, requires ADD-PATH capability)")
+	rw.Line("  rd <value>         VPN families: ipv4/mpls-vpn, ipv6/mpls-vpn, l2vpn/evpn, l2vpn/vpls")
+	rw.Line("  label <N>          Labeled/VPN: ipv4/mpls-label, ipv6/mpls-label, */vpn")
+	rw.Line("")
 }
 
-func printRIBPipeline() {
-	fmt.Println("## RIB Show Pipeline")
-	fmt.Println()
-	fmt.Println("  show bgp rib [scope] [filters...] [terminal]")
-	fmt.Println("  show bgp rib best [filters...] [terminal]")
-	fmt.Println()
-	fmt.Println("  Scopes (positional, first argument):")
-	fmt.Println("    received         Adj-RIB-In only")
-	fmt.Println("    sent             Adj-RIB-Out only")
-	fmt.Println("    sent-received    Both (default)")
-	fmt.Println()
-	fmt.Println("  Filters (named, chainable):")
-	fmt.Println("    family <afi/safi>     Address family (e.g. ipv4/unicast)")
-	fmt.Println("    prefix <pattern>      Prefix string match (e.g. 192.168)")
-	fmt.Println("    path <pattern>        AS-path: 64501 (anywhere), ^64501 (anchored), 64501,64502 (contiguous)")
-	fmt.Println("    community <value>     Exact community match (e.g. 65000:100)")
-	fmt.Println("    match <text>          Case-insensitive substring across all fields")
-	fmt.Println()
-	fmt.Println("  Terminals (last argument):")
-	fmt.Println("    count                 Return {\"count\": N} instead of routes")
-	fmt.Println("    json                  Full route details (default)")
-	fmt.Println()
-	fmt.Println("  Examples:")
-	fmt.Println("    show bgp rib received family ipv4/unicast")
-	fmt.Println("    show bgp rib sent prefix 10.0 count")
-	fmt.Println("    show bgp rib received community 65000:100 path ^64501")
-	fmt.Println("    show bgp rib best family ipv4/unicast json")
-	fmt.Println()
+func printRIBPipeline(rw *helpfmt.RenderWriter) {
+	rw.Line("## RIB Show Pipeline")
+	rw.Line("")
+	rw.Line("  show bgp rib [scope] [filters...] [terminal]")
+	rw.Line("  show bgp rib best [filters...] [terminal]")
+	rw.Line("")
+	rw.Line("  Scopes (positional, first argument):")
+	rw.Line("    received         Adj-RIB-In only")
+	rw.Line("    sent             Adj-RIB-Out only")
+	rw.Line("    sent-received    Both (default)")
+	rw.Line("")
+	rw.Line("  Filters (named, chainable):")
+	rw.Line("    family <afi/safi>     Address family (e.g. ipv4/unicast)")
+	rw.Line("    prefix <pattern>      Prefix string match (e.g. 192.168)")
+	rw.Line("    path <pattern>        AS-path: 64501 (anywhere), ^64501 (anchored), 64501,64502 (contiguous)")
+	rw.Line("    community <value>     Exact community match (e.g. 65000:100)")
+	rw.Line("    match <text>          Case-insensitive substring across all fields")
+	rw.Line("")
+	rw.Line("  Terminals (last argument):")
+	rw.Line("    count                 Return {\"count\": N} instead of routes")
+	rw.Line("    json                  Full route details (default)")
+	rw.Line("")
+	rw.Line("  Examples:")
+	rw.Line("    show bgp rib received family ipv4/unicast")
+	rw.Line("    show bgp rib sent prefix 10.0 count")
+	rw.Line("    show bgp rib received community 65000:100 path ^64501")
+	rw.Line("    show bgp rib best family ipv4/unicast json")
+	rw.Line("")
 }
 
 // printServices generates the Services section from YANG conf modules.
 // It walks all registered YANG modules looking for environment containers,
 // extracts leaves with their types and defaults, and matches env vars.
-func printServices() {
-	fmt.Println("## Services (from YANG environment containers)")
-	fmt.Println()
-	fmt.Println("  Optional services started alongside the BGP daemon.")
-	fmt.Println("  Enable via config block or CLI flag. Web UI requires ze init (blob storage).")
-	fmt.Println()
+func printServices(rw *helpfmt.RenderWriter) {
+	rw.Line("## Services (from YANG environment containers)")
+	rw.Line("")
+	rw.Line("  Optional services started alongside the BGP daemon.")
+	rw.Line("  Enable via config block or CLI flag. Web UI requires ze init (blob storage).")
+	rw.Line("")
 
 	services := aihelp.Services()
 	if len(services) == 0 {
-		fmt.Println("  (no services found)")
-		fmt.Println()
+		rw.Line("  (no services found)")
+		rw.Line("")
 		return
 	}
 
@@ -472,12 +489,12 @@ func printServices() {
 		}
 		var tb textbuf.Buffer
 		tb.Str("  ").Str(svc.Name).Str(": ").Str(desc)
-		fmt.Println(tb.Slice())
+		rw.Line(tb.Slice())
 
 		if flag, ok := cliFlags[svc.Name]; ok {
 			tb.Reset()
 			tb.Str("    CLI flag:  ").Str(flag)
-			fmt.Println(tb.Slice())
+			rw.Line(tb.Slice())
 		}
 
 		// Config syntax from leaves.
@@ -489,7 +506,7 @@ func printServices() {
 			}
 		}
 		tb.Str(" } }")
-		fmt.Println(tb.Slice())
+		rw.Line(tb.Slice())
 
 		// Leaf details.
 		for _, leaf := range svc.Leaves {
@@ -504,104 +521,108 @@ func printServices() {
 			}
 			tb.Reset()
 			tb.Str("    ").PadRight(leaf.Name, 20).Byte(' ').Str(desc).Str(def)
-			fmt.Println(tb.Slice())
+			rw.Line(tb.Slice())
 		}
 
 		// Env vars.
 		if len(svc.EnvVars) > 0 {
 			tb.Reset()
 			tb.Str("    Env vars:  ").Str(textbuf.Join(svc.EnvVars, ", "))
-			fmt.Println(tb.Slice())
+			rw.Line(tb.Slice())
 		}
 
-		fmt.Println()
+		rw.Line("")
 	}
 }
 
-func printRecipes() {
-	fmt.Println("## Recipes")
-	fmt.Println()
-	fmt.Println("  Start daemon with MCP:")
-	fmt.Println("    ze init && ze start --mcp 9718")
-	fmt.Println()
-	fmt.Println("  Start with config file:")
-	fmt.Println("    ze config validate example.conf && ze --mcp 9718 example.conf")
-	fmt.Println()
-	fmt.Println("  Announce a route (CLI):")
-	fmt.Println("    ze cli -c \"peer * update text origin igp next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24\"")
-	fmt.Println()
-	fmt.Println("  Announce a route (MCP):")
-	fmt.Println("    {\"method\":\"tools/call\",\"params\":{\"name\":\"ze_announce\",\"arguments\":{\"family\":\"ipv4/unicast\",\"origin\":\"igp\",\"next-hop\":\"1.1.1.1\",\"prefixes\":[\"10.0.0.0/24\"]}}}")
-	fmt.Println()
-	fmt.Println("  Check peer state:")
-	fmt.Println("    ze cli -c \"peer list\"")
-	fmt.Println("    ze cli -c \"peer test-peer detail\"")
-	fmt.Println()
-	fmt.Println("  Show RIB:")
-	fmt.Println("    ze cli -c \"show bgp rib received family ipv4/unicast\"")
-	fmt.Println("    ze cli -c \"show bgp rib best\"")
-	fmt.Println()
-	fmt.Println("  Monitor live events:")
-	fmt.Println("    ze cli -c \"bgp monitor\"")
-	fmt.Println()
-	fmt.Println("  Drain and teardown a peer:")
-	fmt.Println("    ze cli -c \"request peer 10.0.0.1 pause\"")
-	fmt.Println("    ze cli -c \"request peer * flush\"")
-	fmt.Println("    ze cli -c \"request peer 10.0.0.1 teardown\"")
-	fmt.Println()
-	fmt.Println("  Test without a real peer:")
-	fmt.Println("    ze-test peer --mode sink --port 1179 --asn 65001")
-	fmt.Println()
+func printRecipes(rw *helpfmt.RenderWriter) {
+	rw.Line("## Recipes")
+	rw.Line("")
+	rw.Line("  Start daemon with MCP:")
+	rw.Line("    ze init && ze start --mcp 9718")
+	rw.Line("")
+	rw.Line("  Start with config file:")
+	rw.Line("    ze config validate example.conf && ze --mcp 9718 example.conf")
+	rw.Line("")
+	rw.Line("  Announce a route (CLI):")
+	rw.Line("    ze cli -c \"peer * update text origin igp next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24\"")
+	rw.Line("")
+	rw.Line("  Announce a route (MCP):")
+	rw.Line("    {\"method\":\"tools/call\",\"params\":{\"name\":\"ze_announce\",\"arguments\":{\"family\":\"ipv4/unicast\",\"origin\":\"igp\",\"next-hop\":\"1.1.1.1\",\"prefixes\":[\"10.0.0.0/24\"]}}}")
+	rw.Line("")
+	rw.Line("  Check peer state:")
+	rw.Line("    ze cli -c \"peer list\"")
+	rw.Line("    ze cli -c \"peer test-peer detail\"")
+	rw.Line("")
+	rw.Line("  Show RIB:")
+	rw.Line("    ze cli -c \"show bgp rib received family ipv4/unicast\"")
+	rw.Line("    ze cli -c \"show bgp rib best\"")
+	rw.Line("")
+	rw.Line("  Monitor live events:")
+	rw.Line("    ze cli -c \"bgp monitor\"")
+	rw.Line("")
+	rw.Line("  Drain and teardown a peer:")
+	rw.Line("    ze cli -c \"request peer 10.0.0.1 pause\"")
+	rw.Line("    ze cli -c \"request peer * flush\"")
+	rw.Line("    ze cli -c \"request peer 10.0.0.1 teardown\"")
+	rw.Line("")
+	rw.Line("  Test without a real peer:")
+	rw.Line("    ze-test peer --mode sink --port 1179 --asn 65001")
+	rw.Line("")
 }
 
-func printCommonErrors() {
-	fmt.Println("## Common Errors")
-	fmt.Println()
-	fmt.Println("  unknown family \"ipv4-unicast\"       Use slash separator: ipv4/unicast")
-	fmt.Println("  peer not found \"10.0.0.1\"           Peer not configured; check: peer list")
-	fmt.Println("  database already exists              Run: ze init --force (backs up old database)")
-	fmt.Println("  connection refused (SSH)             Daemon not running; start with: ze start")
-	fmt.Println("  no prefixes specified                REQUIRED field missing in ze_announce/ze_withdraw")
-	fmt.Println("  unknown command \"...\"                Use: ze_reference (MCP) or ze cli -c \"help\"")
-	fmt.Println("  web server disabled: requires blob  Run: ze init (creates database.zefs with TLS certs)")
-	fmt.Println()
+func printCommonErrors(rw *helpfmt.RenderWriter) {
+	rw.Line("## Common Errors")
+	rw.Line("")
+	rw.Line("  unknown family \"ipv4-unicast\"       Use slash separator: ipv4/unicast")
+	rw.Line("  peer not found \"10.0.0.1\"           Peer not configured; check: peer list")
+	rw.Line("  database already exists              Run: ze init --force (backs up old database)")
+	rw.Line("  connection refused (SSH)             Daemon not running; start with: ze start")
+	rw.Line("  no prefixes specified                REQUIRED field missing in ze_announce/ze_withdraw")
+	rw.Line("  unknown command \"...\"                Use: ze_reference (MCP) or ze cli -c \"help\"")
+	rw.Line("  web server disabled: requires blob  Run: ze init (creates database.zefs with TLS certs)")
+	rw.Line("")
 }
 
-func printMinimalConfig() {
-	fmt.Println("## Minimal Config")
-	fmt.Println()
-	fmt.Println("  bgp {")
-	fmt.Println("      router-id 10.0.0.1")
-	fmt.Println("      local {")
-	fmt.Println("          as 65000")
-	fmt.Println("      }")
-	fmt.Println("      peer test-peer {")
-	fmt.Println("          remote {")
-	fmt.Println("              ip 10.0.0.2")
-	fmt.Println("              as 65001")
-	fmt.Println("          }")
-	fmt.Println("          local {")
-	fmt.Println("              ip 10.0.0.1")
-	fmt.Println("          }")
-	fmt.Println("          family {")
-	fmt.Println("              ipv4/unicast")
-	fmt.Println("          }")
-	fmt.Println("      }")
-	fmt.Println("  }")
-	fmt.Println()
-	fmt.Println("  Validate: ze config validate <file>")
-	fmt.Println("  Start:    ze <file>  or  ze start (from database)")
-	fmt.Println()
+func printMinimalConfig(rw *helpfmt.RenderWriter) {
+	rw.Line("## Minimal Config")
+	rw.Line("")
+	rw.Line("  bgp {")
+	rw.Line("      router-id 10.0.0.1")
+	rw.Line("      local {")
+	rw.Line("          as 65000")
+	rw.Line("      }")
+	rw.Line("      peer test-peer {")
+	rw.Line("          remote {")
+	rw.Line("              ip 10.0.0.2")
+	rw.Line("              as 65001")
+	rw.Line("          }")
+	rw.Line("          local {")
+	rw.Line("              ip 10.0.0.1")
+	rw.Line("          }")
+	rw.Line("          family {")
+	rw.Line("              ipv4/unicast")
+	rw.Line("          }")
+	rw.Line("      }")
+	rw.Line("  }")
+	rw.Line("")
+	rw.Line("  Validate: ze config validate <file>")
+	rw.Line("  Start:    ze <file>  or  ze start (from database)")
+	rw.Line("")
 }
 
 // printAIHelpJSON emits the machine-readable reference. The assembly lives in
 // internal/component/aihelp so the MCP ze_reference tool returns identical data.
-func printAIHelpJSON() {
-	enc := json.NewEncoder(os.Stdout)
+// Writes route through a RenderWriter so a broken pipe yields a non-zero exit.
+func printAIHelpJSON(w io.Writer) int {
+	rw := helpfmt.NewRenderWriter(w)
+	enc := json.NewEncoder(rw)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(aihelp.Build()); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err) //nolint:errcheck // one-shot error to stderr
+		return 1
 	}
+	return rw.ExitCode()
 }
 
 // aiHelpRequested checks if the deprecated --ai flag was passed in the help args.
