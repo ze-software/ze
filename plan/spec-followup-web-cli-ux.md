@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 1/7 |
+| Phase | 7/7 (all ACs complete; closing) |
 | Updated | 2026-07-09 |
 
 ## Post-Compaction Recovery
@@ -296,22 +296,36 @@ Phases 1-4 (web), 5 (completion), 6 (stdio), 7 (LG) are independent; commit per 
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
-### Run 1 (initial)
+### Run 1 (initial) -- over the AC-10 + AC-5 + AC-6/7 diff (`9f7a92124`, `35fad5a20`, `46c01981c`)
+Automated pre-checks: `make ze-validate` -> all checks passed;
+`scripts/dev/audit-test-relaxation.py` -> clean (no tests deleted or weakened).
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | NOTE | New features (WebRoute registry, i18n) are discoverable via package structure + `// Design:` anchors + regenerated `ai/DOCS-TO-CODE.md`, but have no dedicated `ai/INDEX.md` keyword row | ai/INDEX.md | acknowledged (NOTE; discovery-index regenerated each phase; not required for this infra) |
+
+Wiring (all new symbols have a production caller): `helpfmt.RenderWriter`/`NewRenderWriter`
+used in help_ai.go, help_command.go, dispatch.go, ze_core_dispatch.go, editor.go,
+helpfmt.WriteTo; `Translate` in the renderer FuncMap + `LocaleFromRequest` in the login
+renderer; `RegisterWebRoute`/`RegisteredWebRoutes` (register_*.go init -> hub iteration);
+parser directives consumed by runWBTestCase + cmd_web.go; `zeTestWebAuth`/`zeTestSeedWebUsers`/
+`zeTestPickAdmin` called in the harness. Logic: RenderWriter short-circuits after first
+error; WebRoute `Enabled==nil` = always wired; i18n fallback catalog->englishBase->key;
+byte-identical help output. Removed-behavior: route registry re-establishes every served
+route with no duplicate-pattern panic; existing ~80 `.wb` tests keep `--insecure-web`
+(insecure defaults true without `option=auth`); version output preserved. Security: the
+only user-controlled input is `Accept-Language`, matched to a known locale constant and
+html/template-escaped. No BLOCKER, no ISSUE.
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
-
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+- None required (0 BLOCKER, 0 ISSUE). The single NOTE is acknowledged, not fixed.
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+Evidence: Run 1 above shows 0 BLOCKER, 0 ISSUE (one NOTE, acknowledged). Automated
+pre-checks clean; changed-surface tests green; `make ze-lint-changed` 0 issues.
 
 ## Checklist
 
@@ -368,7 +382,11 @@ open until all ACs are complete (R-7).
 | AC-8 (flag inventory completion) | DONE | `registry.FlagSpec`/`RegisterCommandFlags`/`CommandFlags` (`internal/component/command/registry/flags.go`); `ze completion flags <path>` + `ze completion families` (`internal/plugins/completion/flags.go`); exabgp registers `exabgp plugin`/`exabgp migrate` flags (`internal/plugins/exabgp/register.go`); bash/zsh/fish generators complete flag names from the inventory + `--family` from `AllFamilies`. `TestFlagInventoryCompletion`, `TestFamilyFlagValues`, `TestShellScriptEmitsConfigCompletionGlue` PASS; verified end-to-end against `bin/ze`. Nushell shell-wiring for the new glue deferred (AC-8 scopes to bash/zsh/fish) |
 | AC-9 (config-section completion + one-shot command) | DONE | NEW `ze config show <file> [path...]` (`internal/component/config/cli/cmd_show.go`, added to `subcommandHandlers`; reads a file like `dump`, reuses the editor's schema-aware walk for list-keyed paths, `--json`, non-zero exit on bad path / write error). bash/zsh/fish complete the path tokens via the existing `ze config completion` engine (`--context <slash-path> --input "set "`). `TestConfigShow{FullTree,AtPath,PathNotFound,JSON,MissingFile,Registered}` PASS; verified end-to-end. Docs: `docs/guide/command-reference.md` row + source anchors |
 | AC-1 tail (edit-control nav-hiding) | DONE | `WithAuthorizer` option threads the aaa.Authorizer into `HandleWorkbench`; `readOnly := !CanEdit(r, authorizer)` sets `LayoutData.ReadOnly` + `FragmentData.ReadOnly`. Templates gate edit controls: commit bar (Review&Commit/Discard), detail field-page Save, list-table inline-edit/rename/delete/"+ new". Wired at `cmd/ze/hub/service_web.go`. `TestWorkbenchHidesCommitBarForReadOnly` (end-to-end authorizer->ReadOnly->template) + `TestListTableHidesEditControlsForReadOnly` PASS; full web suite PASS (no regression). Purpose-built page (bgp peers etc.) Add buttons stay 403-gated at the route (enforcement complete); their control-hiding remains open because page builders do not receive the request (tracked in plan/deferrals.md) |
-| AC-5 (web-route registry), AC-6,7 (i18n/mobile), AC-10 (renderWriter) | NOT STARTED | Remainder umbrella too large for one pass (R-7) |
+| AC-10 (renderWriter full conversion) | DONE (`9f7a92124`) | `helpfmt.RenderWriter` (`internal/core/helpfmt/renderwriter.go`): error-capturing io.Writer with `Str`/`Line`/`Err`/`ExitCode`, short-circuiting after the first error. Seeded in `helpfmt.Page.WriteTo` (byte-identical rewrite). ALL enumerated stdout render sites converted: `help_ai.go` (243 sites), `help_command.go`, `dispatch.go` + `ze_core_dispatch.go` version output, `editor.go` prompt. `printAIHelp`/`printHelpCommand`/`printVersion`/`dispatchHelp` return exit codes propagated through the dispatch handlers. `TestRenderWriterCapturesError` + short-circuit/interface tests (core), `TestRenderAIHelpErrorExit`/`TestRenderHelpCommandErrorExit` (broken-pipe -> exit 1). 13 `ze help` variants proven byte-identical vs the pre-change binary (only diffs are pre-existing map-iteration non-determinism in `aihelp.Services` + unrelated stderr WARN timestamps). Stderr error-message `fmt.Fprintf(os.Stderr,...)` sites left as-is (out of the "stdout render path" scope, already on non-zero-exit paths) |
+| AC-5 (web-route registry) | DONE (`35fad5a20`) | `zeweb.WebRoute{Pattern, Wrap, Build, Enabled, Portal}` registry (`internal/component/web/webroute.go`); l2tp/isis/ospf/gokrazy register via `register_*.go` init() (20 clean routes + the env-gated gokrazy portal). `startWebServer` iterates `RegisteredWebRoutes()` and applies the wrap by kind (`service_web.go`); the hardcoded blocks + the `zegokrazy`/`env` imports are gone. `TestPluginWebRouteRegistration` proves registration + wrap-kind + gokrazy Enabled/Portal + a real route serves + every enabled route mounts on a fresh ServeMux with no duplicate-pattern panic (mirrors the hub loop) |
+| AC-6 (i18n + French proving locale) | DONE (`46c01981c`) | Catalog-with-English-fallback (`i18n.go`: `Translate`, `LocaleFromRequest`, French catalog) + `t` template helper in the renderer FuncMap; login page renders translated strings; `LoginData.Locale` set from `Accept-Language` in the login renderer. `TestI18NCatalogFallback`, `TestLocaleFromAcceptLanguage`, `TestLoginTemplateRendersLocale` PASS |
+| AC-7 (390px mobile) | DONE (`46c01981c`) | `@media (max-width: 390px)` block in `style.css` (overflow-x guard + wide-content scroll-in-box + full-width stacking) on the key pages; viewport meta present on login/layout/workbench. `TestMobileViewportCSS` PASS (asset-tier proof; browser-tier `.wb` env-blocked) |
+| AC-6/7 harness directives | DONE (`46c01981c`) | `.wb` parser gains `option=viewport`, `option=locale`, `option=auth` (repeatable) + `action=login`; runner applies viewport (`set viewport`) and locale (`set headers Accept-Language`) before the first nav and drives the login form; `ze-test` starts the server with auth (drops `--insecure-web`) + bcrypt-seeds the declared admin when a test declares `option=auth`. `TestParseHarnessDirectives`, `TestSetViewport/SetLocale/Login` plumbing, `TestRunWBTestCaseAppliesViewportAndLocaleFirst`, `TestZeTestWebAuth`, `TestZeTestPickAdmin` PASS. Four `.wb` deliverables added. See "Continuation session 4" for the runbook + env-block evidence |
 
 ### Key design decisions (this session)
 | Decision | Rationale |
@@ -487,3 +505,98 @@ same Chrome and is likewise unusable.
   `fmt.Fprint` (both hook-allowed; `Fprintf` to a custom writer is banned), threaded
   through the enumerated files so a write error yields a non-zero exit. Do NOT change
   `helpfmt.Page.WriteErr/WriteOut` signatures -- 70 files call them.
+
+### Continuation session 4 (2026-07-09d) -- FINAL: AC-10 + AC-5 + AC-6/7 landed; spec closed
+
+All three remaining groups implemented and committed. Per-AC evidence is in the
+table above. The intended-final session.
+
+**Committed:**
+- **AC-10 renderWriter -- `9f7a92124`.** `helpfmt.RenderWriter` with error-swallowing-
+  but-capturing `Str`/`Line` methods (no return value -> call sites need no error check
+  and use no banned `fmt` primitive; errcheck-clean without per-line nolint). Refined
+  design vs session 3's note: rather than `fmt.Fprintln(rw,...)` (which errcheck flags on
+  a custom writer, forcing ~250 nolints), the writer owns the print methods. Byte-identical
+  output proven for 13 `ze help` variants.
+- **AC-5 web-route registry -- `35fad5a20`.** Settled `{Pattern, Wrap, Build}` plus two
+  optional fields (`Enabled`, `Portal`) to model gokrazy's env-gate + portal menu without
+  a bespoke path. All four features register from dedicated `register_*.go` files in the
+  web package (gokrazy's imports `zegokrazy`+`env`); no composition-root/`make generate`
+  change was needed because the web package is always compiled.
+- **AC-6/7 i18n + mobile + harness directives -- `46c01981c`.** See the per-AC rows.
+
+**AC-6/7 `.wb` execution runbook (for a machine with a working Chrome):**
+1. Build the host binary: `make ze && make bin/ze-test`.
+2. Ensure `agent-browser` is in PATH with a launchable Chrome (this sandbox lacks
+   `libatk-1.0.so.0`, so Chrome exits 127 -- the block below).
+3. Run the new tests: `bin/ze-test web -p i18n` (locale), `bin/ze-test web -p mobile`
+   (390px viewport), `bin/ze-test web -p rbac-admin` (auth login). Each starts a scratch
+   `--web-only` server; tests declaring `option=auth` drop `--insecure-web` and the harness
+   bcrypt-seeds the declared admin.
+4. `web-rbac-readonly.wb` is `option=skip` until an appliance with a *config-file*
+   read-only web user is provisioned (zefs seeds only the single local admin); its
+   enforcement is already proven at the Go tier (`rbac_test.go`).
+
+**Environment-block evidence (recorded, not a code defect):**
+- `bin/ze-test web -p i18n` reached the browser stage: the auth server started (harness
+  honored `option=auth`), then Chrome failed to launch with
+  `libatk-1.0.so.0: cannot open shared object file` (exit 127). This proves the `.wb`
+  file parses, the auth-mode server-start wiring works, and the block is purely the
+  sandbox's missing Chrome libs -- the same class as the LG `.ci` and prior `.wb` blocks.
+- `bin/ze-test web -p rbac-readonly` PASSes as a skip (its `option=skip` fires).
+- All of i18n (catalog fallback + template locale render), mobile (390px CSS + viewport
+  meta), and the harness directives (parse + browser-command plumbing via the fake
+  agent-browser seam) are proven at the Go/httptest tier.
+
+**Scope notes (deliberate, in-scope decisions):**
+- AC-10: the enumerated files' remaining `fmt.Fprintf(os.Stderr,...)` sites are one-line
+  error diagnostics on already-non-zero-exit paths, not the "stdout render paths that
+  ignore write errors" AC-10 targets; left unconverted (and hook-exempt).
+- AC-5: gokrazy is migrated like the others but keeps its env-gate + portal via the
+  `Enabled`/`Portal` WebRoute fields.
+- AC-6/7 multi-user: the harness seeds a single zefs local admin, so a distinct read-only
+  browser login needs config-file authz users, documented in the runbook above; admin-login
+  and single-user `.wb` tests are fully wired, and read-only enforcement is proven at the Go
+  tier (`rbac_test.go`).
+
+## Pre-Commit Verification
+
+Re-verified independently at closure (2026-07-09d). Earlier ACs (1..4, 8, 9, 11..13)
+were verified in prior sessions; the rows below cover the final groups.
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/helpfmt/renderwriter.go` | yes | committed in `9f7a92124` |
+| `internal/component/web/webroute.go` (+ register_l2tp/isis/ospf/gokrazy.go) | yes | committed in `35fad5a20` |
+| `internal/component/web/i18n.go` | yes | committed in `46c01981c` |
+| `test/web/web-i18n-fr.wb`, `web-mobile-layout.wb`, `web-rbac-admin.wb`, `web-rbac-readonly.wb` | yes | committed in `46c01981c`; discovered by `ze-test web -l` (ids 73-76) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-10 | renderWriter captures write errors, non-zero exit; enumerated sites converted; byte-identical | `TestRenderWriterCapturesError`/`TestRenderAIHelpErrorExit`/`TestRenderHelpCommandErrorExit` PASS; 13 `ze help` variants byte-identical vs pre-change binary; 0 stdout `fmt.Print*` remain in the 5 enumerated files |
+| AC-5 | web-route registry replaces hardcoded routes; serves + no per-plugin service_web.go edits | `TestPluginWebRouteRegistration` PASS (registration + serve + no-duplicate-pattern mux); `grep -E 'srv.Handle.*(/l2tp\|/isis\|/ospf\|/gokrazy)' service_web.go` -> none |
+| AC-6 | French locale renders with English fallback | `TestI18NCatalogFallback`, `TestLoginTemplateRendersLocale` PASS |
+| AC-7 | 390px mobile, no horizontal scroll | `TestMobileViewportCSS` PASS (390px @media + overflow-x guard + viewport meta) |
+| AC-6/7 harness | login/multi-user, locale, viewport directives | `TestParseHarnessDirectives`, `TestSetViewport/SetLocale/Login`, `TestRunWBTestCaseAppliesViewportAndLocaleFirst`, `TestZeTestWebAuth` PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | Test | Verified |
+|-------------|------|----------|
+| `ze help ai\|command` write error -> non-zero exit | `render_exit_test.go` | yes (broken-pipe writer -> exit 1) |
+| Registered web route served + nav | `webroute_test.go` | yes (build + serve + portal metadata) |
+| `Accept-Language: fr` -> French login page | `i18n_test.go` | yes (template render) |
+| `.wb` directives -> agent-browser commands | `directives_test.go` | yes (fake-agent-browser command log) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1..A-7 | confirmed | Corrected-evidence table + per-AC evidence; A-7 (i18n = infra + 1 proving locale) realized as the French login catalog |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| CLI reference (AC-10) | Output byte-identical, so no doc drift; version/help grammar unchanged | yes |
+| Web/i18n/mobile | Internal infra; `// Design:` anchors added, `ai/DOCS-TO-CODE.md` regenerated each phase | yes |
+| `.wb` harness format | New directives documented inline in `parser.go` + the runbook in this spec | yes |
