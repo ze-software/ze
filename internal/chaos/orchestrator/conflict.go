@@ -130,6 +130,40 @@ func ValidateRangeConflicts(bgpBase, listenBase, peers, sshPort, webUIPort, lgPo
 	return nil
 }
 
+// ValidateConfigRangeConflicts is the struct-path guard equivalent of the
+// flag-path ValidateRangeConflicts wiring in cli.go. It re-derives the BGP and
+// listen port ranges from the assembled OrchestratorConfig's peer profiles and
+// checks that the config's single-port service listeners (web, metrics, mcp)
+// do not fall inside those ranges. RunOrchestrator calls it at entry so that
+// any programmatic caller that builds an OrchestratorConfig directly -- not
+// only the flag path -- is protected from the same port clash (AC-10).
+func ValidateConfigRangeConflicts(cfg *OrchestratorConfig) error {
+	if len(cfg.Profiles) == 0 {
+		return nil
+	}
+	// Peer ports are assigned as BasePort+index (ze) and ListenBase+index
+	// (tool), so the minimum over profiles recovers the two range bases the
+	// flag path passes as *port and *listen-base.
+	bgpBase := cfg.Profiles[0].ZePort
+	listenBase := cfg.Profiles[0].Port
+	for _, p := range cfg.Profiles {
+		if p.ZePort < bgpBase {
+			bgpBase = p.ZePort
+		}
+		if p.Port < listenBase {
+			listenBase = p.Port
+		}
+	}
+	peers := len(cfg.Profiles)
+
+	// OrchestratorConfig carries only the web/metrics/mcp single-port
+	// listeners; the ssh/looking-glass/pprof flags are consumed before the
+	// struct is built and are not part of it, so pass them empty here.
+	return ValidateRangeConflicts(bgpBase, listenBase, peers,
+		0, 0, 0, 0,
+		cfg.WebAddr, "", cfg.MetricsAddr, "", cfg.McpAddr)
+}
+
 type parsedEndpoint struct {
 	ip   net.IP
 	port uint16

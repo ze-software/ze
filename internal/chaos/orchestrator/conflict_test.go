@@ -6,7 +6,48 @@ import (
 	"net"
 	"strings"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
 )
+
+func TestValidateConfigRangeConflicts_MetricsInsideBGP(t *testing.T) {
+	cfg := &OrchestratorConfig{
+		Profiles: []scenario.PeerProfile{
+			{Index: 0, ZePort: 1790, Port: 1890},
+			{Index: 1, ZePort: 1791, Port: 1891},
+			{Index: 2, ZePort: 1792, Port: 1892},
+		},
+		MetricsAddr: "127.0.0.1:1791", // inside the derived bgp range [1790, 1796)
+	}
+	err := ValidateConfigRangeConflicts(cfg)
+	if err == nil {
+		t.Fatal("expected range conflict, got nil")
+	}
+	if !strings.Contains(err.Error(), "chaos-metrics") || !strings.Contains(err.Error(), "bgp port range") {
+		t.Errorf("error should name the service and range, got: %v", err)
+	}
+}
+
+func TestValidateConfigRangeConflicts_NoConflict(t *testing.T) {
+	cfg := &OrchestratorConfig{
+		Profiles: []scenario.PeerProfile{
+			{Index: 0, ZePort: 1790, Port: 1890},
+			{Index: 1, ZePort: 1791, Port: 1891},
+		},
+		MetricsAddr: ":9090",
+		WebAddr:     ":8000",
+	}
+	if err := ValidateConfigRangeConflicts(cfg); err != nil {
+		t.Errorf("expected no conflict, got: %v", err)
+	}
+}
+
+func TestValidateConfigRangeConflicts_EmptyProfiles(t *testing.T) {
+	// No profiles => no derivable range => nothing to validate.
+	if err := ValidateConfigRangeConflicts(&OrchestratorConfig{MetricsAddr: "127.0.0.1:1790"}); err != nil {
+		t.Errorf("empty profiles must not error, got: %v", err)
+	}
+}
 
 func TestChaosListenConflict_SamePort(t *testing.T) {
 	err := ValidateChaosListenerConflicts(0, 8443, 8443, 0, "", "", "", "", "")

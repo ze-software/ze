@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -42,6 +43,17 @@ func RunOrchestrator(ctx context.Context, cfg *OrchestratorConfig) int {
 
 	profiles := cfg.Profiles
 	n := len(profiles)
+
+	// Reject a config whose single-port service listeners (web, metrics, mcp)
+	// fall inside the BGP or listen port ranges before any setup runs. The flag
+	// path checks this at cli.go and prints there; doing it here (identical
+	// error text from ValidateRangeConflicts) protects every caller that builds
+	// an OrchestratorConfig directly (AC-10).
+	if err := ValidateConfigRangeConflicts(cfg); err != nil {
+		slog.Error("chaos orchestrator config rejected", "error", err)
+		return 1
+	}
+
 	chaosEnabled := cfg.ChaosCfg.Rate > 0 || cfg.WebAddr != ""
 
 	model := validation.NewModel(n)

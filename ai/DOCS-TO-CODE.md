@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 274 design docs, 2875 files
+Total: 274 design docs, 2877 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -418,6 +418,7 @@ Total: 274 design docs, 2875 files
 | `internal/chaos/orchestrator/orchestrator_test.go` | orchestrator type and event processor tests |
 | `internal/chaos/orchestrator/register.go` | chaos root handler registration |
 | `internal/chaos/orchestrator/run.go` | orchestrator run loop and reporting setup |
+| `internal/chaos/orchestrator/run_test.go` | RunOrchestrator entry validation |
 | `internal/chaos/orchestrator/scheduler.go` | chaos and route dynamics schedulers |
 | `internal/chaos/orchestrator/subcommand.go` | replay, shrink, diff actions and network utilities |
 | `internal/chaos/orchestrator/types.go` | chaos test orchestrator types |
@@ -2967,6 +2968,7 @@ Total: 274 design docs, 2875 files
 ## `plan/learned/788-doctor-improvements.md`
 
 - `internal/component/config/listener_defaults.go` -- AC-1/AC-2 listener defaults
+- `scripts/checks/port_defaults.go` -- listener default port table
 
 ## `plan/learned/805-ipsec-11-interop-eap.md`
 
