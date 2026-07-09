@@ -1,6 +1,6 @@
-// Design: DESIGN-REVIEW.md finding 2 (late-join replay) and section 5
+// Design: docs/architecture/core-design.md -- shared late-join replay vocabulary (Redistribute Late-Join Replay)
 //
-//	(protocol-agnostic core carrying protocol-specific shape)
+// A protocol-agnostic core carrying protocol-specific shape.
 //
 // Package replay holds the ONE vocabulary every late-join replay hop shares: a
 // value-typed request payload carrying an opaque correlation token, a reserved

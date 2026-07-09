@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 273 design docs, 2859 files
+Total: 273 design docs, 2860 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -985,6 +985,7 @@ Total: 273 design docs, 2859 files
 | `internal/core/redistevents/events.go` | cross-protocol route-change events |
 | `internal/core/redistevents/pool.go` | pooled batch payload |
 | `internal/core/redistevents/registry.go` | ProtocolID registry for redistribute |
+| `internal/core/replay/replay.go` | shared late-join replay vocabulary (Redistribute Late-Join Replay) |
 | `internal/core/report/health_probe.go` | report-bus health probes |
 | `internal/core/report/register.go` | report-bus health registration |
 | `internal/core/routewatch/integration_linux_test.go` | routewatch integration tests |
