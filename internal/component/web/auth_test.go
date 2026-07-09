@@ -60,7 +60,7 @@ func TestSessionCookieValidation(t *testing.T) {
 	store := NewSessionStore()
 	users := testUsers(t)
 
-	session, err := store.CreateSession("alice")
+	session, err := store.CreateSession("alice", nil)
 	require.NoError(t, err)
 
 	handler := AuthMiddleware(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, okHandler())
@@ -116,7 +116,7 @@ func TestSessionCookieValidation(t *testing.T) {
 func TestSessionCreation(t *testing.T) {
 	store := NewSessionStore()
 
-	session, err := store.CreateSession("alice")
+	session, err := store.CreateSession("alice", nil)
 	require.NoError(t, err)
 	require.NotNil(t, session)
 
@@ -142,7 +142,7 @@ func TestSessionInvalidation(t *testing.T) {
 	store := NewSessionStore()
 
 	// Create first session.
-	first, err := store.CreateSession("alice")
+	first, err := store.CreateSession("alice", nil)
 	require.NoError(t, err)
 	firstToken := first.Token
 
@@ -150,7 +150,7 @@ func TestSessionInvalidation(t *testing.T) {
 	require.NotNil(t, store.ValidateToken(firstToken), "first session must be valid initially")
 
 	// Create second session for the same user.
-	second, err := store.CreateSession("alice")
+	second, err := store.CreateSession("alice", nil)
 	require.NoError(t, err)
 
 	// First token must now be invalid.
@@ -249,7 +249,7 @@ func TestSecurityHeaders(t *testing.T) {
 	store := NewSessionStore()
 	users := testUsers(t)
 
-	session, err := store.CreateSession("alice")
+	session, err := store.CreateSession("alice", nil)
 	require.NoError(t, err)
 
 	handler := AuthMiddleware(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, okHandler())
@@ -384,7 +384,7 @@ func TestLoginHandlerAuthFailureAuditRecord(t *testing.T) {
 func TestInvalidateUser(t *testing.T) {
 	store := NewSessionStore()
 
-	session, err := store.CreateSession("alice")
+	session, err := store.CreateSession("alice", nil)
 	require.NoError(t, err)
 
 	// Session must be valid before invalidation.

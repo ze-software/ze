@@ -453,6 +453,18 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	mutationWrap := func(h http.Handler) http.Handler {
 		return authWrap(zeweb.RequireSameOrigin(h))
 	}
+	// editWrap gates configuration-editing and admin pages behind the authz
+	// edit permission: read-only sessions get 403 (AC-1). RequireEditAuthz runs
+	// INSIDE authWrap so the username/profiles context is already set. Fail-open
+	// when no authz assignments exist (authorizer allows) preserves single-admin
+	// deployments (R-1); insecure/web-only mode has a nil authorizer and is never
+	// gated.
+	editWrap := func(h http.Handler) http.Handler {
+		return authWrap(zeweb.RequireEditAuthz(authorizer, h))
+	}
+	editMutationWrap := func(h http.Handler) http.Handler {
+		return authWrap(zeweb.RequireEditAuthz(authorizer, zeweb.RequireSameOrigin(h)))
+	}
 
 	loginHandler := zeweb.LoginHandlerWithAudit(sessionStore, webAuth, loginRenderer, recorder)
 	assetHandler := http.StripPrefix("/assets/", renderer.AssetHandler())
@@ -479,7 +491,9 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	// fall through to the catch-all and trigger an error-redirect (F14).
 	srv.Handle("GET /favicon.ico", renderer.FaviconHandler())
 	srv.Handle("/events", authWrap(broker))
-	srv.Handle("/admin/", mutationWrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Admin console (operational command execution) is an edit/ops surface:
+	// read-only sessions are denied at the route (AC-1), not just per-command.
+	srv.Handle("/admin/", editMutationWrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			adminExecHandler(w, r)
 			return
@@ -495,7 +509,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	srv.Handle("POST /config/set/", mutationWrap(setHandler))
 	srv.Handle("POST /config/form/", mutationWrap(formHandler))
 	srv.Handle("POST /config/add/", mutationWrap(addHandler))
-	srv.Handle("GET /config/add-form/", authWrap(addFormHandler))
+	srv.Handle("GET /config/add-form/", editWrap(addFormHandler))
 	srv.Handle("POST /config/rename/", mutationWrap(renameHandler))
 	srv.Handle("GET /config/changes", authWrap(zeweb.HandleConfigChanges(editorMgr, renderer)))
 	srv.Handle("POST /config/delete/", mutationWrap(deleteHandler))

@@ -30,9 +30,19 @@ type contextKey struct{ name string }
 // Set by AuthMiddleware, read by GetUsernameFromRequest.
 var ctxKeyUsername = &contextKey{"username"}
 
+// ctxKeyProfiles is the context key used to store the authenticated user's
+// authz profile names. Set by AuthMiddleware, read by GetProfilesFromRequest.
+var ctxKeyProfiles = &contextKey{"profiles"}
+
 // withUsername returns a derived context carrying the authenticated username.
 func withUsername(ctx context.Context, username string) context.Context {
 	return context.WithValue(ctx, ctxKeyUsername, username)
+}
+
+// withProfiles returns a derived context carrying the authenticated user's
+// authz profile names.
+func withProfiles(ctx context.Context, profiles []string) context.Context {
+	return context.WithValue(ctx, ctxKeyProfiles, profiles)
 }
 
 // GetUsernameFromRequest extracts the authenticated username from the request
@@ -44,6 +54,16 @@ func GetUsernameFromRequest(r *http.Request) string {
 	}
 
 	return ""
+}
+
+// GetProfilesFromRequest extracts the authenticated user's authz profile names
+// from the request context. Returns nil if the context does not carry profiles.
+func GetProfilesFromRequest(r *http.Request) []string {
+	if v, ok := r.Context().Value(ctxKeyProfiles).([]string); ok {
+		return v
+	}
+
+	return nil
 }
 
 // InsecureMiddleware wraps a handler to inject a default username without
@@ -65,6 +85,10 @@ type WebSession struct {
 	Username  string
 	Token     string
 	CreatedAt time.Time
+	// Profiles are the authz profile names the authenticator returned for this
+	// user (AuthResult.Profiles). Carried so route gates and nav rendering can
+	// reason about the session's authorization without re-querying (AC-2).
+	Profiles []string
 }
 
 // SessionStore manages active user sessions. It maps session tokens to
@@ -94,10 +118,11 @@ func NewSessionStore() *SessionStore {
 	}
 }
 
-// CreateSession generates a new session for the given username. If the user
-// already has an active session, the previous session is invalidated first.
-// The session token is 32 bytes from crypto/rand, hex-encoded to 64 characters.
-func (s *SessionStore) CreateSession(username string) (*WebSession, error) {
+// CreateSession generates a new session for the given username, recording the
+// authz profile names the authenticator returned. If the user already has an
+// active session, the previous session is invalidated first. The session token
+// is 32 bytes from crypto/rand, hex-encoded to 64 characters.
+func (s *SessionStore) CreateSession(username string, profiles []string) (*WebSession, error) {
 	token, err := generateToken()
 	if err != nil {
 		return nil, fmt.Errorf("generating session token: %w", err)
@@ -116,6 +141,7 @@ func (s *SessionStore) CreateSession(username string) (*WebSession, error) {
 		Username:  username,
 		Token:     token,
 		CreatedAt: time.Now(),
+		Profiles:  profiles,
 	}
 	s.sessions[token] = session
 	s.users[username] = token
@@ -180,7 +206,8 @@ func AuthMiddlewareWithAudit(store *SessionStore, authenticator authz.Authentica
 		if cookie, err := r.Cookie("ze-session"); err == nil {
 			if session := store.ValidateToken(cookie.Value); session != nil {
 				addSecurityHeaders(w)
-				next.ServeHTTP(w, r.WithContext(withUsername(r.Context(), session.Username)))
+				ctx := withProfiles(withUsername(r.Context(), session.Username), session.Profiles)
+				next.ServeHTTP(w, r.WithContext(ctx))
 
 				return
 			}
@@ -195,7 +222,8 @@ func AuthMiddlewareWithAudit(store *SessionStore, authenticator authz.Authentica
 			}); err == nil && result.Authenticated {
 				logger.Debug("basic auth accepted", "username", username)
 				addSecurityHeaders(w)
-				next.ServeHTTP(w, r.WithContext(withUsername(r.Context(), username)))
+				ctx := withProfiles(withUsername(r.Context(), username), result.Profiles)
+				next.ServeHTTP(w, r.WithContext(ctx))
 
 				return
 			}
@@ -247,7 +275,7 @@ func LoginHandlerWithAudit(store *SessionStore, authenticator authz.Authenticato
 			return
 		}
 
-		session, err := store.CreateSession(username)
+		session, err := store.CreateSession(username, result.Profiles)
 		if err != nil {
 			logger.Error("failed to create session", "username", username, "error", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
