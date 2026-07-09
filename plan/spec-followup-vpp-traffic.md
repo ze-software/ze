@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | phases 1-2 done (protocol IPv4+IPv6); 3-7 open |
+| Phase | 1-2 done (protocol); 5 done (mark rejected, A-3 broke); 3/4/6 BLOCKED on design decision |
 | Updated | 2026-07-09 |
 
 ## Post-Compaction Recovery
@@ -132,8 +132,8 @@ This was a consolidation skeleton created from verified deferral survivors (back
 | A-4 | IPv6 next-header mask/match expressible with skip/match vectors | CONFIRMED real VPP v25.10: ze programs the ip6 classify table (next-header at absolute frame byte 20) and binds ip6-policer-classify; evidence run green | IPv6 protocol filtering stays rejected | phase 1 real-VPP spike + evidence (done) | **confirmed** |
 | A-STEER | Classify session steering to a policer via binary API | CONFIRMED real VPP: `ClassifyAddDelSession.HitNextIndex = policer index` (action=0) is byte-for-byte VPP's own `policer-hit-next`. GOTCHA: the match must span skip+match vectors, so the traffic tables use skip=0 + full-width absolute-offset mask (IPv4 proto byte 23, IPv6 nh byte 20); a skip=1 short match returns INVALID_VALUE(-7). Packet-level policing not injected (loopback pg punts); state-level programming byte-matches VPP's canonical form | Keep protocol rejected | phase 1 spike + evidence (done) | **confirmed (programming)** |
 | A-6 | vpp_stub asserts new RPCs without material stub work | BROKEN: the stub has no `sw_interface_dump`/`policer_add_del` handlers, so a full traffic Apply cannot run against it (only `classify_add_del_table` was added here). Apply-level stub `.ci` needs stub work owned by `plan/spec-finish-vpp-stub.md` | rely on unit (fakeOps) + real-VPP evidence tiers | phase 1 stub attempt (done) | **broken (coordinate)** |
-| A-2 | `QOS_API_SOURCE_IP` record captures DSCP such that egress map + mark rewrite works like the VLAN precedent | qos binapi QosSource enum; VLAN pipeline proven (9fe01ad44) | Fall back to QosStoreEnableDisable static classification (also vendored) | real-VPP evidence run assertion | unvalidated |
-| A-3 | `SET_METADATA` classify action + policer-classify steering give filter mark a faithful-enough semantic (mark = steering key, not SKB parity) | classify.ba.go action enum + firewall steering precedent | Keep mark rejected with a better error naming the semantic gap; record deferral | phase 3 spike on real VPP | unvalidated |
+| A-2 | `QOS_API_SOURCE_IP` record captures DSCP such that egress map + mark rewrite works like the VLAN precedent | qos binapi QosSource enum; VLAN pipeline proven (9fe01ad44) | Fall back to QosStoreEnableDisable static classification (also vendored) | real-VPP evidence run assertion | **mechanism confirmed, semantic UNRESOLVED**: real VPP v25.10 accepts `qos record loop0 ip` + `qos mark loop0 map <id> ip` (state programmed), so record/map/mark IS feasible like the VLAN precedent. BUT this is a REMARKING primitive; it does not police DSCP-matched traffic. The spec's own parity requirement (Required Reading, translate_linux.go row) says `match dscp` should police matched traffic like `match protocol` -- which requires CLASSIFY, not record/map/mark. Which semantic `match dscp` carries under vpp is a user decision (see 2026-07-09 progress note). |
+| A-3 | `SET_METADATA` classify action + policer-classify steering give filter mark a faithful-enough semantic (mark = steering key, not SKB parity) | classify.ba.go action enum + firewall steering precedent | Keep mark rejected with a better error naming the semantic gap; record deferral | phase 3 spike on real VPP | **BROKEN (kept rejected)**: real-VPP v25.10 spike (Docker ligato/vpp-base) -- `classify session` CLI exposes only `set-ip4-fib-id`/`set-ip6-fib-id`/`set-sr-policy-index`, NO set-metadata; the binary SET_METADATA/opaque_index stores an opaque value consumed only by specific downstream graph nodes (ACL, SR-policy), with no feature arc that reads it back into the packet like Linux SKB fwmark persists. No faithful mark semantic exists. AC-3 fallback applied: mark stays rejected with an error naming the gap (verify.go errFilterMarkNotSupportedByBackend), deferral tracked here. |
 | A-4 | IPv6 next-header mask/match at the ip-ACL arc is expressible with skip/match vectors like IPv4 | classify table model (mask vectors); netlink parity values known | IPv6 protocol filtering stays rejected (exact-or-reject) with deferral destination | phase 1 stub + evidence test | unvalidated |
 | A-5 | Existing per-class `match { type dscp }` entries suffice as the operator-facing DSCP→class binding for prio (no new YANG) | YANG match list :122-136 already typed | Add a scoped YANG leaf per `ai/patterns/config-option.md` | phase 4 design review | unvalidated |
 | A-6 | vpp_stub.py can assert the new RPC names without material stub work | stub scrapes (name,crc) from vendored binapi | Extend stub (open spec `plan/spec-finish-vpp-stub.md` exists - coordinate, don't duplicate) | run stub .ci during phase 1 | unvalidated |
@@ -334,3 +334,80 @@ connection`) that is out of this spec's scope.
 mark (A-3 spike), phase 6 multi-class steering (verify.go:97-100), phase 7
 evidence/docs for those + `.ci` acceptance (A-6 stub work in
 `spec-finish-vpp-stub.md`). Stub apply-tier tests remain blocked on A-6.
+
+### 2026-07-09 -- Phase 5 (mark) resolved; phases 3/4/6 BLOCKED on design decisions
+
+Real-VPP spikes run on Docker `ligato/vpp-base` (VPP v25.10). Findings:
+
+**Phase 5 / AC-3 (filter mark): DONE via the designed fallback (mark stays
+rejected).** A-3 BROKE on real VPP: `classify session` exposes only
+`set-ip4-fib-id`/`set-ip6-fib-id`/`set-sr-policy-index` -- there is NO
+set-metadata CLI action, and the binary `SET_METADATA`/`opaque_index` stores an
+opaque value consumed only by specific downstream graph nodes (ACL, SR-policy),
+with no feature arc that reads it back into the packet the way Linux SKB fwmark
+persists. No faithful mark semantic exists. Per AC-3's fallback, the rejection
+is retained with an error naming the gap (`verify.go`
+`errFilterMarkNotSupportedByBackend`, now evidence-backed) and the deferral is
+recorded here. This AC is satisfied.
+
+**Phases 3 (dscp) and 4 (prio): BLOCKED -- the spec is internally inconsistent
+about what `match dscp` MEANS under vpp, and this is a user decision.**
+
+The config surface `class { rate 10mbit; match dscp { value 48 } }` has a RATE
+(a policer) and a MATCH. Two readings, mutually exclusive, both present in the
+spec:
+
+- (A) **Parity / police-by-dscp** -- the spec's Required Reading (translate_linux.go
+  row) states dscp *behavior parity* is the target and gives the exact bit
+  patterns; netlink's `match dscp` steers matched packets to the class policer,
+  identical to the already-shipped `match protocol`. This reading = CLASSIFY the
+  DSCP/TOS bits and steer to the policer (reuse the proven phase 1-2 pipeline; ip4
+  TOS at absolute byte 15 mask 0xFC, ip6 TC across bytes 14/15 masks 0x0F/0xC0).
+- (B) **Remark / record-map-mark** -- AC-2 and the Key Design Decisions say
+  `QosRecordEnableDisable(SOURCE_IP)` + `QosEgressMapUpdate` + `QosMarkEnableDisable`.
+  Real VPP CONFIRMS this mechanism programs (A-2: `qos record loop0 ip` +
+  `qos mark loop0 map <id> ip` accepted, state present) -- BUT it is a REMARKING
+  primitive: it rewrites egress DSCP, it does NOT police DSCP-matched traffic.
+  It also has no output-DSCP source in the config (`match dscp { value X }` gives
+  one value; a record/map/mark table needs an input->output map), so the map
+  contents for a single value are under-specified.
+
+Reading (B) cannot police the matched traffic, so a `class` with a `rate` +
+`match dscp` would parse and "apply" but not actually police -- exactly the
+silent-approximation `ai/rationale/exact-or-reject.md` forbids. Reading (A) is
+coherent, achieves the stated parity, is sibling-consistent with `match protocol`,
+and reuses proven real-VPP-validated infrastructure.
+
+**Recommendation: implement `match dscp` as reading (A) -- classify the DSCP bits
+and steer to the class policer** (correct AC-2's mechanism note, keep the parity
+goal). If the operator genuinely wants VPP DSCP *remarking* (reading B), that is a
+different feature that needs its own config surface (an explicit output DSCP, not a
+`match`), and the YANG leaf description must document the divergence per
+exact-or-reject. This choice was NOT made unilaterally because it contradicts the
+explicit "record/map/mark" instruction; it needs user confirmation.
+
+**Phase 4 (prio -> egress map)** inherits the same question and adds a second
+divergence: `qdisc prio` is a priority *scheduler* in netlink, but these VPP APIs
+expose no prio scheduler -- mapping prio to a DSCP egress map is a semantic
+substitution that must be made the documented contract (YANG description) per
+exact-or-reject, or rejected. `egressMapFromPrioClasses` per A-5 (DSCP-input ->
+class-priority-output, one map pushed per interface) is implementable once the
+dscp semantic above is settled and the prio->remap divergence is accepted +
+documented.
+
+**Phase 6 (multi-class HTB/TBF steering): implementable, uncontested semantic,
+but genuinely NEW wire work.** Police-by-protocol across N classes = clean netlink
+parity, no divergence. BUT `PolicerClassifySetInterface` binds ONE table per
+family per interface, so N per-class tables must be CHAINED via
+`ClassifyAddDelTable.NextTableIndex` (head bound, miss -> next). The firewall prior
+art does NOT chain (it rebinds per-term, last-table-wins -- a known unvalidated
+limitation, see plan/learned/1096), so chaining is new and needs its own real-VPP
+validation plus an N-table reconcile/undo/orphan rework of `classify_linux.go`
+(currently a single `classifyBinding` per interface). Recommended as the next
+phase once phase 3's semantic is settled.
+
+**Session outcome (honest stop):** AC-3 resolved (mark, real-VPP-backed). AC-2
+(dscp), AC-4 (prio), AC-5 (multi-class) are BLOCKED pending the user's decision on
+the `match dscp` semantic (reading A vs B) and acceptance of the prio->remap
+divergence. Committing this progress; spec stays open. No divergent/incoherent
+feature was shipped against exact-or-reject.

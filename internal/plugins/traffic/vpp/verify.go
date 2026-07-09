@@ -12,8 +12,16 @@ import (
 )
 
 var (
-	errFilterDscpNotSupportedByBackend = errors.New("filter dscp: not supported by backend vpp (deferred: VPP QoS record+mark pipeline not yet implemented)")
-	errFilterMarkNotSupportedByBackend = errors.New("filter mark: not supported by backend vpp (VPP classifier matches packet-header bytes, not Linux SKB metadata)")
+	errFilterDscpNotSupportedByBackend = errors.New("filter dscp: not supported by backend vpp (deferred, see plan/spec-followup-vpp-traffic.md AC-2)")
+	// errFilterMarkNotSupportedByBackend names the semantic gap that AC-3's
+	// fallback requires. A-3 was validated against real VPP v25.10 (Docker
+	// ligato/vpp-base): the classify SET_METADATA action / opaque_index stores
+	// an opaque value consumed only by specific downstream graph nodes (ACL,
+	// SR-policy), not a general packet mark; there is no VPP feature arc that
+	// reads it back into the packet the way Linux SKB fwmark persists. So no
+	// faithful mark semantic exists -- rejection is retained. Deferral tracked
+	// in plan/spec-followup-vpp-traffic.md (A-3, AC-3).
+	errFilterMarkNotSupportedByBackend = errors.New("filter mark: not supported by backend vpp (Linux SKB fwmark has no faithful VPP equivalent; classify SET_METADATA stores opaque graph-node metadata, not a persistent packet mark -- validated on VPP v25.10, see plan/spec-followup-vpp-traffic.md AC-3)")
 )
 
 // maxProtocol is the largest IP protocol / IPv6 next-header value that fits in
@@ -169,11 +177,17 @@ func verifyQdiscType(q traffic.QdiscType) error {
 //     matched at the wrong offset and never attached the table; both failure
 //     modes are pinned by golden vectors and the attach wiring test, all
 //     verified against real VPP v25.10.
-//   - DSCP filter: rejected. `QosEgressMapUpdate` + `QosMarkEnableDisable`
-//     need a preceding `QosRecordEnableDisable` on ingress to capture the
-//     incoming DSCP; that 3-step pipeline is not built yet.
-//   - Mark filter: rejected. VPP's classifier matches packet-header bytes;
-//     Linux SKB mark has no equivalent header field to match on.
+//   - DSCP filter: rejected pending a design decision (see
+//     plan/spec-followup-vpp-traffic.md AC-2). The spec's parity requirement
+//     (police DSCP-matched traffic, like `filter protocol`) and its mechanism
+//     note (QoS record/egress-map/mark, which REMARKS but does not police by
+//     match) are internally inconsistent; resolving which semantic `match dscp`
+//     carries under vpp is a user decision, so the filter stays rejected.
+//   - Mark filter: rejected. Linux SKB fwmark has no faithful VPP equivalent.
+//     A-3 (validated on real VPP v25.10): the classify SET_METADATA action
+//     stores an opaque value consumed only by specific downstream graph nodes,
+//     not a persistent packet mark -- so no faithful semantic exists. Deferral
+//     tracked in plan/spec-followup-vpp-traffic.md AC-3.
 //
 // Rejecting the unimplemented filters at verify keeps the backend honest
 // (no half-working features) per `rules/exact-or-reject.md`.
