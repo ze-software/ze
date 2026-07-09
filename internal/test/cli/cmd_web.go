@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	webtesting "codeberg.org/thomas-mangin/ze/internal/component/web/testing"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
@@ -226,7 +228,12 @@ func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, zeBin string) (b
 	var tb textbuf.Buffer
 	listenAddr := tb.Str("127.0.0.1:").Int(int64(port)).String()
 
-	srv, err := zeTestStartWebServer(ctx, zeBin, listenAddr)
+	// A test that declares option=auth needs real authentication (not the fast
+	// single-implicit-admin --insecure-web path); pre-parse the .wb file to
+	// decide the server-start mode and which users to seed.
+	insecure, authUsers := zeTestWebAuth(test.Path)
+
+	srv, err := zeTestStartWebServer(ctx, zeBin, listenAddr, insecure, authUsers)
 	if err != nil {
 		test.SetError(fmt.Errorf("start web server: %w", err))
 		return false, test.GetError()
@@ -258,15 +265,33 @@ type zeTestWebServer struct {
 	tempDir string
 }
 
-func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string) (*zeTestWebServer, error) {
+// zeTestWebAuth reads a .wb file and reports whether the web server should run
+// with authentication disabled (--insecure-web) plus the users to seed. A test
+// that declares option=auth needs real authentication; otherwise the harness
+// keeps the fast single-implicit-admin insecure mode. A read/parse error is a
+// safe default of insecure=true (the file's own parse error surfaces later when
+// the runner parses it again).
+func zeTestWebAuth(path string) (insecure bool, users []webtesting.WBAuthUser) {
+	content, err := os.ReadFile(path) //nolint:gosec // controlled test discovery path
+	if err != nil {
+		return true, nil
+	}
+	tc, err := webtesting.ParseWBFile(string(content))
+	if err != nil {
+		return true, nil
+	}
+	return !tc.RequiresAuth(), tc.Auth
+}
+
+func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecure bool, authUsers []webtesting.WBAuthUser) (*zeTestWebServer, error) {
 	_, portStr, _ := net.SplitHostPort(listenAddr)
 	tempDir, tempErr := os.MkdirTemp("", "ze-web-test-*")
 	if tempErr != nil {
 		return nil, fmt.Errorf("create temp config dir: %w", tempErr)
 	}
-	if err := zeTestSeedPowerUser(tempDir); err != nil {
+	if err := zeTestSeedWebUsers(tempDir, insecure, authUsers); err != nil {
 		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on seed failure
-		return nil, fmt.Errorf("seed power user: %w", err)
+		return nil, fmt.Errorf("seed web users: %w", err)
 	}
 	// --web-only starts the standalone web UI (no BGP engine, no config
 	// required). The .wb suite exercises the UI surface -- config editor,
@@ -274,7 +299,14 @@ func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string) (*zeTes
 	// it never needs live peer data. Plain "start --web" would demand a loaded
 	// config and exit before binding the port (ze_core_start.go:219), so every
 	// test timed out at the readiness probe.
-	cmd := exec.CommandContext(ctx, zeBin, "start", "--web", portStr, "--web-only", "--insecure-web") //nolint:gosec // test binary path
+	//
+	// --insecure-web is dropped for tests that declare option=auth so the login
+	// flow and role gating are exercised against real authentication.
+	args := []string{"start", "--web", portStr, "--web-only"}
+	if insecure {
+		args = append(args, "--insecure-web")
+	}
+	cmd := exec.CommandContext(ctx, zeBin, args...) //nolint:gosec // test binary path
 	var tb textbuf.Buffer
 	cmd.Env = append(os.Environ(),
 		tb.Str("ze.config.dir=").Str(tempDir).String(),
@@ -294,26 +326,56 @@ func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string) (*zeTes
 	return &zeTestWebServer{cmd: cmd, tempDir: tempDir}, nil
 }
 
-// zeTestSeedPowerUser writes a zefs local-admin credential into the temp config
+// zeTestSeedWebUsers writes a zefs local-admin credential into the temp config
 // store (pre-creating database.zefs, which ze then opens rather than recreates)
 // so the Users page lists the always-on "(system)" power user, matching a real
-// appliance provisioned by `ze init`. --insecure-web disables web auth, so the
-// hash is never used to log in; it only needs to be non-empty for the power-user
-// loader to surface the account (cmd/ze/hub/main_servers.go usersFromZefsDB).
-func zeTestSeedPowerUser(configDir string) error {
+// appliance provisioned by `ze init`.
+//
+// Under --insecure-web the hash is never used to log in; it only needs to be
+// non-empty for the power-user loader to surface the account
+// (cmd/ze/hub/main_servers.go usersFromZefsDB). For an auth test (insecure ==
+// false) the declared admin user is seeded with a real bcrypt hash so the login
+// flow authenticates. NOTE: zefs stores a single local admin, so a multi-user
+// test that also needs a distinct read-only login requires config-file authz
+// users; the admin credential seeded here covers admin-login and single-user
+// tests (see the AC-6/7 runbook in the spec).
+func zeTestSeedWebUsers(configDir string, insecure bool, authUsers []webtesting.WBAuthUser) error {
 	store, err := zefs.Create(filepath.Join(configDir, "database.zefs"))
 	if err != nil {
 		return err
 	}
-	if err := store.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte("admin"), 0); err != nil {
+	username := "admin"
+	passwordHash := "$2y$10$ze.web.test.placeholder.admin.hash.value.unused" //nolint:gosec // G101: placeholder test hash, replaced with a real bcrypt hash for auth tests
+	if !insecure && len(authUsers) > 0 {
+		admin := zeTestPickAdmin(authUsers)
+		username = admin.Name
+		hash, hashErr := bcrypt.GenerateFromPassword([]byte(admin.Password), bcrypt.DefaultCost)
+		if hashErr != nil {
+			store.Close() //nolint:errcheck // returning the primary hashing error
+			return hashErr
+		}
+		passwordHash = string(hash)
+	}
+	if err := store.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte(username), 0); err != nil {
 		store.Close() //nolint:errcheck // returning the primary write error
 		return err
 	}
-	if err := store.WriteFile(zefs.KeyLocalAdminPassword.Pattern, []byte("$2y$10$ze.web.test.placeholder.admin.hash.value.unused"), 0); err != nil {
+	if err := store.WriteFile(zefs.KeyLocalAdminPassword.Pattern, []byte(passwordHash), 0); err != nil {
 		store.Close() //nolint:errcheck // returning the primary write error
 		return err
 	}
 	return store.Close()
+}
+
+// zeTestPickAdmin returns the declared user that should back the seeded local
+// admin: the first with an admin (or unset) role, else the first declared user.
+func zeTestPickAdmin(users []webtesting.WBAuthUser) webtesting.WBAuthUser {
+	for _, u := range users {
+		if u.Role == "admin" || u.Role == "" {
+			return u
+		}
+	}
+	return users[0]
 }
 
 func zeTestProbeReady(ctx context.Context, addr string, timeout time.Duration) error {

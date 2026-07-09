@@ -69,6 +69,9 @@ type LoginData struct {
 	Error    string
 	Overlay  bool
 	ReturnTo string // URL to redirect to after successful login
+	// Locale is the UI locale for translated strings ("en", "fr", ...). Empty
+	// renders English (Translate falls back to the English base).
+	Locale string
 }
 
 // WorkbenchData holds the data passed to the V2 workbench page template. It
@@ -102,6 +105,8 @@ func NewRenderer() (*Renderer, error) {
 		"fieldname":    formFieldName,
 		"fieldchecked": formFieldChecked,
 		"fieldlabel":   humanizeFieldLabel,
+		// t translates a key for the given locale with English fallback (i18n.go).
+		"t": Translate,
 	}
 
 	layout, err := template.New("layout.html").Funcs(funcMap).ParseFS(templatesFS,

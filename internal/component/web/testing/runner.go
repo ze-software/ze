@@ -106,6 +106,44 @@ func (b *Browser) WaitMs(ms string) error {
 	return nil
 }
 
+// SetViewport resizes the browser viewport (agent-browser set viewport <w> <h>)
+// so mobile-layout assertions run at the requested size. Applied before the
+// first navigation.
+func (b *Browser) SetViewport(width, height int) error {
+	var tb textbuf.Buffer
+	w := tb.Int(int64(width)).String()
+	h := tb.Reset().Int(int64(height)).String()
+	return b.runAgent("set", "viewport", w, h)
+}
+
+// SetLocale sets the browser Accept-Language header (agent-browser set headers
+// <json>) so the UI renders under the given locale for the rest of the session.
+func (b *Browser) SetLocale(lang string) error {
+	var tb textbuf.Buffer
+	hdr := tb.Str(`{"Accept-Language":"`).Str(lang).Str(`"}`).String()
+	return b.runAgent("set", "headers", hdr)
+}
+
+// Login drives the login form: it navigates to the root (which renders the
+// login form when the session is unauthenticated), fills the credentials, and
+// submits. Used by the `action=login:user=..:password=..` directive to exercise
+// role-gated pages.
+func (b *Browser) Login(user, password string) error {
+	if err := b.Open("/"); err != nil {
+		return err
+	}
+	if err := b.FillID("username", user); err != nil {
+		return err
+	}
+	if err := b.FillID("password", password); err != nil {
+		return err
+	}
+	if err := b.Press("Enter"); err != nil {
+		return err
+	}
+	return b.WaitLoad()
+}
+
 // Snapshot returns the interactive accessibility snapshot.
 func (b *Browser) Snapshot() (string, error) {
 	return b.runAgentOutput("snapshot", "-i")
@@ -453,6 +491,19 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 		tb    textbuf.Buffer
 	)
 
+	// Apply session-level options before the first navigation: a mobile
+	// viewport and/or an Accept-Language locale carry through every open.
+	if tc.Viewport.Width > 0 && tc.Viewport.Height > 0 {
+		if err := browser.SetViewport(tc.Viewport.Width, tc.Viewport.Height); err != nil {
+			return &WBTestResult{Error: tb.Str("set viewport: ").Err(err).String()}
+		}
+	}
+	if tc.Locale != "" {
+		if err := browser.SetLocale(tc.Locale); err != nil {
+			return &WBTestResult{Error: tb.Reset().Str("set locale: ").Err(err).String()}
+		}
+	}
+
 	for i, step := range tc.Steps {
 		switch step.Type {
 		case WBStepAction:
@@ -558,6 +609,8 @@ func executeAction(b *Browser, a *WBAction) error {
 		return b.Press(key)
 	case "screenshot":
 		return b.Screenshot(a.Values["file"])
+	case "login":
+		return b.Login(a.Values["user"], a.Values["password"])
 	}
 	return fmt.Errorf("unknown action kind %q", a.Kind)
 }

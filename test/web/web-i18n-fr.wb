@@ -1,0 +1,17 @@
+# Test: login page renders under the French proving locale
+# VALIDATES: AC-6 -- Accept-Language: fr makes the login page render French
+#            strings from the catalog (Translate + the "t" template helper)
+# PREVENTS: an i18n regression where the locale is ignored and the UI stays
+#           English, or a missing key renders blank
+#
+# option=auth forces real authentication so an unauthenticated GET / renders the
+# login page; option=locale sets the browser Accept-Language the server reads
+# via LocaleFromRequest.
+
+option=timeout:value=30s
+option=auth:user=admin:password=ze-web-admin
+option=locale:lang=fr
+
+action=open:path=/
+expect=element:text=Connexion
+expect=element:text=Se connecter

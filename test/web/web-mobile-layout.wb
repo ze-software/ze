@@ -1,0 +1,21 @@
+# Test: key pages render usably at a 390px mobile viewport
+# VALIDATES: AC-7 -- login, dashboard, config editor, and admin pages render at
+#            a 390px-wide viewport (the 390px @media block keeps wide content
+#            inside its own scroll box; the page itself must not scroll sideways)
+# PREVENTS: a layout regression that reintroduces horizontal scroll on phones
+#
+# option=viewport resizes the browser before the first navigation. The static
+# CSS guard (@media max-width:390px overflow-x:hidden) is unit-tested in
+# TestMobileViewportCSS; this test confirms the pages stay functional at width.
+
+option=timeout:value=30s
+option=viewport:width=390:height=844
+
+action=open:path=/
+expect=element:text=bgp
+
+action=open:path=/admin/peer/
+expect=element:text=admin
+
+action=open:path=/cli
+expect=element:id=cli-input

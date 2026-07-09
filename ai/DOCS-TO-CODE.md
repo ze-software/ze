@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 274 design docs, 2874 files
+Total: 274 design docs, 2875 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1505,6 +1505,7 @@ Total: 274 design docs, 2874 files
 | `internal/component/web/handler_portal.go` | Portal frame for embedded services |
 | `internal/component/web/handler_tools.go` | V2 workbench related-tool execution |
 | `internal/component/web/handler_workbench.go` | V2 workbench shell handler |
+| `internal/component/web/i18n.go` | web UI internationalization |
 | `internal/component/web/rbac.go` | role-based access control |
 | `internal/component/web/related_resolver.go` | V2 workbench related-tool resolver |
 | `internal/component/web/render.go` | Template rendering |

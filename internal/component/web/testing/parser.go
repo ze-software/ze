@@ -9,6 +9,7 @@ package webtesting
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -43,15 +44,39 @@ type WBExpectation struct {
 	Line   int
 }
 
+// WBViewport is a browser viewport size from option=viewport:width=..:height=..
+// The zero value means "use the harness default" (no resize).
+type WBViewport struct {
+	Width  int
+	Height int
+}
+
+// WBAuthUser is a user the harness must seed and that a login action can use,
+// from option=auth:user=..:password=..:role=.. (repeatable). A test that
+// declares any auth user needs the server started with authentication enabled
+// (not --insecure-web).
+type WBAuthUser struct {
+	Name     string
+	Password string //nolint:gosec // G117: test-harness login password for a seeded .wb user, not a real secret
+	Role     string // "", "admin", or "read-only"
+}
+
 // WBTestCase holds a parsed .wb test file.
 type WBTestCase struct {
 	Actions    []WBAction
 	Expects    []WBExpectation
 	Steps      []WBStep
-	Timeout    string // from option=timeout:value=
-	SkipReason string // from option=skip:reason=...; non-empty means skip the test
+	Timeout    string       // from option=timeout:value=
+	SkipReason string       // from option=skip:reason=...; non-empty means skip the test
+	Viewport   WBViewport   // from option=viewport:width=..:height=..
+	Locale     string       // from option=locale:lang=.. (sets Accept-Language)
+	Auth       []WBAuthUser // from option=auth:.. (repeatable); non-empty => server needs auth
 	Comments   []string
 }
+
+// RequiresAuth reports whether the test declared any auth user, meaning the
+// harness must start the server with authentication enabled and seed the users.
+func (tc *WBTestCase) RequiresAuth() bool { return len(tc.Auth) > 0 }
 
 // ParseWBFile parses a .wb file content into a WBTestCase.
 func ParseWBFile(content string) (*WBTestCase, error) {
@@ -114,6 +139,41 @@ func parseWBOption(tc *WBTestCase, rest string, line int) error {
 		} else {
 			tc.SkipReason = "skipped"
 		}
+		return nil
+	case "viewport":
+		// option=viewport:width=390:height=844 resizes the browser before the
+		// first navigation so mobile-layout assertions run at that size.
+		if v, ok := kv["width"]; ok {
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("line %d: viewport width %q: %w", line, v, err)
+			}
+			tc.Viewport.Width = n
+		}
+		if v, ok := kv["height"]; ok {
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("line %d: viewport height %q: %w", line, v, err)
+			}
+			tc.Viewport.Height = n
+		}
+		return nil
+	case "locale":
+		// option=locale:lang=fr sets the browser Accept-Language so the UI
+		// renders under the proving locale.
+		if v, ok := kv["lang"]; ok {
+			tc.Locale = v
+		}
+		return nil
+	case "auth":
+		// option=auth:user=noc:password=secret:role=read-only (repeatable)
+		// declares a user to seed; its presence makes the harness start the
+		// server with authentication enabled instead of --insecure-web.
+		u := WBAuthUser{Name: kv["user"], Password: kv["password"], Role: kv["role"]}
+		if u.Name == "" {
+			return fmt.Errorf("line %d: auth option requires user=", line)
+		}
+		tc.Auth = append(tc.Auth, u)
 		return nil
 	}
 	return fmt.Errorf("line %d: unknown option %q", line, rest)

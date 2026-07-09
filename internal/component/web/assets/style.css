@@ -2283,6 +2283,37 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   .config-set-form .config-btn-set { opacity: 1; }
 }
 
+/* Mobile baseline: 390px (iPhone-class portrait). The key pages -- login,
+   dashboard, config editor, admin -- must not scroll horizontally; wide
+   content (data tables, CLI/diff output) scrolls inside its own box instead
+   (spec-followup-web-cli-ux AC-7). */
+@media (max-width: 390px) {
+  html, body { max-width: 100%; overflow-x: hidden; }
+  .layout { font-size: 12px; }
+  .content-area { padding: 0.5rem; }
+
+  /* Login card fills the narrow viewport with a small gutter. */
+  .login-page { padding: 0 0.5rem; }
+  .login-card { margin: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
+
+  /* Navigation and breadcrumbs wrap instead of forcing width. */
+  .breadcrumb-list, .breadcrumb-nav, .config-nav-list { flex-wrap: wrap; }
+
+  /* Wide data tables scroll inside their own container, not the page. */
+  .finder-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Long preformatted output (CLI, diffs, terminal) stays within its box. */
+  .cli-output, .terminal-output, .command-result-output,
+  .commit-diff-output, .tool-overlay-output {
+    max-width: 100%; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+  }
+
+  /* Config editor form and dashboard grid stack to a single column. */
+  .config-set-form { flex-direction: column; }
+  .config-field { flex-basis: 100%; width: 100%; }
+  .config-list-layout, .wb-dashboard-grid { grid-template-columns: 1fr; }
+}
+
 /* ==========================================================================
    V2 Workbench shell (spec-web-2-operator-workbench, Phase 1).
    Targets a minimum viewport of 1280x800. Below 1024px the workbench shows

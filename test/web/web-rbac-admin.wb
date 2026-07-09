@@ -1,0 +1,15 @@
+# Test: an admin user logs in and reaches an edit/ops page
+# VALIDATES: AC-2 -- a real authenticated admin session (AAA chain, local
+#            backend) is granted the admin console and edit surfaces
+# PREVENTS: the AAA-chain login regressing so a valid admin cannot authenticate
+#
+# option=auth drops --insecure-web and seeds this admin credential; action=login
+# drives the login form. The Go tier proves the session/profile plumbing
+# (TestWebAuth*, TestRouteGate*); this .wb is the end-to-end browser proof.
+
+option=timeout:value=30s
+option=auth:user=admin:password=ze-web-admin:role=admin
+
+action=login:user=admin:password=ze-web-admin
+action=open:path=/admin/peer/
+expect=element:text=admin

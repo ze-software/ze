@@ -1,0 +1,19 @@
+# Test: a read-only user is denied an edit/admin page (403)
+# VALIDATES: AC-1 -- a read-only profile is gated out of the admin console and
+#            config-mutation pages by RequireEditAuthz (route gate returns 403)
+# PREVENTS: a read-only web user gaining edit/admin access
+#
+# SKIP RATIONALE: the harness seeds a single zefs local admin, so a *distinct*
+# read-only web login needs config-file authz users + profile assignments, which
+# the --web-only appliance the runner starts does not provision. Run this in full
+# CI against an appliance that has a read-only web user configured. The
+# enforcement itself is proven at the Go tier (rbac_test.go:
+# TestRouteGateDeniesReadOnly, TestCanEditReflectsAuthorizer).
+
+option=skip:reason=needs a config-file read-only web user; zefs seeds only the single local admin (see AC-6/7 runbook in the spec)
+option=timeout:value=30s
+option=auth:user=noc:password=ze-web-noc:role=read-only
+
+action=login:user=noc:password=ze-web-noc
+action=open:path=/admin/peer/
+expect=element:text=Forbidden

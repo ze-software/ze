@@ -363,7 +363,8 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	sessionStore := zeweb.NewSessionStore()
 	loginRenderer := func(w http.ResponseWriter, r *http.Request) {
-		if renderErr := renderer.RenderLogin(w, zeweb.LoginData{ReturnTo: r.URL.RequestURI()}); renderErr != nil {
+		data := zeweb.LoginData{ReturnTo: r.URL.RequestURI(), Locale: zeweb.LocaleFromRequest(r)}
+		if renderErr := renderer.RenderLogin(w, data); renderErr != nil {
 			http.Error(w, "render error", http.StatusInternalServerError)
 		}
 	}
