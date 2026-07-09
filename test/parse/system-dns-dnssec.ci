@@ -1,0 +1,40 @@
+# Test: system { dns { dnssec-validation } } config parses successfully.
+# VALIDATES: spec-followup-subsystem AC-5 -- the dnssec-validation enumeration
+#            leaf (off|permissive|strict) is accepted by the real parser through
+#            the system.dns container, so the DNSSEC stub-resolver toggle is a
+#            real config surface, not just a Go field.
+# PREVENTS: the dnssec-validation leaf silently missing from the built schema.
+stdin=config:terminator=EOF_CONF
+system {
+	dns {
+		dnssec-validation strict
+		timeout 5
+	}
+}
+bgp {
+	router-id 10.0.0.1
+	session {
+		asn {
+			local 65533
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				remote 65534
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -
+expect=exit:code=0

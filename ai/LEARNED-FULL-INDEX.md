@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1106 summaries
+Total: 1107 summaries
 
 ## 000-099
 
@@ -1170,3 +1170,4 @@ Total: 1106 summaries
 | 1092 | layout-0-umbrella | `plan/learned/1092-layout-0-umbrella.md` |
 | 1093 | followup-hooks | `plan/learned/1093-followup-hooks.md` |
 | 1094 | followup-web-cli-ux | `plan/learned/1094-followup-web-cli-ux.md` |
+| 1095 | followup-subsystem: DoT/DoH, DNSSEC, SLAAC, exabgp-bridge, MCP, port-defaults | `plan/learned/1095-followup-subsystem.md` |
