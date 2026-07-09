@@ -21,9 +21,16 @@ func cmdDNS(args []string) int {
 
 	fs := flag.NewFlagSet("ze resolve dns", flag.ContinueOnError)
 	dnsServer := fs.String("server", "", "DNS server (default: system DNS)")
+	dnssec := fs.String("dnssec", "", "DNSSEC validation: off|permissive|strict (default off)")
 	fs.Usage = func() { dnsUsage() }
 
 	if err := fs.Parse(args); err != nil {
+		return exitError
+	}
+	switch *dnssec {
+	case "", "off", "permissive", "strict":
+	default:
+		dnsUsage()
 		return exitError
 	}
 
@@ -36,7 +43,7 @@ func cmdDNS(args []string) int {
 	op := remaining[0]
 	name := remaining[1]
 
-	cfg := resolveDNS.ResolverConfig{}
+	cfg := resolveDNS.ResolverConfig{DNSSECValidation: *dnssec}
 	if *dnsServer != "" {
 		cfg.Server = *dnsServer
 	}
@@ -88,6 +95,7 @@ func dnsUsage() {
 			}},
 			{Title: "Flags", Entries: []helpfmt.HelpEntry{
 				{Name: "--server <host>", Desc: "DNS server (default: system DNS)"},
+				{Name: "--dnssec <mode>", Desc: "DNSSEC validation: off|permissive|strict (default off)"},
 			}},
 		},
 		Examples: []string{

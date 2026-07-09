@@ -21,10 +21,11 @@ type SystemConfig struct {
 	NameServers []string
 
 	// DNS resolver tuning (from system { dns {} }).
-	DNSTimeout     uint16
-	DNSCacheSize   uint32
-	DNSCacheTTL    uint32
-	ResolvConfPath string
+	DNSTimeout       uint16
+	DNSCacheSize     uint32
+	DNSCacheTTL      uint32
+	ResolvConfPath   string
+	DNSSECValidation string // off | permissive | strict (from system { dns { dnssec-validation } })
 
 	// PeeringDB API settings for prefix data lookups.
 	PeeringDBURL    string
@@ -171,13 +172,14 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 	}
 
 	sc := SystemConfig{
-		Host:            host,
-		DNSTimeout:      5,
-		DNSCacheSize:    10000,
-		DNSCacheTTL:     86400,
-		ResolvConfPath:  "/tmp/resolv.conf",
-		PeeringDBURL:    "https://www.peeringdb.com",
-		PeeringDBMargin: 10,
+		Host:             host,
+		DNSTimeout:       5,
+		DNSCacheSize:     10000,
+		DNSCacheTTL:      86400,
+		ResolvConfPath:   "/tmp/resolv.conf",
+		DNSSECValidation: "off",
+		PeeringDBURL:     "https://www.peeringdb.com",
+		PeeringDBMargin:  10,
 	}
 
 	sys := tree.GetContainer("system")
@@ -217,6 +219,12 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 			var n int
 			if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n >= 0 && n <= 604800 {
 				sc.DNSCacheTTL = uint32(n) //nolint:gosec // Bounded by range check above
+			}
+		}
+		if v, ok := dns.Get("dnssec-validation"); ok {
+			switch v {
+			case "off", "permissive", "strict":
+				sc.DNSSECValidation = v
 			}
 		}
 	}

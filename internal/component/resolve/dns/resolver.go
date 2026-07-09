@@ -1,5 +1,7 @@
 // Design: (none -- new component, predates documentation)
 // Related: cache.go -- in-memory cache for DNS query results
+// RFC: rfc/short/rfc4035.md -- DNSSEC stub-resolver handling (EDNS0 DO bit, the
+// upstream AD bit, and SERVFAIL on a broken chain)
 
 package dns
 
@@ -22,7 +24,20 @@ type ResolverConfig struct {
 	Timeout        uint16 // Query timeout in seconds.
 	CacheSize      uint32 // Max cached entries. 0 disables caching.
 	CacheTTL       uint32 // Max cache TTL in seconds. 0 means use response TTL only.
+	// DNSSECValidation controls upstream-answer DNSSEC handling (RFC 4035 stub
+	// model): "off" (default) leaves behavior unchanged; "permissive" and
+	// "strict" set the EDNS0 DO bit and rely on a validating upstream (CD=0) to
+	// SERVFAIL a broken chain. "strict" rejects such answers as an error;
+	// "permissive" logs and returns the (empty) result. Empty means off.
+	DNSSECValidation string
 }
+
+// DNSSEC validation modes.
+const (
+	dnssecOff        = "off"
+	dnssecPermissive = "permissive"
+	dnssecStrict     = "strict"
+)
 
 // Resolver provides DNS query services to Ze components.
 // Safe for concurrent use. Caller MUST call Close when done.
@@ -31,6 +46,7 @@ type Resolver struct {
 	server string
 	cache  *cache
 	logger *slog.Logger
+	dnssec string // one of dnssecOff/dnssecPermissive/dnssecStrict
 }
 
 // NewResolver creates a DNS resolver with the given configuration.
@@ -55,6 +71,11 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 		server = resolveSystemDNS(resolvPath)
 	}
 
+	dnssec := cfg.DNSSECValidation
+	if dnssec == "" {
+		dnssec = dnssecOff
+	}
+
 	return &Resolver{
 		client: &mdns.Client{
 			Net:     "udp",
@@ -63,7 +84,31 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 		server: server,
 		cache:  newCache(cfg.CacheSize, cfg.CacheTTL),
 		logger: slogutil.Logger("dns"),
+		dnssec: dnssec,
 	}
+}
+
+// dnssecDecision decides how a resolver in mode should treat a response with the
+// given rcode and AuthenticatedData bit. It returns a non-nil error to reject
+// the answer (strict mode, broken chain), or a non-empty warn string to log
+// (permissive mode), or neither. The stub model (RFC 4035): a validating
+// upstream returns SERVFAIL for a broken chain (CD=0), so SERVFAIL under
+// validation is the failure signal. A NOERROR answer is accepted whether it is
+// secure (AD=1) or insecure/unsigned (AD=0) -- rejecting AD=0 would break every
+// unsigned zone.
+func dnssecDecision(rcode int, _ bool, mode string) (warn string, reject error) {
+	if mode == "" || mode == dnssecOff {
+		return "", nil
+	}
+	if rcode == mdns.RcodeServerFailure {
+		switch mode {
+		case dnssecStrict:
+			return "", fmt.Errorf("dnssec validation failed: upstream returned SERVFAIL (broken chain or unreachable)")
+		case dnssecPermissive:
+			return "dnssec: upstream SERVFAIL under validation (possible broken chain), returning empty result", nil
+		}
+	}
+	return "", nil
 }
 
 // resolveSystemDNS reads the system DNS server from the configured resolv.conf path.
@@ -205,10 +250,15 @@ func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, error) {
 
 	fqdn := mdns.Fqdn(name)
 
+	validating := r.dnssec != "" && r.dnssec != dnssecOff
+
 	m := new(mdns.Msg)
 	m.SetQuestion(fqdn, qtype)
 	m.RecursionDesired = true
-	m.SetEdns0(4096, false)
+	// Set the EDNS0 DO (DNSSEC OK) bit only when validation is enabled, so a
+	// validating upstream signs / validates and reports SERVFAIL on a broken
+	// chain (CD stays 0). Off mode keeps today's non-DNSSEC query exactly.
+	m.SetEdns0(4096, validating)
 
 	resp, _, err := r.client.Exchange(m, r.server)
 	if err != nil {
@@ -221,6 +271,14 @@ func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, error) {
 
 	if resp.Truncated {
 		r.logger.Warn("truncated DNS response", "name", name, "type", mdns.TypeToString[qtype])
+	}
+
+	// DNSSEC policy: reject (strict) or log (permissive) a broken chain before
+	// the generic rcode handling below turns a SERVFAIL into an empty result.
+	if warn, reject := dnssecDecision(resp.Rcode, resp.AuthenticatedData, r.dnssec); reject != nil {
+		return nil, 0, fmt.Errorf("dns query %s %s: %w", name, mdns.TypeToString[qtype], reject)
+	} else if warn != "" {
+		r.logger.Warn(warn, "name", name, "type", mdns.TypeToString[qtype])
 	}
 
 	// NXDOMAIN and other non-error response codes return empty results, not errors.

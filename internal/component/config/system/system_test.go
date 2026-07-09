@@ -164,6 +164,21 @@ func TestExtractSystemConfig_DNS(t *testing.T) {
 	assert.Equal(t, uint32(3600), sc.DNSCacheTTL)
 }
 
+// VALIDATES: AC-5 -- dnssec-validation is extracted from system { dns {} },
+// defaults to off, and an unknown value is ignored (keeps the default).
+func TestExtractSystemConfig_DNSSEC(t *testing.T) {
+	base := config.NewTree()
+	assert.Equal(t, "off", system.ExtractSystemConfig(base).DNSSECValidation, "default")
+
+	strictTree := config.NewTree()
+	strictTree.GetOrCreateContainer("system").GetOrCreateContainer("dns").Set("dnssec-validation", "strict")
+	assert.Equal(t, "strict", system.ExtractSystemConfig(strictTree).DNSSECValidation)
+
+	badTree := config.NewTree()
+	badTree.GetOrCreateContainer("system").GetOrCreateContainer("dns").Set("dnssec-validation", "bogus")
+	assert.Equal(t, "off", system.ExtractSystemConfig(badTree).DNSSECValidation, "unknown value keeps default")
+}
+
 // TestExtractSystemConfig_DNS_Defaults verifies default values when no dns block.
 //
 // VALIDATES: AC-10 -- default timeout 5, cache-size 10000, cache-ttl 86400, resolv-conf-path /tmp/resolv.conf.
