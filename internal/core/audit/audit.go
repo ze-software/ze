@@ -18,10 +18,12 @@ const (
 )
 
 const (
-	ActionConfigCommit  = "config-commit"
-	ActionConfigDiscard = "config-discard"
-	ActionDaemonReload  = "daemon-reload"
-	ActionAuthFail      = "auth-fail"
+	ActionConfigCommit   = "config-commit"
+	ActionConfigDiscard  = "config-discard"
+	ActionConfigDownload = "config-download"
+	ActionConfigUpload   = "config-upload"
+	ActionDaemonReload   = "daemon-reload"
+	ActionAuthFail       = "auth-fail"
 )
 
 const (

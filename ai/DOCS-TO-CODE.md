@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 273 design docs, 2861 files
+Total: 273 design docs, 2863 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -27,6 +27,7 @@ Total: 273 design docs, 2861 files
 
 | File | Topic |
 |------|-------|
+| `cmd/ze/hub/aaa_authenticator_web.go` | AAA registry (VFS-like) |
 | `cmd/ze/hub/aaa_lifecycle.go` | AAA registry (VFS-like) |
 | `internal/component/aaa/aaa.go` | AAA registry (VFS-like) |
 | `internal/component/aaa/all/all.go` | AAA registry (VFS-like) |
@@ -1483,6 +1484,7 @@ Total: 273 design docs, 2861 files
 | `internal/component/web/handler_config_entry.go` | List entry add/rename handlers and add-form overlay |
 | `internal/component/web/handler_config_form.go` | Leaf set/delete and Workbench form save handlers |
 | `internal/component/web/handler_config_leaf.go` | Leaf input type and template helpers |
+| `internal/component/web/handler_config_transfer.go` | Config download/upload endpoints |
 | `internal/component/web/handler_config_walk.go` | Schema and config tree walking |
 | `internal/component/web/handler_portal.go` | Portal frame for embedded services |
 | `internal/component/web/handler_tools.go` | V2 workbench related-tool execution |

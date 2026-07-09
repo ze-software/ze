@@ -405,6 +405,12 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	commitHandler := zeweb.HandleConfigCommitWithAuthorizerAndAudit(editorMgr, renderer, broker, authorizer, recorder)
 	discardHandler := zeweb.HandleConfigDiscardWithAuthorizerAndAudit(editorMgr, authorizer, recorder)
 
+	// Config download/upload: full-config export/import via browser (AC-3/AC-4).
+	// Download is a read path (any authenticated session, audit-logged); upload
+	// validates through the same validator as commit and reloads on success.
+	downloadHandler := zeweb.HandleConfigDownload(editorMgr, recorder)
+	uploadHandler := zeweb.HandleConfigUpload(editorMgr, zeconfigcmd.ValidateContent, configPath, authorizer, recorder)
+
 	// Diff handler: returns the diff modal HTML (open, with content).
 	diffHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username := zeweb.GetUsernameFromRequest(r)
@@ -440,8 +446,13 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
 	completeHandler := zeweb.HandleCLICompleteWithCommandCompleter(completer, commandCompleter, editorMgr, schema)
 
-	// Auth wrapper for protecting individual routes.
-	webAuth := &authz.LocalAuthenticator{Users: users}
+	// Auth wrapper for protecting individual routes. The live AAA bundle chain
+	// (RADIUS/TACACS + local) is preferred once infra setup installs it; before
+	// that (web starts before config load in the BGP path) and for users absent
+	// from the chain, it falls back to the statically-known local users
+	// (zefs power user + config-file web users). This lets RADIUS/TACACS admins
+	// authenticate on web without regressing local login (AC-2, A-3).
+	webAuth := liveAAABundleAuthenticator{fallback: &authz.LocalAuthenticator{Users: users}}
 	var authWrap func(http.Handler) http.Handler
 	if insecureWeb {
 		authWrap = zeweb.InsecureMiddleware
@@ -517,6 +528,10 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))
 	srv.Handle("/config/commit", mutationWrap(commitHandler))
 	srv.Handle("/config/commit/", mutationWrap(commitHandler))
+	// Config export (read, any authenticated session) and import (edit-gated,
+	// read-only sessions denied; same-origin enforced) (AC-3/AC-4).
+	srv.Handle("GET /config/download", authWrap(downloadHandler))
+	srv.Handle("POST /config/upload", editMutationWrap(uploadHandler))
 	srv.Handle("POST /config/discard", mutationWrap(discardHandler))
 	srv.Handle("POST /config/discard/", mutationWrap(discardHandler))
 	// V2 workbench related-tool execution. Browser submits only tool id +

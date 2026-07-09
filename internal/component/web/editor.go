@@ -192,6 +192,46 @@ func (m *EditorManager) Commit(username string) (*contract.CommitResult, error) 
 	return result, nil
 }
 
+// CommittedConfig returns the current committed configuration file content.
+// This is the on-disk config (the baseline the daemon runs), not any user's
+// pending draft. Used by the web config-download endpoint (AC-3).
+func (m *EditorManager) CommittedConfig() ([]byte, error) {
+	data, err := m.store.ReadFile(m.configPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading committed config %s: %w", m.configPath, err)
+	}
+	return data, nil
+}
+
+// ApplyCommittedContent writes content as the committed configuration and runs
+// the reload hook, replacing the whole configuration at once. It is the
+// upload-endpoint counterpart of Commit (AC-4): the caller MUST validate content
+// first (a full config, not a per-leaf draft). On reload-hook failure the prior
+// content is restored so a rejected config never leaves the daemon running
+// against config it could not load. Concurrency mirrors Commit's hook read.
+func (m *EditorManager) ApplyCommittedContent(content string) error {
+	m.mu.RLock()
+	hook := m.commitHook
+	m.mu.RUnlock()
+
+	prev, prevErr := m.store.ReadFile(m.configPath)
+	if err := m.store.WriteFile(m.configPath, []byte(content), 0o600); err != nil {
+		return fmt.Errorf("writing config %s: %w", m.configPath, err)
+	}
+	if hook != nil {
+		if err := hook(); err != nil {
+			// Restore the previous content so the daemon is not left with config
+			// its reload rejected. Best-effort: if the prior read failed there is
+			// nothing to restore to.
+			if prevErr == nil {
+				_ = m.store.WriteFile(m.configPath, prev, 0o600)
+			}
+			return fmt.Errorf("reloading config after upload: %w", err)
+		}
+	}
+	return nil
+}
+
 // Discard reverts the user's working tree to the original state and removes
 // the session from the manager.
 func (m *EditorManager) Discard(username string) error {
