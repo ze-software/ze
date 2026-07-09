@@ -369,3 +369,68 @@ open until all ACs are complete (R-7).
 - **`.wb` test harness gap (affects AC-1,2,6,7).** The web `.wb` harness starts the server with `--insecure-web` (single implicit admin, `internal/test/cli/cmd_web.go:277`) and has no login/multi-user or viewport directive. RBAC (read-only vs admin), i18n locale (`Accept-Language`), and mobile-viewport `.wb` tests therefore need harness extension; Go httptest is the precise proof layer for those ACs.
 - **Web holds only an opaque `aaa.Authorizer`, not `authz.Store`.** RBAC enforcement reuses the authorizer (username->allow/deny, fail-open when unassigned = R-1 preserved); profiles are stored in the session/context for AC-2 + nav.
 - The 4 missing review checklists (Critical/Deliverables/Security/Documentation) were absent from the "ready" spec; added at implementation.
+
+### Continuation session 2 (2026-07-09b) -- Phase 2 done; remaining ACs need scope calls
+
+**Completed and committed (`22444c0e3`):** AC-2 (AAA-chain auth), AC-3 (config download),
+AC-4 (config upload). Details in the Per-AC table above. Changed surface verified:
+`go test ./internal/component/web ./internal/core/audit` PASS, `go test -tags ze_web ./cmd/ze/hub` PASS
+(`TestWebAuth*`, `TestConfigDownload*`, `TestConfigUpload*`), `make ze-lint-changed` 0 issues.
+
+**Design note (AC-2 timing solved cleanly):** the spec feared a "hub timing complication"
+(AAA chain built post-config-load, after `buildServices`). Resolved with no `ServiceDeps`
+change: `startWebServer` is in package `hub`, so it reads the `aaaBundle atomic.Pointer`
+slot directly through `liveAAABundleAuthenticator` (mirrors the existing
+`liveAAABundleAuthorizer`), which reads the slot per call and falls back to static local
+users before the bundle exists / for chain-unknown users. No late-binding indirection object
+was needed.
+
+**Remaining ACs -- each hit a genuine blocker/ambiguity; NOT guessed (per ze-implement
+"stop on ambiguity"):**
+
+- **AC-8/AC-9 (completion v3) -- SPEC AMBIGUITY, needs user scope call.** The
+  `ze config completion` engine (`config/cli/cmd_completion.go`, flags `--context <path>
+  --input <text> [--json|--ghost] <file>`) is an *interactive line-editor* completion
+  contract: it completes YANG paths/values *inside* a config file given an editing context
+  + partial input. It is consumed by the web CLI bar and interactive `ze cli`. There is **no
+  well-defined trigger for it in bash/zsh/fish argv completion**: the `ze config`
+  subcommands (`edit validate migrate fmt dump diff completion`) all take a config **file**
+  argument (completed correctly today via `_ze_filedir conf`), not a YANG path. AC-9's
+  "generated scripts call the existing engine" has no clear entry point. Likewise AC-8's
+  `--family <TAB>` has **no literal `--family` flag** consumer -- families already complete
+  as positional `ValueHints` at rib nodes (`valuehints.go:97-111`, proven by
+  `TestWordsShowBGPRibIncludesFamilyHints`). Recommendation: the user must define the shell
+  scenario (which command, which token position) before AC-8/AC-9 can be implemented
+  correctly; otherwise descope to "flag-name completion for the genuinely flag-bearing
+  subcommands" only.
+
+- **AC-10 (renderWriter) -- TOOLING FRICTION vs value.** A fmt-based render Writer is
+  blocked by `pretool-writeedit.py`, which bans `fmt.Fprintf`/`fmt.Sprintf`/`fmt.Printf`
+  to any non-`os.Stdout`/`os.Stderr` writer (only `fmt.Fprintln`/`fmt.Fprint` pass). The
+  enumerated help sites use `%-44s`-style padded format strings (`help_ai.go`), so routing
+  them through an error-capturing writer requires converting every format site to
+  `textbuf.Buffer` padding -- large churn for the lowest-value AC (EPIPE-on-broken-pipe
+  edge case). Also `internal/component/cli/editor.go`'s enumerated sites are an interactive
+  stdin/stdout prompt returning an action enum, not an exit code -- the "exit non-zero on
+  write error" contract does not map. Recommendation: either accept the per-site textbuf
+  churn (and a Writer exposing only `Println`/`Print`/`Write`, no `Printf`), add a hook
+  carve-out for a blessed render-writer, or descope AC-10.
+
+- **AC-1 tail (nav-hide) -- diffuse + weak test story.** Enforcement is DONE and is the real
+  security boundary (route gate 403 + per-mutation authz). Nav-hiding is cosmetic
+  defense-in-depth: `HandleWorkbench` does not receive the authorizer, and edit controls are
+  spread across many fragment templates (`list`, `list_table`, `add_form_overlay`,
+  `oob_save`, ...). Requires threading the authorizer -> a `CanEdit`/`Editable` flag ->
+  per-template `{{if}}` gates; provable only at the Go/httptest render tier here.
+
+- **AC-5 (web-route registry) -- architecture call needed.** ze plugins are subprocesses
+  (JSON/text IPC) and cannot register Go `http.Handler`s in the web process; a "plugin web
+  route" must be an in-process feature module (like the L2TP/ISIS/OSPF handlers already in
+  the web package). A registry needs a deps-injection factory shape
+  (`Register(WebRoute{Pattern, NavLabel, Build func(deps) http.Handler})`) since handlers
+  need `renderer`/`dispatch` available only at `startWebServer` time. Implementable but the
+  factory contract + whether to migrate existing routes should be confirmed first.
+
+- **AC-6/AC-7 (i18n + mobile) -- not started.** No i18n exists at all; needs catalog
+  infrastructure + template conversion + `.wb` viewport/locale harness directives (the
+  harness gap noted above).
