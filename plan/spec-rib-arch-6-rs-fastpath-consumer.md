@@ -1,0 +1,156 @@
+# Spec: rib-arch-6 -- Route-Server Fastpath: First Production locrib.OnChange Consumer
+
+| Field | Value |
+|-------|-------|
+| Status | skeleton |
+| Depends | - |
+| Phase | - |
+| Updated | 2026-07-08 |
+
+## Post-Compaction Recovery
+
+**Re-read these after context compaction:**
+1. This spec file (you're reading it now)
+2. `.claude/rules/planning.md` - workflow rules
+3. `plan/spec-rib-arch-0-umbrella.md` - set context
+4. `internal/component/bgp/plugins/rib/forward_observer.go` - the `OnChange` subscriber
+5. `plan/learned/784-rib-rs-fastpath.md` - the producer wiring this consumes
+
+## Task
+
+The zero-copy forward-handle producer wiring exists (`plan/learned/784-rib-rs-fastpath.md`).
+Its only consumer today is `observeForwardHandles`
+(`internal/component/bgp/plugins/rib/forward_observer.go:37`), which registers a
+`loc.OnChange(func(c locrib.Change) {...})` subscriber (:38) that merely **nil-checks**
+`c.Forward` and emits a debug log line; per its own comment it "does NOT AddRef or read
+Bytes" (`forward_observer.go:17`).
+
+GAP: no production consumer reads the `Change.Forward` bytes. Build the **route-server
+(RS/RR) fastpath state-tracker** as the first real subscriber: a consumer that AddRefs and
+reads the zero-copy `Change.Forward` UPDATE bytes to maintain forwarding state, proving the
+producer wiring end-to-end. The `forward_observer.go` comment names exactly this consumer
+("RS/RR fast-path, sysrib mirroring, etc.", :23).
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `internal/component/bgp/plugins/rib/forward_observer.go` - the existing nil-check subscriber
+  → Constraint: a real consumer MUST AddRef before reading `Change.Forward` bytes and release correctly, or it corrupts the zero-copy buffer pool.
+- [ ] `plan/learned/784-rib-rs-fastpath.md` - the producer/handle design
+  → Constraint: honour the AddRef/release contract and the unsubscribe-before-drop rule (`SetLocRIB` manages the subscription).
+- [ ] `internal/component/bgp/plugins/rib/forward_handle.go` - `ribForwardHandle` (producer side)
+  → Constraint: verify current behaviour against this source before designing.
+
+**Key insights:**
+- The producer + a debug observer already exist; this is the first consumer that actually reads bytes, so the AddRef/release lifecycle is the load-bearing design concern.
+
+## Current Behavior (MANDATORY)
+
+**Source files read:** (re-read at design time; anchors verified 2026-07-08)
+- [ ] `internal/component/bgp/plugins/rib/forward_observer.go` - `observeForwardHandles` (:37): `loc.OnChange` subscriber (:38) that nil-checks `c.Forward` (:39) and debug-logs family/prefix/kind; explicitly does not AddRef or read Bytes (:17-18)
+- [ ] `plan/learned/784-rib-rs-fastpath.md` - producer wiring for `Change.Forward`
+
+**Behavior to preserve:**
+- The existing debug observer (or its role) and the `OnChange`/unsubscribe contract; `SetLocRIB` manages subscription lifecycle.
+
+**Behavior to change:**
+- Add a production consumer that AddRefs and reads `Change.Forward` bytes to maintain RS/RR fastpath forwarding state.
+
+## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+
+### Entry Point
+- Loc-RIB best-change delivers a `locrib.Change` with a non-nil `Forward` handle
+
+### Transformation Path
+1. Loc-RIB pipeline produces a `Change` carrying a zero-copy `Forward` handle (producer per learned 784)
+2. The fastpath consumer's `OnChange` callback AddRefs the handle and reads the UPDATE bytes
+3. It updates RS/RR forwarding state from those bytes
+4. It releases the handle; `SetLocRIB` unsubscribes on rewire/teardown
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Loc-RIB → consumer | `loc.OnChange(func(c locrib.Change))` callback | [ ] |
+| zero-copy buffer ↔ consumer | AddRef before read, release after (pool discipline) | [ ] |
+
+### Integration Points
+- `locrib.RIB.OnChange` (`forward_observer.go:38`) - the subscription API
+- `Change.Forward` - the zero-copy UPDATE handle
+- `forward_handle.go` `ribForwardHandle` - producer side
+
+### Architectural Verification
+- [ ] No bypassed layers (consumer subscribes via `OnChange`, not a RIB internal hook)
+- [ ] No unintended coupling (state-tracker reads the public `Change`, not RIB internals)
+- [ ] No duplicated functionality (extends the existing subscriber pattern)
+- [ ] Registration over hardcoding - the consumer registers as an `OnChange` subscriber (`ai/rules/plugin-self-containment.md`)
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | `Change.Forward` exposes an AddRef/release API sufficient for a real reader | learned 784 producer wiring | Need to extend the handle API | read `forward_handle.go` at design | unvalidated |
+| A-2 | Reading bytes under the RIB write lock is acceptable, or the handle can be read after unlock | observer runs the callback under the write lock (`forward_observer.go:28`) | Fastpath work must move off the lock | benchmark/read the lock scope at design | unvalidated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | Missing release leaks or corrupts the zero-copy buffer pool | pool counters imbalance; races under `-race` | strict AddRef/release pairing; race tests on the new consumer |
+| R-2 | Heavy work under the RIB write lock stalls best-path processing | best-change latency rises | copy out under lock, process off-lock |
+
+## Wiring Test (MANDATORY)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| Loc-RIB change with a non-nil Forward handle | → | fastpath consumer AddRefs, reads bytes, updates state | (fill during design) |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | Best-change delivers a Forward handle | consumer reads the UPDATE bytes and updates RS/RR state |
+| AC-2 | Sustained churn | buffer pool counters stay balanced (no leak); `-race` clean |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| (define at design time) | `internal/component/bgp/plugins/rib/forward_observer_test.go` | consumer AddRef/read/release lifecycle; state update from bytes | |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `rs-fastpath` (new) | `test/plugin/rs-fastpath.ci` | route-server deployment: a best-path change updates fastpath forwarding state | |
+
+## Files to Modify
+
+- `internal/component/bgp/plugins/rib/forward_observer.go` - alongside the debug observer, register the production consumer (or a new sibling file)
+- `internal/component/bgp/plugins/rib/rib.go` - `SetLocRIB` subscription wiring for the new consumer
+
+## Implementation Steps
+
+1. **Phase: design** - confirm the handle AddRef/release API (A-1) and lock scope (A-2).
+2. **Phase: wiring** - failing test asserting the consumer reads bytes from a Forward handle.
+3. **Phase: implement (TDD)** - AddRef/read/release; update RS/RR state; race tests.
+4. **Functional test** - `.ci` proving the fastpath state update.
+5. **Full verification** - `make ze-verify` including `-race` on the new tests.
+6. **Complete spec** - audit, learned summary, two-commit closure.
+
+## Checklist
+
+### Goal Gates (MUST pass)
+- [ ] Production consumer reads `Change.Forward` bytes and updates state
+- [ ] Wiring Test table complete (concrete test names, none deferred)
+- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] Registration over hardcoding respected
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Race detector clean on the new consumer tests
+
+## Notes
+- Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.
+- Umbrella / siblings: `spec-rib-arch-0-umbrella.md`.

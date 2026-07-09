@@ -1,81 +1,111 @@
-# Spec: followup-bgp-rib-arch
+# Spec: rib-arch-0 -- BGP Engine / RIB Architecture Follow-ups (Umbrella)
 
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-06 |
+| Updated | 2026-07-08 |
 
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `git log -p plan/deferrals.md` (pre-2026-07-06) - original deferral rows + evidence
+3. Child specs: `spec-rib-arch-1-*` through `spec-rib-arch-8-*`
+4. `git log -p plan/deferrals.md` (pre-2026-07-06) - original deferral rows + evidence
 
 ## Task
 
-Deep BGP engine / RIB architecture follow-ups. Distinct but low-priority; grouped so the intent survives. protorib-0 (L221) in particular is a design decision, not a mechanical task.
+Umbrella index for deep BGP engine / RIB architecture follow-ups. The items are
+distinct but low-priority; grouped so the intent survives. `rib-arch-1` (protorib
+central store) in particular is a design decision, not a mechanical task.
 
-This is a consolidation skeleton created from verified deferral survivors (backlog triage 2026-07-06). Each item below was confirmed still-open against the codebase with a producing `file:line`. Split into phases when picked up; the sections after Task are lightweight scaffolding to be filled at design time.
+History: this set began as the consolidation skeleton `spec-followup-bgp-rib-arch`
+(backlog triage 2026-07-06, verified deferral survivors). On 2026-07-08 it was split
+into one child spec per work item under the `spec-rib-arch-*` prefix, per the spec-set
+convention in `ai/rules/planning.md` ("Spec Sets"). Each child is a `skeleton`
+(captured intent, not a designed spec); select and design children individually when
+picked up. **Point selection at this umbrella; implement children one at a time.**
 
-### Work items (migrated from the 2026-07-06 deferral triage; `L#` = row in the pre-triage `plan/deferrals.md`)
+### Split verification (2026-07-08)
 
-- **protorib-0 central RIB store (L221)** - DESIGN QUESTION: engine-owned per-protocol store vs the shipped event-bus delta model. Move when a second consumer beyond bgp-redistribute makes it painful (learned/634).
-- **plugin-ipc-raw-bytes (L184)** - length-prefixed raw-bytes filter IPC instead of the JSON string `FilterUpdateInput.Update` in `pkg/plugin/rpc/types.go`; breaks external SDK contract.
-- **rib-inject RFC 5549 (L58)** - extended next-hop for injected routes; `PackContext.ExtendedNextHop` does not exist.
-- **fib-ecmp realtime best-change (L122)** - atomic N-nexthop event delivery; today emits single-best (`SelectMultipath` is show-path only).
-- **bmp-6 Loc-RIB monitoring (L231)** - RFC 9069 PeerType=3 from BestChangeBatch; needs UPDATE wire bytes from structured data.
-- **rs-fastpath state-tracker consumer (L228)** - first production `locrib.OnChange` subscriber that reads `Change.Forward` bytes (`forward_observer.go` is a nil-check logger today).
-- **llgr-readvertisement multi-peer `.ci` (L68)** - single-peer partial exists; multi-peer partial-deployment fixture missing.
-- **NLRI structural rewrite via ModAccumulator (L60)** - announce->withdraw conversion exists; general NLRI-byte rewrite field not added.
+Each item's producing `file:line` was re-checked against the codebase during the split.
+Two triage anchors had drifted and are flagged for design-time re-verification in the
+relevant child spec:
+
+- **rib-arch-3**: the triage cited `PackContext.ExtendedNextHop`; the `PackContext`
+  type no longer exists anywhere in the tree. The live inject entry point is
+  `injectRoute` (`internal/component/bgp/plugins/rib/rib_commands.go:225`), which today
+  only accepts simple prefix families and validates IPv6 next-hops per rfc8950
+  (`rib_commands.go:4`).
+- **rib-arch-4**: the triage said `SelectMultipath` is "show-path only"; it is now
+  called from the best-path pipeline (`internal/component/bgp/plugins/rib/rib_pipeline_best.go:98`,
+  `bestpath.go:157`), so whether the realtime event already carries ECMP siblings must
+  be re-verified before designing (today `BestChangeEntry.BackupNextHop` is a dedicated
+  backup, "never an ECMP sibling" -- `rib/events/events.go:82`).
+
+### Child Specs
+
+| Spec | Item (pre-split `L#` = row in pre-triage `plan/deferrals.md`) | Verified anchor (2026-07-08) | Nature |
+|------|--------------------------------------------------------------|------------------------------|--------|
+| `spec-rib-arch-1-protorib-store.md` | protorib-0 central RIB store (L221): engine-owned per-protocol store vs event-bus delta model | `redistribute/producer.go:40` `EmitBestChange`; `rib/events/events.go:90` `BestChangeBatch`; learned 634/685 | Design question |
+| `spec-rib-arch-2-plugin-ipc-raw-bytes.md` | plugin-ipc-raw-bytes (L184): length-prefixed raw-bytes filter IPC vs JSON string | `pkg/plugin/rpc/types.go:182` `FilterUpdateInput.Update string` (hex `Raw` opt-in at :183) | Refactor (SDK contract) |
+| `spec-rib-arch-3-inject-rfc5549.md` | rib-inject RFC 5549 (L58): extended next-hop for injected routes | `rib/rib_commands.go:225` `injectRoute`; parse-side `attribute/mpnlri.go` | Feature |
+| `spec-rib-arch-4-fib-ecmp-realtime.md` | fib-ecmp realtime best-change (L122): atomic N-nexthop event delivery | `rib/bestpath.go:157` `SelectMultipath`; `rib/rib_pipeline_best.go:98`; `rib/events/events.go:82` | Feature |
+| `spec-rib-arch-5-bmp-locrib.md` | bmp-6 Loc-RIB monitoring (L231): RFC 9069 PeerType=3 from BestChangeBatch | `plugins/bmp/`; `rib/events/events.go:90` | Feature (RFC 9069) |
+| `spec-rib-arch-6-rs-fastpath-consumer.md` | rs-fastpath state-tracker consumer (L228): first production `locrib.OnChange` subscriber | `rib/forward_observer.go:37` `observeForwardHandles` (nil-check logger today); learned 784 | Feature |
+| `spec-rib-arch-7-llgr-multipeer-ci.md` | llgr-readvertisement multi-peer `.ci` (L68): multi-peer partial-deployment fixture | existing `test/plugin/llgr-*.ci` (single-peer); `plugins/gr/gr_egress.go:57` | Test gap |
+| `spec-rib-arch-8-nlri-rewrite.md` | NLRI structural rewrite via ModAccumulator (L60): general NLRI-byte rewrite field | `filterapi/filterapi.go:98` `ModAccumulator` (`SetWithdraw` at :151; no NLRI rewrite) | Feature |
+
+All children have `Depends | -` (independent); design and implement in any order.
 
 ## Required Reading
 
-### Source files / docs
+### Architecture Docs
+- [ ] `internal/component/bgp/plugins/rib/` - RIB pipeline, best-path, events, forward handles
+  → Constraint: verify each child's `file:line` evidence against this source before designing.
+- [ ] `pkg/plugin/rpc/types.go` - filter IPC types (`FilterUpdateInput.Update`)
+  → Constraint: verify current behaviour against this source before designing (rib-arch-2).
 
-- [ ] `internal/component/bgp/reactor/`, `internal/component/bgp/plugins/rib/`
-  -> Constraint: verify current behaviour against this source before designing.
-- [ ] `internal/component/bgp/plugins/rib/forward_handle.go`
-  -> Constraint: verify current behaviour against this source before designing.
-- [ ] `pkg/plugin/rpc/types.go` (`FilterUpdateInput.Update` string)
-  -> Constraint: verify current behaviour against this source before designing.
+**Key insights:**
+- The items are independent; this umbrella only indexes them. Real design happens per child.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (re-read at design time; line numbers are pre-triage references)
-
-- [ ] `internal/component/bgp/plugins/rib/forward_handle.go`
-- [ ] `pkg/plugin/rpc/types.go`
-- [ ] `internal/component/bgp/plugins/bmp/`
+**Source files read:** (re-read per child at design time; anchors verified 2026-07-08)
+- [ ] `internal/component/bgp/plugins/rib/events/events.go` - `BestChangeBatch` (:90) is the RIB's delta event; `BestChangeEntry.BackupNextHop` (:82) is a dedicated backup, "never an ECMP sibling"
+- [ ] `internal/component/bgp/redistribute/producer.go` - `EmitBestChange` (:40) publishes deltas on the event bus
+- [ ] `pkg/plugin/rpc/types.go` - `FilterUpdateInput.Update string` (:182) carries text attributes/NLRI as JSON; hex `Raw` (:183) is opt-in
+- [ ] `internal/component/bgp/plugins/rib/forward_observer.go` - `observeForwardHandles` registers a nil-check `loc.OnChange` subscriber (:37) that does not read `Change.Forward` bytes
 
 **Behavior to preserve:**
-- All existing behaviour of the listed files; this backlog work only adds the missing pieces named in the Task work items.
+- All existing behaviour of the listed files; this backlog work only adds the missing pieces
+  named in each child's Task section.
 
 **Behavior to change:**
-- Only the specific gaps enumerated in the Task work items.
+- Only the specific gap enumerated in each selected child spec.
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
 ### Entry Point
-- Received UPDATE / best-path change events; filter IPC; RIB inject API
+- Received UPDATE / best-path change events; filter IPC; RIB inject command
 
 ### Transformation Path
 1. A route change or injected route enters the RIB
 2. Best-path / forward / redistribute machinery processes it
-3. Consumers (FIB, BMP, filters) receive the result
+3. Consumers (FIB, BMP, filters, redistribute) receive the result via `BestChangeBatch` deltas or filter IPC
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| engine -> plugin | filter IPC (JSON today, raw-bytes proposed) | [ ] |
-| RIB -> consumers | event-bus delta vs proposed central store | [ ] |
+| engine → plugin | filter IPC (JSON today, raw-bytes proposed in rib-arch-2) | [ ] |
+| RIB → consumers | event-bus delta (`BestChangeBatch`) vs proposed central store (rib-arch-1) | [ ] |
 
 ### Integration Points
-- `internal/component/bgp/plugins/rib/`
-- `internal/component/bgp/plugins/bmp/`
-- `pkg/plugin/rpc/`
+- `internal/component/bgp/plugins/rib/` - RIB pipeline, events, forward handles
+- `internal/component/bgp/plugins/bmp/` - BMP monitoring (rib-arch-5)
+- `pkg/plugin/rpc/` - filter IPC (rib-arch-2)
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)
@@ -88,83 +118,58 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The verified `file:line` evidence in the Task items still holds at design time | 2026-07-06 backlog triage | Re-scope the item | grep/LSP at design time | unvalidated |
+| A-1 | Each child's verified `file:line` anchor still holds when the child is designed | 2026-07-08 split verification | Re-scope the child | grep/LSP at design time | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Scope drift when the umbrella is split into per-item specs | Item needs its own design doc | Split into a dedicated spec and re-point |
+| R-1 | A child's anchor drifts further before it is picked up (rib-arch-3/-4 already drifted once) | grep at design time finds a renamed/removed symbol | Re-verify against live code; update the child's Task before designing |
 
 ## Wiring Test (MANDATORY)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Inject a route needing extended next-hop | → | RFC 5549 next-hop encoded | (fill during design) |
-| Multipath best-path change | → | N nexthops delivered atomically | (fill during design) |
+| Inject a route needing extended next-hop | → | RFC 5549 next-hop encoded (rib-arch-3) | (fill during design) |
+| Multipath best-path change | → | N nexthops delivered atomically (rib-arch-4) | (fill during design) |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | (define per work item when this skeleton moves to `design`) | (define at design time) |
+| AC-1 | (per-child; each child defines its own testable ACs when it moves to `design`) | (define per child at design time) |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (define at design time) | (define at design time) | per Task work item | |
+| (define per child at design time) | (per child) | per child Task item | |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| rib-inject-rfc5549, llgr-multipeer, bmp-locrib (new) (`.ci`) | test/plugin | engine/RIB behaviour end-to-end | |
+| N/A at umbrella level - each child carries its own `.ci` (rib-arch-3/-5/-7) or opts out (internal items) | per child | engine/RIB behaviour end-to-end | |
 
 ## Files to Modify
 
-- `internal/component/bgp/plugins/rib/forward_handle.go` - see Task work items
-- `pkg/plugin/rpc/types.go` - see Task work items
-- `internal/component/bgp/plugins/bmp/` - see Task work items
+- `internal/component/bgp/plugins/rib/events/events.go` - see child specs (rib-arch-1/-4/-5)
+- `pkg/plugin/rpc/types.go` - see rib-arch-2
+- `internal/component/bgp/plugins/bmp/bmp.go` - see rib-arch-5
 
 ## Implementation Steps
 
-1. **Phase: split** - if the umbrella covers unrelated items, split into per-item specs first.
-2. **Phase: design** - for the chosen item, re-verify the `file:line` evidence and fill the Data Flow / Wiring / AC sections above.
+1. **Phase: select** - pick one child spec; move it `skeleton` → `design`.
+2. **Phase: design** - re-verify the child's `file:line` evidence and fill its Data Flow / Wiring / AC sections.
 3. **Phase: wiring** - register entry points, write the failing wiring test.
-4. **Phase: implement (TDD)** - write test, fail, implement, pass, per work item.
+4. **Phase: implement (TDD)** - write test, fail, implement, pass, per the selected child.
 5. **Full verification** - `make ze-verify`.
-6. **Complete spec** - fill audit tables, write `plan/learned/NNN-<name>.md`, two-commit closure.
-
-## Review Gate
-
-<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
-<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
-<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
-<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
-<!-- NOTE-only findings do not block — record them and proceed. -->
-
-### Run 1 (initial)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
-
-### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
-
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-
-### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+6. **Complete child** - fill audit tables, write `plan/learned/NNN-<name>.md`, two-commit closure.
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] Every chosen work item has feature code + test
-- [ ] Wiring Test table complete (concrete test names, none deferred)
+- [ ] Every selected child has feature code + test
+- [ ] Wiring Test table complete in the selected child (concrete test names, none deferred)
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Registration over hardcoding respected
 
@@ -174,4 +179,5 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 - [ ] Tests PASS (paste output)
 
 ## Notes
-- Skeleton = captured intent, not a designed spec (see `ai/rules/deferral-tracking.md`). Moves to `design` when someone picks it up.
+- Skeleton = captured intent, not a designed spec (see `ai/rules/deferral-tracking.md`). Each child moves to `design` when someone picks it up.
+- Siblings: `spec-rib-arch-1-protorib-store.md`, `spec-rib-arch-2-plugin-ipc-raw-bytes.md`, `spec-rib-arch-3-inject-rfc5549.md`, `spec-rib-arch-4-fib-ecmp-realtime.md`, `spec-rib-arch-5-bmp-locrib.md`, `spec-rib-arch-6-rs-fastpath-consumer.md`, `spec-rib-arch-7-llgr-multipeer-ci.md`, `spec-rib-arch-8-nlri-rewrite.md`.

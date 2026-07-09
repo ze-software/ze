@@ -20,5 +20,10 @@ receiving spec") and the spec becomes the tracker. Run `/ze-status` for the live
 > The pre-triage revision of this file (in git history)
 > preserves every closed row with its evidence. The log below is intentionally empty.
 
+> 2026-07-08: split. `spec-followup-bgp-rib-arch` (named above) was split into one child
+> spec per work item under the `spec-rib-arch-*` prefix (`spec-rib-arch-0-umbrella` indexes
+> `-1`..`-8`), per `ai/rules/planning.md` "Spec Sets". The umbrella file was renamed via
+> `git mv` (history preserved); see `git log --follow plan/spec-rib-arch-0-umbrella.md`.
+
 | Date | Source | What | Reason | Destination | Status |
 |------|--------|------|--------|-------------|--------|
