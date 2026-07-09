@@ -3,7 +3,7 @@
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test
 .PHONY: ze-test ze-verify ze-verify-changed ze-validate ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-hook-test
-.PHONY: _ze-verify-impl _ze-verify-changed-impl ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-port-defaults-check
+.PHONY: _ze-verify-impl _ze-verify-changed-impl ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-port-defaults-check ze-platform-vet
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
 .PHONY: ze-plugin-imports-check ze-yang-glue-check ze-regen ze-regen-check
@@ -284,14 +284,14 @@ ze-verify:
 # (plan/learned/1045-plugin-process-boundary.md). A new gate added HERE will
 # NOT run under `make ze-verify`/`ze-verify-changed` or CI -- add it to
 # scripts/status/verify_run.go's stagesForMode() instead, in BOTH branches.
-_ze-verify-impl: ze-lint ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-port-defaults-check ze-cli-grammar-check ze-verify-wiring-docs ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
+_ze-verify-impl: ze-lint ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-port-defaults-check ze-platform-vet ze-cli-grammar-check ze-verify-wiring-docs ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
 
 ze-verify-changed:
 	@scripts/dev/verify-lock.sh ze-verify-changed env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify-changed
 
 # See the _ze-verify-impl comment above: not the live path either.
-_ze-verify-changed-impl: ze-lint-changed ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-port-defaults-check ze-cli-grammar-check ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
+_ze-verify-changed-impl: ze-lint-changed ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-port-defaults-check ze-platform-vet ze-cli-grammar-check ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification (changed) passed"
 
 # Module-tier placement gate (ai/rules/module-tiers.md): a config-driven engine
@@ -327,6 +327,18 @@ ze-plugin-boundary-check:
 ze-port-defaults-check:
 	@$(GO) run scripts/checks/port_defaults.go --selftest
 	@$(GO) run scripts/checks/port_defaults.go
+
+# Cross-platform vet gate (spec-followup-subsystem AC-7): the interface plugins
+# ship non-Linux stubs (default_other.go, backend_other.go, host/platform_other.go)
+# so the tree builds under GOOS=darwin and GOOS=freebsd. Nothing in the default
+# host-GOOS build exercises those files, so a stub that stops compiling on a
+# non-Linux platform (e.g. an int64-vs-uint64 syscall.Rlimit drift) rots
+# silently. This gate vets the iface + host trees under both non-Linux targets.
+ze-platform-vet:
+	@echo "Vetting iface/host trees (GOOS=darwin)..."
+	@GOOS=darwin go vet ./internal/component/host/... ./internal/component/iface/... ./internal/plugins/iface/...
+	@echo "Vetting iface/host trees (GOOS=freebsd)..."
+	@GOOS=freebsd go vet ./internal/component/host/... ./internal/component/iface/... ./internal/plugins/iface/...
 
 ze-validate:
 	@python3 scripts/dev/validate.py --root .

@@ -20,8 +20,11 @@ func (d *Detector) DetectPlatform() (*PlatformInfo, error) {
 	info.RebootAllowed = false
 	var limit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limit); err == nil {
-		info.FDLimitSoftCurrent = limit.Cur
-		info.FDLimitHardMax = limit.Max
+		// syscall.Rlimit.Cur/.Max are uint64 on linux/darwin but int64 on
+		// freebsd; the explicit conversions are no-ops on the former and make
+		// this file vet/compile clean under GOOS=freebsd (AC-7).
+		info.FDLimitSoftCurrent = uint64(limit.Cur)
+		info.FDLimitHardMax = uint64(limit.Max)
 		info.FDLimitRaisable = limit.Cur < limit.Max
 	}
 	return info, nil

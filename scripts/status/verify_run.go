@@ -125,6 +125,7 @@ func stagesForMode(mode, makeCmd string) []stage {
 			mk("ze-iface-resolution-check"),
 			mk("ze-plugin-boundary-check"),
 			mk("ze-port-defaults-check"),
+			mk("ze-platform-vet"),
 			mk("ze-verify-wiring-docs"),
 			mk("ze-unit-test-changed"),
 			mk("ze-functional-test"),
@@ -137,6 +138,7 @@ func stagesForMode(mode, makeCmd string) []stage {
 			mk("ze-iface-resolution-check"),
 			mk("ze-plugin-boundary-check"),
 			mk("ze-port-defaults-check"),
+			mk("ze-platform-vet"),
 			mk("ze-verify-wiring-docs"),
 			mk("ze-vet-evidence"),
 			mk("ze-unit-test-cached"),
@@ -355,7 +357,7 @@ func classifyStage(st stage, detailLog, text string) []failureGroup {
 		groups = classifyGoTest(st, detailLog, text)
 	case "ze-lint", "ze-lint-changed":
 		groups = classifyLint(st, detailLog, text)
-	case "ze-vet-evidence":
+	case "ze-vet-evidence", "ze-platform-vet":
 		groups = classifyVet(st, detailLog, text)
 	case "ze-verify-wiring-docs":
 		groups = classifyWiringDocs(st, detailLog, text)
