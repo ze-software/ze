@@ -90,3 +90,55 @@ func TestParseConfig_AllowFromRejectsBadPrefix(t *testing.T) {
 		t.Fatal("malformed allow-from prefix accepted, want rejected")
 	}
 }
+
+// VALIDATES: AC-3 -- DoT defaults to disabled with port 853, DoH to disabled
+// with port 443 and path /dns-query.
+func TestParseConfig_SecureDefaults(t *testing.T) {
+	cfg, err := parseConfig(`{}`)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	if cfg.Secure.DoTEnabled || cfg.Secure.DoHEnabled {
+		t.Fatalf("DoT/DoH default enabled, want disabled: %+v", cfg.Secure)
+	}
+	if cfg.Secure.DoTPort != 853 {
+		t.Fatalf("DoT default port = %d, want 853", cfg.Secure.DoTPort)
+	}
+	if cfg.Secure.DoHPort != 443 {
+		t.Fatalf("DoH default port = %d, want 443", cfg.Secure.DoHPort)
+	}
+	if cfg.Secure.DoHPath != "/dns-query" {
+		t.Fatalf("DoH default path = %q, want /dns-query", cfg.Secure.DoHPath)
+	}
+}
+
+// VALIDATES: AC-3/AC-4 -- tls and doh containers parse enable, ports, path, and
+// cert material.
+func TestParseConfig_SecureParses(t *testing.T) {
+	cfg, err := parseConfig(`{"service":{"as112":{"tls":{"enabled":"true","listen-port":"8853","cert-file":"/etc/ze/dns.pem","key-file":"/etc/ze/dns.key"},"doh":{"enabled":"true","listen-port":"8443","path":"/q"}}}}`)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	if !cfg.Secure.DoTEnabled || cfg.Secure.DoTPort != 8853 {
+		t.Fatalf("DoT = {%v,%d}, want {true,8853}", cfg.Secure.DoTEnabled, cfg.Secure.DoTPort)
+	}
+	if cfg.Secure.CertFile != "/etc/ze/dns.pem" || cfg.Secure.KeyFile != "/etc/ze/dns.key" {
+		t.Fatalf("cert material = {%q,%q}", cfg.Secure.CertFile, cfg.Secure.KeyFile)
+	}
+	if !cfg.Secure.DoHEnabled || cfg.Secure.DoHPort != 8443 || cfg.Secure.DoHPath != "/q" {
+		t.Fatalf("DoH = {%v,%d,%q}", cfg.Secure.DoHEnabled, cfg.Secure.DoHPort, cfg.Secure.DoHPath)
+	}
+}
+
+// VALIDATES: boundary -- DoT/DoH port 65535 is accepted, 0 is rejected.
+func TestParseConfig_SecurePortBoundary(t *testing.T) {
+	if _, err := parseConfig(`{"service":{"as112":{"tls":{"listen-port":"65535"}}}}`); err != nil {
+		t.Fatalf("DoT port 65535 rejected: %v", err)
+	}
+	if _, err := parseConfig(`{"service":{"as112":{"tls":{"listen-port":"0"}}}}`); err == nil {
+		t.Fatal("DoT port 0 accepted, want rejected")
+	}
+	if _, err := parseConfig(`{"service":{"as112":{"doh":{"listen-port":"0"}}}}`); err == nil {
+		t.Fatal("DoH port 0 accepted, want rejected")
+	}
+}

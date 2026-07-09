@@ -9,9 +9,11 @@ package dnsserver
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"net/netip"
 	"sort"
 	"strconv"
@@ -68,12 +70,28 @@ type Manager struct {
 	handler dns.Handler
 	opts    Options
 
-	servers    []*dns.Server
-	boundAddrs []string
+	servers          []*dns.Server
+	httpServers      []*http.Server
+	boundAddrs       []string
+	boundSecureAddrs []secureAddr
+
+	// selfSigned caches the ephemeral self-signed certificate used when no
+	// operator cert/key files are configured, so a config reload does not
+	// regenerate it (a fresh cert would change the listener signature and churn
+	// a rebind on every no-op reconcile). Written only by the Apply-calling
+	// goroutine.
+	selfSigned *tls.Config
 
 	mu         sync.Mutex
 	applied    string
 	generation int
+}
+
+// secureAddr records a bound DoT/DoH listener so Stop can fire the matching
+// OnListenerChange down-edge with the right proto label ("dot"/"doh").
+type secureAddr struct {
+	proto string
+	addr  string
 }
 
 // New creates a Manager serving handler for every endpoint Apply binds.
@@ -107,30 +125,7 @@ func endpointSig(enabled bool, endpoints []Endpoint) string {
 // a previously-good endpoint set after an intervening failed Apply) has to
 // actually retry the bind, not silently no-op with zero listeners up.
 func (m *Manager) Apply(enabled bool, endpoints []Endpoint) error {
-	sig := endpointSig(enabled, endpoints)
-	if sig == m.appliedSig() {
-		return nil
-	}
-	m.Stop()
-
-	if !enabled {
-		m.setApplied(sig)
-		return nil
-	}
-	for _, e := range endpoints {
-		ep := net.JoinHostPort(e.IP.String(), strconv.Itoa(int(e.Port)))
-		if err := m.bind(ep, e.IP.String()); err != nil {
-			m.log.Error("dnsserver: listen failed", "endpoint", ep, "error", err)
-			continue
-		}
-	}
-	if len(m.servers) == 0 && len(endpoints) > 0 {
-		m.setApplied(unappliedSig)
-		return fmt.Errorf("dnsserver: no listeners bound on %d endpoint(s)", len(endpoints))
-	}
-	m.setApplied(sig)
-	m.log.Info("dnsserver: listening", "endpoints", len(m.servers)/2)
-	return nil
+	return m.ApplyListeners(enabled, Listeners{Plain: endpoints})
 }
 
 func (m *Manager) appliedSig() string {
@@ -259,12 +254,24 @@ func (m *Manager) Stop() {
 		}
 		cancel()
 	}
+	for _, hs := range m.httpServers {
+		ctx, cancel := context.WithTimeout(context.Background(), drainTimeout)
+		if err := hs.Shutdown(ctx); err != nil {
+			m.log.Debug("dnsserver: doh listener shutdown", "error", err)
+		}
+		cancel()
+	}
 	if m.opts.OnListenerChange != nil {
 		for _, addr := range m.boundAddrs {
 			m.opts.OnListenerChange("udp", addr, false)
 			m.opts.OnListenerChange("tcp", addr, false)
 		}
+		for _, addr := range m.boundSecureAddrs {
+			m.opts.OnListenerChange(addr.proto, addr.addr, false)
+		}
 	}
 	m.boundAddrs = nil
+	m.boundSecureAddrs = nil
 	m.servers = nil
+	m.httpServers = nil
 }

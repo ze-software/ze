@@ -12,10 +12,13 @@ package geodns
 import (
 	"context"
 	"net"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -63,7 +66,7 @@ func checkGeoDNSListenCapability(ctx registry.DoctorCheckContext) []rpc.DoctorCh
 	if len(targets) == 0 {
 		targets = []probeTarget{{host: "127.0.0.1", port: defaultListenPort}, {host: "::1", port: defaultListenPort}}
 	}
-	return geodnsListenDiagnostic(enabled == "true", targets, probeBindable)
+	return geodnsListenDiagnostic(enabled == configValueTrue, targets, probeBindable)
 }
 
 // geodnsListenDiagnostic decides whether to warn: only an enabled geodns with a
@@ -86,6 +89,64 @@ func geodnsListenDiagnostic(enabled bool, targets []probeTarget, bindable func(h
 		}
 	}
 	return nil
+}
+
+// checkGeoDNSTLSCert validates the DoT/DoH certificate material whenever a
+// secure listener is enabled, reusing the shared dnsserver cert check.
+func checkGeoDNSTLSCert(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
+	tree, ok := ctx.Tree.(*config.Tree)
+	if !ok || tree == nil {
+		return nil
+	}
+	svc := tree.GetContainer("service")
+	if svc == nil {
+		return nil
+	}
+	g := svc.GetContainer("geodns")
+	if g == nil {
+		return nil
+	}
+	tlsC := g.GetContainer("tls")
+	dohC := g.GetContainer("doh")
+	var certFile, keyFile string
+	if tlsC != nil {
+		certFile, _ = tlsC.Get("cert-file")
+		keyFile, _ = tlsC.Get("key-file")
+	}
+	return geodnsTLSDiagnostic(containerTrue(tlsC, "enabled"), containerTrue(dohC, "enabled"),
+		resolveCertPath(certFile, ctx.ConfigDir), resolveCertPath(keyFile, ctx.ConfigDir), time.Now())
+}
+
+// geodnsTLSDiagnostic is the pure decision function: no cert validation unless a
+// secure listener is enabled; otherwise delegate to the shared cert check.
+func geodnsTLSDiagnostic(dotEnabled, dohEnabled bool, certFile, keyFile string, now time.Time) []rpc.DoctorCheckDiagnostic {
+	if !dotEnabled && !dohEnabled {
+		return nil
+	}
+	problems := dnsserver.CheckCertMaterial(certFile, keyFile, now)
+	out := make([]rpc.DoctorCheckDiagnostic, 0, len(problems))
+	for _, p := range problems {
+		out = append(out, rpc.DoctorCheckDiagnostic{Code: p.Code, Severity: p.Severity, Message: p.Message})
+	}
+	return out
+}
+
+// containerTrue reports whether container c has leaf key set to "true".
+func containerTrue(c *config.Tree, key string) bool {
+	if c == nil {
+		return false
+	}
+	v, _ := c.Get(key)
+	return v == configValueTrue
+}
+
+// resolveCertPath makes a config-relative cert path absolute against the config
+// directory.
+func resolveCertPath(p, dir string) string {
+	if p == "" || dir == "" || filepath.IsAbs(p) {
+		return p
+	}
+	return filepath.Join(dir, p)
 }
 
 // probeBindable reports whether host:port can be bound for both UDP and TCP,

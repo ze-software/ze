@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
 )
 
 // maxHostnameLen is the DNS label length limit (spec Boundary Tests table).
@@ -73,6 +74,10 @@ type as112Config struct {
 	// covering prefixes are announced only while the DNS node is serving (RFC
 	// 7534 Section 3.3); false announces as soon as enabled + imported.
 	Watchdog bool
+	// Secure holds the optional DNS-over-TLS (RFC 7858) and DNS-over-HTTPS (RFC
+	// 8484) listener configuration; both bind the anycast addresses on their own
+	// ports and share the tls cert material.
+	Secure dnsserver.SecureConfig
 }
 
 const configRootService = "service"
@@ -82,7 +87,7 @@ const configRootService = "service"
 // engine's OnConfigure. An empty/missing service.as112 container yields a
 // zero (disabled) config.
 func parseConfig(data string) (as112Config, error) {
-	cfg := as112Config{AddressFamily: addressFamilyBoth, ASN: as112DefaultASN, Watchdog: true}
+	cfg := as112Config{AddressFamily: addressFamilyBoth, ASN: as112DefaultASN, Watchdog: true, Secure: dnsserver.DefaultSecureConfig()}
 
 	var root map[string]any
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
@@ -168,6 +173,12 @@ func parseConfig(data string) (as112Config, error) {
 	// values upstream).
 	if v, ok := asString(a, "watchdog"); ok {
 		cfg.Watchdog = v == configValueTrue
+	}
+
+	// tls (DoT) + doh (DoH) listener config: shared parse, native-mirror port
+	// validation. Defaults were seeded above via DefaultSecureConfig.
+	if err := dnsserver.ParseSecureLeaves(a, &cfg.Secure, "as112"); err != nil {
+		return cfg, err
 	}
 
 	return cfg, nil

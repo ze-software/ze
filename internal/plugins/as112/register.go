@@ -135,15 +135,26 @@ func init() {
 	reg.ConfigureEventBus = func(eb ze.EventBus) {
 		setEventBus(eb)
 	}
-	reg.DoctorChecks = []registry.DoctorCheckDef{{
-		Name:         "as112-listen-capability",
-		Phase:        rpc.DoctorPhasePostConfig,
-		Order:        723,
-		Dependencies: []string{"fib-kernel"},
-		Platforms:    []string{"any"},
-		Codes:        []string{"doctor-as112-port-unavailable"},
-		Check:        checkAS112ListenCapability,
-	}}
+	reg.DoctorChecks = []registry.DoctorCheckDef{
+		{
+			Name:         "as112-listen-capability",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        723,
+			Dependencies: []string{"fib-kernel"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-as112-port-unavailable"},
+			Check:        checkAS112ListenCapability,
+		},
+		{
+			Name:         "as112-tls-cert",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        724,
+			Dependencies: []string{"fib-kernel"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-tls-missing", "doctor-tls-expired", "doctor-tls-invalid"},
+			Check:        checkAS112TLSCert,
+		},
+	}
 
 	// Finding L3: as112's ipv4-anycast/ipv6-anycast schema anchors
 	// (yang/ze-as112-conf.yang) are `config false` lists a real operator
@@ -253,17 +264,17 @@ func runAS112Plugin(conn net.Conn) int {
 			serial := computeSerial(prevSerial, time.Now())
 			storeState(buildState(cfg, serial))
 
-			endpoints := serverEndpoints(cfg.AddressFamily)
 			// Apply the config to the producer; the runtime serving state (anycast
 			// listener up/down) is driven separately via prod.onServingChanged from
 			// the DNS server's listener transitions. `import as112` gates whether the
 			// emitted routes reach the RIB, so as112 still never reads bgp config.
 			prod.applyConfig(cfg)
-			if aerr := mgr.apply(cfg.Enabled, endpoints); aerr != nil {
+			if aerr := mgr.applyConfig(cfg); aerr != nil {
 				log.Error("as112: listener setup failed", "error", aerr)
 			}
 			ametrics().reloadTotal.With("success").Inc()
-			log.Info("as112: config applied", "enabled", cfg.Enabled, "address-family", cfg.AddressFamily, "listeners", len(endpoints))
+			log.Info("as112: config applied", "enabled", cfg.Enabled, "address-family", cfg.AddressFamily,
+				"dot", cfg.Secure.DoTEnabled, "doh", cfg.Secure.DoHEnabled)
 			return nil
 		}
 		return nil

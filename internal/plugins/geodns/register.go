@@ -42,15 +42,26 @@ func init() {
 	reg.ConfigureMetrics = func(r metrics.Registry) {
 		setMetricsRegistry(r)
 	}
-	reg.DoctorChecks = []registry.DoctorCheckDef{{
-		Name:         "geodns-listen-capability",
-		Phase:        rpc.DoctorPhasePostConfig,
-		Order:        722,
-		Dependencies: []string{"fib-kernel"},
-		Platforms:    []string{"any"},
-		Codes:        []string{"doctor-geodns-port-unavailable"},
-		Check:        checkGeoDNSListenCapability,
-	}}
+	reg.DoctorChecks = []registry.DoctorCheckDef{
+		{
+			Name:         "geodns-listen-capability",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        722,
+			Dependencies: []string{"fib-kernel"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-geodns-port-unavailable"},
+			Check:        checkGeoDNSListenCapability,
+		},
+		{
+			Name:         "geodns-tls-cert",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        725,
+			Dependencies: []string{"fib-kernel"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-tls-missing", "doctor-tls-expired", "doctor-tls-invalid"},
+			Check:        checkGeoDNSTLSCert,
+		},
+	}
 
 	pluginserver.RegisterRPCs(pluginserver.RPCRegistration{
 		WireMethod: "ze-show:geodns",

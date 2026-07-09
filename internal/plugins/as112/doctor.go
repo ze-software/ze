@@ -10,10 +10,13 @@ package as112
 import (
 	"context"
 	"net"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -75,6 +78,67 @@ func wildcardHostsForFamily(family string) []string {
 	default:
 		return []string{"0.0.0.0", "::"}
 	}
+}
+
+// checkAS112TLSCert validates the DoT/DoH certificate material whenever a secure
+// listener is enabled. It reuses the shared dnsserver cert check so as112 and
+// geodns report cert problems identically (ai/rules/doctor-checks.md: "New
+// service with TLS -> Certificate validity + expiry check").
+func checkAS112TLSCert(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
+	tree, ok := ctx.Tree.(*config.Tree)
+	if !ok || tree == nil {
+		return nil
+	}
+	svc := tree.GetContainer(configRootService)
+	if svc == nil {
+		return nil
+	}
+	a := svc.GetContainer("as112")
+	if a == nil {
+		return nil
+	}
+	tlsC := a.GetContainer("tls")
+	dohC := a.GetContainer("doh")
+	var certFile, keyFile string
+	if tlsC != nil {
+		certFile, _ = tlsC.Get("cert-file")
+		keyFile, _ = tlsC.Get("key-file")
+	}
+	return as112TLSDiagnostic(containerTrue(tlsC, "enabled"), containerTrue(dohC, "enabled"),
+		resolveCertPath(certFile, ctx.ConfigDir), resolveCertPath(keyFile, ctx.ConfigDir), time.Now())
+}
+
+// as112TLSDiagnostic is the pure decision function: no cert validation unless a
+// secure listener is enabled; otherwise delegate to the shared cert check and
+// map its problems to plugin diagnostics.
+func as112TLSDiagnostic(dotEnabled, dohEnabled bool, certFile, keyFile string, now time.Time) []rpc.DoctorCheckDiagnostic {
+	if !dotEnabled && !dohEnabled {
+		return nil
+	}
+	problems := dnsserver.CheckCertMaterial(certFile, keyFile, now)
+	out := make([]rpc.DoctorCheckDiagnostic, 0, len(problems))
+	for _, p := range problems {
+		out = append(out, rpc.DoctorCheckDiagnostic{Code: p.Code, Severity: p.Severity, Message: p.Message})
+	}
+	return out
+}
+
+// containerTrue reports whether container c has leaf key set to "true".
+func containerTrue(c *config.Tree, key string) bool {
+	if c == nil {
+		return false
+	}
+	v, _ := c.Get(key)
+	return v == "true"
+}
+
+// resolveCertPath makes a config-relative cert path absolute against the config
+// directory, matching how the doctor component resolves cert file leaves.
+func resolveCertPath(p, dir string) string {
+	if p == "" || dir == "" || filepath.IsAbs(p) {
+		return p
+	}
+	return filepath.Join(dir, p)
 }
 
 // probeBindable reports whether host:port can be bound for both UDP and TCP,

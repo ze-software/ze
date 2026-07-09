@@ -177,3 +177,38 @@ func TestParseConfigRejects(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: AC-3 -- geodns DoT/DoH default disabled with ports 853/443.
+func TestParseConfig_SecureDefaults(t *testing.T) {
+	cfg, err := parseConfig(`{}`)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	if cfg.Secure.DoTEnabled || cfg.Secure.DoHEnabled {
+		t.Fatalf("DoT/DoH default enabled: %+v", cfg.Secure)
+	}
+	if cfg.Secure.DoTPort != 853 || cfg.Secure.DoHPort != 443 || cfg.Secure.DoHPath != "/dns-query" {
+		t.Fatalf("secure defaults wrong: %+v", cfg.Secure)
+	}
+}
+
+// VALIDATES: AC-3/AC-4 -- geodns tls/doh containers parse.
+func TestParseConfig_SecureParses(t *testing.T) {
+	cfg, err := parseConfig(`{"service":{"geodns":{"tls":{"enabled":"true","listen-port":"853","cert-file":"/c.pem","key-file":"/k.pem"},"doh":{"enabled":"true","listen-port":"443","path":"/dns"}}}}`)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	if !cfg.Secure.DoTEnabled || cfg.Secure.CertFile != "/c.pem" || cfg.Secure.KeyFile != "/k.pem" {
+		t.Fatalf("DoT parse wrong: %+v", cfg.Secure)
+	}
+	if !cfg.Secure.DoHEnabled || cfg.Secure.DoHPath != "/dns" {
+		t.Fatalf("DoH parse wrong: %+v", cfg.Secure)
+	}
+}
+
+// VALIDATES: boundary -- geodns DoT/DoH port 0 is rejected.
+func TestParseConfig_SecurePortZero(t *testing.T) {
+	if _, err := parseConfig(`{"service":{"geodns":{"tls":{"listen-port":"0"}}}}`); err == nil {
+		t.Fatal("tls port 0 accepted, want rejected")
+	}
+}

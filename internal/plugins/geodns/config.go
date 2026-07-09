@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/dnsserver"
 )
 
 // maxTTL is the largest TTL permitted by RFC 2181 section 8 (2^31 - 1): the
@@ -22,6 +24,9 @@ const (
 	defaultTTLSeconds = 300
 	maxNameservers    = 9
 )
+
+// configValueTrue is the canonical boolean-true spelling in config leaf values.
+const configValueTrue = "true"
 
 // defaultClientIPSource and the valid set mirror the YANG enumeration.
 const defaultClientIPSource = "edns0-then-packet"
@@ -80,6 +85,10 @@ type geodnsConfig struct {
 	SOA            soaConfig
 	HostSets       map[string]*hostSet
 	Sources        []sourceEntry
+	// Secure holds the optional DoT (RFC 7858) / DoH (RFC 8484) listener config;
+	// both bind the configured listener IPs on their own ports and share the tls
+	// cert material.
+	Secure dnsserver.SecureConfig
 }
 
 // parseConfig unmarshals the JSON config section and validates every field. It
@@ -92,6 +101,7 @@ func parseConfig(data string) (geodnsConfig, error) {
 	cfg.ClientIPSource = defaultClientIPSource
 	cfg.HostSets = map[string]*hostSet{}
 	cfg.SOA = soaConfig{Contact: "hostmaster", SerialMode: "auto-epoch", Refresh: 3600, Retry: 600, Expire: 300, Minimum: 300}
+	cfg.Secure = dnsserver.DefaultSecureConfig()
 
 	var root map[string]any
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
@@ -107,7 +117,7 @@ func parseConfig(data string) (geodnsConfig, error) {
 	}
 
 	if v, ok := asString(g, "enabled"); ok {
-		cfg.Enabled = v == "true"
+		cfg.Enabled = v == configValueTrue
 	}
 
 	listeners, err := parseListeners(g)
@@ -191,6 +201,12 @@ func parseConfig(data string) (geodnsConfig, error) {
 			}
 			cfg.Sources = append(cfg.Sources, sourceEntry{Prefix: prefix.Masked(), HostSet: setName})
 		}
+	}
+
+	// tls (DoT) + doh (DoH) listener config: shared parse, native-mirror port
+	// validation. Defaults seeded above via DefaultSecureConfig.
+	if err := dnsserver.ParseSecureLeaves(g, &cfg.Secure, "geodns"); err != nil {
+		return cfg, err
 	}
 
 	return cfg, nil

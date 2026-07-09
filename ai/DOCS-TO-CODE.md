@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 275 design docs, 2878 files
+Total: 275 design docs, 2881 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3786,8 +3786,13 @@ Total: 275 design docs, 2878 files
 
 ## `plan/spec-followup-subsystem.md`
 
-- `internal/plugins/exabgp/bridgeplugin/config.go` -- AC-1 -- internal exabgp bridge config
-- `internal/plugins/exabgp/bridgeplugin/internal.go` -- AC-1 -- internal exabgp bridge runner
+| File | Topic |
+|------|-------|
+| `internal/core/dnsserver/certcheck.go` | AC-3 -- shared DoT/DoH certificate |
+| `internal/core/dnsserver/secure.go` | AC-3/AC-4 -- optional DNS-over-TLS |
+| `internal/core/dnsserver/tlsmaterial.go` | AC-3 -- shared certificate loading for |
+| `internal/plugins/exabgp/bridgeplugin/config.go` | AC-1 -- internal exabgp bridge config |
+| `internal/plugins/exabgp/bridgeplugin/internal.go` | AC-1 -- internal exabgp bridge runner |
 
 ## `plan/spec-iface-resolve-0-umbrella.md`
 

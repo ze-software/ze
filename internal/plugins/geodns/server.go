@@ -291,15 +291,17 @@ func newServerManager(log *slog.Logger) *geodnsServer {
 	})}
 }
 
-// apply reconciles the bound listeners with cfg. A pure host-data change is a
-// no-op (answerQuery reads the new snapshot via loadState); an endpoint
-// change stops and rebinds (dnsserver.Manager.Apply's endpoint-signature check).
+// apply reconciles the bound listeners with cfg: the cleartext UDP+TCP listener
+// set plus any DoT (RFC 7858) / DoH (RFC 8484) listeners on the same IPs sharing
+// the tls cert material. A pure host-data change is a no-op (answerQuery reads
+// the new snapshot via loadState); a listener-set or certificate change stops
+// and rebinds (dnsserver's listener-signature check).
 func (s *geodnsServer) apply(cfg geodnsConfig) error {
-	endpoints := make([]dnsserver.Endpoint, len(cfg.Listeners))
+	plain := make([]dnsserver.Endpoint, len(cfg.Listeners))
 	for i, l := range cfg.Listeners {
-		endpoints[i] = dnsserver.Endpoint{IP: l.IP, Port: l.Port}
+		plain[i] = dnsserver.Endpoint{IP: l.IP, Port: l.Port}
 	}
-	return s.mgr.Apply(cfg.Enabled, endpoints)
+	return s.mgr.ApplyWithSecure(cfg.Enabled, plain, cfg.Secure, loggerPtr.Load())
 }
 
 func (s *geodnsServer) stopAll() { s.mgr.Stop() }

@@ -228,6 +228,72 @@ module ze-geodns-conf {
                     description "Name of the host-set to answer for clients matching this prefix";
                 }
             }
+
+            container tls {
+                description
+                    "DNS-over-TLS (DoT, RFC 7858) listener and the certificate
+                     material shared with DoH. When enabled the DoT listener
+                     binds the configured listener IPs on 'listen-port'. When
+                     cert-file/key-file are unset an ephemeral self-signed
+                     certificate is used, which strict clients cannot validate.";
+
+                leaf enabled {
+                    type boolean;
+                    default false;
+                    description "Enable the DNS-over-TLS listener (RFC 7858).";
+                }
+
+                leaf listen-port {
+                    type zt:port;
+                    default 853;
+                    description
+                        "TCP port for the DoT listener; the RFC 7858 well-known
+                         'domain-s' port is 853.";
+                }
+
+                leaf cert-file {
+                    type string;
+                    description
+                        "Path to the PEM server certificate presented on DoT and
+                         DoH. Unset (together with key-file) selects an ephemeral
+                         self-signed certificate.";
+                }
+
+                leaf key-file {
+                    type string;
+                    ze:sensitive;
+                    description
+                        "Path to the PEM private key matching cert-file. Must be
+                         set together with cert-file.";
+                }
+            }
+
+            container doh {
+                description
+                    "DNS-over-HTTPS (DoH, RFC 8484) listener. It reuses the tls
+                     container's certificate material and binds the configured
+                     listener IPs on 'listen-port' at 'path'.";
+
+                leaf enabled {
+                    type boolean;
+                    default false;
+                    description "Enable the DNS-over-HTTPS listener (RFC 8484).";
+                }
+
+                leaf listen-port {
+                    type zt:port;
+                    default 443;
+                    description "TCP port for the DoH HTTPS listener (RFC 8484).";
+                }
+
+                leaf path {
+                    type string;
+                    default "/dns-query";
+                    description
+                        "HTTP request path the DoH endpoint answers on (RFC 8484
+                         URI Template); defaults to /dns-query.";
+                }
+            }
         }
     }
 }

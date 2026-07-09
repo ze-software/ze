@@ -228,12 +228,21 @@ func (s *as112Server) servingFor(fam family.Family) bool {
 	return len(s.upV6) > 0
 }
 
-// apply reconciles the bound listeners with the given endpoints (the fixed
-// anycast addresses filtered by address-family, plus loopback, per
-// register.go). A pure host-data change is a no-op; an endpoint change stops
-// and rebinds (dnsserver.Manager.Apply's endpoint-signature check).
+// apply reconciles the bound cleartext listeners with the given endpoints. It is
+// the low-level primitive (used by tests binding a specific port); production
+// goes through applyConfig, which also brings up the DoT/DoH listeners.
 func (s *as112Server) apply(enabled bool, endpoints []dnsserver.Endpoint) error {
 	return s.mgr.Apply(enabled, endpoints)
+}
+
+// applyConfig reconciles every listener with cfg: the fixed anycast addresses
+// filtered by address-family, plus loopback (the cleartext UDP+TCP set), plus
+// any DoT (RFC 7858) / DoH (RFC 8484) listeners on the same addresses sharing
+// the tls cert material. A pure host-data change is a no-op; a listener-set or
+// certificate change stops and rebinds (dnsserver's listener-signature check).
+func (s *as112Server) applyConfig(cfg as112Config) error {
+	plain := serverEndpoints(cfg.AddressFamily)
+	return s.mgr.ApplyWithSecure(cfg.Enabled, plain, cfg.Secure, loggerPtr.Load())
 }
 
 func (s *as112Server) stopAll() { s.mgr.Stop() }
