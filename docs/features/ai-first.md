@@ -6,19 +6,28 @@
 <!-- source: ai/rules/discovery-updates.md -- Current Discovery Surfaces -->
 <!-- source: mk/inventory.mk -- ze-inventory and documentation targets -->
 
-Ze is designed AI-first: the command surface is programmatically accessible and
-self-describing, while repository discovery docs tell agents which tools,
-checks, rules, and verification paths exist.
+Ze is built around a single command and discovery surface. Commands,
+configuration nodes, RPCs, events, and plugin metadata are registered once, then
+exposed through MCP and the operator interfaces that need them. AI tools can
+discover the same command catalog, run the same actions, and read structured
+output while helping an operator use or debug the system.
+
+## Register Once, Expose Everywhere
+
+The core design point is broader than AI. A feature added to Ze should avoid
+separate hand-written glue for every surface. The same registration path can
+feed the CLI, SSH sessions, the web workbench, REST/gRPC, MCP, generated
+references, completion, authorization, audit, and diagnostics.
 
 ## Principle: The CLI Is the API
 
-Every command available through `ze cli` (interactive or `ze cli -c` for one-shot) is exposed
-programmatically via the MCP `ze_execute` tool. There is no separate "API surface" -- the CLI
-and the API are the same thing. This means:
+Every command available through `ze cli` (interactive or `ze cli -c` for
+one-shot) is exposed programmatically through MCP, and command output is shared
+with the API engine where those commands are surfaced. This means:
 
-- No commands are CLI-only or API-only
-- No translation layer between human and machine interfaces
-- Any new CLI command is automatically available to AI assistants
+- Features do not become CLI-only by accident
+- Human and machine interfaces use the same command grammar
+- New commands become automation surfaces when they register with the command catalog
 
 ## Self-Describing Command Reference
 
@@ -106,23 +115,30 @@ The MCP (Model Context Protocol) server wraps the CLI command surface for AI con
 | `ze_request_peer` | Peer lifecycle: teardown, pause, resume, flush (auto-generated from `request peer ...`) |
 
 Additional tools are auto-generated from the command registry. Every YANG command
-and plugin command becomes a typed MCP tool automatically.
+and plugin command becomes a typed MCP tool automatically, so an AI agent can
+discover features, execute the same commands as an operator, and inspect
+structured outputs while debugging.
 
-The `ze_execute` tool is the key: anything a human can type, an AI can execute. Route
-management, RIB queries, peer lifecycle, configuration changes, event subscription,
-schema discovery -- all through one interface.
+The `ze_execute` tool is the bridge: anything a human can type, an AI can
+execute. Route management, RIB queries, peer lifecycle, configuration changes,
+event subscription, schema discovery, doctor output, warnings, and health checks
+all go through one interface.
 
 Start with `ze start --mcp <port>` or configure via YANG (`environment/mcp`).
 
 ## What Makes This Different
 
-Other software adds an API endpoint and hopes someone wraps it for AI. Ze exposes its
-entire command surface through a self-describing interface that AI can discover and use
-without external documentation. `ze help command` lists every command with its description.
-`ze help ai` adds context (recipes, families, update syntax). The MCP tools have typed
-parameters. The command list is queryable at runtime (`show command list`, `show command help <name>`).
+Other software adds an API endpoint and expects operators to build separate
+wrappers, UI, documentation, and automation around it. Ze exposes its command
+surface through a self-describing interface that tools can discover at runtime.
+`ze help command` lists every command with its description. `ze help ai` adds
+context (recipes, families, update syntax). MCP tools have typed parameters. The
+command list is queryable at runtime (`show command list`,
+`show command help <name>`).
 
-No other network daemon -- BGP or otherwise -- is designed this way.
+The useful property is the shared surface: when a plugin or subsystem registers
+commands, YANG, RPCs, or events, the same metadata can feed CLI, web, generated
+references, automation, authorization, audit, and diagnostics.
 
 See [MCP Guide](../guide/mcp/overview.md) for configuration and
 [MCP Remote Access](../guide/mcp/remote-access.md) for tunneling.

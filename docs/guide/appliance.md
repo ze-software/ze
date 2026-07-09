@@ -1,6 +1,6 @@
 # VM Appliance
 
-Build a bootable VM image with Ze baked in using [gokrazy](https://gokrazy.org). The default target is x86_64. The legacy Make workflow uses `GOKRAZY_ARCH=arm64` for native Apple Silicon QEMU images; the structured `ze appliance build` workflow uses `image.arch` in `appliance.json`. The result is a minimal Linux system that runs Ze as its only application, with no package manager, no shell (except authenticated emergency serial console), and automatic process supervision.
+Build a bootable VM image with Ze baked in using [gokrazy](https://gokrazy.org/). The default target is x86_64. The legacy Make workflow uses `GOKRAZY_ARCH=arm64` for native Apple Silicon QEMU images; the structured `ze appliance build` workflow uses `image.arch` in `appliance.json`. At runtime, the appliance is minimal: Linux kernel, gokrazy init, and Ze as the only application, with no package manager, no general shell (except authenticated emergency serial console), no unused distro daemons, and automatic process supervision.
 
 Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.
 <!-- source: gokrazy/ze/config.json -- Packages, KernelPackage, Environment -->
@@ -10,7 +10,7 @@ Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.
 | Component | Purpose |
 |-----------|---------|
 | Linux kernel | Boot and hardware drivers |
-| Gokrazy init | Process supervisor, entropy seeding, watchdog heartbeat |
+| [gokrazy](https://gokrazy.org/) init | Starts Ze, supervises it, seeds entropy, sends watchdog heartbeat |
 | Ze | BGP daemon with DHCP client, NTP, and all internal plugins |
 | ze-serial-shell | Authenticated emergency shell on serial console (login required) |
 

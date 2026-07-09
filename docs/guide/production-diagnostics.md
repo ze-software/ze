@@ -2,7 +2,7 @@
 
 # Production Diagnostics Guide
 
-Symptom-based troubleshooting using Ze's built-in diagnostic commands. All commands work on gokrazy appliances without external Linux tools.
+Symptom-based troubleshooting using Ze's built-in diagnostic commands. `ze doctor`, health checks, warning/error reports, support bundles, crash capture, and runtime probes are part of the product, so operators can start from evidence before reaching for external Linux tools. The commands below also work on gokrazy appliances without a host shell toolbox.
 
 ## Quick Reference
 
