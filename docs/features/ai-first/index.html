@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=adbbfadb2b" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=d81686772d" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -93,7 +93,7 @@
                         <span class="nav-dropdown-label">Capabilities</span>
                         <a class="nav-dropdown-item" href="../../../features/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
-                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
+                            <span><strong>Features</strong><small>47 features, color-coded by category</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../../compare/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚖️</span>
@@ -336,10 +336,10 @@
                     <a
                         class="nav-badge"
                         href="https://github.com/ze-software/ze" target="_blank" rel="noopener"
-                        aria-label="Ze on GitHub, 39 stars"
+                        aria-label="Ze on GitHub, 45 stars"
                     >
                         <span class="nav-badge-icon"><svg viewBox="0 0 496 512" fill="currentColor" aria-hidden="true"><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
-                        <span class="nav-badge-count">39</span>
+                        <span class="nav-badge-count">45</span>
                     </a>
                 </div>
             </nav>
@@ -356,11 +356,14 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="ai-first-design">AI-First Design</h1>
-    <p>Ze is designed AI-first: the command surface is programmatically accessible and
-self-describing, while repository discovery docs tell agents which tools,
-checks, rules, and verification paths exist.</p>
+    <p>Ze is built around a single command and discovery surface. Commands,
+configuration nodes, RPCs, events, and plugin metadata are registered once, then
+exposed through MCP and the operator interfaces that need them. AI tools can
+discover the same command catalog, run the same actions, and read structured
+output while helping an operator use or debug the system.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#register-once-expose-everywhere">Register Once, Expose Everywhere</a></li>
 <li><a href="#principle-the-cli-is-the-api">Principle: The CLI Is the API</a></li>
 <li><a href="#self-describing-command-reference">Self-Describing Command Reference</a></li>
 <li><a href="#structured-diagnostics">Structured Diagnostics</a></li>
@@ -369,14 +372,19 @@ checks, rules, and verification paths exist.</p>
 <li><a href="#mcp-transport">MCP Transport</a></li>
 <li><a href="#what-makes-this-different">What Makes This Different</a></li>
 </ol></nav>
+<h2 id="register-once-expose-everywhere">Register Once, Expose Everywhere</h2>
+<p>The core design point is broader than AI. A feature added to Ze should avoid
+separate hand-written glue for every surface. The same registration path can
+feed the CLI, SSH sessions, the web workbench, REST/gRPC, MCP, generated
+references, completion, authorization, audit, and diagnostics.</p>
 <h2 id="principle-the-cli-is-the-api">Principle: The CLI Is the API</h2>
-<p>Every command available through <code>ze cli</code> (interactive or <code>ze cli -c</code> for one-shot) is exposed
-programmatically via the MCP <code>ze_execute</code> tool. There is no separate "API surface" -- the CLI
-and the API are the same thing. This means:</p>
+<p>Every command available through <code>ze cli</code> (interactive or <code>ze cli -c</code> for
+one-shot) is exposed programmatically through MCP, and command output is shared
+with the API engine where those commands are surfaced. This means:</p>
 <ul>
-<li>No commands are CLI-only or API-only</li>
-<li>No translation layer between human and machine interfaces</li>
-<li>Any new CLI command is automatically available to AI assistants</li>
+<li>Features do not become CLI-only by accident</li>
+<li>Human and machine interfaces use the same command grammar</li>
+<li>New commands become automation surfaces when they register with the command catalog</li>
 </ul>
 <h2 id="self-describing-command-reference">Self-Describing Command Reference</h2>
 <pre><code>ze help command              # full command catalog, filterable
@@ -469,18 +477,25 @@ flow, and learned-summary gate for workflow/tooling/rule changes.</p>
 </tbody>
 </table>
 <p>Additional tools are auto-generated from the command registry. Every YANG command
-and plugin command becomes a typed MCP tool automatically.</p>
-<p>The <code>ze_execute</code> tool is the key: anything a human can type, an AI can execute. Route
-management, RIB queries, peer lifecycle, configuration changes, event subscription,
-schema discovery -- all through one interface.</p>
+and plugin command becomes a typed MCP tool automatically, so an AI agent can
+discover features, execute the same commands as an operator, and inspect
+structured outputs while debugging.</p>
+<p>The <code>ze_execute</code> tool is the bridge: anything a human can type, an AI can
+execute. Route management, RIB queries, peer lifecycle, configuration changes,
+event subscription, schema discovery, doctor output, warnings, and health checks
+all go through one interface.</p>
 <p>Start with <code>ze start --mcp &lt;port&gt;</code> or configure via YANG (<code>environment/mcp</code>).</p>
 <h2 id="what-makes-this-different">What Makes This Different</h2>
-<p>Other software adds an API endpoint and hopes someone wraps it for AI. Ze exposes its
-entire command surface through a self-describing interface that AI can discover and use
-without external documentation. <code>ze help command</code> lists every command with its description.
-<code>ze help ai</code> adds context (recipes, families, update syntax). The MCP tools have typed
-parameters. The command list is queryable at runtime (<code>show command list</code>, <code>show command help &lt;name&gt;</code>).</p>
-<p>No other network daemon -- BGP or otherwise -- is designed this way.</p>
+<p>Other software adds an API endpoint and expects operators to build separate
+wrappers, UI, documentation, and automation around it. Ze exposes its command
+surface through a self-describing interface that tools can discover at runtime.
+<code>ze help command</code> lists every command with its description. <code>ze help ai</code> adds
+context (recipes, families, update syntax). MCP tools have typed parameters. The
+command list is queryable at runtime (<code>show command list</code>,
+<code>show command help &lt;name&gt;</code>).</p>
+<p>The useful property is the shared surface: when a plugin or subsystem registers
+commands, YANG, RPCs, or events, the same metadata can feed CLI, web, generated
+references, automation, authorization, audit, and diagnostics.</p>
 <p>See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/mcp/overview.md" target="_blank" rel="noopener">MCP Guide</a> for configuration and
 <a href="https://github.com/ze-software/ze/blob/main/docs/guide/mcp/remote-access.md" target="_blank" rel="noopener">MCP Remote Access</a> for tunneling.</p>
             </section>

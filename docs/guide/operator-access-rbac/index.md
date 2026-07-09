@@ -4,6 +4,11 @@ Use this when the box already has Ze installed and `database.zefs` created, and 
 
 The example keeps `admin` as a recovery account, adds a read-only NOC user, adds an operator user, enables SSH on TCP/2222, and applies profile-based command authorization.
 
+Ze SSH is an application management plane. The daemon terminates SSH itself and
+starts a Ze command session, so a successful login grants access to Ze commands
+and the config editor rather than to a Unix shell. Local users, TACACS+, and
+RADIUS all map back to Ze authorization profiles, audit, and accounting.
+
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user and environment.ssh -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authorization.profile -->
 <!-- source: internal/component/authz/authz.go -- built-in profile behavior and fail-closed assignments -->

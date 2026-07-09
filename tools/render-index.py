@@ -198,20 +198,19 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                             </div>
                             <div class="hero-start-lead-wrap">
                                 <p class="hero-start-lead">
-                                    Ze creates appliances or makes Linux (server or appliance) speak
-                                    <strong class="hl blue">BGP</strong>, <strong class="hl blue">IS-IS</strong>,
+                                    Ze creates minimal gokrazy appliances you install by ISO or PXE,
+                                    or makes Linux speak <strong class="hl blue">BGP</strong>, <strong class="hl blue">IS-IS</strong>,
                                     and <strong class="hl blue">OSPF</strong> with one <strong class="hl blue">YANG</strong> configuration model,
                                     operator surfaces, <strong class="hl blue">telemetry</strong>, and <strong class="hl blue">plugins</strong>.
                                 </p>
                                 <p class="hero-start-lead">
-                                    Native routing protocols, generated
-                                    references, runnable labs, inspectable
-                                    automation hooks, and an
-                                    <strong class="hl blue">ExaBGP</strong>
-                                    <a href="usage/exabgp-migration/"
-                                        >migration path</a
-                                    >
-                                    to a more performant codebase.
+                                    One model feeds every operator surface:
+                                    <strong class="hl blue">CLI</strong>,
+                                    <strong class="hl blue">SSH</strong>,
+                                    web, <strong class="hl blue">REST/gRPC</strong>,
+                                    <strong class="hl blue">MCP</strong>,
+                                    completion, generated docs, audit, and
+                                    diagnostics.
                                 </p>
                             </div>
                         </div>
@@ -392,11 +391,51 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                 <div class="section-head reveal cat-operate">
                     <h2 id="try-title">Discover what makes Ze unique.</h2>
                     <p>
-                        The best users today are people building labs,
-                        route-server experiments, BGP tooling, or network
-                        appliances, and anyone curious about what comes after
-                        ExaBGP.
+                        Ze is built around one management plane. Features,
+                        plugins, access control, APIs, docs, UI, and
+                        diagnostics are generated from the same system model.
                     </p>
+                </div>
+                <div class="cards usp-grid reveal" aria-label="Ze unique product traits">
+                    <article class="card usp-card cat-observe">
+                        <span class="cat">Debug</span>
+                        <h3><a href="docs/guide/production-diagnostics/">Doctor health checks</a></h3>
+                        <p>
+                            <code>ze doctor</code>, health checks,
+                            warnings, errors, support bundles, crash capture,
+                            and built-in runtime probes give operators a first
+                            path from symptom to evidence.
+                        </p>
+                    </article>
+                    <article class="card usp-card cat-automate">
+                        <span class="cat">AI friendly</span>
+                        <h3><a href="docs/features/ai-first/">AI via MCP</a></h3>
+                        <p>
+                            Ze publishes its command catalog through MCP. AI
+                            tools can discover commands, run the same CLI/API
+                            actions, inspect structured output, and debug
+                            routes, config, and health without wrappers.
+                        </p>
+                    </article>
+                    <article class="card usp-card cat-secure">
+                        <span class="cat">Access</span>
+                        <h3><a href="docs/guide/operator-access-rbac/">SSH into Ze</a></h3>
+                        <p>
+                            Ze terminates SSH inside the daemon. Operators
+                            authenticate as Ze users and reach the Ze CLI or
+                            config editor without a Unix shell account.
+                        </p>
+                    </article>
+                    <article class="card usp-card cat-platform">
+                        <span class="cat">Appliance</span>
+                        <h3><a href="docs/guide/appliance/">As a secure appliance</a></h3>
+                        <p>
+                            Appliance runtime is only kernel,
+                            <a href="https://gokrazy.org/" target="_blank" rel="noopener">gokrazy</a>
+                            init, and Ze. No package manager, no general shell,
+                            and no spare services to expose; install it by ISO or PXE.
+                        </p>
+                    </article>
                 </div>
                 <div class="terminal-panel reveal">
                     <div class="terminal" aria-label="Quick start commands">
@@ -431,23 +470,23 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                         </p>
                         <div class="link-list">
                             <a
-                                href="docs/architecture/"
-                                >YANG Configuration
-                                <span>one model for everything</span></a
+                                href="docs/features/ai-first/"
+                                >Unified Surfaces
+                                <span>one registration path for CLI, web, API, MCP</span></a
                             >
                             <a
-                                href="docs/features/"
-                                >Programmable
-                                <span>API, plugins, automation</span></a
+                                href="docs/guide/operator-access-rbac/"
+                                >SSH and RBAC
+                                <span>manage Ze without host shell accounts</span></a
                             >
                             <a
-                                href="docs/features/mcp-integration/"
-                                >MCP Control
-                                <span>AI-assisted operations</span></a
+                                href="docs/guide/production-diagnostics/"
+                                >Diagnostics
+                                <span>doctor, health, warnings, support bundles</span></a
                             >
-                            <a href="compare/"
-                                >Compare
-                                <span>how Ze stacks up and where it's still behind</span></a
+                            <a href="docs/guide/ze-install/"
+                                >Appliance install
+                                <span>ISO media, PXE provisioning, systemd install</span></a
                             >
                             <a href="labs/"
                                 >Labs

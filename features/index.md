@@ -1,18 +1,28 @@
 # Every feature Ze ships.
 
-46 features plus a spec'd roadmap, color-coded by category. A card's category is how the feature fits into the system: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
+47 features plus a spec'd roadmap, color-coded by category. A card's category is how the feature fits into the system: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
 
 ## Built for demanding operators.
 
-Ze owns its BGP engine, configuration model, plugin system, and operator surfaces, all designed together.
+Ze owns its BGP engine, configuration model, plugin system, operator surfaces, minimal appliance runtime, and diagnostics as one product.
+
+### AI-Friendly Surfaces
+
+*automate* -- `MCP` `Generated` `AI tools`
+
+- **MCP** exposes CLI/API commands
+- AI tools inspect **structured output**
+- Plugins become **discoverable tools**
+
+[Learn more](https://ze-software.net/docs/features/ai-first/)
 
 ### SSH CLI
 
-*operate* -- `Autocomplete` `History`
+*operate* -- `Built-in SSH` `RBAC`
 
-- **commit** and commit **confirmed**
-- **rollback** and **diff**
-- **Command** mode
+- Manage Ze without **OS shell** accounts
+- **Profiles**, audit, and accounting
+- **commit**, rollback, diff, completion
 
 [Learn more](https://ze-software.net/docs/features/cli-commands/)
 
@@ -21,8 +31,8 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 *operate* -- `YANG` `ExaBGP`
 
 - Schema-driven **validation**
-- **One model** for everything
-- **Plugin** defined
+- **One model** feeds every surface
+- **Plugin** defined config and commands
 
 [Learn more](https://ze-software.net/docs/features/configuration/)
 
@@ -40,8 +50,8 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 
 *operate* -- `HTMX` `SSE`
 
-- No SPA, **server-rendered**
-- Config editor, **admin** panel
+- YANG-driven **config tree**
+- Same **CLI grammar** in browser
 - **Live updates** via SSE
 
 [Learn more](https://ze-software.net/docs/features/web-interface/)
@@ -60,11 +70,11 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 
 *operate* -- `ze doctor` `ze explain`
 
-- Offline **pre-start checks**: config, TLS certs, kernel modules, listeners, disk space, clock skew
-- **Platform-aware**: gokrazy, systemd, container, plain-Linux detection
-- `--json` output with stable diagnostic codes and `ze explain <code>` **remediation**
+- Offline **pre-start checks**
+- Health, warnings, and **errors**
+- Structured **remediation** with `ze explain`
 
-[Learn more](https://ze-software.net/docs/features/)
+[Learn more](https://ze-software.net/docs/guide/production-diagnostics/)
 
 ### Native BGP Engine
 
@@ -120,8 +130,8 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 
 *automate* -- `ExaBGP` `RPKI` `Policy`
 
-- Route-server, **graceful restart**
-- **Persistence**, NLRI families
+- Plugins add **commands**, RPCs, events
+- YANG roots join **CLI** and web
 - Independent, **composable**
 
 [Learn more](https://ze-software.net/docs/features/plugins/)
@@ -131,7 +141,7 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 *automate* -- `REST` `gRPC` `gNMI`
 
 - **REST API**, **gRPC**, **gNMI**
-- External **process plugins**
+- Shared engine for **identical output**
 - Automate from **any language**
 
 [Learn more](https://ze-software.net/docs/features/api-commands/)
@@ -140,9 +150,9 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 
 *automate* -- `Self-describing` `Skills`
 
-- **Self-describing** command catalog generated from the live binary, never hand-written
-- Structured **diagnostics**: `ze explain <code>` and machine-parseable repair plans
-- **Version-matched skills** served by the binary for agent workflows
+- **Self-describing** command catalog from the live binary
+- Every command becomes **automation** surface
+- Structured **diagnostics** and repair plans
 
 [Learn more](https://ze-software.net/docs/features/ai-first/)
 
@@ -286,16 +296,16 @@ Ze owns its BGP engine, configuration model, plugin system, and operator surface
 
 [Learn more](https://ze-software.net/docs/features/)
 
-### Two Targets
+### Minimal Appliance Mode
 
 *platform* -- `Appliance` `Server`
 
-- Lean **bootable appliance**
+- **Kernel, init, Ze** runtime
+- No **package manager** or general shell
+- **ISO/PXE** bare-metal install
 - Linux server with **systemd**
-- Single **static binary**
-- Ideal for **virtual networking**
 
-[Learn more](https://ze-software.net/docs/features/interfaces/)
+[Learn more](https://ze-software.net/docs/guide/appliance/)
 
 ### Runs Itself
 
@@ -433,13 +443,13 @@ Implemented and tested, not yet production-proven.
 
 [Learn more](https://ze-software.net/docs/guide/flow-export/)
 
-### Install and Provision
+### ISO and PXE Install
 
 *platform / Experimental* -- `PXE` `ISO`
 
 - **PXE** bare-metal provisioning
-- Bootable **ISO** builder
-- systemd install, **uninstall**
+- Installer **ISO** media
+- Local **systemd** install and uninstall
 
 [Learn more](https://ze-software.net/docs/guide/ze-install/)
 

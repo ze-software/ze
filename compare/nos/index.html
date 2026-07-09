@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=adbbfadb2b" />
+        <link rel="stylesheet" href="../../assets/site.css?v=d81686772d" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -93,7 +93,7 @@
                         <span class="nav-dropdown-label">Capabilities</span>
                         <a class="nav-dropdown-item" href="../../features/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
-                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
+                            <span><strong>Features</strong><small>47 features, color-coded by category</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../compare/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚖️</span>
@@ -457,7 +457,7 @@
 <ul>
 <li><strong>VyOS</strong> has the broadest polished Linux-router integration surface in the inspected source: CLI schema, config/op scripts, firewall/NAT/VPN/services, commit-confirm/rollback/archive, REST/OpenAPI, GraphQL, and platform integration. Runtime protocol implementation is mostly delegated to external packages such as FRR and the Linux/VPP/system service stack.</li>
 <li><strong>freeRtr</strong> has the broadest router-native protocol and service implementation surface in the inspected source: many routing protocols, LSP/tunnel families, crypto/VPNs, NETCONF, Java CLI/config, internal services, and dataplane export paths. Its breadth is concentrated in large Java registries and runtime classes.</li>
-<li><strong>Ze</strong> has the strongest modern structured core among the three in the inspected source: own BGP/control-plane architecture, YANG-modeled config and commands, generated plugin registration, REST/OpenAPI, gNMI, MCP, HTMX web UI, appliance/update workflows, and explicit performance/testing tools. Its feature catalog is narrower in legacy and service breadth than VyOS/freeRtr today.</li>
+<li><strong>Ze</strong> has the strongest integrated management plane among the three in the inspected source: own BGP/control-plane architecture, YANG-modeled config and commands, generated plugin registration, register-once operator surfaces across CLI/web/REST/gRPC/MCP, built-in SSH management without host shell accounts, HTMX web UI, minimal kernel, init, and Ze appliance runtime with ISO/PXE install, doctor-style diagnostics, and explicit performance/testing tools. Its feature catalog is narrower in legacy and service breadth than VyOS/freeRtr today.</li>
 </ul>
 <h2 id="feature-matrices-by-category">Feature matrices by category</h2>
 <p>These are the operator-facing feature matrices. Cells intentionally start with
@@ -1358,6 +1358,13 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td>freeRtr generates NETCONF/YANG from help, but not a Ze/VyOS style command catalog.</td>
 </tr>
 <tr>
+<td>Register-once operator surfaces</td>
+<td class="cell-yes">✓</td>
+<td class="cell-partial">∿</td>
+<td class="cell-partial">∿</td>
+<td>Ze registers commands, config, plugins, RPCs, and events once, then exposes them through CLI, web, REST/gRPC, MCP, generated docs, completion, authorization, and audit. VyOS has generated CLI/config artifacts. freeRtr has broad CLI plus NETCONF/help generation. The inspected sources did not show the same Ze-style all-surface pipeline.</td>
+</tr>
+<tr>
 <td>Candidate/draft config model</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
@@ -1460,7 +1467,14 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
-<td>VyOS configures OpenSSH service for device access; Ze and freeRtr also have SSH CLI evidence.</td>
+<td>Ze terminates SSH inside the daemon and lands operators in the Ze CLI/config editor. VyOS configures OpenSSH for device access. freeRtr has in-process SSH via <code>secSsh</code>, so it is also built in rather than OS-sidecar SSH.</td>
+</tr>
+<tr>
+<td>Management SSH without host shell account</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td>Ze users can manage the router over SSH without Unix shell accounts. VyOS SSH is an OpenSSH/system-login path. freeRtr has built-in SSH and local users, but the inspected evidence did not show the same Ze AAA/RBAC/audit/accounting pipeline.</td>
 </tr>
 <tr>
 <td>Browser router UI</td>
@@ -1635,7 +1649,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-no">✕</td>
 <td class="cell-partial">∿</td>
-<td>Ze gokrazy mode is explicit; freeRtr has SysV compatibility but no no-systemd appliance claim.</td>
+<td>Ze gokrazy mode uses gokrazy init to start Ze, with no systemd, package manager, or general shell; freeRtr has SysV compatibility but no no-systemd appliance claim.</td>
 </tr>
 <tr>
 <td>Runtime platform detection</td>
@@ -1747,7 +1761,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-no">✕</td>
 <td class="cell-partial">∿</td>
-<td>freeRtr has checks/consistency references, not a Ze-like doctor registry.</td>
+<td>Ze has <code>ze doctor</code>, health registry checks, a warning/error report bus, support bundles, crash capture, and built-in runtime probes. freeRtr has checks/consistency references, but not a Ze-like doctor registry.</td>
 </tr>
 <tr>
 <td>Symptom-based diagnostics</td>
@@ -1842,10 +1856,10 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 </tr>
 <tr>
 <td>Support bundle</td>
-<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-no">✕</td>
-<td>Repeated here because it is a diagnostic artifact.</td>
+<td>Ze has <code>ze support</code> with doctor, host, platform, sanitized config, crashes, disk, interfaces, routes, neighbors, DNS, firewall, and runtime modules. VyOS has support archive evidence. freeRtr support bundle evidence was not found.</td>
 </tr>
 </tbody>
 </table>
@@ -3285,7 +3299,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>OS integration</td>
 <td>Non-systemd appliance mode</td>
-<td>The gokrazy appliance has no systemd or package manager: builds a gokrazy image and injects <code>/perm</code>. <span class="ev-src"><span class="ev-ref"><code>mk/gokrazy.mk:68-113</code></span></span></td>
+<td>The gokrazy appliance runtime is kernel, gokrazy init, and Ze, with no systemd, no package manager, and no general shell: builds a gokrazy image and injects <code>/perm</code>. <span class="ev-src"><span class="ev-ref"><code>mk/gokrazy.mk:68-113</code></span></span></td>
 <td>not found in inspected sources. VyOS uses Debian/systemd as a base in inspected package dependencies.</td>
 <td>also writes SysV init script; however it still uses systemd later in. Dedicated non-systemd appliance mode not found. <span class="ev-src"><span class="ev-ref"><code>misc/service/c.sh:21-59</code></span><span class="ev-ref"><code>/etc/init.d/rtr</code></span><span class="ev-ref"><code>misc/service/c.sh:61-95</code></span></span></td>
 <td>Ze is source-grounded as gokrazy appliance. freeRtr has SysV script compatibility, not a standalone no-systemd OS claim.</td>

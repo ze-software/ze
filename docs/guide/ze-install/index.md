@@ -148,7 +148,7 @@ each piece in detail; this section sequences them.
 ### 1. Build the disk image
 
 Use the structured appliance builder (full reference:
-[appliance guide](https://github.com/ze-software/ze/blob/main/docs/guide/appliance.md), "ze appliance"):
+[appliance guide](../appliance/index.md), "ze appliance"):
 
 ```bash
 ze appliance init prod
@@ -761,7 +761,7 @@ driver lists.
 
 `make ze-install-qemu-test` exercises the entire chain in QEMU with no hardware:
 it builds the initrd, builds a real appliance image with `ze appliance`
-(see the [appliance guide](https://github.com/ze-software/ze/blob/main/docs/guide/appliance.md)), boots the installer kernel + initrd
+(see the [appliance guide](../appliance/index.md)), boots the installer kernel + initrd
 against a blank virtio disk, has the initrd download and write the image and
 zefs over HTTP, then boots the **written disk** and logs in over SSH as the
 provisioned power user. That final login is the regression test for credential

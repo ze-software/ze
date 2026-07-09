@@ -3,9 +3,35 @@
     {
       "id": "core",
       "heading": "Built for demanding operators.",
-      "lead": "Ze owns its BGP engine, configuration model, plugin system, and operator surfaces, all designed together.",
+      "lead": "Ze owns its BGP engine, configuration model, plugin system, operator surfaces, minimal appliance runtime, and diagnostics as one product.",
       "note": null,
       "cards": [
+        {
+          "category": "automate",
+          "status": null,
+          "title": "AI-Friendly Surfaces",
+          "href": "docs/features/ai-first/",
+          "external": false,
+          "chips": [
+            {
+              "text": "MCP",
+              "mode": false
+            },
+            {
+              "text": "Generated",
+              "mode": false
+            },
+            {
+              "text": "AI tools",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**MCP** exposes CLI/API commands",
+            "AI tools inspect **structured output**",
+            "Plugins become **discoverable tools**"
+          ]
+        },
         {
           "category": "operate",
           "status": null,
@@ -14,18 +40,18 @@
           "external": false,
           "chips": [
             {
-              "text": "Autocomplete",
+              "text": "Built-in SSH",
               "mode": false
             },
             {
-              "text": "History",
+              "text": "RBAC",
               "mode": false
             }
           ],
           "bullets": [
-            "**commit** and commit **confirmed**",
-            "**rollback** and **diff**",
-            "**Command** mode"
+            "Manage Ze without **OS shell** accounts",
+            "**Profiles**, audit, and accounting",
+            "**commit**, rollback, diff, completion"
           ]
         },
         {
@@ -46,8 +72,8 @@
           ],
           "bullets": [
             "Schema-driven **validation**",
-            "**One model** for everything",
-            "**Plugin** defined"
+            "**One model** feeds every surface",
+            "**Plugin** defined config and commands"
           ]
         },
         {
@@ -89,8 +115,8 @@
             }
           ],
           "bullets": [
-            "No SPA, **server-rendered**",
-            "Config editor, **admin** panel",
+            "YANG-driven **config tree**",
+            "Same **CLI grammar** in browser",
             "**Live updates** via SSE"
           ]
         },
@@ -124,7 +150,7 @@
           "category": "operate",
           "status": null,
           "title": "System Readiness",
-          "href": "docs/features/",
+          "href": "docs/guide/production-diagnostics/",
           "external": false,
           "chips": [
             {
@@ -137,9 +163,9 @@
             }
           ],
           "bullets": [
-            "Offline **pre-start checks**: config, TLS certs, kernel modules, listeners, disk space, clock skew",
-            "**Platform-aware**: gokrazy, systemd, container, plain-Linux detection",
-            "`--json` output with stable diagnostic codes and `ze explain <code>` **remediation**"
+            "Offline **pre-start checks**",
+            "Health, warnings, and **errors**",
+            "Structured **remediation** with `ze explain`"
           ]
         },
         {
@@ -281,8 +307,8 @@
             }
           ],
           "bullets": [
-            "Route-server, **graceful restart**",
-            "**Persistence**, NLRI families",
+            "Plugins add **commands**, RPCs, events",
+            "YANG roots join **CLI** and web",
             "Independent, **composable**"
           ]
         },
@@ -308,7 +334,7 @@
           ],
           "bullets": [
             "**REST API**, **gRPC**, **gNMI**",
-            "External **process plugins**",
+            "Shared engine for **identical output**",
             "Automate from **any language**"
           ]
         },
@@ -329,9 +355,9 @@
             }
           ],
           "bullets": [
-            "**Self-describing** command catalog generated from the live binary, never hand-written",
-            "Structured **diagnostics**: `ze explain <code>` and machine-parseable repair plans",
-            "**Version-matched skills** served by the binary for agent workflows"
+            "**Self-describing** command catalog from the live binary",
+            "Every command becomes **automation** surface",
+            "Structured **diagnostics** and repair plans"
           ]
         },
         {
@@ -661,8 +687,8 @@
         {
           "category": "platform",
           "status": null,
-          "title": "Two Targets",
-          "href": "docs/features/interfaces/",
+          "title": "Minimal Appliance Mode",
+          "href": "docs/guide/appliance/",
           "external": false,
           "chips": [
             {
@@ -675,10 +701,10 @@
             }
           ],
           "bullets": [
-            "Lean **bootable appliance**",
-            "Linux server with **systemd**",
-            "Single **static binary**",
-            "Ideal for **virtual networking**"
+            "**Kernel, init, Ze** runtime",
+            "No **package manager** or general shell",
+            "**ISO/PXE** bare-metal install",
+            "Linux server with **systemd**"
           ]
         },
         {
@@ -998,7 +1024,7 @@
         {
           "category": "platform",
           "status": "experimental",
-          "title": "Install and Provision",
+          "title": "ISO and PXE Install",
           "href": "docs/guide/ze-install/",
           "external": false,
           "chips": [
@@ -1013,8 +1039,8 @@
           ],
           "bullets": [
             "**PXE** bare-metal provisioning",
-            "Bootable **ISO** builder",
-            "systemd install, **uninstall**"
+            "Installer **ISO** media",
+            "Local **systemd** install and uninstall"
           ]
         },
         {

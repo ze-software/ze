@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css?v=adbbfadb2b" />
+        <link rel="stylesheet" href="../assets/site.css?v=d81686772d" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -93,7 +93,7 @@
                         <span class="nav-dropdown-label">Capabilities</span>
                         <a class="nav-dropdown-item" href="../features/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
-                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
+                            <span><strong>Features</strong><small>47 features, color-coded by category</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../compare/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚖️</span>
@@ -351,7 +351,7 @@
                 <div class="journey-hero reveal">
                     <span class="journey-eyebrow">Project</span>
                     <h1 id="features-title">Every feature Ze ships.</h1>
-                    <p>46 features plus a spec&#x27;d roadmap, color-coded by category.</p>
+                    <p>47 features plus a spec&#x27;d roadmap, color-coded by category.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>Each card's color is its category: how the feature fits into the system. Solid cards are shipped; dashed cards are experimental; blueprint cards at the bottom are specs, not code. Everything shipped runs in both daemon and appliance modes unless a card says otherwise. Click a category to filter, click again to show everything.</p>
@@ -360,7 +360,7 @@
                     <button class="cat-operate" data-cat="operate" aria-pressed="false" aria-label="Filter features by Operate, 6 features">Operate <span class="legend-count" aria-hidden="true">6</span></button>
                     <button class="cat-routing" data-cat="routing" aria-pressed="false" aria-label="Filter features by Routing, 8 features">Routing <span class="legend-count" aria-hidden="true">8</span></button>
                     <button class="cat-services" data-cat="services" aria-pressed="false" aria-label="Filter features by Services, 9 features">Services <span class="legend-count" aria-hidden="true">9</span></button>
-                    <button class="cat-automate" data-cat="automate" aria-pressed="false" aria-label="Filter features by Automate, 5 features">Automate <span class="legend-count" aria-hidden="true">5</span></button>
+                    <button class="cat-automate" data-cat="automate" aria-pressed="false" aria-label="Filter features by Automate, 6 features">Automate <span class="legend-count" aria-hidden="true">6</span></button>
                     <button class="cat-observe" data-cat="observe" aria-pressed="false" aria-label="Filter features by Observe, 9 features">Observe <span class="legend-count" aria-hidden="true">9</span></button>
                     <button class="cat-secure" data-cat="secure" aria-pressed="false" aria-label="Filter features by Secure, 4 features">Secure <span class="legend-count" aria-hidden="true">4</span></button>
                     <button class="cat-platform" data-cat="platform" aria-pressed="false" aria-label="Filter features by Platform, 5 features">Platform <span class="legend-count" aria-hidden="true">5</span></button>
@@ -371,20 +371,34 @@
             <section id="core" aria-labelledby="core-title" data-cards>
                 <div class="section-head reveal">
                     <h2 id="core-title">Built for demanding operators.</h2>
-                    <p>Ze owns its BGP engine, configuration model, plugin system, and operator surfaces, all designed together.</p>
+                    <p>Ze owns its BGP engine, configuration model, plugin system, operator surfaces, minimal appliance runtime, and diagnostics as one product.</p>
                 </div>
                 <div class="cards feature-grid reveal">
+                    <article class="card feature-card cat-automate" data-cat="automate">
+                    <span class="cat">Automate</span>
+                    <h3><a href="../docs/features/ai-first/">AI-Friendly Surfaces</a></h3>
+                    <div class="chips">
+                    <span class="chip">MCP</span>
+                    <span class="chip">Generated</span>
+                    <span class="chip">AI tools</span>
+                    </div>
+                    <ul>
+                    <li><strong>MCP</strong> exposes CLI/API commands</li>
+                    <li>AI tools inspect <strong>structured output</strong></li>
+                    <li>Plugins become <strong>discoverable tools</strong></li>
+                    </ul>
+                    </article>
                     <article class="card feature-card cat-operate" data-cat="operate">
                     <span class="cat">Operate</span>
                     <h3><a href="../docs/features/cli-commands/">SSH CLI</a></h3>
                     <div class="chips">
-                    <span class="chip">Autocomplete</span>
-                    <span class="chip">History</span>
+                    <span class="chip">Built-in SSH</span>
+                    <span class="chip">RBAC</span>
                     </div>
                     <ul>
-                    <li><strong>commit</strong> and commit <strong>confirmed</strong></li>
-                    <li><strong>rollback</strong> and <strong>diff</strong></li>
-                    <li><strong>Command</strong> mode</li>
+                    <li>Manage Ze without <strong>OS shell</strong> accounts</li>
+                    <li><strong>Profiles</strong>, audit, and accounting</li>
+                    <li><strong>commit</strong>, rollback, diff, completion</li>
                     </ul>
                     </article>
                     <article class="card feature-card cat-operate" data-cat="operate">
@@ -396,8 +410,8 @@
                     </div>
                     <ul>
                     <li>Schema-driven <strong>validation</strong></li>
-                    <li><strong>One model</strong> for everything</li>
-                    <li><strong>Plugin</strong> defined</li>
+                    <li><strong>One model</strong> feeds every surface</li>
+                    <li><strong>Plugin</strong> defined config and commands</li>
                     </ul>
                     </article>
                     <article class="card feature-card cat-operate" data-cat="operate">
@@ -421,8 +435,8 @@
                     <span class="chip">SSE</span>
                     </div>
                     <ul>
-                    <li>No SPA, <strong>server-rendered</strong></li>
-                    <li>Config editor, <strong>admin</strong> panel</li>
+                    <li>YANG-driven <strong>config tree</strong></li>
+                    <li>Same <strong>CLI grammar</strong> in browser</li>
                     <li><strong>Live updates</strong> via SSE</li>
                     </ul>
                     </article>
@@ -442,15 +456,15 @@
                     </article>
                     <article class="card feature-card cat-operate" data-cat="operate">
                     <span class="cat">Operate</span>
-                    <h3><a href="../docs/features/">System Readiness</a></h3>
+                    <h3><a href="../docs/guide/production-diagnostics/">System Readiness</a></h3>
                     <div class="chips">
                     <span class="chip">ze doctor</span>
                     <span class="chip">ze explain</span>
                     </div>
                     <ul>
-                    <li>Offline <strong>pre-start checks</strong>: config, TLS certs, kernel modules, listeners, disk space, clock skew</li>
-                    <li><strong>Platform-aware</strong>: gokrazy, systemd, container, plain-Linux detection</li>
-                    <li><code>--json</code> output with stable diagnostic codes and <code>ze explain &lt;code&gt;</code> <strong>remediation</strong></li>
+                    <li>Offline <strong>pre-start checks</strong></li>
+                    <li>Health, warnings, and <strong>errors</strong></li>
+                    <li>Structured <strong>remediation</strong> with <code>ze explain</code></li>
                     </ul>
                     </article>
                     <article class="card feature-card cat-routing" data-cat="routing">
@@ -529,8 +543,8 @@
                     <span class="chip">Policy</span>
                     </div>
                     <ul>
-                    <li>Route-server, <strong>graceful restart</strong></li>
-                    <li><strong>Persistence</strong>, NLRI families</li>
+                    <li>Plugins add <strong>commands</strong>, RPCs, events</li>
+                    <li>YANG roots join <strong>CLI</strong> and web</li>
                     <li>Independent, <strong>composable</strong></li>
                     </ul>
                     </article>
@@ -544,7 +558,7 @@
                     </div>
                     <ul>
                     <li><strong>REST API</strong>, <strong>gRPC</strong>, <strong>gNMI</strong></li>
-                    <li>External <strong>process plugins</strong></li>
+                    <li>Shared engine for <strong>identical output</strong></li>
                     <li>Automate from <strong>any language</strong></li>
                     </ul>
                     </article>
@@ -556,9 +570,9 @@
                     <span class="chip">Skills</span>
                     </div>
                     <ul>
-                    <li><strong>Self-describing</strong> command catalog generated from the live binary, never hand-written</li>
-                    <li>Structured <strong>diagnostics</strong>: <code>ze explain &lt;code&gt;</code> and machine-parseable repair plans</li>
-                    <li><strong>Version-matched skills</strong> served by the binary for agent workflows</li>
+                    <li><strong>Self-describing</strong> command catalog from the live binary</li>
+                    <li>Every command becomes <strong>automation</strong> surface</li>
+                    <li>Structured <strong>diagnostics</strong> and repair plans</li>
                     </ul>
                     </article>
                     <article class="card feature-card cat-automate" data-cat="automate">
@@ -749,16 +763,16 @@
                     </article>
                     <article class="card feature-card cat-platform" data-cat="platform">
                     <span class="cat">Platform</span>
-                    <h3><a href="../docs/features/interfaces/">Two Targets</a></h3>
+                    <h3><a href="../docs/guide/appliance/">Minimal Appliance Mode</a></h3>
                     <div class="chips">
                     <span class="chip">Appliance</span>
                     <span class="chip">Server</span>
                     </div>
                     <ul>
-                    <li>Lean <strong>bootable appliance</strong></li>
+                    <li><strong>Kernel, init, Ze</strong> runtime</li>
+                    <li>No <strong>package manager</strong> or general shell</li>
+                    <li><strong>ISO/PXE</strong> bare-metal install</li>
                     <li>Linux server with <strong>systemd</strong></li>
-                    <li>Single <strong>static binary</strong></li>
-                    <li>Ideal for <strong>virtual networking</strong></li>
                     </ul>
                     </article>
                     <article class="card feature-card cat-platform" data-cat="platform">
@@ -961,15 +975,15 @@
                     <article class="card feature-card experimental cat-platform" data-cat="platform">
                     <span class="cat">Platform</span>
                     <span class="status">Experimental</span>
-                    <h3><a href="../docs/guide/ze-install/">Install and Provision</a></h3>
+                    <h3><a href="../docs/guide/ze-install/">ISO and PXE Install</a></h3>
                     <div class="chips">
                     <span class="chip">PXE</span>
                     <span class="chip">ISO</span>
                     </div>
                     <ul>
                     <li><strong>PXE</strong> bare-metal provisioning</li>
-                    <li>Bootable <strong>ISO</strong> builder</li>
-                    <li>systemd install, <strong>uninstall</strong></li>
+                    <li>Installer <strong>ISO</strong> media</li>
+                    <li>Local <strong>systemd</strong> install and uninstall</li>
                     </ul>
                     </article>
                     <article class="card feature-card experimental cat-platform" data-cat="platform">

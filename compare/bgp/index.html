@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=adbbfadb2b" />
+        <link rel="stylesheet" href="../../assets/site.css?v=d81686772d" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -93,7 +93,7 @@
                         <span class="nav-dropdown-label">Capabilities</span>
                         <a class="nav-dropdown-item" href="../../features/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
-                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
+                            <span><strong>Features</strong><small>47 features, color-coded by category</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../compare/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚖️</span>
@@ -1773,6 +1773,20 @@ without maintaining a second protocol stack to do it.</p>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
+<td>Register-once operator surfaces</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
+</tr>
+<tr>
 <td>CLI tool</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
@@ -1900,6 +1914,7 @@ without maintaining a second protocol stack to do it.</p>
 </tr>
 </tbody>
 </table>
+<p>Ze's register-once row means a command, config node, plugin, RPC, or event can feed the CLI, web workbench, REST/gRPC, MCP, generated docs, completion, authorization, and audit paths. FRR has partial YANG/API evidence. freeRtr has integrated CLI, NETCONF, and help generation, but not the same all-surface pipeline in the inspected sources.</p>
 <h2 id="operations">Operations</h2>
 <table>
 <thead>
@@ -1974,6 +1989,20 @@ without maintaining a second protocol stack to do it.</p>
 <td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>Product doctor/debug workflow</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+<td class="cell-partial">∿</td>
 </tr>
 <tr>
 <td>Docker image</td>
@@ -2396,12 +2425,11 @@ root, kernel modules, or Docker.</p>
 visitor shouldn't have to hunt for it.</p>
 <h2 id="positioning">Positioning</h2>
 <p><strong>Ze</strong> is an open-source network operating system and the successor to
-ExaBGP. It runs as a daemon on any Linux (systemd or any process manager) or
-as a dedicated appliance image built with gokrazy for purpose-built
-hardware -- same binary, same config. It speaks BGP, manages network
-interfaces, installs routes into the kernel FIB or VPP data plane, and
-serves a config editor over SSH and a web UI. A plugin architecture with
-YANG-modeled schemas allows extending the engine without modifying it.</p>
+ExaBGP. It runs as a daemon on any Linux, or as a gokrazy appliance where
+gokrazy init starts Ze with no general shell or package manager. It speaks
+BGP, manages network interfaces, installs routes into the kernel FIB or VPP
+plane, and serves a config editor over SSH and a web UI.
+A plugin architecture with YANG-modeled schemas allows extending the engine without modifying it.</p>
 <p>It is also pre-release, first released in 2026, sitting in this table next
 to implementations with years to decades of production hardening -- one
 dates to 1998. Its Go runtime carries an estimated 10-15% CPU overhead

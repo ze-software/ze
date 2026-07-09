@@ -5562,6 +5562,18 @@ html:not(.config-js) #config-search {
         border-top: 1px solid var(--line);
     }
 
+    .usp-grid {
+        margin: var(--space-5) 0 0;
+    }
+
+    .usp-card {
+        min-height: 0;
+    }
+
+    .usp-card h3 {
+        margin: var(--space-1) 0 var(--space-3);
+    }
+
     .legend-count {
         display: inline-flex;
         align-items: center;

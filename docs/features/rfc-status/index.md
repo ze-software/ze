@@ -80,7 +80,7 @@ Reference summaries under `rfc/short/` are not implementation claims by themselv
 <!-- source: docs/architecture/wire/nlri-flowspec.md -- FlowSpec NLRI wire format -->
 <!-- source: docs/architecture/wire/nlri-evpn.md -- EVPN NLRI wire format -->
 <!-- source: docs/architecture/wire/nlri-bgpls.md -- BGP-LS NLRI wire format -->
-<!-- source: internal/component/bgp/plugins/nlri/*/register.go -- family registrations and RFC metadata -->
+<!-- source: internal/component/bgp/plugins/nlri/ -- per-family register.go files hold family registrations and RFC metadata -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/config.go -- MVPN config route parser -->
 <!-- source: plan/learned/776-srv6-prefix-sid.md -- SRv6 Prefix-SID implementation closure and doc conflict -->
 

@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=adbbfadb2b" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=d81686772d" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -93,7 +93,7 @@
                         <span class="nav-dropdown-label">Capabilities</span>
                         <a class="nav-dropdown-item" href="../../../features/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
-                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
+                            <span><strong>Features</strong><small>47 features, color-coded by category</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../../compare/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚖️</span>
@@ -580,7 +580,7 @@ same chain before touching hardware. The reference subsections below
 each piece in detail; this section sequences them.</p>
 <h3 id="1-build-the-disk-image">1. Build the disk image</h3>
 <p>Use the structured appliance builder (full reference:
-<a href="https://github.com/ze-software/ze/blob/main/docs/guide/appliance.md" target="_blank" rel="noopener">appliance guide</a>, "ze appliance"):</p>
+<a href="../appliance/">appliance guide</a>, "ze appliance"):</p>
 <pre><code class="language-bash">ze appliance init prod
 # For real hardware: set image.kernel-profile to &quot;hardware&quot; and
 # image.arch to match the target CPU in appliance.json before build.
@@ -1284,7 +1284,7 @@ driver lists.</p>
 <h2 id="end-to-end-qemu-verification">End-to-End QEMU Verification</h2>
 <p><code>make ze-install-qemu-test</code> exercises the entire chain in QEMU with no hardware:
 it builds the initrd, builds a real appliance image with <code>ze appliance</code>
-(see the <a href="https://github.com/ze-software/ze/blob/main/docs/guide/appliance.md" target="_blank" rel="noopener">appliance guide</a>), boots the installer kernel + initrd
+(see the <a href="../appliance/">appliance guide</a>), boots the installer kernel + initrd
 against a blank virtio disk, has the initrd download and write the image and
 zefs over HTTP, then boots the <strong>written disk</strong> and logs in over SSH as the
 provisioned power user. That final login is the regression test for credential

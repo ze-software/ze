@@ -184,6 +184,7 @@ without maintaining a second protocol stack to do it.
 | gRPC API | Yes | No | No | Partial | No | Yes | Yes | No | Yes | Yes | No |
 | REST API | Yes | No | No | Partial | No | No | No | No | No | Partial | No |
 | YANG model | Yes | No | No | Partial | No | No | No | No | No | No | No |
+| Register-once operator surfaces | Yes | No | No | Partial | No | No | No | No | No | No | Partial |
 | CLI tool | Yes | Yes | Yes | Yes | Yes | Yes | Partial | Yes | No | Yes | Yes |
 | CLI JSON output | Yes | No | No | Yes | Yes | Yes | No | Yes | No | Yes | No |
 | Runtime route injection | Yes | No | No | No | No | Yes | No | Yes | Yes | Yes | Yes |
@@ -194,6 +195,8 @@ without maintaining a second protocol stack to do it.
 | MCP (Model Context Protocol) server | Yes | No | No | No | No | No | No | No | No | No | No |
 | SSH CLI access | Yes | No | No | No | No | No | No | No | No | No | Yes |
 
+Ze's register-once row means a command, config node, plugin, RPC, or event can feed the CLI, web workbench, REST/gRPC, MCP, generated docs, completion, authorization, and audit paths. FRR has partial YANG/API evidence. freeRtr has integrated CLI, NETCONF, and help generation, but not the same all-surface pipeline in the inspected sources.
+
 ## Operations
 
 | Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
@@ -202,6 +205,7 @@ without maintaining a second protocol stack to do it.
 | Config error diagnostics | Yes | No | No | No | No | No | Partial | No | No | Yes | Partial |
 | Runtime health monitoring | Yes | No | No | No | No | No | No | No | No | No | No |
 | Pre-start readiness checks | Yes | No | No | No | No | No | No | No | No | No | No |
+| Product doctor/debug workflow | Yes | No | No | No | No | No | No | No | No | No | Partial |
 | Docker image | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes |
 | Fuzz testing | Yes | No | No | No | No | No | Yes | No | No | Yes | No |
 | Interop test suite | Yes | No | No | No | No | No | Partial | No | No | Yes | Yes |
@@ -275,12 +279,11 @@ visitor shouldn't have to hunt for it.
 ## Positioning
 
 **Ze** is an open-source network operating system and the successor to
-ExaBGP. It runs as a daemon on any Linux (systemd or any process manager) or
-as a dedicated appliance image built with gokrazy for purpose-built
-hardware -- same binary, same config. It speaks BGP, manages network
-interfaces, installs routes into the kernel FIB or VPP data plane, and
-serves a config editor over SSH and a web UI. A plugin architecture with
-YANG-modeled schemas allows extending the engine without modifying it.
+ExaBGP. It runs as a daemon on any Linux, or as a gokrazy appliance where
+gokrazy init starts Ze with no general shell or package manager. It speaks
+BGP, manages network interfaces, installs routes into the kernel FIB or VPP
+plane, and serves a config editor over SSH and a web UI.
+A plugin architecture with YANG-modeled schemas allows extending the engine without modifying it.
 
 It is also pre-release, first released in 2026, sitting in this table next
 to implementations with years to decades of production hardening -- one
