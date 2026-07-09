@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 598 packages, 598 described, 0 TODO
+Total: 600 packages, 599 described, 1 TODO
 
 
 ## `cmd/ze/`
@@ -573,6 +573,8 @@ Total: 598 packages, 598 described, 0 TODO
 | `internal/plugins/env` | Environment variable inspection |  |
 | `internal/plugins/env/yang` | embeds and registers the ze-env-cmd YANG command schema for the env plugin |  |
 | `internal/plugins/exabgp` | provides the ze exabgp subcommand | --family |
+| `internal/plugins/exabgp/bridgeplugin` | In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) | exabgp-bridge |
+| `internal/plugins/exabgp/bridgeplugin/yang` | TODO |  |
 | `internal/plugins/explain` | Look up what a Ze diagnostic code means |  |
 | `internal/plugins/fib/kernel` | FIB kernel: programs OS routes from system RIB via netlink/route socket | fib-kernel |
 | `internal/plugins/fib/kernel/events` | defines event constants for the FIB kernel plugin |  |

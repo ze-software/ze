@@ -391,7 +391,9 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `ddos-flowtriq` | DDoS incident reporter for the Flowtriq cloud API |
 | `ddos-local` | DDoS local responder: on-host nftables drop on attack detection |
 | `ddos-observe` | DDoS observability: incident store, status CLI, doctor, metrics |
+| `exabgp-bridge` | In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (internal-plugin form of `ze exabgp plugin`) |
 
+<!-- source: internal/plugins/exabgp/bridgeplugin/register.go -- exabgp-bridge plugin -->
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib plugin -->
 <!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs plugin -->
 <!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr plugin -->

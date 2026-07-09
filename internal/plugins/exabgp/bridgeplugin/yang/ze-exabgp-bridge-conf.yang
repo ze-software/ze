@@ -1,0 +1,78 @@
+module ze-exabgp-bridge-conf {
+    namespace "urn:ze:exabgp-bridge:conf";
+    prefix exabgp-bridge;
+
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description
+        "In-process ExaBGP compatibility bridge configuration for Ze. The
+         bridge runs as an internal plugin (plugin { internal exabgp-bridge })
+         and spawns the operator's ExaBGP-format script as a subprocess,
+         translating between ze JSON events and the external JSON/text command
+         formats. The equivalent external form is `ze exabgp plugin <cmd>`
+         launched by the process manager; internal mode is additive and needs
+         the script command delivered through this config root rather than the
+         process-manager `run` line.
+
+         The settings nest under a top-level `exabgp` container so that root
+         stays available for future exabgp-related configuration; the bridge
+         itself lives in the `bridge` child container (user directive
+         2026-07-09). The registry plugin name remains exabgp-bridge.";
+
+    revision 2026-07-09 {
+        description "Initial revision (spec-followup-subsystem AC-1).";
+    }
+
+    container exabgp {
+        description
+            "Top-level container for ExaBGP-compatibility configuration.";
+
+        container bridge {
+            description
+                "In-process ExaBGP bridge settings. Present this container to
+                 configure the internal exabgp-bridge plugin.";
+
+            leaf run {
+                type string {
+                    length "1..4096";
+                }
+                description
+                    "Command line of the ExaBGP-format script to run as a
+                     subprocess (e.g. './plugin.py' or 'python3
+                     /opt/plugin.py'). Whitespace-separated; the first token is
+                     the executable and the rest are its arguments. Required
+                     for the bridge to do anything.";
+            }
+
+            leaf-list family {
+                type zt:address-family;
+                description
+                    "Address families the bridge negotiates on behalf of the
+                     script (e.g. ipv4/unicast). Defaults to ipv4/unicast when
+                     no entry is configured.";
+            }
+
+            leaf route-refresh {
+                type boolean;
+                default false;
+                description
+                    "Advertise the BGP route-refresh capability (RFC 2918) on
+                     the sessions the bridge feeds.";
+            }
+
+            leaf add-path {
+                type enumeration {
+                    enum none;
+                    enum receive;
+                    enum send;
+                    enum both;
+                }
+                default none;
+                description
+                    "ADD-PATH mode (RFC 7911) for the negotiated families:
+                     none (disabled), receive, send, or both.";
+            }
+        }
+    }
+}

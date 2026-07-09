@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 274 design docs, 2877 files
+Total: 275 design docs, 2879 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3784,6 +3784,11 @@ Total: 274 design docs, 2877 files
 | `internal/component/sysrib/nhresolver.go` | recursive next-hop resolution |
 | `internal/plugins/fib/kernel/nexthop_linux.go` | Linux netlink rich route programming |
 | `internal/plugins/fib/kernel/richroute.go` | rich route programming |
+
+## `plan/spec-followup-subsystem.md`
+
+- `internal/plugins/exabgp/bridgeplugin/config.go` -- AC-1 -- internal exabgp bridge config
+- `internal/plugins/exabgp/bridgeplugin/internal.go` -- AC-1 -- internal exabgp bridge runner
 
 ## `plan/spec-iface-resolve-0-umbrella.md`
 

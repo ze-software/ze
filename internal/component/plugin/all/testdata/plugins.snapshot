@@ -50,6 +50,7 @@ ddos-flowtriq
 ddos-local
 ddos-observe
 dhcpserver
+exabgp-bridge
 fib-kernel
 fib-p4
 fib-vpp
