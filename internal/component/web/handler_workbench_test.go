@@ -237,3 +237,80 @@ func TestHandleWorkbench_BadPathReturns400(t *testing.T) {
 	rec := newGET("/show/bgp/..").serve(t, handler)
 	requireStatus(t, http.StatusBadRequest, rec)
 }
+
+// TestWorkbenchHidesCommitBarForReadOnly verifies the commit bar (the primary,
+// always-visible edit affordance) is hidden from a read-only user and shown to
+// an editor. This proves the authorizer -> readOnly -> LayoutData.ReadOnly ->
+// template chain end-to-end through the workbench handler.
+//
+// VALIDATES: AC-1 tail -- edit controls hidden for read-only users (nav-hiding),
+// complementing the route-gate 403 enforcement (already shipped).
+// PREVENTS: showing a commit button that would 403 on click.
+func TestWorkbenchHidesCommitBarForReadOnly(t *testing.T) {
+	renderer, err := NewRenderer()
+	assert.NoError(t, err)
+	schema, schemaErr := config.YANGSchema()
+	assert.NoError(t, schemaErr)
+	tree := config.NewTree()
+
+	ro := HandleWorkbench(renderer, schema, tree, nil, false, WithAuthorizer(fakeAuthorizer{allowEdit: false}))
+	roReq := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	roReq = roReq.WithContext(withUsername(roReq.Context(), "bob"))
+	roRec := httptest.NewRecorder()
+	ro.ServeHTTP(roRec, roReq)
+	assert.Equal(t, http.StatusOK, roRec.Code)
+	roHTML := roRec.Body.String()
+	assert.Contains(t, roHTML, "workbench-shell", "read-only user still gets the shell")
+	assert.NotContains(t, roHTML, "commit-review-btn", "read-only user must not see the commit button")
+	assert.NotContains(t, roHTML, `id="commit-bar"`, "read-only user must not see the commit bar")
+
+	admin := HandleWorkbench(renderer, schema, tree, nil, false, WithAuthorizer(fakeAuthorizer{allowEdit: true}))
+	adminReq := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	adminReq = adminReq.WithContext(withUsername(adminReq.Context(), "admin"))
+	adminRec := httptest.NewRecorder()
+	admin.ServeHTTP(adminRec, adminReq)
+	assert.Equal(t, http.StatusOK, adminRec.Code)
+	assert.Contains(t, adminRec.Body.String(), "commit-review-btn", "editor must see the commit button")
+}
+
+// TestListTableHidesEditControlsForReadOnly verifies the generic config list
+// table hides its inline-edit inputs, rename, delete and "+ new" controls for a
+// read-only user, while still rendering the values as text.
+//
+// VALIDATES: AC-1 tail -- config-form (list table) edit controls gated on ReadOnly.
+// PREVENTS: read-only users seeing set/delete/add affordances that 403 on use.
+func TestListTableHidesEditControlsForReadOnly(t *testing.T) {
+	renderer, err := NewRenderer()
+	assert.NoError(t, err)
+
+	render := func(readOnly bool) string {
+		data := FragmentData{
+			ActiveUI: "workbench",
+			ReadOnly: readOnly,
+			ListTable: &ListTableView{
+				Name:    "peer",
+				Columns: []ListTableColumn{{Name: "peer", Key: true}, {Name: "ip"}},
+				Rows: []ListTableRow{{
+					KeyValue: "edge1",
+					URL:      "/show/bgp/peer/edge1/",
+					HxPath:   "bgp/peer/edge1",
+					Cells:    []ListTableCell{{Value: "1.1.1.1", Leaf: "ip", Path: "bgp/peer/edge1/remote"}},
+				}},
+				FormURL: "/config/add-form/bgp/peer/",
+			},
+		}
+		return string(renderer.RenderFragment("list_table", data))
+	}
+
+	roHTML := render(true)
+	assert.NotContains(t, roHTML, "finder-add", "read-only: no + new button")
+	assert.NotContains(t, roHTML, "finder-delete-btn", "read-only: no delete button")
+	assert.NotContains(t, roHTML, "finder-rename-btn", "read-only: no rename button")
+	assert.NotContains(t, roHTML, "finder-table-input", "read-only: cells are not editable inputs")
+	assert.Contains(t, roHTML, "1.1.1.1", "read-only: value still shown as text")
+
+	rwHTML := render(false)
+	assert.Contains(t, rwHTML, "finder-add", "editor: + new button present")
+	assert.Contains(t, rwHTML, "finder-delete-btn", "editor: delete button present")
+	assert.Contains(t, rwHTML, "finder-table-input", "editor: inline-edit inputs present")
+}

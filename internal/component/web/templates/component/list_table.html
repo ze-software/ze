@@ -28,15 +28,19 @@
     <tbody>
       {{range $table.Rows}}
       <tr class="{{if .HasPendingChanges}}row--pending{{end}}" data-row-key="{{.KeyValue}}">
-        <td class="finder-table-action"><button class="finder-rename-btn" data-action="rename-entry" data-url="{{.URL}}" data-key="{{.KeyValue}}" title="Rename">&#9998;</button></td>
+        <td class="finder-table-action">{{if not $.ReadOnly}}<button class="finder-rename-btn" data-action="rename-entry" data-url="{{.URL}}" data-key="{{.KeyValue}}" title="Rename">&#9998;</button>{{end}}</td>
         <td>{{if .HasPendingChanges}}<span class="row-pending-marker" title="Uncommitted changes" aria-label="Pending changes">●</span>{{end}}<a class="finder-table-link" href="{{.URL}}"
                hx-get="/fragment/detail?path={{.HxPath}}{{if eq $.ActiveUI "workbench"}}&ui=workbench{{end}}" hx-target="{{if eq $.ActiveUI "workbench"}}#workbench-workspace{{else}}#content-area{{end}}" hx-swap="innerHTML" hx-push-url="{{.URL}}">{{.KeyValue}}</a></td>
         {{range .Cells}}
+        {{if $.ReadOnly}}
+        <td>{{.Value}}</td>
+        {{else}}
         <td><input class="finder-table-input" type="text" value="{{.Value}}"
                    placeholder="{{.Placeholder}}"
                    hx-post="/config/set/{{.Path}}" hx-trigger="blur changed, keyup[key=='Enter'], input changed delay:1s"
                    hx-target="closest td" hx-swap="innerHTML"
                    name="value" hx-vals='{"leaf":"{{.Leaf}}"}'></td>
+        {{end}}
         {{end}}
         <td class="finder-table-action">
           {{if .RowTools}}
@@ -54,13 +58,15 @@
             {{end}}
           </span>
           {{end}}
-          <button class="finder-delete-btn" data-action="delete-entry" data-path="{{.HxPath}}" data-key="{{.KeyValue}}" title="Delete">&#128465;</button>
+          {{if not $.ReadOnly}}<button class="finder-delete-btn" data-action="delete-entry" data-path="{{.HxPath}}" data-key="{{.KeyValue}}" title="Delete">&#128465;</button>{{end}}
         </td>
       </tr>
       {{end}}
     </tbody>
   </table>
+  {{if not $.ReadOnly}}
   <button class="finder-item finder-add" id="btn-add-entry"
           hx-get="{{$table.FormURL}}" hx-target="body" hx-swap="beforeend">+ new</button>
+  {{end}}
 </section>
 {{end}}

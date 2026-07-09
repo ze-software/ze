@@ -379,7 +379,8 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	uiMode := zeweb.GetUIMode()
 	finderHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb)
 	workbenchHandler := zeweb.HandleWorkbench(renderer, schema, tree, editorMgr, insecureWeb,
-		zeweb.WithDispatch(dispatch), zeweb.WithBroker(broker), zeweb.WithPowerUsers(powerUserNames))
+		zeweb.WithDispatch(dispatch), zeweb.WithBroker(broker), zeweb.WithPowerUsers(powerUserNames),
+		zeweb.WithAuthorizer(authorizer))
 	fmt.Fprintf(os.Stderr, "web UI default: %s\n", uiMode)
 	showHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch zeweb.ReadUIModeFromRequest(r, uiMode) {

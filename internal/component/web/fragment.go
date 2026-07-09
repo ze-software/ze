@@ -201,6 +201,10 @@ type FragmentData struct {
 	CLIPathSegments []PathBarSegment
 	// ActiveUI controls which shell toggle links appear in shared chrome.
 	ActiveUI string
+	// ReadOnly is true when the authenticated user may NOT edit configuration.
+	// The list-table and detail fragments hide edit controls (inline set,
+	// rename, delete, add) when set. Default false preserves existing behavior.
+	ReadOnly bool
 }
 
 // HandleFragment returns an HTTP handler that serves HTMX fragments.

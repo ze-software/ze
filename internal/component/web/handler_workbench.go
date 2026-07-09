@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -32,6 +33,7 @@ type workbenchConfig struct {
 	dispatch   CommandDispatcher
 	broker     *EventBroker
 	powerUsers []string
+	authorizer aaa.Authorizer
 }
 
 // WorkbenchOption configures optional workbench handler dependencies.
@@ -40,6 +42,13 @@ type WorkbenchOption func(*workbenchConfig)
 // WithDispatch sets the CommandDispatcher for tool and log page handlers.
 func WithDispatch(d CommandDispatcher) WorkbenchOption {
 	return func(c *workbenchConfig) { c.dispatch = d }
+}
+
+// WithAuthorizer sets the aaa.Authorizer used to hide edit controls from
+// read-only users (AC-1). Nil (the default) keeps everything editable, matching
+// the route-gate fail-open semantics (CanEdit / R-1).
+func WithAuthorizer(a aaa.Authorizer) WorkbenchOption {
+	return func(c *workbenchConfig) { c.authorizer = a }
 }
 
 // WithBroker sets the EventBroker for Live Log SSE streaming.
@@ -71,6 +80,10 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 
 		viewTree := tree
 		username := GetUsernameFromRequest(r)
+		// Hide edit controls from read-only users (AC-1). Enforcement is at the
+		// route/mutation layer; this is the matching UI gate so we never show a
+		// button that would 403 on click. Fail-open when no authorizer (R-1).
+		readOnly := !CanEdit(r, cfg.authorizer)
 		if mgr != nil && username != "" {
 			if userTree := mgr.Tree(username); userTree != nil {
 				viewTree = userTree
@@ -100,6 +113,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 			data.Insecure = insecure
 			data.Services = PortalServices()
 			data.ActiveUI = uiModeTokenWorkbench
+			data.ReadOnly = readOnly
 			pathBar := renderer.RenderFragment("path_bar_inner", data)
 
 			wb := WorkbenchData{
@@ -117,6 +131,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 					RouterIdentity: routerIdentity,
 					FleetPeers:     fleetPeers,
 					ChangeCount:    changeCount,
+					ReadOnly:       readOnly,
 				},
 				Sections: WorkbenchSections(path),
 			}
@@ -150,6 +165,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		data.Services = PortalServices()
 		data.Monitor = strings.HasPrefix(r.URL.Path, "/monitor/")
 		data.ActiveUI = uiModeTokenWorkbench
+		data.ReadOnly = readOnly
 
 		// V2-only enrichment: surface row tool buttons and pending-change
 		// markers. The Finder fragment handler skips this so its output is
@@ -196,6 +212,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 				RouterIdentity: routerIdentity,
 				FleetPeers:     fleetPeers,
 				ChangeCount:    changeCount,
+				ReadOnly:       readOnly,
 			},
 			Sections: WorkbenchSections(path),
 		}

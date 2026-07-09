@@ -50,6 +50,11 @@ type LayoutData struct {
 	RouterIdentity   string // Resolved display name: system/host > bgp/router-id > "ze"
 	FleetPeers       []FleetPeer
 	ChangeCount      int
+	// ReadOnly is true when the authenticated user may NOT edit configuration
+	// (aaa authorizer denies the edit section). Templates hide edit controls
+	// (commit bar, save/add/delete) when set. Default false keeps every
+	// existing render path (insecure, single-admin, Finder) fully editable.
+	ReadOnly bool
 }
 
 // FleetPeer is one entry in the fleet selector dropdown.
