@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1103 summaries
+Total: 1104 summaries
 
 ## 000-099
 
@@ -1167,3 +1167,4 @@ Total: 1103 summaries
 | 1089 | layout-2-core-import-gate | `plan/learned/1089-layout-2-core-import-gate.md` |
 | 1090 | layout-3-naming-glossary | `plan/learned/1090-layout-3-naming-glossary.md` |
 | 1091 | layout-4-protocol-skeleton | `plan/learned/1091-layout-4-protocol-skeleton.md` |
+| 1092 | layout-0-umbrella | `plan/learned/1092-layout-0-umbrella.md` |

@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 4/4 (all children closed 2026-07-08: learned 1088, 1089, 1090, 1091; umbrella closure pending the reactor-candidate destination decision) |
+| Phase | 4/4 (all children closed 2026-07-08: learned 1088, 1089, 1090, 1091; reactor-candidate destination recorded: `plan/spec-reactor-split.md`; umbrella closed 2026-07-08) |
 | Updated | 2026-07-08 |
 
 ## Post-Compaction Recovery
@@ -174,13 +174,13 @@ This is an **umbrella spec**. Each gap becomes a sequenced child spec (below).
 <!-- No assumption may still be `unvalidated` at Pre-Commit Verification. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Exactly 5 files under `internal/core/` import `internal/component/`, and none import `internal/plugins/` | repo-wide grep this session (2026-07-08) | baseline seeded wrong; gate fails on day one | re-run the grep during the child's audit step, paste output into the child spec | unvalidated |
-| A-2 | `dep_audit.py` already holds a usable import graph and is the correct home for the direction check | `ai/rules/module-tiers.md` (gate description); `plan/spec-tiers-0-umbrella.md` tiers-5 B-1 results | a separate script is needed; more wiring | read `dep_audit.py` structure during child design | unvalidated |
-| A-3 | The l2tp/firewall nested plugins use the same SDK/DirectBridge mechanics the boundary checker assumes | `sdk.NewWithConn` grep hits in their `register.go` files | scan-root extension flags false positives | run extended checker, triage every new finding before enabling the gate | unvalidated |
+| A-1 | Exactly 5 files under `internal/core/` import `internal/component/`, and none import `internal/plugins/` | repo-wide grep this session (2026-07-08) | baseline seeded wrong; gate fails on day one | re-run the grep during the child's audit step, paste output into the child spec | **confirmed** (2026-07-08, child 2) -- audit re-grep found exactly 5 files / 10 import pairs, 0 core->plugins; seeded as `scripts/dev/core_import_baseline.txt` (learned 1089) |
+| A-2 | `dep_audit.py` already holds a usable import graph and is the correct home for the direction check | `ai/rules/module-tiers.md` (gate description); `plan/spec-tiers-0-umbrella.md` tiers-5 B-1 results | a separate script is needed; more wiring | read `dep_audit.py` structure during child design | **confirmed** (2026-07-08, child 2) -- `core_direction_gate` landed inside `dep_audit.py` reusing its existing import graph (commit `095c91fc9`); no second parser |
+| A-3 | The l2tp/firewall nested plugins use the same SDK/DirectBridge mechanics the boundary checker assumes | `sdk.NewWithConn` grep hits in their `register.go` files | scan-root extension flags false positives | run extended checker, triage every new finding before enabling the gate | **confirmed** (2026-07-08, child 2) -- extended checker over the 13 derived roots (`--print-roots`) reported ZERO new findings; nothing to triage |
 | A-4 | Each root-file move has only the referrers found this session | grep across repo for each filename | broken link or build break after move | re-grep per file at move time; `check_doc_links.py` + `make ze-doc-test` after | **broken** (2026-07-08) -- the umbrella's referrer list was bare-token hits; the child-1 re-grep found ZERO real referrers (see Mistake Log + `plan/learned/1088-layout-1-hygiene.md`) |
 | A-5 | `prod.json` disposition (keep at root, move, or strip the device address) is a decision the user will make at hygiene-child approval | Makefile + `mk/appliance.mk` consumers; content read this session | hygiene child blocked on one file | explicit user decision at hygiene child approval | **confirmed** (2026-07-08) -- user chose keep-at-root unchanged; address is private RFC1918 |
-| A-6 | A protocol skeleton can be defined that fits BGP, BFD, IKE, IS-IS, OSPF, LDP without forcing renames of stable packages | holo precedent (uniform skeleton across 8 protocol crates); Ze's existing `yang//cmd//cli/` convention already uniform | skeleton rule stays advisory forever or fragments into per-protocol exceptions | design probe in child 4: table mapping every existing protocol module to the proposed skeleton | unvalidated |
-| A-7 | The reactor god package (69 non-test files, one package) is NOT already covered by the rib-arch set | grep for "reactor" in `plan/spec-rib-arch-0-umbrella.md` returned no decomposition scope this session | duplicate scope with rib-arch children | re-check the rib-arch umbrella + children when scheduling the candidate child | unvalidated |
+| A-6 | A protocol skeleton can be defined that fits BGP, BFD, IKE, IS-IS, OSPF, LDP without forcing renames of stable packages | holo precedent (uniform skeleton across 8 protocol crates); Ze's existing `yang//cmd//cli/` convention already uniform | skeleton rule stays advisory forever or fragments into per-protocol exceptions | design probe in child 4: table mapping every existing protocol module to the proposed skeleton | **confirmed** (2026-07-08, child 4) -- probe table maps all 7 protocols cleanly; only documented exceptions are the BGP historical vocabulary and `ike/wire`; zero renames forced (`ai/rules/protocol-skeleton.md`; learned 1091) |
+| A-7 | The reactor god package (69 non-test files, one package) is NOT already covered by the rib-arch set | grep for "reactor" in `plan/spec-rib-arch-0-umbrella.md` returned no decomposition scope this session | duplicate scope with rib-arch children | re-check the rib-arch umbrella + children when scheduling the candidate child | **confirmed** (2026-07-08, umbrella closure) -- grep for decomposition scope across all nine `plan/spec-rib-arch-*.md`: zero hits; rib-arch-8 edits two reactor files' internals (`filter_delta.go`, `reactor_api_forward.go`) without touching package structure |
 
 ### Risks
 <!-- Things that could go wrong even if all assumptions hold. From /ze-spec Failure Mode Analysis. -->
@@ -342,7 +342,7 @@ relocations only; no protocol code path is modified.)
 | 2 | `spec-layout-2-core-import-gate.md` -- **COMPLETE** (closed 2026-07-08; `plan/learned/1089-layout-2-core-import-gate.md`; commits `095c91fc9`/`87043ee82`) | Extend `dep_audit.py --check` with the core import-direction rule (`internal/core/` MUST NOT import `internal/component/` or `internal/plugins/`), seeded shrink-only baseline (5 files / 10 pairs, fix-route annotations), selftest fixtures, `make ze-verify` wiring; derive `plugin_process_boundary.go` scan roots from the generator's plugin namespaces (13 roots; zero new findings to triage). | low | child 2 selftests green; `make ze-verify` green |
 | 3 | `spec-layout-3-naming-glossary.md` -- **COMPLETE** (closed 2026-07-08; `plan/learned/1090-layout-3-naming-glossary.md`; commits `4b81e4654`/`4d179ede2`) | Package-naming glossary in `ai/rules/naming.md` (7 terms, the `cli`/`cmd`/`command` trio, the four rib-named packages); `wireu` KEPT + documented per user decision (rename shortlist closed empty). | med | user approval on the rename shortlist (given 2026-07-08) |
 | 4 | `spec-layout-4-protocol-skeleton.md` -- **COMPLETE** (closed 2026-07-08; `plan/learned/1091-layout-4-protocol-skeleton.md`) | `ai/rules/protocol-skeleton.md` (required-vs-optional modules, RFC-term per-peer state naming, probe mapping for 7 protocols, exceptions = BGP vocabulary + `ike/wire`); advisory `scripts/dev/protocol_skeleton_report.py` wired as the non-enforcing last line of `ze-tier-check`. No moves, no renames. | med (design-heavy) | design probe table (A-6) confirmed in the child |
-| candidate (unscheduled) | reactor decomposition | `internal/component/bgp/reactor` is one package of 69 non-test files (~64k lines with tests). Splitting it is code re-architecture, not layout convention; it must be sequenced against the in-flight `spec-rib-arch-*` set (A-7). Recorded here so the finding has a destination; scheduling is a user decision after rib-arch. | high | rib-arch outcome + user decision |
+| candidate (unscheduled) | reactor decomposition | `internal/component/bgp/reactor` is one package of 69 non-test files (~64k lines with tests). Splitting it is code re-architecture, not layout convention; it must be sequenced against the in-flight `spec-rib-arch-*` set (A-7). Recorded here so the finding has a destination; scheduling is a user decision after rib-arch. -> DESTINATION (2026-07-08, user decision at umbrella closure): `plan/spec-reactor-split.md` (skeleton, Depends `spec-rib-arch-0-umbrella.md`). Standalone spec chosen over folding into rib-arch (no decomposition scope there; another session's in-flight work) and over renaming `reactor` now (would churn 154 package clauses + 331 doc anchors twice; see `spec-rename-0-umbrella.md` exclusion). | high | rib-arch outcome + user decision (given) |
 
 Cross-references: children reference this umbrella and their predecessors by
 filename. Scope rule for every child: package moves between tiers belong to
@@ -546,16 +546,24 @@ N/A - no protocol behavior is implemented or changed by this set.
 ## Implementation Summary
 
 ### What Was Implemented
-- (fill during implementation, per child)
+- Child 1 (hygiene): root cleanup + stale-doc fixes (commits `b652e176c`/`5424c170f`; learned 1088).
+- Child 2 (core import gate): `core_direction_gate` in `dep_audit.py` + shrink-only `scripts/dev/core_import_baseline.txt` (5 files / 10 pairs, fix routes) + boundary-checker scan roots derived from the generator (13 roots, zero new findings) (commits `095c91fc9`/`87043ee82`; learned 1089).
+- Child 3 (naming glossary): package-naming glossary in `ai/rules/naming.md`; `wireu` kept + documented per user decision (commits `4b81e4654`/`4d179ede2`; learned 1090).
+- Child 4 (protocol skeleton): `ai/rules/protocol-skeleton.md` + advisory `scripts/dev/protocol_skeleton_report.py` as the non-enforcing last line of `ze-tier-check` (commits `83faa5796`/`8f5f2ff4b`; learned 1091).
+- Umbrella closure: reactor-candidate destination created (`plan/spec-reactor-split.md`, skeleton, blocked on rib-arch), all assumptions resolved, this record.
 
 ### Bugs Found/Fixed
-- (fill during implementation)
+- Child 4 in-pass review ISSUE: a stale PROTOCOLS manifest row rendered silently as single-package; fixed with a `missing` flag + regression selftest cases (learned 1091).
+- No runtime bugs: the set changed no runtime behavior.
 
 ### Documentation Updates
-- (fill during implementation)
+- `docs/architecture/overview.md` Non-Goals corrected with dated source anchors (child 1).
+- New/extended rule docs: `ai/rules/naming.md` glossary, `ai/rules/protocol-skeleton.md`; `ai/rules/INDEX.md` regenerated (rows 61, 78); `ai/rules/module-tiers.md` + `docs/plugin-overview.md` gate descriptions extended (child 2).
 
 ### Deviations from Plan
-- (fill during implementation)
+- A-4 broke: the umbrella's root-file referrer list was bare-token grep hits; the relocations needed zero referrer edits (Mistake Log; learned 1088).
+- Child 4 shipped a standalone report script instead of a dep_audit section (umbrella suggested either; the report shares no logic with the import graph -- recorded in the child).
+- Child 3's "wireu KEPT" decision was superseded later the same day: the user approved folding `wireu` into the future `bgp/packet` (`plan/spec-rename-0-umbrella.md`, `spec-rename-3-wireu-fold.md`). The glossary row updates land with that spec set, not here.
 
 ## Implementation Audit
 
@@ -564,47 +572,78 @@ N/A - no protocol behavior is implemented or changed by this set.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Gap 1: core tier leaks upward, unguarded | done | `core_direction_gate` in `scripts/dev/dep_audit.py` + `scripts/dev/core_import_baseline.txt` | shrink-only; child 2 |
+| Gap 2: boundary guard blind to two namespaces | done | derived scan roots in `scripts/checks/plugin_process_boundary.go` (from `scripts/codegen/plugin_imports.go`) | 13 roots; child 2 |
+| Gap 3: no skeleton / no naming glossary | done | `ai/rules/naming.md` glossary (child 3); `ai/rules/protocol-skeleton.md` + advisory report (child 4) | |
+| Gap 4: root clutter + stale overview claim | done | child 1 (`b652e176c`) | |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | done | dep_audit selftest fixture: new upward pair -> gate fails | child 2 |
+| AC-2 | done | baseline lists exactly the 5 files / 10 pairs with fix routes; stale-row selftest fixture | child 2 |
+| AC-3 | done | `--print-roots` lists 13 roots incl. l2tp/firewall plugin dirs; `TestBoundaryScanRootsDerivedFromGenerator` | child 2 |
+| AC-4 | done | `ai/rules/naming.md` "Package-Naming Glossary"; `ai/rules/INDEX.md:61` | child 3 |
+| AC-5 | done | `ai/rules/protocol-skeleton.md`; report exit 0 (advisory); `ai/rules/INDEX.md:78` | child 4 |
+| AC-6 | done | `git ls-files` root check: only `prod.json` of the watched names remains (user decision) | child 1 |
+| AC-7 | done | repo grep for the stale OSPF/IS-IS claim: 0 hits | child 1 |
+| AC-8 | done | scope statements here + in children point at the tiers umbrella; no tier moves occurred | |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| dep_audit core-direction fixtures | done | `scripts/dev/dep_audit.py --selftest` | OK 2026-07-08 |
+| boundary derived-roots parity | done | `scripts/checks/plugin_process_boundary_test.go` | `TestBoundaryScanRootsDerivedFromGenerator` |
+| rules-index freshness | done | `make ze-rules-index` | regenerates clean (80 rules) |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `scripts/dev/dep_audit.py` | done | child 2 |
+| `scripts/checks/plugin_process_boundary.go` + `_test.go` | done | child 2 |
+| `ai/rules/naming.md`, `ai/rules/INDEX.md`, `ai/rules/module-tiers.md` | done | children 2-3 |
+| `.gitignore`, `Makefile`, `docs/architecture/overview.md` | done | child 1 |
+| struck-through referrer rows (qos-map/test-web docs, .ci files) | not modified | A-4 broken: phantom referrers |
+| `ai/rules/protocol-skeleton.md`, baseline file, report script | done | children 2, 4 |
+| child specs `spec-layout-1..4` | created + closed | two-commit flow per child; learned 1088-1091 |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 4 requirements, 8 ACs, 3 tests, file plan above
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** A-4 phantom-referrer rows (documented in Deviations + Mistake Log)
 
 ## Goal Validation (BLOCKING)
 
 <!-- MANDATORY: Maps each stated goal to concrete proof it was achieved. -->
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Core tier cannot grow new upward imports | gate test | dep_audit selftest fixture output + `make ze-verify` run |
-| Boundary guard covers every plugin namespace | gate selftest | derived-roots parity test output |
-| Naming/skeleton conventions discoverable and followed | rule docs + index | `ai/rules/INDEX.md` rows; first new package created after the rules cites them |
-| Root and overview match reality | repo listing + grep | `git ls-files` root output; zero hits for the stale claim |
+| Core tier cannot grow new upward imports | gate test | `dep_audit.py --selftest` OK (2026-07-08; fixtures: new pair fails, baselined passes, stale row fails); gate wired in `make ze-tier-check`, green at children 2-4 closures |
+| Boundary guard covers every plugin namespace | gate selftest | `--print-roots` (2026-07-08): 13 roots including `internal/component/l2tp/plugins` and `internal/component/firewall/plugins`; parity test green |
+| Naming/skeleton conventions discoverable and followed | rule docs + index | `ai/rules/INDEX.md:61` (Naming) + `:78` (Protocol Subpackage Skeleton); skeleton already consumed by the follow-on rename set (`spec-rename-*`), which is the "first new work cites them" proof |
+| Root and overview match reality | repo listing + grep | `git ls-files` watched-name check: only `prod.json` (2026-07-08); stale OSPF/IS-IS claim grep: 0 hits |
 
 ## Review Gate
 
 <!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate. -->
 
 ### Run 1 (initial)
+
+Each child ran its own `/ze-review` gate before closure (recorded in the child
+specs, preserved in their commit-A history; child 1 predates the practice --
+that gap is recorded in the Child 1 section and `plan/learned/1088`). The
+umbrella-closure diff itself (this spec's closure edits +
+`plan/spec-reactor-split.md` skeleton) was reviewed 2026-07-08:
+`make ze-validate` -> "all checks passed";
+`scripts/dev/audit-test-relaxation.py` -> "clean (no tests deleted or weakened)".
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | | (to be run via /ze-review at each child's closure) | | |
+| 1 | - | none -- 0 BLOCKER, 0 ISSUE, 0 NOTE on the closure diff (docs/spec-only) | - | - |
 
 ### Fixes applied
-- (fill during implementation)
+- None required (clean run).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
@@ -621,22 +660,47 @@ N/A - no protocol behavior is implemented or changed by this set.
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `plan/learned/1088..1091-layout-*.md` | yes | `ls plan/learned/1088* 1089* 1090* 1091*` (2026-07-08) listed all four |
+| `scripts/dev/core_import_baseline.txt` | yes | `wc -l` -> 18 lines (10 pair rows + annotations/header) |
+| `scripts/dev/protocol_skeleton_report.py` | yes | ran 2026-07-08: exit 0, "7 protocols; canonical 27, rfc-state 4, version 1, domain 29, legacy 4" |
+| `ai/rules/protocol-skeleton.md` | yes | `ai/rules/INDEX.md:78` row (regenerated index) |
+| `plan/spec-reactor-split.md` | yes | created at this closure (skeleton, Depends `spec-rib-arch-0-umbrella.md`) |
+| child specs `spec-layout-1..4` | closed | deleted per two-commit flow; final states in commits `5424c170f`/`87043ee82`/`4d179ede2`/`8f5f2ff4b` |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1/AC-2 | core gate fails new pairs, enforces shrink-only baseline | `dep_audit.py --selftest` exit 0 (2026-07-08); baseline 10 pair rows |
+| AC-3 | all plugin namespaces scanned | `--print-roots` (2026-07-08): 13 roots incl. l2tp/firewall plugin dirs |
+| AC-4/AC-5 | glossary + skeleton discoverable | `ai/rules/INDEX.md:61` and `:78` (fresh grep 2026-07-08); report exit 0 |
+| AC-6 | root clean | `git ls-files` watched-name check (2026-07-08): only `prod.json` |
+| AC-7 | stale claim gone | grep "OSPF and IS-IS are not implemented" in docs/: 0 hits (2026-07-08) |
+| AC-8 | no tier moves | no package moved between core/component/plugins in any child commit; scope statements present |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `make ze-verify` -> `ze-tier-check` -> core gate + advisory report | N/A (gate selftests, not .ci) | dep_audit selftest OK; report exit 0; ze-tier-check green at children's closures |
+| boundary checker scan | N/A (Go selftest) | `TestBoundaryScanRootsDerivedFromGenerator` green (child 2) |
+| vlan-qos parse suite (child 1 keyword surface) | `test/parse/iface-vlan-qos.ci` + siblings | green at child 1 closure; `make ze-validate` clean today |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | child 2 audit re-grep: 5 files / 10 pairs, 0 core->plugins (learned 1089) |
+| A-2 | confirmed | gate landed inside `dep_audit.py` (commit `095c91fc9`) |
+| A-3 | confirmed | extended checker over 13 roots: zero new findings |
+| A-4 | broken | phantom referrers; Mistake Log row + learned 1088 |
+| A-5 | confirmed | user decision: `prod.json` kept at root unchanged |
+| A-6 | confirmed | child 4 probe table: all 7 protocols map; no renames forced (learned 1091) |
+| A-7 | confirmed | grep across all nine rib-arch specs: no decomposition scope |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| `docs/architecture/overview.md` Non-Goals corrected | stale-claim grep 0 hits; dated source anchors added in child 1 | yes |
+| rule docs indexed and discoverable | `ai/rules/INDEX.md:61`, `:78` (regenerated, not hand-edited) | yes |
+| doc-link + anchor integrity | `make ze-validate` "all checks passed" (2026-07-08, closure diff) | yes |
 
 ## Checklist
 
