@@ -2,7 +2,7 @@
 .PHONY: ze-docker
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test
 .PHONY: ze-test ze-verify ze-verify-changed ze-validate ze-smoke ze-ci ze-all ze-all-test
-.PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp
+.PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-hook-test
 .PHONY: _ze-verify-impl _ze-verify-changed-impl ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
@@ -252,6 +252,19 @@ ze-unit-test-changed: $(TMP_SENTINEL)
 	$(GO_TEST) -race $$pkgs
 	@echo "Unit tests: bare ze_core compile-out checks..."
 	$(GO_TEST_CORE) -race ./cmd/ze/hub
+
+# ─── Agent-guard hook tests ────────────────────────────────────────────────
+
+# Regression + behavioural tests for the Claude agent-guard hooks. parity-check
+# locks the consolidated dispatchers' exit codes against their golden table;
+# fixture-check drives the hooks whose behaviour the golden table cannot isolate
+# (c_format_alloc, validate-spec.sh, the commit_helper.py commit-time gates).
+# See ai/rules/hook-mapping.md.
+ze-hook-test:
+	@echo "Hook dispatcher parity (golden exit codes)..."
+	@python3 scripts/dev/hook-parity-check.py
+	@echo "Hook behavioural fixtures (format-alloc / validate-spec / commit-gate)..."
+	@python3 scripts/dev/hook-fixture-check.py
 
 # ─── Composite verification targets ────────────────────────────────────────
 

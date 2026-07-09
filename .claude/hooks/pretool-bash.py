@@ -9,8 +9,13 @@ so a normal command (grep, ls, go test, ...) pays one Python start instead of
 Ported faithfully from (and replaces, for the Bash matcher only):
     block-worktree-copy.sh   block-destructive-git.sh   block-root-build.sh
     block-pipe-tail.sh       block-system-tmp.sh        block-test-deletion.sh
-    pre-commit-spec-audit.sh check-deferral-in-diff.sh  check-deferral-unassigned.sh
-    check-wiring-at-commit.sh check-doc-drift.sh
+
+The commit-time gates (pre-commit-spec-audit / check-deferral-in-diff /
+check-deferral-unassigned / check-wiring-at-commit / check-doc-drift) that used
+to live here were re-homed to scripts/dev/commit_helper.py creation-time gates
+(spec-followup-hooks): here they gated on the literal "git commit" string, which
+the sanctioned commit path (bash tmp/commit-<SID>.sh) never contains and
+check_destructive_git blocks when it does, so they ran only on a dead path.
 
 NOT folded in (left as their own hook entries because they are not Bash-only):
     block-until-lsp.sh       -- matcher ".*", gates every tool, not just Bash
@@ -28,7 +33,6 @@ never brick every Bash command; the traceback is printed to stderr.
 import json
 import os
 import re
-import subprocess
 import sys
 
 # ANSI colours, matched to the original shell hooks.
@@ -162,177 +166,12 @@ def check_test_deletion(cmd, _ctx):
     return (2, "\n".join(lines))
 
 
-# --------------------------------------------------------------------------- #
-# Commit-gated checks (only do work when the command is a `git commit`).
-# --------------------------------------------------------------------------- #
-
-
-def _git(args, ctx):
-    """Run a git command in the project dir, return stdout (empty on any error)."""
-    try:
-        out = subprocess.run(
-            ["git"] + args, cwd=ctx["dir"], capture_output=True, text=True
-        )
-        return out.stdout if out.returncode == 0 else ""
-    except Exception:
-        return ""
-
-
-def check_deferral_unassigned(cmd, ctx):
-    """check-deferral-unassigned.sh: open deferrals must name a destination."""
-    if "git commit" not in cmd:
-        return None
-    path = os.path.join(ctx["dir"], "plan/deferrals.md")
-    if not os.path.isfile(path):
-        return None
-    with open(path, encoding="utf-8", errors="replace") as fh:
-        rows = fh.read().splitlines()
-    placeholders = {"-", "unassigned", "tbd", "none"}
-    unassigned = []
-    for idx, line in enumerate(rows):
-        if idx < 2:  # skip header + separator
-            continue
-        fields = line.split("|")
-        if len(fields) < 7:  # malformed / not a table row
-            continue
-        status = fields[6].strip()
-        dest = fields[5].strip()
-        what = fields[3].strip()
-        if status.lower() == "open" and (dest == "" or dest.lower() in placeholders):
-            unassigned.append(f'  - {what} (destination: "{dest}")')
-    if not unassigned:
-        return None
-    msg = [f"{RED}{BOLD}  BLOCKED: Open deferrals without destination{RESET}", ""]
-    msg += unassigned
-    msg += [
-        "",
-        f"  {YELLOW}Every open deferral must name a receiving spec or be cancelled.{RESET}",
-        f"  {YELLOW}Update the Destination column in plan/deferrals.md{RESET}",
-        f"  {YELLOW}See ai/rules/deferral-tracking.md{RESET}",
-    ]
-    return (2, "\n".join(msg))
-
-
-_DEFERRAL_PATTERNS = (
-    "deferred to",
-    "deferred for",
-    "defer to",
-    "out of scope",
-    "future work",
-    "future spec",
-    "handle later",
-    "address later",
-    "will be handled later",
-    "will be done later",
-    "will be addressed later",
-    "skip for now",
-    "skipping for now",
-    "postpone",
-    "not yet implemented",
-    "not yet wired",
-    "follow.up work",
-)
-
-
-def check_deferral_in_diff(cmd, ctx):
-    """check-deferral-in-diff.sh: deferral language in a diff needs a log entry."""
-    if "git commit" not in cmd:
-        return None
-    diff = _git(["diff", "--cached", "--no-color", "-U0", "--diff-filter=AM"], ctx)
-    if not diff:
-        return None
-    added = [
-        l
-        for l in diff.splitlines()
-        if l.startswith("+") and not l.startswith("+++") and l != "+"
-    ]
-    added = [l for l in added if not re.match(r"^\+\s*defer [a-zA-Z]", l)]
-    if not added:
-        return None
-    hits = []
-    for pattern in _DEFERRAL_PATTERNS:
-        matches = [l for l in added if re.search(pattern, l, re.IGNORECASE)]
-        if matches:
-            hits.append(f"  Pattern: '{pattern}'")
-            for line in matches[:3]:
-                hits.append("    " + line[1:])  # strip leading '+'
-    if not hits:
-        return None
-    staged = _git(["diff", "--cached", "--name-only"], ctx).splitlines()
-    if "plan/deferrals.md" in staged:
-        return None
-    msg = [
-        f"{RED}{BOLD}  BLOCKED: Deferral language in staged changes without log entry{RESET}",
-        "",
-    ]
-    msg += [f"  {RED}{h}{RESET}" for h in hits]
-    msg += [
-        "",
-        f"  {YELLOW}Record each deferral in plan/deferrals.md before committing.{RESET}",
-        f"  {YELLOW}See ai/rules/deferral-tracking.md{RESET}",
-    ]
-    return (2, "\n".join(msg))
-
-
-def check_wiring_at_commit(cmd, ctx):
-    """check-wiring-at-commit.sh: warn on plugin code staged without .ci tests."""
-    if "git commit" not in cmd:
-        return None
-    staged = _git(
-        ["diff", "--cached", "--name-only", "--diff-filter=AM"], ctx
-    ).splitlines()
-    if not staged:
-        return None
-    plugin_go = [
-        f
-        for f in staged
-        if re.search(r"^internal/plugins/.*\.go$", f)
-        and not f.endswith("_test.go")
-        and not f.endswith("register.go")
-        and "/schema/" not in f
-        and not f.endswith("doc.go")
-    ]
-    if not plugin_go:
-        return None
-    if any(f.endswith(".ci") for f in staged):
-        return None
-    msg = [
-        f"{YELLOW}{BOLD}⚠️  Plugin code staged without functional tests{RESET}",
-        "",
-        "  Plugin files:",
-    ]
-    msg += [f"    -> {f}" for f in plugin_go]
-    msg += [
-        "",
-        f"  {YELLOW}No .ci functional tests in this commit.{RESET}",
-        f"  {YELLOW}Is this feature reachable by a user through config/CLI/API?{RESET}",
-        f"  {YELLOW}See ai/rules/integration-completeness.md{RESET}",
-    ]
-    return (1, "\n".join(msg))
-
-
-def check_doc_drift(cmd, ctx):
-    """check-doc-drift.sh: advisory warning when docs drift from the registry."""
-    if "git commit" not in cmd:
-        return None
-    if not _git(["diff", "--cached", "--name-only"], ctx):
-        return None
-    try:
-        res = subprocess.run(
-            ["go", "run", "scripts/docvalid/doc_drift.go"],
-            cwd=ctx["dir"],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-    except Exception:
-        return None  # compile error or timeout -- don't block
-    if res.returncode == 1:
-        return (1, (res.stdout + res.stderr).rstrip())
-    return None
-
-
-# Order mirrors the original settings.json hook array.
+# Order mirrors the original settings.json hook array. The four commit-gated
+# checks (deferral-in-diff, deferral-unassigned, wiring-at-commit, doc-drift)
+# were re-homed to scripts/dev/commit_helper.py creation-time gates: they gated
+# on the literal "git commit" string, which the sanctioned commit path
+# (bash tmp/commit-<SID>.sh) never contains and check_destructive_git blocks
+# when it does, so they only ever fired on a dead path. See spec-followup-hooks.
 CHECKS = (
     check_worktree_copy,
     check_destructive_git,
@@ -340,10 +179,6 @@ CHECKS = (
     check_pipe_tail,
     check_system_tmp,
     check_test_deletion,
-    check_deferral_in_diff,
-    check_deferral_unassigned,
-    check_wiring_at_commit,
-    check_doc_drift,
 )
 
 

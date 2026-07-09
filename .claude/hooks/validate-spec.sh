@@ -237,14 +237,19 @@ if ! grep -q "^## Wiring Test" "$FILE_PATH"; then
     : # Already caught by REQUIRED_SECTIONS check above
 else
     WIRING_SECTION=$(sed -n '/^## Wiring Test/,/^## /p' "$FILE_PATH" | head -30)
-    # Must have a table
-    if ! echo "$WIRING_SECTION" | grep -q '|.*→.*|'; then
-        ERRORS+=("Wiring Test section must have table with Entry Point → Feature Code → Test columns")
+    # Must have a table. Accept BOTH arrow conventions: the Unicode arrow (→,
+    # plan/TEMPLATE.md) and ASCII (->, .claude/rules/post-compaction.md). Both are
+    # institutionalized; matching only → mislabeled ~40 legacy specs as tableless.
+    if ! echo "$WIRING_SECTION" | grep -qE '\|.*(→|->).*\|'; then
+        ERRORS+=("Wiring Test section must have table with Entry Point -> Feature Code -> Test columns")
     fi
     # Check for placeholder/deferred/empty test cells
-    # Table rows look like: | entry | → | code | test |
-    # Extract the last column (test name) from data rows (skip header + separator)
-    WIRING_ROWS=$(echo "$WIRING_SECTION" | grep '|.*→.*|' | grep -v '^|.*Entry Point' | grep -v '^|.*---')
+    # Table rows look like: | entry | -> | code | test |  (or → )
+    # Extract the last column (test name) from data rows (skip header + separator).
+    # The trailing `|| true` is load-bearing: under `set -e`, a grep pipeline that
+    # selects no lines exits 1 and aborts the whole script BEFORE the output stage,
+    # swallowing every queued ERROR. `|| true` keeps WIRING_ROWS empty instead.
+    WIRING_ROWS=$(echo "$WIRING_SECTION" | grep -E '\|.*(→|->).*\|' | grep -v '^|.*Entry Point' | grep -v '^|.*---' || true)
     if [[ -n "$WIRING_ROWS" ]]; then
         HAS_CI_TEST=false
         # Check each row's test column for deferred/TODO/placeholder/empty

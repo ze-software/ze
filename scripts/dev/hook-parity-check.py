@@ -346,8 +346,26 @@ def feed(prog, payload, env):
         return f"ERR:{exc}"
 
 
+def _fixture_root():
+    # Fixture dirs must evade THREE path-sensitive behaviours so the golden is
+    # platform-portable (it was blessed on macOS, where tempfile returns
+    # /var/folders/... which happens to dodge all three):
+    #   1. c_system_tmp_we blocks any path under /tmp/,
+    #   2. c_throwaway_tests blocks .go/.py/.sh under /tmp/ or /var/tmp/,
+    #   3. posttool auto-lint (golangci) actually RUNS when the fixture .go sits
+    #      inside a Go module, i.e. under the repo tree.
+    # A dir under XDG_CACHE_HOME / ~/.cache is none of those: not system-temp and
+    # outside the module. os.makedirs is idempotent; run_corpus rmtree's each run.
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(
+        os.path.expanduser("~"), ".cache"
+    )
+    root = os.path.join(base, "ze-hook-parity")
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
 def run_corpus():
-    work = tempfile.mkdtemp(prefix="ze-hook-fixture-")
+    work = tempfile.mkdtemp(prefix="fixture-", dir=_fixture_root())
     env = dict(os.environ, CLAUDE_PROJECT_DIR=work)
     bash = {
         c: feed(

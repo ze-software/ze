@@ -666,6 +666,320 @@ def discovery_index_head_status(repo: Path) -> tuple[str, list[str]]:
     return ("stale" if stale else "fresh"), stale
 
 
+# --------------------------------------------------------------------------- #
+# Commit-time repo-state gates.
+#
+# Re-homed from pretool-bash.py, where four of them gated on the literal string
+# "git commit" -- which the sanctioned `bash tmp/commit-<SID>.sh` path never
+# contains, and which check_destructive_git blocks outright when it does. They
+# were therefore doubly dead. Creation time is where the agent can still fix the
+# commit, and the helper already knows exactly which files the commit will add
+# and remove. Severities match the originals: deferral/spec-audit BLOCK (raise
+# UsageError), wiring/doc-drift WARN (print to stderr, commit proceeds). See
+# ai/rules/deferral-tracking.md, ai/rules/integration-completeness.md.
+# --------------------------------------------------------------------------- #
+
+DEFERRAL_PLACEHOLDERS = frozenset({"", "-", "unassigned", "tbd", "none"})
+
+DEFERRAL_PATTERNS = (
+    "deferred to",
+    "deferred for",
+    "defer to",
+    "out of scope",
+    "future work",
+    "future spec",
+    "handle later",
+    "address later",
+    "will be handled later",
+    "will be done later",
+    "will be addressed later",
+    "skip for now",
+    "skipping for now",
+    "postpone",
+    "not yet implemented",
+    "not yet wired",
+    "follow.up work",
+)
+
+
+def deferral_unassigned_problems(repo: Path) -> list[str]:
+    """Open rows in plan/deferrals.md whose Destination is a placeholder (block).
+
+    Faithful to check_deferral_unassigned: the six-column table is Date | Source
+    | What | Reason | Destination | Status, read by index (dest = field 5,
+    status = field 6). Independent of what this commit touches -- an unassigned
+    open deferral blocks every commit until it names a home or is cancelled.
+    """
+    path = repo / "plan" / "deferrals.md"
+    if not path.is_file():
+        return []
+    unassigned: list[str] = []
+    for idx, line in enumerate(
+        path.read_text(encoding="utf-8", errors="replace").splitlines()
+    ):
+        if idx < 2:
+            continue
+        fields = line.split("|")
+        if len(fields) < 7:
+            continue
+        status = fields[6].strip().lower()
+        dest = fields[5].strip()
+        what = fields[3].strip()
+        if status == "open" and dest.lower() in DEFERRAL_PLACEHOLDERS:
+            unassigned.append(f'  - {what} (destination: "{dest}")')
+    if not unassigned:
+        return []
+    return [
+        "open deferrals without a destination:\n"
+        + "\n".join(unassigned)
+        + "\n  Name a receiving spec or cancel each in plan/deferrals.md"
+        " (ai/rules/deferral-tracking.md)."
+    ]
+
+
+def _prospective_added_lines(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> list[str]:
+    """The '+' lines this commit would introduce (added/modified files).
+
+    Computed in a THROWAWAY index (GIT_INDEX_FILE) so the real staging area is
+    never touched: read HEAD's tree, apply this commit's add/remove set, then
+    diff --cached -U0 --diff-filter=AM. That is exactly what the generated
+    `git add ... ; git commit` will record, and it captures brand-new files too.
+    """
+    (repo / "tmp").mkdir(exist_ok=True)
+    fd, index = tempfile.mkstemp(prefix="ze-commit-index-", dir=str(repo / "tmp"))
+    os.close(fd)
+    os.unlink(index)  # git wants to create it; a pre-existing empty file is fine too
+    env = dict(os.environ, GIT_INDEX_FILE=index)
+
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ("git", "-C", str(repo), *args),
+            check=False,
+            text=True,
+            capture_output=True,
+            env=env,
+        )
+
+    try:
+        has_head = git("rev-parse", "--verify", "-q", "HEAD").returncode == 0
+        if has_head:
+            git("read-tree", "HEAD")
+        if add_paths:
+            git("add", "--", *add_paths)
+        for path in remove_paths:
+            git("rm", "--cached", "-q", "--", path)
+        diff = git("diff", "--cached", "--no-color", "-U0", "--diff-filter=AM").stdout
+    finally:
+        try:
+            os.unlink(index)
+        except OSError:
+            pass
+    return [
+        line
+        for line in diff.splitlines()
+        if line.startswith("+") and not line.startswith("+++") and line != "+"
+    ]
+
+
+def _deferral_prose(line: str) -> str:
+    """The prose part of a '+' diff line, with quoted and backticked spans blanked.
+
+    A phrase that exists only as a quoted or backticked token -- a
+    `DEFERRAL_PATTERNS` entry, a test fixture string, a doc example -- is data,
+    not a statement of deferring work, so it is removed before matching. A phrase
+    in bare markdown text or a bare code comment survives and is caught.
+    """
+    text = line[1:] if line.startswith("+") else line
+    text = re.sub(r'"[^"]*"', " ", text)
+    text = re.sub(r"'[^']*'", " ", text)
+    text = re.sub(r"`[^`]*`", " ", text)
+    return text
+
+
+def deferral_in_diff_problems(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> list[str]:
+    """Deferral language in the commit's added PROSE with no deferrals.md entry.
+
+    Matching runs on `_deferral_prose(line)`, not the raw line, so the canonical
+    `DEFERRAL_PATTERNS` list, the rule docs that quote it, and the fixtures that
+    test it -- all of which now ride the gated commit path -- do not self-trip:
+    their trigger phrases live inside quotes or backticks. Go's `defer f()` is
+    also skipped. This prose-only match is the one intentional divergence from
+    the dead `check-deferral-in-diff.sh`, which never met its own list.
+    """
+    if "plan/deferrals.md" in add_paths:
+        return []
+    prose = [
+        (line, _deferral_prose(line))
+        for line in _prospective_added_lines(repo, add_paths, remove_paths)
+        if not re.match(r"^\+\s*defer [a-zA-Z]", line)
+    ]
+    if not prose:
+        return []
+    hits: list[str] = []
+    for pattern in DEFERRAL_PATTERNS:
+        matches = [
+            orig for orig, text in prose if re.search(pattern, text, re.IGNORECASE)
+        ]
+        if matches:
+            hits.append(f"  pattern '{pattern}':")
+            hits.extend("    " + m[1:] for m in matches[:3])
+    if not hits:
+        return []
+    return [
+        "deferral language in staged changes without a plan/deferrals.md entry:\n"
+        + "\n".join(hits)
+        + "\n  Record each deferral in plan/deferrals.md before committing"
+        " (ai/rules/deferral-tracking.md)."
+    ]
+
+
+def wiring_warnings(add_paths: tuple[str, ...]) -> list[str]:
+    """Plugin .go committed without any .ci functional test (advisory warn)."""
+    plugin_go = [
+        f
+        for f in add_paths
+        if re.search(r"^internal/plugins/.*\.go$", f)
+        and not f.endswith("_test.go")
+        and not f.endswith("register.go")
+        and "/schema/" not in f
+        and not f.endswith("doc.go")
+    ]
+    if not plugin_go or any(f.endswith(".ci") for f in add_paths):
+        return []
+    return [
+        "plugin code committed without a .ci functional test:\n"
+        + "\n".join(f"    {f}" for f in plugin_go)
+        + "\n  Is this reachable by a user via config/CLI/API?"
+        " (ai/rules/integration-completeness.md)."
+    ]
+
+
+def doc_drift_warnings(repo: Path) -> list[str]:
+    """Advisory warning when docs drift from the live registry."""
+    if not (repo / "scripts" / "docvalid" / "doc_drift.go").exists():
+        return []
+    try:
+        res = subprocess.run(
+            ("go", "run", "scripts/docvalid/doc_drift.go"),
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except Exception:
+        return []  # compile error / timeout / no toolchain -- never block
+    if res.returncode == 1:
+        return [(res.stdout + res.stderr).rstrip()]
+    return []
+
+
+def claimed_spec(repo: Path) -> str:
+    """This session's claimed spec basename via spec-session.sh, or '' if none."""
+    script = repo / "scripts" / "dev" / "spec-session.sh"
+    if not script.exists():
+        return ""
+    try:
+        res = subprocess.run(
+            (str(script), "current"),
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except Exception:
+        return ""
+    return res.stdout.strip() if res.returncode == 0 else ""
+
+
+def _pre_commit_verification_filled(spec_text: str) -> bool | None:
+    """Tri-state for the spec's '## Pre-Commit Verification' section.
+
+    Returns True (filled), False (present but empty), or None (section absent).
+    "Filled" = the section has at least one table DATA row. Each table ships as
+    header + separator only; data rows = pipe-rows - 2*(separator rows), since
+    every table contributes exactly one header and one separator.
+    """
+    lines = spec_text.splitlines()
+    section: list[str] = []
+    in_section = False
+    for line in lines:
+        if line.startswith("## Pre-Commit Verification"):
+            in_section = True
+            continue
+        if in_section and line.startswith("## "):
+            break
+        if in_section:
+            section.append(line)
+    if not in_section:
+        return None
+    pipe_rows = sum(1 for line in section if line.strip().startswith("|"))
+    sep_rows = sum(
+        1 for line in section if re.match(r"^\|[\s:|-]+\|?\s*$", line.strip())
+    )
+    return (pipe_rows - 2 * sep_rows) > 0
+
+
+def spec_audit_problems(
+    repo: Path, add_paths: tuple[str, ...], claimed: str
+) -> list[str]:
+    """Block a spec-closure commit whose spec has an unfilled verification.
+
+    Ported from the never-wired pre-commit-spec-audit.sh, keyed to the LIVE
+    per-session marker (its old tmp/session/selected-spec substrate was removed
+    in 276d72c99). Fires ONLY when this commit adds the claimed spec's own
+    learned summary -- i.e. the closure commit of the claiming session -- so it
+    never blocks unrelated commits or other sessions (the historic umbrella-spec
+    false-positive mode). No spec claimed -> no gate.
+    """
+    if not claimed:
+        return []
+    stem = re.sub(r"\.md$", "", re.sub(r"^spec-", "", claimed))
+    pattern = re.compile(rf"^plan/learned/[0-9]+-{re.escape(stem)}\.md$")
+    if not any(pattern.match(p) for p in add_paths):
+        return []  # not this spec's closure commit
+    spec_path = repo / "plan" / claimed
+    if not spec_path.is_file():
+        return []
+    filled = _pre_commit_verification_filled(
+        spec_path.read_text(encoding="utf-8", errors="replace")
+    )
+    if filled is None:
+        return [
+            f"spec {claimed} has no '## Pre-Commit Verification' section, but this"
+            " commit adds its learned summary (closure).\n"
+            "  Add and fill it from plan/TEMPLATE.md before closing"
+            " (ai/rules/planning.md)."
+        ]
+    if not filled:
+        return [
+            f"spec {claimed} '## Pre-Commit Verification' has no evidence rows, but"
+            " this commit adds its learned summary (closure).\n"
+            "  Re-verify each file / AC / wiring independently and paste the"
+            " evidence before closing (TEMPLATE.md, ai/rules/planning.md)."
+        ]
+    return []
+
+
+def commit_gate_problems(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> list[str]:
+    """All BLOCK-severity commit-time gates, in one call for create()."""
+    problems: list[str] = []
+    problems += deferral_unassigned_problems(repo)
+    problems += deferral_in_diff_problems(repo, add_paths, remove_paths)
+    problems += spec_audit_problems(repo, add_paths, claimed_spec(repo))
+    return problems
+
+
+def commit_gate_warnings(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
+    """All WARN-severity commit-time gates, in one call for create()."""
+    return wiring_warnings(add_paths) + doc_drift_warnings(repo)
+
+
 def create(args: argparse.Namespace) -> int:
     repo = repo_root(args.repo)
     session = session_id(repo, args.session)
@@ -723,6 +1037,10 @@ def create(args: argparse.Namespace) -> int:
                 "\n".join(problems)
                 + '\n  ... or pass --stale-index-ok "<reason>" to commit anyway.'
             )
+    # Commit-time repo-state BLOCK gates (deferral log + spec closure audit).
+    gate_problems = commit_gate_problems(repo, add_paths, remove_paths)
+    if gate_problems:
+        raise UsageError("\n\n".join(gate_problems))
     msg = message_text(args.subject, args.body)
     msg_path = f"tmp/commit-msg-{session}-{tag}.txt"
     comment = lesson_comment(
@@ -760,6 +1078,10 @@ def create(args: argparse.Namespace) -> int:
     reminder = closure_reminder(add_paths, remove_paths)
     if reminder:
         print(reminder, file=sys.stderr)
+    # Commit-time WARN gates (plugin .go without .ci, doc drift). Advisory:
+    # printed to stderr, the commit still proceeds.
+    for warning in commit_gate_warnings(repo, add_paths):
+        print("warning: " + warning, file=sys.stderr)
     return 0
 
 

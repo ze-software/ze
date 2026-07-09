@@ -729,22 +729,20 @@ def c_encoding_alloc(ctx):
 
 
 def c_format_alloc(ctx):
-    # PARITY NOTE: block-format-alloc.sh is a no-op in production. Its banned-
-    # pattern table uses `declare -A` (bash 4+), but the `#!/bin/bash` shebang
-    # resolves to macOS /bin/bash 3.2, which fails the associative-array
-    # assignment ("invalid arithmetic operator") and falls through to exit 0.
-    # So the format-file append-idiom guard has never actually fired. This
-    # port preserves that behaviour exactly (no-op) to keep the migration
-    # behaviour-preserving; the real check is below, disabled, ready to enable
-    # if the latent bug is intentionally fixed.
-    return None
-    # --- intended behaviour (currently dead); enable by removing the return above ---
-    fp = ctx["fp"]  # noqa: unreachable
+    # ENABLED 2026-07-09 (spec-followup-hooks). Previously a deliberate no-op:
+    # the original block-format-alloc.sh used a bash-4 `declare -A` table that
+    # the macOS bash-3.2 shebang could not run, so the guard silently exited 0
+    # and never fired. The list is now corrected (bgp/attribute/text.go was
+    # removed with the attribute package in 3e66070f8; bgp/format/json.go added)
+    # and comment lines are exempt exactly like c_sprintf_new (:321,:325).
+    # Incremental value over c_sprintf_new (which already bans fmt.Sprintf/
+    # Fprintf/Printf + strconv.Format* everywhere): the strings.Join / Builder /
+    # NewReplacer / ReplaceAll bans that keep the format files buffer-first.
+    fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp) or not ctx["content"]:
         return None
     fmt_files = [
         "/bgp/reactor/filter_format.go",
-        "/bgp/attribute/text.go",
         "/bgp/format/text.go",
         "/bgp/format/text_json.go",
         "/bgp/format/text_update.go",
@@ -752,6 +750,7 @@ def c_format_alloc(ctx):
         "/bgp/format/summary.go",
         "/bgp/format/codec.go",
         "/bgp/format/decode.go",
+        "/bgp/format/json.go",
     ]
     if not any(fp.endswith(f) for f in fmt_files):
         return None
@@ -766,8 +765,20 @@ def c_format_alloc(ctx):
         r"strconv\.FormatInt\(",
     ]
     for p in banned:
-        if grep_lines(ctx["content"], p):
-            return (2, f"{RED}{BOLD}BLOCKED: banned format primitive in {fp}{RESET}")
+        hits = filter_out(grep_lines(ctx["content"], p), r"//.*" + p)
+        if hits:
+            lines = [f"  L{n}: {l.strip()}" for n, l in hits[:4]]
+            detail = "\n".join(lines)
+            fix = (
+                "\n  Format files stay buffer-first (ai/rules/buffer-first.md):\n"
+                "    strings.Join/Builder/NewReplacer/ReplaceAll -> textbuf.Buffer helpers\n"
+                "    fmt.Sprintf/Fprintf -> textbuf.Buffer chain (see sprintf-new fixups)\n"
+                "  Comment lines naming these primitives are exempt."
+            )
+            return (
+                2,
+                f"{RED}{BOLD}✘ BLOCKED: banned format primitive in {fp}{RESET}\n{detail}{fix}",
+            )
     return None
 
 

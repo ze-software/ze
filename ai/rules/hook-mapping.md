@@ -54,11 +54,12 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 | pipe-tail | `bash-output.md` | Bash | Blocks `\| tail` and piping `make ze-*` output. BLOCKING. |
 | system-tmp | `testing.md` | Bash | Blocks access to `/tmp`; must use project `tmp/`. BLOCKING. |
 | test-deletion | `no-test-deletion.md` | Bash | Blocks `rm`/`git checkout` of test files. BLOCKING. |
-| spec-audit | `implementation-audit.md` | Bash (git commit) | Verifies spec obligations before commit. BLOCKING. |
-| deferral-in-diff | `deferral-tracking.md` | Bash (git commit) | Blocks commit when staged diff has deferral language without `plan/deferrals.md` update. BLOCKING. |
-| deferral-unassigned | `deferral-tracking.md` | Bash (git commit) | Blocks commit when open deferrals have no destination. BLOCKING. |
-| wiring-at-commit | `integration-completeness.md` | Bash (git commit) | Warns about plugin code staged without `.ci` tests. Advisory. |
-| doc-drift | `documentation.md` | Bash (git commit) | Warns about docs drifting from live registry. Advisory. |
+
+The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned,
+wiring-at-commit, doc-drift) used to sit here but gated on the literal
+`git commit` string, which the sanctioned commit path never sends and
+`destructive-git` blocks when it does. They are now **creation-time gates in
+`scripts/dev/commit_helper.py`** — see "Commit-time gates" below.
 
 `golangci-lint run` also runs standalone on `Bash(git commit:*)`.
 
@@ -70,7 +71,7 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 | pre-write-go | `before-writing-code.md` | `internal/**/*.go` | Blocks without proper session state. BLOCKING. |
 | source-edit-spec-not-in-progress | `planning.md` | source/test/learned | Blocks edits when selected spec is not `in-progress`. BLOCKING. |
 | encoding-alloc | `buffer-first.md` | wire-encode `.go` | Blocks `make()`/`append()`/`Bytes()`/`Pack()` in wire-facing code. BLOCKING. |
-| format-alloc | `buffer-first.md` | BGP format `.go` | **No-op** (see note below). |
+| format-alloc | `buffer-first.md` | BGP format `.go` | Blocks `strings.Join`/`Builder`/`NewReplacer`/`ReplaceAll` (+ `fmt.Sprintf`/`Fprintf`, `strconv.Format*`) in the guarded format files. Comment lines exempt. BLOCKING. |
 | sprintf-new | `no-sprintf-alloc.md` | `.go` | Blocks new `fmt.Sprintf`/`Fprintf`/`Printf`. Allows `fmt.Errorf`. BLOCKING. |
 | legacy-log | `go-standards.md` | `.go` | Blocks `log.Printf` / legacy `log` package. BLOCKING. |
 | panic-error | `go-standards.md` | `.go` | Blocks `panic()` except `unreachable`/`not implemented`/`TODO`/`BUG`/`impossible`. BLOCKING. |
@@ -106,10 +107,15 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 | require-test-first | `tdd.md` | new `.go` | Warns when creating impl without a test file. Advisory. |
 | require-docs-read | `planning.md` | new spec | Warns when writing a spec without session-state evidence. Advisory. |
 
-> **format-alloc is a no-op.** The original `block-format-alloc.sh` used bash-4
-> `declare -A`, but the `#!/bin/bash` shebang is macOS bash 3.2, so it errored
-> and exited 0 — it never enforced anything. The port preserves that (the real
-> check sits disabled in `pretool-writeedit.py`, ready to enable).
+> **format-alloc is now live** (enabled 2026-07-09, spec-followup-hooks). The
+> original `block-format-alloc.sh` used bash-4 `declare -A`, which the macOS bash
+> 3.2 shebang could not run, so it exited 0 and never enforced anything. The
+> guarded list is now current (`bgp/attribute/text.go` removed with the attribute
+> package in `3e66070f8`; `bgp/format/json.go` added) and comment lines are exempt
+> like `sprintf-new`. Its incremental value over `sprintf-new` (which already bans
+> `fmt.Sprintf`/`Fprintf` + `strconv.Format*` everywhere) is the `strings.Join`/
+> `Builder`/`NewReplacer`/`ReplaceAll` bans. Covered by
+> `scripts/dev/hook-fixture-check.py` (`format-alloc-*`).
 
 ## PostToolUse Checks (run after the tool completes)
 
@@ -119,7 +125,7 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 | mark-source-read | `mark-source-read.sh` | `no-fabrication.md` | Read | Writes `.source-read` freshness marker when a `.go` under `internal/`/`pkg/`/`cmd/` is read, so reading the producing code satisfies the design-without-lsp gate. Non-blocking. |
 | auto-lint | `posttool-writeedit.py` | `go-standards.md` | `.go` Write/Edit | `gofmt`/`goimports -w`, then **one** `golangci-lint --new-from-rev=HEAD` pass (flags only issues this edit introduced). BLOCKING on lint failure. |
 | auto-py-format | `posttool-writeedit.py` | (code style) | `.py` Write/Edit | `ruff format` + `ruff check`. Non-blocking. |
-| validate-spec | `validate-spec.sh` | `planning.md` | `plan/spec-*.md` | Validates required sections/format. **Currently broken** (see note). |
+| validate-spec | `validate-spec.sh` | `planning.md` | `plan/spec-*.md` | Validates required sections/format. Exit 2 blocks a structurally invalid spec; both `→` and `->` wiring rows accepted. |
 | file-size | `posttool-writeedit.py` | `file-modularity.md` | `.go` | Warns >600 lines, strong >1000. Advisory. |
 | warn-deferral | `posttool-writeedit.py` | `deferral-tracking.md` | `.md` | Warns on deferral language in doc edits. Advisory. |
 | require-rfc-reference | `posttool-writeedit.py` | `design-doc-references.md` | `.go` | Suggests `// RFC:` header. Advisory. |
@@ -128,16 +134,45 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 | vague-names | `posttool-writeedit.py` | `design-principles.md` | `.go` | Warns about `Data`/`Info`/`Result`/... names. Advisory. |
 | boundary-tests | `posttool-writeedit.py` | `tdd.md` | `.go` | Warns about numeric validation without boundary tests. Advisory. |
 
-> **validate-spec.sh is broken** and kept standalone for that reason. It greps the
-> Wiring Test table for the Unicode arrow `→`, but real specs use ASCII `->`, so
-> an unguarded `grep -v` pipeline returns 1 and `set -e` aborts the script at
-> exit 1 (non-blocking) before validation finishes. It therefore does NOT block
-> most real specs today. It was NOT folded into the dispatcher because doing so
-> would either replicate the crash or silently turn it into a blocking gate. Fix
-> the `→`/`->` mismatch (and the `set -e` fragility) before relying on it.
+> **validate-spec.sh is fixed** (2026-07-09, spec-followup-hooks) and kept
+> standalone. It previously matched only the Unicode arrow `→` in the Wiring Test
+> table, so an ASCII `->` spec produced an empty `grep` pipeline that exited 1 and
+> `set -e` aborted the script before the output stage, swallowing every queued
+> error (a silent non-blocking exit 1). Both arrow conventions are now accepted
+> and the `WIRING_ROWS=` assignment is guarded with `|| true`, so the script
+> always reaches its verdict: exit 2 for a structurally invalid spec, exit 0
+> otherwise. A survey over all `plan/spec-*.md` (spec-followup-hooks AC-4)
+> confirmed zero crashes and zero arrow false-positives. It stays out of the
+> dispatcher (see spec Key Design Decisions). Covered by
+> `scripts/dev/hook-fixture-check.py` (`validate-spec-*`).
 
 `make ze-verify` separately runs `ze-verify-wiring-docs` (wiring/doc-drift gate);
 that is a Make target, not a Claude hook.
+
+## Commit-time gates (`scripts/dev/commit_helper.py`)
+
+These are NOT Claude hooks. They run when `commit_helper.py create` generates the
+commit script, which is the only sanctioned commit path (`bash tmp/commit-<SID>.sh`).
+The helper already knows the exact add/remove set of the commit, so the gates
+inspect that instead of the staging area. BLOCK gates raise (exit 2, no script
+written); WARN gates print to stderr and let the script be written.
+
+| Gate | Enforces | Severity | What it does |
+|---|---|---|---|
+| verify-status / structural-gate | `git-safety.md` | BLOCK | Refuses a script over a non-green `ze-verify` (structural reds are unbypassable). |
+| discovery-index | `discovery-updates.md` | BLOCK | Refuses when a generated index (PACKAGE-MAP / DOCS-TO-CODE / LEARNED-FULL-INDEX) would be left stale. |
+| deferral-unassigned | `deferral-tracking.md` | BLOCK | Blocks when `plan/deferrals.md` has an open row with no Destination. |
+| deferral-in-diff | `deferral-tracking.md` | BLOCK | Blocks when the commit's added lines contain deferral language and `plan/deferrals.md` is not part of the commit (diff computed in a throwaway git index). |
+| spec-audit | `planning.md` | BLOCK | Blocks the closure commit (the one adding the claimed spec's `plan/learned/NNN-<stem>.md`) when that spec's `## Pre-Commit Verification` section is unfilled. Keyed to `spec-session.sh current`; no claim → skips. |
+| wiring-at-commit | `integration-completeness.md` | WARN | Warns when `internal/plugins/**/*.go` is committed with no `.ci`. |
+| doc-drift | `documentation.md` | WARN | Runs `scripts/docvalid/doc_drift.go`; warns on drift. |
+
+## Hook tests (`make ze-hook-test`)
+
+| Runner | Covers |
+|---|---|
+| `scripts/dev/hook-parity-check.py` | Golden exit-code regression for the three consolidated dispatchers. `--bless` regenerates the golden; re-bless only intentionally changed cases. Fixture dirs live under `~/.cache` (a `/tmp` or in-repo path trips `system-tmp`/`throwaway-tests` or the module lint and diverges from the golden). |
+| `scripts/dev/hook-fixture-check.py` | Behaviour the golden table cannot isolate: `c_format_alloc` (called directly), `validate-spec.sh` (ASCII/Unicode/malformed specs), and the `commit_helper.py` commit-time gates (git-initialized fixtures). Sections selectable with `--only`. |
 
 ## Session Lifecycle Hooks
 
@@ -177,7 +212,10 @@ LSP invoked or a `.go` under `internal/`/`pkg/`/`cmd/` read), require-docs-read
 
 auto-py-format (ruff format + check).
 
-### Commits (Bash `git commit`)
+### Commits
 
-destructive-git (blocks), spec-audit, deferral-in-diff, deferral-unassigned,
-wiring-at-commit, doc-drift.
+A Bash `git commit` is blocked outright by destructive-git. Commit via
+`scripts/dev/commit_helper.py create` + `bash tmp/commit-<SID>.sh`; the
+creation-time gates (verify-status, discovery-index, deferral-unassigned,
+deferral-in-diff, spec-audit block; wiring-at-commit, doc-drift warn) run then —
+see "Commit-time gates" above.

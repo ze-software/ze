@@ -1,0 +1,533 @@
+#!/usr/bin/env python3
+"""Behavioural fixture tests for the three agent-guard hook fixes.
+
+hook-parity-check.py locks the WHOLE-dispatcher exit code in a non-git temp
+dir. That harness cannot exercise the three hooks this runner covers:
+
+  * c_format_alloc (pretool-writeedit.py) is dominated by c_pre_write_go /
+    c_require_design_ref on any internal/*.go file (both return 2 in a fresh
+    dir), so a whole-dispatcher exit code can never isolate it. This runner
+    imports c_format_alloc and asserts its return value directly.
+  * validate-spec.sh only validates a plan/spec-*.md path; the assertion is
+    "does not abort under set -e on ASCII-arrow specs", which needs the script
+    driven over crafted spec files.
+  * the commit-time gates (deferral / wiring / doc-drift / spec-audit) live in
+    commit_helper.py and need a real git repository, which the parity harness
+    never provides.
+
+Sections (select one with --only):
+    format-alloc   c_format_alloc guarded-file / comment-exemption logic
+    validate-spec  validate-spec.sh over ASCII / Unicode / malformed specs
+    commit-gate    commit_helper.py creation-time gates in git fixtures
+
+    python3 scripts/dev/hook-fixture-check.py                 # all sections
+    python3 scripts/dev/hook-fixture-check.py --only validate-spec
+
+Exit 0 = every fixture matched its expectation, 1 = a hook regressed.
+"""
+
+from __future__ import annotations
+
+import argparse
+import importlib.util
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+
+ROOT = os.environ.get("CLAUDE_PROJECT_DIR") or os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..")
+)
+HOOKS = os.path.join(ROOT, ".claude", "hooks")
+DEV = os.path.abspath(os.path.dirname(__file__))
+
+
+def _fixture_root() -> str:
+    # Fixture dirs live outside /tmp and outside the repo tree (same rationale as
+    # hook-parity-check.py): a /tmp path trips c_system_tmp_we / c_throwaway_tests
+    # and a path inside the repo pulls fixture .go into the Go module. A dir under
+    # XDG_CACHE_HOME / ~/.cache dodges both. rmtree'd per fixture after each run.
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(
+        os.path.expanduser("~"), ".cache"
+    )
+    root = os.path.join(base, "ze-hook-fixture")
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
+class Results:
+    def __init__(self) -> None:
+        self.passed = 0
+        self.failed = 0
+
+    def check(self, name: str, ok: bool, detail: str = "") -> None:
+        if ok:
+            self.passed += 1
+            print(f"  PASS  {name}")
+        else:
+            self.failed += 1
+            print(f"  FAIL  {name}  {detail}")
+
+
+# --------------------------------------------------------------------------- #
+# format-alloc: import c_format_alloc and call it directly
+# --------------------------------------------------------------------------- #
+
+
+def _load_pretool_writeedit():
+    path = os.path.join(HOOKS, "pretool-writeedit.py")
+    spec = importlib.util.spec_from_file_location("pretool_writeedit", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def run_format_alloc(results: Results) -> None:
+    print("format-alloc:")
+    mod = _load_pretool_writeedit()
+    cfa = mod.c_format_alloc
+    base = "/repo/internal/component/bgp/format/"
+
+    def call(fp: str, content: str, tool: str = "Write"):
+        return cfa({"tool": tool, "ti": {}, "fp": fp, "content": content})
+
+    join_code = 'package format\nfunc f() string { return strings.Join(a, ",") }\n'
+    builder_code = "package format\nfunc f() { var b strings.Builder; _ = b }\n"
+    comment_only = (
+        "package format\n"
+        "// All formatters append into a caller-provided []byte. No fmt.Sprintf,\n"
+        "// no strings.Builder, no strings.Join, no strings.ReplaceAll here.\n"
+        "var x = 1\n"
+    )
+
+    r = call(base + "text_json.go", join_code)
+    results.check("format-alloc-live-join", r is not None and r[0] == 2, repr(r))
+
+    r = call(base + "text.go", builder_code)
+    results.check("format-alloc-live-builder", r is not None and r[0] == 2, repr(r))
+
+    r = call(base + "text.go", comment_only)
+    results.check("format-alloc-comment-exempt", r is None, repr(r))
+
+    # json.go was added to the guarded list (spec AC-1 decision).
+    r = call(base + "json.go", builder_code)
+    results.check("format-alloc-json-guarded", r is not None and r[0] == 2, repr(r))
+
+    # A .go file in the same package that is NOT in the guarded list is ignored.
+    r = call(base + "other.go", join_code)
+    results.check("format-alloc-unguarded-file", r is None, repr(r))
+
+    # bgp/attribute/text.go was removed from the list (package deleted in 3e66070f8).
+    r = call("/repo/internal/component/bgp/attribute/text.go", join_code)
+    results.check("format-alloc-stale-attribute-path", r is None, repr(r))
+
+    # filter_format.go under reactor/ is guarded even though it is not in format/.
+    r = call("/repo/internal/component/bgp/reactor/filter_format.go", join_code)
+    results.check("format-alloc-reactor-filter", r is not None and r[0] == 2, repr(r))
+
+    # Test files are never guarded.
+    r = call(base + "text_json_test.go", join_code)
+    results.check("format-alloc-test-file-skip", r is None, repr(r))
+
+
+# --------------------------------------------------------------------------- #
+# validate-spec: drive validate-spec.sh over crafted spec files
+# --------------------------------------------------------------------------- #
+
+_VALID_SPEC = """# Spec: fixture
+
+| Field | Value |
+|-------|-------|
+| Status | in-progress |
+| Depends | - |
+| Phase | 1/1 |
+| Updated | 2026-07-09 |
+
+## Task
+
+Fixture spec exercising validate-spec.sh arrow handling.
+
+## Required Reading
+
+- [ ] `internal/x/y.go`
+  @ARROW@ Constraint: fixture only.
+
+## Current Behavior
+
+- [ ] `internal/x/y.go`
+
+**Behavior to preserve:** the existing y.go output stays byte-identical.
+
+## Data Flow
+
+### Entry Point
+- CLI command foo enters through the y.go handler.
+
+### Transformation Path
+1. Parse the input.
+2. Emit the output.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| cli @ARROW@ handler | call | [ ] |
+
+### Integration Points
+- internal/x/y.go
+
+## Wiring Test
+
+| Entry Point | @ARROW@ | Feature Code | Test |
+|-------------|---|--------------|------|
+| CLI foo @ARROW@ runs | @ARROW@ | y.go handler | test/x/foo.ci |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| TestFoo | internal/x/y_test.go | AC-1 | |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| foo.ci | test/x/ | user runs foo | |
+
+## Files to Modify
+
+- `internal/x/y.go` - fixture feature file
+
+## Implementation Steps
+
+1. Implement the handler.
+
+## Checklist
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL
+- [ ] Tests PASS
+- [ ] make ze-test passes
+"""
+
+
+def _run_validate_spec(script: str, spec_text: str):
+    work = tempfile.mkdtemp(prefix="validate-spec-", dir=_fixture_root())
+    try:
+        plan = os.path.join(work, "plan")
+        os.makedirs(plan, exist_ok=True)
+        fp = os.path.join(plan, "spec-fixture.md")
+        with open(fp, "w", encoding="utf-8") as fh:
+            fh.write(spec_text)
+        payload = {"tool_name": "Write", "tool_input": {"file_path": fp}}
+        env = dict(os.environ, CLAUDE_PROJECT_DIR=work)
+        proc = subprocess.run(
+            ["bash", script],
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True,
+            env=env,
+            timeout=30,
+        )
+        return proc.returncode, proc.stderr
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def run_validate_spec(results: Results) -> None:
+    print("validate-spec:")
+    script = os.path.join(HOOKS, "validate-spec.sh")
+
+    rc, err = _run_validate_spec(script, _VALID_SPEC.replace("@ARROW@", "->"))
+    results.check("validate-spec-ascii-arrows", rc == 0, f"rc={rc} err={err[:120]!r}")
+
+    rc, err = _run_validate_spec(script, _VALID_SPEC.replace("@ARROW@", "→"))
+    results.check("validate-spec-unicode-arrows", rc == 0, f"rc={rc} err={err[:120]!r}")
+
+    malformed = _VALID_SPEC.replace("@ARROW@", "->").replace(
+        "## Data Flow", "## Not Data Flow"
+    )
+    rc, err = _run_validate_spec(script, malformed)
+    results.check("validate-spec-missing-section-blocks", rc == 2, f"rc={rc}")
+
+
+# --------------------------------------------------------------------------- #
+# commit-gate: commit_helper.py creation-time gates in git fixtures
+# --------------------------------------------------------------------------- #
+
+
+def _load_commit_helper():
+    if DEV not in sys.path:
+        sys.path.insert(0, DEV)
+    import commit_helper  # noqa: E402  (path set above)
+
+    return commit_helper
+
+
+def _git(repo: str, *args: str) -> None:
+    subprocess.run(
+        ["git", "-C", repo, *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _init_repo() -> str:
+    repo = tempfile.mkdtemp(prefix="commit-gate-", dir=_fixture_root())
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "fixture@example.com")
+    _git(repo, "config", "user.name", "fixture")
+    _git(repo, "config", "commit.gpgsign", "false")
+    with open(os.path.join(repo, "seed.txt"), "w", encoding="utf-8") as fh:
+        fh.write("seed\n")
+    _git(repo, "add", "seed.txt")
+    _git(repo, "commit", "-q", "-m", "seed")
+    return repo
+
+
+def _write(repo: str, rel: str, text: str) -> None:
+    full = os.path.join(repo, rel)
+    os.makedirs(os.path.dirname(full), exist_ok=True)
+    with open(full, "w", encoding="utf-8") as fh:
+        fh.write(text)
+
+
+# Six-column layout matching the real plan/deferrals.md (Date | Source | What |
+# Reason | Destination | Status); the gate reads Destination and Status by index.
+_DEFERRALS_HEADER = (
+    "# Deferrals\n\n"
+    "| Date | Source | What | Reason | Destination | Status |\n"
+    "|------|--------|------|--------|-------------|--------|\n"
+)
+
+
+def run_commit_gate(results: Results) -> None:
+    print("commit-gate:")
+    from pathlib import Path
+
+    ch = _load_commit_helper()
+
+    # --- deferral-unassigned (block) ---
+    repo = _init_repo()
+    try:
+        _write(
+            repo,
+            "plan/deferrals.md",
+            _DEFERRALS_HEADER + "| 2026-07-09 | abc | thing | reason |  | open |\n",
+        )
+        problems = ch.deferral_unassigned_problems(Path(repo))
+        results.check("commit-gate-deferral-unassigned", bool(problems), repr(problems))
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    repo = _init_repo()
+    try:
+        _write(
+            repo,
+            "plan/deferrals.md",
+            _DEFERRALS_HEADER
+            + "| 2026-07-09 | abc | thing | reason | spec-foo.md | open |\n",
+        )
+        problems = ch.deferral_unassigned_problems(Path(repo))
+        results.check("commit-gate-deferral-assigned-ok", not problems, repr(problems))
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # --- deferral-in-diff (block) ---
+    repo = _init_repo()
+    try:
+        _write(repo, "docs/notes.md", "# notes\n\nThis is out of scope for now.\n")
+        problems = ch.deferral_in_diff_problems(Path(repo), ("docs/notes.md",), ())
+        results.check("commit-gate-deferral-in-diff", bool(problems), repr(problems))
+        # deferrals.md included in the commit clears it
+        _write(repo, "plan/deferrals.md", _DEFERRALS_HEADER)
+        problems = ch.deferral_in_diff_problems(
+            Path(repo), ("docs/notes.md", "plan/deferrals.md"), ()
+        )
+        results.check(
+            "commit-gate-deferral-in-diff-logged-ok", not problems, repr(problems)
+        )
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # A bare quoted-string literal (the DEFERRAL_PATTERNS definition shape) is
+    # exempt, so committing the gate's own list / rule docs does not self-trip;
+    # prose in the same file still trips.
+    repo = _init_repo()
+    try:
+        _write(
+            repo,
+            "scripts/dev/patterns.py",
+            'PATTERNS = (\n    "out of scope",\n    "future work",\n)\n',
+        )
+        problems = ch.deferral_in_diff_problems(
+            Path(repo), ("scripts/dev/patterns.py",), ()
+        )
+        results.check(
+            "commit-gate-deferral-in-diff-code-literal-exempt",
+            not problems,
+            repr(problems),
+        )
+        _write(
+            repo,
+            "scripts/dev/patterns.py",
+            'PATTERNS = ("out of scope",)\n# we will handle later in prose\n',
+        )
+        problems = ch.deferral_in_diff_problems(
+            Path(repo), ("scripts/dev/patterns.py",), ()
+        )
+        results.check(
+            "commit-gate-deferral-in-diff-prose-still-caught",
+            bool(problems),
+            repr(problems),
+        )
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # --- wiring-at-commit (warn) ---
+    repo = _init_repo()
+    try:
+        warns = ch.wiring_warnings(("internal/plugins/foo/foo.go",))
+        results.check("commit-gate-wiring-warn", bool(warns), repr(warns))
+        warns = ch.wiring_warnings(("internal/plugins/foo/foo.go", "test/foo/foo.ci"))
+        results.check("commit-gate-wiring-with-ci-ok", not warns, repr(warns))
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # --- doc-drift (warn) ---
+    repo = _init_repo()
+    try:
+        warns = ch.doc_drift_warnings(Path(repo))
+        results.check("commit-gate-doc-drift-absent-skips", not warns, repr(warns))
+        if shutil.which("go"):
+            _write(repo, "go.mod", "module fixture\n\ngo 1.21\n")
+            _write(
+                repo,
+                "scripts/docvalid/doc_drift.go",
+                'package main\n\nimport (\n\t"fmt"\n\t"os"\n)\n\n'
+                'func main() {\n\tfmt.Println("docs drifted: foo")\n\tos.Exit(1)\n}\n',
+            )
+            warns = ch.doc_drift_warnings(Path(repo))
+            results.check("commit-gate-doc-drift-warns", bool(warns), repr(warns))
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # --- spec-audit (block on unfilled Pre-Commit Verification) ---
+    empty_pcv = (
+        "# Spec: fixture\n\n"
+        "## Pre-Commit Verification\n\n"
+        "### Files Exist (ls)\n"
+        "| File | Exists | Evidence |\n"
+        "|------|--------|----------|\n\n"
+        "## Checklist\n"
+    )
+    filled_pcv = (
+        "# Spec: fixture\n\n"
+        "## Pre-Commit Verification\n\n"
+        "### Files Exist (ls)\n"
+        "| File | Exists | Evidence |\n"
+        "|------|--------|----------|\n"
+        "| internal/x/y.go | yes | ls output |\n\n"
+        "## Checklist\n"
+    )
+    repo = _init_repo()
+    try:
+        _write(repo, "plan/spec-fixture.md", empty_pcv)
+        _write(repo, "plan/learned/099-fixture.md", "# fixture\n")
+        problems = ch.spec_audit_problems(
+            Path(repo), ("plan/learned/099-fixture.md",), "spec-fixture.md"
+        )
+        results.check("commit-gate-spec-audit-blocks", bool(problems), repr(problems))
+
+        _write(repo, "plan/spec-fixture.md", filled_pcv)
+        problems = ch.spec_audit_problems(
+            Path(repo), ("plan/learned/099-fixture.md",), "spec-fixture.md"
+        )
+        results.check("commit-gate-spec-audit-filled-ok", not problems, repr(problems))
+
+        # No spec claimed -> the gate skips entirely.
+        problems = ch.spec_audit_problems(
+            Path(repo), ("plan/learned/099-fixture.md",), ""
+        )
+        results.check(
+            "commit-gate-spec-audit-no-claim-skips", not problems, repr(problems)
+        )
+
+        # A commit that does NOT add this spec's learned summary is not a closure
+        # commit, so the gate does not fire even with an unfilled section.
+        _write(repo, "plan/spec-fixture.md", empty_pcv)
+        problems = ch.spec_audit_problems(
+            Path(repo), ("internal/x/y.go",), "spec-fixture.md"
+        )
+        results.check(
+            "commit-gate-spec-audit-non-closure-skips", not problems, repr(problems)
+        )
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # --- real path: commit_helper create blocks on a deferral diff (exit 2) ---
+    repo = _init_repo()
+    try:
+        _write(
+            repo, "docs/notes.md", "# notes\n\nWe will handle later, out of scope.\n"
+        )
+        # create() prints its UsageError to stderr; capture it so a passing run
+        # is not polluted by the (expected) block message.
+        import contextlib
+        import io
+
+        with contextlib.redirect_stderr(io.StringIO()):
+            rc = ch.main(
+                [
+                    "--repo",
+                    repo,
+                    "create",
+                    "--session",
+                    "abcd1234",
+                    "--subject",
+                    "fixture commit",
+                    "--file",
+                    "docs/notes.md",
+                    "--lesson-not-needed",
+                    "fixture integration test for the deferral gate",
+                ]
+            )
+        script_exists = os.path.isfile(os.path.join(repo, "tmp", "commit-abcd1234.sh"))
+        results.check(
+            "commit-gate-create-blocks-deferral",
+            rc == 2 and not script_exists,
+            f"rc={rc} script={script_exists}",
+        )
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+# --------------------------------------------------------------------------- #
+
+SECTIONS = {
+    "format-alloc": run_format_alloc,
+    "validate-spec": run_validate_spec,
+    "commit-gate": run_commit_gate,
+}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--only", choices=sorted(SECTIONS), help="run one section")
+    args = parser.parse_args()
+    results = Results()
+    for name, fn in SECTIONS.items():
+        if args.only and name != args.only:
+            continue
+        fn(results)
+    total = results.passed + results.failed
+    print(f"\nhook fixture check: {results.passed}/{total} passed")
+    print("OK" if results.failed == 0 else f"{results.failed} FAILURE(S)")
+    return 1 if results.failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
