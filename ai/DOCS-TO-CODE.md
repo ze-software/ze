@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 273 design docs, 2869 files
+Total: 274 design docs, 2874 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -111,6 +111,16 @@ Total: 273 design docs, 2869 files
 ## `ai/rules/plugin-process-boundary.md`
 
 - `scripts/checks/plugin_process_boundary.go` -- process-boundary guard
+
+## `ai/rules/plugin-self-containment.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/web/register_gokrazy.go` | gokrazy portal web route self-registration |
+| `internal/component/web/register_isis.go` | IS-IS web routes self-registration |
+| `internal/component/web/register_l2tp.go` | L2TP web routes self-registration |
+| `internal/component/web/register_ospf.go` | OSPF web routes self-registration |
+| `internal/component/web/webroute.go` | web route registry (registration over hardcoding) |
 
 ## `docs/architecture/api/architecture.md`
 

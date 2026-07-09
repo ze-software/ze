@@ -27,13 +27,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	zegokrazy "codeberg.org/thomas-mangin/ze/internal/component/gokrazy"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/health"
 	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -540,47 +538,27 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	// dispatches via the standard CommandDispatcher (same authz pipeline
 	// as /cli and /admin).
 	srv.Handle("POST /tools/related/run", mutationWrap(zeweb.HandleRelatedToolRun(renderer, schema, tree, editorMgr, dispatch)))
-	// L2TP web UI: session list, detail, CQM chart feeds, disconnect.
-	l2tpHandlers := &zeweb.L2TPHandlers{Renderer: renderer, Dispatch: dispatch}
-	srv.Handle("GET /l2tp", authWrap(l2tpHandlers.HandleL2TPList()))
-	srv.Handle("GET /l2tp/{sid}", authWrap(l2tpHandlers.HandleL2TPDetail()))
-	srv.Handle("POST /l2tp/{sid}/disconnect", mutationWrap(l2tpHandlers.HandleL2TPDisconnect()))
-	srv.Handle("GET /l2tp/{login}/samples", authWrap(zeweb.HandleL2TPSamplesJSON()))
-	srv.Handle("GET /l2tp/{login}/samples.csv", authWrap(zeweb.HandleL2TPSamplesCSV()))
-	srv.Handle("GET /l2tp/{login}/samples/stream", authWrap(zeweb.HandleL2TPSamplesSSE()))
-
-	// IS-IS web UI: neighbor and database views with SSE live updates. The
-	// engine runs as a managed plugin subprocess, so the views read it through
-	// the same CommandDispatcher the CLI uses (spec-isis-13).
-	isisHandlers := &zeweb.ISISHandlers{Renderer: renderer, Dispatch: dispatch}
-	srv.Handle("GET /isis", authWrap(isisHandlers.HandleISISNeighbors()))
-	srv.Handle("GET /isis/neighbors", authWrap(isisHandlers.HandleISISNeighbors()))
-	srv.Handle("GET /isis/neighbors/stream", authWrap(isisHandlers.HandleISISNeighborsSSE()))
-	srv.Handle("GET /isis/database", authWrap(isisHandlers.HandleISISDatabase()))
-	srv.Handle("GET /isis/database/stream", authWrap(isisHandlers.HandleISISDatabaseSSE()))
-
-	// OSPF neighbor + database live views, reached through the same CommandDispatcher
-	// the CLI uses (spec-ospf-13 AC-11).
-	ospfHandlers := &zeweb.OSPFHandlers{Renderer: renderer, Dispatch: dispatch}
-	srv.Handle("GET /ospf", authWrap(ospfHandlers.HandleOSPFNeighbors()))
-	srv.Handle("GET /ospf/neighbors", authWrap(ospfHandlers.HandleOSPFNeighbors()))
-	srv.Handle("GET /ospf/neighbors/stream", authWrap(ospfHandlers.HandleOSPFNeighborsSSE()))
-	srv.Handle("GET /ospf/database", authWrap(ospfHandlers.HandleOSPFDatabase()))
-	srv.Handle("GET /ospf/database/stream", authWrap(ospfHandlers.HandleOSPFDatabaseSSE()))
-	// spec-ospf-ext-14: read-only opaque (IPv4) + OSPFv3 (IPv6) database views. Inject is
-	// NEVER surfaced on the web (R-6): only read-only show commands are routed here.
-	srv.Handle("GET /ospf/database/opaque", authWrap(ospfHandlers.HandleOSPFOpaqueDatabase()))
-	srv.Handle("GET /ospf/database/opaque/stream", authWrap(ospfHandlers.HandleOSPFOpaqueDatabaseSSE()))
-	srv.Handle("GET /ospfv3/database", authWrap(ospfHandlers.HandleOSPFv3Database()))
-	srv.Handle("GET /ospfv3/database/stream", authWrap(ospfHandlers.HandleOSPFv3DatabaseSSE()))
-
-	// Portal: iframe wrapper for embedded services (gokrazy, etc.).
-	if env.IsEnabled("ze.gokrazy.enabled") {
-		srv.Handle("/gokrazy/", authWrap(zegokrazy.Handler(env.Get("ze.gokrazy.socket"))))
-		zeweb.RegisterPortalService(zeweb.PortalService{
-			Key: "gokrazy", Title: "Gokrazy", Path: "/gokrazy/",
-			Icon: "/gokrazy/assets/gokrazy-logo.svg",
-		})
+	// In-tree feature routes (L2TP, IS-IS, OSPF, gokrazy portal) self-register
+	// via zeweb.WebRoute in the web package; the hub wraps each by kind and
+	// serves it. Adding or removing a feature's routes needs no edit here
+	// (AC-5, registration over hardcoding). The wrap helpers stay in the hub
+	// because they close over the session store, authorizer, and audit
+	// recorder (R-2); a route that returns nil from Enabled (e.g. gokrazy when
+	// its service is off) is skipped, and a route carrying a Portal registers
+	// its portal-menu entry when wired.
+	routeWraps := map[zeweb.WrapKind]func(http.Handler) http.Handler{
+		zeweb.WrapAuth:     authWrap,
+		zeweb.WrapMutation: mutationWrap,
+	}
+	routeDeps := zeweb.RouteDeps{Renderer: renderer, Dispatch: dispatch}
+	for _, route := range zeweb.RegisteredWebRoutes() {
+		if route.Enabled != nil && !route.Enabled() {
+			continue
+		}
+		srv.Handle(route.Pattern, routeWraps[route.Wrap](route.Build(routeDeps)))
+		if route.Portal != nil {
+			zeweb.RegisterPortalService(*route.Portal)
+		}
 	}
 	srv.Handle("/portal/", authWrap(zeweb.HandlePortal(renderer, uiMode)))
 	srv.Handle("GET /health", authWrap(health.DefaultRegistry.Handler()))
