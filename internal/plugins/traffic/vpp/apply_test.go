@@ -26,9 +26,10 @@ import (
 func newTestBackend() *backend {
 	conn := vppcomp.NewConnector("/nonexistent/vpp.sock")
 	return &backend{
-		connector:               func() *vppcomp.Connector { return conn },
-		interfaceOutputPolicers: make(map[string]map[string]uint32),
-		interfaceQdiscTypes:     make(map[string]traffic.QdiscType),
+		connector:                 func() *vppcomp.Connector { return conn },
+		interfaceOutputPolicers:   make(map[string]map[string]uint32),
+		interfaceQdiscTypes:       make(map[string]traffic.QdiscType),
+		interfaceClassifyBindings: make(map[string]classifyBinding),
 	}
 }
 
@@ -36,8 +37,9 @@ func newTestBackend() *backend {
 // ready for scripted fakeOps injection.
 func newOpsBackend() *backend {
 	return &backend{
-		interfaceOutputPolicers: make(map[string]map[string]uint32),
-		interfaceQdiscTypes:     make(map[string]traffic.QdiscType),
+		interfaceOutputPolicers:   make(map[string]map[string]uint32),
+		interfaceQdiscTypes:       make(map[string]traffic.QdiscType),
+		interfaceClassifyBindings: make(map[string]classifyBinding),
 	}
 }
 
@@ -216,6 +218,15 @@ type fakeOps struct {
 	failOnNthAddDel int
 	addDelCount     int
 	nextIdx         uint32
+
+	// nextTableIdx is the next classify table index handed out by
+	// classifyAddDelTable (mirrors VPP's auto-assignment on create).
+	nextTableIdx uint32
+	// classifyTableFail / classifySessionFail / policerClassifyFail script
+	// failures on the classify pipeline calls to exercise undo paths.
+	classifyTableFail   error
+	classifySessionFail error
+	policerClassifyFail error
 }
 
 func newFakeOps(ifaces map[string]interface_types.InterfaceIndex) *fakeOps {
@@ -278,6 +289,44 @@ func (f *fakeOps) policerOutput(name string, swIfIndex interface_types.Interface
 	return f.outputFailOn[name]
 }
 
+func (f *fakeOps) classifyAddDelTable(tableIdx uint32, mask []byte, skipNVectors uint32, isAdd bool) (uint32, error) {
+	if isAdd {
+		f.calls = append(f.calls, fmt.Sprintf("clTable:add:skip=%d:masklen=%d", skipNVectors, len(mask)))
+		if f.classifyTableFail != nil {
+			return 0, f.classifyTableFail
+		}
+		idx := f.nextTableIdx
+		f.nextTableIdx++
+		return idx, nil
+	}
+	f.calls = append(f.calls, fmt.Sprintf("clTable:del:idx=%d", tableIdx))
+	return tableIdx, nil
+}
+
+func (f *fakeOps) classifyAddDelSession(tableIdx, hitNextIndex uint32, match []byte, isAdd bool) error {
+	state := "add"
+	if !isAdd {
+		state = "del"
+	}
+	f.calls = append(f.calls, fmt.Sprintf("clSession:%s:tbl=%d:hit=%d:matchlen=%d", state, tableIdx, hitNextIndex, len(match)))
+	if isAdd {
+		return f.classifySessionFail
+	}
+	return nil
+}
+
+func (f *fakeOps) policerClassifySetInterface(swIfIndex interface_types.InterfaceIndex, ip4TableIdx, ip6TableIdx uint32, isAdd bool) error {
+	state := "off"
+	if isAdd {
+		state = "on"
+	}
+	f.calls = append(f.calls, fmt.Sprintf("polClassify:%s:ip4=%d:ip6=%d:idx=%d", state, int32(ip4TableIdx), int32(ip6TableIdx), swIfIndex))
+	if isAdd {
+		return f.policerClassifyFail
+	}
+	return nil
+}
+
 // countPrefix returns the number of recorded calls starting with prefix.
 func (f *fakeOps) countPrefix(prefix string) int {
 	n := 0
@@ -304,6 +353,133 @@ func eth0OneClassHTB() map[string]traffic.InterfaceQoS {
 				},
 			},
 		},
+	}
+}
+
+// eth0OneClassProtoHTB is eth0 with one HTB class carrying a protocol filter
+// (TCP=6). The class's policer is bound via the classify pipeline (ip4+ip6
+// tables + policer-classify), not the egress policer-output path.
+func eth0OneClassProtoHTB() map[string]traffic.InterfaceQoS {
+	return map[string]traffic.InterfaceQoS{
+		"eth0": {
+			Interface: "eth0",
+			Qdisc: traffic.Qdisc{
+				Type: traffic.QdiscHTB,
+				Classes: []traffic.TrafficClass{
+					{
+						Name:    "c1",
+						Rate:    1_000_000,
+						Filters: []traffic.TrafficFilter{{Type: traffic.FilterProtocol, Value: 6}},
+					},
+				},
+			},
+		},
+	}
+}
+
+// VALIDATES: AC-1 / R-1 -- a class with a protocol filter creates one ip4 and
+// one ip6 classify table (a session each, steering to the class policer),
+// binds them to the interface policer-classify feature (the R-1 "table created
+// but never attached" killer), and does NOT bind the egress policer-output.
+func TestApplyFilterProtocolAttaches(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+
+	if err := applyWithOpsLocked(b, fake, eth0OneClassProtoHTB()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	if n := fake.countPrefix("addDel:ze/eth0/c1"); n != 1 {
+		t.Fatalf("policer addDel count = %d, want 1; calls=%v", n, fake.calls)
+	}
+	if n := fake.countPrefix("clTable:add"); n != 2 {
+		t.Fatalf("classify table add count = %d, want 2 (ip4+ip6); calls=%v", n, fake.calls)
+	}
+	if n := fake.countPrefix("clSession:add"); n != 2 {
+		t.Fatalf("classify session add count = %d, want 2; calls=%v", n, fake.calls)
+	}
+	// R-1 killer: the tables MUST be attached to the interface.
+	if n := fake.countPrefix("polClassify:on"); n != 1 {
+		t.Fatalf("policer-classify bind count = %d, want 1 (R-1: table never attached); calls=%v", n, fake.calls)
+	}
+	// Steering: every session's hit index is the class policer index (fake
+	// hands out index 1 for the first policer).
+	for _, c := range fake.calls {
+		if strings.HasPrefix(c, "clSession:add") && !strings.Contains(c, ":hit=1:") {
+			t.Fatalf("session %q does not steer to policer idx 1; calls=%v", c, fake.calls)
+		}
+	}
+	// A filtered class must NOT take the egress policer-output path.
+	if n := fake.countPrefix("output:"); n != 0 {
+		t.Fatalf("filtered class made %d policer-output calls, want 0; calls=%v", n, fake.calls)
+	}
+	bnd, ok := b.interfaceClassifyBindings["eth0"]
+	if !ok {
+		t.Fatalf("no classify binding recorded for eth0; bindings=%v", b.interfaceClassifyBindings)
+	}
+	if bnd.ip4TableIdx == noTable || bnd.ip6TableIdx == noTable {
+		t.Fatalf("binding missing a family table: %+v", bnd)
+	}
+	// The filtered policer is tracked in the binding, NOT in the output map.
+	if _, present := b.interfaceOutputPolicers["eth0"]["ze/eth0/c1"]; present {
+		t.Fatalf("filtered policer must not be tracked as an output policer")
+	}
+}
+
+// VALIDATES: AC-1 undo -- a classify session failure unwinds the classify
+// table(s) and the policer created in the same Apply (pre-Apply state).
+func TestApplyFilterProtocolUndo(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	fake.classifySessionFail = errors.New("scripted session fail")
+
+	err := applyWithOpsLocked(b, fake, eth0OneClassProtoHTB())
+	if err == nil {
+		t.Fatal("Apply with scripted classify-session failure returned nil, want error")
+	}
+	if n := fake.countPrefix("clTable:del"); n < 1 {
+		t.Fatalf("undo classify table del count = %d, want >=1; calls=%v", n, fake.calls)
+	}
+	if n := fake.countPrefix("del:"); n != 1 {
+		t.Fatalf("undo policer del count = %d, want 1; calls=%v", n, fake.calls)
+	}
+	if len(b.interfaceClassifyBindings) != 0 {
+		t.Fatalf("classify bindings after failed apply = %v, want empty", b.interfaceClassifyBindings)
+	}
+	if len(b.interfaceOutputPolicers) != 0 {
+		t.Fatalf("output policers after failed apply = %v, want empty", b.interfaceOutputPolicers)
+	}
+}
+
+// VALIDATES: AC-1 reconcile -- dropping a filtered interface from desired tears
+// down its classify tables (unbind + delete both families) and deletes the
+// classify-bound policer, with no spurious policer-output unbind.
+func TestApplyReconcileClassifyTeardown(t *testing.T) {
+	b := newOpsBackend()
+	fake1 := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	if err := applyWithOpsLocked(b, fake1, eth0OneClassProtoHTB()); err != nil {
+		t.Fatalf("first apply: %v", err)
+	}
+
+	fake2 := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	if err := applyWithOpsLocked(b, fake2, map[string]traffic.InterfaceQoS{}); err != nil {
+		t.Fatalf("reconcile apply: %v", err)
+	}
+
+	if n := fake2.countPrefix("polClassify:off"); n != 1 {
+		t.Fatalf("classify unbind count = %d, want 1; calls=%v", n, fake2.calls)
+	}
+	if n := fake2.countPrefix("clTable:del"); n != 2 {
+		t.Fatalf("classify table del count = %d, want 2 (ip4+ip6); calls=%v", n, fake2.calls)
+	}
+	if n := fake2.countPrefix("del:"); n != 1 {
+		t.Fatalf("policer del count = %d, want 1 (classify policer); calls=%v", n, fake2.calls)
+	}
+	if n := fake2.countPrefix("output:"); n != 0 {
+		t.Fatalf("reconcile made %d policer-output calls, want 0 (filtered policer never output-bound); calls=%v", n, fake2.calls)
+	}
+	if len(b.interfaceClassifyBindings) != 0 {
+		t.Fatalf("classify bindings after teardown = %v, want empty", b.interfaceClassifyBindings)
 	}
 }
 

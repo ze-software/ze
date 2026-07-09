@@ -514,6 +514,38 @@ def handle_ip_route_lookup_v2(state, sock, context, body):
     write_frame(sock, reply)
 
 
+def handle_classify_add_del_table(state, sock, context, body):
+    """Return retval=0 plus a fresh NewTableIndex on add.
+
+    ClassifyAddDelTableReply carries {Retval i32; NewTableIndex u32}, so the
+    generic 4-byte retval-only fallback would leave NewTableIndex undecodable
+    for GoVPP. The traffic backend needs the assigned index to add sessions and
+    bind the interface, so hand out an incrementing index per add. Delete
+    (is_add=0) echoes the requested table_index. Session and
+    policer-classify-set-interface replies are retval-only and use the generic
+    fallback.
+
+    Body (after the 10-byte request header): is_add u8, del_chain u8,
+    table_index u32, ...
+    """
+    is_add = body[0] if len(body) >= 1 else 1
+    if not hasattr(state, "classify_next_table"):
+        state.classify_next_table = 0
+    if is_add:
+        idx = state.classify_next_table
+        state.classify_next_table += 1
+    else:
+        idx = struct.unpack_from(">I", body, 2)[0] if len(body) >= 6 else 0xFFFFFFFF
+    state.log(
+        "classify_add_del_table",
+        context,
+        {"is_add": bool(is_add), "new_table_index": idx},
+    )
+    body_out = struct.pack(">iI", 0, idx)  # Retval=0, NewTableIndex
+    reply = build_reply(state, "classify_add_del_table_reply", context, body_out)
+    write_frame(sock, reply)
+
+
 HANDLERS = {
     "sockclnt_create": handle_sockclnt_create,
     "sockclnt_delete": handle_sockclnt_delete,
@@ -522,6 +554,7 @@ HANDLERS = {
     "ip_route_lookup_v2": handle_ip_route_lookup_v2,
     "mpls_route_add_del": handle_mpls_route_add_del,
     "sw_interface_set_mpls_enable": handle_sw_interface_set_mpls_enable,
+    "classify_add_del_table": handle_classify_add_del_table,
 }
 
 

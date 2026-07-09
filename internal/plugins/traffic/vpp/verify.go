@@ -12,10 +12,14 @@ import (
 )
 
 var (
-	errFilterDscpNotSupportedByBackend     = errors.New("filter dscp: not supported by backend vpp (deferred: VPP QoS record+mark pipeline not yet implemented)")
-	errFilterProtocolNotSupportedByBackend = errors.New("filter protocol: not supported by backend vpp (deferred: VPP classify table attachment not yet implemented)")
-	errFilterMarkNotSupportedByBackend     = errors.New("filter mark: not supported by backend vpp (VPP classifier matches packet-header bytes, not Linux SKB metadata)")
+	errFilterDscpNotSupportedByBackend = errors.New("filter dscp: not supported by backend vpp (deferred: VPP QoS record+mark pipeline not yet implemented)")
+	errFilterMarkNotSupportedByBackend = errors.New("filter mark: not supported by backend vpp (VPP classifier matches packet-header bytes, not Linux SKB metadata)")
 )
+
+// maxProtocol is the largest IP protocol / IPv6 next-header value that fits in
+// the single classify byte the protocol filter matches (matches the netlink
+// backend's bound).
+const maxProtocol = 255
 
 // maxPolicerNameLen is VPP's string[64] limit on policer names. The
 // backend uses the format "ze/<iface>/<class>"; if the resulting name
@@ -152,33 +156,36 @@ func verifyQdiscType(q traffic.QdiscType) error {
 	return fmt.Errorf("qdisc %s: not supported by backend vpp", q)
 }
 
-// verifyFilter rejects every filter type under the vpp backend.
+// verifyFilter accepts protocol filters and rejects DSCP and mark filters
+// under the vpp backend.
 //
-// Why all filters are rejected here: the review of fw-7's first
-// implementation found that DSCP and protocol filters were programmed
-// in VPP but did not affect traffic.
+//   - Protocol filter: ACCEPTED. The backend builds per-family classify
+//     tables whose mask/match vectors match the packet at absolute frame
+//     offsets (IPv4 protocol byte 23 = Ethernet 14 + IPv4 proto 9; IPv6
+//     next-header byte 20 = Ethernet 14 + IPv6 next-header 6), adds a session
+//     per protocol steering to the class policer, and binds the tables to the
+//     interface's policer-classify feature so only matching traffic is
+//     policed. See classify_linux.go / translate.go. The first fw-7 attempt
+//     matched at the wrong offset and never attached the table; both failure
+//     modes are pinned by golden vectors and the attach wiring test, all
+//     verified against real VPP v25.10.
+//   - DSCP filter: rejected. `QosEgressMapUpdate` + `QosMarkEnableDisable`
+//     need a preceding `QosRecordEnableDisable` on ingress to capture the
+//     incoming DSCP; that 3-step pipeline is not built yet.
+//   - Mark filter: rejected. VPP's classifier matches packet-header bytes;
+//     Linux SKB mark has no equivalent header field to match on.
 //
-//   - Protocol filter: `ClassifyAddDelSession` populates a table that
-//     the backend never attaches to any interface (no
-//     `ClassifySetInterfaceIPTable`). The match bytes also index at
-//     packet offset 9 which is inside the Ethernet header, not the
-//     IPv4 Protocol byte at L2+14+9=23.
-//   - DSCP filter: `QosEgressMapUpdate` + `QosMarkEnableDisable` need
-//     a preceding `QosRecordEnableDisable` on ingress to capture the
-//     incoming DSCP; without it the map reads a zero input for every
-//     packet and writes the same output value regardless of source.
-//   - Mark filter: VPP's classifier matches packet-header bytes; Linux
-//     SKB mark has no equivalent field.
-//
-// Rejecting at verify keeps the backend honest (no half-working
-// features) per `rules/exact-or-reject.md`. Each filter type has its
-// own deferral in `plan/deferrals.md` with a destination spec.
+// Rejecting the unimplemented filters at verify keeps the backend honest
+// (no half-working features) per `rules/exact-or-reject.md`.
 func verifyFilter(f traffic.TrafficFilter) error {
 	switch f.Type {
+	case traffic.FilterProtocol:
+		if f.Value > maxProtocol {
+			return fmt.Errorf("filter protocol value %d out of range (0-%d)", f.Value, maxProtocol)
+		}
+		return nil
 	case traffic.FilterDSCP:
 		return errFilterDscpNotSupportedByBackend
-	case traffic.FilterProtocol:
-		return errFilterProtocolNotSupportedByBackend
 	case traffic.FilterMark:
 		return errFilterMarkNotSupportedByBackend
 	}

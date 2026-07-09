@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"go.fd.io/govpp/api"
+	"go.fd.io/govpp/binapi/classify"
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/policer"
@@ -64,6 +65,13 @@ type backend struct {
 	// interface so ListQdiscs reports the correct type. Populated
 	// alongside interfaceOutputPolicers at the end of a successful Apply.
 	interfaceQdiscTypes map[string]traffic.QdiscType
+
+	// interfaceClassifyBindings records, per interface, the classify tables
+	// bound to its policer-classify feature for a class with protocol
+	// filters. VPP classify tables are anonymous, so this in-memory tracker
+	// is the only handle to unbind + delete them on a later Apply (see
+	// classify_linux.go). Absent key == no classify pipeline on that iface.
+	interfaceClassifyBindings map[string]classifyBinding
 }
 
 // newBackend is the factory registered with traffic.RegisterBackend("vpp").
@@ -71,9 +79,10 @@ type backend struct {
 // is resolved at each Apply so late VPP startup is tolerated.
 func newBackend() (traffic.Backend, error) {
 	return &backend{
-		connector:               vppcomp.GetActiveConnector,
-		interfaceOutputPolicers: make(map[string]map[string]uint32),
-		interfaceQdiscTypes:     make(map[string]traffic.QdiscType),
+		connector:                 vppcomp.GetActiveConnector,
+		interfaceOutputPolicers:   make(map[string]map[string]uint32),
+		interfaceQdiscTypes:       make(map[string]traffic.QdiscType),
+		interfaceClassifyBindings: make(map[string]classifyBinding),
 	}, nil
 }
 
@@ -153,8 +162,9 @@ func (b *backend) applyWithOps(ops vppOps, desired map[string]traffic.InterfaceQ
 
 	newOutputPolicers := make(map[string]map[string]uint32)
 	newQdiscTypes := make(map[string]traffic.QdiscType, len(desired))
+	newClassifyBindings := make(map[string]classifyBinding)
 	var undo []func()
-	applyErr := b.applyAll(ops, nameIndex, desired, newOutputPolicers, newQdiscTypes, &undo)
+	applyErr := b.applyAll(ops, nameIndex, desired, newOutputPolicers, newQdiscTypes, newClassifyBindings, &undo)
 	if applyErr != nil {
 		// Undo what this Apply programmed so VPP returns to its pre-Apply
 		// state before the component's journal rollback re-applies the
@@ -165,15 +175,17 @@ func (b *backend) applyWithOps(ops vppOps, desired map[string]traffic.InterfaceQ
 		return fmt.Errorf("traffic-vpp: %w", applyErr)
 	}
 
-	// Reconcile removals: policer bindings present in previous state but
-	// absent from the new desired state get torn down. Tolerant of
-	// VPP-side absence (e.g. after a VPP restart the cached indexes are
-	// stale); those deletions log a warning and continue instead of
-	// failing the whole Apply.
+	// Reconcile removals: policer bindings and classify tables present in
+	// previous state but absent from the new desired state get torn down.
+	// Tolerant of VPP-side absence (e.g. after a VPP restart the cached
+	// indexes are stale); those deletions log a warning and continue instead
+	// of failing the whole Apply.
 	b.reconcileRemovals(ops, nameIndex, newOutputPolicers)
+	b.reconcileClassifyRemovals(ops, nameIndex, newClassifyBindings)
 
 	b.interfaceOutputPolicers = newOutputPolicers
 	b.interfaceQdiscTypes = newQdiscTypes
+	b.interfaceClassifyBindings = newClassifyBindings
 	return nil
 }
 
@@ -182,6 +194,15 @@ func (b *backend) applyWithOps(ops vppOps, desired map[string]traffic.InterfaceQ
 // VPP but absent from the desired config, so daemon restart does not leave
 // stale traffic policing behind. Desired Ze policers are unbound, kept, and
 // then rebound by applyAll; foreign policers are ignored.
+//
+// Classify tables (protocol filters) are NOT reclaimed here: VPP classify
+// tables are anonymous (no Ze-owned name to match on), so a table left by a
+// previous process cannot be identified at startup. An unbound classify table
+// polices nothing (the policer-classify feature is re-pointed at the fresh
+// tables applyAll creates), so a leak is inert memory, reclaimed only by a VPP
+// restart. In-process reconcile (reconcileClassifyRemovals) does delete tables
+// by their tracked indices. This gap is documented in the spec's Known
+// Limitations.
 //
 // Called with b.mu held.
 func (b *backend) cleanupStartupOrphans(
@@ -254,6 +275,7 @@ func (b *backend) applyAll(
 	desired map[string]traffic.InterfaceQoS,
 	newOutputPolicers map[string]map[string]uint32,
 	newQdiscTypes map[string]traffic.QdiscType,
+	newClassifyBindings map[string]classifyBinding,
 	undo *[]func(),
 ) error {
 	for ifaceName, qos := range desired {
@@ -261,7 +283,7 @@ func (b *backend) applyAll(
 		if !ok {
 			return fmt.Errorf("interface %q not present in vpp", ifaceName)
 		}
-		if err := b.applyInterface(ops, ifaceName, swIfIndex, qos, newOutputPolicers, newQdiscTypes, undo); err != nil {
+		if err := b.applyInterface(ops, ifaceName, swIfIndex, qos, newOutputPolicers, newQdiscTypes, newClassifyBindings, undo); err != nil {
 			return fmt.Errorf("interface %q: %w", ifaceName, err)
 		}
 	}
@@ -291,6 +313,7 @@ func (b *backend) applyInterface(
 	desired traffic.InterfaceQoS,
 	newOutputPolicers map[string]map[string]uint32,
 	newQdiscTypes map[string]traffic.QdiscType,
+	newClassifyBindings map[string]classifyBinding,
 	undo *[]func(),
 ) error {
 	qdisc := desired.Qdisc
@@ -332,9 +355,26 @@ func (b *backend) applyInterface(
 			})
 		}
 
-		// Bind on both CREATE and UPDATE. UPDATE rebinding repairs the
-		// same-process case where VPP loses the output feature binding
-		// between two Apply calls but Ze still tracks the policer as desired.
+		if hasProtocolFilter(cls) {
+			// Filtered class: only matching traffic is policed, via the
+			// ingress policer-classify pipeline. Fresh classify tables are
+			// created on every Apply (they are anonymous, so there is no
+			// upsert); the previous binding is torn down by
+			// reconcileClassifyRemovals. No egress policer-output binding, and
+			// the policer is tracked in the classify binding (not
+			// interfaceOutputPolicers) so reconcile does not try to unbind an
+			// output feature that was never applied.
+			binding, err := applyClassProtocolFilters(ops, swIfIndex, policerIdx, name, cls, undo)
+			if err != nil {
+				return fmt.Errorf("class %q: %w", cls.Name, err)
+			}
+			newClassifyBindings[ifaceName] = binding
+			continue
+		}
+
+		// Unfiltered class: bind on both CREATE and UPDATE. UPDATE rebinding
+		// repairs the same-process case where VPP loses the output feature
+		// binding between two Apply calls but Ze still tracks the policer.
 		if err := ops.policerOutput(name, swIfIndex, true); err != nil {
 			return fmt.Errorf("class %q: %w", cls.Name, err)
 		}
@@ -554,6 +594,88 @@ func (g *govppOps) policerOutput(name string, swIfIndex interface_types.Interfac
 	}
 	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
 		return fmt.Errorf("PolicerOutput: %w", apiErr)
+	}
+	return nil
+}
+
+// classifyAddDelTable wraps ClassifyAddDelTable. On create (isAdd=true,
+// tableIdx=^uint32(0)) VPP assigns and returns a fresh table index. Match
+// vectors count is derived from the mask length; skipNVectors is passed
+// through so the policer-classify arc examines the right byte window.
+func (g *govppOps) classifyAddDelTable(tableIdx uint32, mask []byte, skipNVectors uint32, isAdd bool) (uint32, error) {
+	nVectors := uint32(len(mask)) / classifyVectorLen
+	if nVectors == 0 {
+		nVectors = 1
+	}
+	req := &classify.ClassifyAddDelTable{
+		IsAdd:         isAdd,
+		TableIndex:    tableIdx,
+		Nbuckets:      2,
+		MemorySize:    1 << 20,
+		SkipNVectors:  skipNVectors,
+		MatchNVectors: nVectors,
+		MissNextIndex: ^uint32(0),
+		MaskLen:       uint32(len(mask)),
+		Mask:          mask,
+	}
+	reply := &classify.ClassifyAddDelTableReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return 0, fmt.Errorf("ClassifyAddDelTable: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return 0, fmt.Errorf("ClassifyAddDelTable: %w", apiErr)
+	}
+	return reply.NewTableIndex, nil
+}
+
+// classifyAddDelSession wraps ClassifyAddDelSession. policerIdx is the policer
+// a matching packet is steered to on the policer-classify arc, carried in
+// HitNextIndex -- byte-for-byte the session VPP's own CLI `classify session ...
+// policer-hit-next <name>` produces (next_index=policer index, action=0),
+// verified against VPP v25.10. (An earlier attempt failed INVALID_VALUE (-7);
+// the cause was the table's skip/match width, not this field -- the session
+// match must span skip+match vectors, so the traffic tables use skip=0 with a
+// full-width absolute-offset mask; see translate.go.)
+func (g *govppOps) classifyAddDelSession(tableIdx, policerIdx uint32, match []byte, isAdd bool) error {
+	req := &classify.ClassifyAddDelSession{
+		IsAdd:        isAdd,
+		TableIndex:   tableIdx,
+		HitNextIndex: policerIdx,
+		MatchLen:     uint32(len(match)),
+		Match:        match,
+	}
+	reply := &classify.ClassifyAddDelSessionReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ClassifyAddDelSession: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return fmt.Errorf("ClassifyAddDelSession: %w", apiErr)
+	}
+	return nil
+}
+
+// policerClassifySetInterface binds/unbinds ip4 and ip6 classify tables to
+// an interface's policer-classify feature. ^uint32(0) means "no table for
+// this family". On unbind (isAdd=false) VPP requires ^uint32(0) for the
+// table indices being removed.
+func (g *govppOps) policerClassifySetInterface(swIfIndex interface_types.InterfaceIndex, ip4TableIdx, ip6TableIdx uint32, isAdd bool) error {
+	if !isAdd {
+		ip4TableIdx = ^uint32(0)
+		ip6TableIdx = ^uint32(0)
+	}
+	req := &classify.PolicerClassifySetInterface{
+		SwIfIndex:     swIfIndex,
+		IP4TableIndex: ip4TableIdx,
+		IP6TableIndex: ip6TableIdx,
+		L2TableIndex:  ^uint32(0),
+		IsAdd:         isAdd,
+	}
+	reply := &classify.PolicerClassifySetInterfaceReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("PolicerClassifySetInterface: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return fmt.Errorf("PolicerClassifySetInterface: %w", apiErr)
 	}
 	return nil
 }

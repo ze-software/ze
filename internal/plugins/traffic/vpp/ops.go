@@ -26,6 +26,13 @@ import (
 // Extending the interface is cheap: add a method, implement on the
 // production adapter, stub on fakeOps. Keeping it narrow makes
 // regressions obvious.
+//
+// The classify* / policerClassify* methods program the VPP classify +
+// policer-classify pipeline used by protocol filters (only matching traffic
+// is policed). They mirror the proven firewall/vpp classify wrappers, with
+// two traffic-specific parameters: skip_n_vectors (the L2-skip the
+// policer-classify arc needs) and the session hit-next index (the policer
+// index a matching packet is steered to).
 type vppOps interface {
 	dumpInterfaces() (map[string]interface_types.InterfaceIndex, error)
 	dumpPolicers() ([]string, error)
@@ -33,4 +40,17 @@ type vppOps interface {
 	policerDel(index uint32) error
 	policerDeleteByName(name string) error
 	policerOutput(name string, swIfIndex interface_types.InterfaceIndex, apply bool) error
+
+	// classifyAddDelTable creates (isAdd=true, tableIdx=^uint32(0)) or removes
+	// a classify table with the given mask and skip_n_vectors. Returns the
+	// VPP-assigned table index on create.
+	classifyAddDelTable(tableIdx uint32, mask []byte, skipNVectors uint32, isAdd bool) (uint32, error)
+	// classifyAddDelSession adds/removes a session in tableIdx. hitNextIndex
+	// is the policer index a matching packet is steered to on the
+	// policer-classify arc.
+	classifyAddDelSession(tableIdx, hitNextIndex uint32, match []byte, isAdd bool) error
+	// policerClassifySetInterface binds (isAdd=true) or unbinds the given
+	// ip4/ip6 classify tables to an interface's policer-classify feature.
+	// A table index of ^uint32(0) means "no table for this family".
+	policerClassifySetInterface(swIfIndex interface_types.InterfaceIndex, ip4TableIdx, ip6TableIdx uint32, isAdd bool) error
 }

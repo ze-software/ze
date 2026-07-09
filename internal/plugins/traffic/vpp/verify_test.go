@@ -101,12 +101,13 @@ func TestVerifyRejectsUnsupportedQdiscs(t *testing.T) {
 	}
 }
 
-func TestVerifyRejectsAllFilterTypes(t *testing.T) {
-	// VALIDATES: the vpp backend rejects every filter type under HTB
-	// because the VPP-side classify / QoS-record pipelines are not
-	// implemented; accepting them would be silent no-ops in VPP.
+func TestVerifyRejectsDscpAndMarkFilters(t *testing.T) {
+	// VALIDATES: AC-6 -- DSCP and mark filters stay rejected under vpp because
+	// their VPP pipelines are not implemented; accepting them would be silent
+	// no-ops. (Protocol filters are now accepted -- see
+	// TestVerifyAcceptsProtocolFilter.)
 	for _, ft := range []traffic.FilterType{
-		traffic.FilterDSCP, traffic.FilterProtocol, traffic.FilterMark,
+		traffic.FilterDSCP, traffic.FilterMark,
 	} {
 		desired := map[string]traffic.InterfaceQoS{
 			"eth0": {
@@ -130,6 +131,54 @@ func TestVerifyRejectsAllFilterTypes(t *testing.T) {
 		if !strings.Contains(err.Error(), "not supported by backend vpp") {
 			t.Errorf("filter %s: expected 'not supported' message, got %v", ft, err)
 		}
+	}
+}
+
+func TestVerifyAcceptsProtocolFilter(t *testing.T) {
+	// VALIDATES: AC-1 -- a protocol filter on the single class is accepted;
+	// the backend programs the classify + policer-classify pipeline.
+	desired := map[string]traffic.InterfaceQoS{
+		"eth0": {
+			Qdisc: traffic.Qdisc{
+				Type: traffic.QdiscHTB,
+				Classes: []traffic.TrafficClass{
+					{
+						Name:    "c1",
+						Rate:    1000,
+						Filters: []traffic.TrafficFilter{{Type: traffic.FilterProtocol, Value: 6}},
+					},
+				},
+			},
+		},
+	}
+	if err := Verify(desired); err != nil {
+		t.Fatalf("protocol filter should be accepted under vpp, got %v", err)
+	}
+}
+
+func TestVerifyRejectsProtocolOutOfRange(t *testing.T) {
+	// VALIDATES: boundary -- a protocol value above 255 does not fit the
+	// single classify byte and is rejected at verify.
+	desired := map[string]traffic.InterfaceQoS{
+		"eth0": {
+			Qdisc: traffic.Qdisc{
+				Type: traffic.QdiscHTB,
+				Classes: []traffic.TrafficClass{
+					{
+						Name:    "c1",
+						Rate:    1000,
+						Filters: []traffic.TrafficFilter{{Type: traffic.FilterProtocol, Value: 256}},
+					},
+				},
+			},
+		},
+	}
+	err := Verify(desired)
+	if err == nil {
+		t.Fatal("protocol value 256 should be rejected (out of range)")
+	}
+	if !strings.Contains(err.Error(), "out of range") {
+		t.Errorf("want 'out of range' message, got %v", err)
 	}
 }
 

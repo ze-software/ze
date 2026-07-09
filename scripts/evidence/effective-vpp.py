@@ -76,9 +76,16 @@ def ensure_linux_binaries(root: Path) -> tuple[Path, Path]:
     )
     if build.returncode != 0:
         raise SystemExit("go build ./cmd/ze failed")
-    build = run(["go", "build", "-o", str(ze_test), "./cmd/ze-test"], cwd=root, env=env)
+    # ze-test is the ze_test-tagged build of ./cmd/ze (there is no cmd/ze-test
+    # directory; it was consolidated into cmd/ze selected by build tag, matching
+    # the Makefile's `-tags ze_test -o bin/ze-test ./cmd/ze`).
+    build = run(
+        ["go", "build", "-tags", "ze_test", "-o", str(ze_test), "./cmd/ze"],
+        cwd=root,
+        env=env,
+    )
     if build.returncode != 0:
-        raise SystemExit("go build ./cmd/ze-test failed")
+        raise SystemExit("go build ze-test (-tags ze_test ./cmd/ze) failed")
     return ze, ze_test
 
 
@@ -342,25 +349,87 @@ fib {{
 
 def traffic_config(api_sock: Path, iface: str, with_interface: bool) -> str:
     if not with_interface:
-        return vpp_config(api_sock) + "\ntraffic-control {\n    backend vpp;\n}\n"
+        return (
+            vpp_config(api_sock)
+            + "\ntraffic {\n    control {\n        backend vpp;\n    }\n}\n"
+        )
     return (
         vpp_config(api_sock)
         + f"""
-traffic-control {{
-    backend vpp;
-    interface {iface} {{
-        qdisc {{
-            type htb;
-            default-class {TRAFFIC_POLICER_CLASS};
-            class {TRAFFIC_POLICER_CLASS} {{
-                rate 1mbit;
-                ceil 2mbit;
+traffic {{
+    control {{
+        backend vpp;
+        interface {iface} {{
+            qdisc {{
+                type htb;
+                default-class {TRAFFIC_POLICER_CLASS};
+                class {TRAFFIC_POLICER_CLASS} {{
+                    rate 1mbit;
+                    ceil 2mbit;
+                }}
             }}
         }}
     }}
 }}
 """
     )
+
+
+TRAFFIC_PROTO_CLASS = "tcp"
+TRAFFIC_PROTO_NUMBER = 6  # TCP
+
+
+def traffic_protocol_config(api_sock: Path, iface: str) -> str:
+    """Single HTB class carrying a protocol filter, so its policer is bound via
+    the ingress policer-classify pipeline (ip4+ip6 classify tables) instead of
+    the egress policer-output path."""
+    return (
+        vpp_config(api_sock)
+        + f"""
+traffic {{
+    control {{
+        backend vpp;
+        interface {iface} {{
+            qdisc {{
+                type htb;
+                default-class {TRAFFIC_PROTO_CLASS};
+                class {TRAFFIC_PROTO_CLASS} {{
+                    rate 1mbit;
+                    ceil 2mbit;
+                    match protocol {{ value {TRAFFIC_PROTO_NUMBER}; }}
+                }}
+            }}
+        }}
+    }}
+}}
+"""
+    )
+
+
+def proto_policer_name(iface: str) -> str:
+    return f"ze/{iface}/{TRAFFIC_PROTO_CLASS}"
+
+
+def classify_tables_present(container: str) -> tuple[bool, str]:
+    text = vppctl_text(container, "show classify tables")
+    return "No classifier tables configured" not in text, text
+
+
+def policer_classify_bound(container: str, iface: str) -> tuple[bool, str]:
+    text = vppctl_text(container, f"show interface features {iface}")
+    return "policer-classify" in text.lower(), text
+
+
+def wait_condition(probe, want: bool, timeout_s: float) -> tuple[bool, str]:
+    last = ""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        present, text = probe()
+        last = text
+        if present == want:
+            return True, text
+        time.sleep(0.5)
+    return False, last
 
 
 def write_config(path: Path, content: str) -> None:
@@ -618,6 +687,82 @@ def run_traffic_evidence(
             sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
             return 1
         print(f"OK: real VPP startup cleanup removed orphan traffic policer {name}")
+        return 0
+    finally:
+        terminate(daemon)
+
+
+def run_traffic_protocol_evidence(
+    container: str, root: Path, ze: Path, work: Path, api_sock: Path, iface: str
+) -> int:
+    """AC-1: a `filter protocol` class programs classify tables that are bound
+    to the interface's policer-classify feature (the R-1 "table created but
+    never attached" killer), and its policer exists. Runs after
+    run_traffic_evidence, which leaves the interface clean."""
+    name = proto_policer_name(iface)
+    config_path = work / "traffic-proto.conf"
+    write_config(config_path, traffic_protocol_config(api_sock, iface))
+
+    daemon, ze_lines = start_ze(
+        container, ze, root, Path("/run/vpp/traffic-proto.conf")
+    )
+    try:
+        if not wait_log(ze_lines, "traffic-control config applied", 25):
+            sys.stderr.write("FAIL: traffic-control protocol apply log not observed\n")
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        ok, last = wait_policer(container, name, True, 15)
+        if not ok:
+            sys.stderr.write(
+                f"FAIL: real VPP protocol-filter policer {name} not observed\n"
+            )
+            sys.stderr.write(last)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        tables_ok, tables = wait_condition(
+            lambda: classify_tables_present(container), True, 15
+        )
+        if not tables_ok:
+            sys.stderr.write(
+                "FAIL: real VPP classify tables not observed after apply\n"
+            )
+            sys.stderr.write(tables)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        # R-1 killer: the classify table must be ATTACHED to the interface's
+        # policer-classify feature, not merely created.
+        bound_ok, features = wait_condition(
+            lambda: policer_classify_bound(container, iface), True, 15
+        )
+        if not bound_ok:
+            sys.stderr.write(
+                f"FAIL: policer-classify feature not bound on {iface} (R-1: table never attached)\n"
+            )
+            sys.stderr.write(features)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        print(
+            f"OK: real VPP protocol filter programmed classify tables bound to {iface} steering to policer {name}"
+        )
+    finally:
+        terminate(daemon)
+
+    # Removal: dropping the interface tears down the classify binding and
+    # deletes the policer (in-process reconcile).
+    write_config(config_path, traffic_config(api_sock, iface, False))
+    daemon, ze_lines = start_ze(
+        container, ze, root, Path("/run/vpp/traffic-proto.conf")
+    )
+    try:
+        ok, last = wait_policer(container, name, False, 25)
+        if not ok:
+            sys.stderr.write(
+                f"FAIL: real VPP protocol-filter policer {name} survived removal\n"
+            )
+            sys.stderr.write(last)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        print(f"OK: real VPP protocol-filter policer {name} removed on reconcile")
         return 0
     finally:
         terminate(daemon)
@@ -882,6 +1027,11 @@ def main() -> int:
         traffic_rc = run_traffic_evidence(container, root, ze, work, api_sock, iface)
         if traffic_rc != 0:
             return traffic_rc
+        traffic_proto_rc = run_traffic_protocol_evidence(
+            container, root, ze, work, api_sock, iface
+        )
+        if traffic_proto_rc != 0:
+            return traffic_proto_rc
         return run_firewall_evidence(container, root, ze, work, api_sock, iface)
     finally:
         run(

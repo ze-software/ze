@@ -6,10 +6,9 @@
 // calls. Keeping translation pure lets us unit-test the wire-level
 // parameters without a running VPP.
 //
-// Current scope: HTB and TBF policers. Filter and prio translations
-// were removed after review found the corresponding backend pipeline
-// (classify-table attachment, QoS record/mark chain) was incomplete.
-// The verifier rejects those features at commit; see verify.go.
+// Current scope: HTB and TBF policers plus protocol classify (filter
+// protocol). DSCP and mark filter translations remain rejected at verify
+// until their VPP pipelines land; see verify.go.
 
 package trafficvpp
 
@@ -22,6 +21,77 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
 )
+
+// --- Classify (filter protocol) translation ---------------------------------
+//
+// VPP's classify/policer-classify feature examines a fixed-width byte
+// window of each packet. The traffic backend attaches a per-family classify
+// table (via PolicerClassifySetInterface) whose sessions steer matching
+// packets to the class's policer, so only the configured protocol is
+// policed (unfiltered classes stay on the egress policer-output path).
+//
+// Wire offsets are the GROUND TRUTH emitted by VPP's own CLI for
+// `classify table mask l3 ip4|ip6 proto` (captured on VPP v25.10-release):
+// the feature skips the first 16-byte vector (skip_n_vectors=1, covering the
+// L2 header region) and matches within the following 16-byte vector, where
+//
+//	IPv4 protocol    -> match-vector byte 7  (absolute 23 = eth 14 + ip4 proto 9)
+//	IPv6 next-header -> match-vector byte 4  (absolute 20 = eth 14 + ip6 nexthdr 6)
+//
+// The first traffic implementation matched at L3-relative offset 9 with
+// skip=0; that indexed the wrong bytes on the policer-classify arc and the
+// session never hit ("matched wrong offset", the historical failure this
+// pipeline's golden vectors pin against regression).
+
+// classifyFamily selects the IP version for a classify table, which
+// determines both the match-vector byte offset and the ip4-table / ip6-table
+// slot the table is bound to in PolicerClassifySetInterface.
+type classifyFamily uint8
+
+const (
+	classifyIPv4 classifyFamily = iota
+	classifyIPv6
+)
+
+const (
+	// classifySkipVectors is skip_n_vectors for the traffic classify tables.
+	// The mask/match cover the L2-inclusive window at absolute offsets, so no
+	// vectors are skipped (VPP's classify_add_del_session validates the match
+	// length against skip+match vectors; a short skipped match is rejected
+	// INVALID_VALUE, so we encode absolute offsets in a full-width mask).
+	classifySkipVectors = 0
+	// classifyVectorLen is the width of one classify vector in bytes.
+	classifyVectorLen = 16
+	// classifyMaskLen is the mask/match width: two vectors, enough to reach
+	// the IPv4 protocol / IPv6 next-header byte from the L2 frame start.
+	classifyMaskLen = 2 * classifyVectorLen
+	// ipv4ProtocolByte is the absolute offset of the IPv4 protocol byte from
+	// the classify frame start: Ethernet(14) + IPv4 protocol(9) = 23. VPP's
+	// own CLI emits the equivalent window (skip 1 vector, byte 7).
+	ipv4ProtocolByte = 23
+	// ipv6NextHeaderByte is the absolute offset of the IPv6 next-header byte:
+	// Ethernet(14) + IPv6 next-header(6) = 20.
+	ipv6NextHeaderByte = 20
+	// maxProtocolValue is the largest IP protocol / next-header number that
+	// fits in the single classify byte the mask covers.
+	maxProtocolValue = 255
+)
+
+// protocolClassifyVectors builds the (mask, match) vectors for a classify
+// session matching a single IP protocol / next-header value at its absolute
+// (L2-inclusive) offset. The vectors are classifyMaskLen bytes wide so VPP's
+// session match-length validation (skip+match vectors) is satisfied.
+func protocolClassifyVectors(fam classifyFamily, proto uint8) (mask, match []byte) {
+	mask = make([]byte, classifyMaskLen)
+	match = make([]byte, classifyMaskLen)
+	off := ipv4ProtocolByte
+	if fam == classifyIPv6 {
+		off = ipv6NextHeaderByte
+	}
+	mask[off] = 0xff
+	match[off] = proto
+	return mask, match
+}
 
 var errRatetokbpsRateMustBe0 = errors.New("rateToKbps: rate must be > 0")
 

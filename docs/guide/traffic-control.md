@@ -53,24 +53,29 @@ learn about incompatibilities before the config lands rather than after Apply.
 | `netem` | rejected | Network emulation not available in VPP |
 | `clsact` / `ingress` | rejected | Ingress policing semantics differ in VPP (deferred) |
 
-**All filter types are currently rejected under the vpp backend.** The
-initial fw-7 implementation programmed DSCP and protocol filters but
-the surrounding VPP pipelines were incomplete, so the features would
-have been silent no-ops (sessions in a detached classify table, marks
-reading an unrecorded DSCP). Per `rules/exact-or-reject.md` the
-verifier refuses these at commit until the full pipelines land.
+**`protocol` filters are supported; `dscp` and `mark` are rejected.** A
+single class may carry `match protocol <n>`: the backend then builds per-family
+(IPv4 + IPv6) classify tables, adds a session per protocol steering to the
+class policer (`ClassifyAddDelSession.HitNextIndex` = policer index, matching
+the packet at absolute frame offset 23 for IPv4 protocol / 20 for IPv6
+next-header), and binds the tables to the interface's `policer-classify`
+feature so only matching traffic is policed. The initial fw-7 attempt matched
+the wrong offset and never attached the table (silent no-op); the current
+pipeline is golden-vector tested and validated against real VPP v25.10. DSCP
+and mark stay rejected per `rules/exact-or-reject.md` until their pipelines
+land.
 
-| filter type | vpp | Deferral |
+| filter type | vpp | Notes |
 |------------|-----|----------|
-| `dscp` | rejected | Needs ingress `QosRecordEnableDisable` + egress map + mark pipeline. Tracked: `spec-fw-7b-vpp-qos-pipeline` |
-| `protocol` | rejected | Needs classify-table attachment via `ClassifySetInterfaceIPTable` + correct packet-offset matching + per-interface / per-family table lifecycle. Tracked: `spec-fw-7b-vpp-classify-pipeline` |
-| `mark` | rejected | VPP's classifier matches packet-header bytes, not Linux SKB metadata. Tracked: `spec-fw-7b-vpp-metadata-filter` |
+| `protocol` | accepted | Per-family classify tables bound to `policer-classify`; only matching traffic is policed (ingress). Values 0-255. |
+| `dscp` | rejected | Needs ingress `QosRecordEnableDisable` + egress map + mark pipeline. |
+| `mark` | rejected | VPP's classifier matches packet-header bytes, not Linux SKB metadata. |
 
 Rate limiting without filters is still useful for single-rate use:
 one HTB or TBF class with rate/ceil values becomes one VPP policer
 on interface egress that enforces the operator's rate. Multi-class
-shaping (steering specific traffic to specific rate buckets) requires
-the classify pipeline above.
+shaping (steering specific traffic to distinct rate buckets) is not yet
+supported under the vpp backend.
 
 Policer name length: the backend composes a VPP policer name as
 `ze/<iface>/<class>` and VPP caps names at 64 bytes. If that compound

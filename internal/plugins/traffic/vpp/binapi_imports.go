@@ -5,11 +5,9 @@
 // `vendor/` regardless of how the rest of the package evolves.
 //
 // Current scope: policer and policer_types (HTB/TBF policers + the enums
-// they reference). An earlier iteration of the backend also pinned `qos`
-// and `classify`; those paths were retired after review found the
-// surrounding VPP pipelines were incomplete (see verify.go and
-// `plan/deferrals.md` for the destination specs). The next `go mod
-// vendor` run dropped qos and classify from vendor/.
+// they reference) plus classify (the protocol-filter classify +
+// policer-classify pipeline, wired in backend_linux.go / classify_linux.go).
+// `qos` will return here when the DSCP record/mark pipeline lands.
 //
 // Why a separate anchor file (rather than relying on other files'
 // imports): `backend_linux.go` carries `//go:build linux`, so on
@@ -27,6 +25,7 @@
 package trafficvpp
 
 import (
+	_ "go.fd.io/govpp/binapi/classify"
 	_ "go.fd.io/govpp/binapi/policer"
 	_ "go.fd.io/govpp/binapi/policer_types"
 )

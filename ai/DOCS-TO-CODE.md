@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 275 design docs, 2885 files
+Total: 276 design docs, 2886 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3797,6 +3797,10 @@ Total: 275 design docs, 2885 files
 | `internal/plugins/exabgp/bridgeplugin/internal.go` | AC-1 -- internal exabgp bridge runner |
 | `internal/plugins/iface/dhcp/dhcp_v6_pd_linux_test.go` | AC-6 -- DHCPv6-PD lease flow. This is |
 | `internal/plugins/iface/netlink/slaac_linux.go` | AC-6 -- kernel-cooperating SLAAC |
+
+## `plan/spec-followup-vpp-traffic.md`
+
+- `internal/plugins/traffic/vpp/classify_linux.go` -- classify + policer-classify
 
 ## `plan/spec-iface-resolve-0-umbrella.md`
 

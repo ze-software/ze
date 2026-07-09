@@ -157,6 +157,47 @@ func TestPolicerFromClassOverflow(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-1 golden vectors (R-3 "matched wrong offset"). The IPv4
+// protocol byte sits at absolute offset 23 (Ethernet 14 + IPv4 protocol 9)
+// in a two-vector (32-byte) mask with skip=0 -- the window VPP's own CLI
+// emits for `classify table mask l3 ip4 proto`, verified on VPP v25.10.
+func TestClassifyMaskMatchIPv4Protocol(t *testing.T) {
+	mask, match := protocolClassifyVectors(classifyIPv4, 6)
+	if len(mask) != classifyMaskLen || len(match) != classifyMaskLen {
+		t.Fatalf("vector len = (%d,%d), want %d", len(mask), len(match), classifyMaskLen)
+	}
+	assertOnlyByteSet(t, mask, ipv4ProtocolByte, 0xff)
+	assertOnlyByteSet(t, match, ipv4ProtocolByte, 6)
+}
+
+// VALIDATES: AC-1/A-4 golden vectors. IPv6 next-header sits at absolute offset
+// 20 (Ethernet 14 + IPv6 next-header 6); confirmed expressible on VPP v25.10.
+func TestClassifyMaskMatchIPv6NextHeader(t *testing.T) {
+	mask, match := protocolClassifyVectors(classifyIPv6, 17)
+	assertOnlyByteSet(t, mask, ipv6NextHeaderByte, 0xff)
+	assertOnlyByteSet(t, match, ipv6NextHeaderByte, 17)
+}
+
+// VALIDATES: boundary -- protocol 255 (max) encodes in the single match byte.
+func TestClassifyMaskMatchMaxProtocol(t *testing.T) {
+	_, match := protocolClassifyVectors(classifyIPv4, 255)
+	assertOnlyByteSet(t, match, ipv4ProtocolByte, 0xff)
+}
+
+// assertOnlyByteSet fails unless buf[idx]==want and every other byte is zero.
+func assertOnlyByteSet(t *testing.T, buf []byte, idx int, want byte) {
+	t.Helper()
+	for i, b := range buf {
+		exp := byte(0)
+		if i == idx {
+			exp = want
+		}
+		if b != exp {
+			t.Fatalf("byte[%d] = 0x%02x, want 0x%02x (only byte %d should be 0x%02x)", i, b, exp, idx, want)
+		}
+	}
+}
+
 func TestPolicerFromClassNameIsPassthrough(t *testing.T) {
 	// VALIDATES: policerFromClass does NOT truncate or rewrite the class
 	// name. The backend overwrites PolicerAddDel.Name with the composed
