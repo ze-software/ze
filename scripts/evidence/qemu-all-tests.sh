@@ -133,6 +133,10 @@ fsuite l2tp "$ZE_TEST_BIN" l2tp --all -p "$PARALLEL"
 fsuite firewall "$ZE_TEST_BIN" firewall --all -p "$PARALLEL"
 fsuite policy "$ZE_TEST_BIN" policy --all -p "$PARALLEL"
 fsuite install "$ZE_TEST_BIN" install --all -p "$PARALLEL"
+# Serial (-p 1): the needs-linux qdisc tests mutate shared kernel qdisc state on
+# eth0, so parallel runs would race. Runs as root in the QEMU VM (CAP_NET_ADMIN),
+# where option=needs-linux tests assert real `tc qdisc show` output.
+fsuite traffic "$ZE_TEST_BIN" traffic --all -p 1
 
 # 2. Unit tests: full pass, no -race, cacheable. Picks up the //go:build linux
 #    test files that never compile on macOS.

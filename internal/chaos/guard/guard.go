@@ -109,7 +109,9 @@ func (g *Guard) AllowChaos(idx int, action engine.ActionType) (bool, string) {
 		engine.ActionWithdrawalBurst,
 		engine.ActionRouteFlap,
 		engine.ActionSlowPeer,
-		engine.ActionZeroWindow:
+		engine.ActionZeroWindow,
+		engine.ActionIfaceLinkFlap,
+		engine.ActionIfaceAddrRemove:
 		// No additional guards — these are always valid on an established peer.
 	}
 

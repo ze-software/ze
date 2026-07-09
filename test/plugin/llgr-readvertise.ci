@@ -10,13 +10,14 @@
 #    - ze-peer mirrors LLGR capability (code 71) → LLGR-capable
 #    - Egress filter allows stale routes through to LLGR-capable peer
 #
-# Note: Multi-peer suppression (EBGP non-LLGR peer) requires multi-peer
-# test infrastructure not yet available. Egress filter per-peer behavior
-# covered by 8 unit tests in gr_egress_test.go.
+# Note: this test proves delivery to one LLGR-capable peer. The multi-peer
+# egress divergence (EBGP non-LLGR peer withdrawn; non-LLGR IBGP peer gets
+# NO_EXPORT + LOCAL_PREF=0) is proven on the wire by the conn_map-based
+# llgr-egress-suppress-multi-peer.ci and llgr-egress-rr-multi-peer.ci (spec
+# followup-test-infra AC-5); the per-peer egress logic also has 8 unit tests in
+# gr_egress_test.go.
 #
-# VALIDATES: AC-9 (partial) — LLGR-capable peer receives stale routes.
-# STATUS: partial -- proves delivery to one LLGR-capable peer only; EBGP
-# non-LLGR suppression remains blocked by missing multi-peer fixture coverage.
+# VALIDATES: AC-9 — LLGR-capable peer receives stale routes.
 # PREVENTS: Egress filter incorrectly suppressing routes to LLGR-capable peers.
 
 # ze-peer expectations

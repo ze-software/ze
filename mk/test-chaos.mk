@@ -10,7 +10,7 @@
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-integration-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: _ze-chaos-verify-impl
 
-CHAOS_PACKAGES = ./cmd/ze-chaos/...
+CHAOS_PACKAGES = ./internal/chaos/...
 
 # Chaos simulation parameters. Seed is random by default (printed for reproduction).
 # Override: make ze-chaos-functional-test CHAOS_SEED=12345 CHAOS_DURATION=60s CHAOS_PEERS=8

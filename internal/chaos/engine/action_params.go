@@ -17,6 +17,8 @@ const (
 	ParamInterval = "interval"
 	ParamDelay    = "delay"
 	ParamDuration = "duration"
+	ParamIface    = "iface"
+	ParamAddr     = "addr"
 )
 
 // Default values for parameterized action parameters.
@@ -31,6 +33,9 @@ const (
 	DefaultSlowPeerDuration     = 30 * time.Second
 	DefaultZeroWindowDuration   = 15 * time.Second
 	DefaultClockDrift           = 2 * time.Second
+	DefaultIfaceFlapCycles      = 1
+	DefaultIfaceFlapInterval    = 500 * time.Millisecond
+	MaxIfaceFlapCycles          = 20
 
 	MaxRouteBurstCount      = 10000
 	MaxWithdrawalBurstCount = 10000
@@ -194,11 +199,48 @@ func ParseZeroWindowParams(params map[string]string) ZeroWindowParams {
 	return ZeroWindowParams{Duration: dur}
 }
 
-// IsV2Action returns true if the action type is one of the 6 new parameterized actions.
+// IfaceFaultParams holds validated parameters for the netns-scoped interface
+// fault actions (ActionIfaceLinkFlap, ActionIfaceAddrRemove). Iface names the
+// interface to fault; Addr is the CIDR removed/restored by the addr-remove
+// action; Cycles/Interval control link flapping.
+type IfaceFaultParams struct {
+	Iface    string
+	Addr     string
+	Cycles   int
+	Interval time.Duration
+}
+
+// ParseIfaceFaultParams extracts and validates interface-fault parameters.
+func ParseIfaceFaultParams(params map[string]string) IfaceFaultParams {
+	out := IfaceFaultParams{
+		Iface:    params[ParamIface],
+		Addr:     params[ParamAddr],
+		Cycles:   DefaultIfaceFlapCycles,
+		Interval: DefaultIfaceFlapInterval,
+	}
+	if s, ok := params[ParamCycles]; ok {
+		if v, err := strconv.Atoi(s); err == nil && v > 0 {
+			out.Cycles = v
+		}
+	}
+	if out.Cycles > MaxIfaceFlapCycles {
+		out.Cycles = MaxIfaceFlapCycles
+	}
+	if s, ok := params[ParamInterval]; ok {
+		if d, err := time.ParseDuration(s); err == nil && d > 0 {
+			out.Interval = d
+		}
+	}
+	return out
+}
+
+// IsV2Action returns true if the action type is one of the parameterized
+// (opt-in via --chaos-actions) actions.
 func IsV2Action(t ActionType) bool {
 	switch t {
 	case ActionClockDrift, ActionRouteBurst, ActionWithdrawalBurst,
-		ActionRouteFlap, ActionSlowPeer, ActionZeroWindow:
+		ActionRouteFlap, ActionSlowPeer, ActionZeroWindow,
+		ActionIfaceLinkFlap, ActionIfaceAddrRemove:
 		return true
 	case ActionTCPDisconnect, ActionNotificationCease, ActionHoldTimerExpiry,
 		ActionDisconnectDuringBurst, ActionReconnectStorm, ActionConnectionCollision,

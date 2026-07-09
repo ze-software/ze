@@ -17,7 +17,7 @@
 #   make ze-install-ventoy-qemu-test    Installer Ventoy ISO-on-FAT evidence (QEMU)
 
 .PHONY: ze-interop-test ze-ipsec-interop-test
-.PHONY: ze-stress-test ze-stress-bird-test ze-stress-profile
+.PHONY: ze-stress-test ze-stress-bird-test ze-stress-profile ze-stress-web-test ze-stress-fleet-test
 .PHONY: ze-live-test ze-live-rpki-test
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-integration-gtsm-test ze-integration-as112-test
 .PHONY: ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test
@@ -58,6 +58,15 @@ ze-stress-profile: bin/ze
 	@echo "Running 1M profile stress test (requires root + netns)..."
 	@sudo ZE_BINARY=$(CURDIR)/bin/ze ZE_PPROF=1 VERBOSE=$(VERBOSE) \
 		python3 test/stress/run.py 05-profile-1m
+
+# Evidence-tier concurrency stress tests (build-tagged, out of ze-verify per R-6).
+ze-stress-web-test:
+	@echo "Running web concurrent-edit stress test (>=50 editor sessions, -race)..."
+	$(GO) test -tags 'ze_core stress' -race -count=1 -timeout 300s ./internal/component/web/ -run TestWebConcurrentEditStress -v
+
+ze-stress-fleet-test:
+	@echo "Running fleet many-clients perf test (128 managed clients, real hub listener)..."
+	$(GO) test -tags 'ze_core fleetperf' -count=1 -timeout 300s ./cmd/ze/hub/ -run TestFleetManyClientsPerf -v
 
 # ─── Live ───────────────────────────────────────────────────────────────────
 

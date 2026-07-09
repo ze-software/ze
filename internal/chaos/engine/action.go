@@ -40,6 +40,10 @@ const (
 	ActionSlowPeer
 	// ActionZeroWindow sets TCP receive window to zero for a duration.
 	ActionZeroWindow
+	// ActionIfaceLinkFlap brings the session's interface down then up (netns-scoped).
+	ActionIfaceLinkFlap
+	// ActionIfaceAddrRemove removes then restores an address on the session's interface (netns-scoped).
+	ActionIfaceAddrRemove
 )
 
 // Kebab-case action names used in JSON events, web UI, and CLI.
@@ -59,6 +63,8 @@ const (
 	NameRouteFlap             = "route-flap"
 	NameSlowPeer              = "slow-peer"
 	NameZeroWindow            = "zero-window"
+	NameIfaceLinkFlap         = "iface-link-flap"
+	NameIfaceAddrRemove       = "iface-addr-remove"
 )
 
 // actionNames maps ActionType to kebab-case name. Package-level to avoid
@@ -79,6 +85,8 @@ var actionNames = map[ActionType]string{
 	ActionRouteFlap:             NameRouteFlap,
 	ActionSlowPeer:              NameSlowPeer,
 	ActionZeroWindow:            NameZeroWindow,
+	ActionIfaceLinkFlap:         NameIfaceLinkFlap,
+	ActionIfaceAddrRemove:       NameIfaceAddrRemove,
 }
 
 // actionTypes maps kebab-case name to ActionType. Package-level to avoid
@@ -99,6 +107,8 @@ var actionTypes = map[string]ActionType{
 	NameRouteFlap:             ActionRouteFlap,
 	NameSlowPeer:              ActionSlowPeer,
 	NameZeroWindow:            ActionZeroWindow,
+	NameIfaceLinkFlap:         ActionIfaceLinkFlap,
+	NameIfaceAddrRemove:       ActionIfaceAddrRemove,
 }
 
 // actionReconnect tracks which action types cause session teardown.
@@ -108,6 +118,8 @@ var actionReconnect = map[ActionType]bool{
 	ActionHoldTimerExpiry:       true,
 	ActionDisconnectDuringBurst: true,
 	ActionReconnectStorm:        true,
+	// An interface link flap drops the session's transport, forcing a reconnect.
+	ActionIfaceLinkFlap: true,
 }
 
 // String returns the kebab-case name of the action type.

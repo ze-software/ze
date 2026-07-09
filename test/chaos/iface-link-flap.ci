@@ -1,0 +1,13 @@
+# Scenario: the chaos engine drives the iface-link-flap action family end-to-end
+# (spec followup-test-infra AC-6). --chaos-actions enables the netns-scoped
+# iface-link-flap action alongside the legacy faults.
+#
+# On this loopback run there is no netns/veth, so the iface fault is a graceful
+# no-op; the run must still complete cleanly with every session recovering
+# (exit 0). The real netns-scoped kernel effect (link down/up + transport
+# recovery) is exercised by the integration test
+# internal/chaos/peer/simulator_actions_iface_integration_linux_test.go, which
+# runs under QEMU / CAP_NET_ADMIN.
+
+cmd=foreground:seq=1:exec=ze-chaos --seed 7777 --peers 2 --duration 15s --chaos-actions iface-link-flap --chaos-rate 0.5 --quiet --port $PORT:timeout=30s
+expect=exit:code=0

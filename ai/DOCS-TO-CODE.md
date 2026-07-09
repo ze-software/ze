@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 273 design docs, 2863 files
+Total: 273 design docs, 2865 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -418,6 +418,8 @@ Total: 273 design docs, 2863 files
 | `internal/chaos/peer/session.go` | BGP peer simulation |
 | `internal/chaos/peer/simulator.go` | BGP peer simulation |
 | `internal/chaos/peer/simulator_actions.go` | chaos and route action execution |
+| `internal/chaos/peer/simulator_actions_iface_linux.go` | netns-scoped interface fault actions |
+| `internal/chaos/peer/simulator_actions_iface_other.go` | netns-scoped interface fault actions (non-Linux stubs) |
 | `internal/chaos/peer/simulator_actions_v2.go` | parameterized chaos action execution |
 | `internal/chaos/peer/simulator_reader.go` | BGP message reading and parsing |
 | `internal/chaos/replay/diff.go` | event replay and diff |

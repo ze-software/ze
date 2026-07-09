@@ -125,6 +125,15 @@ func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 	case engine.ActionZeroWindow:
 		go executeZeroWindow(ctx, action, conn, emit)
 		return ChaosResult{Disconnected: false}
+
+	case engine.ActionIfaceLinkFlap:
+		// netns-scoped: brings the configured interface down then up. On a
+		// non-netns loopback run (no iface param) this is a graceful no-op.
+		return executeIfaceLinkFlap(action, emit)
+
+	case engine.ActionIfaceAddrRemove:
+		// netns-scoped: removes then restores an address on the interface.
+		return executeIfaceAddrRemove(action, emit)
 	}
 	return ChaosResult{}
 }

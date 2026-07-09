@@ -65,6 +65,8 @@ var v2Weights = map[ActionType]int{
 	ActionRouteFlap:       10,
 	ActionSlowPeer:        5,
 	ActionZeroWindow:      5,
+	ActionIfaceLinkFlap:   5,
+	ActionIfaceAddrRemove: 5,
 }
 
 // Scheduler generates deterministic chaos events based on a seed.

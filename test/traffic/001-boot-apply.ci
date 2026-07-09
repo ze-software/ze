@@ -6,11 +6,13 @@
 #           reaches the plugin's reactor (the pre-fw-9 state -- config accepted,
 #           nothing programmed).
 #
-# Scope note (spec-fw-9 deviation, see plan/deferrals.md): this test validates
-# the wiring via the log line emitted by register.go. Verifying real tc qdisc
-# state via `tc qdisc show` is deferred because CI runners do not grant
-# CAP_NET_ADMIN reliably; the trafficnetlink backend's netlink Apply is still
-# covered by internal/plugins/trafficnetlink/*_linux_test.go.
+# Scope note: this test validates the wiring via the log line emitted by
+# register.go and runs unprivileged in every environment. The real tc qdisc
+# kernel-state check (`tc qdisc show`) is now covered by the needs-linux
+# companion 022-boot-qdisc-tc.ci, which runs as root in the QEMU VM via
+# `make ze-qemu-needs-linux-test` (spec followup-test-infra AC-2). The
+# trafficnetlink backend's netlink Apply also has direct Go coverage in
+# internal/plugins/trafficnetlink/*_linux_test.go.
 
 tmpfs=wait.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
