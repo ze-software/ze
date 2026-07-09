@@ -1,5 +1,5 @@
 // Design: docs/architecture/mcp/overview.md -- Streamable HTTP transport for MCP
-// Related: handler.go -- MCP tool dispatch types and primitives
+// Related: tools.go -- MCP tool dispatch types and primitives
 // Related: session.go -- session registry and SSE outbound queue
 // Related: streamable_auth.go -- OAuth/bearer authentication and origin validation
 // Related: streamable_tools.go -- tool dispatch and task management
@@ -58,8 +58,15 @@ var errUnsupportedProtocolVersion = errors.New("mcp: unsupported protocol versio
 
 // StreamableConfig bundles what NewStreamable needs. Zero-value fields get defaults.
 type StreamableConfig struct {
-	Dispatch       CommandDispatcher
-	Commands       CommandLister
+	Dispatch CommandDispatcher
+	Commands CommandLister
+	// Provider, when set, replaces the command-registry tool surface: tools/list
+	// returns Provider.Tools(), tools/call delegates to Provider.CallTool, and
+	// initialize reports Provider.ServerName(). Session-less POSTs are then
+	// accepted (the MCP spec makes sessions optional), because Provider-based
+	// servers (ze-chaos) are driven by stateless clients that do not thread
+	// Mcp-Session-Id. Nil (the ze daemon) keeps the strict session requirement.
+	Provider       ToolProvider
 	Token          string // AuthMode=Bearer: single shared secret
 	AllowedOrigins []string
 	SessionTTL     time.Duration
@@ -449,6 +456,23 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 	}
 	headerID := r.Header.Get("Mcp-Session-Id")
 	if headerID == "" {
+		// Provider-based servers (ze-chaos) accept session-less POSTs: their
+		// clients fire independent requests without threading Mcp-Session-Id,
+		// and the MCP spec makes sessions optional. runMethod handlers are
+		// nil-session aware (tasks/resources degrade to method-not-found).
+		if s.cfg.Provider != nil {
+			if req.ID == nil {
+				w.WriteHeader(http.StatusAccepted)
+				return
+			}
+			resp := s.runMethod(r.Context(), nil, &req, r.RemoteAddr)
+			if resp == nil {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			writeJSONResponse(w, resp)
+			return
+		}
 		writeJSONResponse(w, s.fail(req.ID, -32600, "Mcp-Session-Id header required"))
 		return
 	}
@@ -751,6 +775,10 @@ func parseResourcesCapability(req *request) bool {
 // MCP uses camelCase JSON keys per the external spec; Ze's kebab-case rule
 // exempts MCP. Keys are built via map literals to preserve the spec shape.
 func (s *Streamable) buildInitializeResult(req *request) *response {
+	name := "ze-mcp"
+	if s.cfg.Provider != nil {
+		name = s.cfg.Provider.ServerName()
+	}
 	return &response{
 		JSONRPC: "2.0",
 		ID:      req.ID,
@@ -762,7 +790,7 @@ func (s *Streamable) buildInitializeResult(req *request) *response {
 				"resources": map[string]any{},
 			},
 			"serverInfo": map[string]any{
-				"name":    "ze-mcp",
+				"name":    name,
 				"version": "2.0.0",
 			},
 		},

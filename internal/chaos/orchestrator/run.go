@@ -531,16 +531,21 @@ func setupReporting(cfg *OrchestratorConfig, peerCount int) (*reportingResult, e
 			StartTime:   cfg.Start,
 			PeerCount:   peerCount,
 		}
-		mcpHandler := zemcp.Handler(provider, "")
+		mcpHandler, mcpErr := zemcp.NewStreamable(zemcp.StreamableConfig{Provider: provider})
+		if mcpErr != nil {
+			return nil, fmt.Errorf("chaos MCP server: %w", mcpErr)
+		}
+		cleanups = append(cleanups, mcpHandler.Close)
 		mcpMux := http.NewServeMux()
-		mcpMux.Handle("/", mcpHandler)
+		mcpMux.Handle(zemcp.Endpoint, mcpHandler)
 		mcpSrv := &http.Server{Addr: cfg.McpAddr, Handler: mcpMux, ReadHeaderTimeout: 10 * time.Second}
 		go func() {
 			if err := mcpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				fmt.Fprintf(os.Stderr, "error: chaos MCP server: %v\n", err)
 			}
 		}()
-		fmt.Fprintf(os.Stderr, "ze-chaos | MCP server: http://%s\n", cfg.McpAddr)
+		var mcpURLBuf textbuf.Buffer
+		os.Stderr.WriteString(mcpURLBuf.Str("ze-chaos | MCP server: http://").Str(cfg.McpAddr).Str(zemcp.Endpoint).Byte('\n').String()) //nolint:errcheck // CLI status output
 		cleanups = append(cleanups, func() {
 			shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer shutCancel()

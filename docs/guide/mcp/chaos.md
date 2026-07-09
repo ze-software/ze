@@ -91,12 +91,16 @@ at most once per 10 seconds.
 
 ## Protocol
 
-The chaos MCP server speaks JSON-RPC 2.0 over HTTP POST (MCP 2024-11-05
-profile). It shares the same protocol implementation as the ze daemon's MCP
-server.
+The chaos MCP server speaks JSON-RPC 2.0 over the MCP 2025-06-18 Streamable
+HTTP transport at the `/mcp` endpoint, sharing the same implementation as the
+ze daemon's MCP server (`NewStreamable` with the chaos `ToolProvider`).
+Because the tool surface comes from a provider, session-less POSTs are
+accepted: each request below works standalone, no `Mcp-Session-Id` threading
+required.
+<!-- source: internal/chaos/orchestrator/run.go -- NewStreamable(Provider) mount -->
 
 ```bash
-curl -s http://127.0.0.1:8001/ \
+curl -s http://127.0.0.1:8001/mcp \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"chaos_status","arguments":{}}}'
 ```

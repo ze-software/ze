@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 275 design docs, 2879 files
+Total: 275 design docs, 2878 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1921,7 +1921,6 @@ Total: 275 design docs, 2879 files
 ## `docs/guide/mcp/overview.md`
 
 - `cmd/ze/help_ai.go` -- AI help reference generator
-- `internal/component/mcp/handler.go` -- MCP JSON-RPC HTTP handler
 - `internal/component/mcp/tools.go` -- MCP tool auto-generation from command registry
 
 ## `docs/research/bfd-implementation-guide.md`

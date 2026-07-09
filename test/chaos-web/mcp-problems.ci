@@ -8,11 +8,11 @@ tmpfs=problems.json:terminator=EOF_PROBLEMS
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"chaos_problems","arguments":{}}}
 EOF_PROBLEMS
 
-http=post:seq=1:url=http://127.0.0.1:$PORT2/:status=200:contains=result:sendfile=problems.json
+http=post:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=result:sendfile=problems.json
 
 # chaos_peers returns peer array
 tmpfs=peers.json:terminator=EOF_PEERS
 {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"chaos_peers","arguments":{}}}
 EOF_PEERS
 
-http=post:seq=2:url=http://127.0.0.1:$PORT2/:status=200:contains=routes-sent:sendfile=peers.json
+http=post:seq=2:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=routes-sent:sendfile=peers.json

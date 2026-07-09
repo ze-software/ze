@@ -77,26 +77,28 @@ package.
    `groupCommands` (`tools.go:95`) to bucket every `CommandInfo` by shared prefix into
    `toolGroup`s (e.g. "show bgp rib status" + "show bgp rib best" group under "show bgp rib"),
    then `generateTools`/`buildToolDef` (`tools.go:239`, `:256`) synthesize one JSON-Schema tool
-   per group named `ze_<prefix>` (`toolName`, `tools.go:231`), folding in typed YANG params
-   (`addYANGParams`, `tools.go:402`), the group's `execution.taskSupport`
-   (`groupTaskSupport`, `tools.go:379`), and `_meta.ui` when a `ze:ui-resource` is present
-   (`groupUIResource`, `tools.go:367`). Handcrafted tools `ze_execute`/`ze_reference`
-   (`handler.go:446-468`) are prepended and excluded from auto-generation via
-   `handcraftedNames` (`handler.go:292`).
-9. **tools/call: dispatch to command execution.** `callTool` (`streamable_tools.go:65`)
-   unmarshals `callParams` (`handler.go:148`), checks `TaskSupportForbidden`/`Required` via
-   `lookupTaskSupport` (`streamable_tools.go:70`, `:98`); if `params.Task` is set and allowed
-   it delegates to `createTask` (`:71`, `:210`) instead of running synchronously (task path: a
-   worker goroutine via `runTaskWorker`, `tasks.go:425`, transitions
-   `working -> completed|failed|cancelled`). Otherwise it builds a per-call `server` runner
-   (`handler.go:165`) and resolves the tool: handcrafted names hit
-   `toolHandlers[params.Name]` (`handler.go:226`) directly; generated names resolve via
-   `findGeneratedTool` (`streamable_tools.go:119`) back to a command prefix + valid-action set,
-   then `server.dispatchGenerated` (`tools.go:460`) assembles a plain CLI command string
+   per group named `ze_<prefix>` (`toolName`, `tools.go:240`), folding in typed YANG params
+   (`addYANGParams`, `tools.go:411`), the group's `execution.taskSupport`
+   (`groupTaskSupport`, `tools.go:388`), and `_meta.ui` when a `ze:ui-resource` is present
+   (`groupUIResource`, `tools.go:376`). Handcrafted tools `ze_execute`/`ze_reference`
+   (`tools.go:723-745`) are prepended and excluded from auto-generation via
+   `handcraftedNames` (`tools.go:678`).
+9. **tools/call: dispatch to command execution.** `callTool` (`streamable_tools.go:71`)
+   unmarshals `callParams` (`tools.go:603`), checks `TaskSupportForbidden`/`Required` via
+   `lookupTaskSupport` (`streamable_tools.go:117`); if `params.Task` is set and allowed
+   it delegates to `createTask` (`streamable_tools.go:229`) instead of running synchronously
+   (task path: a worker goroutine via `runTaskWorker`, `tasks.go:425`, transitions
+   `working -> completed|failed|cancelled`). A `StreamableConfig.Provider`
+   (ze-chaos) short-circuits here: `CallTool` delegates to the provider and task
+   calls are rejected (`streamable_tools.go:78-90`). Otherwise it builds a
+   per-call `server` runner (`tools.go:471`) and resolves the tool: handcrafted
+   names hit `toolHandlers[params.Name]` (`tools.go:611`) directly; generated names resolve via
+   `findGeneratedTool` (`streamable_tools.go:138`) back to a command prefix + valid-action set,
+   then `server.dispatchGenerated` (`tools.go:498`) assembles a plain CLI command string
    (`peer <sel> <prefix> <action> <typed-params...> <arguments>`) and calls `server.run`
-   (`handler.go:382`).
+   (`tools.go:698`).
 10. **Handoff to the shared command dispatcher.** `server.run` calls
-    `s.dispatch(command, username, remoteAddr)` (`handler.go:383`), the `CommandDispatcher`
+    `s.dispatch(command, username, remoteAddr)` (`tools.go:699`), the `CommandDispatcher`
     closure `mcpDispatch` built in step 1, equal to
     `serverDispatcherWithSurface(apiServer, audit.MCP)` (`main_servers.go:26`). It builds a
     `pluginserver.CommandContext{Surface: "mcp", ...}` (`main_servers.go:32`) and calls
@@ -104,7 +106,7 @@ package.
     `internal/component/plugin/server/command.go:538`), the identical dispatcher path
     CLI/SSH/web use, so MCP calls get the same authorization and accounting. The
     `plugin.Response` is JSON-marshaled back to a string (`main_servers.go:49`) and wrapped as
-    MCP content (`TextResult`/`ErrResult`, `handler.go:431`, `:438`).
+    MCP content (`TextResult`/`ErrResult`, `tools.go:707`, `:714`).
 11. **Response return.** `callTool`/`createTask` return a `*response`; `handlePOST` marshals it
     as a plain `application/json` body, or, if the handler elicited mid-call and the sink was
     upgraded, writes it as one more SSE `data:` frame through
@@ -119,7 +121,7 @@ package.
     (`tasks.CancelAllForSession`) and removes it from the registry. The registry's own GC
     goroutine sweeps every 30s and evicts idle/over-lifetime sessions (`session.go:309-350`).
 13. **Elicitation mid-dispatch (side branch off step 9).** A tool handler that needs missing
-    input (e.g. `ze_execute` with an empty `command`, `handler.go:240-271`) calls
+    input (e.g. `ze_execute` with an empty `command`, `tools.go:623-655`) calls
     `session.Elicit(ctx, message, schema)` (`elicit.go:227`). `Elicit` validates the schema
     against the flat-primitive subset the spec allows (`validateElicitSchema`, `elicit.go:102`),
     registers a correlation channel (`RegisterElicit`, `session.go:374`), upgrades the POST's
@@ -134,8 +136,7 @@ package.
 | `streamable.go` | Streamable HTTP dispatcher: `ServeHTTP`, Origin/CORS, `handlePOST`/`handleGET`/`handleDELETE`, `initialize`, session binding, RFC 9728 metadata endpoint |
 | `streamable_tools.go` | `runMethod` JSON-RPC method switch, `callTool`, task-augmented `tools/call` (`createTask`), `tasks/*` handlers |
 | `streamable_auth.go` | `buildAuthForMode`: OAuth AS-metadata fetch + JWKS priming at startup, dispatch to bearer/none/oauth strategies |
-| `handler.go` | JSON-RPC 2.0 wire types (`request`/`response`/`rpcError`/`callParams`), the `server` per-request runner, handcrafted tools (`ze_execute`, `ze_reference`), legacy `Handler`/`ZeProvider` (2024-11-05 profile) |
-| `tools.go` | Command-registry to MCP tool auto-generation: `groupCommands`, `buildToolDef`, `dispatchGenerated` (tool call to CLI command string) |
+| `tools.go` | JSON-RPC 2.0 wire types (`request`/`response`/`rpcError`/`callParams`), the `server` per-request runner, handcrafted tools (`ze_execute`, `ze_reference`), `ToolProvider` interface (ze-chaos), plus command-registry to MCP tool auto-generation: `groupCommands`, `buildToolDef`, `dispatchGenerated` (tool call to CLI command string). The legacy 2024-11-05 `Handler`/`ZeProvider` were deleted (spec-followup-subsystem AC-9) |
 | `session.go` | `sessionRegistry` (TTL/lifetime GC, cap), `session` (capability bits, correlation map, outbound SSE queue, per-POST reply sink binding) |
 | `reply_sink.go` | `jsonReplySink` / `sseReplySink`: the POST-response upgrade mechanism elicitation relies on |
 | `elicit.go` | `session.Elicit`, flat-primitive schema validator, `ErrElicit*` sentinels |
@@ -175,7 +176,7 @@ package.
 - **Elicitation requires ctx propagation.** `ze_execute`'s missing-command branch and
   `session.Elicit` both take the originating POST's `context.Context` so a client disconnect
   (`ctx.Done()`) unblocks the suspended handler instead of leaking a correlation entry until the
-  session TTL sweeps it (`handler.go:247-251`, `elicit.go:263-268`).
+  session TTL sweeps it (`tools.go:630-634`, `elicit.go:263-268`).
 - **Reserved param names are never forwarded as typed args.** `dispatchGenerated` treats
   `action`, `arguments`, `peer` as protocol-level fields (`tools.go:450`); any other JSON key
   becomes a `key value` pair appended to the CLI command string. Values containing

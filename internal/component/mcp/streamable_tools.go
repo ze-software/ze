@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // runMethod runs a JSON-RPC method handler to completion synchronously. ctx
@@ -42,8 +44,12 @@ func (s *Streamable) runMethod(ctx context.Context, sess *session, req *request,
 	}
 }
 
-// allTools returns the combined handcrafted + auto-generated tool list.
+// allTools returns the provider's tools (Provider mode), or the combined
+// handcrafted + auto-generated tool list (command-registry mode).
 func (s *Streamable) allTools() []map[string]any {
+	if s.cfg.Provider != nil {
+		return s.cfg.Provider.Tools()
+	}
 	if s.cfg.Commands == nil {
 		result := make([]map[string]any, len(handcraftedTools))
 		copy(result, handcraftedTools)
@@ -66,6 +72,19 @@ func (s *Streamable) callTool(ctx context.Context, req *request, sess *session, 
 	var params callParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		return s.fail(req.ID, -32602, "invalid params: "+err.Error())
+	}
+	// Provider mode: delegate directly; provider tools never support
+	// task-augmented calls (the legacy handler had no tasks either).
+	if s.cfg.Provider != nil {
+		var tb textbuf.Buffer
+		if params.Task != nil {
+			return s.fail(req.ID, -32602, tb.Str("tool ").Str(params.Name).Str(" does not support task-augmented calls").String())
+		}
+		result := s.cfg.Provider.CallTool(params.Name, params.Arguments)
+		if result == nil {
+			return s.fail(req.ID, -32602, tb.Str("unknown tool: ").Str(params.Name).String())
+		}
+		return s.ok(req.ID, result)
 	}
 	ts := s.lookupTaskSupport(params.Name)
 	if params.Task != nil {

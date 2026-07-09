@@ -36,6 +36,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Env var registrations for ze-chaos port flags.
@@ -622,21 +623,29 @@ Control:
 				StartTime:   time.Now(),
 				PeerCount:   len(profiles),
 			}
-			mcpHandler := zemcp.Handler(mcpProvider, "")
+			mcpHandler, mcpErr := zemcp.NewStreamable(zemcp.StreamableConfig{Provider: mcpProvider})
+			if mcpErr != nil {
+				var tb textbuf.Buffer
+				os.Stderr.WriteString(tb.Str("error: chaos MCP server: ").Err(mcpErr).Byte('\n').String()) //nolint:errcheck // CLI error output
+				return 1
+			}
+			defer mcpHandler.Close()
 			mcpMux := http.NewServeMux()
-			mcpMux.Handle("/", mcpHandler)
+			mcpMux.Handle(zemcp.Endpoint, mcpHandler)
 			mcpSrv := &http.Server{Addr: *mcpAddr, Handler: mcpMux, ReadHeaderTimeout: 10 * time.Second}
 			go func() {
 				if err := mcpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 					fmt.Fprintf(os.Stderr, "error: chaos MCP server: %v\n", err)
 				}
 			}()
-			fmt.Fprintf(os.Stderr, "ze-chaos | MCP server: http://%s\n", *mcpAddr)
+			var mcpURLBuf textbuf.Buffer
+			os.Stderr.WriteString(mcpURLBuf.Str("ze-chaos | MCP server: http://").Str(*mcpAddr).Str(zemcp.Endpoint).Byte('\n').String()) //nolint:errcheck // CLI status output
 			defer func() {
 				shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
 				defer shutCancel()
 				if err := mcpSrv.Shutdown(shutCtx); err != nil {
-					fmt.Fprintf(os.Stderr, "error: shutting down MCP server: %v\n", err)
+					var tb textbuf.Buffer
+					os.Stderr.WriteString(tb.Str("error: shutting down MCP server: ").Err(err).Byte('\n').String()) //nolint:errcheck // CLI error output
 				}
 			}()
 

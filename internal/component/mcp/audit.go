@@ -1,5 +1,4 @@
 // Design: docs/architecture/core-design.md -- audit component
-// Related: handler.go -- legacy MCP HTTP auth path
 // Related: streamable.go -- Streamable MCP auth path
 
 package mcp

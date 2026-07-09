@@ -3,7 +3,7 @@
 <!-- source: internal/component/mcp/elicit.go -- session.Elicit -->
 <!-- source: internal/component/mcp/session.go -- correlation + capability bit -->
 <!-- source: internal/component/mcp/streamable.go -- POST -> SSE upgrade -->
-<!-- source: internal/component/mcp/handler.go -- ze_execute missing-command branch -->
+<!-- source: internal/component/mcp/tools.go -- ze_execute missing-command branch -->
 
 Ze implements the MCP 2025-06-18
 [elicitation](https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation)
@@ -109,7 +109,7 @@ into a typed outcome the handler can branch on:
    an `isError` result; do not treat it as a bug.
 6. On any other error, surface the error text verbatim.
 
-The `ze_execute` handler in `internal/component/mcp/handler.go` is the
+The `ze_execute` handler in `internal/component/mcp/tools.go` is the
 reference implementation. Functional coverage lives in
 `test/plugin/elicitation-{accept,decline,no-capability}.ci`.
 

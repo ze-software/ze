@@ -5,142 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 )
 
-func TestToolProviderInterface(t *testing.T) {
-	var dispatched string
-	provider := NewZeProvider(
-		func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
-			dispatched = cmd
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("dispatch-ok")), nil
-		},
-		func() []CommandInfo {
-			return []CommandInfo{
-				{Name: "show bgp rib status", Help: "RIB summary"},
-				{Name: "show bgp rib", Help: "Show routes"},
-				{Name: "show bgp peer list", Help: "List peers"},
-				{Name: "show config dump", Help: "Dump config"},
-			}
-		},
-	)
-
-	// ServerName.
-	if name := provider.ServerName(); name != "ze-mcp" {
-		t.Errorf("ServerName() = %q, want %q", name, "ze-mcp")
-	}
-
-	// Tools includes handcrafted + generated.
-	tools := provider.Tools()
-	names := make(map[string]bool)
-	for _, tool := range tools {
-		if n, ok := tool["name"].(string); ok {
-			names[n] = true
-		}
-	}
-	if !names["ze_execute"] {
-		t.Error("Tools() missing handcrafted ze_execute")
-	}
-	if !names["ze_show_bgp"] {
-		t.Error("Tools() missing auto-generated ze_show_bgp")
-	}
-
-	// CallTool dispatches handcrafted tool.
-	args, _ := json.Marshal(map[string]string{"command": "peer list"})
-	result := provider.CallTool("ze_execute", args)
-	if result == nil {
-		t.Fatal("CallTool(ze_execute) returned nil")
-	}
-	if dispatched != "peer list" {
-		t.Errorf("dispatched = %q, want %q", dispatched, "peer list")
-	}
-
-	// CallTool dispatches generated tool.
-	dispatched = ""
-	args, _ = json.Marshal(map[string]string{"action": "rib status"})
-	result = provider.CallTool("ze_show_bgp", args)
-	if result == nil {
-		t.Fatal("CallTool(ze_show_bgp) returned nil")
-	}
-	if dispatched != "show bgp rib status" {
-		t.Errorf("dispatched = %q, want %q", dispatched, "show bgp rib status")
-	}
-
-	// CallTool returns nil for unknown tool.
-	result = provider.CallTool("nonexistent", nil)
-	if result != nil {
-		t.Errorf("CallTool(nonexistent) = %v, want nil", result)
-	}
-
-	// Handler uses provider's ServerName in initialize response.
-	handler := Handler(provider, "")
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize"}`
-	req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	var resp struct {
-		Result struct {
-			ServerInfo struct {
-				Name string `json:"name"`
-			} `json:"serverInfo"`
-		} `json:"result"`
-	}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if resp.Result.ServerInfo.Name != "ze-mcp" {
-		t.Errorf("serverInfo.name = %q, want %q", resp.Result.ServerInfo.Name, "ze-mcp")
-	}
-}
-
-func TestLegacyHandlerBearerAuthFailureAuditRecord(t *testing.T) {
-	recorder, err := audit.NewMemory(100)
-	if err != nil {
-		t.Fatalf("NewMemory: %v", err)
-	}
-	provider := NewZeProvider(
-		func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok: "+cmd)), nil
-		},
-		func() []CommandInfo { return nil },
-	)
-	handler := HandlerWithAudit(provider, "secret", recorder)
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize"}`
-	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(body))
-	req.Header.Set("Authorization", "Bearer alice:wrong")
-	req.Header.Set("Content-Type", "application/json")
-	req.RemoteAddr = "192.0.2.10:5555"
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("status = %d, want 401", rec.Code)
-	}
-	entries := recorder.Query(audit.Filter{Action: audit.ActionAuthFail})
-	if len(entries) != 1 {
-		t.Fatalf("audit entries = %d, want 1", len(entries))
-	}
-	if entries[0].Actor != "alice" {
-		t.Fatalf("actor = %q, want alice", entries[0].Actor)
-	}
-	if entries[0].RemoteAddr != "192.0.2.10:5555" {
-		t.Fatalf("remote addr = %q, want 192.0.2.10:5555", entries[0].RemoteAddr)
-	}
-	if entries[0].Surface != audit.MCP {
-		t.Fatalf("surface = %q, want %q", entries[0].Surface, audit.MCP)
-	}
-	if entries[0].Outcome != audit.OutcomeDenied {
-		t.Fatalf("outcome = %q, want %q", entries[0].Outcome, audit.OutcomeDenied)
-	}
-}
+// test-relax: TestToolProviderInterface and
+// TestLegacyHandlerBearerAuthFailureAuditRecord removed with the legacy
+// Handler/HandlerWithAudit/ZeProvider deletion (spec-followup-subsystem AC-9).
+// ToolProvider coverage now lives in provider_test.go against the Streamable
+// transport (TestStreamableProviderServesSessionless and friends); the
+// Streamable bearer-auth failure audit record is asserted by
+// TestStreamableBearerAuthFailureAuditRecord in streamable_test.go.
 
 func TestGroupCommands(t *testing.T) {
 	commands := []CommandInfo{
@@ -356,10 +233,10 @@ func TestDispatchGenerated(t *testing.T) {
 	}
 }
 
+// TestAllToolsWithoutCommandLister exercises Streamable.allTools, the single
+// remaining tool-list builder after the legacy handler deletion (AC-9).
 func TestAllToolsWithoutCommandLister(t *testing.T) {
-	s := &server{dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-		return plugin.NewResponse(plugin.StatusDone, nil), nil
-	}}
+	s := &Streamable{cfg: StreamableConfig{}}
 
 	tools := s.allTools()
 	if len(tools) != len(handcraftedTools) {
@@ -368,11 +245,8 @@ func TestAllToolsWithoutCommandLister(t *testing.T) {
 }
 
 func TestAllToolsWithCommandLister(t *testing.T) {
-	s := &server{
-		dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, nil), nil
-		},
-		commands: func() []CommandInfo {
+	s := &Streamable{cfg: StreamableConfig{
+		Commands: func() []CommandInfo {
 			return []CommandInfo{
 				{Name: "show bgp rib status", Help: "RIB summary"},
 				{Name: "show bgp rib", Help: "Show routes"},
@@ -382,7 +256,7 @@ func TestAllToolsWithCommandLister(t *testing.T) {
 				{Name: "show config dump", Help: "Dump config"},
 			}
 		},
-	}
+	}}
 
 	tools := s.allTools()
 	// All handcrafted tools + 3 auto-generated groups (show-bgp, metrics, show-config).
@@ -449,87 +323,87 @@ func TestZeReferenceTool(t *testing.T) {
 	}
 }
 
+// TestCallToolGeneratedViaHTTP drives a synchronous auto-generated tools/call
+// through the Streamable HTTP path (the only transport after the legacy
+// handler deletion, spec-followup-subsystem AC-9): initialize -> session POST
+// -> dispatchGenerated -> dispatcher output framed as MCP content.
 func TestCallToolGeneratedViaHTTP(t *testing.T) {
 	var dispatched string
-	handler := Handler(
-		NewZeProvider(
-			func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
-				dispatched = cmd
-				return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("result-ok")), nil
-			},
-			func() []CommandInfo {
-				return []CommandInfo{
-					{Name: "show bgp rib status", Help: "RIB summary"},
-					{Name: "show bgp rib", Help: "Show routes"},
-					{Name: "show bgp peer list", Help: "List peers"},
-					{Name: "show config dump", Help: "Dump config"},
-				}
-			},
-		),
-		"",
-	)
+	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+			dispatched = cmd
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("result-ok")), nil
+		},
+		Commands: func() []CommandInfo {
+			return []CommandInfo{
+				{Name: "show bgp rib status", Help: "RIB summary"},
+				{Name: "show bgp rib", Help: "Show routes"},
+				{Name: "show bgp peer list", Help: "List peers"},
+				{Name: "show config dump", Help: "Dump config"},
+			}
+		},
+	})
+	defer cleanup()
+
+	sid, status, _ := initializeResult(t, hs)
+	if status != http.StatusOK || sid == "" {
+		t.Fatalf("initialize: status=%d sid=%q", status, sid)
+	}
 
 	// Call the auto-generated ze_show_bgp tool with action "rib status".
-	body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ze_show_bgp","arguments":{"action":"rib status"}}}`
-	req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	body := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ze_show_bgp","arguments":{"action":"rib status"}}}`
+	result := postTaskCall(t, hs, sid, body)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", rr.Code)
-	}
 	if dispatched != "show bgp rib status" {
 		t.Errorf("dispatched = %q, want %q", dispatched, "show bgp rib status")
 	}
-
-	var resp struct {
-		Result struct {
-			Content []struct {
-				Text string `json:"text"`
-			} `json:"content"`
-		} `json:"result"`
+	res, ok := result["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected result, got: %v", result)
 	}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal response: %v", err)
+	content, ok := res["content"].([]any)
+	if !ok || len(content) == 0 {
+		t.Fatalf("expected content, got: %v", res)
 	}
-	// test-relax: plain-text fake output now marshals to a quoted JSON string via the unified typed dispatcher
-	if len(resp.Result.Content) == 0 || resp.Result.Content[0].Text != `"result-ok"` {
-		t.Errorf("unexpected response: %s", rr.Body.String())
+	first, _ := content[0].(map[string]any)
+	// Plain-text fake output marshals to a quoted JSON string via the unified
+	// typed dispatcher.
+	if text, _ := first["text"].(string); text != `"result-ok"` {
+		t.Errorf("unexpected response text: %q", text)
 	}
 }
 
 func TestCallToolAutoGeneratedViaHTTPSecondTool(t *testing.T) {
 	var dispatched string
-	handler := Handler(
-		NewZeProvider(
-			func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
-				dispatched = cmd
-				return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
-			},
-			func() []CommandInfo {
-				return []CommandInfo{
-					{Name: "show bgp rib status", Help: "RIB summary"},
-					{Name: "show bgp peer list", Help: "List peers"},
-					{Name: "metrics values", Help: "Metric values"},
-				}
-			},
-		),
-		"",
-	)
+	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+			dispatched = cmd
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
+		},
+		Commands: func() []CommandInfo {
+			return []CommandInfo{
+				{Name: "show bgp rib status", Help: "RIB summary"},
+				{Name: "show bgp peer list", Help: "List peers"},
+				{Name: "metrics values", Help: "Metric values"},
+			}
+		},
+	})
+	defer cleanup()
+
+	sid, status, _ := initializeResult(t, hs)
+	if status != http.StatusOK || sid == "" {
+		t.Fatalf("initialize: status=%d sid=%q", status, sid)
+	}
 
 	// Call auto-generated ze_metrics tool.
 	body := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ze_metrics","arguments":{"action":"values"}}}`
-	req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	result := postTaskCall(t, hs, sid, body)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", rr.Code)
-	}
 	if dispatched != "metrics values" {
 		t.Errorf("dispatched = %q, want %q", dispatched, "metrics values")
+	}
+	if _, ok := result["result"].(map[string]any); !ok {
+		t.Fatalf("expected result, got: %v", result)
 	}
 }
 
@@ -755,50 +629,39 @@ func TestDispatchGeneratedDispatchError(t *testing.T) {
 	}
 }
 
+// TestCallToolUnknownViaHTTP verifies an unknown tool name returns the
+// JSON-RPC invalid-params error through the Streamable session path
+// (registry mode; the provider-mode twin lives in provider_test.go).
 func TestCallToolUnknownViaHTTP(t *testing.T) {
 	// Finding #6: unknown tool name returns error.
-	handler := Handler(
-		NewZeProvider(
-			func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-				return plugin.NewResponse(plugin.StatusDone, nil), nil
-			},
-			func() []CommandInfo { return nil },
-		),
-		"",
-	)
-	body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ze_nonexistent","arguments":{}}}`
-	req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+		Commands: func() []CommandInfo { return nil },
+	})
+	defer cleanup()
 
-	var resp struct {
-		Error *struct {
-			Code    int    `json:"code"`
-			Message string `json:"message"`
-		} `json:"error"`
+	sid, status, _ := initializeResult(t, hs)
+	if status != http.StatusOK || sid == "" {
+		t.Fatalf("initialize: status=%d sid=%q", status, sid)
 	}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+	body := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ze_nonexistent","arguments":{}}}`
+	result := postTaskCall(t, hs, sid, body)
+
+	errObj, ok := result["error"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected JSON-RPC error, got: %v", result)
 	}
-	if resp.Error == nil {
-		t.Fatal("expected JSON-RPC error")
+	if code, _ := errObj["code"].(float64); int(code) != -32602 {
+		t.Errorf("error code = %v, want -32602", errObj["code"])
 	}
-	if resp.Error.Code != -32602 {
-		t.Errorf("error code = %d, want -32602", resp.Error.Code)
-	}
-	if !strings.Contains(resp.Error.Message, "unknown tool") {
-		t.Errorf("error message = %q, want to contain 'unknown tool'", resp.Error.Message)
+	if msg, _ := errObj["message"].(string); !strings.Contains(msg, "unknown tool") {
+		t.Errorf("error message = %q, want to contain 'unknown tool'", msg)
 	}
 }
 
 func TestHandcraftedSkipPreventsDuplicates(t *testing.T) {
 	// Finding #1: handcrafted tool names prevent duplicate auto-generated tools.
-	s := &server{
-		dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, nil), nil
-		},
-		commands: func() []CommandInfo {
+	s := &Streamable{cfg: StreamableConfig{
+		Commands: func() []CommandInfo {
 			return []CommandInfo{
 				// "commands" prefix would generate ze_commands, colliding with handcrafted.
 				{Name: "commands list", Help: "List commands"},
@@ -807,7 +670,7 @@ func TestHandcraftedSkipPreventsDuplicates(t *testing.T) {
 				{Name: "show bgp peer list", Help: "List peers"},
 			}
 		},
-	}
+	}}
 
 	tools := s.allTools()
 	// Count how many times ze_commands appears.
@@ -822,77 +685,17 @@ func TestHandcraftedSkipPreventsDuplicates(t *testing.T) {
 	}
 }
 
-func TestBearerTokenAuth(t *testing.T) {
-	handler := Handler(
-		NewZeProvider(
-			func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-				return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
-			},
-			nil,
-		),
-		"secret-token-123",
-	)
-
-	// No token: rejected.
-	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`
-	req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("no token: status = %d, want 401", rr.Code)
-	}
-
-	// Wrong token: rejected.
-	req, _ = http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer wrong-token")
-	rr = httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("wrong token: status = %d, want 401", rr.Code)
-	}
-
-	// Correct token: accepted.
-	req, _ = http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer secret-token-123")
-	rr = httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Errorf("correct token: status = %d, want 200", rr.Code)
-	}
-}
-
-func TestBearerTokenEmptyAllowsAll(t *testing.T) {
-	handler := Handler(
-		NewZeProvider(
-			func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-				return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
-			},
-			nil,
-		),
-		"",
-	)
-
-	// No token, empty config: accepted.
-	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`
-	req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Errorf("empty token config: status = %d, want 200", rr.Code)
-	}
-}
+// test-relax: TestBearerTokenAuth and TestBearerTokenEmptyAllowsAll removed
+// with the legacy Handler deletion (spec-followup-subsystem AC-9). The bearer
+// authenticator is covered by bearer_test.go
+// (TestBearerAuthenticator_ValidToken/MissingHeader/WrongToken) and the
+// Streamable's initialize-time auth failure by
+// TestStreamableBearerAuthFailureAuditRecord in streamable_test.go.
 
 func TestTypedParamsInToolSchema(t *testing.T) {
 	// Verify YANG RPC params flow through to tool JSON schema as typed properties.
-	s := &server{
-		dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, nil), nil
-		},
-		commands: func() []CommandInfo {
+	s := &Streamable{cfg: StreamableConfig{
+		Commands: func() []CommandInfo {
 			return []CommandInfo{
 				{
 					Name: "show bgp rib",
@@ -916,7 +719,7 @@ func TestTypedParamsInToolSchema(t *testing.T) {
 				},
 			}
 		},
-	}
+	}}
 
 	tools := s.allTools()
 	// Find ze_show_bgp in the tool list.

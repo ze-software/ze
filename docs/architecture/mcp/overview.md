@@ -6,7 +6,7 @@ operator uses at the CLI. The implementation lives in
 `internal/component/mcp/` and is mounted by `cmd/ze/hub/` on an HTTP listener
 configured under `environment.mcp.server`.
 
-<!-- source: internal/component/mcp/handler.go — MCP component package layout -->
+<!-- source: internal/component/mcp/tools.go — MCP component tool dispatch primitives -->
 <!-- source: internal/component/mcp/streamable.go — Streamable HTTP transport -->
 <!-- source: cmd/ze/hub/service_mcp.go — production mount point (ze_mcp) -->
 
@@ -14,20 +14,20 @@ configured under `environment.mcp.server`.
 
 | Profile | Status | Used By |
 |---------|--------|---------|
-| 2024-11-05 JSON-RPC-over-POST | Legacy (test compatibility) | `internal/component/mcp/handler.go` (`Handler` factory) |
-| 2025-06-18 Streamable HTTP | Current | `internal/component/mcp/streamable.go` (`NewStreamable`) |
+| 2025-06-18 Streamable HTTP | Current (only transport) | `internal/component/mcp/streamable.go` (`NewStreamable`) |
 
 `cmd/ze/hub/mcp.go:startMCPServer` mounts `NewStreamable` for all production
-listeners. The legacy `Handler` factory remains for tests that exercise the
-older single-shot POST semantics; it will be removed once every test has been
-migrated to the session-oriented transport.
+listeners. The legacy 2024-11-05 single-shot POST `Handler` factory was
+deleted (spec-followup-subsystem AC-9) after its last callers (the ze-chaos
+orchestrator) migrated to `NewStreamable` with a `ToolProvider`; a
+provider-backed server accepts session-less POSTs so stateless clients keep
+working.
 
 ## Files
 
 | File | Concern |
 |------|---------|
-| `handler.go` | JSON-RPC 2.0 types (`request`, `response`, `rpcError`, `callParams`), handcrafted tool catalogue, tool runner helper (`server` struct with optional `*session`), legacy `Handler` factory |
-| `tools.go` | Command-registry -> MCP tool auto-generation: grouping, schema emission, dispatch |
+| `tools.go` | JSON-RPC 2.0 types (`request`, `response`, `rpcError`, `callParams`), handcrafted tool catalogue, tool runner helper (`server` struct with optional `*session`), `ToolProvider` interface, command-registry -> MCP tool auto-generation: grouping, schema emission, dispatch |
 | `streamable.go` | MCP 2025-06-18 Streamable HTTP dispatcher: POST/GET/DELETE, Origin gate, Bearer check, method dispatch, `handleElicitResponse` correlation router |
 | `session.go` | Session registry (`sessionRegistry`), session state (`session`) with `clientElicit`/`clientTasks`/`clientResources` bits and elicit correlation map, TTL garbage collection, SSE outbound queue, `onExpire` callback |
 | `resources.go` | MCP resources capability: `resources/list` (walks embedded FS), `resources/read` (serves `ui://` assets), MIME sniffer, URI validator |

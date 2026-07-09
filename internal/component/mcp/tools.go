@@ -1,14 +1,23 @@
 // Design: docs/guide/mcp/overview.md -- MCP tool auto-generation from command registry
-// Overview: handler.go -- MCP HTTP handler and handcrafted tools
+// Related: streamable.go -- Streamable HTTP transport (the only HTTP entry point)
 
+// Package mcp implements the MCP (Model Context Protocol) server surface:
+// JSON-RPC tool dispatch wrapping Ze's command dispatcher, served over the
+// Streamable HTTP transport (streamable.go). Tools are auto-generated from
+// the command registry, plus a small handcrafted set (ze_execute,
+// ze_reference); a ToolProvider (ze-chaos) can replace the tool surface
+// entirely via StreamableConfig.Provider.
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aihelp"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -449,6 +458,35 @@ func yangTypeToJSON(yangType string) string {
 // reservedParams are the built-in dispatch parameters, not forwarded as typed args.
 var reservedParams = map[string]bool{"action": true, "arguments": true, "peer": true}
 
+// server runs one tool dispatch.
+//
+// Lifetime: one *server per HTTP request. `Streamable.callTool` creates it
+// per tools/call; the task worker builds one per task run. ctx and session
+// carry request-scoped state; storing them on the struct keeps the
+// `toolHandlers` map signature compact. DO NOT hoist the construction out of
+// the request scope -- sharing a *server across concurrent requests would
+// race on the ctx/session fields. When a handler needs ctx or session it
+// reads the field directly and degrades on nil (unit tests construct
+// *server directly without either).
+type server struct {
+	dispatch CommandDispatcher
+	commands CommandLister
+	// session carries the active POST's session so tool handlers (notably
+	// ze_execute's missing-command branch) can call session.Elicit. Nil
+	// when dispatch runs outside a session context (isolated handler
+	// tests). Nil-aware handlers must degrade gracefully.
+	session *session
+	// ctx is the active HTTP request's context. Tool handlers that call
+	// into session.Elicit (or any other blocking op) MUST pass this ctx
+	// through so a client disconnect unblocks the suspended handler via
+	// ctx.Done() -- otherwise the correlation lingers until the session
+	// TTL sweeps it. Nil in unit tests; use context.Background() as the
+	// fallback in that case.
+	ctx        context.Context //nolint:containedctx // per-request state; see godoc above
+	username   string
+	remoteAddr string
+}
+
 // dispatchGenerated handles a tools/call for an auto-generated tool.
 // It builds the command string from the tool group prefix + action + typed params + arguments.
 // validActions contains the server-defined action names; if non-nil, the action
@@ -515,4 +553,193 @@ func (s *server) dispatchGenerated(prefix string, validActions map[string]bool, 
 	}
 
 	return s.run(cmd.String())
+}
+
+// --- Shared tool-dispatch primitives (moved from the deleted legacy
+// handler.go; spec-followup-subsystem AC-9). The Streamable transport and the
+// ze-chaos ToolProvider both build on these. ---
+
+// maxRequestBody limits the size of MCP HTTP request bodies (1 MB).
+const maxRequestBody = 1 << 20
+
+// ToolProvider supplies tool definitions and handles tool calls for an MCP
+// server. ze-chaos implements this with its own tools (chaos_status, ...);
+// set StreamableConfig.Provider to serve a provider's tools instead of the
+// command-registry surface.
+type ToolProvider interface {
+	ServerName() string
+	Tools() []map[string]any
+	CallTool(name string, args json.RawMessage) map[string]any
+}
+
+// CommandDispatcher executes a Ze command and returns the typed response. It
+// is an alias for the unified plugin.CommandDispatcher every surface shares;
+// the MCP handlers render the JSON string at their edge via
+// CommandDispatcher.JSON, threading the authenticated caller's identity so
+// authorization and accounting apply to MCP surfaces, not only SSH.
+type CommandDispatcher = plugin.CommandDispatcher
+
+// JSON-RPC 2.0 types. All field names are lowercase (no kebab-case conflict).
+
+type request struct {
+	JSONRPC string           `json:"jsonrpc"`
+	ID      *json.RawMessage `json:"id,omitempty"`
+	Method  string           `json:"method"`
+	Params  json.RawMessage  `json:"params,omitempty"`
+}
+
+type response struct {
+	JSONRPC string           `json:"jsonrpc"`
+	ID      *json.RawMessage `json:"id"`
+	Result  any              `json:"result,omitempty"`
+	Error   *rpcError        `json:"error,omitempty"`
+}
+
+type rpcError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+type callParams struct {
+	Name      string          `json:"name"`
+	Arguments json.RawMessage `json:"arguments"`
+	Task      json.RawMessage `json:"task,omitempty"`
+}
+
+// toolHandlers maps handcrafted MCP tool names to their implementations.
+// ze_execute is a raw command dispatch escape hatch (equivalent to ze_system dispatch).
+var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]any{
+	"ze_execute": func(s *server, args json.RawMessage) map[string]any {
+		var input struct {
+			Command string `json:"command"`
+		}
+		var tb textbuf.Buffer
+		if err := json.Unmarshal(args, &input); err != nil {
+			return ErrResult(tb.Str("invalid arguments: ").Err(err).String())
+		}
+		if s.dispatch == nil {
+			return ErrResult("dispatcher not available")
+		}
+		// Missing command: if the client declared the elicitation capability,
+		// prompt for one. Otherwise fail fast so the caller re-invokes with a
+		// command instead of blocking on an Elicit that will never be answered.
+		if input.Command == "" {
+			if s.session == nil || !s.session.ClientSupportsElicit() {
+				return ErrResult("missing required argument: command")
+			}
+			// Prefer the POST's context so a client disconnect unblocks the
+			// suspended handler; fall back to Background when the server was
+			// constructed without one (unit tests).
+			ctx := s.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			content, err := s.session.Elicit(ctx,
+				"Which ze command would you like to run?",
+				map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"command": map[string]any{
+							"type":        "string",
+							"description": "A ze CLI command, e.g. 'peer list' or 'show bgp summary'",
+						},
+					},
+					"required": []any{"command"},
+				})
+			if err != nil {
+				return ErrResult(tb.Str("elicit: ").Err(err).String())
+			}
+			cmd, _ := content["command"].(string)
+			if cmd == "" {
+				return ErrResult("elicit returned empty command")
+			}
+			input.Command = cmd
+		}
+		result, err := s.dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, input.Command)
+		if err != nil {
+			return ErrResult(err.Error())
+		}
+		return TextResult(result)
+	},
+	// ze_reference returns the full machine-readable AI reference, assembled
+	// from the same source as `ze help ai --json` (internal/component/aihelp),
+	// so an MCP client can discover this instance's capabilities on connect.
+	"ze_reference": func(_ *server, _ json.RawMessage) map[string]any {
+		data, err := json.MarshalIndent(aihelp.Build(), "", "  ")
+		if err != nil {
+			return ErrResult("could not marshal AI reference")
+		}
+		return TextResult(string(data))
+	},
+}
+
+// handcraftedNames returns the set of tool names from handcrafted tools.
+// Used to filter auto-generated tools and prevent duplicate names.
+func handcraftedNames() map[string]bool {
+	names := make(map[string]bool, len(toolHandlers))
+	for name := range toolHandlers {
+		names[name] = true
+	}
+	return names
+}
+
+// noSpaces rejects values containing whitespace or newlines.
+// The dispatcher tokenizes by spaces, so embedded spaces would
+// split a single value into multiple tokens and corrupt the command.
+// Semantic validation (valid IP, valid prefix, etc.) is done by the dispatcher.
+func noSpaces(field, value string) error {
+	if strings.ContainsAny(value, " \t\n\r") {
+		return fmt.Errorf("%s must not contain whitespace: %q", field, value)
+	}
+	return nil
+}
+
+// run dispatches a command and returns the result as MCP content.
+func (s *server) run(command string) map[string]any {
+	output, err := s.dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
+	if err != nil {
+		return ErrResult(err.Error())
+	}
+	return TextResult(output)
+}
+
+// TextResult returns an MCP text content result.
+func TextResult(s string) map[string]any {
+	return map[string]any{
+		"content": []map[string]any{{"type": "text", "text": s}},
+	}
+}
+
+// ErrResult returns an MCP error content result.
+func ErrResult(msg string) map[string]any {
+	var tb textbuf.Buffer
+	return map[string]any{
+		"content": []map[string]any{{"type": "text", "text": tb.Str("Error: ").Str(msg).String()}},
+		"isError": true,
+	}
+}
+
+// handcraftedTools defines tool schemas for handcrafted tools.
+var handcraftedTools = []map[string]any{
+	{
+		"name":        "ze_execute",
+		"description": "Execute a ze CLI command and return the result. When invoked with a client that declared capabilities.elicitation, omitting 'command' causes the server to prompt for one via elicitation/create.",
+		"inputSchema": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"command": map[string]any{
+					"type":        "string",
+					"description": "The ze command to execute (e.g., 'peer list', 'show bgp summary'). Optional only when the client supports elicitation.",
+				},
+			},
+		},
+	},
+	{
+		"name":        "ze_reference",
+		"description": "Full machine-readable reference for this ze daemon: CLI commands, daemon API endpoints (ze-show:*, ze-set:*, ...) with dispatch keys, loaded plugins, address families, and config services. Call this first to discover what this instance can do. Returns the same JSON as 'ze help ai --json'.",
+		"inputSchema": map[string]any{
+			"type":       "object",
+			"properties": map[string]any{},
+		},
+	},
 }
