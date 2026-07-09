@@ -64,47 +64,13 @@ func (s *LGServer) handleAPIProtocolsShort(w http.ResponseWriter, _ *http.Reques
 	writeJSON(w, bw)
 }
 
-// handleAPIRoutesProtocol returns routes from a named peer in birdwatcher format.
-func (s *LGServer) handleAPIRoutesProtocol(w http.ResponseWriter, r *http.Request) {
-	name := r.PathValue("name")
-	if name == "" {
-		writeJSONError(w, http.StatusBadRequest, "peer name required")
-		return
-	}
-
-	if !isValidPeerName(name) {
-		writeJSONError(w, http.StatusBadRequest, "invalid peer name")
-		return
-	}
-
-	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib peer ").Str(name).String())
-
-	zeData := parseJSON(result)
-	if zeData == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
-		return
-	}
-
-	if errMsg, ok := zeData["error"].(string); ok {
-		writeJSONError(w, http.StatusNotFound, errMsg)
-		return
-	}
-
-	bw := transformRoutes(zeData, name)
-	writeJSON(w, bw)
-}
-
-// handleAPIRoutesPeer returns routes from a peer by IP address in birdwatcher format.
-func (s *LGServer) handleAPIRoutesPeer(w http.ResponseWriter, r *http.Request) {
-	peer := r.PathValue("peer")
-	if peer == "" {
-		writeJSONError(w, http.StatusBadRequest, "peer address required")
-		return
-	}
-
-	if !isValidPeerName(peer) {
-		writeJSONError(w, http.StatusBadRequest, "invalid peer address")
+// serveRoutesForPeer runs "show bgp rib peer <peer>" and writes the birdwatcher
+// routes envelope, applying pagination when the client requested it. Shared by
+// the protocol/{name} and peer/{peer} endpoints, which differ only in their path
+// parameter name and validation message.
+func (s *LGServer) serveRoutesForPeer(w http.ResponseWriter, r *http.Request, peer string) {
+	limit, offset, present, ok := parsePagination(w, r)
+	if !ok {
 		return
 	}
 
@@ -123,7 +89,42 @@ func (s *LGServer) handleAPIRoutesPeer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bw := transformRoutes(zeData, peer)
+	if present {
+		paginateRoutes(bw, limit, offset)
+	}
 	writeJSON(w, bw)
+}
+
+// handleAPIRoutesProtocol returns routes from a named peer in birdwatcher format.
+func (s *LGServer) handleAPIRoutesProtocol(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if name == "" {
+		writeJSONError(w, http.StatusBadRequest, "peer name required")
+		return
+	}
+
+	if !isValidPeerName(name) {
+		writeJSONError(w, http.StatusBadRequest, "invalid peer name")
+		return
+	}
+
+	s.serveRoutesForPeer(w, r, name)
+}
+
+// handleAPIRoutesPeer returns routes from a peer by IP address in birdwatcher format.
+func (s *LGServer) handleAPIRoutesPeer(w http.ResponseWriter, r *http.Request) {
+	peer := r.PathValue("peer")
+	if peer == "" {
+		writeJSONError(w, http.StatusBadRequest, "peer address required")
+		return
+	}
+
+	if !isValidPeerName(peer) {
+		writeJSONError(w, http.StatusBadRequest, "invalid peer address")
+		return
+	}
+
+	s.serveRoutesForPeer(w, r, peer)
 }
 
 // handleAPIRoutesTable returns best routes by address family.
@@ -139,6 +140,11 @@ func (s *LGServer) handleAPIRoutesTable(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	limit, offset, present, ok := parsePagination(w, r)
+	if !ok {
+		return
+	}
+
 	var tb textbuf.Buffer
 	result := s.query(tb.Str("show bgp rib best ").Str(fam).String())
 
@@ -149,6 +155,9 @@ func (s *LGServer) handleAPIRoutesTable(w http.ResponseWriter, r *http.Request) 
 	}
 
 	bw := transformRoutes(zeData, "")
+	if present {
+		paginateRoutes(bw, limit, offset)
+	}
 	writeJSON(w, bw)
 }
 
@@ -327,6 +336,11 @@ func (s *LGServer) handleAPIRoutesPrefix(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	limit, offset, present, ok := parsePagination(w, r)
+	if !ok {
+		return
+	}
+
 	var tb textbuf.Buffer
 	result := s.query(tb.Str("show bgp rib prefix ").Str(prefix).String())
 
@@ -337,6 +351,9 @@ func (s *LGServer) handleAPIRoutesPrefix(w http.ResponseWriter, r *http.Request)
 	}
 
 	bw := transformRoutes(zeData, "")
+	if present {
+		paginateRoutes(bw, limit, offset)
+	}
 	writeJSON(w, bw)
 }
 
@@ -422,6 +439,67 @@ func apiEnvelope(key string, value any) map[string]any {
 			"result_from_cache": false,
 		},
 		key: value,
+	}
+}
+
+// maxPageLimit caps the per-request pagination window. A request asking for
+// more than this is rejected with 400 rather than silently clamped, so a client
+// never believes it received a full page when it did not (spec AC-11 boundary).
+const maxPageLimit = 100000
+
+// parsePagination reads the optional limit/offset query params shared by the
+// route-list endpoints. present is true when the client supplied either param;
+// when it is false the caller MUST leave the response byte-identical to the
+// unpaginated default response (R-5). ok is false when a param is malformed,
+// in which case a 400 has already been written to w.
+func parsePagination(w http.ResponseWriter, r *http.Request) (limit, offset int, present, ok bool) {
+	q := r.URL.Query()
+	limStr := q.Get("limit")
+	offStr := q.Get("offset")
+	if limStr == "" && offStr == "" {
+		return 0, 0, false, true
+	}
+	if limStr != "" {
+		n, err := strconv.Atoi(limStr)
+		if err != nil || n < 0 || n > maxPageLimit {
+			writeJSONError(w, http.StatusBadRequest, "invalid limit (expected 0..100000)")
+			return 0, 0, false, false
+		}
+		limit = n
+	}
+	if offStr != "" {
+		n, err := strconv.Atoi(offStr)
+		if err != nil || n < 0 {
+			writeJSONError(w, http.StatusBadRequest, "invalid offset (expected >= 0)")
+			return 0, 0, false, false
+		}
+		offset = n
+	}
+	return limit, offset, true, true
+}
+
+// paginateRoutes windows the "routes" array of a birdwatcher envelope in place.
+// offset skips leading routes (clamped to the list length so an over-large
+// offset yields an empty page, not a panic); limit caps the page size (limit <=
+// 0 means "no cap", returning all routes from offset). routes_count is reset to
+// the returned page length and a "pagination" object carries the pre-slice total
+// so a client can compute how many pages exist. Applied only when the client
+// requested pagination, keeping the default response unchanged.
+func paginateRoutes(bw map[string]any, limit, offset int) {
+	routes, _ := bw["routes"].([]any)
+	total := len(routes)
+	start := min(offset, total)
+	end := total
+	if limit > 0 {
+		end = min(end, start+limit)
+	}
+	page := routes[start:end]
+	bw["routes"] = page
+	bw["routes_count"] = len(page)
+	bw["pagination"] = map[string]any{
+		"total_results": total,
+		"offset":        offset,
+		"limit":         limit,
 	}
 }
 
