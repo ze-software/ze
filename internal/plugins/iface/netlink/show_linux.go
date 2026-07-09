@@ -172,6 +172,11 @@ func addrList(link netlink.Link) []iface.AddrInfo {
 			Family:       fam,
 			// Surface IFA_F_TENTATIVE so OSPFv3 can prefer a DAD-complete link-local source.
 			Tentative: a.Flags&ifaFlagTentative != 0,
+			// Classify SLAAC/RA vs static from the kernel IFA_F_* flags, and
+			// surface the RA/lease lifetimes (AC-6).
+			Origin:            addrOrigin(fam == "ipv6", a.Flags),
+			ValidLifetime:     normalizeLifetime(a.ValidLft),
+			PreferredLifetime: normalizeLifetime(a.PreferedLft),
 		})
 	}
 	return result

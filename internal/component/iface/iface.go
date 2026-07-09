@@ -145,6 +145,21 @@ type AddrInfo struct {
 	// address only when the interface has no other link-local).
 	// Always false for IPv4. Omitted from JSON when false.
 	Tentative bool `json:"tentative,omitempty"`
+	// Origin classifies how the kernel assigned the address, so status/CLI can
+	// distinguish a stateless-autoconfigured (SLAAC/RA) address from a static
+	// one (spec followup-subsystem AC-6). One of:
+	//   "static"    - permanent, operator/kernel-configured (IFA_F_PERMANENT)
+	//   "slaac"     - IPv6 SLAAC from a Router Advertisement (RFC 4862)
+	//   "temporary" - IPv6 SLAAC privacy/temporary address (RFC 4941, IFA_F_TEMPORARY)
+	//   "dynamic"   - non-permanent IPv4 (e.g. DHCP)
+	// Empty when unknown (non-Linux, or not captured). Omitted from JSON when empty.
+	Origin string `json:"origin,omitempty"`
+	// ValidLifetime / PreferredLifetime are the kernel address lifetimes in
+	// seconds an RA/lease carries (SLAAC/DHCP). Zero for a permanent address or
+	// an infinite lifetime, and omitted from JSON. Non-zero values let an
+	// operator see the remaining RA lease on a tracked SLAAC address.
+	ValidLifetime     uint32 `json:"valid-lifetime,omitempty"`
+	PreferredLifetime uint32 `json:"preferred-lifetime,omitempty"`
 }
 
 // Binding is the value snapshot the resolver returns from Resolve. It is a

@@ -176,6 +176,10 @@ type addrEventPayload struct {
 	Address      string `json:"address"`
 	PrefixLength int    `json:"prefix-length"`
 	Family       string `json:"family"`
+	// Origin classifies the address as static/slaac/temporary/dynamic from the
+	// kernel IFA_F_* flags (AC-6), so a consumer observing the addr event stream
+	// can tell a SLAAC/RA-assigned address from an operator-configured one.
+	Origin string `json:"origin,omitempty"`
 }
 
 func (m *monitor) handleLinkUpdate(lu netlink.LinkUpdate) {
@@ -240,6 +244,16 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 		return
 	}
 
+	origin := addrOrigin(au.LinkAddress.IP.To4() == nil, au.Flags)
+	// Observe kernel-autoconfigured (SLAAC/RA) address churn distinctly (AC-6).
+	// This rides the monitor's existing coalesced event path (R-6), so a high-RA
+	// network does not need a separate observer.
+	if origin == originSlaac || origin == originTemporary {
+		loggerPtr.Load().Debug("iface monitor: kernel-autoconfigured (SLAAC) address",
+			"interface", ifaceName, "address", addr, "origin", origin, "added", au.NewAddr,
+			"valid-lft", normalizeLifetime(au.ValidLft), "preferred-lft", normalizeLifetime(au.PreferedLft))
+	}
+
 	eventType := addrUpdateToEventType(au.NewAddr)
 	m.emit(eventType, addrEventPayload{
 		Name:         parent,
@@ -248,6 +262,7 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 		Address:      addr,
 		PrefixLength: ones,
 		Family:       fam,
+		Origin:       origin,
 	})
 }
 

@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 275 design docs, 2881 files
+Total: 275 design docs, 2885 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3788,11 +3788,15 @@ Total: 275 design docs, 2881 files
 
 | File | Topic |
 |------|-------|
+| `internal/component/iface/mirror_packet_integration_linux_test.go` | AC-6 -- prove the tc mirror copies |
+| `internal/component/iface/slaac_integration_linux_test.go` | AC-6 -- SLAAC address lifecycle |
 | `internal/core/dnsserver/certcheck.go` | AC-3 -- shared DoT/DoH certificate |
 | `internal/core/dnsserver/secure.go` | AC-3/AC-4 -- optional DNS-over-TLS |
 | `internal/core/dnsserver/tlsmaterial.go` | AC-3 -- shared certificate loading for |
 | `internal/plugins/exabgp/bridgeplugin/config.go` | AC-1 -- internal exabgp bridge config |
 | `internal/plugins/exabgp/bridgeplugin/internal.go` | AC-1 -- internal exabgp bridge runner |
+| `internal/plugins/iface/dhcp/dhcp_v6_pd_linux_test.go` | AC-6 -- DHCPv6-PD lease flow. This is |
+| `internal/plugins/iface/netlink/slaac_linux.go` | AC-6 -- kernel-cooperating SLAAC |
 
 ## `plan/spec-iface-resolve-0-umbrella.md`
 
