@@ -214,6 +214,52 @@ component-group targets to test only the area you changed:
 
 All groups run with `-race`.
 
+### Property-based tests (stdlib `testing/quick`)
+
+Invariant checks over generated inputs, using the standard library's
+`testing/quick` (no third-party property engine). Each uses a fixed RNG seed and
+a bounded iteration count so CI runs are deterministic and cannot time out. They
+run in the ordinary unit passes (no build tag):
+
+| Test | Package | Invariant |
+|------|---------|-----------|
+| `TestListenerConflictProperties` | `internal/component/config` | listener-conflict symmetry, port/family/protocol independence, wildcard dominance, `FindListenerConflict` ↔ pairwise equivalence (conflict is provably NOT transitive; `TestListenerConflictNotTransitive` pins the wildcard counterexample). |
+| `TestMigrationRoundTripProperty` | `internal/exabgp/migration` | any valid ExaBGP config → migrate → serialize re-parses as valid Ze config with every neighbor preserved. |
+| `TestForwardPoolOrderingProperty` | `internal/component/bgp/reactor` | withdrawals-first stable reorder, supersede-key determinism, malformed-body robustness, and exactly-once delivery under concurrent dispatch (`-race`). |
+| `TestFilterChainRandomUpdatesProperty` | `internal/component/bgp/reactor` | `buildModifiedPayload` never panics and only emits well-formed UPDATE bodies over random payloads+ops; `LessOrder` is a strict total order. |
+<!-- source: internal/component/config/listener_property_test.go -- TestListenerConflictProperties -->
+<!-- source: internal/exabgp/migration/roundtrip_property_test.go -- TestMigrationRoundTripProperty -->
+<!-- source: internal/component/bgp/reactor/forward_pool_property_test.go -- TestForwardPoolOrderingProperty -->
+<!-- source: internal/component/bgp/reactor/filter_ordered_property_test.go -- TestFilterChainRandomUpdatesProperty -->
+
+### Evidence / release-tier stress and perf tests (build-tagged, out of `ze-verify`)
+
+Resource-heavy, host-dependent tests kept out of the pre-commit gate. Each is
+gated by a build tag not in the default set and has a dedicated make target:
+
+| Target | Test | Tag | What it drives |
+|--------|------|-----|----------------|
+| `make ze-stress-web-test` | `TestWebConcurrentEditStress` (`internal/component/web`) | `stress` | ≥64 concurrent editor sessions mutate+commit one config; asserts no race (`-race`), zero errors, no torn commit. |
+| `make ze-stress-fleet-test` | `TestFleetManyClientsPerf` (`cmd/ze/hub`) | `fleetperf` | 128 concurrent managed clients auth + initial-sync against the real managed hub listener (TLS 1.3, `managedMaxConns` cap); records latency p50/p95/max, asserts zero error budget. |
+<!-- source: internal/component/web/stress_test.go -- TestWebConcurrentEditStress -->
+<!-- source: cmd/ze/hub/fleet_perf_test.go -- TestFleetManyClientsPerf -->
+<!-- source: mk/test-integration.mk -- ze-stress-web-test, ze-stress-fleet-test -->
+
+### Privileged kernel-state tests under QEMU (`option=needs-linux`)
+
+`.ci` tests tagged `option=needs-linux` SKIP on non-Linux hosts (GOOS check) and
+run as root inside the QEMU VM via `make ze-qemu-needs-linux-test`, where
+CAP_NET_ADMIN and real interfaces are available. The `traffic` suite is enrolled
+in `scripts/evidence/qemu-all-tests.sh`; `test/traffic/022-boot-qdisc-tc.ci` and
+`023-reload-qdisc-tc.ci` assert real `tc qdisc show` kernel state after boot and
+after a reload (the check `001`/`002` document as deferred). The chaos iface
+fault family (`iface-link-flap`, `iface-addr-remove`) has a netns-scoped
+integration test (`//go:build integration && linux`) run via
+`make ze-integration-*`, plus the `test/chaos/iface-link-flap.ci` scenario.
+<!-- source: scripts/evidence/qemu-all-tests.sh -- fsuite traffic -->
+<!-- source: test/traffic/022-boot-qdisc-tc.ci -- needs-linux tc qdisc assertion -->
+<!-- source: internal/chaos/peer/simulator_actions_iface_linux.go -- iface fault executor -->
+
 ### In-process integration tests (feeds that can't cross the plugin boundary)
 
 Some chains are driven by `internal/core/observation`, a **process-local** feed
