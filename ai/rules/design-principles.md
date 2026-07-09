@@ -1,6 +1,6 @@
 # Design Principles
 
-**When:** Read before any design decision; the checklist (no premature abstraction, no speculative features, single responsibility, minimal coupling, explicit behavior) gates new structure.
+**When:** Read before any design decision; the checklist (abstract when you can at 2+ use cases, no speculative features, single responsibility, minimal coupling, explicit behavior) gates new structure.
 
 Rationale + examples: `ai/rationale/design-principles.md`.
 Detail for the pool/buffer/lazy principles: `ai/rules/buffer-first.md`,
@@ -15,7 +15,7 @@ Detail for the pool/buffer/lazy principles: `ai/rules/buffer-first.md`,
 | Explicit > implicit | No hidden magic, convention-based behavior, silent defaults |
 | Minimize coupling | Components know the minimum about each other. High->low dependency |
 | Interface segregation | Clients depend only on methods they use |
-| No premature abstraction | Three concrete implementations before abstracting |
+| Abstract when you can | Two concrete use cases justify an abstraction. Abstract at the second use case; don't wait for a third |
 | Design for change | Isolate volatility behind stable interfaces |
 | Fail-mode awareness | Every external call can fail; every input can be malformed |
 | Do it right | Zero-copy, pool dedup, buffer-first. Never trade correctness for implementation speed |
@@ -31,7 +31,7 @@ Detail for the pool/buffer/lazy principles: `ai/rules/buffer-first.md`,
 ## Scalability Checklist
 
 ```
-[ ] No premature abstraction (3+ use cases?)
+[ ] Abstract when you can (2+ use cases?)
 [ ] No speculative features (needed NOW?)
 [ ] Single responsibility per component
 [ ] Explicit behavior (no hidden magic?)

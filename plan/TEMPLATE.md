@@ -518,7 +518,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] Mistake Log escalation reviewed
 
 ### Design
-- [ ] No premature abstraction (3+ use cases?)
+- [ ] Abstract when you can (2+ use cases?)
 - [ ] No speculative features (needed NOW?)
 - [ ] Single responsibility per component
 - [ ] Explicit > implicit behavior

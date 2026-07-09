@@ -95,7 +95,7 @@ broader protocol support, and a plugin ecosystem.
 | Pool-based dedup | Per-attribute-type pools (ORIGIN, AS_PATH, LOCAL_PREF, ...) with refcounted handles. Per-family NLRI pools. ORIGIN has 3 possible values; LOCAL_PREF has a handful; dedup saves memory at scale. |
 | One representation | Wire bytes are the source of truth. Everything else (iterators, JSON, text) is a view. WireUpdate is a byte buffer with lazy accessor methods, not a parsed struct. |
 | Engine is stateless for routes | The engine forwards wire bytes and caches them for zero-copy forwarding. Plugins own RIB storage, policy, and route selection. |
-| No premature abstraction | Three concrete implementations before abstracting. Boring code that obviously works over clever code that might. |
+| Abstract when you can | Two concrete implementations justify an abstraction; abstract at the second, don't wait for a third. Boring code that obviously works over clever code that might. |
 | YANG-modeled everything | All RPCs and config schemas are YANG-defined. CLI dispatch, plugin registration, schema discovery, and config parsing all flow from YANG modules. |
 
 <!-- source: internal/component/bgp/reactor/session.go -- readBufPool4K, readBufPool64K, buildBufPool -->

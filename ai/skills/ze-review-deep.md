@@ -292,7 +292,7 @@ Read the project's .claude/rules/ directory to understand all rules. Then check 
 
 1. **buffer-first.md**: Wire encoding uses WriteTo(buf, off), no append/make in encoding paths
 2. **goroutine-lifecycle.md**: No per-event goroutines in hot paths
-3. **design-principles.md**: No identity wrappers, no premature abstraction, lazy over eager
+3. **design-principles.md**: No identity wrappers, abstract when you can (2+ use cases), lazy over eager
 4. **json-format.md**: kebab-case JSON keys, correct envelope format
 5. **naming.md**: ze- prefix conventions, correct YANG suffixes
 6. **plugin-design.md**: Proximity principle, YANG required for RPCs, import rules
