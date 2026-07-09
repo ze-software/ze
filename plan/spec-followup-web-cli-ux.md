@@ -448,3 +448,42 @@ was needed.
 - **AC-6/AC-7 (i18n + mobile) -- not started.** No i18n exists at all; needs catalog
   infrastructure + template conversion + `.wb` viewport/locale harness directives (the
   harness gap noted above).
+
+### Continuation session 3 (2026-07-09c) -- finishing session: AC-8/9 + AC-1 tail landed
+
+**Environment note (binding for this session):** the `.wb` browser harness is
+ALSO env-blocked here -- Chrome fails to launch (`libatk-1.0.so.0: cannot open
+shared object file`), same class as the LG `.ci` block. All web ACs are therefore
+proven at the Go/httptest tier and recorded as such. `agent-browser` uses the
+same Chrome and is likewise unusable.
+
+**Completed and committed:**
+- **AC-8 + AC-9 (completion v3) -- `49f04ffd3`.** New `ze config show <file> [path...]`
+  command (file-based like `dump`, reuses the editor schema-aware walk, `--json`,
+  non-zero exit on bad path/write error); registry flag inventory
+  (`registry.FlagSpec`/`RegisterCommandFlags`/`CommandFlags`) + `ze completion flags`
+  / `ze completion families`; exabgp registers its flags; bash/zsh/fish generators
+  complete flag names, `--family` values, and `config show` path tokens through the
+  existing `ze config completion` engine. Verified end-to-end vs `bin/ze`. Nushell
+  glue deferred (AC scopes to bash/zsh/fish; `plan/deferrals.md`).
+- **AC-1 tail (edit-control nav-hiding) -- `e8e586899`.** `WithAuthorizer` ->
+  `LayoutData.ReadOnly`/`FragmentData.ReadOnly`; commit bar, detail Save, list-table
+  controls gated. Purpose-built-page Add buttons deferred (page builders lack the
+  request; enforcement complete; `plan/deferrals.md`).
+
+**Still NOT STARTED (for the next session):**
+- **AC-5 (web-route registry).** Design settled in Findings above: a `WebRoute{Pattern,
+  Wrap WrapKind, Build func(RouteDeps) http.Handler}` registry in the web package; l2tp/
+  isis/ospf/gokrazy register their routes via `init()`; `startWebServer` iterates
+  `RegisteredWebRoutes()` and applies the wrap by kind (the wrap helpers live in the hub,
+  so the web-package contract carries only pattern+builder+wrap-kind, per R-2). Go-tier
+  wiring test `TestPluginWebRouteRegistration`. Not started this session (route-wiring is
+  delicate and only Go-testable here); the open umbrella spec is its tracker.
+- **AC-6/AC-7 (i18n + FRENCH proving locale + 390px mobile + `.wb` harness directives).**
+  Largest remaining item; the `.wb` proofs cannot execute here (Chrome blocked) so the
+  harness extension is Go-only-verifiable and the locale/viewport ACs prove at the Go tier.
+- **AC-10 (renderWriter full conversion).** Largest churn: `help_ai.go` alone has 244
+  `fmt.Print*` sites. Design: an error-capturing `io.Writer` used with `fmt.Fprintln`/
+  `fmt.Fprint` (both hook-allowed; `Fprintf` to a custom writer is banned), threaded
+  through the enumerated files so a write error yields a non-zero exit. Do NOT change
+  `helpfmt.Page.WriteErr/WriteOut` signatures -- 70 files call them.
