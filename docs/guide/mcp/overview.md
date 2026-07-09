@@ -1,6 +1,6 @@
 # MCP Integration
 
-<!-- source: internal/component/mcp/handler.go -- MCP HTTP handler -->
+<!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
 <!-- source: cmd/ze/help_ai.go -- ze help ai output -->
 
 Ze includes an MCP (Model Context Protocol) server that lets AI assistants
@@ -183,7 +183,7 @@ assembled from `internal/component/aihelp` so the CLI and MCP never diverge.
 An MCP client sees this tool in `tools/list` on connect, so it can discover the
 instance's capabilities without out-of-band documentation.
 
-<!-- source: internal/component/mcp/handler.go -- ze_reference handcrafted tool -->
+<!-- source: internal/component/mcp/tools.go -- ze_reference handcrafted tool -->
 <!-- source: internal/component/aihelp/aihelp.go -- Build assembles the reference -->
 
 ## AI Help Reference
@@ -251,6 +251,8 @@ Special stdin directives:
 | `task-cancel <id>` | Cancel a running task |
 | `task-list` | List task IDs for current identity |
 | `task-wait <id> <state>` | Poll until task reaches state |
+| `sse-listen` | Open the standalone `GET /mcp` SSE stream (server-initiated frames) |
+| `sse-expect <method>` | Wait for a server-initiated frame with that JSON-RPC method, print it |
 
 `$LAST` substitutes the most recent directive output (e.g., taskId from `task-call`).
 Pass `--tasks` to declare `capabilities.tasks={}` at initialize.

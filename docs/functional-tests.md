@@ -424,6 +424,17 @@ Task directives: `task-call <tool> <args>`, `task-get <id>`,
 `task-wait <id> <state>`. `$LAST` substitutes the most recent directive
 output (typically the taskId from `task-call`).
 
+### 3d. GET-Stream Tests (`test/plugin/mcp-get-sse.ci`)
+
+Server-initiated frames over the standalone `GET /mcp` SSE stream (MCP
+2025-06-18 Streamable HTTP). `sse-listen` opens the GET stream
+(`Accept: text/event-stream` + `Mcp-Session-Id`) on a background reader;
+`sse-expect <method>` blocks until a server-initiated frame with that
+JSON-RPC method arrives and prints it. `mcp-get-sse.ci` drives a
+`task-call` whose completion notification (`notifications/tasks/status`)
+is delivered on the GET stream, not the POST response.
+<!-- source: internal/test/cli/cmd_mcp.go -- startSSE/sseExpect directives -->
+
 ### Forward-Path Claims
 
 Claims about forwarding, per-destination egress filters, or wire-visible

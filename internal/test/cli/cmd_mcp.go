@@ -55,6 +55,8 @@ Stdin directives (one per line):
   task-cancel <taskId>             -- call tasks/cancel
   task-list                        -- call tasks/list, print task ids
   task-wait <taskId> <state>       -- poll tasks/get until state matches
+  sse-listen                       -- open GET /mcp SSE stream (server-initiated frames)
+  sse-expect <method>              -- wait for a server-initiated frame with <method>, print it
 
 Options:
 `)
@@ -213,6 +215,23 @@ Options:
 			continue
 		}
 
+		if line == "sse-listen" {
+			if err := client.startSSE(); err != nil {
+				var tb textbuf.Buffer
+				os.Stderr.WriteString(tb.Str("error: sse-listen: ").Err(err).Byte('\n').String()) //nolint:errcheck // CLI error output
+				return 1
+			}
+			continue
+		}
+		if method, ok := strings.CutPrefix(line, "sse-expect "); ok {
+			if err := client.sseExpect(strings.TrimSpace(method), *timeout); err != nil {
+				var tb textbuf.Buffer
+				os.Stderr.WriteString(tb.Str("error: sse-expect: ").Err(err).Byte('\n').String()) //nolint:errcheck // CLI error output
+				return 1
+			}
+			continue
+		}
+
 		if toolName, toolArgs, ok := strings.Cut(line, " "); ok && strings.HasPrefix(toolName, "@") {
 			result, err := client.callTool(toolName[1:], json.RawMessage(toolArgs))
 			if err != nil {
@@ -255,6 +274,10 @@ type mcpClient struct {
 	http          *http.Client
 	lastOutput    string
 	elicitQueue   []elicitReply
+	// sseFrames receives server-initiated JSON-RPC frames read off the GET /mcp
+	// SSE stream (opened by sse-listen). nil until sse-listen runs.
+	sseFrames chan map[string]any
+	sseErrCh  chan error
 }
 
 type elicitReply struct {
@@ -565,6 +588,105 @@ func (c *mcpClient) answerServerRequest(method string, frame map[string]any) err
 		return fmt.Errorf("elicit reply status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// startSSE opens the server-to-client GET /mcp SSE stream (MCP 2025-06-18
+// Streamable HTTP), which delivers server-initiated frames (task status
+// notifications, task-context elicitation) off the session outbound queue. A
+// background goroutine reads frames onto c.sseFrames; sseExpect drains them.
+func (c *mcpClient) startSSE() error {
+	if c.sseFrames != nil {
+		return errors.New("sse-listen already active")
+	}
+	var tb textbuf.Buffer
+	url := tb.Str("http://").Str(c.addr).Str(mcpEndpoint).String()
+	req, err := http.NewRequest(http.MethodGet, url, http.NoBody) //nolint:noctx // short-lived test tool
+	if err != nil {
+		return fmt.Errorf("build GET request: %w", err)
+	}
+	req.Header.Set("Accept", "text/event-stream")
+	if c.token != "" {
+		tb.Reset()
+		req.Header.Set("Authorization", tb.Str("Bearer ").Str(c.token).String())
+	}
+	if c.sessionID != "" {
+		req.Header.Set("Mcp-Session-Id", c.sessionID)
+		req.Header.Set("MCP-Protocol-Version", "2025-06-18")
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("GET /mcp: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close() //nolint:errcheck,gosec // cleanup on error
+		return fmt.Errorf("GET /mcp status %d", resp.StatusCode)
+	}
+	c.sseFrames = make(chan map[string]any, 32)
+	c.sseErrCh = make(chan error, 1)
+	go c.readSSEStream(resp.Body)
+	return nil
+}
+
+// readSSEStream parses `data:` frames off the GET SSE stream and forwards each
+// server-initiated JSON-RPC frame onto c.sseFrames.
+func (c *mcpClient) readSSEStream(body io.ReadCloser) {
+	defer body.Close() //nolint:errcheck // best-effort cleanup on stream end
+	scanner := bufio.NewScanner(body)
+	scanner.Buffer(make([]byte, 4096), 2*1024*1024)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" || strings.HasPrefix(line, ":") {
+			continue
+		}
+		dataStr, ok := strings.CutPrefix(line, "data: ")
+		if !ok {
+			dataStr, ok = strings.CutPrefix(line, "data:")
+			if !ok {
+				continue
+			}
+		}
+		var frame map[string]any
+		if err := json.Unmarshal([]byte(dataStr), &frame); err != nil {
+			continue
+		}
+		select {
+		case c.sseFrames <- frame:
+		default: // drop if the consumer is not draining fast enough
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		select {
+		case c.sseErrCh <- err:
+		default:
+		}
+	}
+}
+
+// sseExpect blocks until a server-initiated frame with the given JSON-RPC
+// method arrives on the GET stream (or timeout), then prints it so a .ci can
+// assert on the framing.
+func (c *mcpClient) sseExpect(method string, timeout time.Duration) error {
+	if c.sseFrames == nil {
+		return errors.New("sse-expect requires sse-listen first")
+	}
+	deadline := time.After(timeout)
+	for {
+		select {
+		case frame := <-c.sseFrames:
+			if m, _ := frame["method"].(string); m == method {
+				raw, err := json.Marshal(frame)
+				if err != nil {
+					return fmt.Errorf("marshal frame: %w", err)
+				}
+				fmt.Println(string(raw))
+				return nil
+			}
+		case err := <-c.sseErrCh:
+			return fmt.Errorf("sse stream error: %w", err)
+		case <-deadline:
+			return fmt.Errorf("timed out waiting for server frame %q", method)
+		}
+	}
 }
 
 func (c *mcpClient) taskCall(tool string, args json.RawMessage) (string, error) {
