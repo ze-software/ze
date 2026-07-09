@@ -37,6 +37,10 @@ func Run(args []string) int {
 		return generate("nushell", os.Stdout)
 	case "words":
 		return words(args[1:])
+	case "flags":
+		return flags(args[1:])
+	case "families":
+		return families()
 	case "peers":
 		return peers()
 	case "help", "-h", "--help":

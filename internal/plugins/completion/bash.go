@@ -77,6 +77,13 @@ _ze() {
             COMPREPLY=($(compgen -W "${plugins}" -- "${cur}"))
             return
             ;;
+        --family)
+            # Value completion for any --family flag, from the shared registry.
+            local families
+            families=$(ze completion families 2>/dev/null | cut -f1)
+            COMPREPLY=($(compgen -W "${families}" -- "${cur}"))
+            return
+            ;;
         --pprof|--chaos-seed|--chaos-rate)
             return
             ;;
@@ -99,6 +106,24 @@ _ze() {
     local subcmd="${words[_ze_subcmd_idx]}"
     local depth=$(( cword - _ze_subcmd_idx ))
 
+    # Flag-name completion from the registry inventory (registration over
+    # hardcoding): if the current subcommand path has registered flags, offer
+    # them when the user is typing a "-" token.
+    if [[ "${cur}" == -* ]]; then
+        local -a _ze_flag_path=()
+        local j
+        for (( j=_ze_subcmd_idx; j < cword; j++ )); do
+            [[ "${words[j]}" == -* ]] && continue
+            _ze_flag_path+=("${words[j]}")
+        done
+        local _ze_flags
+        _ze_flags=$(ze completion flags "${_ze_flag_path[@]}" 2>/dev/null | cut -f1)
+        if [[ -n "${_ze_flags}" ]]; then
+            COMPREPLY=($(compgen -W "${_ze_flags}" -- "${cur}"))
+            return
+        fi
+    fi
+
     case "${subcmd}" in
         bgp)
             if [[ ${depth} -eq 1 ]]; then
@@ -106,8 +131,27 @@ _ze() {
             fi
             ;;
         config)
+            local config_sub="${words[_ze_subcmd_idx+1]}"
             if [[ ${depth} -eq 1 ]]; then
-                COMPREPLY=($(compgen -W "edit validate migrate fmt dump diff completion help" -- "${cur}"))
+                COMPREPLY=($(compgen -W "edit validate migrate fmt dump diff completion show help" -- "${cur}"))
+            elif [[ "${config_sub}" == "show" ]]; then
+                if [[ ${depth} -eq 2 ]]; then
+                    _ze_filedir conf
+                else
+                    # ze config show <file> [path...]: complete config-section
+                    # paths through the existing "ze config completion" engine.
+                    local cfg_file="${words[_ze_subcmd_idx+2]}"
+                    local -a _ze_sec=()
+                    local k
+                    for (( k=_ze_subcmd_idx+3; k < cword; k++ )); do
+                        _ze_sec+=("${words[k]}")
+                    done
+                    local _ze_ctx
+                    _ze_ctx=$(IFS=/; echo "${_ze_sec[*]}")
+                    local _ze_sections
+                    _ze_sections=$(ze config completion --context "${_ze_ctx}" --input "set " "${cfg_file}" 2>/dev/null | awk '{print $2}')
+                    COMPREPLY=($(compgen -W "${_ze_sections}" -- "${cur}"))
+                fi
             else
                 _ze_filedir conf
             fi

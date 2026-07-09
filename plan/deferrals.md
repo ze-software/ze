@@ -27,3 +27,5 @@ receiving spec") and the spec becomes the tracker. Run `/ze-status` for the live
 
 | Date | Source | What | Reason | Destination | Status |
 |------|--------|------|--------|-------------|--------|
+| 2026-07-09 | spec-followup-web-cli-ux AC-8/9 | Nushell shell-generator glue for the new flag inventory + `ze config show` config-section completion | AC-8 scopes completion to bash/zsh/fish (all wired + tested); nushell's single-completer model needs separate, un-runnable-here wiring | `plan/spec-followup-web-cli-ux.md` (AC-8/9 follow-up) | deferred |
+| 2026-07-09 | spec-followup-web-cli-ux AC-5 | Subprocess-plugin web-route extensions (out-of-process plugins registering Go `http.Handler`s) | Architectural: ze plugins are subprocesses (JSON/text IPC), cannot register in-process handlers; AC-5 scoped to in-tree component pages by user decision | none (permanent exclusion; AC-5 covers in-tree pages) | cancelled |

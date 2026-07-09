@@ -193,6 +193,88 @@ function __ze_complete_dynamic
     end
 end
 
+# __ze_prev_is target — true when the last completed token equals target.
+function __ze_prev_is
+    set -l cmd (commandline -opc)
+    test (count $cmd) -ge 1; and test "$cmd[-1]" = "$argv[1]"
+end
+
+# __ze_complete_families outputs address families for --family <TAB>.
+function __ze_complete_families
+    ze completion families 2>/dev/null
+end
+
+# __ze_subcmd_path echoes the positional command path after ze (skipping flags).
+function __ze_subcmd_path
+    set -l cmd (commandline -opc)
+    set -l skip_next 0
+    for word in $cmd[2..]
+        if test $skip_next -eq 1
+            set skip_next 0
+            continue
+        end
+        switch $word
+            case '--plugin' '--pprof' '--chaos-seed' '--chaos-rate'
+                set skip_next 1
+                continue
+            case '-*'
+                continue
+        end
+        echo $word
+    end
+end
+
+# __ze_complete_flags offers flag names from the registry inventory for the
+# current subcommand path (registration over hardcoding).
+function __ze_complete_flags
+    set -l path (__ze_subcmd_path)
+    test (count $path) -ge 1; and ze completion flags $path 2>/dev/null
+end
+
+# __ze_config_subcmd echoes the config subcommand (word after "config").
+function __ze_config_subcmd
+    set -l cmd (commandline -opc)
+    set -l found 0
+    for word in $cmd[2..]
+        switch $word
+            case '-*'
+                continue
+        end
+        if test $found -eq 1
+            echo $word
+            return
+        else if test "$word" = config
+            set found 1
+        end
+    end
+end
+
+# __ze_complete_config_section completes config-section paths for
+# "ze config show <file> [path...]" via the "ze config completion" engine.
+function __ze_complete_config_section
+    set -l cmd (commandline -opc)
+    set -l idx 0
+    set -l i 1
+    while test $i -le (count $cmd)
+        if test "$cmd[$i]" = config
+            set idx $i
+            break
+        end
+        set i (math $i + 1)
+    end
+    test $idx -eq 0; and return
+    set -l file $cmd[(math $idx + 2)]
+    test -z "$file"; and return
+    set -l sections
+    set -l j (math $idx + 3)
+    while test $j -le (count $cmd)
+        set sections $sections $cmd[$j]
+        set j (math $j + 1)
+    end
+    set -l ctx (string join / $sections)
+    ze config completion --context "$ctx" --input 'set ' "$file" 2>/dev/null | awk '{print $2}'
+end
+
 # --- Global flags ---
 complete -c ze -n __ze_needs_command -s d -l debug -d 'Enable debug logging'
 complete -c ze -n __ze_needs_command -s h -l help -d 'Show help'
@@ -203,6 +285,12 @@ complete -c ze -n __ze_needs_command -l pprof -x -d 'Start pprof HTTP server'
 complete -c ze -n __ze_needs_command -l chaos-seed -x -d 'Enable chaos mode with PRNG seed'
 complete -c ze -n __ze_needs_command -l chaos-rate -x -d 'Fault probability (0.0-1.0)'
 
+# --- Flag inventory + value completion (registration over hardcoding) ---
+# --family value completion from the shared registry.
+complete -c ze -n '__ze_prev_is --family' -f -a '(__ze_complete_families)'
+# Flag names for the current subcommand path when typing a "-" token.
+complete -c ze -n 'string match -q -- "-*" (commandline -ct)' -f -a '(__ze_complete_flags)'
+
 # --- Top-level subcommands (derived from command registry) ---
 `).Str(fishRootLines()).Str(`
 # --- bgp (depth 1 only) ---
@@ -210,7 +298,7 @@ complete -c ze -n 'test (__ze_depth bgp) = 0' -a decode -d 'Decode BGP message f
 complete -c ze -n 'test (__ze_depth bgp) = 0' -a encode -d 'Encode API route command to BGP hex'
 complete -c ze -n 'test (__ze_depth bgp) = 0' -a help -d 'Show help'
 
-# --- config (depth 1 = subcommands, depth 2+ = .conf files) ---
+# --- config (depth 1 = subcommands, depth 2+ = .conf files / sections) ---
 complete -c ze -n 'test (__ze_depth config) = 0' -a edit -d 'Interactive configuration editor'
 complete -c ze -n 'test (__ze_depth config) = 0' -a validate -d 'Validate configuration file'
 complete -c ze -n 'test (__ze_depth config) = 0' -a migrate -d 'Convert configuration to current format'
@@ -218,8 +306,13 @@ complete -c ze -n 'test (__ze_depth config) = 0' -a fmt -d 'Format and normalize
 complete -c ze -n 'test (__ze_depth config) = 0' -a dump -d 'Dump parsed configuration'
 complete -c ze -n 'test (__ze_depth config) = 0' -a diff -d 'Compare two configuration files'
 complete -c ze -n 'test (__ze_depth config) = 0' -a completion -d 'Query completion engine'
+complete -c ze -n 'test (__ze_depth config) = 0' -a show -d 'Show the config tree at a path'
 complete -c ze -n 'test (__ze_depth config) = 0' -a help -d 'Show help'
-complete -c ze -n 'test (__ze_depth config) -ge 1' -F
+# Non-show subcommands take a .conf file at depth >= 1.
+complete -c ze -n 'test (__ze_depth config) -ge 1; and test (__ze_config_subcmd) != show' -F
+# config show <file>: the file at depth 1, then config-section paths at depth >= 2.
+complete -c ze -n 'test (__ze_depth config) = 1; and test (__ze_config_subcmd) = show' -F
+complete -c ze -n 'test (__ze_depth config) -ge 2; and test (__ze_config_subcmd) = show' -f -a '(__ze_complete_config_section)'
 
 # --- cli (depth 1 only) ---
 complete -c ze -n 'test (__ze_depth cli) = 0' -a bgp -d 'BGP daemon (default)'

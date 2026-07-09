@@ -118,11 +118,32 @@ ze config cat <key>              # Print database entry
 
 ```
 ze config validate <file>        # Validate configuration file
+ze config show <file> [path...]  # Show the config tree at a path (one-shot; --json)
 ze config dump <file>            # Dump parsed configuration
 ze config diff <f1> <f2>         # Compare two configs
 ze config diff <N> <file>        # Compare with rollback revision
 ze config fmt <file>             # Format and normalize
 ```
+
+`show` is the one-shot, non-interactive way to inspect a config subtree:
+`ze config show ze.conf bgp peer edge1` prints only that subtree (list entries
+are addressed by key). With no path it prints the whole parsed tree; `--json`
+emits the subtree as a JSON object. Shell completion for the path tokens is
+served by the `ze config completion` engine (`ze completion bash|zsh|fish`).
+<!-- source: internal/component/config/cli/cmd_show.go -- cmdShowWithStorage -->
+
+**Shell completion (`--family`, config sections):**
+
+```
+ze completion flags <command path>   # Flags a subcommand accepts (registry inventory)
+ze completion families               # Address families (completes --family <TAB>)
+```
+
+The generated bash/zsh/fish scripts (`ze completion <shell>`) complete
+subcommand flag names from the registry inventory and `--family` values from the
+address-family registry.
+<!-- source: internal/component/command/registry/flags.go -- RegisterCommandFlags, CommandFlags -->
+<!-- source: internal/plugins/completion/flags.go -- writeFlags, writeFamilies -->
 
 **History:**
 

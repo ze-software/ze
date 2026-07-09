@@ -32,15 +32,21 @@ with this specific macOS host's socket stack allowing a second bind where the
 test expects exclusivity (a `SO_REUSEPORT`/dual-stack quirk). Owner: whoever
 next investigates macOS listener-probe test portability.
 
-### `config/cli` -- 1 test fails, pre-existing
+### `config/cli` -- 3 tests fail, pre-existing (one root cause)
 
-Observed 2026-07-03:
+Observed 2026-07-03, re-confirmed 2026-07-09:
 - `TestValidateListenerConflictRelated` (config/cli): expects a
   `config-listener-conflict` diagnostic for a bgp-less `environment { web {
   server ... } }` with two servers on the same ip:port; none produced.
+- `TestConfigFixPlanRepairIDs`, `TestConfigFixPlanRepairIDsFromFix`
+  (cmd_validate_test.go:492, cmd_fix_test.go:106): the SAME config (two web
+  servers on `0.0.0.0:8080`) expecting at least one diagnostic carrying a repair
+  ID. They fail for the identical reason -- the `config-listener-conflict`
+  validator produces no diagnostic (hence no repair) in this build.
 
-In a subsystem with concurrent web work in the busy tree. Owner: whichever
-session edits web listener-conflict validation.
+One root cause (the listener-conflict validator not firing), three tests. In a
+subsystem with concurrent web work in the busy tree. Owner: whichever session
+edits web listener-conflict validation.
 
 ### `rsvpte-lsp-setup` -- load-only `slice bounds` panic in `ze`, pre-existing
 

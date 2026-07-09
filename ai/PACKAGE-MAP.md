@@ -572,7 +572,7 @@ Total: 598 packages, 598 described, 0 TODO
 | `internal/plugins/diag/yang` | embeds and registers the ze-diag-cmd YANG command schema for the diag plugin |  |
 | `internal/plugins/env` | Environment variable inspection |  |
 | `internal/plugins/env/yang` | embeds and registers the ze-env-cmd YANG command schema for the env plugin |  |
-| `internal/plugins/exabgp` | provides the ze exabgp subcommand |  |
+| `internal/plugins/exabgp` | provides the ze exabgp subcommand | --family |
 | `internal/plugins/explain` | Look up what a Ze diagnostic code means |  |
 | `internal/plugins/fib/kernel` | FIB kernel: programs OS routes from system RIB via netlink/route socket | fib-kernel |
 | `internal/plugins/fib/kernel/events` | defines event constants for the FIB kernel plugin |  |

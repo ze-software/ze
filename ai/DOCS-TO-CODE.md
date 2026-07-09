@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 273 design docs, 2865 files
+Total: 273 design docs, 2868 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -498,6 +498,7 @@ Total: 273 design docs, 2865 files
 | `cmd/ze/setup_features_setup.go` | ze_setup feature wiring |
 | `cmd/ze/uninstall/dispatch.go` | ze uninstall: action-first dispatch |
 | `cmd/ze/uninstall/register.go` | ze uninstall root handler registration |
+| `internal/component/command/registry/flags.go` | offline subcommand flag inventory |
 | `internal/component/plugin/cli/cli.go` | plugin CLI framework |
 | `internal/core/subdispatch/subdispatch.go` | shared action-first dispatch for install/uninstall |
 | `internal/plugins/local/cmd_install.go` | ze local install: binary copy + config scaffold |
@@ -588,6 +589,8 @@ Total: 273 design docs, 2865 files
 | `internal/component/config/cli/cmd_rollback_test.go` | config rollback tests |
 | `internal/component/config/cli/cmd_set.go` | config set command |
 | `internal/component/config/cli/cmd_set_test.go` | config set tests |
+| `internal/component/config/cli/cmd_show.go` | one-shot config-path inspection |
+| `internal/component/config/cli/cmd_show_test.go` | ze config show tests |
 | `internal/component/config/cli/main.go` | config CLI commands |
 | `internal/component/config/constants.go` | config vocabulary constants |
 | `internal/component/config/diff.go` | config parsing and loading |

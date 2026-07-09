@@ -51,7 +51,7 @@ func parseInjectOpts(args []string) (*injectOpts, bool) {
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "--local-as":
+		case "--local-as": //nolint:goconst // CLI flag name
 			i++
 			if i >= len(args) {
 				return nil, false

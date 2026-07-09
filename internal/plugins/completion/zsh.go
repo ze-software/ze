@@ -40,6 +40,24 @@ _ze() {
             _describe 'ze command' commands
             ;;
         args)
+            # Value completion for --family (any subcommand), from the registry.
+            if [[ "${words[CURRENT-1]}" == "--family" ]]; then
+                local -a _ze_fam
+                _ze_fam=(${(f)"$(ze completion families 2>/dev/null | sed $'s/\t/:/')"})
+                [[ ${#_ze_fam} -gt 0 ]] && { _describe 'family' _ze_fam; return }
+            fi
+            # Flag-name completion from the registry inventory (registration
+            # over hardcoding).
+            if [[ "${words[CURRENT]}" == -* ]]; then
+                local -a _ze_fp
+                local _ze_w
+                for _ze_w in ${words[2,CURRENT-1]}; do
+                    [[ "$_ze_w" == -* ]] || _ze_fp+=("$_ze_w")
+                done
+                local -a _ze_fl
+                _ze_fl=(${(f)"$(ze completion flags ${_ze_fp} 2>/dev/null | sed $'s/\t/:/')"})
+                [[ ${#_ze_fl} -gt 0 ]] && { _describe 'flag' _ze_fl; return }
+            fi
             case ${words[1]} in
                 bgp)
                     if (( CURRENT == 2 )); then
@@ -62,10 +80,24 @@ _ze() {
                         'dump:Dump parsed configuration'
                         'diff:Compare two configuration files'
                         'completion:Query completion engine'
+                        'show:Show the config tree at a path'
                         'help:Show help'
                     )
                     if (( CURRENT == 2 )); then
                         _describe 'config command' config_commands
+                    elif [[ ${words[2]} == show ]]; then
+                        if (( CURRENT == 3 )); then
+                            _files -g '*.conf'
+                        else
+                            # ze config show <file> [path...]: config-section
+                            # paths via the "ze config completion" engine.
+                            local _ze_cfg="${words[3]}"
+                            local -a _ze_sec=("${words[4,CURRENT-1]}")
+                            local _ze_ctx="${(j:/:)_ze_sec}"
+                            local -a _ze_secs
+                            _ze_secs=(${(f)"$(ze config completion --context "${_ze_ctx}" --input 'set ' "${_ze_cfg}" 2>/dev/null | awk '{print $2}')"})
+                            [[ ${#_ze_secs} -gt 0 ]] && _describe 'section' _ze_secs
+                        fi
                     else
                         _files -g '*.conf'
                     fi

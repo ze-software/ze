@@ -50,7 +50,7 @@ func runServe(args []string) int {
 				return 1
 			}
 			listen = args[i]
-		case "--local-as":
+		case "--local-as": //nolint:goconst // CLI flag name
 			i++
 			if i >= len(args) {
 				os.Stderr.WriteString(serveUsage) //nolint:errcheck // usage

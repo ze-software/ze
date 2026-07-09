@@ -59,6 +59,7 @@ var subcommandHandlers = map[string]func([]string) int{
 	"completion": cmdCompletion,
 	"fix":        cmdFix,
 	"graph":      cmdGraph,
+	"show":       cmdShow,
 }
 
 // Run executes the config subcommand with filesystem storage (backward compat).
@@ -139,6 +140,7 @@ func usage() {
 			{Title: "Inspection", Entries: []helpfmt.HelpEntry{
 				{Name: "validate <file>", Desc: "Validate configuration file"},
 				{Name: "fix --plan --json <file>", Desc: "Generate repair plan for diagnostics"},
+				{Name: "show <file> [path...]", Desc: "Show the config tree at a path (one-shot)"},
 				{Name: "dump <file>", Desc: "Parse and display config"},
 				{Name: "diff <f1> <f2>", Desc: "Compare two configs"},
 				{Name: "diff <N> <file>", Desc: "Compare rollback revision N against current"},
@@ -162,6 +164,7 @@ func usage() {
 			"ze config import router.conf",
 			"ze config import --name production.conf /etc/ze/router.conf",
 			"ze config validate router.conf",
+			"ze config show router.conf bgp peer edge1",
 			"ze config set router.conf bgp local as 65000",
 		},
 	}
