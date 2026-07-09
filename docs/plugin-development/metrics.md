@@ -195,7 +195,17 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_managed_clients_connected` | Gauge | | managed (hub server) |
 | `ze_managed_config_fetch_total` | CounterVec | result | managed (hub server) |
 | `ze_managed_config_changed_pushed_total` | Counter | | managed (hub server) |
+| `ze_plugin_write_watchdog_total` | CounterVec | transport | plugin (server) |
 <!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer metric registration -->
+<!-- source: internal/component/plugin/server/server.go -- NewServer write-watchdog hook -->
+<!-- source: pkg/plugin/rpc/conn.go -- fireWatchdog, SetWriteWatchdogHook -->
+
+`ze_plugin_write_watchdog_total` increments when a plugin RPC write on a
+transport that does not support `SetWriteDeadline` (SSH channels, `io.Pipe`)
+stalls past the write-watchdog window (default 30s); the connection is then
+closed (fail-fast). Deadline-capable transports (`net.Conn`) use write
+deadlines instead and never contribute to this counter. The `transport` label
+is a low-cardinality bucket (`stream`, `pipe`, `file`).
 
 <!-- source: internal/plugins/trafficusage/metrics.go -- BindMetrics -->
 

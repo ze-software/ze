@@ -22,7 +22,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -75,6 +77,20 @@ type Conn struct {
 	frameCh    chan []byte           // Successful frames from reader goroutine.
 	readerDone chan struct{}         // Closed when reader goroutine exits.
 	readerErr  atomic.Pointer[error] // Terminal error stored by reader on exit.
+
+	// Write watchdog for transports that do NOT implement SetWriteDeadline
+	// (stdio via NewWithIO, SSH channels via adhoc.go). Deadline-capable
+	// transports (net.Conn, net.Pipe) never arm the watchdog -- their write
+	// path uses SetWriteDeadline instead, so this is zero-overhead for them.
+	//
+	// The timer is reused across writes (armed with Reset, disarmed with Stop
+	// under c.mu) so the hot path allocates nothing after the first arm. When
+	// a write blocks past watchdogWindow, fireWatchdog logs a warning, calls
+	// the package write-watchdog hook (Prometheus counter), and closes the
+	// connection to fail-fast (A-7). All watchdog fields are guarded by c.mu.
+	watchdog       *time.Timer
+	watchdogWindow time.Duration // 0 disables the watchdog.
+	label          string        // Plugin/connection identity for logs+metrics.
 }
 
 // NewConn creates a Conn that reads from reader and writes to writer.
@@ -84,11 +100,103 @@ type Conn struct {
 // deadline-based timeouts. Otherwise (e.g., os.Stdout), deadlines are skipped.
 func NewConn(reader io.ReadCloser, writer io.WriteCloser) *Conn {
 	return &Conn{
-		reader:      NewFrameReader(reader),
-		writer:      NewFrameWriter(writer),
-		readCloser:  reader,
-		writeCloser: writer,
+		reader:         NewFrameReader(reader),
+		writer:         NewFrameWriter(writer),
+		readCloser:     reader,
+		writeCloser:    writer,
+		watchdogWindow: defaultWriteDeadline,
 	}
+}
+
+// SetLabel records a human-readable identity (typically the plugin name) used
+// in write-watchdog warnings and metrics. Call once right after construction,
+// before any concurrent writes.
+func (c *Conn) SetLabel(label string) {
+	c.mu.Lock()
+	c.label = label
+	c.mu.Unlock()
+}
+
+// SetWatchdogWindow overrides the write-watchdog window for transports that do
+// not support SetWriteDeadline. A value <= 0 disables the watchdog. Call once
+// right after construction, before any concurrent writes. Deadline-capable
+// transports ignore this (they use SetWriteDeadline instead).
+func (c *Conn) SetWatchdogWindow(d time.Duration) {
+	c.mu.Lock()
+	c.watchdogWindow = d
+	c.mu.Unlock()
+}
+
+// writeWatchdogHook, when set, is invoked from fireWatchdog with the transport
+// kind and connection label whenever a write stalls past the watchdog window.
+// The engine wires this to a Prometheus counter at startup; it stays nil in
+// standalone plugin processes (which have no engine metrics registry), where
+// the warning log and fail-fast close still apply.
+var writeWatchdogHook atomic.Pointer[func(transport, label string)]
+
+// SetWriteWatchdogHook installs (or, with nil, clears) the process-wide write
+// watchdog observer. Safe to call concurrently. Idempotent by last-writer.
+func SetWriteWatchdogHook(fn func(transport, label string)) {
+	if fn == nil {
+		writeWatchdogHook.Store(nil)
+		return
+	}
+	writeWatchdogHook.Store(&fn)
+}
+
+// transportKind returns a low-cardinality label describing the write transport,
+// suitable for a Prometheus label. Only non-writeDeadliner writers reach the
+// watchdog (net.Conn and *os.File pipes take the deadline path instead), so in
+// practice this returns "pipe" (io.PipeWriter) or "stream" (SSH channels and
+// other opaque io.WriteCloser transports).
+func transportKind(w io.WriteCloser) string {
+	switch w.(type) {
+	case *os.File:
+		return "file"
+	case *io.PipeWriter:
+		return "pipe"
+	default:
+		return "stream"
+	}
+}
+
+// armWatchdogLocked starts (or restarts) the reusable watchdog timer. Caller
+// MUST hold c.mu. No-op when the watchdog is disabled (window <= 0). The first
+// arm allocates the timer via AfterFunc; subsequent arms reuse it via Reset,
+// so the steady-state write path allocates nothing.
+func (c *Conn) armWatchdogLocked() {
+	if c.watchdogWindow <= 0 {
+		return
+	}
+	if c.watchdog == nil {
+		c.watchdog = time.AfterFunc(c.watchdogWindow, c.fireWatchdog)
+		return
+	}
+	c.watchdog.Reset(c.watchdogWindow)
+}
+
+// disarmWatchdogLocked stops the watchdog after a write completes. Caller MUST
+// hold c.mu. If the timer already fired, Stop reports false and the connection
+// is already being torn down by fireWatchdog -- the in-flight write returns an
+// error, which is the intended fail-fast outcome.
+func (c *Conn) disarmWatchdogLocked() {
+	if c.watchdog != nil {
+		c.watchdog.Stop()
+	}
+}
+
+// fireWatchdog runs (in the timer goroutine) when a write blocks past the
+// watchdog window. It logs, notifies the metric hook, and closes both ends to
+// unblock the stalled write. It must NOT take c.mu: the stalled writer holds it.
+func (c *Conn) fireWatchdog() {
+	kind := transportKind(c.writeCloser)
+	slog.Warn("plugin rpc write stalled past watchdog window; closing connection (fail-fast)",
+		"transport", kind, "label", c.label, "window", c.watchdogWindow)
+	if p := writeWatchdogHook.Load(); p != nil {
+		(*p)(kind, c.label)
+	}
+	_ = c.readCloser.Close()
+	_ = c.writeCloser.Close()
 }
 
 // WriteConn returns the underlying write connection as a net.Conn, or nil
@@ -202,10 +310,14 @@ func (c *Conn) writeAppended(ctx context.Context, appender func([]byte) []byte) 
 			c.mu.Unlock()
 			return fmt.Errorf("set write deadline: %w", err)
 		}
+	} else {
+		c.armWatchdogLocked()
 	}
 	_, writeErr := c.writer.RawWriter().Write(buf)
 	if hasDL {
 		_ = dlWriter.SetWriteDeadline(time.Time{})
+	} else {
+		c.disarmWatchdogLocked()
 	}
 	c.mu.Unlock()
 
@@ -247,10 +359,14 @@ func (c *Conn) writeLineWithContext(ctx context.Context, line []byte) error {
 			c.mu.Unlock()
 			return fmt.Errorf("set write deadline: %w", err)
 		}
+	} else {
+		c.armWatchdogLocked()
 	}
 	writeErr := c.writer.Write(line)
 	if hasDL {
 		_ = dlWriter.SetWriteDeadline(time.Time{})
+	} else {
+		c.disarmWatchdogLocked()
 	}
 	c.mu.Unlock()
 
@@ -456,10 +572,14 @@ func (c *Conn) writeBatchWithDeadline(ctx context.Context, id uint64, events [][
 			c.mu.Unlock()
 			return fmt.Errorf("set write deadline: %w", err)
 		}
+	} else {
+		c.armWatchdogLocked()
 	}
 	writeErr := WriteBatchFrame(c.writer.RawWriter(), id, events)
 	if hasDL {
 		_ = dlWriter.SetWriteDeadline(time.Time{})
+	} else {
+		c.disarmWatchdogLocked()
 	}
 	c.mu.Unlock()
 

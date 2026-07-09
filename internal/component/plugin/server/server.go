@@ -180,6 +180,21 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		runtimeFamilies:   make(map[string][]family.FamilyRegistration),
 	}
 
+	// Wire the plugin write-watchdog counter. When a write on a non-deadline
+	// transport (SSH channel, io.Pipe) stalls past the watchdog window, the rpc
+	// layer closes the connection (fail-fast) and invokes this hook. The hook
+	// is a process-wide package global in rpc, so the last server with a
+	// registry wins -- fine, since production runs a single plugin server.
+	if config != nil && config.MetricsRegistry != nil {
+		wd := config.MetricsRegistry.CounterVec(
+			"ze_plugin_write_watchdog_total",
+			"plugin RPC connections closed because a write stalled past the write-watchdog window",
+			[]string{"transport"})
+		rpc.SetWriteWatchdogHook(func(transport, _ string) {
+			wd.With(transport).Inc()
+		})
+	}
+
 	// Register plugin-declared event and send types before any subscriptions.
 	plugin.RegisterPluginEventTypes()
 	plugin.RegisterPluginSendTypes()

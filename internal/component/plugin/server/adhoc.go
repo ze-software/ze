@@ -35,6 +35,9 @@ func (s *Server) HandleAdHocPluginSession(reader io.ReadCloser, writer io.WriteC
 	// Build PluginConn from the raw reader/writer — same stack as InitConns
 	// but without requiring net.Conn (SSH channels are not net.Conn).
 	rpcConn := rpc.NewConn(reader, writer)
+	// SSH channels do not implement SetWriteDeadline, so writes here are
+	// governed by the rpc write watchdog; label it for watchdog logs/metrics.
+	rpcConn.SetLabel(name)
 	mux := rpc.NewMuxConn(rpcConn)
 	proc.SetConn(pluginipc.NewMuxPluginConn(mux))
 	proc.SetRunning(true)
