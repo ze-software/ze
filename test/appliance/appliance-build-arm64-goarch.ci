@@ -2,7 +2,10 @@
 # The fake go executable must be reached through the CLI build path and fails if
 # gok inherits the host/default GOARCH instead of the appliance image arch.
 
-option=env:var=ze.appliance.ssh.password:value=secret
+# Underscore form: /bin/sh (dash) drops dotted names from the environment, so
+# the dotted spelling never survives into `sh run.sh` children. ze's env
+# lookup treats dots and underscores as equivalent (internal/core/env/env.go:40).
+option=env:var=ze_appliance_ssh_password:value=secret
 option=timeout:value=20s
 
 tmpfs=run.sh:terminator=EOF_SH
@@ -10,7 +13,10 @@ tmpfs=run.sh:terminator=EOF_SH
 set -eu
 
 work=$PWD
-repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
+# The runner exports ZE_REPO_ROOT (the source tree); `ze appliance build`
+# must run from there to find gokrazy/modcache. The binary-location fallback
+# only holds for manual runs where ze sits at <repo>/bin/ze.
+repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
 
 
 mkdir -p "$work/appliances" "$work/fakebin" "$work/fakepkg"

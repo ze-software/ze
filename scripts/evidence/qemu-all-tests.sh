@@ -133,6 +133,19 @@ fsuite l2tp "$ZE_TEST_BIN" l2tp --all -p "$PARALLEL"
 fsuite firewall "$ZE_TEST_BIN" firewall --all -p "$PARALLEL"
 fsuite policy "$ZE_TEST_BIN" policy --all -p "$PARALLEL"
 fsuite install "$ZE_TEST_BIN" install --all -p "$PARALLEL"
+fsuite appliance "$ZE_TEST_BIN" appliance --all -p "$PARALLEL"
+# IGP/MPLS suites: gated natively too, but test/ospf and test/ospfv3 contain
+# option=needs-linux tests that only execute here (spec-test-coverage-gaps AC-5;
+# the "full pass" claim in ai/rules/qemu-testing.md needs every gating suite).
+fsuite ldp "$ZE_TEST_BIN" ldp --all -p "$PARALLEL"
+fsuite rsvpte "$ZE_TEST_BIN" rsvpte --all -p "$PARALLEL"
+fsuite isis "$ZE_TEST_BIN" isis --all -p "$PARALLEL"
+fsuite ospf "$ZE_TEST_BIN" ospf --all -p "$PARALLEL"
+fsuite ospfv3 "$ZE_TEST_BIN" ospfv3 --all -p "$PARALLEL"
+# Offline wire-decode suites (cheap, gated natively as well).
+fsuite l2tp-wire "$ZE_TEST_BIN" l2tp-wire --all -p "$PARALLEL"
+fsuite isis-wire "$ZE_TEST_BIN" isis-wire --all -p "$PARALLEL"
+fsuite ospf-wire "$ZE_TEST_BIN" ospf-wire --all -p "$PARALLEL"
 # Serial (-p 1): the needs-linux qdisc tests mutate shared kernel qdisc state on
 # eth0, so parallel runs would race. Runs as root in the QEMU VM (CAP_NET_ADMIN),
 # where option=needs-linux tests assert real `tc qdisc show` output.

@@ -4,21 +4,39 @@
 # PREVENTS: False positive where events leak through without a matching
 #           import rule.
 
-# ze-peer expectations -- peer should receive OPEN but NO UPDATE.
+# ze-peer -- session establishes (the initial-sync EOR is the only expected
+# wire message; an empty expectation set would make ze-peer exit with "no test
+# data available", leaving no listener and no real session).
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=10s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # Python observer plugin: emit an event, wait, then shut down cleanly.
 tmpfs=l2tp-nocfg-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-import time
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data
 
 
 def dispatch(api, command):
     return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
+
+
+def peer_field(api, field, default):
+    result = dispatch(api, 'show bgp peer peer1 detail').get('result', {})
+    if result.get('status') != 'done':
+        return default
+    data = result_json_data(result, {})
+    return data.get('peers', {}).get('127.0.0.1', {}).get(field, default)
+
+
+def wait_peer(api, predicate, what, cycles=100):
+    for _ in range(cycles):
+        if predicate():
+            return
+        api.wait_for_event(timeout=0.2)
+    runtime_fail(f'timeout waiting for {what}')
 
 
 def main():
@@ -29,7 +47,13 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    time.sleep(2.0)
+    # The peer completes at the initial EOR and exits; per-session counters
+    # are cleared on teardown (ClearStats), so wait on the LIFETIME
+    # connections-established counter: a deterministic session-came-up proof
+    # replacing the old fixed sleep.
+    wait_peer(api,
+              lambda: peer_field(api, 'connections-established', 0) >= 1,
+              'peer1 session established at least once')
 
     resp = dispatch(api, 'request fakel2tp emit add ipv4/unicast 10.0.0.1/32')
     result = resp.get('result', {})
@@ -37,8 +61,12 @@ def main():
         runtime_fail(f'request fakel2tp emit failed: {result}')
         return
 
-    # Wait long enough that if an UPDATE were going to arrive, it would.
-    time.sleep(3.0)
+    # Bounded observation window (event-wait backoff, no fixed sleep): if the
+    # un-imported emit were going to reach the reactor, it would within this
+    # window. The gate stays the documented clean, healthy exit.
+    for _ in range(10):
+        api.wait_for_event(timeout=0.2)
+
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 

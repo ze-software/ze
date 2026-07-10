@@ -13,12 +13,27 @@ EOF_PEER
 
 tmpfs=l2tp-withdraw-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-import time
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data
 
 
 def dispatch(api, command):
     return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
+
+
+def peer_field(api, field, default):
+    result = dispatch(api, 'show bgp peer peer1 detail').get('result', {})
+    if result.get('status') != 'done':
+        return default
+    data = result_json_data(result, {})
+    return data.get('peers', {}).get('127.0.0.1', {}).get(field, default)
+
+
+def wait_peer(api, predicate, what, cycles=100):
+    for _ in range(cycles):
+        if predicate():
+            return
+        api.wait_for_event(timeout=0.2)
+    runtime_fail(f'timeout waiting for {what}')
 
 
 def main():
@@ -29,7 +44,17 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    time.sleep(2.0)
+    # // test-relax: KNOWN ENGINE ISSUE (tracked in spec-test-coverage-gaps,
+    # W-2 findings): with `internal fakel2tp` + `redistribute import l2tp`
+    # configured, observer dispatch-command polling during connect keeps the
+    # session at state=connecting indefinitely, while the poll-free flow
+    # establishes in ~1-2s (fakeas112 twins tolerate identical polling).
+    # Until fixed at source this observer stays dispatch-silent around the
+    # emits: subscribed-event windows only (no time.sleep, no polling); the
+    # runner's wire expectations (add then withdraw) remain the gate, exactly
+    # as in the original sleep-based version.
+    for _ in range(10):
+        api.wait_for_event(timeout=0.2)
 
     for cmd in (
         'request fakel2tp emit add ipv4/unicast 10.0.0.1/32',
@@ -40,9 +65,12 @@ def main():
         if result.get('status') != 'done':
             runtime_fail(f'{cmd}: {result}')
             return
-        time.sleep(0.5)
+        # Ordered-delivery window between add and remove (event-wait backoff).
+        for _ in range(3):
+            api.wait_for_event(timeout=0.2)
 
-    time.sleep(2.0)
+    for _ in range(10):
+        api.wait_for_event(timeout=0.2)
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 

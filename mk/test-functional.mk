@@ -1,7 +1,7 @@
 # Functional tests: .ci-based suites run via bin/ze-test
 #
 # Quick reference:
-#   make ze-functional-test    All 17 gating suites
+#   make ze-functional-test    All 22 gating suites
 #   make ze-encode-test        Encoding only
 #   make ze-plugin-test        Plugin behavior only
 #   make ze-decode-test        Wire decoding only
@@ -14,6 +14,7 @@
 #   make ze-l2tp-test          L2TP only
 #   make ze-firewall-test      Firewall only
 #   make ze-policy-test        Policy routing only
+#   make ze-appliance-test     Appliance CLI (build/iso/list/serial-login) only
 #   make ze-ospf-test          OSPF config/doctor tests
 #   make ze-static-test        Static routes (release evidence only)
 #   make ze-traffic-test       Traffic control (release evidence only)
@@ -26,7 +27,7 @@
 .PHONY: ze-functional-test
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test
 .PHONY: ze-ui-test ze-editor-test ze-web-test ze-managed-test
-.PHONY: ze-l2tp-test ze-firewall-test ze-policy-test
+.PHONY: ze-l2tp-test ze-firewall-test ze-policy-test ze-appliance-test
 .PHONY: ze-static-test ze-traffic-test ze-flow-export-test ze-vpp-test ze-l2tp-wire-test ze-isis-wire-test ze-ospf-wire-test ze-isis-test ze-ospf-test ze-ospfv3-test
 
 # Per-suite wall-clock cap. A stuck subprocess that holds an output pipe open
@@ -51,7 +52,7 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 ZE_SKIP_SUITES ?=
 ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
 	@failed=0; failed_names=""; skipped_names=""; total=0; suite_index=0; \
-	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ldp rsvpte isis ospf ospfv3 web install"; \
+	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ldp rsvpte isis ospf ospfv3 web install appliance l2tp-wire isis-wire ospf-wire"; \
 	suite_total=0; \
 	for suite in $$all_suites; do \
 		case ",$(ZE_SKIP_SUITES)," in *,$$suite,*) ;; *) suite_total=$$((suite_total + 1));; esac; \
@@ -83,6 +84,10 @@ ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
 	run_suite ospfv3 $(SUITE_RUN) bin/ze-test ospfv3 --all; \
 	run_suite web $(SUITE_RUN) bin/ze-test web --all; \
 	run_suite install $(SUITE_RUN) bin/ze-test install --all; \
+	run_suite appliance $(SUITE_RUN) bin/ze-test appliance --all; \
+	run_suite l2tp-wire $(SUITE_RUN) bin/ze-test l2tp-wire --all; \
+	run_suite isis-wire $(SUITE_RUN) bin/ze-test isis-wire --all; \
+	run_suite ospf-wire $(SUITE_RUN) bin/ze-test ospf-wire --all; \
 	if [ -n "$$skipped_names" ]; then \
 		printf "\n\033[33mSKIPPED suites (ZE_SKIP_SUITES): %s\033[0m\n" "$$skipped_names"; \
 	fi; \
@@ -140,6 +145,9 @@ ze-firewall-test: bin/ze-test
 
 ze-policy-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test policy --all
+
+ze-appliance-test: bin/ze-test
+	@$(SUITE_RUN) bin/ze-test appliance --all
 
 # ─── Non-gated functional test suites ───────────────────────────────────────
 # These suites are shipped but not in the default ze-verify gate. They require

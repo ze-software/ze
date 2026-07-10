@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 277 design docs, 2903 files
+Total: 278 design docs, 2907 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1378,6 +1378,7 @@ Total: 277 design docs, 2903 files
 | `internal/test/cli/ci_runner.go` | shared .ci test runner logic |
 | `internal/test/cli/cmd_bgp.go` | test runner CLI |
 | `internal/test/cli/cmd_editor.go` | test runner CLI |
+| `internal/test/cli/cmd_engine_steps.go` | engine-step executor plugin |
 | `internal/test/cli/cmd_exabgp.go` | predecessor encoding test runner |
 | `internal/test/cli/cmd_l2tp_scale.go` | L2TP scale test tooling |
 | `internal/test/cli/cmd_mcp.go` | MCP test client |
@@ -1417,6 +1418,7 @@ Total: 277 design docs, 2903 files
 | `internal/test/runner/diff.go` | test runner framework |
 | `internal/test/runner/display.go` | test runner framework |
 | `internal/test/runner/editor.go` | test runner framework |
+| `internal/test/runner/engine_steps.go` | engine-step directives |
 | `internal/test/runner/json.go` | test runner framework |
 | `internal/test/runner/limits.go` | test runner framework |
 | `internal/test/runner/loopback_darwin.go` | multi-peer loopback alias setup |
@@ -2872,6 +2874,10 @@ Total: 277 design docs, 2903 files
 | `internal/component/ike/engine/table.go` | IKE SA table |
 | `internal/component/ike/transport/udp.go` | IKE UDP transport |
 
+## `plan/learned/741-ipsec-8-child-xfrm.md`
+
+- `internal/component/ike/dataplane/noop.go` -- dataplane backend registry
+
 ## `plan/learned/742-ipsec-8-ikev2-child-xfrm.md`
 
 | File | Topic |
@@ -2919,6 +2925,7 @@ Total: 277 design docs, 2903 files
 | `internal/component/ike/engine/health_test.go` | IPsec health check tests |
 | `internal/component/ike/engine/metrics.go` | IPsec Prometheus metrics |
 | `internal/component/ike/engine/metrics_test.go` | IPsec metrics tests |
+| `internal/component/ike/engine/testport.go` | IKE engine addressing seam |
 | `internal/component/web/page_vpn_ipsec.go` | VPN IPsec web page |
 
 ## `plan/learned/748-cpe-6-self-update.md`

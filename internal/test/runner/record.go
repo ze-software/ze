@@ -151,6 +151,11 @@ type Record struct {
 	HTTPChecks []httpCheck // http= assertions in seq order
 	HTTPWaits  []httpCheck // http=wait readiness polls (run before checks)
 
+	// Engine steps: command=/stream= + expect=output|event|stream directives
+	// executed by the spawned `ze-test engine-steps` external plugin, fed via
+	// engine-steps.json in the tmpfs dir (engine_steps.go).
+	EngineSteps []EngineStep
+
 	// File checks for post-run filesystem assertions.
 	FileChecks []fileCheck
 

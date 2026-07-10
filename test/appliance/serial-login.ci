@@ -15,5 +15,34 @@
 #   5. Verify rejection on wrong password
 #   6. Verify fail-open when ZeFS is missing
 #
-# Deferred: requires QEMU serial port forwarding infrastructure.
-# Coverage: unit tests exercise all code paths; this would add integration proof.
+# The full interactive flow (credentials over a serial TTY) still needs the
+# QEMU serial plan above. What IS assertable offline, end to end through the
+# real user entry point, is the argv[0] shell-invocation gate itself: gokrazy
+# symlinks ash/sh to ze (isShellInvocation, cmd/ze/login.go:42-44) and
+# loginMain rejects a non-terminal stdin before any authentication
+# (cmd/ze/login.go:47-49). A negative control proves normal ze dispatch is
+# unaffected by the symlink gate.
+
+tmpfs=run.sh:terminator=EOF_SH
+#!/bin/sh
+set -eu
+ln -s "$(command -v ze)" ./ash
+# Non-terminal stdin: the login gate must reject (exit 1), never exec a shell.
+if ./ash < /dev/null; then
+	echo "FAIL: ash invocation with non-terminal stdin was not rejected" >&2
+	exit 1
+fi
+# Negative control: the same binary under its own name still dispatches.
+ze show version > /dev/null
+echo OK
+EOF_SH
+
+cmd=foreground:seq=1:exec=sh run.sh
+expect=exit:code=0
+expect=stdout:contains=OK
+reject=stderr:pattern=FAIL:
+# Non-terminal rejection must happen BEFORE authentication: if the gate is
+# bypassed, loginMain falls through to the ZeFS fail-open path and prints
+# "granting access without authentication" (cmd/ze/login.go:59) -- an exec
+# failure alone would fake the right exit code (mutation-verified).
+reject=stderr:pattern=granting access

@@ -220,7 +220,13 @@ func (m *Manager) ensureAcceptor(configs []parent.PluginConfig) error {
 			break
 		}
 	}
-	if !hasExternal {
+	// An explicitly configured hub server block always listens: out-of-process
+	// clients (plugin CLI, the .ci engine-step runner) authenticate with the
+	// configured secret without any external plugin being declared. Only the
+	// AUTO-generated hub (random secret nobody outside this process can know)
+	// stays gated on external plugins existing.
+	hasExplicitHub := m.hubConfig != nil && len(m.hubConfig.Servers) > 0
+	if !hasExternal && !hasExplicitHub {
 		return nil
 	}
 

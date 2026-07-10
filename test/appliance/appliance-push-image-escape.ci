@@ -5,7 +5,10 @@
 # candidate image as a symlink to a host file outside the appliance directory.
 # The push command must fail before network/TLS work and report the escape.
 
-option=env:var=ze.appliance.ssh.password:value=secret
+# Underscore form: /bin/sh (dash) drops dotted names from the environment, so
+# the dotted spelling never survives into sh-script children. ze's env lookup
+# treats dots and underscores as equivalent (internal/core/env/env.go:40).
+option=env:var=ze_appliance_ssh_password:value=secret
 
 tmpfs=run.sh:terminator=EOF_SH
 #!/bin/sh

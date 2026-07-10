@@ -1,4 +1,6 @@
 // Design: plan/learned/745-ipsec-10-cli-diag.md -- show vpn ipsec handlers.
+// Related: monitor_ipsec.go -- streaming `monitor vpn ipsec` sibling of these
+// one-shot show handlers.
 // Owned by the ike component so that removing it removes the `show vpn ipsec ...`
 // command, its schema, and these handlers together. See
 // ai/rules/plugin-self-containment.md.

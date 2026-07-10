@@ -25,12 +25,42 @@ EOF_PEER2
 # Python observer: wait for all plugins ready, drive fakel2tp emit, shut down.
 tmpfs=mpreach-nexthop-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-import time
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data
+
+PEERS = (('peer1', '127.0.0.1'), ('peer2', '127.0.0.2'))
 
 
 def dispatch(api, command):
     return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
+
+
+def peer_field(api, name, addr, field, default):
+    # show bgp summary payload nests as {"summary": {..., "peers": [rows]}}
+    # (internal/component/bgp/plugins/cmd/peer/summary.go:140-151); each row
+    # carries name/address/state plus the sent counters used below.
+    result = dispatch(api, 'show bgp summary').get('result', {})
+    if result.get('status') != 'done':
+        return default
+    data = result_json_data(result, {})
+    if not isinstance(data, dict):
+        return default
+    rows = data.get('summary', {}).get('peers', [])
+    for row in rows:
+        if row.get('name') == name or row.get('address') == addr:
+            return row.get(field, default)
+    return default
+
+
+def wait_all(api, predicate, what, cycles=100):
+    for _ in range(cycles):
+        if all(predicate(name, addr) for name, addr in PEERS):
+            return
+        api.wait_for_event(timeout=0.2)
+    snapshot = {
+        n: dispatch(api, f'show bgp peer {n} detail').get('result', {})
+        for n, _ in PEERS
+    }
+    runtime_fail(f'timeout waiting for {what}; peer detail: {snapshot}')
 
 
 def main():
@@ -45,7 +75,18 @@ def main():
         runtime_fail('post-startup callback never received')
         return
 
-    time.sleep(1.0)
+    # // test-relax: KNOWN ENGINE ISSUE (tracked in spec-test-coverage-gaps,
+    # W-2 findings): while these two peers are in the connect phase, ANY
+    # periodic ze-plugin-engine:dispatch-command traffic from this observer
+    # (`show bgp peer <n> detail` or `show bgp summary`, any cadence tried)
+    # keeps BOTH sessions at state=connecting with opens-sent=0 indefinitely,
+    # while a poll-free observer sees them establish within ~2s. Until that
+    # is fixed at source, this observer must stay dispatch-silent before the
+    # emit: it waits on subscribed-event windows only (no time.sleep, no
+    # polling). The wire JSON expectations remain the test's gate, exactly as
+    # in the original sleep-based version (delivery via initial-sync replay).
+    for _ in range(10):
+        api.wait_for_event(timeout=0.2)
 
     resp = dispatch(api, 'request fakel2tp emit add ipv6/unicast 2001:db8::1/128')
     result = resp.get('result', {})
@@ -53,7 +94,11 @@ def main():
         runtime_fail(f'request fakel2tp emit failed: {result}')
         return
 
-    time.sleep(2.0)
+    # Bounded delivery window (event-wait backoff): the runner's per-peer JSON
+    # expectations gate the actual MP_REACH content on both wires.
+    for _ in range(15):
+        api.wait_for_event(timeout=0.2)
+
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 

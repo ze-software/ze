@@ -17,17 +17,20 @@ tmpfs=exabgp-plugin.py:mode=755:terminator=EOF_PLUGIN
 """Simple ExaBGP plugin that announces one route using ExaBGP command syntax."""
 
 import sys
-import time
 
 def main() -> None:
-    # Give the bridge time to finish startup
-    time.sleep(0.5)
-
+    # The bridge owns this script's stdout pipe from the moment it spawns the
+    # process; the kernel buffers anything written before the bridge's reader
+    # attaches, so the announce cannot be lost and needs no startup delay.
+    #
     # Send ExaBGP-format announce command.
     # The bridge translates this to:
     #   peer 127.0.0.1 update text nhop 101.1.101.1 origin igp
     #     local-preference 100 nlri ipv4/unicast add 1.1.0.0/24
-    cmd = "neighbor 127.0.0.1 announce route 1.1.0.0/24 next-hop 101.1.101.1 origin igp local-preference 100"
+    cmd = (
+        "neighbor 127.0.0.1 announce route 1.1.0.0/24 "
+        "next-hop 101.1.101.1 origin igp local-preference 100"
+    )
     print(cmd, flush=True)
 
     # Keep alive until parent exits

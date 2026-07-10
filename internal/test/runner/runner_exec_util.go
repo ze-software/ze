@@ -13,9 +13,19 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errEmptyExecCommand = errors.New("empty exec command")
+
+// zeRepoRootEnv renders the ZE_REPO_ROOT=<baseDir> environment entry exported
+// to every exec'd test process. Shell-script tests use it to locate the source
+// tree (the ze binary's own directory is a temp build dir, not <repo>/bin).
+func zeRepoRootEnv(baseDir string) string {
+	var tb textbuf.Buffer
+	return tb.Str("ZE_REPO_ROOT=").Str(baseDir).String()
+}
 
 // withParallelHeadroom widens a resolved per-test timeout by
 // ParallelTimeoutHeadroom when this Run executes tests concurrently. Serial

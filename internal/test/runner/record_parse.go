@@ -262,6 +262,10 @@ func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
 		return et.parseCmd(r, lineType, kvPairs, line)
 	case "http":
 		return et.parseHTTP(r, lineType, line)
+	case engineActionCommand, engineActionStream:
+		// Engine steps keep the full raw remainder (colons included), so the
+		// generic key=value splitter must not be applied (engine_steps.go).
+		return parseEngineCmd(r, action, line)
 	default:
 		return fmt.Errorf("unknown action %q in %q", action, line)
 	}
@@ -511,6 +515,9 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 			return err
 		}
 		r.FileChecks = append(r.FileChecks, check)
+
+	case "output", "event", "stream":
+		return parseEngineExpect(r, expType, kv)
 
 	default:
 		return fmt.Errorf("unknown expect type %q", expType)

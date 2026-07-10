@@ -82,12 +82,10 @@ func cmdDecode(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: input exceeds %d bytes (max); likely not a hex L2TPv2 message\n", maxStdinBytes)
 		return 1
 	}
-	clean := stripWhitespace(string(raw))
-	wire, err := hex.DecodeString(clean)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: decode hex: %v\n", err)
-		return 1
-	}
+	// Accept both ASCII hex and raw wire bytes (mirrors isis-decode's toWire:
+	// the .ci runner pre-decodes stdin=<name>:hex= blocks to raw bytes,
+	// internal/test/tmpfs/tmpfs.go:364-368, while humans paste hex text).
+	wire := toWire(raw)
 
 	h, err := l2tpwire.ParseMessageHeader(wire)
 	if err != nil {
@@ -163,6 +161,34 @@ func stripWhitespace(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// toWire turns the stdin bytes into the raw L2TP control message. Mirrors
+// isis-decode (internal/plugins/isis/cli/decode.go toWire): ASCII hex after
+// whitespace stripping is hex-decoded; anything else is treated as raw wire
+// bytes (the .ci runner pre-decodes stdin hex= blocks to raw,
+// internal/test/tmpfs/tmpfs.go:364-368). An L2TPv2 control header starts with
+// 0xC8/0xC2 flag bytes, which are not ASCII hex digits, so raw bytes are never
+// mistaken for hex text.
+func toWire(raw []byte) []byte {
+	clean := stripWhitespace(string(raw))
+	if clean != "" && len(clean)%2 == 0 && isHexString(clean) {
+		if decoded, err := hex.DecodeString(clean); err == nil {
+			return decoded
+		}
+	}
+	return raw
+}
+
+// isHexString reports whether s consists solely of ASCII hex digits.
+func isHexString(s string) bool {
+	for i := range len(s) {
+		c := s[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
+			return false
+		}
+	}
+	return true
 }
 
 // avpName returns the RFC 2661 catalog name for a vendor-0 AVP, or "" for

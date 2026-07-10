@@ -158,7 +158,7 @@ func SPIHex(spi [8]byte) string {
 }
 
 func (sa *SA) remoteUDPAddr() *net.UDPAddr {
-	addr, err := net.ResolveUDPAddr("udp4", sa.PeerCfg.RemoteAddress+":500")
+	addr, err := net.ResolveUDPAddr("udp4", ikeAddr(sa.PeerCfg.RemoteAddress))
 	if err != nil {
 		return nil
 	}

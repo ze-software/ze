@@ -51,7 +51,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 	// Set up Tmpfs temp directory if there are Tmpfs files (needed by both paths)
 	var tmpfsCleanup func()
-	if len(rec.TmpfsFiles) > 0 {
+	if len(rec.TmpfsFiles) > 0 || len(rec.EngineSteps) > 0 {
 		v := tmpfs.New()
 		for path, content := range rec.TmpfsFiles {
 			// Expand $PORT2 before $PORT in tmpfs content (scripts, configs)
@@ -59,6 +59,16 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 			s = strings.ReplaceAll(s, "$PORT2", strconv.Itoa(rec.Port+1))
 			s = strings.ReplaceAll(s, "$PORT", strconv.Itoa(rec.Port))
 			v.AddFile(path, []byte(s))
+		}
+		if len(rec.EngineSteps) > 0 {
+			// Contract with the .ci-declared external executor plugin:
+			// run "ze-test engine-steps ./engine-steps.json" (engine_steps.go).
+			stepsJSON, stepsErr := MarshalEngineSteps(rec.EngineSteps)
+			if stepsErr != nil {
+				rec.Error = fmt.Errorf("marshal engine steps: %w", stepsErr)
+				return false
+			}
+			v.AddFile(EngineStepsFileName, stepsJSON)
 		}
 		tmpfsTempDir, cleanup, err := v.WriteToTemp()
 		if err != nil {
@@ -178,8 +188,13 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
 	)
 
-	// Add test-specific environment variables
-	clientEnv = append(clientEnv, rec.EnvVars...)
+	// Add test-specific environment variables ($PORT/$PORT2 expand like exec
+	// strings so per-test ports work in env knobs too).
+	for _, kv := range rec.EnvVars {
+		kv = strings.ReplaceAll(kv, "$PORT2", strconv.Itoa(rec.Port+1))
+		kv = strings.ReplaceAll(kv, "$PORT", strconv.Itoa(rec.Port))
+		clientEnv = append(clientEnv, kv)
+	}
 
 	// Add syslog destination if syslog server is running.
 	// These use the ze.log.backend / ze.log.destination convention from
@@ -563,6 +578,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		proc.Env = append(os.Environ(),
 			"PYTHONPATH="+filepath.Join(r.baseDir, "test", "scripts"),
 			"PATH="+zeDir+":"+existingPath,
+			// Repo root for shell-script tests that must run repo-anchored
+			// tools (e.g. `ze appliance build` resolves gokrazy/modcache from
+			// CWD). Deriving the root from the ze binary's location is wrong
+			// here: the runner builds ze into a temp dir, not <repo>/bin.
+			zeRepoRootEnv(r.baseDir),
 			"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
 			// Cap doctor reachability probes so they fail fast against
 			// deliberately-unreachable fixtures instead of waiting out their full
@@ -590,8 +610,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				textbuf.StrInt("ze.log.destination=127.0.0.1:", int64(syslogSrv.Port())),
 			)
 		}
-		// Add test-specific environment variables (option=env:var=KEY:value=VALUE)
-		proc.Env = append(proc.Env, rec.EnvVars...)
+		// Add test-specific environment variables (option=env:var=KEY:value=VALUE).
+		// $PORT/$PORT2 expand like exec strings so per-test ports work in env
+		// knobs too (e.g. ze.test.ike.port shared by a two-daemon IKE pair).
+		for _, kv := range rec.EnvVars {
+			kv = strings.ReplaceAll(kv, "$PORT2", strconv.Itoa(rec.Port+1))
+			kv = strings.ReplaceAll(kv, "$PORT", strconv.Itoa(rec.Port))
+			proc.Env = append(proc.Env, kv)
+		}
 		// Tell foreground ze processes to write a readiness file after signal
 		// handlers are registered. The test runner waits for this file before
 		// writing daemon.pid, eliminating a startup race condition.

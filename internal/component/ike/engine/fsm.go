@@ -99,7 +99,7 @@ func (ps *PeerSession) runInitiator(
 	// RFC 7296 Section 2.6: initiator inserts SA with zero responder SPI initially.
 	table.Insert(sa)
 
-	remote, err := net.ResolveUDPAddr("udp4", peer.RemoteAddress+":500")
+	remote, err := net.ResolveUDPAddr("udp4", ikeAddr(peer.RemoteAddress))
 	if err != nil {
 		return fmt.Errorf("ike: resolve remote: %w", err)
 	}

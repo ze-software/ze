@@ -29,9 +29,9 @@ tmpfs=forked-kernel.run:mode=755:terminator=EOF_RUN
 
 import subprocess
 import sys
-import time
 
-from ze_api import API, runtime_fail
+from ze_api import API
+from ze_api import runtime_fail
 
 
 def sh(*args):
@@ -72,7 +72,7 @@ def main():
         if kernel_has_ze_route('10.99.0.0/24'):
             found = True
             break
-        time.sleep(0.25)
+        api.wait_for_event(timeout=0.25)
     if not found:
         got = sh("ip", "route", "show", "10.99.0.0/24").stdout.strip()
         runtime_fail(f"route-install: 10.99.0.0/24 not in kernel as RTPROT_ZE; ip route showed: {got!r}")
@@ -89,7 +89,7 @@ def main():
         if not kernel_has_ze_route('10.99.0.0/24'):
             swept = True
             break
-        time.sleep(0.25)
+        api.wait_for_event(timeout=0.25)
     if not swept:
         runtime_fail("route-remove: 10.99.0.0/24 still in kernel after withdrawal")
 

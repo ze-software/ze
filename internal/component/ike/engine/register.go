@@ -175,7 +175,7 @@ func runEngine(conn net.Conn) int {
 	log := getLogger()
 	log.Debug("ike engine starting")
 
-	if err := dataplane.Load("xfrm"); err != nil {
+	if err := dataplane.Load(ikeDataplaneName()); err != nil {
 		log.Warn("ike: dataplane load failed, SA installation disabled", "error", err)
 	}
 
@@ -250,12 +250,18 @@ func runEngine(conn net.Conn) int {
 		}
 
 		if tr == nil && len(cfg.Peers) > 0 {
-			listenAddr := "0.0.0.0:500"
+			ifaceHost := ""
 			if cfg.Interface != "" {
-				if ip := resolveInterfaceAddr(cfg.Interface); ip != "" {
-					listenAddr = ip + ":500"
+				ifaceHost = resolveInterfaceAddr(cfg.Interface)
+			}
+			peerLocal := ""
+			for name := range cfg.Peers {
+				if la := cfg.Peers[name].LocalAddress; la != "" {
+					peerLocal = la
+					break
 				}
 			}
+			listenAddr := ikeAddr(ikeListenHost(ifaceHost, peerLocal))
 			var tErr error
 			tr, tErr = transport.NewUDPTransport(listenAddr, log)
 			if tErr != nil {
