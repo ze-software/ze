@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/plugins/authradius/yang"
@@ -220,9 +221,32 @@ func closeCoAListener() {
 	}
 }
 
+// coaResolveTimeout is the TOTAL wall-clock budget for resolving every hostname
+// RADIUS server address when building the CoA source-address allow list. A
+// single deadline is shared across all server lookups (not per-server), so the
+// worst case is bounded regardless of how many hostname servers are configured.
+// It must stay under the plugin's declared ApplyBudget (1s, register.go Run) so
+// a dead resolver can never push OnConfigApply past the transaction deadline
+// (see startup-resilience FIX 2). A var (not const) so tests can shrink it.
+var coaResolveTimeout = 750 * time.Millisecond
+
+// lookupIPAddr resolves a hostname to IP addresses. It is a test seam over
+// net.Resolver.LookupIPAddr so unit tests can exercise the bounded-timeout and
+// skip-on-failure behavior without real DNS. Production code leaves it at the
+// real resolver.
+var lookupIPAddr = func(ctx context.Context, host string) ([]net.IPAddr, error) {
+	var r net.Resolver
+	return r.LookupIPAddr(ctx, host)
+}
+
 // serverIPs extracts the IP addresses from the configured RADIUS servers
-// for CoA source address filtering.
+// for CoA source address filtering. IP-literal addresses are used directly;
+// hostname addresses are resolved under a single shared deadline
+// (coaResolveTimeout) covering all of them, so total apply-path DNS work stays
+// under the plugin's ApplyBudget even with several dead-resolver hostnames.
 func serverIPs(servers []radius.Server) []net.IP {
+	ctx, cancel := context.WithTimeout(context.Background(), coaResolveTimeout)
+	defer cancel()
 	var ips []net.IP
 	for _, srv := range servers {
 		host, _, err := net.SplitHostPort(srv.Address)
@@ -231,15 +255,28 @@ func serverIPs(servers []radius.Server) []net.IP {
 		}
 		if ip := net.ParseIP(host); ip != nil {
 			ips = append(ips, ip)
-		} else {
-			var resolver net.Resolver
-			addrs, resolveErr := resolver.LookupIPAddr(context.Background(), host)
-			if resolveErr == nil {
-				for _, a := range addrs {
-					ips = append(ips, a.IP)
-				}
-			}
+			continue
 		}
+		ips = append(ips, resolveCoAHost(ctx, host)...)
+	}
+	return ips
+}
+
+// resolveCoAHost resolves a hostname RADIUS server address to IPs for the CoA
+// source-address allow list under the caller's shared deadline. An unresolved
+// (or timed-out) hostname is logged and skipped: the allow list degrades to the
+// resolvable subset (fail-closed for CoA source filtering) and apply is never
+// blocked on a dead resolver.
+func resolveCoAHost(ctx context.Context, host string) []net.IP {
+	addrs, err := lookupIPAddr(ctx, host)
+	if err != nil {
+		logger().Warn("l2tp-auth-radius: CoA server hostname unresolved, skipping from source filter",
+			"host", host, "error", err)
+		return nil
+	}
+	ips := make([]net.IP, 0, len(addrs))
+	for _, a := range addrs {
+		ips = append(ips, a.IP)
 	}
 	return ips
 }

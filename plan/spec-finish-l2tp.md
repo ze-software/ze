@@ -28,6 +28,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 - **NCP unit-test gaps (L41,L42,L43)** - backend-error injection (L41, mock `addAddrP2PErr` never set), renegotiation-after-Opened behavioural (L42), IPCP DNS Configure-Reject absorb (L43, `ncp.go:444` unexercised).
 - **LCP restart-counter (L163)** - restart-timer landed; IRC/ZRC restart-counter/backoff + AckRcvd coverage still deferred.
 - **ppp component-imports doc row (L164)** - `docs/architecture/core-design.md` component-imports table has no `ppp` row.
+- **authradius coa-port YANG leaf + CoA end-to-end `.ci` (from spec-startup-resilience 2026-07-10)** - `coa-port` is parsed (`internal/component/l2tp/plugins/authradius/config.go:93-100`) but has NO YANG leaf, so the whole CoA listener branch (`register.go:200-210`) is unreachable via production config (the parser rejects unknown fields, `config/parser.go:372-380`). Add the leaf, then a functional `.ci` exercising CoA source filtering. The apply-path DNS lookup on that branch is already bounded (spec-startup-resilience FIX 2: one shared 750ms deadline < the plugin's 1s ApplyBudget); the unit tests `TestServerIPs*` pin it now.
 
 ## Required Reading
 

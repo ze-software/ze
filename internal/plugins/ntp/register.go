@@ -181,7 +181,13 @@ func runNTPPlugin(conn net.Conn) int {
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{configRootEnvironment},
 		VerifyBudget: 2,
-		ApplyBudget:  5,
+		// ApplyBudget in seconds (orchestrator sums per-tier maxima). The
+		// worst-case OnConfigApply cost is the synchronous worker handoff:
+		// stopAndWait now returns within one in-flight ntp.Query (~5s, library
+		// default) plus up to 250ms jitter and goroutine handoff. 10s leaves
+		// comfortable headroom over that residual one-query wait while dead
+		// servers keep the phase-2 retry loop busy (startup-resilience FIX 1).
+		ApplyBudget: 10,
 	}); err != nil {
 		log.Error("ntp plugin failed", "error", err)
 		return 1

@@ -446,6 +446,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-radius-admin-unreachable"},
 	},
 	{
+		Code:        "doctor-hub-unreachable",
+		Title:       "Management hub unreachable",
+		Description: "This node is configured as a managed client (plugin/hub/client) but none of its management hubs answered a TCP probe. The node still boots and runs its committed config; it will not receive hub-pushed config updates until a hub becomes reachable.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-hub-unreachable"},
+	},
+	{
 		Code:        "doctor-traffic-usage-ebpf",
 		Title:       "traffic-usage eBPF unavailable",
 		Description: "The traffic-usage plugin is enabled but the kernel cannot load or attach its eBPF TCX programs (missing CAP_BPF/CAP_NET_ADMIN, no TCX support, or a non-Linux build). Byte accounting will not run.",
@@ -564,6 +570,12 @@ var builtinCodes = []CodeMeta{
 		Title:       "VPP DPDK readiness failure",
 		Description: "VPP DPDK is configured but a required VFIO kernel module is not loaded or a PCI device is not present in sysfs.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-vpp-dpdk"},
+	},
+	{
+		Code:        "doctor-vpp-hugepages",
+		Title:       "VPP hugepage reservation problem",
+		Description: "VPP is enabled but the host's boot-time hugepage reservation is missing, smaller than VPP needs, clamped by the kernel, or (for 1G pages) unsupported by the CPU. Reserve hugepages via image.hugepages or the boot cmdline.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-vpp-hugepages"},
 	},
 	{
 		Code:        "doctor-update-check-unreachable",

@@ -1,10 +1,16 @@
 package ntp
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/beevik/ntp"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 
@@ -13,6 +19,36 @@ import (
 
 	ntpevents "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/events"
 )
+
+// errTestUnreachable is the stub error for an unreachable NTP server.
+var errTestUnreachable = errors.New("test: ntp server unreachable")
+
+// restoreNTPSeams captures the current doSync test seams and restores them via
+// t.Cleanup, so a test may override ntpQueryFn/setClockFn without leaking the
+// override into other tests. Tests using this MUST NOT call t.Parallel().
+func restoreNTPSeams(t *testing.T) {
+	t.Helper()
+	origQuery := ntpQueryFn
+	origClock := setClockFn
+	t.Cleanup(func() {
+		ntpQueryFn = origQuery
+		setClockFn = origClock
+	})
+}
+
+// validNTPResponse builds a *ntp.Response that passes Response.Validate:
+// stratum in range, transmit time not before reference time, small dispersion,
+// no kiss-of-death or leap-not-in-sync.
+func validNTPResponse(offset time.Duration) *ntp.Response {
+	now := time.Now()
+	return &ntp.Response{
+		Stratum:       2,
+		Time:          now,
+		ReferenceTime: now.Add(-time.Minute),
+		ClockOffset:   offset,
+		RTT:           2 * time.Millisecond,
+	}
+}
 
 // TestParseNTPConfigEnabled verifies that NTP config is parsed correctly.
 //
@@ -690,4 +726,170 @@ func TestPersistPathCreatesDirs(t *testing.T) {
 
 	_, err = os.Stat(path)
 	assert.NoError(t, err)
+}
+
+// TestDoSyncStopChecksBetweenServers verifies that a stop signal arriving
+// mid-doSync abandons the remaining per-server queries instead of walking the
+// whole server list.
+//
+// VALIDATES: startup-resilience FIX 1 / AC-3 - config re-apply that stops the
+// worker waits out at most one in-flight query, not len(servers) x timeout.
+// PREVENTS: reintroducing the unbounded reload block (removing the stop-check
+// from the doSync server loop would query every server before returning).
+func TestDoSyncStopChecksBetweenServers(t *testing.T) {
+	restoreNTPSeams(t)
+
+	cfg := ntpConfig{Enabled: true, Servers: []string{"srv-a", "srv-b", "srv-c"}}
+	w := newSyncWorker(cfg, nil)
+
+	var mu sync.Mutex
+	var queried []string
+	ntpQueryFn = func(addr string) (*ntp.Response, error) {
+		mu.Lock()
+		queried = append(queried, addr)
+		first := len(queried) == 1
+		mu.Unlock()
+		if first {
+			// Simulate a reload/shutdown landing while the first query is in
+			// flight; the loop must not start the remaining servers.
+			close(w.stop)
+		}
+		return nil, errTestUnreachable
+	}
+
+	synced := w.doSync(loggerPtr.Load())
+
+	assert.False(t, synced, "doSync should report no sync when stopping")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, []string{"srv-a"}, queried,
+		"only the in-flight server should be queried after stop is signaled")
+}
+
+// TestStartWorkerReloadBoundedWait drives the full worker lifecycle and proves
+// that stopAndWait during an in-flight sync lets exactly one query complete and
+// starts no further ones.
+//
+// VALIDATES: startup-resilience FIX 1 / AC-3 through the real start()/
+// stopAndWait() path (not just doSync in isolation).
+// PREVENTS: a regression where the worker keeps querying dead servers after a
+// reload signal, blocking the config-apply transaction past its deadline.
+func TestStartWorkerReloadBoundedWait(t *testing.T) {
+	restoreNTPSeams(t)
+
+	cfg := ntpConfig{Enabled: true, Servers: []string{"s1", "s2", "s3", "s4", "s5"}}
+	w := newSyncWorker(cfg, nil)
+
+	var mu sync.Mutex
+	var started []string
+	release := make(chan struct{})
+	ntpQueryFn = func(addr string) (*ntp.Response, error) {
+		mu.Lock()
+		started = append(started, addr)
+		mu.Unlock()
+		<-release // block so the test controls when the in-flight query returns
+		return nil, errTestUnreachable
+	}
+
+	w.start()
+
+	// Wait for the first query to be in flight.
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(started) == 1
+	}, 2*time.Second, time.Millisecond, "first query never started")
+
+	// Signal stop, then wait until the worker has observed it, then release the
+	// blocked query. With the stop-check the loop returns without starting s2..s5.
+	stopReturned := make(chan struct{})
+	go func() {
+		w.stopAndWait()
+		close(stopReturned)
+	}()
+	require.Eventually(t, w.isStopped, time.Second, time.Millisecond,
+		"stopAndWait did not close the stop channel")
+	close(release)
+
+	select {
+	case <-stopReturned:
+	case <-time.After(2 * time.Second):
+		t.Fatal("stopAndWait did not return within the bounded wait")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Len(t, started, 1,
+		"exactly one query should run after a reload signal; got %v", started)
+}
+
+// TestSyncWorkerReloadNoGoroutineLeak verifies that repeated start/stop cycles
+// (as config reloads do) leave no lingering worker goroutines.
+//
+// VALIDATES: startup-resilience R-3 - background retry loops do not leak
+// goroutines across config reloads.
+// PREVENTS: stopAndWait returning before the worker goroutine exits, which would
+// accumulate goroutines on every commit that touches the environment root.
+func TestSyncWorkerReloadNoGoroutineLeak(t *testing.T) {
+	restoreNTPSeams(t)
+
+	// Fast, non-blocking stub so each cycle completes promptly.
+	ntpQueryFn = func(string) (*ntp.Response, error) { return nil, errTestUnreachable }
+
+	cfg := ntpConfig{Enabled: true, Servers: []string{"s1", "s2"}}
+
+	const cycles = 25
+	before := runtime.NumGoroutine()
+	for range cycles {
+		w := newSyncWorker(cfg, nil)
+		w.start()
+		w.stopAndWait()
+	}
+
+	// stopAndWait joins the worker goroutine, so the count should already be
+	// settled; poll briefly to absorb scheduler slack from any parallel tests.
+	deadline := time.Now().Add(2 * time.Second)
+	after := runtime.NumGoroutine()
+	for after > before+1 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+		after = runtime.NumGoroutine()
+	}
+	assert.LessOrEqualf(t, after, before+1,
+		"goroutine leak across %d reload cycles: before=%d after=%d", cycles, before, after)
+}
+
+// TestSyncWorkerConvergesWhenServerAppears verifies AC-4: a worker whose servers
+// are unreachable at first syncs once a server starts answering, without a
+// restart.
+//
+// VALIDATES: startup-resilience AC-4 - convergence when the service returns.
+// PREVENTS: the stop-check change regressing the retry-then-sync path so a
+// recovered server is never picked up.
+func TestSyncWorkerConvergesWhenServerAppears(t *testing.T) {
+	restoreNTPSeams(t)
+
+	// Avoid a privileged Settimeofday in the unit test.
+	var clockSet atomic.Int32
+	setClockFn = func(time.Time) error {
+		clockSet.Add(1)
+		return nil
+	}
+
+	var attempts atomic.Int32
+	ntpQueryFn = func(string) (*ntp.Response, error) {
+		if attempts.Add(1) == 1 {
+			return nil, errTestUnreachable // server still down on the first pass
+		}
+		return validNTPResponse(5 * time.Millisecond), nil // server now answers
+	}
+
+	cfg := ntpConfig{Enabled: true, Servers: []string{"srv"}} // SlewThresholdMs 0 -> step
+	w := newSyncWorker(cfg, nil)
+
+	assert.False(t, w.doSync(loggerPtr.Load()), "first pass: server unreachable")
+	assert.False(t, w.synced.Load(), "not synced after the failed pass")
+
+	assert.True(t, w.doSync(loggerPtr.Load()), "second pass: server answers")
+	assert.True(t, w.synced.Load(), "worker converged to synced without a restart")
+	assert.GreaterOrEqual(t, clockSet.Load(), int32(1), "clock should be set on sync")
 }

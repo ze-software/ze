@@ -38,6 +38,16 @@ var (
 // loggerPtr is the package-level logger, disabled by default.
 var loggerPtr atomic.Pointer[slog.Logger]
 
+// Test seams: ntpQueryFn is the per-server NTP query and setClockFn is the
+// platform clock setter. They are variables (not direct calls) so unit tests
+// can drive doSync/stopAndWait without real network I/O or a privileged
+// Settimeofday. Matches the radiusAdminProbe seam convention in the radius
+// component. Production code leaves them at their real implementations.
+var (
+	ntpQueryFn = ntp.Query
+	setClockFn = setClock
+)
+
 // ntpConfig holds the parsed NTP configuration.
 type ntpConfig struct {
 	Enabled         bool
@@ -149,13 +159,22 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 		return false
 	}
 
-	// Query all servers and update per-server state.
+	// Query all servers and update per-server state. Check the stop channel
+	// before each server so a reload or shutdown that lands mid-sync waits out
+	// at most one in-flight query (~one query timeout), not
+	// len(servers) x timeout. ntp.Query has no context/cancel, so stop-checks
+	// between the serial per-server queries are the bound (see startup-resilience
+	// spec, FIX 1). Returning false here is the normal "did not sync" signal:
+	// phase 2 then exits via sleepOrStop(stop) and phase 3 ignores the result.
 	now := time.Now()
 	for _, addr := range servers {
+		if w.isStopped() {
+			return false
+		}
 		ps := w.getOrCreatePeer(addr)
 		ps.LastQuery = now
 
-		resp, err := ntp.Query(addr)
+		resp, err := ntpQueryFn(addr)
 		if err != nil {
 			ps.Reach = reachShift(ps.Reach, false)
 			ps.LastError = err.Error()
@@ -208,7 +227,7 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 	if action == actionSlew {
 		if err := slewClock(best.Offset); err != nil {
 			logger.Warn("ntp: slew failed, falling back to step", "server", best.Address, "err", err)
-			if err := setClock(clockTime); err != nil {
+			if err := setClockFn(clockTime); err != nil {
 				logger.Warn("ntp: set clock failed", "server", best.Address, "err", err)
 				return false
 			}
@@ -217,7 +236,7 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 			logger.Info("ntp: clock slewed", "server", best.Address, "offset", best.Offset)
 		}
 	} else {
-		if err := setClock(clockTime); err != nil {
+		if err := setClockFn(clockTime); err != nil {
 			logger.Warn("ntp: set clock failed", "server", best.Address, "err", err)
 			return false
 		}
