@@ -9,11 +9,43 @@
 package collector
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/prometheus/procfs"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
+
+// procDir writes files under a fresh temp dir and returns both a procfs.FS
+// rooted there and the dir path, so delta-based collector tests can rewrite
+// their inputs between two Collect() calls (the first stashes prev, the second
+// emits the rate). writeProcFile overwrites a single file in that dir.
+func procDir(t *testing.T, files map[string]string) (procfs.FS, string) {
+	t.Helper()
+	dir := t.TempDir()
+	for rel, content := range files {
+		writeProcFile(t, dir, rel, content)
+	}
+	fs, err := procfs.NewFS(dir)
+	if err != nil {
+		t.Fatalf("procfs.NewFS: %v", err)
+	}
+	return fs, dir
+}
+
+func writeProcFile(t *testing.T, dir, rel, content string) {
+	t.Helper()
+	full := filepath.Join(dir, rel)
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(full, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
 
 // recordingRegistry is a metrics.Registry that records the last Set/Add value
 // for every gauge and counter, keyed by metric name and joined label values.

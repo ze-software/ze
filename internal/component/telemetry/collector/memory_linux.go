@@ -62,13 +62,17 @@ func (c *memoryCollector) Init(reg metrics.Registry, prefix string) {
 	c.zswap = reg.GaugeVec(prefix+"_mem_zswap_MiB_average", "Zswap Usage", labels)
 }
 
-const mibDiv = 1024 * 1024
+// procfs Meminfo exposes the plain fields (m.MemTotal, m.MemFree, ...) in kB —
+// only the *Bytes variants are in bytes. Dividing kB by 1024 yields MiB, which
+// is what every "_MiB_average" gauge below expects (and matches the zswap path,
+// which converts its kB reading with /1024 directly).
+const kbPerMiB = 1024
 
-func toMiB(bytes *uint64) float64 {
-	if bytes == nil {
+func kBToMiB(kb *uint64) float64 {
+	if kb == nil {
 		return 0
 	}
-	return float64(*bytes) / mibDiv
+	return float64(*kb) / kbPerMiB
 }
 
 func (c *memoryCollector) Collect() error {
@@ -77,10 +81,10 @@ func (c *memoryCollector) Collect() error {
 		return err
 	}
 
-	total := toMiB(m.MemTotal)
-	free := toMiB(m.MemFree)
-	cached := toMiB(m.Cached)
-	buffers := toMiB(m.Buffers)
+	total := kBToMiB(m.MemTotal)
+	free := kBToMiB(m.MemFree)
+	cached := kBToMiB(m.Cached)
+	buffers := kBToMiB(m.Buffers)
 	used := total - free - cached - buffers
 
 	c.ram.With("system.ram", "free", "ram").Set(free)
@@ -88,61 +92,61 @@ func (c *memoryCollector) Collect() error {
 	c.ram.With("system.ram", "cached", "ram").Set(cached)
 	c.ram.With("system.ram", "buffers", "ram").Set(buffers)
 
-	swapTotal := toMiB(m.SwapTotal)
-	swapFree := toMiB(m.SwapFree)
+	swapTotal := kBToMiB(m.SwapTotal)
+	swapFree := kBToMiB(m.SwapFree)
 	c.swap.With("system.swap", "free", "swap").Set(swapFree)
 	c.swap.With("system.swap", "used", "swap").Set(swapTotal - swapFree)
 
-	c.available.With("mem.available", "avail", "mem").Set(toMiB(m.MemAvailable))
-	c.committed.With("mem.committed", "Committed_AS", "mem").Set(toMiB(m.CommittedAS))
+	c.available.With("mem.available", "avail", "mem").Set(kBToMiB(m.MemAvailable))
+	c.committed.With("mem.committed", "Committed_AS", "mem").Set(kBToMiB(m.CommittedAS))
 
-	c.kernel.With("mem.kernel", "Slab", "kernel").Set(toMiB(m.Slab))
-	c.kernel.With("mem.kernel", "VmallocUsed", "kernel").Set(toMiB(m.VmallocUsed))
-	c.kernel.With("mem.kernel", "PageTables", "kernel").Set(toMiB(m.PageTables))
-	c.kernel.With("mem.kernel", "KernelStack", "kernel").Set(toMiB(m.KernelStack))
-	c.kernel.With("mem.kernel", "Percpu", "kernel").Set(toMiB(m.Percpu))
-	c.kernel.With("mem.kernel", "KReclaimable", "kernel").Set(toMiB(m.SReclaimable))
+	c.kernel.With("mem.kernel", "Slab", "kernel").Set(kBToMiB(m.Slab))
+	c.kernel.With("mem.kernel", "VmallocUsed", "kernel").Set(kBToMiB(m.VmallocUsed))
+	c.kernel.With("mem.kernel", "PageTables", "kernel").Set(kBToMiB(m.PageTables))
+	c.kernel.With("mem.kernel", "KernelStack", "kernel").Set(kBToMiB(m.KernelStack))
+	c.kernel.With("mem.kernel", "Percpu", "kernel").Set(kBToMiB(m.Percpu))
+	c.kernel.With("mem.kernel", "KReclaimable", "kernel").Set(kBToMiB(m.SReclaimable))
 
-	c.slab.With("mem.slab", "reclaimable", "slab").Set(toMiB(m.SReclaimable))
-	c.slab.With("mem.slab", "unreclaimable", "slab").Set(toMiB(m.SUnreclaim))
+	c.slab.With("mem.slab", "reclaimable", "slab").Set(kBToMiB(m.SReclaimable))
+	c.slab.With("mem.slab", "unreclaimable", "slab").Set(kBToMiB(m.SUnreclaim))
 
-	c.thp.With("mem.thp", "anonymous", "hugepages").Set(toMiB(m.AnonHugePages))
-	c.thp.With("mem.thp", "shmem", "hugepages").Set(toMiB(m.ShmemHugePages))
+	c.thp.With("mem.thp", "anonymous", "hugepages").Set(kBToMiB(m.AnonHugePages))
+	c.thp.With("mem.thp", "shmem", "hugepages").Set(kBToMiB(m.ShmemHugePages))
 
-	c.writeback.With("mem.writeback", "Dirty", "writeback").Set(toMiB(m.Dirty))
-	c.writeback.With("mem.writeback", "Writeback", "writeback").Set(toMiB(m.Writeback))
-	c.writeback.With("mem.writeback", "NfsUnstable", "writeback").Set(toMiB(m.NFSUnstable))
-	c.writeback.With("mem.writeback", "Bounce", "writeback").Set(toMiB(m.Bounce))
-	c.writeback.With("mem.writeback", "FuseWriteback", "writeback").Set(toMiB(m.WritebackTmp))
+	c.writeback.With("mem.writeback", "Dirty", "writeback").Set(kBToMiB(m.Dirty))
+	c.writeback.With("mem.writeback", "Writeback", "writeback").Set(kBToMiB(m.Writeback))
+	c.writeback.With("mem.writeback", "NfsUnstable", "writeback").Set(kBToMiB(m.NFSUnstable))
+	c.writeback.With("mem.writeback", "Bounce", "writeback").Set(kBToMiB(m.Bounce))
+	c.writeback.With("mem.writeback", "FuseWriteback", "writeback").Set(kBToMiB(m.WritebackTmp))
 
 	// Static hugepages
 	if m.HugePagesTotal != nil && m.HugePagesFree != nil && m.HugePagesRsvd != nil && m.HugePagesSurp != nil && *m.HugePagesTotal > 0 {
-		pageSize := toMiB(m.Hugepagesize)
+		pageSize := kBToMiB(m.Hugepagesize)
 		c.hugepages.With("mem.hugepages", "free", "hugepages").Set(float64(*m.HugePagesFree) * pageSize)
 		c.hugepages.With("mem.hugepages", "used", "hugepages").Set(float64(*m.HugePagesTotal-*m.HugePagesFree-*m.HugePagesRsvd) * pageSize)
 		c.hugepages.With("mem.hugepages", "reserved", "hugepages").Set(float64(*m.HugePagesRsvd) * pageSize)
 		c.hugepages.With("mem.hugepages", "surplus", "hugepages").Set(float64(*m.HugePagesSurp) * pageSize)
 	}
 
-	c.reclaiming.With("mem.reclaiming", "active", "reclaiming").Set(toMiB(m.Active))
-	c.reclaiming.With("mem.reclaiming", "inactive", "reclaiming").Set(toMiB(m.Inactive))
-	c.reclaiming.With("mem.reclaiming", "active_anon", "reclaiming").Set(toMiB(m.ActiveAnon))
-	c.reclaiming.With("mem.reclaiming", "inactive_anon", "reclaiming").Set(toMiB(m.InactiveAnon))
-	c.reclaiming.With("mem.reclaiming", "active_file", "reclaiming").Set(toMiB(m.ActiveFile))
-	c.reclaiming.With("mem.reclaiming", "inactive_file", "reclaiming").Set(toMiB(m.InactiveFile))
-	c.reclaiming.With("mem.reclaiming", "unevictable", "reclaiming").Set(toMiB(m.Unevictable))
-	c.reclaiming.With("mem.reclaiming", "mlocked", "reclaiming").Set(toMiB(m.Mlocked))
+	c.reclaiming.With("mem.reclaiming", "active", "reclaiming").Set(kBToMiB(m.Active))
+	c.reclaiming.With("mem.reclaiming", "inactive", "reclaiming").Set(kBToMiB(m.Inactive))
+	c.reclaiming.With("mem.reclaiming", "active_anon", "reclaiming").Set(kBToMiB(m.ActiveAnon))
+	c.reclaiming.With("mem.reclaiming", "inactive_anon", "reclaiming").Set(kBToMiB(m.InactiveAnon))
+	c.reclaiming.With("mem.reclaiming", "active_file", "reclaiming").Set(kBToMiB(m.ActiveFile))
+	c.reclaiming.With("mem.reclaiming", "inactive_file", "reclaiming").Set(kBToMiB(m.InactiveFile))
+	c.reclaiming.With("mem.reclaiming", "unevictable", "reclaiming").Set(kBToMiB(m.Unevictable))
+	c.reclaiming.With("mem.reclaiming", "mlocked", "reclaiming").Set(kBToMiB(m.Mlocked))
 
-	c.swapCached.With("mem.swap_cached", "cached", "swap").Set(toMiB(m.SwapCached))
+	c.swapCached.With("mem.swap_cached", "cached", "swap").Set(kBToMiB(m.SwapCached))
 
-	c.cma.With("mem.cma", "used", "cma").Set(toMiB(m.CmaTotal) - toMiB(m.CmaFree))
-	c.cma.With("mem.cma", "free", "cma").Set(toMiB(m.CmaFree))
+	c.cma.With("mem.cma", "used", "cma").Set(kBToMiB(m.CmaTotal) - kBToMiB(m.CmaFree))
+	c.cma.With("mem.cma", "free", "cma").Set(kBToMiB(m.CmaFree))
 
-	c.directmaps.With("mem.directmaps", "4k", "overview").Set(toMiB(m.DirectMap4k))
-	c.directmaps.With("mem.directmaps", "2m", "overview").Set(toMiB(m.DirectMap2M))
-	c.directmaps.With("mem.directmaps", "1g", "overview").Set(toMiB(m.DirectMap1G))
+	c.directmaps.With("mem.directmaps", "4k", "overview").Set(kBToMiB(m.DirectMap4k))
+	c.directmaps.With("mem.directmaps", "2m", "overview").Set(kBToMiB(m.DirectMap2M))
+	c.directmaps.With("mem.directmaps", "1g", "overview").Set(kBToMiB(m.DirectMap1G))
 
-	c.hwcorrupt.With("mem.hwcorrupt", "HardwareCorrupted", "ecc").Set(toMiB(m.HardwareCorrupted))
+	c.hwcorrupt.With("mem.hwcorrupt", "HardwareCorrupted", "ecc").Set(kBToMiB(m.HardwareCorrupted))
 
 	if !c.zswapChecked {
 		c.zswapChecked = true
