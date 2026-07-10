@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/subscriber"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/callsink"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -367,6 +368,10 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	// can reach the subsystem without importing it directly. Cleared in
 	// Stop below so late callers observe nil rather than racing teardown.
 	PublishService(s)
+	// Register the PPPoE->L2TP relay sink (AC-3). The pppoe server consults
+	// it at PADS completion; Relay returns false for services with no relay
+	// binding, so registering unconditionally is safe and reload-ready.
+	callsink.Register(&relaySink{s: s})
 	return nil
 }
 
@@ -469,6 +474,9 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	// concurrent CLI handlers observe nil instead of calling into a
 	// half-stopped subsystem. LookupService returns nil thereafter.
 	PublishService(nil)
+	// Clear the relay sink so a stopped subsystem stops accepting PPPoE
+	// relay hand-offs (pppoe then terminates locally).
+	callsink.Unregister()
 	s.logger.Info("L2TP subsystem stopping")
 
 	var errs []error

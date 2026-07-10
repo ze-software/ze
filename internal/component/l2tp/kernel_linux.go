@@ -91,11 +91,22 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 		return pppSessionFDs{}, err
 	}
 
+	// spec-followup-l2tp-call A-4: a LAC-relayed incoming call bridges the
+	// pppol2tp channel to the subscriber's PPPoE channel in the kernel; no
+	// local PPP unit runs for it. On a kernel lacking PPPIOCBRIDGECHAN the
+	// bridge attempt errors -- surfaced but non-fatal: the session's control
+	// plane is up, so the operator can fall back to the userspace relay.
+	bridged, berr := maybeBridgePPPoE(ev, chanFD)
+	if berr != nil {
+		return pppSessionFDs{}, fmt.Errorf("l2tp: LAC channel bridge: %w", berr)
+	}
+
 	return pppSessionFDs{
 		pppoxFD: pppoxFD,
 		chanFD:  chanFD,
 		unitFD:  unitFD,
 		unitNum: unitNum,
+		bridged: bridged,
 	}, nil
 }
 
@@ -369,6 +380,14 @@ func (w *kernelWorker) teardownSession(ev kernelTeardownEvent) {
 // RFC 2661 Section 24.25: strict reverse order.
 // Caller MUST hold w.mu.
 func (w *kernelWorker) teardownSessionFDsLocked(key sessionKey, fds *pppSessionFDs) {
+	// A LAC-bridged session must tear the kernel channel bridge down before
+	// closing the channel fd (spec-followup-l2tp-call A-4), so the pppol2tp
+	// and PPPoE channels can be released independently.
+	if fds.bridged && fds.chanFD >= 0 {
+		if err := unbridgeChannel(fds.chanFD); err != nil {
+			w.logger.Warn("l2tp: unbridge channel", "fd", fds.chanFD, "error", err.Error())
+		}
+	}
 	// Reverse order: unit fd, channel fd, pppox socket, then genl delete.
 	// Close failures on teardown are logged warnings at most; they do not
 	// block the rest of the cleanup sequence.

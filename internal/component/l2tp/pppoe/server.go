@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/ppp"
+	"codeberg.org/thomas-mangin/ze/internal/core/callsink"
 )
 
 // InterfaceServer owns the PPPoE state for one access interface.
@@ -178,6 +179,20 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 
 	sess.State = StateSession
 
+	// spec-followup-l2tp-call AC-3: if a relay binding matches this service,
+	// hand the subscriber to the L2TP subsystem (LAC incoming call) instead
+	// of terminating PPP locally. The relay decision crosses the pppoe -> l2tp
+	// boundary through the neutral callsink registry (pppoe never imports
+	// l2tp). The subscriber's pppox socket fd travels with the request so the
+	// L2TP side can bridge its PPP channel to the pppol2tp channel (A-4). The
+	// unused local PPP unit is closed; the channel + pppox fds stay open (the
+	// bridge needs them) and are released when the PPPoE session ends.
+	if s.relayToL2TP(pkt, sid, pppoxFD) {
+		closePPPoxFD(unitFD)
+		s.logger.Info("pppoe: subscriber relayed to L2TP; local PPP not started", "sid", sid)
+		return
+	}
+
 	start := ppp.StartSession{
 		TunnelID:        uint16(s.ifIndex),
 		SessionID:       sid,
@@ -244,6 +259,34 @@ func (s *InterfaceServer) sendFrame(frame []byte) {
 	if err := sendDiscoveryFrame(s.discFD, s.ifIndex, frame); err != nil {
 		s.logger.Debug("pppoe: send failed", "error", err)
 	}
+}
+
+// relayToL2TP consults the registered call-sink to decide whether a
+// PADS-completed subscriber should be relayed into an L2TP tunnel rather than
+// terminated locally. pppoxFD is the subscriber's PPPoE pppox socket, passed
+// so the L2TP side can derive its PPP channel number for the kernel bridge.
+// Returns true when the subscriber was handed off to L2TP (an incoming call
+// was originated). A nil sink (no L2TP subsystem) or an unmatched service
+// returns false; a matched-but-failed relay logs and returns false so the
+// subscriber falls back to local termination.
+func (s *InterfaceServer) relayToL2TP(pkt *Packet, sid uint16, pppoxFD int) bool {
+	sink := callsink.Lookup()
+	if sink == nil {
+		return false
+	}
+	accepted, err := sink.Relay(callsink.Request{
+		Service:       pkt.ServiceNameString(),
+		Interface:     s.ifName,
+		SubscriberMAC: net.HardwareAddr(pkt.SrcMAC[:]).String(),
+		SessionID:     sid,
+		ChannelFD:     pppoxFD,
+	})
+	if err != nil {
+		s.logger.Warn("pppoe: L2TP relay failed; terminating locally",
+			"sid", sid, "service", pkt.ServiceNameString(), "error", err.Error())
+		return false
+	}
+	return accepted
 }
 
 func vendorTagsFromPacket(pkt *Packet) []byte {

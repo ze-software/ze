@@ -26,6 +26,13 @@ type kernelSetupEvent struct {
 	lnsMode    bool // true for LNS-side (handleICCN), false for LAC-side (handleOCCN)
 	sequencing bool // from session.sequencingRequired
 
+	// pppoeChannelFD is the relayed PPPoE session's pppox socket fd for a
+	// LAC-relayed incoming call (spec-followup-l2tp-call AC-3, A-4). When
+	// non-zero and lnsMode is false, the kernel worker bridges the pppol2tp
+	// channel to this PPPoE channel (PPPIOCBRIDGECHAN) so PPP frames flow
+	// directly between subscriber and LNS. Zero for non-relayed sessions.
+	pppoeChannelFD int
+
 	// RFC 2661 Section 18: proxy LCP AVPs from ICCN. Empty slices when
 	// the peer omitted the AVPs. Carried verbatim through the kernel
 	// worker into the success event so PPP can short-circuit LCP.

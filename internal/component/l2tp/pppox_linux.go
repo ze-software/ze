@@ -160,4 +160,9 @@ type pppSessionFDs struct {
 	chanFD  int // /dev/ppp fd attached to channel
 	unitFD  int // /dev/ppp fd with allocated PPP unit
 	unitNum int // pppN unit number (the N in pppN)
+	// bridged is true when this is a LAC-relayed session whose pppol2tp
+	// channel was cross-connected to a PPPoE channel (PPPIOCBRIDGECHAN,
+	// spec-followup-l2tp-call A-4). No local PPP runs for a bridged session;
+	// teardown must PPPIOCUNBRIDGECHAN before closing the channel fd.
+	bridged bool
 }

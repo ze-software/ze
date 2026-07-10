@@ -26,6 +26,11 @@ type callParams struct {
 	maxBPS         uint32
 	calledNumber   string
 	callingNumber  string
+	// pppoeChannelFD is the relayed PPPoE session's kernel PPP channel fd,
+	// carried on a LAC incoming call so the reactor can bridge it to the
+	// pppol2tp channel (A-4) when the session's kernel resources are created.
+	// Zero for calls not originating from a PPPoE relay.
+	pppoeChannelFD int
 }
 
 // framingOrDefault returns the framing type, defaulting to 1 (synchronous)
@@ -119,6 +124,7 @@ func (t *L2TPTunnel) newInitiatorSession(now time.Time, lnsMode bool, p callPara
 		txConnectSpeed: p.txConnectSpeed,
 		rxConnectSpeed: p.rxConnectSpeed,
 		framingType:    p.framingOrDefault(),
+		pppoeChannelFD: p.pppoeChannelFD,
 	}
 	t.addSession(sess)
 	return sess, true

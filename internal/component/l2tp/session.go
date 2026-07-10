@@ -121,6 +121,12 @@ type L2TPSession struct {
 	// Used by SessionUp EventBus event so the shaper can apply TC.
 	pppInterface string
 
+	// pppoeChannelFD is the relayed PPPoE session's kernel PPP channel fd for
+	// a LAC-relayed incoming call (spec-followup-l2tp-call AC-3). The reactor
+	// bridges it to the pppol2tp channel (A-4) at kernel setup. Zero for
+	// sessions not originating from a PPPoE relay.
+	pppoeChannelFD int
+
 	// RADIUS timeout cancellation. Set by handleSessionUp when the
 	// RADIUS Access-Accept carried Session-Timeout or Idle-Timeout.
 	// Canceled on session teardown. nil when no timeout is active.

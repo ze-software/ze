@@ -53,6 +53,7 @@ func (r *L2TPReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSet
 			socketFD:                   socketFD,
 			lnsMode:                    sess.lnsMode,
 			sequencing:                 sess.sequencingRequired,
+			pppoeChannelFD:             sess.pppoeChannelFD,
 			proxyInitialRecvLCPConfReq: sess.proxyInitialRecvLCPConfReq,
 			proxyLastSentLCPConfReq:    sess.proxyLastSentLCPConfReq,
 			proxyLastRecvLCPConfReq:    sess.proxyLastRecvLCPConfReq,
@@ -87,6 +88,15 @@ func (r *L2TPReactor) enqueueKernelEvents(setups []kernelSetupEvent, teardowns [
 // non-Linux platforms), the success is logged and the fds remain owned
 // by the kernel worker; the worker will close them on TeardownAll.
 func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
+	// spec-followup-l2tp-call A-4: a LAC-relayed session's PPP frames flow
+	// through the kernel channel bridge (PPPoE <-> pppol2tp); no local PPP
+	// unit is driven for it, so skip ppp.StartSession. The kernel worker owns
+	// the bridged fds and releases them (unbridge + close) on teardown.
+	if ksucc.fds.bridged {
+		r.logger.Info("l2tp: LAC-bridged session established; frames relayed in kernel, no local PPP",
+			"tunnel-id", ksucc.localTID, "session-id", ksucc.localSID)
+		return
+	}
 	if r.pppDriver == nil {
 		r.logger.Warn("l2tp: kernel session ready but no PPP driver wired; fds remain in worker",
 			"tunnel-id", ksucc.localTID, "session-id", ksucc.localSID,

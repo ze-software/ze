@@ -19,4 +19,5 @@ type pppSessionFDs struct {
 	chanFD  int
 	unitFD  int
 	unitNum int
+	bridged bool
 }
