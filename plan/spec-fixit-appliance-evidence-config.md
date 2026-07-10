@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 4/4 (code complete; AC-3 qemu evidence run pending a root+kernel host) |
 | Updated | 2026-07-10 |
 
 ## Post-Compaction Recovery
@@ -110,14 +110,14 @@ Not covered here: the gokrazy bump and the iface graceful-skip fix (separate, do
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A ze daemon can be distinguished from a generic TCP listener via a cheap probe (handshake/banner or a ze-specific PID/lock) | `daemonRunning` currently only dials | can't safely fix Bug 1 without a real ze liveness signal | prototype the probe against a live ze + a bare sshd | unvalidated |
-| A-2 | Making the build-time template the effective (active) config yields web/l2tp on boot without breaking normal discovery | template has `dhcp-auto true`; the appliance discovers its own NIC at boot | web/l2tp still absent, or discovery regressions | rebuild L2TP image + boot in QEMU | unvalidated |
+| A-1 | A ze daemon can be distinguished from a generic TCP listener via a cheap probe (handshake/banner or a ze-specific PID/lock) | `daemonRunning` currently only dials | can't safely fix Bug 1 without a real ze liveness signal | prototype the probe against a live ze + a bare sshd | **confirmed** — ze's SSH server sends an SSH identification banner on TCP accept. `wish.WithVersion("ze")` sets it to `SSH-2.0-ze` (charmbracelet/ssh `server.go:149-150` prepends `SSH-2.0-`; default is `SSH-2.0-Go`, x/crypto/ssh `transport.go:305`). Probe reads the banner and requires the ze prefix; host sshd sends `SSH-2.0-OpenSSH_*` → rejected. No PID/lock exists (`ze.pid.file` is operator-optional; the zefs DB is not flocked). |
+| A-2 | Making the build-time template the effective (active) config yields web/l2tp on boot without breaking normal discovery | template has `dhcp-auto true`; the appliance discovers its own NIC at boot | web/l2tp still absent, or discovery regressions | rebuild L2TP image + boot in QEMU | **confirmed (mechanism)** — removing init's active-config shadow (via `--seed`) leaves no `file/active/ze.conf`, so boot runs the EXISTING merge `bootstrapConfigFromTemplate` (`cmd/ze/ze_core_start.go:196,427`): template (web/l2tp) + on-device `EmitSetConfigWithDHCP(discovered)` (`internal/component/iface/emit.go:131`). Discovery preserved via the merge. End-to-end proof: L2TP evidence test (AC-3). |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A stricter `daemonRunning` misses a genuinely-running ze and clobbers a live DB | live ze DB replaced under it | require a positive ze-protocol response, default to "running" on ambiguity |
-| R-2 | Template-as-active-config drops interface discovery the appliance needs | appliance has no usable NIC config | keep `dhcp-auto` in the template; merge discovery + template rather than replace |
+| R-1 | A stricter `daemonRunning` misses a genuinely-running ze and clobbers a live DB | live ze DB replaced under it | **positive-identification model**: return "running" ONLY on a confirmed `SSH-2.0-ze` banner; every other outcome (dial fail, foreign banner, silent listener, read timeout) → "not running". A live ze serving this DB answers with its banner immediately on accept, so genuine ambiguity is rare; the guard also sits behind `--force` (interactive builds still get the confirmation prompt). Defaulting to "running" on ambiguity (the original mitigation text) is rejected because it resurrects the exact false-positive class this spec fixes — see Key Design Decisions. |
+| R-2 | Template-as-active-config drops interface discovery the appliance needs | appliance has no usable NIC config | keep `dhcp-auto` in the template; merge discovery + template rather than replace — satisfied by the existing `bootstrapConfigFromTemplate` merge, which the `--seed` fix re-enables on the appliance |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -146,7 +146,16 @@ Not covered here: the gokrazy bump and the iface graceful-skip fix (separate, do
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestDaemonRunningIgnoresNonZeListener` | `internal/plugins/init/main_test.go` | AC-1: a non-ze TCP listener on the SSH port is not treated as a ze daemon | |
+| `TestDaemonRunningIgnoresNonZeListener` | `internal/plugins/init/daemon_internal_test.go` | AC-1: OpenSSH/generic-Go/silent/noise/oversized listeners are not treated as ze | PASS |
+| `TestDaemonRunningAcceptsZeBanner` | `internal/plugins/init/daemon_internal_test.go` | AC-1: a real `SSH-2.0-ze` banner IS treated as running | PASS |
+| `TestDaemonRunningFalseWhenPortUnreachable` | `internal/plugins/init/daemon_internal_test.go` | AC-1: nothing listening → not running | PASS |
+| `TestDaemonRunningTimesOutOnSilentListener` | `internal/plugins/init/daemon_internal_test.go` | probe safety: bounded read, no hang on a silent listener | PASS |
+| `TestServerAnnouncesZeBanner` | `internal/component/ssh/ssh_test.go` | wiring: the real ze SSH server announces exactly `SSH-2.0-ze` (what the probe requires) | PASS |
+| `TestZeInitSeedSkipsActiveConfig` | `internal/plugins/init/seed_internal_test.go` | AC-2: `--seed` writes no `file/active/ze.conf` (no shadow); creds still written | PASS |
+| `TestZeInitWithoutSeedWritesActiveConfig` | `internal/plugins/init/seed_internal_test.go` | AC-2: non-seed DOES write it → the flag gates the write | PASS |
+| `TestBootstrapConfigFromTemplateAppliesWebL2TP` | `cmd/ze/bootstrap_template_test.go` | AC-2: real boot path merges template (web+l2tp) into the effective active config when no active exists | PASS |
+
+Note: the AC-1 daemonRunning test lives in a white-box internal test file (`daemon_internal_test.go`, `package init`) rather than `main_test.go` (`package init_test`), because `daemonRunning` is unexported.
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -156,9 +165,9 @@ Not covered here: the gokrazy bump and the iface graceful-skip fix (separate, do
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test/appliance/serial-login.ci` | `test/appliance/` | appliance still builds + boots to serial login after the daemonRunning fix | |
+| `test/appliance/serial-login.ci` | `test/appliance/` | appliance still builds + boots to serial login after the daemonRunning fix | not run this session (requires image build/boot) |
 
-Integration proof (AC-2/AC-3): `ze-deployment-gokrazy-l2tp-ppp-test` — the appliance boots with the template's web/l2tp effective and completes an L2TP/PPP session.
+Integration proof (AC-2/AC-3): `ze-deployment-gokrazy-l2tp-ppp-test` — the appliance boots with the template's web/l2tp effective and completes an L2TP/PPP session. **Not runnable in this session**: the evidence harness requires root/CAP_NET_ADMIN and a built custom kernel (`tmp/kernel/vmlinuz`), neither available here (uid 1000, no vmlinuz). AC-2's mechanism is instead proven deterministically by `TestBootstrapConfigFromTemplateAppliesWebL2TP` (real boot path) + the `--seed` unit tests; AC-1 by the daemonRunning suite. The full qemu L2TP run must be executed on a root-capable host with the kernel built (`make ze-kernel`) to close AC-3.
 
 ### Interop Tests (MANDATORY for protocol features)
 - N/A — no wire protocol change.
@@ -287,6 +296,9 @@ up. See `plan/spec-iface-absent-link-graceful.md` Design Insights for the boot l
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | File both bugs as one fixit spec | one spec each | they share the init/build config flow and one integration proof |
+| Bug 1: set ze's SSH banner to `SSH-2.0-ze` (`wish.WithVersion`) and require it in the probe | match `SSH-2.0-Go` (library default) only; PID-file check; DB flock | `SSH-2.0-Go` is any Go SSH server, not ze-specific, and is a fragile coupling to a library default (spec Constraint: "a ze-specific marker, not any TCP listener"). No PID/lock signal exists universally. A distinctive banner is a true positive ze marker, costs one line on the server, is not asserted by any test/interop, and does not affect host-key verification. |
+| Bug 1: positive-identification model (only a confirmed ze banner ⇒ "running") | R-1's "default to running on ambiguity" | Defaulting to "running" on ambiguity would treat a silent/foreign listener as a live ze and re-block the build — the very false positive being fixed. A real ze answers immediately on accept; the guard also sits behind `--force`. So "cannot confirm ze ⇒ not the ze we protect" is both safe and correct here. AC-1 ("a non-ze listener is not treated as a ze daemon") requires exactly this. |
+| Bug 2: add `ze init --seed` that skips baking this host's interface discovery into the active config | reorder Makefile to write template before init (impossible — init creates the DB); write discovery to the template key (pollutes the appliance config with build-host NICs); make boot prefer template over an init-written active config (needs a fragile "init-generated" marker) | init runs before the template exists, so it cannot detect a template. `--seed` cleanly says "this is an appliance seed; the effective config is built at first boot from template + on-device discovery." No active config ⇒ boot runs the existing template+discovery merge. Normal (non-seed) `ze init` is unchanged. |
 
 ## Known Limitations
 - Until implemented, the gokrazy L2TP appliance evidence test cannot go fully green on a host with sshd on :22; the interface fix is verified only up to "appliance boots + interface config applied".
@@ -295,49 +307,86 @@ up. See `plan/spec-iface-absent-link-graceful.md` Design Insights for the boot l
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| daemonRunning no longer false-positives on a non-ze listener | unit | `TestDaemonRunningIgnoresNonZeListener` |
-| Build-time template becomes effective config | integration | L2TP appliance boots with web/l2tp |
-| Full gokrazy L2TP evidence green | integration | `ze-deployment-gokrazy-l2tp-ppp-test` passes |
+| daemonRunning no longer false-positives on a non-ze listener | unit | `TestDaemonRunningIgnoresNonZeListener` (5 non-ze listener kinds → false) + `TestDaemonRunningAcceptsZeBanner` (real ze banner → true), both PASS |
+| ze SSH server emits the marker the probe needs | unit (wiring) | `TestServerAnnouncesZeBanner`: live server announces `SSH-2.0-ze`, PASS |
+| Build-time template becomes effective config | unit (real boot path) | `TestBootstrapConfigFromTemplateAppliesWebL2TP`: template web+l2tp preserved into the effective active config when no active exists (the `--seed` state), PASS; `--seed` init writes no active shadow (`TestZeInitSeedSkipsActiveConfig`), PASS |
+| Full gokrazy L2TP evidence green | integration | `ze-deployment-gokrazy-l2tp-ppp-test` — **NOT run this session** (needs root + built kernel). Must run on a root-capable host (spec kept open until it passes); mechanism proven by the unit tests above. |
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (scoped adversarial self-review of the spec's own diff)
+Note: the working tree is SHARED with concurrent sessions (many unrelated
+uncommitted files — gokrazy modcache, ntp, authradius, mrt, static/vpp, other
+specs), so a whole-tree `/ze-review` would review other sessions' code. Review
+was scoped to this spec's files only. A formal `/ze-review` should be re-run,
+scoped, once the tree is coordinated at commit time.
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | | | |
+| 1 | NOTE | `daemonRunning` worst case is now ~4s (2s dial + 2s banner read) vs 2s before | `init/main.go` | Accepted: one-time `--force` gate, not a hot path |
+| 2 | NOTE | probe reads untrusted bytes | `isZeSSHBanner` | Mitigated: `io.LimitReader(conn,255)` + 2s deadline; only a prefix compare, no action on content |
+| 3 | NOTE | banner/probe could drift if `wish.WithVersion` arg changed by hand | `ssh.go` / `client.go` | Guarded by `TestServerAnnouncesZeBanner` (asserts the real server emits `sshclient.ServerVersionBanner`) |
+
+Checked: correctness (positive-ID model; empty `if seed{}` intentional, nolint'd),
+data flow (no active shadow → existing boot merge runs), security (bounded read,
+no untrusted-data action), no-workaround (Bug 1 fixed at source, mk workaround
+removed), backward-compat (banner change does not affect host-key verification;
+ssh-* functional tests pass). 0 BLOCKER, 0 ISSUE in scope.
 
 ### Fixes applied
--
+- None required (all findings NOTE-level, each mitigated/accepted as above).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| — | — | scoped self-review clean on first pass | — | — |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE  (scoped self-review clean; formal shared-tree run pending coordination)
+- [ ] All NOTEs recorded above (or explicitly "none")  (3 NOTEs recorded, all mitigated)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/core/ssh/client/client.go` (ServerSoftwareVersion/Banner) | yes | edited |
+| `internal/component/ssh/ssh.go` (wish.WithVersion) | yes | edited |
+| `internal/plugins/init/main.go` (daemonRunning + --seed) | yes | edited |
+| `internal/plugins/init/daemon_internal_test.go` | yes | created |
+| `internal/plugins/init/seed_internal_test.go` | yes | created |
+| `internal/component/ssh/ssh_test.go` (TestServerAnnouncesZeBanner) | yes | edited |
+| `cmd/ze/bootstrap_template_test.go` | yes | created |
+| `mk/gokrazy.mk` (--seed, rm -f removed) | yes | edited |
+| `docs/guide/appliance.md`, `docs/guide/configuration.md` | yes | edited |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | non-ze listener not treated as ze; real ze is | `go test ./internal/plugins/init -run DaemonRunning` PASS (5+3 cases) |
+| AC-2 | template applied, not shadowed | `TestZeInitSeedSkipsActiveConfig` + `TestBootstrapConfigFromTemplateAppliesWebL2TP` PASS |
+| AC-3 | full L2TP evidence green + workaround removed | workaround removed (mk/gokrazy.mk); evidence run NOT executed this session (needs root + kernel) — see Functional Tests |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `ze init --force` with host sshd on config'd port | `daemon_internal_test.go` | yes — returns false for OpenSSH banner |
+| ze SSH server → `SSH-2.0-ze` banner → probe | `ssh_test.go` + `daemon_internal_test.go` | yes — server emits and probe requires the same constant |
+| built template → effective boot config | `cmd/ze/bootstrap_template_test.go` | yes — real boot path preserves web+l2tp |
+| gokrazy image built with template | `ze-deployment-gokrazy-l2tp-ppp-test` | NOT run this session (root/kernel) |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | ze SSH banner distinguishes ze; `TestServerAnnouncesZeBanner` + daemonRunning suite |
+| A-2 | confirmed (mechanism) | `TestBootstrapConfigFromTemplateAppliesWebL2TP`; full boot proof via the AC-3 run (pending a root+kernel host) |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| appliance build runs `ze init --seed` | `docs/guide/appliance.md` build flow + seed-config section | `make ze-doc-test` PASS, anchors valid |
+| `ze init --seed` skips discovery | `docs/guide/configuration.md` | `make ze-doc-test` PASS |
+| all source anchors resolve | doc-test source-anchor pass | checked 1383 code paths, all valid |
 
 ## Checklist
 

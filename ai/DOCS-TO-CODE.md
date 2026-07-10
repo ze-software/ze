@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 278 design docs, 2907 files
+Total: 280 design docs, 2911 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -42,8 +42,12 @@ Total: 278 design docs, 2907 files
 
 ## `ai/rules/doctor-checks.md`
 
-- `internal/component/radius/doctor.go` -- RADIUS admin reachability readiness check
-- `internal/plugins/iface/vpp/doctor.go` -- self-contained doctor checks owned by
+| File | Topic |
+|------|-------|
+| `internal/component/managed/doctor.go` | management hub reachability readiness check |
+| `internal/component/managed/register.go` | managed hub reachability check registration |
+| `internal/component/radius/doctor.go` | RADIUS admin reachability readiness check |
+| `internal/plugins/iface/vpp/doctor.go` | self-contained doctor checks owned by |
 
 ## `ai/rules/feature-gate-registration.md`
 
@@ -3808,6 +3812,10 @@ Total: 278 design docs, 2907 files
 | `internal/plugins/fib/kernel/nexthop_linux.go` | Linux netlink rich route programming |
 | `internal/plugins/fib/kernel/richroute.go` | rich route programming |
 
+## `plan/spec-fixit-appliance-evidence-config.md`
+
+- `cmd/ze/bootstrap_template_test.go` -- template becomes effective config
+
 ## `plan/spec-followup-l2tp-call.md`
 
 | File | Topic |
@@ -4044,6 +4052,10 @@ Total: 278 design docs, 2907 files
 
 - `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` -- VLAN QoS wire-level lab tests
 - `internal/plugins/iface/netlink/vlanqoslab_tci_test.go` -- 802.1Q TCI decode/build helpers
+
+## `plan/spec-vpp-host-tuning.md`
+
+- `internal/appliance/kernelargs.go` -- host-side hugepage reservation via the
 
 ## `rfc/short/rfc5880.md`
 

@@ -142,7 +142,7 @@ make ze-gokrazy USER=admin PASS=secret GOKRAZY_TEMPLATE=tmp/my-ze.conf
 The legacy Make first build:
 
 1. Builds `bin/ze` for the host
-2. Runs `ze init` with credentials and generates a self-signed TLS certificate
+2. Runs `ze init --seed` with credentials and generates a self-signed TLS certificate. `--seed` skips baking the build host's discovered interfaces into the active config; otherwise that active config would hold the wrong host's NICs and shadow the seed template, leaving the appliance without web/L2TP. The appliance instead builds its active config at first boot from the template merged with its own on-device discovery.
 3. Cross-compiles Ze for linux/`GOKRAZY_ARCH` and builds a 2GB disk image
 4. Formats the persistent `/perm` partition
 5. Injects `database.zefs` (credentials + TLS cert) into `/perm/ze/`
@@ -207,9 +207,13 @@ The machine boots to a serial console (115200 baud). Ze starts automatically, ge
 The initial Ze config is stored as the seed template in `gokrazy/ze/ze.conf`.
 Legacy Make writes that file into `file/template/ze.conf` in ZeFS during
 `make ze-gokrazy`; structured `ze appliance assemble` uses the same default when
-no base or per-appliance overlay config is present.
+no base or per-appliance overlay config is present. Because `make ze-gokrazy`
+runs `ze init --seed`, the seed DB has no `file/active/ze.conf` to shadow the
+template, so the template becomes the effective config on first boot (`ze
+appliance assemble` never wrote an active config, so it was already correct).
 <!-- source: gokrazy/ze/ze.conf -- seed template -->
-<!-- source: mk/gokrazy.mk -- GOKRAZY_TEMPLATE write -->
+<!-- source: mk/gokrazy.mk -- GOKRAZY_TEMPLATE write, ze init --seed -->
+<!-- source: internal/plugins/init/main.go -- runInit seed skips file/active write -->
 <!-- source: internal/appliance/cmd_assemble.go -- resolveSeedConfig -->
 
 ```bash

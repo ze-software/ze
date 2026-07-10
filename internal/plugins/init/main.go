@@ -53,6 +53,7 @@ func Run(args []string) int {
 	yesFlag := fs.Bool("yes", false, "Skip confirmation prompt (use with --force)")
 	webCertFlag := fs.String("web-cert", "", "Generate TLS certificate for web server (listen address, e.g. 0.0.0.0:8080)")
 	webCertNameFlag := fs.String("web-cert-name", "", "Extra DNS name for the TLS certificate SAN (e.g. router.example.com)")
+	seedFlag := fs.Bool("seed", false, "Seed database for an appliance image: skip baking this host's interface discovery into the active config (the appliance builds its config at first boot from the template plus on-device discovery)")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -73,6 +74,7 @@ func Run(args []string) int {
 					{Name: "--yes", Desc: "Skip confirmation prompt (use with --force)"},
 					{Name: "--web-cert <addr>", Desc: "Generate TLS certificate for web server (e.g. 0.0.0.0:8080)"},
 					{Name: "--web-cert-name <host>", Desc: "Extra DNS name for TLS certificate SAN (e.g. router.example.com)"},
+					{Name: "--seed", Desc: "Appliance seed DB: skip on-host interface discovery (appliance builds its config at first boot from template + on-device discovery)"},
 				}},
 			},
 			Examples: []string{
@@ -128,14 +130,14 @@ func Run(args []string) int {
 		}
 	}
 
-	return runInit(inputReader, promptWriter, dbPath, *managedFlag, *webCertFlag, *webCertNameFlag)
+	return runInit(inputReader, promptWriter, dbPath, *managedFlag, *webCertFlag, *webCertNameFlag, *seedFlag)
 }
 
 // RunWithReader creates a zefs database with SSH credentials read from r.
 // Format: one line each for username, password, host, port, name.
 // Empty host defaults to 127.0.0.1, empty port defaults to 2222.
 func RunWithReader(r io.Reader, dbPath string, managed bool) int {
-	return runInit(r, nil, dbPath, managed, "", "")
+	return runInit(r, nil, dbPath, managed, "", "", false)
 }
 
 // RunWithReaderForce is like RunWithReader but moves an existing database aside first.
@@ -146,16 +148,16 @@ func RunWithReaderForce(r io.Reader, dbPath string, managed bool) (int, error) {
 			return 1, err
 		}
 	}
-	return runInit(r, nil, dbPath, managed, "", ""), nil
+	return runInit(r, nil, dbPath, managed, "", "", false), nil
 }
 
 // RunInteractive creates a zefs database with interactive prompts.
 // Prompts are written to w (typically os.Stderr).
 func RunInteractive(r io.Reader, w io.Writer, dbPath string) int {
-	return runInit(r, w, dbPath, false, "", "")
+	return runInit(r, w, dbPath, false, "", "", false)
 }
 
-func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCertAddr, webCertName string) int {
+func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCertAddr, webCertName string, seed bool) int {
 	// Check if database already exists
 	if _, err := os.Stat(dbPath); err == nil {
 		fmt.Fprintf(os.Stderr, "error: database already exists: %s\n", dbPath)
@@ -269,7 +271,17 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 	// failures (e.g., non-Linux platforms with only the stub backend)
 	// are non-fatal -- init still completes, the user just gets an
 	// empty interface config.
-	if loadErr := iface.LoadBackend("netlink"); loadErr != nil {
+	//
+	// --seed skips this entirely: an appliance-image seed DB must NOT bake
+	// this build host's interfaces into file/active/ze.conf. That active
+	// config would hold the wrong host's NICs and would shadow any
+	// file/template/ze.conf so the appliance never applies it. Instead the
+	// appliance boots with no active config and builds one at first boot from
+	// the template merged with its own on-device discovery (see
+	// cmd/ze/ze_core_start.go bootstrapConfigFromTemplate).
+	if seed { //nolint:staticcheck // SA9003: intentional no-op; see comment above
+		// appliance seed: nothing baked in; first boot discovers on-device.
+	} else if loadErr := iface.LoadBackend("netlink"); loadErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: load netlink backend: %v\n", loadErr)
 	} else {
 		if discovered, discErr := iface.DiscoverInterfaces(); discErr != nil {
@@ -414,8 +426,18 @@ func confirmForceReplace(dbPath string) bool {
 	return strings.EqualFold(strings.TrimSpace(scanner.Text()), "yes")
 }
 
-// daemonRunning checks if a ze daemon is reachable by reading host/port
-// from the existing database and dialing the SSH port.
+// daemonRunning reports whether a live ze daemon is serving the database at
+// dbPath. It reads the daemon's SSH host:port from the database, dials it, and
+// reads the SSH identification banner the server sends on accept, returning
+// true ONLY when that banner is ze's own "SSH-2.0-ze" marker.
+//
+// This is a positive-identification probe: a generic SSH server (e.g. the
+// host's OpenSSH answering on 0.0.0.0:22, "SSH-2.0-OpenSSH_*"), a bare TCP
+// listener, an unreachable port, or a slow/garbled response all yield false.
+// The guard exists to stop `ze init --force` from clobbering a database a live
+// ze is actively using; a live ze answers with its banner immediately on
+// accept, so requiring that banner both fixes the non-ze false positive (which
+// previously matched any TCP listener) and still protects a running daemon.
 func daemonRunning(dbPath string) bool {
 	store, err := zefs.Open(dbPath)
 	if err != nil {
@@ -435,8 +457,24 @@ func daemonRunning(dbPath string) bool {
 	if err != nil {
 		return false
 	}
-	conn.Close() //nolint:errcheck // probe connection
-	return true
+	defer conn.Close() //nolint:errcheck // probe connection
+
+	return isZeSSHBanner(conn)
+}
+
+// isZeSSHBanner reads the SSH identification string the server sends on accept
+// and reports whether it is ze's "SSH-2.0-ze" banner. The read is bounded by a
+// deadline and the RFC 4253 §4.2 maximum (255 bytes) so a silent or flooding
+// listener can neither hang the probe nor exhaust memory. Nothing from the
+// untrusted peer is acted on beyond this classification.
+func isZeSSHBanner(conn net.Conn) bool {
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second)) //nolint:errcheck // probe only
+	r := bufio.NewReader(io.LimitReader(conn, 255))
+	line, err := r.ReadString('\n')
+	if err != nil && line == "" {
+		return false
+	}
+	return strings.HasPrefix(strings.TrimRight(line, "\r\n"), sshclient.ServerVersionBanner)
 }
 
 // moveAsideDB renames the existing database to <path>.replaced-<date>.

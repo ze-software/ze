@@ -1217,7 +1217,12 @@ after its OS name, with `mac { address }` populated and the `os-name` selector r
 the original OS device name (so renaming the config entry still maps back to the kernel
 device). Loopback appears as an empty `loopback { }` container.
 
-<!-- source: internal/plugins/init/main.go -- generateInterfaceConfig -->
+The `--seed` flag skips this discovery entirely: an appliance-image seed database must not
+bake the build host's interfaces into the active config (they belong to the wrong machine
+and would shadow the appliance's first-boot template). The appliance discovers its own
+interfaces at first boot instead.
+
+<!-- source: internal/plugins/init/main.go -- runInit interface discovery, seedFlag -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 
 ### Example

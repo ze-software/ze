@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"bufio"
 	"context"
 	"crypto/ed25519"
 	cryptoRand "crypto/rand"
@@ -26,6 +27,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
+	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
 )
 
 func ed25519Generate() (ed25519.PublicKey, ed25519.PrivateKey, error) {
@@ -349,6 +351,51 @@ func TestNewServerExplicitHostKey(t *testing.T) {
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
 	assert.Equal(t, "/custom/path/host_key", srv.config.HostKeyPath)
+}
+
+// VALIDATES: the running ze SSH server announces the distinctive
+// "SSH-2.0-ze" identification banner that `ze init`'s daemonRunning probe
+// requires to positively identify a live ze daemon (spec
+// fixit-appliance-evidence-config, AC-1 wiring).
+// PREVENTS: silently dropping wish.WithVersion, which would revert the banner
+// to the generic "SSH-2.0-Go" and break the daemon-liveness probe with no
+// unit-test failure (the init-side tests use a synthetic listener).
+func TestServerAnnouncesZeBanner(t *testing.T) {
+	cfg := Config{
+		Listen:      "127.0.0.1:0",
+		HostKeyPath: t.TempDir() + "/test_host_key",
+	}
+	srv, err := NewServer(cfg)
+	require.NoError(t, err)
+
+	require.NoError(t, srv.Start(context.Background(), nil, nil))
+	t.Cleanup(func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		require.NoError(t, srv.Stop(stopCtx))
+	})
+
+	var banner string
+	require.Eventually(t, func() bool {
+		var d net.Dialer
+		conn, dialErr := d.DialContext(context.Background(), "tcp", srv.Address())
+		if dialErr != nil {
+			return false // listener not ready yet
+		}
+		defer conn.Close() //nolint:errcheck,gosec // test probe
+		if derr := conn.SetReadDeadline(time.Now().Add(2 * time.Second)); derr != nil {
+			return false
+		}
+		line, readErr := bufio.NewReader(io.LimitReader(conn, 255)).ReadString('\n')
+		if readErr != nil && line == "" {
+			return false
+		}
+		banner = strings.TrimRight(line, "\r\n")
+		return true
+	}, 3*time.Second, 5*time.Millisecond)
+
+	assert.Equal(t, sshclient.ServerVersionBanner, banner,
+		"ze SSH server must announce its distinctive banner so daemonRunning can identify it")
 }
 
 // VALIDATES: Bug 3 — double Start returns error instead of leaking first server.

@@ -36,7 +36,7 @@ func TestInitPlugin_WebCertUsesSelfcert(t *testing.T) {
 	const listenAddr = "192.0.2.10:8443"
 	const dnsName = "router.example.com"
 
-	if code := runInit(strings.NewReader(creds), nil, dbPath, false, listenAddr, dnsName); code != 0 {
+	if code := runInit(strings.NewReader(creds), nil, dbPath, false, listenAddr, dnsName, false); code != 0 {
 		t.Fatalf("runInit with --web-cert/--web-cert-name exit = %d, want 0", code)
 	}
 

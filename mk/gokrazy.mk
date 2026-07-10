@@ -62,7 +62,7 @@ ze-gokrazy-deps: bin/gok
 	@echo "Downloading gokrazy dependencies into $(GOKRAZY_DIR)/modcache/..."
 	@for d in $$(find $(GOKRAZY_DIR)/$(GOKRAZY_INSTANCE)/builddir -name go.mod -exec dirname {} \;); do \
 		echo "  $$d"; \
-		(cd "$$d" && GOMODCACHE=$(GOMODCACHE_LOCAL) go mod download all) || exit 1; \
+		(cd "$$d" && GOMODCACHE=$(GOMODCACHE_LOCAL) GOFLAGS=-modcacherw go mod download all) || exit 1; \
 	done
 	@echo "Done. Builds now work offline."
 
@@ -77,29 +77,32 @@ ze-gokrazy: ze bin/gok
 		echo "--- Using external database: $(ZEFS) ---"; \
 		cp "$(ZEFS)" $(GOKRAZY_ZEFS); \
 	elif [ -n "$(USER)" ] && [ -n "$(PASS)" ]; then \
-		: "fresh-credentials build must start from a clean seed DB. Also avoids ze"; \
-		: "init --force aborting when its daemonRunning probe (init/main.go) dials"; \
-		: "the config'd SSH host:port and false-matches a host sshd on 0.0.0.0:22,"; \
-		: "which would leave a stale root-owned seed DB in the image."; \
-		rm -f $(GOKRAZY_ZEFS); \
+		: "Fresh-credentials build. --force moves any existing seed DB aside and"; \
+		: "creates a clean one; the daemonRunning probe (init/main.go) now requires"; \
+		: "ze's own SSH banner, so a host sshd on 0.0.0.0:22 no longer false-blocks"; \
+		: "it (that false positive once forced a manual rm of the seed DB here)."; \
+		: "--seed stops init baking this build host's interfaces into the active"; \
+		: "config, which would shadow the file/template/ze.conf written below and"; \
+		: "leave web/l2tp off; the appliance builds its config at first boot from"; \
+		: "the template merged with on-device discovery."; \
 		if [ -n "$(CERTNAME)" ] && [ -f $(GOKRAZY_CERT_DIR)/cert.pem ] && [ -f $(GOKRAZY_CERT_DIR)/key.pem ]; then \
 			echo "--- Creating SSH credentials (reusing cached TLS certificate for $(CERTNAME)) ---"; \
 			printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
-				env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes 2>&1; \
+				env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --seed 2>&1; \
 			bin/ze data --path $(GOKRAZY_ZEFS) write meta/web/cert $(GOKRAZY_CERT_DIR)/cert.pem; \
 			bin/ze data --path $(GOKRAZY_ZEFS) write meta/web/key $(GOKRAZY_CERT_DIR)/key.pem; \
 		else \
 			echo "--- Creating SSH credentials + TLS certificate ---"; \
 			if [ -n "$(CERTNAME)" ]; then \
 				printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
-					env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --web-cert-name $(CERTNAME) 2>&1; \
+					env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --seed --web-cert-name $(CERTNAME) 2>&1; \
 				mkdir -p $(GOKRAZY_CERT_DIR); \
 				bin/ze data --path $(GOKRAZY_ZEFS) cat meta/web/cert > $(GOKRAZY_CERT_DIR)/cert.pem; \
 				bin/ze data --path $(GOKRAZY_ZEFS) cat meta/web/key > $(GOKRAZY_CERT_DIR)/key.pem; \
 				echo "cached TLS certificate for $(CERTNAME) in $(GOKRAZY_CERT_DIR)/"; \
 			else \
 				printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
-					env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --web-cert 0.0.0.0:8080 2>&1; \
+					env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --seed --web-cert 0.0.0.0:8080 2>&1; \
 			fi; \
 		fi; \
 		bin/ze data --path $(GOKRAZY_ZEFS) write file/template/ze.conf $(GOKRAZY_TEMPLATE); \

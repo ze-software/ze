@@ -35,6 +35,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/audit"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -399,6 +400,11 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 	// When no users are configured, reject all attempts (never allow NoClientAuth).
 	opts := []ssh.Option{
 		hostKeyOpt,
+		// Announce a distinctive "SSH-2.0-ze" identification banner. This is a
+		// positive ze marker that the `ze init` daemon-liveness probe requires
+		// to tell a live ze daemon apart from a generic SSH server (host
+		// OpenSSH) or a bare TCP listener. See internal/core/ssh/client.
+		wish.WithVersion(sshclient.ServerSoftwareVersion),
 		wish.WithMaxTimeout(time.Duration(s.config.IdleTimeout) * time.Second),
 		// Wish composes middleware from first to last: last = outermost = runs first.
 		// Order: maxSessions → exec → bubbletea → activeterm (innermost).

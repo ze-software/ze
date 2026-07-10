@@ -330,6 +330,7 @@ Build system, Docker, CI, toolchain upgrades.
 - [853](plan/learned/853-build-tag-split.md) -- Positive build tags (ze_distro, ze_appliance, ze_setup) replace negative ze_stripped; no-tag default is minimal; Go _linux.go suffix gotcha
 - [854](plan/learned/854-install-8-appliance-iso.md) -- Appliance ISO installer: transport envelope around raw image, ze.source=iso initrd mode, gzip compression, media-id exclusion, UEFI GRUB boot, hard checksum enforcement, power-off not reboot
 - [870](plan/learned/870-kernel-build-convergence.md) -- shared kernel builder: runtime and installer converge on `tools/kernel-builder/` with Linux 7.0.11, runtime fragment tracking, Docker-first builder selection, and modcache overlay/restore flow
+- [1103](plan/learned/1103-fixit-appliance-evidence-config.md) -- appliance seed config flow: `daemonRunning` now requires ze's `SSH-2.0-ze` banner (positive-ID over "any TCP listener"); `ze init --seed` skips baking build-host interfaces into the active config that would shadow the first-boot template
 
 ## Gotchas
 

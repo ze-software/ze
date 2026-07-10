@@ -40,6 +40,19 @@ const (
 	defaultPort = "2222"
 )
 
+// ServerSoftwareVersion is ze's SSH softwareversion token (RFC 4253 §4.2).
+// The ze SSH server announces the identification string "SSH-2.0-" + this
+// token (see internal/component/ssh, which passes it to wish.WithVersion).
+// It is the shared source of truth so the server's banner and any client-side
+// recognition (the `ze init` daemon-liveness probe) cannot drift apart.
+const ServerSoftwareVersion = "ze"
+
+// ServerVersionBanner is the full RFC 4253 §4.2 identification-string prefix
+// that ze's SSH server announces. The daemon-liveness probe requires this
+// prefix to positively distinguish a live ze daemon from a generic SSH server
+// (e.g. host OpenSSH, "SSH-2.0-OpenSSH_*") or a bare TCP listener.
+const ServerVersionBanner = "SSH-2.0-" + ServerSoftwareVersion
+
 // Credentials holds SSH connection parameters.
 type Credentials struct {
 	Host     string
