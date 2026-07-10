@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-resolve-0-umbrella.md -- consumers resolve through iface
+// Design: plan/learned/1099-iface-resolve-0-umbrella.md -- consumers resolve through iface
 
 package pppoe
 

@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 276 design docs, 2897 files
+Total: 277 design docs, 2899 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2365,6 +2365,12 @@ Total: 276 design docs, 2897 files
 - `internal/component/ike/engine/responder.go` -- IKE responder handshake (mirror of the initiator)
 - `internal/component/ike/engine/responder_eap.go` -- IKE responder EAP authenticator
 
+## `plan/learned/1099-iface-resolve-0-umbrella.md`
+
+- `internal/component/iface/dispatch_resolve_integration_linux_test.go` -- sub-spec 5 dispatch translation.
+- `internal/component/l2tp/pppoe/resolve.go` -- consumers resolve through iface
+- `scripts/checks/iface_resolution.go` -- AC-U1 no-direct-resolution guard
+
 ## `plan/learned/415-prefix-data.md`
 
 - `internal/component/resolve/peeringdb/client.go` -- PeeringDB client for prefix update
@@ -3795,6 +3801,11 @@ Total: 276 design docs, 2897 files
 | `internal/plugins/fib/kernel/nexthop_linux.go` | Linux netlink rich route programming |
 | `internal/plugins/fib/kernel/richroute.go` | rich route programming |
 
+## `plan/spec-followup-l2tp-call.md`
+
+- `internal/component/l2tp/cmd/outgoing_call.go` -- AC-4 request l2tp outgoing-call
+- `internal/component/l2tp/outgoing_call.go` -- AC-4 operator-initiated outgoing call
+
 ## `plan/spec-followup-subsystem.md`
 
 | File | Topic |
@@ -3812,12 +3823,6 @@ Total: 276 design docs, 2897 files
 ## `plan/spec-followup-vpp-traffic.md`
 
 - `internal/plugins/traffic/vpp/classify_linux.go` -- classify + policer-classify
-
-## `plan/spec-iface-resolve-0-umbrella.md`
-
-- `internal/component/iface/dispatch_resolve_integration_linux_test.go` -- sub-spec 5 dispatch translation.
-- `internal/component/l2tp/pppoe/resolve.go` -- consumers resolve through iface
-- `scripts/checks/iface_resolution.go` -- AC-U1 no-direct-resolution guard
 
 ## `plan/spec-iface-resolve-2-resolver.md`
 

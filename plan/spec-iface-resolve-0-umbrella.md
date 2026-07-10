@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | 0 (umbrella) |
-| Updated | 2026-06-20 |
+| Phase | closure (all 7 sub-specs delivered) |
+| Updated | 2026-07-10 |
 
 ## Post-Compaction Recovery
 
@@ -237,6 +237,81 @@ bulk migration; 7 adds the guard last so it does not block in-flight migrations.
 - Map-only: the kernel device is never renamed (deliberate; avoids boot races with udev).
 - OSPF is not migrated here; it consumes the resolver via its own specs.
 - Bonds/teams that share a permanent MAC across members are out of scope for permaddr match (use os-name/path).
+
+## Closure Record (2026-07-10)
+
+All scope was delivered through the sub-specs; the umbrella itself ships no code.
+User instruction 2026-07-10: close the umbrella (followup-wave impact review found
+it fully implemented).
+
+### Sub-spec delivery map (7 planned, closed as 5 units)
+
+| Planned sub-spec | Delivered in | Learned summary |
+|------------------|--------------|-----------------|
+| 1 model (os-name + permaddr) | unit 1 | `plan/learned/949-iface-resolve-1-model.md` |
+| 2 resolver + 3 IS-IS proof | unit 2 | `plan/learned/950-iface-resolve-2-resolver.md` |
+| 1 binding intent (mac/match selector) | unit 3 | `plan/learned/951-iface-resolve-mac-match.md` |
+| 4 routing + 6 protocols + 7 peripheral | unit 4 | `plan/learned/952-iface-resolve-consumers.md` |
+| 5 iface-internal + 7 guard | unit 5 | `plan/learned/953-iface-resolve-dispatch-guard.md` |
+
+### AC evidence
+
+| AC | Evidence |
+|----|----------|
+| AC-U1 | Standing gate `ze-iface-resolution-check`: `scripts/checks/iface_resolution.go` (allowlist :44-66); target `Makefile:310`, executed by `stagesForMode` (`scripts/status/verify_run.go:125,138`, both branches); passes in ze-verify |
+| AC-U2 | `test/isis/isis-logical-name.ci` (exists, sub-spec 3 closure) |
+| AC-U3 | Permanent MAC read + mac/match binding survives override -- `plan/learned/949` and `951` |
+| AC-U4 | os-name default = name; existing configs unchanged -- sub-spec regression suites per `950`/`952` closures |
+| AC-U5 | `show interface name <x> detail` exposes `os-name` + `permanent-mac-address` with QEMU functional coverage -- `plan/learned/949` (planned `.ci` name `iface-show-mapping.ci` superseded by this delivery) |
+
+### Assumptions final status
+
+| ID | Final status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | recorded in table above at design time |
+| A-2 | confirmed | permanent MAC read delivered (real NICs), `plan/learned/949` |
+| A-3 | confirmed | default match os-name == name; sub-spec suites green at each closure (`950`, `952`) |
+| A-4 | confirmed | OSPF not migrated here; consumes resolver via its own specs (spec-ospf set) |
+| A-5 | confirmed | per-site review produced the guard allowlist (`scripts/checks/iface_resolution.go:44-66`), `953` |
+
+### Design references
+
+All three `// Design: plan/spec-iface-resolve-0-umbrella.md` source refs rewritten to
+`plan/learned/1099-iface-resolve-0-umbrella.md` (pppoe/resolve.go, iface
+dispatch_resolve_integration_linux_test.go, scripts/checks/iface_resolution.go).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| plan/learned/949..953-iface-resolve-*.md | yes | ls verified 2026-07-10 (five files listed) |
+| test/isis/isis-logical-name.ci | yes | ls verified 2026-07-10 |
+| plan/learned/1099-iface-resolve-0-umbrella.md | yes | written this session, counter bumped by learned-next |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-U1 | guard live in verify | grep: verify_run.go:125,138 (stagesForMode, both branches) run ze-iface-resolution-check; target at Makefile:310 |
+| AC-U2 | logical-name adjacency .ci | ls test/isis/isis-logical-name.ci |
+| AC-U3/U5 | permaddr + show mapping | plan/learned/949 sections quoted in Closure Record |
+| AC-U4 | backward compat | sub-spec closures 950/952 (suites green at closure) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| logical-name IS-IS adjacency | test/isis/isis-logical-name.ci | exists; sub-spec 3 closure gate |
+| show interface mapping | delivered as show-detail QEMU coverage (949) | per learned 949 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1..A-5 | confirmed | see Closure Record table above |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| No doc updates in this closure commit (docs updated at each sub-spec closure) | closure ships only spec/learned/ref changes | yes |
 
 ## Review Gate
 

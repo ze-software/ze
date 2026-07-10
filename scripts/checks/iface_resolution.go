@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-resolve-0-umbrella.md -- AC-U1 no-direct-resolution guard
+// Design: plan/learned/1099-iface-resolve-0-umbrella.md -- AC-U1 no-direct-resolution guard
 //
 // iface_resolution enforces the interface-resolution invariant from the
 // iface-resolve umbrella (sub-spec 7): no Ze code may resolve a configured
