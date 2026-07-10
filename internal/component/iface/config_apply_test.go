@@ -269,3 +269,37 @@ func TestReconcileOnReady_StopsTrackingInterfaceAfterCleanupReconcile(t *testing
 	}
 	require.ElementsMatch(t, []string{"127.0.0.1/8"}, fb.addrs["lo"], "a later unrelated reconcile must not strip an address that reappeared on lo after cleanup")
 }
+
+// TestApplyLoopbackLCPPairOnVPP verifies AC-6 wiring: applying a loopback under
+// the vpp backend shadows it into Linux via SetupLCPPair, while the same config
+// under a non-vpp backend does not (the LCP pair is a vpp-only concept).
+// VALIDATES: AC-6 -- config -> Backend.SetupLCPPair on the vpp backend.
+// PREVENTS: the LCP Backend method landing without a config-apply caller.
+func TestApplyLoopbackLCPPairOnVPP(t *testing.T) {
+	t.Run("vpp_backend_creates_pair", func(t *testing.T) {
+		b := &fakeBackend{}
+		cfg := &ifaceConfig{
+			Backend: vppBackendName,
+			Dummy:   []ifaceEntry{{Name: "loop0"}},
+		}
+		if errs := applyConfig(cfg, nil, b); len(errs) > 0 {
+			t.Fatalf("applyConfig: %v", errs)
+		}
+		if got := b.lcpPairs["loop0"]; got != "loop0" {
+			t.Errorf("lcpPairs[loop0] = %q, want loop0", got)
+		}
+	})
+	t.Run("netlink_backend_no_pair", func(t *testing.T) {
+		b := &fakeBackend{}
+		cfg := &ifaceConfig{
+			Backend: "netlink",
+			Dummy:   []ifaceEntry{{Name: "loop0"}},
+		}
+		if errs := applyConfig(cfg, nil, b); len(errs) > 0 {
+			t.Fatalf("applyConfig: %v", errs)
+		}
+		if _, ok := b.lcpPairs["loop0"]; ok {
+			t.Error("netlink backend must not create an LCP pair")
+		}
+	})
+}

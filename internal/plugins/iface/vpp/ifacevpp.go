@@ -93,6 +93,13 @@ type vppBackendImpl struct {
 	// ze interface name. Lazily initialized.
 	wgMu    sync.Mutex
 	wgPeers map[string][]uint32
+
+	// lcpMu guards lcpHosts. Each SetupLCPPair records the host TAP name it
+	// created for a ze interface so RemoveLCPPair (and DeleteInterface) can
+	// replay the lcp_itf_pair_add_del delete, and so a duplicate host name is
+	// rejected before it collides in VPP. Lazily initialized.
+	lcpMu    sync.Mutex
+	lcpHosts map[string]string // ze interface name -> host TAP name
 }
 
 // recordDeleter registers a kind-specific teardown closure for a created
@@ -447,6 +454,12 @@ func (b *vppBackendImpl) GetXFRMInfo(_ string) (iface.XFRMInfo, error) {
 // implemented in wireguard.go via the VPP wireguard plugin binary API.
 
 func (b *vppBackendImpl) DeleteInterface(name string) error {
+	// Remove any LCP shadow first, while the interface is still resolvable:
+	// the pair references the sw_if_index, so it must go before the interface
+	// itself. RemoveLCPPair is a no-op when no pair was recorded.
+	if err := b.RemoveLCPPair(name); err != nil {
+		return err
+	}
 	// Kind-specific teardown (tunnel, VXLAN, WireGuard, LCP) recorded at
 	// create time takes precedence: VPP has no generic delete-interface, so
 	// each netdev family is torn down with its own message.

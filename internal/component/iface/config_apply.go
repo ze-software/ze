@@ -376,6 +376,21 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		}); err != nil {
 			return record("dummy "+e.Name+" create", err)
 		}
+		// On the vpp backend, shadow the loopback into Linux with an LCP pair
+		// so kernel networking (the ze BGP listener) can bind on it.
+		// SetupLCPPair no-ops when LCP is disabled; the netlink backend never
+		// reaches here because this is gated on the vpp backend.
+		if cfg.Backend == vppBackendName {
+			name := e.Name
+			if err := applyBackendStep(journal, func() error {
+				return b.SetupLCPPair(name, name)
+			}, func() error {
+				return b.RemoveLCPPair(name)
+			}); err != nil {
+				var tb textbuf.Buffer
+				return record(tb.Str("dummy ").Str(name).Str(" lcp pair").String(), err)
+			}
+		}
 	}
 	for _, e := range cfg.Veth {
 		if e.Disable {

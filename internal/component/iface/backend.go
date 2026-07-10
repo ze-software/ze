@@ -194,6 +194,15 @@ type Backend interface {
 	SetupMirror(srcIface, dstIface string, ingress, egress bool) error
 	RemoveMirror(srcIface string) error
 
+	// SetupLCPPair creates a Linux Control Plane pair for a VPP interface: a
+	// Linux TAP that shadows the named VPP interface so kernel networking (the
+	// ze BGP listener, ssh, ...) can bind on it. hostName is the desired Linux
+	// TAP name. This is a VPP-only concept -- the netlink and non-Linux
+	// backends reject it; the vpp backend consumes the configured lcp netns and
+	// no-ops when LCP is disabled. RemoveLCPPair tears the pair down.
+	SetupLCPPair(vppIface, hostName string) error
+	RemoveLCPPair(vppIface string) error
+
 	// Monitoring. StartMonitor begins watching OS interface events and
 	// emitting them on the EventBus. StopMonitor halts monitoring and waits
 	// for the monitor goroutine to exit.

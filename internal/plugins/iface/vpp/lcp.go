@@ -1,0 +1,142 @@
+// Design: docs/research/vpp-deployment-reference.md -- Linux Control Plane (LCP)
+// Overview: ifacevpp.go -- vppBackendImpl, lcpHosts tracking map
+//
+// A Linux Control Plane pair creates a Linux TAP that shadows a VPP dataplane
+// interface, so kernel networking (the ze BGP listener, ssh, ...) can bind on a
+// VPP-owned NIC. The pair is programmed with lcp_itf_pair_add_del.
+//
+// netns: the TAP lands in the namespace given by vpp.lcp.netns. For the
+// BGP-bind goal the TAP must be reachable from ze's own (host) netns, so a
+// root-reachable configured netns (host/root) is mapped to the empty per-pair
+// netns (VPP's host namespace); any other value is passed through and the
+// doctor check (doctor.go: doctor-vpp-lcp-netns) warns that BGP cannot bind
+// across the namespace boundary (A-4).
+//
+// host name: Linux caps interface names at IFNAMSIZ-1 = 15 bytes, so the host
+// TAP name is validated <= 15 and rejected on collision rather than silently
+// truncated (AC-7/R-5).
+
+package ifacevpp
+
+import (
+	"fmt"
+
+	"go.fd.io/govpp/binapi/interface_types"
+	"go.fd.io/govpp/binapi/lcp"
+
+	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
+)
+
+// lcpMaxHostName is the longest Linux interface name (IFNAMSIZ-1). The lcp
+// binary API field is string[16] (15 usable bytes plus the NUL terminator).
+const lcpMaxHostName = 15
+
+// getActiveLCPSettings is the seam ifacevpp uses to read the running VPP
+// Manager's LCP configuration. Tests override it to inject settings without a
+// live VPP component.
+var getActiveLCPSettings = vppcomp.GetActiveLCPSettings
+
+// SetupLCPPair creates a Linux Control Plane pair (a host TAP) shadowing the
+// named VPP interface. It is a no-op when LCP is not enabled, so config-apply
+// can call it unconditionally for vpp-backed interfaces. hostName defaults to
+// the ze interface name; it is validated <= 15 bytes and rejected on collision.
+func (b *vppBackendImpl) SetupLCPPair(vppIface, hostName string) error {
+	settings, ok := getActiveLCPSettings()
+	if !ok || !settings.Enabled {
+		return nil
+	}
+	if hostName == "" {
+		hostName = vppIface
+	}
+	if len(hostName) > lcpMaxHostName {
+		return fmt.Errorf("ifacevpp: lcp host name %q for %q exceeds %d bytes (Linux IFNAMSIZ); rename the interface or set a shorter host name", hostName, vppIface, lcpMaxHostName)
+	}
+	if err := b.reserveLCPHost(vppIface, hostName); err != nil {
+		return err
+	}
+	idx, err := b.resolveIndex(vppIface)
+	if err != nil {
+		b.takeLCPHost(vppIface) // release the reservation on failure
+		return fmt.Errorf("ifacevpp: lcp pair %q: %w", vppIface, err)
+	}
+	if err := b.lcpItfPair(true, idx, hostName, lcpPairNetns(settings.Netns)); err != nil {
+		b.takeLCPHost(vppIface)
+		return err
+	}
+	return nil
+}
+
+// RemoveLCPPair tears down the LCP pair recorded for vppIface. It is idempotent:
+// with no recorded pair it is a no-op.
+func (b *vppBackendImpl) RemoveLCPPair(vppIface string) error {
+	hostName, ok := b.takeLCPHost(vppIface)
+	if !ok {
+		return nil
+	}
+	settings, _ := getActiveLCPSettings()
+	idx, err := b.resolveIndex(vppIface)
+	if err != nil {
+		return fmt.Errorf("ifacevpp: lcp pair %q: %w", vppIface, err)
+	}
+	return b.lcpItfPair(false, idx, hostName, lcpPairNetns(settings.Netns))
+}
+
+// lcpItfPair issues one lcp_itf_pair_add_del. The host interface is a TAP
+// (LCP_API_ITF_HOST_TAP) so the shadow carries a full Ethernet header, which is
+// what a kernel routing daemon expects to bind and send on.
+func (b *vppBackendImpl) lcpItfPair(add bool, idx interface_types.InterfaceIndex, hostName, netns string) error {
+	req := &lcp.LcpItfPairAddDel{
+		IsAdd:      add,
+		SwIfIndex:  idx,
+		HostIfName: hostName,
+		HostIfType: lcp.LCP_API_ITF_HOST_TAP,
+		Netns:      netns,
+	}
+	reply := &lcp.LcpItfPairAddDelReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ifacevpp: LcpItfPairAddDel %q: %w", hostName, err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: LcpItfPairAddDel %q retval=%d", hostName, reply.Retval)
+	}
+	return nil
+}
+
+// lcpPairNetns maps a configured lcp netns to the per-pair netns field. A
+// root-reachable name (host/root/empty) becomes "" so VPP places the TAP in its
+// own (host) namespace, where ze's BGP listener runs; any other name is passed
+// through so the operator can isolate the TAP deliberately.
+func lcpPairNetns(configured string) string {
+	if lcpNetnsIsRootReachable(configured) {
+		return ""
+	}
+	return configured
+}
+
+// reserveLCPHost records hostName for vppIface, rejecting a host name already
+// used by a different ze interface (which would collide in VPP / Linux).
+func (b *vppBackendImpl) reserveLCPHost(vppIface, hostName string) error {
+	b.lcpMu.Lock()
+	defer b.lcpMu.Unlock()
+	if b.lcpHosts == nil {
+		b.lcpHosts = make(map[string]string)
+	}
+	for other, existing := range b.lcpHosts {
+		if existing == hostName && other != vppIface {
+			return fmt.Errorf("ifacevpp: lcp host name %q already used by interface %q", hostName, other)
+		}
+	}
+	b.lcpHosts[vppIface] = hostName
+	return nil
+}
+
+// takeLCPHost removes and returns the host name recorded for vppIface.
+func (b *vppBackendImpl) takeLCPHost(vppIface string) (string, bool) {
+	b.lcpMu.Lock()
+	defer b.lcpMu.Unlock()
+	hostName, ok := b.lcpHosts[vppIface]
+	if ok {
+		delete(b.lcpHosts, vppIface)
+	}
+	return hostName, ok
+}

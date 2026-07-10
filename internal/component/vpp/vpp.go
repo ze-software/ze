@@ -84,6 +84,31 @@ func setActiveConnector(c *Connector) {
 	connectorRef = c
 }
 
+// activeLCP holds the LCP settings of the running VPP Manager so dependent
+// plugins (ifacevpp) can read the configured netns and enabled flag when
+// creating Linux Control Plane pairs. Guarded by connectorMu since it is set
+// and cleared alongside the connector in Run.
+var (
+	activeLCP    LCPSettings
+	activeLCPSet bool
+)
+
+// GetActiveLCPSettings returns the LCP settings of the running VPP Manager and
+// whether they are available. Returns ok=false when the VPP component is not
+// running, so callers treat LCP as unavailable rather than assuming defaults.
+func GetActiveLCPSettings() (LCPSettings, bool) {
+	connectorMu.Lock()
+	defer connectorMu.Unlock()
+	return activeLCP, activeLCPSet
+}
+
+func setActiveLCPSettings(lcp LCPSettings, ok bool) {
+	connectorMu.Lock()
+	defer connectorMu.Unlock()
+	activeLCP = lcp
+	activeLCPSet = ok
+}
+
 // IfaceStatsReader is the subset of the VPP stats provider that dependent
 // plugins (ifacevpp) need to read per-interface counters.
 type IfaceStatsReader interface {
@@ -176,6 +201,11 @@ func (m *VPPManager) Run(ctx context.Context) error {
 	// Register connector so dependent plugins can access it via GetActiveConnector().
 	setActiveConnector(m.connector)
 	defer setActiveConnector(nil)
+
+	// Publish the LCP settings so ifacevpp can create Linux Control Plane pairs
+	// in the configured netns when the iface backend is vpp.
+	setActiveLCPSettings(m.settings.LCP, true)
+	defer setActiveLCPSettings(LCPSettings{}, false)
 
 	defer func() {
 		if err := m.dpdk.UnbindAll(); err != nil {

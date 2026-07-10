@@ -71,6 +71,8 @@ func (s *stubBackend) BridgeDelPort(_ string) error             { return unsuppo
 func (s *stubBackend) BridgeSetSTP(_ string, _ bool) error      { return unsupported() }
 func (s *stubBackend) SetupMirror(_, _ string, _, _ bool) error { return unsupported() }
 func (s *stubBackend) RemoveMirror(_ string) error              { return unsupported() }
+func (s *stubBackend) SetupLCPPair(_, _ string) error           { return unsupported() }
+func (s *stubBackend) RemoveLCPPair(_ string) error             { return unsupported() }
 func (s *stubBackend) StartMonitor(_ ze.EventBus) error         { return unsupported() }
 func (s *stubBackend) StopMonitor()                             {}
 func (s *stubBackend) Close() error                             { return nil }

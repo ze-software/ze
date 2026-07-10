@@ -2108,6 +2108,7 @@ type fakeBackend struct {
 	listErr        error       // if non-nil, ListInterfaces returns this instead of enumerating
 	createDummyErr map[string]error
 	addAddressErr  map[string]error
+	lcpPairs       map[string]string // vppIface -> hostName recorded by SetupLCPPair
 }
 
 type fakeIface struct {
@@ -2330,9 +2331,20 @@ func (b *fakeBackend) BridgeSetSTP(_ string, _ bool) error { return nil }
 
 func (b *fakeBackend) SetupMirror(_, _ string, _, _ bool) error { return nil }
 func (b *fakeBackend) RemoveMirror(_ string) error              { return nil }
-func (b *fakeBackend) StartMonitor(_ ze.EventBus) error         { return nil }
-func (b *fakeBackend) StopMonitor()                             {}
-func (b *fakeBackend) Close() error                             { return nil }
+func (b *fakeBackend) SetupLCPPair(vppIface, hostName string) error {
+	if b.lcpPairs == nil {
+		b.lcpPairs = make(map[string]string)
+	}
+	b.lcpPairs[vppIface] = hostName
+	return nil
+}
+func (b *fakeBackend) RemoveLCPPair(vppIface string) error {
+	delete(b.lcpPairs, vppIface)
+	return nil
+}
+func (b *fakeBackend) StartMonitor(_ ze.EventBus) error { return nil }
+func (b *fakeBackend) StopMonitor()                     {}
+func (b *fakeBackend) Close() error                     { return nil }
 
 // --- IPv6 Router Tracking Tests ---
 
