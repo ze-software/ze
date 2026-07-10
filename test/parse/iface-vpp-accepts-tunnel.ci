@@ -1,0 +1,24 @@
+# Test: gre/vxlan tunnels are accepted under backend vpp
+# VALIDATES: spec-followup-vpp-iface AC-2/AC-3 -- the per-kind ze:backend
+#            widening lets the vpp backend accept the kinds it can program
+#            (gre here) at commit time, where before widening every tunnel was
+#            rejected under vpp.
+# PREVENTS: a regression that reverts the gre/gretap/ipip/vxlan widening and
+#           makes vpp reject a tunnel it is now wired to create.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+	tunnel t0 {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.1; }
+				remote { ip 198.51.100.1; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

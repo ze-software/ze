@@ -424,8 +424,11 @@ module ze-iface-conf {
 
             container mirror {
                 ze:os "linux";
-                ze:backend "netlink";
-                description "Traffic mirroring";
+                ze:backend "netlink vpp";
+                description "Traffic mirroring. netlink mirrors via tc mirred;
+                             the vpp backend programs SPAN (sw_interface_span_
+                             enable_disable), mapping ingress/egress onto the
+                             RX/TX SPAN state as a device-level port mirror.";
 
                 leaf ingress {
                     type string;

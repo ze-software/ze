@@ -76,6 +76,14 @@ type vppBackendImpl struct {
 	// monMu guards mon; the pointer is only mutated under the lock.
 	monMu sync.Mutex
 	mon   *monitor
+
+	// mirMu guards mirrors. VPP's sw_interface_span_enable_disable delete
+	// path is keyed on the (from, to, is_l2) triple, but RemoveMirror only
+	// receives the source name. mirrors records, per source ze name, the set
+	// of destination SwIfIndex -> is_l2 SPAN entries installed by SetupMirror
+	// so RemoveMirror can replay each with state DISABLED. Lazily initialized.
+	mirMu   sync.Mutex
+	mirrors map[string]map[interface_types.InterfaceIndex]bool
 }
 
 // recordDeleter registers a kind-specific teardown closure for a created
@@ -704,15 +712,7 @@ func (b *vppBackendImpl) BridgeSetSTP(_ string, _ bool) error {
 	return errNotSupported("BridgeSetSTP (VPP STP support varies by version)")
 }
 
-// --- Traffic mirroring ---
-
-func (b *vppBackendImpl) SetupMirror(_, _ string, _, _ bool) error {
-	return errNotSupported("SetupMirror (pending GoVPP SpanEnableDisableL2 wiring)")
-}
-
-func (b *vppBackendImpl) RemoveMirror(_ string) error {
-	return errNotSupported("RemoveMirror (pending GoVPP SpanEnableDisableL2 wiring)")
-}
+// --- Traffic mirroring (see mirror.go) ---
 
 // --- Cleanup ---
 

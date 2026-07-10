@@ -1,15 +1,18 @@
-# Test: tunnel is rejected under backend vpp
-# VALIDATES: spec-backend-feature-gate AC-2 -- commit-time feature gate
-#            rejects a tunnel list entry when the active backend is vpp,
-#            naming the /interface/tunnel YANG path.
-# PREVENTS: vpp receiving an Apply call for tunnel creation that lands
-#           on errNotSupported inside ifacevpp.CreateTunnel.
+# Test: a netlink-only tunnel kind is rejected under backend vpp
+# VALIDATES: spec-followup-vpp-iface AC-2/R-2 -- after per-kind ze:backend
+#            widening (gre/gretap/ipip/vxlan gained "vpp"), the kinds with no
+#            proven VPP mapping (sit, ip6tnl, ...) stay netlink-only and are
+#            still rejected at commit under the vpp backend, naming the
+#            /interface/tunnel YANG path.
+# PREVENTS: a list-wide widening that would let vpp receive an Apply call for
+#           a tunnel kind ifacevpp.CreateTunnel cannot program (sit lands on
+#           the exact-or-reject default).
 stdin=config:terminator=EOF_CONF
 interface {
 	backend vpp;
 	tunnel t0 {
 		encapsulation {
-			gre {
+			sit {
 				local { ip 192.0.2.1; }
 				remote { ip 198.51.100.1; }
 			}

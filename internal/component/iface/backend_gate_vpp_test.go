@@ -62,3 +62,24 @@ func TestBackendGateVppTunnelKinds(t *testing.T) {
 		}
 	})
 }
+
+// TestBackendGateVppMirror is the end-to-end proof (against the real schema)
+// that the mirror container's ze:backend widening to "netlink vpp" lets the vpp
+// backend accept a mirror config while netlink still accepts it too.
+// VALIDATES: AC-4 -- mirror ze:backend widened to include vpp.
+// PREVENTS: a mirror-under-vpp config being rejected at commit after SPAN wiring.
+func TestBackendGateVppMirror(t *testing.T) {
+	mirrorData := func(backend string) string {
+		return `{"interface":{"backend":"` + backend + `","ethernet":{"xe0":{"name":"xe0","unit":{"u0":{"name":"u0","mirror":{"ingress":"xe1"}}}}}}}`
+	}
+	t.Run("vpp_accepts_mirror", func(t *testing.T) {
+		if err := validateBackendGate(gateSection(mirrorData("vpp")), "vpp"); err != nil {
+			t.Errorf("vpp should accept mirror after widening: %v", err)
+		}
+	})
+	t.Run("netlink_still_accepts_mirror", func(t *testing.T) {
+		if err := validateBackendGate(gateSection(mirrorData("netlink")), "netlink"); err != nil {
+			t.Errorf("netlink should still accept mirror: %v", err)
+		}
+	})
+}
