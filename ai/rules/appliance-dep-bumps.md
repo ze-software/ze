@@ -57,6 +57,18 @@ The re-vendor deletes ~60 tracked files and adds ~60 new ones. Never use bare
 `git rm`/`git add` — stage the whole change through the commit-helper script at
 closure so the deletion and addition land in one commit.
 
+## Cache permissions
+
+Anything that downloads into `gokrazy/modcache/` MUST carry `-modcacherw`
+(`GOFLAGS=-modcacherw`): go's default read-only cache permissions (dirs `r-x`) make git
+unable to delete or overwrite modcache files on later checkouts and rebases (a
+`git pull --rebase` across the 2026-07 init bump wedged exactly this way).
+`make ze-gokrazy-deps` (`mk/gokrazy.mk`), `ze appliance build`
+(`ensureModcacheRW`, `internal/appliance/cmd_build.go`), and `ze-gok`
+(`cmd/ze-gok/main.go`) all set it; keep the flag when running `go mod download` by
+hand. A cache written before the flag existed needs a one-time
+`chmod -R u+w gokrazy/modcache`.
+
 ## Do not just dismiss
 
 Dismissing the alert leaves the stale manifest; a future advisory below the pin will

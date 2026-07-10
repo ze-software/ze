@@ -112,6 +112,13 @@ func buildOne(name string) int {
 	}
 
 	cfg, err := LoadConfig(ConfigPath(dir, name))
+	if err == nil {
+		// Validate before building so an out-of-range hugepage reservation (or
+		// any other invalid field) is rejected here rather than baked into an
+		// image or silently clamped at boot (AC-4, AC-7). init validates too,
+		// but build is reachable on directories created by other means.
+		err = cfg.Validate()
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
@@ -204,6 +211,24 @@ func gokSizeArg(n int64) string {
 	return string(buf)
 }
 
+// ensureModcacheRW appends -modcacherw to GOFLAGS (preserving existing
+// flags) so go subprocesses that download into the checked-in
+// gokrazy/modcache leave it user-writable. Go's default read-only cache
+// permissions break later git checkouts/rebases that must delete or
+// overwrite modcache files (git cannot unlink inside r-x directories).
+func ensureModcacheRW() error {
+	goflags := os.Getenv("GOFLAGS")
+	if strings.Contains(goflags, "-modcacherw") {
+		return nil
+	}
+	if goflags == "" {
+		return os.Setenv("GOFLAGS", "-modcacherw")
+	}
+	var tb textbuf.Buffer
+	tb.Str(goflags).Byte(' ').Str("-modcacherw")
+	return os.Setenv("GOFLAGS", tb.String())
+}
+
 // runGokInProcess runs the gokrazy builder (gok) embedded in-process rather
 // than shelling out to the ze-gok binary. gok still spawns its own
 // `go build`/`go list` subprocesses for the target packages, and those resolve
@@ -225,6 +250,9 @@ func runGokInProcess(args []string) error {
 	if setErr := os.Setenv("GOMODCACHE", modcache); setErr != nil {
 		return fmt.Errorf("set GOMODCACHE: %w", setErr)
 	}
+	if setErr := ensureModcacheRW(); setErr != nil {
+		return fmt.Errorf("set GOFLAGS: %w", setErr)
+	}
 
 	return gok.Context{
 		Stdout: os.Stdout,
@@ -238,7 +266,8 @@ func runGokBuild(cfg *applianceConfig, imgPath string) int {
 
 	// gok resolves modules from the repo-local gokrazy/modcache, so relative
 	// paths would resolve against the wrong root. Pass absolute paths.
-	parentDir, err := filepath.Abs("gokrazy")
+	parentDir, cleanup, err := resolveBuildParentDir(cfg)
+	defer cleanup()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: resolve gokrazy parent dir: %v\n", err)
 		return exitError

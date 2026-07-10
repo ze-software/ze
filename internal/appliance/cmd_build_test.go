@@ -8,6 +8,32 @@ import (
 	"testing"
 )
 
+func TestEnsureModcacheRW(t *testing.T) {
+	t.Setenv("GOFLAGS", "")
+	if err := ensureModcacheRW(); err != nil {
+		t.Fatalf("empty GOFLAGS: %v", err)
+	}
+	if got := os.Getenv("GOFLAGS"); got != "-modcacherw" {
+		t.Fatalf("empty GOFLAGS: got %q, want %q", got, "-modcacherw")
+	}
+
+	t.Setenv("GOFLAGS", "-mod=mod")
+	if err := ensureModcacheRW(); err != nil {
+		t.Fatalf("existing GOFLAGS: %v", err)
+	}
+	if got := os.Getenv("GOFLAGS"); got != "-mod=mod -modcacherw" {
+		t.Fatalf("existing GOFLAGS: got %q, want %q", got, "-mod=mod -modcacherw")
+	}
+
+	t.Setenv("GOFLAGS", "-modcacherw -mod=mod")
+	if err := ensureModcacheRW(); err != nil {
+		t.Fatalf("already set: %v", err)
+	}
+	if got := os.Getenv("GOFLAGS"); got != "-modcacherw -mod=mod" {
+		t.Fatalf("already set: got %q, want %q", got, "-modcacherw -mod=mod")
+	}
+}
+
 func TestBuildUsesGokBuildFn(t *testing.T) {
 	var called bool
 	var gotArgs []string
@@ -196,6 +222,37 @@ func TestBuildGokFailure(t *testing.T) {
 	code := runGokBuild(cfg, "/tmp/test.img")
 	if code != exitError {
 		t.Errorf("runGokBuild returned %d on failure, want %d", code, exitError)
+	}
+}
+
+// TestBuildValidatesConfig verifies buildOne rejects an out-of-range hugepage
+// reservation before invoking the gok builder (AC-4, AC-7). The validation runs
+// right after LoadConfig, so the builder must never be reached.
+func TestBuildValidatesConfig(t *testing.T) {
+	oldBase := baseDir
+	baseDir = t.TempDir()
+	defer func() { baseDir = oldBase }()
+
+	appDir := filepath.Join(baseDir, "hp-app")
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := DefaultConfig("hp-app")
+	cfg.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 0} // invalid: minimum is 1
+	if err := saveConfig(ConfigPath(baseDir, "hp-app"), &cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	called := false
+	old := gokBuildFn
+	gokBuildFn = func(_ []string) error { called = true; return nil }
+	defer func() { gokBuildFn = old }()
+
+	if code := buildOne("hp-app"); code != exitError {
+		t.Errorf("buildOne with invalid hugepages = %d, want exitError (%d)", code, exitError)
+	}
+	if called {
+		t.Error("gok builder was invoked despite an invalid config")
 	}
 }
 
