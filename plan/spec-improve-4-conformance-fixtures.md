@@ -260,3 +260,11 @@ explicitly follow-up work, not this spec.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Functional tests for end-to-end behavior
+
+### Post-wave corrections (2026-07-10)
+
+Re-verified against the followup implementation wave (unpushed origin/main..HEAD commits):
+
+- The live producer of the `make ze-verify` stage list is `stagesForMode` (`scripts/status/verify_run.go:112`, consumed at `:104`). The wave inserted `ze-port-defaults-check` and `ze-platform-vet` into BOTH branches (`ze-verify-changed` branch at `:127-128`, default branch at `:140-141`), so the `:112-146` range cited in Files to Modify has shifted (the function now spans `:112-150`).
+- The planned conformance stage must be added to BOTH branches of `stagesForMode`, and NOT to the Makefile `_ze-verify-impl` / `_ze-verify-changed-impl` targets: those have zero callers and are documented as dead (`Makefile:280-287` comment); a stage added only there never runs under `make ze-verify` or CI.
+- `docs/functional-tests.md` (Required Reading item 1) has grown since this spec was written, e.g. the MCP GET-SSE section (`docs/functional-tests.md:427-433`), and new `.ci` suites exist under `test/plugin/` (`as112-dot.ci`, `as112-doh.ci`, `exabgp-bridge-internal.ci`, `exabgp-bridge-sdk.ci`). The Current Behavior test-layout survey must be redone against the current tree at design time.

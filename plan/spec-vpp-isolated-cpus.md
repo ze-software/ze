@@ -2,10 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-04 |
+| Updated | 2026-07-10 |
+
+**Notes:** Promoted to ready per user instruction 2026-07-10 (followup-wave impact review session) authorizing conversion to ready.
 
 ## Post-Compaction Recovery
 
@@ -53,9 +55,31 @@ Add isolated-CPU-aware worker placement plus CPU validation:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/vpp/startupconf.go` - the `cpu {}` section writes `main-core` directly and computes `corelist-workers` via `workerCoreList(mainCore, count)` as a contiguous range `mainCore+1 .. mainCore+count` (startupconf.go:42-53, `workerCoreList` at :119-127). No isolated-CPU sourcing.
-- [ ] `internal/component/vpp/config.go` - `CPUSettings{MainCore *uint8; Workers *uint8}` (config.go:43-46); `parseCPU` only range-checks uint8 and rejects unknown keys (config.go:296-319); `VPPSettings.Validate()` never references CPU/core (config.go:255-294).
-- [ ] `internal/component/vpp/yang/ze-vpp-conf.yang` - exposes only `main-core` and `workers` (count) under `cpu` (ze-vpp-conf.yang:46-62).
+- [ ] `internal/component/vpp/startupconf.go` - the `cpu {}` section writes `main-core` directly and computes `corelist-workers` via `workerCoreList(mainCore, count)` as a contiguous range `mainCore+1 .. mainCore+count` (startupconf.go:42-53, `workerCoreList` at :124-131). No isolated-CPU sourcing.
+- [ ] `internal/component/vpp/config.go` - `CPUSettings{MainCore *uint8; Workers *uint8}` (config.go:51-53); `parseCPU` only range-checks uint8 and rejects unknown keys (config.go:323-347); `VPPSettings.Validate()` never references CPU/core (config.go:282-321).
+- [ ] `internal/component/vpp/yang/ze-vpp-conf.yang` - exposes only `main-core` and `workers` (count) under `cpu` (cpu container :46, main-core :49, workers :56).
+
+### Post-wave corrections (2026-07-10)
+
+All refs re-verified against current code after the followup-spec wave (the
+wireguard startup.conf toggle landed in the SAME files):
+
+- Line drift corrected in place above (old -> new): `CPUSettings` config.go:43-46
+  -> :51-53; `parseCPU` :296-319 -> :323-347; `Validate` :255-294 -> :282-321
+  (re-read in full: still NO CPU/core validation -- the gap this spec closes is
+  confirmed open); `workerCoreList` startupconf.go:119-127 -> :124-131 (re-read:
+  still the naive contiguous range mainCore+1..mainCore+count). The `cpu {}`
+  section is unchanged at startupconf.go:42-53; yang cpu container :46,
+  main-core :49, workers :56.
+- Rebase requirement: the wave added a VPP plugin-enablement surface in these
+  same files -- `PluginSettings` on `VPPSettings` (config.go:40), `parsePlugins`
+  (config.go:267), a `plugins {}` startup.conf section (startupconf.go:69-88)
+  with the wireguard toggle (`s.Plugins.Wireguard`, :84-86), and a yang
+  `plugins` container with the `wireguard` leaf (ze-vpp-conf.yang:200). The
+  cpu work must rebase onto this layout: the generated `cpu {}` section sits
+  above the new `plugins {}` section, and new cpu leaves join a schema that
+  now also carries the plugins container. No design change needed, only
+  merge awareness.
 
 **Behavior to preserve:**
 - Operator ergonomics: a worker *count* remains a valid way to ask for N workers.
@@ -72,7 +96,7 @@ Add isolated-CPU-aware worker placement plus CPU validation:
 - Host facts: the kernel-isolated CPU set (`/sys/devices/system/cpu/isolated`) and the online CPU inventory.
 
 ### Transformation Path
-1. `parseCPU` reads the cpu leaves into `CPUSettings` (config.go:296-319).
+1. `parseCPU` reads the cpu leaves into `CPUSettings` (config.go:323-347).
 2. `Validate()` gains CPU checks: requested cores exist in the online inventory; `main-core` disjoint from worker cores; enough isolated CPUs for the worker count.
 3. Worker core selection draws from the isolated set (via a new helper that reads `/sys/devices/system/cpu/isolated`), replacing the naive `mainCore+1..` arithmetic.
 4. `startupconf.go` emits `main-core` + `corelist-workers` from the validated, isolated-sourced core list.
@@ -87,8 +111,8 @@ Add isolated-CPU-aware worker placement plus CPU validation:
 | VPP config ↔ kernel config | chosen cores requested as isolated at boot | [ ] |
 
 ### Integration Points
-- `workerCoreList` (`startupconf.go:119-127`) - replace/augment with isolated-set sourcing.
-- `VPPSettings.Validate()` (`config.go:255-294`) - add CPU validation.
+- `workerCoreList` (`startupconf.go:124-131`) - replace/augment with isolated-set sourcing.
+- `VPPSettings.Validate()` (`config.go:282-321`) - add CPU validation.
 - kernel/boot config (gokrazy cmdline) - request isolation for the VPP core set.
 
 ### Architectural Verification

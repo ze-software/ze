@@ -20,9 +20,14 @@
 
 Ze's DHCP server (its own IPv4 Go implementation) logs at a fixed verbosity: the
 plugin receives a single injected `slog` logger and its call sites use hardcoded
-`Debug`/`Info` levels. There is no operator control over how chatty the server is,
+`Debug`/`Info` levels. ~~There is no operator control over how chatty the server is,
 so debugging a lease problem in the field means either drowning in debug output
-elsewhere or having none.
+elsewhere or having none.~~ (Superseded 2026-07-10: operator control over the
+dhcpserver logger's level ALREADY exists -- see Post-wave corrections below. The
+injected logger's level is set from the hierarchical `ze.log.<subsystem>` env
+lookup and is runtime-adjustable via the log plugin's `log-set` command. The
+premise of this spec must be re-established or the spec re-scoped before it can
+go ready.)
 
 Add a `log-level` (or equivalent verbosity) config leaf to the DHCP server so the
 operator can raise or lower DHCP logging independently, e.g. `set service
@@ -43,9 +48,45 @@ dhcp-server log-level debug|info|warning|error`.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/dhcpserver/register.go` - `ConfigureEngineLogger` stores an injected `slog.Logger` into `loggerPtr` (register.go:37-42); log call sites use fixed `Debug`/`Info`. No level control.
-- [ ] `internal/plugins/dhcpserver/config.go` - `parseConfig` reads only `enabled`, `listen-interface`, `pxe`, `shared-network`; no `log`/`verbosity`/`log-level` leaf is parsed.
+- [ ] `internal/plugins/dhcpserver/register.go` - `ConfigureEngineLogger` stores an injected `slog.Logger` into `loggerPtr` (register.go:37-42); log call sites use fixed `Debug`/`Info`. ~~No level control.~~ (Superseded 2026-07-10: the injected logger carries an operator-controlled level; see Post-wave corrections.)
+- [ ] `internal/plugins/dhcpserver/config.go` - `parseConfig` (config.go:71) reads only `enabled` (:88), `listen-interface` (:92), `shared-network` (:111), `pxe` (:365); no `log`/`verbosity`/`log-level` leaf is parsed.
 - [ ] `internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang` - service config schema; no logging leaf today.
+
+### Post-wave corrections (2026-07-10)
+
+Citations re-verified: register.go:37-42, the parseConfig surface, and the YANG
+schema are all current (no drift). However, re-reading the PRODUCER of the
+injected logger contradicts the spec's premise:
+
+- `ConfigureEngineLogger` receives `CanonicalSubsystemName(name)` from the
+  plugin host (`internal/component/plugin/inprocess.go:99-105`) and calls
+  `slogutil.Logger(loggerName)` (register.go:38).
+- `slogutil.Logger` (`internal/core/slogutil/slogutil.go:183-207`) resolves the
+  boot-time level via the hierarchical env lookup `ze.log.<subsystem>` ->
+  parents -> `ze.log` (`getLogEnv`, slogutil.go:149-169; default WARN) and
+  registers a runtime-adjustable `slog.LevelVar` in `levelRegistry`
+  (slogutil.go:139-141, stores at :190 and :202).
+- `slogutil.SetLevel` (slogutil.go:510-518) changes a registered subsystem's
+  level at RUNTIME, and the log plugin exposes it as an operator command:
+  `ze-bgp:log-set` -> `handleLogSet` -> `slogutil.SetLevel`
+  (`internal/plugins/log/cmd/handlers.go:18`, SetLevel call at :112);
+  `ze-bgp:log-levels` (:17) lists current levels.
+
+Consequence: DHCP log verbosity is ALREADY operator-controllable (env var at
+boot, `log-set` at runtime) when the plugin runs in-process. The proposed
+per-service YANG `log-level` leaf would duplicate that surface and needs a
+reconciliation decision before this spec can be promoted:
+
+- Option (a): drop the new leaf; re-scope the spec to documenting and/or
+  functionally testing the existing `ze.log.<dhcp subsystem>` + `log-set`
+  path for the DHCP server (possibly none of the current design survives).
+- Option (b): keep a service-local YANG leaf and define precedence between the
+  leaf, the `ze.log.*` env hierarchy, and runtime `SetLevel`
+  (`ai/rules/config-surface.md` governs this YANG-vs-env decision).
+
+This is a scope/design decision that requires the user; the spec stays in
+`design` until it is made. A-1 is meanwhile effectively answered: the injected
+logger IS levelable at runtime through its registered `LevelVar`.
 
 **Behavior to preserve:**
 - Default logging behaviour when the leaf is absent must match today's output (choose the current effective level as the default).

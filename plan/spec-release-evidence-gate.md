@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-05-24 |
+| Phase | evidence matrix re-run outstanding (build blockers resolved) |
+| Updated | 2026-07-10 |
 
 ## Post-Compaction Recovery
 
@@ -269,7 +269,31 @@ Run in this order (fast/no-infra first, slow/heavy last):
 | AC-8 all categories pass | FAIL | Not demonstrated. `make ZE_RELEASE_SKIP=verify ze-release-evidence` failed 7 of 10 attempted categories |
 | Required final gate | FAIL | `make ze-test` fails at `ze-lint` on unrelated `cmd/ze/service` errcheck/modernize/unused issues and `internal/component/web/handler_config_test.go` gofmt |
 
-Blocked failures from the release evidence run:
+## Unblock record (2026-07-10)
+
+User instruction 2026-07-10: unblock. The 2026-05-24 blockers were re-verified
+against current code (followup-wave impact review):
+
+| 2026-05-24 blocker | Status today (verified firsthand) |
+|--------------------|-----------------------------------|
+| `wireManagedCommit` undefined breaks `go build ./cmd/ze` | resolved: defined `cmd/ze/hub/managed.go:15` (takes `audit.Recorder`), called `cmd/ze/hub/main.go:783` |
+| `buildSessionModelFactory` call sites missing `audit.Recorder` | resolved: signature carries `recorder audit.Recorder` at `cmd/ze/hub/session_factory.go:56` |
+| `make ze-test` blocked at ze-lint (service/web lint reds) | to be proven by the next full `make ze-verify` (ze-lint is a stage of it); a green run supersedes this row |
+
+Additional post-wave corrections:
+- Required Reading cites `Makefile:178-194` for verify composition; `ze-verify` is now
+  at `Makefile:276` and `_ze-verify-impl` (`:287`) carries a longer gate list
+  (ze-tier-check, ze-iface-resolution-check, ze-plugin-boundary-check,
+  ze-port-defaults-check, ze-platform-vet, ze-cli-grammar-check, ...).
+- The evidence matrix categories predate wave-added heavy suites; the re-run should
+  fold in `ze-deployment-vpp-iface-test` (`mk/test-integration.mk:113`) and the new
+  functional `.ci` (as112-dot/doh, exabgp-bridge-internal, mcp-get-sse,
+  test/traffic 020-026) via their existing category targets.
+
+Remaining work: re-run `make ze-release-evidence` on a capable host (Docker +
+QEMU + privileged), record fresh per-category results, fill the Review Gate, close.
+
+Blocked failures from the (superseded) 2026-05-24 release evidence run:
 
 | Category | Result | Cause |
 |----------|--------|-------|

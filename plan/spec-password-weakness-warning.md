@@ -2,10 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-04 |
+| Updated | 2026-07-10 |
+
+**Notes:** Promoted to ready per user instruction 2026-07-10 (followup-wave impact review session) authorizing conversion to ready.
 
 ## Post-Compaction Recovery
 
@@ -47,6 +49,27 @@ configs or automation, but it makes a weak choice visible.
 **Source files read:**
 - [ ] `internal/component/config/password_hash.go` - `hashPlaintextSibling` (password_hash.go:153-170) reads the plaintext sibling (:155-158) and bcrypt-hashes it (:159), rejecting only empty (:156-158 returns nil no-op) and too-long (:161-164). No strength check. `ApplyPasswordHashing` (:88) is the commit entry point.
 - [ ] `internal/plugins/passwd/main.go` - `runImpl` (main.go:65-87) reads plaintext (:66), rejects empty (:71-74) and too-long (:77-79), then hashes (:75). No strength check.
+
+### Post-wave corrections (2026-07-10)
+
+All refs re-verified against current code: NO drift. `ApplyPasswordHashing`
+(password_hash.go:88), `hashPlaintextSibling` (:153-170 with empty no-op
+:156-158, hash :159, too-long :161-164) and `runImpl` (main.go:65, empty
+:71-74, hash :75, too-long :77-79) all match the citations above exactly.
+
+Additional evidence strengthening A-1 (warning channel): the SAME file already
+produces advisory warnings on this exact surface -- `CheckBcryptLeaves`
+(password_hash.go:26-36) returns warning strings for a non-bcrypt canonical
+leaf value, and the functional test `test/parse/user-plaintext-warning.ci`
+proves those warnings surface through `ze config validate`. The weakness
+warning rides an existing, tested channel. A-1 keeps its validation method
+(trace the exact routing during the implement audit) but its basis is now
+grounded in a producer citation.
+
+Functional test location corrected everywhere in this spec: `test/ci/` does
+not exist. Password-hashing functional tests live in `test/parse/`
+(user-plaintext-warning.ci, user-plaintext-password.ci, passwd-helper.ci), so
+the new test is `test/parse/password-weakness-warning.ci`.
 
 **Behavior to preserve:**
 - Every password that is accepted today is still accepted (warning-only, never a new rejection).
@@ -106,8 +129,8 @@ configs or automation, but it makes a weak choice visible.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| set account password to a short/common value | → | strength helper returns a reason; commit warns | `test/ci/password-weakness-warning.ci` |
-| set account password to a strong value | → | no warning; commit clean | `test/ci/password-weakness-warning.ci` |
+| set account password to a short/common value | → | strength helper returns a reason; commit warns | `test/parse/password-weakness-warning.ci` |
+| set account password to a strong value | → | no warning; commit clean | `test/parse/password-weakness-warning.ci` |
 
 ## Acceptance Criteria
 
@@ -125,7 +148,7 @@ configs or automation, but it makes a weak choice visible.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | sets a trivially weak account password and sees a warning while the commit still succeeds | plaintext → strength helper → commit warning | `test/ci/password-weakness-warning.ci` |
+| 1 | sets a trivially weak account password and sees a warning while the commit still succeeds | plaintext → strength helper → commit warning | `test/parse/password-weakness-warning.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -146,7 +169,7 @@ configs or automation, but it makes a weak choice visible.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `password-weakness-warning` | `test/ci/password-weakness-warning.ci` | weak password warns yet sets; strong password is silent | |
+| `password-weakness-warning` | `test/parse/password-weakness-warning.ci` | weak password warns yet sets; strong password is silent | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -164,7 +187,7 @@ configs or automation, but it makes a weak choice visible.
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
 | Shared strength helper | [ ] yes | new `password_strength.go` (length + embedded denylist) |
-| Functional test | [ ] yes | `test/ci/password-weakness-warning.ci` |
+| Functional test | [ ] yes | `test/parse/password-weakness-warning.ci` |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -174,7 +197,7 @@ configs or automation, but it makes a weak choice visible.
 
 ## Files to Create
 - `internal/component/config/password_strength.go` - shared length + denylist helper
-- `test/ci/password-weakness-warning.ci` - functional test
+- `test/parse/password-weakness-warning.ci` - functional test
 - (unit tests in new/existing `_test.go`)
 
 ## Implementation Steps
@@ -187,7 +210,7 @@ configs or automation, but it makes a weak choice visible.
 | 4. Implement (TDD) | Implementation Phases below |
 
 ### Implementation Phases
-1. **Phase: Wiring (MANDATORY FIRST)** - add the strength helper (returns a reason, unused) and a failing `test/ci/password-weakness-warning.ci`.
+1. **Phase: Wiring (MANDATORY FIRST)** - add the strength helper (returns a reason, unused) and a failing `test/parse/password-weakness-warning.ci`.
 2. **Phase: Strength policy** - implement length + embedded denylist (case-insensitive).
    - Tests: `TestPasswordStrengthShort`, `TestPasswordStrengthDenylist`, `TestPasswordStrengthStrongNoReason`
 3. **Phase: Wire both set paths** - call the helper in `hashPlaintextSibling` (commit warning) and `runImpl` (stderr); never block.
@@ -209,7 +232,7 @@ configs or automation, but it makes a weak choice visible.
 |-------------|---------------------|
 | strength helper | `go test ./internal/component/config -run Strength` |
 | both set paths warn | `go test ./internal/component/config -run Weak && go test ./internal/plugins/passwd` |
-| functional | `test/ci/password-weakness-warning.ci` |
+| functional | `test/parse/password-weakness-warning.ci` |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |

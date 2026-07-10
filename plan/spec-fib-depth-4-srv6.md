@@ -30,7 +30,7 @@ flow through the system to reach the FIB layer.
 - [ ] `docs/architecture/core-design.md` -- FIB plugin pattern
 
 ### RFC Summaries
-- [ ] `rfc/short/rfc8986.md` -- SRv6 Network Programming (if exists)
+- [ ] RFC 8986 short summary under rfc/short/ -- SRv6 Network Programming (not present as of 2026-07-10; create it at design time)
 
 ## Current Behavior (MANDATORY)
 
@@ -67,7 +67,7 @@ flow through the system to reach the FIB layer.
 
 ### Integration Points
 - `netlink.SEG6Encap` type for Linux seg6 lwtunnel
-- VPP `sr_steer_add_del` binary API message
+- VPP `sr_steer_add_del` binary API message (vendored 2026-07-10 as `SrSteeringAddDel`, wire name sr_steering_add_del -- see Post-wave corrections)
 
 ### Architectural Verification
 - [ ] No bypassed layers
@@ -194,3 +194,10 @@ flow through the system to reach the FIB layer.
 - [ ] Tests PASS
 - [ ] Functional tests for end-to-end behavior
 - [ ] Interop tests for protocol features
+
+### Post-wave corrections (2026-07-10)
+
+Partial de-risk of Phase 2 (VPP SR steer); the block is unchanged:
+
+- The followup-vpp-iface wave vendored the govpp binapi under `vendor/go.fd.io/govpp/binapi/`, and the SR packages are ALREADY INCLUDED: `binapi/sr` and `binapi/sr_types` are in the vendor tree. The steering message this spec names as `sr_steer_add_del` is vendored as the generated type `SrSteeringAddDel` (wire name sr_steering_add_del) at `vendor/go.fd.io/govpp/binapi/sr/sr.ba.go:1399`, with `SrSteeringAddDelReply` (:1462) and the steering-policy dump messages alongside. Phase 2 can therefore use the generated types directly; no hand-rolled VPP message structs and no additional vendoring step are needed for SR steering.
+- The blocking dependency is NOT affected: bgp-nlri-srv6 remains unimplemented, so SRv6 SIDs still do not flow to the FIB layer and this spec stays `blocked` on it, as recorded in the metadata Depends row.

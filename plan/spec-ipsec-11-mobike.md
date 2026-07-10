@@ -118,7 +118,7 @@ address events, but wiring them to the IKE engine is deferred to a future spec.
   -> Constraint: PeerSession holds SA reference. MOBIKE state can live on SA struct.
 - [ ] `internal/core/routewatch/routewatch.go` -- Watcher pattern: Register(Handler) returns unsubscribe func, Start(errCb), Stop().
   -> Decision: Address watcher follows same pattern.
-- [ ] `internal/plugins/iface/netlink/monitor_linux.go` -- Uses `netlink.AddrSubscribe(addrCh, m.stopCh)` at line 75, receives `netlink.AddrUpdate` with `NewAddr bool`, `LinkAddress *net.IPNet`, `LinkIndex int`.
+- [ ] `internal/plugins/iface/netlink/monitor_linux.go` -- Uses `netlink.AddrSubscribe(addrCh, m.stopCh)` at ~~line 75~~ line 76 (moved by the 2026-07 wave, see Post-wave corrections), receives `netlink.AddrUpdate` with `NewAddr bool`, `LinkAddress *net.IPNet`, `LinkIndex int`.
 
 **Behavior to preserve:**
 - DPD continues to work without MOBIKE (non-MOBIKE peers get no NAT detection in DPD)
@@ -210,7 +210,7 @@ address events, but wiring them to the IKE engine is deferred to a future spec.
 | AC-12 | Interop: Ze initiator, address change mid-session, traffic verified | End-to-end Docker interop test passes. Scenario 04. |
 | AC-13 | ADDITIONAL_IP4_ADDRESS in IKE_AUTH | Peers can announce additional addresses. Stored on SA for future use. |
 
-## TDD Test Plan
+## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
@@ -242,6 +242,7 @@ address events, but wiring them to the IKE engine is deferred to a future spec.
 |------|----------|-------------------|--------|
 | `03-mobike-responder` | `test/ipsec-interop/scenarios/03-mobike-responder/check.py` | strongSwan initiator moves IP, Ze responder updates tunnel, traffic flows | |
 | `04-mobike-initiator` | `test/ipsec-interop/scenarios/04-mobike-initiator/check.py` | Ze initiator moves IP, strongSwan responder updates tunnel, traffic flows | |
+| `ipsec-mobike-config` (added 2026-07-10) | `test/parse/ipsec-mobike-config.ci` | `mobike enable/disable` ike-group leaf parsed and accepted | |
 
 ### Interop Test Network Design
 
@@ -325,10 +326,10 @@ MOBILITY_SUBNET = "172.29.0.0/24"
 ZE_MOB_IP = "172.29.0.2"
 SWAN_MOB_IP = "172.29.0.3"
 
-def create_mobility_network()
-def connect_to_mobility(container, ip)
-def disconnect_from_primary(container)
-def cleanup_mobility_network()
+helper create_mobility_network()
+helper connect_to_mobility(container, ip)
+helper disconnect_from_primary(container)
+helper cleanup_mobility_network()
 ```
 
 The `Scenario.teardown()` must also clean up the mobility network.
@@ -653,3 +654,11 @@ MUST document: capability negotiation, UPDATE_SA_ADDRESSES handling, COOKIE2 ver
 - [ ] Implementation Audit filled
 - [ ] Write learned summary to `plan/learned/NNN-ipsec-11-mobike.md`
 - [ ] Summary included in commit
+
+### Post-wave corrections (2026-07-10)
+
+Line-ref refresh only, no design change. Re-verified against current code after the followup-vpp-iface wave (SLAAC address origin tracking landed in the same file this spec cites as its AddrSubscribe reference):
+
+- `netlink.AddrSubscribe(addrCh, m.stopCh)` moved from monitor_linux.go:75 to `internal/plugins/iface/netlink/monitor_linux.go:76` (the subscribe block in `start()` is now :72-88).
+- NEW in the file: `safeHandleAddrUpdate` at monitor_linux.go:132, a panic-recovery wrapper invoked from the monitor loop (:112) around `handleAddrUpdate` (:220). `handleAddrUpdate` now also classifies the address origin (static/slaac/temporary/dynamic) via `addrOrigin` (`internal/plugins/iface/netlink/slaac_linux.go:30`), applied at monitor_linux.go:247 and emitted as the `Origin` field of the address event payload (:265).
+- Impact on this spec: none to the design. The `netlink.AddrUpdate` fields cited (NewAddr, LinkAddress, LinkIndex) are unchanged, and the planned `addrwatch_linux.go` subscribes independently. The origin classification is a useful reference if the addrwatch wants to ignore SLAAC/temporary churn, but nothing here requires it.

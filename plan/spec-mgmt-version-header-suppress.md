@@ -2,10 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-04 |
+| Updated | 2026-07-10 |
+
+**Notes:** Promoted to ready per user instruction 2026-07-10 (followup-wave impact review session) authorizing conversion to ready.
 
 ## Post-Compaction Recovery
 
@@ -52,9 +54,36 @@ Note this is specifically the custom `X-Ze-Version` header. Ze sends no standard
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/web/auth.go` - `addSecurityHeaders` (auth.go:310) sets `X-Ze-Version` to `version.HTTPHeader()` (auth.go:316), unconditionally, on authenticated responses.
-- [ ] `internal/component/lg/server.go` - sets the same `X-Ze-Version` header (server.go:563), independently of the web path.
-- [ ] `internal/core/version/version.go` - `HTTPHeader` (version.go:218-234) builds `ze/<release> (<commit>[+]; <goVer>; <os>/<arch>)`; there is no caller-side option to omit it.
+- [ ] `internal/component/web/auth.go` - `addSecurityHeaders` (auth.go:338) sets `X-Ze-Version` to `version.HTTPHeader()` (auth.go:344), unconditionally, on authenticated responses.
+- [ ] `internal/component/lg/server.go` - sets the same `X-Ze-Version` header (server.go:568), independently of the web path.
+- [ ] `internal/core/version/version.go` - `HTTPHeader` (version.go:218-235) builds `ze/<release> (<commit>[+]; <goVer>; <os>/<arch>)`; there is no caller-side option to omit it.
+
+### Post-wave corrections (2026-07-10)
+
+All refs re-verified against current code:
+
+- Line drift corrected in place above (old -> new): `addSecurityHeaders`
+  auth.go:310 -> :338 (doc comment :337), `X-Ze-Version` write :316 -> :344;
+  lg header write server.go:563 -> :568; `HTTPHeader` version.go:218-234 ->
+  :218-235. Behaviour of all three sites is exactly as described.
+- Precision on the lg site: the write at server.go:568 lives inside the
+  `securityHeaders` middleware (server.go:561-570) which wraps ALL lg
+  responses, not only authenticated ones. The suppression guard therefore goes
+  in that middleware; "authenticated responses" applies to the web site only.
+- Config surface candidates made concrete: the web schema is
+  `internal/component/web/yang/ze-web-conf.yang` and the looking-glass schema
+  is `internal/component/lg/yang/ze-lg-conf.yang`. Whether the single toggle
+  is one shared leaf both servers resolve, or a leaf mirrored into both
+  containers, is settled at implement time under R-1's mitigation (ONE logical
+  toggle; a functional test hits both servers).
+- Unit-test anchors exist: `internal/component/web/auth_test.go`,
+  `internal/component/web/integration_test.go`, and
+  `internal/component/lg/server_test.go` already reference `X-Ze-Version`, so
+  the planned unit tests extend existing files as stated.
+- Functional test location corrected everywhere in this spec: `test/ci/` does
+  not exist. The test lives at `test/plugin/version-header-suppress.ci`
+  (test/plugin already hosts daemon-booting HTTP-surface tests, e.g.
+  lg-paginate.ci).
 
 **Behavior to preserve:**
 - When suppression is off (the default), the `X-Ze-Version` header is emitted exactly as today.
@@ -99,7 +128,7 @@ Note this is specifically the custom `X-Ze-Version` header. Ze sends no standard
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Both header sites can read a resolved config toggle | auth.go:316, server.go:563 both have server config in scope | plumb the toggle into the relevant struct | trace both servers' config during audit | unvalidated |
+| A-1 | Both header sites can read a resolved config toggle | auth.go:344, server.go:568 (refs refreshed 2026-07-10); note `addSecurityHeaders` takes only the ResponseWriter, so the toggle reaches it via its callers or a package-level setting | plumb the toggle into the relevant struct | trace both servers' config during audit | unvalidated |
 | A-2 | `X-Ze-Version` is the only response-header version leak | grep found only these two sites; no `Server` header | another surface leaks the banner | grep all response-header writers | unvalidated |
 
 ### Risks
@@ -130,7 +159,7 @@ Note this is specifically the custom `X-Ze-Version` header. Ze sends no standard
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | hardens the box by hiding the build banner | config `hide-version` -> both servers omit `X-Ze-Version` | `test/ci/version-header-suppress.ci` |
+| 1 | hardens the box by hiding the build banner | config `hide-version` -> both servers omit `X-Ze-Version` | `test/plugin/version-header-suppress.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -149,7 +178,7 @@ Note this is specifically the custom `X-Ze-Version` header. Ze sends no standard
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `version-header-suppress` | `test/ci/version-header-suppress.ci` | header present by default, absent when hidden, on both servers | |
+| `version-header-suppress` | `test/plugin/version-header-suppress.ci` | header present by default, absent when hidden, on both servers | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -171,7 +200,7 @@ Note this is specifically the custom `X-Ze-Version` header. Ze sends no standard
 | 2 | Config syntax changed? | [ ] yes | `docs/guide/configuration.md` |
 
 ## Files to Create
-- `test/ci/version-header-suppress.ci` - functional test
+- `test/plugin/version-header-suppress.ci` - functional test
 - (unit tests in existing `_test.go`)
 
 ## Implementation Steps
@@ -184,7 +213,7 @@ Note this is specifically the custom `X-Ze-Version` header. Ze sends no standard
 | 4. Implement (TDD) | Implementation Phases below |
 
 ### Implementation Phases
-1. **Phase: Wiring (MANDATORY FIRST)** - add the `hide-version` leaf (unused) + a failing `test/ci/version-header-suppress.ci`.
+1. **Phase: Wiring (MANDATORY FIRST)** - add the `hide-version` leaf (unused) + a failing `test/plugin/version-header-suppress.ci`.
 2. **Phase: Toggle plumbing** - resolve the leaf into the web + lg server settings.
 3. **Phase: Guard the header writes** - gate both `X-Ze-Version` sites on the toggle.
    - Tests: `TestWebVersionHeaderSuppressed`, `TestLGVersionHeaderSuppressed`, `TestVersionHeaderPresentByDefault`

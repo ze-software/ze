@@ -434,3 +434,10 @@ gap), NOTE (worth stating). The C-N numbering here is the one referenced through
 - [ ] Tests PASS (paste output)
 - [ ] QEMU evidence for lockdown-active + OTA-kexec + arm64
 - [ ] Functional `.ci` tests for the floor + resolved-config assertions
+
+### Post-wave corrections (2026-07-10)
+
+Registry-context refresh only, no design change. Re-verified after the followup-vpp-iface wave:
+
+- `internal/core/diagnostic/codes.go` grew: the wave registered `doctor-vpp-wireguard` (codes.go:283) and `doctor-vpp-lcp-netns` (codes.go:289). The planned `doctor-appliance-lockdown` code therefore joins a registry that keeps growing by append; the registration mechanism this spec relies on (add a code entry to codes.go, register the check via `diagnostic.RegisterDoctorCheck()` from the owning package) is unchanged and freshly exercised by those two additions, which are current working examples to copy.
+- DPDK/VFIO citations hold: `vfioModules` (`vfio`, `vfio_pci`, `vfio_iommu_type1`) still at `internal/component/vpp/dpdk.go:37` and `loadModuleLinux` modprobe still at `internal/component/vpp/dpdk_linux.go:17-22`; the wave did not touch either file, so R-6 and the build-VFIO-in decision stand as written.

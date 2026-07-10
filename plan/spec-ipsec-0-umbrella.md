@@ -13,7 +13,7 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` -- workflow rules
 3. `docs/features/interfaces.md` -- interface capability table and patterns
-4. `internal/component/iface/backend.go` -- Backend interface (33 methods)
+4. `internal/component/iface/backend.go` -- Backend interface (~~33 methods~~ 42 methods as of 2026-07-10, see Post-wave corrections)
 5. `internal/component/iface/tunnel.go` -- TunnelKind/TunnelSpec pattern
 6. `internal/component/iface/wireguard.go` -- WireguardSpec pattern
 7. `internal/component/iface/pppoe_client.go` -- managed lifecycle pattern
@@ -60,7 +60,7 @@ On Linux this maps to: **strongSwan/charon** for IKEv2 negotiation,
 
 | Capability | Package | Status |
 |------------|---------|--------|
-| Interface backend abstraction (33 methods) | `internal/component/iface/backend.go` | Implemented |
+| Interface backend abstraction (~~33 methods~~ 42 methods as of 2026-07-10, see Post-wave corrections) | `internal/component/iface/backend.go` | Implemented |
 | Tunnel interfaces (8 GRE/IPIP/SIT kinds) | `internal/component/iface/tunnel.go` | Implemented |
 | WireGuard (declarative peers, $9$ keys) | `internal/component/iface/wireguard.go` | Implemented |
 | PPPoE client lifecycle (reconnect, dialer) | `internal/component/iface/pppoe_client.go` | Implemented |
@@ -232,8 +232,8 @@ Spec 3 is done. Spec 3b extends the data model for EAP/remote-access config.
   -> Constraint: new interface kinds must be registered via YANG schema + backend extension
 - [ ] `docs/architecture/core-design.md` -- component lifecycle, event bus, registration pattern
   -> Constraint: IPsec component follows registration pattern; bus events for SA state
-- [ ] `internal/component/iface/backend.go` -- Backend interface (33 methods, CreateTunnel/CreateWireguardDevice precedent)
-  -> Decision: add CreateVTI and CreateXFRM methods to Backend
+- [ ] `internal/component/iface/backend.go` -- Backend interface (~~33 methods~~ 42 methods as of 2026-07-10, CreateTunnel/CreateWireguardDevice precedent)
+  -> Decision: add CreateVTI and CreateXFRM methods to Backend (CreateXFRM already landed via ipsec-2, backend.go:103 -- see Post-wave corrections 2026-07-10)
 - [ ] `internal/component/iface/pppoe_client.go` -- PPPoEClient lifecycle (supervised subprocess precedent)
   -> Decision: IKEv2 engine follows similar lifecycle pattern: config-driven start/stop, per-peer goroutine with reconnect
 - [ ] `internal/component/config/secret/secret.go` -- $9$ sensitive leaf encoding
@@ -258,7 +258,7 @@ Spec 3 is done. Spec 3b extends the data model for EAP/remote-access config.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/iface/backend.go` -- Backend interface: 33 methods, CreateTunnel(TunnelSpec), CreateWireguardDevice(name), ConfigureWireguardDevice(WireguardSpec). No VTI/XFRM/IPsec methods
+- [ ] `internal/component/iface/backend.go` -- Backend interface: ~~33 methods~~ 42 methods as of 2026-07-10, CreateTunnel(TunnelSpec), CreateWireguardDevice(name), ConfigureWireguardDevice(WireguardSpec). ~~No VTI/XFRM/IPsec methods~~ CreateXFRM/GetXFRMInfo now exist (backend.go:103/:108, see Post-wave corrections)
   -> Constraint: new Backend methods must follow existing signatures (return error, take spec struct)
 - [ ] `internal/component/iface/tunnel.go` -- TunnelKind enum + TunnelSpec struct. 8 tunnel kinds via YANG choice/case. *Set booleans for optional numeric fields
   -> Decision: VTI does NOT belong in TunnelKind. VTI is semantically different (XFRM-bound, no explicit remote endpoint). Separate type, separate Backend method
@@ -525,3 +525,17 @@ Each phase corresponds to a child spec. Phases are ordered by dependency.
 - [ ] Single responsibility per component
 - [ ] Explicit > implicit behavior
 - [ ] Minimal coupling
+
+### TDD
+<!-- Added 2026-07-10 to satisfy the spec validator; umbrella-level TDD is delegated to child specs. -->
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+
+### Post-wave corrections (2026-07-10)
+
+Re-verified against current code after the followup-vpp-iface implementation wave (commits up to fe6aa242f):
+
+- Backend interface size: the "33 methods" count is stale. `internal/component/iface/backend.go` `Backend` (backend.go:63-214) now declares exactly 42 methods. The wave added the traffic-mirroring surface `SetupMirror` (backend.go:194) and `RemoveMirror` (:195), and the Linux Control Plane surface `SetupLCPPair` (:203) and `RemoveLCPPair` (:204). Strikethroughs applied at the four places the old count appeared.
+- ALREADY SATISFIED: the "Files to Modify" item "`internal/component/iface/backend.go` -- add CreateXFRM, GetXFRMInfo methods to Backend interface" and the matching "Behavior to change" bullet are done: `CreateXFRM(spec XFRMSpec)` exists at backend.go:103 and `GetXFRMInfo(name string)` at backend.go:108 (landed with ipsec-2). A future implementer must not re-add them.
+- NEW MECHANISM for the VPP dataplane (AC-12): the wave vendored the govpp binapi under `vendor/go.fd.io/govpp/binapi/` (28 packages, including gre, ipip, vxlan, span, lcp, wireguard, sr). `binapi/ipsec` is NOT yet vendored (verified: absent from the vendor tree). A future VPP IPsec backend should vendor `binapi/ipsec` the same way instead of hand-rolling message structs; the existing hand-rolled types in `internal/component/ike/dataplane/vpp.go` carry a comment anticipating exactly this (vpp.go:161: when govpp/binapi/ipsec is vendored, replace these with the generated types).

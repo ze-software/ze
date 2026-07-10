@@ -60,6 +60,20 @@ plugins that also set `Registration.YANG`.
 - Reuse this codegen/discovery infrastructure; the manifest is a NEW consumer of it, not a
   parallel generator.
 
+### Post-wave corrections (2026-07-10)
+
+Scope grows by one (verified against current code): the 2026-07 wave added a new internal
+exabgp-bridge plugin that is a fresh instance of the double-YANG-declaration this spec's
+finding 2 / AC-4 collapses. `internal/plugins/exabgp/bridgeplugin/register.go:42` sets
+`Registration.YANG` to `bridgeyang.ZeExabgpBridgeConfYANG`, and the generated
+`internal/plugins/exabgp/bridgeplugin/yang/register.go:10` separately calls
+`configyang.RegisterModule` with the same constant. The counts quoted in the Task, A-2, and
+AC-4 ("~84 plugins" setting `Registration.YANG`, "210 `RegisterModule` calls") predate this
+plugin and are each one higher now; re-count at design time. Note the duplicate pair here is
+emitted by `scripts/codegen/yang_glue.go` ("Code generated" header of yang/register.go), so
+the collapse sweep must update that generator, not only hand-written `yang/register.go`
+files.
+
 ## Required Reading
 
 ### Architecture Docs

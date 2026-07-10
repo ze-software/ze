@@ -2,10 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-04 |
+| Updated | 2026-07-10 |
+
+**Notes:** Promoted to ready per user instruction 2026-07-10 (followup-wave impact review session) authorizing conversion to ready.
 
 ## Post-Compaction Recovery
 
@@ -30,6 +32,14 @@ Change the default outer TTL for the IPv4 tunnel kinds from `0` (inherit) to a
 fixed, sane value (`64`), matching the existing IPv6 default. Operators who
 deliberately want inherit can still set `ttl 0` explicitly.
 
+**Scope (USER DECISION 2026-07-10): NETLINK-ONLY.** The ttl default 64 applies
+to netlink-backed tunnels only. VPP-backed gre/gretap/ipip (these kinds are now
+`ze:backend "netlink vpp"`, yang :644/:676/:779) are out of scope because the
+VPP tunnel programming path carries no outer-TTL field: `createGRETunnel`
+(`internal/plugins/iface/vpp/tunnel.go:73`) builds its request from
+type/mode/src/dst only, and `createIPIPTunnel` (`tunnel.go:113`) from
+src/dst/mode only -- neither has a TTL or hop-limit field.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -46,9 +56,35 @@ deliberately want inherit can still set `ttl 0` explicitly.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/iface/netlink/tunnel_linux.go` - `buildGretun`/`buildGretap` apply `link.Ttl = spec.TTL` only when `spec.TTLSet` (tunnel_linux.go:133-135, :167-169); the IPv6 path applies `link.Ttl = spec.HopLimit` (:139-141). With the default unset to 0, the kernel receives TTL 0 = inherit.
-- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - `ttl` defaults to `0` "inherit" for gre (:650-654), gretap (:680-684), ipip (:777-781), sit (:802-806); ip6gre `hoplimit` defaults to `64` (:721-725).
-- [ ] `internal/component/iface/config.go` - tunnel leaves (`ttl`/`hoplimit`) parse into `spec.TTL`/`spec.TTLSet` (config.go:600-606).
+- [ ] `internal/plugins/iface/netlink/tunnel_linux.go` - `buildGretun`/`buildGretap` apply `link.Ttl = spec.TTL` only when `spec.TTLSet` (tunnel_linux.go:140-141, :174-175); the IPv6 path applies `link.Ttl = spec.HopLimit` (:146-147). With the default unset to 0, the kernel receives TTL 0 = inherit.
+- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - `ttl` defaults to `0` "inherit" for gre (:654-658), gretap (:685-689), ipip (:783-787), sit (:808-812); ip6gre `hoplimit` defaults to `64` (:726-729).
+- [ ] `internal/component/iface/config.go` - tunnel leaves (`ttl`/`hoplimit`) parse into `spec.TTL`/`spec.TTLSet` (config.go:600-606, unchanged; `hoplimit` :619-625).
+
+### Post-wave corrections (2026-07-10)
+
+All refs re-verified against current code after the followup-spec wave:
+
+- Line drift corrected in place above (old -> new): yang gre ttl :650-654 -> :654-658
+  (default 0 at :656); gretap :680-684 -> :685-689; ipip :777-781 -> :783-787; sit
+  :802-806 -> :808-812; ip6gre hoplimit :721-725 -> :726-729 (default 64 at :728).
+  tunnel_linux.go buildGretun TTL :133-135 -> :140-141, hoplimit :139-141 -> :146-147,
+  buildGretap :167-169 -> :174-175. config.go :600-606 unchanged.
+- ipip/sit builders verified (settles R-2 for the audit): `buildIptun` applies
+  `link.Ttl = spec.TTL` at tunnel_linux.go:204-205 and `buildSittun` at :228-229,
+  same field and gate as gre/gretap.
+- Dual-backend conflict (wave impact): gre, gretap, and ipip are now
+  `ze:backend "netlink vpp"` (yang :644, :676, :779). The VPP tunnel path
+  (`internal/plugins/iface/vpp/tunnel.go` `createGRETunnel` :73,
+  `createIPIPTunnel` :113) has no TTL/hop-limit field, so neither the new
+  default nor an explicit ttl reaches a VPP-programmed tunnel. USER DECISION
+  2026-07-10: this spec is netlink-only (see Task scope and Known Limitations).
+- Edit targets sit inside the `ze-platform-vet` gate scope (Makefile:337-341
+  vets `internal/component/iface/...` and `internal/plugins/iface/...` under
+  GOOS=darwin and GOOS=freebsd); keep any Go edits building on both.
+- Functional test location corrected everywhere in this spec: `test/ci/` does
+  not exist. The test lives at `test/plugin/tunnel-ttl-default.ci` and needs
+  `option=needs-linux` (it applies netlink tunnel config; see
+  `ai/rules/qemu-testing.md`).
 
 **Behavior to preserve:**
 - Explicit `ttl 0` still means inherit-from-inner.
@@ -100,14 +136,15 @@ deliberately want inherit can still set `ttl 0` explicitly.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Changing a default surprises a config that relied on inherit | existing tunnels change TTL after upgrade | documented behaviour change; explicit `ttl 0` restores inherit |
-| R-2 | ipip/sit apply TTL via a different netlink field than gre | TTL not set on ipip/sit | audit ipip/sit builders; add per-kind test |
+| R-2 | ipip/sit apply TTL via a different netlink field than gre | TTL not set on ipip/sit | audit ipip/sit builders; add per-kind test (2026-07-10: pre-verified, both use `link.Ttl`, tunnel_linux.go:204-205, :228-229) |
+| R-3 | An EXPLICIT ttl value configured on a VPP-backed gre/gretap/ipip tunnel is silently unused today, and the new default makes the leaf look authoritative | operator sets ttl on a vpp-backed tunnel and the device shows no effect | to be settled at implement time -- two options left open (user decision pending): warn at config verify that ttl is ignored on the vpp backend, or reject ttl on vpp-backed tunnels outright |
 
 ## Wiring Test (MANDATORY)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| gre tunnel, `ttl` unset | → | `link.Ttl = 64` on the device | `test/ci/tunnel-ttl-default.ci` |
-| gre tunnel, explicit `ttl 0` | → | `link.Ttl = 0` (inherit) | `test/ci/tunnel-ttl-default.ci` |
+| gre tunnel, `ttl` unset | → | `link.Ttl = 64` on the device | `test/plugin/tunnel-ttl-default.ci` |
+| gre tunnel, explicit `ttl 0` | → | `link.Ttl = 0` (inherit) | `test/plugin/tunnel-ttl-default.ci` |
 
 ## Acceptance Criteria
 
@@ -125,7 +162,7 @@ deliberately want inherit can still set `ttl 0` explicitly.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | creates a GRE tunnel without setting TTL and it works over a multi-hop underlay | YANG default 64 → spec → `link.Ttl` | `test/ci/tunnel-ttl-default.ci` |
+| 1 | creates a GRE tunnel without setting TTL and it works over a multi-hop underlay | YANG default 64 → spec → `link.Ttl` | `test/plugin/tunnel-ttl-default.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -144,7 +181,7 @@ deliberately want inherit can still set `ttl 0` explicitly.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `tunnel-ttl-default` | `test/ci/tunnel-ttl-default.ci` | unset TTL → 64 on device; explicit 0 → inherit | |
+| `tunnel-ttl-default` | `test/plugin/tunnel-ttl-default.ci` | unset TTL → 64 on device; explicit 0 → inherit | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -163,7 +200,7 @@ deliberately want inherit can still set `ttl 0` explicitly.
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
 | YANG schema (default change) | [ ] yes | `ze-iface-conf.yang` tunnel `ttl` leaves |
-| Functional test | [ ] yes | `test/ci/tunnel-ttl-default.ci` |
+| Functional test | [ ] yes | `test/plugin/tunnel-ttl-default.ci` |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -172,7 +209,7 @@ deliberately want inherit can still set `ttl 0` explicitly.
 | 2 | Config syntax changed? | [ ] yes | `docs/features/interfaces.md`, `docs/guide/configuration.md` |
 
 ## Files to Create
-- `test/ci/tunnel-ttl-default.ci` - functional test
+- `test/plugin/tunnel-ttl-default.ci` - functional test
 - (unit tests extend existing test files)
 
 ## Implementation Steps
@@ -185,7 +222,7 @@ deliberately want inherit can still set `ttl 0` explicitly.
 | 4. Implement (TDD) | Implementation Phases below |
 
 ### Implementation Phases
-1. **Phase: Wiring (MANDATORY FIRST)** - failing `test/ci/tunnel-ttl-default.ci` asserting a device TTL of 64 for an unset gre tunnel.
+1. **Phase: Wiring (MANDATORY FIRST)** - failing `test/plugin/tunnel-ttl-default.ci` asserting a device TTL of 64 for an unset gre tunnel.
 2. **Phase: Default change** - set `default 64` on the four IPv4 tunnel `ttl` leaves.
    - Tests: `TestTunnelTTLDefault64`, `TestTunnelTTLExplicitZeroInherits`
 3. **Phase: Netlink audit** - confirm ipip/sit apply the TTL like gre/gretap.
@@ -207,7 +244,7 @@ deliberately want inherit can still set `ttl 0` explicitly.
 |-------------|---------------------|
 | default | `go test ./internal/component/iface -run TTL` |
 | netlink | `go test ./internal/plugins/iface/netlink -run TTL` |
-| functional | `test/ci/tunnel-ttl-default.ci` |
+| functional | `test/plugin/tunnel-ttl-default.ci` |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -218,6 +255,16 @@ deliberately want inherit can still set `ttl 0` explicitly.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+
+## Key Design Decisions
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| Netlink-only scope: the ttl default 64 applies to netlink-backed tunnels only (USER DECISION 2026-07-10) | Extending the VPP tunnel path so the default (and explicit values) reach VPP-programmed devices | The VPP tunnel programming path carries no outer-TTL field (`internal/plugins/iface/vpp/tunnel.go` `createGRETunnel` :73 sends type/mode/src/dst; `createIPIPTunnel` :113 sends src/dst/mode); plumbing TTL through the binapi is separate work, out of this spec |
+| Explicit-ttl-on-VPP semantics left open | (a) warn at verify that ttl is ignored on the vpp backend; (b) reject ttl on vpp-backed tunnels | Deliberately NOT decided here; settle at implement time (see R-3). Both options recorded so the implementer presents the choice rather than silently picking |
+
+## Known Limitations
+- VPP-backed gre/gretap/ipip tunnels (`ze:backend "netlink vpp"`, yang :644/:676/:779) are out of scope: the VPP binapi calls carry no TTL/hop-limit field, so neither the new default 64 nor an explicitly configured ttl reaches a VPP-programmed tunnel. The default change is netlink-only by user decision (2026-07-10).
+- The semantics of an EXPLICIT ttl value on a VPP-backed tunnel (silently unused today) are unresolved: warn vs reject is an open implement-time decision (R-3).
 
 ## Design Insights
 <!-- LIVE -->

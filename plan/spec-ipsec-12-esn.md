@@ -67,7 +67,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
      each peer but not transmitted; both peers MUST agree on ESN use or anti-replay breaks.
 - [ ] (optional) RFC 4304 -- ESN addendum (historical, IKEv1 DOI). No summary present; not
      required because the IKEv2/ESP behavior is fully specified by RFC 7296 + RFC 4303.
-  -> Decision: do NOT block on creating `rfc/short/rfc4304.md`; cite 7296/4303 in code.
+  -> Decision: do NOT block on creating a short RFC 4304 summary; cite 7296/4303 in code.
 
 **Key insights:**
 - Wire support for Transform Type 5 already exists (`transform.go:15`, `payload_sa.go:20`);
@@ -244,7 +244,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 | 2 | Peers with strongSwan configured `esn=yes` | IKE_AUTH ESN negotiation -> agreed ESN -> ESP SA on both ends -> traffic | interop `NN-ipsec-esn-strongswan` |
 | 3 | Runs `show vpn ipsec sa` on an ESN tunnel | SA state surface reports ESN enabled | functional/QEMU check of show output (if SA display includes ESN; else `ip xfrm state`) |
 
-## TDD Test Plan
+## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
@@ -271,6 +271,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 |------|----------|-------------------|--------|
 | `test-ipsec-esn-required` | `test/` QEMU integration (`mk/test-integration.mk`) | esn required -> `ip xfrm state` shows `flag esn` on both SAs | |
 | `test-ipsec-esn-default-noesn` | `test/` QEMU integration | no esn config -> SAs have no ESN flag (regression for default) | |
+| `ipsec-esn-config` (added 2026-07-10) | `test/parse/ipsec-esn-config.ci` | `esn` leaf accepted on both proposal lists, invalid enum rejected | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -297,7 +298,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 - `internal/component/ike/engine/rekey.go` -- preserve ESN across Child SA rekey
 - `internal/component/ike/dataplane/dataplane.go` -- `ESN bool` on `SAParams`
 - `internal/component/ike/dataplane/xfrm_linux.go` -- `state.ESN = p.ESN` (+ ESN replay handling, R-2)
-- `internal/component/ike/dataplane/vpp.go` -- `Flags` field on `ipsecSAEntry`; set `USE_ESN` (R-1)
+- `internal/component/ike/dataplane/vpp.go` -- ~~`Flags` field on `ipsecSAEntry`; set `USE_ESN` (R-1)~~ mechanism superseded 2026-07-10: vendor `binapi/ipsec` and use the generated SA-entry type with its flags field instead of extending the hand-rolled struct (see Post-wave corrections)
 - `internal/component/ike/crypto/proposal.go` -- (optional) add ESN to `crypto.ESPProposal` +
   `NegotiateESP` match, only if the responder path is implemented through `NegotiateESP`
 
@@ -327,7 +328,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 ## Files to Create
 - `test/ipsec-interop/...` -- strongSwan ESN interop scenario(s) (new dir mirroring `test/pppoe-interop`)
 - QEMU integration test entry under `test/` wired into `mk/test-integration.mk`
-- (optional) `rfc/short/rfc4304.md` only if the team wants the historical addendum summarized
+- (optional) a short RFC 4304 summary under rfc/short/ only if the team wants the historical addendum summarized
 
 ## Implementation Steps
 
@@ -553,3 +554,12 @@ Add above enforcing code:
 - [ ] Write learned summary to `plan/learned/NNN-ipsec-12-esn.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-ipsec-12-esn.md`
+
+### Post-wave corrections (2026-07-10)
+
+NEW CONSTRAINT for the VPP dataplane phase (AC-8b): implement the ESN flag change via the vendored govpp binapi, not by expanding hand-rolled structs.
+
+- The followup-vpp-iface wave established the govpp binapi vendoring pattern under `vendor/go.fd.io/govpp/binapi/` (28 packages vendored: gre, ipip, vxlan, span, lcp, wireguard, sr, and others). `binapi/ipsec` is NOT yet vendored (verified 2026-07-10: absent from the vendor tree); vendoring it is now a mechanical step following the same pattern.
+- The hand-rolled types this spec planned to extend carry a comment anticipating exactly this migration, verified at `internal/component/ike/dataplane/vpp.go:161`: when govpp/binapi/ipsec is vendored, replace these with the generated types. The `ipsecSAEntry` struct that follows (:163 onward) has no Flags field, as the Current Behavior section records.
+- Consequences: the Dataplane phase should vendor `binapi/ipsec` and set the USE_ESN flag on the GENERATED SA-entry type. This retires the hand-layout hazard tracked as R-1 and assumption A-2 (the generated types carry the exact wire layout and CRC, so no manual field-order verification is needed); the corresponding row in Failure Routing ("re-check struct layout vs govpp binding") becomes "regenerate/re-vendor binapi/ipsec". The `TestVPPSAEntryESNFlag` unit test then asserts the flag on the generated type rather than a hand-encoded layout.
+- The Files to Modify bullet for vpp.go is struck above accordingly; the file is still modified, only the mechanism changes.

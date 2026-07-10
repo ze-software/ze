@@ -102,9 +102,9 @@ belong in separate future fix work approved after the audit finding is filed.
 
 **Source files and directories read:**
 - [ ] `cmd/` - release binaries currently include `ze`, `ze-test`, `ze-perf`, `ze-analyse`, and `ze-chaos`
-- [ ] `internal/component/` - 35 component directories, including BGP, CLI, config, API, web, LG, SSH, MCP, authz, managed, iface, firewall, L2TP, PPPoE, IPsec, telemetry, and plugin server areas
-- [ ] `internal/plugins/` - 22 plugin directories, including connected, static, kernel/FIB, firewall, iface, traffic, sysctl, ntp, DHCP server, TFTP server, image server, L2TP helpers, BFD, and policy route areas
-- [ ] `test/` - 32 test directories, including functional, interop, deployment-like, stress, web, editor, install, firewall, traffic, VPP, L2TP, PPPoE, and managed suites
+- [ ] `internal/component/` - ~~35 component directories~~ (stale count; 2026-07-10 recount: 43 directories), including BGP, CLI, config, API, web, LG, SSH, MCP, authz, managed, iface, firewall, L2TP, PPPoE, IPsec, telemetry, and plugin server areas
+- [ ] `internal/plugins/` - ~~22 plugin directories~~ (stale count; 2026-07-10 recount: 63 top-level directories), including connected, static, kernel/FIB, firewall, iface, traffic, sysctl, ntp, DHCP server, TFTP server, image server, L2TP helpers, BFD, and policy route areas
+- [ ] `test/` - ~~32 test directories~~ (stale count; 2026-07-10 recount: 45 directories), including functional, interop, deployment-like, stress, web, editor, install, firewall, traffic, VPP, L2TP, PPPoE, and managed suites
 - [ ] `internal/**/*.yang` glob - YANG config, command, and API surfaces exist across components and plugins
 - [ ] `internal/**/register.go` glob - extensive startup registration and schema/plugin wiring surface
 - [ ] `test/interop/scenarios/*/check.py` glob - BGP interop scenarios currently include numbered scenarios through `35-srv6-frr`
@@ -173,15 +173,15 @@ belong in separate future fix work approved after the audit finding is filed.
 | Surface | Current Source | Initial Owner Audit | Notes |
 |---------|----------------|---------------------|-------|
 | Binaries | `cmd/` | `release-audit-1-surface-inventory` | `ze`, `ze-test`, `ze-perf`, `ze-analyse`, `ze-chaos` |
-| Core components | `internal/component/` | `release-audit-1-surface-inventory` | 35 directories observed |
-| External/internal plugins | `internal/plugins/` | `release-audit-5-plugins-rib` | 22 directories observed |
+| Core components | `internal/component/` | `release-audit-1-surface-inventory` | ~~35 directories observed~~ (2026-07-10: 43) |
+| External/internal plugins | `internal/plugins/` | `release-audit-5-plugins-rib` | ~~22 directories observed~~ (2026-07-10: 63 top-level) |
 | BGP component plugins | `internal/component/bgp/plugins/` | `release-audit-2-bgp-protocol` and `release-audit-5-plugins-rib` | Includes command, filter, RIB, route-server, GR, RPKI, BMP, watchdog-style surfaces |
 | Config schemas | `internal/**/*.yang` | `release-audit-3-config-cli` | Config, command, and API schemas are release-facing |
 | Web and LG | `internal/component/web/`, `internal/component/lg/` | `release-audit-4-web-lg-api` | Include auth, HTMX, SSE, empty/error states |
 | API and MCP | `internal/component/api/`, `internal/component/mcp/` | `release-audit-4-web-lg-api` | Include REST, gRPC, command dispatch, auth, streaming |
 | Linux/system paths | `internal/component/iface/`, `firewall/`, `traffic/`, `vpp/`, plugins under `fib/`, `kernel/`, `ifacenetlink/` | `release-audit-6-system-linux` | Requires QEMU/Linux/deployment evidence where applicable |
-| Release tests | `test/` | all child audits | 32 test directories observed |
-| Interop tests | `test/interop/scenarios/` | `release-audit-2-bgp-protocol` | Tree has scenarios through `35-srv6-frr`; docs list through 32 |
+| Release tests | `test/` | all child audits | ~~32 test directories observed~~ (2026-07-10: 45) |
+| Interop tests | `test/interop/scenarios/` | `release-audit-2-bgp-protocol` | ~~Tree has scenarios through `35-srv6-frr`; docs list through 32~~ (2026-07-10: 101 scenario directories; see Post-wave corrections) |
 | Documentation | `docs/`, `README*`, guide pages | `release-audit-8-docs-onboarding` | Must match actual command/config behavior |
 
 ## Child Audit Set
@@ -258,7 +258,7 @@ This umbrella has no runtime code. Its wiring test is that each child audit maps
 | AC-8 | Review docs/onboarding | Commands and configs in docs are executed or validated against current binaries and schemas |
 | AC-9 | Finish audit | Audit report states all open Blocker/Critical findings, owner, suggested direction, and whether release remains blocked |
 
-## TDD Test Plan
+## 🧪 TDD Test Plan
 
 No production code is implemented by this umbrella. This section documents evidence the audit should request from future fix work.
 
@@ -556,3 +556,36 @@ For this audit spec, "implementation" means audit documentation only. It does no
 
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above
+
+## Checklist
+
+<!-- Added 2026-07-10: this audit spec predates the validator's required-section list
+     (.claude/hooks/validate-spec.sh). Audit umbrellas produce documentation, not code;
+     the TDD items bind the future fix work routed from findings, not this spec. -->
+
+### Goal Gates (MUST pass)
+
+- [ ] Every release surface has an owner child audit (AC-2)
+- [ ] Findings use the Finding Schema with evidence (AC-4)
+- [ ] `make ze-test` evidence requested from future fix work per the Release Blocker Policy
+
+### TDD (applies to future fix specs routed from findings)
+
+- [ ] Tests written (in the owning fix spec)
+- [ ] Tests FAIL (paste output) (in the owning fix spec)
+- [ ] Tests PASS (paste output) (in the owning fix spec)
+
+### Post-wave corrections (2026-07-10)
+
+Re-verified against the current tree after the followup implementation wave (unpushed origin/main..HEAD). Stale counts in Current Behavior and the Initial Release Surface Inventory are struck inline above; details and citations:
+
+| Stale statement (location in this spec) | Current verified state (2026-07-10) |
+|------------------------------------------|--------------------------------------|
+| "35 component directories" (Current Behavior; Core components inventory row) | 43 directories under `internal/component/` |
+| "22 plugin directories" (Current Behavior; plugins inventory row) | 63 top-level directories under `internal/plugins/`; additionally the nested `internal/plugins/exabgp/bridgeplugin` registers the NEW plugin `exabgp-bridge` (`internal/plugins/exabgp/bridgeplugin/register.go:39`) |
+| "32 test directories" (Current Behavior; Release tests row) | 45 directories under `test/` |
+| Interop scenarios "through `35-srv6-frr`"; docs "list through 32" (Current Behavior; Interop tests row; finding RA-DOC-001) | 101 scenario directories under `test/interop/scenarios/`; `docs/DESIGN.md:796` states "101 interop scenarios"; `docs/architecture/testing/interop.md:142` lists `33-bfd-frr` in its core table (through 37). RA-DOC-001 as filed is superseded; the residual count drift across docs (96 vs 97 vs 101) is tracked in `spec-release-audit-8-docs-onboarding.md` Post-wave corrections |
+| "API and MCP" surface row (streaming via legacy handler implied) | MCP is Streamable-HTTP-only: legacy `internal/component/mcp/handler.go` was deleted; `internal/component/mcp/streamable.go` `handlePOST` (`:404`), `handleGET` (`:618`), `handleDELETE` (`:681`) are the sole transport |
+| Inventory seed omits wave-new surfaces | `internal/core/dnsserver` (shared DNS listener core: DoT `secure.go:307`, DoH `secure.go:335`, consumed by as112 + geodns) and `internal/plugins/exabgp/bridgeplugin` need owner-audit rows when child audits resume |
+
+Also from this correction pass: the `## TDD Test Plan` heading was renamed to `## 🧪 TDD Test Plan` and this `## Checklist` section added, both to satisfy the blocking spec validator; no audit content was changed by those two edits.

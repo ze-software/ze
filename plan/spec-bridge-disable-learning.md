@@ -266,3 +266,13 @@ today `member` is a flat leaf-list with nowhere to attach a per-member option.
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for all numeric inputs (boolean)
 - [ ] Functional tests for end-to-end behavior (QEMU)
+
+### Post-wave corrections (2026-07-10)
+
+Core evidence re-verified current after the followup-vpp-iface wave; no design change, but the member restructure now lands in a file set with NEW guard tests:
+
+- Verified-current evidence: `bridgeEntry` at `internal/component/iface/config.go:175` with `Members` at :178 (the spec's :174-178 range still holds); YANG `list bridge` at `internal/component/iface/yang/ze-iface-conf.yang:589` with `leaf-list member` at :608 (the spec's :586-614 range still holds). The bridge list remains `ze:backend "netlink"` (ze-iface-conf.yang:592), untouched by the wave's VPP gate widening, so this spec stays netlink-only.
+- NEW constraints from the wave the implementation must satisfy:
+  - The iface YANG schema snapshot test widened during the wave; restructuring `member` from a leaf-list to a per-member container changes the schema and must update/pass `internal/component/iface/schema_test.go`.
+  - The VPP backend gate test `internal/component/iface/backend_gate_vpp_test.go` asserts which iface features are permitted per backend; the new per-member `disable-learning` leaf must be classified there (netlink-only) so a vpp-backend config is rejected cleanly rather than silently ignored.
+  - The wave added migration tests in `internal/component/iface/migrate_linux_test.go`; the planned flat-leaf-list-to-container migration (A-2/R-1) must coexist with those and follow the same test pattern.

@@ -240,3 +240,10 @@ This skeleton tracks the gap; it is NOT ready to implement.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Functional tests for end-to-end behavior (QEMU)
+
+### Post-wave corrections (2026-07-10)
+
+The planned `internal/plugins/iface/netlink/vrf_linux.go` (Files to Create) now falls inside two gates the followup wave added or widened:
+
+- `ze-platform-vet` (`Makefile:337-341`; live stage at `scripts/status/verify_run.go:128`, `:141`) vets `./internal/plugins/iface/...` under GOOS=darwin and GOOS=freebsd. The `_linux.go` suffix excludes the file itself from those builds, but any VRF symbol referenced from non-suffixed backend code needs an `_other.go` counterpart (matching the existing `default_other.go`/`backend_other.go` pattern) or the vet fails.
+- `ze-iface-resolution-check` (`Makefile:310-311`; gate source `scripts/checks/iface_resolution.go`) forbids direct kernel name resolution (`LinkByName`, `net.InterfaceByName`, SIOCGIFINDEX) outside an allowlist. `internal/plugins/iface/netlink/` is allowlisted as "the single kernel owner" (`scripts/checks/iface_resolution.go:46`), so VRF device creation and enslavement code placed there is covered by the existing entry. However, any VRF-related resolution added OUTSIDE that tree (e.g. in the sysrib/policyroute table integration this spec plans) must go through the shared resolver (`internal/component/iface/resolve.go:65` Resolve, `:71` Addresses, `:80` Subscribe) or the gate fails.

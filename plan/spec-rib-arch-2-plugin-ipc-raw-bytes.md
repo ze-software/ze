@@ -36,6 +36,23 @@ Ze carries no compat burden, but any external SDK consumer of this RPC must be u
 lockstep, and the change touches the process-protocol framing -- design must confirm the
 transport can carry length-prefixed binary alongside the line-oriented JSON envelope.
 
+### Post-wave corrections (2026-07-10)
+
+New obligation from the 2026-07 implementation wave (verified against current code):
+assumption A-1 (the IPC framing can carry length-prefixed binary) must additionally confirm
+the interaction with new write-timeout behavior in `pkg/plugin/rpc/conn.go`. The write path
+(`writeAppended`, conn.go:286-334) applies a default 30s write deadline when the context
+carries none (`defaultWriteDeadline`, conn.go:44; conn.go:292-294, :309); on transports
+without `SetWriteDeadline` (stdio, SSH channels) a fail-fast write watchdog closes the
+connection on a stalled write (`fireWatchdog`, conn.go:191-200; armed at conn.go:314). The
+same write path also enforces the 16 MB `MaxMessageSize` frame bound
+(`pkg/plugin/rpc/framing.go:66`; check at conn.go:302-304). A binary carrier design must
+therefore confirm: (1) how length-prefixed binary coexists with the newline-framed writer
+this deadline/watchdog logic is built into (a bypass of `writeAppended` would silently lose
+both protections); (2) that a filter stalled mid-read cannot leave the engine blocked in a
+binary write longer than the watchdog window without the fail-fast close firing; (3) that
+large raw UPDATE payloads stay within the frame bound.
+
 ## Required Reading
 
 ### Architecture Docs

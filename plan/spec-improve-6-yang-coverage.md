@@ -262,3 +262,9 @@ the report itself is a developer/agent tool.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Functional tests for end-to-end behavior
+
+### Post-wave corrections (2026-07-10)
+
+- A mechanical YANG-default check subset of this spec ALREADY LANDED in the followup wave: `scripts/checks/port_defaults.go` compares each service's YANG `refine port { default N }` (regex `refinePortRe` at `port_defaults.go:63`, extraction `yangPortDefault` at `:143`) against the hand-maintained Go listener-defaults table, wired as `ze-port-defaults-check` (`Makefile:327-329`) and run by the live verify stage list in both branches (`scripts/status/verify_run.go:127`, `:140`).
+- The proposed `ze yang coverage` check mode must NOT duplicate that coverage: port-default consistency is owned by `ze-port-defaults-check`. Design the coverage tool as a sibling in the existing `scripts/checks/` family (now `command_ownership.go`, `iface_resolution.go`, `plugin_process_boundary.go`, `port_defaults.go`, `cli_grammar.go`) and scope its constraint grading to what the port gate does not already check.
+- Loader evidence re-verified, not stale: `DefaultLoader` (`internal/component/config/yang/loader.go:20-28`, best-effort `LoadRegistered`/`Resolve` at `:25-26`) and the `LoadEmbedded` bootstrap set covering ze-extensions/ze-types (`:48-52`) still match the Current Behavior citations.

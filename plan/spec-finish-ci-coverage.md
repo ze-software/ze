@@ -170,3 +170,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 
 ## Notes
 - Skeleton = captured intent, not a designed spec (see `ai/rules/deferral-tracking.md`). Moves to `design` when someone picks it up.
+
+### Post-wave corrections (2026-07-10)
+
+- New obligation for the chaos `.ci` work item (no-congestion-initial, L118): the chaos orchestrator now validates listener/port-range conflicts at entry. `ValidateConfigRangeConflicts` (`internal/chaos/orchestrator/conflict.go:140`) derives the BGP and listen port range bases from the profile list and delegates to `ValidateRangeConflicts` (`conflict.go:74`), rejecting web/metrics/mcp listener endpoints that fall inside the derived per-peer port ranges; it is invoked at orchestrator entry (`internal/chaos/orchestrator/run.go:52`). Any new chaos `.ci` config must place its web/metrics/mcp listeners outside the derived BGP/listen ranges or the orchestrator rejects the run before starting.

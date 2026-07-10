@@ -74,7 +74,7 @@ pseudo-node LSPs; LSA vs LSP lookup keys differ; metric semantics differ).
 |---------------------------|----------------------|------------------|
 | Raw IP socket on an IP protocol number (`AF_INET SOCK_RAW`), kernel builds the IP header, strip-IP-header-on-receive | `internal/plugins/rsvpte/transport_linux.go:24-127` | Direct model for the OSPF transport (proto 89). OSPF ADDS: IP multicast group membership (`224.0.0.5`/`224.0.0.6`) per enabled interface, TTL=1, per-interface source binding |
 | Raw-socket doctor check pattern (open+close, `CAP_NET_RAW`) | `internal/plugins/rsvpte/doctor_linux.go:14`, `internal/plugins/isis/transport/doctor_linux.go` | Model for the `doctor-ospf-raw-socket` check |
-| Interface up/down + address add/remove EventBus subscription | `internal/plugins/iface/netlink/monitor_linux.go:72-87`; `internal/component/iface/events` | Drive ISM Up/Down, multicast (re)join, neighbour teardown, and Router-LSA re-origination on link/address change |
+| Interface up/down + address add/remove EventBus subscription | `internal/plugins/iface/netlink/monitor_linux.go:72-87` (now :72-88; AddrSubscribe :76 -- see Post-wave corrections 2026-07-10); `internal/component/iface/events` | Drive ISM Up/Down, multicast (re)join, neighbour teardown, and Router-LSA re-origination on link/address change |
 | Unified Loc-RIB insertion (the FIB-install path) | `internal/core/rib/locrib/`; IS-IS example `internal/plugins/isis/spf/install.go`; BGP example `internal/component/bgp/plugins/rib/rib_bestchange.go:813` (`InsertForward`) | OSPF INSTALLS routes here via `locrib.Path{Source = OSPF ProtocolID, Instance, NextHop, AdminDistance, Metric}` (one Path per ECMP nexthop, distinct `Instance`); sysrib consumes `loc.OnChange` and programs the kernel |
 | sysrib Loc-RIB path-group ECMP expansion into `BestChangeEntry.ECMPPaths` | `internal/component/sysrib/sysrib.go`; `internal/component/sysrib/sysrib_ecmp_pathgroup_test.go` | **ALREADY EXISTS** (added by IS-IS, isis-9). OSPF reuses it for free: equal-cost OSPF nexthops reach the kernel without any new sysrib work |
 | Admin-distance config per protocol | `internal/component/sysrib/yang/ze-rib-conf.yang:42` (leaf `ospf`); `sysrib.go` `adminDist` map (`"ospf": 110`) | **The `ospf` admin-distance leaf already exists** (default 110). OSPF sets `AdminDistance` = 110 on `locrib.Path`. No new sysrib leaves |
@@ -415,6 +415,8 @@ time for the RFCs whose normative detail the code must enforce (RFC 2328 first).
   -> Constraint: OSPF inserts `locrib.Path` with `AdminDistance` 110; OSPF resolves intra/inter/E1/E2 preference internally before publishing one Path per prefix
 - [ ] The `ospf` admin-distance leaf already exists in `ze-rib-conf.yang` (default 110)
   -> Constraint: OSPF reuses the existing leaf; no new sysrib config
+- [ ] `internal/plugins/iface/netlink/monitor_linux.go` -- iface event foundation re-verified 2026-07-10 (subscribe block :72-88; see Post-wave corrections)
+  -> Constraint: address add/remove event semantics unchanged by the SLAAC origin-tracking wave; ISM wiring needs no adjustment
 
 **Behavior to preserve:**
 - BGP, LDP, RSVP-TE, IS-IS, static, connected route sources remain independent and functional
@@ -881,3 +883,10 @@ Add `// RFC 2328 Section X.Y: "<quoted requirement>"` (and RFC 3101/5709/7474/69
 - [ ] Mistake Log escalation reviewed
 - [ ] Write learned summary to `plan/learned/NNN-ospf-0-umbrella.md` (at set completion)
 - [ ] Summary included in commit
+
+### Post-wave corrections (2026-07-10)
+
+Line-ref refresh for the Existing Foundation table, no design change. The followup-vpp-iface wave landed SLAAC address origin tracking in the file this spec cites as the iface-event foundation:
+
+- `internal/plugins/iface/netlink/monitor_linux.go`: the subscription block in the monitor start() is now :72-88 (LinkSubscribe :72, AddrSubscribe moved from :75 to :76, NeighSubscribe :81, dispatch goroutine :87). The :72-87 citation in the foundation row is refreshed inline above.
+- NEW in the same file: address events now carry an Origin classification (static/slaac/temporary/dynamic) produced by `addrOrigin` (`internal/plugins/iface/netlink/slaac_linux.go:30`), applied in `handleAddrUpdate` at monitor_linux.go:247 and emitted in the payload at :265. For OSPF this is complementary information only: address add/remove event semantics are unchanged, so ISM/multicast-join logic keyed on those events needs no adjustment. If a future child spec wants to ignore SLAAC/temporary address churn for Router-LSA re-origination, the Origin field is available.

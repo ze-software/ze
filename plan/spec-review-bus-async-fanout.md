@@ -67,6 +67,30 @@ emergent `defer`; (4) fix the stale core-design.md diagram and add a naming glos
 - A repo-wide file-level rename of bus/hub symbols: deferred (rename is a known minefield per
   the review; this spec adds a glossary and fixes the diagram, not a mass rename).
 
+### Post-wave corrections (2026-07-10)
+
+**Decision (2026-07-10, user): reconcile.** The backpressure redesign must reconcile THREE
+existing policies on the plugin-RPC path, not the two the Task's defect 1 describes. The
+third landed in the 2026-07 implementation wave. All three producers verified in current
+code:
+
+| # | Policy | Producer | Citation |
+|---|--------|----------|----------|
+| 1 | Blocking send, engine to plugin | `Process.Deliver` blocks on the 64-cap `eventChan` (select with only a ctx-cancel escape, no timeout) | `internal/component/plugin/process/delivery.go:66-83`; capacity `eventDeliveryCapacity = 64` at :60 |
+| 2 | Timed drop, plugin to engine | `MuxConn.sendRequest` waits 1s for `requestCh` then drops; readLoop logs "request channel full, dropping inbound request" | `pkg/plugin/rpc/mux.go:269-276`; drop log at :258-261 |
+| 3 | Fail-fast close on stalled write (NEW, 2026-07 wave) | `writeAppended` applies a default 30s write deadline on deadline-capable transports and arms a reusable watchdog timer otherwise; on a stall `fireWatchdog` logs, fires the metric hook, and closes both ends | `pkg/plugin/rpc/conn.go:44` (window), :286-334 (write path, transport selection at :307-315), :191-200 (`fireWatchdog`), :139 (`SetWriteWatchdogHook`); counter `ze_plugin_write_watchdog_total` wired in `internal/component/plugin/server/server.go:188-196` |
+
+The unified policy AC-1 demands must explicitly cover or supersede the watchdog: either the
+watchdog becomes the documented stall backstop under the unified policy (with its metric
+folded into the drop/overflow metric family), or the unified policy replaces it, but it may
+not be left as an undocumented fourth behavior. AC-1's original wording predates the
+watchdog and is struck and superseded in the Acceptance Criteria table below.
+
+Metrics-doc merge note: `docs/plugin-development/metrics.md:198-208` now documents
+`ze_plugin_write_watchdog_total`. The drop/overflow metrics this spec adds (Integration
+Checklist "Prometheus counters" row; Documentation Update Checklist row 14) must merge into
+that existing metrics table and its watchdog prose, not open a parallel section.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -191,7 +215,7 @@ emergent `defer`; (4) fix the stale core-design.md diagram and add a naming glos
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Slow external plugin (channel would fill) and slow inbound path | One documented backpressure policy applies to both directions; every drop/overflow increments a metric; no silent drop |
+| AC-1 | Slow external plugin (channel would fill) and slow inbound path | ~~One documented backpressure policy applies to both directions; every drop/overflow increments a metric; no silent drop~~ (struck 2026-07-10: wording predates the write watchdog, a third policy on the same path; see Post-wave corrections) One documented backpressure policy covers all three mechanisms on the plugin-RPC path (blocking engine-to-plugin send, 1s inbound drop, write-watchdog / write-deadline fail-fast close), each either subsumed by the unified policy or explicitly documented as superseded by it; every drop, overflow, or watchdog close increments a metric; no silent loss |
 | AC-2 | Producer emits a 64-entry redistribution batch while the consumer RPCs are slow | `Emit` returns within a bounded time independent of downstream RPC latency (drain runs off the emit goroutine) |
 | AC-3 | Event with both engine and external subscribers | Delivery ordering is an explicit, documented contract; the replay coordinator no longer depends on an emergent `defer` |
 | AC-4 | Read `docs/architecture/core-design.md` | No standalone Bus component in the §1 diagram/prose; a naming glossary disambiguates EventBus / delivery pipeline / Hub / Orchestrator / cmd/ze/hub / Report Bus |

@@ -59,6 +59,32 @@ internal-typed API (above), not a build failure. This spec fixes the real defect
 - The `pkg/plugin/rpc` command-envelope wire types: owned by `spec-unify-response-envelope.md`
   (its A-2 already documents `pkg/plugin/rpc` as the cross-process wire layer).
 
+### Post-wave corrections (2026-07-10)
+
+Two notes from the 2026-07 implementation wave (verified against current code):
+
+1. **The ProtocolVersion handshake must coexist with new write-timeout wire behavior.**
+   `pkg/plugin/rpc/conn.go` now applies a default 30s write deadline when the context carries
+   none (`defaultWriteDeadline`, conn.go:44; applied in `writeAppended`, conn.go:292-294,
+   :309) and, on transports without `SetWriteDeadline` (stdio, SSH channels), arms a
+   fail-fast write watchdog that closes the connection on a stalled write (`fireWatchdog`,
+   conn.go:191-200; transport selection at conn.go:307-315; hook `SetWriteWatchdogHook`,
+   conn.go:139; counter `ze_plugin_write_watchdog_total` wired in
+   `internal/component/plugin/server/server.go:188-196`). Consequences for this spec: the
+   Stage-1 declare-registration write and the engine's version-rejection diagnostic write are
+   both subject to this deadline/watchdog, and AC-2's "clear error, not a hang" now has an
+   interacting mechanism, since the transport already converts some write stalls into
+   fail-fast closes. The version design and its tests must not attribute a watchdog-triggered
+   close to a version mismatch (or vice versa).
+
+2. **`ze-plugin-boundary-check` does NOT satisfy AC-5, despite the name.** The verify gate
+   `ze-plugin-boundary-check` (Makefile:287, :294, :319) runs
+   `scripts/checks/plugin_process_boundary.go`, which guards same-process-effect direct calls
+   that bypass DirectBridge/DispatchCommand (its header, plugin_process_boundary.go:3-15). It
+   does not inspect exported `pkg/plugin/**` signatures for `internal/` types. AC-5 still
+   requires its own new mechanical guard; name it distinctly to avoid collision with the
+   existing gate.
+
 ## Required Reading
 
 ### Architecture Docs

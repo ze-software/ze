@@ -269,3 +269,13 @@ sent from the recover path (see Required Reading constraint).
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Race detector clean on new tests
+
+### Post-wave corrections (2026-07-10)
+
+The followup wave added new network-input listen paths that the AC-6 audit table must enumerate (all re-verified in current code):
+
+- `bindDoT` (`internal/core/dnsserver/secure.go:307`) -- DNS-over-TLS (RFC 7858) TCP listener.
+- `bindDoH` (`internal/core/dnsserver/secure.go:335`) -- DNS-over-HTTPS (RFC 8484) listener; its serve goroutine is `serveHTTP` (`secure.go:363`).
+- The UDP/TCP accept-loop goroutine `serve` (`internal/core/dnsserver/manager.go:224`, launched at `manager.go:195-196`); `bindDoT` reuses the same `serve` loop.
+
+Boundary status of these paths: the DoT server is built with the manager's handler (`secure.go:316`) and the DoH handler dispatches into it (`secure.go:402`); as112 (`internal/plugins/as112/server.go:173`) and geodns (`internal/plugins/geodns/server.go:288`) construct that handler via `dnsserver.Authoritative`, whose per-query recover sits at `internal/core/dnsserver/handler.go:51`. The new listeners therefore inherit the existing recover boundary, but the AC-6 audit table must list them explicitly with that inheritance noted; the spec's Current Behavior sibling-loop list (which cites only `handler.go:51`) predates these listeners.

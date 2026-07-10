@@ -165,6 +165,23 @@ stomps); guarding the blob write path is possible future work.
 | Staged rollout is hub-side orchestration | Client protocol unchanged. Hub controls which devices get notified and when. Rollout state persisted in ZeFS for crash recovery |
 | Health reporting via new RPC verb, not Prometheus scrape | Hub needs structured health data (component-level status), not raw metrics. Prometheus remains for detailed metrics. Health is for fleet-level operational decisions |
 
+### Post-wave corrections (2026-07-10)
+
+New obligation from the 2026-07 implementation wave (verified against current code):
+
+| Item | Detail | Citation |
+|------|--------|----------|
+| Write robustness landed on the plugin RPC transport | `pkg/plugin/rpc/conn.go` now applies a default 30s write deadline when the context has none (`defaultWriteDeadline`, conn.go:44; applied in `writeAppended`, conn.go:292-294, :309), and arms a fail-fast write watchdog on transports without `SetWriteDeadline` (fields conn.go:91-93, armed via `NewConn` at conn.go:107, path chosen at conn.go:307-315). A stalled write past the window logs, fires the hook (`SetWriteWatchdogHook`, conn.go:139), and closes the connection (`fireWatchdog`, conn.go:191-200) | conn.go:44, :91-93, :107, :139, :191-200, :286-334 |
+| Metric wired hub-side | `ze_plugin_write_watchdog_total` (CounterVec, transport label) registered and hooked in `internal/component/plugin/server/server.go:188-196`; documented in `docs/plugin-development/metrics.md:198-208` | server.go:188-196 |
+| Managed connections take the deadline path | Both managed endpoints wrap TLS `net.Conn`s in `rpc.NewConn` (client: `internal/component/managed/client.go:158`; hub: `internal/component/plugin/server/managed_serve.go:224`), which support `SetWriteDeadline`, so fleet RPC writes get the 30s deadline; the watchdog timer itself never arms for them | client.go:158, managed_serve.go:224 |
+
+Implication for this umbrella: the "New RPC verbs on existing transport" design principle now
+inherits this behavior. Children fleet-4 and fleet-7 must integrate it: a peer that stalls a
+write for 30s now surfaces as a write error / closed connection instead of an indefinite
+block, so new verb flows must treat deadline-triggered write failure as a normal
+disconnect/reconnect path, and payloads must stay well within the 16 MB `MaxMessageSize`
+frame bound (`pkg/plugin/rpc/framing.go:66`, enforced at write time in conn.go:302-304).
+
 ## Required Reading
 
 ### Architecture Docs
@@ -426,3 +443,8 @@ Each phase corresponds to a child spec. Phases are ordered by dependency.
 ### Quality Gates (SHOULD pass)
 - [ ] Implementation Audit complete
 - [ ] Mistake Log escalation reviewed
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)

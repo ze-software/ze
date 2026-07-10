@@ -41,7 +41,7 @@ Add referential-integrity validation for VPP interface usage:
 
 **Key insights:**
 - The gap is the absence of a shared interface-role/usage registry; each feature only sees its own config.
-- Ze has no VPP xconnect and no VPP bond today, so the member side is limited to VPP bridge membership.
+- ~~Ze has no VPP xconnect and no VPP bond today, so the member side is limited to VPP bridge membership.~~ (Superseded 2026-07-10: still no xconnect/bond, but the followup-vpp-iface wave added mirror destination, LCP pairing, and VPP tunnel interface roles -- see Post-wave corrections below.)
 
 ## Current Behavior (MANDATORY)
 
@@ -94,7 +94,7 @@ Add referential-integrity validation for VPP interface usage:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A shared, registration-based way exists (or can be added) for features to declare interface use | small-core/registration model | risk of a hardcoded feature-path list | design the registry during RESEARCH | unvalidated |
-| A-2 | Only VPP bridge membership is a "member" role today (no xconnect/bond) | grep found no xconnect/bond in VPP | more roles later | re-grep during audit | unvalidated |
+| A-2 | ~~Only VPP bridge membership is a "member" role today (no xconnect/bond)~~ superseded, see Post-wave corrections (2026-07-10) | grep found no xconnect/bond in VPP | more roles later | re-grep during audit | unvalidated -> broken (2026-07-10: wave added mirror/LCP/tunnel roles) |
 | A-3 | The verify hook sees the whole candidate tree, not just the vpp section | `InProcessConfigVerifier` semantics | need a different hook | confirm verifier scope during audit | unvalidated |
 
 ### Risks
@@ -109,6 +109,7 @@ Add referential-integrity validation for VPP interface usage:
 |-------------|---|--------------|------|
 | interface used by NAT and assigned as bridge member | → | cross-feature verify rejects | `test/plugin/vpp-interface-in-use.ci` |
 | delete an interface still referenced by sFlow | → | verify blocks deletion | `test/plugin/vpp-interface-in-use.ci` |
+| delete an interface still used as a mirror destination (added 2026-07-10) | → | verify blocks deletion, naming the mirroring source | `test/plugin/vpp-interface-in-use.ci` |
 
 ## Acceptance Criteria
 
@@ -119,6 +120,9 @@ Add referential-integrity validation for VPP interface usage:
 | AC-3 | interface used by exactly one feature, no member conflict | accepted |
 | AC-4 | interface as bridge member only | accepted |
 | AC-5 | error message | names the interface and both conflicting references |
+| AC-6 (added 2026-07-10) | interface configured as a SPAN mirror destination (mirror ingress/egress of another interface), then deleted from `interfaces` | verify rejects the deletion, naming the mirroring source interface |
+| AC-7 (added 2026-07-10) | interface with an LCP pairing (VPP backend), referenced by a feature or deleted while paired | usage aggregation records the LCP-paired role; delete/conflict checks account for it |
+| AC-8 (added 2026-07-10) | VPP-created tunnel interface (gre/gretap/ipip/vxlan) referenced by a feature or as a mirror destination, then deleted | verify rejects, same as for physical interfaces (tunnel interfaces participate in the usage map as reference targets) |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -274,3 +278,21 @@ Add referential-integrity validation for VPP interface usage:
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for all numeric inputs (N/A)
 - [ ] Functional tests for end-to-end behavior
+
+### Post-wave corrections (2026-07-10)
+
+Decision (2026-07-10, user): spec fixed to cover mirror/LCP/tunnel references.
+
+The followup-vpp-iface implementation wave (closed at commit fe6aa242f and earlier) invalidated assumption A-2 and the second Key Insight: VPP bridge membership is no longer the only interface-reference role. Three NEW roles now exist, each verified against the producing function in current code:
+
+| New role | Producer (verified 2026-07-10) | Reference shape |
+|----------|-------------------------------|-----------------|
+| SPAN mirror destination | `SetupMirror(srcIface, dstIface string, ingress, egress bool)` at `internal/plugins/iface/vpp/mirror.go:28` (teardown `RemoveMirror` :51); backend surface `internal/component/iface/backend.go:194`; config fields `MirrorIngress`/`MirrorEgress` at `internal/component/iface/config.go:196-197`, parsed from the unit `mirror` map at `config.go:932-934` | interface-to-interface: the source unit names a destination interface; deleting the destination while a source mirrors to it dangles the SPAN session |
+| LCP pairing | `SetupLCPPair(vppIface, hostName string)` at `internal/plugins/iface/vpp/lcp.go:43` (no-op when LCP disabled; validates host name, reserves collision-checked TAP name); backend surface `internal/component/iface/backend.go:203` | interface-to-host-TAP: the VPP interface carries an LCP-paired role; conflict/delete checks must treat a paired interface as referenced |
+| VPP tunnel interfaces | `createGRETunnel` at `internal/plugins/iface/vpp/tunnel.go:73`, `createIPIPTunnel` at `tunnel.go:113`, `createVxlanTunnel` at `internal/plugins/iface/vpp/vxlan.go:31` | tunnels are keyed by ADDRESS endpoints (`tunnelEndpoints` parses LocalAddress/RemoteAddress), not by interface references; the new fact for this spec is that they create additional VPP-backed interface KINDS that participate in the usage map as reference TARGETS (a tunnel interface can be a mirror destination, a feature-referenced interface, or be deleted while referenced) |
+
+Consequences for the design (extends, does not replace, the existing Transformation Path):
+- Usage-aggregation step 2 ("Collect VPP member assignments") widens to: bridge membership AND mirror-destination references AND LCP-paired status.
+- Conflict/dangle detection (steps 3-4) must treat mirror destinations and LCP-paired interfaces as outstanding references, and must include VPP tunnel interfaces in the set of deletable-while-referenced targets.
+- New ACs AC-6, AC-7, AC-8 and the added Wiring Test row (above) capture these roles.
+- The Known Limitations entry on xconnect/bond remains valid: still no VPP xconnect or bond in the tree.
