@@ -24,7 +24,7 @@
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-deployment-pppoe-accel-docker-test
 .PHONY: ze-docker-evidence ze-deployment-preflight
-.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-qemu-traffic-usage-test ze-install-qemu-test ze-install-iso-qemu-test ze-install-scenarios-qemu-test ze-install-ventoy-qemu-test ze-qemu-all-test ze-qemu-needs-linux-test
+.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-qemu-traffic-usage-test ze-vpp-hugepages-qemu-test ze-install-qemu-test ze-install-iso-qemu-test ze-install-scenarios-qemu-test ze-install-ventoy-qemu-test ze-qemu-all-test ze-qemu-needs-linux-test
 
 # ─── Interop ────────────────────────────────────────────────────────────────
 
@@ -306,6 +306,11 @@ ze-install-qemu-test:
 	else \
 		python3 scripts/evidence/effective-install-qemu.py; \
 	fi
+
+ze-vpp-hugepages-qemu-test:
+	@echo "Running VPP hugepage boot-reservation QEMU evidence (builds an appliance with image.hugepages, boots it, asserts /proc/cmdline + /proc/meminfo)..."
+	@echo "Self-skips when qemu / sshpass / e2fsprogs / go are absent."
+	python3 scripts/evidence/effective-vpp-hugepages-qemu.py
 
 ze-install-iso-qemu-test:
 	@echo "Running appliance ISO installer QEMU evidence (builds initrd + image + ISO, boots ISO, verifies SSH login)..."

@@ -54,6 +54,21 @@ type ImageConfig struct {
 	Arch          string `json:"arch"`
 	SizeBytes     int64  `json:"size-bytes"`
 	KernelProfile string `json:"kernel-profile"`
+	// Hugepages, when set, reserves hugepages on the target at boot via the
+	// kernel cmdline (default_hugepagesz/hugepagesz/hugepages). nil = no
+	// reservation, and the built image's /cmdline.txt is unchanged.
+	Hugepages *Hugepages `json:"hugepages,omitempty"`
+	// MemoryBytes is the target's total RAM. Optional; when set it bounds the
+	// hugepage reservation (a reservation may not exceed 50% of it) and drives
+	// the QEMU `-m` size for `ze appliance run`. 0 = unset (run defaults to
+	// 512 MiB and only the static 512 GiB reservation ceiling applies).
+	MemoryBytes int64 `json:"memory-bytes,omitempty"`
+}
+
+// Hugepages describes a boot-time hugepage reservation for the appliance image.
+type Hugepages struct {
+	PageSize string `json:"page-size"` // "2M" or "1G"
+	Count    int64  `json:"count"`     // number of pages of PageSize to reserve
 }
 
 type QEMUConfig struct {
@@ -125,7 +140,25 @@ func DefaultConfig(name string) applianceConfig {
 const (
 	minImageSize int64 = 512 * 1024 * 1024
 	maxImageSize int64 = 64 * 1024 * 1024 * 1024
+	// maxHugepageTotalBytes is the static ceiling on a boot-time hugepage
+	// reservation when image.memory-bytes is not declared (512 GiB).
+	maxHugepageTotalBytes int64 = 512 * 1024 * 1024 * 1024
+	minMemoryBytes        int64 = 256 * 1024 * 1024         // 256 MiB
+	maxMemoryBytes        int64 = 1024 * 1024 * 1024 * 1024 // 1 TiB
 )
+
+// hugepageSizeBytes returns the byte size of a hugepage page-size token and
+// whether it is a supported size.
+func hugepageSizeBytes(pageSize string) (int64, bool) {
+	switch pageSize {
+	case "2M":
+		return 2 * 1024 * 1024, true
+	case "1G":
+		return 1024 * 1024 * 1024, true
+	default:
+		return 0, false
+	}
+}
 
 func (c *applianceConfig) Validate() error {
 	if c.Identity.Name == "" {
@@ -167,6 +200,45 @@ func (c *applianceConfig) Validate() error {
 		if c.QEMU.SSHPort < 1024 || c.QEMU.SSHPort > 65535 {
 			return fmt.Errorf("qemu.ssh-port %d: must be 1024-65535", c.QEMU.SSHPort)
 		}
+	}
+	if err := c.validateImageMemory(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateImageMemory bounds image.memory-bytes and image.hugepages. Both are
+// optional; when present they gate the boot-time hugepage reservation so it
+// cannot starve the target into OOM (R-2).
+func (c *applianceConfig) validateImageMemory() error {
+	if c.Image.MemoryBytes != 0 {
+		if c.Image.MemoryBytes < minMemoryBytes {
+			return fmt.Errorf("image.memory-bytes %d: minimum is %d (256 MiB)", c.Image.MemoryBytes, minMemoryBytes)
+		}
+		if c.Image.MemoryBytes > maxMemoryBytes {
+			return fmt.Errorf("image.memory-bytes %d: maximum is %d (1 TiB)", c.Image.MemoryBytes, maxMemoryBytes)
+		}
+	}
+	if c.Image.Hugepages == nil {
+		return nil
+	}
+	szBytes, ok := hugepageSizeBytes(c.Image.Hugepages.PageSize)
+	if !ok {
+		return fmt.Errorf("image.hugepages.page-size %q: must be 2M or 1G", c.Image.Hugepages.PageSize)
+	}
+	if c.Image.Hugepages.Count < 1 {
+		return fmt.Errorf("image.hugepages.count %d: minimum is 1", c.Image.Hugepages.Count)
+	}
+	// Check the page count against the static ceiling before multiplying, so a
+	// huge count cannot overflow int64 in the total computation.
+	if c.Image.Hugepages.Count > maxHugepageTotalBytes/szBytes {
+		return fmt.Errorf("image.hugepages: %d pages of %s exceed the %d-byte (512 GiB) reservation ceiling",
+			c.Image.Hugepages.Count, c.Image.Hugepages.PageSize, maxHugepageTotalBytes)
+	}
+	total := c.Image.Hugepages.Count * szBytes
+	if c.Image.MemoryBytes != 0 && total > c.Image.MemoryBytes/2 {
+		return fmt.Errorf("image.hugepages: reservation %d bytes exceeds 50%% of image.memory-bytes %d",
+			total, c.Image.MemoryBytes)
 	}
 	return nil
 }

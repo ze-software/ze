@@ -27,6 +27,13 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings) error {
 		b.kv("cli-listen", "/run/vpp/cli.sock")
 		b.kv(confKeyForLog, vppLogPath)
 		b.flag("full-coredump")
+		// VPP's poll-sleep-usec is a unix-section directive (a fixed sleep
+		// between main-loop polls). Emitted only when the operator set the
+		// leaf; an explicit 0 is still emitted. Absent leaf = byte-identical
+		// output to before this knob existed.
+		if s.CPU.PollSleepMicroseconds != nil {
+			b.kv("poll-sleep-usec", strconv.Itoa(int(*s.CPU.PollSleepMicroseconds)))
+		}
 	})
 
 	if s.APISocket != "" {

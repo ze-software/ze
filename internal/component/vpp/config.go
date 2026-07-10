@@ -51,6 +51,11 @@ type PluginSettings struct {
 type CPUSettings struct {
 	MainCore *uint8 // nil = auto
 	Workers  *uint8 // nil = auto
+	// PollSleepMicroseconds is VPP's fixed sleep between main-loop polls
+	// (emitted as unix { poll-sleep-usec N }). nil = unset (VPP default: no
+	// sleep, busy-poll at 100% CPU). An explicit 0 is emitted (VPP treats 0 as
+	// "do not sleep", matching the default, but the operator asked for it).
+	PollSleepMicroseconds *uint32
 }
 
 // MemorySettings holds VPP memory and buffer settings.
@@ -325,7 +330,7 @@ func parseCPU(data json.RawMessage, cpu *CPUSettings) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("vpp cpu: %w", err)
 	}
-	if err := unknownKeys("cpu", raw, []string{"main-core", "workers"}); err != nil {
+	if err := unknownKeys("cpu", raw, []string{"main-core", "workers", "poll-sleep-microseconds"}); err != nil {
 		return err
 	}
 	if v, ok := raw["main-core"]; ok {
@@ -341,6 +346,16 @@ func parseCPU(data json.RawMessage, cpu *CPUSettings) error {
 			return fmt.Errorf("vpp cpu workers: %w", err)
 		}
 		cpu.Workers = &n
+	}
+	if v, ok := raw["poll-sleep-microseconds"]; ok {
+		n, err := parseUint32(v)
+		if err != nil {
+			return fmt.Errorf("vpp cpu poll-sleep-microseconds: %w", err)
+		}
+		if n > 100000 {
+			return fmt.Errorf("vpp cpu poll-sleep-microseconds: must be 0..100000, got %d", n)
+		}
+		cpu.PollSleepMicroseconds = &n
 	}
 	return nil
 }

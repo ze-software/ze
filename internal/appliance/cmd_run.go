@@ -138,6 +138,8 @@ func buildQEMUCommand(cfg *applianceConfig, imgPath string) (string, []string) {
 		fwdStr = tb.Reset().Byte(',').Join(hostfwds, ",").String()
 	}
 
+	mem := qemuMemoryMiB(cfg.Image)
+
 	switch cfg.Image.Arch {
 	case archARM64:
 		bios := os.Getenv("GOKRAZY_QEMU_AARCH64_BIOS")
@@ -151,7 +153,7 @@ func buildQEMUCommand(cfg *applianceConfig, imgPath string) (string, []string) {
 		return "qemu-system-aarch64", []string{
 			"-machine", tb.Reset().Str("virt,highmem=off,accel=").Str(qemuAccel).String(),
 			"-cpu", cpuModel,
-			"-smp", "2", "-m", "512",
+			"-smp", "2", "-m", mem,
 			"-bios", bios,
 			"-drive", tb.Reset().Str("file=").Str(imgPath).Str(",format=raw").String(),
 			"-nographic", "-serial", "mon:stdio",
@@ -161,12 +163,24 @@ func buildQEMUCommand(cfg *applianceConfig, imgPath string) (string, []string) {
 	default:
 		return "qemu-system-x86_64", []string{
 			"-machine", tb.Reset().Str("accel=").Str(qemuAccel).String(),
-			"-smp", "2", "-m", "512",
+			"-smp", "2", "-m", mem,
 			"-drive", tb.Reset().Str("file=").Str(imgPath).Str(",format=raw").String(),
 			"-nographic", "-serial", "mon:stdio",
 			"-nic", tb.Reset().Str("user,model=e1000").Str(fwdStr).String(),
 		}
 	}
+}
+
+// qemuMemoryMiB returns the QEMU `-m` size in MiB (as a string) for the image.
+// When image.memory-bytes is set it derives from that so evidence and operators
+// can reproduce the reservation shape; otherwise it keeps today's 512 MiB
+// default (AC-13).
+func qemuMemoryMiB(img ImageConfig) string {
+	if img.MemoryBytes <= 0 {
+		return "512"
+	}
+	mib := max(img.MemoryBytes/(1024*1024), 1)
+	return textbuf.StringInt(mib)
 }
 
 func checkPortAvailable(port int) error {

@@ -1,0 +1,63 @@
+# Test: cpu poll-sleep-microseconds accepted across its range, rejected above it
+# VALIDATES: ze-vpp-conf.yang -- cpu/poll-sleep-microseconds has range
+#            "0..100000"; parseCPU enforces the same bound. AC-6.
+# PREVENTS: an out-of-range idle-sleep value reaching startup.conf, and the
+#           leaf being silently dropped so operators think idle tuning applied
+#           when it did not.
+
+# Boundary low: an explicit 0 is valid (equals VPP default, still emitted).
+stdin=sleep0:terminator=EOF0
+vpp {
+	enabled true;
+	cpu {
+		poll-sleep-microseconds 0;
+	}
+	dpdk {
+		interface 0000:03:00.0 {
+			name xe0;
+		}
+	}
+}
+EOF0
+
+# Boundary high: 100000 is the last valid value.
+stdin=sleepmax:terminator=EOFMAX
+vpp {
+	enabled true;
+	cpu {
+		poll-sleep-microseconds 100000;
+	}
+	dpdk {
+		interface 0000:03:00.0 {
+			name xe0;
+		}
+	}
+}
+EOFMAX
+
+# Out of range: 100001 is rejected.
+stdin=sleepbad:terminator=EOFBAD
+vpp {
+	enabled true;
+	cpu {
+		poll-sleep-microseconds 100001;
+	}
+	dpdk {
+		interface 0000:03:00.0 {
+			name xe0;
+		}
+	}
+}
+EOFBAD
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=sleep0
+expect=exit:code=0
+expect=stdout:contains=valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=sleepmax
+expect=exit:code=0
+expect=stdout:contains=valid
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=sleepbad
+expect=exit:code=1
+expect=stdout:contains=poll-sleep

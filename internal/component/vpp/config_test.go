@@ -274,6 +274,89 @@ func TestParseSettings(t *testing.T) {
 		},
 	}
 
+	runParseCases(t, tests)
+}
+
+// TestParseCPUPollSleepBounds verifies AC-6: cpu poll-sleep-microseconds parses
+// within 0..100000, rejects out-of-range and non-numeric values, and the new
+// key is added to the cpu whitelist without loosening it.
+func TestParseCPUPollSleepBounds(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		check   func(*testing.T, *VPPSettings)
+		wantErr bool
+	}{
+		{
+			name:  "first valid 0",
+			input: `{"cpu":{"poll-sleep-microseconds":"0"}}`,
+			check: func(t *testing.T, s *VPPSettings) {
+				t.Helper()
+				if s.CPU.PollSleepMicroseconds == nil || *s.CPU.PollSleepMicroseconds != 0 {
+					t.Errorf("poll-sleep-microseconds: got %v, want 0", s.CPU.PollSleepMicroseconds)
+				}
+			},
+		},
+		{
+			name:  "mid value 100",
+			input: `{"cpu":{"poll-sleep-microseconds":"100"}}`,
+			check: func(t *testing.T, s *VPPSettings) {
+				t.Helper()
+				if s.CPU.PollSleepMicroseconds == nil || *s.CPU.PollSleepMicroseconds != 100 {
+					t.Errorf("poll-sleep-microseconds: got %v, want 100", s.CPU.PollSleepMicroseconds)
+				}
+			},
+		},
+		{
+			name:  "last valid 100000",
+			input: `{"cpu":{"poll-sleep-microseconds":"100000"}}`,
+			check: func(t *testing.T, s *VPPSettings) {
+				t.Helper()
+				if s.CPU.PollSleepMicroseconds == nil || *s.CPU.PollSleepMicroseconds != 100000 {
+					t.Errorf("poll-sleep-microseconds: got %v, want 100000", s.CPU.PollSleepMicroseconds)
+				}
+			},
+		},
+		{
+			name:  "unset leaves nil",
+			input: `{"cpu":{"main-core":"0"}}`,
+			check: func(t *testing.T, s *VPPSettings) {
+				t.Helper()
+				if s.CPU.PollSleepMicroseconds != nil {
+					t.Errorf("poll-sleep-microseconds should be nil when omitted, got %v", *s.CPU.PollSleepMicroseconds)
+				}
+			},
+		},
+		{
+			name:    "above range 100001 rejected",
+			input:   `{"cpu":{"poll-sleep-microseconds":"100001"}}`,
+			wantErr: true,
+		},
+		{
+			name:    "non-numeric rejected",
+			input:   `{"cpu":{"poll-sleep-microseconds":"fast"}}`,
+			wantErr: true,
+		},
+		{
+			name:    "unknown cpu key still rejected",
+			input:   `{"cpu":{"poll-sleep-microseconds":"1","typo":"2"}}`,
+			wantErr: true,
+		},
+	}
+
+	runParseCases(t, tests)
+}
+
+// runParseCases runs a ParseSettings table (shared by TestParseSettings and
+// TestParseCPUPollSleepBounds).
+func runParseCases(t *testing.T, tests []struct {
+	name    string
+	input   string
+	check   func(*testing.T, *VPPSettings)
+	wantErr bool
+}) {
+	t.Helper()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s, err := ParseSettings(json.RawMessage(tt.input))

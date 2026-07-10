@@ -1,0 +1,82 @@
+# Test: ze appliance init --config rejects invalid image.hugepages reservations
+# VALIDATES: applianceConfig.Validate -- image.hugepages count/page-size bounds
+#            and the 50%-of-memory-bytes cap, enforced at init (and at build via
+#            the same Validate). AC-4, AC-7.
+# PREVENTS: an out-of-range or oversized hugepage reservation being persisted
+#           into an appliance config and later baked into a boot cmdline.
+option=env:var=ze_appliance_ssh_password:value=secret
+
+# A valid 2M reservation is accepted.
+tmpfs=good.json:terminator=EOF_GOOD
+{
+  "identity": {"name": "ignored", "hostname": "hp"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "hp", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648, "memory-bytes": 8589934592, "hugepages": {"page-size": "2M", "count": 512}},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_GOOD
+
+# count 0 is below the minimum.
+tmpfs=badcount.json:terminator=EOF_COUNT
+{
+  "identity": {"name": "ignored", "hostname": "hp"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "hp", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648, "hugepages": {"page-size": "2M", "count": 0}},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_COUNT
+
+# an unsupported page-size is rejected.
+tmpfs=badsize.json:terminator=EOF_SIZE
+{
+  "identity": {"name": "ignored", "hostname": "hp"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "hp", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648, "hugepages": {"page-size": "4M", "count": 1}},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_SIZE
+
+# a reservation over 50% of image.memory-bytes is rejected.
+tmpfs=overmem.json:terminator=EOF_OVER
+{
+  "identity": {"name": "ignored", "hostname": "hp"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "hp", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648, "memory-bytes": 8589934592, "hugepages": {"page-size": "2M", "count": 2049}},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_OVER
+
+cmd=foreground:seq=1:exec=ze appliance --dir appliances init --config good.json goodapp
+expect=exit:code=0
+
+cmd=foreground:seq=2:exec=ze appliance --dir appliances init --config badcount.json badcount
+expect=exit:code=1
+expect=stderr:contains=minimum is 1
+
+cmd=foreground:seq=3:exec=ze appliance --dir appliances init --config badsize.json badsize
+expect=exit:code=1
+expect=stderr:contains=2M or 1G
+
+cmd=foreground:seq=4:exec=ze appliance --dir appliances init --config overmem.json overmem
+expect=exit:code=1
+expect=stderr:contains=50%

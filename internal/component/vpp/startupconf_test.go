@@ -2,6 +2,7 @@ package vpp
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -251,6 +252,73 @@ func TestWireguardStartupConf(t *testing.T) {
 		out := generateToString(t, s)
 		if !strings.Contains(out, "plugin wireguard_plugin.so {") || !strings.Contains(out, "enable") {
 			t.Errorf("expected wireguard_plugin.so enable block:\n%s", out)
+		}
+	})
+}
+
+// TestStartupConfPollSleep verifies AC-1/AC-2: poll-sleep-usec is emitted inside
+// the unix section (NOT the cpu section) when the leaf is set (including an
+// explicit 0), and is absent when unset (leaving startup.conf byte-identical).
+func TestStartupConfPollSleep(t *testing.T) {
+	unixBlock := func(t *testing.T, out string) string {
+		t.Helper()
+		start := strings.Index(out, "unix {")
+		if start < 0 {
+			t.Fatalf("no unix section:\n%s", out)
+		}
+		rel := strings.Index(out[start:], "}")
+		if rel < 0 {
+			t.Fatalf("unterminated unix section:\n%s", out)
+		}
+		return out[start : start+rel]
+	}
+
+	t.Run("unset omits directive", func(t *testing.T) {
+		s := defaultTestSettings()
+		s.CPU.PollSleepMicroseconds = nil
+		out := generateToString(t, s)
+		if strings.Contains(out, "poll-sleep") {
+			t.Errorf("poll-sleep must be absent when unset:\n%s", out)
+		}
+	})
+
+	t.Run("set emits inside unix section", func(t *testing.T) {
+		s := defaultTestSettings()
+		s.CPU.PollSleepMicroseconds = new(uint32(100))
+		out := generateToString(t, s)
+		if !strings.Contains(out, "poll-sleep-usec 100") {
+			t.Errorf("expected poll-sleep-usec 100:\n%s", out)
+		}
+		if !strings.Contains(unixBlock(t, out), "poll-sleep-usec 100") {
+			t.Errorf("poll-sleep-usec must be inside the unix section:\n%s", out)
+		}
+		// It must NOT be in the cpu section (VPP rejects it there).
+		cpuStart := strings.Index(out, "cpu {")
+		if cpuStart >= 0 {
+			rel := strings.Index(out[cpuStart:], "}")
+			if rel >= 0 && strings.Contains(out[cpuStart:cpuStart+rel], "poll-sleep") {
+				t.Errorf("poll-sleep-usec must NOT be in the cpu section:\n%s", out)
+			}
+		}
+	})
+
+	t.Run("explicit zero is emitted", func(t *testing.T) {
+		s := defaultTestSettings()
+		s.CPU.PollSleepMicroseconds = new(uint32(0))
+		out := generateToString(t, s)
+		if !strings.Contains(unixBlock(t, out), "poll-sleep-usec 0") {
+			t.Errorf("explicit 0 must be emitted in the unix section:\n%s", out)
+		}
+	})
+
+	t.Run("parsed config reaches emission (chain)", func(t *testing.T) {
+		s, err := ParseSettings(json.RawMessage(`{"enabled":"true","cpu":{"poll-sleep-microseconds":"250"}}`))
+		if err != nil {
+			t.Fatalf("ParseSettings: %v", err)
+		}
+		out := generateToString(t, s)
+		if !strings.Contains(unixBlock(t, out), "poll-sleep-usec 250") {
+			t.Errorf("config JSON did not reach unix poll-sleep-usec:\n%s", out)
 		}
 	})
 }

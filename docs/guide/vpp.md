@@ -104,7 +104,7 @@ The point is that VPP's system-level prerequisites (vfio module load,
 NIC unbind, driver save, rescan-on-teardown) are part of ze's job, not
 the operator's. This matters on a gokrazy appliance where there is no
 systemd and ze is PID 1 for the data plane.
-<!-- source: .claude/memory/project_gokrazy_appliance.md -- appliance context -->
+<!-- source: internal/plugins/init/main.go -- gokrazy PID-1 appliance lifecycle -->
 
 ## Running against an externally supervised VPP
 
@@ -172,6 +172,7 @@ the stats poll interval only when the defaults do not fit the workload.
 | `vpp.api-socket` | string | `/run/vpp/api.sock` | GoVPP Unix socket. Ze validates it is absolute, has no `..`, and fits in 108 characters. |
 | `vpp.cpu.main-core` | uint8 | auto | CPU core pinned to the VPP main thread. Omit for VPP default. |
 | `vpp.cpu.workers` | uint8 | auto | Number of worker threads. Ze allocates `main-core+1 .. main-core+workers` for `corelist-workers` in startup.conf. |
+| `vpp.cpu.poll-sleep-microseconds` | uint32 (0–100000) | unset | Fixed sleep between VPP main-loop polls, emitted as `unix { poll-sleep-usec N }`. Omit for lowest latency (workers busy-poll at 100% CPU); set a non-zero value on shared or dev hosts to trade latency for idle CPU. An explicit `0` is emitted and equals VPP's default. <!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf poll-sleep-usec --> |
 | `vpp.memory.main-heap` | size string | `1G` | VPP main heap. Use `1536M` for a full DFZ (approximately 958k IPv4 + 198k IPv6 routes). |
 | `vpp.memory.hugepage-size` | `2M` or `1G` | `2M` | Hugepage size. `2M` is the common case; `1G` for large installations. |
 | `vpp.memory.buffers` | uint32 | `128000` | Buffers per NUMA node. 128k is proven for full DFZ at 10G. |
@@ -220,13 +221,18 @@ a noop backend and logs a warning instead of blocking the rest of ze.
 
 ## System prerequisites
 
-VPP is not a user-space toy; DPDK needs real kernel cooperation. Ze
-validates its own config, but it cannot set kernel boot parameters or
-allocate hugepages. Before enabling VPP:
+VPP is not a user-space toy; DPDK needs real kernel cooperation. On a
+general-purpose host Ze cannot set kernel boot parameters, so you reserve
+hugepages yourself. On the gokrazy appliance Ze owns the kernel cmdline: set
+`image.hugepages` (and optionally `image.memory-bytes`) in `appliance.json` and
+`ze appliance build` bakes `default_hugepagesz`/`hugepagesz`/`hugepages` into the
+boot cmdline for you (see the appliance guide). `ze doctor` reports
+`doctor-vpp-hugepages` when VPP is enabled but the reservation is missing,
+insufficient, or clamped. Before enabling VPP:
 
 | Requirement | How to provide it |
 |-------------|-------------------|
-| Hugepages (approximately 6 GB for production 10G, 2 GB for lab) | `echo 3072 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages` or via `/etc/sysctl.d/` |
+| Hugepages (approximately 6 GB for production 10G, 2 GB for lab) | Appliance: `image.hugepages { page-size, count }` in `appliance.json`. Non-appliance host: `echo 3072 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages` or via `/etc/sysctl.d/`. <!-- source: internal/appliance/kernelargs.go -- hugepageKernelArgs --> |
 | IOMMU enabled | BIOS: enable VT-d / AMD-Vi. Kernel cmdline: `intel_iommu=on iommu=pt` |
 | CPU isolation for VPP workers | Kernel cmdline: `isolcpus=<worker-cores>` so Linux does not schedule on them |
 | Netlink buffer for route injection | `sysctl net.core.rmem_default=67108864` |

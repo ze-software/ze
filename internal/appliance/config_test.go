@@ -233,6 +233,108 @@ func TestConfigValidation(t *testing.T) {
 	}
 }
 
+// TestHugepageConfigValidate covers AC-4/AC-7: image.hugepages and
+// image.memory-bytes bounds, including the boundary values from the spec's
+// boundary table (page count vs the 512 GiB ceiling and the 50%-of-memory cap).
+func TestHugepageConfigValidate(t *testing.T) {
+	const gib = 1024 * 1024 * 1024
+	tests := []struct {
+		name    string
+		modify  func(*applianceConfig)
+		wantErr string
+	}{
+		{
+			name:   "no hugepages (default) valid",
+			modify: func(_ *applianceConfig) {},
+		},
+		{
+			name:   "2M count 1 valid",
+			modify: func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 1} },
+		},
+		{
+			name:    "count zero rejected",
+			modify:  func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 0} },
+			wantErr: "count 0: minimum is 1",
+		},
+		{
+			name:    "bad page-size rejected",
+			modify:  func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "4M", Count: 1} },
+			wantErr: "must be 2M or 1G",
+		},
+		{
+			name:   "2M last valid at 512 GiB ceiling",
+			modify: func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 262144} },
+		},
+		{
+			name:    "2M one past the ceiling rejected",
+			modify:  func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 262145} },
+			wantErr: "512 GiB",
+		},
+		{
+			name:   "1G last valid at ceiling",
+			modify: func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "1G", Count: 512} },
+		},
+		{
+			name:    "1G one past the ceiling rejected",
+			modify:  func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "1G", Count: 513} },
+			wantErr: "512 GiB",
+		},
+		{
+			name: "2M reservation at exactly 50% of memory-bytes valid",
+			modify: func(c *applianceConfig) {
+				c.Image.MemoryBytes = 8 * gib
+				c.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 2048} // 4 GiB == 50%
+			},
+		},
+		{
+			name: "2M reservation over 50% of memory-bytes rejected",
+			modify: func(c *applianceConfig) {
+				c.Image.MemoryBytes = 8 * gib
+				c.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 2049} // > 4 GiB
+			},
+			wantErr: "50% of image.memory-bytes",
+		},
+		{
+			name:    "memory-bytes below minimum rejected",
+			modify:  func(c *applianceConfig) { c.Image.MemoryBytes = 256*1024*1024 - 1 },
+			wantErr: "minimum is",
+		},
+		{
+			name:   "memory-bytes at minimum valid",
+			modify: func(c *applianceConfig) { c.Image.MemoryBytes = 256 * 1024 * 1024 },
+		},
+		{
+			name:   "memory-bytes at maximum valid",
+			modify: func(c *applianceConfig) { c.Image.MemoryBytes = 1024 * gib },
+		},
+		{
+			name:    "memory-bytes above maximum rejected",
+			modify:  func(c *applianceConfig) { c.Image.MemoryBytes = 1024*gib + 1 },
+			wantErr: "maximum is",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := DefaultConfig("test")
+			tt.modify(&cfg)
+			err := cfg.Validate()
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+			}
+			if got := err.Error(); !contains(got, tt.wantErr) {
+				t.Errorf("error = %q, want containing %q", got, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestLoadSaveRoundtrip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "appliance.json")

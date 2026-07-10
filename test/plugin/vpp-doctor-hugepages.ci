@@ -1,0 +1,31 @@
+# Test: ze doctor reports a missing hugepage reservation when VPP is enabled
+# Spec: plan/spec-vpp-host-tuning.md AC-9
+# VALIDATES: with vpp.enabled and no hugepages reserved (the fixture root has no
+#            hugepages sysfs tree), `ze doctor --json` surfaces
+#            doctor-vpp-hugepages end-to-end; a disabled vpp config is silent.
+# Linux-only: the hugepage check lives in doctor_linux.go. Its procfs/sysfs roots
+# are redirected via ze.test.doctor.hugepages-root so the test is hermetic and
+# does not depend on the host's real hugepage configuration.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=env:var=ze.test.doctor.hugepages-root:value=nohugepages
+
+tmpfs=vpp-on.conf:terminator=EOF_ON
+vpp {
+	enabled true;
+}
+EOF_ON
+
+tmpfs=vpp-off.conf:terminator=EOF_OFF
+vpp {
+	enabled false;
+}
+EOF_OFF
+
+cmd=foreground:seq=1:exec=ze doctor --json vpp-on.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-vpp-hugepages
+
+cmd=foreground:seq=2:exec=ze doctor --json vpp-off.conf
+expect=exit:code=0
+expect=stdout:not-contains=doctor-vpp-hugepages

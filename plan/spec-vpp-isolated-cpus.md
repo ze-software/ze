@@ -265,6 +265,16 @@ wireguard startup.conf toggle landed in the SAME files):
 
 ## Design Insights
 <!-- LIVE -->
+- Coordination (added 2026-07-10 by the spec-vpp-host-tuning design session):
+  Phase "Boot isolation" shares ONE kernel-argument assembly seam with
+  `plan/spec-vpp-host-tuning.md` -- a function in `internal/appliance/kernelargs.go`
+  that computes per-appliance extra kernel arguments and hands them to gok via a
+  derived instance config (temp parent dir patching `KernelExtraArgs` of
+  `gokrazy/ze/config.json`; gok resolves `<parent_dir>/<instance>/config.json`,
+  gokrazy/internal instanceflag.go:83-85; packer appends the args to /cmdline.txt,
+  tools packer/write.go:71-135). Whichever spec is implemented first creates the
+  seam and the derived-config writer; the second only adds its arguments there.
+  Do not build a second cmdline path.
 
 ## Implementation Summary
 ### What Was Implemented

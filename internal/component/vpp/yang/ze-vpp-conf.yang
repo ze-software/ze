@@ -28,12 +28,12 @@ module ze-vpp-conf {
             default false;
             description
                 "When true, ze does NOT exec or supervise the VPP
-                 process. Ze still generates startup.conf (for the
-                 external supervisor to use) and connects via GoVPP
-                 to api-socket. Use this for systemd-managed VPP,
-                 container sidecar deployments, or the
-                 `ze-test vpp` stub harness. Default: false (ze owns
-                 VPP lifecycle).";
+                 process, generate startup.conf, or bind DPDK NICs;
+                 the external supervisor owns all of that. Ze only
+                 connects via GoVPP to api-socket. Use this for
+                 systemd-managed VPP, container sidecar deployments,
+                 or the `ze-test vpp` stub harness. Default: false
+                 (ze owns VPP lifecycle).";
         }
 
         leaf api-socket {
@@ -58,6 +58,19 @@ module ze-vpp-conf {
                 description
                     "Number of VPP worker threads.
                      Omit for automatic (one per available core).";
+            }
+
+            leaf poll-sleep-microseconds {
+                type uint32 {
+                    range "0..100000";
+                }
+                description
+                    "Fixed sleep (microseconds) between VPP main-loop polls,
+                     emitted as unix { poll-sleep-usec N } in startup.conf.
+                     Omit for VPP's default (no sleep: workers busy-poll at
+                     100% CPU) for lowest latency. Set a non-zero value on
+                     shared or dev hosts to trade latency for idle CPU. An
+                     explicit 0 is emitted and equals the default.";
             }
         }
 

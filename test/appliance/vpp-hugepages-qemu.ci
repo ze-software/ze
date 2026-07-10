@@ -1,0 +1,16 @@
+# End-to-end QEMU coverage of the boot-time hugepage reservation (spec-vpp-host-tuning AC-3).
+#
+# Drives scripts/evidence/effective-vpp-hugepages-qemu.py, which builds a HOST ze,
+# inits an appliance whose config carries image.hugepages + image.memory-bytes,
+# builds the gokrazy image (exercising the derived-instance-config kernel-argument
+# path), boots it in QEMU, logs in over SSH, and asserts /proc/cmdline carries the
+# reserved-pages arguments and /proc/meminfo reports HugePages_Total >= 1.
+#
+# The driver self-skips with a clear reason when QEMU, KVM/tcg, sshpass, e2fsprogs,
+# or the go toolchain are absent. It exits 0 in both PASS and SKIP cases; a genuine
+# cmdline/meminfo mismatch exits non-zero. The exhaustive run is
+# `make ze-vpp-hugepages-qemu-test`.
+
+cmd=foreground:seq=1:exec=python3 scripts/evidence/effective-vpp-hugepages-qemu.py
+expect=exit:code=0
+expect=stdout:regex=VPP-HUGEPAGES-QEMU: (PASS|SKIP)

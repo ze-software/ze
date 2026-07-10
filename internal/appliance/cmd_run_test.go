@@ -13,6 +13,30 @@ func findArg(args []string, flag string) string {
 	return ""
 }
 
+// TestRunQEMUMemoryBytes verifies the QEMU -m size derives from
+// image.memory-bytes and keeps the 512 MiB default when unset (AC-13).
+func TestRunQEMUMemoryBytes(t *testing.T) {
+	tests := []struct {
+		name        string
+		memoryBytes int64
+		want        string
+	}{
+		{"unset defaults to 512", 0, "512"},
+		{"1 GiB", 1024 * 1024 * 1024, "1024"},
+		{"4 GiB", 4 * 1024 * 1024 * 1024, "4096"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := DefaultConfig("test")
+			cfg.Image.MemoryBytes = tt.memoryBytes
+			_, args := buildQEMUCommand(&cfg, "/tmp/test.img")
+			if got := findArg(args, "-m"); got != tt.want {
+				t.Errorf("-m = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestBuildQEMUCommandUsesConfiguredPorts(t *testing.T) {
 	cfg := &applianceConfig{
 		SSH:   SSHConfig{Host: "0.0.0.0", Port: "8822"},
