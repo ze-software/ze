@@ -410,6 +410,84 @@ def proto_policer_name(iface: str) -> str:
     return f"ze/{iface}/{TRAFFIC_PROTO_CLASS}"
 
 
+# --- DSCP (police-by-dscp) + multi-class steering evidence configs -----------
+
+TRAFFIC_DSCP_CLASS = "cs6"
+TRAFFIC_DSCP_VALUE = 48  # cs6
+
+
+def traffic_dscp_config(api_sock: Path, iface: str) -> str:
+    """Single HTB class carrying a dscp filter (police-by-dscp): the class
+    policer is bound via the ingress policer-classify pipeline (ip4+ip6 classify
+    tables matching the TOS/TC bits), NOT a QoS remark."""
+    return (
+        vpp_config(api_sock)
+        + f"""
+traffic {{
+    control {{
+        backend vpp;
+        interface {iface} {{
+            qdisc {{
+                type htb;
+                default-class {TRAFFIC_DSCP_CLASS};
+                class {TRAFFIC_DSCP_CLASS} {{
+                    rate 1mbit;
+                    ceil 2mbit;
+                    match dscp {{ value {TRAFFIC_DSCP_VALUE}; }}
+                }}
+            }}
+        }}
+    }}
+}}
+"""
+    )
+
+
+def dscp_policer_name(iface: str) -> str:
+    return f"ze/{iface}/{TRAFFIC_DSCP_CLASS}"
+
+
+TRAFFIC_MC_CLASS_A = "web"
+TRAFFIC_MC_PROTO_A = 6  # TCP
+TRAFFIC_MC_CLASS_B = "dns"
+TRAFFIC_MC_PROTO_B = 17  # UDP
+
+
+def traffic_multiclass_config(api_sock: Path, iface: str) -> str:
+    """Two HTB classes, each with a DIFFERENT protocol filter: same-field
+    multi-class steering. classify programs ONE table per family with two
+    sessions steering to two distinct per-class policers (no chaining)."""
+    return (
+        vpp_config(api_sock)
+        + f"""
+traffic {{
+    control {{
+        backend vpp;
+        interface {iface} {{
+            qdisc {{
+                type htb;
+                class {TRAFFIC_MC_CLASS_A} {{
+                    rate 10mbit;
+                    ceil 100mbit;
+                    match protocol {{ value {TRAFFIC_MC_PROTO_A}; }}
+                }}
+                class {TRAFFIC_MC_CLASS_B} {{
+                    rate 1mbit;
+                    ceil 100mbit;
+                    match protocol {{ value {TRAFFIC_MC_PROTO_B}; }}
+                }}
+            }}
+        }}
+    }}
+}}
+"""
+    )
+
+
+def mc_policer_name(iface: str, cls: str) -> str:
+    return f"ze/{iface}/{cls}"
+
+
 def classify_tables_present(container: str) -> tuple[bool, str]:
     text = vppctl_text(container, "show classify tables")
     return "No classifier tables configured" not in text, text
@@ -768,6 +846,138 @@ def run_traffic_protocol_evidence(
         terminate(daemon)
 
 
+def run_traffic_dscp_evidence(
+    container: str, root: Path, ze: Path, work: Path, api_sock: Path, iface: str
+) -> int:
+    """AC-2 (police-by-dscp): a `filter dscp` class programs classify tables
+    that are bound to the interface's policer-classify feature and steer the
+    DSCP-matched traffic to the class policer -- the SAME pipeline as protocol,
+    NOT a QoS remark. Proves the TOS/TC classify offsets are accepted by real
+    VPP. Runs after run_traffic_protocol_evidence, which leaves the iface clean."""
+    name = dscp_policer_name(iface)
+    config_path = work / "traffic-dscp.conf"
+    write_config(config_path, traffic_dscp_config(api_sock, iface))
+
+    daemon, ze_lines = start_ze(container, ze, root, Path("/run/vpp/traffic-dscp.conf"))
+    try:
+        if not wait_log(ze_lines, "traffic-control config applied", 25):
+            sys.stderr.write("FAIL: traffic-control dscp apply log not observed\n")
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        ok, last = wait_policer(container, name, True, 15)
+        if not ok:
+            sys.stderr.write(
+                f"FAIL: real VPP dscp-filter policer {name} not observed\n"
+            )
+            sys.stderr.write(last)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        tables_ok, tables = wait_condition(
+            lambda: classify_tables_present(container), True, 15
+        )
+        if not tables_ok:
+            sys.stderr.write("FAIL: real VPP dscp classify tables not observed\n")
+            sys.stderr.write(tables)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        bound_ok, features = wait_condition(
+            lambda: policer_classify_bound(container, iface), True, 15
+        )
+        if not bound_ok:
+            sys.stderr.write(
+                f"FAIL: policer-classify feature not bound on {iface} for dscp (R-1)\n"
+            )
+            sys.stderr.write(features)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        print(
+            f"OK: real VPP dscp filter programmed classify tables bound to {iface} steering to policer {name}"
+        )
+    finally:
+        terminate(daemon)
+
+    write_config(config_path, traffic_config(api_sock, iface, False))
+    daemon, ze_lines = start_ze(container, ze, root, Path("/run/vpp/traffic-dscp.conf"))
+    try:
+        ok, last = wait_policer(container, name, False, 25)
+        if not ok:
+            sys.stderr.write(
+                f"FAIL: real VPP dscp-filter policer {name} survived removal\n"
+            )
+            sys.stderr.write(last)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        print(f"OK: real VPP dscp-filter policer {name} removed on reconcile")
+        return 0
+    finally:
+        terminate(daemon)
+
+
+def run_traffic_multiclass_evidence(
+    container: str, root: Path, ze: Path, work: Path, api_sock: Path, iface: str
+) -> int:
+    """AC-5: a multi-class HTB where every class carries a protocol filter
+    programs per-class policers steered by classify. Same-field classes share
+    ONE table per family with a session per class -> distinct policers. Proves
+    real VPP accepts per-class steering (both policers exist + tables bound)."""
+    name_a = mc_policer_name(iface, TRAFFIC_MC_CLASS_A)
+    name_b = mc_policer_name(iface, TRAFFIC_MC_CLASS_B)
+    config_path = work / "traffic-mc.conf"
+    write_config(config_path, traffic_multiclass_config(api_sock, iface))
+
+    daemon, ze_lines = start_ze(container, ze, root, Path("/run/vpp/traffic-mc.conf"))
+    try:
+        if not wait_log(ze_lines, "traffic-control config applied", 25):
+            sys.stderr.write(
+                "FAIL: traffic-control multi-class apply log not observed\n"
+            )
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        for name in (name_a, name_b):
+            ok, last = wait_policer(container, name, True, 15)
+            if not ok:
+                sys.stderr.write(
+                    f"FAIL: real VPP multi-class policer {name} not observed\n"
+                )
+                sys.stderr.write(last)
+                sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+                return 1
+        bound_ok, features = wait_condition(
+            lambda: policer_classify_bound(container, iface), True, 15
+        )
+        if not bound_ok:
+            sys.stderr.write(
+                f"FAIL: policer-classify feature not bound on {iface} for multi-class\n"
+            )
+            sys.stderr.write(features)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        print(
+            f"OK: real VPP multi-class steering: policers {name_a} + {name_b} exist, classify bound to {iface}"
+        )
+    finally:
+        terminate(daemon)
+
+    write_config(config_path, traffic_config(api_sock, iface, False))
+    daemon, ze_lines = start_ze(container, ze, root, Path("/run/vpp/traffic-mc.conf"))
+    try:
+        for name in (name_a, name_b):
+            ok, last = wait_policer(container, name, False, 25)
+            if not ok:
+                sys.stderr.write(
+                    f"FAIL: real VPP multi-class policer {name} survived removal\n"
+                )
+                sys.stderr.write(last)
+                sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+                return 1
+        print(
+            f"OK: real VPP multi-class policers {name_a} + {name_b} removed on reconcile"
+        )
+        return 0
+    finally:
+        terminate(daemon)
+
+
 FIREWALL_ACL_TAG = "ze/wan/input"
 
 
@@ -1032,6 +1242,16 @@ def main() -> int:
         )
         if traffic_proto_rc != 0:
             return traffic_proto_rc
+        traffic_dscp_rc = run_traffic_dscp_evidence(
+            container, root, ze, work, api_sock, iface
+        )
+        if traffic_dscp_rc != 0:
+            return traffic_dscp_rc
+        traffic_mc_rc = run_traffic_multiclass_evidence(
+            container, root, ze, work, api_sock, iface
+        )
+        if traffic_mc_rc != 0:
+            return traffic_mc_rc
         return run_firewall_evidence(container, root, ze, work, api_sock, iface)
     finally:
         run(

@@ -1,0 +1,84 @@
+# Test: VPP backend ACCEPTS a dscp filter at verify time (police-by-dscp).
+# VALIDATES: spec-followup-vpp-traffic AC-2 (USER decision 2026-07-10) -- a
+#            `match dscp` filter under backend vpp is ACCEPTED by the verifier
+#            (it classifies the DSCP/TOS bits and steers matching traffic to the
+#            class policer, the same pipeline as `match protocol`). Because the
+#            config passes verify, the flow reaches backend.Apply, which -- with
+#            no VPP running in the .ci environment -- logs "vpp not connected"
+#            after its 5s WaitConnected timeout. That log line is the acceptance
+#            signal: a REJECTED config would instead log "not supported by
+#            backend vpp" and never reach Apply (see 025-vpp-reject-mark.ci).
+# PREVENTS: regression to the old dscp REJECTION (this file replaced
+#           020-vpp-reject-dscp-filter.ci per AC-6). Real-VPP programming is
+#           proven by scripts/evidence/effective-vpp.py run_traffic_dscp_evidence
+#           + fakeOps unit tests (apply-tier .ci is blocked on A-6 stub work in
+#           plan/spec-finish-vpp-stub.md).
+#
+# Scope note: the Verifier runs at daemon config-verify time. Runtime waits ~6s
+# for the 5s WaitConnected timeout + margin (same as 012-vpp-not-connected.ci).
+
+tmpfs=wait.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Hold the test open long enough for Apply's 5s WaitConnected to fire and log
+"vpp not connected" -- which only happens if the dscp config PASSED verify."""
+import time
+
+time.sleep(6.0)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+
+traffic {
+	control {
+		backend vpp
+		interface eth0 {
+			qdisc {
+				type htb
+				class control {
+					rate 10mbit
+					ceil 100mbit
+					match dscp {
+						value 48
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.traffic:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 wait.py:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=vpp not connected

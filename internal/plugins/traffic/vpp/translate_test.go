@@ -198,6 +198,76 @@ func assertOnlyByteSet(t *testing.T, buf []byte, idx int, want byte) {
 	}
 }
 
+// assertBytesSet fails unless buf equals a zero buffer with exactly the given
+// {index: value} entries set.
+func assertBytesSet(t *testing.T, buf []byte, want map[int]byte) {
+	t.Helper()
+	for i, b := range buf {
+		exp := want[i]
+		if b != exp {
+			t.Fatalf("byte[%d] = 0x%02x, want 0x%02x (set=%v)", i, b, exp, want)
+		}
+	}
+}
+
+// VALIDATES: AC-2 dscp golden vectors (police-by-dscp). The IPv4 TOS byte sits
+// at absolute offset 15 (Ethernet 14 + IPv4 TOS 1); DSCP is the top 6 bits so
+// mask=0xFC and match=dscp<<2. Confirmed accepted by real VPP v25.10.
+func TestClassifyMaskMatchIPv4Dscp(t *testing.T) {
+	mask, match := dscpClassifyVectors(classifyIPv4, 48) // cs6
+	if len(mask) != classifyMaskLen || len(match) != classifyMaskLen {
+		t.Fatalf("vector len = (%d,%d), want %d", len(mask), len(match), classifyMaskLen)
+	}
+	assertOnlyByteSet(t, mask, ipv4TosByte, 0xFC)
+	assertOnlyByteSet(t, match, ipv4TosByte, 48<<2) // 0xC0
+}
+
+// VALIDATES: AC-2 dscp golden vectors for IPv6. The 8-bit traffic-class field
+// straddles bytes 14/15 (not byte-aligned in the first IPv6 word); DSCP =
+// byte14 low nibble (0x0F) + byte15 top two bits (0xC0). dscp=48 -> byte14=0x0C,
+// byte15=0x00. Confirmed accepted by real VPP v25.10.
+func TestClassifyMaskMatchIPv6Dscp(t *testing.T) {
+	mask, match := dscpClassifyVectors(classifyIPv6, 48)
+	assertBytesSet(t, mask, map[int]byte{ipv6TrafficClassHiByte: 0x0F, ipv6TrafficClassLoByte: 0xC0})
+	assertBytesSet(t, match, map[int]byte{ipv6TrafficClassHiByte: 0x0C, ipv6TrafficClassLoByte: 0x00})
+}
+
+// VALIDATES: dscp boundary (0-63). dscp=63 packs to the full 6-bit field:
+// IPv4 match byte = 63<<2 = 0xFC; IPv6 byte14 = 0x0F, byte15 = 0xC0. dscp=0 is
+// all-zero match (only the mask bytes are set).
+func TestClassifyMaskMatchDscpBoundary(t *testing.T) {
+	_, m4hi := dscpClassifyVectors(classifyIPv4, 63)
+	assertOnlyByteSet(t, m4hi, ipv4TosByte, 0xFC)
+	_, m6hi := dscpClassifyVectors(classifyIPv6, 63)
+	assertBytesSet(t, m6hi, map[int]byte{ipv6TrafficClassHiByte: 0x0F, ipv6TrafficClassLoByte: 0xC0})
+
+	_, m4lo := dscpClassifyVectors(classifyIPv4, 0)
+	assertBytesSet(t, m4lo, map[int]byte{}) // dscp 0: no match byte set
+	_, m6lo := dscpClassifyVectors(classifyIPv6, 0)
+	assertBytesSet(t, m6lo, map[int]byte{}) // dscp 0: no match byte set
+}
+
+// VALIDATES: filterClassifyVectors dispatches protocol->protocol offsets,
+// dscp->dscp offsets, and reports mark as non-steering (ok=false, never
+// reaches the apply path).
+func TestFilterClassifyVectorsDispatch(t *testing.T) {
+	_, protoMatch, ok := filterClassifyVectors(classifyIPv4, traffic.TrafficFilter{Type: traffic.FilterProtocol, Value: 6})
+	if !ok {
+		t.Fatal("protocol filter must be steerable")
+	}
+	assertOnlyByteSet(t, protoMatch, ipv4ProtocolByte, 6)
+
+	_, dscpMatch, ok := filterClassifyVectors(classifyIPv4, traffic.TrafficFilter{Type: traffic.FilterDSCP, Value: 48})
+	if !ok {
+		t.Fatal("dscp filter must be steerable")
+	}
+	assertOnlyByteSet(t, dscpMatch, ipv4TosByte, 48<<2)
+
+	if _, _, ok := filterClassifyVectors(classifyIPv4, traffic.TrafficFilter{Type: traffic.FilterMark, Value: 7}); ok {
+		t.Fatal("mark filter must NOT be steerable (ok=false)")
+	}
+}
+
 func TestPolicerFromClassNameIsPassthrough(t *testing.T) {
 	// VALIDATES: policerFromClass does NOT truncate or rewrite the class
 	// name. The backend overwrites PolicerAddDel.Name with the composed

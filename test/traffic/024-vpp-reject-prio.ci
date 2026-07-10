@@ -1,0 +1,72 @@
+# Test: VPP backend REJECTS the prio qdisc at OnConfigVerify with an actionable
+#        error naming the scheduler gap.
+# VALIDATES: spec-followup-vpp-traffic AC-4 (RESOLVED 2026-07-10, USER decision:
+#            rejection-retained, no scheduler->remark substitution). qdisc prio
+#            is a priority SCHEDULER; VPP exposes no prio scheduler API, only
+#            classify+policer shaping. Mapping prio to a DSCP egress-map would be
+#            a silent semantic substitution that exact-or-reject forbids, so prio
+#            stays rejected. The error text is asserted to be actionable.
+# PREVENTS: regression where prio silently maps to some VPP construct, or where
+#           the rejection loses its actionable "priority scheduler" explanation.
+#
+# Scope note: the Verifier runs at daemon config-verify time; this boots ze with
+# the prio config and asserts the rejection log line in stderr.
+
+tmpfs=wait.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Sleep long enough for ze to read config, attempt verify, and log the
+rejection, then exit."""
+import time
+
+time.sleep(2.5)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+
+traffic {
+	control {
+		backend vpp
+		interface eth0 {
+			qdisc {
+				type prio
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.traffic:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=priority scheduler

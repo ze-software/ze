@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 276 design docs, 2886 files
+Total: 276 design docs, 2889 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1864,6 +1864,8 @@ Total: 276 design docs, 2886 files
 | `internal/plugins/iface/netlink/xfrm_linux.go` | XFRM interface netlink backend |
 | `internal/plugins/iface/vpp/fib.go` | VPP FIB readback via ip_route_v2_dump |
 | `internal/plugins/iface/vpp/neighbor.go` | VPP neighbor-table readback via ip_neighbor_dump |
+| `internal/plugins/iface/vpp/tunnel.go` | Tunnel interface creation on the VPP dataplane |
+| `internal/plugins/iface/vpp/vxlan.go` | VXLAN overlay on the VPP dataplane |
 | `internal/plugins/ntp/clock_linux.go` | NTP system clock operations |
 | `internal/plugins/ntp/clock_other.go` | NTP clock stub for non-Linux |
 | `internal/plugins/ntp/ntp.go` | NTP client plugin |
@@ -2427,6 +2429,7 @@ Total: 276 design docs, 2886 files
 
 - `internal/plugins/traffic/vpp/apply_test.go` -- Apply-path tests for vpp backend.
 - `internal/plugins/traffic/vpp/ops.go` -- VPP-operation seam for unit tests
+- `internal/plugins/traffic/vpp/ops_linux.go` -- govppOps production adapter
 
 ## `plan/learned/631-host-0-inventory.md`
 

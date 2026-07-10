@@ -20,7 +20,22 @@ import (
 	"go.fd.io/govpp/binapi/policer_types"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
+
+// policerNamePrefix is the "ze/"-namespace all backend-managed policer names
+// carry so startup orphan cleanup can tell Ze policers from foreign ones.
+const policerNamePrefix = "ze/"
+
+// policerName builds the VPP policer name from interface and class as
+// "ze/<iface>/<class>". VPP limits names to 64 bytes; the verifier rejects any
+// class whose produced name exceeds the limit, so this function does not
+// truncate. Lives here (no build tag) so the cross-platform verifier and the
+// linux-only backend share one definition.
+func policerName(ifaceName, className string) string {
+	var tb textbuf.Buffer
+	return tb.Str(policerNamePrefix).Str(ifaceName).Byte('/').Str(className).String()
+}
 
 // --- Classify (filter protocol) translation ---------------------------------
 //
@@ -72,9 +87,32 @@ const (
 	// ipv6NextHeaderByte is the absolute offset of the IPv6 next-header byte:
 	// Ethernet(14) + IPv6 next-header(6) = 20.
 	ipv6NextHeaderByte = 20
-	// maxProtocolValue is the largest IP protocol / next-header number that
-	// fits in the single classify byte the mask covers.
-	maxProtocolValue = 255
+
+	// --- DSCP classify offsets (police-by-dscp, USER decision 2026-07-10) ---
+	//
+	// `filter dscp` classifies the DiffServ Code Point (top 6 bits of the IPv4
+	// TOS byte / IPv6 traffic-class field) at its absolute (L2-inclusive) frame
+	// offset and steers matching packets to the class policer -- the SAME
+	// pipeline as `filter protocol`, NOT a QoS remark. Offsets confirmed
+	// accepted by real VPP v25.10 (skip=0, 2-vector mask).
+	//
+	// IPv4: TOS byte at Ethernet(14) + IPv4 TOS(1) = absolute byte 15. DSCP is
+	// the top 6 bits -> mask 0xFC, match dscp<<2.
+	ipv4TosByte  = 15
+	ipv4DscpMask = 0xFC
+	// IPv6: the 8-bit traffic-class field straddles two frame bytes because it
+	// is not byte-aligned in the first IPv6 word (Version|TC|FlowLabel).
+	// Ethernet(14) + IPv6 first word: byte 14 = Version(4b) | TC[7:4],
+	// byte 15 = TC[3:0] | FlowLabel-high(4b). DSCP = TC[7:2], so it occupies
+	// byte14's low nibble (TC[7:4] = DSCP[5:2]) and byte15's top two bits
+	// (TC[3:2] = DSCP[1:0]).
+	ipv6TrafficClassHiByte = 14
+	ipv6TrafficClassLoByte = 15
+	ipv6DscpHiMask         = 0x0F // byte14 low nibble  = DSCP[5:2]
+	ipv6DscpLoMask         = 0xC0 // byte15 top 2 bits  = DSCP[1:0]
+	// maxDSCPValue is the largest DiffServ Code Point (6-bit field). Mirrors
+	// dscp.MaxValue; the verifier bounds `filter dscp` values to this.
+	maxDSCPValue = 63
 )
 
 // protocolClassifyVectors builds the (mask, match) vectors for a classify
@@ -91,6 +129,65 @@ func protocolClassifyVectors(fam classifyFamily, proto uint8) (mask, match []byt
 	mask[off] = 0xff
 	match[off] = proto
 	return mask, match
+}
+
+// dscpClassifyVectors builds the (mask, match) vectors for a classify session
+// matching a single DiffServ Code Point at its absolute (L2-inclusive) offset.
+// Like protocolClassifyVectors the vectors are classifyMaskLen bytes wide with
+// skip=0. IPv4 matches one byte (TOS); IPv6 matches across two bytes because the
+// traffic-class field is not byte-aligned in the first IPv6 word.
+func dscpClassifyVectors(fam classifyFamily, dscp uint8) (mask, match []byte) {
+	mask = make([]byte, classifyMaskLen)
+	match = make([]byte, classifyMaskLen)
+	if fam == classifyIPv6 {
+		mask[ipv6TrafficClassHiByte] = ipv6DscpHiMask
+		mask[ipv6TrafficClassLoByte] = ipv6DscpLoMask
+		match[ipv6TrafficClassHiByte] = (dscp >> 2) & 0x0F
+		match[ipv6TrafficClassLoByte] = (dscp & 0x03) << 6
+		return mask, match
+	}
+	mask[ipv4TosByte] = ipv4DscpMask
+	match[ipv4TosByte] = dscp << 2
+	return mask, match
+}
+
+// filterClassifyVectors dispatches a TrafficFilter to the classify (mask,
+// match) vectors that steer matching packets to the class policer. ok is false
+// for filter types that carry no VPP-native steering match (e.g. mark, which is
+// rejected at verify); such filters never reach the apply path. The verifier
+// bounds the value ranges (protocol 0-255, dscp 0-63), so the uint8 conversions
+// here cannot overflow for verified input.
+func filterClassifyVectors(fam classifyFamily, f traffic.TrafficFilter) (mask, match []byte, ok bool) {
+	switch f.Type {
+	case traffic.FilterProtocol:
+		m, mt := protocolClassifyVectors(fam, uint8(f.Value))
+		return m, mt, true
+	case traffic.FilterDSCP:
+		m, mt := dscpClassifyVectors(fam, uint8(f.Value))
+		return m, mt, true
+	case traffic.FilterMark:
+		// Mark carries no VPP-native steering match (Linux SKB fwmark has no
+		// faithful equivalent); rejected at verify, never reaches the apply
+		// path. Returned not-ok so a verifier bypass fails loudly rather than
+		// programming a bogus table.
+		return nil, nil, false
+	}
+	return nil, nil, false
+}
+
+// classSteers reports whether a class carries any filter that steers matching
+// traffic to its policer (protocol or dscp). Such a class uses the ingress
+// policer-classify pipeline instead of the egress policer-output binding. Mark
+// filters do not steer (rejected at verify) and do not count. Lives here (no
+// build tag) so both the cross-platform verifier and the linux-only backend
+// share one definition.
+func classSteers(cls traffic.TrafficClass) bool {
+	for _, f := range cls.Filters {
+		if f.Type == traffic.FilterProtocol || f.Type == traffic.FilterDSCP {
+			return true
+		}
+	}
+	return false
 }
 
 var errRatetokbpsRateMustBe0 = errors.New("rateToKbps: rate must be > 0")

@@ -1,6 +1,12 @@
 // Design: plan/spec-followup-vpp-traffic.md -- classify + policer-classify
-// pipeline for protocol filters. Reuses the proven firewall/vpp classify
-// shape (table -> session -> interface bind) behind trafficvpp's ops seam.
+// pipeline for steering filters (protocol + dscp). Reuses the proven
+// firewall/vpp classify shape (table -> session -> interface bind) behind
+// trafficvpp's ops seam, extended to multi-class steering (phase 6): all
+// filtered classes on one interface share ONE table per distinct field mask
+// (each class contributing its own sessions -> its own policer), and
+// distinct-mask tables are chained via ClassifyAddDelTable.NextTableIndex.
+// Real VPP v25.10 validated the dscp offsets, multi-session steering, and the
+// NextTableIndex chain fall-through.
 
 //go:build linux
 
@@ -8,6 +14,7 @@ package trafficvpp
 
 import (
 	"fmt"
+	"sort"
 
 	"go.fd.io/govpp/binapi/interface_types"
 
@@ -15,137 +22,201 @@ import (
 )
 
 // noTable is VPP's sentinel for "no classify table" in a
-// PolicerClassifySetInterface family slot.
+// PolicerClassifySetInterface family slot and for "no chain successor" in a
+// table's NextTableIndex.
 const noTable = ^uint32(0)
 
-// classifyBinding records the ip4/ip6 classify tables bound to one
-// interface's policer-classify feature. VPP classify tables are anonymous
-// (unlike named policers), so this in-memory tracker is the ONLY handle the
-// backend has to unbind + delete them on a later Apply. That is also why
-// startup orphan cleanup cannot reclaim classify tables by name the way it
-// reclaims policers (documented in cleanupStartupOrphans); a same-process
-// reconcile is the reclaim path.
+// classifyBinding records the classify state for ONE interface's
+// policer-classify feature: the per-family table CHAINS (head first; a miss on
+// the head falls through to the next via NextTableIndex) and the filtered
+// policers steered to. VPP classify tables are anonymous (unlike named
+// policers), so this in-memory tracker is the ONLY handle the backend has to
+// unbind + delete the tables on a later Apply. That is also why startup orphan
+// cleanup cannot reclaim classify tables by name the way it reclaims policers
+// (documented in cleanupStartupOrphans); a same-process reconcile is the
+// reclaim path.
 type classifyBinding struct {
-	ip4TableIdx uint32 // noTable if the class had no IPv4-matching filter
-	ip6TableIdx uint32 // noTable if the class had no IPv6-matching filter
-	policerIdx  uint32 // policer steered to; deleted on teardown
-	policerName string // for logging + startup-orphan reconciliation
+	ip4Tables []uint32          // chain, head first; empty if no IPv4 steering
+	ip6Tables []uint32          // chain, head first; empty if no IPv6 steering
+	policers  map[string]uint32 // filtered policer name -> VPP index (for teardown)
 }
 
-// hasProtocolFilter reports whether a class carries any protocol filter,
-// which switches its policer from the egress policer-output binding to the
-// ingress policer-classify pipeline (only matching traffic is policed).
-func hasProtocolFilter(cls traffic.TrafficClass) bool {
+// classifySteer is one (family, field-match) -> policer steering requirement,
+// expanded from a class's filters. A single `filter protocol`/`filter dscp`
+// produces one steer per address family (netlink parity: each filter selects in
+// both IPv4 and IPv6).
+type classifySteer struct {
+	fam        classifyFamily
+	mask       []byte
+	match      []byte
+	policerIdx uint32
+}
+
+// collectClassSteerings expands one class's steering filters into per-family
+// (mask, match) -> policer requirements. Value bounds are the verifier's
+// responsibility; filterClassifyVectors returns ok=false for non-steering
+// filter types (mark), which are skipped defensively.
+func collectClassSteerings(cls traffic.TrafficClass, policerIdx uint32) []classifySteer {
+	var out []classifySteer
 	for _, f := range cls.Filters {
-		if f.Type == traffic.FilterProtocol {
-			return true
+		for _, fam := range []classifyFamily{classifyIPv4, classifyIPv6} {
+			mask, match, ok := filterClassifyVectors(fam, f)
+			if !ok {
+				continue
+			}
+			out = append(out, classifySteer{fam: fam, mask: mask, match: match, policerIdx: policerIdx})
 		}
 	}
-	return false
+	return out
 }
 
-// applyClassProtocolFilters programs the classify + policer-classify pipeline
-// so that only packets matching the class's protocol filters are steered to
-// its policer (policerIdx). A protocol filter matches its protocol in BOTH
-// address families (netlink parity: each `filter protocol` produces an IPv4
-// and an IPv6 selector), so one ip4 table and one ip6 table are created, each
-// with one session per protocol value, and both are bound in a single
-// PolicerClassifySetInterface call.
+// applyInterfaceClassify programs the classify + policer-classify pipeline for
+// every filtered class on one interface. Steerings from all filtered classes
+// are grouped per family by field mask: one table per distinct mask carries a
+// session per (value -> policer), and distinct-mask tables are chained via
+// NextTableIndex (head bound; a miss falls through). Both family heads are bound
+// in one PolicerClassifySetInterface call.
 //
 // On any step failure the caller's undo list already holds the reversals for
-// steps that succeeded; this function appends an undo closure immediately
-// after each successful side effect and returns the error so applyInterface
-// aborts. The returned binding is recorded by the caller for later reconcile.
-func applyClassProtocolFilters(
+// the policers created before this call; this function appends an undo closure
+// immediately after each successful side effect and returns the error so
+// applyInterface aborts. The returned binding is recorded by the caller for
+// later reconcile.
+func applyInterfaceClassify(
 	ops vppOps,
 	swIfIndex interface_types.InterfaceIndex,
-	policerIdx uint32,
-	policerName string,
-	cls traffic.TrafficClass,
+	steerings []classifySteer,
+	policers map[string]uint32,
 	undo *[]func(),
 ) (classifyBinding, error) {
-	binding := classifyBinding{
-		ip4TableIdx: noTable,
-		ip6TableIdx: noTable,
-		policerIdx:  policerIdx,
-		policerName: policerName,
-	}
+	binding := classifyBinding{policers: policers}
 
-	var protos []uint8
-	for _, f := range cls.Filters {
-		if f.Type != traffic.FilterProtocol {
-			continue
-		}
-		if f.Value > maxProtocolValue {
-			return classifyBinding{}, fmt.Errorf("protocol %d out of range (0-%d)", f.Value, maxProtocolValue)
-		}
-		protos = append(protos, uint8(f.Value))
-	}
-	if len(protos) == 0 {
-		return classifyBinding{}, fmt.Errorf("class %q: no protocol filters to program", cls.Name)
-	}
-
-	ip4Idx, err := buildProtocolTable(ops, classifyIPv4, policerIdx, protos, undo)
+	ip4Chain, err := buildFamilyChain(ops, classifyIPv4, steerings, undo)
 	if err != nil {
 		return classifyBinding{}, err
 	}
-	binding.ip4TableIdx = ip4Idx
+	binding.ip4Tables = ip4Chain
 
-	ip6Idx, err := buildProtocolTable(ops, classifyIPv6, policerIdx, protos, undo)
+	ip6Chain, err := buildFamilyChain(ops, classifyIPv6, steerings, undo)
 	if err != nil {
 		return classifyBinding{}, err
 	}
-	binding.ip6TableIdx = ip6Idx
+	binding.ip6Tables = ip6Chain
 
-	if err := ops.policerClassifySetInterface(swIfIndex, binding.ip4TableIdx, binding.ip6TableIdx, true); err != nil {
+	head4, head6 := headOrNoTable(ip4Chain), headOrNoTable(ip6Chain)
+	if err := ops.policerClassifySetInterface(swIfIndex, head4, head6, true); err != nil {
 		return classifyBinding{}, fmt.Errorf("policer classify bind: %w", err)
 	}
-	boundIf, b4, b6 := swIfIndex, binding.ip4TableIdx, binding.ip6TableIdx
+	boundIf := swIfIndex
 	*undo = append(*undo, func() {
-		_ = ops.policerClassifySetInterface(boundIf, b4, b6, false)
+		_ = ops.policerClassifySetInterface(boundIf, head4, head6, false)
 	})
 
 	return binding, nil
 }
 
-// buildProtocolTable creates one classify table for a family and adds a
-// session per protocol value, each steering to policerIdx. It appends an undo
-// closure for the table and every session so a later failure unwinds cleanly.
-func buildProtocolTable(
-	ops vppOps,
-	fam classifyFamily,
-	policerIdx uint32,
-	protos []uint8,
-	undo *[]func(),
-) (uint32, error) {
-	mask, _ := protocolClassifyVectors(fam, 0)
-	tableIdx, err := ops.classifyAddDelTable(noTable, mask, classifySkipVectors, true)
-	if err != nil {
-		return 0, fmt.Errorf("classify table (%s): %w", familyName(fam), err)
+// headOrNoTable returns the chain head (first table) or noTable for an empty
+// chain (that family has no steering filter).
+func headOrNoTable(chain []uint32) uint32 {
+	if len(chain) == 0 {
+		return noTable
 	}
-	*undo = append(*undo, func() { _, _ = ops.classifyAddDelTable(tableIdx, mask, classifySkipVectors, false) })
-
-	for _, proto := range protos {
-		_, match := protocolClassifyVectors(fam, proto)
-		if err := ops.classifyAddDelSession(tableIdx, policerIdx, match, true); err != nil {
-			return 0, fmt.Errorf("classify session (%s proto %d): %w", familyName(fam), proto, err)
-		}
-	}
-	return tableIdx, nil
+	return chain[0]
 }
 
-// reconcileClassifyRemovals tears down classify tables from the previous
-// Apply that the new desired state no longer keeps. Because a filtered class
-// always creates FRESH tables (they are anonymous, no upsert), every previous
-// binding is stale after a successful re-apply:
+// maskGroup collects the sessions that share one classify table (same field
+// mask). matches[i] steers to policers[i].
+type maskGroup struct {
+	mask     []byte
+	matches  [][]byte
+	policers []uint32
+}
+
+// buildFamilyChain creates the classify-table chain for one address family from
+// the interface's steerings. Steerings are grouped by mask (deterministically
+// ordered by mask bytes so the chain -- and tests -- are stable); each group
+// becomes one table with a session per match. Tables are created in REVERSE so
+// each one's NextTableIndex can point at the already-created successor. Returns
+// the chain head-first ([0] is bound; a miss falls through to [1], ...). An
+// empty steering set for the family yields a nil chain.
+func buildFamilyChain(
+	ops vppOps,
+	fam classifyFamily,
+	steerings []classifySteer,
+	undo *[]func(),
+) ([]uint32, error) {
+	groups := groupSteeringsByMask(fam, steerings)
+	if len(groups) == 0 {
+		return nil, nil
+	}
+	chain := make([]uint32, len(groups))
+	next := noTable
+	for i := len(groups) - 1; i >= 0; i-- {
+		g := groups[i]
+		tableIdx, err := ops.classifyAddDelTable(noTable, g.mask, classifySkipVectors, next, true)
+		if err != nil {
+			return nil, fmt.Errorf("classify table (%s): %w", familyName(fam), err)
+		}
+		created := tableIdx
+		*undo = append(*undo, func() {
+			if _, derr := ops.classifyAddDelTable(created, nil, classifySkipVectors, noTable, false); derr != nil {
+				logger().Warn("traffic-vpp: undo classify table delete failed",
+					"table", created, "err", derr)
+			}
+		})
+		for j, match := range g.matches {
+			if err := ops.classifyAddDelSession(tableIdx, g.policers[j], match, true); err != nil {
+				return nil, fmt.Errorf("classify session (%s): %w", familyName(fam), err)
+			}
+		}
+		chain[i] = tableIdx
+		next = tableIdx
+	}
+	return chain, nil
+}
+
+// groupSteeringsByMask partitions a family's steerings by field mask, preserving
+// one table per distinct mask. Groups are ordered deterministically by mask
+// bytes so the emitted chain is stable across applies (and unit-testable).
+// Within a group, sessions keep their steering order.
+func groupSteeringsByMask(fam classifyFamily, steerings []classifySteer) []maskGroup {
+	order := make([]string, 0)
+	byMask := make(map[string]*maskGroup)
+	for _, s := range steerings {
+		if s.fam != fam {
+			continue
+		}
+		key := string(s.mask)
+		g, ok := byMask[key]
+		if !ok {
+			g = &maskGroup{mask: s.mask}
+			byMask[key] = g
+			order = append(order, key)
+		}
+		g.matches = append(g.matches, s.match)
+		g.policers = append(g.policers, s.policerIdx)
+	}
+	sort.Strings(order)
+	groups := make([]maskGroup, 0, len(order))
+	for _, key := range order {
+		groups = append(groups, *byMask[key])
+	}
+	return groups
+}
+
+// reconcileClassifyRemovals tears down classify state from the previous Apply
+// that the new desired state no longer keeps. Filtered classes always create
+// FRESH tables (anonymous, no upsert), so every previous table is stale after a
+// successful re-apply:
 //
-//   - Interface still has a (new) classify binding: policerClassifySetInterface
-//     already repointed the interface at the new tables, so the previous
-//     tables are orphaned. Delete them (never unbind -- that would drop the
-//     live new binding). A table index still present in the new binding
-//     (VPP index reuse) is skipped so a live table is never deleted.
-//   - Interface no longer classified (class lost its filter, or interface
-//     removed): unbind (if the interface is still in VPP) then delete.
+//   - Interface still classified: applyInterfaceClassify already repointed the
+//     policer-classify feature at the new chain heads, so the previous tables
+//     are orphaned. Delete them (never unbind -- that would drop the live new
+//     binding). Any previous policer whose class is gone from the new binding
+//     (and not adopted by the egress-output path) is deleted too.
+//   - Interface no longer classified (all filtered classes dropped, or interface
+//     removed): unbind (if the interface is still in VPP) then delete every
+//     table and every filtered policer.
 //
 // Delete failures are logged and swallowed (VPP-side staleness after a restart
 // must not fail the whole Apply), matching reconcileRemovals' policer path.
@@ -155,6 +226,7 @@ func (b *backend) reconcileClassifyRemovals(
 	ops vppOps,
 	nameIndex map[string]interface_types.InterfaceIndex,
 	newClassifyBindings map[string]classifyBinding,
+	newOutputPolicers map[string]map[string]uint32,
 ) {
 	lg := logger()
 	for ifaceName, prev := range b.interfaceClassifyBindings {
@@ -163,40 +235,68 @@ func (b *backend) reconcileClassifyRemovals(
 
 		if !stillBound {
 			if ifacePresent {
-				if err := ops.policerClassifySetInterface(swIfIndex, prev.ip4TableIdx, prev.ip6TableIdx, false); err != nil {
+				if err := ops.policerClassifySetInterface(swIfIndex, headOrNoTable(prev.ip4Tables), headOrNoTable(prev.ip6Tables), false); err != nil {
 					lg.Warn("traffic-vpp: unbind stale classify failed (treating as already gone)",
 						"iface", ifaceName, "err", err)
 				}
 			}
-			deleteClassifyTables(ops, prev, classifyBinding{ip4TableIdx: noTable, ip6TableIdx: noTable}, lg, ifaceName)
-			// The classify-bound policer is tracked here (not in
-			// interfaceOutputPolicers), so delete it here too. Warn-and-continue
-			// on failure like the policer reconcile path.
-			if err := ops.policerDel(prev.policerIdx); err != nil {
-				lg.Warn("traffic-vpp: delete stale classify policer failed (treating as already gone)",
-					"iface", ifaceName, "policer", prev.policerName, "idx", prev.policerIdx, "err", err)
-			}
+			deleteClassifyTables(ops, prev, classifyBinding{}, lg, ifaceName)
+			deleteClassifyPolicers(ops, prev.policers, nil, newOutputPolicers[ifaceName], lg, ifaceName)
 			continue
 		}
-		// Replaced binding: delete only the previous tables that the new
-		// binding does not reuse; the interface already points at the new ones.
+		// Replaced binding: the interface already points at the new chain heads.
+		// Delete only the previous tables the new binding does not reuse, and
+		// only the previous policers the new binding (or the output path) no
+		// longer keeps.
 		deleteClassifyTables(ops, prev, newB, lg, ifaceName)
+		deleteClassifyPolicers(ops, prev.policers, newB.policers, newOutputPolicers[ifaceName], lg, ifaceName)
 	}
 }
 
-// deleteClassifyTables deletes prev's ip4/ip6 tables, skipping any index that
-// keep reuses (so a live table is never deleted). Failures are logged.
+// deleteClassifyTables deletes every table in prev's ip4/ip6 chains, skipping
+// any index the keep binding reuses (so a live table is never deleted).
+// Failures are logged.
 func deleteClassifyTables(ops vppOps, prev, keep classifyBinding, lg logWarner, ifaceName string) {
-	if prev.ip4TableIdx != noTable && prev.ip4TableIdx != keep.ip4TableIdx {
-		if _, err := ops.classifyAddDelTable(prev.ip4TableIdx, nil, classifySkipVectors, false); err != nil {
+	keepIdx := make(map[uint32]bool)
+	for _, idx := range keep.ip4Tables {
+		keepIdx[idx] = true
+	}
+	for _, idx := range keep.ip6Tables {
+		keepIdx[idx] = true
+	}
+	del := func(idx uint32, family string) {
+		if keepIdx[idx] {
+			return
+		}
+		if _, err := ops.classifyAddDelTable(idx, nil, classifySkipVectors, noTable, false); err != nil {
 			lg.Warn("traffic-vpp: delete stale classify table failed (treating as already gone)",
-				"iface", ifaceName, "table", prev.ip4TableIdx, "family", "ip4", "err", err)
+				"iface", ifaceName, "table", idx, "family", family, "err", err)
 		}
 	}
-	if prev.ip6TableIdx != noTable && prev.ip6TableIdx != keep.ip6TableIdx {
-		if _, err := ops.classifyAddDelTable(prev.ip6TableIdx, nil, classifySkipVectors, false); err != nil {
-			lg.Warn("traffic-vpp: delete stale classify table failed (treating as already gone)",
-				"iface", ifaceName, "table", prev.ip6TableIdx, "family", "ip6", "err", err)
+	for _, idx := range prev.ip4Tables {
+		del(idx, "ip4")
+	}
+	for _, idx := range prev.ip6Tables {
+		del(idx, "ip6")
+	}
+}
+
+// deleteClassifyPolicers deletes filtered policers present in prev but absent
+// from both the new classify binding (keepClassify) and the new egress-output
+// path (keepOutput -- a class that migrated from filtered to unfiltered keeps
+// its policer, now output-bound). Failures are logged and swallowed like the
+// output policer reconcile.
+func deleteClassifyPolicers(ops vppOps, prev, keepClassify, keepOutput map[string]uint32, lg logWarner, ifaceName string) {
+	for name, idx := range prev {
+		if _, keep := keepClassify[name]; keep {
+			continue
+		}
+		if _, keep := keepOutput[name]; keep {
+			continue
+		}
+		if err := ops.policerDel(idx); err != nil {
+			lg.Warn("traffic-vpp: delete stale classify policer failed (treating as already gone)",
+				"iface", ifaceName, "policer", name, "idx", idx, "err", err)
 		}
 	}
 }

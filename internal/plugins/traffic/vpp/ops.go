@@ -42,9 +42,11 @@ type vppOps interface {
 	policerOutput(name string, swIfIndex interface_types.InterfaceIndex, apply bool) error
 
 	// classifyAddDelTable creates (isAdd=true, tableIdx=^uint32(0)) or removes
-	// a classify table with the given mask and skip_n_vectors. Returns the
+	// a classify table with the given mask and skip_n_vectors. nextTableIdx is
+	// the table a miss falls through to (^uint32(0) = end of chain); it lets
+	// the multi-class steering path chain distinct-mask tables. Returns the
 	// VPP-assigned table index on create.
-	classifyAddDelTable(tableIdx uint32, mask []byte, skipNVectors uint32, isAdd bool) (uint32, error)
+	classifyAddDelTable(tableIdx uint32, mask []byte, skipNVectors, nextTableIdx uint32, isAdd bool) (uint32, error)
 	// classifyAddDelSession adds/removes a session in tableIdx. hitNextIndex
 	// is the policer index a matching packet is steered to on the
 	// policer-classify arc.

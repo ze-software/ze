@@ -1,12 +1,24 @@
-# Test: VPP backend rejects DSCP filter at verify time.
-# VALIDATES: spec-cp-survival-3 AC-5 -- a DSCP filter under backend vpp is
-#            rejected with errFilterDscpNotSupportedByBackend. The constraint
-#            is preserved after the netlink-side fix.
-# PREVENTS: regression where fixing the netlink DSCP selector accidentally
-#           enables the VPP path (which has no classify pipeline).
+# Test: VPP backend REJECTS an out-of-range dscp filter value at verify time.
+# VALIDATES: spec-followup-vpp-traffic AC-2/AC-6 boundary -- with dscp now
+#            ACCEPTED as police-by-dscp (see 020-vpp-accept-dscp-filter.ci), a
+#            dscp VALUE above the 6-bit range (0-63) is still rejected at verify
+#            with "out of range". The classify TOS/TC mask covers exactly the
+#            6-bit DSCP field, so 64 has no representation.
+# PREVENTS: regression where accepting dscp filters also accepts nonsensical
+#           out-of-range values that would silently truncate on the wire.
+#
+# Replaced coverage note: this file previously asserted a blanket dscp
+# REJECTION. Per the 2026-07-10 USER decision (police-by-dscp), dscp is now
+# accepted; the acceptance is pinned by 020-vpp-accept-dscp-filter.ci and the
+# fakeOps unit tests, and this file now pins the value bound instead.
+#
+# Scope note: the Verifier runs at daemon config-verify time; this boots ze with
+# the bad config and asserts the rejection log line in stderr.
 
 tmpfs=wait.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
+"""Sleep long enough for ze to read config, attempt verify, and log the
+rejection, then exit."""
 import time
 
 time.sleep(2.5)
@@ -55,13 +67,16 @@ traffic {
 					ceil 100mbit
 					priority 0
 					match dscp {
-						value 48
+						value 64
 					}
 				}
 				class default {
 					rate 90mbit
 					ceil 100mbit
 					priority 1
+					match protocol {
+						value 6
+					}
 				}
 			}
 		}
@@ -74,4 +89,4 @@ option=env:var=ze.log.traffic:value=info
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
 expect=exit:code=0
-expect=stderr:contains=not supported by backend vpp
+expect=stderr:contains=out of range

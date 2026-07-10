@@ -289,9 +289,9 @@ func (f *fakeOps) policerOutput(name string, swIfIndex interface_types.Interface
 	return f.outputFailOn[name]
 }
 
-func (f *fakeOps) classifyAddDelTable(tableIdx uint32, mask []byte, skipNVectors uint32, isAdd bool) (uint32, error) {
+func (f *fakeOps) classifyAddDelTable(tableIdx uint32, mask []byte, skipNVectors, nextTableIdx uint32, isAdd bool) (uint32, error) {
 	if isAdd {
-		f.calls = append(f.calls, fmt.Sprintf("clTable:add:skip=%d:masklen=%d", skipNVectors, len(mask)))
+		f.calls = append(f.calls, fmt.Sprintf("clTable:add:skip=%d:masklen=%d:next=%d", skipNVectors, len(mask), int32(nextTableIdx)))
 		if f.classifyTableFail != nil {
 			return 0, f.classifyTableFail
 		}
@@ -417,8 +417,11 @@ func TestApplyFilterProtocolAttaches(t *testing.T) {
 	if !ok {
 		t.Fatalf("no classify binding recorded for eth0; bindings=%v", b.interfaceClassifyBindings)
 	}
-	if bnd.ip4TableIdx == noTable || bnd.ip6TableIdx == noTable {
-		t.Fatalf("binding missing a family table: %+v", bnd)
+	if len(bnd.ip4Tables) == 0 || len(bnd.ip6Tables) == 0 {
+		t.Fatalf("binding missing a family table chain: %+v", bnd)
+	}
+	if _, present := bnd.policers["ze/eth0/c1"]; !present {
+		t.Fatalf("binding missing the filtered policer: %+v", bnd)
 	}
 	// The filtered policer is tracked in the binding, NOT in the output map.
 	if _, present := b.interfaceOutputPolicers["eth0"]["ze/eth0/c1"]; present {
@@ -489,6 +492,211 @@ func applyWithOpsLocked(b *backend, ops vppOps, desired map[string]traffic.Inter
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.applyWithOps(ops, desired)
+}
+
+// eth0OneClassDscpHTB is eth0 with one HTB class carrying a dscp filter (cs6=48).
+// Police-by-dscp: the class policer is bound via the classify pipeline (ip4+ip6
+// tables matching the TOS/TC bits), not the egress policer-output path.
+func eth0OneClassDscpHTB() map[string]traffic.InterfaceQoS {
+	return map[string]traffic.InterfaceQoS{
+		"eth0": {
+			Interface: "eth0",
+			Qdisc: traffic.Qdisc{
+				Type: traffic.QdiscHTB,
+				Classes: []traffic.TrafficClass{
+					{Name: "c1", Rate: 1_000_000, Filters: []traffic.TrafficFilter{{Type: traffic.FilterDSCP, Value: 48}}},
+				},
+			},
+		},
+	}
+}
+
+// VALIDATES: AC-2 (police-by-dscp) / R-2 -- a class with a dscp filter creates
+// one ip4 and one ip6 classify table (a session each, steering to the class
+// policer), binds them to the interface policer-classify feature, and does NOT
+// bind the egress policer-output. This is the R-2 "dscp classifies+steers, not
+// remarks" proof: the pipeline is identical to protocol.
+func TestApplyFilterDscpAttaches(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+
+	if err := applyWithOpsLocked(b, fake, eth0OneClassDscpHTB()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if n := fake.countPrefix("clTable:add"); n != 2 {
+		t.Fatalf("classify table add count = %d, want 2 (ip4+ip6); calls=%v", n, fake.calls)
+	}
+	if n := fake.countPrefix("clSession:add"); n != 2 {
+		t.Fatalf("classify session add count = %d, want 2; calls=%v", n, fake.calls)
+	}
+	if n := fake.countPrefix("polClassify:on"); n != 1 {
+		t.Fatalf("policer-classify bind count = %d, want 1; calls=%v", n, fake.calls)
+	}
+	for _, c := range fake.calls {
+		if strings.HasPrefix(c, "clSession:add") && !strings.Contains(c, ":hit=1:") {
+			t.Fatalf("dscp session %q does not steer to policer idx 1; calls=%v", c, fake.calls)
+		}
+	}
+	if n := fake.countPrefix("output:"); n != 0 {
+		t.Fatalf("dscp filtered class made %d policer-output calls, want 0; calls=%v", n, fake.calls)
+	}
+	bnd, ok := b.interfaceClassifyBindings["eth0"]
+	if !ok || len(bnd.ip4Tables) == 0 || len(bnd.ip6Tables) == 0 {
+		t.Fatalf("dscp classify binding missing a family chain: %+v", bnd)
+	}
+}
+
+// twoClassProtoHTB is eth0 with two HTB classes, each carrying a DIFFERENT
+// protocol filter (tcp=6, udp=17). Same field type -> one table per family with
+// two sessions steering to two distinct policers (no chaining needed).
+func twoClassProtoHTB() map[string]traffic.InterfaceQoS {
+	return map[string]traffic.InterfaceQoS{
+		"eth0": {
+			Interface: "eth0",
+			Qdisc: traffic.Qdisc{
+				Type: traffic.QdiscHTB,
+				Classes: []traffic.TrafficClass{
+					{Name: "web", Rate: 10_000_000, Filters: []traffic.TrafficFilter{{Type: traffic.FilterProtocol, Value: 6}}},
+					{Name: "dns", Rate: 1_000_000, Filters: []traffic.TrafficFilter{{Type: traffic.FilterProtocol, Value: 17}}},
+				},
+			},
+		},
+	}
+}
+
+// VALIDATES: AC-5 -- multi-class HTB with a protocol filter on every class
+// creates per-class policers and steers each class's traffic to its own policer.
+// Same-field classes share ONE table per family (two sessions, distinct hit
+// indices) -- no chaining. Real VPP v25.10 confirmed multi-session per table.
+func TestApplyMultiClassSteering(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+
+	if err := applyWithOpsLocked(b, fake, twoClassProtoHTB()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if n := fake.countPrefix("addDel:ze/eth0/"); n != 2 {
+		t.Fatalf("policer addDel count = %d, want 2 (per-class); calls=%v", n, fake.calls)
+	}
+	// Same field mask across both classes -> ONE table per family (not 2).
+	if n := fake.countPrefix("clTable:add"); n != 2 {
+		t.Fatalf("classify table add count = %d, want 2 (ip4+ip6 single group); calls=%v", n, fake.calls)
+	}
+	if n := fake.countPrefix("clSession:add"); n != 4 {
+		t.Fatalf("classify session add count = %d, want 4 (2 protos x 2 families); calls=%v", n, fake.calls)
+	}
+	if n := fake.countPrefix("polClassify:on"); n != 1 {
+		t.Fatalf("policer-classify bind count = %d, want 1; calls=%v", n, fake.calls)
+	}
+	// Two distinct policer hit indices appear across the sessions (each class
+	// steers to its own policer). fake hands out 1 and 2.
+	hits := map[string]bool{}
+	for _, c := range fake.calls {
+		if strings.HasPrefix(c, "clSession:add") {
+			if strings.Contains(c, ":hit=1:") {
+				hits["1"] = true
+			}
+			if strings.Contains(c, ":hit=2:") {
+				hits["2"] = true
+			}
+		}
+	}
+	if !hits["1"] || !hits["2"] {
+		t.Fatalf("expected sessions steering to BOTH policers 1 and 2; calls=%v", fake.calls)
+	}
+	bnd := b.interfaceClassifyBindings["eth0"]
+	if len(bnd.policers) != 2 {
+		t.Fatalf("binding should track 2 filtered policers, got %d: %+v", len(bnd.policers), bnd)
+	}
+	// Single group per family -> chain length 1 (no NextTableIndex chaining).
+	if len(bnd.ip4Tables) != 1 || len(bnd.ip6Tables) != 1 {
+		t.Fatalf("same-field multi-class should yield 1 table per family, got ip4=%d ip6=%d", len(bnd.ip4Tables), len(bnd.ip6Tables))
+	}
+}
+
+// VALIDATES: AC-5 (mixed-field) -- classes filtering on DIFFERENT fields
+// (protocol vs dscp) need distinct masks, so their tables are CHAINED per family
+// via NextTableIndex. Real VPP v25.10 confirmed the chain fall-through.
+func TestApplyMultiClassMixedFieldChains(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	desired := map[string]traffic.InterfaceQoS{
+		"eth0": {
+			Interface: "eth0",
+			Qdisc: traffic.Qdisc{
+				Type: traffic.QdiscHTB,
+				Classes: []traffic.TrafficClass{
+					{Name: "web", Rate: 10_000_000, Filters: []traffic.TrafficFilter{{Type: traffic.FilterProtocol, Value: 6}}},
+					{Name: "voip", Rate: 1_000_000, Filters: []traffic.TrafficFilter{{Type: traffic.FilterDSCP, Value: 46}}},
+				},
+			},
+		},
+	}
+	if err := applyWithOpsLocked(b, fake, desired); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	// Two distinct masks per family -> 2 tables per family -> 4 total.
+	if n := fake.countPrefix("clTable:add"); n != 4 {
+		t.Fatalf("classify table add count = %d, want 4 (2 masks x 2 families); calls=%v", n, fake.calls)
+	}
+	// Per family the head table chains to its successor: exactly 2 tables carry
+	// a non-terminal next index (the two heads), 2 are chain tails (next=-1).
+	heads, tails := 0, 0
+	for _, c := range fake.calls {
+		if !strings.HasPrefix(c, "clTable:add") {
+			continue
+		}
+		if strings.Contains(c, ":next=-1") {
+			tails++
+		} else {
+			heads++
+		}
+	}
+	if heads != 2 || tails != 2 {
+		t.Fatalf("chain shape wrong: heads=%d tails=%d (want 2/2); calls=%v", heads, tails, fake.calls)
+	}
+	bnd := b.interfaceClassifyBindings["eth0"]
+	if len(bnd.ip4Tables) != 2 || len(bnd.ip6Tables) != 2 {
+		t.Fatalf("mixed-field multi-class should yield 2 tables per family, got ip4=%d ip6=%d", len(bnd.ip4Tables), len(bnd.ip6Tables))
+	}
+}
+
+// VALIDATES: AC-5 reconcile -- dropping one filtered class from a multi-class
+// interface deletes that class's policer but keeps the surviving class's. Both
+// families' old tables are replaced (deleted) as the fresh chain is rebound.
+func TestApplyMultiClassReconcileDropsOneClass(t *testing.T) {
+	b := newOpsBackend()
+	fake1 := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	if err := applyWithOpsLocked(b, fake1, twoClassProtoHTB()); err != nil {
+		t.Fatalf("first apply: %v", err)
+	}
+	// Second apply: only the "web" class remains (dns dropped).
+	oneClass := map[string]traffic.InterfaceQoS{
+		"eth0": {
+			Interface: "eth0",
+			Qdisc: traffic.Qdisc{
+				Type: traffic.QdiscHTB,
+				Classes: []traffic.TrafficClass{
+					{Name: "web", Rate: 10_000_000, Filters: []traffic.TrafficFilter{{Type: traffic.FilterProtocol, Value: 6}}},
+				},
+			},
+		},
+	}
+	fake2 := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	if err := applyWithOpsLocked(b, fake2, oneClass); err != nil {
+		t.Fatalf("reconcile apply: %v", err)
+	}
+	// The dropped "dns" policer must be deleted exactly once; "web" survives.
+	if n := fake2.countPrefix("del:"); n != 1 {
+		t.Fatalf("reconcile policer del count = %d, want 1 (dropped dns only); calls=%v", n, fake2.calls)
+	}
+	bnd := b.interfaceClassifyBindings["eth0"]
+	if _, ok := bnd.policers["ze/eth0/web"]; !ok {
+		t.Fatalf("surviving policer ze/eth0/web missing from binding: %+v", bnd)
+	}
+	if _, ok := bnd.policers["ze/eth0/dns"]; ok {
+		t.Fatalf("dropped policer ze/eth0/dns still tracked: %+v", bnd)
+	}
 }
 
 // VALIDATES: AC-5 "trafficvpp vppOps interface defined and used by Apply path:
