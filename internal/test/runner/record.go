@@ -144,6 +144,15 @@ type Record struct {
 	// Stdin blocks for process orchestration
 	StdinBlocks map[string][]byte // name -> content from stdin= blocks
 
+	// zeConfigFiles maps each ze-daemon stdin block name to the tmpfs config
+	// file written for it. A second concurrent `ze -` daemon in the same test
+	// (e.g. an IKE responder+initiator pair) uses a distinct block name, so it
+	// gets a distinct file instead of clobbering the first daemon's ze-bgp.conf.
+	// The first block keeps the canonical ze-bgp.conf name that rewrite/restart
+	// tests (action=rewrite:dest=ze-bgp.conf) target; reusing the same block
+	// (a restart) reuses its file.
+	zeConfigFiles map[string]string
+
 	// Run commands for process orchestration
 	RunCommands []RunCommand // run= commands in order
 

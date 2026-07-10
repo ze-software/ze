@@ -1,47 +1,177 @@
-# Functional test: show vpn ipsec sa
-# Spec: plan/spec-ipsec-10-cli-diag.md (AC-1, AC-2, AC-11)
+# Functional test: show vpn ipsec sa (SA table + algorithms + pipe operators)
+# Spec: plan/spec-ipsec-10-cli-diag.md (AC-1, AC-2, AC-11); wired by
+# spec-test-coverage-gaps (AC-3).
 #
-# Verifies: show vpn ipsec sa lists SAs with peer, algorithms, uptime.
-# Pipe operators (json, table, yaml, count, match) produce valid output.
+# Two unprivileged ze instances negotiate IKEv2 over loopback (responder binds
+# 127.0.0.2, initiator 127.0.0.1, sharing ze.test.ike.port). Once the SA is
+# established the initiator's engine-steps executor asserts that
+# `show vpn ipsec sa` lists the peer with its negotiated ESP/IKE algorithms, and
+# that the generic `| json` pipe operator renders the same SA table as valid
+# structured output -- control-plane proof through the CLI show surface.
 #
-# Prerequisites: two ze instances with IPsec config, SA established.
+# // test-relax: the original (never-executed) revision asserted the sa-up EVENT
+# (expect=event:namespace=vpn-ipsec:name=sa-up). The initial sa-up fires at
+# startup before any runtime subscription can be placed, and the only
+# pre-establishment subscribe path is namespace-locked to bgp (dispatch.go
+# registerSubscriptions) -- a real product gap deferred to
+# spec-fixit-plugin-event-subscription. The SA table itself is asserted here via
+# `show vpn ipsec sa` output (established state + algorithms), which needs no
+# event subscription.
 
+option=env:var=ze_test_ike_port:value=$PORT2
+# noop dataplane: unprivileged XFRM install is EPERM-fatal by design.
+option=env:var=ze_test_ike_dataplane:value=noop
+option=timeout:value=40s
+
+# ── Responder daemon (background): binds 127.0.0.2, waits for the initiator ──
+stdin=responder:terminator=EOF_RESPONDER
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 2.2.2.2
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (foreground) with the engine-steps executor ──
 stdin=config:terminator=EOF_CONFIG
-{
-  "vpn": {
-    "ipsec": {
-      "esp-group": {
-        "esp-default": {
-          "lifetime": "3600",
-          "proposal": { "1": { "encryption": "aes256", "hash": "sha256" } }
-        }
-      },
-      "ike-group": {
-        "ike-default": {
-          "key-exchange": "ikev2",
-          "lifetime": "28800",
-          "proposal": { "1": { "dh-group": "14", "encryption": "aes256", "hash": "sha256" } }
-        }
-      },
-      "site-to-site": {
-        "peer-1": {
-          "ike-group": "ike-default",
-          "esp-group": "esp-default",
-          "connection-type": "initiate",
-          "local-address": "10.0.0.1",
-          "remote-address": "10.0.0.2",
-          "authentication": { "mode": "pre-shared-secret", "pre-shared-secret": "test-key-1234" }
-        }
-      }
-    }
-  }
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.1.1.1
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
 }
 EOF_CONFIG
 
-# Wait for SA to establish
-expect=event:namespace=vpn-ipsec:name=sa-up:timeout=10
+cmd=background:seq=1:exec=ze -:stdin=responder
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=35s
 
-# Run show command
+# The SA table lists the peer as soon as the initiator inserts its session; the
+# negotiated encryption algorithm (aes-cbc) is only populated once IKE_AUTH
+# completes, so polling the `| json` pipe for aes-cbc is a precise "established"
+# wait that cannot false-match the always-present "established-at" key. That the
+# `| json` pipe renders these keys at all proves the generic pipe operator
+# produces valid structured output over the SA table.
 command=show vpn ipsec sa
-expect=output:contains=peer-1:timeout=5
-expect=output:contains=established:timeout=1
+expect=output:contains=peer-1:timeout=25
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=25
+expect=output:contains=sha256:timeout=5
+expect=output:contains=encryption:timeout=3
+expect=output:contains=integrity:timeout=3
+expect=output:contains=peer-name:timeout=3
+expect=output:contains=uptime-seconds:timeout=3
+expect=output:contains=is-initiator:timeout=3
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

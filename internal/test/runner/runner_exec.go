@@ -529,14 +529,18 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				var err error
 				if rec.TmpfsTempDir != "" {
 					// Write config to tmpfs dir so relative plugin paths work. The
-					// filename is fixed (ze-bgp.conf) so tests that rewrite the daemon
-					// config (action=rewrite:dest=ze-bgp.conf), restart a second `ze -`
-					// against the same file, or assert on rollback/ze-bgp-*.conf
-					// versions all address the file the daemon actually reads. The race
-					// between two un-awaited `ze config validate -` steps that once
-					// motivated a per-seq filename is now prevented by awaitQuickZe,
-					// which serializes quick-exit ze commands with isolated buffers.
-					configPath := filepath.Join(rec.TmpfsTempDir, "ze-bgp.conf")
+					// first ze daemon's config keeps the fixed name ze-bgp.conf so
+					// tests that rewrite the daemon config (action=rewrite:dest=
+					// ze-bgp.conf), restart a second `ze -` against the same file, or
+					// assert on rollback/ze-bgp-*.conf versions all address the file
+					// the daemon actually reads. A SECOND concurrent ze daemon in the
+					// same test uses a DISTINCT stdin block (e.g. an IKE responder +
+					// initiator pair), so it gets a per-block file and does not clobber
+					// the first daemon's config -- without which a two-daemon test can
+					// never form a distinct pair (both load whichever config was
+					// written last). Reusing the same block (a restart) reuses its file.
+					configName := zeConfigFileName(rec, cmd.Stdin)
+					configPath := filepath.Join(rec.TmpfsTempDir, configName)
 					tmpFile, err = os.Create(configPath) //nolint:gosec // test runner, path from temp dir
 				} else {
 					configDir, mkdirErr := os.MkdirTemp("", "ze-config-*")
@@ -545,7 +549,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 						return false
 					}
 					tmpFilesToClean = append(tmpFilesToClean, configDir)
-					tmpFile, err = os.Create(filepath.Join(configDir, "ze-bgp.conf")) //nolint:gosec // test runner, path from temp dir
+					tmpFile, err = os.Create(filepath.Join(configDir, zeDefaultConfigName)) //nolint:gosec // test runner, path from temp dir
 				}
 				if err != nil {
 					rec.Error = fmt.Errorf("create temp config file: %w", err)

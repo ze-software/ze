@@ -171,7 +171,15 @@ cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=35s
 # operator-clear re-negotiation behavior is the follow-up.
 command=show vpn ipsec sa
 expect=output:contains=peer-1:timeout=20
-expect=output:contains=established:timeout=5
+# Gate on the negotiated ESP encryption algorithm (aes-cbc), which the SA row
+# only carries once IKE_AUTH completes -- a REAL "established" proof. A plain
+# `contains=established` would false-match the always-present "established-at"
+# key while the SA is still sa-init-sent, so it is not a valid establishment
+# gate (it once passed even when the two daemons shared one config file and no
+# SA ever formed).
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=20
+expect=output:contains=sha256:timeout=5
 expect=exit:code=0
 expect=stderr:contains=engine-steps: all steps passed
 reject=stderr:pattern=panic recovered
