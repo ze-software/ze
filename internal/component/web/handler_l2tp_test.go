@@ -74,6 +74,9 @@ func (f *fakeL2TPService) RawCaptureSnapshot(_ int) []l2tp.RawCaptureEntry      
 func (f *fakeL2TPService) RecordDisconnect(sid uint16, actor, reason string, cause uint32) {
 	f.disconnects = append(f.disconnects, fakeDisconnect{SID: sid, Actor: actor, Reason: reason, Cause: cause})
 }
+func (f *fakeL2TPService) PlaceOutgoingCall(_, _ string) (l2tp.OutgoingCallResult, error) {
+	return l2tp.OutgoingCallResult{}, nil
+}
 
 func publishFakeL2TP(t *testing.T, svc l2tp.Service) {
 	t.Helper()

@@ -40,6 +40,10 @@ type Service interface {
 	DisableRawCapture()
 	RawCaptureSnapshot(limit int) []RawCaptureEntry
 	RecordDisconnect(sessionID uint16, actor, reason string, cause uint32)
+	// PlaceOutgoingCall dials a configured remote and originates an LNS-side
+	// outgoing call, blocking until it establishes or fails
+	// (spec-followup-l2tp-call AC-4).
+	PlaceOutgoingCall(remoteName, calledNumber string) (OutgoingCallResult, error)
 }
 
 // Compile-time guarantee that *Subsystem implements Service.

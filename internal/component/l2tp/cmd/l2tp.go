@@ -65,6 +65,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:session-teardown", Handler: handleSessionTeardown},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:session-teardown-all", Handler: handleSessionTeardownAll},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:session-traffic", Handler: handleSessionTraffic},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:outgoing-call", Handler: handleOutgoingCall},
 	)
 }
 

@@ -8,8 +8,12 @@ module ze-l2tp-cmd {
 
     description
         "L2TP tunnel and session operations for BNG subscriber access.
-         Adds 'show l2tp' commands for inspection and 'clear l2tp'
-         commands for teardown.";
+         Adds 'show l2tp' commands for inspection, 'clear l2tp' commands
+         for teardown, and 'request l2tp' operator actions.";
+
+    revision 2026-07-10 {
+        description "Add 'request l2tp outgoing-call remote <name> called <number>' (spec-followup-l2tp-call AC-4).";
+    }
 
     revision 2026-06-03 {
         description "Relocate show l2tp-health from central show schema (plugin self-containment).";
@@ -224,6 +228,53 @@ session ID.";
                     description "Disconnect every L2TP session on this box.
 Sends CDN for all sessions across all tunnels. Tunnels themselves
 stay up. Use with care.";
+                }
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Operator action tree: `request l2tp outgoing-call remote <name>
+    // called <number>`. Under the `request` verb because it performs a
+    // runtime operational action (dial-out) without touching config.
+    // Two typed selectors (remote, called) nest as a container per
+    // keyword, with both leaves on the final ze:command node so each is
+    // captured into ctx.Selectors (ai/rules/cli-grammar.md).
+    // -----------------------------------------------------------------
+    container request {
+        config false;
+
+        container l2tp {
+            config false;
+            description "L2TP operator actions (RFC 2661).";
+
+            container outgoing-call {
+                config false;
+                description "Place an LNS-side outgoing call toward a remote.";
+
+                container remote {
+                    config false;
+                    description "Select the configured remote to dial.";
+
+                    container called {
+                        config false;
+                        ze:command "ze-l2tp-api:outgoing-call";
+                        description "Place an LNS-side outgoing call (RFC 2661 S10.4).
+Usage: request l2tp outgoing-call remote <name> called <number>. Dials the
+named remote (which must have outgoing-calls enabled), sends OCRQ, and blocks
+until the call establishes or fails. On failure the cause and RFC 2661 Result
+Code are reported (auth reject, tie-breaker loss, peer CDN, or timeout).";
+                        leaf remote {
+                            type string;
+                            mandatory true;
+                            description "Configured l2tp/remote dial-target name";
+                        }
+                        leaf called {
+                            type string;
+                            mandatory true;
+                            description "Called Number for the OCRQ";
+                        }
+                    }
                 }
             }
         }

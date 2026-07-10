@@ -11,6 +11,7 @@ import (
 
 	l2tppkg "codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
 // fakeService is a minimal l2tppkg.Service for unit-testing handlers
@@ -26,6 +27,7 @@ type fakeService struct {
 	teardownSessionErr   error
 	teardownAllTunnelsN  int
 	teardownAllSessionsN int
+	outgoingCall         func(remote, called string) (l2tppkg.OutgoingCallResult, error)
 }
 
 func (f *fakeService) Snapshot() l2tppkg.Snapshot              { return f.snapshot }
@@ -60,6 +62,12 @@ func (f *fakeService) EnableRawCapture()                                        
 func (f *fakeService) DisableRawCapture()                                               {}
 func (f *fakeService) RawCaptureSnapshot(_ int) []l2tppkg.RawCaptureEntry               { return nil }
 func (f *fakeService) RecordDisconnect(_ uint16, _, _ string, _ uint32)                 {}
+func (f *fakeService) PlaceOutgoingCall(remote, called string) (l2tppkg.OutgoingCallResult, error) {
+	if f.outgoingCall != nil {
+		return f.outgoingCall(remote, called)
+	}
+	return l2tppkg.OutgoingCallResult{Remote: remote, Called: called}, nil
+}
 
 // publishFake wires fake into the service locator and returns a
 // deferred unpublish.
@@ -258,4 +266,65 @@ func TestParseKeywordArgs_ActorReasonCause(t *testing.T) {
 	require.Equal(t, "web", actor)
 	require.Equal(t, "maintenance", reason)
 	require.Equal(t, uint32(6), cause)
+}
+
+// outgoingCtx builds a CommandContext with the two typed selectors the
+// outgoing-call grammar captures.
+func outgoingCtx(remote, called string) *pluginserver.CommandContext {
+	return &pluginserver.CommandContext{Selectors: map[string]string{"remote": remote, "called": called}}
+}
+
+// VALIDATES: AC-4 -- outgoing-call handler returns the established session
+// identifiers on success.
+func TestHandleOutgoingCall_Success(t *testing.T) {
+	publishFake(t, &fakeService{
+		outgoingCall: func(remote, called string) (l2tppkg.OutgoingCallResult, error) {
+			require.Equal(t, "lns1", remote)
+			require.Equal(t, "5551234", called)
+			return l2tppkg.OutgoingCallResult{
+				Remote: remote, Called: called, Established: true, LocalSID: 11, RemoteSID: 22,
+			}, nil
+		},
+	})
+	resp, err := handleOutgoingCall(outgoingCtx("lns1", "5551234"), nil)
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+	var got map[string]any
+	require.NoError(t, json.Unmarshal([]byte(responseString(t, resp)), &got))
+	require.Equal(t, true, got["established"])
+	require.Equal(t, float64(11), got["local-sid"])
+	require.Equal(t, float64(22), got["remote-sid"])
+}
+
+// VALIDATES: AC-4 -- a failed call surfaces StatusError plus the failure
+// cause and RFC 2661 Result Code (tie-breaker loss / auth reject visibility).
+func TestHandleOutgoingCall_FailureSurfacesResultCode(t *testing.T) {
+	publishFake(t, &fakeService{
+		outgoingCall: func(remote, called string) (l2tppkg.OutgoingCallResult, error) {
+			return l2tppkg.OutgoingCallResult{Remote: remote, Called: called, ResultCode: 4},
+				errors.New("tunnel authentication rejected")
+		},
+	})
+	resp, err := handleOutgoingCall(outgoingCtx("lns1", "555"), nil)
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusError, resp.Status)
+	require.Contains(t, resp.Error, "failed")
+	var got map[string]any
+	require.NoError(t, json.Unmarshal([]byte(responseString(t, resp)), &got))
+	require.Equal(t, false, got["established"])
+	require.Equal(t, float64(4), got["result-code"])
+}
+
+// VALIDATES: AC-4 -- a missing selector is rejected with a clear error.
+func TestHandleOutgoingCall_MissingArgs(t *testing.T) {
+	publishFake(t, &fakeService{})
+	resp, err := handleOutgoingCall(outgoingCtx("", "555"), nil)
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusError, resp.Status)
+	require.Contains(t, resp.Error, "remote")
+
+	resp, err = handleOutgoingCall(outgoingCtx("lns1", ""), nil)
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusError, resp.Status)
+	require.Contains(t, resp.Error, "called")
 }

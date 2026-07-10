@@ -178,6 +178,9 @@ func (f *fakeL2TPService) EnableRawCapture()                                    
 func (f *fakeL2TPService) DisableRawCapture()                                      {}
 func (f *fakeL2TPService) RawCaptureSnapshot(int) []l2tp.RawCaptureEntry           { return nil }
 func (f *fakeL2TPService) RecordDisconnect(uint16, string, string, uint32)         {}
+func (f *fakeL2TPService) PlaceOutgoingCall(_, _ string) (l2tp.OutgoingCallResult, error) {
+	return l2tp.OutgoingCallResult{}, nil
+}
 
 func mustResolveUDP(t *testing.T, addr string) *net.UDPAddr {
 	t.Helper()

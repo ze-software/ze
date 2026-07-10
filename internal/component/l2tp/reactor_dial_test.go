@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -150,6 +151,106 @@ func TestReactor_InitiatorTieBreaker(t *testing.T) {
 	}
 	// Never two tunnels to the same peer after a tie-broken crossed open.
 	require.LessOrEqual(t, r.TunnelCount(), 1)
+}
+
+// syncCallResult bundles PlaceOutgoingCallSync's two returns for delivery
+// over a channel from the goroutine that makes the blocking call.
+type syncCallResult struct {
+	outcome callOutcome
+	err     error
+}
+
+// TestReactor_PlaceOutgoingCallSync_TieBreakerLoss -- AC-4 + AC-8 edge case.
+//
+// VALIDATES: a dialed tunnel whose pending outgoing call loses the
+// simultaneous-open tie-breaker is discarded, and PlaceOutgoingCallSync
+// surfaces that as a FAILURE outcome (not a silent drop, not a timeout). This
+// is the edge case the session-state digest flagged: without resolvePendingCall
+// in discardTunnelLocked the RPC would hang until timeout.
+func TestReactor_PlaceOutgoingCallSync_TieBreakerLoss(t *testing.T) {
+	ln, r, _, stop := buildLogReactor(t)
+	defer stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	resCh := make(chan syncCallResult, 1)
+	go func() {
+		o, err := r.PlaceOutgoingCallSync(DialTarget{Remote: clientAddrPort(t, client)},
+			callParams{calledNumber: "5551234"}, 3*time.Second)
+		resCh <- syncCallResult{o, err}
+	}()
+
+	// Read ze's SCCRQ, then cross it with a peer SCCRQ whose tie breaker is
+	// all zeros -- guaranteed <= ze's, so ze's dialed tunnel loses (or ties;
+	// either way it is discarded and its pending call fails).
+	_ = readDatagram(t, client)
+	peerTB := make([]byte, 8) // all zeros: minimal value
+	client.Send(t, buildSCCRQWithTieBreaker(t, 42, "peer-x", peerTB))
+
+	select {
+	case rr := <-resCh:
+		require.NoError(t, rr.err, "no transport error; the outcome carries the failure")
+		require.Error(t, rr.outcome.err, "tie-breaker loss must surface as a call failure")
+		require.NotErrorIs(t, rr.err, ErrCallTimeout, "must be a discard failure, not a timeout")
+		require.Zero(t, rr.outcome.localSID, "call never placed on a session")
+	case <-time.After(5 * time.Second):
+		t.Fatal("PlaceOutgoingCallSync hung after tie-breaker loss (edge case regressed)")
+	}
+}
+
+// TestReactor_PlaceOutgoingCallSync_Timeout -- AC-4 timeout path.
+//
+// VALIDATES: a dial whose peer never answers returns ErrCallTimeout rather
+// than blocking forever.
+func TestReactor_PlaceOutgoingCallSync_Timeout(t *testing.T) {
+	ln, r, _, stop := buildLogReactor(t)
+	defer stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	o, err := r.PlaceOutgoingCallSync(DialTarget{Remote: clientAddrPort(t, client)},
+		callParams{calledNumber: "555"}, 150*time.Millisecond)
+	require.ErrorIs(t, err, ErrCallTimeout)
+	require.Zero(t, o.localSID)
+	_ = readDatagram(t, client) // ze did send the SCCRQ before we gave up
+}
+
+// TestReactor_PlaceOutgoingCallSync_AuthReject -- AC-4 auth-failure surfacing.
+//
+// VALIDATES: dialing a remote with a shared secret and receiving an SCCRP
+// with no Challenge Response tears the tunnel down (StopCCN RC=4) and
+// PlaceOutgoingCallSync reports the authentication failure with the result code.
+func TestReactor_PlaceOutgoingCallSync_AuthReject(t *testing.T) {
+	ln, r, _, stop := buildLogReactor(t)
+	defer stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	resCh := make(chan syncCallResult, 1)
+	go func() {
+		o, err := r.PlaceOutgoingCallSync(
+			DialTarget{Remote: clientAddrPort(t, client), SharedSecret: "s3cr3t"},
+			callParams{calledNumber: "555"}, 3*time.Second)
+		resCh <- syncCallResult{o, err}
+	}()
+
+	sccrq := readDatagram(t, client)
+	// buildSCCRPForSCCRQ answers with no Challenge Response; ze sent a
+	// Challenge (secret set), so it rejects with StopCCN RC=4. The peer TID
+	// here is immaterial (the tunnel never establishes).
+	client.Send(t, buildSCCRPForSCCRQ(t, sccrq, 777))
+
+	select {
+	case rr := <-resCh:
+		require.NoError(t, rr.err)
+		require.ErrorIs(t, rr.outcome.err, errCallTunnelAuthFailed)
+		require.EqualValues(t, resultNotAuthorized, rr.outcome.resultCode)
+	case <-time.After(5 * time.Second):
+		t.Fatal("PlaceOutgoingCallSync hung after auth reject")
+	}
 }
 
 // msgTypeOf returns the L2TP message type of a control datagram.

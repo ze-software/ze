@@ -302,4 +302,37 @@ module ze-l2tp-api {
             }
         }
     }
+
+    // -----------------------------------------------------------------
+    // Operator-initiated calls (spec-followup-l2tp-call AC-4).
+    // -----------------------------------------------------------------
+
+    rpc outgoing-call {
+        description
+            "Place an LNS-side outgoing call toward a configured remote
+             (RFC 2661 Section 10.4). Dials the remote if no tunnel is up,
+             sends OCRQ, and blocks until the call establishes or fails.
+             The response reports whether the call came up and, on failure,
+             the cause and RFC 2661 Result Code (tunnel authentication
+             reject, tie-breaker loss, peer CDN, or timeout). The named
+             remote MUST have outgoing-calls enabled.";
+        input {
+            leaf remote {
+                type string;
+                mandatory true;
+                description "Name of a configured l2tp/remote dial target.";
+            }
+            leaf called {
+                type string;
+                mandatory true;
+                description "Called Number placed in the OCRQ (RFC 2661 Section 7.9).";
+            }
+        }
+        output {
+            leaf result {
+                type string;
+                description "JSON object describing the call outcome.";
+            }
+        }
+    }
 }

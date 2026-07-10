@@ -281,10 +281,19 @@ func (t *L2TPTunnel) teardownStopCCN(now time.Time, resultCode uint16) []sendReq
 		t.logger.Warn("l2tp: StopCCN enqueue failed", "error", err.Error())
 		t.transition(L2TPTunnelClosed, "StopCCN enqueue failed")
 		t.engine.Close(now)
+		t.resolvePendingCall(callOutcome{err: errCallTunnelSetupFailed, resultCode: resultCode})
 		return nil
 	}
 	t.transition(L2TPTunnelClosed, "StopCCN sent")
 	t.engine.Close(now)
+	// AC-4: a call still waiting on this tunnel (never placed on a session,
+	// because the tunnel never established) fails now. RC=4 (Not Authorized)
+	// is reported as an auth failure; every other code as a setup failure.
+	failErr := errCallTunnelSetupFailed
+	if resultCode == resultNotAuthorized {
+		failErr = errCallTunnelAuthFailed
+	}
+	t.resolvePendingCall(callOutcome{err: failErr, resultCode: resultCode})
 	t.logger.Info("l2tp: StopCCN sent; tunnel closed", "result-code", resultCode)
 	return []sendRequest{{to: t.peerAddr, bytes: wire}}
 }

@@ -777,6 +777,11 @@ func (r *L2TPReactor) resolveTieBreakerLocked(from netip.AddrPort, newTB []byte)
 // established sessions that had kernel resources; the caller MUST
 // enqueue them to the kernel worker. Caller MUST hold tunnelsMu.
 func (r *L2TPReactor) discardTunnelLocked(t *L2TPTunnel, reason string) []kernelTeardownEvent {
+	// AC-4: a dialed tunnel that loses the tie-breaker (or expires in
+	// retention) is discarded before it establishes, so its pending call is
+	// never placed on a session and would otherwise be dropped silently. Fail
+	// the blocking RPC with the discard reason (e.g. "tie-breaker lost").
+	t.resolvePendingCall(callOutcome{err: fmt.Errorf("%w (%s)", errCallTunnelSetupFailed, reason)})
 	// Phase 5: clear sessions so kernel teardown events are queued.
 	t.clearSessions()
 	teardowns := t.pendingKernelTeardowns

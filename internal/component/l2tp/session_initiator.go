@@ -158,6 +158,8 @@ func (t *L2TPTunnel) handleICRP(sess *L2TPSession, payload []byte, now time.Time
 	sess.transition(L2TPSessionEstablished, "ICRP received")
 	sess.kernelSetupNeeded = true
 	sess.lnsMode = false
+	// AC-4: a blocking PlaceIncomingCallSync (if any) learns the call is up.
+	sess.resolveCall(callOutcome{localSID: sess.localSID, remoteSID: sess.remoteSID})
 	logger.Info("l2tp: session established (incoming LAC)",
 		"local-sid", sess.localSID, "remote-sid", sess.remoteSID)
 	return []sendRequest{{to: t.peerAddr, bytes: wire}}

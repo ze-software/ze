@@ -127,7 +127,30 @@ type L2TPSession struct {
 	sessionTimeoutCancel func()
 	idleTimeoutCancel    func()
 
+	// callResult carries the outcome of an operator-initiated call
+	// (spec-followup-l2tp-call AC-4) back to the blocking RPC. Set when a
+	// pendingCall with a result channel is placed on this session
+	// (placePendingCallLocked); nil for peer-initiated sessions and
+	// fire-and-forget (config-driven relay) calls. Signaled exactly once by
+	// resolveCall: success when the session establishes, failure when it is
+	// torn down before establishing. Buffered (cap 1) so the reactor never
+	// blocks even if the RPC caller already timed out.
+	callResult chan callOutcome
+
 	fsmHistory *fsmHistoryRing
+}
+
+// resolveCall delivers the call outcome to a waiting RPC exactly once and
+// clears the channel so a later teardown signal is a no-op. Non-blocking:
+// callResult is buffered (cap 1) and a caller that already timed out simply
+// leaves the value unread. No-op when callResult is nil (peer-initiated or
+// fire-and-forget session). Caller MUST hold the owning reactor's tunnelsMu.
+func (s *L2TPSession) resolveCall(o callOutcome) {
+	if s.callResult == nil {
+		return
+	}
+	s.callResult <- o
+	s.callResult = nil
 }
 
 // State returns the session's current FSM state.
@@ -212,6 +235,11 @@ func (t *L2TPTunnel) removeSession(sid uint16) {
 			localSID: sid,
 		})
 	}
+	// AC-4: an operator call torn down before it established fails its RPC.
+	// No-op once the session established (resolveCall already fired success).
+	if sess != nil {
+		sess.resolveCall(callOutcome{err: errCallTornDown})
+	}
 	delete(t.sessions, sid)
 }
 
@@ -257,6 +285,8 @@ func (t *L2TPTunnel) clearSessions() []*L2TPSession {
 				localSID: s.localSID,
 			})
 		}
+		// AC-4: fail any operator call that had not yet established.
+		s.resolveCall(callOutcome{err: errCallTornDown})
 		result = append(result, s)
 	}
 	t.sessions = nil

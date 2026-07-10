@@ -303,6 +303,9 @@ func (t *L2TPTunnel) handleOCCN(sess *L2TPSession, payload []byte, now time.Time
 	sess.framingType = info.framingType
 	sess.sequencingRequired = info.sequencingRequired
 
+	// AC-4: a blocking PlaceOutgoingCallSync learns the call is up.
+	sess.resolveCall(callOutcome{localSID: sess.localSID, remoteSID: sess.remoteSID})
+
 	// Phase 5: signal reactor to create kernel resources.
 	sess.kernelSetupNeeded = true
 	// lnsMode is fixed at call origination and preserved here: an LNS that
@@ -429,6 +432,10 @@ func (t *L2TPTunnel) handleSLI(sessionID uint16, payload []byte, logger *slog.Lo
 //
 //nolint:unparam // see doc comment: future RFC 2661 result codes plug in here
 func (t *L2TPTunnel) teardownSession(sess *L2TPSession, resultCode uint16, now time.Time, logger *slog.Logger) []sendRequest {
+	// AC-4: report the CDN Result Code to a blocking RPC (no-op once the
+	// session established or for peer-initiated sessions). Signaled here so
+	// the specific code survives the generic errCallTornDown in removeSession.
+	sess.resolveCall(callOutcome{err: errCallTornDown, resultCode: resultCode})
 	bodyBuf := GetBuf()
 	defer PutBuf(bodyBuf)
 	n := writeCDNBody(*bodyBuf, sess.localSID, resultCode)
