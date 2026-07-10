@@ -26,6 +26,12 @@ type progChannel struct {
 	swIfIndex interface_types.InterfaceIndex
 	peerIndex uint32
 	sendErr   error
+
+	// Dump responses delivered by SendMultiRequest, used by GetWireguardDevice
+	// round-trip tests. Each slice is streamed one entry per ReceiveReply,
+	// then a final (last=true) terminates the dump.
+	wgIfaceDetails []wireguard.WireguardInterfaceDetails
+	wgPeerDetails  []wireguard.WireguardPeersDetails
 }
 
 var _ api.Channel = (*progChannel)(nil)
@@ -37,7 +43,24 @@ func (c *progChannel) SendRequest(msg api.Message) api.RequestCtx {
 
 func (c *progChannel) SendMultiRequest(msg api.Message) api.MultiRequestCtx {
 	c.requests = append(c.requests, msg)
-	return &progMultiCtx{}
+	switch msg.(type) {
+	case *wireguard.WireguardInterfaceDump:
+		ctx := &progMultiCtx{}
+		for i := range c.wgIfaceDetails {
+			d := c.wgIfaceDetails[i]
+			ctx.details = append(ctx.details, &d)
+		}
+		return ctx
+	case *wireguard.WireguardPeersDump:
+		ctx := &progMultiCtx{}
+		for i := range c.wgPeerDetails {
+			d := c.wgPeerDetails[i]
+			ctx.details = append(ctx.details, &d)
+		}
+		return ctx
+	default:
+		return &progMultiCtx{}
+	}
 }
 
 func (c *progChannel) SubscribeNotification(_ chan api.Message, _ api.Message) (api.SubscriptionCtx, error) {
@@ -84,6 +107,28 @@ func (r *progReqCtx) ReceiveReply(msg api.Message) error {
 	return nil
 }
 
-type progMultiCtx struct{}
+// progMultiCtx streams the recorded dump details one per ReceiveReply. When the
+// details are exhausted it returns last=true, matching GoVPP multi-request
+// semantics. An empty details slice terminates immediately (an empty dump).
+type progMultiCtx struct {
+	details []api.Message
+	idx     int
+}
 
-func (m *progMultiCtx) ReceiveReply(api.Message) (bool, error) { return true, nil }
+func (m *progMultiCtx) ReceiveReply(msg api.Message) (bool, error) {
+	if m.idx >= len(m.details) {
+		return true, nil
+	}
+	switch dst := msg.(type) {
+	case *wireguard.WireguardInterfaceDetails:
+		if src, ok := m.details[m.idx].(*wireguard.WireguardInterfaceDetails); ok {
+			*dst = *src
+		}
+	case *wireguard.WireguardPeersDetails:
+		if src, ok := m.details[m.idx].(*wireguard.WireguardPeersDetails); ok {
+			*dst = *src
+		}
+	}
+	m.idx++
+	return false, nil
+}

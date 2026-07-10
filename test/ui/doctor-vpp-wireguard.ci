@@ -1,0 +1,28 @@
+# Test: ze doctor flags a wireguard interface under backend vpp when the
+#       VPP wireguard plugin toggle (vpp.plugins.wireguard) is not enabled.
+# // test-relax: dropping a stray "EOF" typo line from this brand-new,
+#   never-committed test file; no assertion or coverage is removed.
+# VALIDATES: spec-followup-vpp-iface AC-5/AC-8 -- the owning plugin's doctor
+#            check surfaces the missing wireguard-plugin runtime dependency
+#            before apply, with an actionable diagnostic code.
+# PREVENTS: an operator committing a wireguard-under-vpp config that silently
+#           fails at apply because wireguard_plugin.so never loads.
+
+option=skip-os:value=aix,android,darwin,dragonfly,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+
+tmpfs=vpp-wg.conf:terminator=EOF_CONF
+interface {
+    backend vpp
+    wireguard wg0 {
+        listen-port 51820
+        private-key "aHZkc2ZqaHZra2hkZnZoamtkc2Zoa2RoaGRma2poZmg="
+    }
+}
+vpp {
+    api-socket /run/vpp/api.sock
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json vpp-wg.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-vpp-wireguard

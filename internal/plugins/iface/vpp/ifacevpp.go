@@ -84,6 +84,15 @@ type vppBackendImpl struct {
 	// so RemoveMirror can replay each with state DISABLED. Lazily initialized.
 	mirMu   sync.Mutex
 	mirrors map[string]map[interface_types.InterfaceIndex]bool
+
+	// wgMu guards wgPeers. VPP's wireguard peer set is reconciled by
+	// wireguard_peer_add / wireguard_peer_remove keyed on the peer_index VPP
+	// returns at add time. ConfigureWireguardDevice applies the whole spec
+	// (ReplacePeers semantics), so it must remove the peers it previously
+	// installed before adding the new set; wgPeers records those indices per
+	// ze interface name. Lazily initialized.
+	wgMu    sync.Mutex
+	wgPeers map[string][]uint32
 }
 
 // recordDeleter registers a kind-specific teardown closure for a created
@@ -434,17 +443,8 @@ func (b *vppBackendImpl) GetXFRMInfo(_ string) (iface.XFRMInfo, error) {
 	return iface.XFRMInfo{}, errNotSupported("GetXFRMInfo (XFRM interfaces are Linux netlink only)")
 }
 
-func (b *vppBackendImpl) CreateWireguardDevice(_ string) error {
-	return errNotSupported("CreateWireguardDevice (requires VPP wireguard plugin)")
-}
-
-func (b *vppBackendImpl) ConfigureWireguardDevice(_ iface.WireguardSpec) error {
-	return errNotSupported("ConfigureWireguardDevice (requires VPP wireguard plugin)")
-}
-
-func (b *vppBackendImpl) GetWireguardDevice(_ string) (iface.WireguardSpec, error) {
-	return iface.WireguardSpec{}, errNotSupported("GetWireguardDevice (requires VPP wireguard plugin)")
-}
+// CreateWireguardDevice, ConfigureWireguardDevice, and GetWireguardDevice are
+// implemented in wireguard.go via the VPP wireguard plugin binary API.
 
 func (b *vppBackendImpl) DeleteInterface(name string) error {
 	// Kind-specific teardown (tunnel, VXLAN, WireGuard, LCP) recorded at

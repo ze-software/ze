@@ -280,6 +280,18 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json"},
 	},
 	{
+		Code:        "doctor-vpp-wireguard",
+		Title:       "VPP wireguard plugin not enabled",
+		Description: "A wireguard interface is configured under the vpp backend, but the VPP wireguard plugin is not enabled (vpp.plugins.wireguard) or not loaded in the running VPP. VPP cannot program wireguard tunnels without it, so the interface will fail at apply.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-vpp-wireguard"},
+	},
+	{
+		Code:        "doctor-vpp-lcp-netns",
+		Title:       "LCP netns unreachable by BGP",
+		Description: "The VPP Linux Control Plane TAPs are created in a network namespace (vpp.lcp.netns) that ze's BGP listener does not run in, so BGP cannot bind on an LCP-shadowed interface. Set vpp.lcp.netns to a root-reachable namespace (host/root) or run BGP in that namespace.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-vpp-lcp-netns"},
+	},
+	{
 		Code:        "doctor-kernel-nexthop",
 		Title:       "Kernel nexthop objects unavailable",
 		Description: "The kernel does not support nexthop objects (requires Linux 5.3+). ECMP will fall back to multipath routes.",

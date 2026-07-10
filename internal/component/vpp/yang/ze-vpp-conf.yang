@@ -189,5 +189,22 @@ module ze-vpp-conf {
                      Routing daemons run in this namespace.";
             }
         }
+
+        container plugins {
+            description
+                "Optional VPP plugin enablement. startup.conf uses
+                 'plugin default { disable }', so only the always-on
+                 plugins (dpdk, plus linux-cp when lcp is enabled) and
+                 the plugins toggled on here are loaded.";
+
+            leaf wireguard {
+                type boolean;
+                default false;
+                description
+                    "Load wireguard_plugin.so so the vpp interface
+                     backend can program WireGuard tunnels (interface
+                     wireguard under backend vpp).";
+            }
+        }
     }
 }

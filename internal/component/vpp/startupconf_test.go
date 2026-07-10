@@ -235,6 +235,26 @@ func TestWorkerCoreList(t *testing.T) {
 	}
 }
 
+// TestWireguardStartupConf verifies AC-5: the wireguard plugin is emitted in
+// startup.conf only when vpp.plugins.wireguard is enabled ("enable only what's
+// used"), consistent with the plugin default { disable } doctrine.
+func TestWireguardStartupConf(t *testing.T) {
+	t.Run("disabled_by_default", func(t *testing.T) {
+		out := generateToString(t, defaultTestSettings())
+		if strings.Contains(out, "wireguard_plugin.so") {
+			t.Errorf("wireguard_plugin.so must not appear when the toggle is off:\n%s", out)
+		}
+	})
+	t.Run("enabled_emits_plugin", func(t *testing.T) {
+		s := defaultTestSettings()
+		s.Plugins.Wireguard = true
+		out := generateToString(t, s)
+		if !strings.Contains(out, "plugin wireguard_plugin.so {") || !strings.Contains(out, "enable") {
+			t.Errorf("expected wireguard_plugin.so enable block:\n%s", out)
+		}
+	})
+}
+
 func defaultTestSettings() *VPPSettings {
 	return &VPPSettings{
 		Enabled:   true,

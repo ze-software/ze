@@ -37,6 +37,14 @@ type VPPSettings struct {
 	DPDK      DPDKSettings
 	Stats     StatsSettings
 	LCP       LCPSettings
+	Plugins   PluginSettings
+}
+
+// PluginSettings holds optional VPP plugin enablement toggles. startup.conf
+// disables plugins by default (plugin default { disable }); each toggle here
+// emits an explicit `plugin <name>.so { enable }`.
+type PluginSettings struct {
+	Wireguard bool
 }
 
 // CPUSettings holds VPP CPU pinning settings.
@@ -188,7 +196,7 @@ func ParseSettings(section json.RawMessage) (*VPPSettings, error) {
 	}
 
 	if err := unknownKeys("config", raw, []string{
-		"enabled", "external", "api-socket", "cpu", "memory", "dpdk", "stats", "lcp",
+		"enabled", "external", "api-socket", "cpu", "memory", "dpdk", "stats", "lcp", "plugins",
 	}); err != nil {
 		return nil, err
 	}
@@ -247,8 +255,27 @@ func ParseSettings(section json.RawMessage) (*VPPSettings, error) {
 			return nil, err
 		}
 	}
+	if v, ok := raw["plugins"]; ok {
+		if err := parsePlugins(v, &cfg.Plugins); err != nil {
+			return nil, err
+		}
+	}
 
 	return cfg, nil
+}
+
+func parsePlugins(data json.RawMessage, plugins *PluginSettings) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("vpp plugins: %w", err)
+	}
+	if err := unknownKeys("plugins", raw, []string{"wireguard"}); err != nil {
+		return err
+	}
+	if v, ok := raw["wireguard"]; ok {
+		plugins.Wireguard = strings.Trim(string(v), `"`) == yangTrue
+	}
+	return nil
 }
 
 // Validate checks the settings for semantic errors beyond YANG schema validation.

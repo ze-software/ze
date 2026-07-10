@@ -16,4 +16,8 @@ func init() {
 		os.Exit(1)
 	}
 	RegisterHealthCheck()
+	if err := registerDoctorChecks(); err != nil {
+		fmt.Fprintf(os.Stderr, "iface-vpp: doctor check registration failed: %v\n", err)
+		os.Exit(1)
+	}
 }

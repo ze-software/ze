@@ -81,6 +81,11 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings) error {
 				b.flag("enable")
 			})
 		}
+		if s.Plugins.Wireguard {
+			b.nested("plugin wireguard_plugin.so", func() {
+				b.flag("enable")
+			})
+		}
 	})
 
 	if s.LCP.Enabled {

@@ -83,3 +83,26 @@ func TestBackendGateVppMirror(t *testing.T) {
 		}
 	})
 }
+
+// TestBackendGateVppWireguard is the end-to-end proof (against the real schema)
+// that the wireguard list's ze:backend widening to "netlink vpp" lets the vpp
+// backend accept a wireguard config while netlink still accepts it too.
+// VALIDATES: AC-5 -- wireguard ze:backend widened to include vpp.
+// PREVENTS: a wireguard-under-vpp config being rejected at commit after the
+//
+//	wireguard plugin binary-API wiring landed.
+func TestBackendGateVppWireguard(t *testing.T) {
+	wgData := func(backend string) string {
+		return `{"interface":{"backend":"` + backend + `","wireguard":{"wg0":{"name":"wg0","listen-port":"51820"}}}}`
+	}
+	t.Run("vpp_accepts_wireguard", func(t *testing.T) {
+		if err := validateBackendGate(gateSection(wgData("vpp")), "vpp"); err != nil {
+			t.Errorf("vpp should accept wireguard after widening: %v", err)
+		}
+	})
+	t.Run("netlink_still_accepts_wireguard", func(t *testing.T) {
+		if err := validateBackendGate(gateSection(wgData("netlink")), "netlink"); err != nil {
+			t.Errorf("netlink should still accept wireguard: %v", err)
+		}
+	})
+}

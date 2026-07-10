@@ -1,14 +1,15 @@
-# Test: wireguard is rejected under backend vpp
-# VALIDATES: the commit-time feature gate rejects a wireguard list entry
-#            when the active backend is vpp. The VPP wireguard plugin is
-#            a separate optional component that is not yet vendored or
-#            wired through GoVPP, so the netdev cannot be created, the
-#            private key cannot be programmed, and the peer set cannot
-#            land -- ifacevpp.CreateWireguardDevice and friends all
-#            return errNotSupported.
-# PREVENTS: a silent-wrong path where the verifier accepts wireguard under
-#           backend vpp and the daemon only fails at Apply time, long after
-#           the operator committed the config.
+# Test: wireguard is accepted under backend vpp
+# // test-relax: spec-followup-vpp-iface Phase 5 IMPLEMENTS wireguard on the
+#   vpp backend (wireguard_interface_create + wireguard_peer_add via the
+#   wireguard plugin binary API), so the ze:backend annotation widened from
+#   "netlink" to "netlink vpp". The old assertion (reject wireguard under vpp)
+#   tested a now-removed limitation; this is replaced coverage. Filename kept
+#   for git history.
+# VALIDATES: spec-followup-vpp-iface AC-5 -- the commit-time feature gate
+#            accepts a wireguard list entry under the vpp backend after the
+#            widening. Plugin load is via vpp.plugins.wireguard; a doctor check
+#            flags the plugin's runtime absence.
+# PREVENTS: a regression that reverts the widening.
 stdin=config:terminator=EOF_CONF
 interface {
 	backend vpp;
@@ -20,7 +21,5 @@ interface {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
-expect=exit:code=1
-expect=stdout:contains=/interface/wireguard
-expect=stdout:contains="vpp"
-expect=stdout:contains=netlink
+expect=exit:code=0
+expect=stdout:contains=configuration valid

@@ -913,7 +913,7 @@ module ze-iface-conf {
         list wireguard {
             key "name";
             ze:listener;
-            ze:backend "netlink";
+            ze:backend "netlink vpp";
             description "WireGuard interface. Declarative config: interface-level
                          listen-port, fwmark, private-key, and a nested peer list
                          with public-key, endpoint, allowed-ips, preshared-key,

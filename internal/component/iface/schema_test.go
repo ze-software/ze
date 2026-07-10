@@ -114,7 +114,11 @@ func TestIfaceYANGBackendAnnotations(t *testing.T) {
 	ifaceCN, ok := iface.(*config.ContainerNode)
 	require.True(t, ok, "interface must be a container")
 
-	for _, name := range []string{"bridge", "tunnel", "wireguard", "veth"} {
+	// bridge, tunnel (list-level), and veth remain netlink-only. The tunnel
+	// list stays "netlink"; per-kind encapsulation cases (gre/gretap/ipip/
+	// vxlan) are widened to "netlink vpp" one level down (see the tunnel
+	// backend-gate tests), not on the list node itself.
+	for _, name := range []string{"bridge", "tunnel", "veth"} {
 		node := ifaceCN.Get(name)
 		require.NotNilf(t, node, "interface.%s missing from schema", name)
 		list, ok := node.(*config.ListNode)
@@ -122,6 +126,16 @@ func TestIfaceYANGBackendAnnotations(t *testing.T) {
 		assert.Equalf(t, []string{"netlink"}, list.Backend,
 			"interface.%s must carry ze:backend \"netlink\"", name)
 	}
+
+	// wireguard is implemented on BOTH backends (spec-followup-vpp-iface
+	// Phase 5: wireguard plugin binary API), so its list carries
+	// ze:backend "netlink vpp".
+	wgNode := ifaceCN.Get("wireguard")
+	require.NotNil(t, wgNode, "interface.wireguard missing from schema")
+	wgList, ok := wgNode.(*config.ListNode)
+	require.True(t, ok, "interface.wireguard must be a list")
+	assert.Equal(t, []string{"netlink", "vpp"}, wgList.Backend,
+		"interface.wireguard must carry ze:backend \"netlink vpp\"")
 
 	// ethernet, dummy, loopback should remain UNRESTRICTED (nil Backend).
 	for _, name := range []string{"ethernet", "dummy"} {
