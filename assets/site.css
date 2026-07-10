@@ -3061,7 +3061,7 @@ footer {
     padding: 1rem 0 3rem;
 }
 
-.md-content > :not(table):not(pre):not(.cards):not(.audience):not(.config-explorer):not(.plugin-console):not(.plugin-groups):not(.plugin-detail-grid):not(.journey-hero):not(.roadmap-forward-note):not(.roadmap-step-list):not(.quality-hero):not(.quality-flow):not(.quality-routes):not(.quality-command-grid):not(.quality-panel):not(.compare-tools):not(.docs-path-grid) {
+.md-content > :not(table):not(pre):not(.cards):not(.audience):not(.config-explorer):not(.plugin-console):not(.plugin-groups):not(.plugin-detail-grid):not(.journey-hero):not(.roadmap-forward-note):not(.roadmap-step-list):not(.quality-hero):not(.quality-flow):not(.quality-routes):not(.quality-command-grid):not(.quality-panel):not(.compare-tools):not(.docs-path-grid):not(.doc-diagram) {
     max-width: 62rem;
 }
 
@@ -5655,6 +5655,37 @@ html:not(.config-js) #config-search {
         max-width: 100%;
         overflow-x: auto;
         overscroll-behavior-inline: contain;
+    }
+
+    .doc-diagram {
+        width: 100%;
+        margin: var(--space-5) 0 var(--space-6);
+        border: 2px solid rgba(255, 255, 255, 0.92);
+        border-radius: var(--radius-xl);
+        background: var(--panel);
+        box-shadow: var(--shadow-clay);
+        overflow: hidden;
+    }
+
+    .doc-diagram a {
+        display: block;
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+    }
+
+    .doc-diagram img {
+        display: block;
+        width: 100%;
+        min-width: 64rem;
+        height: auto;
+    }
+
+    .doc-diagram figcaption {
+        padding: var(--space-3) var(--space-4) var(--space-4);
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: var(--type-small);
+        line-height: 1.5;
     }
 
 /* assets/css/60-responsive.css */

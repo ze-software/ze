@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../assets/site.css?v=d81686772d" />
+        <link rel="stylesheet" href="../../assets/site.css?v=482c51956e" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -360,7 +360,7 @@ rationale, wire format details, and performance analysis, see
 <li><a href="#component-map">Component Map</a></li>
 <li><a href="#key-design-choices">Key Design Choices</a></li>
 <li><a href="#key-wire-abstractions">Key Wire Abstractions</a></li>
-<li><a href="#hub-bus">Hub / Bus</a></li>
+<li><a href="#plugin-server-eventbus">Plugin Server / EventBus</a></li>
 <li><a href="#bgp-subsystem">BGP Subsystem</a></li>
 <li><a href="#configuration">Configuration</a></li>
 <li><a href="#plugin-architecture">Plugin Architecture</a></li>
@@ -371,33 +371,54 @@ rationale, wire format details, and performance analysis, see
 <li><a href="#deeper-reading">Deeper Reading</a></li>
 </ol></nav>
 <h2 id="what-ze-is">What Ze Is</h2>
-<p>Ze is a network operating system built in Go. A small, protocol-agnostic engine
-supervises a message bus, a config provider, and a plugin manager. The engine has
-no knowledge of BGP or any specific protocol. BGP, interface management, firewall,
-traffic control, and everything else register as subsystems and plugins.</p>
+<p>Ze is a network operating system built in Go. Its protocol-agnostic Engine
+composes a ConfigProvider, a PluginManager, and the shared Plugin Server that
+implements the typed EventBus. YANG ConfigRoots select registry-loaded protocol
+and feature plugins; PPPoE and L2TP can register as lifecycle-managed subsystems.
+The Engine has no knowledge of BGP or any other specific protocol.</p>
 <!-- source: internal/component/engine/engine.go -- Engine supervisor -->
+<!-- source: cmd/ze/hub/main.go -- primary YANG runtime composition -->
 
 <h2 id="component-map">Component Map</h2>
-<pre><code>Engine (supervisor, lifecycle, config)
+<figure class="doc-diagram">
+  <a href="https://ze-software.net/assets/ze-components.svg">
+    <img
+      src="/assets/ze-components.svg"
+      alt="Ze component architecture. Operator surfaces share one command and configuration contract. The protocol-agnostic Engine composes a ConfigProvider, Plugin Server and EventBus, and PluginManager. Registry-loaded routing and system plugins feed route selection and the FIB. An internal Dataplane group contains Netfilter, VPP, ARP, ND, and DHCP; Netfilter and VPP point to external Linux and VPP targets."
+      width="1440"
+      height="1000"
+      loading="lazy"
+      decoding="async"
+    />
+  </a>
+  <figcaption>Ze components and their runtime relationships. Dashed outlines mark configured, build-dependent, or optional paths. Open the diagram for a full-size view; the text map below preserves the same structure for text readers.</figcaption>
+</figure>
+
+<pre><code>ze daemon (registry-driven YANG runtime)
   |
-  +-- Hub / Bus (content-agnostic message routing, []byte on hierarchical topics)
-  |     |
-  |     +-- BGP Subsystem (TCP, FSM, wire parsing, capability negotiation, reactor)
-  |     +-- Interface component (netlink/VPP backend, DHCP, NTP)
-  |     +-- Firewall component (nftables/VPP backend)
-  |     +-- Traffic component (tc/VPP backend)
-  |     +-- Config provider (YANG-parsed tree, transaction protocol)
-  |     +-- Plugin infrastructure (registry, process manager, DirectBridge)
-  |           |
-  |           +-- bgp-rib, bgp-rs, bgp-gr, bgp-role, and many more
-  |           +-- fib-kernel, sysrib, static, sysctl, ...
-  |           +-- External plugins (any language, TLS connect-back)
+  +-- Engine (protocol-agnostic lifecycle supervisor)
+  |     +-- ConfigProvider (YANG tree and transactions)
+  |     +-- PluginManager / ProcessManager
+  |     +-- Configured subsystems (PPPoE and L2TP)
   |
-  +-- CLI (SSH-accessible editor and command shell)
-  +-- Web UI (HTMX-based config editor, admin dashboard, SSE live updates)
-  +-- Looking Glass (peer/route viewer, birdwatcher-compatible API)
-  +-- Telemetry (Prometheus metrics, optional Basic Auth)
-  +-- MCP server (Model Context Protocol for AI tool integration)
+  +-- Plugin Server (shared runtime backbone)
+  |     +-- Typed EventBus, subscriptions, and event history
+  |     +-- YANG command / RPC dispatcher
+  |     +-- Registry discovery and five-stage plugin startup
+  |     +-- BGP reactor and feature plugins (RIB, RS/RR, policy, RPKI, ASPA, BMP)
+  |     +-- OSPF
+  |     +-- IS-IS
+  |     +-- BFD
+  |     +-- Loc-RIB -&gt; sysrib -&gt; FIB
+  |     +-- Dataplane: Netfilter -&gt; Linux; VPP -&gt; VPP; ARP; ND; DHCP
+  |     +-- Interface, firewall, traffic, and other ConfigRoot plugins
+  |     +-- Internal plugins (goroutines, DirectBridge runtime path)
+  |     +-- External plugins (managed processes, five-stage control over authenticated TLS)
+  |
+  +-- Northbound listeners
+        +-- SSH CLI/editor, Web UI, and Looking Glass
+        +-- REST, gRPC, gNMI, and MCP
+        +-- Prometheus metrics and BMP routing telemetry
 </code></pre>
 <!-- source: cmd/ze/hub/main.go -- hub wiring, component startup order -->
 
@@ -483,22 +504,25 @@ traffic control, and everything else register as subsystems and plugins.</p>
 <!-- source: internal/component/bgp/attrpool/handle.go -- Handle -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge -->
 
-<h2 id="hub-bus">Hub / Bus</h2>
-<p>The bus is the central notification router. It routes opaque <code>[]byte</code> payloads
-on hierarchical topics (e.g., <code>bgp/update</code>, <code>interface/up</code>) with prefix-based
-subscription matching. It is used for broadcast state changes and event fan-out;
-request/response calls use the plugin dispatcher, DirectBridge, or typed package
-interfaces. The bus never inspects payload content.</p>
-<!-- source: internal/component/hub/hub.go -- Hub message routing and pub/sub backbone -->
+<h2 id="plugin-server-eventbus">Plugin Server / EventBus</h2>
+<p>The Plugin Server is Ze's central runtime junction. It implements <code>ze.EventBus</code>
+for typed publishers and subscribers, owns the YANG-derived command and RPC
+dispatchers, coordinates plugin startup, and maintains subscription and event
+history state. In-process subscribers receive typed values directly; plugin
+process subscribers receive lazily encoded messages through the same fan-out.
+There is no separate standalone bus in the primary YANG runtime.</p>
+<!-- source: internal/component/plugin/server/server.go -- shared command, subscription, and startup server -->
+<!-- source: internal/component/plugin/server/engine_event.go -- typed EventBus fan-out -->
+<!-- source: cmd/ze/hub/main.go -- Plugin Server supplied to Engine as EventBus -->
 
-<p>Components avoid importing each other's implementation packages. They communicate
-through registries, bus topics, plugin RPC, DirectBridge, or shared core value
-types depending on the direction and latency requirements. BGP subscribes to
-interface events to react when addresses appear or disappear. The FIB pipeline
-uses bus topics to carry best-path decisions from BGP RIB through system RIB to
-kernel route installation.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- best-path tracking via bus -->
-<!-- source: internal/plugins/fib/kernel/fibkernel.go -- FIB route programming via bus -->
+<p>Components avoid importing each other's implementation packages. Internal
+plugins bootstrap through <code>net.Pipe</code> and use <code>DirectBridge</code> for runtime calls;
+external plugins connect back over authenticated TLS. Route-producing plugins
+write selected paths into the shared Loc-RIB. <code>sysrib</code> performs system-wide
+arbitration, then publishes typed best-change events to FIB consumers.</p>
+<!-- source: internal/component/plugin/process/process.go -- internal and external plugin transports -->
+<!-- source: internal/component/sysrib/sysrib.go -- Loc-RIB arbitration and best-change publication -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- FIB event consumer -->
 
 <h2 id="bgp-subsystem">BGP Subsystem</h2>
 <p>The BGP subsystem owns the protocol: TCP connections, FSM state machines, wire
@@ -518,14 +542,18 @@ and managed through an interactive editor accessible over SSH.</p>
 <!-- source: pkg/zefs/store.go -- ZeFS blob store -->
 
 <h2 id="plugin-architecture">Plugin Architecture</h2>
-<p>All features beyond core engine operation are plugins: RIB storage, route
-reflection, graceful restart, RPKI validation, NLRI encoding, FIB programming,
-firewall, traffic control, and more. Plugins run in-process (goroutine +
-DirectBridge) or as external processes (TLS connect-back in any language).</p>
+<p>Most protocol and system features are registry-loaded plugins: RIB storage,
+route reflection, graceful restart, RPKI validation, NLRI encoding, FIB
+programming, firewall, traffic control, and more. PPPoE and L2TP are
+Engine-managed subsystems. Internal plugins start as goroutines, bootstrap over
+<code>net.Pipe</code>, and then use <code>DirectBridge</code> for structured runtime calls without
+serialization. External plugins are managed child processes controlled through
+the same five-stage protocol and runtime RPC over authenticated TLS.</p>
 <p>For the plugin architecture overview, see <a href="https://github.com/ze-software/ze/blob/main/docs/plugin-overview.md" target="_blank" rel="noopener">plugin-overview.md</a>.
 For writing plugins, see <a href="https://github.com/ze-software/ze/tree/main/docs/plugin-development" target="_blank" rel="noopener">plugin-development/</a>.</p>
 <!-- source: internal/component/plugin/registry/registry.go -- plugin registry -->
-<!-- source: internal/component/plugin/all/all.go -- plugin blank imports -->
+<!-- source: internal/component/plugin/process/process.go -- plugin execution modes -->
+<!-- source: cmd/ze/hub/main.go -- configured subsystem registration -->
 
 <h2 id="data-flow">Data Flow</h2>
 <pre><code>Receive:  Network -&gt; WireUpdate -&gt; Reactor -&gt; EventDispatcher -&gt; Plugins
@@ -542,14 +570,19 @@ forwarding decisions, state trackers update best-path state.</p>
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- per-destination forward workers -->
 
 <h2 id="fib-pipeline">FIB Pipeline</h2>
-<p>Best-path decisions flow through the bus:</p>
+<p>Selected routes move through a shared route-decision pipeline:</p>
 <ol>
-<li><strong>BGP RIB</strong> detects best-path changes, publishes to <code>bgp-rib/best-change/bgp</code></li>
-<li><strong>System RIB</strong> selects system-wide best by administrative distance, publishes to <code>system-rib/best-change</code></li>
-<li><strong>FIB Kernel</strong> programs OS routes via netlink (<code>RTPROT_ZE=250</code>)</li>
+<li><strong>Protocol route producers</strong> insert BGP best paths and OSPF or IS-IS SPF paths into the shared Loc-RIB</li>
+<li><strong>System RIB</strong> observes Loc-RIB changes and selects system-wide routes by administrative distance and recursive next-hop resolution</li>
+<li><strong>FIB consumers</strong> receive typed <code>system-rib/best-change</code> events from the Plugin Server/EventBus</li>
+<li><strong>Kernel FIB</strong> programs OS routes through netlink or route sockets; optional VPP FIB uses the GoVPP API</li>
 </ol>
-<!-- source: internal/component/sysrib/sysrib.go -- system RIB, admin distance selection -->
-<!-- source: internal/plugins/fib/kernel/fibkernel.go -- RTPROT_ZE, netlink backend -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- BGP paths into Loc-RIB -->
+<!-- source: internal/plugins/ospf/spf/install.go -- OSPF paths into Loc-RIB -->
+<!-- source: internal/plugins/isis/spf/install.go -- IS-IS paths into Loc-RIB -->
+<!-- source: internal/component/sysrib/sysrib.go -- system route arbitration -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- kernel FIB consumer -->
+<!-- source: internal/plugins/fib/vpp/fibvpp.go -- optional VPP FIB consumer -->
 
 <h2 id="programs">Programs</h2>
 <table>

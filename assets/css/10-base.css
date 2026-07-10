@@ -3059,7 +3059,7 @@ footer {
     padding: 1rem 0 3rem;
 }
 
-.md-content > :not(table):not(pre):not(.cards):not(.audience):not(.config-explorer):not(.plugin-console):not(.plugin-groups):not(.plugin-detail-grid):not(.journey-hero):not(.roadmap-forward-note):not(.roadmap-step-list):not(.quality-hero):not(.quality-flow):not(.quality-routes):not(.quality-command-grid):not(.quality-panel):not(.compare-tools):not(.docs-path-grid) {
+.md-content > :not(table):not(pre):not(.cards):not(.audience):not(.config-explorer):not(.plugin-console):not(.plugin-groups):not(.plugin-detail-grid):not(.journey-hero):not(.roadmap-forward-note):not(.roadmap-step-list):not(.quality-hero):not(.quality-flow):not(.quality-routes):not(.quality-command-grid):not(.quality-panel):not(.compare-tools):not(.docs-path-grid):not(.doc-diagram) {
     max-width: 62rem;
 }
 

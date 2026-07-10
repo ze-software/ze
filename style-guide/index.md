@@ -8,7 +8,7 @@ The palette, components, and content rules this site follows -- so new pages sta
 
 Seven candy hues on a calm blush base.
 
-Each hue ships four tones in `assets/site.css?v=adbbfadb2b`: `-base` (the vivid candy color), `-deep` (text-safe dark), `-chip` (pill background), and `-tint` (card surface), plus a `-glow` for hue-tinted shadows. Never mix tones across hues on one component.
+Each hue ships four tones in `assets/site.css?v=482c51956e`: `-base` (the vivid candy color), `-deep` (text-safe dark), `-chip` (pill background), and `-tint` (card surface), plus a `-glow` for hue-tinted shadows. Never mix tones across hues on one component.
 
  Operate
 
@@ -159,6 +159,10 @@ Full-width prose under a section head for anything longer than a sentence or two
 ### Maturity tiers on cards
 
 Shipped cards are solid clay. .card.experimental adds a dashed border and an "Experimental" status chip. .card.aspiration is a flat dashed blueprint whose title links to its pending spec in the main repo's plan/ directory.
+
+### .doc-diagram
+
+Full-width documentation figure with a clay frame, caption, and horizontal overflow that keeps detailed diagrams readable on narrow screens. Link the image to its standalone asset and keep a text equivalent below it.
 
 ### .md-content
 
