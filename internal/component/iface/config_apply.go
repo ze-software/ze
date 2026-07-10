@@ -641,6 +641,39 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		allEntries = append(allEntries, cfg.XFRM[i].ifaceEntry)
 	}
 
+	// Physical (Ethernet) interfaces named in the config but absent from the
+	// system are skipped, not treated as a fatal error. An appliance must not
+	// brick because a configured NIC is missing -- an unplugged cable, a
+	// hardware change, or an image built on a host whose interface names differ
+	// from the deployment target. Created interface types (dummy/veth/bridge/
+	// tunnel/wireguard/xfrm) are made in Phase 1 and exist by now, so they are
+	// NOT skipped here; a genuine error on any interface still aborts + rolls back.
+	absentPhysical := make(map[string]bool)
+	for i := range cfg.Ethernet {
+		e := &cfg.Ethernet[i]
+		if e.Disable {
+			continue
+		}
+		if _, err := b.GetInterface(e.Name); err != nil {
+			log.Warn("iface config: configured interface not present, skipping", "iface", e.Name, "err", err)
+			absentPhysical[e.Name] = true
+		}
+	}
+	// Drop absent physical interfaces from every per-interface phase (property
+	// set in Phase 2, admin-up in Phase 2c) so a missing NIC never aborts the
+	// apply. Created types (dummy/veth/bridge/tunnel/wireguard/xfrm) are made in
+	// Phase 1 and stay. Address reconcile (Phase 3+4) diffs live state, so an
+	// absent interface is naturally excluded there.
+	if len(absentPhysical) > 0 {
+		kept := allEntries[:0]
+		for _, e := range allEntries {
+			if !absentPhysical[e.Name] {
+				kept = append(kept, e)
+			}
+		}
+		allEntries = kept
+	}
+
 	for _, e := range allEntries {
 		if e.Disable {
 			continue

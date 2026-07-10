@@ -2109,6 +2109,7 @@ type fakeBackend struct {
 	createDummyErr map[string]error
 	addAddressErr  map[string]error
 	lcpPairs       map[string]string // vppIface -> hostName recorded by SetupLCPPair
+	macSet         map[string]string // ifaceName -> mac recorded by SetMACAddress
 }
 
 type fakeIface struct {
@@ -2217,10 +2218,21 @@ func (b *fakeBackend) CreateXFRM(spec XFRMSpec) error {
 }
 func (b *fakeBackend) GetXFRMInfo(_ string) (XFRMInfo, error) { return XFRMInfo{}, nil }
 
-func (b *fakeBackend) SetAdminUp(_ string) error              { return nil }
-func (b *fakeBackend) SetAdminDown(_ string) error            { return nil }
-func (b *fakeBackend) SetMTU(_ string, _ int) error           { return nil }
-func (b *fakeBackend) SetMACAddress(_, _ string) error        { return nil }
+func (b *fakeBackend) SetAdminUp(_ string) error    { return nil }
+func (b *fakeBackend) SetAdminDown(_ string) error  { return nil }
+func (b *fakeBackend) SetMTU(_ string, _ int) error { return nil }
+func (b *fakeBackend) SetMACAddress(name, mac string) error {
+	// Faithful to the netlink backend: setting a MAC on an interface whose link
+	// is absent fails with a not-found error (manage_linux.go SetMACAddress).
+	if _, ok := b.ifaces[name]; !ok {
+		return fmt.Errorf("iface: set mac on %q: not found: link not found", name)
+	}
+	if b.macSet == nil {
+		b.macSet = make(map[string]string)
+	}
+	b.macSet[name] = mac
+	return nil
+}
 func (b *fakeBackend) GetMACAddress(_ string) (string, error) { return "", nil }
 func (b *fakeBackend) GetStats(_ string) (*InterfaceStats, error) {
 	return &InterfaceStats{}, nil

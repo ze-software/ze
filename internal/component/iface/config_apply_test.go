@@ -318,3 +318,40 @@ func TestApplyLoopbackLCPPairOnVPP(t *testing.T) {
 		}
 	})
 }
+
+// VALIDATES: AC-1 (spec-iface-absent-link-graceful) -- a configured physical
+// (Ethernet) interface whose link is absent is warned + skipped, and the present
+// interface is still fully applied. The apply must NOT roll back everything just
+// because one configured NIC is missing (portable image / unplugged cable).
+func TestApplyConfigSkipsAbsentEthernet(t *testing.T) {
+	resetAddressOwners(t)
+	b := &fakeBackend{ifaces: map[string]fakeIface{
+		"eth-present": {name: "eth-present", linkType: zeTypeEthernet},
+	}}
+	cfg := &ifaceConfig{
+		Ethernet: []ifaceEntry{
+			{Name: "eth-present", MACAddress: "02:00:00:00:00:01"},
+			{Name: "eth-absent", MACAddress: "02:00:00:00:00:02"},
+		},
+	}
+	errs := applyConfig(cfg, nil, b)
+	require.Empty(t, errs, "absent physical interface must be skipped, not abort the whole apply")
+	require.Equal(t, "02:00:00:00:00:01", b.macSet["eth-present"], "present interface MAC must still be applied")
+	_, absentApplied := b.macSet["eth-absent"]
+	require.False(t, absentApplied, "absent interface must be skipped (no MAC applied)")
+}
+
+// VALIDATES: AC-2 -- a genuine (non-absent-link) backend error still aborts the
+// apply and rolls back; the absent-interface skip must not swallow real errors.
+func TestApplyConfigRollsBackGenuineError(t *testing.T) {
+	resetAddressOwners(t)
+	b := &fakeBackend{
+		ifaces:         map[string]fakeIface{},
+		createDummyErr: map[string]error{"dum0": errors.New("boom")},
+	}
+	cfg := &ifaceConfig{
+		Dummy: []ifaceEntry{{Name: "dum0"}},
+	}
+	errs := applyConfig(cfg, nil, b)
+	require.NotEmpty(t, errs, "a genuine backend error must still abort and roll back")
+}
