@@ -46,8 +46,10 @@ case "$cmd" in
         status=$(sed -n 's/^| Status | *\([a-z-]*\).*/\1/p' "plan/$spec" | head -1)
         if [ "$status" = "ready" ]; then
             today=$(date +%Y-%m-%d)
-            sed -i '' "s/^| Status | *ready.*/| Status | in-progress |/" "plan/$spec"
-            sed -i '' "s/^| Updated | *[0-9-]*.*/| Updated | $today |/" "plan/$spec"
+            # -i.bak (no space) works on both GNU and BSD sed; plain -i '' is macOS-only.
+            sed -i.bak "s/^| Status | *ready.*/| Status | in-progress |/" "plan/$spec"
+            sed -i.bak "s/^| Updated | *[0-9-]*.*/| Updated | $today |/" "plan/$spec"
+            rm -f "plan/$spec.bak"
             echo "claimed $spec (ready -> in-progress)"
         else
             echo "claimed $spec (status: ${status:-unknown})"
