@@ -1,0 +1,175 @@
+# Test: Looking glass HTMX UI HTML pages (W-5 / AC-11 narrowed surface)
+# VALIDATES: the UI page handlers registered in internal/component/lg/server.go:240-256
+#            each return HTTP 200 and their real rendered body:
+#              handleUIPeers       GET  /lg/peers            -> "BGP Peers"
+#              handleUISearchForm  GET  /lg/search           -> "Route Search"
+#              handleUISearch      POST /lg/search           -> "Route Search"
+#              handleUIPeerRoutes  GET  /lg/peer/{address}   -> "Routes from <addr>"
+#              handleUIRouteDetail GET  /lg/route/detail     -> "Route Detail: <prefix>"
+#              handleUIHelp        GET  /lg/help             -> "AS Path Graph"
+# PREVENTS: a UI route silently unregistering, a template failing to render, or a
+#           page 500-ing (the http= status assertion catches non-200; the contains=
+#           token catches an empty / wrong-template body).
+#
+# The JSON/birdwatcher API and the graph SVG are covered by lg-paginate.ci and
+# lg-graph-lab.ci respectively; this test covers ONLY the HTML page surface.
+#
+# Body tokens are producer-verified:
+#   templates/peers.html:2       <h1>BGP Peers</h1>
+#   templates/search.html:2      <h1>Route Search</h1>
+#   templates/peer_routes.html:2 <h2>{{.Title}}</h2>  (Title = "Routes from "+addr, handler_ui.go:238)
+#   templates/route_detail.html:6 <h3>Route Detail: {{.Prefix}}</h3>
+#   templates/help.html:20       <h3>AS Path Graph</h3>
+
+# ze-peer expectations (minimal handshake)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# POST body for handleUISearch (a prefix with no matching route: still renders the
+# full search page and exercises validate+query+render, without depending on the
+# route_results fragment shape). x-www-form-urlencoded per handleUISearch's ParseForm.
+tmpfs=lg-search.body:mode=644:terminator=EOF_BODY
+prefix=198.51.100.0/24
+EOF_BODY
+
+# Python test plugin: injects 15 distinct prefixes to peer 10.0.1.1, then stays alive
+tmpfs=lg-ui-pages.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Inject 15 distinct prefixes to a single peer so the UI pages have data."""
+import sys
+from ze_api import API
+from ze_api import runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def inject(api, peer, prefix, nhop, aspath):
+    cmd = f'request bgp rib inject {peer} ipv4/unicast {prefix} origin igp nhop {nhop} aspath {aspath}'
+    result = dispatch(api, cmd)
+    if result.get('status') != 'done':
+        # runtime_fail emits the ZE-OBSERVER-FAIL sentinel the runner detects;
+        # a bare sys.exit(1) here is the banned silent-false-pass pattern.
+        runtime_fail(f'{cmd} -> {result}')
+        sys.exit(1)
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    peer = '10.0.1.1'
+    for i in range(15):
+        inject(api, peer, f'10.20.{i}.0/24', peer, '2914,65100')
+
+    print('OK: 15 routes injected', file=sys.stderr)
+
+    # wait_for_shutdown() blocks until the engine goes away, then the script exits
+    # so the inherited output pipe closes and the runner's cmd.Wait() can finish
+    # (the pipe-hold hang documented in mk/test-functional.mk).
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration with LG enabled
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external lg-ui-pages {
+		run ./lg-ui-pages.run
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+environment {
+	looking-glass {
+		enabled true
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process lg-ui-pages {
+		}
+		process bgp-rib {
+			receive [ state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration -- both in background, HTTP checks are the assertions
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+
+# Readiness: wait until the 15 routes are injected and queryable (proves the LG
+# server is up AND the RIB is populated before the UI page checks run).
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/protocol/10.0.1.1:status=200:contains="routes_count": 15:timeout=15s
+
+# --- handleUIPeers: peer dashboard page ---
+http=get:seq=1:url=http://127.0.0.1:$PORT2/lg/peers:status=200:contains=BGP Peers
+
+# --- handleUISearchForm: search form page (GET) ---
+http=get:seq=2:url=http://127.0.0.1:$PORT2/lg/search:status=200:contains=Route Search
+
+# --- handleUISearch: search submission (POST) still renders the search page ---
+http=post:seq=3:url=http://127.0.0.1:$PORT2/lg/search:status=200:contains=Route Search:sendfile=lg-search.body:content-type=application/x-www-form-urlencoded
+
+# --- handleUIPeerRoutes: per-peer routes page (127.0.0.1 is the configured peer,
+#     so findPeer resolves it from `show bgp summary`); Title = "Routes from 127.0.0.1" ---
+http=get:seq=4:url=http://127.0.0.1:$PORT2/lg/peer/127.0.0.1:status=200:contains=Routes from 127.0.0.1
+
+# --- handleUIRouteDetail: expanded route detail for an injected prefix ---
+http=get:seq=5:url=http://127.0.0.1:$PORT2/lg/route/detail?prefix=10.20.0.0/24:status=200:contains=Route Detail: 10.20.0.0/24
+
+# --- handleUIHelp: help page ---
+http=get:seq=6:url=http://127.0.0.1:$PORT2/lg/help:status=200:contains=AS Path Graph
