@@ -23,6 +23,11 @@ type netlinkStaticBackend struct {
 }
 
 func newStaticBackend() routeBackend {
+	// In a VPP data-plane deployment (VPP component active) static routes are
+	// programmed into VPP's FIB; otherwise they go to the kernel via netlink.
+	if vb := newVPPStaticBackend(); vb != nil {
+		return vb
+	}
 	h, err := netlink.NewHandle()
 	if err != nil {
 		logger().Error("static: netlink handle failed", "error", err)

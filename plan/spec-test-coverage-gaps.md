@@ -513,6 +513,18 @@ Two real bugs found by new tests, both fixed at source (failing-first evidence i
   call site + a VPP channel provider (mirror fib/vpp's channel source). register_test
   then asserts real init()/registry wiring. Sequencing: finish mrt `.ci` first, then
   W-4→W-9. Commit the W-3 test batch first.
+  **WIRING DONE 2026-07-10:** `internal/plugins/static/backend_vpp_linux.go` adds
+  `vppStaticBackend` (routeBackend adapter) + `newVPPStaticBackend()` (connector-gated)
+  + `toVPPRoute()` (staticRoute→staticvpp.Route). `newStaticBackend()` now selects VPP
+  when `vpp.GetActiveConnector()!=nil`, else netlink (fib-vpp pattern; static runs
+  in-process via RunEngine so it reaches the connector). Per-route table honored by
+  constructing a lightweight `staticvpp.NewBackend(ch, r.Table)` per op over one channel.
+  Tests: `backend_vpp_linux_test.go` (selection fallback, action mapping, weight cap,
+  interface-nexthop reject, unknown-action reject, apply/remove via fake channel, close).
+  Lint 0, tier-check OK (static→vpp component import allowed), race OK.
+  LIMITATIONS (documented): interface-only next-hops error (no sw_if_index resolution
+  yet); VPP FIB listing is a no-op (RIB authoritative); connector-present→VPP path and
+  real programming are env-blocked (no VPP daemon on the unit host), like other real-VPP ACs.
 
 ### W-2 findings (2026-07-10, implementation)
 

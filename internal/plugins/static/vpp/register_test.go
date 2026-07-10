@@ -2,13 +2,12 @@
 // supplied api.Channel and table-id, and Close releases the channel exactly once.
 // PREVENTS: a Backend that ignores its table-id or leaks the GoVPP channel on Close.
 //
-// NOTE (finding, 2026-07-10): unlike the other VPP backends, static/vpp has NO
-// init() and NO registry wiring — the parent static plugin selects its backend
-// via newStaticBackend() (netlink on linux, unsupported elsewhere) and never
-// references this package. There is therefore no init()->registry side effect to
-// assert (the four-file mandate's register_test target). This orphaned-backend
-// status is recorded in the spec Design Insights; these tests cover the actual
-// construction surface that any future wiring would use.
+// WIRING (2026-07-10): the parent static plugin selects this backend in
+// newStaticBackend() (`../backend_linux.go`) via newVPPStaticBackend()
+// (`../backend_vpp_linux.go`) when a VPP connector is active, translating each
+// staticRoute through toVPPRoute(). That selection + translation is tested in
+// the parent package's backend_vpp_linux_test.go; this file covers the backend
+// construction surface those callers use (NewBackend table-id wiring, Close).
 package staticvpp
 
 import (
