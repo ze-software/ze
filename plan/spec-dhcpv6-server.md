@@ -37,6 +37,11 @@ implementation. Likely sub-features once designed:
 
 This skeleton exists so the gap is tracked; it is NOT ready to implement.
 
+Cross-reference (2026-07-10): the v6 options sub-feature should adopt the same
+per-pool option config shape (code, encoding ascii|hex, value, plus a denylist of
+auto-emitted codes) being designed for DHCPv4 in `plan/spec-dhcp-pool-options.md`,
+so the two servers present one consistent operator surface.
+
 ## Required Reading
 
 ### Architecture Docs

@@ -37,6 +37,8 @@ any external behavior that shapes a design decision against primary sources dire
 | 4 | `spec-improve-4-conformance-fixtures.md` | File-driven protocol conformance fixture format, one BGP fixture first | spec-improve-3-event-replay |
 | 5 | `spec-improve-5-panic-boundaries.md` | Explicit recover boundaries at network-input task boundaries | - |
 | 6 | `spec-improve-6-yang-coverage.md` | YANG coverage report: per-module implemented/owned/constrained node status | - |
+| 7 | `spec-improve-7-yang-handler-gate.md` | Handler-completeness gate: every config-schema root claimed by a delivery surface, blocking test + doctor check (added 2026-07-10 after primary-source re-review) | - |
+| 8 | `spec-improve-8-fuzz-decode-context.md` | Fuzz the negotiated-capability decode space: context args on existing targets + targets for uncovered surfaces (added 2026-07-10) | - |
 
 ### Declined Findings
 
@@ -111,7 +113,7 @@ any external behavior that shapes a design decision against primary sources dire
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The review's claims about the other daemon are accurate | External review text | An adoption may copy a capability the other daemon does not actually have; design would chase a phantom | Spot-read primary sources for the findings that shape each child design | unvalidated |
+| A-1 | The review's claims about the other daemon are accurate | External review text | An adoption may copy a capability the other daemon does not actually have; design would chase a phantom | Spot-read primary sources for the findings that shape each child design | validated 2026-07-10 for children 3, 4, 6, 7, 8: primary sources read at the daemon's checkout (event recorder `holo-protocol/src/event_recorder.rs:30-65` + replay `holo-tools/holo-replay/src/main.rs:17-32`; conformance harness `holo-protocol/src/test/stub/mod.rs:320-429`; coverage tool `holo-tools/src/bin/yang_coverage.rs:65-150`; startup callback-completeness abort `holo-daemon/src/northbound/core.rs:815-849`; fuzz decode-context `fuzz/fuzz_targets/bgp/message_decode.rs:7-12`). Children 1, 2, 5 still validate at their own design phase |
 | A-2 | The six adoptions are independent enough to land separately | Child scoping in this file | Hidden coupling forces re-ordering | Design phase of each child re-checks Depends | unvalidated |
 
 ### Risks

@@ -152,6 +152,12 @@ finish-ci-coverage, rib-arch-1 (opens the rib-arch set), fleet-1-device-registry
 ntp-server, dhcpv6-server, srv6 set, ike-post-quantum, radius-admin set,
 flow-export-3, managed-server-hardening, improve-1/2/3/4, remaining rib-arch children.
 
+Added 2026-07-10 (osvbng comparison refresh; user-selected items): dhcp-pool-options,
+radius-subscriber-attributes, radius-acct-timewheel (investigation first),
+ppp-ra-refinements, vpp-host-tuning (Depends: vpp-isolated-cpus, so behind 1.2),
+startup-resilience (audit first). The radius/ppp items share the l2tp component
+with spec-followup-l2tp-call and spec-finish-l2tp (H8): coordinate before starting.
+
 ## 5. Cross-cutting obligations (bind all new work; from the 2026-07-10 review)
 
 - New verify gates apply to every spec: ze-platform-vet (host/iface trees compile

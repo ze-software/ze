@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | spec-improve-3-event-replay |
 | Phase | - |
-| Updated | 2026-07-08 |
+| Updated | 2026-07-10 |
 
 ## Post-Compaction Recovery
 
@@ -36,13 +36,13 @@ explicitly follow-up work, not this spec.
 
 ### Architecture Docs
 - [ ] `docs/functional-tests.md` - .ci harness capabilities and conventions
-  → Decision: (fill during design -- extend .ci runner vs dedicated fixture runner)
+  → Decision: dedicated fixture runner hosted as a ze-test subcommand (`registerRoot` pattern, `internal/test/cli/register.go:55`) + make target; the .ci dialect stays untouched -- fixtures are data directories, not a second script dialect (satisfies the no-layering row below). Directives/parser surveyed 2026-07-10 (parser `internal/test/runner/record_parse.go` parseAndAdd; executor `runner_exec.go:195,:557`; directives `docs/functional-tests.md:830-848`)
 - [ ] `plan/spec-improve-3-event-replay.md` - capture/replay machinery this reuses
-  → Constraint: fixture event streams use the versioned capture schema, no second format
+  → Constraint: fixture event streams use the versioned capture schema, no second format -- schema now ENUMERATED (improve-3 "Capture Format (v1)", 2026-07-10): header line + seq/ts/type events, message bytes base64, config ops with tx-id
 - [ ] `ai/rules/functional-test-gate.md` - where fixture tests sit relative to .ci gate
-  → Constraint: (fill during design)
+  → Constraint: read 2026-07-10: the rule's directory table must gain a `test/protocol/` row when this lands (discovery-updates); and a test that EXISTS is not one that GATES -- the runner itself must be mutation-verified, which AC-3 (mutated expected file fails with a diff) provides
 - [ ] `plan/deterministic-simulation-analysis.md` - determinism requirements for stable expected-output diffs
-  → Constraint: (fill during design)
+  → Constraint: replay asserts OUTCOMES, not interleavings (improve-3 scope); expected-state diffs must go through canonicalization -- precedent exists: `compareJSON`/`normalizeNeighborSection` strip volatile fields (`internal/test/runner/decoding.go`)
 
 ### RFC Summaries (MUST for protocol work)
 - First fixture exercises existing RFC 4271 behavior; no new protocol claims. Cite
@@ -59,6 +59,13 @@ explicitly follow-up work, not this spec.
 - [ ] `internal/component/plugin/server/event_ring.go` - diagnostics trail a fixture can assert on (:47)
 - [ ] `internal/component/bgp/plugins/adj_rib_in/rib_commands.go` - state dump commands usable as expected-state probes (:250-274)
 - [ ] `test/` directory layout - existing suites (functional .ci, interop, exabgp-compat, stress) to confirm no equivalent fixture format exists (survey during design)
+
+**Design-phase research completed (2026-07-10; producers read by research agent; digest in tmp/session/session-state-improve-4-conformance-fixtures-56997.md):**
+- Survey result: NO fixture format exists. Only ONE golden-file regenerator in the whole tree: `-update` flag in `internal/component/plugin/all/all_test.go:47` (`snapshot()` :54, write :57-66) with make target `ze-plugin-snapshot` (`Makefile:111-113`). This is the regen-UX precedent to mirror.
+- State probes are ad-hoc `map[string]any`, no schema: peer state producer `internal/component/bgp/plugins/cmd/peer/peer.go:156-238`; adj-rib-in `rib_commands.go:239` show() / `:220` status(); reached via `opDispatchCommand` (`internal/component/plugin/server/dispatch_registry.go:258`). Canonicalization is therefore MANDATORY for stable diffs (A-1).
+- Outbound-wire assertion machinery already exists in ze-test peer check mode: `LoadExpectFile` (`internal/test/peer/expect.go:21`, expect=bgp:conn=N:seq=N:hex= at :60-70), matcher `Checker.ExpectedOrKeepalive` (`checker.go:386`; marker strip :402-404; `matchRule` :612 prefix:/contains:/exact) -- A-2's expected-wire surface (research agent).
+- Topology constraints: everything is TCP over loopback (no netns); single shared bgp port (`ze.test.bgp.port`, `cmd_peer.go:22-28`); single-peer-multi-IP scenarios are known-flaky (`docs/functional-tests.md:447-456`) -- v1 single-session scope avoids this.
+- Test-harness env conventions: typed `env.MustRegister` registry; existing vars ZE_TEST_NO_BUILD/ZE_BIN (`runner.go:212,:265`), ZE_VERIFY_MODE (`parallel.go:38`), ZE_SKIP_SUITES (`cmd_web.go:58`).
 
 **Behavior to preserve:** (unless user explicitly said to change)
 - Existing .ci, interop, exabgp-compat, and stress suites unchanged; fixtures are a new
@@ -106,7 +113,7 @@ explicitly follow-up work, not this spec.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | State/output dumps are deterministic enough to diff byte-stably (ordering, timestamps) | JSON format rules exist (`ai/rules/json-format.md`) | Expected files flake; need canonicalization pass | Run the first fixture 100x during implementation | unvalidated |
-| A-2 | The spec-improve-3 replay harness can expose outbound wire events for assertion | replay harness design (spec-improve-3) | Fixtures assert state only in v1 | Coordinate with spec-improve-3 design | unvalidated |
+| A-2 | The spec-improve-3 replay harness can expose outbound wire events for assertion | RESOLVED at design (2026-07-10): the harness drives the session over a STUB net.Conn (improve-3 Files to Create) -- everything the session sends is written to that stub; the runner captures writes, re-frames by BGP header length, and matches with the existing rule semantics (`matchRule`, `internal/test/peer/checker.go:612`: exact/prefix:/contains: on hex). No new reactor surface needed. See "Expected-Wire Observation" below | - | TestFixtureWireCapture unit test in phase 2 | confirmed (mechanism specified) |
 | A-3 | One directory format fits future protocols (OSPF/IS-IS) without redesign | the review reports another daemon running 10+ protocols on one such format (unverified) | Format revision needed when a second protocol lands | Sketch an OSPF scenario on paper during design (no implementation) | unvalidated |
 
 ### Risks
@@ -174,6 +181,42 @@ explicitly follow-up work, not this spec.
 - `test/protocol/bgp/basic-session/` - config, events.jsonl, expected-state, expected-output, expected-diagnostics, README
 - `test/protocol/README.md` - format specification
 
+### Integration Checklist
+| Integration Point | Needed? | File |
+|-------------------|---------|------|
+| YANG schema (new RPCs/config) | N/A | test infrastructure, no config surface |
+| YANG validation constraints | N/A | none |
+| YANG custom validators | N/A | none |
+| CLI commands/flags | Yes | ze-test subcommand for the runner (`internal/test/cli/register.go` registerRoot) |
+| CLI grammar (action before identifier) | Yes | verify subcommand name against `ai/rules/cli-grammar.md` at implementation |
+| Editor autocomplete | N/A | none |
+| Functional test for new RPC/API | Yes | the basic-session scenario itself + TestFixtureRunnerFailsWithDiff (mutation-verify per functional-test-gate) |
+| Pipe completeness | N/A | runner is a host test tool, not a NOS CLI command |
+| Env var registration | N/A | regen is a flag, not an env var (Key Design Decisions) |
+| Doctor check for runtime dependencies | N/A | host-side tool; no appliance runtime dependency |
+| Prometheus counters/metrics | N/A | none |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature? | No | developer test infrastructure |
+| 2 | Config syntax changed? | No | none |
+| 3 | CLI command added/changed? | Yes | ze-test subcommand documented in `docs/functional-tests.md` |
+| 4 | API/RPC added/changed? | No | none |
+| 5 | Plugin added/changed? | No | none |
+| 6 | Has a user guide page? | No | none |
+| 7 | Wire format changed? | No | none |
+| 8 | Plugin SDK/protocol changed? | No | none |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | fixture READMEs cite existing rfc/short sections, no status change |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` (format spec) + `ai/rules/functional-test-gate.md` directory table row + `ai/rules/testing.md` per discovery-updates |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` (conformance-fixture capability) |
+| 12 | Internal architecture changed? | No | additive |
+| 13 | Route metadata keys added/changed? | No | none |
+| 14 | Prometheus counters added/changed? | No | none |
+| 15 | Registered plugin, event type, send type, command, capability, or runtime inventory changed? | Yes | command inventory + `ai/INDEX.md` keyword row |
+| 16 | Any changed source file is referenced by existing doc source anchors? | Check at implementation | grep `docs/` for anchors |
+| 17 | Existing docs show config/CLI/API examples for this area? | No | none exist yet |
+
 ## Implementation Steps
 
 1. **Phase: Wiring (MANDATORY FIRST)** - runner skeleton + make target + failing discovery test
@@ -206,14 +249,53 @@ explicitly follow-up work, not this spec.
 | Approach | Why abandoned | Replacement |
 |----------|---------------|-------------|
 
+## Expected-Wire Observation (added 2026-07-10 at design gate, per user request)
+
+The replay harness's stub `net.Conn` is the wire tap: every byte the session sends
+goes through the stub's Write. The runner:
+1. Buffers stub writes and re-frames them into BGP messages by header length
+   (16-byte marker + 2-byte length, same framing production reads use).
+2. Hex-encodes each outbound frame (marker-stripped variant supported, mirroring
+   `Checker.ExpectedOrKeepalive` `checker.go:402-404`).
+3. Matches ordered frames against the scenario's `expected-wire` file, one rule per
+   line, reusing the `matchRule` rule set (`checker.go:612`): exact hex (default,
+   case-insensitive), `prefix:<hex>`, `contains:<hex>`; plus `keepalive` as a
+   convenience token (KEEPALIVEs are otherwise noise).
+4. In `-update` mode the observed frames are written back as exact-hex rules;
+   authors then loosen to prefix:/contains: where fields are volatile.
+
+## Canonicalization Contract (added 2026-07-10 at design gate, per user request)
+
+Expected-state files are canonical JSON slices; the runner canonicalizes ACTUAL
+state before diffing:
+1. Each expected-state file declares its probe (the dispatch command producing the
+   state, e.g. `show bgp adj-rib-in`) and the JSON paths included -- a slice, never
+   the whole dump (R-1).
+2. Canonical form: object keys sorted lexicographically; kebab-case keys as produced
+   (per `ai/rules/json-format.md`); volatile fields removed per a strip-list that is
+   VERSIONED WITH THE RUNNER (seeded from the fields `normalizeNeighborSection`
+   already strips, `internal/test/runner/decoding.go`); numbers formatted uniformly.
+3. Arrays compare ordered by default; a probe may declare set-semantics for a path
+   (order-insensitive compare) -- declared in the expected file, not runner code.
+4. The strip-list and set-semantics declarations live in the fixture format spec
+   (`test/protocol/README.md`) so a failing diff is explainable from fixture files
+   alone.
+
 ## Design Insights
-- (fill during design)
+- The five-surface layout mirrors the reviewed daemon's four captured surfaces
+  (verified `holo-protocol/src/test/stub/mod.rs:320-429`); diagnostics is Ze's
+  addition because its event ring and doctor codes are queryable.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | One BGP fixture first | fixture sets for every protocol | prove the format before spending on breadth (the review's own advice) |
 | Reuse spec-improve-3 capture schema for event input | separate fixture event dialect | production captures become fixtures with zero translation |
+| Regen via `-update` flag on the runner + `make ze-conformance-update` | HOLO_UPDATE-style env var | mirrors the tree's ONLY existing golden regenerator (`all_test.go:47` + `Makefile:111-113`); env conventions stay for harness plumbing, flags for regen |
+| Expected-state files are semantic slices diffed after canonicalization | full-dump byte compare | state producers are ad-hoc maps with volatile fields; `compareJSON`/`normalizeNeighborSection` precedent (`internal/test/runner/decoding.go`) makes slice-diffs stable (A-1, R-1) |
+| Runner hosted as ze-test subcommand + make target | extending the .ci dialect with fixture directives | fixtures are data, .ci is a script dialect; mixing them creates the parallel-dialect layering R-3/no-layering forbids |
+| Verify wiring goes in BOTH `stagesForMode` branches ONLY | Makefile `_ze-verify-impl`/`_ze-verify-changed-impl` | those Makefile targets are documented dead with zero callers (post-wave corrections below; `Makefile:280-287`) |
+| Fixture surfaces: config-in, events-in, expected-state, expected-wire, expected-diagnostics | state-only fixtures | mirrors the four-surface transducer model verified at primary source in the reviewed daemon (`holo-protocol/src/test/stub/mod.rs:320-429`, collector `stub/collector.rs:83-161`); Ze adds diagnostics as a fifth surface because its event ring + doctor codes are queryable |
 
 ## Known Limitations
 - v1 covers single-session BGP scenarios; topology/convergence fixtures are follow-up.
