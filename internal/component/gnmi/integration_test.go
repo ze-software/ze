@@ -1,6 +1,7 @@
 package gnmi
 
 import (
+	"strings"
 	"testing"
 
 	"google.golang.org/grpc"
@@ -10,6 +11,7 @@ import (
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
@@ -165,5 +167,47 @@ func TestGNMICapabilitiesModelsWiring(t *testing.T) {
 	}
 	if !foundZe {
 		t.Error("expected at least one named YANG model")
+	}
+}
+
+// TestGNMISetWiring drives Set through the full gRPC path a real gNMI client
+// takes -- dial, client.Set, server-side config session + commit. The existing
+// TestGNMISetCommitsConfigSession calls srv.Set directly (server-internal); this
+// is the only client-level Set coverage, closing the W-5 gap that Get/Subscribe/
+// Capabilities already had.
+func TestGNMISetWiring(t *testing.T) {
+	editor := &configSessionEditor{values: make(map[string]string)}
+	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
+		return editor, nil
+	})
+	srv := NewServer(Config{ListenAddr: "127.0.0.1:0"}, nil, sessions, nil, nil)
+	startTestServer(t, srv)
+
+	conn, err := grpc.NewClient(srv.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	t.Cleanup(func() { conn.Close() }) //nolint:errcheck // test cleanup
+
+	client := gpb.NewGNMIClient(conn)
+	resp, err := client.Set(t.Context(), &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{Elem: []*gpb.PathElem{
+				{Name: "bgp"},
+				{Name: "router-id"},
+			}},
+			Val: &gpb.TypedValue{Value: &gpb.TypedValue_StringVal{StringVal: "10.0.0.1"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Set RPC: %v", err)
+	}
+	if len(resp.Response) != 1 || resp.Response[0].Op != gpb.UpdateResult_UPDATE {
+		t.Fatalf("expected one UPDATE result, got %+v", resp.Response)
+	}
+	// Confirm the update actually reached the config session (not just an OK
+	// response): the fake editor records what was committed.
+	if !strings.Contains(editor.committedContent, "bgp.router-id = 10.0.0.1") {
+		t.Fatalf("committed content %q missing router-id update", editor.committedContent)
 	}
 }
