@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"net/netip"
+	"time"
 )
 
 // ErrReactorStopped is returned by Dial when the reactor goroutine is not
@@ -28,11 +29,21 @@ type DialTarget struct {
 	SharedSecret string
 }
 
+// pendingCall is a call the reactor originates the moment a dialed tunnel
+// reaches established. outgoing selects the direction: true => LNS OCRQ
+// (placeOutgoingCall), false => LAC ICRQ (placeIncomingCall).
+type pendingCall struct {
+	outgoing bool
+	params   callParams
+}
+
 // dialRequest is one Dial marshaled onto the reactor goroutine. result
 // carries the outcome back to the caller. Buffered with capacity 1 by Dial so
 // handleDial never blocks delivering the result even if the caller has gone.
+// call, when non-nil, is originated once the tunnel establishes.
 type dialRequest struct {
 	target DialTarget
+	call   *pendingCall
 	result chan dialResult
 }
 
@@ -49,6 +60,28 @@ type dialResult struct {
 // ErrReactorStopped if the reactor is not running, ErrMaxTunnels if the limit
 // is reached, or the tunnel-ID allocation error.
 func (r *L2TPReactor) Dial(target DialTarget) (uint16, error) {
+	return r.dialWithCall(target, nil)
+}
+
+// PlaceOutgoingCall dials target and, once the tunnel establishes, originates
+// an LNS-side outgoing call (OCRQ) with the given call parameters. Returns the
+// local tunnel ID (the call's local session ID is assigned asynchronously when
+// the tunnel establishes; observe it via the tunnel's session snapshot). Safe
+// to call from any goroutine (marshaled onto the reactor goroutine, R-2).
+func (r *L2TPReactor) PlaceOutgoingCall(target DialTarget, p callParams) (uint16, error) {
+	return r.dialWithCall(target, &pendingCall{outgoing: true, params: p})
+}
+
+// PlaceIncomingCall dials target and, once the tunnel establishes, originates
+// a LAC-side incoming call (ICRQ) with the given call parameters. Returns the
+// local tunnel ID. Safe to call from any goroutine (R-2).
+func (r *L2TPReactor) PlaceIncomingCall(target DialTarget, p callParams) (uint16, error) {
+	return r.dialWithCall(target, &pendingCall{outgoing: false, params: p})
+}
+
+// dialWithCall is the shared marshaling path for Dial / PlaceOutgoingCall /
+// PlaceIncomingCall.
+func (r *L2TPReactor) dialWithCall(target DialTarget, call *pendingCall) (uint16, error) {
 	r.mu.Lock()
 	if !r.started {
 		r.mu.Unlock()
@@ -57,7 +90,7 @@ func (r *L2TPReactor) Dial(target DialTarget) (uint16, error) {
 	stop := r.stop
 	r.mu.Unlock()
 
-	req := dialRequest{target: target, result: make(chan dialResult, 1)}
+	req := dialRequest{target: target, call: call, result: make(chan dialResult, 1)}
 	select {
 	case r.dialCh <- req:
 	case <-stop:
@@ -106,6 +139,7 @@ func (r *L2TPReactor) handleDial(req dialRequest) {
 		ReliableConfig{RecvWindow: r.params.Defaults.RecvWindow}, r.logger, now)
 	t.maxSessions = r.params.MaxSessions
 	t.initiatorSecret = req.target.SharedSecret
+	t.pendingCall = req.call
 	r.tunnelsByLocalID[localTID] = t
 
 	// A random 8-byte Tie Breaker lets a simultaneous open (the peer sends
@@ -134,6 +168,25 @@ func (r *L2TPReactor) handleDial(req dialRequest) {
 // dialChanDepth sizes the reactor's dial request channel. Dial callers block
 // on delivery, so a small buffer only smooths brief bursts.
 const dialChanDepth = 16
+
+// placePendingCallLocked originates a tunnel's pending call (set at dial time)
+// the moment the tunnel reaches established, and clears it so it fires once.
+// Returns the ICRQ/OCRQ send. Caller MUST hold tunnelsMu and MUST have
+// verified the tunnel just transitioned to established. No-op when there is no
+// pending call.
+func (r *L2TPReactor) placePendingCallLocked(t *L2TPTunnel, now time.Time) []sendRequest {
+	pc := t.pendingCall
+	if pc == nil {
+		return nil
+	}
+	t.pendingCall = nil
+	if pc.outgoing {
+		_, sends := t.placeOutgoingCall(now, pc.params, r.logger)
+		return sends
+	}
+	_, sends := t.placeIncomingCall(now, pc.params, r.logger)
+	return sends
+}
 
 // transmit sends every outbound datagram for a tunnel, mirroring the
 // capture-aware send loop in handle(). Called AFTER releasing tunnelsMu so a

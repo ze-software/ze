@@ -151,3 +151,108 @@ func TestReactor_InitiatorTieBreaker(t *testing.T) {
 	// Never two tunnels to the same peer after a tie-broken crossed open.
 	require.LessOrEqual(t, r.TunnelCount(), 1)
 }
+
+// msgTypeOf returns the L2TP message type of a control datagram.
+func msgTypeOf(t *testing.T, pkt []byte) MessageType {
+	t.Helper()
+	hdr, err := ParseMessageHeader(pkt)
+	require.NoError(t, err)
+	return extractMsgType(pkt[hdr.PayloadOff:hdr.Length])
+}
+
+// readUntilMsgType reads datagrams from the client until it sees the wanted
+// message type or runs out of attempts.
+func readUntilMsgType(t *testing.T, c *testClient, want MessageType, attempts int) []byte {
+	t.Helper()
+	for range attempts {
+		pkt := readDatagram(t, c)
+		if msgTypeOf(t, pkt) == want {
+			return pkt
+		}
+	}
+	t.Fatalf("did not observe message type %d after %d datagrams", want, attempts)
+	return nil
+}
+
+// TestReactor_PlaceOutgoingCall_AutoOCRQ -- AC-4 orchestration seam.
+//
+// VALIDATES: PlaceOutgoingCall dials, and the moment the tunnel establishes
+// (peer SCCRP) the reactor auto-originates the outgoing call (OCRQ) and a
+// wait-reply session appears -- proving the dial -> establish -> place-call
+// orchestration on the single reactor goroutine.
+func TestReactor_PlaceOutgoingCall_AutoOCRQ(t *testing.T) {
+	ln, r, logs, stop := buildLogReactor(t)
+	defer stop()
+	timer := newTunnelTimer(r.tickCh, r.updateCh)
+	require.NoError(t, timer.Start())
+	defer timer.Stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	localTID, err := r.PlaceOutgoingCall(DialTarget{Remote: clientAddrPort(t, client)},
+		callParams{callSerial: 7, minBPS: 9600, maxBPS: 128000, bearerType: 1, framingType: 1, calledNumber: "5551234"})
+	require.NoError(t, err)
+
+	sccrq := readDatagram(t, client)
+	client.Send(t, buildSCCRPForSCCRQ(t, sccrq, 909))
+	waitForLog(t, logs, "OCRQ sent; session wait-reply (LNS outgoing)")
+
+	// After SCCRP: ze emits SCCCN then the auto-placed OCRQ.
+	ocrq := readUntilMsgType(t, client, MsgOCRQ, 3)
+	hdr, err := ParseMessageHeader(ocrq)
+	require.NoError(t, err)
+	info, err := parseOCRQ(ocrq[hdr.PayloadOff:hdr.Length])
+	require.NoError(t, err)
+	require.Equal(t, "5551234", info.calledNumber)
+
+	// A wait-reply session (lnsMode true) exists on the tunnel.
+	tun := r.TunnelByLocalID(localTID)
+	require.NotNil(t, tun)
+	r.tunnelsMu.Lock()
+	require.Equal(t, 1, len(tun.sessions))
+	var sess *L2TPSession
+	for _, s := range tun.sessions {
+		sess = s
+	}
+	r.tunnelsMu.Unlock()
+	require.NotNil(t, sess)
+	require.Equal(t, L2TPSessionWaitReply, sess.State())
+	require.True(t, sess.lnsMode)
+}
+
+// TestReactor_PlaceIncomingCall_AutoICRQ -- AC-3 orchestration seam.
+//
+// VALIDATES: PlaceIncomingCall dials, and on establishment the reactor
+// auto-originates the incoming call (ICRQ) with a wait-reply session.
+func TestReactor_PlaceIncomingCall_AutoICRQ(t *testing.T) {
+	ln, r, logs, stop := buildLogReactor(t)
+	defer stop()
+	timer := newTunnelTimer(r.tickCh, r.updateCh)
+	require.NoError(t, timer.Start())
+	defer timer.Stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	localTID, err := r.PlaceIncomingCall(DialTarget{Remote: clientAddrPort(t, client)},
+		callParams{callSerial: 42, bearerType: 1, framingType: 1, txConnectSpeed: 1_000_000, calledNumber: "5559000"})
+	require.NoError(t, err)
+
+	sccrq := readDatagram(t, client)
+	client.Send(t, buildSCCRPForSCCRQ(t, sccrq, 909))
+	waitForLog(t, logs, "ICRQ sent; session wait-reply (LAC incoming)")
+
+	icrq := readUntilMsgType(t, client, MsgICRQ, 3)
+	hdr, err := ParseMessageHeader(icrq)
+	require.NoError(t, err)
+	info, err := parseICRQ(icrq[hdr.PayloadOff:hdr.Length])
+	require.NoError(t, err)
+	require.EqualValues(t, 42, info.callSerialNumber)
+
+	tun := r.TunnelByLocalID(localTID)
+	require.NotNil(t, tun)
+	r.tunnelsMu.Lock()
+	require.Equal(t, 1, len(tun.sessions))
+	r.tunnelsMu.Unlock()
+}

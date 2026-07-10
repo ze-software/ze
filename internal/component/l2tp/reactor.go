@@ -384,6 +384,15 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 	// lastActivity is set inside Process only when the engine delivers
 	// at least one new message (not on duplicates/out-of-window).
 
+	// Initiator orchestration: a dialed tunnel that just reached established
+	// originates its pending call (ICRQ for a LAC incoming call, OCRQ for an
+	// LNS outgoing call). Runs on the reactor goroutine under tunnelsMu, so
+	// no second writer touches the tunnel map (R-2); the ICRQ/OCRQ send joins
+	// this dispatch's outbound batch.
+	if stateBefore != L2TPTunnelEstablished && tunnel.state == L2TPTunnelEstablished {
+		outbound = append(outbound, r.placePendingCallLocked(tunnel, now)...)
+	}
+
 	// Phase 5: collect kernel events while still holding tunnelsMu.
 	// Tie-breaker losers add their teardowns into discardTeardowns above.
 	setupEvents, teardownEvents := r.collectKernelEventsLocked(tunnel)

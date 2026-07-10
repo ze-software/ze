@@ -134,6 +134,14 @@ type L2TPTunnel struct {
 	// tunnel and had kernel resources. The reactor drains this after
 	// Process() returns and enqueues kernelTeardownEvents. Phase 5.
 	pendingKernelTeardowns []kernelTeardownEvent
+
+	// pendingCall is a call the reactor must originate the moment this
+	// initiated tunnel reaches established (a dial issued via
+	// PlaceIncomingCall / PlaceOutgoingCall). Nil for answering tunnels and
+	// for a bare Dial. Consumed once by the reactor's establishment hook.
+	//
+	// Caller MUST hold the owning reactor's tunnelsMu. Set at dial time.
+	pendingCall *pendingCall
 }
 
 // newTunnel constructs a tunnel in the idle state with a pre-wired
