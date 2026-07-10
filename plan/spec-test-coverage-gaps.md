@@ -470,6 +470,50 @@ where kernel interaction is the code (per `ai/rules/qemu-testing.md`).
 ## Design Insights
 <!-- LIVE — write IMMEDIATELY when you learn something -->
 
+### W-3 gokrazy findings (2026-07-10, implementation) — AC-7 DONE
+
+Two real bugs found by new tests, both fixed at source (failing-first evidence in
+`tmp/gokrazyutil-red.log` and the 502→503 test run):
+- **BUG-1 (`internal/core/gokrazyutil/gokrazyutil.go:AuthHeader`)**: base64-encoded
+  only `"gokrazy:"` — the password read on the line above was never appended, so
+  Basic-Auth injection sent empty credentials to gokrazy (would 401). Two consumers
+  affected: `gokrazy.go:42` web proxy, `config/system/backend_gokrazy.go:148`. Fix:
+  `tb.Str("gokrazy:").Str(password).Bytes()`. Added seams `authHeaderFor(pw)` +
+  `readPasswordFrom(paths)` + `var passwordPaths` for unprivileged tests.
+- **BUG-2 (`internal/component/gokrazy/gokrazy.go` ErrorHandler)**: a missing
+  management socket returned 502 (BadGateway), not the intended 503. The dial error
+  is a `*net.OpError` wrapping ENOENT; `os.IsNotExist` does NOT unwrap net errors, so
+  the 503 branch never fired. Fix: `errors.Is(err, os.ErrNotExist)`.
+- Tests: `internal/core/gokrazyutil/gokrazyutil_test.go` (4),
+  `internal/component/gokrazy/gokrazy_test.go` (8 incl. rewriteAttr table + unix-socket
+  fake), `internal/component/web/register_gokrazy_test.go` (3 web-mount functional).
+- Seam note: web route reads socket from `env.Get("ze.gokrazy.socket")`, gated by
+  `env.IsEnabled("ze.gokrazy.enabled")` (`register_gokrazy.go:22-24`) — functional test
+  drives Build() with a fake unix socket, no /run needed.
+
+### W-3 static/vpp findings (2026-07-10) — four files DONE, unwired-backend flagged
+
+- Four mandated files written & green: `apply_test.go` (holds the shared
+  `testChannel` fake api.Channel; add/remove/retval/send-error/path-cap 255-vs-256),
+  `translate_test.go` (toVPPPrefix v4/v6/boundary, toFibPath v4/v6/weight-0-coerce,
+  buildFibPaths all 3 actions + unknown), `verify_test.go` (action→wire path-type +
+  clear retval error), `register_test.go` (NewBackend table-id wiring + Close).
+- **FINDING (scope question for user):** `internal/plugins/static/vpp` is ORPHANED —
+  no `init()`, no registry, and NO production caller. The parent static plugin picks
+  its backend via `newStaticBackend()` (`backend_linux.go:25` netlink /
+  `backend_other.go:17` unsupported) and never imports `staticvpp`. So the mandate's
+  "register_test confirms init() wires the backend into the registry" has nothing to
+  assert — register_test covers construction instead (documented in the file). Wiring
+  a VPP static-route dataplane (backend selection + channel provider + config surface)
+  is a FEATURE, not a test-coverage fix → flagged, not silently built.
+  **USER DECISION 2026-07-10: WIRE IT into the parent static plugin.** Parent seam:
+  `routeBackend` interface (`backend.go:5` applyRoute/removeRoute/listRoutes/close);
+  `newStaticBackend()` (`backend_linux.go:25`) builds the netlink backend. Wiring =
+  a staticvpp-backed `routeBackend` adapter + backend selection at the newStaticBackend
+  call site + a VPP channel provider (mirror fib/vpp's channel source). register_test
+  then asserts real init()/registry wiring. Sequencing: finish mrt `.ci` first, then
+  W-4→W-9. Commit the W-3 test batch first.
+
 ### W-2 findings (2026-07-10, implementation)
 
 - **W-2 complete and GREEN**: `time.sleep(` count in `test/**/*.ci` is 448 ==

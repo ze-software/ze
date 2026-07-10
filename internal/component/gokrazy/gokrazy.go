@@ -15,6 +15,7 @@ package gokrazy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -33,16 +34,21 @@ import (
 // Basic Auth, and rewrites absolute paths in HTML responses. The
 // caller wraps this with ze's auth middleware.
 func Handler(socketPath string) http.Handler {
+	authHeader := gokrazyutil.AuthHeader()
+	if authHeader == "" {
+		slogutil.Logger("gokrazy").Info("gokrazy password not found, proxying without auth injection")
+	}
+	return handlerWithAuth(socketPath, authHeader)
+}
+
+// handlerWithAuth is Handler with the Basic Auth header supplied explicitly,
+// so tests can drive auth injection without touching the on-disk password.
+func handlerWithAuth(socketPath, authHeader string) http.Handler {
 	if socketPath == "" {
 		socketPath = gokrazyutil.DefaultSocketPath
 	}
 
 	logger := slogutil.Logger("gokrazy")
-
-	authHeader := gokrazyutil.AuthHeader()
-	if authHeader == "" {
-		logger.Info("gokrazy password not found, proxying without auth injection")
-	}
 
 	proxy := &httputil.ReverseProxy{
 		Transport: &http.Transport{
@@ -62,7 +68,10 @@ func Handler(socketPath string) http.Handler {
 
 	proxy.ModifyResponse = rewriteResponse
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		if os.IsNotExist(err) {
+		// A missing management socket surfaces as a connect ENOENT wrapped in a
+		// *net.OpError; os.IsNotExist does not unwrap net errors, so use
+		// errors.Is to reach the underlying fs.ErrNotExist and answer 503.
+		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "gokrazy management socket not found", http.StatusServiceUnavailable)
 			return
 		}
