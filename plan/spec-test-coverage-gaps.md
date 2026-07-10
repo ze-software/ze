@@ -470,6 +470,40 @@ where kernel interaction is the code (per `ai/rules/qemu-testing.md`).
 ## Design Insights
 <!-- LIVE — write IMMEDIATELY when you learn something -->
 
+### W-4 telemetry collectors (2026-07-10) — AC-10 DONE
+
+Every `*_linux.go` collector (31 of them; `delta_linux.go` is pure helpers and
+`platform_linux.go` is the registration wiring, neither is a collector) now has a
+fixture-driven unit test asserting emitted gauge values through a recording
+`metrics.Registry` fake. Package coverage **2.7% → 85.8%**. Commits:
+`8caeaa0bd` (11 + memory bug), `c3caa9602` (5), `8b371346e` (13 + seams),
+`350976fe9` (live smoke).
+
+- **5th PRODUCTION BUG (fixed): `memory_linux.go` under-reported every
+  `_MiB_average` gauge by 1024x.** procfs `Meminfo` exposes the plain fields
+  (`m.MemTotal`, ...) in **kB** — only the `*Bytes` variants are bytes — but the
+  collector's `toMiB` divided by `1024*1024`, treating kB as bytes. The zswap path
+  in the same file already converted kB with `/1024`, confirming the intended unit.
+  Fix: `toMiB` → `kBToMiB` dividing kB by 1024 (`memory_linux.go:70-76,84`).
+  Failing-first regression test.
+- **Test harness** (`recording_test.go`): `recordingRegistry` records gauge/counter
+  values by name + label tuple; `procFixture` (procfs.NewFS over t.TempDir);
+  `procDir`/`writeProcFile` (delta collectors: rewrite input between two Collect()s);
+  `procDirSelf` (relative `self`→`1` symlink for `/proc/self/net/*` collectors);
+  `tmpFile` (direct-path seam fixtures).
+- **Fix-at-source seams (AC-10 policy):** Group-B collectors read hardcoded
+  `os.ReadFile`/`filepath.Glob`/`os.ReadDir` paths. Each got an injectable field
+  defaulted to the real path, overridden only in tests: a `path` field
+  (uptime/filenr/vmstat/diskstats/sctp/conntrack_expect/zfs), `countPath`/`maxPath`
+  (conntrack sysctls), or a `root` field (netiface, btrfs, cpufreq, cpuidle,
+  diskspace mounts). `listCPUs` gained a `root` param shared by cpufreq+cpuidle.
+- Real `/proc` fixtures extracted from the procfs module's `fixtures.ttar`
+  (`tmp/w4/`), so fixture formats match the kernel exactly.
+- **Live scrape (`live_integration_linux_test.go`, `integration && linux`):** wires
+  the real collectors against the host's live `/proc`+`/sys` via
+  `registerPlatformCollectors`, runs two cycles, asserts loadavg + uptime reach the
+  registry. Passes on the dev host; the integration suite runs it under QEMU.
+
 ### W-3 gokrazy findings (2026-07-10, implementation) — AC-7 DONE
 
 Two real bugs found by new tests, both fixed at source (failing-first evidence in
