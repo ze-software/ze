@@ -2,6 +2,10 @@
 // Overview: ifacenetlink.go -- package hub
 // Related: backend_linux.go -- netlinkBackend type and Close()
 // Related: manage_linux.go -- sibling Create* methods (Dummy, Veth, Bridge, VLAN)
+// RFC: rfc/short/rfc2784.md
+// RFC: rfc/short/rfc2890.md
+// RFC: rfc/short/rfc2003.md
+// RFC: rfc/short/rfc2473.md
 
 //go:build linux
 
@@ -77,6 +81,9 @@ func buildTunnelLink(spec iface.TunnelSpec) (netlink.Link, error) {
 		return nil, err
 	}
 
+	if spec.Kind == iface.TunnelKindVxlan {
+		return buildVxlan(spec, local, remote)
+	}
 	if greBuilders[spec.Kind] != nil {
 		return greBuilders[spec.Kind](spec, spec.Name, local, remote, parentIndex), nil
 	}
@@ -260,6 +267,34 @@ func buildIp6tnl(spec iface.TunnelSpec, name string, local, remote net.IP, paren
 		link.EncapLimit = spec.EncapLimit
 	}
 	return link
+}
+
+// buildVxlan constructs a netlink.Vxlan link. VXLAN carries L2 Ethernet frames
+// over a UDP/IPv4 underlay keyed by a 24-bit VNI; Group is the unicast (or
+// multicast) remote endpoint and the port defaults to the IANA value 4789.
+// VNI is validated here as well as in the VPP backend so both halves of the
+// new kind reject an out-of-range identifier identically.
+func buildVxlan(spec iface.TunnelSpec, local, remote net.IP) (netlink.Link, error) {
+	if spec.LocalInterface != "" {
+		return nil, fmt.Errorf("vxlan %q: local-interface source not supported; set local ip", spec.Name)
+	}
+	if !spec.VNISet || spec.VNI == 0 {
+		return nil, fmt.Errorf("vxlan %q: vni is required (1..16777215)", spec.Name)
+	}
+	if spec.VNI > 16777215 {
+		return nil, fmt.Errorf("vxlan %q: vni %d out of range (1..16777215)", spec.Name, spec.VNI)
+	}
+	port := 4789
+	if spec.PortSet && spec.Port != 0 {
+		port = int(spec.Port)
+	}
+	return &netlink.Vxlan{
+		LinkAttrs: linkAttrsForName(spec.Name),
+		VxlanId:   int(spec.VNI),
+		SrcAddr:   local,
+		Group:     remote,
+		Port:      port,
+	}, nil
 }
 
 // parseTunnelLocal parses LocalAddress when set, returning nil when no

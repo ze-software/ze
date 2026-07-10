@@ -65,9 +65,40 @@ type vppBackendImpl struct {
 	names         *nameMap
 	bridgeDomains map[string]uint32 // bridge name -> BD ID (separate from SwIfIndex space)
 
+	// delMu guards deleters. Tunnels, VXLAN, WireGuard, and LCP pairs each
+	// need a kind-specific VPP delete message (there is no generic
+	// "delete interface" in VPP). Each Create* method records a closure that
+	// performs the matching teardown; DeleteInterface looks the name up here
+	// before falling back to the loopback/sub-interface delete path.
+	delMu    sync.Mutex
+	deleters map[string]func() error // ze name -> kind-specific delete
+
 	// monMu guards mon; the pointer is only mutated under the lock.
 	monMu sync.Mutex
 	mon   *monitor
+}
+
+// recordDeleter registers a kind-specific teardown closure for a created
+// netdev. Lazily initializes the map so tests that construct vppBackendImpl
+// directly (without newVPPBackend) still work.
+func (b *vppBackendImpl) recordDeleter(name string, fn func() error) {
+	b.delMu.Lock()
+	if b.deleters == nil {
+		b.deleters = make(map[string]func() error)
+	}
+	b.deleters[name] = fn
+	b.delMu.Unlock()
+}
+
+// takeDeleter removes and returns the teardown closure for name, if any.
+func (b *vppBackendImpl) takeDeleter(name string) (func() error, bool) {
+	b.delMu.Lock()
+	defer b.delMu.Unlock()
+	fn, ok := b.deleters[name]
+	if ok {
+		delete(b.deleters, name)
+	}
+	return fn, ok
 }
 
 // getActiveConnector returns the VPP connector. Tests override this to
@@ -97,6 +128,7 @@ func newVPPBackend() (iface.Backend, error) {
 	return &vppBackendImpl{
 		names:         newNameMap(),
 		bridgeDomains: make(map[string]uint32),
+		deleters:      make(map[string]func() error),
 	}, nil
 }
 
@@ -386,10 +418,6 @@ func (b *vppBackendImpl) enableVLANQoS(subIdx interface_types.InterfaceIndex, sp
 	return nil
 }
 
-func (b *vppBackendImpl) CreateTunnel(_ iface.TunnelSpec) error {
-	return errNotSupported("CreateTunnel (pending GoVPP tunnel API wiring)")
-}
-
 func (b *vppBackendImpl) CreateXFRM(_ iface.XFRMSpec) error {
 	return errNotSupported("CreateXFRM (XFRM interfaces are Linux netlink only)")
 }
@@ -411,6 +439,19 @@ func (b *vppBackendImpl) GetWireguardDevice(_ string) (iface.WireguardSpec, erro
 }
 
 func (b *vppBackendImpl) DeleteInterface(name string) error {
+	// Kind-specific teardown (tunnel, VXLAN, WireGuard, LCP) recorded at
+	// create time takes precedence: VPP has no generic delete-interface, so
+	// each netdev family is torn down with its own message.
+	if fn, ok := b.takeDeleter(name); ok {
+		if err := b.ensureChannel(); err != nil {
+			return err
+		}
+		if err := fn(); err != nil {
+			return err
+		}
+		b.names.Remove(name)
+		return nil
+	}
 	idx, err := b.resolveIndex(name)
 	if err != nil {
 		return err

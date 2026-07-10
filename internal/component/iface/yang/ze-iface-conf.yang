@@ -638,6 +638,7 @@ module ze-iface-conf {
                     case gre {
                         description "GRE over IPv4 (RFC 2784, key extension RFC 2890). L3.";
                         container gre {
+                            ze:backend "netlink vpp";
                             description "GRE-over-IPv4 parameters";
                             uses tunnel-v4-endpoints;
 
@@ -669,6 +670,7 @@ module ze-iface-conf {
                     case gretap {
                         description "GRE over IPv4, L2 (Ethernet over GRE, bridgeable). RFC 2784.";
                         container gretap {
+                            ze:backend "netlink vpp";
                             description "GRETAP-over-IPv4 parameters";
                             uses tunnel-v4-endpoints;
 
@@ -771,6 +773,7 @@ module ze-iface-conf {
                     case ipip {
                         description "IPv4 in IPv4 (RFC 2003). No GRE header, no key. L3.";
                         container ipip {
+                            ze:backend "netlink vpp";
                             description "IPv4-in-IPv4 tunnel parameters (RFC 2003). Minimal overhead, no key support.";
                             uses tunnel-v4-endpoints;
 
@@ -867,6 +870,33 @@ module ze-iface-conf {
                                 type uint8;
                                 default 4;
                                 description "Tunnel encapsulation limit";
+                            }
+                        }
+                    }
+
+                    case vxlan {
+                        description "VXLAN overlay: L2 Ethernet frames over a
+                                     UDP/IPv4 underlay, keyed by a 24-bit VNI.
+                                     Landed in both the netlink and VPP backends.";
+                        container vxlan {
+                            ze:backend "netlink vpp";
+                            description "VXLAN parameters. local ip is the tunnel
+                                         source, remote ip the (unicast) VTEP
+                                         destination.";
+                            uses tunnel-v4-endpoints;
+
+                            leaf vni {
+                                type uint32 {
+                                    range "1..16777215";
+                                }
+                                mandatory true;
+                                description "VXLAN Network Identifier (24-bit, 1..16777215)";
+                            }
+
+                            leaf port {
+                                type zt:port;
+                                default 4789;
+                                description "UDP destination port (IANA-assigned default 4789)";
                             }
                         }
                     }

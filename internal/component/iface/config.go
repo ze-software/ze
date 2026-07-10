@@ -640,6 +640,22 @@ func parseTunnelLeaves(spec *TunnelSpec, caseMap map[string]any) error {
 		spec.EncapLimit = uint8(n)
 		spec.EncapLimitSet = true
 	}
+	if v, ok := caseMap["vni"].(string); ok && v != "" {
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("vni %q: %w", v, err)
+		}
+		spec.VNI = uint32(n)
+		spec.VNISet = true
+	}
+	if v, ok := caseMap["port"].(string); ok && v != "" {
+		n, err := strconv.ParseUint(v, 10, 16)
+		if err != nil {
+			return fmt.Errorf("port %q: %w", v, err)
+		}
+		spec.Port = uint16(n)
+		spec.PortSet = true
+	}
 	return nil
 }
 

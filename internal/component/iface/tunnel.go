@@ -29,6 +29,11 @@ const (
 	TunnelKindIP6Tnl
 	// TunnelKindIPIP6 is IPv4 in IPv6. Linux ip6tnl with Proto=IPIP.
 	TunnelKindIPIP6
+	// TunnelKindVxlan is a VXLAN overlay (RFC 7348): L2 Ethernet frames
+	// carried over a UDP/IPv4 underlay, discriminated by a 24-bit VNI.
+	// Landed in both backends (netlink Vxlan link + VPP
+	// VxlanAddDelTunnelV3); see tunnelKindNames and the vxlan YANG case.
+	TunnelKindVxlan
 )
 
 // tunnelKindNames maps each valid TunnelKind to its YANG case name. Used by
@@ -43,6 +48,7 @@ var tunnelKindNames = map[TunnelKind]string{
 	TunnelKindSIT:       "sit",
 	TunnelKindIP6Tnl:    "ip6tnl",
 	TunnelKindIPIP6:     "ipip6",
+	TunnelKindVxlan:     "vxlan",
 }
 
 // tunnelKindByName is the inverse of tunnelKindNames, populated in init.
@@ -141,4 +147,8 @@ type TunnelSpec struct {
 	TClassSet       bool
 	EncapLimit      uint8 // ip6tnl/ipip6 only; default 4
 	EncapLimitSet   bool
+	VNI             uint32 // vxlan only; VXLAN Network Identifier (1..16777215)
+	VNISet          bool
+	Port            uint16 // vxlan only; UDP destination port; 0 = default 4789
+	PortSet         bool
 }
