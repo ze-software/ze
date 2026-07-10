@@ -946,7 +946,16 @@ func recreateManagedInterface(cfg *ifaceConfig, name string, b Backend) error {
 	}
 	for _, e := range cfg.Dummy {
 		if !e.Disable && e.Name == name {
-			return b.CreateDummy(e.Name)
+			if err := b.CreateDummy(e.Name); err != nil {
+				return err
+			}
+			// Re-establish the LCP shadow on the vpp backend, matching
+			// applyConfig's Phase 1 so a loopback recreated on the deferred
+			// vpp-ready / post-crash path is not left without its Linux TAP.
+			if cfg.Backend == vppBackendName {
+				return b.SetupLCPPair(e.Name, e.Name)
+			}
+			return nil
 		}
 	}
 	for _, e := range cfg.Veth {

@@ -538,6 +538,15 @@ Real-daemon evidence uses `make ze-deployment-vpp-test`. That target starts
 the same container, and checks that VPP's FIB contains then withdraws the test
 route.
 
+`make ze-deployment-vpp-iface-test` is the interface-feature counterpart
+(`scripts/evidence/effective-vpp-iface.py`): it proves ze programs a GRE tunnel
+and a wireguard interface on real VPP 25.10, and probes plugin presence for the
+wireguard and linux-cp (LCP) plugins. Recorded image limit: `ligato/vpp-base`
+ships `wireguard_plugin.so` but NOT `linux_cp_plugin.so`/`linux_nl_plugin.so`,
+so the LCP-pair scenario records an evidence-backed SKIP; validating LCP TAP +
+BGP-over-TAP needs a VPP image built with the linux-cp plugins.
+<!-- source: scripts/evidence/effective-vpp-iface.py -- tunnel/wireguard/LCP real-VPP evidence -->
+
 **Runner:** `ze-test vpp [flags] [tests...]`
 
 | Flag | Purpose |

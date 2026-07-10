@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 276 design docs, 2889 files
+Total: 276 design docs, 2894 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -43,6 +43,7 @@ Total: 276 design docs, 2889 files
 ## `ai/rules/doctor-checks.md`
 
 - `internal/component/radius/doctor.go` -- RADIUS admin reachability readiness check
+- `internal/plugins/iface/vpp/doctor.go` -- self-contained doctor checks owned by
 
 ## `ai/rules/feature-gate-registration.md`
 
@@ -1853,6 +1854,7 @@ Total: 276 design docs, 2889 files
 | `internal/plugins/iface/netlink/backend_other.go` | Non-Linux interface backend stub |
 | `internal/plugins/iface/netlink/bridge_linux.go` | Bridge interface management |
 | `internal/plugins/iface/netlink/ifacenetlink.go` | Netlink interface backend |
+| `internal/plugins/iface/netlink/lcp_linux.go` | Linux Control Plane pairs (VPP-only) |
 | `internal/plugins/iface/netlink/manage_linux.go` | Interface management via netlink |
 | `internal/plugins/iface/netlink/mirror_linux.go` | Traffic mirroring via tc mirred |
 | `internal/plugins/iface/netlink/monitor_linux.go` | Netlink interface monitor |
@@ -1863,9 +1865,11 @@ Total: 276 design docs, 2889 files
 | `internal/plugins/iface/netlink/wireguard_linux.go` | WireGuard netdev creation via netlink |
 | `internal/plugins/iface/netlink/xfrm_linux.go` | XFRM interface netlink backend |
 | `internal/plugins/iface/vpp/fib.go` | VPP FIB readback via ip_route_v2_dump |
+| `internal/plugins/iface/vpp/mirror.go` | Traffic mirroring on the VPP dataplane |
 | `internal/plugins/iface/vpp/neighbor.go` | VPP neighbor-table readback via ip_neighbor_dump |
 | `internal/plugins/iface/vpp/tunnel.go` | Tunnel interface creation on the VPP dataplane |
 | `internal/plugins/iface/vpp/vxlan.go` | VXLAN overlay on the VPP dataplane |
+| `internal/plugins/iface/vpp/wireguard.go` | WireGuard on the VPP dataplane |
 | `internal/plugins/ntp/clock_linux.go` | NTP system clock operations |
 | `internal/plugins/ntp/clock_other.go` | NTP clock stub for non-Linux |
 | `internal/plugins/ntp/ntp.go` | NTP client plugin |
@@ -2040,6 +2044,7 @@ Total: 276 design docs, 2889 files
 | `internal/plugins/fib/vpp/mpls.go` | VPP MPLS FIB programming |
 | `internal/plugins/fib/vpp/stats.go` | VPP FIB route programming |
 | `internal/plugins/iface/vpp/ifacevpp.go` | VPP interface management via GoVPP |
+| `internal/plugins/iface/vpp/lcp.go` | Linux Control Plane (LCP) |
 | `internal/plugins/iface/vpp/monitor.go` | VPP interface event delivery |
 | `internal/plugins/iface/vpp/naming.go` | VPP interface naming and LCP TAP mapping |
 | `internal/plugins/iface/vpp/query.go` | VPP interface query and MAC operations |

@@ -302,4 +302,19 @@ func TestApplyLoopbackLCPPairOnVPP(t *testing.T) {
 			t.Error("netlink backend must not create an LCP pair")
 		}
 	})
+	// The deferred vpp-ready / post-crash recreate path must also re-establish
+	// the LCP shadow, matching applyConfig's Phase 1.
+	t.Run("recreate_path_reshadows", func(t *testing.T) {
+		b := &fakeBackend{}
+		cfg := &ifaceConfig{
+			Backend: vppBackendName,
+			Dummy:   []ifaceEntry{{Name: "loop0"}},
+		}
+		if err := recreateManagedInterface(cfg, "loop0", b); err != nil {
+			t.Fatalf("recreateManagedInterface: %v", err)
+		}
+		if got := b.lcpPairs["loop0"]; got != "loop0" {
+			t.Errorf("recreate lcpPairs[loop0] = %q, want loop0", got)
+		}
+	})
 }

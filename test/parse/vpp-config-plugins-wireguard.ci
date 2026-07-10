@@ -1,0 +1,19 @@
+# Test: vpp.plugins.wireguard toggle validates
+# VALIDATES: spec-followup-vpp-iface AC-5 -- the new vpp.plugins.wireguard
+#            config leaf parses and validates; it drives the
+#            'plugin wireguard_plugin.so { enable }' emission in startup.conf so
+#            the vpp interface backend can program WireGuard tunnels.
+# PREVENTS: a regression that drops the plugins container from the vpp schema,
+#           leaving no way to enable the wireguard plugin.
+stdin=config:terminator=EOF_CONF
+vpp {
+	enabled true;
+	plugins {
+		wireguard true;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

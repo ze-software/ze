@@ -184,9 +184,11 @@ the stats poll interval only when the defaults do not fit the workload.
 | `vpp.lcp.enabled` | boolean | `true` | Whether ze asks VPP to load `linux_cp_plugin.so` and `linux_nl_plugin.so`. Leave on when BGP uses VPP-owned NICs. |
 | `vpp.lcp.sync` | boolean | `true` | Mirror VPP state changes (link, MTU, IP) into the Linux TAPs. |
 | `vpp.lcp.auto-subint` | boolean | `true` | Auto-create Linux TAPs for dot1q and QinQ sub-interfaces. |
-| `vpp.lcp.netns` | string | `dataplane` | Network namespace where LCP TAPs appear. Must not contain path separators. |
+| `vpp.lcp.netns` | string | `dataplane` | Network namespace where LCP TAPs appear. Must not contain path separators. For BGP to bind on an LCP-shadowed interface, set this to a root-reachable namespace (`host`/`root`) or run BGP in the same namespace; `ze doctor` warns (`doctor-vpp-lcp-netns`) otherwise. |
+| `vpp.plugins.wireguard` | boolean | `false` | Load `wireguard_plugin.so` so the vpp interface backend can program WireGuard tunnels (`interface { backend vpp; wireguard ...; }`). `ze doctor` warns (`doctor-vpp-wireguard`) if a wireguard interface is configured under vpp with this off. |
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- every leaf above -->
 <!-- source: internal/component/vpp/config.go -- defaults and validation -->
+<!-- source: internal/plugins/iface/vpp/doctor.go -- doctor-vpp-lcp-netns, doctor-vpp-wireguard -->
 
 ### Enabling FIB programming
 
@@ -262,8 +264,12 @@ telemetry are in the tree. The remaining phases:
 | Phase | What it adds | Why not yet |
 |-------|--------------|-------------|
 | vpp-3 | MPLS label push / swap / pop driven from BGP labelled unicast | **In tree.** Labels stripped at NLRI parse (SplitLabeled, RFC 8277), stored as FamilyRIB side-data, propagated through bgp-rib and sysRIB BestChangeEntry.Labels, programmed into VPP via IPRouteAddDel with LabelStack (push) or MplsRouteAddDel (swap/pop). 20-bit label range and stack depth 16 validated before GoVPP call. |
-| vpp-4 | VPP-native `iface.Backend`: managing interfaces directly via GoVPP instead of through the kernel | **In tree.** Backend registers as `"vpp"` and loads cleanly under `interface { backend vpp; }`. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (`ListInterfaces`, `GetInterface`, `GetMACAddress`, `SetMACAddress`), and monitor (`WantInterfaceEvents` -> EventBus) all wired against vendored GoVPP. Tunnels (VXLAN/GRE/IPIP), LCP TAP pairs, VPP stats segment, mirror, and wireguard are deferred to vpp-4b/4c/5/6b (each blocked on vendoring the matching `go.fd.io/govpp/binapi/*` package). Iface-component reconciliation also currently races the vpp handshake at startup and degrades to additive-only -- tracked in `spec-iface-vpp-ready-gate`. |
-| vpp-5 | L2 cross-connect, bridge domains, VXLAN tunnels, policers, ACLs, SRv6, sFlow | Depends on vpp-4. Each feature is independent. |
+| vpp-4 | VPP-native `iface.Backend`: managing interfaces directly via GoVPP instead of through the kernel | **In tree.** Backend registers as `"vpp"` and loads cleanly under `interface { backend vpp; }`. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (`ListInterfaces`, `GetInterface`, `GetMACAddress`, `SetMACAddress`), and monitor (`WantInterfaceEvents` -> EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (`spec-followup-vpp-iface`, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by `scripts/evidence/effective-vpp-iface.py`; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping `linux_cp_plugin.so`/`linux_nl_plugin.so` (the `ligato/vpp-base` image does not). Iface-component reconciliation still races the vpp handshake at startup and degrades to additive-only -- tracked in `spec-iface-vpp-ready-gate`. |
+<!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip -->
+<!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN -->
+<!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API -->
+<!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del -->
+| vpp-5 | L2 cross-connect, bridge domains, policers, ACLs, SRv6, sFlow | Depends on vpp-4. Each feature is independent. (VXLAN tunnels landed with `spec-followup-vpp-iface`.) |
 
 The three-strategy framing in
 [`docs/research/ze-vpp-analysis.md`](../research/ze-vpp-analysis.md)

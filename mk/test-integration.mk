@@ -20,7 +20,7 @@
 .PHONY: ze-stress-test ze-stress-bird-test ze-stress-profile ze-stress-web-test ze-stress-fleet-test
 .PHONY: ze-live-test ze-live-rpki-test
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-integration-gtsm-test ze-integration-as112-test
-.PHONY: ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test
+.PHONY: ze-release-check ze-deployment-vpp-test ze-deployment-vpp-iface-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-deployment-pppoe-accel-docker-test
 .PHONY: ze-docker-evidence ze-deployment-preflight
@@ -109,6 +109,10 @@ ze-integration-test: ze-integration-iface-test ze-integration-fib-test ze-integr
 ze-deployment-vpp-test:
 	@echo "Running real VPP daemon deployment test (requires Docker + privileged container)..."
 	python3 scripts/evidence/effective-vpp.py
+
+ze-deployment-vpp-iface-test:
+	@echo "Running real VPP interface-feature deployment test (tunnels/mirror/wireguard/LCP; requires Docker + privileged container)..."
+	python3 scripts/evidence/effective-vpp-iface.py
 
 ze-release-check:
 	@echo "Running clean release-candidate verification (requires Docker + clean worktree)..."

@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1109 summaries
+Total: 1110 summaries
 
 ## 000-099
 
@@ -1173,3 +1173,4 @@ Total: 1109 summaries
 | 1095 | followup-subsystem: DoT/DoH, DNSSEC, SLAAC, exabgp-bridge, MCP, port-defaults | `plan/learned/1095-followup-subsystem.md` |
 | 1096 | followup-vpp-traffic-protocol | `plan/learned/1096-followup-vpp-traffic-protocol.md` |
 | 1097 | followup-vpp-traffic (dscp police-by-dscp + multi-class steering) | `plan/learned/1097-followup-vpp-traffic.md` |
+| 1098 | followup-vpp-iface: VPP interface tunnels / mirror / wireguard / LCP | `plan/learned/1098-followup-vpp-iface.md` |
