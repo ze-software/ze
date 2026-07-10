@@ -38,6 +38,22 @@ func (r *Runner) withParallelHeadroom(timeout time.Duration) time.Duration {
 	return timeout
 }
 
+// engineStepsForRun returns a copy of steps with each step's timeout widened by
+// the parallel headroom. The engine-steps executor runs its per-step polls (an
+// establishment wait, a rekey-count poll) inside the spawned daemon against
+// these authored timeouts; unlike the outer daemon budget they are not otherwise
+// widened, so under contention a poll can expire while the daemon budget is
+// still fine. Applying the same headroom keeps two-daemon tests reliable in
+// parallel while serial runs (-p 1) stay tight. The original slice is untouched.
+func (r *Runner) engineStepsForRun(steps []EngineStep) []EngineStep {
+	out := make([]EngineStep, len(steps))
+	for i, s := range steps {
+		s.Timeout = r.withParallelHeadroom(s.Timeout)
+		out[i] = s
+	}
+	return out
+}
+
 const (
 	modeForeground  = "foreground"
 	fileCheckFailed = "file_check_failed"

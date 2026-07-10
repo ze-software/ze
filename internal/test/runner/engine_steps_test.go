@@ -99,6 +99,36 @@ expect=stream:contains=a:b:c:timeout=3
 	}
 }
 
+func TestEngineStepsForRunWidensTimeoutsUnderParallel(t *testing.T) {
+	// The executor's internal per-step polls (e.g. an establishment wait) must
+	// get the same parallel headroom as the outer daemon budget, or they flake
+	// under contention while the outer budget is fine. Serial runs are unchanged.
+	steps := []EngineStep{
+		{Kind: EngineStepCommand, Text: "show x"},
+		{Kind: EngineStepExpectOutput, Text: "y", Timeout: 10 * time.Second},
+		{Kind: EngineStepExpectEvent, Namespace: "vpn-ipsec", Name: "sa-up", Timeout: 5 * time.Second},
+	}
+
+	serial := (&Runner{concurrency: 1}).engineStepsForRun(steps)
+	if serial[1].Timeout != 10*time.Second || serial[2].Timeout != 5*time.Second {
+		t.Errorf("serial run must not widen timeouts: %+v", serial)
+	}
+
+	par := (&Runner{concurrency: 4}).engineStepsForRun(steps)
+	if par[1].Timeout != 10*time.Second*ParallelTimeoutHeadroom ||
+		par[2].Timeout != 5*time.Second*ParallelTimeoutHeadroom {
+		t.Errorf("parallel run must widen timeouts by %dx: %+v", ParallelTimeoutHeadroom, par)
+	}
+	// A command step carries no timeout (0) and stays 0; the original slice is
+	// not mutated.
+	if par[0].Timeout != 0 {
+		t.Errorf("command step timeout must stay 0: %+v", par[0])
+	}
+	if steps[1].Timeout != 10*time.Second {
+		t.Errorf("original steps must not be mutated: %+v", steps)
+	}
+}
+
 func TestEngineStepsFileRoundTrip(t *testing.T) {
 	steps := []EngineStep{
 		{Kind: EngineStepCommand, Text: "show vpn ipsec status"},
