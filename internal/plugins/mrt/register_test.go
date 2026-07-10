@@ -87,6 +87,20 @@ func TestParseConfigDirection(t *testing.T) {
 	}
 }
 
+// TestParseConfigWrappedRoot guards the production delivery format: the plugin
+// server hands mrt its section wrapped in the config root, e.g.
+// {"mrt":{"updates":{...}}}. ParseConfig must unwrap "mrt" or the plugin sees an
+// empty config and stays idle (the never-worked bug this test pins down).
+func TestParseConfigWrappedRoot(t *testing.T) {
+	cfg := mustParse(t, `{"mrt":{"updates":{"file":"/var/mrt/updates","interval":60}}}`)
+	if cfg.UpdatesPath != "/var/mrt/updates" || cfg.UpdatesInterval != 60*time.Second {
+		t.Fatalf("wrapped-root config not unwrapped: path=%q interval=%v", cfg.UpdatesPath, cfg.UpdatesInterval)
+	}
+	if cfg.IsEmpty() {
+		t.Fatal("wrapped-root config parsed as empty (plugin would go idle)")
+	}
+}
+
 func TestParseConfigEmpty(t *testing.T) {
 	cfg := mustParse(t, `{}`)
 	if !cfg.IsEmpty() {

@@ -215,7 +215,18 @@ func runEngine(conn net.Conn) int {
 }
 
 // ParseConfig parses MRT config from JSON section data.
+//
+// The plugin server delivers a section wrapped in the config root, e.g.
+// {"mrt":{"updates":{...}}} (BuildPluginConfigSections keys the body by root,
+// as static/fib/etc. all unwrap). Unwrap the "mrt" key before decoding the
+// body; a body that is already unwrapped (no "mrt" key) is decoded as-is.
 func ParseConfig(data json.RawMessage) (*Config, error) {
+	if wrapper := map[string]json.RawMessage{}; json.Unmarshal(data, &wrapper) == nil {
+		if inner, ok := wrapper[configRoot]; ok {
+			data = inner
+		}
+	}
+
 	var raw struct {
 		ExtendedTimestamp *bool    `json:"extended-timestamp"`
 		AddPath           *bool    `json:"add-path"`

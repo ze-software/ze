@@ -491,6 +491,55 @@ Two real bugs found by new tests, both fixed at source (failing-first evidence i
   `env.IsEnabled("ze.gokrazy.enabled")` (`register_gokrazy.go:22-24`) — functional test
   drives Build() with a fake unix socket, no /run needed.
 
+### W-3 mrt `.ci` RESOLVED (2026-07-10) — real product bug fixed at source, `.ci` green
+
+- **BUG-3 (fixed): `internal/plugins/mrt/register.go` ParseConfig never unwrapped the
+  config root.** The plugin server delivers each plugin its section wrapped in the config
+  root — mrt received `{"mrt":{"updates":{...}}}` — but ParseConfig unmarshalled straight
+  into a struct whose fields (updates/all/routes) sit at the TOP level, so they were all
+  nil → `cfg.IsEmpty()` → `mrt: no configuration, plugin idle`. **mrt has NEVER activated
+  in production** (config silently dropped, no dumps ever written). Every sibling config
+  plugin unwraps the root (`static/config.go:31` `data["static"]`); mrt was the outlier.
+  Fix: unwrap `wrapper[configRoot]` before decoding (handles wrapped + already-unwrapped).
+  Diagnosed by instrumenting `deliverConfigRPC` (`server/startup.go:701`, delivered
+  `sections=1` with the wrapped body) — reverted after.
+- Now green: `test/plugin/mrt-dump-updates.ci` (updates stream) + `mrt-dump-all.ci` (all
+  stream) both PASS; mrt logs `mrt: started updates=true` / `mrt configured`; `expect=file`
+  proves the dump is written (lazy-created on first record → mutation-verifiable: reverting
+  the unwrap → file absent → RED, confirmed). Unit test `TestParseConfigWrappedRoot` pins
+  the production format.
+- Remaining (small follow-up, unit-covered): `routes`/`request mrt dump-rib` `.ci` need RIB
+  population (rib plugin + injected routes) — the unwrap fix makes them work; config parsing
+  for routes mode is unit-tested (`TestParseConfigRoutesMode`).
+
+### W-3 mrt `.ci` investigation trail (superseded by the fix above)
+
+- **mrt unit tests DONE & committed** (`d3988511c`): ParseConfig all modes, subtype
+  selection, IP parse, header sizing, shouldRecord filtering (~25 tests, AC-6 unit portion).
+- **`.ci` per-mode BLOCKED (deep, 3+ attempts).** Wrote `mrt-dump-updates.ci` (peer sends
+  EOR UPDATE → mrt updates stream → `expect=file:exists=true`). Session establishes, ze
+  sends the EOR (updates-sent≥1), ze exits 0 — but **no MRT file is ever written**.
+  Root-cause trace (all verified firsthand):
+  - mrt IS built+registered (`all.go:242`, no build tag) and reachable in the runner's ze.
+  - The message bridge IS wired: `cmd/ze/hub/main.go:400` sets `MRTMessageCallback:
+    mrtcomp.MessageBridge`; `createReactorFromCoordinator` (`bgp/config/register.go:61`)
+    calls `AddMessageCallback` → wrapped as a `MessageObserver` that fires for sent+received
+    (`reactor_notify.go:303`).
+  - BUT `MessageBridge.OnBGPMessage` forwards to `activeComp.Load()` (`mrt/register.go:37`),
+    a **package-level var set only by `runEngine`'s configure** (`register.go:131-136`). Under
+    the runner's config-path auto-load, that never becomes non-nil in the reactor's process →
+    OnBGPMessage is a silent no-op → nothing written.
+  - Open question (needs plugin-manager dive): is mrt run in-process by the hub (so
+    activeComp is set in the same address space as the reactor), and does its OnConfigure
+    receive the `mrt {}` section under auto-load? The `activeComp` package-var design REQUIRES
+    in-process; if auto-load spawns mrt out-of-process (or never delivers config), the bridge
+    is structurally dead for `.ci`.
+  - Attempts: (1) peer block w/o expectations → "no test data"; (2) explicit `internal mrt
+    { use mrt }` → no activation; (3) config-path auto-load (removed explicit decl) → no
+    activation. Parked `mrt-dump-updates.ci` out of the suite pending a decision.
+  - Decision needed: dig into mrt in-process activation (possible product bug, fix-at-source)
+    vs accept the committed unit coverage for AC-6 and move on.
+
 ### W-3 static/vpp findings (2026-07-10) — four files DONE, unwired-backend flagged
 
 - Four mandated files written & green: `apply_test.go` (holds the shared
