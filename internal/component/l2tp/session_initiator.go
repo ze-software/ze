@@ -7,7 +7,184 @@ package l2tp
 
 import (
 	"fmt"
+	"log/slog"
+	"time"
 )
+
+// callParams carries the local-side attributes stamped into an initiator's
+// ICRQ / OCRQ (and the Tx Connect Speed / Framing Type echoed back in the
+// ICCN we send after ICRP). A LAC fills these from the relayed PPPoE session;
+// an LNS fills them from the outgoing-call RPC. FramingType defaults to 1
+// (synchronous) when left zero so the ICCN/OCRQ carry a valid Framing Type.
+type callParams struct {
+	callSerial     uint32
+	bearerType     uint32
+	framingType    uint32
+	txConnectSpeed uint32
+	rxConnectSpeed uint32
+	minBPS         uint32
+	maxBPS         uint32
+	calledNumber   string
+	callingNumber  string
+}
+
+// framingOrDefault returns the framing type, defaulting to 1 (synchronous)
+// so a caller that leaves it unset still emits a wire-valid Framing Type AVP.
+func (p callParams) framingOrDefault() uint32 {
+	if p.framingType == 0 {
+		return 1
+	}
+	return p.framingType
+}
+
+// ---------------------------------------------------------------------------
+// Call origination (initiator side). Caller MUST hold tunnelsMu and MUST have
+// an established tunnel; both methods return the allocated local session ID
+// plus the outbound request datagram (nil sends on failure).
+// ---------------------------------------------------------------------------
+
+// placeIncomingCall originates a LAC-side incoming call on an established
+// tunnel (RFC 2661 Section 10.1): it allocates a local session ID, creates
+// the session in wait-reply, and sends the ICRQ. The ICCN that follows the
+// peer's ICRP echoes the Tx Connect Speed / Framing Type captured here.
+func (t *L2TPTunnel) placeIncomingCall(now time.Time, p callParams, logger *slog.Logger) (uint16, []sendRequest) {
+	sess, ok := t.newInitiatorSession(now, false, p, logger)
+	if !ok {
+		return 0, nil
+	}
+	bodyBuf := GetBuf()
+	defer PutBuf(bodyBuf)
+	n := writeICRQBody(*bodyBuf, sess.localSID, p.callSerial, p.bearerType, p.calledNumber, p.callingNumber)
+	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now, false)
+	if err != nil {
+		logger.Warn("l2tp: ICRQ enqueue failed", "local-sid", sess.localSID, "error", err.Error())
+		t.removeSession(sess.localSID)
+		return 0, nil
+	}
+	logger.Info("l2tp: ICRQ sent; session wait-reply (LAC incoming)",
+		"local-sid", sess.localSID, "call-serial", p.callSerial)
+	return sess.localSID, []sendRequest{{to: t.peerAddr, bytes: wire}}
+}
+
+// placeOutgoingCall originates an LNS-side outgoing call on an established
+// tunnel (RFC 2661 Section 10.4): it allocates a local session ID, creates
+// the session in wait-reply with lnsMode true (ze is the LNS end), and sends
+// the OCRQ. OCRP moves it to wait-connect; OCCN establishes it.
+func (t *L2TPTunnel) placeOutgoingCall(now time.Time, p callParams, logger *slog.Logger) (uint16, []sendRequest) {
+	sess, ok := t.newInitiatorSession(now, true, p, logger)
+	if !ok {
+		return 0, nil
+	}
+	bodyBuf := GetBuf()
+	defer PutBuf(bodyBuf)
+	n := writeOCRQBody(*bodyBuf, sess.localSID, p.callSerial, p.minBPS, p.maxBPS,
+		p.bearerType, p.framingOrDefault(), p.calledNumber)
+	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now, false)
+	if err != nil {
+		logger.Warn("l2tp: OCRQ enqueue failed", "local-sid", sess.localSID, "error", err.Error())
+		t.removeSession(sess.localSID)
+		return 0, nil
+	}
+	logger.Info("l2tp: OCRQ sent; session wait-reply (LNS outgoing)",
+		"local-sid", sess.localSID, "called", p.calledNumber)
+	return sess.localSID, []sendRequest{{to: t.peerAddr, bytes: wire}}
+}
+
+// newInitiatorSession is the shared allocation path for placeIncomingCall and
+// placeOutgoingCall: it enforces the established-tunnel + max-sessions
+// preconditions, allocates a non-zero local session ID, and inserts a
+// wait-reply session carrying the local call attributes. lnsMode fixes the
+// kernel role for the call's lifetime (preserved through ICCN/OCCN).
+func (t *L2TPTunnel) newInitiatorSession(now time.Time, lnsMode bool, p callParams, logger *slog.Logger) (*L2TPSession, bool) {
+	if t.state != L2TPTunnelEstablished {
+		logger.Debug("l2tp: call origination on non-established tunnel; refused", "state", t.state.String())
+		return nil, false
+	}
+	if t.maxSessions > 0 && uint16(t.sessionCount()) >= t.maxSessions {
+		logger.Warn("l2tp: call origination refused; max sessions reached",
+			"max", t.maxSessions, "current", t.sessionCount())
+		return nil, false
+	}
+	localSID := t.allocateSessionID()
+	if localSID == 0 {
+		logger.Warn("l2tp: session ID space exhausted for call origination")
+		return nil, false
+	}
+	sess := &L2TPSession{
+		localSID:       localSID,
+		state:          L2TPSessionWaitReply,
+		createdAt:      now,
+		fsmHistory:     newFSMHistoryRing(),
+		lnsMode:        lnsMode,
+		txConnectSpeed: p.txConnectSpeed,
+		rxConnectSpeed: p.rxConnectSpeed,
+		framingType:    p.framingOrDefault(),
+	}
+	t.addSession(sess)
+	return sess, true
+}
+
+// ---------------------------------------------------------------------------
+// Reply handlers (initiator side). These fill the former session_fsm.go stubs.
+// ---------------------------------------------------------------------------
+
+// handleICRP processes an Incoming-Call-Reply on a LAC-initiated session in
+// wait-reply (RFC 2661 Section 10.1). It records the peer's Assigned Session
+// ID, sends the ICCN, and moves the session to established with a kernel-setup
+// request (lnsMode false: the LAC bridges frames, it does not run PPP).
+func (t *L2TPTunnel) handleICRP(sess *L2TPSession, payload []byte, now time.Time, logger *slog.Logger) []sendRequest {
+	if sess.state != L2TPSessionWaitReply {
+		logger.Debug("l2tp: ICRP on non-wait-reply session; dropped",
+			"local-sid", sess.localSID, "state", sess.state.String())
+		return nil
+	}
+	info, err := parseICRP(payload)
+	if err != nil {
+		logger.Warn("l2tp: malformed ICRP; sending CDN RC=2",
+			"local-sid", sess.localSID, "error", err.Error())
+		return t.teardownSession(sess, cdnResultGeneralError, now, logger)
+	}
+	sess.remoteSID = info.assignedSessionID
+
+	bodyBuf := GetBuf()
+	defer PutBuf(bodyBuf)
+	n := writeICCNBody(*bodyBuf, sess.txConnectSpeed, sess.framingType)
+	wire, enqErr := t.engine.Enqueue(sess.remoteSID, (*bodyBuf)[:n], now, false)
+	if enqErr != nil {
+		logger.Warn("l2tp: ICCN enqueue failed; tearing down session",
+			"local-sid", sess.localSID, "error", enqErr.Error())
+		return t.teardownSession(sess, cdnResultGeneralError, now, logger)
+	}
+	sess.transition(L2TPSessionEstablished, "ICRP received")
+	sess.kernelSetupNeeded = true
+	sess.lnsMode = false
+	logger.Info("l2tp: session established (incoming LAC)",
+		"local-sid", sess.localSID, "remote-sid", sess.remoteSID)
+	return []sendRequest{{to: t.peerAddr, bytes: wire}}
+}
+
+// handleOCRP processes an Outgoing-Call-Reply on an LNS-initiated session in
+// wait-reply (RFC 2661 Section 10.4). It records the peer's Assigned Session
+// ID and moves the session to wait-connect; the OCCN that follows establishes
+// it. No datagram is produced here.
+func (t *L2TPTunnel) handleOCRP(sess *L2TPSession, payload []byte, now time.Time, logger *slog.Logger) []sendRequest {
+	if sess.state != L2TPSessionWaitReply {
+		logger.Debug("l2tp: OCRP on non-wait-reply session; dropped",
+			"local-sid", sess.localSID, "state", sess.state.String())
+		return nil
+	}
+	info, err := parseOCRP(payload)
+	if err != nil {
+		logger.Warn("l2tp: malformed OCRP; sending CDN RC=2",
+			"local-sid", sess.localSID, "error", err.Error())
+		return t.teardownSession(sess, cdnResultGeneralError, now, logger)
+	}
+	sess.remoteSID = info.assignedSessionID
+	sess.transition(L2TPSessionWaitConnect, "OCRP received")
+	logger.Info("l2tp: OCRP received; session wait-connect (LNS outgoing)",
+		"local-sid", sess.localSID, "remote-sid", sess.remoteSID)
+	return nil
+}
 
 // ---------------------------------------------------------------------------
 // Wire builders for initiator-side session messages (buffer-first; no make).

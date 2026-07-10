@@ -55,13 +55,13 @@ func (t *L2TPTunnel) dispatchToSession(msgType MessageType, sessionID uint16, pa
 	}
 
 	if msgType == MsgICRP {
-		return t.handleICRP(sess, payload, logger)
+		return t.handleICRP(sess, payload, now, logger)
 	}
 	if msgType == MsgICCN {
 		return t.handleICCN(sess, payload, now, logger)
 	}
 	if msgType == MsgOCRP {
-		return t.handleOCRP(sess, payload, logger)
+		return t.handleOCRP(sess, payload, now, logger)
 	}
 	if msgType == MsgOCCN {
 		return t.handleOCCN(sess, payload, now, logger)
@@ -147,15 +147,6 @@ func (t *L2TPTunnel) handleICRQ(payload []byte, now time.Time, logger *slog.Logg
 		"local-sid", localSID, "remote-sid", info.assignedSessionID,
 		"call-serial", info.callSerialNumber)
 	return []sendRequest{{to: t.peerAddr, bytes: wire}}
-}
-
-// handleICRP processes an Incoming-Call-Reply. LAC side: wait-reply -> established
-// is deferred (requires LAC-initiated tunnel). For now only logs.
-func (t *L2TPTunnel) handleICRP(sess *L2TPSession, _ []byte, logger *slog.Logger) []sendRequest {
-	// LAC-initiated incoming calls are deferred to a later spec.
-	logger.Debug("l2tp: ICRP received (LAC-side deferred)",
-		"local-sid", sess.localSID, "state", sess.state.String())
-	return nil
 }
 
 // handleICCN processes an Incoming-Call-Connected on an LNS-side session
@@ -285,14 +276,6 @@ func (t *L2TPTunnel) handleOCRQ(payload []byte, now time.Time, logger *slog.Logg
 	return []sendRequest{{to: t.peerAddr, bytes: wire}}
 }
 
-// handleOCRP processes an Outgoing-Call-Reply. LNS side: wait-reply -> wait-connect.
-// LNS-initiated outgoing calls are deferred (requires LAC-initiated tunnel).
-func (t *L2TPTunnel) handleOCRP(sess *L2TPSession, _ []byte, logger *slog.Logger) []sendRequest {
-	logger.Debug("l2tp: OCRP received (LNS-side outgoing deferred)",
-		"local-sid", sess.localSID, "state", sess.state.String())
-	return nil
-}
-
 // handleOCCN processes an Outgoing-Call-Connected. AC-13.
 //
 // RFC 2661 Section 10.4: wait-cs-answer -> (bearer answers, send OCCN) -> established.
@@ -322,7 +305,10 @@ func (t *L2TPTunnel) handleOCCN(sess *L2TPSession, payload []byte, now time.Time
 
 	// Phase 5: signal reactor to create kernel resources.
 	sess.kernelSetupNeeded = true
-	sess.lnsMode = false // LAC side (OCCN)
+	// lnsMode is fixed at call origination and preserved here: an LNS that
+	// placed this outgoing call (placeOutgoingCall) set it true; any other
+	// session reaching this handler keeps the role assigned at creation.
+	// OCCN is received by the LNS end of an outgoing call (RFC 2661 S10.4).
 
 	logger.Info("l2tp: session established (outgoing)",
 		"local-sid", sess.localSID, "remote-sid", sess.remoteSID,
