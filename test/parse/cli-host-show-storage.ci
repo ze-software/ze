@@ -1,0 +1,20 @@
+# Test: ze show host storage returns block-device inventory JSON without a daemon
+# VALIDATES: offline fallback -- `show host storage` runs the in-process
+#            host.DetectStorage when no daemon is reachable, producing JSON
+#            with a devices array whose entries carry the always-present
+#            size-bytes and rotational fields sourced from /sys/block.
+# PREVENTS: regressions where show host storage silently requires a daemon,
+#           or where the storage JSON drops its canonical kebab-case fields.
+# PLATFORM: host inventory reads /sys/block; the darwin detector
+# (storage_other.go) returns ErrUnsupported at build time so the underlying
+# feature cannot succeed. Skip on darwin per rules/os-specific-tests.md.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+bgp { }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze show host storage
+expect=exit:code=0
+expect=stdout:contains="devices"
+expect=stdout:contains="size-bytes"
+expect=stdout:contains="rotational"

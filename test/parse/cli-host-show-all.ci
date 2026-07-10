@@ -1,0 +1,21 @@
+# Test: ze show host all returns the full aggregate inventory JSON without a daemon
+# VALIDATES: offline fallback -- `show host all` runs the in-process
+#            host.Detect (full Inventory) when no daemon is reachable,
+#            aggregating every section so the top-level object carries the
+#            cpu / memory / kernel / platform keys.
+# PREVENTS: regressions where show host all silently requires a daemon, or
+#           where the aggregate Inventory drops one of its section keys.
+# PLATFORM: host inventory reads /proc + /sys; the non-linux detectors
+# return ErrUnsupported at build time so the underlying feature cannot
+# succeed. Skip on darwin per rules/os-specific-tests.md.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+bgp { }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze show host all
+expect=exit:code=0
+expect=stdout:contains="cpu"
+expect=stdout:contains="memory"
+expect=stdout:contains="kernel"
+expect=stdout:contains="platform"

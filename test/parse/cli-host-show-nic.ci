@@ -1,0 +1,19 @@
+# Test: ze show host nic returns physical NIC inventory JSON without a daemon
+# VALIDATES: offline fallback -- `show host nic` runs the in-process
+#            host.DetectNICs when no daemon is reachable, producing a JSON
+#            array of physical interfaces with the per-NIC link-speed-mbps
+#            and carrier fields sourced from /sys/class/net.
+# PREVENTS: regressions where show host nic silently requires a daemon,
+#           or where the NIC JSON drops its canonical kebab-case fields.
+# PLATFORM: host inventory walks /sys/class/net; the darwin detector
+# (nic_other.go) returns ErrUnsupported at build time so the underlying
+# feature cannot succeed. Skip on darwin per rules/os-specific-tests.md.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+bgp { }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze show host nic
+expect=exit:code=0
+expect=stdout:contains="link-speed-mbps"
+expect=stdout:contains="carrier"

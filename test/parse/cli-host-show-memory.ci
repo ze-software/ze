@@ -1,0 +1,20 @@
+# Test: ze show host memory returns /proc/meminfo inventory JSON without a daemon
+# VALIDATES: offline fallback -- `show host memory` runs the in-process
+#            host.DetectMemory when no daemon is reachable, producing JSON
+#            with the always-present total-bytes / available-bytes / ecc-present
+#            fields sourced from /proc/meminfo (+ edac counters).
+# PREVENTS: regressions where show host memory silently requires a daemon,
+#           or where the memory JSON drops its canonical kebab-case fields.
+# PLATFORM: host inventory reads /proc/meminfo; the darwin detector
+# (memory_other.go) returns ErrUnsupported at build time so the underlying
+# feature cannot succeed. Skip on darwin per rules/os-specific-tests.md.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+bgp { }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze show host memory
+expect=exit:code=0
+expect=stdout:contains="total-bytes"
+expect=stdout:contains="available-bytes"
+expect=stdout:contains="ecc-present"

@@ -1,0 +1,19 @@
+# Test: ze show host dmi returns SMBIOS/DMI inventory JSON without a daemon
+# VALIDATES: offline fallback -- `show host dmi` runs the in-process
+#            host.DetectDMI when no daemon is reachable, producing JSON with
+#            the system-vendor field read from /sys/class/dmi/id.
+# PREVENTS: regressions where show host dmi silently requires a daemon,
+#           or where the DMI JSON drops its canonical kebab-case fields.
+# PLATFORM: host inventory reads /sys/class/dmi/id; the darwin detector
+# (dmi_other.go) returns ErrUnsupported at build time so the underlying
+# feature cannot succeed. Skip on darwin per rules/os-specific-tests.md.
+# The system-vendor field requires SMBIOS/DMI to be present (true on the
+# QEMU CI host and on bare-metal x86); sys_vendor is world-readable.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+bgp { }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze show host dmi
+expect=exit:code=0
+expect=stdout:contains="system-vendor"

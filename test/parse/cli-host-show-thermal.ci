@@ -1,0 +1,24 @@
+# Test: ze show host thermal runs offline and emits a JSON object without a daemon
+# VALIDATES: offline fallback -- `show host thermal` runs the in-process
+#            host.DetectThermal when no daemon is reachable, marshaling the
+#            ThermalInfo (hwmon sensors + per-core throttle counters) to a
+#            JSON object and exiting 0.
+# PREVENTS: regressions where show host thermal silently requires a daemon,
+#           errors out, or emits non-JSON.
+# PLATFORM: host inventory scans /sys/class/hwmon + thermal_throttle; the
+# darwin detector (thermal_other.go) returns ErrUnsupported at build time.
+# Skip on darwin per rules/os-specific-tests.md.
+# LIMITATION: ThermalInfo.Sensors and .Throttle are both `omitempty`, so a
+# host with no hwmon sensors and no thermal_throttle counters (the QEMU CI
+# host) emits the empty object `{}`. No per-section field can be asserted
+# non-vacuously here without thermal hardware, so this test asserts the
+# offline JSON-object contract only; DetectThermal dispatch within the full
+# inventory is additionally covered by cli-host-show-all.ci.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+bgp { }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze show host thermal
+expect=exit:code=0
+expect=stdout:contains={
