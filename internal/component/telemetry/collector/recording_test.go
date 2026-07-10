@@ -47,6 +47,27 @@ func writeProcFile(t *testing.T, dir, rel, content string) {
 	}
 }
 
+// procDirSelf builds a fixture for collectors that read /proc/self/... via
+// procfs FS.Self(): it writes files under a synthetic pid dir "1" and adds the
+// relative "self" -> "1" symlink FS.Self() resolves. Returns the FS and the pid
+// dir so delta tests can rewrite the per-process files between two Collect()s.
+func procDirSelf(t *testing.T, files map[string]string) (procfs.FS, string) {
+	t.Helper()
+	dir := t.TempDir()
+	pidDir := filepath.Join(dir, "1")
+	for rel, content := range files {
+		writeProcFile(t, pidDir, rel, content)
+	}
+	if err := os.Symlink("1", filepath.Join(dir, "self")); err != nil {
+		t.Fatal(err)
+	}
+	fs, err := procfs.NewFS(dir)
+	if err != nil {
+		t.Fatalf("procfs.NewFS: %v", err)
+	}
+	return fs, pidDir
+}
+
 // recordingRegistry is a metrics.Registry that records the last Set/Add value
 // for every gauge and counter, keyed by metric name and joined label values.
 type recordingRegistry struct {
