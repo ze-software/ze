@@ -172,6 +172,20 @@ reactor goroutine already running. Fix: set the observer before `Start()`, or
 synchronize via a channel. Owner: whichever session next touches
 `internal/component/l2tp/reactor_test.go`.
 
+### `internal/component/l2tp` `TestReactorKernelDisabledReturnsNil` -- stale assertion vs. deliberate design change
+
+Confirmed pre-existing (git-blame) 2026-07-10: the test asserts
+`require.Nil(t, teardowns)` from `collectKernelEventsLocked` when no kernel
+worker is present (`reactor_kernel_linux_test.go:159`, last touched 2026-06-12).
+But commit `e231fbfdd` (2026-06-26, "withdraw subscriber routes on
+peer-initiated teardown") deliberately made `collectKernelEventsLocked`
+drain `pendingKernelTeardowns` **unconditionally** so the route observer learns
+of torn sessions even with no kernel worker (see the function's leading
+comment). The test's teardowns-nil assertion has been failing deterministically
+since that commit; the setups-nil and flag-not-cleared assertions remain
+correct. Fix: update the test to expect the drained teardown event. Owner:
+whichever session next touches `internal/component/l2tp/reactor_kernel_linux_test.go`.
+
 ## Resolved
 
 ### 2026-07-08 -- `internal/plugins/ospf` `virtual_link.go` `-race` data race -> two bugs fixed at source

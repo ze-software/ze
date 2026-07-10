@@ -104,8 +104,7 @@ func (t *L2TPTunnel) handleMessage(entry RecvEntry, now time.Time, defaults Tunn
 		return t.handleSCCRQ(now, defaults, sccrq)
 	}
 	if msgType == MsgSCCRP {
-		t.logger.Debug("l2tp: SCCRP received (LAC-side handling lands in a later phase)")
-		return nil
+		return t.handleSCCRP(now, defaults, entry.Payload)
 	}
 	if msgType == MsgSCCCN {
 		return t.handleSCCCN(now, defaults, entry.Payload)

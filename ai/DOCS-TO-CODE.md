@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 276 design docs, 2894 files
+Total: 276 design docs, 2897 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1953,8 +1953,10 @@ Total: 276 design docs, 2894 files
 | `internal/component/l2tp/pppox_linux.go` | S21 PPPoL2TP socket API, /dev/ppp |
 | `internal/component/l2tp/session.go` | S10 session state machines |
 | `internal/component/l2tp/session_fsm.go` | S10 session state machines |
+| `internal/component/l2tp/session_initiator.go` | S10 session FSMs, initiator half |
 | `internal/component/l2tp/tunnel.go` | tunnel state machine (S9) |
 | `internal/component/l2tp/tunnel_fsm.go` | S9 tunnel FSM + S4 AVP handling |
+| `internal/component/l2tp/tunnel_initiator.go` | S9 tunnel FSM, initiator half |
 
 ## `docs/research/l2tpv2-ze-integration.md`
 
@@ -2009,6 +2011,7 @@ Total: 276 design docs, 2894 files
 | `internal/component/l2tp/ppp/session_run.go` | per-session goroutine main loop |
 | `internal/component/l2tp/ppp/start_session.go` | PPP transport-agnostic boundary |
 | `internal/component/l2tp/reactor.go` | L2TP reactor pattern |
+| `internal/component/l2tp/reactor_dial.go` | L2TP reactor dial path |
 | `internal/component/l2tp/reactor_kernel.go` | Kernel and PPP event handling |
 | `internal/component/l2tp/reactor_ppp_linux_test.go` | reactor -> PPP driver dispatch |
 | `internal/component/l2tp/subsystem.go` | subsystem lifecycle |

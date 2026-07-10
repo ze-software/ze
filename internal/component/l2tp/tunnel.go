@@ -70,6 +70,16 @@ type L2TPTunnel struct {
 	// during handleSCCRQ/handleSCCCN.
 	ourChallenge []byte
 
+	// initiatorSecret is the per-remote CHAP-MD5 shared secret this tunnel
+	// dials with (empty for answering tunnels and for dials with no secret).
+	// The answering path authenticates every peer with a single global
+	// secret (ReactorParams.Defaults.SharedSecret), but an initiator may
+	// dial many remotes each with its own secret, so handleSCCRP prefers
+	// this field over the global default when non-empty.
+	//
+	// Caller MUST hold the owning reactor's tunnelsMu. Set once at dial time.
+	initiatorSecret string
+
 	// tieBreaker is the 8-byte Tie Breaker AVP value captured from the
 	// peer's SCCRQ when present (RFC 2661 S9.5). Used by the reactor when
 	// a second SCCRQ arrives from the same peer address to decide which

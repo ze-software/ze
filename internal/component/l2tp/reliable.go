@@ -650,6 +650,17 @@ func (e *ReliableEngine) Expired(now time.Time) bool {
 	return now.Sub(e.closedAt) >= e.retention
 }
 
+// SetPeerTunnelID records the tunnel ID the peer assigned for this tunnel,
+// learned from the Assigned Tunnel ID AVP in the peer's SCCRP. From this
+// point every outbound header carries it in the TunnelID field. Called by
+// the initiator FSM (handleSCCRP) exactly once, before the first message is
+// enqueued after SCCRP; an initiated tunnel sends its SCCRQ with
+// PeerTunnelID=0 (the peer has no tunnel yet) and adopts the real value here.
+//
+// Caller MUST be the reactor goroutine that owns this engine (same
+// single-owner contract as every other engine method); no internal lock.
+func (e *ReliableEngine) SetPeerTunnelID(peerTID uint16) { e.cfg.PeerTunnelID = peerTID }
+
 // Outstanding reports the number of unacknowledged messages in flight.
 // Exposed for observability (phase 3 logging / metrics).
 func (e *ReliableEngine) Outstanding() int { return len(e.rtmsQueue) }

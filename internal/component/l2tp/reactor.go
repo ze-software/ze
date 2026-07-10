@@ -109,6 +109,12 @@ type L2TPReactor struct {
 	tickCh   chan tickReq
 	updateCh chan heapUpdate
 
+	// dialCh carries Dial requests from foreign goroutines to the single
+	// reactor goroutine, which is the sole writer of the tunnel map (R-2).
+	// Buffered so brief dial bursts do not block callers before the run
+	// loop picks them up.
+	dialCh chan dialRequest
+
 	// Kernel integration channels. nil on non-Linux or when no kernel
 	// worker is configured. The reactor checks for nil before use.
 	// Phase 5 kernel integration. kernelWorkerSet tracks whether
@@ -172,6 +178,7 @@ func NewL2TPReactor(listener *UDPListener, logger *slog.Logger, params ReactorPa
 		tunnelsByPeer:    make(map[peerKey]*L2TPTunnel),
 		tickCh:           make(chan tickReq, 1),
 		updateCh:         make(chan heapUpdate, 16),
+		dialCh:           make(chan dialRequest, dialChanDepth),
 	}
 }
 
@@ -256,6 +263,8 @@ func (r *L2TPReactor) run() {
 			r.handle(pkt)
 		case tr := <-r.tickCh:
 			r.handleTick(tr)
+		case dr := <-r.dialCh:
+			r.handleDial(dr)
 		case kerr := <-r.kernelErrCh:
 			r.handleKernelError(kerr)
 		case ksucc := <-r.kernelSuccessCh:
