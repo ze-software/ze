@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 6/7 (AC-5 multi-peer LLGR egress `.ci` outstanding; AC-3 env-blocked run outstanding) |
-| Updated | 2026-07-09 |
+| Phase | 6/7 (AC-5 root cause found 2026-07-10 -> LARGE FEATURE, deferred to spec-rib-arch-7; AC-2/AC-3 env-blocked runs outstanding) |
+| Updated | 2026-07-10 |
 
 ## Post-Compaction Recovery
 
@@ -316,9 +316,59 @@ This was a consolidation skeleton created from verified deferral survivors (back
 - **AC-2 (QEMU tc-qdisc kernel-state run):** `qemu-system-*` is not installed here, and `option=needs-linux` gates on GOOS only, so natively the qdisc tests run and fail (no `eth0`, no CAP_NET_ADMIN). Code is complete and parses (`ze-test traffic --list` shows 022/023). Runbook: `make ze-qemu-needs-linux-test`.
 - **AC-6 (chaos iface integration + scenario `.ci`):** the netns integration test compiles and SKIPs natively via the CAP_NET_ADMIN `t.Skipf` pattern (netlink precedent). The `test/chaos/iface-link-flap.ci` scenario is env-blocked by the chaos `.ci` runner in this sandbox: all four chaos `.ci` (incl. the three pre-existing) fail identically at ~30ms with "context canceled" (the on-demand `ze-chaos` build is canceled). Direct `bin/ze-chaos --chaos-actions iface-link-flap` exits 0. Runbooks: `make ze-integration-*` (netns test, needs CAP_NET_ADMIN); `make ze-chaos-integration-test` (scenario, needs a working chaos build env).
 
-### Incomplete (NOT an environment block)
+### Incomplete -- root cause found: LARGE FEATURE, deferred (NOT an environment block)
 
-- **AC-5 (multi-peer LLGR egress divergence `.ci`):** NOT delivered. The egress-filter logic is proven by the 8 `gr_egress_test.go` unit tests, and `llgr-readvertise.ci` (single LLGR peer) passes. A multi-peer on-the-wire reproduction was attempted (source S eBGP+GR announces, drops → GR/LLGR → re-forward to a non-LLGR IBGP peer). The route is re-forwarded to the other peer after the source drops, but WITHOUT the NO_EXPORT/LOCAL_PREF=0 modification -- the stale-forward-to-non-origin-peers path does not stamp the LLGR egress divergence in this setup. Root cause needs GR/LLGR/RIB-forwarding investigation (does `meta["stale"]` propagate to routes forwarded to other peers, vs. only to the origin peer on reconnect?). The `llgr-readvertise.ci` stale multi-peer comment WAS corrected. WIP `.ci` preserved at `tmp/scratch/llgr-egress-suppress-multi-peer.ci.wip`. Because this is a genuine gap (not an env block), the spec stays **in-progress**; do not close until AC-5 (and the `llgr-egress-rr-multi-peer.ci` RR variant) land green.
+- **AC-5 (multi-peer LLGR egress divergence `.ci`):** NOT delivered. **Root cause investigated
+  and confirmed 2026-07-10 (this closure session), with a producing `file:line` chain.**
+
+  **Finding: the LLGR egress divergence never fires end-to-end in production. The two halves of
+  the feature sit on different route-propagation rails and were never connected.**
+
+  - *Consumer* -- `LLGREgressFilter` (`internal/component/bgp/plugins/gr/gr_egress.go:57`) reads
+    `meta["stale"]` and stamps NO_EXPORT+LOCAL_PREF=0 (IBGP :89-91) / withdraw (EBGP :99). It is
+    **only** invoked on the route-server / cache **ForwardUpdate** path: `safeEgressFilter` is
+    called at `reactor/forward_rs.go:324` and `reactor/reactor_api_forward.go:490` and **nowhere
+    else** (grep confirmed; `reactor_api_batch.go` has zero egress refs).
+  - *Producer* -- the only code that sets `meta["stale"]` is the RIB readvertise/refresh path:
+    `rib/rib_replay.go:299` (`resendRoutesWithCursor`, driven by `clear bgp rib out`) and
+    `rib/rib_commands.go:616` (`sendRoutes`, RFC 7313). Both hand the meta to
+    `rib.go:693 updateRouteWithMeta` -> `sdk_engine.go:44 UpdateRouteWithMeta` ->
+    `MethodUpdateRoute` (`plugin/server/dispatch_registry.go:236`, sets `CommandContext.Meta`) ->
+    `peer <sel> update cursor/text` -> `cmd/update/update_text.go:706 handleUpdate` ->
+    `update_text.go:767 DispatchNLRIGroups` -> `reactor_api_batch.go:28 AnnounceNLRIBatch`.
+  - **The gap:** `DispatchNLRIGroups` never forwards `ctx.Meta` into the batch, and
+    `AnnounceNLRIBatch` builds each peer's UPDATE from scratch and **never calls any egress
+    filter**. So `meta["stale"]`, carefully plumbed by the RIB, is dropped before it can reach
+    the filter. The LLGR readvertise trigger `onLLGREntryDone` (`gr/gr.go:142`) issues exactly
+    this `clear bgp rib out` -> RIB -> `AnnounceNLRIBatch` path, so stale routes re-advertised
+    to non-LLGR peers arrive unmodified. This is a **known, documented** gap:
+    `pkg/plugin/sdk/sdk_engine.go:42` -- "Plugin-originated routes currently go through
+    AnnounceNLRIBatch (direct send) where CommandContext.Meta is not yet consumed by egress
+    filters." The ForwardUpdate rail that *does* run the filter has **no** producer of
+    `meta["stale"]` either (the `rs`/cache plugins set no stale meta -- grep confirmed), so the
+    filter's stale branches are dead in production regardless of path.
+
+  Why the existing coverage stayed green: the 8 `gr_egress_test.go` unit tests call
+  `LLGREgressFilter` directly (bypassing the rail gap); `llgr-readvertise.ci` reconnects the
+  **same** LLGR-capable peer and only needs the route delivered (no stamping), so it passes via
+  plain ribOut replay.
+
+  **Determination: this is a LARGE FEATURE, not a fix.** Closing the gap means wiring the egress
+  filter pipeline (ModAccumulator application, incl. withdraw conversion) into the from-scratch
+  `AnnounceNLRIBatch` direct-send path -- a hot path (buffer-first / memory-architecture rules)
+  used by **all** plugin route injection (static, redistribute, RIB replay), so broad blast
+  radius and non-trivial risk. It is not a bounded fix jammable into a closure session.
+
+  **Deferred to `plan/spec-rib-arch-7-llgr-multipeer-ci.md`** (the pre-existing skeleton for the
+  multi-peer LLGR `.ci`), updated with this root cause. Recorded in `plan/deferrals.md`
+  (2026-07-10). The `llgr-egress-rr-multi-peer.ci` RR variant is folded into the same destination
+  (it exercises the same unwired path). The WIP `.ci` is preserved at
+  `tmp/scratch/llgr-egress-suppress-multi-peer.ci.wip`; note it also lacked any forwarding
+  mechanism (no `rs`/`redistribute`), so it timed out with the target peers receiving nothing --
+  the destination spec must first choose a forwarding path, then close the rail gap.
+
+  The `llgr-readvertise.ci` stale multi-peer comment was already corrected (prior session).
+  Because the user-visible AC-5 contract is **not** satisfied, the spec stays **in-progress**.
 
 ## Implementation Status (2026-07-09)
 
@@ -328,7 +378,7 @@ This was a consolidation skeleton created from verified deferral survivors (back
 | AC-2 | DONE (code) / QEMU exec ENV-BLOCKED | traffic suite enrolled; 022/023 needs-linux tc-qdisc tests authored + parse; 001/002 scope-notes corrected. QEMU run not runnable here (no qemu-system, no CAP_NET_ADMIN). |
 | AC-3 | ENV-BLOCKED | privileged 1M-prefix pprof run needs root+netns; runbook `make ze-stress-profile`. |
 | AC-4 | DONE (green) | `forward-mpreach-nexthop-self-two-peer.ci` passes: per-peer MP_REACH next-hop-self on the wire. |
-| AC-5 | INCOMPLETE | multi-peer LLGR egress divergence `.ci` not green (see above); logic covered by unit tests; comment fix done. |
+| AC-5 | DEFERRED (root cause found) | multi-peer LLGR egress divergence `.ci` not green. Root cause 2026-07-10: LLGR egress filter (`gr_egress.go:57`) only runs on the ForwardUpdate rail (`forward_rs.go:324`, `reactor_api_forward.go:490`); the only `meta["stale"]` producer is the RIB readvertise path (`rib_replay.go:299`) which flows through `AnnounceNLRIBatch` (`reactor_api_batch.go:28`) -- a rail that drops `ctx.Meta` and never calls the filter (documented at `sdk_engine.go:42`). LARGE FEATURE (hot-path wiring, broad blast radius) -> deferred to `spec-rib-arch-7-llgr-multipeer-ci.md`. Logic covered by 8 unit tests; comment fix done. |
 | AC-6 | DONE (code + unit) / netns+`.ci` legs ENV-BLOCKED | iface action family additive (enum/params/executor linux+stub/guard/scheduler); unit tests green; direct ze-chaos exit 0; `mk/test-chaos.mk:13` fixed. Integration test skips natively; scenario `.ci` env-blocked (chaos runner). |
 | AC-7 | DONE (green) | `TestWebConcurrentEditStress` passes under `-race` (evidence tier). |
 | AC-8 | DONE (green) | `TestFleetManyClientsPerf`: 128 clients synced ~80ms, zero errors (evidence tier). File-location deviation recorded (A-6). |

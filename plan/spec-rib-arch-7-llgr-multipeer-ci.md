@@ -34,6 +34,42 @@ readvertisement split across a mixed set of peers: LLGR-capable peers keep the s
 Primarily a test-coverage gap. Feature code changes only if the fixture reveals a
 correctness bug in the multi-peer path.
 
+## Root Cause Finding (2026-07-10, from `spec-followup-test-infra` AC-5)
+
+**A closure session for `spec-followup-test-infra` attempted the multi-peer fixture (AC-5) and
+found this is NOT just a test-coverage gap -- it is a real, unwired feature. The premise above
+("the per-peer branch already exists and is single-peer-tested; the missing coverage is the two
+branches firing together") is WRONG: those branches never fire in production because the egress
+filter is not invoked on the readvertisement path at all.** Confirmed with `file:line`:
+
+- `LLGREgressFilter` (`internal/component/bgp/plugins/gr/gr_egress.go:57`) reads `meta["stale"]`
+  and stamps NO_EXPORT+LOCAL_PREF=0 (IBGP :89-91) / withdraw (EBGP :99). It is invoked **only**
+  on the ForwardUpdate route-server/cache rail: `safeEgressFilter` at
+  `reactor/forward_rs.go:324` and `reactor/reactor_api_forward.go:490`, nowhere else.
+- The only producer of `meta["stale"]` is the RIB readvertise/refresh path
+  (`rib/rib_replay.go:299`, `rib/rib_commands.go:616`), which flows
+  `updateRouteWithMeta` (`rib/rib.go:693`) -> `MethodUpdateRoute`
+  (`plugin/server/dispatch_registry.go:236`) -> `peer <sel> update cursor/text` ->
+  `cmd/update/update_text.go:767 DispatchNLRIGroups` -> `reactor/reactor_api_batch.go:28
+  AnnounceNLRIBatch`. `DispatchNLRIGroups` drops `ctx.Meta`, and `AnnounceNLRIBatch` builds each
+  peer's UPDATE from scratch and calls **no** egress filter.
+- The LLGR readvertise trigger `onLLGREntryDone` (`gr/gr.go:142`) uses exactly this
+  `clear bgp rib out` -> RIB -> `AnnounceNLRIBatch` path, so stale routes re-advertised to
+  non-LLGR peers arrive unmodified. Documented gap: `pkg/plugin/sdk/sdk_engine.go:42`
+  ("CommandContext.Meta is not yet consumed by egress filters"). The ForwardUpdate rail that
+  *does* run the filter has no producer of `meta["stale"]` either.
+
+**Scope: this is a feature, not a fixture.** Before writing the `.ci`, the real work is to
+connect the rails -- either (A) wire the egress-filter pipeline (ModAccumulator application incl.
+withdraw conversion) into the `AnnounceNLRIBatch` direct-send path, or (B) make the readvertise
+flow through ForwardUpdate with `meta["stale"]` set. Both touch a hot path used by all plugin
+route injection (buffer-first / memory-architecture rules) -> design carefully. Also note the
+`.ci` needs an actual forwarding mechanism (`rs` or `redistribute`); a config with only `gr` +
+`bgp-rib` never forwards the source route to the other peers. WIP fixture (no forwarding, so it
+times out) preserved at `tmp/scratch/llgr-egress-suppress-multi-peer.ci.wip`. The RR-client
+variant (`llgr-egress-rr-multi-peer.ci`) exercises the same unwired path and belongs here too.
+When this is picked up, move the spec to `design` and elevate its Status from skeleton.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -97,7 +133,7 @@ correctness bug in the multi-peer path.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The `.ci` harness can express a mixed LLGR-capable / non-LLGR multi-peer topology | existing multi-peer plugin fixtures | Need harness support; larger scope | check `test/plugin` harness capabilities at design | unvalidated |
-| A-2 | The multi-peer path has no latent bug | single-peer branches pass today | Fixture goes red; fix feature code | run the new fixture at implement | unvalidated |
+| A-2 | The multi-peer path has no latent bug | single-peer branches pass today | Fixture goes red; fix feature code | run the new fixture at implement | **BROKEN (2026-07-10)**: egress filter not invoked on the readvertise/`AnnounceNLRIBatch` rail (see Root Cause Finding); multi-peer stamping never fires -> feature work required before the fixture can pass |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
