@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | - |
-| Phase | 6/7 (AC-5 root cause found 2026-07-10 -> LARGE FEATURE, deferred to spec-rib-arch-7; AC-2/AC-3 env-blocked runs outstanding) |
+| Phase | 7/7 |
 | Updated | 2026-07-10 |
 
 ## Post-Compaction Recovery
@@ -263,22 +263,128 @@ This was a consolidation skeleton created from verified deferral survivors (back
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
-### Run 1 (initial)
+### Run 1 (2026-07-10, closure session; surface = cad47fcc0 + a35f6c355 + e6c52a94f + working tree)
+
+Pre-checks: `make ze-validate` PASS; `scripts/dev/audit-test-relaxation.py main` clean.
+Wiring verified bottom-up: new ActionTypes reachable via `--chaos-actions` name lookup
+(`engine/action.go` actionTypes map + direct ze-chaos run exit 0); iface executors called from
+`executeChaos` (`peer/simulator_actions.go`); evidence-tier make targets' tags (`stress`,
+`fleetperf`) match the test files; traffic suite enrolled (`qemu-all-tests.sh` fsuite line).
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | ISSUE | Comment claims the multi-peer egress divergence "is proven on the wire by llgr-egress-suppress-multi-peer.ci and llgr-egress-rr-multi-peer.ci" -- files never delivered (AC-5 deferred); false claim in a shipped test | test/plugin/llgr-readvertise.ci:13-18 | fixed: comment states the unwired rail + points at spec-rib-arch-7 |
+| 2 | ISSUE | `--chaos-actions` flag help + usage text hardcode the v2 action list, omitting iface-link-flap / iface-addr-remove (undiscoverable from `ze-chaos chaos --help`) | internal/chaos/orchestrator/cli.go (flag desc + usage) | fixed at source: list derived from new `engine.V2ActionNames()`; regression test `TestV2ActionNamesComplete` |
+| 3 | ISSUE | `chaos-web-dashboard.md` action tables (New Actions, scheduler weights) missing the iface fault family while the new sources carry `// Design:` anchors to that doc | docs/architecture/chaos-web-dashboard.md | fixed: rows + source anchors added; UI-exclusion note added (see #4) |
+| 4 | NOTE | Dashboard manual-trigger UI deliberately excludes the iface actions (`chaosActionTypes()`, web/control.go:440-458): netns-harness-only per R-5 | internal/chaos/web/control.go:440 | acknowledged deliberate scope; now documented in the doc's trigger-forms section |
+| 5 | NOTE | `flapLink`/`cycleAddr` sleep synchronously in executeChaos; `interval` param uncapped (cycles capped 20) | internal/chaos/peer/simulator_actions_iface_linux.go | acknowledged: operator-controlled chaos-tool input, cold path |
+| 6 | NOTE | `NeedsReconnect()` exported with no production caller (same-package tests only); spec diff only added a map entry | internal/chaos/engine/action.go | fixed: unexported to `needsReconnect`, table + test kept |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- `test/plugin/llgr-readvertise.ci` -- comment rewritten (no multi-peer wire test exists;
+  names the rail gap + owning spec). Re-run: PASS 1/1.
+- `internal/chaos/engine/action.go` -- `V2ActionNames()` added (sorted, table-derived);
+  `needsReconnect` unexported.
+- `internal/chaos/engine/action_test.go` -- `TestV2ActionNamesComplete` (exact v2 set,
+  sorted, iface pair present) so a future v2 action can never be invisible in help again.
+- `internal/chaos/orchestrator/cli.go` -- flag description + usage text built from
+  `engine.V2ActionNames()` (textbuf), eliminating the drift class.
+- `docs/architecture/chaos-web-dashboard.md` -- iface rows in New Actions + weight tables,
+  source anchors, explicit trigger-UI exclusion note (R-5 rationale).
 
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
+### Run 2 (2026-07-10, after fixes)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | NOTE (pre-existing checker false positive) | `ze-validate` flags `CLIRun`: "no cross-package non-test caller". Factually wired: production entry is the registry closure `orchestrator/register.go:9` (root command "chaos", blank-imported by `cmd/ze/ze_chaos_run.go:7`); ze_chaos-tagged `cmd/ze/ze_chaos_main_test.go` drives it cross-package; same convention as `env.Run`. Export + callers untouched by this spec's diff; fires only while cli.go sits in the changed-file scan set | internal/chaos/orchestrator/cli.go:60 | acknowledged with evidence; unexport attempted and reverted (breaks tagged cmd/ze CLI tests, diverges from registry convention) |
+| 2 | NOTE (pre-existing) | Every `-race` make target (incl. ze-unit-test and the new ze-stress-web-test) fails under go1.26 linux/amd64 with `Makefile:16 export CGO_ENABLED := 0` (10708d7dc, 2026-05-19): "go: -race requires cgo". Workaround: `make <target> CGO_ENABLED=1` (command-line beats `:=`). Global build-system condition, not introduced by this spec | Makefile:16 | acknowledged pre-existing; affects all -race targets equally; fresh AC-7 evidence run with the command-line override |
+
+Evidence: `make ze-lint-changed` 0 issues; `go vet -tags ze_chaos ./cmd/ze/` clean;
+`go test ./internal/chaos/...` 14/14 ok; `ze-chaos chaos --help` lists all 8 v2 actions;
+`llgr-readvertise` PASS 1/1; `make ze-doc-test` PASSED; relaxation audit clean.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- `/ze-review` Run 2: **0 BLOCKER, 0 ISSUE** (two acknowledged pre-existing NOTEs recorded
+  above with file:line evidence).
+- All NOTEs recorded above.
+
+## Implementation Audit (2026-07-10 closure)
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | DONE | 4 property tests (files in TDD table); fresh re-run 2026-07-10 all green (L94 with `-race` via CGO_ENABLED=1) | stdlib quick, fixed seeds (A-2 confirmed) |
+| AC-2 | DONE (code) / QEMU exec ENV-BLOCKED | 022/023 authored + parse; traffic suite in `qemu-all-tests.sh` (`fsuite traffic ... -p 1`); 001/002 scope notes corrected | Runbook: `make ze-qemu-needs-linux-test` (no qemu-system here); user-approved env-blocked closure 2026-07-10 |
+| AC-3 | ENV-BLOCKED | Runbook recorded (Known Limitations): `make ze-stress-profile` (root+netns) | user-approved env-blocked closure 2026-07-10 |
+| AC-4 | DONE | `forward-mpreach-nexthop-self-two-peer.ci` fresh re-run 2026-07-10: exit 0 | per-peer MP_REACH next-hop-self on the wire |
+| AC-5 | DEFERRED (user-approved 2026-07-10) | Root cause with file:line chain in Known Limitations + `spec-rib-arch-7-llgr-multipeer-ci.md` (destination, updated) + `plan/deferrals.md` row 2026-07-10 | LLGR egress filter unwired on the readvertise/AnnounceNLRIBatch rail = large feature, not a fixture; explicit user decision relayed 2026-07-10 approves closing with AC-5 deferred |
+| AC-6 | DONE (code+unit) / netns+scenario legs ENV-BLOCKED | `go test ./internal/chaos/...` 14/14 ok (fresh); direct `ze-chaos chaos --config-only --chaos-actions iface-link-flap` exit 0 (fresh); mk/test-chaos.mk:13 fixed | integration test SKIPs natively (CAP_NET_ADMIN gate); runbooks recorded |
+| AC-7 | DONE | `TestWebConcurrentEditStress` fresh re-run 2026-07-10 via `make ze-stress-web-test CGO_ENABLED=1` (see Pre-Commit Verification) | evidence tier; CGO note in Review Gate Run 2 #2 |
+| AC-8 | DONE | Fresh re-run 2026-07-10: 128 clients all synced in 86.3ms wall-clock; latency p50=64.0ms p95=76.3ms max=83.4ms; PASS (5.58s) | evidence tier (`make ze-stress-fleet-test`) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| 4 property test files | exist (commit cad47fcc0) | listener/migration/forward-pool/filter-ordered |
+| `internal/chaos/engine/iface_linux.go` (planned name) | DEVIATION: shipped as `internal/chaos/peer/simulator_actions_iface_linux.go` + `_other.go` + engine params | executor lives with the peer simulator that owns conns; engine holds enum/params |
+| `internal/component/web/stress_test.go` | exists | tag `stress` |
+| `internal/component/managed/perf_test.go` (planned) | DEVIATION (A-6, recorded): `cmd/ze/hub/fleet_perf_test.go` | real hub+TLS harness lives there |
+| `test/plugin/forward-mpreach-nexthop-self-two-peer.ci` | exists, green | |
+| `test/plugin/llgr-egress-suppress-multi-peer.ci` + rr variant | NOT delivered -- AC-5 deferred (user-approved) | WIP preserved `tmp/scratch/` |
+| `test/traffic/022/023` + 001/002 edits, `qemu-all-tests.sh`, `mk/test-chaos.mk`, `docs/functional-tests.md` | exist (commits cad47fcc0/a35f6c355) | |
+
+### Audit Summary
+- Total ACs: 8. Done: 5 (AC-1,4,6,7,8). Done-code/env-blocked-exec: 2 (AC-2,3). Deferred with
+  user approval + destination: 1 (AC-5).
+- Deviations: executor placement (chaos peer pkg), fleet-perf location (A-6) -- both recorded.
+
+## Goal Validation
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Property-test framework unblocks L92-L96 class | unit tests (fresh green) | 4 property tests incl. transitivity counterexample doc (`TestListenerConflictNotTransitive`) |
+| Privileged CI runner path for kernel-state assertions | QEMU enrollment + authored tests | `fsuite traffic` in qemu-all-tests.sh; 022/023 `option=needs-linux` gated; runbook `make ze-qemu-needs-linux-test` (exec env-blocked, user-approved) |
+| Two-peer wire-forwarding proof | functional test (fresh green) | `forward-mpreach-nexthop-self-two-peer.ci` exit 0; LLGR variant deferred (AC-5, user-approved, destination spec updated with root cause) |
+| Stress/chaos gaps closed | new harness + evidence-tier runs | iface action family (unit green, direct run exit 0); `TestWebConcurrentEditStress`; `TestFleetManyClientsPerf` 128 clients / 86ms |
+
+## Pre-Commit Verification (2026-07-10, fresh evidence)
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| listener/migration/forward-pool/filter-ordered property tests | yes | committed in cad47fcc0 (git show --stat) |
+| `test/plugin/forward-mpreach-nexthop-self-two-peer.ci` | yes | runner found + ran it (exit 0, 2026-07-10) |
+| `test/traffic/022-boot-qdisc-tc.ci`, `023-reload-qdisc-tc.ci` | yes | grep shows `option=needs-linux` + `tc qdisc show dev eth0` lines |
+| `test/chaos/iface-link-flap.ci` | yes | committed in cad47fcc0 |
+| `internal/chaos/peer/simulator_actions_iface_{linux,other}.go` | yes | committed in cad47fcc0; `go test ./internal/chaos/...` compiles both |
+
+### AC Verified (fresh, 2026-07-10)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | 4 property tests green | `go test` per package: L92 exit 0, L93 exit 0, L94 (-race, CGO_ENABLED=1) exit 0, L96 exit 0 |
+| AC-2 | code complete, exec env-blocked | 022/023 exist + gated; `fsuite traffic` enrolled; no qemu-system binary on host |
+| AC-3 | env-blocked, runbook recorded | Known Limitations paragraph; no sudo/CAP_NET_ADMIN here |
+| AC-4 | MP_REACH two-peer on the wire | `bin/ze-test bgp plugin forward-mpreach-nexthop-self-two-peer` exit 0 |
+| AC-5 | deferred with destination | `plan/deferrals.md` 2026-07-10 row; `spec-rib-arch-7-llgr-multipeer-ci.md` Root Cause Finding section; user approval relayed 2026-07-10 |
+| AC-6 | additive iface family works | chaos pkg tests 14/14 ok; `ze-chaos chaos --config-only --chaos-actions iface-link-flap` exit 0; help lists both actions |
+| AC-7 | web concurrent-edit stress green | `make ze-stress-web-test CGO_ENABLED=1` PASS 71.5s: concurrent_mutations_no_race 32.4s + concurrent_commit_storm 39.2s (64 users, 64 conflicts observed), -race clean |
+| AC-8 | fleet 128-client perf green | fresh run: all synced 86.3ms; p50=64.0ms p95=76.3ms max=83.4ms; PASS |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | recorded in table (design-time re-verification + migration peer-name refinement) |
+| A-2 | confirmed | 4 property tests green on stdlib quick; no `rapid` dependency added |
+| A-3 | confirmed (code) | enrollment one-line; 022/023 parse; QEMU exec env-blocked with runbook |
+| A-4 | ENV-BLOCKED (recorded) | no sudo/netns/CAP_NET_ADMIN; runbook in Known Limitations; user-approved |
+| A-5 | confirmed | additive enum/params/guard/scheduler; unit tests green; direct run exit 0 |
+| A-6 | confirmed (with recorded deviation) | fleet test in `cmd/ze/hub` (real hub harness); fresh PASS |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/functional-tests.md` new tiers (property, stress, needs-linux, iface chaos) | source anchors present (:230-233, :246, :260); `make ze-doc-test` PASSED 2026-07-10 | yes |
+| `docs/architecture/chaos-web-dashboard.md` action tables | updated this session (Review Gate #3) + anchors to `simulator_actions_iface_linux.go`, `action_params.go`, `web/control.go`; `make ze-doc-test` PASSED after edit | yes |
+| ai/INDEX.md discovery chain | row :344 "test, functional, .ci" -> `docs/functional-tests.md` -> new tiers | yes |
 
 ## Checklist
 
@@ -367,8 +473,13 @@ This was a consolidation skeleton created from verified deferral survivors (back
   mechanism (no `rs`/`redistribute`), so it timed out with the target peers receiving nothing --
   the destination spec must first choose a forwarding path, then close the rail gap.
 
-  The `llgr-readvertise.ci` stale multi-peer comment was already corrected (prior session).
-  Because the user-visible AC-5 contract is **not** satisfied, the spec stays **in-progress**.
+  The `llgr-readvertise.ci` stale multi-peer comment was already corrected (prior session)
+  and re-corrected at closure (it briefly claimed the deferred `.ci`s existed; Review Gate #1).
+
+  **Closure decision (2026-07-10):** the user explicitly approved closing this spec with AC-5
+  deferred (destination `spec-rib-arch-7-llgr-multipeer-ci.md`, deferral row recorded) and the
+  AC-2/AC-3 execution legs env-blocked with their runbooks. This is the explicit approval that
+  `ai/rules/planning.md` requires for partial/deferred items.
 
 ## Implementation Status (2026-07-09)
 

@@ -12,9 +12,11 @@
 #
 # Note: this test proves delivery to one LLGR-capable peer. The multi-peer
 # egress divergence (EBGP non-LLGR peer withdrawn; non-LLGR IBGP peer gets
-# NO_EXPORT + LOCAL_PREF=0) is proven on the wire by the conn_map-based
-# llgr-egress-suppress-multi-peer.ci and llgr-egress-rr-multi-peer.ci (spec
-# followup-test-infra AC-5); the per-peer egress logic also has 8 unit tests in
+# NO_EXPORT + LOCAL_PREF=0) has NO on-the-wire test yet: the egress filter is
+# not invoked on the RIB readvertise / AnnounceNLRIBatch rail, so the stamping
+# never fires end-to-end (root cause + file:line chain in
+# plan/spec-rib-arch-7-llgr-multipeer-ci.md, which owns the wiring work and the
+# future multi-peer .ci). The per-peer branch logic itself has 8 unit tests in
 # gr_egress_test.go.
 #
 # VALIDATES: AC-9 — LLGR-capable peer receives stale routes.

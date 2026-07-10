@@ -4,7 +4,11 @@
 // for the ze-chaos testing tool.
 package engine
 
-import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+import (
+	"sort"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
 
 // ActionType identifies the kind of chaos event.
 type ActionType int
@@ -140,10 +144,27 @@ func ActionTypeFromString(s string) (ActionType, bool) {
 	return 0, false
 }
 
-// NeedsReconnect returns true if this action type causes a session teardown
-// that requires the peer to reconnect afterwards.
-func (a ActionType) NeedsReconnect() bool {
+// needsReconnect returns true if this action type causes a session teardown
+// that requires the peer to reconnect afterwards. Unexported: no production
+// consumer yet (the validation model classifies from runtime EventDisconnected,
+// not from action type); the classification table is kept because it documents
+// action semantics and is asserted by TestActionNeedsReconnect.
+func (a ActionType) needsReconnect() bool {
 	return actionReconnect[a]
+}
+
+// V2ActionNames returns the sorted kebab-case names of every parameterized
+// (opt-in via --chaos-actions) action. Derived from the action tables so CLI
+// help and docs can never drift from the real set when an action is added.
+func V2ActionNames() []string {
+	names := make([]string, 0, len(actionNames))
+	for t, name := range actionNames {
+		if IsV2Action(t) {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
 }
 
 // ChaosAction describes a chaos event to execute on a peer.

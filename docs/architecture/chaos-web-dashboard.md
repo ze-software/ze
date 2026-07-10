@@ -479,6 +479,11 @@ Five new action types added for richer interactive control from the dashboard. T
 | RouteFlap | Withdraw and immediately re-announce the same set of routes. Tests Ze's handling of rapid state changes for the same prefixes without dropping the session. Repeats the flap cycle a configurable number of times. | count: int (routes to flap). cycles: int (number of withdraw+announce cycles, default: 3). interval: duration (delay between cycles, default: 100ms). |
 | SlowPeer | Artificially delay all outgoing messages (keepalives, route announcements) by a configurable amount. Simulates a congested or overloaded peer. Lasts for a configurable duration then returns to normal. | delay: duration (added to each message send, e.g., 2s). duration: duration (how long to remain slow, e.g., 30s). |
 | ZeroWindow | Set the TCP receive window to zero on the peer's socket, simulating a receiver that stops reading. Ze must handle TCP zero-window probes and backpressure without crashing or corrupting state. After a configurable duration, the window is restored and pending data drains. Tests Ze's write-side buffering, keepalive behavior under backpressure, and session timeout handling. | duration: duration (how long to keep window at zero, e.g., 15s). |
+| IfaceLinkFlap | Bring a network interface down then up via netlink (Linux only, netns-scoped: meant to run inside a named network namespace with a veth carrying the BGP session). Tears the session transport, forcing reconnect; tests Ze's session recovery after a link-layer fault. On a plain loopback run (no `iface` param) it is a graceful no-op; on non-Linux it emits an error event when an iface is configured. | iface: string (interface name; empty = no-op). cycles: int (down/up cycles, default: 1, max: 20). interval: duration (pause between transitions, default: 500ms). |
+| IfaceAddrRemove | Remove then restore an address on a network interface via netlink (Linux only, netns-scoped, same harness as IfaceLinkFlap). Tests Ze's handling of a peering address vanishing and returning without the link going down. No-op without both `iface` and `addr` params. | iface: string (interface name). addr: string (CIDR to remove/restore). interval: duration (time the address stays removed, default: 500ms). |
+
+<!-- source: internal/chaos/peer/simulator_actions_iface_linux.go -- executeIfaceLinkFlap, executeIfaceAddrRemove -->
+<!-- source: internal/chaos/engine/action_params.go -- IfaceFaultParams, ParseIfaceFaultParams -->
 
 ### Weight Assignment for New Actions (Scheduler)
 
@@ -492,6 +497,8 @@ When used in the automatic scheduler (not manual trigger), new actions use these
 | RouteFlap | 10 | Important stability test |
 | SlowPeer | 5 | Duration-based, fewer occurrences |
 | ZeroWindow | 5 | TCP-level stress test |
+| IfaceLinkFlap | 5 | Kernel-level fault; no-op outside a netns harness |
+| IfaceAddrRemove | 5 | Kernel-level fault; no-op outside a netns harness |
 
 New actions are **disabled by default** in the automatic scheduler. Enabled via `--chaos-actions` flag (comma-separated list) or from the dashboard UI.
 
@@ -539,6 +546,15 @@ When the action dropdown changes, the parameters section updates via HTMX (`hx-g
 | RouteFlap | count: number 1-1000; cycles: number 1-50; interval: text (ms/s) | 50, 3, 100ms |
 | SlowPeer | delay: text (ms/s); duration: text (s) | 2s, 30s |
 | ZeroWindow | duration: text (s) | 15s |
+
+The iface fault actions (IfaceLinkFlap, IfaceAddrRemove) are deliberately NOT
+offered in the manual trigger UI (`chaosActionTypes()` in
+`internal/chaos/web/control.go`): they manipulate kernel interfaces, so they are
+netns-harness-only (scenario file / `--chaos-actions` / integration test) --
+triggering them from a dashboard against a live host would touch real
+interfaces, which the netns scoping exists to prevent.
+
+<!-- source: internal/chaos/web/control.go -- chaosActionTypes -->
 
 ### Target Selection
 

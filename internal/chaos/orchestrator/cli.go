@@ -53,6 +53,10 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.ze.mcp.port", Type: "int", Default: "0", Description: "Ze MCP server port injected into generated config (0 = disabled)"})
 )
 
+// CLIRun is the ze-chaos root handler body. Production entry is the registry
+// closure in register.go (root command "chaos", blank-imported by
+// cmd/ze/ze_chaos_run.go); exported because the ze_chaos-tagged cmd/ze tests
+// drive the full CLI through it directly (same convention as env.Run).
 func CLIRun(args []string) int {
 	fs := flag.NewFlagSet("ze-chaos", flag.ContinueOnError)
 
@@ -78,7 +82,10 @@ func CLIRun(args []string) int {
 	// Chaos flags
 	chaosRate := fs.Float64("chaos-rate", 0.1, "Per-peer probability of chaos per interval (0.0-1.0)")
 	chaosInterval := fs.Duration("chaos-interval", 1*time.Second, "Time between chaos checks")
-	chaosActions := fs.String("chaos-actions", "", "Enable v2 chaos actions (comma-sep: clock-drift,route-burst,withdrawal-burst,route-flap,slow-peer,zero-window)")
+	// Derived from the engine action tables so help never drifts from the real set.
+	var v2tb textbuf.Buffer
+	v2List := v2tb.Join(engine.V2ActionNames(), ",").String()
+	chaosActions := fs.String("chaos-actions", "", v2tb.Reset().Str("Enable v2 chaos actions (comma-sep: ").Str(v2List).Byte(')').String())
 
 	// Route dynamics flags
 	routeRate := fs.Float64("route-rate", 0.0, "Per-peer probability of route action per interval (0.0-1.0, 0=disabled)")
@@ -176,7 +183,7 @@ Backpressure:
 Chaos:
   --chaos-rate <float>       Per-peer probability of chaos per interval (default: 0.1)
   --chaos-interval <dur>     Time between chaos checks (default: 1s)
-  --chaos-actions <list>     Enable v2 actions (comma-sep: clock-drift,route-burst,withdrawal-burst,route-flap,slow-peer,zero-window)
+  --chaos-actions <list>     Enable v2 actions (comma-sep: %s)
 
 Route Dynamics:
   --route-rate <float>       Per-peer probability of route action per interval (default: 0, disabled)
@@ -230,7 +237,7 @@ Control:
   --in-process               Run reactor in-process (mock network, virtual clock)
   --config-only              Generate config and exit (no orchestrator)
   --pipe                     Write config to stdout for piping (ze-chaos --pipe | ze -)
-`)
+`, v2List)
 	}
 
 	if err := fs.Parse(args); err != nil {
