@@ -122,6 +122,20 @@ one commit (feature + tests + docs). Multiple unrelated changes =
 multiple commits, not one bundle. Unrelated bug fix = separate commit.
 Review fixes from a review pass = one commit.
 
+## Commit Ownership in Parallel Sessions (2026-07-10, owner decision)
+
+When several sessions work the same tree, each session MUST commit the
+features it is in charge of implementing -- never leave your own finished
+work uncommitted for another session to sweep or strand. Scope every commit
+script to your own files (explicit `--file` lists; verify
+`git diff --cached --name-only` shows nothing foreign before running it).
+
+Exception, per owner direction: an uncommitted improvement written by
+ANOTHER agent may be included in your commit when it is IN SCOPE of the
+feature you own (it edits a file your feature owns, or your ACs depend on
+it). Name the inclusion and its origin in the commit body. Out-of-scope
+foreign files stay untouched, always.
+
 ## Before Any Commit
 
 ### Step 0: Does `ze-verify` apply?
