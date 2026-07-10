@@ -1,5 +1,6 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- subsystem config extraction
 // Related: subsystem.go -- consumes Parameters returned by ExtractParameters
+// RFC: rfc/short/rfc2661.md -- RFC 2661 Section 6.1 (SCCRQ dial target), Section 4.2 (shared secret)
 
 package l2tp
 
@@ -21,6 +22,9 @@ var (
 	errL2tpMaxLoginsMustBe1             = errors.New("l2tp max-logins: must be 1-1000000")
 	errL2tpEventRingSizePerSession      = errors.New("l2tp event-ring-size-per-session: must be 16-4096")
 	errL2tpSampleRetentionSecondsMustBe = errors.New("l2tp sample-retention-seconds: must be 100-86400")
+	errL2tpRemoteMissingAddress         = errors.New("l2tp remote: address is required")
+	errL2tpRemoteDuplicate              = errors.New("l2tp remote: duplicate name")
+	errL2tpRelayUnknownRemote           = errors.New("l2tp relay: references unknown remote")
 )
 
 // Env var registrations. Each YANG leaf under `environment/l2tp/` that has
@@ -114,6 +118,33 @@ type Parameters struct {
 	MaxLogins               int
 	EventRingSizePerSession int
 	SampleRetentionSeconds  int
+
+	// Remotes are configured L2TP dial targets (spec-followup-l2tp-call
+	// AC-6). Each names a remote LNS/LAC endpoint ze can initiate a tunnel
+	// toward. Referenced by name from the outgoing-call RPC and PPPoE relay
+	// bindings. Empty when no `remote` blocks are configured.
+	Remotes []Remote
+	// Relays bind a PPPoE Service-Name to the remote its subscribers are
+	// relayed to (LAC incoming call). Empty when no `relay` blocks exist.
+	Relays []RelayBinding
+}
+
+// Remote is a configured L2TP dial target: a remote LNS/LAC endpoint ze
+// initiates tunnels toward (sends SCCRQ to). Address carries the resolved
+// control-plane endpoint (IP + port, RFC 2661 default 1701).
+type Remote struct {
+	Name          string
+	Address       netip.AddrPort
+	SharedSecret  string
+	OutgoingCalls bool
+}
+
+// RelayBinding maps a PPPoE Service-Name to the L2TP remote its subscribers
+// are relayed to. Service is the PPPoE Service-Name to match (empty string
+// matches a request with no service-name); Remote references a Remote.Name.
+type RelayBinding struct {
+	Service string
+	Remote  string
 }
 
 // ExtractParameters pulls L2TP configuration out of the parsed config tree.
@@ -281,6 +312,39 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 		p.SampleRetentionSeconds = int(n)
 	}
 
+	// Dial targets (spec-followup-l2tp-call AC-6): remote list under root
+	// l2tp{}. Each `remote <name>` names an endpoint ze can dial.
+	remotes := l2tpRoot.GetListOrdered("remote")
+	for _, r := range remotes {
+		addr, _ := r.Value.Get("address")
+		port := strconv.Itoa(DefaultListenPort)
+		if v, ok := r.Value.Get("port"); ok && v != "" {
+			port = v
+		}
+		secret, _ := r.Value.Get("shared-secret")
+		outgoing := false
+		if v, ok := r.Value.Get("outgoing-calls"); ok {
+			outgoing = v == configTrue
+		}
+		rem, err := buildRemote(r.Key, addr, port, secret, outgoing)
+		if err != nil {
+			return Parameters{}, err
+		}
+		if err := appendRemote(&p, rem); err != nil {
+			return Parameters{}, err
+		}
+	}
+
+	// Relay bindings: relay list under root l2tp{}. Each binds a PPPoE
+	// Service-Name to a remote declared above.
+	for _, rl := range l2tpRoot.GetListOrdered("relay") {
+		remoteName, _ := rl.Value.Get("remote")
+		p.Relays = append(p.Relays, RelayBinding{Service: rl.Key, Remote: remoteName})
+	}
+	if err := validateRelays(&p); err != nil {
+		return Parameters{}, err
+	}
+
 	// Listener endpoints from environment { l2tp { server ... } }.
 	if envC := tree.GetContainer("environment"); envC != nil {
 		if l2tpEnv := envC.GetContainer("l2tp"); l2tpEnv != nil {
@@ -333,4 +397,67 @@ func parseListen(ip, port string) (netip.AddrPort, error) {
 		return netip.AddrPort{}, fmt.Errorf("port %q: must be 1-65535", port)
 	}
 	return netip.AddrPortFrom(addr, uint16(p)), nil
+}
+
+// buildRemote validates and assembles a Remote from its raw config fields.
+// address is mandatory (a dial target with no address is meaningless);
+// port defaults to 1701 upstream when absent. The parsed endpoint reuses
+// parseListen's IP+port validation.
+func buildRemote(name, address, port, secret string, outgoing bool) (Remote, error) {
+	if address == "" {
+		return Remote{}, fmt.Errorf("%w (remote %q)", errL2tpRemoteMissingAddress, name)
+	}
+	addr, err := parseListen(address, port)
+	if err != nil {
+		return Remote{}, fmt.Errorf("l2tp remote %q: %w", name, err)
+	}
+	return Remote{
+		Name:          name,
+		Address:       addr,
+		SharedSecret:  secret,
+		OutgoingCalls: outgoing,
+	}, nil
+}
+
+// appendRemote adds rem to p.Remotes, rejecting a duplicate name. The YANG
+// list key already enforces uniqueness in the config tree; this guards the
+// provider-map path (which is not key-deduplicated) and documents intent.
+func appendRemote(p *Parameters, rem Remote) error {
+	for i := range p.Remotes {
+		if p.Remotes[i].Name == rem.Name {
+			return fmt.Errorf("%w %q", errL2tpRemoteDuplicate, rem.Name)
+		}
+	}
+	p.Remotes = append(p.Remotes, rem)
+	return nil
+}
+
+// validateRelays confirms every relay binding references a declared remote.
+// No leafref exists in ze's YANG engine, so referential integrity is
+// enforced here (config-load time) rather than by the schema.
+func validateRelays(p *Parameters) error {
+	for _, rl := range p.Relays {
+		found := false
+		for i := range p.Remotes {
+			if p.Remotes[i].Name == rl.Remote {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("%w: relay service %q -> remote %q", errL2tpRelayUnknownRemote, rl.Service, rl.Remote)
+		}
+	}
+	return nil
+}
+
+// LookupRemote returns the configured remote with the given name and true,
+// or a zero Remote and false when no such remote is configured.
+func (p *Parameters) LookupRemote(name string) (Remote, bool) {
+	for i := range p.Remotes {
+		if p.Remotes[i].Name == name {
+			return p.Remotes[i], true
+		}
+	}
+	return Remote{}, false
 }

@@ -258,6 +258,77 @@ func TestReloadBeforeStart(t *testing.T) {
 	require.ErrorIs(t, err, ErrSubsystemNotStarted)
 }
 
+// VALIDATES: AC-6 -- remote dial targets are hot-applied on reload; the
+// provider-map parse path (appendRemotesFromProvider) reads address/port/
+// shared-secret/outgoing-calls.
+func TestReloadAppliesRemotes(t *testing.T) {
+	s := newStartedSubsystem(t, Parameters{
+		Enabled:       true,
+		HelloInterval: 60 * time.Second,
+		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
+	})
+	cfg := &fakeConfigProvider{trees: map[string]map[string]any{
+		"l2tp": {
+			"remote": map[string]any{
+				"lns1": map[string]any{
+					"address":        "203.0.113.5",
+					"port":           "1701",
+					"shared-secret":  "s3cr3t",
+					"outgoing-calls": "true",
+				},
+			},
+			"relay": map[string]any{
+				"wholesale": map[string]any{"remote": "lns1"},
+			},
+		},
+	}}
+	require.NoError(t, s.Reload(context.Background(), cfg))
+	require.Len(t, s.params.Remotes, 1)
+	require.Equal(t, "203.0.113.5:1701", s.params.Remotes[0].Address.String())
+	require.True(t, s.params.Remotes[0].OutgoingCalls)
+	require.Len(t, s.params.Relays, 1)
+	require.Equal(t, "wholesale", s.params.Relays[0].Service)
+	require.Equal(t, "lns1", s.params.Relays[0].Remote)
+	got, ok := s.params.LookupRemote("lns1")
+	require.True(t, ok)
+	require.Equal(t, "s3cr3t", got.SharedSecret)
+}
+
+// VALIDATES: AC-6 -- a relay binding to an undeclared remote is rejected on
+// the reload (provider-map) path too, not just the config.Tree path.
+func TestReloadRejectsRelayUnknownRemote(t *testing.T) {
+	s := newStartedSubsystem(t, Parameters{
+		Enabled:       true,
+		HelloInterval: 60 * time.Second,
+		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
+	})
+	cfg := &fakeConfigProvider{trees: map[string]map[string]any{
+		"l2tp": {
+			"relay": map[string]any{
+				"wholesale": map[string]any{"remote": "ghost"},
+			},
+		},
+	}}
+	err := s.Reload(context.Background(), cfg)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown remote")
+}
+
+// VALIDATES: remotesEqual / relaysEqual detect membership and order changes.
+func TestRemotesAndRelaysEqual(t *testing.T) {
+	a := []Remote{{Name: "x", Address: netip.MustParseAddrPort("10.0.0.1:1701")}}
+	b := []Remote{{Name: "x", Address: netip.MustParseAddrPort("10.0.0.1:1701")}}
+	require.True(t, remotesEqual(a, b))
+	c := []Remote{{Name: "x", Address: netip.MustParseAddrPort("10.0.0.2:1701")}}
+	require.False(t, remotesEqual(a, c))
+	require.False(t, remotesEqual(a, nil))
+
+	ra := []RelayBinding{{Service: "s", Remote: "x"}}
+	rb := []RelayBinding{{Service: "s", Remote: "x"}}
+	require.True(t, relaysEqual(ra, rb))
+	require.False(t, relaysEqual(ra, []RelayBinding{{Service: "s", Remote: "y"}}))
+}
+
 // VALIDATES: listenAddrsEqual accepts reordered endpoints as equal.
 func TestListenAddrsEqualIgnoresOrder(t *testing.T) {
 	a := []netip.AddrPort{

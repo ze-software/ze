@@ -210,6 +210,94 @@ module ze-l2tp-conf {
                      Default 30 seconds.";
             }
         }
+
+        list remote {
+            key "name";
+            description
+                "L2TP dial targets: remote LNS/LAC endpoints ze initiates
+                 tunnels toward (sends SCCRQ to). Referenced by name from
+                 'request l2tp outgoing-call remote <name>' and from PPPoE
+                 relay bindings. Declaring a remote grants no dial by itself;
+                 an operator action (RPC) or a relay binding drives the dial.";
+
+            leaf name {
+                type string {
+                    length "1..64";
+                }
+                description "Operator-assigned remote name (dial-target key).";
+            }
+
+            leaf address {
+                type zt:ip-address;
+                mandatory true;
+                description
+                    "Remote control-plane IP address to dial. The SCCRQ
+                     destination (RFC 2661 Section 6.1).";
+            }
+
+            leaf port {
+                type uint16 {
+                    range "1..65535";
+                }
+                default 1701;
+                description
+                    "Remote UDP port for the control channel. RFC 2661
+                     assigns 1701; overridable for non-standard peers.";
+            }
+
+            leaf shared-secret {
+                type string;
+                ze:sensitive;
+                description
+                    "Per-remote CHAP-MD5 tunnel-authentication secret
+                     (RFC 2661 Section 4.2). Overrides the subsystem-level
+                     shared-secret for tunnels dialed to this remote. When
+                     empty, this dial carries no Challenge AVP. Masked in CLI
+                     output.";
+            }
+
+            leaf outgoing-calls {
+                type boolean;
+                default false;
+                description
+                    "Permit LNS-side outgoing calls ('request l2tp
+                     outgoing-call') toward this remote. Default false: the
+                     remote must be explicitly enabled for dial-out before an
+                     operator can place a call, so a mistyped remote name is
+                     rejected rather than dialed.";
+            }
+        }
+
+        list relay {
+            key "service";
+            description
+                "PPPoE-to-L2TP relay bindings (LAC role). A subscriber whose
+                 PADI/PADR carries a matching PPPoE Service-Name is relayed
+                 into an L2TP incoming call toward the named remote instead of
+                 terminating PPP locally on this box. Removing a binding
+                 restores local termination for that service.";
+
+            leaf service {
+                type string {
+                    length "0..255";
+                }
+                description
+                    "PPPoE Service-Name to match. The empty string matches a
+                     subscriber that requests no specific service.";
+            }
+
+            leaf remote {
+                type string {
+                    length "1..64";
+                }
+                mandatory true;
+                description
+                    "Name of the L2TP remote (dial target) that matching
+                     subscribers are relayed to. MUST reference a remote
+                     declared under l2tp/remote; an unknown name is rejected
+                     at config validation.";
+            }
+        }
     }
 
     container environment {

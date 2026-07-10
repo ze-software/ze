@@ -790,6 +790,158 @@ func TestConfig_NCPTimeoutZeroRejected(t *testing.T) {
 // loadTree parses the given ze-config source via the public LoadConfig API
 // and returns the resulting tree. It centralizes YANG loading so each
 // test stays focused on assertions.
+// -----------------------------------------------------------------
+// Dial targets + relay bindings (spec-followup-l2tp-call AC-6)
+// -----------------------------------------------------------------
+
+// TestConfig_RemoteBasic parses a fully-specified remote dial target.
+//
+// VALIDATES: AC-6 -- remote name/address/port/shared-secret/outgoing-calls.
+func TestConfig_RemoteBasic(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	remote lns1 {
+		address 203.0.113.5
+		port 1701
+		shared-secret hunter2
+		outgoing-calls true
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	require.Len(t, p.Remotes, 1)
+	r := p.Remotes[0]
+	assert.Equal(t, "lns1", r.Name)
+	assert.Equal(t, "203.0.113.5:1701", r.Address.String())
+	assert.Equal(t, "hunter2", r.SharedSecret)
+	assert.True(t, r.OutgoingCalls)
+	got, ok := p.LookupRemote("lns1")
+	require.True(t, ok)
+	assert.Equal(t, r, got)
+	_, ok = p.LookupRemote("nope")
+	assert.False(t, ok)
+}
+
+// TestConfig_RemoteDefaultPort omits port and expects the RFC 2661 default.
+//
+// VALIDATES: AC-6 -- port defaults to 1701; outgoing-calls defaults false.
+func TestConfig_RemoteDefaultPort(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	remote r {
+		address 198.51.100.9
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	require.Len(t, p.Remotes, 1)
+	assert.Equal(t, "198.51.100.9:1701", p.Remotes[0].Address.String())
+	assert.False(t, p.Remotes[0].OutgoingCalls)
+	assert.Empty(t, p.Remotes[0].SharedSecret)
+}
+
+// TestConfig_RemotePortBoundary exercises the remote port range 1..65535.
+//
+// VALIDATES: boundary -- 65535 is last valid; 0 is invalid below.
+func TestConfig_RemotePortBoundary(t *testing.T) {
+	last := `l2tp {
+	enabled true
+	remote r {
+		address 198.51.100.9
+		port 65535
+	}
+}`
+	p, err := l2tp.ExtractParameters(loadTree(t, last))
+	require.NoError(t, err)
+	require.Len(t, p.Remotes, 1)
+	assert.Equal(t, uint16(65535), p.Remotes[0].Address.Port())
+
+	// port 0 is rejected by the YANG native range constraint at config load
+	// (max-native validation, config-option.md), before ExtractParameters.
+	invalid := `l2tp {
+	enabled true
+	remote r {
+		address 198.51.100.9
+		port 0
+	}
+}`
+	_, err = zeconfig.LoadConfig(invalid, "test.conf", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "port")
+}
+
+// TestConfig_RemoteMissingAddress rejects a remote with no address.
+//
+// VALIDATES: AC-6 -- address is mandatory (a dial target needs an endpoint).
+func TestConfig_RemoteMissingAddress(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	remote r {
+		port 1701
+	}
+}`
+	_, err := l2tp.ExtractParameters(loadTree(t, src))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "address")
+}
+
+// TestConfig_MultipleRemotes parses several dial targets and preserves order.
+func TestConfig_MultipleRemotes(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	remote alpha {
+		address 10.0.0.1
+	}
+	remote beta {
+		address 10.0.0.2
+		port 1702
+	}
+}`
+	p, err := l2tp.ExtractParameters(loadTree(t, src))
+	require.NoError(t, err)
+	require.Len(t, p.Remotes, 2)
+	names := []string{p.Remotes[0].Name, p.Remotes[1].Name}
+	assert.Contains(t, names, "alpha")
+	assert.Contains(t, names, "beta")
+}
+
+// TestConfig_RelayBinding parses a relay binding referencing a declared remote.
+//
+// VALIDATES: AC-6 -- per-PPPoE-service relay binding maps service -> remote.
+func TestConfig_RelayBinding(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	remote retail {
+		address 203.0.113.7
+	}
+	relay wholesale {
+		remote retail
+	}
+}`
+	p, err := l2tp.ExtractParameters(loadTree(t, src))
+	require.NoError(t, err)
+	require.Len(t, p.Relays, 1)
+	assert.Equal(t, "wholesale", p.Relays[0].Service)
+	assert.Equal(t, "retail", p.Relays[0].Remote)
+}
+
+// TestConfig_RelayUnknownRemote rejects a relay that names no declared remote.
+//
+// VALIDATES: AC-6 -- referential integrity enforced in Go (no YANG leafref).
+func TestConfig_RelayUnknownRemote(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	relay wholesale {
+		remote ghost
+	}
+}`
+	_, err := l2tp.ExtractParameters(loadTree(t, src))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown remote")
+}
+
 func loadTree(t *testing.T, src string) *zeconfig.Tree {
 	t.Helper()
 	res, err := zeconfig.LoadConfig(src, "test.conf", nil)

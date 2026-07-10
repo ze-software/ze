@@ -218,6 +218,23 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 		applied++
 	}
 
+	// Hot-apply: dial targets (remotes) and PPPoE relay bindings. Both are
+	// declarative capability consulted only when a NEW dial or relay decision
+	// is made; live tunnels are untouched. Updating s.params re-points the
+	// resolver the outgoing-call RPC and the relay call-sink read.
+	if !remotesEqual(prev.Remotes, next.Remotes) {
+		s.params.Remotes = next.Remotes
+		s.logger.Info("l2tp reload: dial targets updated (applies to new dials only)",
+			"previous", len(prev.Remotes), "new", len(next.Remotes))
+		applied++
+	}
+	if !relaysEqual(prev.Relays, next.Relays) {
+		s.params.Relays = next.Relays
+		s.logger.Info("l2tp reload: relay bindings updated (applies to new subscribers only)",
+			"previous", len(prev.Relays), "new", len(next.Relays))
+		applied++
+	}
+
 	if applied == 0 && rejected == 0 {
 		s.logger.Debug("l2tp reload: no changes detected")
 	}
@@ -369,6 +386,9 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 		}
 		p.SampleRetentionSeconds = int(n)
 	}
+	if err := appendRemotesFromProvider(&p, l2tpRoot); err != nil {
+		return Parameters{}, err
+	}
 	env, err := cfg.Get("environment")
 	if err != nil {
 		return Parameters{}, fmt.Errorf("get environment root: %w", err)
@@ -377,6 +397,49 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 		return Parameters{}, err
 	}
 	return p, nil
+}
+
+// appendRemotesFromProvider parses the l2tp/remote and l2tp/relay lists out
+// of the provider-map form of the config (Reload path), mirroring the
+// config.Tree parse in ExtractParameters. Lists arrive as a map keyed by the
+// list key (name for remote, service for relay).
+func appendRemotesFromProvider(p *Parameters, l2tpRoot map[string]any) error {
+	if remotes, ok := l2tpRoot["remote"].(map[string]any); ok {
+		for name, v := range remotes {
+			entry, _ := v.(map[string]any)
+			if entry == nil {
+				return fmt.Errorf("l2tp remote %q: unexpected shape", name)
+			}
+			address, _ := entry["address"].(string)
+			port := strconv.Itoa(DefaultListenPort)
+			if s, ok := entry["port"].(string); ok && s != "" {
+				port = s
+			}
+			secret, _ := entry["shared-secret"].(string)
+			outgoing := false
+			if s, ok := entry["outgoing-calls"].(string); ok {
+				outgoing = s == configTrue
+			}
+			rem, err := buildRemote(name, address, port, secret, outgoing)
+			if err != nil {
+				return err
+			}
+			if err := appendRemote(p, rem); err != nil {
+				return err
+			}
+		}
+	}
+	if relays, ok := l2tpRoot["relay"].(map[string]any); ok {
+		for service, v := range relays {
+			entry, _ := v.(map[string]any)
+			if entry == nil {
+				return fmt.Errorf("l2tp relay %q: unexpected shape", service)
+			}
+			remoteName, _ := entry["remote"].(string)
+			p.Relays = append(p.Relays, RelayBinding{Service: service, Remote: remoteName})
+		}
+	}
+	return validateRelays(p)
 }
 
 // appendListenersFromEnv reads environment/l2tp/server entries out of
@@ -413,6 +476,36 @@ func appendListenersFromEnv(p *Parameters, env map[string]any) error {
 		p.ListenAddrs = append(p.ListenAddrs, addr)
 	}
 	return nil
+}
+
+// remotesEqual returns true when both remote slices are identical (same
+// entries, same order). Dial targets are keyed by name; the config tree
+// preserves declaration order, so a positional comparison is sufficient and
+// avoids sorting a secret-bearing struct.
+func remotesEqual(a, b []Remote) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// relaysEqual returns true when both relay-binding slices are identical
+// (same entries, same order).
+func relaysEqual(a, b []RelayBinding) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // listenAddrsEqual returns true when both slices contain the same set

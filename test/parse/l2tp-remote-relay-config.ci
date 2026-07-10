@@ -1,0 +1,34 @@
+# Valid l2tp config with dial targets (remote) and a PPPoE->L2TP relay
+# binding. spec-followup-l2tp-call AC-6: the remote list (name, address,
+# port, shared-secret, outgoing-calls) and per-service relay binding parse
+# and validate. The relay references a declared remote, so referential
+# integrity (enforced in Go, no YANG leafref) passes.
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true
+    shared-secret site-default
+    remote retail-lns {
+        address 203.0.113.10
+        port 1701
+        shared-secret retail-secret
+        outgoing-calls true
+    }
+    remote backup-lns {
+        address 203.0.113.11
+    }
+    relay wholesale {
+        remote retail-lns
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port 1701
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
