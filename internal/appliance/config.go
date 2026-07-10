@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -58,17 +59,20 @@ type ImageConfig struct {
 	// kernel cmdline (default_hugepagesz/hugepagesz/hugepages). nil = no
 	// reservation, and the built image's /cmdline.txt is unchanged.
 	Hugepages *Hugepages `json:"hugepages,omitempty"`
-	// MemoryBytes is the target's total RAM. Optional; when set it bounds the
-	// hugepage reservation (a reservation may not exceed 50% of it) and drives
-	// the QEMU `-m` size for `ze appliance run`. 0 = unset (run defaults to
-	// 512 MiB and only the static 512 GiB reservation ceiling applies).
-	MemoryBytes int64 `json:"memory-bytes,omitempty"`
+	// Memory is the target's total RAM as a byte-size string (e.g. "8gb").
+	// Optional; when set it bounds the hugepage reservation (which may not
+	// exceed 50% of it) and drives the QEMU `-m` size for `ze appliance run`.
+	// Empty = unset (run defaults to 512 MiB and only the static 512 GiB
+	// reservation ceiling applies).
+	Memory string `json:"memory,omitempty"`
 }
 
-// Hugepages describes a boot-time hugepage reservation for the appliance image.
+// Hugepages describes a boot-time hugepage reservation as a total size reserved
+// in pages of a given size. Both are byte-size strings (e.g. Size "1gb",
+// PageSize "2mb"); the reserved page count is Size / PageSize.
 type Hugepages struct {
-	PageSize string `json:"page-size"` // "2M" or "1G"
-	Count    int64  `json:"count"`     // number of pages of PageSize to reserve
+	Size     string `json:"size"`      // total reservation, e.g. "1gb"
+	PageSize string `json:"page-size"` // "2mb" or "1gb"
 }
 
 type QEMUConfig struct {
@@ -147,17 +151,94 @@ const (
 	maxMemoryBytes        int64 = 1024 * 1024 * 1024 * 1024 // 1 TiB
 )
 
-// hugepageSizeBytes returns the byte size of a hugepage page-size token and
-// whether it is a supported size.
-func hugepageSizeBytes(pageSize string) (int64, bool) {
-	switch pageSize {
-	case "2M":
-		return 2 * 1024 * 1024, true
-	case "1G":
-		return 1024 * 1024 * 1024, true
+// parseByteSize parses a byte-size string ("10b", "512mb", "8gb", "1tb";
+// case-insensitive, 1024-based) into a byte count. A unit suffix is required.
+func parseByteSize(s string) (int64, error) {
+	t := strings.ToLower(strings.TrimSpace(s))
+	var mult int64
+	var num string
+	switch {
+	case strings.HasSuffix(t, "tb"):
+		mult, num = 1<<40, strings.TrimSuffix(t, "tb")
+	case strings.HasSuffix(t, "gb"):
+		mult, num = 1<<30, strings.TrimSuffix(t, "gb")
+	case strings.HasSuffix(t, "mb"):
+		mult, num = 1<<20, strings.TrimSuffix(t, "mb")
+	case strings.HasSuffix(t, "kb"):
+		mult, num = 1<<10, strings.TrimSuffix(t, "kb")
+	case strings.HasSuffix(t, "b"):
+		mult, num = 1, strings.TrimSuffix(t, "b")
 	default:
-		return 0, false
+		return 0, fmt.Errorf("size %q: must end in b, kb, mb, gb, or tb", s)
 	}
+	n, err := strconv.ParseInt(strings.TrimSpace(num), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("size %q: not a number", s)
+	}
+	if n < 0 {
+		return 0, fmt.Errorf("size %q: must not be negative", s)
+	}
+	if n != 0 && n > (int64(1)<<62)/mult {
+		return 0, fmt.Errorf("size %q: too large", s)
+	}
+	return n * mult, nil
+}
+
+// hugepageToken maps a supported hugepage byte size to the kernel cmdline token
+// (2M or 1G) and whether it is a supported size.
+func hugepageToken(pageSizeBytes int64) (string, bool) {
+	switch pageSizeBytes {
+	case 2 * 1024 * 1024:
+		return "2M", true
+	case 1024 * 1024 * 1024:
+		return "1G", true
+	default:
+		return "", false
+	}
+}
+
+// pageSizeBytes parses PageSize and requires a kernel-supported hugepage size.
+func (h Hugepages) pageSizeBytes() (int64, error) {
+	b, err := parseByteSize(h.PageSize)
+	if err != nil {
+		return 0, fmt.Errorf("image.hugepages.page-size %w", err)
+	}
+	if _, ok := hugepageToken(b); !ok {
+		return 0, fmt.Errorf("image.hugepages.page-size %q: must be 2mb or 1gb", h.PageSize)
+	}
+	return b, nil
+}
+
+// pageCount returns the number of pages to reserve (Size / PageSize); Size must
+// be a positive whole multiple of PageSize.
+func (h Hugepages) pageCount() (int64, error) {
+	ps, err := h.pageSizeBytes()
+	if err != nil {
+		return 0, err
+	}
+	total, err := parseByteSize(h.Size)
+	if err != nil {
+		return 0, fmt.Errorf("image.hugepages.size %w", err)
+	}
+	if total < ps {
+		return 0, fmt.Errorf("image.hugepages.size %q: must be at least one %q page", h.Size, h.PageSize)
+	}
+	if total%ps != 0 {
+		return 0, fmt.Errorf("image.hugepages.size %q: must be a whole multiple of page-size %q", h.Size, h.PageSize)
+	}
+	return total / ps, nil
+}
+
+// memoryBytes parses Memory; ok is false when Memory is unset.
+func (i ImageConfig) memoryBytes() (memBytes int64, ok bool, err error) {
+	if strings.TrimSpace(i.Memory) == "" {
+		return 0, false, nil
+	}
+	b, perr := parseByteSize(i.Memory)
+	if perr != nil {
+		return 0, false, fmt.Errorf("image.memory %w", perr)
+	}
+	return b, true, nil
 }
 
 func (c *applianceConfig) Validate() error {
@@ -207,38 +288,41 @@ func (c *applianceConfig) Validate() error {
 	return nil
 }
 
-// validateImageMemory bounds image.memory-bytes and image.hugepages. Both are
+// validateImageMemory bounds image.memory and image.hugepages. Both are
 // optional; when present they gate the boot-time hugepage reservation so it
 // cannot starve the target into OOM (R-2).
 func (c *applianceConfig) validateImageMemory() error {
-	if c.Image.MemoryBytes != 0 {
-		if c.Image.MemoryBytes < minMemoryBytes {
-			return fmt.Errorf("image.memory-bytes %d: minimum is %d (256 MiB)", c.Image.MemoryBytes, minMemoryBytes)
+	memBytes, memSet, err := c.Image.memoryBytes()
+	if err != nil {
+		return err
+	}
+	if memSet {
+		if memBytes < minMemoryBytes {
+			return fmt.Errorf("image.memory %q: minimum is 256mb", c.Image.Memory)
 		}
-		if c.Image.MemoryBytes > maxMemoryBytes {
-			return fmt.Errorf("image.memory-bytes %d: maximum is %d (1 TiB)", c.Image.MemoryBytes, maxMemoryBytes)
+		if memBytes > maxMemoryBytes {
+			return fmt.Errorf("image.memory %q: maximum is 1tb", c.Image.Memory)
 		}
 	}
 	if c.Image.Hugepages == nil {
 		return nil
 	}
-	szBytes, ok := hugepageSizeBytes(c.Image.Hugepages.PageSize)
-	if !ok {
-		return fmt.Errorf("image.hugepages.page-size %q: must be 2M or 1G", c.Image.Hugepages.PageSize)
+	pageBytes, err := c.Image.Hugepages.pageSizeBytes()
+	if err != nil {
+		return err
 	}
-	if c.Image.Hugepages.Count < 1 {
-		return fmt.Errorf("image.hugepages.count %d: minimum is 1", c.Image.Hugepages.Count)
+	count, err := c.Image.Hugepages.pageCount()
+	if err != nil {
+		return err
 	}
 	// Check the page count against the static ceiling before multiplying, so a
 	// huge count cannot overflow int64 in the total computation.
-	if c.Image.Hugepages.Count > maxHugepageTotalBytes/szBytes {
-		return fmt.Errorf("image.hugepages: %d pages of %s exceed the %d-byte (512 GiB) reservation ceiling",
-			c.Image.Hugepages.Count, c.Image.Hugepages.PageSize, maxHugepageTotalBytes)
+	if count > maxHugepageTotalBytes/pageBytes {
+		return fmt.Errorf("image.hugepages.size %q: exceeds the 512 GiB reservation ceiling", c.Image.Hugepages.Size)
 	}
-	total := c.Image.Hugepages.Count * szBytes
-	if c.Image.MemoryBytes != 0 && total > c.Image.MemoryBytes/2 {
-		return fmt.Errorf("image.hugepages: reservation %d bytes exceeds 50%% of image.memory-bytes %d",
-			total, c.Image.MemoryBytes)
+	total := count * pageBytes
+	if memSet && total > memBytes/2 {
+		return fmt.Errorf("image.hugepages.size %q: exceeds 50%% of image.memory %q", c.Image.Hugepages.Size, c.Image.Memory)
 	}
 	return nil
 }

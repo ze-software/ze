@@ -3,7 +3,7 @@
 
 This is the real coverage behind test/appliance/vpp-hugepages-qemu.ci. It builds
 a HOST ze (ze_core,ze_setup), inits an appliance whose config carries
-image.hugepages + image.memory-bytes, builds the gokrazy image (exercising the
+image.hugepages + image.memory, builds the gokrazy image (exercising the
 derived-instance-config kernel-argument path in internal/appliance/kernelargs.go),
 boots that image directly in QEMU, logs in over SSH, and asserts:
 
@@ -21,9 +21,9 @@ exits non-zero.
 
 Env overrides:
   ZE_VPP_HP_ARCH        target arch (amd64|arm64); defaults to the host arch
-  ZE_VPP_HP_PAGESIZE    2M (default) or 1G
-  ZE_VPP_HP_COUNT       page count (default 64 for 2M)
-  ZE_VPP_HP_MEM_BYTES   image.memory-bytes (default 1 GiB)
+  ZE_VPP_HP_PAGESIZE    page size, "2mb" (default) or "1gb"
+  ZE_VPP_HP_SIZE        total hugepage reservation, e.g. "128mb"
+  ZE_VPP_HP_MEMORY      image.memory, e.g. "1gb"
   ZE_VPP_HP_SSH_PASS    SSH password (default "secret")
   ZE_VPP_HP_KEEP        1 to keep the work dir for inspection
 """
@@ -43,9 +43,30 @@ from pathlib import Path
 
 SSH_USER = "admin"
 SSH_PASS = os.environ.get("ZE_VPP_HP_SSH_PASS", "secret")
-PAGESIZE = os.environ.get("ZE_VPP_HP_PAGESIZE", "2M")
-COUNT = int(os.environ.get("ZE_VPP_HP_COUNT", "64"))
-MEM_BYTES = int(os.environ.get("ZE_VPP_HP_MEM_BYTES", str(1024 * 1024 * 1024)))
+PAGESIZE = os.environ.get("ZE_VPP_HP_PAGESIZE", "2mb")  # config page-size: 2mb or 1gb
+HP_SIZE = os.environ.get("ZE_VPP_HP_SIZE", "128mb")  # total hugepage reservation
+MEMORY = os.environ.get("ZE_VPP_HP_MEMORY", "1gb")  # image.memory
+
+
+def _bytes(size: str) -> int:
+    s = size.strip().lower()
+    for unit, mult in (
+        ("tb", 1 << 40),
+        ("gb", 1 << 30),
+        ("mb", 1 << 20),
+        ("kb", 1 << 10),
+        ("b", 1),
+    ):
+        if s.endswith(unit):
+            return int(s[: -len(unit)]) * mult
+    raise SystemExit(f"bad size {size!r}: must end in b, kb, mb, gb, or tb")
+
+
+PAGE_TOKEN = {"2mb": "2M", "1gb": "1G"}.get(PAGESIZE.lower())
+if PAGE_TOKEN is None:
+    raise SystemExit(f"ZE_VPP_HP_PAGESIZE must be 2mb or 1gb, got {PAGESIZE!r}")
+HP_COUNT = _bytes(HP_SIZE) // _bytes(PAGESIZE)
+MEM_BYTES = _bytes(MEMORY)
 
 
 def host_arch() -> str:
@@ -123,8 +144,8 @@ def build_image(ze: str, root: Path, work: Path) -> Path:
     cfg = json.loads(cfg_path.read_text())
     image = cfg.setdefault("image", {})
     image["arch"] = ARCH
-    image["memory-bytes"] = MEM_BYTES
-    image["hugepages"] = {"page-size": PAGESIZE, "count": COUNT}
+    image["memory"] = MEMORY
+    image["hugepages"] = {"size": HP_SIZE, "page-size": PAGESIZE}
     cfg_path.write_text(json.dumps(cfg))
 
     build = run(
@@ -192,9 +213,9 @@ def boot_and_assert(img: Path) -> int:
         )
 
     want_args = [
-        f"default_hugepagesz={PAGESIZE}",
-        f"hugepagesz={PAGESIZE}",
-        f"hugepages={COUNT}",
+        f"default_hugepagesz={PAGE_TOKEN}",
+        f"hugepagesz={PAGE_TOKEN}",
+        f"hugepages={HP_COUNT}",
     ]
     for arg in want_args:
         if arg not in cmdline:

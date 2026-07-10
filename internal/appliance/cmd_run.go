@@ -176,10 +176,11 @@ func buildQEMUCommand(cfg *applianceConfig, imgPath string) (string, []string) {
 // can reproduce the reservation shape; otherwise it keeps today's 512 MiB
 // default (AC-13).
 func qemuMemoryMiB(img ImageConfig) string {
-	if img.MemoryBytes <= 0 {
+	memBytes, ok, err := img.memoryBytes()
+	if !ok || err != nil {
 		return "512"
 	}
-	mib := max(img.MemoryBytes/(1024*1024), 1)
+	mib := max(memBytes/(1024*1024), 1)
 	return textbuf.StringInt(mib)
 }
 

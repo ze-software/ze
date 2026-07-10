@@ -277,9 +277,9 @@ func TestParseSettings(t *testing.T) {
 	runParseCases(t, tests)
 }
 
-// TestParseCPUPollSleepBounds verifies AC-6: cpu poll-sleep-microseconds parses
-// within 0..100000, rejects out-of-range and non-numeric values, and the new
-// key is added to the cpu whitelist without loosening it.
+// TestParseCPUPollSleepBounds verifies AC-6: cpu poll-sleep parses ms values into
+// microseconds (0ms..100ms), rejects out-of-range, non-numeric, and non-ms
+// values, and the key is added to the cpu whitelist without loosening it.
 func TestParseCPUPollSleepBounds(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -288,32 +288,32 @@ func TestParseCPUPollSleepBounds(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:  "first valid 0",
-			input: `{"cpu":{"poll-sleep-microseconds":"0"}}`,
+			name:  "0ms -> 0 usec",
+			input: `{"cpu":{"poll-sleep":"0ms"}}`,
 			check: func(t *testing.T, s *VPPSettings) {
 				t.Helper()
 				if s.CPU.PollSleepMicroseconds == nil || *s.CPU.PollSleepMicroseconds != 0 {
-					t.Errorf("poll-sleep-microseconds: got %v, want 0", s.CPU.PollSleepMicroseconds)
+					t.Errorf("poll-sleep: got %v usec, want 0", s.CPU.PollSleepMicroseconds)
 				}
 			},
 		},
 		{
-			name:  "mid value 100",
-			input: `{"cpu":{"poll-sleep-microseconds":"100"}}`,
+			name:  "10ms -> 10000 usec",
+			input: `{"cpu":{"poll-sleep":"10ms"}}`,
 			check: func(t *testing.T, s *VPPSettings) {
 				t.Helper()
-				if s.CPU.PollSleepMicroseconds == nil || *s.CPU.PollSleepMicroseconds != 100 {
-					t.Errorf("poll-sleep-microseconds: got %v, want 100", s.CPU.PollSleepMicroseconds)
+				if s.CPU.PollSleepMicroseconds == nil || *s.CPU.PollSleepMicroseconds != 10000 {
+					t.Errorf("poll-sleep: got %v usec, want 10000", s.CPU.PollSleepMicroseconds)
 				}
 			},
 		},
 		{
-			name:  "last valid 100000",
-			input: `{"cpu":{"poll-sleep-microseconds":"100000"}}`,
+			name:  "100ms -> 100000 usec (last valid)",
+			input: `{"cpu":{"poll-sleep":"100ms"}}`,
 			check: func(t *testing.T, s *VPPSettings) {
 				t.Helper()
 				if s.CPU.PollSleepMicroseconds == nil || *s.CPU.PollSleepMicroseconds != 100000 {
-					t.Errorf("poll-sleep-microseconds: got %v, want 100000", s.CPU.PollSleepMicroseconds)
+					t.Errorf("poll-sleep: got %v usec, want 100000", s.CPU.PollSleepMicroseconds)
 				}
 			},
 		},
@@ -323,23 +323,33 @@ func TestParseCPUPollSleepBounds(t *testing.T) {
 			check: func(t *testing.T, s *VPPSettings) {
 				t.Helper()
 				if s.CPU.PollSleepMicroseconds != nil {
-					t.Errorf("poll-sleep-microseconds should be nil when omitted, got %v", *s.CPU.PollSleepMicroseconds)
+					t.Errorf("poll-sleep should be nil when omitted, got %v", *s.CPU.PollSleepMicroseconds)
 				}
 			},
 		},
 		{
-			name:    "above range 100001 rejected",
-			input:   `{"cpu":{"poll-sleep-microseconds":"100001"}}`,
+			name:    "101ms rejected (over 100ms)",
+			input:   `{"cpu":{"poll-sleep":"101ms"}}`,
+			wantErr: true,
+		},
+		{
+			name:    "missing ms unit rejected",
+			input:   `{"cpu":{"poll-sleep":"100"}}`,
+			wantErr: true,
+		},
+		{
+			name:    "wrong unit rejected",
+			input:   `{"cpu":{"poll-sleep":"10us"}}`,
 			wantErr: true,
 		},
 		{
 			name:    "non-numeric rejected",
-			input:   `{"cpu":{"poll-sleep-microseconds":"fast"}}`,
+			input:   `{"cpu":{"poll-sleep":"fastms"}}`,
 			wantErr: true,
 		},
 		{
 			name:    "unknown cpu key still rejected",
-			input:   `{"cpu":{"poll-sleep-microseconds":"1","typo":"2"}}`,
+			input:   `{"cpu":{"poll-sleep":"1ms","typo":"2"}}`,
 			wantErr: true,
 		},
 	}

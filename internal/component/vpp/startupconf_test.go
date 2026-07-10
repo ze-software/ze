@@ -312,13 +312,13 @@ func TestStartupConfPollSleep(t *testing.T) {
 	})
 
 	t.Run("parsed config reaches emission (chain)", func(t *testing.T) {
-		s, err := ParseSettings(json.RawMessage(`{"enabled":"true","cpu":{"poll-sleep-microseconds":"250"}}`))
+		s, err := ParseSettings(json.RawMessage(`{"enabled":"true","cpu":{"poll-sleep":"25ms"}}`))
 		if err != nil {
 			t.Fatalf("ParseSettings: %v", err)
 		}
 		out := generateToString(t, s)
-		if !strings.Contains(unixBlock(t, out), "poll-sleep-usec 250") {
-			t.Errorf("config JSON did not reach unix poll-sleep-usec:\n%s", out)
+		if !strings.Contains(unixBlock(t, out), "poll-sleep-usec 25000") {
+			t.Errorf("config JSON did not reach unix poll-sleep-usec (25ms=25000us):\n%s", out)
 		}
 	})
 }

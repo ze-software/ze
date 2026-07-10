@@ -13,14 +13,18 @@ import (
 // in deterministic order when configured, and nothing when unconfigured (AC-8).
 func TestKernelArgsHugepages(t *testing.T) {
 	t.Run("unconfigured returns nil", func(t *testing.T) {
-		if got := hugepageKernelArgs(ImageConfig{}); got != nil {
-			t.Errorf("expected nil args, got %v", got)
+		got, err := hugepageKernelArgs(ImageConfig{})
+		if err != nil || got != nil {
+			t.Errorf("expected (nil, nil), got (%v, %v)", got, err)
 		}
 	})
 
-	t.Run("2M reservation", func(t *testing.T) {
-		got := hugepageKernelArgs(ImageConfig{Hugepages: &Hugepages{PageSize: "2M", Count: 512}})
-		want := []string{"default_hugepagesz=2M", "hugepagesz=2M", "hugepages=512"}
+	t.Run("1gb of 2mb pages", func(t *testing.T) {
+		got, err := hugepageKernelArgs(ImageConfig{Hugepages: &Hugepages{Size: "1gb", PageSize: "2mb"}})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := []string{"default_hugepagesz=2M", "hugepagesz=2M", "hugepages=512"} // 1gb / 2mb = 512
 		if len(got) != len(want) {
 			t.Fatalf("got %v, want %v", got, want)
 		}
@@ -31,13 +35,22 @@ func TestKernelArgsHugepages(t *testing.T) {
 		}
 	})
 
-	t.Run("1G reservation", func(t *testing.T) {
-		got := hugepageKernelArgs(ImageConfig{Hugepages: &Hugepages{PageSize: "1G", Count: 8}})
-		want := []string{"default_hugepagesz=1G", "hugepagesz=1G", "hugepages=8"}
+	t.Run("8gb of 1gb pages", func(t *testing.T) {
+		got, err := hugepageKernelArgs(ImageConfig{Hugepages: &Hugepages{Size: "8gb", PageSize: "1gb"}})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := []string{"default_hugepagesz=1G", "hugepagesz=1G", "hugepages=8"} // 8gb / 1gb = 8
 		for i := range want {
 			if got[i] != want[i] {
 				t.Errorf("arg[%d] = %q, want %q", i, got[i], want[i])
 			}
+		}
+	})
+
+	t.Run("invalid page-size errors", func(t *testing.T) {
+		if _, err := hugepageKernelArgs(ImageConfig{Hugepages: &Hugepages{Size: "1gb", PageSize: "4mb"}}); err == nil {
+			t.Error("expected an error for an unsupported page-size")
 		}
 	})
 }

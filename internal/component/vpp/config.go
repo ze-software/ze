@@ -330,7 +330,7 @@ func parseCPU(data json.RawMessage, cpu *CPUSettings) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("vpp cpu: %w", err)
 	}
-	if err := unknownKeys("cpu", raw, []string{"main-core", "workers", "poll-sleep-microseconds"}); err != nil {
+	if err := unknownKeys("cpu", raw, []string{"main-core", "workers", "poll-sleep"}); err != nil {
 		return err
 	}
 	if v, ok := raw["main-core"]; ok {
@@ -347,17 +347,32 @@ func parseCPU(data json.RawMessage, cpu *CPUSettings) error {
 		}
 		cpu.Workers = &n
 	}
-	if v, ok := raw["poll-sleep-microseconds"]; ok {
-		n, err := parseUint32(v)
+	if v, ok := raw["poll-sleep"]; ok {
+		usec, err := parsePollSleepMs(strings.Trim(string(v), `"`))
 		if err != nil {
-			return fmt.Errorf("vpp cpu poll-sleep-microseconds: %w", err)
+			return fmt.Errorf("vpp cpu poll-sleep: %w", err)
 		}
-		if n > 100000 {
-			return fmt.Errorf("vpp cpu poll-sleep-microseconds: must be 0..100000, got %d", n)
-		}
-		cpu.PollSleepMicroseconds = &n
+		cpu.PollSleepMicroseconds = &usec
 	}
 	return nil
+}
+
+// parsePollSleepMs parses a whole-millisecond poll-sleep value ("10ms"; ms is
+// the only accepted unit) into microseconds for the VPP unix { poll-sleep-usec }
+// directive. Range 0ms..100ms.
+func parsePollSleepMs(s string) (uint32, error) {
+	num, ok := strings.CutSuffix(strings.ToLower(strings.TrimSpace(s)), "ms")
+	if !ok {
+		return 0, fmt.Errorf("must be a whole-millisecond value like 10ms, got %q", s)
+	}
+	ms, err := strconv.ParseUint(strings.TrimSpace(num), 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("not a millisecond number: %q", s)
+	}
+	if ms > 100 {
+		return 0, fmt.Errorf("must be 0ms..100ms, got %q", s)
+	}
+	return uint32(ms) * 1000, nil
 }
 
 func parseMemory(data json.RawMessage, mem *MemorySettings) error {

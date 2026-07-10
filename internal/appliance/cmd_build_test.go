@@ -238,7 +238,7 @@ func TestBuildValidatesConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := DefaultConfig("hp-app")
-	cfg.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 0} // invalid: minimum is 1
+	cfg.Image.Hugepages = &Hugepages{Size: "1gb", PageSize: "4mb"} // invalid: page-size must be 2mb or 1gb
 	if err := saveConfig(ConfigPath(baseDir, "hp-app"), &cfg); err != nil {
 		t.Fatal(err)
 	}

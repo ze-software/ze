@@ -20,18 +20,27 @@ import (
 // hugepageKernelArgs returns the kernel cmdline tokens that reserve hugepages at
 // boot for the given image config, or nil when no reservation is configured.
 // Order is deterministic: default_hugepagesz, then hugepagesz, then hugepages
-// (the kernel needs the size directives before the count).
-func hugepageKernelArgs(img ImageConfig) []string {
+// (the kernel needs the size directives before the count). The page count is
+// derived from Size / PageSize.
+func hugepageKernelArgs(img ImageConfig) ([]string, error) {
 	if img.Hugepages == nil {
-		return nil
+		return nil, nil
 	}
-	sz := img.Hugepages.PageSize
+	pageBytes, err := img.Hugepages.pageSizeBytes()
+	if err != nil {
+		return nil, err
+	}
+	token, _ := hugepageToken(pageBytes) // guaranteed supported by pageSizeBytes
+	count, err := img.Hugepages.pageCount()
+	if err != nil {
+		return nil, err
+	}
 	var tb textbuf.Buffer
 	return []string{
-		tb.Reset().Str("default_hugepagesz=").Str(sz).String(),
-		tb.Reset().Str("hugepagesz=").Str(sz).String(),
-		tb.Reset().Str("hugepages=").Int(img.Hugepages.Count).String(),
-	}
+		tb.Reset().Str("default_hugepagesz=").Str(token).String(),
+		tb.Reset().Str("hugepagesz=").Str(token).String(),
+		tb.Reset().Str("hugepages=").Int(count).String(),
+	}, nil
 }
 
 // deriveInstanceConfigJSON reads a gokrazy instance config.json and returns a
@@ -75,7 +84,10 @@ func resolveBuildParentDir(cfg *applianceConfig) (string, func(), error) {
 	if err != nil {
 		return "", noop, err
 	}
-	extraArgs := hugepageKernelArgs(cfg.Image)
+	extraArgs, err := hugepageKernelArgs(cfg.Image)
+	if err != nil {
+		return "", noop, fmt.Errorf("prepare hugepage kernel args: %w", err)
+	}
 	if len(extraArgs) == 0 {
 		return parentDir, noop, nil
 	}

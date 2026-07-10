@@ -233,11 +233,47 @@ func TestConfigValidation(t *testing.T) {
 	}
 }
 
-// TestHugepageConfigValidate covers AC-4/AC-7: image.hugepages and
-// image.memory-bytes bounds, including the boundary values from the spec's
-// boundary table (page count vs the 512 GiB ceiling and the 50%-of-memory cap).
+// TestParseByteSize verifies the byte-size string parser: unit multipliers
+// (1024-based), case-insensitivity, required unit suffix, and rejection of bad
+// input.
+func TestParseByteSize(t *testing.T) {
+	ok := []struct {
+		in   string
+		want int64
+	}{
+		{"10b", 10},
+		{"1kb", 1024},
+		{"2mb", 2 * 1024 * 1024},
+		{"1gb", 1024 * 1024 * 1024},
+		{"1tb", 1024 * 1024 * 1024 * 1024},
+		{"8gb", 8 * 1024 * 1024 * 1024},
+		{"1GB", 1024 * 1024 * 1024}, // case-insensitive
+		{"  512mb  ", 512 * 1024 * 1024},
+		{"0b", 0},
+	}
+	for _, tc := range ok {
+		got, err := parseByteSize(tc.in)
+		if err != nil {
+			t.Errorf("parseByteSize(%q): unexpected error %v", tc.in, err)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("parseByteSize(%q) = %d, want %d", tc.in, got, tc.want)
+		}
+	}
+
+	bad := []string{"10", "8g", "abc", "-5mb", "", "mb", "1.5gb"}
+	for _, in := range bad {
+		if _, err := parseByteSize(in); err == nil {
+			t.Errorf("parseByteSize(%q): expected an error", in)
+		}
+	}
+}
+
+// TestHugepageConfigValidate covers AC-4/AC-7: image.hugepages ({size,page-size}
+// byte-size strings) and image.memory (byte-size string) bounds, including the
+// 512 GiB ceiling and the 50%-of-memory cap.
 func TestHugepageConfigValidate(t *testing.T) {
-	const gib = 1024 * 1024 * 1024
 	tests := []struct {
 		name    string
 		modify  func(*applianceConfig)
@@ -248,69 +284,79 @@ func TestHugepageConfigValidate(t *testing.T) {
 			modify: func(_ *applianceConfig) {},
 		},
 		{
-			name:   "2M count 1 valid",
-			modify: func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 1} },
+			name:   "1gb of 2mb pages valid",
+			modify: func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{Size: "1gb", PageSize: "2mb"} },
 		},
 		{
-			name:    "count zero rejected",
-			modify:  func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 0} },
-			wantErr: "count 0: minimum is 1",
+			name:   "one 2mb page valid",
+			modify: func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{Size: "2mb", PageSize: "2mb"} },
+		},
+		{
+			name:    "size below one page rejected",
+			modify:  func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{Size: "1mb", PageSize: "2mb"} },
+			wantErr: "at least one",
+		},
+		{
+			name:    "size not a whole multiple of page-size rejected",
+			modify:  func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{Size: "3mb", PageSize: "2mb"} },
+			wantErr: "whole multiple",
 		},
 		{
 			name:    "bad page-size rejected",
-			modify:  func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "4M", Count: 1} },
-			wantErr: "must be 2M or 1G",
+			modify:  func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{Size: "1gb", PageSize: "4mb"} },
+			wantErr: "must be 2mb or 1gb",
 		},
 		{
-			name:   "2M last valid at 512 GiB ceiling",
-			modify: func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 262144} },
+			name:    "size missing unit rejected",
+			modify:  func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{Size: "1g", PageSize: "2mb"} },
+			wantErr: "must end in b, kb, mb, gb, or tb",
 		},
 		{
-			name:    "2M one past the ceiling rejected",
-			modify:  func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 262145} },
+			name:   "2mb pages at the 512 GiB ceiling valid",
+			modify: func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{Size: "512gb", PageSize: "2mb"} },
+		},
+		{
+			name:    "1gb pages one past the ceiling rejected",
+			modify:  func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{Size: "513gb", PageSize: "1gb"} },
 			wantErr: "512 GiB",
 		},
 		{
-			name:   "1G last valid at ceiling",
-			modify: func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "1G", Count: 512} },
-		},
-		{
-			name:    "1G one past the ceiling rejected",
-			modify:  func(c *applianceConfig) { c.Image.Hugepages = &Hugepages{PageSize: "1G", Count: 513} },
-			wantErr: "512 GiB",
-		},
-		{
-			name: "2M reservation at exactly 50% of memory-bytes valid",
+			name: "reservation at exactly 50% of memory valid",
 			modify: func(c *applianceConfig) {
-				c.Image.MemoryBytes = 8 * gib
-				c.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 2048} // 4 GiB == 50%
+				c.Image.Memory = "8gb"
+				c.Image.Hugepages = &Hugepages{Size: "4gb", PageSize: "2mb"} // 4gb == 50%
 			},
 		},
 		{
-			name: "2M reservation over 50% of memory-bytes rejected",
+			name: "reservation over 50% of memory rejected",
 			modify: func(c *applianceConfig) {
-				c.Image.MemoryBytes = 8 * gib
-				c.Image.Hugepages = &Hugepages{PageSize: "2M", Count: 2049} // > 4 GiB
+				c.Image.Memory = "8gb"
+				c.Image.Hugepages = &Hugepages{Size: "6gb", PageSize: "2mb"} // > 4gb
 			},
-			wantErr: "50% of image.memory-bytes",
+			wantErr: "50% of image.memory",
 		},
 		{
-			name:    "memory-bytes below minimum rejected",
-			modify:  func(c *applianceConfig) { c.Image.MemoryBytes = 256*1024*1024 - 1 },
-			wantErr: "minimum is",
+			name:    "memory below minimum rejected",
+			modify:  func(c *applianceConfig) { c.Image.Memory = "1mb" },
+			wantErr: "minimum is 256mb",
 		},
 		{
-			name:   "memory-bytes at minimum valid",
-			modify: func(c *applianceConfig) { c.Image.MemoryBytes = 256 * 1024 * 1024 },
+			name:   "memory at minimum valid",
+			modify: func(c *applianceConfig) { c.Image.Memory = "256mb" },
 		},
 		{
-			name:   "memory-bytes at maximum valid",
-			modify: func(c *applianceConfig) { c.Image.MemoryBytes = 1024 * gib },
+			name:   "memory at maximum valid",
+			modify: func(c *applianceConfig) { c.Image.Memory = "1tb" },
 		},
 		{
-			name:    "memory-bytes above maximum rejected",
-			modify:  func(c *applianceConfig) { c.Image.MemoryBytes = 1024*gib + 1 },
-			wantErr: "maximum is",
+			name:    "memory above maximum rejected",
+			modify:  func(c *applianceConfig) { c.Image.Memory = "2tb" },
+			wantErr: "maximum is 1tb",
+		},
+		{
+			name:    "memory missing unit rejected",
+			modify:  func(c *applianceConfig) { c.Image.Memory = "8g" },
+			wantErr: "must end in b, kb, mb, gb, or tb",
 		},
 	}
 

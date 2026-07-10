@@ -1,16 +1,16 @@
-# Test: cpu poll-sleep-microseconds accepted across its range, rejected above it
-# VALIDATES: ze-vpp-conf.yang -- cpu/poll-sleep-microseconds has range
-#            "0..100000"; parseCPU enforces the same bound. AC-6.
-# PREVENTS: an out-of-range idle-sleep value reaching startup.conf, and the
-#           leaf being silently dropped so operators think idle tuning applied
-#           when it did not.
+# Test: cpu poll-sleep accepts whole-millisecond values, rejects out-of-range/unit
+# VALIDATES: ze-vpp-conf.yang -- cpu/poll-sleep is a string matching [0-9]+ms;
+#            parseCPU enforces 0ms..100ms and converts to microseconds. AC-6.
+# PREVENTS: an out-of-range or unit-less idle-sleep value reaching startup.conf,
+#           and the leaf being silently dropped so operators think idle tuning
+#           applied when it did not.
 
-# Boundary low: an explicit 0 is valid (equals VPP default, still emitted).
+# Boundary low: 0ms is valid (equals VPP default, still emitted).
 stdin=sleep0:terminator=EOF0
 vpp {
 	enabled true;
 	cpu {
-		poll-sleep-microseconds 0;
+		poll-sleep 0ms;
 	}
 	dpdk {
 		interface 0000:03:00.0 {
@@ -20,12 +20,12 @@ vpp {
 }
 EOF0
 
-# Boundary high: 100000 is the last valid value.
+# Boundary high: 100ms is the last valid value.
 stdin=sleepmax:terminator=EOFMAX
 vpp {
 	enabled true;
 	cpu {
-		poll-sleep-microseconds 100000;
+		poll-sleep 100ms;
 	}
 	dpdk {
 		interface 0000:03:00.0 {
@@ -35,12 +35,12 @@ vpp {
 }
 EOFMAX
 
-# Out of range: 100001 is rejected.
+# Out of range: 101ms is rejected.
 stdin=sleepbad:terminator=EOFBAD
 vpp {
 	enabled true;
 	cpu {
-		poll-sleep-microseconds 100001;
+		poll-sleep 101ms;
 	}
 	dpdk {
 		interface 0000:03:00.0 {

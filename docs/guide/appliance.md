@@ -340,22 +340,25 @@ Write an appliance config file (arch, kernel profile, credentials, networking):
 When the appliance runs VPP, reserve hugepages at boot by adding `image.hugepages`
 to the config. `ze appliance build` bakes `default_hugepagesz`/`hugepagesz`/`hugepages`
 into the boot cmdline (via a derived gokrazy instance config; the checked-in
-`gokrazy/ze/config.json` is never modified). Declare `image.memory-bytes` so the
-build rejects a reservation over 50% of target RAM and `ze appliance run` sizes
-QEMU's `-m` to match:
+`gokrazy/ze/config.json` is never modified). Declare `image.memory` so the build
+rejects a reservation over 50% of target RAM and `ze appliance run` sizes QEMU's
+`-m` to match. Sizes are byte-size strings (`10b`, `512mb`, `1gb`, `1tb`;
+case-insensitive, 1024-based):
 
 ```json
 "image": {
     "arch": "amd64",
     "size-bytes": 2147483648,
-    "memory-bytes": 8589934592,
-    "hugepages": { "page-size": "2M", "count": 2048 }
+    "memory": "8gb",
+    "hugepages": { "size": "1gb", "page-size": "2mb" }
 }
 ```
 
-`page-size` is `2M` or `1G`; `count` is bounded to 1..(512 GiB / page-size) and,
-when `memory-bytes` is set, to 50% of it. 1G pages need CPU `pdpe1gb` support and
-`CONFIG_HUGETLBFS` in the kernel profile (both surfaced by `ze doctor`).
+`hugepages.size` is the total reservation and `page-size` is `2mb` or `1gb`; the
+page count is `size / page-size` (so `size` must be a whole multiple of
+`page-size`). The reservation is bounded to 512 GiB and, when `memory` is set, to
+50% of it. 1gb pages need CPU `pdpe1gb` support and `CONFIG_HUGETLBFS` in the
+kernel profile (both surfaced by `ze doctor`).
 <!-- source: internal/appliance/config.go -- ImageConfig.Hugepages, validateImageMemory -->
 
 Build the full ISO in one command:

@@ -60,17 +60,19 @@ module ze-vpp-conf {
                      Omit for automatic (one per available core).";
             }
 
-            leaf poll-sleep-microseconds {
-                type uint32 {
-                    range "0..100000";
+            leaf poll-sleep {
+                type string {
+                    pattern '[0-9]+ms';
                 }
                 description
-                    "Fixed sleep (microseconds) between VPP main-loop polls,
-                     emitted as unix { poll-sleep-usec N } in startup.conf.
-                     Omit for VPP's default (no sleep: workers busy-poll at
-                     100% CPU) for lowest latency. Set a non-zero value on
-                     shared or dev hosts to trade latency for idle CPU. An
-                     explicit 0 is emitted and equals the default.";
+                    "Fixed sleep between VPP main-loop polls, expressed in whole
+                     milliseconds (the only accepted unit), e.g. 10ms. Emitted
+                     as unix { poll-sleep-usec N } in startup.conf (1ms = 1000
+                     microseconds). Omit for VPP's default (no sleep: workers
+                     busy-poll at 100% CPU) for lowest latency. Set a non-zero
+                     value up to 100ms on shared or dev hosts to trade latency
+                     for idle CPU. An explicit 0ms is emitted and equals the
+                     default.";
             }
         }
 
