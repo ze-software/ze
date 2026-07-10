@@ -68,6 +68,7 @@ ze-fuzz-test:
 	$(GO_TEST) -fuzz=FuzzParseMSCHAPv2Response -fuzztime=10s -timeout=60s ./internal/component/l2tp/ppp/...
 	$(GO_TEST) -fuzz=FuzzTacacsPacketUnmarshal -fuzztime=10s -timeout=60s ./internal/component/tacacs
 	$(GO_TEST) -fuzz=FuzzTacacsEncryptDecrypt -fuzztime=10s -timeout=60s ./internal/component/tacacs
+	$(GO_TEST) -fuzz=FuzzFSMEventSequence -fuzztime=10s -timeout=60s ./internal/component/bgp/fsm
 
 # Run a single fuzz target for longer (usage: make ze-fuzz-one FUZZ=FuzzParseNLRIs PKG=./internal/component/bgp/wireu/... TIME=30s)
 FUZZ ?= FuzzParseNLRIs
