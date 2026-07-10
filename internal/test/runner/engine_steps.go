@@ -128,37 +128,50 @@ func parseEngineCmd(r *Record, action, line string) error {
 	return nil
 }
 
-// parseEngineExpect handles expect=output|event|stream directives.
-func parseEngineExpect(r *Record, expType string, kv map[string]string) error {
+// parseEngineExpectEvent handles expect=event:namespace=<ns>:name=<name>[:timeout=]
+// directives, whose namespace/name never contain ':', so the generic
+// action:key=value splitter (record_parse.go parseLine) parses them cleanly.
+func parseEngineExpectEvent(r *Record, kv map[string]string) error {
 	timeout, err := parseEngineTimeout(kv["timeout"])
+	if err != nil {
+		return fmt.Errorf("expect=event: %w", err)
+	}
+	if kv["namespace"] == "" || kv["name"] == "" {
+		return fmt.Errorf("expect=event requires namespace= and name=")
+	}
+	r.EngineSteps = append(r.EngineSteps, EngineStep{
+		Kind: EngineStepExpectEvent, Namespace: kv["namespace"], Name: kv["name"], Timeout: timeout,
+	})
+	return nil
+}
+
+// parseEngineExpectContains handles expect=output / expect=stream directives,
+// whose contains= needle may itself hold ':' -- e.g. a compact-JSON fragment
+// like "rekey-count":1 that a rekey test polls for. rest is everything after
+// "expect=output:" / "expect=stream:". The optional trailing ":timeout=<dur>"
+// is split off the end; the remainder after "contains=" is the needle verbatim,
+// colons included. This is why parseLine routes these here before applying the
+// generic ':' splitter (which would truncate the needle at its first colon),
+// mirroring how command=/stream= keep their raw remainder (parseEngineCmd).
+func parseEngineExpectContains(r *Record, expType, rest string) error {
+	timeoutStr := ""
+	if idx := strings.LastIndex(rest, ":timeout="); idx >= 0 {
+		timeoutStr = rest[idx+len(":timeout="):]
+		rest = rest[:idx]
+	}
+	needle, ok := strings.CutPrefix(rest, "contains=")
+	if !ok || needle == "" {
+		return fmt.Errorf("expect=%s requires a non-empty contains=", expType)
+	}
+	timeout, err := parseEngineTimeout(timeoutStr)
 	if err != nil {
 		return fmt.Errorf("expect=%s: %w", expType, err)
 	}
-	switch expType {
-	case "output":
-		if kv["contains"] == "" {
-			return fmt.Errorf("expect=output requires contains=")
-		}
-		r.EngineSteps = append(r.EngineSteps, EngineStep{
-			Kind: EngineStepExpectOutput, Text: kv["contains"], Timeout: timeout,
-		})
-	case "event":
-		if kv["namespace"] == "" || kv["name"] == "" {
-			return fmt.Errorf("expect=event requires namespace= and name=")
-		}
-		r.EngineSteps = append(r.EngineSteps, EngineStep{
-			Kind: EngineStepExpectEvent, Namespace: kv["namespace"], Name: kv["name"], Timeout: timeout,
-		})
-	case engineActionStream:
-		if kv["contains"] == "" {
-			return fmt.Errorf("expect=stream requires contains=")
-		}
-		r.EngineSteps = append(r.EngineSteps, EngineStep{
-			Kind: EngineStepExpectStream, Text: kv["contains"], Timeout: timeout,
-		})
-	default:
-		return fmt.Errorf("unknown engine expect type %q", expType)
+	kind := EngineStepExpectOutput
+	if expType == engineActionStream {
+		kind = EngineStepExpectStream
 	}
+	r.EngineSteps = append(r.EngineSteps, EngineStep{Kind: kind, Text: needle, Timeout: timeout})
 	return nil
 }
 

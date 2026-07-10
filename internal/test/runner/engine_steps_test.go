@@ -71,6 +71,34 @@ expect=stream:contains=child-up:timeout=5
 	}
 }
 
+func TestParseEngineExpectContainsColonNeedle(t *testing.T) {
+	// A contains= needle may itself hold ':' -- e.g. a compact-JSON fragment
+	// like "rekey-count":1 that a rekey test polls for. The ':timeout=' suffix
+	// must still be split off, but colons inside the needle preserved. Forms
+	// without a colon or without a timeout must keep working unchanged.
+	r := parseCIRecord(t, `command=show vpn ipsec sa | json
+expect=output:contains="rekey-count":1:timeout=7
+expect=output:contains=aes-cbc
+expect=stream:contains=a:b:c:timeout=3
+`)
+
+	want := []EngineStep{
+		{Kind: EngineStepCommand, Text: "show vpn ipsec sa | json"},
+		{Kind: EngineStepExpectOutput, Text: `"rekey-count":1`, Timeout: 7 * time.Second},
+		{Kind: EngineStepExpectOutput, Text: "aes-cbc", Timeout: engineStepDefaultTimeout},
+		{Kind: EngineStepExpectStream, Text: "a:b:c", Timeout: 3 * time.Second},
+	}
+	if len(r.EngineSteps) != len(want) {
+		t.Fatalf("EngineSteps len = %d, want %d (%+v)", len(r.EngineSteps), len(want), r.EngineSteps)
+	}
+	for i, w := range want {
+		g := r.EngineSteps[i]
+		if g.Kind != w.Kind || g.Text != w.Text || g.Timeout != w.Timeout {
+			t.Errorf("step %d = %+v, want %+v", i, g, w)
+		}
+	}
+}
+
 func TestEngineStepsFileRoundTrip(t *testing.T) {
 	steps := []EngineStep{
 		{Kind: EngineStepCommand, Text: "show vpn ipsec status"},

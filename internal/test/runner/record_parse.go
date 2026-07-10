@@ -233,6 +233,18 @@ generateDecoded:
 
 // parseLine parses a single .ci line in the action=type:key=value format.
 func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
+	// expect=output / expect=stream carry a contains= needle that may itself
+	// hold ':' (e.g. a compact-JSON fragment "rekey-count":1). The generic ':'
+	// splitter below would truncate it at the first colon, so parse these
+	// colon-preserving with the trailing ':timeout=' as a suffix, mirroring how
+	// command=/stream= keep their raw remainder (parseEngineCmd).
+	if rest, ok := strings.CutPrefix(line, "expect=output:"); ok {
+		return parseEngineExpectContains(r, "output", rest)
+	}
+	if rest, ok := strings.CutPrefix(line, "expect=stream:"); ok {
+		return parseEngineExpectContains(r, engineActionStream, rest)
+	}
+
 	// Parse action=type:key=value:key=value:...
 	// First segment is action=type, remaining segments are key=value pairs
 	parts := strings.Split(line, ":")
@@ -516,8 +528,11 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		}
 		r.FileChecks = append(r.FileChecks, check)
 
-	case "output", "event", "stream":
-		return parseEngineExpect(r, expType, kv)
+	case "event":
+		// expect=output / expect=stream are intercepted in parseLine before the
+		// generic ':' split (their contains= needle may hold ':'); only event
+		// reaches here.
+		return parseEngineExpectEvent(r, kv)
 
 	default:
 		return fmt.Errorf("unknown expect type %q", expType)

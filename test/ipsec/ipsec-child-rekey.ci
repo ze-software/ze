@@ -1,62 +1,174 @@
-# Functional test: Child SA rekeyed transparently
-# Spec: plan/spec-ipsec-8-ikev2-child-xfrm.md (AC-7, AC-8)
+# Functional test: child SA rekey (CREATE_CHILD_SA / REKEY_SA)
+# Spec: plan/spec-ipsec-13-rekey-wire.md; wired by spec-test-coverage-gaps (AC-3).
 #
-# Verifies: Child SA lifetime expires, new Child SA created via rekey,
-# old SA removed after new SA installed (make-before-break).
+# Two unprivileged ze instances negotiate IKEv2 over loopback (responder binds
+# 127.0.0.2, initiator 127.0.0.1, sharing ze.test.ike.port). Only the INITIATOR's
+# esp-group lifetime is short (10s); the responder's is long (3600s). This makes
+# the initiator the sole rekey initiator when its child SA soft-expires: it drives
+# a CREATE_CHILD_SA rekey (established.go initiateChildRekey), the responder
+# responds, and the initiator's per-peer rekey counter increments on completion
+# (established.go incRekeyCount on out.newChild). If BOTH sides had a short
+# lifetime they would rekey simultaneously (RFC 7296 s2.8.1), the nonce-based
+# winner is non-deterministic, and the loser -- possibly the initiator the test
+# queries -- would not increment its own counter.
 #
-# Prerequisites: two ze instances, short ESP lifetime to trigger rekey.
+# The initiator's engine-steps executor waits for the initial established SA
+# (aes-cbc) and then polls `show vpn ipsec sa | json` until the SA's
+# "rekey-count":1 appears -- proof that time-based child rekey completes end to
+# end. (A colon-bearing needle: the engine-steps contains= parser keeps colons,
+# see engine_steps.go parseEngineExpectContains.)
+#
+# // test-relax: the original revision asserted the sa-up / child-up /
+# child-rekey EVENTS. The event path is namespace-locked to bgp (dispatch.go
+# registerSubscriptions) -- a product gap deferred to
+# spec-fixit-plugin-event-subscription. Rekey completion is asserted here via the
+# polled rekey-count, which needs no event subscription.
 
+option=env:var=ze_test_ike_port:value=$PORT2
+# noop dataplane: unprivileged XFRM install is EPERM-fatal by design.
+option=env:var=ze_test_ike_dataplane:value=noop
+option=timeout:value=45s
+
+# ── Responder daemon (background): binds 127.0.0.2, LONG esp lifetime ──
+stdin=responder:terminator=EOF_RESPONDER
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 2.2.2.2
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (foreground) with the engine-steps executor; SHORT esp ──
 stdin=config:terminator=EOF_CONFIG
-{
-  "vpn": {
-    "ipsec": {
-      "esp-group": {
-        "esp-short": {
-          "lifetime": "10",
-          "proposal": {
-            "1": {
-              "encryption": "aes256",
-              "hash": "sha256"
-            }
-          }
-        }
-      },
-      "ike-group": {
-        "ike-default": {
-          "key-exchange": "ikev2",
-          "lifetime": "28800",
-          "proposal": {
-            "1": {
-              "dh-group": "14",
-              "encryption": "aes256",
-              "hash": "sha256"
-            }
-          }
-        }
-      },
-      "site-to-site": {
-        "peer-1": {
-          "ike-group": "ike-default",
-          "esp-group": "esp-short",
-          "connection-type": "initiate",
-          "local-address": "10.0.0.1",
-          "remote-address": "10.0.0.2",
-          "authentication": {
-            "mode": "pre-shared-secret",
-            "pre-shared-secret": "test-key-1234"
-          }
-        }
-      }
-    }
-  }
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.1.1.1
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 10
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
 }
 EOF_CONFIG
 
-# Expect: IKE SA established
-expect=event:namespace=vpn-ipsec:name=sa-up:timeout=10
+cmd=background:seq=1:exec=ze -:stdin=responder
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=40s
 
-# Expect: first Child SA installed
-expect=event:namespace=vpn-ipsec:name=child-up:timeout=5
-
-# Expect: Child SA rekeyed (within lifetime + jitter)
-expect=event:namespace=vpn-ipsec:name=child-rekey:timeout=15
+# Wait for the initial established SA (aes-cbc only appears after IKE_AUTH), then
+# poll for the first child rekey. rekey-count increments from 0 to 1 when the
+# initiator's short-lifetime child SA soft-expires and its CREATE_CHILD_SA rekey
+# completes; the colon in the JSON fragment is preserved by the contains= parser.
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=25
+expect=output:contains="rekey-count":1:timeout=25
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
