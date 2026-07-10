@@ -1,0 +1,45 @@
+# Test: ze config graph emits the config dependency graph as JSON
+# VALIDATES: `ze config graph <file>` parses the config, builds the
+#            plugin/section dependency graph (config.BuildGraph) and encodes
+#            it to stdout as a JSON object with "nodes" and "edges" arrays;
+#            the configured peer1 appears as a node and config-root edges
+#            wire plugins to their config sections.
+# PREVENTS: regressions where config graph stops emitting the nodes/edges
+#           structure or drops configured peers from the graph.
+tmpfs=test.conf:terminator=EOF_FILE
+system {
+	host testhost
+}
+bgp {
+	router-id 10.0.0.1
+	session {
+		asn {
+			local 65533
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				remote 65534
+			}
+		}
+	}
+}
+EOF_FILE
+
+option=env:var=ze.storage.blob:value=false
+
+cmd=foreground:seq=1:exec=ze config graph test.conf
+expect=exit:code=0
+expect=stdout:contains="nodes"
+expect=stdout:contains="edges"
+expect=stdout:contains=peer/peer1
+expect=stdout:contains=config-root

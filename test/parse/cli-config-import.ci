@@ -1,0 +1,23 @@
+# Test: ze config import copies a filesystem config into the blob database
+# VALIDATES: `ze config import <file>` reads the file from the filesystem and
+#            writes it into blob storage under its basename, printing the
+#            per-file "imported <name> (<n> bytes)" line and the summary
+#            "<n> file(s) imported" (cmd_import.go) and exiting 0.
+# PREVENTS: regressions where config import stops writing to blob storage or
+#           drops its progress/summary output.
+# ISOLATION: ze.config.dir=. points blob storage (database.zefs) at the
+# per-test tmpfs working directory, so import never touches the developer's
+# real config database. Blob storage stays enabled (default) because import
+# requires it; the tmpfs cwd keeps it sandboxed.
+tmpfs=small.conf:terminator=EOF_FILE
+system {
+	host importhost
+}
+EOF_FILE
+
+option=env:var=ze.config.dir:value=.
+
+cmd=foreground:seq=1:exec=ze config import small.conf
+expect=exit:code=0
+expect=stdout:contains=imported small.conf
+expect=stdout:contains=file(s) imported

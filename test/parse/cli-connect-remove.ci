@@ -1,0 +1,33 @@
+# Test: ze connect remove deletes a stored credential and confirms
+# VALIDATES: `ze connect remove <host> --port` deletes the credential
+#            previously written by `ze connect add` (connect.RemoveCredentials)
+#            and prints "removed remote <host>:<port>", exiting 0. The add
+#            step establishes the credential so remove has something to delete.
+# PREVENTS: regressions where connect remove stops deleting the credential or
+#           drops its confirmation output.
+# HARNESS NOTE: the parse runner exposes only the FINAL command's stdout to
+# expect=stdout, so the asserted line comes from the closing `connect remove`;
+# the add step is exercised purely to seed the credential being removed.
+# ISOLATION: ze.config.dir=. resolves the credential database
+# (ResolveDBPath -> <dir>/database.zefs) to the per-test tmpfs working
+# directory, so the test never touches the developer's real database.
+# SEED: `ze connect` opens an existing zefs database (zefs.Open) and cannot
+# bootstrap it, and `ze init` is interactive; so seq 1 runs `ze config import`
+# to create <cwd>/database.zefs non-interactively before the connect steps.
+tmpfs=placeholder.conf:terminator=EOF_PH
+system {
+	host seedhost
+}
+EOF_PH
+
+stdin=pw:terminator=EOF_PW
+secretpw
+EOF_PW
+
+option=env:var=ze.config.dir:value=.
+
+cmd=foreground:seq=1:exec=ze config import placeholder.conf
+cmd=foreground:seq=2:exec=ze connect add 10.0.1.5 --port 2223 --user admin:stdin=pw
+cmd=foreground:seq=3:exec=ze connect remove 10.0.1.5 --port 2223
+expect=exit:code=0
+expect=stdout:contains=removed remote 10.0.1.5:2223
