@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | - |
 | Phase | implement (per-item, smallest-first) |
-| Updated | 2026-07-08 |
+| Updated | 2026-07-10 |
 
 ## Post-Compaction Recovery
 
@@ -203,6 +203,53 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 - RFC 9234 §5's confederation-specific rules (OTC value MUST equal the Confederation Identifier, not a Member-AS) bind only a speaker that **is** a confederation. With exactly one AS, they are vacuously satisfied. §5 also states OTC/Roles between confederation members is NOT RECOMMENDED.
 
 **Why re-deferred, not implemented:** true confederation OTC requires first building AS-confederation-member support (confed-id + member-AS config, confederation-eBGP session semantics, AS_CONFED segment origination), a large feature far beyond "advanced OTC." Tracked for a future dedicated confederation spec.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/reactor/reactor_metrics_behavioral_test.go` (item 5) | yes | ls 2026-07-10 |
+| `internal/component/bgp/reactor/default_originate_raw.go` (item 2) | yes | ls 2026-07-10 |
+| `internal/component/web/decorator_reverse_dns.go` + `decorator_community.go` (item 4) | yes | ls 2026-07-10 |
+| `internal/component/bgp/plugins/gr/gr_removal_test.go` (item 6) | yes | ls 2026-07-10 (imports read firsthand) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-6 (item 6) | GR per-peer series deleted on removal | `gr_removal_test.go` present; `TestHandleEventStateRemoved_SkipsActivationAndDeletesLabels` grep-hit 2026-07-10 |
+| AC-5 (item 5) | spy-registry exact-delta behavioral tests | `reactor_metrics_behavioral_test.go` present (ls 2026-07-10) |
+| AC-2 (item 2) | raw filter fails closed on default-originate | `TestDefaultOriginateRejectsRawFilter` grep-hit in `peer_initial_sync_test.go` 2026-07-10 |
+| AC-4 (item 4) | reverse-dns + community-name decorators registered | both decorator files present (ls 2026-07-10); registration in `service_web.go` per item table |
+| AC-7 (item 7) | runtime collectors + AS-path-loop + ASPA metrics | `runtime_collectors_test.go`, `filter/loop_metrics_test.go`, `rpki/aspa_metrics_test.go` grep-hits 2026-07-10 |
+| AC-1 (item 1) | GR advanced | deferred to `plan/spec-gr-advanced.md` (2026-07-08, destination verified present) |
+| AC-3 (item 3) | AS-Confederation OTC | re-deferred, user decision 2026-07-08 (evidence section above) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Per-item wiring rows | unit-tier tests named in the Wiring Test table (no new .ci; items 2,4,5,6,7 are unit/behavioral-tested at their producers) | yes - test files confirmed above |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 (triage evidence holds) | confirmed | per-item implementations landed against the cited producers; spot-checks re-verified 2026-07-10 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Per-item docs landed with each item's original commit; closure adds no code | `git log` per item table | yes |
+
+## Closure (2026-07-10, user-instructed)
+
+All 7 items resolved: 5 done + committed separately (per-item table above, each with tests);
+item 3 re-deferred by user decision 2026-07-08 (evidence section above); item 1 deferred to
+`plan/spec-gr-advanced.md`. Closure verification: no `// Design:` references to this spec in
+the Go tree (grep clean); DONE-claim spot-checks confirmed firsthand
+(`peer_initial_sync_test.go` TestDefaultOriginateRejectsRawFilter,
+`gr_removal_test.go` TestHandleEventStateRemoved_SkipsActivationAndDeletesLabels).
+Learned summary: `plan/learned/1102-followup-bgp-feature.md`. Per-item review evidence lives
+with each item's original commit; the umbrella itself carries no new diff at closure.
 
 ## Notes
 - Skeleton = captured intent, not a designed spec (see `ai/rules/deferral-tracking.md`). Moves to `design` when someone picks it up.

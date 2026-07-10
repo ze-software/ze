@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1113 summaries
+Total: 1114 summaries
 
 ## 000-099
 
@@ -1182,3 +1182,4 @@ Total: 1113 summaries
 |---|---------|------|
 | 1100 | followup-l2tp-call | `plan/learned/1100-followup-l2tp-call.md` |
 | 1101 | followup-test-infra | `plan/learned/1101-followup-test-infra.md` |
+| 1102 | followup-bgp-feature | `plan/learned/1102-followup-bgp-feature.md` |
