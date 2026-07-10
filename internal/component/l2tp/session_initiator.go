@@ -117,7 +117,7 @@ func (t *L2TPTunnel) newInitiatorSession(now time.Time, lnsMode bool, p callPara
 	}
 	sess := &L2TPSession{
 		localSID:       localSID,
-		state:          L2TPSessionWaitReply,
+		state:          L2TPSessionIdle,
 		createdAt:      now,
 		fsmHistory:     newFSMHistoryRing(),
 		lnsMode:        lnsMode,
@@ -126,6 +126,14 @@ func (t *L2TPTunnel) newInitiatorSession(now time.Time, lnsMode bool, p callPara
 		framingType:    p.framingOrDefault(),
 		pppoeChannelFD: p.pppoeChannelFD,
 	}
+	// Record the origination as an FSM transition so the initiator session's
+	// history and metrics reflect it entered wait-reply on our request (AC-5),
+	// rather than materializing already in wait-reply with an empty history.
+	trigger := "outgoing call originated"
+	if !lnsMode {
+		trigger = "incoming call originated"
+	}
+	sess.transition(L2TPSessionWaitReply, trigger)
 	t.addSession(sess)
 	return sess, true
 }
