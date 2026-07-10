@@ -6,13 +6,14 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 80 rules
+Total: 81 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
 | Agent Tooling Contract | All agent-facing CLI output must follow these rules. | `ai/rules/agent-tooling.md` |
 | Anti-Rationalization | The answer is always "no." | `ai/rules/anti-rationalization.md` |
 | API Contracts in Comments | When authoring functions with caller obligations, document them in the godoc. | `ai/rules/api-contracts.md` |
+| Appliance Dependency Bumps | a Dependabot alert fires on a `go.mod` under `gokrazy/modcache/`, or you must bump the vendored gokrazy init. | `ai/rules/appliance-dep-bumps.md` |
 | Architecture Summary | Read before reasoning about where a component sits, the BGP subsystem layout, or how formatted events (down) and text commands (up) flow between core and plugins. | `ai/rules/architecture-summary.md` |
 | No Pipes On Expensive Commands | Never pipe `make`, `go test`, `go build`, `golangci-lint`, `bin/ze*`, or any test/verify/build command through `head`, `tail`, `grep`, `awk`, `sed`, `cat`. Run clean. Read the log after. | `ai/rules/bash-output.md` |
 | Before Writing Code | Complete before writing any code, tests, or documentation. | `ai/rules/before-writing-code.md` |

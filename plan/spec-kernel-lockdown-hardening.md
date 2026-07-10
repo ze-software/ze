@@ -120,8 +120,8 @@ stable-key path as primary per the gate decision; the fallback remains a one-lin
 - [ ] `gokrazy/kernel/kernel.config` — `KEXEC_FILE=y`, `LANDLOCK=y`, no lockdown/sig
 - [ ] `internal/appliance/kernelreg.go` — Go-side fragment + `.require` manifest resolver
 - [ ] `internal/plugins/trafficusage/attach_linux.go` — TCX networking BPF (A-1)
-- [ ] `gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260218074004-791851666ca2/gokrazy.go` — `loadModules` error non-fatal (A-2)
-- [ ] `gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260218074004-791851666ca2/reboot_amd64.go` — `KexecFileLoad` + full-reboot fallback
+- [ ] `gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/gokrazy.go` — `loadModules` error non-fatal (A-2)
+- [ ] `gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/reboot_amd64.go` — `KexecFileLoad` + full-reboot fallback
 - [ ] `internal/appliance/updater/updater.go` — OTA default `kexec:true`
 
 **Behavior to preserve:**

@@ -1,0 +1,30 @@
+# Dependabot version-update configuration.
+#
+# NOTE: this file governs update PRs only. GitHub's security-alert *scanning* is
+# always-on and cannot be suppressed here. In particular, alerts on the vendored
+# gokrazy init manifest under gokrazy/modcache/ are handled by bumping the pin per
+# ai/rules/appliance-dep-bumps.md, NOT by this config.
+#
+# Scoped to the root module (the ze codebase). The gokrazy builddir modules under
+# gokrazy/ze/builddir/ are hand-pinned for the appliance and are deliberately NOT
+# managed here (a Dependabot PR against them would fight the pin); bump them via the
+# runbook above.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      go-modules:
+        patterns:
+          - "*"
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"

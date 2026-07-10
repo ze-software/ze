@@ -1,7 +1,7 @@
 github.com/gokrazy/bakery v0.0.0-20220304074031-a32e6d0a1269 h1:CsPA87szzVY7e7Kso3eXd4LjxUgB960cjdLfv5KHo2U=
 github.com/gokrazy/bakery v0.0.0-20220304074031-a32e6d0a1269/go.mod h1:U1BFdkLwZ6xmg3IoVvAUnuhyIzZltTITiq5diYjzWWc=
-github.com/gokrazy/gokrazy v0.0.0-20260218074004-791851666ca2 h1:3diV54purUiHmge4KdjwXDzjnzcbBWe6pqzdUQG7KvU=
-github.com/gokrazy/gokrazy v0.0.0-20260218074004-791851666ca2/go.mod h1:NtMkrFeDGnwldKLi0dLdd2ipNwoVa7TI4HTxsy7lFRg=
+github.com/gokrazy/gokrazy v0.0.0-20260703061218-a4a45a20149d h1:FyBxW9CwF7hVeOT0w/35f5GjtseCdsueUcFX85qCSkU=
+github.com/gokrazy/gokrazy v0.0.0-20260703061218-a4a45a20149d/go.mod h1:QGwonQ8BwuAk2Mcxw4/6AHCMJHCoP7U/p9OloD3Fac8=
 github.com/gokrazy/rpi-eeprom v0.0.0-20220210033409-65a934c9dc5a h1:TjM6pP1k/rFkCjSXd80fe0l/1cacz9LpWjp2S8E1TOM=
 github.com/gokrazy/rpi-eeprom v0.0.0-20220210033409-65a934c9dc5a/go.mod h1:vabxV1M+i6S3rGuWoFieHxCJW3jlob3rqe0KV82j+0o=
 github.com/gokrazy/timestamps v0.0.0-20200713073712-54fdc319126e h1:obZG0QbGiFvH5HeXnkGKUSIsxSSn+SCrXzVnGbBVkLA=

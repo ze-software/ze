@@ -41,7 +41,12 @@ GOKRAZY_PERM_OFF   := 1157627904
 GOKRAZY_PERM_BLK   := 966639
 GOKRAZY_PERM_4K    := 241660
 GOKRAZY_PERM_SKIP  := 282624
-E2FS               := /opt/homebrew/Cellar/e2fsprogs/1.47.4/sbin
+# e2fsprogs sbin dir holding mkfs.ext4 + debugfs. Linux ships them in /usr/sbin
+# (or /sbin); macOS keg-only homebrew keeps them under the Cellar. Autodetect the
+# first location that actually has mkfs.ext4; override with `make ... E2FS=/path`.
+ifndef E2FS
+E2FS               := $(shell for d in /usr/sbin /sbin /usr/local/sbin $$(ls -d /opt/homebrew/Cellar/e2fsprogs/*/sbin 2>/dev/null); do [ -x "$$d/mkfs.ext4" ] && { echo "$$d"; break; }; done)
+endif
 GOKRAZY_QEMU_ACCEL ?= tcg
 GOKRAZY_QEMU_AARCH64_BIOS ?= /opt/homebrew/share/qemu/edk2-aarch64-code.fd
 GOKRAZY_QEMU_AARCH64_CPU ?= max
@@ -72,6 +77,11 @@ ze-gokrazy: ze bin/gok
 		echo "--- Using external database: $(ZEFS) ---"; \
 		cp "$(ZEFS)" $(GOKRAZY_ZEFS); \
 	elif [ -n "$(USER)" ] && [ -n "$(PASS)" ]; then \
+		: "fresh-credentials build must start from a clean seed DB. Also avoids ze"; \
+		: "init --force aborting when its daemonRunning probe (init/main.go) dials"; \
+		: "the config'd SSH host:port and false-matches a host sshd on 0.0.0.0:22,"; \
+		: "which would leave a stale root-owned seed DB in the image."; \
+		rm -f $(GOKRAZY_ZEFS); \
 		if [ -n "$(CERTNAME)" ] && [ -f $(GOKRAZY_CERT_DIR)/cert.pem ] && [ -f $(GOKRAZY_CERT_DIR)/key.pem ]; then \
 			echo "--- Creating SSH credentials (reusing cached TLS certificate for $(CERTNAME)) ---"; \
 			printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \

@@ -135,6 +135,22 @@ OPTIONAL_TOOLS: list[Tool] = [
         required=False,
         note="macOS Docker runtime",
     ),
+    Tool(
+        name="xl2tpd",
+        probe=["xl2tpd"],
+        brew=None,
+        apt="xl2tpd",
+        required=False,
+        note="Linux root-only L2TP LAC peer for L2TP PPP evidence tests (ze-deployment-l2tp-ppp-test, ze-deployment-gokrazy-l2tp-ppp-test)",
+    ),
+    Tool(
+        name="ppp",
+        probe=["pppd"],
+        brew=None,
+        apt="ppp",
+        required=False,
+        note="Linux root-only pppd for the same L2TP PPP/NCP evidence tests",
+    ),
 ]
 
 

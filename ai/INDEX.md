@@ -200,7 +200,7 @@ artifact type. Check them whenever your work touches the described concern.
 | `make ze-mutation-test` | `mk/test-mutation.mk` | Mutation testing via gomu on all non-excluded packages (advisory, not gating). Vendored, no install needed. |
 | `make ze-mutation-changed` | `mk/test-mutation.mk` | Incremental mutation testing on changed files only. |
 | `make ze-mutation-report` | `mk/test-mutation.mk` | Mutation testing with HTML report output to `tmp/mutation-report.html`. |
-| `make ze-setup` | `scripts/dev/dev-setup.py` | Unified dev setup: installs all build deps, linters, and appliance/evidence tools (qemu, e2fsprogs, xorriso, grub, uv). OS autodetect (brew/apt). `CHECK=1` for probe-only mode. Drift-guarded against `applianceDoctorChecks()`. |
+| `make ze-setup` | `scripts/dev/dev-setup.py` | Unified dev setup: installs all build deps, linters, and appliance/evidence tools (qemu, e2fsprogs, xorriso, grub, uv; optional Linux L2TP-evidence deps xl2tpd, ppp). OS autodetect (brew/apt). `CHECK=1` for probe-only mode. Drift-guarded against `applianceDoctorChecks()`. |
 
 ## Pattern Cookbooks
 
@@ -383,6 +383,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | plugin internal keyword, in-process plugin config | `plan/learned/821-plugin-internal-keyword.md`, `ai/patterns/plugin.md` |
 | appliance auth, local admin, bootstrap auth, RBAC | `plan/learned/831-appliance-auth-hardening.md`, `internal/component/authz/`, `internal/component/aaa/` |
 | appliance, appliance iso, appliance build, appliance init | `internal/appliance/`, `docs/guide/appliance.md`, `docs/guide/ze-install.md`, `scripts/evidence/effective-install-iso-qemu.py`, `mk/test-integration.mk` |
+| Dependabot alert on vendored go.mod, gokrazy/modcache manifest, bump gokrazy init, appliance dependency bump, CVE on vendored appliance dep | `ai/rules/appliance-dep-bumps.md`, `mk/gokrazy.mk` (`ze-gokrazy-deps`), `.github/dependabot.yml` |
 | installer initrd QEMU evidence, R-6 fault injection, ze.mac pin, rescue console, Ventoy ISO-on-FAT, ze_installer_fault, ZE_INITRD_FAULT | `scripts/evidence/effective-install-scenarios-qemu.py`, `scripts/evidence/effective-install-ventoy-qemu.py`, `internal/install/disk/fault_linux.go`, `mk/test-integration.mk` (`ze-install-scenarios-qemu-test`, `ze-install-ventoy-qemu-test`), `docs/functional-tests.md` |
 | code-to-docs, reverse index, which docs | `ai/CODE-TO-DOCS.md` (generated, `make ze-doc-index`) |
 | mutation testing, gomu, mutation score, mutant | `mk/test-mutation.mk`, `ai/rules/testing.md` (Mutation Testing section) |

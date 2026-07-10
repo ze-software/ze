@@ -356,15 +356,35 @@ func (s *service) RSS() int64 {
 
 var syslogRaddr string
 
-func initRemoteSyslog() {
-	b, err := os.ReadFile("/perm/remote_syslog/target")
-	if err != nil {
-		if !os.IsNotExist(err) {
-			log.Print(err)
+// getConfValue returns the value for the given configuration key,
+// checking (in order): kernel command line, /perm, /etc/gokrazy.
+// The key uses "/" as separator (e.g. "remote_syslog/target", which
+// checks kernel cmdline gokrazy.remote_syslog.target, then
+// /perm/remote_syslog/target, then /etc/gokrazy/remote_syslog/target.
+//
+// It returns the empty string if nothing is found.
+func getConfValue(key string) string {
+	cmdlineKey := "gokrazy." + strings.ReplaceAll(key, "/", ".") + "="
+	b, _ := os.ReadFile("/proc/cmdline")
+	for field := range strings.FieldsSeq(string(b)) {
+		if v, ok := strings.CutPrefix(field, cmdlineKey); ok {
+			return v
 		}
+	}
+	if b, err := os.ReadFile("/perm/" + key); err == nil {
+		return strings.TrimSpace(string(b))
+	}
+	if b, err := os.ReadFile("/etc/gokrazy/" + key); err == nil {
+		return strings.TrimSpace(string(b))
+	}
+	return ""
+}
+
+func initRemoteSyslog() {
+	raddr := getConfValue("remote_syslog/target")
+	if raddr == "" {
 		return
 	}
-	raddr := strings.TrimSpace(string(b))
 	log.Printf("sending process stdout/stderr to remote syslog %s", raddr)
 	syslogRaddr = raddr
 }
@@ -475,13 +495,21 @@ func supervise(s *service) {
 			cmd.Dir = homeDir
 		}
 
+		// If $PATH isn't already set, set $PATH
+		// so that binaries can find each other.
+		hasPath := slices.ContainsFunc(cmd.Env, func(s string) bool {
+			return strings.HasPrefix(s, "PATH=")
+		})
+		if !hasPath {
+			cmd.Env = append(cmd.Env, "PATH=/user:/gokrazy")
+		}
+
 		// If $USER isn't already set, set it to root
 		// in order to further increase the chance of daemons
 		// working properly out of the box
 		hasUser := slices.ContainsFunc(cmd.Env, func(s string) bool {
 			return strings.HasPrefix(s, "USER=")
 		})
-
 		if !hasUser {
 			cmd.Env = append(cmd.Env, "USER=root")
 		}
