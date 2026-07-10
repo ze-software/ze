@@ -6,13 +6,6 @@ Do NOT duplicate entries here. Read the repo copy.
 Repo memory includes: project knowledge, mistake log (feature not wired, wrong production path,
 count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
-## Project
-
-- [project_cli_dispatch_discovery.md](project_cli_dispatch_discovery.md) - Three CLI gaps blocking debugging: no one-shot command, help shows RPC names not dispatch keys, no dispatch key listing
-- [project_no_filtered_routes.md](project_no_filtered_routes.md) - Ze does not track filtered/noexport routes; birdwatcher endpoints return empty
-- [project_gokrazy_appliance.md](project_gokrazy_appliance.md) - Ze targets gokrazy appliance (no systemd); must own full process lifecycle for VPP
-- [project_stress_injector.md](project_stress_injector.md) - Stress UPDATE stream generated in-memory in Go inside `ze-test peer --mode inject`, streamed directly; no file, no bngblaster
-
 ## User Profile
 
 - [user_trust_and_delegation.md](user_trust_and_delegation.md) - User trusts Claude with hard, long work and delegates the difficult parts. Honor that trust with thoroughness.
@@ -57,3 +50,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - feedback_test_failures_always_report -> rules/anti-rationalization.md
 - feedback_never_disable_gpg -> CLAUDE.md
 - feedback_consistency_predictability -> implicit in all BLOCKING rules
+- project_cli_dispatch_discovery -> ai/rules/project-knowledge.md (CLI dispatch discoverability gaps)
+- project_no_filtered_routes -> ai/rules/project-knowledge.md (No filtered/noexport route tracking)
+- project_gokrazy_appliance -> ai/rules/project-knowledge.md (Gokrazy appliance owns process lifecycle)
+- project_stress_injector -> ai/rules/project-knowledge.md (Stress injector is in-memory Go)
