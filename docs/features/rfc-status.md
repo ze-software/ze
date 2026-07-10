@@ -159,7 +159,7 @@ Reference summaries under `rfc/short/` are not implementation claims by themselv
 
 | RFC | Area | Status | Implemented coverage | Remaining if not complete |
 |-----|------|--------|----------------------|---------------------------|
-| RFC 2661 | L2TPv2 | Partial | LNS/LAC tunnel lifecycle, AVP codec, hidden AVPs, challenge/response, reliable control channel, HELLO, StopCCN, data sessions. | Feature remains Partial; see L2TP guide for operational limits. |
+| RFC 2661 | L2TPv2 | Partial | LNS/LAC tunnel lifecycle (answerer and **initiator**: ze dials SCCRQ, verifies SCCRP, sends SCCCN), AVP codec, hidden AVPs, challenge/response, reliable control channel, HELLO, StopCCN, data sessions, **LNS-side outgoing call (OCRQ/OCRP/OCCN) via `request l2tp outgoing-call`**, dial-target config, LAC PPPoE→L2TP relay (control plane). <!-- source: internal/component/l2tp/tunnel_initiator.go -- initiate/handleSCCRP; internal/component/l2tp/session_initiator.go -- placeOutgoingCall/handleOCRP --> | Feature remains Partial; see L2TP guide for operational limits. Initiator tunnel interop proven vs xl2tpd (test/l2tp-interop/scenarios/03). LAC data-plane bridge (A-4) is QEMU/CAP_NET_ADMIN-gated. |
 | RFC 1661 | PPP LCP | Partial | PPP LCP FSM, negotiation, echo keepalive, common NCP structure used by L2TP and PPPoE. | Carries the L2TP and PPPoE Partial status. |
 | RFC 1334 | PAP | Partial | PAP authentication option through PPP auth handling. | Carries the L2TP and PPPoE Partial status. |
 | RFC 1994 | CHAP | Partial | CHAP-MD5 authentication for PPP and tunnel auth contexts. | Carries the L2TP and PPPoE Partial status. |

@@ -25,6 +25,22 @@ sys.path.insert(0, SCRIPT_DIR)
 from lab import Scenario, log_fail, log_pass, preflight_strict
 
 
+def _any_standard_flow(scenarios_dir, scenario_filter):
+    """True if any selected scenario uses the shared ze=LNS Scenario flow
+    (a check.py without a self-contained run.py)."""
+    for name in sorted(os.listdir(scenarios_dir)):
+        d = os.path.join(scenarios_dir, name)
+        if not os.path.isdir(d):
+            continue
+        if scenario_filter and name != scenario_filter:
+            continue
+        if os.path.isfile(os.path.join(d, "check.py")) and not os.path.isfile(
+            os.path.join(d, "run.py")
+        ):
+            return True
+    return False
+
+
 def _any_scenario_needs_frr(scenarios_dir, scenario_filter):
     for name in sorted(os.listdir(scenarios_dir)):
         d = os.path.join(scenarios_dir, name)
@@ -105,11 +121,18 @@ def main():
         print("Docker unavailable, cannot run L2TP interop lab")
         sys.exit(1)
 
-    preflight_strict()
-
     scenarios_dir = os.path.join(SCRIPT_DIR, "scenarios")
-    need_frr = _any_scenario_needs_frr(scenarios_dir, scenario_filter)
-    build_images(frr_image, no_build, need_frr=need_frr)
+
+    # A scenario that ships its own run.py is self-contained (it manages its
+    # own containers and SUT, e.g. 03-ze-lac-xl2tpd-lns runs ze as the L2TP
+    # initiator against a real xl2tpd LNS). Such scenarios do not use the
+    # shared ze=LNS Scenario flow, the ze/LAC image build, or the PPPoL2TP
+    # preflight, so run those only when a standard-flow scenario is selected.
+    need_standard = _any_standard_flow(scenarios_dir, scenario_filter)
+    if need_standard:
+        preflight_strict()
+        need_frr = _any_scenario_needs_frr(scenarios_dir, scenario_filter)
+        build_images(frr_image, no_build, need_frr=need_frr)
 
     print("")
     print("━" * 40)
@@ -127,6 +150,19 @@ def main():
             continue
 
         if scenario_filter and scenario_name != scenario_filter:
+            continue
+
+        self_run = os.path.join(scenario_dir, "run.py")
+        if os.path.isfile(self_run):
+            print("── %s ──" % scenario_name)
+            rc = subprocess.run([sys.executable, self_run]).returncode
+            if rc == 0:
+                passed += 1
+            else:
+                log_fail("FAIL: %s exited %d" % (scenario_name, rc))
+                failed += 1
+                failed_names.append(scenario_name)
+            print("")
             continue
 
         check_path = os.path.join(scenario_dir, "check.py")

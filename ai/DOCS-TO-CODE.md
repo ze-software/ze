@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 277 design docs, 2899 files
+Total: 277 design docs, 2903 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3803,8 +3803,14 @@ Total: 277 design docs, 2899 files
 
 ## `plan/spec-followup-l2tp-call.md`
 
-- `internal/component/l2tp/cmd/outgoing_call.go` -- AC-4 request l2tp outgoing-call
-- `internal/component/l2tp/outgoing_call.go` -- AC-4 operator-initiated outgoing call
+| File | Topic |
+|------|-------|
+| `internal/component/l2tp/bridge_integration_linux_test.go` | AC-3 / A-4 LAC bridge integration |
+| `internal/component/l2tp/bridge_linux.go` | AC-3 / A-4 LAC data-plane bridge |
+| `internal/component/l2tp/cmd/outgoing_call.go` | AC-4 request l2tp outgoing-call |
+| `internal/component/l2tp/outgoing_call.go` | AC-4 operator-initiated outgoing call |
+| `internal/component/l2tp/relay_sink.go` | AC-3 PPPoE->L2TP relay (LAC role) |
+| `internal/core/callsink/callsink.go` | AC-3 PPPoE->L2TP relay call-sink (R-1 boundary) |
 
 ## `plan/spec-followup-subsystem.md`
 

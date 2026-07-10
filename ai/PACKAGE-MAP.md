@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 600 packages, 599 described, 1 TODO
+Total: 601 packages, 600 described, 1 TODO
 
 
 ## `cmd/ze/`
@@ -418,6 +418,7 @@ Total: 600 packages, 599 described, 1 TODO
 | `internal/core/bgp/nlri/nlrisplit` | holds a registry of family-specific NLRI splitters |  |
 | `internal/core/bgp/wire` | provides zero-allocation buffer writing for BGP message encoding |  |
 | `internal/core/bufpool` | provides a sync.Pool-seeded-for-peak byte-slice pool for protocol subsystems that share a buffer path across multiple goroutines (TACACS+ AAA, plugin-rpc framing, BGP BMP sender, etc.) |  |
+| `internal/core/callsink` | is the neutral registration seam between the PPPoE access concentrator and the L2TP tunnel engine, letting a PADS-completed PPPoE subscriber be relayed into an L2TP incoming call (the LAC role, RFC... |  |
 | `internal/core/clock` | provides injectable abstractions for time operations |  |
 | `internal/core/cos` | holds the shared registry of named class-of-service QoS profiles and their resolver |  |
 | `internal/core/crashlog` | captures stderr output (including Go panic traces) and forwards it to syslog and a crash file on disk |  |

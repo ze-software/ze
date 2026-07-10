@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1111 summaries
+Total: 1112 summaries
 
 ## 000-099
 
@@ -1175,3 +1175,9 @@ Total: 1111 summaries
 | 1097 | followup-vpp-traffic (dscp police-by-dscp + multi-class steering) | `plan/learned/1097-followup-vpp-traffic.md` |
 | 1098 | followup-vpp-iface: VPP interface tunnels / mirror / wireguard / LCP | `plan/learned/1098-followup-vpp-iface.md` |
 | 1099 | iface-resolve-0-umbrella (closure) | `plan/learned/1099-iface-resolve-0-umbrella.md` |
+
+## 1100-1199
+
+| # | Summary | File |
+|---|---------|------|
+| 1100 | followup-l2tp-call | `plan/learned/1100-followup-l2tp-call.md` |
