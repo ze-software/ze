@@ -83,6 +83,7 @@ ze-l2tp-api:cqm
 ze-l2tp-api:echo
 ze-l2tp-api:listeners
 ze-l2tp-api:observer
+ze-l2tp-api:outgoing-call
 ze-l2tp-api:reliable
 ze-l2tp-api:session
 ze-l2tp-api:session-history
