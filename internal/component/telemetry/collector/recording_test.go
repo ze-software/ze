@@ -47,6 +47,19 @@ func writeProcFile(t *testing.T, dir, rel, content string) {
 	}
 }
 
+// tmpFile writes content to a file named `name` under a fresh temp dir and
+// returns both the dir and the file's full path, for Group-B collectors whose
+// read path is injected directly (rewrite via writeProcFile for delta tests).
+func tmpFile(t *testing.T, name, content string) (dir, path string) {
+	t.Helper()
+	dir = t.TempDir()
+	path = filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return dir, path
+}
+
 // procDirSelf builds a fixture for collectors that read /proc/self/... via
 // procfs FS.Self(): it writes files under a synthetic pid dir "1" and adds the
 // relative "self" -> "1" symlink FS.Self() resolves. Returns the FS and the pid

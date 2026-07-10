@@ -17,6 +17,7 @@ import (
 
 type sctpCollector struct {
 	interval time.Duration
+	path     string // seam: defaults to /proc/net/sctp/snmp, overridable in tests
 
 	gauge metrics.GaugeVec
 
@@ -25,7 +26,7 @@ type sctpCollector struct {
 }
 
 func newSCTPCollector(interval time.Duration) *sctpCollector {
-	return &sctpCollector{interval: interval, first: true}
+	return &sctpCollector{interval: interval, path: "/proc/net/sctp/snmp", first: true}
 }
 
 func (c *sctpCollector) Name() string { return "sctp" }
@@ -39,7 +40,7 @@ func (c *sctpCollector) Init(reg metrics.Registry, prefix string) {
 }
 
 func (c *sctpCollector) Collect() error {
-	cur, err := readSCTPSnmp()
+	cur, err := readSCTPSnmp(c.path)
 	if err != nil {
 		return err
 	}
@@ -73,8 +74,8 @@ func (c *sctpCollector) Collect() error {
 	return nil
 }
 
-func readSCTPSnmp() (map[string]uint64, error) {
-	f, err := os.Open("/proc/net/sctp/snmp")
+func readSCTPSnmp(path string) (map[string]uint64, error) {
+	f, err := os.Open(path) //nolint:gosec // path defaults to the constant /proc/net/sctp/snmp; overridden only in tests
 	if err != nil {
 		return nil, fmt.Errorf("open /proc/net/sctp/snmp: %w", err)
 	}

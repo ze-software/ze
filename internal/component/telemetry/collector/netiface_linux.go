@@ -14,6 +14,8 @@ import (
 )
 
 type netIfaceCollector struct {
+	root string // seam: defaults to /sys/class/net, overridable in tests
+
 	speed   metrics.GaugeVec
 	duplex  metrics.GaugeVec
 	operst  metrics.GaugeVec
@@ -22,7 +24,7 @@ type netIfaceCollector struct {
 }
 
 func newNetIfaceCollector() *netIfaceCollector {
-	return &netIfaceCollector{}
+	return &netIfaceCollector{root: "/sys/class/net"}
 }
 
 func (c *netIfaceCollector) Name() string { return "netiface" }
@@ -37,13 +39,13 @@ func (c *netIfaceCollector) Init(reg metrics.Registry, prefix string) {
 }
 
 func (c *netIfaceCollector) Collect() error {
-	ifaces, err := listNetIfaces()
+	ifaces, err := listNetIfaces(c.root)
 	if err != nil {
 		return err
 	}
 
 	for _, iface := range ifaces {
-		base := filepath.Join("/sys/class/net", iface) //nolint:gocritic // sysfs path construction
+		base := filepath.Join(c.root, iface)
 		var tb textbuf.Buffer
 		chart := tb.Str("net.").Str(iface).String()
 		family := iface
@@ -88,8 +90,8 @@ func boolF(b bool) float64 {
 	return 0
 }
 
-func listNetIfaces() ([]string, error) {
-	entries, err := os.ReadDir("/sys/class/net")
+func listNetIfaces(root string) ([]string, error) {
+	entries, err := os.ReadDir(root)
 	if err != nil {
 		return nil, err
 	}

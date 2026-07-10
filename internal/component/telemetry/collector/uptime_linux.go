@@ -18,10 +18,11 @@ var errMalformedProcUptime = errors.New("malformed /proc/uptime")
 
 type uptimeCollector struct {
 	gauge metrics.GaugeVec
+	path  string // seam: defaults to /proc/uptime, overridable in tests
 }
 
 func newUptimeCollector() *uptimeCollector {
-	return &uptimeCollector{}
+	return &uptimeCollector{path: "/proc/uptime"}
 }
 
 func (c *uptimeCollector) Name() string { return "uptime" }
@@ -35,7 +36,7 @@ func (c *uptimeCollector) Init(reg metrics.Registry, prefix string) {
 }
 
 func (c *uptimeCollector) Collect() error {
-	b, err := os.ReadFile("/proc/uptime")
+	b, err := os.ReadFile(c.path) //nolint:gosec // c.path defaults to the constant /proc/uptime; overridden only in tests
 	if err != nil {
 		return fmt.Errorf("read /proc/uptime: %w", err)
 	}

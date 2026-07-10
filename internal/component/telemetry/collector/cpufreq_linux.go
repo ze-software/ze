@@ -17,6 +17,7 @@ import (
 
 type cpuFreqCollector struct {
 	interval time.Duration
+	root     string // seam: defaults to /sys/devices/system/cpu, overridable in tests
 
 	freq     metrics.GaugeVec
 	throttle metrics.GaugeVec
@@ -26,7 +27,7 @@ type cpuFreqCollector struct {
 }
 
 func newCPUFreqCollector(interval time.Duration) *cpuFreqCollector {
-	return &cpuFreqCollector{interval: interval, first: true}
+	return &cpuFreqCollector{interval: interval, root: "/sys/devices/system/cpu", first: true}
 }
 
 func (c *cpuFreqCollector) Name() string { return "cpufreq" }
@@ -38,13 +39,13 @@ func (c *cpuFreqCollector) Init(reg metrics.Registry, prefix string) {
 }
 
 func (c *cpuFreqCollector) Collect() error {
-	cpus := listCPUs()
+	cpus := listCPUs(c.root)
 
 	curCore := make(map[int]uint64, len(cpus))
 	curPkg := make(map[int]uint64, len(cpus))
 
 	for _, cpu := range cpus {
-		base := textbuf.StrInt("/sys/devices/system/cpu/cpu", int64(cpu))
+		base := filepath.Join(c.root, textbuf.StrInt("cpu", int64(cpu)))
 
 		// Current frequency in kHz -> MHz
 		if khz := readSysInt(filepath.Join(base, "cpufreq", "scaling_cur_freq")); khz > 0 {
@@ -78,8 +79,8 @@ func (c *cpuFreqCollector) Collect() error {
 	return nil
 }
 
-func listCPUs() []int {
-	entries, err := filepath.Glob("/sys/devices/system/cpu/cpu[0-9]*")
+func listCPUs(root string) []int {
+	entries, err := filepath.Glob(filepath.Join(root, "cpu[0-9]*"))
 	if err != nil {
 		return nil
 	}

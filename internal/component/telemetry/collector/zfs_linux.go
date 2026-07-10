@@ -16,6 +16,7 @@ import (
 
 type zfsCollector struct {
 	interval time.Duration
+	path     string // seam: defaults to /proc/spl/kstat/zfs/arcstats, overridable in tests
 
 	arcSize  metrics.GaugeVec
 	reads    metrics.GaugeVec
@@ -30,7 +31,7 @@ type zfsCollector struct {
 }
 
 func newZFSCollector(interval time.Duration) *zfsCollector {
-	return &zfsCollector{interval: interval, first: true}
+	return &zfsCollector{interval: interval, path: "/proc/spl/kstat/zfs/arcstats", first: true}
 }
 
 func (c *zfsCollector) Name() string { return "zfs" }
@@ -49,7 +50,7 @@ func (c *zfsCollector) Init(reg metrics.Registry, prefix string) {
 const mibDivisor = 1024 * 1024
 
 func (c *zfsCollector) Collect() error {
-	cur, err := readArcStats()
+	cur, err := readArcStats(c.path)
 	if err != nil {
 		return err
 	}
@@ -106,8 +107,8 @@ func (c *zfsCollector) Collect() error {
 	return nil
 }
 
-func readArcStats() (map[string]uint64, error) {
-	f, err := os.Open("/proc/spl/kstat/zfs/arcstats")
+func readArcStats(path string) (map[string]uint64, error) {
+	f, err := os.Open(path) //nolint:gosec // path defaults to the constant /proc/spl/kstat/zfs/arcstats; overridden only in tests
 	if err != nil {
 		return nil, err
 	}

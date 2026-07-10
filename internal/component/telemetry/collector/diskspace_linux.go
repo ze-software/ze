@@ -15,11 +15,12 @@ import (
 )
 
 type diskSpaceCollector struct {
-	gauge metrics.GaugeVec
+	gauge      metrics.GaugeVec
+	mountsPath string // seam: defaults to /proc/mounts, overridable in tests
 }
 
 func newDiskSpaceCollector() *diskSpaceCollector {
-	return &diskSpaceCollector{}
+	return &diskSpaceCollector{mountsPath: "/proc/mounts"}
 }
 
 func (c *diskSpaceCollector) Name() string { return "diskspace" }
@@ -33,7 +34,7 @@ func (c *diskSpaceCollector) Init(reg metrics.Registry, prefix string) {
 }
 
 func (c *diskSpaceCollector) Collect() error {
-	mounts, err := readMountPoints()
+	mounts, err := readMountPoints(c.mountsPath)
 	if err != nil {
 		return err
 	}
@@ -73,8 +74,8 @@ type mountPoint struct {
 	fstype     string
 }
 
-func readMountPoints() ([]mountPoint, error) {
-	f, err := os.Open("/proc/mounts")
+func readMountPoints(path string) ([]mountPoint, error) {
+	f, err := os.Open(path) //nolint:gosec // path defaults to the constant /proc/mounts; overridden only in tests
 	if err != nil {
 		return nil, err
 	}

@@ -17,6 +17,7 @@ import (
 
 type conntrackExpectCollector struct {
 	interval time.Duration
+	path     string // seam: defaults to /proc/net/stat/nf_conntrack, overridable in tests
 
 	gauge metrics.GaugeVec
 
@@ -27,7 +28,7 @@ type conntrackExpectCollector struct {
 }
 
 func newConntrackExpectCollector(interval time.Duration) *conntrackExpectCollector {
-	return &conntrackExpectCollector{interval: interval, first: true}
+	return &conntrackExpectCollector{interval: interval, path: "/proc/net/stat/nf_conntrack", first: true}
 }
 
 func (c *conntrackExpectCollector) Name() string { return "conntrack_expect" }
@@ -41,7 +42,7 @@ func (c *conntrackExpectCollector) Init(reg metrics.Registry, prefix string) {
 }
 
 func (c *conntrackExpectCollector) Collect() error {
-	newV, create, del, err := readConntrackExpect()
+	newV, create, del, err := readConntrackExpect(c.path)
 	if err != nil {
 		return err
 	}
@@ -71,8 +72,8 @@ func (c *conntrackExpectCollector) Collect() error {
 // readConntrackExpect parses expect_new, expect_create, expect_delete from
 // /proc/net/stat/nf_conntrack. The file has a header row followed by one
 // hex-valued row per CPU. Columns 13, 14, 15 (0-indexed) are the expect fields.
-func readConntrackExpect() (expectNew, expectCreate, expectDelete uint64, err error) {
-	f, err := os.Open("/proc/net/stat/nf_conntrack")
+func readConntrackExpect(path string) (expectNew, expectCreate, expectDelete uint64, err error) {
+	f, err := os.Open(path) //nolint:gosec // path defaults to the constant /proc/net/stat/nf_conntrack; overridden only in tests
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("open nf_conntrack stat: %w", err)
 	}

@@ -17,6 +17,7 @@ import (
 
 type cpuIdleCollector struct {
 	interval time.Duration
+	root     string // seam: defaults to /sys/devices/system/cpu, overridable in tests
 
 	gauge metrics.GaugeVec
 
@@ -25,7 +26,7 @@ type cpuIdleCollector struct {
 }
 
 func newCPUIdleCollector(interval time.Duration) *cpuIdleCollector {
-	return &cpuIdleCollector{interval: interval, first: true}
+	return &cpuIdleCollector{interval: interval, root: "/sys/devices/system/cpu", first: true}
 }
 
 func (c *cpuIdleCollector) Name() string { return "cpuidle" }
@@ -39,7 +40,7 @@ func (c *cpuIdleCollector) Init(reg metrics.Registry, prefix string) {
 }
 
 func (c *cpuIdleCollector) Collect() error {
-	cur := readCPUIdleStats()
+	cur := readCPUIdleStats(c.root)
 	if len(cur) == 0 {
 		return nil
 	}
@@ -56,7 +57,7 @@ func (c *cpuIdleCollector) Collect() error {
 		return nil
 	}
 
-	cpus := listCPUs()
+	cpus := listCPUs(c.root)
 	for _, cpu := range cpus {
 		chart := textbuf.StrIntStr("cpuidle.cpu", int64(cpu), "_cpuidle")
 		family := "cpuidle"
@@ -90,11 +91,11 @@ func (c *cpuIdleCollector) Collect() error {
 	return nil
 }
 
-func readCPUIdleStats() map[string]uint64 {
-	cpus := listCPUs()
+func readCPUIdleStats(root string) map[string]uint64 {
+	cpus := listCPUs(root)
 	result := make(map[string]uint64, len(cpus)*8)
 	for _, cpu := range cpus {
-		base := textbuf.StrIntStr("/sys/devices/system/cpu/cpu", int64(cpu), "/cpuidle")
+		base := filepath.Join(root, textbuf.StrIntStr("cpu", int64(cpu), "/cpuidle"))
 		states, err := filepath.Glob(filepath.Join(base, "state*"))
 		if err != nil || len(states) == 0 {
 			continue

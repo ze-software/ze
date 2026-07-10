@@ -37,6 +37,7 @@ type diskEntry struct {
 
 type diskStatsCollector struct {
 	interval time.Duration
+	path     string // seam: defaults to /proc/diskstats, overridable in tests
 
 	io      metrics.GaugeVec
 	ops     metrics.GaugeVec
@@ -55,7 +56,7 @@ type diskStatsCollector struct {
 }
 
 func newDiskStatsCollector(interval time.Duration) *diskStatsCollector {
-	return &diskStatsCollector{interval: interval, first: true}
+	return &diskStatsCollector{interval: interval, path: "/proc/diskstats", first: true}
 }
 
 func (c *diskStatsCollector) Name() string { return "diskstats" }
@@ -76,7 +77,7 @@ func (c *diskStatsCollector) Init(reg metrics.Registry, prefix string) {
 }
 
 func (c *diskStatsCollector) Collect() error {
-	entries, err := readDiskStats()
+	entries, err := readDiskStats(c.path)
 	if err != nil {
 		return err
 	}
@@ -164,8 +165,8 @@ func safeDiv(num, den float64) float64 {
 	return num / den
 }
 
-func readDiskStats() ([]diskEntry, error) {
-	f, err := os.Open("/proc/diskstats")
+func readDiskStats(path string) ([]diskEntry, error) {
+	f, err := os.Open(path) //nolint:gosec // path defaults to the constant /proc/diskstats; overridden only in tests
 	if err != nil {
 		return nil, fmt.Errorf("open /proc/diskstats: %w", err)
 	}

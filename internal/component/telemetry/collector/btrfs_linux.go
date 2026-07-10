@@ -14,6 +14,8 @@ import (
 )
 
 type btrfsCollector struct {
+	root string // seam: defaults to /sys/fs/btrfs, overridable in tests
+
 	disk     metrics.GaugeVec
 	data     metrics.GaugeVec
 	metadata metrics.GaugeVec
@@ -21,7 +23,7 @@ type btrfsCollector struct {
 }
 
 func newBtrfsCollector() *btrfsCollector {
-	return &btrfsCollector{}
+	return &btrfsCollector{root: "/sys/fs/btrfs"}
 }
 
 func (c *btrfsCollector) Name() string { return "btrfs" }
@@ -35,7 +37,7 @@ func (c *btrfsCollector) Init(reg metrics.Registry, prefix string) {
 }
 
 func (c *btrfsCollector) Collect() error {
-	uuids, err := filepath.Glob("/sys/fs/btrfs/*-*-*-*-*")
+	uuids, err := filepath.Glob(filepath.Join(c.root, "*-*-*-*-*"))
 	if err != nil {
 		return err
 	}

@@ -18,6 +18,9 @@ import (
 type conntrackCollector struct {
 	fs       procfs.FS
 	interval time.Duration
+	// seams: default to the nf_conntrack sysctl files, overridable in tests.
+	countPath string
+	maxPath   string
 
 	sockets  metrics.GaugeVec
 	maxGauge metrics.GaugeVec
@@ -57,7 +60,13 @@ func sumConntrack(entries []procfs.ConntrackStatEntry) conntrackTotals {
 }
 
 func newConntrackCollector(fs procfs.FS, interval time.Duration) *conntrackCollector {
-	return &conntrackCollector{fs: fs, interval: interval, first: true}
+	return &conntrackCollector{
+		fs:        fs,
+		interval:  interval,
+		countPath: "/proc/sys/net/netfilter/nf_conntrack_count",
+		maxPath:   "/proc/sys/net/netfilter/nf_conntrack_max",
+		first:     true,
+	}
 }
 
 func (c *conntrackCollector) Name() string { return "conntrack" }
@@ -78,10 +87,10 @@ func (c *conntrackCollector) Collect() error {
 		return err
 	}
 
-	count := readConntrackCount()
+	count := readProcUint64(c.countPath)
 	c.sockets.With("netfilter.conntrack_sockets", "connections", "conntrack").Set(float64(count))
 
-	max := readConntrackMax()
+	max := readProcUint64(c.maxPath)
 	c.maxGauge.With("netfilter.conntrack_sockets", "max", "conntrack").Set(float64(max))
 
 	cur := sumConntrack(entries)
@@ -115,16 +124,8 @@ func (c *conntrackCollector) Collect() error {
 	return nil
 }
 
-func readConntrackCount() uint64 {
-	return readProcUint64("/proc/sys/net/netfilter/nf_conntrack_count")
-}
-
-func readConntrackMax() uint64 {
-	return readProcUint64("/proc/sys/net/netfilter/nf_conntrack_max")
-}
-
 func readProcUint64(path string) uint64 {
-	b, err := os.ReadFile(path) //nolint:gosec // path is a compile-time-constant /proc path at all call sites
+	b, err := os.ReadFile(path) //nolint:gosec // path defaults to a constant /proc sysctl file; overridden only in tests
 	if err != nil {
 		return 0
 	}

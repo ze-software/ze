@@ -17,6 +17,7 @@ import (
 
 type vmstatCollector struct {
 	interval time.Duration
+	path     string // seam: defaults to /proc/vmstat, overridable in tests
 
 	pgfaults  metrics.GaugeVec
 	pgio      metrics.GaugeVec
@@ -34,7 +35,7 @@ type vmstatCollector struct {
 }
 
 func newVMStatCollector(interval time.Duration) *vmstatCollector {
-	return &vmstatCollector{interval: interval, first: true}
+	return &vmstatCollector{interval: interval, path: "/proc/vmstat", first: true}
 }
 
 func (c *vmstatCollector) Name() string { return "vmstat" }
@@ -55,7 +56,7 @@ func (c *vmstatCollector) Init(reg metrics.Registry, prefix string) {
 }
 
 func (c *vmstatCollector) Collect() error {
-	cur, err := readVMStat()
+	cur, err := readVMStat(c.path)
 	if err != nil {
 		return err
 	}
@@ -110,8 +111,8 @@ func (c *vmstatCollector) Collect() error {
 	return nil
 }
 
-func readVMStat() (map[string]uint64, error) {
-	f, err := os.Open("/proc/vmstat")
+func readVMStat(path string) (map[string]uint64, error) {
+	f, err := os.Open(path) //nolint:gosec // path defaults to the constant /proc/vmstat; overridden only in tests
 	if err != nil {
 		return nil, fmt.Errorf("open /proc/vmstat: %w", err)
 	}

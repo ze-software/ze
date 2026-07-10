@@ -18,10 +18,11 @@ var errMalformedProcSysFsFileNr = errors.New("malformed /proc/sys/fs/file-nr")
 
 type fileNRCollector struct {
 	gauge metrics.GaugeVec
+	path  string // seam: defaults to /proc/sys/fs/file-nr, overridable in tests
 }
 
 func newFileNRCollector() *fileNRCollector {
-	return &fileNRCollector{}
+	return &fileNRCollector{path: "/proc/sys/fs/file-nr"}
 }
 
 func (c *fileNRCollector) Name() string { return "filenr" }
@@ -35,7 +36,7 @@ func (c *fileNRCollector) Init(reg metrics.Registry, prefix string) {
 }
 
 func (c *fileNRCollector) Collect() error {
-	b, err := os.ReadFile("/proc/sys/fs/file-nr")
+	b, err := os.ReadFile(c.path) //nolint:gosec // c.path defaults to the constant /proc/sys/fs/file-nr; overridden only in tests
 	if err != nil {
 		return fmt.Errorf("read /proc/sys/fs/file-nr: %w", err)
 	}
