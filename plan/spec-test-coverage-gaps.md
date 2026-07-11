@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | - |
-| Phase | 1/7 |
-| Updated | 2026-07-10 |
+| Phase | 7/7 |
+| Updated | 2026-07-11 |
 
 ## Post-Compaction Recovery
 
@@ -687,21 +687,57 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code where
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | W-2 `f0fb1c906`; `test/.ci-sleep-baseline` | sleep ratchet green (Design Insights: W-2 complete) |
+| AC-2 | Done | W-1 `f0fb1c906`; `internal/test/runner/*_test.go` + consuming `.ci` | `command=`/`expect=output`/`expect=event`/`expect=stream` directives |
+| AC-3 | Done (4 legs deferred) | W-1 ipsec suite `843da05cd` `03c668cc8` `c7f1a6e2f` `a4af6be5c` + this session | two-ze IKEv2 establishment green (gated on aes-cbc); sa-up/child events, dpd-timeout, monitor, clear-reestablish deferred (see Deferred) |
+| AC-4 | Done | W-1 `f0fb1c906`; appliance suite | ze_setup+ze_distro |
+| AC-5 | Done | W-1; `mk/test-functional.mk` gating + `qemu-all-tests.sh` fsuite | ipsec/appliance/l2tp/isis/ospf wire suites |
+| AC-6 | Done | W-3 mrt `d3988511c` `a9f201270` | mrt dumps activated (config-root unwrap bug fixed) |
+| AC-7 | Done | W-3 gokrazy `d3988511c` | AuthHeader password omission fixed at source (Design Insights: AC-7 DONE) |
+| AC-8 | Done (iface-only nh deferred) | W-3 static/vpp four files | address/recursive/blackhole/reject nh work; interface-only nh deferred (see Deferred) |
+| AC-9 | Done | W-3 aigp stub registration + SDK-loop tests | no invented AIGP semantics |
+| AC-10 | Done | W-4 `f7df2d71b`..`2e2a8d339` | 31 collectors fixture-tested + live /proc smoke; 1024x memory under-report fixed (Design Insights: AC-10 DONE) |
+| AC-11 | Done | W-5 `02b6ac42d`..`bfd927cb5` | every surface via its user entry point; needs-linux where kernel-bound |
+| AC-12 | Done | W-6 `6f7bd3b88`..`340fcb15f` | cmd/core unit deserts |
+| AC-13 | Done | W-7 `7887c3d11` | `FuzzFSMEventSequence` + `ze-fuzz-test` wiring |
+| AC-14 | Done | W-8 `e9b3e1828` (this session) | fib/vpp + iface/vpp four-file reorg; RUN-set preserved; register tests mutation-verified |
+| AC-15 | Done | W-9 `914bbcf67`..`2144d5a6b` | seams/fixtures + `integration && linux` (auto-enrolled in QEMU) |
+
+### Deferred (documented, user-approved; tracked in `plan/deferrals.md`)
+| # | Item | Blocked by (producer) | Owner spec |
+|---|------|-----------------------|------------|
+| 1 | ipsec `sa-up`/`child-up` event assertions | startup subscriptions namespace-locked to bgp (`dispatch.go:148 registerSubscriptions`); events carry no ns/name envelope (`dispatch.go:286-304`) | `spec-fixit-plugin-event-subscription.md` |
+| 2 | ipsec `dpd-timeout.ci` (liveness teardown) | `.ci` runner has no "stop background daemon at step N" primitive (`runner_exec.go`) | `spec-fixit-runner-kill-background.md` |
+| 3 | `monitor vpn ipsec` stream `.ci` | same subscription gap as #1 | `spec-fixit-plugin-event-subscription.md` |
+| 4 | `clear vpn ipsec sa` re-establish | responder holds stale SA, drops initiator IKE_SA_INIT (2 sent/1 accepted) | `spec-fixit-ipsec-clear-reestablish.md` |
+| 5 | static/vpp interface-only next-hops | needs iface/vpp name->sw_if_index resolver in the static backend | this spec Design Insights (bounded follow-up) |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| Runner directive unit tests | Done | `internal/test/runner/*_test.go` | AC-2 |
+| Per-suite `.ci` (ipsec/appliance/mrt/W-5) | Done | `test/{ipsec,plugin,parse}/*.ci` | AC-3/4/6/11 |
+| Collector fixture tests | Done | `internal/component/telemetry/collector/*_linux_test.go` | AC-10 |
+| `FuzzFSMEventSequence` | Done | `internal/component/bgp/fsm` | AC-13 |
+| VPP four-file tests | Done | `internal/plugins/{fib,iface}/vpp/{apply,translate,verify,register}_test.go` | AC-14 |
+| W-9 unit + integration_linux | Done | per W-9 package | AC-15 |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/test/cli/register.go` + runner exec/parse | Done | new suites + directives (W-1) |
+| `mk/test-functional.mk`, `scripts/evidence/qemu-all-tests.sh` | Done | gating + fsuite (W-1) |
+| `internal/core/gokrazyutil/gokrazyutil.go` | Done | AuthHeader fix (W-3) |
+| `internal/plugins/static/vpp/{apply,translate,verify,register}_test.go` | Done | W-3 |
+| `internal/component/bgp/fsm/fsm_fuzz_test.go` | Done | W-7 |
+| `internal/plugins/{fib,iface}/vpp/*_test.go` | Done | reorganized to mandated names (W-8) |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 15 ACs
+- **Done:** 15 (13 fully; AC-3 and AC-8 green on every implemented leg)
+- **Partial:** AC-3 (4 ipsec legs) and AC-8 (static/vpp interface-only next-hops) -- 5 sub-items deferred to named fixit specs, user-approved, tracked in `plan/deferrals.md`
+- **Skipped:** none
+- **Changed:** see Deviations
 
 ## Goal Validation (BLOCKING)
 
@@ -729,21 +765,27 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code where
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
-### Run 1 (initial)
+### Run 1 (documented closure, 2026-07-11)
+Umbrella spec: each phase (W-1..W-9) was implemented in its own session via
+`/ze-implement`, whose inline critical/security/doc reviews ran per phase. No single
+final `/ze-review` pass was run over the cumulative multi-session diff; this closure
+records that decision (user-directed documented closure) rather than fabricating a
+clean umbrella run.
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | NOTE | No umbrella `/ze-review` over the full W-1..W-9 diff; per-phase reviews stand in | this spec | acknowledged (documented closure, user-directed) |
+| 2 | NOTE | 5 AC-3/AC-8 sub-legs deferred to named fixit specs, blocked on real product gaps | see Deferred table | acknowledged (user-approved; `plan/deferrals.md`) |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
-
-### Run 2+ (re-runs until clean)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+- None outstanding. Per-phase BLOCKER/ISSUE findings were fixed in their own sessions
+  (gokrazyutil AuthHeader password bug W-3; telemetry memory 1024x under-report W-4;
+  runner two-daemon config clobber + colon-in-needle W-1/ipsec). W-8 register tests
+  mutation-verified this session.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- No open BLOCKER or ISSUE. Both remaining items are NOTEs, recorded above.
+- All 5 deferrals recorded in the Deferred table and `plan/deferrals.md`.
 
 ## Pre-Commit Verification
 
