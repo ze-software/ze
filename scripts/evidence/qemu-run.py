@@ -31,9 +31,9 @@ ALPINE_MINOR = "3"
 ALPINE_ARCH = "aarch64" if platform.machine() == "arm64" else "x86_64"
 QEMU_BIN = f"qemu-system-{ALPINE_ARCH}"
 GO_VERSION = "1.25.9"
-VM_MEMORY = "16384"
-VM_CPUS = "8"
-BOOT_TIMEOUT = 60
+VM_MEMORY = os.environ.get("ZE_QEMU_MEMORY", "16384")
+VM_CPUS = os.environ.get("ZE_QEMU_CPUS", "8")
+BOOT_TIMEOUT = int(os.environ.get("ZE_QEMU_BOOT_TIMEOUT", "60"))
 DEFAULT_CMD_TIMEOUT = 1200
 SSH_PORT = "2222"
 
