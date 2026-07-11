@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 280 design docs, 2915 files
+Total: 280 design docs, 2913 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2990,9 +2990,7 @@ Total: 280 design docs, 2915 files
 | `internal/plugins/firewall/nft/cmd_show_test.go` | nft firewall show handler tests |
 | `internal/plugins/firewall/nft/health.go` | nft firewall health check |
 | `internal/plugins/iface/vpp/cmd_show.go` | VPP dataplane trace handlers |
-| `internal/plugins/iface/vpp/cmd_show_test.go` | VPP show handler wiring tests |
 | `internal/plugins/iface/vpp/health.go` | VPP health check |
-| `internal/plugins/iface/vpp/health_test.go` | VPP health check tests |
 
 ## `plan/learned/788-doctor-improvements.md`
 
