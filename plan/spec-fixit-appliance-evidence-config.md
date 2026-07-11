@@ -2,10 +2,26 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | - |
-| Phase | 4/4 (code complete; AC-3 qemu evidence run pending a root+kernel host) |
-| Updated | 2026-07-10 |
+| Phase | 4/4 (complete; AC-3 qemu L2TP evidence green, 5/5 real PPP sessions) |
+| Updated | 2026-07-11 |
+
+> **AC-3 closed 2026-07-11.** The full `ze-deployment-gokrazy-l2tp-ppp-test`
+> passes end to end (real xl2tpd/pppd L2TP PPP session: session established,
+> subscriber route inject, `PPP session up interface=ppp0`, dataplane ping,
+> clean teardown; 5/5 runs). Reaching green required fixes OUTSIDE the two
+> config bugs -- all in the appliance-logging path or the evidence harness, the
+> appliance L2TP code itself being correct. See `plan/learned/1106-gokrazy-l2tp-evidence-networking.md`:
+> (a) `printk.devkmsg=on` (`gokrazy/ze/config.json`) -- the kernel `/dev/kmsg`
+> rate-limiter was dropping the `web server listening` log the harness greps
+> (the "web hang" was a dropped log, not a hang); (b) qemu slirp does not deliver
+> inbound UDP hostfwd to the guest, so the harness now uses a TAP+bridge+dnsmasq
+> underlay (`scripts/evidence/effective-gokrazy-l2tp-ppp.py`) with a ufw hole for
+> DHCP; (c) xl2tpd 1.3.18 long-config-path truncation (LAC files at a short
+> path); (d) `IPv6 not supported by static pool` removed from `FATAL_NEEDLES`
+> (benign IPv4-only IPv6CP decline); (e) `prepare_instance` rewrites the custom
+> kernel replace to absolute. New host dep: `dnsmasq`.
 
 ## Post-Compaction Recovery
 

@@ -43,6 +43,16 @@ VETH_SUFFIX = NS_SUFFIX[-6:]
 LAC_NS = f"ze-gokrazy-lac-{NS_SUFFIX}"
 VETH_HOST = f"zgokh{VETH_SUFFIX}"
 VETH_LAC = f"zgokl{VETH_SUFFIX}"
+# TAP + bridge underlay. qemu user-mode (slirp) networking does NOT deliver
+# inbound UDP hostfwd to the guest, which L2TP's SCCRQ requires, so the appliance
+# attaches to a bridge via a TAP and is L2-reachable from the LAC with no NAT.
+BRIDGE = f"zebr{VETH_SUFFIX}"
+TAP = f"zetap{VETH_SUFFIX}"
+APPLIANCE_IP = os.environ.get("ZE_GOKRAZY_L2TP_APPLIANCE_IP", "172.31.0.10")
+APPLIANCE_MAC = os.environ.get("ZE_GOKRAZY_L2TP_APPLIANCE_MAC", "52:54:00:12:34:56")
+DNSMASQ_PID = f"/run/ze-l2tp-dnsmasq-{NS_SUFFIX}.pid"
+DNSMASQ_LEASES = f"/run/ze-l2tp-dnsmasq-{NS_SUFFIX}.leases"
+DNSMASQ_LOG = f"/run/ze-l2tp-dnsmasq-{NS_SUFFIX}.log"
 
 
 def repo_root() -> Path:
@@ -162,11 +172,78 @@ def kill_netns_processes(sig: signal.Signals) -> None:
             pass
 
 
+def ufw_active() -> bool:
+    if shutil.which("ufw") is None:
+        return False
+    r = run(["ufw", "status"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return r.returncode == 0 and "Status: active" in (r.stdout or "")
+
+
+def allow_bridge_firewall() -> None:
+    # ufw's default-deny INPUT drops the appliance's DHCP DISCOVER (host-terminated
+    # by dnsmasq) before dnsmasq can see it. Punch a scoped hole for the bridge.
+    # Bridged L2TP traffic (LAC<->appliance) bypasses netfilter (br_netfilter is
+    # not loaded) and needs no rule.
+    if not ufw_active():
+        return
+    run(
+        ["ufw", "allow", "in", "on", BRIDGE],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
+def clear_bridge_firewall() -> None:
+    if shutil.which("ufw") is None:
+        return
+    run(
+        ["ufw", "--force", "delete", "allow", "in", "on", BRIDGE],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
+def stop_dnsmasq() -> None:
+    try:
+        pid = int(Path(DNSMASQ_PID).read_text(encoding="utf-8").strip())
+        os.kill(pid, signal.SIGTERM)
+    except (FileNotFoundError, ValueError, ProcessLookupError, PermissionError):
+        pass
+    Path(DNSMASQ_PID).unlink(missing_ok=True)
+    Path(DNSMASQ_LEASES).unlink(missing_ok=True)
+
+
+def start_dnsmasq() -> None:
+    Path(DNSMASQ_PID).unlink(missing_ok=True)
+    Path(DNSMASQ_LEASES).unlink(missing_ok=True)
+    run_required(
+        [
+            "dnsmasq",
+            f"--interface={BRIDGE}",
+            # NOT --bind-interfaces: that binds the DHCP socket to the interface's
+            # unicast address and cannot receive the broadcast DISCOVER. --port=0
+            # disables DNS so there is no wildcard :53 clash with host resolvers.
+            "--port=0",  # DHCP only, no DNS (avoid clashing with host resolvers)
+            "--no-resolv",
+            "--no-hosts",
+            f"--dhcp-range={APPLIANCE_IP},{APPLIANCE_IP},255.255.255.0,2m",
+            f"--dhcp-host={APPLIANCE_MAC},{APPLIANCE_IP}",
+            "--log-dhcp",
+            f"--log-facility={DNSMASQ_LOG}",
+            f"--pid-file={DNSMASQ_PID}",
+            f"--dhcp-leasefile={DNSMASQ_LEASES}",
+        ],
+        "start dnsmasq for appliance DHCP",
+    )
+
+
 def cleanup_netns() -> None:
     kill_netns_processes(signal.SIGTERM)
     time.sleep(0.2)
     kill_netns_processes(signal.SIGKILL)
-    for link in [VETH_HOST, VETH_LAC]:
+    stop_dnsmasq()
+    clear_bridge_firewall()
+    for link in [TAP, VETH_HOST, VETH_LAC, BRIDGE]:
         run(
             ["ip", "link", "delete", link],
             stdout=subprocess.PIPE,
@@ -183,29 +260,55 @@ def setup_lac_netns() -> None:
     cleanup_netns()
     Path("/run/netns").mkdir(parents=True, exist_ok=True)
     run_required(["ip", "netns", "add", LAC_NS], f"create netns {LAC_NS}")
+
+    # Underlay bridge (root netns): the appliance TAP and the LAC veth both attach
+    # here, so the appliance is on the same L2 segment as the LAC with no NAT.
+    # STP off + zero forward delay so newly-enslaved ports forward immediately;
+    # otherwise the bridge drops the appliance's early DHCP DISCOVER.
+    run_required(
+        ["ip", "link", "add", "name", BRIDGE, "type", "bridge", "forward_delay", "0"],
+        "create bridge",
+    )
+    run(
+        ["ip", "link", "set", BRIDGE, "type", "bridge", "stp_state", "0"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    run_required(
+        ["ip", "addr", "add", f"{HOST_UNDERLAY_IP}/{UNDERLAY_PREFIX}", "dev", BRIDGE],
+        "assign bridge underlay address",
+    )
+    run_required(["ip", "link", "set", BRIDGE, "up"], "bring up bridge")
+
+    # TAP for the appliance NIC, enslaved to the bridge. qemu (root) attaches with
+    # script=no, so the TAP must already exist and be up.
+    run_required(["ip", "tuntap", "add", "dev", TAP, "mode", "tap"], "create tap")
+    run_required(["ip", "link", "set", TAP, "master", BRIDGE], "enslave tap to bridge")
+    run_required(["ip", "link", "set", TAP, "up"], "bring up tap")
+
+    # veth pair: host side enslaved to the bridge, LAC side into the LAC netns.
     run_required(
         ["ip", "link", "add", VETH_HOST, "type", "veth", "peer", "name", VETH_LAC],
         "create LAC veth pair",
     )
-    run_required(["ip", "link", "set", VETH_LAC, "netns", LAC_NS], "move LAC veth")
     run_required(
-        [
-            "ip",
-            "addr",
-            "add",
-            f"{HOST_UNDERLAY_IP}/{UNDERLAY_PREFIX}",
-            "dev",
-            VETH_HOST,
-        ],
-        "assign host underlay address",
+        ["ip", "link", "set", VETH_HOST, "master", BRIDGE], "enslave host veth"
     )
     run_required(["ip", "link", "set", VETH_HOST, "up"], "bring up host veth")
+    run_required(["ip", "link", "set", VETH_LAC, "netns", LAC_NS], "move LAC veth")
     ns_run_required(["ip", "link", "set", "lo", "up"], "bring up LAC loopback")
     ns_run_required(
         ["ip", "addr", "add", f"{LAC_UNDERLAY_IP}/{UNDERLAY_PREFIX}", "dev", VETH_LAC],
         "assign LAC underlay address",
     )
     ns_run_required(["ip", "link", "set", VETH_LAC, "up"], "bring up LAC veth")
+
+    # Allow the appliance's DHCP DISCOVER through the host firewall to dnsmasq.
+    allow_bridge_firewall()
+
+    # DHCP for the appliance (boots with dhcp-auto); fixed reservation so xl2tpd
+    # knows the appliance underlay address in advance.
+    start_dnsmasq()
 
     ping = ns_run(
         ["ping", "-c", "1", "-W", "2", HOST_UNDERLAY_IP],
@@ -214,7 +317,24 @@ def setup_lac_netns() -> None:
     )
     if ping.returncode != 0:
         sys.stderr.write((ping.stdout or "") + (ping.stderr or ""))
-        raise RuntimeError("LAC namespace cannot reach host QEMU-forwarding address")
+        raise RuntimeError("LAC namespace cannot reach the underlay bridge")
+
+
+def wait_for_appliance_underlay(timeout_s: float) -> None:
+    """Wait until the appliance has DHCP'd its underlay IP and answers on it."""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        ping = ns_run(
+            ["ping", "-c", "1", "-W", "1", APPLIANCE_IP],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if ping.returncode == 0:
+            return
+        time.sleep(0.5)
+    raise RuntimeError(
+        f"appliance did not obtain underlay address {APPLIANCE_IP} (DHCP) in time"
+    )
 
 
 class LineCollector:
@@ -270,7 +390,9 @@ FATAL_NEEDLES = [
     "kernel session ready but no PPP driver wired",
     "ipcp: handler rejected",
     "ipv6cp: handler rejected",
-    "IPv6 not supported by static pool",
+    # NOTE: "IPv6 not supported by static pool" is NOT fatal -- it is the reason
+    # the appliance logs when gracefully declining IPv6CP ("continuing IPv4-only")
+    # against the IPv4-only proof pool, which is the expected behaviour here.
     "ncp: timeout",
     "ip-response timeout",
 ]
@@ -440,7 +562,7 @@ def write_lac_inputs(work: Path) -> None:
         "debug avp = yes\n"
         "\n"
         "[lac ze]\n"
-        f"lns = {HOST_UNDERLAY_IP}\n"
+        f"lns = {APPLIANCE_IP}\n"
         "autodial = yes\n"
         "redial = yes\n"
         "redial timeout = 1\n"
@@ -510,6 +632,20 @@ def prepare_instance(root: Path, work: Path) -> Path:
     )
     ze_mod.write_text(text, encoding="utf-8")
 
+    # The custom L2TP kernel (`make ze-kernel`) adds a RELATIVE replace to the
+    # rtr7/kernel go.mod; that path breaks once builddir is copied into the
+    # instance dir here, so rewrite it to an absolute path (mirrors the ze
+    # self-replace above). No-op when no custom-kernel replace is present.
+    kernel_mod = instance / "builddir" / "github.com" / "rtr7" / "kernel" / "go.mod"
+    if kernel_mod.is_file():
+        ktext = kernel_mod.read_text(encoding="utf-8")
+        ktext = re.sub(
+            r"replace github\.com/rtr7/kernel => .+",
+            f"replace github.com/rtr7/kernel => {root}/tmp/kernel/pkg",
+            ktext,
+        )
+        kernel_mod.write_text(ktext, encoding="utf-8")
+
     return parent
 
 
@@ -547,10 +683,12 @@ def build_image(root: Path, work: Path, template: Path) -> Path:
 
 
 def qemu_command(image: Path) -> list[str]:
-    netdev = (
-        f"user,id=net0,hostfwd=tcp::{WEB_HOST_PORT}-:8080,"
-        f"hostfwd=tcp::{SSH_HOST_PORT}-:22,hostfwd=udp::{L2TP_HOST_PORT}-:1701"
-    )
+    # TAP netdev on the underlay bridge (not slirp/user): slirp does not deliver
+    # inbound UDP hostfwd to the guest, which L2TP's SCCRQ requires. The appliance
+    # is reachable directly at APPLIANCE_IP over the bridge; the harness verifies
+    # web/L2TP via the serial console and LAC PPP state, so no host port-forwards
+    # are needed.
+    netdev = f"tap,id=net0,ifname={TAP},script=no,downscript=no"
     if ARCH == "amd64":
         require_cmd("qemu-system-x86_64")
         return [
@@ -569,7 +707,7 @@ def qemu_command(image: Path) -> list[str]:
             "-netdev",
             netdev,
             "-device",
-            "e1000,netdev=net0",
+            f"e1000,netdev=net0,mac={APPLIANCE_MAC}",
         ]
     if ARCH == "arm64":
         require_cmd("qemu-system-aarch64")
@@ -601,7 +739,7 @@ def qemu_command(image: Path) -> list[str]:
             "-netdev",
             netdev,
             "-device",
-            "e1000,netdev=net0",
+            f"e1000,netdev=net0,mac={APPLIANCE_MAC}",
         ]
     raise SystemExit(f"unsupported ZE_GOKRAZY_ARCH={ARCH} (expected amd64 or arm64)")
 
@@ -616,6 +754,7 @@ def main() -> int:
     require_cmd("ping")
     require_cmd("xl2tpd")
     require_cmd("pppd")
+    require_cmd("dnsmasq")
     ensure_host_kernel_support()
 
     root = repo_root()
@@ -623,7 +762,13 @@ def main() -> int:
     tmp_parent.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="gokrazy-l2tp-ppp-", dir=tmp_parent))
     template = write_template(work)
-    write_lac_inputs(work)
+    # xl2tpd 1.3.18 truncates -c config paths longer than ~90 chars, so the LAC's
+    # runtime files (config, secrets, pid, control, ppp-options) must live at a
+    # short path -- the deep repo tmp/evidence/<mkdtemp>/ path (~100+ chars here)
+    # gets silently cut and xl2tpd fails with "Unable to open config file". Build
+    # artifacts (image, template) stay under `work`; only the host LAC files move.
+    lac_dir = Path(tempfile.mkdtemp(prefix="zel2tp-"))
+    write_lac_inputs(lac_dir)
 
     qemu: subprocess.Popen[str] | None = None
     xl2tpd: subprocess.Popen[str] | None = None
@@ -654,18 +799,22 @@ def main() -> int:
         ):
             raise RuntimeError("gokrazy appliance L2TP listener did not start")
 
+        # The appliance DHCPs its underlay address; wait until it answers there
+        # before xl2tpd dials it as the LNS.
+        wait_for_appliance_underlay(30)
+
         xl2tpd = ns_popen(
             [
                 "xl2tpd",
                 "-D",
                 "-c",
-                str(work / "xl2tpd.conf"),
+                str(lac_dir / "xl2tpd.conf"),
                 "-s",
-                str(work / "l2tp-secrets"),
+                str(lac_dir / "l2tp-secrets"),
                 "-p",
-                str(work / "xl2tpd.pid"),
+                str(lac_dir / "xl2tpd.pid"),
                 "-C",
-                str(work / "l2tp-control"),
+                str(lac_dir / "l2tp-control"),
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -751,6 +900,7 @@ def main() -> int:
         terminate(xl2tpd)
         terminate(qemu)
         cleanup_netns()
+        shutil.rmtree(lac_dir, ignore_errors=True)
         if success:
             shutil.rmtree(work, ignore_errors=True)
 
