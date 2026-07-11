@@ -54,24 +54,26 @@ func (c *client) openIncident(e *ddosevent.AttackDetected) (string, error) {
 	return resp.UUID, nil
 }
 
-func (c *client) updateIncident(uuid string, pps, bps float64, family ddosevent.AttackFamily) error {
+func (c *client) updateIncident(uuid string, pps, bps float64, family ddosevent.AttackFamily, confidence int) error {
 	var tb textbuf.Buffer
 	path := tb.Str("/agent/incidents/").Str(uuid).String()
 	body := map[string]any{
 		"peak_pps":      pps,
 		"peak_bps":      bps,
 		"attack_family": string(family),
+		"confidence":    confidence,
 	}
 	return c.post(path, body, nil)
 }
 
-func (c *client) resolveIncident(uuid string, duration, peakPPS, peakBPS float64) error {
+func (c *client) resolveIncident(uuid string, duration, peakPPS, peakBPS float64, confidence int) error {
 	var tb textbuf.Buffer
 	path := tb.Str("/agent/incidents/").Str(uuid).Str("/resolve").String()
 	body := map[string]any{
 		"duration_seconds": duration,
 		"peak_pps":         peakPPS,
 		"peak_bps":         peakBPS,
+		"confidence":       confidence,
 	}
 	return c.post(path, body, nil)
 }

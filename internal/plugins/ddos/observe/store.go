@@ -18,9 +18,13 @@ type incident struct {
 	TopSources []netip.Addr           `json:"top-sources,omitempty"`
 	PeakPps    float64                `json:"peak-pps"`
 	PeakBps    float64                `json:"peak-bps"`
-	StartTime  time.Time              `json:"start-time"`
-	EndTime    time.Time              `json:"end-time,omitzero"`
-	Active     bool                   `json:"active"`
+	// Confidence (0-100) is recorded from the Stage-2 AttackCharacterized event when
+	// it lands for this incident's target (see store.characterize). Zero (omitted)
+	// while an incident is still on the coarse AttackDetected only.
+	Confidence int       `json:"confidence,omitempty"`
+	StartTime  time.Time `json:"start-time"`
+	EndTime    time.Time `json:"end-time,omitzero"`
+	Active     bool      `json:"active"`
 }
 
 type store struct {
@@ -71,6 +75,22 @@ func (s *store) finalize(target ddosevent.VectorTuple) {
 		if s.ring[i].Active && s.ring[i].Target.DstPrefix == target.DstPrefix {
 			s.ring[i].Active = false
 			s.ring[i].EndTime = time.Now()
+			return
+		}
+	}
+}
+
+// characterize records the confidence from the Stage-2 AttackCharacterized event
+// onto the open incident for its target. Characterized arrives after the incident
+// was opened by AttackDetected; matched by victim prefix, exactly as finalize does.
+// A miss (no matching active incident) is a no-op -- confidence stays 0 (omitted).
+func (s *store) characterize(e *ddosevent.AttackCharacterized) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := len(s.ring) - 1; i >= 0; i-- {
+		if s.ring[i].Active && s.ring[i].Target.DstPrefix == e.Target.DstPrefix {
+			s.ring[i].Confidence = e.Confidence
 			return
 		}
 	}

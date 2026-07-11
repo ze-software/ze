@@ -111,6 +111,41 @@ func TestGradeSeverity(t *testing.T) {
 	}
 }
 
+// TestGradeConfidence pins the composite score bounds and monotonicity (AC-7/AC-8):
+// a clear attack (high ratio + specific family + distributed) reaches 100, an
+// ambiguous spike stays low, the result is always [0,100], and it never decreases
+// as the peak-to-threshold ratio rises.
+func TestGradeConfidence(t *testing.T) {
+	// Clear attack: r=10, reflection, distributed -> 25+30+25+10+10 = 100.
+	if got := GradeConfidence(50000, 5000, FamilyReflection, 5.0, 2.0); got != 100 {
+		t.Errorf("clear-attack confidence = %d, want 100", got)
+	}
+	// Ambiguous: r=1, generic-flood, low entropy -> 25+6 = 31.
+	if got := GradeConfidence(5000, 5000, FamilyGenericFlood, 0.5, 2.0); got != 31 {
+		t.Errorf("ambiguous confidence = %d, want 31", got)
+	}
+	// Bounds: extreme ratio clamps at 100; zero threshold does not divide by zero.
+	if got := GradeConfidence(1e9, 1, FamilyReflection, 100, 2.0); got != 100 {
+		t.Errorf("clamped confidence = %d, want 100", got)
+	}
+	if got := GradeConfidence(0, 0, FamilyGenericFlood, 0, 2.0); got < 0 || got > 100 {
+		t.Errorf("confidence %d out of [0,100]", got)
+	}
+	// entropy-threshold of 0 must not award the distributed bonus unconditionally.
+	if got := GradeConfidence(5000, 5000, FamilyGenericFlood, 0, 0); got != 31 {
+		t.Errorf("confidence with entropyThreshold=0 = %d, want 31 (no distributed bonus)", got)
+	}
+	// Monotonic non-decrease as the ratio rises.
+	prev := -1
+	for _, pps := range []float64{5000, 10000, 20000, 30000} {
+		got := GradeConfidence(pps, 5000, FamilyUDPFlood, 0, 2.0)
+		if got < prev {
+			t.Errorf("confidence decreased with ratio: %d < %d", got, prev)
+		}
+		prev = got
+	}
+}
+
 // TestEmitAndSubscribeCharacterized round-trips the Stage-2 event through the bus
 // with a fully-populated vector, entropy, and severity.
 func TestEmitAndSubscribeCharacterized(t *testing.T) {

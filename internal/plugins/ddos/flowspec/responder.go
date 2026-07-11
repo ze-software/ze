@@ -163,6 +163,14 @@ func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
 	if r.active {
 		return
 	}
+	// Confidence gate (default 0 = disabled): do not announce an upstream rule for a
+	// low-confidence characterization. The blackhole-fallback fast path (onDetected)
+	// is never gated -- it acts on AttackDetected, which carries no confidence.
+	if e.Confidence < r.cfg.ConfidenceMin {
+		logger().Info("ddos-flowspec: confidence below minimum, not announcing",
+			"target", e.Target.DstPrefix, "confidence", e.Confidence, "minimum", r.cfg.ConfidenceMin)
+		return
+	}
 	r.announce(e.Target, r.cfg.Action, "characterized")
 }
 

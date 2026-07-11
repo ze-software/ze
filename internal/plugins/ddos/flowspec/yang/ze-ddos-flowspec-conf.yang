@@ -7,6 +7,7 @@ module ze-ddos-flowspec-conf {
   description "FlowSpec (upstream announce) mitigation configuration. Augments the
                shared `ddos` container (owned by ze-ddos-detect-conf) with the
                `flowspec` subtree.";
+  revision 2026-07-11 { description "Add confidence-min gate for the characterized announce path."; }
   revision 2026-07-02 { description "Nest under ddos/flowspec: augment /dd:ddos with container flowspec."; }
 
   augment "/dd:ddos" {
@@ -70,6 +71,11 @@ module ze-ddos-flowspec-conf {
         type boolean;
         default false;
         description "When true, a critical-severity AttackDetected (peak >= 5x threshold) auto-engages an immediate upstream discard (RTBH-style) without waiting for characterization. When false (default) the upstream rule is announced only from AttackCharacterized, so it is precise before the box goes blind behind the filter.";
+      }
+      leaf confidence-min {
+        type uint8 { range "0..100"; }
+        default 0;
+        description "Minimum incident confidence (0-100) required to announce an upstream rule from a characterized attack. 0 (default) disables the gate. The blackhole-fallback fast path is never gated (AttackDetected carries no confidence).";
       }
       leaf-list allowlist {
         type string;

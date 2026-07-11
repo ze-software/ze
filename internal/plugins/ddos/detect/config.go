@@ -26,6 +26,13 @@ type Config struct {
 	AbsoluteFloor       float64 `json:"absolute-floor"`
 	StartupGrace        int     `json:"startup-grace"`
 
+	// Bandwidth (BPS) trigger: catches low-PPS/high-bandwidth amplification
+	// (NTP/memcached/CLDAP) that the PPS threshold misses. BpsFloor is in bits/sec
+	// (operator-facing unit); the detector's internal rate is bytes/sec and converts.
+	BpsTriggerEnable       bool    `json:"bps-trigger-enable"`
+	BpsThresholdMultiplier float64 `json:"bps-threshold-multiplier"`
+	BpsFloor               float64 `json:"bps-floor"` // bits/sec; below this the BPS trigger is inert
+
 	// Stage-2 characterization tuning.
 	CharacterizeEnable  bool    `json:"characterize-enable"`  // run flow-based classification -> AttackCharacterized
 	TopNSources         int     `json:"top-n-sources"`        // max attacker addresses ranked into TopSources
@@ -44,11 +51,15 @@ func DefaultConfig() *Config {
 		ThresholdMultiplier: 3.0,
 		AbsoluteFloor:       5000,
 		StartupGrace:        90,
-		CharacterizeEnable:  true,
-		TopNSources:         10,
-		CharacterizeWindow:  10,
-		CharacterizeTimeout: 2000,
-		EntropyThreshold:    2.0,
+
+		BpsTriggerEnable:       true,
+		BpsThresholdMultiplier: 3.0,
+		BpsFloor:               50_000_000, // 50 Mbps (bits/sec)
+		CharacterizeEnable:     true,
+		TopNSources:            10,
+		CharacterizeWindow:     10,
+		CharacterizeTimeout:    2000,
+		EntropyThreshold:       2.0,
 	}
 }
 
@@ -111,6 +122,21 @@ func ParseConfig(data string) (*Config, error) {
 			cfg.StartupGrace = n
 		}
 	}
+	if v, ok := m["bps-trigger-enable"]; ok {
+		if b, ok := v.(bool); ok {
+			cfg.BpsTriggerEnable = b
+		}
+	}
+	if v, ok := m["bps-threshold-multiplier"]; ok {
+		if f, ok := toFloat(v); ok {
+			cfg.BpsThresholdMultiplier = f
+		}
+	}
+	if v, ok := m["bps-floor"]; ok {
+		if f, ok := toFloat(v); ok {
+			cfg.BpsFloor = f
+		}
+	}
 	if v, ok := m["characterize-enable"]; ok {
 		if b, ok := v.(bool); ok {
 			cfg.CharacterizeEnable = b
@@ -160,6 +186,12 @@ func (c *Config) Validate() error {
 	}
 	if c.StartupGrace < 0 || c.StartupGrace > 3600 {
 		return fmt.Errorf("startup-grace %d out of range [0, 3600]", c.StartupGrace)
+	}
+	if c.BpsThresholdMultiplier < 1.0 || c.BpsThresholdMultiplier > 100.0 {
+		return fmt.Errorf("bps-threshold-multiplier %f out of range [1.0, 100.0]", c.BpsThresholdMultiplier)
+	}
+	if c.BpsFloor < 1 {
+		return fmt.Errorf("bps-floor %f must be >= 1", c.BpsFloor)
 	}
 	if c.TopNSources < 1 || c.TopNSources > 100 {
 		return fmt.Errorf("top-n-sources %d out of range [1, 100]", c.TopNSources)

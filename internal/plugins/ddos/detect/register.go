@@ -160,6 +160,8 @@ func runEngine(conn net.Conn) int {
 			det.Stop()
 		}
 		det = newDetector(cfg, bus, p.DispatchCommand)
+		det.statePath = baselineStatePath()
+		det.restore()
 		if cfg.Enabled {
 			subscribe(det)
 		}
@@ -190,6 +192,8 @@ func runEngine(conn net.Conn) int {
 			det.Stop()
 		}
 		det = newDetector(cfg, bus, p.DispatchCommand)
+		det.statePath = baselineStatePath()
+		det.restore()
 		if cfg.Enabled {
 			subscribe(det)
 		}

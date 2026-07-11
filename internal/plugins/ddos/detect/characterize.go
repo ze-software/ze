@@ -110,7 +110,7 @@ func (d *detector) characterizeAndEmit(gen uint64, ifaceName string, peakPps, pe
 	}
 
 	// Stage 2: refine into a characterized vector from the recent-flow ring.
-	d.characterizeFromFlows(ctx, gen, ifaceName, target.DstPrefix, peakPps, peakBps, severity)
+	d.characterizeFromFlows(ctx, gen, ifaceName, target.DstPrefix, peakPps, peakBps, threshold, severity)
 }
 
 // emitDetected emits AttackDetected iff the attack generation is still gen,
@@ -164,7 +164,7 @@ func (d *detector) emitCharacterized(gen uint64, ev *ddosevent.AttackCharacteriz
 // on the coarse AttackDetected) when no flow source is reachable or no flows match
 // -- never worse than before. When trafficusage gave no victim it derives one from
 // the dominant destination in the flow set.
-func (d *detector) characterizeFromFlows(ctx context.Context, gen uint64, ifaceName string, victim netip.Prefix, peakPps, peakBps float64, severity ddosevent.Severity) {
+func (d *detector) characterizeFromFlows(ctx context.Context, gen uint64, ifaceName string, victim netip.Prefix, peakPps, peakBps, threshold float64, severity ddosevent.Severity) {
 	if !d.cfg.CharacterizeEnable {
 		return
 	}
@@ -201,6 +201,11 @@ func (d *detector) characterizeFromFlows(ctx context.Context, gen uint64, ifaceN
 			"entropy", entropy, "threshold", d.cfg.EntropyThreshold, "target", victim)
 	}
 
+	// Confidence combines the peak/threshold ratio, family specificity, and source
+	// spread into a 0-100 score so observability, the dashboard reporter, and
+	// responders can distinguish a real attack from a borderline spike.
+	confidence := ddosevent.GradeConfidence(peakPps, threshold, family, entropy, d.cfg.EntropyThreshold)
+
 	if d.emitCharacterized(gen, &ddosevent.AttackCharacterized{
 		Interface:     ifaceName,
 		Target:        vec,
@@ -208,6 +213,7 @@ func (d *detector) characterizeFromFlows(ctx context.Context, gen uint64, ifaceN
 		TopSources:    topSources,
 		Severity:      severity,
 		SourceEntropy: entropy,
+		Confidence:    confidence,
 		PeakRxPps:     peakPps,
 		PeakRxBps:     peakBps,
 		Observable:    true,

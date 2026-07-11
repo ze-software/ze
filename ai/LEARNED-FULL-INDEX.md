@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1119 summaries
+Total: 1120 summaries
 
 ## 000-099
 
@@ -1188,3 +1188,4 @@ Total: 1119 summaries
 | 1105 | vpp-host-tuning | `plan/learned/1105-vpp-host-tuning.md` |
 | 1106 | gokrazy-l2tp-evidence-networking | `plan/learned/1106-gokrazy-l2tp-evidence-networking.md` |
 | 1107 | test-coverage-gaps | `plan/learned/1107-test-coverage-gaps.md` |
+| 1108 | ddos-detect Enhancements (bandwidth trigger, baseline persistence, incident confidence) | `plan/learned/1108-ddos-detect-enhancements.md` |

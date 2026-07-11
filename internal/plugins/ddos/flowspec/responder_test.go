@@ -50,6 +50,37 @@ func TestAlertModeDoesNotAnnounce(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-11/AC-12 -- confidence-min gates the characterized announce path;
+// the default of 0 leaves behavior unchanged (announces regardless of confidence).
+func TestFlowspecConfidenceGate(t *testing.T) {
+	victim := netip.MustParsePrefix("10.0.0.1/32")
+	cfg := func(min int) *Config {
+		return &Config{ResponseLevel: "enforce", HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600, ConfidenceMin: min}
+	}
+	ev := func(conf int) *ddosevent.AttackCharacterized {
+		return &ddosevent.AttackCharacterized{Target: ddosevent.VectorTuple{DstPrefix: victim}, Family: ddosevent.FamilyUDPFlood, Confidence: conf}
+	}
+
+	// Below min: no announce.
+	r := newResponder(cfg(80), &fakeDispatcher{})
+	r.onCharacterized(ev(50))
+	if r.active {
+		t.Error("confidence 50 below min 80 must not announce")
+	}
+	// At/above min: announce.
+	r2 := newResponder(cfg(80), &fakeDispatcher{})
+	r2.onCharacterized(ev(90))
+	if !r2.active {
+		t.Error("confidence 90 >= min 80 must announce")
+	}
+	// Default 0: announces regardless of a low confidence.
+	r3 := newResponder(cfg(0), &fakeDispatcher{})
+	r3.onCharacterized(ev(1))
+	if !r3.active {
+		t.Error("confidence-min 0 must not gate (behavior unchanged)")
+	}
+}
+
 func TestEnforceModeAnnouncesOnCharacterized(t *testing.T) {
 	// VALIDATES: AC-7 -- flowspec announces the precise rule from AttackCharacterized
 	r := newResponder(&Config{ResponseLevel: "enforce", HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600}, &fakeDispatcher{})

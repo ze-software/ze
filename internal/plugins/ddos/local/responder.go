@@ -66,6 +66,15 @@ func (r *responder) onDetected(e *ddosevent.AttackDetected) {
 func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	// Confidence gate (default 0 = disabled): suppress mitigation for a
+	// low-confidence characterization so a borderline spike does not install a drop.
+	// Only the characterized path is gated; the coarse onDetected carries no
+	// confidence.
+	if e.Confidence < r.cfg.ConfidenceMin {
+		logger().Info("ddos-local: confidence below minimum, not mitigating",
+			"target", e.Target.DstPrefix, "confidence", e.Confidence, "minimum", r.cfg.ConfidenceMin)
+		return
+	}
 	r.applyMitigation(e.Target, e.Family, "characterized")
 }
 

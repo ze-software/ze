@@ -423,6 +423,12 @@ func TestCharacterizeEmitsCharacterized(t *testing.T) {
 	if ch.SourceEntropy <= 0 {
 		t.Errorf("expected positive source entropy, got %v", ch.SourceEntropy)
 	}
+	// A clear reflection flood well above threshold: base 25 + ratio 30 + specific
+	// family 25 + reflection 10 = 90 (entropy of 3 sources is below the default 2.0
+	// threshold, so no distributed bonus).
+	if ch.Confidence < 90 {
+		t.Errorf("expected high confidence for a clear reflection flood, got %d", ch.Confidence)
+	}
 }
 
 // TestCharacterizeSkipsWhenNoFlowSource proves that with trafficusage present but

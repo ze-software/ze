@@ -195,9 +195,12 @@ server-driven mitigation commands.
 | `confirm-duration` | `3` | 0-3600 | Consecutive ticks above threshold before triggering (0 = immediate) |
 | `clear-consecutive-checks` | `10` | 1-100 | Consecutive ticks below threshold before clearing |
 | `baseline-window` | `300` | 10-86400 | Rolling baseline window in samples (~seconds at 1 Hz) |
-| `threshold-multiplier` | `3.00` | 1.00-100.00 | Baseline p99 multiplier for the dynamic threshold |
-| `absolute-floor` | `5000` | 1+ PPS | Minimum threshold regardless of baseline |
+| `threshold-multiplier` | `3.00` | 1.00-100.00 | Baseline p99 multiplier for the dynamic PPS threshold |
+| `absolute-floor` | `5000` | 1+ PPS | Minimum PPS threshold regardless of baseline |
 | `startup-grace` | `90` | 0-3600 s | Seconds after startup where only extreme spikes (>5x floor) trigger |
+| `bps-trigger-enable` | `true` | bool | Enable the bandwidth (BPS) trigger alongside the PPS threshold |
+| `bps-threshold-multiplier` | `3.00` | 1.00-100.00 | Baseline p99 multiplier for the bandwidth trigger |
+| `bps-floor` | `50000000` | 1+ bits/s | Minimum bandwidth (bits/s) below which the BPS trigger is inert (default 50 Mbps) |
 | `characterize-enable` | `true` | bool | Run Stage-2 flow characterization (family + narrowest vector, `AttackCharacterized`) |
 | `top-n-sources` | `10` | 1-100 | Max attacker source addresses ranked into TopSources |
 | `characterize-window` | `10` | 1-60 s | Seconds of recent flows to consider (timestamp-less flows always kept) |
@@ -214,12 +217,39 @@ samples. The p99 is recalculated every 10 samples. Samples collected during an
 active attack or above the current threshold are excluded from the baseline to
 prevent poisoning.
 
+**Bandwidth (BPS) trigger:** amplification floods (NTP, memcached, CLDAP) are
+low-PPS but very high bandwidth, so a packet-rate threshold alone misses them. A
+parallel bandwidth baseline (same rolling window and poisoning guard, in bytes/s)
+fires when the observed bandwidth exceeds `max(bps_p99 * bps-threshold-multiplier,
+bps-floor)`. It only engages once the bandwidth baseline is warmed, and `bps-floor`
+(expressed in bits/s for operator convenience) keeps it inert below that bandwidth
+so legitimate high-throughput bursts are not flagged. Set `bps-trigger-enable false`
+to disable just the bandwidth path.
+<!-- source: internal/plugins/ddos/detect/detector.go -- applyTick: bpsAbove = enable && baselineBps.Ready() && maxBps > baselineBps.Threshold() -->
+
+**Baseline persistence:** the detector saves both baselines to
+`<config-dir>/state/ddos-detect-baseline.json` on shutdown/reconfigure and
+periodically, and restores them on startup, so a restart or config change resumes
+detection without re-warming over `baseline-window` (a stale, too-few-sample, or
+corrupt file is rejected and the baseline warms fresh).
+<!-- source: internal/plugins/ddos/detect/persist.go -- saveBaselines/loadBaselines; baseline.restore version + min-sample + sanity guards -->
+
+**Incident confidence:** on characterization the detector computes a 0-100
+confidence from the peak/threshold ratio, family specificity, and source spread.
+It is stored on the incident (shown in `show ddos incidents`), reported to the
+Flowtriq dashboard, and can gate the responders (see `confidence-min` below).
+<!-- source: internal/core/ddosevent/event.go -- GradeConfidence; set in internal/plugins/ddos/detect/characterize.go -->
+
+Confidence is computed at attack start (ze characterizes once, early), so attack
+duration is not a factor.
+
 ### ddos local (local responder)
 
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
 | `response-level` | `alert` | alert, enforce | `alert` logs only; `enforce` installs nft drop rules |
 | `max-mitigation-duration` | `3600` | 0-86400 s | Safety valve: force-remove rule after this many seconds (0 = no cap) |
+| `confidence-min` | `0` | 0-100 | Minimum incident confidence to mitigate from a characterized attack (`0` = no gate). Note: the coarse drop on the fast `AttackDetected` carries no confidence, so this only gates the in-place narrowing on the characterized path |
 | `allowlist` | (empty) | prefix list | Prefixes that must never be blocked (e.g. management, DNS) |
 
 ### ddos flowspec (FlowSpec/RTBH responder)
@@ -237,6 +267,7 @@ prevent poisoning.
 | `max-mitigation-duration` | `3600` | 0-604800 s | Safety valve: force-withdraw after this many seconds |
 | `backoff-cap` | `3600` | 1-604800 s | Maximum hold-down after exponential backoff |
 | `blackhole-fallback` | `false` | bool | Engage an immediate upstream `discard` on a `critical` fast signal without waiting for characterization |
+| `confidence-min` | `0` | 0-100 | Minimum incident confidence to announce an upstream rule from a characterized attack (`0` = no gate). The blackhole-fallback fast path is never gated (it carries no confidence) |
 | `allowlist` | (empty) | prefix list | Prefixes that must never be announced for mitigation |
 
 ### ddos flowtriq (Flowtriq cloud reporter)

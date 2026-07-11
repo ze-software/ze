@@ -26,19 +26,23 @@ const (
 )
 
 type Config struct {
-	ResponseLevel         string         `json:"response-level"`
-	Action                string         `json:"action"`
-	RateLimitBytes        uint64         `json:"rate-limit-bytes"`
-	rateLimitBytesSet     bool           // whether rate-limit-bytes was present in config (0 is a valid explicit value)
-	HoldDown              int            `json:"hold-down"`
-	ProbeInterval         int            `json:"probe-interval"`
-	ProbeWindow           int            `json:"probe-window"`
-	ProbeRate             float64        `json:"probe-rate"`
-	AnnounceRateLimit     int            `json:"announce-rate-limit"`
-	MaxMitigationDuration int            `json:"max-mitigation-duration"`
-	BackoffCap            int            `json:"backoff-cap"`
-	BlackholeFallback     bool           `json:"blackhole-fallback"`
-	Allowlist             []netip.Prefix `json:"allowlist"`
+	ResponseLevel         string  `json:"response-level"`
+	Action                string  `json:"action"`
+	RateLimitBytes        uint64  `json:"rate-limit-bytes"`
+	rateLimitBytesSet     bool    // whether rate-limit-bytes was present in config (0 is a valid explicit value)
+	HoldDown              int     `json:"hold-down"`
+	ProbeInterval         int     `json:"probe-interval"`
+	ProbeWindow           int     `json:"probe-window"`
+	ProbeRate             float64 `json:"probe-rate"`
+	AnnounceRateLimit     int     `json:"announce-rate-limit"`
+	MaxMitigationDuration int     `json:"max-mitigation-duration"`
+	BackoffCap            int     `json:"backoff-cap"`
+	BlackholeFallback     bool    `json:"blackhole-fallback"`
+	// ConfidenceMin (0-100) gates the characterized announce path: an
+	// AttackCharacterized whose confidence is below this is not announced upstream.
+	// 0 (default) disables the gate. The blackhole-fallback fast path is never gated.
+	ConfidenceMin int            `json:"confidence-min"`
+	Allowlist     []netip.Prefix `json:"allowlist"`
 }
 
 func DefaultConfig() *Config {
@@ -127,6 +131,11 @@ func ParseConfig(data string) (*Config, error) {
 			cfg.BlackholeFallback = b
 		}
 	}
+	if v, ok := m["confidence-min"]; ok {
+		if n, ok := toInt(v); ok {
+			cfg.ConfidenceMin = n
+		}
+	}
 	if v, ok := m["allowlist"].([]any); ok {
 		for _, item := range v {
 			if s, ok := item.(string); ok {
@@ -176,6 +185,9 @@ func (c *Config) Validate() error {
 	}
 	if c.BackoffCap < c.HoldDown || c.BackoffCap > 604800 {
 		return fmt.Errorf("backoff-cap %d out of range [%d, 604800]", c.BackoffCap, c.HoldDown)
+	}
+	if c.ConfidenceMin < 0 || c.ConfidenceMin > 100 {
+		return fmt.Errorf("confidence-min %d out of range [0, 100]", c.ConfidenceMin)
 	}
 	return nil
 }

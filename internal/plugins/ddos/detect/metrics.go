@@ -16,6 +16,7 @@ import (
 type detectMetrics struct {
 	characterize metrics.CounterVec // outcomes labeled by attack family
 	fallback     metrics.Counter    // characterize enabled but no flow source / no data
+	bpsTrigger   metrics.Counter    // detections attributed to the bandwidth (BPS) trigger (PPS alone would not have fired)
 }
 
 var metricsPtr atomic.Pointer[detectMetrics]
@@ -26,7 +27,15 @@ func setMetricsRegistry(reg metrics.Registry) {
 			"DDoS characterization outcomes by attack family.", []string{"family"}),
 		fallback: reg.Counter("ze_ddos_detect_characterize_fallback_total",
 			"Characterizations that produced no AttackCharacterized (no flow source or no usable flows)."),
+		bpsTrigger: reg.Counter("ze_ddos_detect_bps_trigger_total",
+			"Detections attributed to the bandwidth (BPS) trigger, where the packet-rate threshold alone would not have fired."),
 	})
+}
+
+func incBpsTrigger() {
+	if m := metricsPtr.Load(); m != nil {
+		m.bpsTrigger.Inc()
+	}
 }
 
 func incCharacterize(family ddosevent.AttackFamily) {

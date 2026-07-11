@@ -80,15 +80,21 @@ func runEngine(conn net.Conn) int {
 	}
 
 	var (
-		pendingCfg    *Config
-		unsubDetected func()
-		unsubOngoing  func()
-		unsubCleared  func()
+		pendingCfg         *Config
+		unsubDetected      func()
+		unsubCharacterized func()
+		unsubOngoing       func()
+		unsubCleared       func()
 	)
 
 	subscribe := func(bus ze.EventBus, s *store) {
 		unsubDetected = ddosevent.Detected.Subscribe(bus, func(e *ddosevent.AttackDetected) {
 			s.open(e)
+		})
+		// Characterized carries the confidence score and refined signals; record the
+		// confidence onto the incident the matching Detected already opened.
+		unsubCharacterized = ddosevent.Characterized.Subscribe(bus, func(e *ddosevent.AttackCharacterized) {
+			s.characterize(e)
 		})
 		unsubOngoing = ddosevent.Ongoing.Subscribe(bus, func(_ *ddosevent.AttackOngoing) {})
 		unsubCleared = ddosevent.Cleared.Subscribe(bus, func(e *ddosevent.AttackCleared) {
@@ -99,6 +105,9 @@ func runEngine(conn net.Conn) int {
 	unsubscribe := func() {
 		if unsubDetected != nil {
 			unsubDetected()
+		}
+		if unsubCharacterized != nil {
+			unsubCharacterized()
 		}
 		if unsubOngoing != nil {
 			unsubOngoing()

@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 280 design docs, 2913 files
+Total: 282 design docs, 2914 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2372,11 +2372,46 @@ Total: 280 design docs, 2913 files
 - `internal/component/ike/engine/responder.go` -- IKE responder handshake (mirror of the initiator)
 - `internal/component/ike/engine/responder_eap.go` -- IKE responder EAP authenticator
 
+## `plan/learned/1095-followup-subsystem.md`
+
+| File | Topic |
+|------|-------|
+| `internal/core/dnsserver/certcheck.go` | AC-3 -- shared DoT/DoH certificate |
+| `internal/core/dnsserver/secure.go` | AC-3/AC-4 -- optional DNS-over-TLS |
+| `internal/core/dnsserver/tlsmaterial.go` | AC-3 -- shared certificate loading for |
+| `internal/plugins/exabgp/bridgeplugin/config.go` | AC-1 -- internal exabgp bridge config |
+| `internal/plugins/exabgp/bridgeplugin/internal.go` | AC-1 -- internal exabgp bridge runner |
+| `internal/plugins/iface/netlink/slaac_linux.go` | AC-6 -- kernel-cooperating SLAAC |
+
+## `plan/learned/1097-followup-vpp-traffic.md`
+
+- `internal/plugins/traffic/vpp/classify_linux.go` -- classify + policer-classify
+
 ## `plan/learned/1099-iface-resolve-0-umbrella.md`
 
 - `internal/component/iface/dispatch_resolve_integration_linux_test.go` -- sub-spec 5 dispatch translation.
 - `internal/component/l2tp/pppoe/resolve.go` -- consumers resolve through iface
 - `scripts/checks/iface_resolution.go` -- AC-U1 no-direct-resolution guard
+
+## `plan/learned/1100-followup-l2tp-call.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/l2tp/bridge_linux.go` | AC-3 / A-4 LAC data-plane bridge |
+| `internal/component/l2tp/cmd/outgoing_call.go` | AC-4 request l2tp outgoing-call |
+| `internal/component/l2tp/outgoing_call.go` | AC-4 operator-initiated outgoing call |
+| `internal/component/l2tp/relay_sink.go` | AC-3 PPPoE->L2TP relay (LAC role) |
+| `internal/core/callsink/callsink.go` | AC-3 PPPoE->L2TP relay call-sink (R-1 boundary) |
+
+## `plan/learned/1105-vpp-host-tuning.md`
+
+- `internal/appliance/kernelargs.go` -- host-side hugepage reservation via the
+- `internal/component/vpp/doctor_linux.go` -- ze doctor check for the boot-time
+- `internal/component/vpp/register_linux.go` -- linux-only VPP registrations.
+
+## `plan/learned/1108-ddos-detect-enhancements.md`
+
+- `internal/plugins/ddos/detect/persist.go` -- baseline persistence across restart.
 
 ## `plan/learned/415-prefix-data.md`
 
@@ -2880,15 +2915,12 @@ Total: 280 design docs, 2913 files
 | `internal/component/ike/engine/table.go` | IKE SA table |
 | `internal/component/ike/transport/udp.go` | IKE UDP transport |
 
-## `plan/learned/741-ipsec-8-child-xfrm.md`
-
-- `internal/component/ike/dataplane/noop.go` -- dataplane backend registry
-
 ## `plan/learned/742-ipsec-8-ikev2-child-xfrm.md`
 
 | File | Topic |
 |------|-------|
 | `internal/component/ike/dataplane/dataplane.go` | dataplane abstraction for SA/SP installation |
+| `internal/component/ike/dataplane/noop.go` | dataplane backend registry |
 | `internal/component/ike/dataplane/vpp.go` | VPP dataplane backend |
 | `internal/component/ike/dataplane/xfrm_linux.go` | XFRM netlink backend |
 | `internal/component/ike/dataplane/xfrm_other.go` | non-Linux dataplane stub |
@@ -3818,32 +3850,13 @@ Total: 280 design docs, 2913 files
 
 ## `plan/spec-followup-l2tp-call.md`
 
-| File | Topic |
-|------|-------|
-| `internal/component/l2tp/bridge_integration_linux_test.go` | AC-3 / A-4 LAC bridge integration |
-| `internal/component/l2tp/bridge_linux.go` | AC-3 / A-4 LAC data-plane bridge |
-| `internal/component/l2tp/cmd/outgoing_call.go` | AC-4 request l2tp outgoing-call |
-| `internal/component/l2tp/outgoing_call.go` | AC-4 operator-initiated outgoing call |
-| `internal/component/l2tp/relay_sink.go` | AC-3 PPPoE->L2TP relay (LAC role) |
-| `internal/core/callsink/callsink.go` | AC-3 PPPoE->L2TP relay call-sink (R-1 boundary) |
+- `internal/component/l2tp/bridge_integration_linux_test.go` -- AC-3 / A-4 LAC bridge integration
 
 ## `plan/spec-followup-subsystem.md`
 
-| File | Topic |
-|------|-------|
-| `internal/component/iface/mirror_packet_integration_linux_test.go` | AC-6 -- prove the tc mirror copies |
-| `internal/component/iface/slaac_integration_linux_test.go` | AC-6 -- SLAAC address lifecycle |
-| `internal/core/dnsserver/certcheck.go` | AC-3 -- shared DoT/DoH certificate |
-| `internal/core/dnsserver/secure.go` | AC-3/AC-4 -- optional DNS-over-TLS |
-| `internal/core/dnsserver/tlsmaterial.go` | AC-3 -- shared certificate loading for |
-| `internal/plugins/exabgp/bridgeplugin/config.go` | AC-1 -- internal exabgp bridge config |
-| `internal/plugins/exabgp/bridgeplugin/internal.go` | AC-1 -- internal exabgp bridge runner |
-| `internal/plugins/iface/dhcp/dhcp_v6_pd_linux_test.go` | AC-6 -- DHCPv6-PD lease flow. This is |
-| `internal/plugins/iface/netlink/slaac_linux.go` | AC-6 -- kernel-cooperating SLAAC |
-
-## `plan/spec-followup-vpp-traffic.md`
-
-- `internal/plugins/traffic/vpp/classify_linux.go` -- classify + policer-classify
+- `internal/component/iface/mirror_packet_integration_linux_test.go` -- AC-6 -- prove the tc mirror copies
+- `internal/component/iface/slaac_integration_linux_test.go` -- AC-6 -- SLAAC address lifecycle
+- `internal/plugins/iface/dhcp/dhcp_v6_pd_linux_test.go` -- AC-6 -- DHCPv6-PD lease flow. This is
 
 ## `plan/spec-iface-resolve-2-resolver.md`
 
@@ -4052,12 +4065,6 @@ Total: 280 design docs, 2913 files
 
 - `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` -- VLAN QoS wire-level lab tests
 - `internal/plugins/iface/netlink/vlanqoslab_tci_test.go` -- 802.1Q TCI decode/build helpers
-
-## `plan/spec-vpp-host-tuning.md`
-
-- `internal/appliance/kernelargs.go` -- host-side hugepage reservation via the
-- `internal/component/vpp/doctor_linux.go` -- ze doctor check for the boot-time
-- `internal/component/vpp/register_linux.go` -- linux-only VPP registrations.
 
 ## `rfc/short/rfc5880.md`
 

@@ -47,6 +47,35 @@ func GradeSeverity(peakPps, threshold float64) Severity {
 	}
 }
 
+// GradeConfidence scores 0-100 how strongly the characterized signals point to a
+// real attack rather than a benign traffic spike, from data available at
+// characterization time (attack start): the peak-to-threshold ratio, whether a
+// specific family (dominant protocol + discriminator) was classified, the extra
+// specificity of reflection/SYN floods, and whether the sources are distributed.
+// Attack duration is deliberately NOT a factor -- ze grades at attack start, not
+// end (unlike ftagent). Annotative: responders/observability consume it; the
+// detector's mitigation path keys on Family/Target/Severity.
+func GradeConfidence(peakPps, threshold float64, family AttackFamily, entropy, entropyThreshold float64) int {
+	conf := 25 // base
+	r := 1.0
+	if threshold > 0 {
+		r = peakPps / threshold
+	}
+	if r > 0 {
+		conf += min(30, int(r*6)) // up to +30 at r>=5
+	}
+	if family != FamilyGenericFlood {
+		conf += 25 // a dominant protocol + discriminator matched
+	}
+	if family == FamilyReflection || family == FamilySYNFlood {
+		conf += 10 // highest-specificity, most actionable families
+	}
+	if entropyThreshold > 0 && entropy >= entropyThreshold {
+		conf += 10 // distributed source spread
+	}
+	return max(0, min(100, conf))
+}
+
 type AttackFamily string
 
 const (
@@ -97,9 +126,14 @@ type AttackCharacterized struct {
 	// packet distribution: ~0 for a single source, higher for a distributed or
 	// spoofed flood. Annotative; responders act on Target/Family.
 	SourceEntropy float64 `json:"source-entropy"`
-	PeakRxPps     float64 `json:"peak-rx-pps"`
-	PeakRxBps     float64 `json:"peak-rx-bps"`
-	Observable    bool    `json:"observable"`
+	// Confidence (0-100) grades how strongly the characterized signals point to a
+	// real attack vs a benign spike (see GradeConfidence). Annotative: observability
+	// and the dashboard reporter display it, and responders may gate on it; the
+	// mitigation vector itself keys on Target/Family/Severity.
+	Confidence int     `json:"confidence"`
+	PeakRxPps  float64 `json:"peak-rx-pps"`
+	PeakRxBps  float64 `json:"peak-rx-bps"`
+	Observable bool    `json:"observable"`
 }
 
 type AttackOngoing struct {

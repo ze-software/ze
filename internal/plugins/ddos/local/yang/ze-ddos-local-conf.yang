@@ -6,6 +6,7 @@ module ze-ddos-local-conf {
 
   description "Local (drop-rule) mitigation configuration. Augments the shared `ddos`
                container (owned by ze-ddos-detect-conf) with the `local` subtree.";
+  revision 2026-07-11 { description "Add confidence-min gate for the characterized mitigation path."; }
   revision 2026-07-02 { description "Nest under ddos/local: augment /dd:ddos with container local."; }
 
   augment "/dd:ddos" {
@@ -22,6 +23,11 @@ module ze-ddos-local-conf {
         type uint32 { range "0..86400"; }
         default 3600;
         description "Maximum seconds a drop rule stays installed (0 = no cap).";
+      }
+      leaf confidence-min {
+        type uint8 { range "0..100"; }
+        default 0;
+        description "Minimum incident confidence (0-100) required to install a drop rule from a characterized attack. 0 (default) disables the gate. Higher values suppress mitigation on borderline detections.";
       }
       leaf-list allowlist {
         type string;

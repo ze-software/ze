@@ -36,8 +36,19 @@ type detector struct {
 	bus      ze.EventBus
 	dispatch dispatchFunc
 	baseline *baseline
-	sm       *stateMachine
-	tickNum  int
+	// baselineBps is a parallel rolling baseline over bytes/sec, feeding the
+	// bandwidth trigger. Same type and poisoning guard as the PPS baseline; its
+	// floor is bytes/sec (cfg.BpsFloor is bits/sec, divided by 8 at construction).
+	baselineBps *baseline
+	// statePath is where both baselines are persisted (restored on start, saved on
+	// Stop and periodically) so a restart skips the BaselineWindow re-warm. Empty
+	// disables persistence -- register.go sets it before restore(); tests inject it.
+	statePath string
+	// saveMu serializes baseline persistence so the periodic save (spawned off the
+	// tick) never races the save-on-Stop on the same file.
+	saveMu  sync.Mutex
+	sm      *stateMachine
+	tickNum int
 
 	prevRxPackets map[string]uint64
 	prevRxBytes   map[string]uint64
@@ -46,6 +57,7 @@ type detector struct {
 	peakRxBps     float64
 	attackIface   string
 	justTriggered bool
+	bpsTriggered  bool // last active-transition tick was bandwidth-driven (PPS alone would not have fired)
 
 	wg                   sync.WaitGroup
 	sourceAbsentOnce     sync.Once // trafficusage (fast target) absent, logged once
@@ -69,6 +81,7 @@ func newDetector(cfg *Config, bus ze.EventBus, dispatch dispatchFunc) *detector 
 		bus:           bus,
 		dispatch:      dispatch,
 		baseline:      newBaseline(cfg.BaselineWindow, cfg.ThresholdMultiplier, cfg.AbsoluteFloor),
+		baselineBps:   newBaseline(cfg.BaselineWindow, cfg.BpsThresholdMultiplier, cfg.BpsFloor/8.0),
 		prevRxPackets: make(map[string]uint64),
 		prevRxBytes:   make(map[string]uint64),
 		currentRxPps:  make(map[string]float64),
@@ -94,6 +107,47 @@ func (d *detector) Stop() {
 		d.cancel()
 	}
 	d.wg.Wait()
+	// Persist after in-flight work unwinds and (in production) after the caller has
+	// unsubscribed, so the baselines are quiescent. Called on both reconfigure and
+	// shutdown, so a config change also preserves the warmed baseline.
+	d.saveBaseline()
+}
+
+// restore loads the persisted baselines from d.statePath into the live baselines so
+// a restart/reconfigure resumes detection without re-warming over BaselineWindow.
+// No-op when the file is absent or rejected (warm fresh). Called once after
+// construction, before subscribing to rates.
+func (d *detector) restore() {
+	blob, ok := loadBaselines(d.statePath)
+	if !ok {
+		return
+	}
+	rp := d.baseline.restore(blob.Pps)
+	rb := d.baselineBps.restore(blob.Bps)
+	if rp || rb {
+		logger().Info("ddos-detect: baseline restored from disk",
+			"path", d.statePath, "pps-ready", d.baseline.Ready(), "bps-ready", d.baselineBps.Ready())
+	}
+}
+
+// saveBaseline persists both baselines. The snapshot is taken under d.mu; the file
+// I/O runs off the lock so a slow disk never stalls the rate tick (R-4).
+func (d *detector) saveBaseline() {
+	d.mu.Lock()
+	pps := d.baseline.snapshot()
+	bps := d.baselineBps.snapshot()
+	path := d.statePath
+	d.mu.Unlock()
+	if path == "" {
+		return
+	}
+	// Serialize concurrent saves (periodic vs on-stop) so they never overlap on the
+	// temp file. Held only around the file I/O, never with d.mu, so the tick is free.
+	d.saveMu.Lock()
+	defer d.saveMu.Unlock()
+	if err := saveBaselines(path, pps, bps); err != nil {
+		logger().Debug("ddos-detect: baseline save failed", "error", err)
+	}
 }
 
 // onRates accepts pre-computed per-interface rates from the trafficstat
@@ -179,16 +233,35 @@ func (d *detector) applyTick(maxPps, maxBps float64, maxIface string) {
 	}
 
 	threshold := d.baseline.Threshold()
-	above := maxPps > threshold
+	ppsAbove := maxPps > threshold
+
+	// Bandwidth trigger: catch low-PPS/high-bandwidth amplification (NTP/memcached/
+	// CLDAP) that the PPS threshold misses. Gated on a ready BPS baseline so it never
+	// fires during warm-up (bandwidth is more FP-prone than packet rate). bps-floor is
+	// configured in bits/sec; the BPS baseline floor is bytes/sec (RxBps is bytes/sec),
+	// so newDetector already divided it by 8.
+	bpsAbove := false
+	if d.cfg.BpsTriggerEnable && d.baselineBps.Ready() {
+		bpsAbove = maxBps > d.baselineBps.Threshold()
+	}
+	above := ppsAbove || bpsAbove
+	// Attribute a new detection to the bandwidth path only when the packet-rate path
+	// would not have fired on its own (drives ze_ddos_detect_bps_trigger_total).
+	d.bpsTriggered = bpsAbove && !ppsAbove
 
 	st := d.sm.State()
 	attacking := st == stateActive || st == stateClearing
 	d.baseline.Add(maxPps, attacking || above)
+	d.baselineBps.Add(maxBps, attacking || above)
 
-	if above && maxPps > d.peakRxPps {
-		d.peakRxPps = maxPps
-		d.peakRxBps = maxBps
-		d.attackIface = maxIface
+	if above {
+		if maxPps > d.peakRxPps {
+			d.peakRxPps = maxPps
+			d.attackIface = maxIface
+		}
+		if maxBps > d.peakRxBps {
+			d.peakRxBps = maxBps
+		}
 	}
 
 	d.justTriggered = false
@@ -205,6 +278,14 @@ func (d *detector) applyTick(maxPps, maxBps float64, maxIface string) {
 			logger().Warn("ddos-detect: emit ongoing failed", "error", err)
 		}
 	}
+
+	// Periodic persistence: belt-and-braces against a hard crash between the
+	// save-on-Stop points. Spawned off the tick -- saveBaseline re-acquires d.mu
+	// after applyTick releases it, so file I/O never runs under the lock. Guarded
+	// by d.stopped (mirrors onAttackStart) so it never races Stop's wg.Wait.
+	if d.tickNum%baselineSaveInterval == 0 && !d.stopped {
+		d.wg.Go(d.saveBaseline)
+	}
 }
 
 // onAttackStart fires once on the idle/confirming -> active transition, under
@@ -214,6 +295,9 @@ func (d *detector) applyTick(maxPps, maxBps float64, maxIface string) {
 // happens from characterizeAndEmit once the target is resolved (or falls back).
 func (d *detector) onAttackStart() {
 	d.justTriggered = true
+	if d.bpsTriggered {
+		incBpsTrigger()
+	}
 	d.attackGen++
 	// Do not spawn once Stop has begun waiting on the WaitGroup (a late
 	// trafficstat tick can still reach here after Unsubscribe returns, because

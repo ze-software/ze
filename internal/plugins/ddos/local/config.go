@@ -21,6 +21,10 @@ type Config struct {
 	ResponseLevel         string         `json:"response-level"`
 	MaxMitigationDuration int            `json:"max-mitigation-duration"`
 	Allowlist             []netip.Prefix `json:"allowlist"`
+	// ConfidenceMin (0-100) gates the characterized mitigation path: an
+	// AttackCharacterized whose confidence is below this is not mitigated. 0 (default)
+	// disables the gate -- behavior identical to before confidence existed.
+	ConfidenceMin int `json:"confidence-min"`
 }
 
 func DefaultConfig() *Config {
@@ -65,6 +69,11 @@ func ParseConfig(data string) (*Config, error) {
 			}
 		}
 	}
+	if v, ok := m["confidence-min"]; ok {
+		if n, ok := toInt(v); ok {
+			cfg.ConfidenceMin = n
+		}
+	}
 	return cfg, nil
 }
 
@@ -76,6 +85,9 @@ func (c *Config) Validate() error {
 	}
 	if c.MaxMitigationDuration < 0 || c.MaxMitigationDuration > 86400 {
 		return fmt.Errorf("max-mitigation-duration %d out of range [0, 86400]", c.MaxMitigationDuration)
+	}
+	if c.ConfidenceMin < 0 || c.ConfidenceMin > 100 {
+		return fmt.Errorf("confidence-min %d out of range [0, 100]", c.ConfidenceMin)
 	}
 	return nil
 }

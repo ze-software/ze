@@ -7,6 +7,7 @@ module ze-ddos-detect-conf {
   description "DDoS detector configuration. Owns the top-level `ddos` container;
                the `detect` subtree configures the detector. Sibling subtrees
                (flowtriq, observe, local, flowspec) augment the same `ddos` parent.";
+  revision 2026-07-11 { description "Add bandwidth (BPS) trigger leaves (bps-trigger-enable, bps-threshold-multiplier, bps-floor) to catch low-PPS/high-bandwidth amplification."; }
   revision 2026-07-02 { description "Nest under ddos/detect; the container now owns the shared ddos parent that the other ddos plugins augment."; }
 
   container ddos {
@@ -52,6 +53,21 @@ module ze-ddos-detect-conf {
       type uint16 { range "0..3600"; }
       default 90;
       description "Seconds after startup where only extreme spikes trigger.";
+    }
+    leaf bps-trigger-enable {
+      type boolean;
+      default true;
+      description "Enable the bandwidth (BPS) trigger alongside the PPS threshold. When false only the packet-rate threshold can trigger detection.";
+    }
+    leaf bps-threshold-multiplier {
+      type zt:decimal-2 { range "1.00..100.00"; }
+      default "3.00";
+      description "Baseline p99 multiplier for the bandwidth (BPS) trigger. Catches low-PPS/high-bandwidth amplification (NTP/memcached/CLDAP) that the packet-rate threshold misses.";
+    }
+    leaf bps-floor {
+      type uint64 { range "1..max"; }
+      default 50000000;
+      description "Minimum bandwidth in bits/sec below which the BPS trigger is inert (default 50 Mbps). Expressed in bits/sec (operator unit); the detector's internal rate is bytes/sec and converts.";
     }
     leaf characterize-enable {
       type boolean;

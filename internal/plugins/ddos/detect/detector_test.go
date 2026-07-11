@@ -1,6 +1,7 @@
 package detect
 
 import (
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -130,6 +131,112 @@ func TestDetectorConsumesTrafficstat(t *testing.T) {
 	}
 	if detected.Interface != "xe0" {
 		t.Errorf("Interface: got %q, want xe0", detected.Interface)
+	}
+}
+
+// bpsWarmAndAttack drives a detector through baseline warm-up then an attack burst,
+// all at a fixed low RxPps so the PPS path (with a huge AbsoluteFloor) never fires,
+// isolating the bandwidth trigger. Returns the captured AttackDetected (or nil).
+func bpsWarmAndAttack(cfg *Config, warmBps, attackBps float64) *ddosevent.AttackDetected {
+	bus := newDTestBus()
+	d := newDetector(cfg, bus, nil)
+	var detected *ddosevent.AttackDetected
+	ddosevent.Detected.Subscribe(bus, func(e *ddosevent.AttackDetected) { detected = e })
+	for range cfg.BaselineWindow + 5 {
+		d.onRates([]trafficstat.InterfaceEntry{{Name: "xe0", RxPps: 50, RxBps: warmBps}})
+	}
+	for range 3 {
+		d.onRates([]trafficstat.InterfaceEntry{{Name: "xe0", RxPps: 50, RxBps: attackBps}})
+	}
+	d.wg.Wait()
+	return detected
+}
+
+func bpsTestConfig() *Config {
+	cfg := DefaultConfig()
+	cfg.Enabled = true
+	cfg.ConfirmDuration = 1
+	cfg.BaselineWindow = 10
+	cfg.StartupGrace = 0
+	cfg.AbsoluteFloor = 1e9 // huge PPS floor: the PPS path can never fire at RxPps=50
+	cfg.BpsTriggerEnable = true
+	cfg.BpsThresholdMultiplier = 3.0
+	cfg.BpsFloor = 8000 // 1000 bytes/s floor: low, so the p99 multiplier governs
+	return cfg
+}
+
+// VALIDATES: AC-1 -- a low-PPS / high-bandwidth flow (amplification) trips the BPS
+// trigger even though PPS stays far below its threshold.
+// PREVENTS: amplification floods (NTP/memcached/CLDAP) going undetected.
+func TestApplyTick_BpsTriggerFiresBelowPpsThreshold(t *testing.T) {
+	// warm bps ~10000 B/s -> bps threshold ~30000 B/s; attack 500000 B/s (=4 Mbps) trips it.
+	detected := bpsWarmAndAttack(bpsTestConfig(), 10000, 500000)
+	if detected == nil {
+		t.Fatal("BPS trigger did not fire on high-bandwidth low-PPS flow")
+	}
+	if detected.Interface != "xe0" {
+		t.Errorf("Interface: got %q, want xe0", detected.Interface)
+	}
+}
+
+// VALIDATES: AC-3b -- with bps-trigger-enable=false the bandwidth path never fires.
+func TestApplyTick_BpsTriggerDisabled(t *testing.T) {
+	cfg := bpsTestConfig()
+	cfg.BpsTriggerEnable = false
+	if detected := bpsWarmAndAttack(cfg, 10000, 500000); detected != nil {
+		t.Fatal("BPS trigger fired while bps-trigger-enable=false")
+	}
+}
+
+// VALIDATES: AC-3 -- traffic below the bps-floor never trips the BPS trigger,
+// regardless of the baseline (a busy-but-legitimate low-bandwidth node).
+func TestApplyTick_BpsBelowFloorInert(t *testing.T) {
+	cfg := bpsTestConfig()
+	cfg.BpsFloor = 50_000_000 // 50 Mbps => 6.25 MB/s floor
+	// attack 500000 B/s = 4 Mbps, below the 50 Mbps floor -> inert
+	if detected := bpsWarmAndAttack(cfg, 10000, 500000); detected != nil {
+		t.Fatal("BPS trigger fired for traffic below the bps-floor")
+	}
+}
+
+// VALIDATES: AC-5 -- a restart with a valid persisted baseline restores it (both
+// series Ready, PPS p99 preserved) so the window re-warm is skipped.
+func TestDetectorRestoresBaselineFromDisk(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state", "baseline.json")
+	pps := baselineState{Samples: makeSamples(300, 1000), Count: 300, P99Cache: 1000}
+	bps := baselineState{Samples: makeSamples(300, 20000), Count: 300, P99Cache: 20000}
+	if err := saveBaselines(path, pps, bps); err != nil {
+		t.Fatal(err)
+	}
+	cfg := DefaultConfig()
+	cfg.Enabled = true
+	d := newDetector(cfg, newDTestBus(), nil)
+	d.statePath = path
+	d.restore()
+	if !d.baseline.Ready() || !d.baselineBps.Ready() {
+		t.Error("both baselines should be Ready after restore (no warm-up)")
+	}
+	if d.baseline.P99() != 1000 {
+		t.Errorf("restored PPS p99 = %v, want 1000", d.baseline.P99())
+	}
+}
+
+// VALIDATES: Stop persists a loadable baseline (save-on-shutdown/reconfigure), so the
+// next construct + restore resumes without a re-warm.
+func TestDetectorSavesBaselineOnStop(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state", "baseline.json")
+	cfg := DefaultConfig()
+	cfg.Enabled = true
+	cfg.BaselineWindow = 10
+	cfg.StartupGrace = 0
+	d := newDetector(cfg, newDTestBus(), nil)
+	d.statePath = path
+	for range 15 {
+		d.onRates([]trafficstat.InterfaceEntry{{Name: "xe0", RxPps: 100, RxBps: 20000}})
+	}
+	d.Stop()
+	if _, ok := loadBaselines(path); !ok {
+		t.Error("Stop should have persisted a loadable baseline")
 	}
 }
 

@@ -8,6 +8,41 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
 )
 
+// VALIDATES: AC-9 -- the confidence from AttackCharacterized is recorded onto the
+// incident the matching AttackDetected opened (matched by victim prefix), and a
+// characterize with no matching victim is a harmless no-op.
+func TestStoreCharacterizeSetsConfidence(t *testing.T) {
+	s := newStore(10, time.Hour)
+	victim := netip.MustParsePrefix("203.0.113.42/32")
+
+	s.open(&ddosevent.AttackDetected{
+		Target: ddosevent.VectorTuple{DstPrefix: victim},
+		Family: ddosevent.FamilyGenericFlood,
+	})
+	s.characterize(&ddosevent.AttackCharacterized{
+		Target:     ddosevent.VectorTuple{DstPrefix: victim},
+		Family:     ddosevent.FamilyReflection,
+		Confidence: 88,
+	})
+
+	list := s.list()
+	if len(list) != 1 {
+		t.Fatalf("incidents: got %d, want 1", len(list))
+	}
+	if list[0].Confidence != 88 {
+		t.Errorf("confidence: got %d, want 88", list[0].Confidence)
+	}
+
+	// A characterize for an unknown victim must not panic or mutate anything.
+	s.characterize(&ddosevent.AttackCharacterized{
+		Target:     ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("198.51.100.9/32")},
+		Confidence: 50,
+	})
+	if s.list()[0].Confidence != 88 {
+		t.Error("unmatched characterize must not change an existing incident's confidence")
+	}
+}
+
 func TestIncidentLifecycle(t *testing.T) {
 	// VALIDATES: AC-1 -- incident opened on detect, finalized on clear
 	s := newStore(100, time.Hour)

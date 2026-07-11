@@ -55,15 +55,17 @@ func runEngine(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	var (
-		cl            *client
-		activeUUID    string
-		activeFamily  ddosevent.AttackFamily
-		activePeakPPS float64
-		activePeakBPS float64
-		attackStart   time.Time
-		unsubDetected func()
-		unsubOngoing  func()
-		unsubCleared  func()
+		cl                 *client
+		activeUUID         string
+		activeFamily       ddosevent.AttackFamily
+		activePeakPPS      float64
+		activePeakBPS      float64
+		activeConfidence   int
+		attackStart        time.Time
+		unsubDetected      func()
+		unsubCharacterized func()
+		unsubOngoing       func()
+		unsubCleared       func()
 	)
 
 	parseSections := func(sections []sdk.ConfigSection) (*Config, error) {
@@ -97,8 +99,16 @@ func runEngine(conn net.Conn) int {
 			activeFamily = e.Family
 			activePeakPPS = e.PeakRxPps
 			activePeakBPS = e.PeakRxBps
+			activeConfidence = 0
 			attackStart = time.Now()
 			log.Info("ddos-flowtriq: incident opened", "uuid", uuid)
+		})
+		// Characterized carries the confidence score (unavailable at Detected time);
+		// capture it so the next update and the resolve report it to the dashboard.
+		unsubCharacterized = ddosevent.Characterized.Subscribe(bus, func(e *ddosevent.AttackCharacterized) {
+			if activeUUID != "" {
+				activeConfidence = e.Confidence
+			}
 		})
 		unsubOngoing = ddosevent.Ongoing.Subscribe(bus, func(e *ddosevent.AttackOngoing) {
 			if cl == nil || activeUUID == "" {
@@ -110,7 +120,7 @@ func runEngine(conn net.Conn) int {
 			if e.CurrentBps > activePeakBPS {
 				activePeakBPS = e.CurrentBps
 			}
-			if err := cl.updateIncident(activeUUID, e.CurrentPps, e.CurrentBps, activeFamily); err != nil {
+			if err := cl.updateIncident(activeUUID, e.CurrentPps, e.CurrentBps, activeFamily, activeConfidence); err != nil {
 				log.Warn("ddos-flowtriq: update incident failed", "error", err)
 			}
 		})
@@ -119,18 +129,22 @@ func runEngine(conn net.Conn) int {
 				return
 			}
 			duration := time.Since(attackStart).Seconds()
-			if err := cl.resolveIncident(activeUUID, duration, activePeakPPS, activePeakBPS); err != nil {
+			if err := cl.resolveIncident(activeUUID, duration, activePeakPPS, activePeakBPS, activeConfidence); err != nil {
 				log.Warn("ddos-flowtriq: resolve incident failed", "error", err)
 			} else {
 				log.Info("ddos-flowtriq: incident resolved", "uuid", activeUUID, "duration", duration)
 			}
 			activeUUID = ""
+			activeConfidence = 0
 		})
 	}
 
 	unsubscribe := func() {
 		if unsubDetected != nil {
 			unsubDetected()
+		}
+		if unsubCharacterized != nil {
+			unsubCharacterized()
 		}
 		if unsubOngoing != nil {
 			unsubOngoing()
@@ -176,10 +190,11 @@ func runEngine(conn net.Conn) int {
 		}
 		if cl != nil && activeUUID != "" {
 			duration := time.Since(attackStart).Seconds()
-			if err := cl.resolveIncident(activeUUID, duration, activePeakPPS, activePeakBPS); err != nil {
+			if err := cl.resolveIncident(activeUUID, duration, activePeakPPS, activePeakBPS, activeConfidence); err != nil {
 				log.Warn("ddos-flowtriq: resolve on config reload failed", "error", err)
 			}
 			activeUUID = ""
+			activeConfidence = 0
 		}
 		unsubscribe()
 		if cfg.Enabled {

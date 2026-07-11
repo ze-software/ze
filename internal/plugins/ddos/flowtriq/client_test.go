@@ -79,12 +79,15 @@ func TestClientResolveIncident(t *testing.T) {
 	defer srv.Close()
 
 	c := newClient(srv.URL+"/api/v1", "test-key", "test-uuid")
-	err := c.resolveIncident("inc-123", 120.5, 75000, 4800000)
+	err := c.resolveIncident("inc-123", 120.5, 75000, 4800000, 88)
 	if err != nil {
 		t.Fatalf("ResolveIncident: %v", err)
 	}
 	if dur, ok := received["duration_seconds"].(float64); !ok || dur != 120.5 {
 		t.Errorf("duration_seconds: got %v", received["duration_seconds"])
+	}
+	if conf, ok := received["confidence"].(float64); !ok || conf != 88 {
+		t.Errorf("confidence: got %v, want 88", received["confidence"])
 	}
 }
 

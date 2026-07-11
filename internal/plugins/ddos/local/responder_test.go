@@ -59,6 +59,37 @@ func TestEnforceModeActivates(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-11/AC-12 -- confidence-min gates the characterized mitigation path;
+// the default of 0 leaves behavior unchanged.
+func TestLocalConfidenceGate(t *testing.T) {
+	defer withNoopFirewall()()
+	victim := netip.MustParsePrefix("10.0.0.1/32")
+	ev := func(conf int) *ddosevent.AttackCharacterized {
+		return &ddosevent.AttackCharacterized{
+			Target:     ddosevent.VectorTuple{DstPrefix: victim, Proto: 17},
+			Family:     ddosevent.FamilyUDPFlood,
+			Confidence: conf,
+		}
+	}
+
+	r := newResponder(&Config{ResponseLevel: "enforce", ConfidenceMin: 80}, nil)
+	r.onCharacterized(ev(50))
+	if r.active {
+		t.Error("confidence 50 below min 80 must not mitigate")
+	}
+	r.onCharacterized(ev(80))
+	if !r.active {
+		t.Error("confidence 80 >= min 80 must mitigate")
+	}
+
+	// Default confidence-min 0 does not gate.
+	r2 := newResponder(&Config{ResponseLevel: "enforce"}, nil)
+	r2.onCharacterized(ev(1))
+	if !r2.active {
+		t.Error("confidence-min 0 must not gate (behavior unchanged)")
+	}
+}
+
 func tablesHaveTCPFlags(tables []firewall.Table) bool {
 	for _, tbl := range tables {
 		for _, ch := range tbl.Chains {
