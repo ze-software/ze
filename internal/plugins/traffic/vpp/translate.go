@@ -74,7 +74,7 @@ const (
 	// vectors are skipped (VPP's classify_add_del_session validates the match
 	// length against skip+match vectors; a short skipped match is rejected
 	// INVALID_VALUE, so we encode absolute offsets in a full-width mask).
-	classifySkipVectors = 0
+	classifySkipVectors = 0 //nolint:unused // consumed by classifyAddDelTable calls in classify_linux.go (linux-tagged); the darwin lint pass excludes that file so it reads as unused.
 	// classifyVectorLen is the width of one classify vector in bytes.
 	classifyVectorLen = 16
 	// classifyMaskLen is the mask/match width: two vectors, enough to reach
@@ -157,6 +157,8 @@ func dscpClassifyVectors(fam classifyFamily, dscp uint8) (mask, match []byte) {
 // rejected at verify); such filters never reach the apply path. The verifier
 // bounds the value ranges (protocol 0-255, dscp 0-63), so the uint8 conversions
 // here cannot overflow for verified input.
+//
+//nolint:unparam // mask IS consumed by the caller in classify_linux.go (linux-tagged); on the darwin lint pass that caller is excluded and the darwin-visible caller (translate_test.go) discards it, so unparam wrongly sees mask as always-unused.
 func filterClassifyVectors(fam classifyFamily, f traffic.TrafficFilter) (mask, match []byte, ok bool) {
 	switch f.Type {
 	case traffic.FilterProtocol:

@@ -1,4 +1,4 @@
-// Design: plan/spec-followup-subsystem.md AC-3 -- shared certificate loading for
+// Design: plan/learned/1095-followup-subsystem.md AC-3 -- shared certificate loading for
 // the DoT/DoH listeners, so as112 and geodns do not each re-implement it.
 
 package dnsserver

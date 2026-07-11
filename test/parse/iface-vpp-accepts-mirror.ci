@@ -5,6 +5,10 @@
 #            (sw_interface_span_enable_disable).
 # PREVENTS: a mirror-under-vpp config being rejected at commit after the SPAN
 #           wiring landed, or a regression that reverts the widening.
+# PLATFORM: the mirror container carries ze:os "linux" so the schema walker
+#           prunes it on other platforms (yang_schema.go getOSExtension); this
+#           test is linux-only, matching sibling iface-vpp-rejects-dhcp.
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
 	backend vpp;

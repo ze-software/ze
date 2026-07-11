@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -66,7 +67,16 @@ func TestGokrazyRouteEnableGate(t *testing.T) {
 // TestGokrazyRouteBuildProxies proves Build() returns a handler that proxies
 // through the configured socket, so the whole web mount is wired end to end.
 func TestGokrazyRouteBuildProxies(t *testing.T) {
-	socketPath := filepath.Join(t.TempDir(), "gokrazy.sock")
+	// macOS caps unix socket paths at ~104 bytes; t.TempDir() under $TMPDIR
+	// (/var/folders/...) already exceeds that, so the bind fails with EINVAL on
+	// Darwin. Use a short /tmp dir (mirrors shortTempDir in
+	// internal/component/vpp/vpp_test.go) so the socket binds on Darwin as on Linux.
+	dir, err := os.MkdirTemp("/tmp", "gk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	socketPath := filepath.Join(dir, "s.sock")
 	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "unix", socketPath)
 	if err != nil {
 		t.Fatalf("listen unix: %v", err)
