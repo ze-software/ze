@@ -96,14 +96,32 @@ def _ps(field, pid):
         return ""
 
 
+def _session_id_from_argv(argv):
+    """Return the value following --session-id in an argv list, or ''."""
+    for i, a in enumerate(argv):
+        if a == "--session-id" and i + 1 < len(argv):
+            return argv[i + 1]
+        if a.startswith("--session-id="):
+            return a.split("=", 1)[1]
+    return ""
+
+
 def _walk_for_claude():
+    # Prefer the Claude CLI's own --session-id, read from the process tree. It is
+    # the canonical session UUID (the same value in tmp/session/.session-<id> and
+    # .lsp-loaded-<id> markers), unique per session, and constant across the many
+    # short-lived hook subprocesses. It does NOT depend on the CLI being named
+    # `claude`: its argv0 is the version string (e.g. .../versions/2.1.206), which
+    # is why the old name-only match never fired and fell through to an unstable
+    # $PPID that changed every hook invocation. Mirrors .claude/hooks/lib/session-id.sh.
     pid = os.getpid()
     while pid > 1:
         try:
             cmdline = f"/proc/{pid}/cmdline"
             if os.path.isfile(cmdline):
                 with open(cmdline, "rb") as fh:
-                    argv0 = fh.read().split(b"\0")[0].decode("utf-8", "replace")
+                    raw = fh.read()
+                argv = [a.decode("utf-8", "replace") for a in raw.split(b"\0") if a]
                 ppid = ""
                 try:
                     with open(f"/proc/{pid}/status") as fh:
@@ -114,8 +132,12 @@ def _walk_for_claude():
                 except Exception:
                     ppid = ""
             else:
-                argv0 = _ps("comm=", pid)
+                argv = _ps("command=", pid).split()
                 ppid = _ps("ppid=", pid).strip()
+            sid = _session_id_from_argv(argv)
+            if sid:
+                return sid
+            argv0 = argv[0] if argv else ""
             base = argv0.rsplit("/", 1)[-1]
             if base == "claude" or argv0 == "claude":
                 return str(pid)
