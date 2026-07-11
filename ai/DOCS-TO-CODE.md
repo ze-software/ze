@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 280 design docs, 2911 files
+Total: 280 design docs, 2915 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1436,6 +1436,7 @@ Total: 280 design docs, 2911 files
 | `internal/test/runner/record_parse.go` | CI file parsing and test discovery |
 | `internal/test/runner/report.go` | test runner framework |
 | `internal/test/runner/runner.go` | test runner framework |
+| `internal/test/runner/runner_config.go` | per-daemon config file naming |
 | `internal/test/runner/runner_exec.go` | test execution and process orchestration |
 | `internal/test/runner/runner_exec_util.go` | test execution utilities |
 | `internal/test/runner/runner_output.go` | output capture, saving, and parsing |
@@ -2516,6 +2517,7 @@ Total: 280 design docs, 2911 files
 | `internal/plugins/static/backend.go` | backend abstraction |
 | `internal/plugins/static/backend_linux.go` | Linux netlink backend with multipath |
 | `internal/plugins/static/backend_other.go` | rejecting backend for non-Linux |
+| `internal/plugins/static/backend_vpp_linux.go` | VPP data-plane static backend selection |
 | `internal/plugins/static/model.go` | static route data model |
 | `internal/plugins/static/register.go` | plugin registration and lifecycle |
 | `internal/plugins/static/vpp/backend.go` | VPP static route programming via GoVPP |
@@ -4056,6 +4058,8 @@ Total: 280 design docs, 2911 files
 ## `plan/spec-vpp-host-tuning.md`
 
 - `internal/appliance/kernelargs.go` -- host-side hugepage reservation via the
+- `internal/component/vpp/doctor_linux.go` -- ze doctor check for the boot-time
+- `internal/component/vpp/register_linux.go` -- linux-only VPP registrations.
 
 ## `rfc/short/rfc5880.md`
 
