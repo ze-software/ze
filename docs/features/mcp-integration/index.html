@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=d81686772d" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -347,7 +347,7 @@
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-automate">
-<!-- source: internal/component/mcp/handler.go -- MCP HTTP handler -->
+<!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 
 <div class="journey-hero reveal">
@@ -455,7 +455,7 @@ calling it with <code>command=""</code> on an elicit-capable client produces an
 <code>elicitation/create</code> asking which ze command to run.</p>
 <p>See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/mcp/elicitation.md" target="_blank" rel="noopener">MCP Elicitation</a> for the full flow.</p>
 <!-- source: internal/component/mcp/elicit.go -- session.Elicit, schema validator -->
-<!-- source: internal/component/mcp/handler.go -- ze_execute missing-command branch -->
+<!-- source: internal/component/mcp/tools.go -- ze_execute missing-command branch -->
 
 <h2 id="testing">Testing</h2>
 <p><code>ze-test mcp</code> provides a functional test client with <code>wait-established</code>

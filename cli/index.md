@@ -1,6 +1,6 @@
 # CLI Reference
 
-379 commands across 42 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
+380 commands across 42 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
 
 ## announce (1)
 
@@ -159,7 +159,7 @@
 | `request peer resume` | Daemon | Resume reading from a previously paused peer. Usage: request peer <selector> resume. |
 | `request peer teardown` | Daemon | Tear down a peer session. Usage: request peer <selector> teardown [cease-subcode]. |
 
-## request (other) (13)
+## request (other) (14)
 
 | Command | Mode | Description |
 | --- | --- | --- |
@@ -169,6 +169,7 @@
 | `request commit` | Daemon | Group route changes into named atomic commits. Actions: start (begin a commit), end (finalize), eor (signal end of RIB), rollback (undo), show (inspect), withdraw (remove all routes in a commit), list (show all commits). Grammar: request commit <action> <name> [args]. |
 | `request config archive` | Daemon | Save a snapshot of the current running configuration. Captures the config into the store for later rollback or comparison. Optional name labels the snapshot; defaults to a timestamp. |
 | `request halt` | Daemon | Dump goroutine stacks to stderr and terminate immediately. |
+| `request l2tp outgoing-call remote called` | Daemon | Place an LNS-side outgoing call (RFC 2661 S10.4). Usage: request l2tp outgoing-call remote <name> called <number>. Dials the named remote (which must have outgoing-calls enabled), sends OCRQ, and blocks until the call establishes or fails. On failure the cause and RFC 2661 Result Code are reported (auth reject, tie-breaker loss, peer CDN, or timeout). |
 | `request log level` | Daemon | Change a subsystem's log level without restarting. Usage: request log level <logger> <level>. Takes effect immediately. Set to debug when troubleshooting, then back to info when you are done. |
 | `request ospf graceful-restart` | Daemon | Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1). Usage: request ospf graceful-restart. The engine originates one Grace-LSA per interface, persists the non-volatile restart fact, and suppresses route churn so the FIB is retained across the ensuing control-plane restart. Refused when graceful-restart is not configured. |
 | `request reboot` | Daemon | Gracefully shutdown then reboot the system. |

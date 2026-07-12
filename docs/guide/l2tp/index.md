@@ -49,6 +49,49 @@ conflict detection via `ze:listener`.
 
 <!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
 
+## Initiator: dial targets and outgoing calls
+
+Beyond answering tunnels, ze can INITIATE them (send SCCRQ) toward a
+configured remote. A `remote` list under `l2tp {}` declares dial targets;
+declaring one grants no dial by itself — an operator action (RPC) or a PPPoE
+relay binding drives the dial.
+
+```
+l2tp {
+    enabled true;
+    remote lns-retail {
+        address 203.0.113.10;   // control-plane IP to dial (SCCRQ destination)
+        port 1701;              // remote UDP port (default 1701)
+        shared-secret <secret>; // per-remote CHAP-MD5 (empty = no Challenge)
+        outgoing-calls true;    // permit `request l2tp outgoing-call` to this remote
+    }
+    relay <service-name> {      // PPPoE Service-Name -> L2TP incoming call (LAC)
+        remote lns-retail;      // must reference an l2tp/remote above
+    }
+}
+```
+
+Place an LNS-side outgoing call (RFC 2661 S10.4) with:
+
+```
+request l2tp outgoing-call remote lns-retail called <number>
+```
+
+The command dials the remote if no tunnel is up, sends an OCRQ, and blocks
+until the call establishes (returning the local/remote session IDs) or fails
+(returning the cause and RFC 2661 Result Code: tunnel auth reject, tie-breaker
+loss, peer CDN, or timeout). The remote must have `outgoing-calls true`.
+
+The `relay` binding is the LAC path: a PPPoE subscriber whose Service-Name
+matches is relayed into an L2TP incoming call (ICRQ) toward the bound remote
+instead of terminating PPP locally. The subscriber-PPP↔L2TP kernel channel
+bridge that carries frames at the LAC is Linux-only and exercised under QEMU
+(`make ze-qemu-l2tp-ppp-test`). Initiator tunnel interop is proven against
+xl2tpd in `test/l2tp-interop/scenarios/03-ze-lac-xl2tpd-lns`.
+
+<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- remote/relay lists -->
+<!-- source: internal/component/l2tp/cmd/outgoing_call.go -- handleOutgoingCall -->
+
 ## CLI commands
 
 ### Read commands

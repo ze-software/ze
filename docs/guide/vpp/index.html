@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=d81686772d" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -516,7 +516,7 @@ Ze does the following, in order, every time it starts or VPP crashes:</p>
 NIC unbind, driver save, rescan-on-teardown) are part of ze's job, not
 the operator's. This matters on a gokrazy appliance where there is no
 systemd and ze is PID 1 for the data plane.</p>
-<!-- source: .claude/memory/project_gokrazy_appliance.md -- appliance context -->
+<!-- source: internal/plugins/init/main.go -- gokrazy PID-1 appliance lifecycle -->
 
 <h2 id="running-against-an-externally-supervised-vpp">Running against an externally supervised VPP</h2>
 <p>Set <code>vpp.external true</code> when something other than ze owns the VPP
@@ -607,6 +607,12 @@ the stats poll interval only when the defaults do not fit the workload.</p>
 <td>Number of worker threads. Ze allocates <code>main-core+1 .. main-core+workers</code> for <code>corelist-workers</code> in startup.conf.</td>
 </tr>
 <tr>
+<td><code>vpp.cpu.poll-sleep</code></td>
+<td><code>Nms</code> (0ms–100ms)</td>
+<td>unset</td>
+<td>Fixed sleep between VPP main-loop polls, expressed in whole milliseconds (<code>ms</code> is the only accepted unit, e.g. <code>10ms</code>), emitted as <code>unix { poll-sleep-usec N }</code> (1ms = 1000µs). Omit for lowest latency (workers busy-poll at 100% CPU); set a non-zero value on shared or dev hosts to trade latency for idle CPU. An explicit <code>0ms</code> is emitted and equals VPP's default. <!-- source: internal/component/vpp/config.go -- parsePollSleepMs --></td>
+</tr>
+<tr>
 <td><code>vpp.memory.main-heap</code></td>
 <td>size string</td>
 <td><code>1G</code></td>
@@ -682,12 +688,19 @@ the stats poll interval only when the defaults do not fit the workload.</p>
 <td><code>vpp.lcp.netns</code></td>
 <td>string</td>
 <td><code>dataplane</code></td>
-<td>Network namespace where LCP TAPs appear. Must not contain path separators.</td>
+<td>Network namespace where LCP TAPs appear. Must not contain path separators. For BGP to bind on an LCP-shadowed interface, set this to a root-reachable namespace (<code>host</code>/<code>root</code>) or run BGP in the same namespace; <code>ze doctor</code> warns (<code>doctor-vpp-lcp-netns</code>) otherwise.</td>
+</tr>
+<tr>
+<td><code>vpp.plugins.wireguard</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Load <code>wireguard_plugin.so</code> so the vpp interface backend can program WireGuard tunnels (<code>interface { backend vpp; wireguard ...; }</code>). <code>ze doctor</code> warns (<code>doctor-vpp-wireguard</code>) if a wireguard interface is configured under vpp with this off.</td>
 </tr>
 </tbody>
 </table>
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- every leaf above -->
 <!-- source: internal/component/vpp/config.go -- defaults and validation -->
+<!-- source: internal/plugins/iface/vpp/doctor.go -- doctor-vpp-lcp-netns, doctor-vpp-wireguard -->
 
 <h3 id="enabling-fib-programming">Enabling FIB programming</h3>
 <p>The VPP component starts VPP, but it does not program routes. That is
@@ -744,9 +757,14 @@ a noop backend and logs a warning instead of blocking the rest of ze.</p>
 <!-- source: internal/plugins/fib/vpp/register.go -- mockBackend fallback when connector is nil -->
 
 <h2 id="system-prerequisites">System prerequisites</h2>
-<p>VPP is not a user-space toy; DPDK needs real kernel cooperation. Ze
-validates its own config, but it cannot set kernel boot parameters or
-allocate hugepages. Before enabling VPP:</p>
+<p>VPP is not a user-space toy; DPDK needs real kernel cooperation. On a
+general-purpose host Ze cannot set kernel boot parameters, so you reserve
+hugepages yourself. On the gokrazy appliance Ze owns the kernel cmdline: set
+<code>image.hugepages</code> (and optionally <code>image.memory-bytes</code>) in <code>appliance.json</code> and
+<code>ze appliance build</code> bakes <code>default_hugepagesz</code>/<code>hugepagesz</code>/<code>hugepages</code> into the
+boot cmdline for you (see the appliance guide). <code>ze doctor</code> reports
+<code>doctor-vpp-hugepages</code> when VPP is enabled but the reservation is missing,
+insufficient, or clamped. Before enabling VPP:</p>
 <table>
 <thead>
 <tr>
@@ -757,7 +775,7 @@ allocate hugepages. Before enabling VPP:</p>
 <tbody>
 <tr>
 <td>Hugepages (approximately 6 GB for production 10G, 2 GB for lab)</td>
-<td><code>echo 3072 &gt; /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages</code> or via. <span class="ev-src"><span class="ev-ref"><code>/etc/sysctl.d/</code></span></span></td>
+<td>Appliance: <code>image.hugepages { page-size, count }</code> in <code>appliance.json</code>. Non-appliance host: <code>echo 3072 &gt; /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages</code> or via. <!-- source: internal/appliance/kernelargs.go -- hugepageKernelArgs -->. <span class="ev-src"><span class="ev-ref"><code>/etc/sysctl.d/</code></span></span></td>
 </tr>
 <tr>
 <td>IOMMU enabled</td>
@@ -824,15 +842,15 @@ telemetry are in the tree. The remaining phases:</p>
 <tr>
 <td>vpp-4</td>
 <td>VPP-native <code>iface.Backend</code>: managing interfaces directly via GoVPP instead of through the kernel</td>
-<td><strong>In tree.</strong> Backend registers as <code>"vpp"</code> and loads cleanly under <code>interface { backend vpp; }</code>. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (<code>ListInterfaces</code>, <code>GetInterface</code>, <code>GetMACAddress</code>, <code>SetMACAddress</code>), and monitor (<code>WantInterfaceEvents</code> -&gt; EventBus) all wired against vendored GoVPP. Tunnels (VXLAN/GRE/IPIP), LCP TAP pairs, VPP stats segment, mirror, and wireguard are deferred to vpp-4b/4c/5/6b (each blocked on vendoring the matching package). Iface-component reconciliation also currently races the vpp handshake at startup and degrades to additive-only -- tracked in <code>spec-iface-vpp-ready-gate</code>. <span class="ev-src"><span class="ev-ref"><code>go.fd.io/govpp/binapi/*</code></span></span></td>
-</tr>
-<tr>
-<td>vpp-5</td>
-<td>L2 cross-connect, bridge domains, VXLAN tunnels, policers, ACLs, SRv6, sFlow</td>
-<td>Depends on vpp-4. Each feature is independent.</td>
+<td><strong>In tree.</strong> Backend registers as <code>"vpp"</code> and loads cleanly under <code>interface { backend vpp; }</code>. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (<code>ListInterfaces</code>, <code>GetInterface</code>, <code>GetMACAddress</code>, <code>SetMACAddress</code>), and monitor (<code>WantInterfaceEvents</code> -&gt; EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (<code>spec-followup-vpp-iface</code>, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping <code>linux_cp_plugin.so</code>/<code>linux_nl_plugin.so</code> (the <code>ligato/vpp-base</code> image does not). Iface-component reconciliation still races the vpp handshake at startup and degrades to additive-only -- tracked in <code>spec-iface-vpp-ready-gate</code>. <span class="ev-src"><span class="ev-ref"><code>scripts/evidence/effective-vpp-iface.py</code></span></span></td>
 </tr>
 </tbody>
 </table>
+<!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip -->
+<!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN -->
+<!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API -->
+<!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del -->
+<p>| vpp-5 | L2 cross-connect, bridge domains, policers, ACLs, SRv6, sFlow | Depends on vpp-4. Each feature is independent. (VXLAN tunnels landed with <code>spec-followup-vpp-iface</code>.) |</p>
 <p>The three-strategy framing in
 <a href="https://github.com/ze-software/ze/blob/main/docs/research/ze-vpp-analysis.md" target="_blank" rel="noopener"><code>docs/research/ze-vpp-analysis.md</code></a>
 explains the bigger picture: strategy 1 (IPng / VyOS style, netlink

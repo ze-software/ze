@@ -347,7 +347,7 @@ Implemented and tested, not yet production-proven.
 
 *services / Experimental* -- `PPP` `RADIUS` `CQM`
 
-- RFC 2661 LNS with **PPP** negotiation
+- RFC 2661 **LNS and LAC** with PPP
 - **RADIUS** auth, accounting, CoA
 - CQM monitoring, **shaping**, web UI
 

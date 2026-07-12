@@ -103,6 +103,9 @@
     <loc>https://ze-software.net/changes/2026-07-01/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/changes/2026-07-06/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/cli/</loc>
   </url>
   <url>
@@ -347,6 +350,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/request-interface-up/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/command-equivalents/request-l2tp-outgoing-call-remote-called/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/command-equivalents/request-log-level/</loc>
@@ -1483,6 +1489,9 @@
     <loc>https://ze-software.net/docs/features/plugins/dhcpserver/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/features/plugins/exabgp-bridge/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/docs/features/plugins/fakeas112/</loc>
   </url>
   <url>
@@ -1513,7 +1522,7 @@
     <loc>https://ze-software.net/docs/features/plugins/firewall/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/docs/features/plugins/flow-export/</loc>
+    <loc>https://ze-software.net/docs/features/plugins/flow-export-conntrack-tracking/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/features/plugins/flowspec-firewall/</loc>

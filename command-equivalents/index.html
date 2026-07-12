@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../assets/site.css?v=adbbfadb2b" />
+        <link rel="stylesheet" href="../assets/site.css?v=482c51956e" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -93,7 +93,7 @@
                         <span class="nav-dropdown-label">Capabilities</span>
                         <a class="nav-dropdown-item" href="../features/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
-                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
+                            <span><strong>Features</strong><small>47 features, color-coded by category</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../compare/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚖️</span>
@@ -354,7 +354,7 @@
                     <p>One line per live Ze command, with vendor CLI surfaced first when a curated equivalent exists. The full catalog still includes reviewed gaps; a dash means no equivalent has been listed yet.</p>
                 </div>
 <div class="cmd-eq-stats">
-<div><strong>379</strong><span>live Ze commands</span></div>
+<div><strong>380</strong><span>live Ze commands</span></div>
 <div><strong>47</strong><span>commands with vendor CLI</span></div>
 <div><strong>100</strong><span>reviewed command rows</span></div>
 <div><strong>49</strong><span>curated mapping intents</span></div>
@@ -642,7 +642,7 @@
 </tbody></table></div>
 </details>
 <details class="cmd-eq-group" id="cmd-eq-group-request" open>
-<summary>request <span class="cmd-eq-count">7 equivalent, 9 reviewed, 31 total</span></summary>
+<summary>request <span class="cmd-eq-count">7 equivalent, 9 reviewed, 32 total</span></summary>
 <div class="cmd-eq-table-wrap">
 <table class="cmd-eq-table cmd-eq-compact"><thead><tr><th>Ze</th>
 <th>Junos MX</th>
@@ -665,6 +665,7 @@
 <tr id="cmd-eq-request-interface-migrate" class="cmd-eq-no-vendor" data-search="request interface migrate request interface migrate move ip addresses between interfaces with minimal downtime. takes a source interface, a target interface, and the address to move. adds addresses to the target before removing them from the source (make-before-break). daemon ze-iface:interface-migrate request"><td class="cmd-eq-ze"><a href="request-interface-migrate/"><code>request interface migrate</code></a><span class="cmd-mode">Daemon</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td class="cmd-eq-detail-link"><a href="request-interface-migrate/">details</a></td></tr>
 <tr id="cmd-eq-request-interface-mtu" class="cmd-eq-no-vendor" data-search="request interface mtu request interface &lt;name&gt; mtu &lt;bytes&gt; set the mtu on an interface. usage: request interface &lt;name&gt; mtu &lt;bytes&gt;. range: 68 to 65535. daemon ze-iface:interface-mtu request"><td class="cmd-eq-ze"><a href="request-interface-mtu/"><code>request interface &lt;name&gt; mtu &lt;bytes&gt;</code></a><span class="cmd-mode">Daemon</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td class="cmd-eq-detail-link"><a href="request-interface-mtu/">details</a></td></tr>
 <tr id="cmd-eq-request-interface-up" class="cmd-eq-no-vendor" data-search="request interface up request interface &lt;name&gt; up bring an interface up. usage: request interface &lt;name&gt; up. daemon ze-iface:interface-up request"><td class="cmd-eq-ze"><a href="request-interface-up/"><code>request interface &lt;name&gt; up</code></a><span class="cmd-mode">Daemon</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td class="cmd-eq-detail-link"><a href="request-interface-up/">details</a></td></tr>
+<tr id="cmd-eq-request-l2tp-outgoing-call-remote-called" class="cmd-eq-no-vendor" data-search="request l2tp outgoing-call remote called request l2tp outgoing-call remote &lt;name&gt; called &lt;number&gt; place an lns-side outgoing call (rfc 2661 s10.4). usage: request l2tp outgoing-call remote &lt;name&gt; called &lt;number&gt;. dials the named remote (which must have outgoing-calls enabled), sends ocrq, and blocks until the call establishes or fails. on failure the cause and rfc 2661 result code are reported (auth reject, tie-breaker loss, peer cdn, or timeout). daemon ze-l2tp-api:outgoing-call request"><td class="cmd-eq-ze"><a href="request-l2tp-outgoing-call-remote-called/"><code>request l2tp outgoing-call remote &lt;name&gt; called &lt;number&gt;</code></a><span class="cmd-mode">Daemon</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td class="cmd-eq-detail-link"><a href="request-l2tp-outgoing-call-remote-called/">details</a></td></tr>
 <tr id="cmd-eq-request-log-level" class="cmd-eq-no-vendor" data-search="request log level request log level &lt;logger&gt; &lt;level&gt; change a subsystem&#x27;s log level without restarting. usage: request log level &lt;logger&gt; &lt;level&gt;. takes effect immediately. set to debug when troubleshooting, then back to info when you are done. daemon ze-bgp:log-set request"><td class="cmd-eq-ze"><a href="request-log-level/"><code>request log level &lt;logger&gt; &lt;level&gt;</code></a><span class="cmd-mode">Daemon</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td class="cmd-eq-detail-link"><a href="request-log-level/">details</a></td></tr>
 <tr id="cmd-eq-request-ospf-graceful-restart" class="cmd-eq-no-vendor" data-search="request ospf graceful-restart request ospf graceful-restart trigger a planned ospfv2 graceful restart (rfc 3623 section 2.1). usage: request ospf graceful-restart. the engine originates one grace-lsa per interface, persists the non-volatile restart fact, and suppresses route churn so the fib is retained across the ensuing control-plane restart. refused when graceful-restart is not configured. daemon ze-ospf:graceful-restart-prepare request"><td class="cmd-eq-ze"><a href="request-ospf-graceful-restart/"><code>request ospf graceful-restart</code></a><span class="cmd-mode">Daemon</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td class="cmd-eq-detail-link"><a href="request-ospf-graceful-restart/">details</a></td></tr>
 <tr id="cmd-eq-request-peer-borr" class="cmd-eq-no-vendor" data-search="request peer borr request peer borr &lt;selector&gt; start an enhanced route refresh cycle (rfc 7313). tells the peer to mark existing routes as stale. after re-sending, send eorr to purge anything not refreshed. daemon ze-bgp:peer-borr request"><td class="cmd-eq-ze"><a href="request-peer-borr/"><code>request peer borr &lt;selector&gt;</code></a><span class="cmd-mode">Daemon</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td><span class="cmd-no-equivalent">-</span></td><td class="cmd-eq-detail-link"><a href="request-peer-borr/">details</a></td></tr>

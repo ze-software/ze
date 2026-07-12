@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=d81686772d" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -336,10 +336,10 @@
                     <a
                         class="nav-badge"
                         href="https://github.com/ze-software/ze" target="_blank" rel="noopener"
-                        aria-label="Ze on GitHub, 45 stars"
+                        aria-label="Ze on GitHub, 39 stars"
                     >
                         <span class="nav-badge-icon"><svg viewBox="0 0 496 512" fill="currentColor" aria-hidden="true"><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
-                        <span class="nav-badge-count">45</span>
+                        <span class="nav-badge-count">39</span>
                     </a>
                 </div>
             </nav>
@@ -377,7 +377,10 @@
 <li><a href="#ze-setup-binary">ze-setup binary</a></li>
 <li><a href="#building-and-installing-an-appliance-end-to-end">Building and installing an appliance (end to end)</a>
 <ol>
-<li><a href="#from-a-json-config-recommended">From a JSON config (recommended)</a></li>
+<li><a href="#from-a-json-config-recommended">From a JSON config (recommended)</a>
+<ol>
+<li><a href="#reserving-hugepages-for-vpp">Reserving hugepages for VPP</a></li>
+</ol></li>
 <li><a href="#manual-steps">Manual steps</a></li>
 </ol></li>
 <li><a href="#ze-appliance-structured-workflow">ze appliance (structured workflow)</a>
@@ -521,7 +524,7 @@ was already built with the L2TP proof template and proof runtime environment.</p
 <p>The legacy Make first build:</p>
 <ol>
 <li>Builds <code>bin/ze</code> for the host</li>
-<li>Runs <code>ze init</code> with credentials and generates a self-signed TLS certificate</li>
+<li>Runs <code>ze init --seed</code> with credentials and generates a self-signed TLS certificate. <code>--seed</code> skips baking the build host's discovered interfaces into the active config; otherwise that active config would hold the wrong host's NICs and shadow the seed template, leaving the appliance without web/L2TP. The appliance instead builds its active config at first boot from the template merged with its own on-device discovery.</li>
 <li>Cross-compiles Ze for linux/<code>GOKRAZY_ARCH</code> and builds a 2GB disk image</li>
 <li>Formats the persistent <code>/perm</code> partition</li>
 <li>Injects <code>database.zefs</code> (credentials + TLS cert) into <code>/perm/ze/</code></li>
@@ -587,9 +590,13 @@ sudo dd if=tmp/gokrazy/ze.img of=/dev/rdiskN bs=4m
 <p>The initial Ze config is stored as the seed template in <code>gokrazy/ze/ze.conf</code>.
 Legacy Make writes that file into <code>file/template/ze.conf</code> in ZeFS during
 <code>make ze-gokrazy</code>; structured <code>ze appliance assemble</code> uses the same default when
-no base or per-appliance overlay config is present.</p>
+no base or per-appliance overlay config is present. Because <code>make ze-gokrazy</code>
+runs <code>ze init --seed</code>, the seed DB has no <code>file/active/ze.conf</code> to shadow the
+template, so the template becomes the effective config on first boot (<code>ze
+appliance assemble</code> never wrote an active config, so it was already correct).</p>
 <!-- source: gokrazy/ze/ze.conf -- seed template -->
-<!-- source: mk/gokrazy.mk -- GOKRAZY_TEMPLATE write -->
+<!-- source: mk/gokrazy.mk -- GOKRAZY_TEMPLATE write, ze init --seed -->
+<!-- source: internal/plugins/init/main.go -- runInit seed skips file/active write -->
 <!-- source: internal/appliance/cmd_assemble.go -- resolveSeedConfig -->
 
 <pre><code class="language-bash">set environment log level info
@@ -711,6 +718,28 @@ of the on-device <code>ze</code> binary.</p>
     &quot;image&quot;: { &quot;arch&quot;: &quot;amd64&quot;, &quot;size-bytes&quot;: 2147483648, &quot;kernel-profile&quot;: &quot;hardware-kms&quot; }
 }
 </code></pre>
+<h4 id="reserving-hugepages-for-vpp">Reserving hugepages for VPP</h4>
+<p>When the appliance runs VPP, reserve hugepages at boot by adding <code>image.hugepages</code>
+to the config. <code>ze appliance build</code> bakes <code>default_hugepagesz</code>/<code>hugepagesz</code>/<code>hugepages</code>
+into the boot cmdline (via a derived gokrazy instance config; the checked-in
+<code>gokrazy/ze/config.json</code> is never modified). Declare <code>image.memory</code> so the build
+rejects a reservation over 50% of target RAM and <code>ze appliance run</code> sizes QEMU's
+<code>-m</code> to match. Sizes are byte-size strings (<code>10b</code>, <code>512mb</code>, <code>1gb</code>, <code>1tb</code>;
+case-insensitive, 1024-based):</p>
+<pre><code class="language-json">&quot;image&quot;: {
+    &quot;arch&quot;: &quot;amd64&quot;,
+    &quot;size-bytes&quot;: 2147483648,
+    &quot;memory&quot;: &quot;8gb&quot;,
+    &quot;hugepages&quot;: { &quot;size&quot;: &quot;1gb&quot;, &quot;page-size&quot;: &quot;2mb&quot; }
+}
+</code></pre>
+<p><code>hugepages.size</code> is the total reservation and <code>page-size</code> is <code>2mb</code> or <code>1gb</code>; the
+page count is <code>size / page-size</code> (so <code>size</code> must be a whole multiple of
+<code>page-size</code>). The reservation is bounded to 512 GiB and, when <code>memory</code> is set, to
+50% of it. 1gb pages need CPU <code>pdpe1gb</code> support and <code>CONFIG_HUGETLBFS</code> in the
+kernel profile (both surfaced by <code>ze doctor</code>).</p>
+<!-- source: internal/appliance/config.go -- ImageConfig.Hugepages, validateImageMemory -->
+
 <p>Build the full ISO in one command:</p>
 <pre><code class="language-bash">make ze-iso CONFIG=prod.json SSH_PASSWORD='choose-a-strong-one'
 </code></pre>

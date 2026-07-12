@@ -1,4 +1,4 @@
-# `flow-export` plugin
+# `flow-export-conntrack-tracking` plugin
 
 sFlow, NetFlow v9, and IPFIX counter export
 
@@ -17,7 +17,7 @@ sFlow, NetFlow v9, and IPFIX counter export
 
 ## Dependencies
 
-- Required: [`interface`](../interface/index.md)
+- Required: `config-loaded`
 - Optional: None
 
 ## Used by

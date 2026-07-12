@@ -1,6 +1,6 @@
 # Command Equivalents
 
-379 live Ze commands. 47 have vendor CLI today. 100 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+380 live Ze commands. 47 have vendor CLI today. 100 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -204,6 +204,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request interface migrate` | Daemon | - | - | - | - | [details](request-interface-migrate/) |
 | `request interface <name> mtu <bytes>` | Daemon | - | - | - | - | [details](request-interface-mtu/) |
 | `request interface <name> up` | Daemon | - | - | - | - | [details](request-interface-up/) |
+| `request l2tp outgoing-call remote <name> called <number>` | Daemon | - | - | - | - | [details](request-l2tp-outgoing-call-remote-called/) |
 | `request log level <logger> <level>` | Daemon | - | - | - | - | [details](request-log-level/) |
 | `request ospf graceful-restart` | Daemon | - | - | - | - | [details](request-ospf-graceful-restart/) |
 | `request peer borr <selector>` | Daemon | - | - | - | - | [details](request-peer-borr/) |

@@ -1,6 +1,6 @@
 # Plugin catalog
 
-86 runtime plugins generated from `data/plugin-registry.json`, plus 5 test fixtures. 66 runtime plugins declare configuration roots and 67 ship YANG modules.
+87 runtime plugins generated from `data/plugin-registry.json`, plus 5 test fixtures. 67 runtime plugins declare configuration roots and 68 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -134,6 +134,14 @@ Generated group for registry entries mapped to the Environment area. Config root
 |--------|----------|--------|------------|-------------|
 | [`ntp`](ntp/index.md) | NTP client: system clock synchronization | `environment` | None | `internal/plugins/ntp` |
 
+## Exabgp
+
+Generated group for registry entries mapped to the Exabgp area. Config roots: `exabgp`. Source area: `internal/plugins/exabgp`.
+
+| Plugin | Used for | Config | Depends on | Source path |
+|--------|----------|--------|------------|-------------|
+| [`exabgp-bridge`](exabgp-bridge/index.md) | In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) | `exabgp` | None | `internal/plugins/exabgp/bridgeplugin` |
+
 ## FIB
 
 Generated group for registry entries mapped to the FIB area. Config roots: `fib`. Source area: `internal/plugins/fib`.
@@ -159,7 +167,7 @@ Generated group for registry entries mapped to the Flow Export area. Config root
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`flow-export`](flow-export/index.md) | sFlow, NetFlow v9, and IPFIX counter export | `flow-export` | `interface` | `internal/plugins/flowexport` |
+| [`flow-export-conntrack-tracking`](flow-export-conntrack-tracking/index.md) | sFlow, NetFlow v9, and IPFIX counter export | `flow-export` | `config-loaded` | `internal/plugins/flowexport` |
 
 ## Flowspec Firewall
 

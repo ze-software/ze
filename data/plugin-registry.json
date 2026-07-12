@@ -940,6 +940,20 @@
     "doc": {}
   },
   {
+    "name": "exabgp-bridge",
+    "description": "In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)",
+    "config_roots": [
+      "exabgp"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/exabgp/bridgeplugin",
+    "yang_files": [
+      "internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang"
+    ],
+    "doc": {}
+  },
+  {
     "name": "fib-kernel",
     "description": "FIB kernel: programs OS routes from system RIB via netlink/route socket",
     "config_roots": [
@@ -990,13 +1004,13 @@
     "doc": {}
   },
   {
-    "name": "flow-export",
+    "name": "flow-export-conntrack-tracking",
     "description": "sFlow, NetFlow v9, and IPFIX counter export",
     "config_roots": [
       "flow-export"
     ],
     "dependencies": [
-      "interface"
+      "config-loaded"
     ],
     "optional_dependencies": [],
     "source_dir": "internal/plugins/flowexport",

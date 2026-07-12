@@ -830,6 +830,26 @@
     "syntax": "request interface <name> up"
   },
   {
+    "path": "request l2tp outgoing-call remote called",
+    "description": "Place an LNS-side outgoing call (RFC 2661 S10.4).\nUsage: request l2tp outgoing-call remote <name> called <number>. Dials the\nnamed remote (which must have outgoing-calls enabled), sends OCRQ, and blocks\nuntil the call establishes or fails. On failure the cause and RFC 2661 Result\nCode are reported (auth reject, tie-breaker loss, peer CDN, or timeout).",
+    "mode": "daemon",
+    "wire-method": "ze-l2tp-api:outgoing-call",
+    "args": [
+      {
+        "name": "called",
+        "type": "string",
+        "mandatory": true
+      },
+      {
+        "name": "remote",
+        "type": "string",
+        "mandatory": true
+      }
+    ],
+    "global-pipes": true,
+    "syntax": "request l2tp outgoing-call remote <name> called <number>"
+  },
+  {
     "path": "request log level",
     "description": "Change a subsystem's log level without restarting.\nUsage: request log level <logger> <level>. Takes effect immediately.\nSet to debug when troubleshooting, then back to info when you are done.",
     "mode": "daemon",

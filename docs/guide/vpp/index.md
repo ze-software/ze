@@ -104,7 +104,7 @@ The point is that VPP's system-level prerequisites (vfio module load,
 NIC unbind, driver save, rescan-on-teardown) are part of ze's job, not
 the operator's. This matters on a gokrazy appliance where there is no
 systemd and ze is PID 1 for the data plane.
-<!-- source: .claude/memory/project_gokrazy_appliance.md -- appliance context -->
+<!-- source: internal/plugins/init/main.go -- gokrazy PID-1 appliance lifecycle -->
 
 ## Running against an externally supervised VPP
 
@@ -172,6 +172,7 @@ the stats poll interval only when the defaults do not fit the workload.
 | `vpp.api-socket` | string | `/run/vpp/api.sock` | GoVPP Unix socket. Ze validates it is absolute, has no `..`, and fits in 108 characters. |
 | `vpp.cpu.main-core` | uint8 | auto | CPU core pinned to the VPP main thread. Omit for VPP default. |
 | `vpp.cpu.workers` | uint8 | auto | Number of worker threads. Ze allocates `main-core+1 .. main-core+workers` for `corelist-workers` in startup.conf. |
+| `vpp.cpu.poll-sleep` | `Nms` (0ms–100ms) | unset | Fixed sleep between VPP main-loop polls, expressed in whole milliseconds (`ms` is the only accepted unit, e.g. `10ms`), emitted as `unix { poll-sleep-usec N }` (1ms = 1000µs). Omit for lowest latency (workers busy-poll at 100% CPU); set a non-zero value on shared or dev hosts to trade latency for idle CPU. An explicit `0ms` is emitted and equals VPP's default. <!-- source: internal/component/vpp/config.go -- parsePollSleepMs --> |
 | `vpp.memory.main-heap` | size string | `1G` | VPP main heap. Use `1536M` for a full DFZ (approximately 958k IPv4 + 198k IPv6 routes). |
 | `vpp.memory.hugepage-size` | `2M` or `1G` | `2M` | Hugepage size. `2M` is the common case; `1G` for large installations. |
 | `vpp.memory.buffers` | uint32 | `128000` | Buffers per NUMA node. 128k is proven for full DFZ at 10G. |
@@ -184,9 +185,11 @@ the stats poll interval only when the defaults do not fit the workload.
 | `vpp.lcp.enabled` | boolean | `true` | Whether ze asks VPP to load `linux_cp_plugin.so` and `linux_nl_plugin.so`. Leave on when BGP uses VPP-owned NICs. |
 | `vpp.lcp.sync` | boolean | `true` | Mirror VPP state changes (link, MTU, IP) into the Linux TAPs. |
 | `vpp.lcp.auto-subint` | boolean | `true` | Auto-create Linux TAPs for dot1q and QinQ sub-interfaces. |
-| `vpp.lcp.netns` | string | `dataplane` | Network namespace where LCP TAPs appear. Must not contain path separators. |
+| `vpp.lcp.netns` | string | `dataplane` | Network namespace where LCP TAPs appear. Must not contain path separators. For BGP to bind on an LCP-shadowed interface, set this to a root-reachable namespace (`host`/`root`) or run BGP in the same namespace; `ze doctor` warns (`doctor-vpp-lcp-netns`) otherwise. |
+| `vpp.plugins.wireguard` | boolean | `false` | Load `wireguard_plugin.so` so the vpp interface backend can program WireGuard tunnels (`interface { backend vpp; wireguard ...; }`). `ze doctor` warns (`doctor-vpp-wireguard`) if a wireguard interface is configured under vpp with this off. |
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- every leaf above -->
 <!-- source: internal/component/vpp/config.go -- defaults and validation -->
+<!-- source: internal/plugins/iface/vpp/doctor.go -- doctor-vpp-lcp-netns, doctor-vpp-wireguard -->
 
 ### Enabling FIB programming
 
@@ -218,13 +221,18 @@ a noop backend and logs a warning instead of blocking the rest of ze.
 
 ## System prerequisites
 
-VPP is not a user-space toy; DPDK needs real kernel cooperation. Ze
-validates its own config, but it cannot set kernel boot parameters or
-allocate hugepages. Before enabling VPP:
+VPP is not a user-space toy; DPDK needs real kernel cooperation. On a
+general-purpose host Ze cannot set kernel boot parameters, so you reserve
+hugepages yourself. On the gokrazy appliance Ze owns the kernel cmdline: set
+`image.hugepages` (and optionally `image.memory-bytes`) in `appliance.json` and
+`ze appliance build` bakes `default_hugepagesz`/`hugepagesz`/`hugepages` into the
+boot cmdline for you (see the appliance guide). `ze doctor` reports
+`doctor-vpp-hugepages` when VPP is enabled but the reservation is missing,
+insufficient, or clamped. Before enabling VPP:
 
 | Requirement | How to provide it |
 |-------------|-------------------|
-| Hugepages (approximately 6 GB for production 10G, 2 GB for lab) | `echo 3072 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages` or via `/etc/sysctl.d/` |
+| Hugepages (approximately 6 GB for production 10G, 2 GB for lab) | Appliance: `image.hugepages { page-size, count }` in `appliance.json`. Non-appliance host: `echo 3072 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages` or via `/etc/sysctl.d/`. <!-- source: internal/appliance/kernelargs.go -- hugepageKernelArgs --> |
 | IOMMU enabled | BIOS: enable VT-d / AMD-Vi. Kernel cmdline: `intel_iommu=on iommu=pt` |
 | CPU isolation for VPP workers | Kernel cmdline: `isolcpus=<worker-cores>` so Linux does not schedule on them |
 | Netlink buffer for route injection | `sysctl net.core.rmem_default=67108864` |
@@ -262,8 +270,12 @@ telemetry are in the tree. The remaining phases:
 | Phase | What it adds | Why not yet |
 |-------|--------------|-------------|
 | vpp-3 | MPLS label push / swap / pop driven from BGP labelled unicast | **In tree.** Labels stripped at NLRI parse (SplitLabeled, RFC 8277), stored as FamilyRIB side-data, propagated through bgp-rib and sysRIB BestChangeEntry.Labels, programmed into VPP via IPRouteAddDel with LabelStack (push) or MplsRouteAddDel (swap/pop). 20-bit label range and stack depth 16 validated before GoVPP call. |
-| vpp-4 | VPP-native `iface.Backend`: managing interfaces directly via GoVPP instead of through the kernel | **In tree.** Backend registers as `"vpp"` and loads cleanly under `interface { backend vpp; }`. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (`ListInterfaces`, `GetInterface`, `GetMACAddress`, `SetMACAddress`), and monitor (`WantInterfaceEvents` -> EventBus) all wired against vendored GoVPP. Tunnels (VXLAN/GRE/IPIP), LCP TAP pairs, VPP stats segment, mirror, and wireguard are deferred to vpp-4b/4c/5/6b (each blocked on vendoring the matching `go.fd.io/govpp/binapi/*` package). Iface-component reconciliation also currently races the vpp handshake at startup and degrades to additive-only -- tracked in `spec-iface-vpp-ready-gate`. |
-| vpp-5 | L2 cross-connect, bridge domains, VXLAN tunnels, policers, ACLs, SRv6, sFlow | Depends on vpp-4. Each feature is independent. |
+| vpp-4 | VPP-native `iface.Backend`: managing interfaces directly via GoVPP instead of through the kernel | **In tree.** Backend registers as `"vpp"` and loads cleanly under `interface { backend vpp; }`. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (`ListInterfaces`, `GetInterface`, `GetMACAddress`, `SetMACAddress`), and monitor (`WantInterfaceEvents` -> EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (`spec-followup-vpp-iface`, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by `scripts/evidence/effective-vpp-iface.py`; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping `linux_cp_plugin.so`/`linux_nl_plugin.so` (the `ligato/vpp-base` image does not). Iface-component reconciliation still races the vpp handshake at startup and degrades to additive-only -- tracked in `spec-iface-vpp-ready-gate`. |
+<!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip -->
+<!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN -->
+<!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API -->
+<!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del -->
+| vpp-5 | L2 cross-connect, bridge domains, policers, ACLs, SRv6, sFlow | Depends on vpp-4. Each feature is independent. (VXLAN tunnels landed with `spec-followup-vpp-iface`.) |
 
 The three-strategy framing in
 [`docs/research/ze-vpp-analysis.md`](https://github.com/ze-software/ze/blob/main/docs/research/ze-vpp-analysis.md)

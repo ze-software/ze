@@ -1,6 +1,6 @@
 # Configuration Reference
 
-The complete Ze configuration as one tree: 35 top-level sections (26 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/docs/features/configuration/) for a narrative walkthrough of BGP peer config specifically.
+The complete Ze configuration as one tree: 36 top-level sections (27 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/docs/features/configuration/) for a narrative walkthrough of BGP peer config specifically.
 
 ## anomaly
 
@@ -72,7 +72,7 @@ BFD control configuration for Ze.
   - **shutdown** `boolean`
   - **vrf** `string`
 - **persist-dir** `string`
-  Absolute path to the directory where the plugin persists TX sequence numbers for Meticulous Keyed authentication. RFC 5880 Section 6.7.3 requires the sequence to survive process restarts; without this leaf set, Meticulous sessions still work at runtime but a fresh process loses its sequence floor until the peer's replay window slides forward.
+  DEPRECATED (retained for back-compat; scheduled for removal). The value is no longer interpreted as a directory: TX sequence numbers for Meticulous Keyed authentication now persist to the shared managed state store (database.zefs) instead of a loose file. A non-empty value still opts a session into persistence. RFC 5880 Section 6.7.3 requires the sequence to survive process restarts; without this leaf set, Meticulous sessions still work at runtime but a fresh process loses its sequence floor until the peer's replay window slides forward.
 - **profile <name>** `list`
   Reusable timer and feature profile. Sessions reference a profile by name and inherit every field below.
   - **auth** `container`
@@ -1395,6 +1395,12 @@ Distributed denial-of-service detection and mitigation subsystem.
     Minimum threshold in PPS regardless of baseline.
   - **baseline-window** `uint32`
     Rolling baseline window size in samples.
+  - **bps-floor** `uint64`
+    Minimum bandwidth in bits/sec below which the BPS trigger is inert (default 50 Mbps). Expressed in bits/sec (operator unit); the detector's internal rate is bytes/sec and converts.
+  - **bps-threshold-multiplier** `decimal-2`
+    Baseline p99 multiplier for the bandwidth (BPS) trigger. Catches low-PPS/high-bandwidth amplification (NTP/memcached/CLDAP) that the packet-rate threshold misses.
+  - **bps-trigger-enable** `boolean`
+    Enable the bandwidth (BPS) trigger alongside the PPS threshold. When false only the packet-rate threshold can trigger detection.
   - **characterize-enable** `boolean`
     Run Stage-2 flow characterization (classify family + narrowest vector from the flow-export recent-flow ring, emit AttackCharacterized). When false the detector still emits the coarse AttackDetected target from traffic-usage.
   - **characterize-timeout** `uint16`
@@ -1411,6 +1417,18 @@ Distributed denial-of-service detection and mitigation subsystem.
     Enable the DDoS detector.
   - **entropy-threshold** `decimal-2`
     Source-address Shannon entropy (bits) at or above which an attack is logged as distributed/spoofed. 0 = a single source; higher = more sources.
+  - **policy** `container`
+    Allow/deny traffic policy applied to detected attacks, indexed by prefix and evaluated longest-prefix-match (most specific wins), NOT config order. Replaces the removed per-responder allowlists: the detector enforces it once and encodes the exempt/mitigate decision on the emitted event so the responders honor it without reading config.
+    - **default-action** `enumeration`
+      Disposition when no rule matches: deny = defend (detection + mitigation); allow = exempt from detection entirely.
+    - **rule <prefix>** `list`
+      One allow/deny rule matched against an attack, keyed by prefix. Precedence is longest-prefix-match, so a /24 rule beats a covering /16 without any ordering.
+      - **action** `enumeration`
+        allow = exempt matching traffic; deny = subject it to DDoS handling.
+      - **match** `enumeration`
+        Whether the prefix matches the attack source, the victim destination, or either. Source rules take effect once the attack sources are characterized.
+      - **scope** `enumeration`
+        Stage the action governs: mitigation = detect and record but (for allow) do not block; detection = (for allow) suppress the incident entirely.
   - **startup-grace** `uint16`
     Seconds after startup where only extreme spikes trigger.
   - **threshold-multiplier** `decimal-2`
@@ -1421,14 +1439,14 @@ Distributed denial-of-service detection and mitigation subsystem.
   *Provided by `ddos-flowspec` ([ze-ddos-flowspec-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang))*
   - **action** `enumeration`
     FlowSpec traffic-action. Mandatory, with no default because neither drop nor rate-limit is universally safe: discard announces an RFC 8955 traffic-rate of 0 (drops the characterized attack flow); rate-limit announces a byte rate and requires an explicit rate-limit-bytes. A rate-limit-bytes of 0 is a valid choice and is equivalent to discard on the wire.
-  - **allowlist** `string[]`
-    Prefixes that must never be announced for mitigation.
   - **announce-rate-limit** `uint16`
     Maximum FlowSpec announcements per minute.
   - **backoff-cap** `uint32`
     Maximum hold-down after exponential backoff.
   - **blackhole-fallback** `boolean`
     When true, a critical-severity AttackDetected (peak >= 5x threshold) auto-engages an immediate upstream discard (RTBH-style) without waiting for characterization. When false (default) the upstream rule is announced only from AttackCharacterized, so it is precise before the box goes blind behind the filter.
+  - **confidence-min** `uint8`
+    Minimum incident confidence (0-100) required to announce an upstream rule from a characterized attack. 0 (default) disables the gate. The blackhole-fallback fast path is never gated (AttackDetected carries no confidence).
   - **hold-down** `uint32`
     Minimum seconds before the first leak-probe after announcement.
   - **max-mitigation-duration** `uint32`
@@ -1455,8 +1473,10 @@ Distributed denial-of-service detection and mitigation subsystem.
     Node UUID for Flowtriq agent identification.
 - **local** `container`
   *Provided by `ddos-local` ([ze-ddos-local-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang))*
-  - **allowlist** `string[]`
-    Prefixes that must never be blocked.
+  - **confidence-min** `uint8`
+    Minimum incident confidence (0-100) required to install a drop rule from a characterized attack. 0 (default) disables the gate. Higher values suppress mitigation on borderline detections.
+  - **forward-mitigation** `boolean`
+    When true, also drop a remote (transit) victim's traffic on the netfilter FORWARD hook to protect a downstream host. Default false: the responder guards only local (box-owned) victims on INPUT and leaves remote victims to the flowspec upstream announce. The exempt/mitigate decision itself comes from the ddos/detect policy.
   - **max-mitigation-duration** `uint32`
     Maximum seconds a drop rule stays installed (0 = no cap).
   - **response-level** `enumeration`
@@ -1711,6 +1731,23 @@ Environment settings for API transports
   - **ui-mode** `enumeration`
     Web UI mode
 
+## exabgp
+
+*Provided by `exabgp-bridge` ([ze-exabgp-bridge-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang))*
+
+Top-level container for ExaBGP-compatibility configuration.
+
+- **bridge** `container`
+  In-process ExaBGP bridge settings. Present this container to configure the internal exabgp-bridge plugin.
+  - **add-path** `enumeration`
+    ADD-PATH mode (RFC 7911) for the negotiated families: none (disabled), receive, send, or both.
+  - **family** `address-family[]`
+    Address families the bridge negotiates on behalf of the script (e.g. ipv4/unicast). Defaults to ipv4/unicast when no entry is configured.
+  - **route-refresh** `boolean`
+    Advertise the BGP route-refresh capability (RFC 2918) on the sessions the bridge feeds.
+  - **run** `string`
+    Command line of the ExaBGP-format script to run as a subprocess (e.g. './plugin.py' or 'python3 /opt/plugin.py'). Whitespace-separated; the first token is the executable and the rest are its arguments. Required for the bridge to do anything.
+
 ## fib
 
 Forwarding Information Base configuration.
@@ -1932,7 +1969,7 @@ Ze-managed nftables firewall tables. Table names are bare in config; ze_ prefix 
 
 ## flow-export
 
-*Provided by `flow-export` ([ze-flowexport-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/flowexport/yang/ze-flowexport-conf.yang))*
+*Provided by `flow-export-conntrack-tracking` ([ze-flowexport-conf.yang](https://codeberg.org/thomas-mangin/ze/src/branch/main/internal/plugins/flowexport/yang/ze-flowexport-conf.yang))*
 
 Flow export (sFlow, NetFlow v9, IPFIX) configuration
 
@@ -2092,7 +2129,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
     - **mirror** `container`
-      Traffic mirroring
+      Traffic mirroring. netlink mirrors via tc mirred; the vpp backend programs SPAN (sw_interface_span_ enable_disable), mapping ingress/egress onto the RX/TX SPAN state as a device-level port mirror.
       - **egress** `string`
         Mirror egress traffic to this interface
       - **ingress** `string`
@@ -2212,7 +2249,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
     - **mirror** `container`
-      Traffic mirroring
+      Traffic mirroring. netlink mirrors via tc mirred; the vpp backend programs SPAN (sw_interface_span_ enable_disable), mapping ingress/egress onto the RX/TX SPAN state as a device-level port mirror.
       - **egress** `string`
         Mirror egress traffic to this interface
       - **ingress** `string`
@@ -2330,7 +2367,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
     - **mirror** `container`
-      Traffic mirroring
+      Traffic mirroring. netlink mirrors via tc mirred; the vpp backend programs SPAN (sw_interface_span_ enable_disable), mapping ingress/egress onto the RX/TX SPAN state as a device-level port mirror.
       - **egress** `string`
         Mirror egress traffic to this interface
       - **ingress** `string`
@@ -2404,7 +2441,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
     - **mirror** `container`
-      Traffic mirroring
+      Traffic mirroring. netlink mirrors via tc mirred; the vpp backend programs SPAN (sw_interface_span_ enable_disable), mapping ingress/egress onto the RX/TX SPAN state as a device-level port mirror.
       - **egress** `string`
         Mirror egress traffic to this interface
       - **ingress** `string`
@@ -2631,6 +2668,24 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
             Outer-header Type of Service. 0 = inherit
           - **ttl** `uint8`
             Outer-header TTL. 0 = inherit
+      - **vxlan** `case`
+        VXLAN overlay: L2 Ethernet frames over a UDP/IPv4 underlay, keyed by a 24-bit VNI. Landed in both the netlink and VPP backends.
+        - **vxlan** `container`
+          VXLAN parameters. local ip is the tunnel source, remote ip the (unicast) VTEP destination.
+          - **local** `container`
+            Local IPv4 endpoint or source interface (one of ip or interface)
+            - **interface** `string`
+              Local interface to take the source address from
+            - **ip** `ipv4-address`
+              Local IPv4 endpoint
+          - **port** `port`
+            UDP destination port (IANA-assigned default 4789)
+          - **remote** `container`
+            Remote IPv4 endpoint
+            - **ip** `ipv4-address`
+              Remote IPv4 endpoint
+          - **vni** `uint32`
+            VXLAN Network Identifier (24-bit, 1..16777215)
   - **mtu** `uint16`
     Maximum transmission unit
   - **os-name** `string`
@@ -2690,7 +2745,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
     - **mirror** `container`
-      Traffic mirroring
+      Traffic mirroring. netlink mirrors via tc mirred; the vpp backend programs SPAN (sw_interface_span_ enable_disable), mapping ingress/egress onto the RX/TX SPAN state as a device-level port mirror.
       - **egress** `string`
         Mirror egress traffic to this interface
       - **ingress** `string`
@@ -2810,7 +2865,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
     - **mirror** `container`
-      Traffic mirroring
+      Traffic mirroring. netlink mirrors via tc mirred; the vpp backend programs SPAN (sw_interface_span_ enable_disable), mapping ingress/egress onto the RX/TX SPAN state as a device-level port mirror.
       - **egress** `string`
         Mirror egress traffic to this interface
       - **ingress** `string`
@@ -2916,7 +2971,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
     - **mirror** `container`
-      Traffic mirroring
+      Traffic mirroring. netlink mirrors via tc mirred; the vpp backend programs SPAN (sw_interface_span_ enable_disable), mapping ingress/egress onto the RX/TX SPAN state as a device-level port mirror.
       - **egress** `string`
         Mirror egress traffic to this interface
       - **ingress** `string`
@@ -3002,7 +3057,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
     - **mirror** `container`
-      Traffic mirroring
+      Traffic mirroring. netlink mirrors via tc mirred; the vpp backend programs SPAN (sw_interface_span_ enable_disable), mapping ingress/egress onto the RX/TX SPAN state as a device-level port mirror.
       - **egress** `string`
         Mirror egress traffic to this interface
       - **ingress** `string`
@@ -3221,6 +3276,20 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
       NAS-side IP for sessions using this pool.
     - **start** `ipv4-address`
       First address in the pool range.
+- **relay <service>** `list`
+  PPPoE-to-L2TP relay bindings (LAC role). A subscriber whose PADI/PADR carries a matching PPPoE Service-Name is relayed into an L2TP incoming call toward the named remote instead of terminating PPP locally on this box. Removing a binding restores local termination for that service.
+  - **remote** `string`
+    Name of the L2TP remote (dial target) that matching subscribers are relayed to. MUST reference a remote declared under l2tp/remote; an unknown name is rejected at config validation.
+- **remote <name>** `list`
+  L2TP dial targets: remote LNS/LAC endpoints ze initiates tunnels toward (sends SCCRQ to). Referenced by name from 'request l2tp outgoing-call remote <name>' and from PPPoE relay bindings. Declaring a remote grants no dial by itself; an operator action (RPC) or a relay binding drives the dial.
+  - **address** `ip-address`
+    Remote control-plane IP address to dial. The SCCRQ destination (RFC 2661 Section 6.1).
+  - **outgoing-calls** `boolean`
+    Permit LNS-side outgoing calls ('request l2tp outgoing-call') toward this remote. Default false: the remote must be explicitly enabled for dial-out before an operator can place a call, so a mistyped remote name is rejected rather than dialed.
+  - **port** `uint16`
+    Remote UDP port for the control channel. RFC 2661 assigns 1701; overridable for non-standard peers.
+  - **shared-secret** `string`
+    Per-remote CHAP-MD5 tunnel-authentication secret (RFC 2661 Section 4.2). Overrides the subsystem-level shared-secret for tunnels dialed to this remote. When empty, this dial carries no Challenge AVP. Masked in CLI output.
 - **sample-retention-seconds** `uint32`
   Duration of CQM sample retention per login, in seconds. Divided by the 100-second bucket interval to determine ring capacity. Default 86400 (24 hours) = 864 buckets.
 - **shaper** `container`
@@ -4325,6 +4394,14 @@ Service settings
     Origin AS the AS112 covering prefixes carry when redistributed into BGP (redistribute { destination bgp { import as112 } }). Defaults to the well-known AS112 number 112 (RFC 7534 Section 3.2): the redistribute source models an AS112 virtual router. Set an operator ASN or an RFC 6996 private-use ASN to originate under a coordinated or local-use AS instead. Ignored unless 'import as112' is configured under redistribute.
   - **community** `string[]`
     Optional BGP communities attached to the redistributed AS112 covering prefixes. Accepts AA:NN standard communities (RFC 1997) and well-known names such as no-export or nopeer (RFC 3765) -- the values RFC 7534 Section 3.4 recommends for restricting AS112 route propagation. Typed 'string' rather than the AA:NN-only ze-types community pattern so well-known names are accepted; every value is validated by the canonical community parser at config time. Ignored unless 'import as112' is configured under redistribute.
+  - **doh** `container`
+    DNS-over-HTTPS (DoH, RFC 8484) listener. It reuses the tls container's certificate material and binds the fixed anycast addresses (and loopback) on 'listen-port' at 'path'.
+    - **enabled** `boolean`
+      Enable the DNS-over-HTTPS listener (RFC 8484).
+    - **listen-port** `port`
+      TCP port for the DoH HTTPS listener (RFC 8484).
+    - **path** `string`
+      HTTP request path the DoH endpoint answers on (RFC 8484 URI Template); defaults to /dns-query.
   - **enabled** `boolean`
     Enable the AS112 anycast DNS node
   - **facility** `string`
@@ -4345,6 +4422,16 @@ Service settings
       Listen TCP port; 0 means OS-assigned
   - **location** `string`
     City/country surfaced alongside facility in the HOSTNAME.AS112.NET/ARPA TXT answers, e.g. 'London, UK'.
+  - **tls** `container`
+    DNS-over-TLS (DoT, RFC 7858) listener and the certificate material shared with DoH. When enabled the DoT listener binds the fixed anycast addresses (and loopback) on 'listen-port'. When cert-file/key-file are unset an ephemeral self-signed certificate is used, which strict clients cannot validate -- supply operator PEM for a publicly trusted node.
+    - **cert-file** `string`
+      Path to the PEM server certificate presented on DoT and DoH. Unset (together with key-file) selects an ephemeral self-signed certificate.
+    - **enabled** `boolean`
+      Enable the DNS-over-TLS listener (RFC 7858).
+    - **key-file** `string`
+      Path to the PEM private key matching cert-file. Must be set together with cert-file.
+    - **listen-port** `port`
+      TCP port for the DoT listener; the RFC 7858 well-known 'domain-s' port is 853.
   - **watchdog** `boolean`
     Health-gate the BGP announcement on DNS serving state (RFC 7534 Section 3.3: do not advertise the service prefix while the name server is not running). When true (default) the covering prefixes are announced only while the as112 node is serving, and withdrawn when serving is lost, the service is disabled, or the node shuts down. false announces as soon as enabled and imported, without the serving-state gate. Ignored unless 'import as112' is configured under redistribute.
 - **dhcp-server** `container`
@@ -4395,6 +4482,14 @@ Service settings
     Where the client IP used for source selection is read from
   - **default-ttl** `uint32`
     Default record TTL (seconds) when a host omits its own. 1..2147483647 (RFC 2181 section 8); a zero default is not allowed.
+  - **doh** `container`
+    DNS-over-HTTPS (DoH, RFC 8484) listener. It reuses the tls container's certificate material and binds the configured listener IPs on 'listen-port' at 'path'.
+    - **enabled** `boolean`
+      Enable the DNS-over-HTTPS listener (RFC 8484).
+    - **listen-port** `port`
+      TCP port for the DoH HTTPS listener (RFC 8484).
+    - **path** `string`
+      HTTP request path the DoH endpoint answers on (RFC 8484 URI Template); defaults to /dns-query.
   - **enabled** `boolean`
     Enable the GeoDNS server
   - **host-set <name>** `list`
@@ -4447,6 +4542,16 @@ Service settings
     Maps a client-IP prefix to a host-set. Longest prefix wins; 0.0.0.0/0 and ::/0 are the catch-all (external) default.
     - **host-set** `string`
       Name of the host-set to answer for clients matching this prefix
+  - **tls** `container`
+    DNS-over-TLS (DoT, RFC 7858) listener and the certificate material shared with DoH. When enabled the DoT listener binds the configured listener IPs on 'listen-port'. When cert-file/key-file are unset an ephemeral self-signed certificate is used, which strict clients cannot validate.
+    - **cert-file** `string`
+      Path to the PEM server certificate presented on DoT and DoH. Unset (together with key-file) selects an ephemeral self-signed certificate.
+    - **enabled** `boolean`
+      Enable the DNS-over-TLS listener (RFC 7858).
+    - **key-file** `string`
+      Path to the PEM private key matching cert-file. Must be set together with cert-file.
+    - **listen-port** `port`
+      TCP port for the DoT listener; the RFC 7858 well-known 'domain-s' port is 853.
   - **zone** `string[]`
     Zones served (FQDN). A query name must end in one of these.
 - **image-server** `container`
@@ -4586,6 +4691,24 @@ System-level settings
     When to archive
 - **authentication** `container`
   System authentication settings
+  - **radius** `container`
+    RADIUS server configuration for operator/admin login (SSH, web, MCP), RFC 2865. Separate from the L2TP subscriber RADIUS path, which lives under the l2tp root.
+    - **default-profile** `string[]`
+      Ze authorization profile name(s) assigned when the Access-Accept carries no profile-attribute
+    - **profile-attribute** `enumeration`
+      Access-Accept reply attribute whose value(s) name the ze authorization profile(s) for the user
+    - **retries** `uint8`
+      Retransmit count per server before failover
+    - **server <address>** `list`
+      RADIUS servers, tried in configured order
+      - **key** `string`
+        RADIUS shared secret (RFC 2865)
+      - **port** `uint16`
+        UDP authentication port (default 1812)
+    - **source-address** `ip-address`
+      Source IP for outbound RADIUS requests
+    - **timeout** `uint16`
+      Per-server request timeout in seconds
   - **tacacs** `container`
     TACACS+ server configuration (RFC 8907)
     - **accounting** `boolean`
@@ -4772,6 +4895,8 @@ System-level settings
     Maximum cached entries (0 disables caching)
   - **cache-ttl** `uint32`
     Maximum cache TTL in seconds (0 uses response TTL only)
+  - **dnssec-validation** `enumeration`
+    Upstream-answer DNSSEC validation for the stub resolver (RFC 4035 stub model). off leaves resolution unchanged; permissive and strict set the EDNS0 DO bit and rely on a validating upstream (CD=0) to SERVFAIL a broken chain. strict rejects such answers as an error; permissive logs and returns the empty result. Insecure/unsigned zones (NOERROR, AD=0) are always accepted.
   - **resolv-conf-path** `string`
     Path where DNS servers are written as resolv.conf. Default /tmp/resolv.conf suits gokrazy (read-only rootfs). Set to /etc/resolv.conf on standard Linux. Empty string disables resolv.conf writing.
   - **timeout** `uint16`
@@ -5066,6 +5191,8 @@ VPP data plane configuration.
   VPP CPU pinning configuration.
   - **main-core** `uint8`
     CPU core for VPP main thread. Omit for automatic assignment.
+  - **poll-sleep** `string`
+    Fixed sleep between VPP main-loop polls, expressed in whole milliseconds (the only accepted unit), e.g. 10ms. Emitted as unix { poll-sleep-usec N } in startup.conf (1ms = 1000 microseconds). Omit for VPP's default (no sleep: workers busy-poll at 100% CPU) for lowest latency. Set a non-zero value up to 100ms on shared or dev hosts to trade latency for idle CPU. An explicit 0ms is emitted and equals the default.
   - **workers** `uint8`
     Number of VPP worker threads. Omit for automatic (one per available core).
 - **dpdk** `container`
@@ -5081,7 +5208,7 @@ VPP data plane configuration.
 - **enabled** `boolean`
   Enable VPP integration. When true, ze manages VPP lifecycle: generates startup.conf, binds DPDK NICs, starts VPP process, connects via GoVPP.
 - **external** `boolean`
-  When true, ze does NOT exec or supervise the VPP process. Ze still generates startup.conf (for the external supervisor to use) and connects via GoVPP to api-socket. Use this for systemd-managed VPP, container sidecar deployments, or the `ze-test vpp` stub harness. Default: false (ze owns VPP lifecycle).
+  When true, ze does NOT exec or supervise the VPP process, generate startup.conf, or bind DPDK NICs; the external supervisor owns all of that. Ze only connects via GoVPP to api-socket. Use this for systemd-managed VPP, container sidecar deployments, or the `ze-test vpp` stub harness. Default: false (ze owns VPP lifecycle).
 - **lcp** `container`
   Linux Control Plane plugin. Creates TAP mirrors in Linux for VPP interfaces, enabling routing daemons (ze BGP) to use Linux TCP on VPP-managed NICs.
   - **auto-subint** `boolean`
@@ -5100,6 +5227,10 @@ VPP data plane configuration.
     Hugepage size for VPP buffers.
   - **main-heap** `string`
     VPP main heap size (e.g. 512M, 1G, 1536M). Production with full DFZ: 1536M.
+- **plugins** `container`
+  Optional VPP plugin enablement. startup.conf uses 'plugin default { disable }', so only the always-on plugins (dpdk, plus linux-cp when lcp is enabled) and the plugins toggled on here are loaded.
+  - **wireguard** `boolean`
+    Load wireguard_plugin.so so the vpp interface backend can program WireGuard tunnels (interface wireguard under backend vpp).
 - **stats** `container`
   VPP stats segment configuration.
   - **poll-interval** `uint16`

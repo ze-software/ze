@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=adbbfadb2b" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -93,7 +93,7 @@
                         <span class="nav-dropdown-label">Capabilities</span>
                         <a class="nav-dropdown-item" href="../../../features/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
-                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
+                            <span><strong>Features</strong><small>47 features, color-coded by category</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../../compare/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚖️</span>
@@ -361,6 +361,7 @@
 <ol>
 <li><a href="#01-ppp-ipv4">01-ppp-ipv4</a></li>
 <li><a href="#02-ppp-bgp-redistribute-frr">02-ppp-bgp-redistribute-frr</a></li>
+<li><a href="#03-ze-lac-xl2tpd-lns">03-ze-lac-xl2tpd-lns</a></li>
 </ol></li>
 <li><a href="#relationship-to-other-evidence">Relationship to Other Evidence</a></li>
 <li><a href="#design-pattern">Design Pattern</a></li>
@@ -382,9 +383,13 @@ route redistribution from a live PPP session.</p>
   scenarios/
     01-ppp-ipv4/       PPP IPv4 dataplane proof
     02-ppp-bgp-redistribute-frr/   BGP route redistribution proof
+    03-ze-lac-xl2tpd-lns/   ze as INITIATOR (LAC) vs real xl2tpd LNS
 </code></pre>
-<p>Each scenario contains <code>ze.conf</code>, <code>xl2tpd.conf</code>, <code>ppp-options</code>,
-<code>l2tp-secrets</code>, and a <code>check.py</code> with a <code>check()</code> function.</p>
+<p>Scenarios 01/02 (ze = LNS) contain <code>ze.conf</code>, <code>xl2tpd.conf</code>, <code>ppp-options</code>,
+<code>l2tp-secrets</code>, and a <code>check.py</code> with a <code>check()</code> function. A scenario that
+instead ships its own <code>run.py</code> (like 03) is self-contained: it manages its own
+containers and system-under-test, and the runner delegates to it (skipping the
+ze=LNS image build and the PPPoL2TP preflight).</p>
 <h2 id="prerequisites">Prerequisites</h2>
 <p>The lab requires Docker and a host kernel with PPPoL2TP support. The
 preflight check probes for <code>/dev/ppp</code>, <code>ip l2tp</code>, and the <code>l2tp_ppp</code> or
@@ -416,6 +421,23 @@ in FRR's BGP table via Ze's <code>redistribute destination bgp { import l2tp }</
 and <code>redistribute-orchestrator</code> path), and the route is withdrawn from FRR
 after LAC session teardown. BGP session stability is verified after
 withdrawal.</p>
+<h3 id="03-ze-lac-xl2tpd-lns">03-ze-lac-xl2tpd-lns</h3>
+<p>The inverse topology: <strong>ze is the L2TP initiator (LAC/dialer)</strong> and a real
+<code>xl2tpd</code> runs as the LNS answerer. Proves ze's initiator half of the tunnel FSM
+(SCCRQ initiation → SCCRP handling → SCCCN → established) interoperates with an
+independent RFC 2661 implementation — confirmed on both sides (ze logs <code>tunnel
+now established (initiator)</code>; xl2tpd logs <code>Connection established ... LNS session
+is 'default'</code>). ze is triggered to dial by the <code>request l2tp outgoing-call</code> RPC
+over its token-guarded REST API.</p>
+<p>Self-contained (<code>run.py</code>): <code>xl2tpd</code> runs in Docker (<code>--network host</code>); <code>ze</code> runs
+from <code>bin/ze</code> with isolated filesystem storage. Control-plane only, so it needs
+no PPPoL2TP modules and runs unprivileged. <code>xl2tpd</code> cannot answer the OCRQ that
+follows (it has no outgoing-call answerer — logs <code>Unimplemented message 7</code>), so
+the RPC returns an error by design; the interop proof is the established control
+connection. The full OCRQ→OCRP→OCCN call flow is proven functionally by
+<code>test/l2tp/lns-outgoing-call.ci</code>. The LAC incoming-call PPP data plane (kernel
+channel bridge, A-4) is env-blocked — see the scenario README and
+<code>make ze-qemu-l2tp-ppp-test</code>.</p>
 <h2 id="relationship-to-other-evidence">Relationship to Other Evidence</h2>
 <table>
 <thead>

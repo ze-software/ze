@@ -219,7 +219,7 @@
         "source": "config"
       },
       {
-        "description": "Absolute path to the directory where the plugin\npersists TX sequence numbers for Meticulous Keyed\nauthentication. RFC 5880 Section 6.7.3 requires the\nsequence to survive process restarts; without this\nleaf set, Meticulous sessions still work at runtime\nbut a fresh process loses its sequence floor until\nthe peer's replay window slides forward.",
+        "description": "DEPRECATED (retained for back-compat; scheduled for\nremoval). The value is no longer interpreted as a\ndirectory: TX sequence numbers for Meticulous Keyed\nauthentication now persist to the shared managed state\nstore (database.zefs) instead of a loose file. A\nnon-empty value still opts a session into persistence.\nRFC 5880 Section 6.7.3 requires the sequence to survive\nprocess restarts; without this leaf set, Meticulous\nsessions still work at runtime but a fresh process loses\nits sequence floor until the peer's replay window slides\nforward.",
         "kind": "leaf",
         "name": "persist-dir",
         "source": "config",
@@ -4954,6 +4954,27 @@
             "type": "uint32"
           },
           {
+            "description": "Minimum bandwidth in bits/sec below which the BPS trigger is inert (default 50 Mbps). Expressed in bits/sec (operator unit); the detector's internal rate is bytes/sec and converts.",
+            "kind": "leaf",
+            "name": "bps-floor",
+            "source": "config",
+            "type": "uint64"
+          },
+          {
+            "description": "Baseline p99 multiplier for the bandwidth (BPS) trigger. Catches low-PPS/high-bandwidth amplification (NTP/memcached/CLDAP) that the packet-rate threshold misses.",
+            "kind": "leaf",
+            "name": "bps-threshold-multiplier",
+            "source": "config",
+            "type": "decimal-2"
+          },
+          {
+            "description": "Enable the bandwidth (BPS) trigger alongside the PPS threshold. When false only the packet-rate threshold can trigger detection.",
+            "kind": "leaf",
+            "name": "bps-trigger-enable",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
             "description": "Run Stage-2 flow characterization (classify family + narrowest vector from the flow-export recent-flow ring, emit AttackCharacterized). When false the detector still emits the coarse AttackDetected target from traffic-usage.",
             "kind": "leaf",
             "name": "characterize-enable",
@@ -5010,6 +5031,50 @@
             "type": "decimal-2"
           },
           {
+            "children": [
+              {
+                "description": "Disposition when no rule matches: deny = defend (detection +\nmitigation); allow = exempt from detection entirely.",
+                "kind": "leaf",
+                "name": "default-action",
+                "source": "config",
+                "type": "enumeration"
+              },
+              {
+                "children": [
+                  {
+                    "description": "allow = exempt matching traffic; deny = subject it to DDoS handling.",
+                    "kind": "leaf",
+                    "name": "action",
+                    "source": "config",
+                    "type": "enumeration"
+                  },
+                  {
+                    "description": "Whether the prefix matches the attack source, the victim\ndestination, or either. Source rules take effect once the attack\nsources are characterized.",
+                    "kind": "leaf",
+                    "name": "match",
+                    "source": "config",
+                    "type": "enumeration"
+                  },
+                  {
+                    "description": "Stage the action governs: mitigation = detect and record but (for\nallow) do not block; detection = (for allow) suppress the incident\nentirely.",
+                    "kind": "leaf",
+                    "name": "scope",
+                    "source": "config",
+                    "type": "enumeration"
+                  }
+                ],
+                "description": "One allow/deny rule matched against an attack, keyed by prefix.\nPrecedence is longest-prefix-match, so a /24 rule beats a covering\n/16 without any ordering.",
+                "kind": "list[prefix]",
+                "name": "rule",
+                "source": "config"
+              }
+            ],
+            "description": "Allow/deny traffic policy applied to detected attacks, indexed by\nprefix and evaluated longest-prefix-match (most specific wins), NOT\nconfig order. Replaces the removed per-responder allowlists: the\ndetector enforces it once and encodes the exempt/mitigate decision on\nthe emitted event so the responders honor it without reading config.",
+            "kind": "container",
+            "name": "policy",
+            "source": "config"
+          },
+          {
             "description": "Seconds after startup where only extreme spikes trigger.",
             "kind": "leaf",
             "name": "startup-grace",
@@ -5045,13 +5110,6 @@
             "type": "enumeration"
           },
           {
-            "description": "Prefixes that must never be announced for mitigation.",
-            "kind": "leaf-list",
-            "name": "allowlist",
-            "source": "config",
-            "type": "string"
-          },
-          {
             "description": "Maximum FlowSpec announcements per minute.",
             "kind": "leaf",
             "name": "announce-rate-limit",
@@ -5071,6 +5129,13 @@
             "name": "blackhole-fallback",
             "source": "config",
             "type": "boolean"
+          },
+          {
+            "description": "Minimum incident confidence (0-100) required to announce an upstream rule from a characterized attack. 0 (default) disables the gate. The blackhole-fallback fast path is never gated (AttackDetected carries no confidence).",
+            "kind": "leaf",
+            "name": "confidence-min",
+            "source": "config",
+            "type": "uint8"
           },
           {
             "description": "Minimum seconds before the first leak-probe after announcement.",
@@ -5164,11 +5229,18 @@
       {
         "children": [
           {
-            "description": "Prefixes that must never be blocked.",
-            "kind": "leaf-list",
-            "name": "allowlist",
+            "description": "Minimum incident confidence (0-100) required to install a drop rule from a characterized attack. 0 (default) disables the gate. Higher values suppress mitigation on borderline detections.",
+            "kind": "leaf",
+            "name": "confidence-min",
             "source": "config",
-            "type": "string"
+            "type": "uint8"
+          },
+          {
+            "description": "When true, also drop a remote (transit) victim's traffic on the\nnetfilter FORWARD hook to protect a downstream host. Default false:\nthe responder guards only local (box-owned) victims on INPUT and\nleaves remote victims to the flowspec upstream announce. The\nexempt/mitigate decision itself comes from the ddos/detect policy.",
+            "kind": "leaf",
+            "name": "forward-mitigation",
+            "source": "config",
+            "type": "boolean"
           },
           {
             "description": "Maximum seconds a drop rule stays installed (0 = no cap).",
@@ -6083,6 +6155,50 @@
     "kind": "container",
     "name": "environment",
     "source": "both"
+  },
+  "exabgp": {
+    "children": [
+      {
+        "children": [
+          {
+            "description": "ADD-PATH mode (RFC 7911) for the negotiated families:\nnone (disabled), receive, send, or both.",
+            "kind": "leaf",
+            "name": "add-path",
+            "source": "config",
+            "type": "enumeration"
+          },
+          {
+            "description": "Address families the bridge negotiates on behalf of the\nscript (e.g. ipv4/unicast). Defaults to ipv4/unicast when\nno entry is configured.",
+            "kind": "leaf-list",
+            "name": "family",
+            "source": "config",
+            "type": "address-family"
+          },
+          {
+            "description": "Advertise the BGP route-refresh capability (RFC 2918) on\nthe sessions the bridge feeds.",
+            "kind": "leaf",
+            "name": "route-refresh",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "description": "Command line of the ExaBGP-format script to run as a\nsubprocess (e.g. './plugin.py' or 'python3\n/opt/plugin.py'). Whitespace-separated; the first token is\nthe executable and the rest are its arguments. Required\nfor the bridge to do anything.",
+            "kind": "leaf",
+            "name": "run",
+            "source": "config",
+            "type": "string"
+          }
+        ],
+        "description": "In-process ExaBGP bridge settings. Present this container to\nconfigure the internal exabgp-bridge plugin.",
+        "kind": "container",
+        "name": "bridge",
+        "source": "config"
+      }
+    ],
+    "description": "Top-level container for ExaBGP-compatibility configuration.",
+    "kind": "container",
+    "name": "exabgp",
+    "source": "config"
   },
   "fib": {
     "children": [
@@ -7395,7 +7511,7 @@
                     "type": "string"
                   }
                 ],
-                "description": "Traffic mirroring",
+                "description": "Traffic mirroring. netlink mirrors via tc mirred;\nthe vpp backend programs SPAN (sw_interface_span_\nenable_disable), mapping ingress/egress onto the\nRX/TX SPAN state as a device-level port mirror.",
                 "kind": "container",
                 "name": "mirror",
                 "source": "config"
@@ -7828,7 +7944,7 @@
                     "type": "string"
                   }
                 ],
-                "description": "Traffic mirroring",
+                "description": "Traffic mirroring. netlink mirrors via tc mirred;\nthe vpp backend programs SPAN (sw_interface_span_\nenable_disable), mapping ingress/egress onto the\nRX/TX SPAN state as a device-level port mirror.",
                 "kind": "container",
                 "name": "mirror",
                 "source": "config"
@@ -8254,7 +8370,7 @@
                     "type": "string"
                   }
                 ],
-                "description": "Traffic mirroring",
+                "description": "Traffic mirroring. netlink mirrors via tc mirred;\nthe vpp backend programs SPAN (sw_interface_span_\nenable_disable), mapping ingress/egress onto the\nRX/TX SPAN state as a device-level port mirror.",
                 "kind": "container",
                 "name": "mirror",
                 "source": "config"
@@ -8522,7 +8638,7 @@
                     "type": "string"
                   }
                 ],
-                "description": "Traffic mirroring",
+                "description": "Traffic mirroring. netlink mirrors via tc mirred;\nthe vpp backend programs SPAN (sw_interface_span_\nenable_disable), mapping ingress/egress onto the\nRX/TX SPAN state as a device-level port mirror.",
                 "kind": "container",
                 "name": "mirror",
                 "source": "config"
@@ -9338,6 +9454,73 @@
                     "kind": "case",
                     "name": "sit",
                     "source": "config"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "children": [
+                              {
+                                "description": "Local interface to take the source address from",
+                                "kind": "leaf",
+                                "name": "interface",
+                                "source": "config",
+                                "type": "string"
+                              },
+                              {
+                                "description": "Local IPv4 endpoint",
+                                "kind": "leaf",
+                                "name": "ip",
+                                "source": "config",
+                                "type": "ipv4-address"
+                              }
+                            ],
+                            "description": "Local IPv4 endpoint or source interface (one of ip or interface)",
+                            "kind": "container",
+                            "name": "local",
+                            "source": "config"
+                          },
+                          {
+                            "description": "UDP destination port (IANA-assigned default 4789)",
+                            "kind": "leaf",
+                            "name": "port",
+                            "source": "config",
+                            "type": "port"
+                          },
+                          {
+                            "children": [
+                              {
+                                "description": "Remote IPv4 endpoint",
+                                "kind": "leaf",
+                                "name": "ip",
+                                "source": "config",
+                                "type": "ipv4-address"
+                              }
+                            ],
+                            "description": "Remote IPv4 endpoint",
+                            "kind": "container",
+                            "name": "remote",
+                            "source": "config"
+                          },
+                          {
+                            "description": "VXLAN Network Identifier (24-bit, 1..16777215)",
+                            "kind": "leaf",
+                            "name": "vni",
+                            "source": "config",
+                            "type": "uint32"
+                          }
+                        ],
+                        "description": "VXLAN parameters. local ip is the tunnel\nsource, remote ip the (unicast) VTEP\ndestination.",
+                        "kind": "container",
+                        "name": "vxlan",
+                        "source": "config"
+                      }
+                    ],
+                    "description": "VXLAN overlay: L2 Ethernet frames over a\nUDP/IPv4 underlay, keyed by a 24-bit VNI.\nLanded in both the netlink and VPP backends.",
+                    "kind": "case",
+                    "name": "vxlan",
+                    "source": "config"
                   }
                 ],
                 "description": "Encapsulation discriminator. Invalid combinations\n(e.g. key on ipip) are unrepresentable in the schema.",
@@ -9571,7 +9754,7 @@
                     "type": "string"
                   }
                 ],
-                "description": "Traffic mirroring",
+                "description": "Traffic mirroring. netlink mirrors via tc mirred;\nthe vpp backend programs SPAN (sw_interface_span_\nenable_disable), mapping ingress/egress onto the\nRX/TX SPAN state as a device-level port mirror.",
                 "kind": "container",
                 "name": "mirror",
                 "source": "config"
@@ -10004,7 +10187,7 @@
                     "type": "string"
                   }
                 ],
-                "description": "Traffic mirroring",
+                "description": "Traffic mirroring. netlink mirrors via tc mirred;\nthe vpp backend programs SPAN (sw_interface_span_\nenable_disable), mapping ingress/egress onto the\nRX/TX SPAN state as a device-level port mirror.",
                 "kind": "container",
                 "name": "mirror",
                 "source": "config"
@@ -10386,7 +10569,7 @@
                     "type": "string"
                   }
                 ],
-                "description": "Traffic mirroring",
+                "description": "Traffic mirroring. netlink mirrors via tc mirred;\nthe vpp backend programs SPAN (sw_interface_span_\nenable_disable), mapping ingress/egress onto the\nRX/TX SPAN state as a device-level port mirror.",
                 "kind": "container",
                 "name": "mirror",
                 "source": "config"
@@ -10696,7 +10879,7 @@
                     "type": "string"
                   }
                 ],
-                "description": "Traffic mirroring",
+                "description": "Traffic mirroring. netlink mirrors via tc mirred;\nthe vpp backend programs SPAN (sw_interface_span_\nenable_disable), mapping ingress/egress onto the\nRX/TX SPAN state as a device-level port mirror.",
                 "kind": "container",
                 "name": "mirror",
                 "source": "config"
@@ -11448,6 +11631,57 @@
         ],
         "kind": "container",
         "name": "pool",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "Name of the L2TP remote (dial target) that matching\nsubscribers are relayed to. MUST reference a remote\ndeclared under l2tp/remote; an unknown name is rejected\nat config validation.",
+            "kind": "leaf",
+            "name": "remote",
+            "source": "config",
+            "type": "string"
+          }
+        ],
+        "description": "PPPoE-to-L2TP relay bindings (LAC role). A subscriber whose\nPADI/PADR carries a matching PPPoE Service-Name is relayed\ninto an L2TP incoming call toward the named remote instead of\nterminating PPP locally on this box. Removing a binding\nrestores local termination for that service.",
+        "kind": "list[service]",
+        "name": "relay",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "Remote control-plane IP address to dial. The SCCRQ\ndestination (RFC 2661 Section 6.1).",
+            "kind": "leaf",
+            "name": "address",
+            "source": "config",
+            "type": "ip-address"
+          },
+          {
+            "description": "Permit LNS-side outgoing calls ('request l2tp\noutgoing-call') toward this remote. Default false: the\nremote must be explicitly enabled for dial-out before an\noperator can place a call, so a mistyped remote name is\nrejected rather than dialed.",
+            "kind": "leaf",
+            "name": "outgoing-calls",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "description": "Remote UDP port for the control channel. RFC 2661\nassigns 1701; overridable for non-standard peers.",
+            "kind": "leaf",
+            "name": "port",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "Per-remote CHAP-MD5 tunnel-authentication secret\n(RFC 2661 Section 4.2). Overrides the subsystem-level\nshared-secret for tunnels dialed to this remote. When\nempty, this dial carries no Challenge AVP. Masked in CLI\noutput.",
+            "kind": "leaf",
+            "name": "shared-secret",
+            "source": "config",
+            "type": "string"
+          }
+        ],
+        "description": "L2TP dial targets: remote LNS/LAC endpoints ze initiates\ntunnels toward (sends SCCRQ to). Referenced by name from\n'request l2tp outgoing-call remote <name>' and from PPPoE\nrelay bindings. Declaring a remote grants no dial by itself;\nan operator action (RPC) or a relay binding drives the dial.",
+        "kind": "list[name]",
+        "name": "remote",
         "source": "config"
       },
       {
@@ -15263,6 +15497,35 @@
             "type": "string"
           },
           {
+            "children": [
+              {
+                "description": "Enable the DNS-over-HTTPS listener (RFC 8484).",
+                "kind": "leaf",
+                "name": "enabled",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
+                "description": "TCP port for the DoH HTTPS listener (RFC 8484).",
+                "kind": "leaf",
+                "name": "listen-port",
+                "source": "config",
+                "type": "port"
+              },
+              {
+                "description": "HTTP request path the DoH endpoint answers on (RFC 8484\nURI Template); defaults to /dns-query.",
+                "kind": "leaf",
+                "name": "path",
+                "source": "config",
+                "type": "string"
+              }
+            ],
+            "description": "DNS-over-HTTPS (DoH, RFC 8484) listener. It reuses the tls\ncontainer's certificate material and binds the fixed anycast\naddresses (and loopback) on 'listen-port' at 'path'.",
+            "kind": "container",
+            "name": "doh",
+            "source": "config"
+          },
+          {
             "description": "Enable the AS112 anycast DNS node",
             "kind": "leaf",
             "name": "enabled",
@@ -15333,6 +15596,42 @@
             "name": "location",
             "source": "config",
             "type": "string"
+          },
+          {
+            "children": [
+              {
+                "description": "Path to the PEM server certificate presented on DoT and\nDoH. Unset (together with key-file) selects an ephemeral\nself-signed certificate.",
+                "kind": "leaf",
+                "name": "cert-file",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Enable the DNS-over-TLS listener (RFC 7858).",
+                "kind": "leaf",
+                "name": "enabled",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
+                "description": "Path to the PEM private key matching cert-file. Must be\nset together with cert-file.",
+                "kind": "leaf",
+                "name": "key-file",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "TCP port for the DoT listener; the RFC 7858 well-known\n'domain-s' port is 853.",
+                "kind": "leaf",
+                "name": "listen-port",
+                "source": "config",
+                "type": "port"
+              }
+            ],
+            "description": "DNS-over-TLS (DoT, RFC 7858) listener and the certificate\nmaterial shared with DoH. When enabled the DoT listener\nbinds the fixed anycast addresses (and loopback) on\n'listen-port'. When cert-file/key-file are unset an\nephemeral self-signed certificate is used, which strict\nclients cannot validate -- supply operator PEM for a\npublicly trusted node.",
+            "kind": "container",
+            "name": "tls",
+            "source": "config"
           },
           {
             "description": "Health-gate the BGP announcement on DNS serving state (RFC\n7534 Section 3.3: do not advertise the service prefix while\nthe name server is not running). When true (default) the\ncovering prefixes are announced only while the as112 node is\nserving, and withdrawn when serving is lost, the service is\ndisabled, or the node shuts down. false announces as soon as\nenabled and imported, without the serving-state gate.\nIgnored unless 'import as112' is configured under\nredistribute.",
@@ -15515,6 +15814,35 @@
             "name": "default-ttl",
             "source": "config",
             "type": "uint32"
+          },
+          {
+            "children": [
+              {
+                "description": "Enable the DNS-over-HTTPS listener (RFC 8484).",
+                "kind": "leaf",
+                "name": "enabled",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
+                "description": "TCP port for the DoH HTTPS listener (RFC 8484).",
+                "kind": "leaf",
+                "name": "listen-port",
+                "source": "config",
+                "type": "port"
+              },
+              {
+                "description": "HTTP request path the DoH endpoint answers on (RFC 8484\nURI Template); defaults to /dns-query.",
+                "kind": "leaf",
+                "name": "path",
+                "source": "config",
+                "type": "string"
+              }
+            ],
+            "description": "DNS-over-HTTPS (DoH, RFC 8484) listener. It reuses the tls\ncontainer's certificate material and binds the configured\nlistener IPs on 'listen-port' at 'path'.",
+            "kind": "container",
+            "name": "doh",
+            "source": "config"
           },
           {
             "description": "Enable the GeoDNS server",
@@ -15702,6 +16030,42 @@
             "description": "Maps a client-IP prefix to a host-set. Longest prefix wins;\n0.0.0.0/0 and ::/0 are the catch-all (external) default.",
             "kind": "list[prefix]",
             "name": "source",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "Path to the PEM server certificate presented on DoT and\nDoH. Unset (together with key-file) selects an ephemeral\nself-signed certificate.",
+                "kind": "leaf",
+                "name": "cert-file",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Enable the DNS-over-TLS listener (RFC 7858).",
+                "kind": "leaf",
+                "name": "enabled",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
+                "description": "Path to the PEM private key matching cert-file. Must be\nset together with cert-file.",
+                "kind": "leaf",
+                "name": "key-file",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "TCP port for the DoT listener; the RFC 7858 well-known\n'domain-s' port is 853.",
+                "kind": "leaf",
+                "name": "listen-port",
+                "source": "config",
+                "type": "port"
+              }
+            ],
+            "description": "DNS-over-TLS (DoT, RFC 7858) listener and the certificate\nmaterial shared with DoH. When enabled the DoT listener\nbinds the configured listener IPs on 'listen-port'. When\ncert-file/key-file are unset an ephemeral self-signed\ncertificate is used, which strict clients cannot validate.",
+            "kind": "container",
+            "name": "tls",
             "source": "config"
           },
           {
@@ -16170,6 +16534,71 @@
       },
       {
         "children": [
+          {
+            "children": [
+              {
+                "description": "Ze authorization profile name(s) assigned when the\nAccess-Accept carries no profile-attribute",
+                "kind": "leaf-list",
+                "name": "default-profile",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Access-Accept reply attribute whose value(s) name the\nze authorization profile(s) for the user",
+                "kind": "leaf",
+                "name": "profile-attribute",
+                "source": "config",
+                "type": "enumeration"
+              },
+              {
+                "description": "Retransmit count per server before failover",
+                "kind": "leaf",
+                "name": "retries",
+                "source": "config",
+                "type": "uint8"
+              },
+              {
+                "children": [
+                  {
+                    "description": "RADIUS shared secret (RFC 2865)",
+                    "kind": "leaf",
+                    "name": "key",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "UDP authentication port (default 1812)",
+                    "kind": "leaf",
+                    "name": "port",
+                    "source": "config",
+                    "type": "uint16"
+                  }
+                ],
+                "description": "RADIUS servers, tried in configured order",
+                "kind": "list[address]",
+                "name": "server",
+                "source": "config"
+              },
+              {
+                "description": "Source IP for outbound RADIUS requests",
+                "kind": "leaf",
+                "name": "source-address",
+                "source": "config",
+                "type": "ip-address"
+              },
+              {
+                "description": "Per-server request timeout in seconds",
+                "kind": "leaf",
+                "name": "timeout",
+                "source": "config",
+                "type": "uint16"
+              }
+            ],
+            "description": "RADIUS server configuration for operator/admin login\n(SSH, web, MCP), RFC 2865. Separate from the L2TP\nsubscriber RADIUS path, which lives under the l2tp root.",
+            "kind": "container",
+            "name": "radius",
+            "source": "config"
+          },
           {
             "children": [
               {
@@ -16844,6 +17273,13 @@
             "name": "cache-ttl",
             "source": "config",
             "type": "uint32"
+          },
+          {
+            "description": "Upstream-answer DNSSEC validation for the stub resolver (RFC\n4035 stub model). off leaves resolution unchanged; permissive\nand strict set the EDNS0 DO bit and rely on a validating\nupstream (CD=0) to SERVFAIL a broken chain. strict rejects\nsuch answers as an error; permissive logs and returns the\nempty result. Insecure/unsigned zones (NOERROR, AD=0) are\nalways accepted.",
+            "kind": "leaf",
+            "name": "dnssec-validation",
+            "source": "config",
+            "type": "enumeration"
           },
           {
             "description": "Path where DNS servers are written as resolv.conf. Default /tmp/resolv.conf suits gokrazy (read-only rootfs). Set to /etc/resolv.conf on standard Linux. Empty string disables resolv.conf writing.",
@@ -17856,6 +18292,13 @@
             "type": "uint8"
           },
           {
+            "description": "Fixed sleep between VPP main-loop polls, expressed in whole\nmilliseconds (the only accepted unit), e.g. 10ms. Emitted\nas unix { poll-sleep-usec N } in startup.conf (1ms = 1000\nmicroseconds). Omit for VPP's default (no sleep: workers\nbusy-poll at 100% CPU) for lowest latency. Set a non-zero\nvalue up to 100ms on shared or dev hosts to trade latency\nfor idle CPU. An explicit 0ms is emitted and equals the\ndefault.",
+            "kind": "leaf",
+            "name": "poll-sleep",
+            "source": "config",
+            "type": "string"
+          },
+          {
             "description": "Number of VPP worker threads.\nOmit for automatic (one per available core).",
             "kind": "leaf",
             "name": "workers",
@@ -17913,7 +18356,7 @@
         "type": "boolean"
       },
       {
-        "description": "When true, ze does NOT exec or supervise the VPP\nprocess. Ze still generates startup.conf (for the\nexternal supervisor to use) and connects via GoVPP\nto api-socket. Use this for systemd-managed VPP,\ncontainer sidecar deployments, or the\n`ze-test vpp` stub harness. Default: false (ze owns\nVPP lifecycle).",
+        "description": "When true, ze does NOT exec or supervise the VPP\nprocess, generate startup.conf, or bind DPDK NICs;\nthe external supervisor owns all of that. Ze only\nconnects via GoVPP to api-socket. Use this for\nsystemd-managed VPP, container sidecar deployments,\nor the `ze-test vpp` stub harness. Default: false\n(ze owns VPP lifecycle).",
         "kind": "leaf",
         "name": "external",
         "source": "config",
@@ -17982,6 +18425,21 @@
         "description": "VPP memory and buffer configuration.",
         "kind": "container",
         "name": "memory",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "Load wireguard_plugin.so so the vpp interface\nbackend can program WireGuard tunnels (interface\nwireguard under backend vpp).",
+            "kind": "leaf",
+            "name": "wireguard",
+            "source": "config",
+            "type": "boolean"
+          }
+        ],
+        "description": "Optional VPP plugin enablement. startup.conf uses\n'plugin default { disable }', so only the always-on\nplugins (dpdk, plus linux-cp when lcp is enabled) and\nthe plugins toggled on here are loaded.",
+        "kind": "container",
+        "name": "plugins",
         "source": "config"
       },
       {

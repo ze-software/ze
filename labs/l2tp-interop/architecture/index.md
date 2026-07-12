@@ -23,10 +23,14 @@ test/l2tp-interop/
   scenarios/
     01-ppp-ipv4/       PPP IPv4 dataplane proof
     02-ppp-bgp-redistribute-frr/   BGP route redistribution proof
+    03-ze-lac-xl2tpd-lns/   ze as INITIATOR (LAC) vs real xl2tpd LNS
 ```
 
-Each scenario contains `ze.conf`, `xl2tpd.conf`, `ppp-options`,
-`l2tp-secrets`, and a `check.py` with a `check()` function.
+Scenarios 01/02 (ze = LNS) contain `ze.conf`, `xl2tpd.conf`, `ppp-options`,
+`l2tp-secrets`, and a `check.py` with a `check()` function. A scenario that
+instead ships its own `run.py` (like 03) is self-contained: it manages its own
+containers and system-under-test, and the runner delegates to it (skipping the
+ze=LNS image build and the PPPoL2TP preflight).
 
 ## Prerequisites
 
@@ -71,6 +75,26 @@ in FRR's BGP table via Ze's `redistribute destination bgp { import l2tp }` (real
 and `redistribute-orchestrator` path), and the route is withdrawn from FRR
 after LAC session teardown. BGP session stability is verified after
 withdrawal.
+
+### 03-ze-lac-xl2tpd-lns
+
+The inverse topology: **ze is the L2TP initiator (LAC/dialer)** and a real
+`xl2tpd` runs as the LNS answerer. Proves ze's initiator half of the tunnel FSM
+(SCCRQ initiation → SCCRP handling → SCCCN → established) interoperates with an
+independent RFC 2661 implementation — confirmed on both sides (ze logs `tunnel
+now established (initiator)`; xl2tpd logs `Connection established ... LNS session
+is 'default'`). ze is triggered to dial by the `request l2tp outgoing-call` RPC
+over its token-guarded REST API.
+
+Self-contained (`run.py`): `xl2tpd` runs in Docker (`--network host`); `ze` runs
+from `bin/ze` with isolated filesystem storage. Control-plane only, so it needs
+no PPPoL2TP modules and runs unprivileged. `xl2tpd` cannot answer the OCRQ that
+follows (it has no outgoing-call answerer — logs `Unimplemented message 7`), so
+the RPC returns an error by design; the interop proof is the established control
+connection. The full OCRQ→OCRP→OCCN call flow is proven functionally by
+`test/l2tp/lns-outgoing-call.ci`. The LAC incoming-call PPP data plane (kernel
+channel bridge, A-4) is env-blocked — see the scenario README and
+`make ze-qemu-l2tp-ppp-test`.
 
 ## Relationship to Other Evidence
 

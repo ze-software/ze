@@ -1,6 +1,6 @@
 # AI-First Design
 
-<!-- source: internal/component/mcp/handler.go -- MCP HTTP handler -->
+<!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
 <!-- source: cmd/ze/help_ai.go -- ze help ai machine-readable reference -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 <!-- source: ai/rules/discovery-updates.md -- Current Discovery Surfaces -->

@@ -23,7 +23,7 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="../../../assets/site.css?v=adbbfadb2b" />
+        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -93,7 +93,7 @@
                         <span class="nav-dropdown-label">Capabilities</span>
                         <a class="nav-dropdown-item" href="../../../features/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
-                            <span><strong>Features</strong><small>46 features, color-coded by category</small></span>
+                            <span><strong>Features</strong><small>47 features, color-coded by category</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="../../../compare/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚖️</span>
@@ -353,7 +353,7 @@
                     <h1 id="plugin-catalog-title">Plugin catalog</h1>
                     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
                 </div>
-                <p class="plugin-summary">Generated from 91 registry entries: 86 runtime plugins and 5 test fixtures. Among runtime plugins, 66 declare configuration roots, 45 declare dependencies, and 67 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 92 registry entries: 87 runtime plugins and 5 test fixtures. Among runtime plugins, 67 declare configuration roots, 45 declare dependencies, and 68 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -362,7 +362,7 @@
                             <label for="plugin-category">Category
                                 <select id="plugin-category" autocomplete="off">
                                     <option value="">All categories</option>
-                                    <option value="routing" data-label="Routing">Routing (37)</option>
+                                    <option value="routing" data-label="Routing">Routing (38)</option>
                                     <option value="security" data-label="Policy &amp; security">Policy &amp; security (22)</option>
                                     <option value="tunneling" data-label="Tunneling">Tunneling (7)</option>
                                     <option value="services" data-label="Network services">Network services (7)</option>
@@ -379,6 +379,7 @@
                                     <option value="bgp-nlri" data-category="routing" data-label="BGP NLRI">BGP NLRI (10)</option>
                                     <option value="bgp-redistribute" data-category="routing" data-label="BGP Redistribute">BGP Redistribute (2)</option>
                                     <option value="connected" data-category="routing" data-label="Connected">Connected (1)</option>
+                                    <option value="exabgp" data-category="routing" data-label="Exabgp">Exabgp (1)</option>
                                     <option value="isis" data-category="routing" data-label="IS-IS">IS-IS (1)</option>
                                     <option value="ospf" data-category="routing" data-label="OSPF">OSPF (1)</option>
                                     <option value="rib" data-category="routing" data-label="RIB">RIB (1)</option>
@@ -1134,6 +1135,27 @@
                     </div>
                 </section>
 
+                <section class="plugin-group" data-plugin-group data-family="exabgp" data-category="routing" aria-labelledby="plugin-group-exabgp">
+                    <div class="plugin-group-head cat-routing">
+                        <h2 id="plugin-group-exabgp">Exabgp</h2>
+                        <span>1 plugin</span>
+                    </div>
+                    <p>Generated group for registry entries mapped to the Exabgp area. Config roots: <code>exabgp</code>. Source area: <code>internal/plugins/exabgp</code>.</p>
+                    <div class="cards plugin-grid">
+
+                    <article class="card plugin-card cat-routing" id="plugin-exabgp-bridge" data-plugin-card data-family="exabgp" data-category="routing" data-search="exabgp-bridge In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) internal/plugins/exabgp/bridgeplugin Exabgp   exabgp   internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang">
+                        <span class="cat">Exabgp</span>
+                        <h3><a href="exabgp-bridge/"><code>exabgp-bridge</code></a></h3>
+                        <p class="plugin-desc">In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)</p>
+                        <div class="chips">
+                            <span class="chip mode">config:exabgp</span>
+                            <span class="chip">YANG:1</span>
+                        </div>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>exabgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                    </article>
+                    </div>
+                </section>
+
                 <section class="plugin-group" data-plugin-group data-family="fib" data-category="dataplane" aria-labelledby="plugin-group-fib">
                     <div class="plugin-group-head cat-observe">
                         <h2 id="plugin-group-fib">FIB</h2>
@@ -1223,16 +1245,16 @@
                     <p>Generated group for registry entries mapped to the Flow Export area. Config roots: <code>flow-export</code>. Source area: <code>internal/plugins/flowexport</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-observe" id="plugin-flow-export" data-plugin-card data-family="flow-export" data-category="telemetry" data-search="flow-export sFlow, NetFlow v9, and IPFIX counter export sFlow, NetFlow v9, and IPFIX counter export internal/plugins/flowexport Flow Export   flow-export interface  internal/plugins/flowexport/yang/ze-flowexport-conf.yang">
+                    <article class="card plugin-card cat-observe" id="plugin-flow-export-conntrack-tracking" data-plugin-card data-family="flow-export" data-category="telemetry" data-search="flow-export-conntrack-tracking sFlow, NetFlow v9, and IPFIX counter export sFlow, NetFlow v9, and IPFIX counter export internal/plugins/flowexport Flow Export   flow-export config-loaded  internal/plugins/flowexport/yang/ze-flowexport-conf.yang">
                         <span class="cat">Flow Export</span>
-                        <h3><a href="flow-export/"><code>flow-export</code></a></h3>
+                        <h3><a href="flow-export-conntrack-tracking/"><code>flow-export-conntrack-tracking</code></a></h3>
                         <p class="plugin-desc">sFlow, NetFlow v9, and IPFIX counter export</p>
                         <div class="chips">
                             <span class="chip mode">config:flow-export</span>
-                            <span class="chip">needs:interface</span>
+                            <span class="chip">needs:config-loaded</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>flow-export</code></dd></div><div><dt>Needs</dt><dd><code>interface</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>flow-export</code></dd></div><div><dt>Needs</dt><dd><code>config-loaded</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
                     </div>
                 </section>

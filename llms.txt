@@ -14,15 +14,15 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://codeberg.org/thomas-mangin/ze. GitHub mirror: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 47 shipped or experimental feature cards, 6 roadmap cards, 379 CLI commands, 35 config sections, 91 plugin registrations, 39 direct Go dependencies, 30 weekly change entries.
-- Test evidence counts: 64,200+ unit tests, 360+ fuzz targets, 1,300+ end-to-end transcript steps, 101 interop scenarios across 7 target implementations.
-- Generated date: 2026-07-09.
+- Current generated counts: 47 shipped or experimental feature cards, 6 roadmap cards, 380 CLI commands, 36 config sections, 92 plugin registrations, 39 direct Go dependencies, 31 weekly change entries.
+- Test evidence counts: 64,700+ unit tests, 360+ fuzz targets, 1,400 end-to-end transcript steps, 101 interop scenarios across 7 target implementations.
+- Generated date: 2026-07-13.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 64,200+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 64,700+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 360+ fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
@@ -82,7 +82,7 @@ Ze owns its BGP engine, configuration model, plugin system, operator surfaces, m
 ### Experimental and growing. (15 cards: 15 experimental)
 Implemented and tested, not yet production-proven.
 - IPsec VPN [services, experimental]: chips: IKEv2, X.509, EAP; Full IKEv2 engine, rekeying, DPD; NAT-T, keepalive, XFRM interfaces; EAP-MSCHAPv2, EAP-TLS, road warrior; link: https://ze-software.net/docs/features/index.md
-- L2TPv2 BNG [services, experimental]: chips: PPP, RADIUS, CQM; RFC 2661 LNS with PPP negotiation; RADIUS auth, accounting, CoA; CQM monitoring, shaping, web UI; link: https://ze-software.net/docs/guide/l2tp/index.md
+- L2TPv2 BNG [services, experimental]: chips: PPP, RADIUS, CQM; RFC 2661 LNS and LAC with PPP; RADIUS auth, accounting, CoA; CQM monitoring, shaping, web UI; link: https://ze-software.net/docs/guide/l2tp/index.md
 - PPPoE Access [services, experimental]: chips: RFC 2516, PPP; Access concentrator with discovery FSM; Shared PPP driver with L2TP; HMAC-SHA256 cookie, rate limiting; link: https://ze-software.net/docs/guide/pppoe/index.md
 - Interface Management [services, experimental]: chips: Netlink, DHCP; Ethernet, VLAN, bridge, WireGuard; 8 tunnel kinds, DHCP client; NTP sync, offload tuning, mirroring; link: https://ze-software.net/docs/features/interfaces/index.md
 - Firewall [services, experimental]: chips: nftables, NAT; 15 match types, 19 actions; SNAT, DNAT, masquerade; FlowSpec-to-firewall bridge; link: https://ze-software.net/docs/guide/firewall/index.md
@@ -118,6 +118,7 @@ Top-level YANG-derived config roots. Child names are direct children only, enoug
 - `control-plane-protection`: Control-plane policing configuration. Children: bgp.
 - `ddos`: Distributed denial-of-service detection and mitigation subsystem. Children: detect, flowspec, flowtriq, local, observe.
 - `environment`: Environment settings for API transports Children: api-server, bgp, bmp, chaos, cli, daemon, exabgp, gnmi, l2tp, log, looking-glass, mcp, ntp, pprof, ....
+- `exabgp`: Top-level container for ExaBGP-compatibility configuration. Children: bridge.
 - `fib`: Forwarding Information Base configuration. Children: kernel, p4, vpp.
 - `firewall`: Ze-managed nftables firewall tables. Table names are bare in config; ze_ prefix added by component. Children: backend, global-options, irr, table.
 - `flow-export`: Flow export (sFlow, NetFlow v9, IPFIX) configuration Children: collector, conntrack, enrichment, sampling.
@@ -144,7 +145,7 @@ Top-level YANG-derived config roots. Child names are direct children only, enoug
 - `telemetry`: Telemetry export configuration Children: prometheus.
 - `traffic`: Traffic subsystem: QoS control and byte-usage accounting. Children: control, usage.
 - `vpn`: VPN subsystems. Children: ipsec.
-- `vpp`: VPP data plane configuration. Children: api-socket, cpu, dpdk, enabled, external, lcp, memory, stats.
+- `vpp`: VPP data plane configuration. Children: api-socket, cpu, dpdk, enabled, external, lcp, memory, plugins, stats.
 
 ## Plugin registry
 
@@ -202,6 +203,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `ddos-local`: DDoS local responder: on-host nft drop on attack detection Config roots: ddos/local. Dependencies: firewall. Optional: none. YANG files: 1. Source: `internal/plugins/ddos/local`.
 - `ddos-observe`: DDoS observability: incident store and show ddos status/incidents CLI Config roots: ddos/observe. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/ddos/observe`.
 - `dhcpserver`: DHCP server: address assignment for LAN clients (RFC 2131) Config roots: service. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/dhcpserver`.
+- `exabgp-bridge`: In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) Config roots: exabgp. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/exabgp/bridgeplugin`.
 - `fakeas112`: Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked) Config roots: none. Dependencies: none. Optional: none. YANG files: 2. Source: `internal/test/plugins/fakeas112`.
 - `fakeenrich`: Test-only in-process enricher (harmless when not invoked) Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/test/plugins/fakeenrich`.
 - `fakefib`: Test-only sysrib event emitter for FIB functional tests (use ze.fakefib) Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/test/plugins/fakefib`.
@@ -212,7 +214,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `fib-vpp`: FIB VPP: programs VPP FIB entries from system RIB via GoVPP binary API Config roots: fib/vpp. Dependencies: rib, vpp. Optional: none. YANG files: 1. Source: `internal/plugins/fib/vpp`.
 - `firewall`: Packet filter and NAT rules (nftables on Linux) Config roots: firewall. Dependencies: none. Optional: none. YANG files: 2. Source: `internal/component/firewall`.
 - `firewall-irr`: IRR-based prefix-list filtering for firewall rules Config roots: firewall. Dependencies: firewall. Optional: none. YANG files: 2. Source: `internal/component/firewall/plugins/irr`.
-- `flow-export`: sFlow, NetFlow v9, and IPFIX counter export Config roots: flow-export. Dependencies: interface. Optional: none. YANG files: 1. Source: `internal/plugins/flowexport`.
+- `flow-export-conntrack-tracking`: sFlow, NetFlow v9, and IPFIX counter export Config roots: flow-export. Dependencies: config-loaded. Optional: none. YANG files: 1. Source: `internal/plugins/flowexport`.
 - `flowspec-firewall`: Translates BGP FlowSpec routes into nftables firewall rules Config roots: none. Dependencies: firewall. Optional: none. YANG files: 0. Source: `internal/plugins/flowspec-firewall`.
 - `geodns`: GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet) Config roots: service. Dependencies: none. Optional: none. YANG files: 2. Source: `internal/plugins/geodns`.
 - `iface-dhcp`: DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal Config roots: none. Dependencies: interface. Optional: none. YANG files: 0. Source: `internal/plugins/iface/dhcp`.
@@ -244,7 +246,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 
 ## CLI command surface
 
-The command catalog is generated from `ze help command --json`, not hand-written. Modes: 82 daemon, 17 offline, 280 read-only.
+The command catalog is generated from `ze help command --json`, not hand-written. Modes: 83 daemon, 17 offline, 280 read-only.
 `daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` means the command supports the shared output pipeline.
 
 ### `announce` commands (1)
@@ -335,7 +337,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `plugin session ping` (read-only; wire ze-plugin:session-ping; pipes): Health check (returns PID)
 - `plugin session ready` (read-only; wire ze-plugin:session-ready; pipes): Signal plugin init complete
 
-### `request` commands (31)
+### `request` commands (32)
 - `request as112 healthcheck` (daemon; wire ze-as112:health; pipes; args target): One-shot authoritative query against an anycast service address (or the given target), exit 0 iff the expected AS112 answer comes back. Finding M4: the tool a... Syntax: `request as112 healthcheck [target ]`.
 - `request bgp rib inject` (daemon; wire ze-rib-api:inject; pipes): Inject a synthetic route into the Adj-RIB-In. Behaves as if the route was received from a peer. Use this for testing policy filters or simulating route announcements.
 - `request bgp rib withdraw` (daemon; wire ze-rib-api:withdraw; pipes): Withdraw a route from the Adj-RIB-In. Removes a previously injected or received route from a peer's Adj-RIB-In, triggering best-path recomputation.
@@ -351,6 +353,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `request interface migrate` (daemon; wire ze-iface:interface-migrate; pipes): Move IP addresses between interfaces with minimal downtime. Takes a source interface, a target interface, and the address to move. Adds addresses to the target before...
 - `request interface mtu` (daemon; wire ze-iface:interface-mtu; pipes; args name): Set the MTU on an interface.
 - `request interface up` (daemon; wire ze-iface:interface-up; pipes; args name): Bring an interface up.
+- `request l2tp outgoing-call remote called` (daemon; wire ze-l2tp-api:outgoing-call; pipes; args called, remote): Place an LNS-side outgoing call (RFC 2661 S10.4).
 - `request log level` (daemon; wire ze-bgp:log-set; pipes; args logger, target): Change a subsystem's log level without restarting.
 - `request ospf graceful-restart` (daemon; wire ze-ospf:graceful-restart-prepare; pipes): Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).
 - `request peer borr` (daemon; wire ze-bgp:peer-borr; pipes; args selector): Start an Enhanced Route Refresh cycle (RFC 7313). Tells the peer to mark existing routes as stale. After re-sending, send EORR to purge anything not refreshed.
@@ -852,7 +855,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ## Reference
 
 ### Generated references
-- [CLI Reference](https://ze-software.net/cli/index.md): 379 commands, generated from the live binary (web: https://ze-software.net/cli/)
+- [CLI Reference](https://ze-software.net/cli/index.md): 380 commands, generated from the live binary (web: https://ze-software.net/cli/)
 - [Configuration Reference](https://ze-software.net/config-reference/index.md): 35 sections, indexed from live YANG (web: https://ze-software.net/config-reference/)
 - [Command Equivalents](https://ze-software.net/command-equivalents/index.md): Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS (web: https://ze-software.net/command-equivalents/)
 - [RFC Status](https://ze-software.net/docs/features/rfc-status/index.md): Implemented RFCs, partial support, and known gaps (web: https://ze-software.net/docs/features/rfc-status/)
@@ -862,7 +865,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ### Progress
 - [Roadmap](https://ze-software.net/roadmap/index.md): The path to a first release you can trust (web: https://ze-software.net/roadmap/)
 - [Milestones](https://ze-software.net/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/milestones/)
-- [Changes](https://ze-software.net/changes/index.md): 30 weekly updates, newest first (web: https://ze-software.net/changes/)
+- [Changes](https://ze-software.net/changes/index.md): 31 weekly updates, newest first (web: https://ze-software.net/changes/)
 - [Activity](https://ze-software.net/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/activity/)
 ### Community
 - [Blog](https://ze-software.net/blog/index.md): Longer project notes and release stories (web: https://ze-software.net/blog/)
