@@ -88,28 +88,31 @@ func (s *store) characterize(e *ddosevent.AttackCharacterized) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Exact victim match: the common case, where the fast AttackDetected already
-	// resolved the same victim prefix this characterization did.
+	// Attach to the incident THIS characterization belongs to: the NEWEST still-
+	// active incident on the same interface whose target either matches the
+	// characterized victim or is still unresolved (empty). Two cases fold together:
+	//   * AttackDetected opened the incident with NO victim (trafficusage had not
+	//     resolved one at confirm -- a timing race, or an IPv6-only victim it
+	//     cannot see) but characterization derived the victim from the flow ring.
+	//     The target is left EMPTY on purpose: AttackCleared also carries an empty
+	//     target (see detector.emitCleared), so leaving it empty keeps finalize's
+	//     match working.
+	//   * A resolved-target incident from a PRIOR attack can linger Active because
+	//     AttackCleared's empty target never finalizes a resolved-target incident
+	//     until sweepStale. Scanning newest-first, scoped to the interface, attaches
+	//     to the CURRENT attack's incident rather than that stale one -- exact-match
+	//     alone would wrongly attribute the score to the stale incident.
+	// (Two truly-concurrent attacks on one interface, one resolved + one empty, are
+	// rare enough that newest-wins is acceptable; responders gate on the event's
+	// confidence, not the store, so this is observability only.)
 	for i := len(s.ring) - 1; i >= 0; i-- {
-		if s.ring[i].Active && s.ring[i].Target.DstPrefix == e.Target.DstPrefix {
-			s.ring[i].Confidence = e.Confidence
-			return
+		inc := &s.ring[i]
+		if !inc.Active || inc.Interface != e.Interface {
+			continue
 		}
-	}
-
-	// Fallback: AttackDetected opened the incident with NO victim (trafficusage had
-	// not resolved one at attack-confirm -- a timing race, or an IPv6-only victim
-	// that trafficusage cannot see), but characterization derived the victim from
-	// the flow ring. Attach the confidence to the still-unresolved active incident
-	// on the same interface so the score is not silently lost. The target is left
-	// EMPTY on purpose: AttackCleared also carries an empty target (see
-	// detector.emitCleared), so leaving it empty keeps finalize's match working.
-	if e.Target.DstPrefix.IsValid() {
-		for i := len(s.ring) - 1; i >= 0; i-- {
-			if s.ring[i].Active && s.ring[i].Interface == e.Interface && !s.ring[i].Target.DstPrefix.IsValid() {
-				s.ring[i].Confidence = e.Confidence
-				return
-			}
+		if inc.Target.DstPrefix == e.Target.DstPrefix || !inc.Target.DstPrefix.IsValid() {
+			inc.Confidence = e.Confidence
+			return
 		}
 	}
 }

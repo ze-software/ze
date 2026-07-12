@@ -155,20 +155,28 @@ func (d *detector) onRates(entries []trafficstat.InterfaceEntry) {
 
 	d.tickNum++
 
+	// Track the peak packet rate and the peak bandwidth INDEPENDENTLY: on a
+	// multi-interface box the amplified (high-BPS, moderate-PPS) interface is
+	// often not the top-PPS one, so binding maxBps to the max-PPS interface would
+	// blind the bandwidth trigger to exactly the amplification floods it exists to
+	// catch. Each is attributed to its own interface.
 	var maxPps, maxBps float64
-	var maxIface string
+	var maxPpsIface, maxBpsIface string
 	for i := range entries {
 		e := &entries[i]
 		d.currentRxPps[e.Name] = e.RxPps
 
 		if e.RxPps > maxPps {
 			maxPps = e.RxPps
-			maxIface = e.Name
+			maxPpsIface = e.Name
+		}
+		if e.RxBps > maxBps {
 			maxBps = e.RxBps
+			maxBpsIface = e.Name
 		}
 	}
 
-	d.applyTick(maxPps, maxBps, maxIface)
+	d.applyTick(maxPps, maxBps, maxPpsIface, maxBpsIface)
 }
 
 func (d *detector) onRate(infos []iface.InterfaceInfo) {
@@ -182,7 +190,7 @@ func (d *detector) onRate(infos []iface.InterfaceInfo) {
 	d.tickNum++
 
 	var maxPps, maxBps float64
-	var maxIface string
+	var maxPpsIface, maxBpsIface string
 	for i := range infos {
 		info := &infos[i]
 		if info.Stats == nil {
@@ -206,19 +214,24 @@ func (d *detector) onRate(infos []iface.InterfaceInfo) {
 		}
 		d.currentRxPps[info.Name] = pps
 
+		// Peak PPS and peak BPS are tracked per interface, independently: the
+		// amplified interface need not be the top-PPS one (see onRates).
 		if pps > maxPps {
 			maxPps = pps
-			maxIface = info.Name
+			maxPpsIface = info.Name
+		}
+		if bps > maxBps {
 			maxBps = bps
+			maxBpsIface = info.Name
 		}
 	}
 
-	d.applyTick(maxPps, maxBps, maxIface)
+	d.applyTick(maxPps, maxBps, maxPpsIface, maxBpsIface)
 }
 
 // applyTick runs the baseline, state machine, and event emission for a
 // single tick. Caller must hold d.mu.
-func (d *detector) applyTick(maxPps, maxBps float64, maxIface string) {
+func (d *detector) applyTick(maxPps, maxBps float64, maxPpsIface, maxBpsIface string) {
 	if d.tickNum <= d.cfg.StartupGrace {
 		if maxPps < d.cfg.AbsoluteFloor*5 {
 			return
@@ -250,10 +263,18 @@ func (d *detector) applyTick(maxPps, maxBps float64, maxIface string) {
 	if above {
 		if maxPps > d.peakRxPps {
 			d.peakRxPps = maxPps
-			d.attackIface = maxIface
 		}
 		if maxBps > d.peakRxBps {
 			d.peakRxBps = maxBps
+		}
+		// Attribute the incident to the interface that drove THIS detection so
+		// characterization targets the right link: the bandwidth path points at the
+		// amplified interface (which need not be the top-PPS one), the packet path
+		// at the top-PPS interface. bpsTriggered means only the BPS path fired.
+		if d.bpsTriggered {
+			d.attackIface = maxBpsIface
+		} else {
+			d.attackIface = maxPpsIface
 		}
 	}
 

@@ -198,6 +198,45 @@ func TestApplyTick_BpsBelowFloorInert(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-1 (multi-interface) -- an amplification flood on a NON-top-PPS
+// interface trips the BPS trigger and is attributed to the amplified interface.
+// PREVENTS: on a multi-interface router, binding maxBps to the max-PPS interface
+// blinded the bandwidth trigger, so a high-Gbps/low-PPS amplification on the
+// uplink went undetected whenever a LAN port carried more packets/s.
+func TestApplyTick_BpsTriggerFiresOnNonTopPpsInterface(t *testing.T) {
+	cfg := bpsTestConfig()
+	bus := newDTestBus()
+	d := newDetector(cfg, bus, nil)
+	var detected *ddosevent.AttackDetected
+	ddosevent.Detected.Subscribe(bus, func(e *ddosevent.AttackDetected) { detected = e })
+
+	// Warm-up: "lan" is always the top-PPS interface (5000 pps) but low bandwidth;
+	// "uplink" is quiet. Both ~10000 B/s so the BPS threshold settles ~30000 B/s.
+	// The huge AbsoluteFloor keeps the PPS path from ever firing (isolates BPS).
+	for range cfg.BaselineWindow + 5 {
+		d.onRates([]trafficstat.InterfaceEntry{
+			{Name: "lan", RxPps: 5000, RxBps: 10000},
+			{Name: "uplink", RxPps: 50, RxBps: 10000},
+		})
+	}
+	// Attack: "lan" unchanged (still top PPS); "uplink" gets a low-PPS, high-
+	// bandwidth amplification flood (=4 Mbps) only the BPS path can see.
+	for range 3 {
+		d.onRates([]trafficstat.InterfaceEntry{
+			{Name: "lan", RxPps: 5000, RxBps: 10000},
+			{Name: "uplink", RxPps: 50, RxBps: 500000},
+		})
+	}
+	d.wg.Wait()
+
+	if detected == nil {
+		t.Fatal("BPS trigger did not fire for amplification on a non-top-PPS interface")
+	}
+	if detected.Interface != "uplink" {
+		t.Errorf("attack attributed to %q, want uplink (the amplified interface)", detected.Interface)
+	}
+}
+
 // VALIDATES: AC-5 -- a restart with a valid persisted baseline restores it (both
 // series Ready, PPS p99 preserved) so the window re-warm is skipped.
 func TestDetectorRestoresBaselineFromDisk(t *testing.T) {

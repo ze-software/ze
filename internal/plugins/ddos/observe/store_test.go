@@ -96,6 +96,49 @@ func TestStoreCharacterizeAttachesToUnresolvedIncident(t *testing.T) {
 	}
 }
 
+// VALIDATES: characterization attaches to the CURRENT attack's incident, not a
+// stale resolved-target incident lingering from a prior attack on the same victim
+// (AttackCleared's empty target cannot finalize a resolved-target incident, so it
+// stays Active until sweepStale). Newest-first + interface scoping picks the
+// current one.
+// PREVENTS: on repeated attacks against the same victim, the confidence score
+// being written to the previous, stale incident instead of the live one.
+func TestStoreCharacterizePrefersCurrentIncidentOverStale(t *testing.T) {
+	s := newStore(10, time.Hour)
+	victim := netip.MustParsePrefix("203.0.113.5/32")
+
+	// Stale incident from a prior attack: opened with a RESOLVED target on eth0,
+	// never finalized.
+	s.open(&ddosevent.AttackDetected{
+		Interface: "eth0",
+		Target:    ddosevent.VectorTuple{DstPrefix: victim},
+		Family:    ddosevent.FamilyGenericFlood,
+	})
+	// Current attack on the same interface: opened with an EMPTY target
+	// (trafficusage had not resolved the victim at confirm).
+	s.open(&ddosevent.AttackDetected{
+		Interface: "eth0",
+		Target:    ddosevent.VectorTuple{},
+		Family:    ddosevent.FamilyGenericFlood,
+	})
+	// Characterization for the current attack derives the same victim prefix.
+	s.characterize(&ddosevent.AttackCharacterized{
+		Interface:  "eth0",
+		Target:     ddosevent.VectorTuple{DstPrefix: victim},
+		Confidence: 77,
+	})
+
+	for _, inc := range s.list() {
+		if inc.Target.DstPrefix.IsValid() {
+			if inc.Confidence != 0 {
+				t.Errorf("stale resolved-target incident must stay at 0, got %d", inc.Confidence)
+			}
+		} else if inc.Confidence != 77 {
+			t.Errorf("current (empty-target) incident should carry the score 77, got %d", inc.Confidence)
+		}
+	}
+}
+
 func TestIncidentLifecycle(t *testing.T) {
 	// VALIDATES: AC-1 -- incident opened on detect, finalized on clear
 	s := newStore(100, time.Hour)
