@@ -357,6 +357,26 @@ def run_in_vm(
                 "modprobe l2tp_ppp 2>/dev/null || true",
                 "modprobe l2tp_netlink 2>/dev/null || true",
                 "modprobe nft_chain_nat 2>/dev/null || true",
+                # Register nf_conntrack tracking so flow-export's conntrack export
+                # (and thus DDoS characterization) sees per-flow records. Three
+                # prerequisites, none of which a plain module load provides:
+                #   1. nf_conntrack + nf_conntrack_netlink: the reader dumps the
+                #      table over ctnetlink (conntrack/reader_linux.go), which needs
+                #      the netlink module, not just the tracker.
+                #   2. a rule referencing `ct state`: loading the module does NOT
+                #      register the tracking hooks; nftables registers them netns-
+                #      wide the moment any rule uses a ct expression. An accept-only
+                #      table affects no test's forwarding or drop behavior.
+                #   3. nf_conntrack_acct=1: without accounting the kernel reports
+                #      0 bytes/packets per flow, and the export worker drops every
+                #      zero-delta flow (conntrack_worker.go) so the ring stays empty.
+                "modprobe nf_conntrack 2>/dev/null || true",
+                "modprobe nf_conntrack_netlink 2>/dev/null || true",
+                "[ -w /proc/sys/net/netfilter/nf_conntrack_acct ] && echo 1 > /proc/sys/net/netfilter/nf_conntrack_acct || true",
+                "nft add table inet ztrack 2>/dev/null || true",
+                "nft 'add chain inet ztrack out { type filter hook output priority -150 ; policy accept ; }' 2>/dev/null || true",
+                "nft add rule inet ztrack out ct state new,established,related counter 2>/dev/null || true",
+                "echo \"CONNTRACK-SETUP: acct=$(cat /proc/sys/net/netfilter/nf_conntrack_acct 2>/dev/null || echo MISSING) rules=$(nft list ruleset 2>/dev/null | grep -c 'ct state' || echo 0)\"",
                 "mkdir -p /workspace",
                 "mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 workspace /workspace",
                 "cd /workspace",

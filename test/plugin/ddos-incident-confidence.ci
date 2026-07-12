@@ -1,0 +1,284 @@
+# Test: an attack characterized by ddos-detect carries a multi-signal Confidence
+# (0-100) that ddos-observe records on the incident and `show ddos incidents`
+# renders.
+#
+# VALIDATES: spec-ddos-detect-enhancements AC-9 (User Story 3) -- on a UDP
+#            reflection flood (dominant source port is a known amplifier) the
+#            detector classifies the attack, GradeConfidence scores it, the
+#            AttackCharacterized event carries the score, ddos-observe records it
+#            onto the open incident, and `show ddos incidents` exposes a non-zero
+#            confidence field.
+# PREVENTS:  a regression where confidence is computed but never reaches the
+#            incident store, or `show ddos incidents` drops the field, leaving
+#            operators unable to distinguish a real attack from a borderline spike.
+#
+# STATUS: option=needs-linux. It drives the full daemon path (rate trigger ->
+#   trafficusage victim -> flow-export conntrack recent-flow ring -> classifier ->
+#   GradeConfidence -> AttackCharacterized -> ddos-observe store -> show ddos
+#   incidents), which needs a Linux kernel with nf_conntrack (flow-export) and eBPF
+#   (traffic-usage). It is NOT runnable on darwin; the QEMU Alpine VM runs it. The
+#   GradeConfidence math and the observe store are covered on any platform
+#   (ddosevent/event_test.go, observe/store_test.go).
+#
+#   MUTATION-VERIFY (manual, per functional-test-gate.md): make GradeConfidence
+#   (internal/core/ddosevent/event.go) return 0, or stub store.characterize
+#   (observe/store.go) to a no-op, and re-run under QEMU. The incident then reports
+#   confidence 0 (omitted) and the observer runtime_fails -- confirming the test
+#   gates on the confidence path, not merely on incident creation.
+#
+#   TIMING NOTE (see docs/guide/ddos-mitigation.md): the recent-flow ring refreshes
+#   only at each conntrack dump, whose cadence is the operator's active-timeout (60s
+#   default). To keep characterization from reading a pre-attack ring, ddos-detect
+#   emits AttackDetected -> flow-export forces an immediate out-of-band dump
+#   (flowexport/register.go), and characterizeFromFlows polls the ring within
+#   characterize-timeout until it reflects the attack (characterize.go
+#   awaitClassifiableFlows). The observer additionally PRE-WARMS with a low-rate flow
+#   (below the 1000-pps absolute-floor, so no premature trigger) as belt-and-braces.
+#   Pacing uses ze_api read_line(timeout=...) and time.monotonic -- never time.sleep
+#   (the .ci sleep ratchet is at its baseline).
+
+option=needs-linux
+option=env:var=ze.log.ddos-detect:value=info
+option=env:var=ze.log.ddos-observe:value=info
+option=timeout:value=75s
+
+# ze-peer: accepts the BGP connection so peer1 comes up and launches the observer
+# process below (same wiring as ddos-show.ci / anomaly-show.ci).
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=75s
+option=asn:value=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=ddos-conf-probe.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Reflection flood -> assert `show ddos incidents` reports a non-zero confidence.
+
+Runs as an in-daemon observer plugin (5-stage handshake). Pacing is sleep-free:
+ze_api.read_line(timeout=...) blocks on select and time.monotonic bounds the loop,
+so no time.sleep is added to the .ci sleep ratchet.
+"""
+import json
+import socket
+import sys
+import time
+
+from ze_api import API, result_text_data, runtime_fail
+
+VICTIM = "127.0.0.2"
+DPORT = 9999
+# Source port 11211 (memcached) is in the classifier's reflection table and is
+# non-privileged, so no root is needed to bind it.
+SPORT = 11211
+PAYLOAD = b"x" * 64
+
+
+def dispatch(api, command):
+    resp = api._call_engine("ze-plugin-engine:dispatch-command", {"command": command})
+    if resp is None:
+        return {"status": "error", "data": "engine call returned None"}
+    return resp.get("result", {})
+
+
+# // test-relax: trimmed the if-rate/lo-counters/traffic-usage diagnostic probes
+# used while root-causing the config-string-coercion bug (session 6503). The
+# load-bearing assertion (runtime_fail unless an incident reports non-zero
+# confidence) is unchanged; only the failure-message detail is trimmed.
+def dump_state(api):
+    # traffic-usage name lo exposes egress-ips (the victim-attribution source that
+    # characterize.go's parseTopDestination reads); dumped to diagnose why the
+    # incident victim came out as the reflection source, not the flood target.
+    return (
+        f"ddos-status={result_text_data(dispatch(api, 'show ddos status'))} "
+        f"ddos-incidents={result_text_data(dispatch(api, 'show ddos incidents'))} "
+        f"traffic-usage-lo={result_text_data(dispatch(api, 'show traffic usage name lo'))} "
+        f"flow-recent-all={result_text_data(dispatch(api, 'show flow-recent'))} "
+        f"flow-recent-victim={result_text_data(dispatch(api, 'show flow-recent dst 127.0.0.2'))}"
+    )
+
+
+def incident_confidence(api):
+    """Return the highest confidence across current incidents, or None on error."""
+    r = dispatch(api, "show ddos incidents")
+    if r.get("status") != "done":
+        return None
+    data = result_text_data(r)
+    if isinstance(data, str) and data:
+        data = json.loads(data)
+    if not isinstance(data, dict) or data.get("enabled") is not True:
+        return None
+    best = 0
+    for inc in data.get("incidents", []) or []:
+        best = max(best, int(inc.get("confidence", 0)))
+    return best
+
+
+def blast(sock, n):
+    sent = 0
+    for _ in range(n):
+        try:
+            sock.sendto(PAYLOAD, (VICTIM, DPORT))
+            sent += 1
+        except OSError:
+            pass
+    return sent
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", SPORT))
+
+    # Sink bound on the victim port so the kernel delivers the flood to a socket and
+    # does NOT emit an ICMP port-unreachable per packet. Without it, those
+    # unreachables (victim -> source) egress to the SOURCE and, on loopback,
+    # out-total the flood itself (each ICMP carries the original datagram), so the
+    # detector's egress-ips victim attribution lands on the reflection source
+    # (127.0.0.1) instead of the target (127.0.0.2), and characterization then
+    # queries the wrong destination. A real multi-interface router never sees this
+    # backscatter on the victim-facing interface. Binding alone suppresses the ICMP;
+    # unread packets are silently dropped when the buffer fills.
+    sink = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sink.bind((VICTIM, DPORT))
+    sink.setblocking(False)
+
+    confidence = 0
+    sent = 0
+    state = "(not captured)"
+    try:
+        # Pre-warm: low rate (below the 1000-pps floor, so no trigger) to establish
+        # the 127.0.0.1:11211 -> 127.0.0.2 conntrack flow and let a dump land it in
+        # the recent-flow ring before the flood. read_line paces without a sleep.
+        for _ in range(3):
+            sent += blast(sock, 50)
+            api.read_line(timeout=1.0)
+
+        # Flood hard so the detector confirms and characterization runs against the
+        # now-warm ring; poll show ddos incidents for a non-zero confidence.
+        deadline = time.monotonic() + 40.0
+        while time.monotonic() < deadline:
+            sent += blast(sock, 4000)
+            best = incident_confidence(api)
+            if best and best > 0:
+                confidence = best
+                break
+            api.read_line(timeout=0.2)
+        state = dump_state(api)
+    finally:
+        sock.close()
+        sink.close()
+
+    if confidence <= 0:
+        runtime_fail(
+            f"show ddos incidents never reported a non-zero confidence on a "
+            f"reflection flood (sent {sent} packets); the characterized confidence "
+            f"did not reach the incident store. Final state: {state}"
+        )
+
+    print(
+        f"OK: show ddos incidents reported confidence={confidence} for the "
+        f"reflection attack",
+        file=sys.stderr,
+    )
+    dispatch(api, "request shutdown")
+    api.wait_for_shutdown()
+
+
+if __name__ == "__main__":
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+ddos {
+	detect {
+		enabled true
+		absolute-floor 1000
+		confirm-duration 1
+		startup-grace 0
+		baseline-window 10
+		check-interval 1
+		characterize-enable true
+		characterize-window 60
+		characterize-timeout 3000
+	}
+	observe {
+		incident-ring-size 100
+	}
+}
+
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface lo {
+				enabled true
+			}
+		}
+	}
+}
+
+flow-export {
+	conntrack {
+		enabled true
+		active-timeout 1
+		recent-flow-ring 256
+	}
+}
+
+plugin {
+	external ddos-conf-probe {
+		run ./ddos-conf-probe.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process ddos-conf-probe {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=70s
+expect=exit:code=0

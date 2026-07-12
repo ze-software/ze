@@ -159,38 +159,26 @@ func (d *detector) emitCharacterized(gen uint64, ev *ddosevent.AttackCharacteriz
 	return true
 }
 
-// characterizeFromFlows queries the recent-flow ring for the victim, classifies
-// the attack, and emits AttackCharacterized. It emits nothing (leaving responders
-// on the coarse AttackDetected) when no flow source is reachable or no flows match
-// -- never worse than before. When trafficusage gave no victim it derives one from
-// the dominant destination in the flow set.
+// characterizeRetryInterval paces awaitClassifiableFlows' poll of the recent-flow
+// ring. A package var so tests can shrink it; 150ms is well under the default
+// 3s characterize-timeout (≈20 polls) yet coarse enough that the forced conntrack
+// dump has time to land between polls.
+var characterizeRetryInterval = 150 * time.Millisecond
+
+// characterizeFromFlows resolves the attack's flow set (polling the recent-flow
+// ring until it reflects the attack), classifies it, and emits AttackCharacterized.
+// It emits nothing (leaving responders on the coarse AttackDetected) when no flow
+// source is reachable or no flows arrive -- never worse than before. When
+// trafficusage gave no victim it derives one from the dominant destination.
 func (d *detector) characterizeFromFlows(ctx context.Context, gen uint64, ifaceName string, victim netip.Prefix, peakPps, peakBps, threshold float64, severity ddosevent.Severity) {
 	if !d.cfg.CharacterizeEnable {
 		return
 	}
 
-	flows, ok := d.queryRecentFlows(ctx, victim)
+	flows, victim, ok := d.awaitClassifiableFlows(ctx, gen, victim)
 	if !ok {
 		incFallback()
 		return
-	}
-	// Drop flows older than the characterize-window (flows with no timestamp are
-	// kept -- absence of a timestamp is not evidence of staleness).
-	flows = filterByWindow(flows, d.cfg.CharacterizeWindow, time.Now())
-	if len(flows) == 0 {
-		incFallback()
-		return
-	}
-
-	// Without a trafficusage victim, derive one from the flow set and narrow to it.
-	if !victim.IsValid() {
-		v, ok := dominantDestination(flows)
-		if !ok {
-			incFallback()
-			return
-		}
-		victim = v
-		flows = filterByDst(flows, victim)
 	}
 
 	family, vec, topSources, entropy := classifyFlows(flows, d.cfg.TopNSources)
@@ -220,6 +208,79 @@ func (d *detector) characterizeFromFlows(ctx context.Context, gen uint64, ifaceN
 	}) {
 		incCharacterize(family)
 	}
+}
+
+// awaitClassifiableFlows polls the recent-flow ring until it yields a
+// classifiable (non-generic) attack or the characterize budget (ctx) expires,
+// then returns the best flow set seen and its victim. AttackDetected, emitted
+// just before this runs, asks flow-export for an immediate conntrack dump, but
+// the ring can still lag it by a dump -- and at the operator's active-timeout
+// (default 60s) a single read would see only pre-attack state. Polling within the
+// budget lets the ring warm so the confidence path (AC-9) actually classifies
+// instead of always falling back to generic-flood.
+//
+// A hard source absence (no dispatch wired, or the query errors) returns
+// immediately with ok=false: no dump is coming for a retry to wait on, so the
+// coarse AttackDetected simply stands. A present-but-empty or not-yet-dominant
+// ring is retried. Returns ok=false when no usable flows ever arrive.
+func (d *detector) awaitClassifiableFlows(ctx context.Context, gen uint64, victim netip.Prefix) ([]flowRecord, netip.Prefix, bool) {
+	var (
+		bestFlows  []flowRecord
+		bestVictim = victim
+		haveFlows  bool
+	)
+
+	ticker := time.NewTicker(characterizeRetryInterval)
+	defer ticker.Stop()
+
+	for {
+		// Stop as soon as the attack this characterization belongs to has cleared
+		// or been superseded: the emit would be dropped by the generation guard
+		// anyway, and continuing to force dumps for a dead attack is pure waste.
+		if !d.genCurrent(gen) {
+			return nil, victim, false
+		}
+
+		flows, ok := d.queryRecentFlows(ctx, victim)
+		if !ok {
+			return nil, victim, false // source absent: no retry can help
+		}
+		// Drop flows older than the characterize-window (flows with no timestamp
+		// are kept -- absence of a timestamp is not evidence of staleness).
+		flows = filterByWindow(flows, d.cfg.CharacterizeWindow, time.Now())
+
+		v := victim
+		if !v.IsValid() {
+			// Without a trafficusage victim, derive one from the flow set.
+			if dv, ok := dominantDestination(flows); ok {
+				v = dv
+				flows = filterByDst(flows, v)
+			}
+		}
+
+		if len(flows) > 0 {
+			bestFlows, bestVictim, haveFlows = flows, v, true
+			if family, _, _, _ := classifyFlows(flows, d.cfg.TopNSources); family != ddosevent.FamilyGenericFlood {
+				return flows, v, true // a specific family: the ring is warm
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			// Budget spent: emit whatever we have (a genuine generic-flood still
+			// carries a confidence score); ok=false only when nothing ever arrived.
+			return bestFlows, bestVictim, haveFlows
+		case <-ticker.C:
+		}
+	}
+}
+
+// genCurrent reports whether the attack generation is still gen, read under d.mu
+// so it observes emitCleared/onAttackStart's advance of attackGen consistently.
+func (d *detector) genCurrent(gen uint64) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.attackGen == gen
 }
 
 // filterByWindow drops flows last seen before now-window. A flow with no

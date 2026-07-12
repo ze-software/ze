@@ -51,6 +51,15 @@ type conntrackWorker struct {
 	destroy     *conntrack.DestroyListener
 	destroyDone chan struct{}
 
+	// refreshCh requests an out-of-band dump between ticker intervals. The DDoS
+	// characterizer needs the recent-flow ring to reflect an in-progress attack,
+	// but the periodic dump cadence is the operator's active-timeout (up to an
+	// hour), so at attack-confirm the ring can hold pre-attack state. Refresh
+	// signals here; the run loop performs the dump on its own goroutine so it
+	// never races the ticker dump. Buffered depth 1 coalesces a burst of
+	// AttackDetected events into a single pending dump.
+	refreshCh chan struct{}
+
 	stopped atomic.Bool
 	stopCh  chan struct{}
 	doneCh  chan struct{}
@@ -62,8 +71,25 @@ func newConntrackWorker(exp *exporter, cfg ConntrackConfig) *conntrackWorker {
 		cfg:         cfg,
 		tracker:     conntrack.NewDeltaTracker(),
 		destroyDone: make(chan struct{}),
+		refreshCh:   make(chan struct{}, 1),
 		stopCh:      make(chan struct{}),
 		doneCh:      make(chan struct{}),
+	}
+}
+
+// Refresh requests an immediate out-of-band conntrack dump so the recent-flow
+// ring reflects the current table (e.g. an in-progress attack) without waiting
+// for the next active-timeout tick. Non-blocking and coalescing: if a refresh is
+// already pending it is a no-op, so a burst of triggers cannot queue a backlog of
+// full-table dumps. Safe on a nil worker (conntrack disabled) and after Stop (the
+// signal is simply never consumed).
+func (w *conntrackWorker) Refresh() {
+	if w == nil {
+		return
+	}
+	select {
+	case w.refreshCh <- struct{}{}:
+	default: // a dump is already pending; coalesce
 	}
 }
 
@@ -163,6 +189,12 @@ func (w *conntrackWorker) run() {
 	for {
 		select {
 		case <-ticker.C:
+			w.dumpAndExport()
+		case <-w.refreshCh:
+			// Out-of-band dump requested (DDoS characterization). Performed on
+			// this goroutine so it serializes with the ticker dump -- the delta
+			// tracker makes an extra dump safe (each byte counted once; the
+			// export just lands earlier than the scheduled tick).
 			w.dumpAndExport()
 		case <-w.stopCh:
 			return

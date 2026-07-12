@@ -10,10 +10,12 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/enrich"
 	flowexportyang "codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/yang"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -77,6 +79,15 @@ func init() {
 		ConfigureEventBus: func(eb ze.EventBus) {
 			setEventBus(eb)
 		},
+		DoctorChecks: []registry.DoctorCheckDef{{
+			Name:         "flow-export-conntrack-tracking",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        761,
+			Dependencies: []string{"config-loaded"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-flowexport-conntrack-unavailable"},
+			Check:        checkConntrackTracking,
+		}},
 	}
 	reg.CLIHandler = func(_ []string) int {
 		return 1
@@ -270,7 +281,23 @@ func startFlowSubsystems(exp *exporter, cfg *Config) {
 	if cfg.Conntrack.Enabled {
 		cw := newConntrackWorker(exp, cfg.Conntrack)
 		cw.Start()
+		exp.conntrack = cw
 		exp.addStopper(cw.Stop)
+
+		// Force a fresh conntrack dump the moment an attack is detected, so the
+		// recent-flow ring reflects the in-progress attack when the DDoS
+		// characterizer reads it. The periodic dump cadence is the operator's
+		// active-timeout (default 60s, up to an hour), far too coarse to catch an
+		// attack that confirms within seconds -- without this the characterizer
+		// reads a pre-attack ring and always falls back to generic-flood. flow-export
+		// already consumes the shared event bus (BGP RIB enrichment); ddosevent is a
+		// core event type, so this stays a plugin->core dependency.
+		if eb := getEventBus(); eb != nil {
+			unsub := ddosevent.Detected.Subscribe(eb, func(_ *ddosevent.AttackDetected) {
+				exp.refreshConntrack()
+			})
+			exp.addStopper(unsub)
+		}
 	}
 }
 

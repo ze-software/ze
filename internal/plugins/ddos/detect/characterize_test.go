@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
@@ -491,6 +492,101 @@ func TestCharacterizeDerivesVictimFromFlows(t *testing.T) {
 	}
 	if len(ch.TopSources) == 0 || !ch.TopSources[0].Is6() {
 		t.Errorf("expected IPv6 top sources, got %v", ch.TopSources)
+	}
+}
+
+// VALIDATES: characterizeFromFlows polls the recent-flow ring within the
+// characterize budget: an initially-empty ring (the periodic conntrack dump has
+// not yet landed the attack) is retried until it warms, then the attack is
+// classified. AC-9 depends on this -- at production active-timeout (60s) the ring
+// holds pre-attack state at confirm, so a single-shot read always fell back to
+// generic-flood and confidence was never computed.
+// PREVENTS: the confidence path silently degrading to generic-flood whenever the
+// flow ring lags the attack by less than the characterize budget.
+func TestCharacterizeRetriesUntilRingWarms(t *testing.T) {
+	reflection := `[` +
+		`{"src-addr":"198.51.100.1","dst-addr":"203.0.113.42","src-port":53,"dst-port":40000,"protocol":17,"packets":100,"tcp-state":0},` +
+		`{"src-addr":"198.51.100.2","dst-addr":"203.0.113.42","src-port":53,"dst-port":40001,"protocol":17,"packets":120,"tcp-state":0},` +
+		`{"src-addr":"198.51.100.3","dst-addr":"203.0.113.42","src-port":53,"dst-port":40002,"protocol":17,"packets":90,"tcp-state":0}]`
+
+	// Shrink the poll interval so the test does not pace on the 150ms production
+	// cadence; restore it after.
+	saved := characterizeRetryInterval
+	characterizeRetryInterval = time.Millisecond
+	defer func() { characterizeRetryInterval = saved }()
+
+	var mu sync.Mutex
+	flowCalls := 0
+	bus := newDTestBus()
+	d := newDetector(floodConfig(), bus, func(_ context.Context, cmd string) (string, json.RawMessage, error) {
+		switch {
+		case strings.HasPrefix(cmd, "show traffic usage"):
+			return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.42","bytes":1000000}]}`), nil
+		case strings.HasPrefix(cmd, "show flow-recent"):
+			mu.Lock()
+			flowCalls++
+			n := flowCalls
+			mu.Unlock()
+			if n < 3 {
+				return statusDone, json.RawMessage(`[]`), nil // ring not warm yet
+			}
+			return statusDone, json.RawMessage(reflection), nil
+		}
+		return "error", nil, errors.New("unexpected command: " + cmd)
+	})
+
+	var ch *ddosevent.AttackCharacterized
+	ddosevent.Characterized.Subscribe(bus, func(e *ddosevent.AttackCharacterized) { ch = e })
+
+	floodInto(d)
+
+	if ch == nil {
+		t.Fatal("AttackCharacterized not emitted after the ring warmed")
+	}
+	if ch.Family != ddosevent.FamilyReflection {
+		t.Errorf("family: got %q want reflection", ch.Family)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if flowCalls < 3 {
+		t.Errorf("expected the ring to be polled until warm (>=3 calls), got %d", flowCalls)
+	}
+}
+
+// VALIDATES: a hard flow-source absence (dispatch error) falls back immediately
+// rather than polling for the whole characterize budget.
+// PREVENTS: every trigger with no flow source stalling the characterization
+// goroutine for characterize-timeout before emitting the coarse fallback.
+func TestCharacterizeNoRetryOnSourceAbsent(t *testing.T) {
+	saved := characterizeRetryInterval
+	characterizeRetryInterval = time.Millisecond
+	defer func() { characterizeRetryInterval = saved }()
+
+	var mu sync.Mutex
+	flowCalls := 0
+	bus := newDTestBus()
+	d := newDetector(floodConfig(), bus, func(_ context.Context, cmd string) (string, json.RawMessage, error) {
+		if strings.HasPrefix(cmd, "show traffic usage") {
+			return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.42","bytes":1000000}]}`), nil
+		}
+		mu.Lock()
+		flowCalls++
+		mu.Unlock()
+		return "", nil, errors.New("ErrUnknownCommand") // flow source absent
+	})
+
+	var ch *ddosevent.AttackCharacterized
+	ddosevent.Characterized.Subscribe(bus, func(e *ddosevent.AttackCharacterized) { ch = e })
+
+	floodInto(d)
+
+	if ch != nil {
+		t.Errorf("AttackCharacterized must be skipped on source-absent, got %+v", ch)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if flowCalls != 1 {
+		t.Errorf("source-absent must not retry: flow queries = %d, want 1", flowCalls)
 	}
 }
 

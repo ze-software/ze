@@ -99,14 +99,19 @@ off the detection hot path with a bounded timeout and degrades to the coarse
 target when no flow source is reachable.
 <!-- source: internal/plugins/ddos/detect/characterize.go -- classifyFlows: family + narrowest VectorTuple from the recent-flow ring -->
 
-**Tune `active-timeout` for responsive characterization.** Characterization is
-one-shot: it queries the recent-flow ring once, when the attack is confirmed. The
-ring is refreshed only at each conntrack dump (every `flow-export` `active-timeout`
-seconds), so with the default 60s a just-started flood's flows may not be in the
-ring yet, and characterization falls back to the coarse destination drop (still
-protective, just not narrowed). Set `active-timeout` to a few seconds when you
-want the classifier to catch attacks promptly.
-<!-- source: internal/plugins/flowexport/conntrack_worker.go -- run() dumps every active-timeout, feeding the ring -->
+**Characterization refreshes the ring on demand.** The recent-flow ring is
+normally refreshed only at each conntrack dump (every `flow-export`
+`active-timeout` seconds, default 60s). To avoid classifying against a pre-attack
+ring, detection forces the refresh: `ddos-detect` emits `AttackDetected`,
+`flow-export` responds with an immediate out-of-band conntrack dump, and the
+classifier then polls the ring for up to `characterize-timeout` until it reflects
+the attack. So a just-started flood is characterized promptly regardless of
+`active-timeout`; if the ring still never yields discriminating flows within the
+budget, characterization falls back to the coarse destination drop (still
+protective, just not narrowed). Lowering `active-timeout` is no longer required
+for responsive characterization (it still governs NetFlow/IPFIX export cadence).
+<!-- source: internal/plugins/flowexport/register.go -- AttackDetected subscription forces conntrackWorker.Refresh -->
+<!-- source: internal/plugins/ddos/detect/characterize.go -- awaitClassifiableFlows polls the ring within characterize-timeout -->
 
 Inspect the ring directly:
 

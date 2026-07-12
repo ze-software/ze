@@ -81,17 +81,35 @@ func (s *store) finalize(target ddosevent.VectorTuple) {
 }
 
 // characterize records the confidence from the Stage-2 AttackCharacterized event
-// onto the open incident for its target. Characterized arrives after the incident
-// was opened by AttackDetected; matched by victim prefix, exactly as finalize does.
-// A miss (no matching active incident) is a no-op -- confidence stays 0 (omitted).
+// onto the open incident it belongs to. Characterized arrives after the incident
+// was opened by AttackDetected. A miss (no matching active incident) is a no-op --
+// confidence stays 0 (omitted).
 func (s *store) characterize(e *ddosevent.AttackCharacterized) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Exact victim match: the common case, where the fast AttackDetected already
+	// resolved the same victim prefix this characterization did.
 	for i := len(s.ring) - 1; i >= 0; i-- {
 		if s.ring[i].Active && s.ring[i].Target.DstPrefix == e.Target.DstPrefix {
 			s.ring[i].Confidence = e.Confidence
 			return
+		}
+	}
+
+	// Fallback: AttackDetected opened the incident with NO victim (trafficusage had
+	// not resolved one at attack-confirm -- a timing race, or an IPv6-only victim
+	// that trafficusage cannot see), but characterization derived the victim from
+	// the flow ring. Attach the confidence to the still-unresolved active incident
+	// on the same interface so the score is not silently lost. The target is left
+	// EMPTY on purpose: AttackCleared also carries an empty target (see
+	// detector.emitCleared), so leaving it empty keeps finalize's match working.
+	if e.Target.DstPrefix.IsValid() {
+		for i := len(s.ring) - 1; i >= 0; i-- {
+			if s.ring[i].Active && s.ring[i].Interface == e.Interface && !s.ring[i].Target.DstPrefix.IsValid() {
+				s.ring[i].Confidence = e.Confidence
+				return
+			}
 		}
 	}
 }

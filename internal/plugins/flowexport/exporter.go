@@ -58,6 +58,21 @@ type exporter struct {
 	// characterizer) can inspect the current flow mix without a packet capture.
 	// nil when conntrack export is disabled (nothing would feed it).
 	recent *recentRing
+	// conntrack is the running conntrack dump worker, retained so an on-demand
+	// dump can be forced (refreshConntrack) when the DDoS characterizer needs the
+	// ring to reflect an in-progress attack. nil when conntrack export is disabled.
+	conntrack *conntrackWorker
+}
+
+// refreshConntrack forces an immediate out-of-band conntrack dump so the
+// recent-flow ring reflects the current table. Called from the AttackDetected
+// subscriber: the periodic dump cadence (active-timeout) is too coarse to catch
+// an attack that just started. No-op when conntrack export is disabled.
+func (e *exporter) refreshConntrack() {
+	if e == nil {
+		return
+	}
+	e.conntrack.Refresh() // nil-safe
 }
 
 // addStopper registers a teardown function (sampling/conntrack worker, BGP

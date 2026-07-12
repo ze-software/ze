@@ -43,6 +43,59 @@ func TestStoreCharacterizeSetsConfidence(t *testing.T) {
 	}
 }
 
+// VALIDATES: confidence attaches even when AttackDetected opened the incident with
+// NO victim (trafficusage had not resolved one at confirm) but characterization
+// later derived the victim from the flow ring -- matched by interface to the still-
+// unresolved active incident, target left empty so AttackCleared still finalizes it.
+// PREVENTS: the confidence score being silently dropped whenever the fast signal's
+// victim differs from the flow-derived one (an unresolved or IPv6-only victim);
+// this is the timing race that made the QEMU confidence test flaky under load.
+func TestStoreCharacterizeAttachesToUnresolvedIncident(t *testing.T) {
+	s := newStore(10, time.Hour)
+
+	// AttackDetected opened the incident with an empty target on "lo".
+	s.open(&ddosevent.AttackDetected{
+		Interface: "lo",
+		Target:    ddosevent.VectorTuple{}, // trafficusage resolved no victim
+		Family:    ddosevent.FamilyGenericFlood,
+	})
+	// Characterization derived the victim from the flow ring.
+	s.characterize(&ddosevent.AttackCharacterized{
+		Interface:  "lo",
+		Target:     ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("127.0.0.2/32")},
+		Family:     ddosevent.FamilyReflection,
+		Confidence: 90,
+	})
+
+	list := s.list()
+	if len(list) != 1 {
+		t.Fatalf("incidents: got %d, want 1", len(list))
+	}
+	if list[0].Confidence != 90 {
+		t.Errorf("confidence: got %d, want 90 (attached to the unresolved incident)", list[0].Confidence)
+	}
+	if list[0].Target.DstPrefix.IsValid() {
+		t.Errorf("target must stay empty so AttackCleared (empty target) finalizes it, got %s", list[0].Target.DstPrefix)
+	}
+
+	// The fallback must not steal an unrelated interface's characterization.
+	s.open(&ddosevent.AttackDetected{
+		Interface: "eth1",
+		Target:    ddosevent.VectorTuple{},
+		Family:    ddosevent.FamilyGenericFlood,
+	})
+	s.characterize(&ddosevent.AttackCharacterized{
+		Interface:  "eth9", // no active incident on eth9
+		Target:     ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("203.0.113.7/32")},
+		Confidence: 44,
+	})
+	for _, inc := range s.list() {
+		if inc.Interface == "eth1" && inc.Confidence != 0 {
+			t.Errorf("eth1 incident must not receive eth9's characterization, got %d", inc.Confidence)
+		}
+	}
+}
+
 func TestIncidentLifecycle(t *testing.T) {
 	// VALIDATES: AC-1 -- incident opened on detect, finalized on clear
 	s := newStore(100, time.Hour)
