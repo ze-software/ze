@@ -2,6 +2,7 @@
 package mpls
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,4 +44,24 @@ func TestShowMPLSForwardingArgs(t *testing.T) {
 		assert.Equal(t, plugin.StatusError, resp.Status)
 		assert.Contains(t, resp.Error, "show mpls forwarding")
 	})
+}
+
+// TestShowMPLSForwardingEntriesIsAlwaysArray guards the JSON list contract:
+// `entries` must marshal as a JSON array even when the forwarding table is
+// empty. A nil slice marshals to `null`, which broke the .ci consumer with
+// `"entries" is not a list: NoneType`. dumpMPLSRoutes returns nil on a host
+// with no MPLS routes (forwarding_other.go, and any Linux read that yields
+// none), so the handler must pin entries to an empty array.
+//
+// VALIDATES: show mpls forwarding always returns entries as a JSON list.
+// PREVENTS: a regression where an empty table serializes entries as null.
+func TestShowMPLSForwardingEntriesIsAlwaysArray(t *testing.T) {
+	resp, err := handleShowMPLSForwarding(nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+
+	raw, err := json.Marshal(resp.Data)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), `"entries":[]`, "entries must be an empty array, not null: %s", raw)
+	assert.NotContains(t, string(raw), `"entries":null`)
 }

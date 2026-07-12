@@ -74,6 +74,13 @@ func handleShowMPLSForwarding(_ *pluginserver.CommandContext, args []string) (*p
 		entries = entries[:limit]
 		truncated = true
 	}
+	// entries is the response's list contract: consumers (and the .ci test)
+	// require it to marshal as a JSON array even on a host with no MPLS routes.
+	// A nil slice marshals to `null`, so pin it to an empty array. The Linux
+	// reader already returns a non-nil slice; forwarding_other.go returns nil.
+	if entries == nil {
+		entries = []forwardingEntry{}
+	}
 	data := map[string]any{"entries": entries}
 	if truncated {
 		data["truncated"] = true
