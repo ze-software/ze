@@ -218,8 +218,15 @@ class API:
             try:
                 chunk = self._tls_sock.recv(65536)
             except (OSError, ssl.SSLError):
+                # Engine connection is gone: stop instead of spinning on instant EOF.
+                self._shutdown = True
                 return None
             if not chunk:
+                # recv() of b"" is EOF: the peer closed the connection. Mark shutdown
+                # so `while not api._shutdown: api.read_line(...)` loops exit rather than
+                # busy-spinning a core (select reports a closed fd readable immediately,
+                # so read_line would otherwise return None with no delay, forever).
+                self._shutdown = True
                 return None
             self._read_buf += chunk
 
@@ -296,8 +303,15 @@ class API:
             try:
                 chunk = os.read(fd, 65536)
             except OSError:
+                # Engine connection is gone: stop instead of spinning on instant EOF.
+                self._shutdown = True
                 return None
             if not chunk:
+                # read() of b"" is EOF: the peer closed the fd. Mark shutdown so plugin
+                # loops (`while not api._shutdown: api.read_line(...)`) exit rather than
+                # busy-spinning a core (a closed fd is reported readable immediately, so
+                # read_line would otherwise return None with no delay, forever).
+                self._shutdown = True
                 return None
             buf += chunk
             setattr(self, buf_attr, buf)
