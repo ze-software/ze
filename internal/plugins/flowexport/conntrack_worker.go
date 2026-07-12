@@ -97,6 +97,11 @@ func (w *conntrackWorker) Refresh() {
 // failure leaves the worker idle rather than aborting the exporter.
 func (w *conntrackWorker) Start() {
 	log := loggerPtr.Load()
+	// On the gokrazy appliance (ze_appliance), nothing but ze runs at init, so ze
+	// must load nf_conntrack, register a tracking hook, and enable accounting
+	// itself or the ctnetlink dump reads an empty table. A no-op off the appliance
+	// (see conntrack_setup_other.go), where the operator/firewall owns it.
+	ensureConntrackTracking(log)
 	reader, err := conntrack.NewReader()
 	if err != nil {
 		log.Warn("flow-export: conntrack reader unavailable; flow records idle", "error", err)

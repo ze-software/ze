@@ -70,6 +70,7 @@ var fileAllowlist = map[string]string{
 	"internal/component/host/tuning_linux.go":        "sysfs cpu governor + procfs IRQ affinity",
 	"internal/component/iface/offload_linux.go":      "sysfs/ethtool offload knobs",
 	"internal/component/sysctl/backend_linux.go":     "/proc/sys sysctl writes",
+	"internal/plugins/flowexport/conntrack_setup_appliance_linux.go": "procfs nf_conntrack_acct sysctl on the appliance (ze_appliance conntrack init)",
 	"internal/component/vpp/dpdk.go":                 "sysfs PCI/VFIO/hugepage knobs",
 	"internal/component/l2tp/ppp/devppp_linux.go":    "opens the /dev/ppp kernel device",
 	"internal/component/cli/client/main.go":          "opens /dev/tty (operator terminal)",

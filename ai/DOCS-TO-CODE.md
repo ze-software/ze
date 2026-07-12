@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 284 design docs, 2917 files
+Total: 285 design docs, 2919 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -22,6 +22,11 @@ Total: 284 design docs, 2917 files
 | `internal/component/bgp/reactor/reactor_api_forward.go` | zero-copy, copy-on-modify (shares Incoming Peer Pool buffer across peers) |
 | `internal/component/bgp/reactor/received_update.go` | zero-copy, copy-on-modify (holds Incoming Peer Pool buffer read-only) |
 | `internal/component/bgp/reactor/session.go` | zero-copy, copy-on-modify (Incoming Peer Pool buffer allocated at receive) |
+
+## `ai/digests/flow-ddos.md`
+
+- `internal/plugins/flowexport/conntrack_setup_appliance_linux.go` -- appliance conntrack init (gokrazy runs only ze)
+- `internal/plugins/flowexport/conntrack_setup_other.go` -- appliance conntrack init (gokrazy runs only ze)
 
 ## `ai/patterns/registration.md`
 
