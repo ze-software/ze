@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync/atomic"
 )
@@ -82,6 +83,10 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// The config framework delivers YANG leaf values as JSON strings (e.g. "1000"),
+// so toInt accepts a string form alongside the native JSON number -- matching the
+// rest of ze's plugin config parsers. Without the string case, every leaf silently
+// falls back to its default.
 func toInt(v any) (int, bool) {
 	switch n := v.(type) {
 	case int:
@@ -90,6 +95,11 @@ func toInt(v any) (int, bool) {
 		return int(n), true
 	case float64:
 		return int(n), true
+	case string:
+		if i, err := strconv.Atoi(strings.TrimSpace(n)); err == nil {
+			return i, true
+		}
+		return 0, false
 	default:
 		return 0, false
 	}

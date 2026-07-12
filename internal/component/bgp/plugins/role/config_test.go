@@ -611,3 +611,30 @@ func TestExtractLocalASN(t *testing.T) {
 		})
 	}
 }
+
+// TestParseConfig_StringValuedDelivery pins the ACTUAL config format the plugin
+// config framework delivers: YANG leaf values arrive as JSON strings, because
+// Tree.values is map[string]string. A numeric local-as ("65001") previously hit
+// neither the float64 nor the int arm of extractLocalASN's switch and silently
+// resolved to 0. The pre-existing TestExtractLocalASN only covered a
+// non-numeric string ("not-a-number"), which returns 0 both before and after
+// the fix, so it never exercised the bug. strict "true" is coerced by parseBool.
+func TestParseConfig_StringValuedDelivery(t *testing.T) {
+	js := `{"bgp":{"local-as":"65001","peer":{"192.0.2.1":{"remote":{"ip":"192.0.2.1"},"role":{"import":"customer","strict":"true"}}}}}`
+
+	if asn := extractLocalASN(js); asn != 65001 {
+		t.Errorf("extractLocalASN = %d, want 65001 (string-valued local-as)", asn)
+	}
+
+	configs, _ := extractPeerRoleConfigs(js)
+	cfg, ok := configs["192.0.2.1"]
+	if !ok {
+		t.Fatalf("no role config for 192.0.2.1; got %v", configs)
+	}
+	if cfg.role != roleCustomer {
+		t.Errorf("role = %q, want %q", cfg.role, roleCustomer)
+	}
+	if !cfg.strict {
+		t.Error(`strict "true" (string) must parse to true`)
+	}
+}

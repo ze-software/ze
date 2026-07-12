@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync/atomic"
 )
@@ -64,7 +65,7 @@ func ParseConfig(data string) (*Config, error) {
 	if !ok {
 		return cfg, nil
 	}
-	if v, ok := m["enabled"].(bool); ok {
+	if v, ok := cfgBool(m["enabled"]); ok {
 		cfg.Enabled = v
 	}
 	if v, ok := m["api-key"].(string); ok {
@@ -77,6 +78,24 @@ func ParseConfig(data string) (*Config, error) {
 		cfg.APIBase = v
 	}
 	return cfg, nil
+}
+
+// cfgBool coerces a config value to bool. The config framework delivers YANG leaf
+// values as JSON strings ("true"/"false"), so the native JSON bool and the string
+// form are both accepted -- without the string case `enabled` silently stayed false
+// and the reporter never ran.
+func cfgBool(v any) (bool, bool) {
+	switch b := v.(type) {
+	case bool:
+		return b, true
+	case string:
+		if pb, err := strconv.ParseBool(strings.TrimSpace(b)); err == nil {
+			return pb, true
+		}
+		return false, false
+	default:
+		return false, false
+	}
 }
 
 func (c *Config) Validate() error {

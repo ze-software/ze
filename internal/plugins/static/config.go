@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"math"
 	"net/netip"
+	"strconv"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/routingtable"
 )
@@ -212,7 +214,7 @@ func mapUint32(m map[string]any, key string) (uint32, error) {
 	if !ok {
 		return 0, nil
 	}
-	n, ok := v.(float64)
+	n, ok := cfgFloat(v)
 	if !ok {
 		return 0, nil
 	}
@@ -220,4 +222,23 @@ func mapUint32(m map[string]any, key string) (uint32, error) {
 		return 0, fmt.Errorf("%s: value %v out of uint32 range", key, n)
 	}
 	return uint32(n), nil
+}
+
+// cfgFloat coerces a config value to float64. The plugin config framework
+// delivers YANG leaf values as JSON strings (e.g. "200"), so the string form is
+// accepted alongside the native JSON number. Without it string-valued metric,
+// tag, and weight leaves would silently fall back to zero.
+func cfgFloat(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case string:
+		f, err := strconv.ParseFloat(strings.TrimSpace(n), 64)
+		if err != nil {
+			return 0, false
+		}
+		return f, true
+	default:
+		return 0, false
+	}
 }

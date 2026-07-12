@@ -7,6 +7,8 @@ package role
 import (
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -114,13 +116,14 @@ func parseExportTokens(v any) []string {
 	return nil
 }
 
-// parseBool handles both JSON boolean (true) and config tree string ("true").
+// parseBool handles both JSON boolean (true) and the config tree's string
+// ("true") form -- the framework delivers YANG leaf values as strings.
 func parseBool(v any) bool {
-	if b, ok := v.(bool); ok {
+	switch b := v.(type) {
+	case bool:
 		return b
-	}
-	if s, ok := v.(string); ok {
-		return s == "true"
+	case string:
+		return b == "true"
 	}
 	return false
 }
@@ -243,6 +246,15 @@ func extractLocalASN(jsonStr string) uint32 {
 			return 0
 		}
 		return uint32(v)
+	case string:
+		// The plugin config framework delivers YANG leaf values as JSON strings
+		// (e.g. "65001"); without this case local-as silently resolves to 0.
+		n, err := strconv.ParseUint(strings.TrimSpace(v), 10, 32)
+		if err != nil {
+			logger().Warn("extractLocalASN: local-as not a valid uint32", "value", v)
+			return 0
+		}
+		return uint32(n)
 	}
 	return 0
 }

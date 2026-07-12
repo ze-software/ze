@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 )
 
@@ -104,8 +105,8 @@ func ParseConfig(data string) (*Config, error) {
 	if n, ok := toInt(m["blast-radius-cap"]); ok {
 		cfg.BlastRadiusCap = n
 	}
-	if v, ok := m["kill-switch"].(bool); ok {
-		cfg.KillSwitch = v
+	if b, ok := cfgBool(m["kill-switch"]); ok {
+		cfg.KillSwitch = b
 	}
 	if v, ok := m["allowlist"].([]any); ok {
 		for _, item := range v {
@@ -147,6 +148,12 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// The config framework delivers YANG leaf values as JSON strings (e.g. "16",
+// "true"), so every scalar coercion accepts a string form alongside the native
+// JSON type -- matching the rest of ze's plugin config parsers. Without the
+// string case, every leaf silently falls back to its default (which for
+// `kill-switch` would ignore an operator's emergency revert request).
+
 func toInt(v any) (int, bool) {
 	switch n := v.(type) {
 	case int:
@@ -155,6 +162,11 @@ func toInt(v any) (int, bool) {
 		return int(n), true
 	case float64:
 		return int(n), true
+	case string:
+		if i, err := strconv.Atoi(strings.TrimSpace(n)); err == nil {
+			return i, true
+		}
+		return 0, false
 	default:
 		return 0, false
 	}
@@ -177,7 +189,28 @@ func toUint64(v any) (uint64, bool) {
 			return 0, false
 		}
 		return uint64(n), true
+	case string:
+		if u, err := strconv.ParseUint(strings.TrimSpace(n), 10, 64); err == nil {
+			return u, true
+		}
+		return 0, false
 	default:
 		return 0, false
+	}
+}
+
+// cfgBool coerces a config value (native JSON bool or the string form "true"/
+// "false" the framework actually delivers) to bool.
+func cfgBool(v any) (bool, bool) {
+	switch b := v.(type) {
+	case bool:
+		return b, true
+	case string:
+		if pb, err := strconv.ParseBool(strings.TrimSpace(b)); err == nil {
+			return pb, true
+		}
+		return false, false
+	default:
+		return false, false
 	}
 }

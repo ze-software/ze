@@ -6,11 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 )
 
 const (
 	Name = "ddos-local"
+	// responseEnforce is the response-level that actually mitigates (vs "alert").
+	responseEnforce = "enforce"
 	// configRoot is the nested YANG config path (ddos/local); the plugin augments
 	// the shared `ddos` container, so the section is wrapped as
 	// {"ddos":{"local":{...}}}.
@@ -79,7 +82,7 @@ func ParseConfig(data string) (*Config, error) {
 
 func (c *Config) Validate() error {
 	switch c.ResponseLevel {
-	case "alert", "enforce":
+	case "alert", responseEnforce:
 	default:
 		return fmt.Errorf("response-level %q must be alert or enforce", c.ResponseLevel)
 	}
@@ -92,6 +95,10 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// The config framework delivers YANG leaf values as JSON strings (e.g. "3600"),
+// so toInt accepts a string form alongside the native JSON number -- matching the
+// rest of ze's plugin config parsers. Without the string case, every leaf silently
+// falls back to its default.
 func toInt(v any) (int, bool) {
 	switch n := v.(type) {
 	case int:
@@ -100,6 +107,11 @@ func toInt(v any) (int, bool) {
 		return int(n), true
 	case float64:
 		return int(n), true
+	case string:
+		if i, err := strconv.Atoi(strings.TrimSpace(n)); err == nil {
+			return i, true
+		}
+		return 0, false
 	default:
 		return 0, false
 	}

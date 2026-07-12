@@ -182,6 +182,35 @@ func TestParseStaticConfigMetric(t *testing.T) {
 	}
 }
 
+// TestParseConfig_StringValuedDelivery pins the ACTUAL config format the plugin
+// config framework delivers: numeric leaves (metric, tag, weight) arrive as JSON
+// strings ("200"), not native numbers (Tree.values is map[string]string).
+// mapUint32 previously asserted .(float64) only, so string-valued metric, tag,
+// and weight silently fell back to zero.
+func TestParseConfig_StringValuedDelivery(t *testing.T) {
+	input := wrap("10.0.0.0/8", `{"next":{"hop":{"10.0.0.1":{"weight":"100"}}},"metric":"200","tag":"300"}`)
+	routes, err := parseStaticConfig(input, defReg())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 {
+		t.Fatalf("got %d routes, want 1", len(routes))
+	}
+	r := routes[0]
+	if r.Metric != 200 {
+		t.Errorf("metric = %d, want 200 (string-valued)", r.Metric)
+	}
+	if r.Tag != 300 {
+		t.Errorf("tag = %d, want 300 (string-valued)", r.Tag)
+	}
+	if len(r.NextHops) != 1 {
+		t.Fatalf("got %d next-hops, want 1", len(r.NextHops))
+	}
+	if r.NextHops[0].Weight != 100 {
+		t.Errorf("weight = %d, want 100 (string-valued)", r.NextHops[0].Weight)
+	}
+}
+
 func TestParseStaticConfigNoAction(t *testing.T) {
 	input := wrap("10.0.0.0/8", `{}`)
 	_, err := parseStaticConfig(input, defReg())

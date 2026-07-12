@@ -192,6 +192,10 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// The config framework delivers YANG leaf values as JSON strings ("50000",
+// "true"), so each coercion accepts a string form alongside the native JSON
+// type; without it every numeric leaf silently reverted to its default.
+
 func toInt(v any) (int, bool) {
 	switch n := v.(type) {
 	case int:
@@ -200,6 +204,11 @@ func toInt(v any) (int, bool) {
 		return int(n), true
 	case float64:
 		return int(n), true
+	case string:
+		if i, err := strconv.Atoi(strings.TrimSpace(n)); err == nil {
+			return i, true
+		}
+		return 0, false
 	default:
 		return 0, false
 	}
@@ -213,6 +222,11 @@ func toFloat(v any) (float64, bool) {
 		return float64(n), true
 	case int64:
 		return float64(n), true
+	case string:
+		if f, err := strconv.ParseFloat(strings.TrimSpace(n), 64); err == nil {
+			return f, true
+		}
+		return 0, false
 	default:
 		return 0, false
 	}

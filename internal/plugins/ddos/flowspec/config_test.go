@@ -2,6 +2,44 @@ package flowspec
 
 import "testing"
 
+// TestParseConfig_StringValuedDelivery pins the ACTUAL config format the plugin
+// framework delivers: every leaf value arrives as a JSON string. toInt/toFloat
+// previously handled only native numeric types, so every numeric leaf (including
+// the new confidence-min gate) silently reverted to its default.
+func TestParseConfig_StringValuedDelivery(t *testing.T) {
+	data := `{"ddos":{"flowspec":{` +
+		`"response-level":"enforce","action":"discard",` +
+		`"hold-down":"120","probe-interval":"30","probe-window":"20",` +
+		`"probe-rate":"2000000","announce-rate-limit":"5",` +
+		`"max-mitigation-duration":"1800","backoff-cap":"7200",` +
+		`"confidence-min":"75","blackhole-fallback":"true"}}}`
+	cfg, err := ParseConfig(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.HoldDown != 120 {
+		t.Errorf("hold-down = %d, want 120", cfg.HoldDown)
+	}
+	if cfg.ProbeInterval != 30 {
+		t.Errorf("probe-interval = %d, want 30", cfg.ProbeInterval)
+	}
+	if cfg.ProbeRate != 2000000 {
+		t.Errorf("probe-rate = %v, want 2000000", cfg.ProbeRate)
+	}
+	if cfg.MaxMitigationDuration != 1800 {
+		t.Errorf("max-mitigation-duration = %d, want 1800", cfg.MaxMitigationDuration)
+	}
+	if cfg.ConfidenceMin != 75 {
+		t.Errorf("confidence-min = %d, want 75 (string-valued numeric leaf ignored)", cfg.ConfidenceMin)
+	}
+	if !cfg.BlackholeFallback {
+		t.Error("blackhole-fallback string \"true\" must parse true")
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("string-delivered config must validate: %v", err)
+	}
+}
+
 func TestParseBlackholeFallback(t *testing.T) {
 	// Default is off (announce only on characterization).
 	if def := DefaultConfig(); def.BlackholeFallback {

@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 )
 
 // parseRoutingTableConfig parses the routing-table config JSON (map format from Tree.ToMap).
@@ -44,7 +46,7 @@ func parseRoutingTableConfig(jsonData string) (map[string]uint32, error) {
 			return nil, fmt.Errorf("routing-table %q: invalid entry", name)
 		}
 
-		idFloat, ok := entry["id"].(float64)
+		idFloat, ok := cfgFloat(entry["id"])
 		if !ok {
 			return nil, fmt.Errorf("routing-table %q: missing or invalid id", name)
 		}
@@ -61,4 +63,23 @@ func parseRoutingTableConfig(jsonData string) (map[string]uint32, error) {
 	}
 
 	return tables, nil
+}
+
+// cfgFloat coerces a config value to float64. The plugin config framework
+// delivers YANG leaf values as JSON strings (e.g. "50"), so the string form is
+// accepted alongside the native JSON number. Without it a string-valued id
+// leaf would be rejected as "missing or invalid".
+func cfgFloat(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case string:
+		f, err := strconv.ParseFloat(strings.TrimSpace(n), 64)
+		if err != nil {
+			return 0, false
+		}
+		return f, true
+	default:
+		return 0, false
+	}
 }

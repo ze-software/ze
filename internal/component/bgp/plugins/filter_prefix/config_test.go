@@ -176,6 +176,44 @@ func TestParsePrefixLists_MapForm(t *testing.T) {
 	}
 }
 
+// TestParseConfig_StringValuedDelivery drives the full parse path
+// (parsePrefixLists) with the JSON-string leaf values the plugin config
+// framework actually delivers ("16", "24"): Tree.values is map[string]string,
+// so numeric leaves arrive as strings. readUint already coerces strings, so
+// this is a regression guard at the public entry point (not a fix); it pins the
+// behavior end-to-end where TestParseOneEntry only exercises the leaf helper.
+func TestParseConfig_StringValuedDelivery(t *testing.T) {
+	bgpCfg := map[string]any{
+		"policy": map[string]any{
+			"prefix-list": map[string]any{
+				"L": map[string]any{
+					"entry": map[string]any{
+						"10.0.0.0/8": map[string]any{"ge": "16", "le": "24", "action": "accept"},
+					},
+				},
+			},
+		},
+	}
+	lists, err := parsePrefixLists(bgpCfg)
+	if err != nil {
+		t.Fatalf("parsePrefixLists: %v", err)
+	}
+	pl, ok := lists["L"]
+	if !ok {
+		t.Fatalf("prefix-list L missing; got %v", lists)
+	}
+	if len(pl.entries) != 1 {
+		t.Fatalf("got %d entries, want 1", len(pl.entries))
+	}
+	e := pl.entries[0]
+	if e.ge != 16 {
+		t.Errorf("ge = %d, want 16 (string-valued)", e.ge)
+	}
+	if e.le != 24 {
+		t.Errorf("le = %d, want 24 (string-valued)", e.le)
+	}
+}
+
 // VALIDATES: parsePrefixLists handles list-form (slice of maps) entries and
 // preserves order.
 func TestParsePrefixLists_ListForm_OrderPreserved(t *testing.T) {

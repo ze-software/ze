@@ -1,8 +1,13 @@
 // Design: plan/learned/669-bng-5-pppoe.md -- PPPoE configuration
+// Related: subsystem.go -- Parameters produced here, consumed at Start
 
 package pppoe
 
-import "time"
+import (
+	"strconv"
+	"strings"
+	"time"
+)
 
 const (
 	DefaultACName        = "ze"
@@ -44,7 +49,7 @@ func ExtractParameters(tree map[string]any) Parameters {
 		return p
 	}
 
-	if enabled, ok := pppoe["enabled"].(bool); ok {
+	if enabled, ok := cfgBool(pppoe["enabled"]); ok {
 		p.Enabled = enabled
 	}
 	if acName, ok := pppoe["ac-name"].(string); ok && acName != "" {
@@ -57,13 +62,13 @@ func ExtractParameters(tree map[string]any) Parameters {
 			}
 		}
 	}
-	if timeout, ok := pppoe["cookie-timeout"].(float64); ok && timeout > 0 {
+	if timeout, ok := cfgFloat(pppoe["cookie-timeout"]); ok && timeout > 0 {
 		p.CookieTimeout = time.Duration(timeout) * time.Second
 	}
-	if maxSess, ok := pppoe["max-sessions"].(float64); ok && maxSess > 0 {
+	if maxSess, ok := cfgFloat(pppoe["max-sessions"]); ok && maxSess > 0 {
 		p.MaxSessions = int(maxSess)
 	}
-	if rateLimit, ok := pppoe["padi-rate-limit"].(float64); ok && rateLimit > 0 {
+	if rateLimit, ok := cfgFloat(pppoe["padi-rate-limit"]); ok && rateLimit > 0 {
 		p.PADIRateLimit = int(rateLimit)
 	}
 
@@ -86,7 +91,7 @@ func ExtractParameters(tree map[string]any) Parameters {
 					}
 				}
 			}
-			if maxSess, ok := ifm["max-sessions"].(float64); ok && maxSess > 0 {
+			if maxSess, ok := cfgFloat(ifm["max-sessions"]); ok && maxSess > 0 {
 				ic.MaxSessions = int(maxSess)
 			}
 			if ic.Name != "" {
@@ -96,4 +101,40 @@ func ExtractParameters(tree map[string]any) Parameters {
 	}
 
 	return p
+}
+
+// cfgBool coerces a config value (native JSON bool or the string form "true"/
+// "false" the plugin config framework delivers) to bool. Without the string
+// case, `enabled` arriving as "true" fails a v.(bool) assertion and the whole
+// PPPoE subsystem stays disabled.
+func cfgBool(v any) (bool, bool) {
+	switch b := v.(type) {
+	case bool:
+		return b, true
+	case string:
+		pb, err := strconv.ParseBool(strings.TrimSpace(b))
+		if err != nil {
+			return false, false
+		}
+		return pb, true
+	default:
+		return false, false
+	}
+}
+
+// cfgFloat coerces a config value (native JSON number or the string form the
+// plugin config framework delivers, e.g. "1000") to float64.
+func cfgFloat(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case string:
+		f, err := strconv.ParseFloat(strings.TrimSpace(n), 64)
+		if err != nil {
+			return 0, false
+		}
+		return f, true
+	default:
+		return 0, false
+	}
 }

@@ -184,31 +184,27 @@ func parseAction(listName, prefixStr string, raw any) (action, error) {
 // or string into a uint64. Returns ok=false if the value is missing or not
 // a recognized numeric form.
 func readUint(v any) (uint64, bool) {
-	if n, ok := v.(float64); ok {
+	switch n := v.(type) {
+	case float64:
 		if n < 0 {
 			return 0, false
 		}
 		return uint64(n), true
-	}
-	if n, ok := v.(int); ok {
+	case int:
 		if n < 0 {
 			return 0, false
 		}
 		return uint64(n), true
-	}
-	if n, ok := v.(int64); ok {
+	case int64:
 		if n < 0 {
 			return 0, false
 		}
 		return uint64(n), true
-	}
-	if n, ok := v.(uint64); ok {
+	case uint64:
 		return n, true
-	}
-	if s, ok := v.(string); ok {
+	case string:
 		var x uint64
-		_, err := fmt.Sscanf(s, "%d", &x)
-		if err != nil {
+		if _, err := fmt.Sscanf(n, "%d", &x); err != nil {
 			return 0, false
 		}
 		return x, true

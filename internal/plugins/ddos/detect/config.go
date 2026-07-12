@@ -5,6 +5,7 @@ package detect
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -83,7 +84,7 @@ func ParseConfig(data string) (*Config, error) {
 	}
 
 	if v, ok := m["enabled"]; ok {
-		if b, ok := v.(bool); ok {
+		if b, ok := cfgBool(v); ok {
 			cfg.Enabled = b
 		}
 	}
@@ -123,7 +124,7 @@ func ParseConfig(data string) (*Config, error) {
 		}
 	}
 	if v, ok := m["bps-trigger-enable"]; ok {
-		if b, ok := v.(bool); ok {
+		if b, ok := cfgBool(v); ok {
 			cfg.BpsTriggerEnable = b
 		}
 	}
@@ -138,7 +139,7 @@ func ParseConfig(data string) (*Config, error) {
 		}
 	}
 	if v, ok := m["characterize-enable"]; ok {
-		if b, ok := v.(bool); ok {
+		if b, ok := cfgBool(v); ok {
 			cfg.CharacterizeEnable = b
 		}
 	}
@@ -208,6 +209,12 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// The config framework delivers YANG leaf values as JSON strings (e.g. "5000",
+// "true"), so every coercion accepts a string form alongside the native JSON
+// type -- matching the rest of ze's plugin config parsers. Without the string
+// case, every leaf silently falls back to its default (which for `enabled` left
+// the detector permanently disabled).
+
 func toInt(v any) (int, bool) {
 	switch n := v.(type) {
 	case int:
@@ -216,6 +223,11 @@ func toInt(v any) (int, bool) {
 		return int(n), true
 	case float64:
 		return int(n), true
+	case string:
+		if i, err := strconv.Atoi(strings.TrimSpace(n)); err == nil {
+			return i, true
+		}
+		return 0, false
 	default:
 		return 0, false
 	}
@@ -229,7 +241,28 @@ func toFloat(v any) (float64, bool) {
 		return float64(n), true
 	case int64:
 		return float64(n), true
+	case string:
+		if f, err := strconv.ParseFloat(strings.TrimSpace(n), 64); err == nil {
+			return f, true
+		}
+		return 0, false
 	default:
 		return 0, false
+	}
+}
+
+// cfgBool coerces a config value (native JSON bool or the string form "true"/
+// "false" the framework actually delivers) to bool.
+func cfgBool(v any) (bool, bool) {
+	switch b := v.(type) {
+	case bool:
+		return b, true
+	case string:
+		if pb, err := strconv.ParseBool(strings.TrimSpace(b)); err == nil {
+			return pb, true
+		}
+		return false, false
+	default:
+		return false, false
 	}
 }

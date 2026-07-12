@@ -28,6 +28,50 @@ func TestParseConfigLeaves(t *testing.T) {
 	}
 }
 
+// TestParseConfig_StringValuedDelivery pins the ACTUAL config format the plugin
+// framework delivers: every YANG leaf value arrives as a JSON string ("true",
+// "500"), not the native type. The prior parser used v.(bool)/float64-only
+// coercion for the numeric and boolean leaves, so `kill-switch` and the
+// rate-limit params silently fell back to defaults. This test feeds every scalar
+// leaf as a string and asserts the configured (non-default) value is parsed.
+func TestParseConfig_StringValuedDelivery(t *testing.T) {
+	data := `{"anomaly":{"shape":{` +
+		`"mode":"armed","action":"drop","limit-rate":"500","limit-unit":"minute",` +
+		`"limit-burst":"10","auto-revert-ttl":"120","blast-radius-cap":"8",` +
+		`"kill-switch":"true","allowlist":["10.0.0.0/8"]}}}`
+	cfg, err := ParseConfig(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Mode != "armed" {
+		t.Errorf("mode = %q, want armed", cfg.Mode)
+	}
+	if cfg.Action != "drop" {
+		t.Errorf("action = %q, want drop", cfg.Action)
+	}
+	if cfg.LimitRate != 500 {
+		t.Errorf("limit-rate = %d, want 500", cfg.LimitRate)
+	}
+	if cfg.LimitUnit != "minute" {
+		t.Errorf("limit-unit = %q, want minute", cfg.LimitUnit)
+	}
+	if cfg.LimitBurst != 10 {
+		t.Errorf("limit-burst = %d, want 10", cfg.LimitBurst)
+	}
+	if cfg.AutoRevertTTL != 120 {
+		t.Errorf("auto-revert-ttl = %d, want 120", cfg.AutoRevertTTL)
+	}
+	if cfg.BlastRadiusCap != 8 {
+		t.Errorf("blast-radius-cap = %d, want 8", cfg.BlastRadiusCap)
+	}
+	if !cfg.KillSwitch {
+		t.Error(`kill-switch "true" (string) must parse to true -- the emergency-revert-ignored bug`)
+	}
+	if len(cfg.Allowlist) != 1 || cfg.Allowlist[0] != netip.MustParsePrefix("10.0.0.0/8") {
+		t.Errorf("allowlist = %v, want [10.0.0.0/8]", cfg.Allowlist)
+	}
+}
+
 func TestDefaultConfigValidatesAndIsShadow(t *testing.T) {
 	c := DefaultConfig()
 	if err := c.Validate(); err != nil {

@@ -134,3 +134,47 @@ func TestCharacterizeBoundaries(t *testing.T) {
 		})
 	}
 }
+
+// TestParseConfig_StringValuedDelivery pins the ACTUAL config format the plugin
+// framework delivers: every YANG leaf value arrives as a JSON string ("true",
+// "50000"), not the native type. The prior parser used v.(bool)/float64-only
+// coercion, so `enabled` silently stayed false and the detector never ran --
+// ddos detection was effectively disabled in every daemon. This test would have
+// caught that; the pre-existing tests used native JSON types and missed it.
+func TestParseConfig_StringValuedDelivery(t *testing.T) {
+	data := `{"ddos":{"detect":{` +
+		`"enabled":"true","absolute-floor":"50000","baseline-window":"10",` +
+		`"bps-trigger-enable":"true","bps-floor":"8000000","bps-threshold-multiplier":"5.0",` +
+		`"characterize-enable":"false","top-n-sources":"25","entropy-threshold":"3.5"}}}`
+	cfg, err := ParseConfig(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Enabled {
+		t.Error(`enabled "true" (string) must parse to true -- the detector-disabled bug`)
+	}
+	if cfg.AbsoluteFloor != 50000 {
+		t.Errorf("absolute-floor = %v, want 50000", cfg.AbsoluteFloor)
+	}
+	if cfg.BaselineWindow != 10 {
+		t.Errorf("baseline-window = %d, want 10", cfg.BaselineWindow)
+	}
+	if !cfg.BpsTriggerEnable {
+		t.Error(`bps-trigger-enable "true" (string) must parse to true`)
+	}
+	if cfg.BpsFloor != 8000000 {
+		t.Errorf("bps-floor = %v, want 8000000", cfg.BpsFloor)
+	}
+	if cfg.BpsThresholdMultiplier != 5.0 {
+		t.Errorf("bps-threshold-multiplier = %v, want 5.0", cfg.BpsThresholdMultiplier)
+	}
+	if cfg.CharacterizeEnable {
+		t.Error(`characterize-enable "false" (string) must parse to false`)
+	}
+	if cfg.TopNSources != 25 {
+		t.Errorf("top-n-sources = %d, want 25", cfg.TopNSources)
+	}
+	if cfg.EntropyThreshold != 3.5 {
+		t.Errorf("entropy-threshold = %v, want 3.5", cfg.EntropyThreshold)
+	}
+}
