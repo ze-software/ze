@@ -140,35 +140,10 @@ func (b *vppBackendImpl) RouteLookup(dest netip.Addr) (map[string]any, error) {
 		return nil, err
 	}
 
-	var prefix ip_types.Prefix
-	if dest.Is4() {
-		a4 := dest.As4()
-		var ip4 ip_types.IP4Address
-		copy(ip4[:], a4[:])
-		prefix = ip_types.Prefix{
-			Address: ip_types.Address{
-				Af: ip_types.ADDRESS_IP4,
-				Un: ip_types.AddressUnionIP4(ip4),
-			},
-			Len: 32,
-		}
-	} else {
-		a16 := dest.As16()
-		var ip6 ip_types.IP6Address
-		copy(ip6[:], a16[:])
-		prefix = ip_types.Prefix{
-			Address: ip_types.Address{
-				Af: ip_types.ADDRESS_IP6,
-				Un: ip_types.AddressUnionIP6(ip6),
-			},
-			Len: 128,
-		}
-	}
-
 	req := &ip.IPRouteLookupV2{
 		TableID: 0,
 		Exact:   0,
-		Prefix:  prefix,
+		Prefix:  hostPrefix(dest),
 	}
 	reply := &ip.IPRouteLookupV2Reply{}
 	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
@@ -197,6 +172,57 @@ func (b *vppBackendImpl) RouteLookup(dest netip.Addr) (map[string]any, error) {
 		result["interface"] = entry.Device
 	}
 	return result, nil
+}
+
+// hostPrefix builds a full-length (/32 or /128) VPP prefix for a single address,
+// as used by the route-lookup requests.
+func hostPrefix(dest netip.Addr) ip_types.Prefix {
+	if dest.Is4() {
+		a4 := dest.As4()
+		var ip4 ip_types.IP4Address
+		copy(ip4[:], a4[:])
+		return ip_types.Prefix{
+			Address: ip_types.Address{
+				Af: ip_types.ADDRESS_IP4,
+				Un: ip_types.AddressUnionIP4(ip4),
+			},
+			Len: 32,
+		}
+	}
+	a16 := dest.As16()
+	var ip6 ip_types.IP6Address
+	copy(ip6[:], a16[:])
+	return ip_types.Prefix{
+		Address: ip_types.Address{
+			Af: ip_types.ADDRESS_IP6,
+			Un: ip_types.AddressUnionIP6(ip6),
+		},
+		Len: 128,
+	}
+}
+
+// AddressIsLocal reports whether dest is an address this box terminates: a VPP FIB
+// entry for the address with a local path (FIB_API_PATH_TYPE_LOCAL). A forwarded
+// destination resolves via a non-local path; no route reports not-local (remote is
+// the fail-safe). Mirrors the netlink RTN_LOCAL classification for direction routing.
+func (b *vppBackendImpl) AddressIsLocal(dest netip.Addr) (bool, error) {
+	if err := b.ensureChannel(); err != nil {
+		return false, err
+	}
+	req := &ip.IPRouteLookupV2{TableID: 0, Exact: 0, Prefix: hostPrefix(dest)}
+	reply := &ip.IPRouteLookupV2Reply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return false, fmt.Errorf("ifacevpp: IPRouteLookupV2: %w", err)
+	}
+	if reply.Retval != 0 {
+		return false, nil
+	}
+	for i := range reply.Route.Paths {
+		if reply.Route.Paths[i].Type == fib_types.FIB_API_PATH_TYPE_LOCAL {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // routeV2ToKernelRoute converts a single VPP ip_route_v2 entry to the

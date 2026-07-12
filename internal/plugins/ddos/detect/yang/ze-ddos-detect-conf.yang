@@ -7,6 +7,7 @@ module ze-ddos-detect-conf {
   description "DDoS detector configuration. Owns the top-level `ddos` container;
                the `detect` subtree configures the detector. Sibling subtrees
                (flowtriq, observe, local, flowspec) augment the same `ddos` parent.";
+  revision 2026-07-12 { description "Add the allow/deny traffic policy (default-action + prefix-keyed rules, longest-prefix match) replacing the per-responder allowlists; the detector encodes the exempt/mitigate decision on the emitted event."; }
   revision 2026-07-11 { description "Add bandwidth (BPS) trigger leaves (bps-trigger-enable, bps-threshold-multiplier, bps-floor) to catch low-PPS/high-bandwidth amplification."; }
   revision 2026-07-02 { description "Nest under ddos/detect; the container now owns the shared ddos parent that the other ddos plugins augment."; }
 
@@ -93,6 +94,61 @@ module ze-ddos-detect-conf {
       type zt:decimal-2 { range "0.00..16.00"; }
       default "2.00";
       description "Source-address Shannon entropy (bits) at or above which an attack is logged as distributed/spoofed. 0 = a single source; higher = more sources.";
+    }
+    container policy {
+      description "Allow/deny traffic policy applied to detected attacks, indexed by
+                   prefix and evaluated longest-prefix-match (most specific wins), NOT
+                   config order. Replaces the removed per-responder allowlists: the
+                   detector enforces it once and encodes the exempt/mitigate decision on
+                   the emitted event so the responders honor it without reading config.";
+      leaf default-action {
+        type enumeration {
+          enum allow;
+          enum deny;
+        }
+        default deny;
+        description "Disposition when no rule matches: deny = defend (detection +
+                     mitigation); allow = exempt from detection entirely.";
+      }
+      list rule {
+        key "prefix";
+        description "One allow/deny rule matched against an attack, keyed by prefix.
+                     Precedence is longest-prefix-match, so a /24 rule beats a covering
+                     /16 without any ordering.";
+        leaf prefix {
+          type zt:ip-prefix;
+          description "IPv4/IPv6 prefix this rule matches (the rule's identity).";
+        }
+        leaf action {
+          type enumeration {
+            enum allow;
+            enum deny;
+          }
+          default deny;
+          description "allow = exempt matching traffic; deny = subject it to DDoS handling.";
+        }
+        leaf match {
+          type enumeration {
+            enum source;
+            enum destination;
+            enum any;
+          }
+          default any;
+          description "Whether the prefix matches the attack source, the victim
+                       destination, or either. Source rules take effect once the attack
+                       sources are characterized.";
+        }
+        leaf scope {
+          type enumeration {
+            enum detection;
+            enum mitigation;
+          }
+          default mitigation;
+          description "Stage the action governs: mitigation = detect and record but (for
+                       allow) do not block; detection = (for allow) suppress the incident
+                       entirely.";
+        }
+      }
     }
     }
   }

@@ -11,13 +11,16 @@ import (
 )
 
 type incident struct {
-	ID         int                    `json:"id"`
-	Interface  string                 `json:"interface"`
-	Target     ddosevent.VectorTuple  `json:"target"`
-	Family     ddosevent.AttackFamily `json:"family"`
-	TopSources []netip.Addr           `json:"top-sources,omitempty"`
-	PeakPps    float64                `json:"peak-pps"`
-	PeakBps    float64                `json:"peak-bps"`
+	ID        int                    `json:"id"`
+	Interface string                 `json:"interface"`
+	Target    ddosevent.VectorTuple  `json:"target"`
+	Family    ddosevent.AttackFamily `json:"family"`
+	// Direction records whether the victim is local (box-owned) or remote (transit),
+	// as classified by the detector; surfaced on `show ddos incidents`.
+	Direction  ddosevent.Direction `json:"direction,omitempty"`
+	TopSources []netip.Addr        `json:"top-sources,omitempty"`
+	PeakPps    float64             `json:"peak-pps"`
+	PeakBps    float64             `json:"peak-bps"`
 	// Confidence (0-100) is recorded from the Stage-2 AttackCharacterized event when
 	// it lands for this incident's target (see store.characterize). Zero (omitted)
 	// while an incident is still on the coarse AttackDetected only.
@@ -53,6 +56,7 @@ func (s *store) open(e *ddosevent.AttackDetected) {
 		Interface:  e.Interface,
 		Target:     e.Target,
 		Family:     e.Family,
+		Direction:  e.Direction,
 		TopSources: e.TopSources,
 		PeakPps:    e.PeakRxPps,
 		PeakBps:    e.PeakRxBps,
@@ -112,6 +116,9 @@ func (s *store) characterize(e *ddosevent.AttackCharacterized) {
 		}
 		if inc.Target.DstPrefix == e.Target.DstPrefix || !inc.Target.DstPrefix.IsValid() {
 			inc.Confidence = e.Confidence
+			if e.Direction != "" {
+				inc.Direction = e.Direction // characterized direction is authoritative
+			}
 			return
 		}
 	}

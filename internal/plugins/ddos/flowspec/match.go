@@ -25,15 +25,3 @@ func buildMatch(v ddosevent.VectorTuple) flowspecMatch {
 		TCPFlags:  v.TCPFlags,
 	}
 }
-
-func shouldAnnounce(v ddosevent.VectorTuple, allowlist []netip.Prefix) bool {
-	if !v.DstPrefix.IsValid() {
-		return false
-	}
-	for _, allow := range allowlist {
-		if allow.Overlaps(v.DstPrefix) {
-			return false
-		}
-	}
-	return true
-}

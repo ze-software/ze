@@ -107,6 +107,10 @@ func (m *mockMigrateBackend) ListNeighbors(_ int) ([]NeighborInfo, error) {
 func (m *mockMigrateBackend) RouteLookup(_ netip.Addr) (map[string]any, error) {
 	return nil, fmt.Errorf("mock: not supported")
 }
+
+func (m *mockMigrateBackend) AddressIsLocal(_ netip.Addr) (bool, error) {
+	return false, fmt.Errorf("mock: not supported")
+}
 func (m *mockMigrateBackend) ListKernelRoutes(_ string, _ int) ([]KernelRoute, error) {
 	return nil, fmt.Errorf("mock: not supported")
 }

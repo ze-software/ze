@@ -169,6 +169,81 @@ func TestLocalApplyFailureRollsBack(t *testing.T) {
 	}
 }
 
+func firstChainHook(tables []firewall.Table) firewall.ChainHook {
+	if len(tables) > 0 && len(tables[0].Chains) > 0 {
+		return tables[0].Chains[0].Hook
+	}
+	return 0
+}
+
+func TestLocalHookByDirection(t *testing.T) {
+	// VALIDATES: AC-9/AC-10/AC-11 -- direction selects the netfilter hook: INPUT for a
+	// local victim, FORWARD for a remote victim when forward-mitigation is on, and no
+	// drop at all for a remote victim when it is off (flowspec owns that case).
+	origReg := registerTables
+	origApply := applyAll
+	var lastTables []firewall.Table
+	registerTables = func(_ string, tables []firewall.Table) { lastTables = tables }
+	applyAll = func() error { return nil }
+	defer func() { registerTables = origReg; applyAll = origApply }()
+
+	victim := netip.MustParsePrefix("10.0.0.1/32")
+
+	rLocal := newResponder(&Config{ResponseLevel: "enforce"}, nil)
+	rLocal.onDetected(&ddosevent.AttackDetected{
+		Target: ddosevent.VectorTuple{DstPrefix: victim}, Direction: ddosevent.DirectionLocal,
+	})
+	if !rLocal.active || firstChainHook(lastTables) != firewall.HookInput {
+		t.Errorf("local victim: want active INPUT drop, active=%v hook=%v", rLocal.active, firstChainHook(lastTables))
+	}
+
+	lastTables = nil
+	rFwd := newResponder(&Config{ResponseLevel: "enforce", ForwardMitigation: true}, nil)
+	rFwd.onDetected(&ddosevent.AttackDetected{
+		Target: ddosevent.VectorTuple{DstPrefix: victim}, Direction: ddosevent.DirectionRemote,
+	})
+	if !rFwd.active || firstChainHook(lastTables) != firewall.HookForward {
+		t.Errorf("remote victim + forward-mitigation: want active FORWARD drop, active=%v hook=%v", rFwd.active, firstChainHook(lastTables))
+	}
+
+	rOff := newResponder(&Config{ResponseLevel: "enforce"}, nil)
+	rOff.onDetected(&ddosevent.AttackDetected{
+		Target: ddosevent.VectorTuple{DstPrefix: victim}, Direction: ddosevent.DirectionRemote,
+	})
+	if rOff.active {
+		t.Error("remote victim with forward-mitigation off must not install a drop")
+	}
+}
+
+func TestLocalHonorsSuppressMitigation(t *testing.T) {
+	// VALIDATES: AC-2/AC-4 -- the policy's SuppressMitigation flag stops a drop, and a
+	// characterized flip to exempt withdraws a drop the fast path already installed.
+	defer withNoopFirewall()()
+	victim := netip.MustParsePrefix("10.0.0.1/32")
+
+	r := newResponder(&Config{ResponseLevel: "enforce"}, nil)
+	r.onDetected(&ddosevent.AttackDetected{
+		Target: ddosevent.VectorTuple{DstPrefix: victim}, Direction: ddosevent.DirectionLocal, SuppressMitigation: true,
+	})
+	if r.active {
+		t.Error("SuppressMitigation must prevent a drop")
+	}
+
+	r2 := newResponder(&Config{ResponseLevel: "enforce"}, nil)
+	r2.onDetected(&ddosevent.AttackDetected{
+		Target: ddosevent.VectorTuple{DstPrefix: victim}, Direction: ddosevent.DirectionLocal,
+	})
+	if !r2.active {
+		t.Fatal("fast path should install a drop")
+	}
+	r2.onCharacterized(&ddosevent.AttackCharacterized{
+		Target: ddosevent.VectorTuple{DstPrefix: victim}, Direction: ddosevent.DirectionLocal, SuppressMitigation: true,
+	})
+	if r2.active {
+		t.Error("characterized SuppressMitigation must withdraw the fast-path drop")
+	}
+}
+
 func TestClearedDeactivates(t *testing.T) {
 	// VALIDATES: AC-3 -- AttackCleared removes the mitigation
 	defer withNoopFirewall()()

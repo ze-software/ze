@@ -1,0 +1,229 @@
+# Test: ddos/detect traffic policy -- an allow rule at mitigation scope exempts the
+# victim from the mitigation ACTION while detection still fires.
+#
+# VALIDATES: spec-ddos-direction-allowlist AC-2 -- with a
+#            `rule <victim> { action allow; match destination; scope mitigation; }`
+#            the detector still opens an incident (show ddos status active-attacks > 0)
+#            but the local responder installs NO nft drop (show ddos local active=false).
+# PREVENTS:  the policy having no effect (a drop installed anyway) or suppressing
+#            detection entirely (no incident opened).
+#
+# STATUS: option=needs-linux. Runs the full daemon path on the QEMU Alpine VM via an
+#   in-daemon observer plugin (ze_api handshake), same harness as ddos-bps-amplification.
+#   The loopback victim 127.0.0.2 is box-owned (RTN_LOCAL, direction local); the policy
+#   under test exempts it from mitigation regardless of direction.
+
+option=needs-linux
+option=env:var=ze.log.ddos-detect:value=info
+option=env:var=ze.log.ddos-local:value=info
+option=timeout:value=90s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=90s
+option=asn:value=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=ddos-policy-probe.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Flood a loopback victim under an allow/mitigation policy: assert detection opens
+an incident but the local responder installs NO drop (policy exempts mitigation).
+In-daemon observer plugin (5-stage handshake); pacing is sleep-free."""
+import json
+import socket
+import sys
+import time
+
+from ze_api import API, result_text_data, runtime_fail
+
+VICTIM = "127.0.0.2"
+DPORT = 9999
+PAYLOAD = b"x" * 64
+
+
+def dispatch(api, command):
+    resp = api._call_engine("ze-plugin-engine:dispatch-command", {"command": command})
+    if resp is None:
+        return {"status": "error", "data": "engine call returned None"}
+    return resp.get("result", {})
+
+
+def show_json(api, command):
+    r = dispatch(api, command)
+    if r.get("status") != "done":
+        return None
+    data = result_text_data(r)
+    if isinstance(data, str) and data:
+        data = json.loads(data)
+    return data if isinstance(data, dict) else None
+
+
+def active_attacks(api):
+    d = show_json(api, "show ddos status")
+    if not d or d.get("enabled") is not True:
+        return None
+    return d.get("active-attacks", 0)
+
+
+def local_active(api):
+    d = show_json(api, "show ddos local")
+    if not d:
+        return None
+    return bool(d.get("active", False))
+
+
+def blast(sock, n):
+    sent = 0
+    for _ in range(n):
+        try:
+            sock.sendto(PAYLOAD, (VICTIM, DPORT))
+            sent += 1
+        except OSError:
+            pass
+    return sent
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # Bind a sink on the victim port so the flood is absorbed and no ICMP
+    # port-unreachable backscatter makes trafficusage mis-resolve the victim (learned/1109).
+    sink = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sink.bind((VICTIM, DPORT))
+    sink.setblocking(False)
+    detected = False
+    sent = 0
+    deadline = time.monotonic() + 45.0
+    while time.monotonic() < deadline:
+        sent += blast(sock, 4000)
+        a = active_attacks(api)
+        if a and a > 0:
+            detected = True
+            break
+        api.read_line(timeout=0.3)
+
+    la = local_active(api)
+    sock.close()
+    sink.close()
+
+    if not detected:
+        runtime_fail(f"detection never opened an incident under the allow/mitigation "
+                     f"policy (sent {sent} packets); the policy or detector is broken")
+    if la:
+        runtime_fail(f"allow/mitigation policy did not exempt mitigation: ddos-local is "
+                     f"active (a drop was installed) after {sent} packets")
+
+    print(f"OK: detection opened an incident but ddos-local is not active -- the "
+          f"allow/mitigation policy exempted mitigation (sent {sent} packets)",
+          file=sys.stderr)
+    dispatch(api, "request shutdown")
+    api.wait_for_shutdown()
+
+
+if __name__ == "__main__":
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+ddos {
+	detect {
+		enabled true
+		absolute-floor 1000
+		confirm-duration 1
+		startup-grace 0
+		baseline-window 10
+		check-interval 1
+		characterize-enable false
+		policy {
+			default-action deny
+			rule 127.0.0.2/32 {
+				action allow
+				match destination
+				scope mitigation
+			}
+		}
+	}
+	observe {
+		incident-ring-size 100
+	}
+	local {
+		response-level enforce
+	}
+}
+
+traffic {
+	usage {
+		enabled true
+		track-ip true
+		interfaces {
+			interface lo {
+				enabled true
+			}
+		}
+	}
+}
+
+# // test-relax: no firewall {} backend block here. An allow/mitigation policy exempts
+# the victim in the responder BEFORE any firewall call (applyMitigation returns at the
+# "policy exempts mitigation" branch), so no nft backend is needed. Adding one
+# deadlocked the daemon's command dispatch under the flood (firewall component + the
+# responder both drive nft concurrently). Validity comes from the expect=stderr
+# "policy exempts mitigation" assertion, which fires only when the policy set the
+# event's SuppressMitigation flag -- i.e. only when the policy actually worked.
+plugin {
+	external ddos-policy-probe {
+		run ./ddos-policy-probe.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process ddos-policy-probe {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=85s
+expect=exit:code=0
+expect=stderr:contains=ddos-local: policy exempts mitigation

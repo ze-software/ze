@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1121 summaries
+Total: 1122 summaries
 
 ## 000-099
 
@@ -1190,3 +1190,4 @@ Total: 1121 summaries
 | 1107 | test-coverage-gaps | `plan/learned/1107-test-coverage-gaps.md` |
 | 1108 | ddos-detect Enhancements (bandwidth trigger, baseline persistence, incident confidence) | `plan/learned/1108-ddos-detect-enhancements.md` |
 | 1109 | ddos-detect Enhancements (bandwidth trigger, baseline persistence, incident confidence) | `plan/learned/1109-ddos-detect-enhancements.md` |
+| 1110 | ddos direction + traffic policy (allow/deny) | `plan/learned/1110-ddos-direction-allowlist.md` |

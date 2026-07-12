@@ -169,6 +169,14 @@ type Backend interface {
 	// next-hop, interface, protocol, metric, table.
 	RouteLookup(dest netip.Addr) (map[string]any, error)
 
+	// AddressIsLocal reports whether dest is an address this box terminates
+	// (owned by one of its interfaces / the loopback) rather than one it forwards.
+	// On Linux this is the kernel's RTN_LOCAL classification; on VPP it is a local
+	// FIB entry. Used to classify a DDoS victim as local (control-plane, INPUT hook)
+	// vs remote (transit, FORWARD hook). Returns an error when the backend cannot
+	// answer; callers treat an error as "not local" (remote is the fail-safe).
+	AddressIsLocal(dest netip.Addr) (bool, error)
+
 	// ListKernelRoutes returns up to `limit` entries from the kernel's
 	// routing table. filterPrefix, when non-empty, restricts the result
 	// to the exact CIDR match (e.g. "10.0.0.0/8"). Empty returns

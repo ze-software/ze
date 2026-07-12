@@ -5,6 +5,7 @@ package detect
 import (
 	"encoding/json"
 	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 )
@@ -40,6 +41,10 @@ type Config struct {
 	CharacterizeWindow  int     `json:"characterize-window"`  // seconds of recent flows to consider (0-ts flows always kept)
 	CharacterizeTimeout int     `json:"characterize-timeout"` // ms budget for the on-trigger source queries
 	EntropyThreshold    float64 `json:"entropy-threshold"`    // source-entropy (bits) at/above which an attack is logged as distributed
+
+	// Policy is the operator's allow/deny traffic policy (prefix-indexed, longest-prefix
+	// match). nil = no policy = defend everything (default-action deny). See policy.go.
+	Policy *Policy `json:"policy,omitempty"`
 }
 
 func DefaultConfig() *Config {
@@ -163,7 +168,50 @@ func ParseConfig(data string) (*Config, error) {
 			cfg.EntropyThreshold = f
 		}
 	}
+	if pv, ok := m["policy"].(map[string]any); ok {
+		p, err := parsePolicy(pv)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Policy = p
+	}
 	return cfg, nil
+}
+
+// parsePolicy reads the ddos/detect policy container. The YANG `list rule { key
+// "prefix" }` is delivered as a map keyed by prefix (config lists are delivered as
+// unordered maps, so precedence is longest-prefix, not config order; see policy.go).
+// Enum leaves arrive as strings.
+func parsePolicy(m map[string]any) (*Policy, error) {
+	p := &Policy{DefaultAction: actionDeny}
+	if v, ok := m["default-action"].(string); ok && v != "" {
+		p.DefaultAction = v
+	}
+	ruleMap, ok := m["rule"].(map[string]any)
+	if !ok {
+		return p, nil
+	}
+	for prefixStr, rv := range ruleMap {
+		rm, _ := rv.(map[string]any)
+		pfx, err := netip.ParsePrefix(prefixStr)
+		if err != nil {
+			return nil, fmt.Errorf("policy rule %q: invalid prefix: %w", prefixStr, err)
+		}
+		p.Rules = append(p.Rules, PolicyRule{
+			Prefix: pfx.Masked(),
+			Action: cfgStr(rm, "action", actionDeny),
+			Match:  cfgStr(rm, "match", matchAny),
+			Scope:  cfgStr(rm, "scope", scopeMitigation),
+		})
+	}
+	return p, nil
+}
+
+func cfgStr(m map[string]any, key, def string) string {
+	if v, ok := m[key].(string); ok && v != "" {
+		return v
+	}
+	return def
 }
 
 func (c *Config) Validate() error {
@@ -205,6 +253,9 @@ func (c *Config) Validate() error {
 	}
 	if c.EntropyThreshold < 0 || c.EntropyThreshold > 16 {
 		return fmt.Errorf("entropy-threshold %f out of range [0, 16]", c.EntropyThreshold)
+	}
+	if err := c.Policy.validate(); err != nil {
+		return err
 	}
 	return nil
 }

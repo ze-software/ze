@@ -3,8 +3,6 @@
 package local
 
 import (
-	"net/netip"
-
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
 )
@@ -46,16 +44,4 @@ func buildDropTerm(name string, v ddosevent.VectorTuple) firewall.Term {
 		Matches: matches,
 		Actions: []firewall.Action{firewall.Counter{}, firewall.Drop{}},
 	}
-}
-
-func shouldMitigate(v ddosevent.VectorTuple, allowlist []netip.Prefix) bool {
-	if !v.DstPrefix.IsValid() {
-		return false
-	}
-	for _, allow := range allowlist {
-		if allow.Overlaps(v.DstPrefix) {
-			return false
-		}
-	}
-	return true
 }

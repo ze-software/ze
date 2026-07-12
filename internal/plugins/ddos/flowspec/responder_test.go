@@ -153,17 +153,38 @@ func TestProbeTickWithdraws(t *testing.T) {
 	}
 }
 
-func TestAllowlistedTargetNotAnnounced(t *testing.T) {
+// test-relax: TestAllowlistedTargetNotAnnounced reworked into
+// TestSuppressMitigationNotAnnounced -- the allowlist moved to the detector policy;
+// the responder now honors the event's SuppressMitigation flag instead of a local list.
+func TestSuppressMitigationNotAnnounced(t *testing.T) {
+	// VALIDATES: a policy-exempted attack (event SuppressMitigation) is not announced.
 	r := newResponder(&Config{
 		ResponseLevel: "enforce",
-		Allowlist:     []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 		HoldDown:      300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600,
 	}, &fakeDispatcher{})
 	r.onCharacterized(&ddosevent.AttackCharacterized{
-		Target: ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17},
+		Target:             ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17},
+		Direction:          ddosevent.DirectionRemote,
+		SuppressMitigation: true,
 	})
 	if r.active {
-		t.Error("allowlisted target should not be mitigated")
+		t.Error("policy-exempted (SuppressMitigation) target should not be mitigated")
+	}
+}
+
+// TestFlowspecSkipsLocalVictim validates that flowspec leaves a local (box-owned)
+// victim to on-host mitigation and does not announce upstream for it.
+func TestFlowspecSkipsLocalVictim(t *testing.T) {
+	r := newResponder(&Config{
+		ResponseLevel: "enforce",
+		HoldDown:      300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600,
+	}, &fakeDispatcher{})
+	r.onCharacterized(&ddosevent.AttackCharacterized{
+		Target:    ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17},
+		Direction: ddosevent.DirectionLocal,
+	})
+	if r.active {
+		t.Error("flowspec must skip a local victim (on-host mitigation handles it)")
 	}
 }
 

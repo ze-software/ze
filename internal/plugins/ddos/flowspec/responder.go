@@ -137,8 +137,12 @@ func (r *responder) onDetected(e *ddosevent.AttackDetected) {
 			"target", e.Target.DstPrefix, "severity", e.Severity)
 		return
 	}
-	if !shouldAnnounce(e.Target, r.cfg.Allowlist) {
-		logger().Info("ddos-flowspec: target allowlisted, skipping", "target", e.Target.DstPrefix)
+	if e.SuppressMitigation {
+		logger().Info("ddos-flowspec: policy exempts mitigation, not announcing", "target", e.Target.DstPrefix)
+		return
+	}
+	if e.Direction == ddosevent.DirectionLocal {
+		logger().Info("ddos-flowspec: local victim, leaving to on-host mitigation", "target", e.Target.DstPrefix)
 		return
 	}
 	r.announce(e.Target, blackholeAction, "blackhole-fallback (critical)")
@@ -156,8 +160,12 @@ func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
 			"target", e.Target.DstPrefix, "family", e.Family)
 		return
 	}
-	if !shouldAnnounce(e.Target, r.cfg.Allowlist) {
-		logger().Info("ddos-flowspec: target allowlisted, skipping", "target", e.Target.DstPrefix)
+	if e.SuppressMitigation {
+		logger().Info("ddos-flowspec: policy exempts mitigation, not announcing", "target", e.Target.DstPrefix)
+		return
+	}
+	if e.Direction == ddosevent.DirectionLocal {
+		logger().Info("ddos-flowspec: local victim, leaving to on-host mitigation", "target", e.Target.DstPrefix)
 		return
 	}
 	if r.active {

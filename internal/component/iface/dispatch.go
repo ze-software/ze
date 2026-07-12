@@ -143,6 +143,18 @@ func RouteLookup(dest netip.Addr) (map[string]any, error) {
 	return b.RouteLookup(dest)
 }
 
+// AddressIsLocal reports whether dest is an address this box terminates (owned by
+// one of its interfaces) rather than one it forwards, via the active backend. Used
+// to classify a DDoS victim as local (control-plane, INPUT hook) vs remote (transit,
+// FORWARD hook). Callers treat an error as "not local" (remote is the fail-safe).
+func AddressIsLocal(dest netip.Addr) (bool, error) {
+	b, err := backendOrErr()
+	if err != nil {
+		return false, err
+	}
+	return b.AddressIsLocal(dest)
+}
+
 // ListKernelRoutes returns up to `limit` entries from the kernel's
 // routing table via the active backend. filterPrefix (non-empty)
 // narrows the dump to a single CIDR. limit == 0 means unbounded.

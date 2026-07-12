@@ -39,23 +39,8 @@ func TestBuildMatchReflection(t *testing.T) {
 	}
 }
 
-func TestAllowlistSubtraction(t *testing.T) {
-	// VALIDATES: AC-2 -- allowlisted prefix not announced
-	v := ddosevent.VectorTuple{
-		DstPrefix: netip.MustParsePrefix("10.0.0.1/32"),
-	}
-	allowlist := []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")}
-	if shouldAnnounce(v, allowlist) {
-		t.Error("should not announce for allowlisted target")
-	}
-}
-
-func TestAllowlistNoOverlap(t *testing.T) {
-	v := ddosevent.VectorTuple{
-		DstPrefix: netip.MustParsePrefix("192.168.1.1/32"),
-	}
-	allowlist := []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}
-	if !shouldAnnounce(v, allowlist) {
-		t.Error("should announce for non-allowlisted target")
-	}
-}
+// test-relax: TestAllowlistSubtraction / TestAllowlistNoOverlap removed -- the
+// per-responder allowlist (shouldAnnounce) was replaced by the detector's traffic
+// policy, delivered via the event's SuppressMitigation flag + Direction gating
+// (spec-ddos-direction-allowlist). Coverage moves to detect/policy_test.go and the
+// responder SuppressMitigation/Direction tests.

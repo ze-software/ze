@@ -13,7 +13,7 @@ import "testing"
 func TestParseConfig_StringValuedDelivery(t *testing.T) {
 	data := `{"ddos":{"local":{` +
 		`"response-level":"enforce","max-mitigation-duration":"1800",` +
-		`"confidence-min":"75","allowlist":["10.0.0.0/8","192.168.0.0/16"]}}}`
+		`"confidence-min":"75","forward-mitigation":"true"}}}`
 	cfg, err := ParseConfig(data)
 	if err != nil {
 		t.Fatal(err)
@@ -28,7 +28,7 @@ func TestParseConfig_StringValuedDelivery(t *testing.T) {
 	if cfg.ConfidenceMin != 75 {
 		t.Errorf("confidence-min = %d, want 75 (string-valued delivery must parse)", cfg.ConfidenceMin)
 	}
-	if len(cfg.Allowlist) != 2 {
-		t.Errorf("allowlist len = %d, want 2", len(cfg.Allowlist))
+	if !cfg.ForwardMitigation {
+		t.Error("forward-mitigation = false, want true (string-valued delivery must parse)")
 	}
 }

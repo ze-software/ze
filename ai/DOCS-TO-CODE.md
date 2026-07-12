@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 285 design docs, 2919 files
+Total: 285 design docs, 2920 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2110,6 +2110,7 @@ Total: 285 design docs, 2919 files
 | `internal/plugins/ddos/detect/baseline.go` | rolling baseline with poisoning guards |
 | `internal/plugins/ddos/detect/config.go` | detector configuration |
 | `internal/plugins/ddos/detect/detector.go` | two-stage DDoS detector |
+| `internal/plugins/ddos/detect/policy.go` | detector traffic policy |
 | `internal/plugins/ddos/detect/state.go` | trigger/clear state machine |
 | `internal/plugins/ddos/flowspec/config.go` | flowspec responder config |
 | `internal/plugins/ddos/flowspec/match.go` | vector to FlowSpec match |

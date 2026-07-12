@@ -105,7 +105,21 @@ func (d *detector) characterizeAndEmit(gen uint64, ifaceName string, peakPps, pe
 		target.DstPrefix = prefix
 	}
 
-	if !d.emitDetected(gen, ifaceName, target, severity, peakPps, peakBps) {
+	// Traffic policy, emit stage: only the victim (destination) is known here, so
+	// source-matching rules are evaluated later, at the characterization stage. A
+	// detection-scope exemption suppresses the attack entirely (no event, no incident).
+	emitOutcome := d.cfg.Policy.evaluate(target.DstPrefix, nil)
+	if emitOutcome.Suppress {
+		incPolicySuppressed(scopeDetection)
+		return
+	}
+	if emitOutcome.SuppressMitigation {
+		incPolicySuppressed(scopeMitigation)
+	}
+	direction := d.classifyDirection(target.DstPrefix)
+	incDirection(direction)
+
+	if !d.emitDetected(gen, ifaceName, target, severity, direction, emitOutcome.SuppressMitigation, peakPps, peakBps) {
 		return
 	}
 
@@ -121,20 +135,22 @@ func (d *detector) characterizeAndEmit(gen uint64, ifaceName string, peakPps, pe
 // leave ddos-local with a drop and no matching Cleared (a permanent stuck rule,
 // since max-mitigation-duration is not enforced there). The slow source queries
 // already ran off the lock, so this critical section is just the emit.
-func (d *detector) emitDetected(gen uint64, ifaceName string, target ddosevent.VectorTuple, severity ddosevent.Severity, peakPps, peakBps float64) bool {
+func (d *detector) emitDetected(gen uint64, ifaceName string, target ddosevent.VectorTuple, severity ddosevent.Severity, direction ddosevent.Direction, suppressMitigation bool, peakPps, peakBps float64) bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.attackGen != gen {
 		return false
 	}
 	if _, err := ddosevent.Detected.Emit(d.bus, &ddosevent.AttackDetected{
-		Interface:  ifaceName,
-		Target:     target,
-		Family:     ddosevent.FamilyGenericFlood,
-		Severity:   severity,
-		PeakRxPps:  peakPps,
-		PeakRxBps:  peakBps,
-		Observable: true,
+		Interface:          ifaceName,
+		Target:             target,
+		Family:             ddosevent.FamilyGenericFlood,
+		Severity:           severity,
+		Direction:          direction,
+		SuppressMitigation: suppressMitigation,
+		PeakRxPps:          peakPps,
+		PeakRxBps:          peakBps,
+		Observable:         true,
 	}); err != nil {
 		logger().Warn("ddos-detect: emit detected failed", "error", err)
 	}
@@ -184,6 +200,14 @@ func (d *detector) characterizeFromFlows(ctx context.Context, gen uint64, ifaceN
 	family, vec, topSources, entropy := classifyFlows(flows, d.cfg.TopNSources)
 	vec.DstPrefix = victim
 
+	// Traffic policy, characterization stage: sources are known now, so re-evaluate
+	// (source rules can match here). The characterized event is authoritative -- if a
+	// source rule flips the decision to exempt, responders withdraw any drop the fast
+	// AttackDetected installed. Both Suppress and SuppressMitigation map to "do not
+	// mitigate" here; the incident is already recorded by the fast path.
+	charOutcome := d.cfg.Policy.evaluate(victim, topSources)
+	direction := d.classifyDirection(victim)
+
 	if entropy >= d.cfg.EntropyThreshold {
 		logger().Info("ddos-detect: distributed attack (high source entropy)",
 			"entropy", entropy, "threshold", d.cfg.EntropyThreshold, "target", victim)
@@ -195,16 +219,18 @@ func (d *detector) characterizeFromFlows(ctx context.Context, gen uint64, ifaceN
 	confidence := ddosevent.GradeConfidence(peakPps, threshold, family, entropy, d.cfg.EntropyThreshold)
 
 	if d.emitCharacterized(gen, &ddosevent.AttackCharacterized{
-		Interface:     ifaceName,
-		Target:        vec,
-		Family:        family,
-		TopSources:    topSources,
-		Severity:      severity,
-		SourceEntropy: entropy,
-		Confidence:    confidence,
-		PeakRxPps:     peakPps,
-		PeakRxBps:     peakBps,
-		Observable:    true,
+		Interface:          ifaceName,
+		Target:             vec,
+		Family:             family,
+		TopSources:         topSources,
+		Severity:           severity,
+		SourceEntropy:      entropy,
+		Confidence:         confidence,
+		Direction:          direction,
+		SuppressMitigation: charOutcome.Suppress || charOutcome.SuppressMitigation,
+		PeakRxPps:          peakPps,
+		PeakRxBps:          peakBps,
+		Observable:         true,
 	}) {
 		incCharacterize(family)
 	}

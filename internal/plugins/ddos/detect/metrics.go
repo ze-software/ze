@@ -17,6 +17,9 @@ type detectMetrics struct {
 	characterize metrics.CounterVec // outcomes labeled by attack family
 	fallback     metrics.Counter    // characterize enabled but no flow source / no data
 	bpsTrigger   metrics.Counter    // detections attributed to the bandwidth (BPS) trigger (PPS alone would not have fired)
+
+	policySuppressed metrics.CounterVec // attacks the traffic policy exempted, by scope (detection|mitigation)
+	direction        metrics.CounterVec // detected attacks by victim direction (local|remote)
 }
 
 var metricsPtr atomic.Pointer[detectMetrics]
@@ -29,6 +32,10 @@ func setMetricsRegistry(reg metrics.Registry) {
 			"Characterizations that produced no AttackCharacterized (no flow source or no usable flows)."),
 		bpsTrigger: reg.Counter("ze_ddos_detect_bps_trigger_total",
 			"Detections attributed to the bandwidth (BPS) trigger, where the packet-rate threshold alone would not have fired."),
+		policySuppressed: reg.CounterVec("ze_ddos_policy_suppressed_total",
+			"Attacks exempted by the ddos/detect traffic policy, labeled by scope (detection|mitigation).", []string{"scope"}),
+		direction: reg.CounterVec("ze_ddos_direction_total",
+			"Detected attacks by victim direction (local|remote).", []string{"direction"}),
 	})
 }
 
@@ -47,5 +54,17 @@ func incCharacterize(family ddosevent.AttackFamily) {
 func incFallback() {
 	if m := metricsPtr.Load(); m != nil {
 		m.fallback.Inc()
+	}
+}
+
+func incPolicySuppressed(scope string) {
+	if m := metricsPtr.Load(); m != nil {
+		m.policySuppressed.With(scope).Inc()
+	}
+}
+
+func incDirection(dir ddosevent.Direction) {
+	if m := metricsPtr.Load(); m != nil {
+		m.direction.With(string(dir)).Inc()
 	}
 }

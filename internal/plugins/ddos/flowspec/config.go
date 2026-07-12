@@ -5,7 +5,6 @@ package flowspec
 import (
 	"encoding/json"
 	"fmt"
-	"net/netip"
 	"strconv"
 	"strings"
 )
@@ -41,8 +40,7 @@ type Config struct {
 	// ConfidenceMin (0-100) gates the characterized announce path: an
 	// AttackCharacterized whose confidence is below this is not announced upstream.
 	// 0 (default) disables the gate. The blackhole-fallback fast path is never gated.
-	ConfidenceMin int            `json:"confidence-min"`
-	Allowlist     []netip.Prefix `json:"allowlist"`
+	ConfidenceMin int `json:"confidence-min"`
 }
 
 func DefaultConfig() *Config {
@@ -134,15 +132,6 @@ func ParseConfig(data string) (*Config, error) {
 	if v, ok := m["confidence-min"]; ok {
 		if n, ok := toInt(v); ok {
 			cfg.ConfidenceMin = n
-		}
-	}
-	if v, ok := m["allowlist"].([]any); ok {
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				if p, err := netip.ParsePrefix(s); err == nil {
-					cfg.Allowlist = append(cfg.Allowlist, p)
-				}
-			}
 		}
 	}
 	return cfg, nil

@@ -56,7 +56,7 @@ func newResponder(cfg *Config, bus eventBus) *responder {
 func (r *responder) onDetected(e *ddosevent.AttackDetected) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.applyMitigation(e.Target, e.Family, "detected")
+	r.applyMitigation(e.Target, e.Family, e.Direction, e.SuppressMitigation, "detected")
 }
 
 // onCharacterized narrows the installed rule in place to the discriminating
@@ -75,22 +75,38 @@ func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
 			"target", e.Target.DstPrefix, "confidence", e.Confidence, "minimum", r.cfg.ConfidenceMin)
 		return
 	}
-	r.applyMitigation(e.Target, e.Family, "characterized")
+	r.applyMitigation(e.Target, e.Family, e.Direction, e.SuppressMitigation, "characterized")
 }
 
 // applyMitigation (re)installs the nft drop for target. Caller holds r.mu. Used
 // by both the coarse (onDetected) and narrowed (onCharacterized) paths so the
 // table is re-registered identically; the only difference is how surgical the
 // term is.
-func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddosevent.AttackFamily, phase string) {
+func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddosevent.AttackFamily, direction ddosevent.Direction, suppressMitigation bool, phase string) {
 	if r.cfg.ResponseLevel != responseEnforce {
 		logger().Info("ddos-local: alert mode, would mitigate",
 			"target", target.DstPrefix, "family", family, "phase", phase)
 		return
 	}
 
-	if !shouldMitigate(target, r.cfg.Allowlist) {
-		logger().Info("ddos-local: target allowlisted, skipping", "target", target.DstPrefix)
+	if suppressMitigation {
+		// The detector's traffic policy exempts this attack from the mitigation ACTION
+		// (record-only). If the fast path already installed a drop, withdraw it -- the
+		// characterized decision is authoritative.
+		if r.active {
+			r.removeMitigation()
+		}
+		logger().Info("ddos-local: policy exempts mitigation, not blocking",
+			"target", target.DstPrefix, "phase", phase)
+		return
+	}
+
+	hook, ok := r.hookForDirection(direction)
+	if !ok {
+		// Remote (transit) victim with forward-mitigation disabled: an on-host INPUT drop
+		// cannot touch forwarded traffic, so leave this to the flowspec upstream announce.
+		logger().Info("ddos-local: remote victim, forward-mitigation disabled, deferring to flowspec",
+			"target", target.DstPrefix, "phase", phase)
 		return
 	}
 
@@ -99,10 +115,10 @@ func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddoseve
 		Name:   tableName,
 		Family: familyFromPrefix(target.DstPrefix),
 		Chains: []firewall.Chain{{
-			Name:     "ingress",
+			Name:     hookChainName(hook),
 			IsBase:   true,
 			Type:     firewall.ChainFilter,
-			Hook:     firewall.HookInput,
+			Hook:     hook,
 			Priority: -200,
 			Policy:   firewall.PolicyAccept,
 			Terms:    []firewall.Term{term},
@@ -126,7 +142,29 @@ func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddoseve
 
 	r.active = true
 	r.target = target
-	logger().Info("ddos-local: drop rule installed", "target", target.DstPrefix, "phase", phase)
+	logger().Info("ddos-local: drop rule installed",
+		"target", target.DstPrefix, "hook", hookChainName(hook), "phase", phase)
+}
+
+// hookForDirection maps the victim's direction to the netfilter hook that can actually
+// drop its traffic: INPUT for a local (box-owned) victim, FORWARD for a remote/transit
+// victim -- the latter only when forward-mitigation is enabled. An empty/unknown
+// direction is treated as local (INPUT), harmless if the guess is wrong.
+func (r *responder) hookForDirection(direction ddosevent.Direction) (firewall.ChainHook, bool) {
+	if direction == ddosevent.DirectionRemote {
+		if !r.cfg.ForwardMitigation {
+			return 0, false
+		}
+		return firewall.HookForward, true
+	}
+	return firewall.HookInput, true
+}
+
+func hookChainName(hook firewall.ChainHook) string {
+	if hook == firewall.HookForward {
+		return "forward"
+	}
+	return "ingress"
 }
 
 func (r *responder) onCleared(_ *ddosevent.AttackCleared) {

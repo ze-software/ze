@@ -2291,6 +2291,8 @@ func (b *fakeBackend) ListNeighbors(_ int) ([]NeighborInfo, error) {
 func (b *fakeBackend) RouteLookup(_ netip.Addr) (map[string]any, error) {
 	return map[string]any{}, nil
 }
+
+func (b *fakeBackend) AddressIsLocal(_ netip.Addr) (bool, error) { return false, nil }
 func (b *fakeBackend) ListKernelRoutes(_ string, _ int) ([]KernelRoute, error) {
 	return nil, nil
 }

@@ -87,6 +87,19 @@ const (
 	FamilyGenericFlood AttackFamily = "generic-flood"
 )
 
+// Direction classifies an attack's victim relative to this box. Local means the
+// victim address is owned by the box (control-plane traffic that lands on the
+// netfilter INPUT hook); Remote means it is a downstream/transit host reached
+// through the FORWARD hook. Derived once at emit via iface.AddressIsLocal; an
+// unresolved victim is Remote, because a local INPUT drop cannot protect an
+// address the box does not terminate.
+type Direction string
+
+const (
+	DirectionLocal  Direction = "local"
+	DirectionRemote Direction = "remote"
+)
+
 type VectorTuple struct {
 	DstPrefix netip.Prefix `json:"dst-prefix"`
 	Proto     uint8        `json:"proto"`
@@ -105,9 +118,19 @@ type AttackDetected struct {
 	Family     AttackFamily `json:"family"`
 	TopSources []netip.Addr `json:"top-sources,omitempty"`
 	Severity   Severity     `json:"severity,omitempty"`
-	PeakRxPps  float64      `json:"peak-rx-pps"`
-	PeakRxBps  float64      `json:"peak-rx-bps"`
-	Observable bool         `json:"observable"`
+	// Direction classifies the victim as local (box-owned) or remote (transit); it
+	// routes which mitigation the local responder installs (INPUT vs FORWARD hook).
+	Direction Direction `json:"direction,omitempty"`
+	// SuppressMitigation is set by the detector's traffic policy when a matching rule
+	// exempts this attack from the mitigation ACTION (an allow rule at mitigation scope,
+	// or a deny rule at detection scope): observability still records the incident, but
+	// responders install no drop/announce. The zero value (false) mitigates, so any
+	// emitter that does not set it defends by default (fail-safe). Detection-scoped
+	// allow rules suppress the event entirely and never reach a responder.
+	SuppressMitigation bool    `json:"suppress-mitigation,omitempty"`
+	PeakRxPps          float64 `json:"peak-rx-pps"`
+	PeakRxBps          float64 `json:"peak-rx-bps"`
+	Observable         bool    `json:"observable"`
 }
 
 // AttackCharacterized is the Stage-2 refinement of AttackDetected: it carries the
@@ -130,10 +153,16 @@ type AttackCharacterized struct {
 	// real attack vs a benign spike (see GradeConfidence). Annotative: observability
 	// and the dashboard reporter display it, and responders may gate on it; the
 	// mitigation vector itself keys on Target/Family/Severity.
-	Confidence int     `json:"confidence"`
-	PeakRxPps  float64 `json:"peak-rx-pps"`
-	PeakRxBps  float64 `json:"peak-rx-bps"`
-	Observable bool    `json:"observable"`
+	Confidence int `json:"confidence"`
+	// Direction and SuppressMitigation carry the same meaning as on AttackDetected.
+	// The characterized event is authoritative: when the two-stage policy evaluation
+	// flips a decision (a source rule matched once the sources were known), this event
+	// carries the final disposition and responders reconcile to it.
+	Direction          Direction `json:"direction,omitempty"`
+	SuppressMitigation bool      `json:"suppress-mitigation,omitempty"`
+	PeakRxPps          float64   `json:"peak-rx-pps"`
+	PeakRxBps          float64   `json:"peak-rx-bps"`
+	Observable         bool      `json:"observable"`
 }
 
 type AttackOngoing struct {

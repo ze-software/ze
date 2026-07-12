@@ -346,3 +346,23 @@ func (d *detector) emitCleared() {
 	d.peakRxBps = 0
 	d.attackIface = ""
 }
+
+// classifyDirection resolves whether the victim is an address this box terminates
+// (local, INPUT hook) or one it forwards (remote, FORWARD hook), via the iface
+// backend. An unresolved victim or a backend error yields remote -- the fail-safe,
+// since a local INPUT drop cannot protect an address the box does not own.
+func (d *detector) classifyDirection(victim netip.Prefix) ddosevent.Direction {
+	if !victim.IsValid() {
+		return ddosevent.DirectionRemote
+	}
+	local, err := iface.AddressIsLocal(victim.Addr())
+	if err != nil {
+		logger().Debug("ddos-detect: address-is-local lookup failed, assuming remote",
+			"victim", victim, "error", err)
+		return ddosevent.DirectionRemote
+	}
+	if local {
+		return ddosevent.DirectionLocal
+	}
+	return ddosevent.DirectionRemote
+}

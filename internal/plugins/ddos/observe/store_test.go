@@ -266,6 +266,23 @@ func TestMultipleIncidents(t *testing.T) {
 	}
 }
 
+func TestStoreRecordsDirection(t *testing.T) {
+	// VALIDATES: AC-13 -- the incident carries the victim direction from the event.
+	s := newStore(10, time.Hour)
+	s.open(&ddosevent.AttackDetected{
+		Interface: "eth0",
+		Target:    ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("203.0.113.5/32")},
+		Direction: ddosevent.DirectionRemote,
+	})
+	list := s.list()
+	if len(list) != 1 {
+		t.Fatalf("incidents: got %d, want 1", len(list))
+	}
+	if list[0].Direction != ddosevent.DirectionRemote {
+		t.Errorf("incident direction: got %q, want remote", list[0].Direction)
+	}
+}
+
 func itoa(i int) string {
 	return []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}[i]
 }

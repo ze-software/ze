@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
@@ -170,6 +171,22 @@ func (b *netlinkBackend) RouteLookup(dest netip.Addr) (map[string]any, error) {
 	result["table"] = r.Table
 
 	return result, nil
+}
+
+// AddressIsLocal reports whether dest is an address this box terminates. The
+// kernel classifies a route to an address the box owns as RTN_LOCAL (it resolves
+// in the local routing table); a forwarded destination resolves as RTN_UNICAST via
+// a gateway or connected route. Used to route DDoS mitigation (INPUT vs FORWARD).
+// A destination with no route is reported not-local (remote is the fail-safe).
+func (b *netlinkBackend) AddressIsLocal(dest netip.Addr) (bool, error) {
+	routes, err := netlink.RouteGet(net.IP(dest.AsSlice()))
+	if err != nil {
+		return false, fmt.Errorf("address-is-local lookup for %s: %w", dest, err)
+	}
+	if len(routes) == 0 {
+		return false, nil
+	}
+	return routes[0].Type == unix.RTN_LOCAL, nil
 }
 
 func protocolName(p int) string {

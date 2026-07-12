@@ -5,7 +5,6 @@ package local
 import (
 	"encoding/json"
 	"fmt"
-	"net/netip"
 	"strconv"
 	"strings"
 )
@@ -21,9 +20,15 @@ const (
 )
 
 type Config struct {
-	ResponseLevel         string         `json:"response-level"`
-	MaxMitigationDuration int            `json:"max-mitigation-duration"`
-	Allowlist             []netip.Prefix `json:"allowlist"`
+	ResponseLevel         string `json:"response-level"`
+	MaxMitigationDuration int    `json:"max-mitigation-duration"`
+	// ForwardMitigation, when true, lets the responder drop a REMOTE (transit) victim's
+	// traffic on the netfilter FORWARD hook, protecting a downstream host. Default false:
+	// the responder guards only LOCAL (box-owned) victims on INPUT and leaves remote
+	// victims to the flowspec upstream announce. The exempt-vs-mitigate decision comes
+	// from the detector's traffic policy via the event's SuppressMitigation flag; this
+	// leaf only governs whether local also acts on the forwarding plane.
+	ForwardMitigation bool `json:"forward-mitigation"`
 	// ConfidenceMin (0-100) gates the characterized mitigation path: an
 	// AttackCharacterized whose confidence is below this is not mitigated. 0 (default)
 	// disables the gate -- behavior identical to before confidence existed.
@@ -63,13 +68,9 @@ func ParseConfig(data string) (*Config, error) {
 			cfg.MaxMitigationDuration = n
 		}
 	}
-	if v, ok := m["allowlist"].([]any); ok {
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				if p, err := netip.ParsePrefix(s); err == nil {
-					cfg.Allowlist = append(cfg.Allowlist, p)
-				}
-			}
+	if v, ok := m["forward-mitigation"]; ok {
+		if b, ok := toBool(v); ok {
+			cfg.ForwardMitigation = b
 		}
 	}
 	if v, ok := m["confidence-min"]; ok {
@@ -115,4 +116,18 @@ func toInt(v any) (int, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// toBool coerces a config value (native JSON bool or the framework's string form) to
+// bool, matching the other ddos config parsers.
+func toBool(v any) (bool, bool) {
+	switch b := v.(type) {
+	case bool:
+		return b, true
+	case string:
+		if pb, err := strconv.ParseBool(strings.TrimSpace(b)); err == nil {
+			return pb, true
+		}
+	}
+	return false, false
 }

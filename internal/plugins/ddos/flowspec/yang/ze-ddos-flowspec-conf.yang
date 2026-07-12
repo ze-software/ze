@@ -7,6 +7,7 @@ module ze-ddos-flowspec-conf {
   description "FlowSpec (upstream announce) mitigation configuration. Augments the
                shared `ddos` container (owned by ze-ddos-detect-conf) with the
                `flowspec` subtree.";
+  revision 2026-07-12 { description "Remove the allowlist leaf-list; exemptions now come from the shared ddos/detect traffic policy via the event's SuppressMitigation flag, and local victims are skipped by direction."; }
   revision 2026-07-11 { description "Add confidence-min gate for the characterized announce path."; }
   revision 2026-07-02 { description "Nest under ddos/flowspec: augment /dd:ddos with container flowspec."; }
 
@@ -76,10 +77,6 @@ module ze-ddos-flowspec-conf {
         type uint8 { range "0..100"; }
         default 0;
         description "Minimum incident confidence (0-100) required to announce an upstream rule from a characterized attack. 0 (default) disables the gate. The blackhole-fallback fast path is never gated (AttackDetected carries no confidence).";
-      }
-      leaf-list allowlist {
-        type string;
-        description "Prefixes that must never be announced for mitigation.";
       }
     }
   }

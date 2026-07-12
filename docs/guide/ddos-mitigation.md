@@ -43,11 +43,14 @@ what it would do but installs no rules. Check the logs for
 ddos {
     detect {
         enabled true
+        policy {
+            default-action deny
+            rule 10.0.0.0/8 { action allow; match destination; scope mitigation }
+            rule 192.168.0.0/16 { action allow; match destination; scope mitigation }
+        }
     }
     local {
         response-level enforce
-        allowlist 10.0.0.0/8
-        allowlist 192.168.0.0/16
     }
 }
 traffic {
@@ -63,8 +66,8 @@ traffic {
 
 On attack detection the detector identifies the victim by querying on-box flow
 data, then emits the target so the local responder installs an nftables drop
-rule for it. The allowlist prevents auto-mitigation from ever blocking
-management, DNS, or other critical prefixes.
+rule for it. The `ddos detect policy` `allow` rules prevent auto-mitigation from
+ever blocking management, DNS, or other critical prefixes.
 
 **Target identification needs a flow source.** The detector reads the attacked
 destination from `traffic-usage` (with `track-ip` enabled on the exposed
@@ -132,6 +135,10 @@ Each signal carries a graded **severity** from the peak-to-threshold ratio:
 ddos {
     detect {
         enabled true
+        policy {
+            default-action deny
+            rule 10.0.0.0/8 { action allow; match destination; scope mitigation }
+        }
     }
     flowspec {
         response-level enforce
@@ -139,7 +146,6 @@ ddos {
         rate-limit-bytes 1000000
         hold-down 300
         probe-interval 60
-        allowlist 10.0.0.0/8
     }
 }
 ```
@@ -211,6 +217,7 @@ server-driven mitigation commands.
 | `characterize-window` | `10` | 1-60 s | Seconds of recent flows to consider (timestamp-less flows always kept) |
 | `characterize-timeout` | `2000` | 50-5000 ms | Budget for the on-trigger traffic-usage / flow-recent queries |
 | `entropy-threshold` | `2.00` | 0.00-16.00 bits | Source-entropy at/above which an attack is logged as distributed/spoofed |
+| `policy` | (default-action `deny`) | container | Allow/deny traffic policy (see [Traffic policy](#traffic-policy)) that exempts or defends prefixes; replaces the old per-responder allowlists |
 
 **How the threshold works:**
 ```
@@ -255,7 +262,7 @@ duration is not a factor.
 | `response-level` | `alert` | alert, enforce | `alert` logs only; `enforce` installs nft drop rules |
 | `max-mitigation-duration` | `3600` | 0-86400 s | Safety valve: force-remove rule after this many seconds (0 = no cap) |
 | `confidence-min` | `0` | 0-100 | Minimum incident confidence to mitigate from a characterized attack (`0` = no gate). Note: the coarse drop on the fast `AttackDetected` carries no confidence, so this only gates the in-place narrowing on the characterized path |
-| `allowlist` | (empty) | prefix list | Prefixes that must never be blocked (e.g. management, DNS) |
+| `forward-mitigation` | `false` | bool | Also drop a remote (transit) victim's traffic on the netfilter FORWARD hook to protect a downstream host. Default guards only local (box-owned) victims on INPUT and leaves remote victims to flowspec (see [Direction](#direction-local-vs-remote)) |
 
 ### ddos flowspec (FlowSpec/RTBH responder)
 
@@ -273,7 +280,6 @@ duration is not a factor.
 | `backoff-cap` | `3600` | 1-604800 s | Maximum hold-down after exponential backoff |
 | `blackhole-fallback` | `false` | bool | Engage an immediate upstream `discard` on a `critical` fast signal without waiting for characterization |
 | `confidence-min` | `0` | 0-100 | Minimum incident confidence to announce an upstream rule from a characterized attack (`0` = no gate). The blackhole-fallback fast path is never gated (it carries no confidence) |
-| `allowlist` | (empty) | prefix list | Prefixes that must never be announced for mitigation |
 
 ### ddos flowtriq (Flowtriq cloud reporter)
 
@@ -293,24 +299,73 @@ duration is not a factor.
    the detector triggers on legitimate traffic spikes.
 
 2. Once confident in detection accuracy, switch `ddos local` to `enforce` mode.
-   Always configure the `allowlist` with management, DNS, and control plane
-   prefixes.
+   Always configure the `ddos detect policy` with `allow` rules for management,
+   DNS, and control-plane prefixes so mitigation never blocks them.
 
 3. For upstream mitigation, add `ddos flowspec` in `alert` mode first, then
    `enforce`. The hold-down and probe parameters control how aggressively the
    responder probes for attack end.
 
-### Allowlist
+### Traffic policy
 
-The allowlist is critical. Every responder subtracts allowlisted prefixes from
-the mitigation match before installing or announcing. If the target is fully
-covered by the allowlist, no action is taken and a log message explains why.
+The `ddos detect policy` is a single allow/deny policy, indexed by prefix, that
+governs how detected attacks are handled. It replaces the old per-responder
+`allowlist` leaves (which are removed: a config still using them fails validation
+with `unknown field ... allowlist`). The detector is the single enforcement point and
+encodes the decision on the emitted event, so every responder honors one policy
+without duplicating it.
+<!-- source: internal/plugins/ddos/detect/policy.go -- Policy.evaluate; characterize.go sets SuppressMitigation on the event -->
 
-Configure at minimum:
-- Management/SSH prefix
-- DNS server addresses
-- BGP session endpoints
-- Any prefix where dropping traffic would cause a control plane outage
+Each `rule` is keyed by a prefix and carries:
+
+| Leaf | Values | Meaning |
+|------|--------|---------|
+| `action` | `allow`, `deny` | `allow` exempts matching traffic; `deny` subjects it to DDoS handling |
+| `match` | `source`, `destination`, `any` (default) | Match the prefix against the attack source, the victim, or either |
+| `scope` | `detection`, `mitigation` (default) | For `allow`: `detection` suppresses the incident entirely; `mitigation` still records it but never blocks |
+
+`default-action` (default `deny`) applies when no rule matches. Rules are evaluated
+**longest-prefix-match**: the most specific rule wins, so a `/24 deny` inside a
+`/16 allow` is decided by the `/24` with no ordering needed. Ties resolve to `deny`.
+Source rules are evaluated once the attack sources are characterized; that
+characterized decision is authoritative and withdraws a fast-path drop if it flips to
+exempt.
+
+Example: defend everything, exempt a management block from blocking (but keep seeing
+incidents), and never even flag a trusted scanner source:
+
+```
+ddos {
+    detect {
+        policy {
+            default-action deny;
+            rule 198.51.100.0/24 { action allow; match destination; scope mitigation; }
+            rule 203.0.113.7/32   { action allow; match source;      scope detection;  }
+        }
+    }
+}
+```
+
+Configure `allow` rules at minimum for: management/SSH prefixes, DNS servers, BGP
+session endpoints, and any prefix where dropping traffic would cause a control-plane
+outage.
+
+**Migration from `allowlist`:** move each `ddos local` / `ddos flowspec` `allowlist X`
+entry to a `ddos detect policy` `rule X { action allow; match destination; scope
+mitigation; }`. For entries you want fully invisible (no incident logged), use
+`scope detection`.
+
+### Direction (local vs remote)
+
+The detector classifies each attack's victim as **local** (an address the box
+terminates: control-plane traffic on the netfilter INPUT hook) or **remote** (a
+downstream host it forwards: FORWARD hook), shown in `show ddos incidents` as
+`direction`. Mitigation is routed by direction: the local responder installs an
+INPUT-hook drop for local victims, flowspec announces upstream for remote victims,
+and the local responder additionally installs a FORWARD-hook drop for remote victims
+only when `ddos local forward-mitigation` is enabled. An unresolved victim is treated
+as remote (a local INPUT drop cannot protect an address the box does not own).
+<!-- source: internal/component/iface/dispatch.go -- AddressIsLocal; detector.go classifyDirection; local/responder.go hookForDirection -->
 
 ### Local mode clear signal
 

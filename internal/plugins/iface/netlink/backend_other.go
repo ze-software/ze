@@ -62,6 +62,7 @@ func (s *stubBackend) ListInterfaces() ([]iface.InterfaceInfo, error)         { 
 func (s *stubBackend) GetInterface(_ string) (*iface.InterfaceInfo, error)    { return nil, unsupported() }
 func (s *stubBackend) ListNeighbors(_ int) ([]iface.NeighborInfo, error)      { return nil, unsupported() }
 func (s *stubBackend) RouteLookup(_ netip.Addr) (map[string]any, error)       { return nil, unsupported() }
+func (s *stubBackend) AddressIsLocal(_ netip.Addr) (bool, error)              { return false, unsupported() }
 func (s *stubBackend) ListKernelRoutes(_ string, _ int) ([]iface.KernelRoute, error) {
 	return nil, unsupported()
 }

@@ -72,29 +72,8 @@ func TestLocalTCPFlagsMatch(t *testing.T) {
 	}
 }
 
-func TestAllowlistSubtraction(t *testing.T) {
-	// VALIDATES: AC-2 -- allowlisted prefix produces no term
-	v := ddosevent.VectorTuple{
-		DstPrefix: netip.MustParsePrefix("10.0.0.1/32"),
-		Proto:     17,
-		DstPort:   53,
-	}
-	allowlist := []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")}
-	ok := shouldMitigate(v, allowlist)
-	if ok {
-		t.Error("should not mitigate an allowlisted target")
-	}
-}
-
-func TestAllowlistNoOverlap(t *testing.T) {
-	v := ddosevent.VectorTuple{
-		DstPrefix: netip.MustParsePrefix("192.168.1.1/32"),
-		Proto:     6,
-		DstPort:   80,
-	}
-	allowlist := []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}
-	ok := shouldMitigate(v, allowlist)
-	if !ok {
-		t.Error("should mitigate a non-allowlisted target")
-	}
-}
+// test-relax: TestAllowlistSubtraction / TestAllowlistNoOverlap removed -- the
+// per-responder allowlist (shouldMitigate) was replaced by the detector's traffic
+// policy, which decides exempt-vs-mitigate and delivers it via the event's
+// SuppressMitigation flag (spec-ddos-direction-allowlist). Coverage moves to the
+// detector policy_test.go and the responder SuppressMitigation tests.

@@ -1,0 +1,36 @@
+# spec-ddos-direction-allowlist: the ddos/detect traffic policy (default-action +
+# prefix-keyed allow/deny rules with match + scope) and the local forward-mitigation
+# leaf validate against the YANG schema; the REMOVED per-responder allowlist leaf is
+# now rejected as an unknown field (AC-15, the migration signal).
+stdin=goodconfig:terminator=EOF_GOOD
+ddos {
+    detect {
+        enabled true;
+        policy {
+            default-action deny;
+            rule 192.0.2.0/24 { action deny; match destination; scope mitigation; }
+            rule 192.0.0.0/16 { action allow; match destination; scope mitigation; }
+            rule 198.51.100.7/32 { action allow; match source; scope detection; }
+        }
+    }
+    local {
+        response-level enforce;
+        forward-mitigation true;
+    }
+}
+EOF_GOOD
+
+stdin=badconfig:terminator=EOF_BAD
+ddos {
+    local {
+        allowlist 10.0.0.0/8;
+    }
+}
+EOF_BAD
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=goodconfig
+expect=exit:code=0
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=badconfig
+expect=exit:code=1
+expect=stdout:contains=allowlist
