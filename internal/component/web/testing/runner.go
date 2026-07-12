@@ -51,17 +51,30 @@ func NewBrowserWithSession(baseURL, session string) *Browser {
 func (b *Browser) Open(path string) error {
 	var tb textbuf.Buffer
 	url := tb.Str(b.baseURL).Str(path).String()
-	if b.daemonStarted {
-		if err := b.runAgent("open", url); err != nil {
-			return fmt.Errorf("open %s: %w", url, err)
-		}
-	} else {
-		if err := b.runAgentWithHTTPSIgnore("open", url); err != nil {
-			return fmt.Errorf("open %s: %w", url, err)
-		}
-		b.daemonStarted = true
+	if err := b.runAgentEnsureDaemon("open", url); err != nil {
+		return fmt.Errorf("open %s: %w", url, err)
 	}
 	return b.WaitLoad()
+}
+
+// runAgentEnsureDaemon runs an agent-browser command, guaranteeing the daemon is
+// started with --ignore-https-errors. That flag is honored only at daemon
+// launch, so it must ride whichever command spawns the daemon -- open, set
+// viewport, or set headers, whichever the test issues first. Once the daemon is
+// running the flag is a no-op and is dropped. The latch flips only after a
+// successful start, so a failed launch still retries with the flag. Routing
+// every pre-navigation command through here is what stops a preceding
+// option=viewport / option=locale from starting the daemon WITHOUT cert-ignore
+// (which surfaced as ERR_CERT_AUTHORITY_INVALID on the following open).
+func (b *Browser) runAgentEnsureDaemon(args ...string) error {
+	if b.daemonStarted {
+		return b.runAgent(args...)
+	}
+	if err := b.runAgentWithHTTPSIgnore(args...); err != nil {
+		return err
+	}
+	b.daemonStarted = true
+	return nil
 }
 
 // WaitLoad waits for in-flight fetch/XHR requests to drain. The finder UI
@@ -113,7 +126,7 @@ func (b *Browser) SetViewport(width, height int) error {
 	var tb textbuf.Buffer
 	w := tb.Int(int64(width)).String()
 	h := tb.Reset().Int(int64(height)).String()
-	return b.runAgent("set", "viewport", w, h)
+	return b.runAgentEnsureDaemon("set", "viewport", w, h)
 }
 
 // SetLocale sets the browser Accept-Language header (agent-browser set headers
@@ -121,7 +134,7 @@ func (b *Browser) SetViewport(width, height int) error {
 func (b *Browser) SetLocale(lang string) error {
 	var tb textbuf.Buffer
 	hdr := tb.Str(`{"Accept-Language":"`).Str(lang).Str(`"}`).String()
-	return b.runAgent("set", "headers", hdr)
+	return b.runAgentEnsureDaemon("set", "headers", hdr)
 }
 
 // Login drives the login form: it navigates to the root (which renders the

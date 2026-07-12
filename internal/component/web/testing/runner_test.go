@@ -27,6 +27,37 @@ func TestBrowserOpenUsesHTTPSIgnoreOnlyForDaemonStart(t *testing.T) {
 	})
 }
 
+// TestBrowserViewportBeforeOpenStartsDaemonWithHTTPSIgnore is the regression
+// guard for the ERR_CERT_AUTHORITY_INVALID failure of option=viewport /
+// option=locale tests. --ignore-https-errors is honored only at daemon launch,
+// so it must ride whichever command starts the daemon. When SetViewport (or
+// SetLocale) precedes the first Open, that pre-navigation command is the one
+// that spawns the daemon and therefore must carry the flag; the later Open must
+// NOT repeat it. Before the fix SetViewport used a plain runAgent, starting the
+// daemon without cert-ignore, and the following open failed against the
+// self-signed web cert.
+func TestBrowserViewportBeforeOpenStartsDaemonWithHTTPSIgnore(t *testing.T) {
+	logPath := installFakeAgentBrowser(t)
+	browser := NewBrowser("https://127.0.0.1:1234")
+
+	if err := browser.SetViewport(390, 844); err != nil {
+		t.Fatalf("set viewport: %v", err)
+	}
+	if err := browser.SetLocale("fr"); err != nil {
+		t.Fatalf("set locale: %v", err)
+	}
+	if err := browser.Open("/"); err != nil {
+		t.Fatalf("open: %v", err)
+	}
+
+	assertAgentCommands(t, logPath, []string{
+		"--ignore-https-errors set viewport 390 844",
+		`set headers {"Accept-Language":"fr"}`,
+		"open https://127.0.0.1:1234/",
+		"eval " + inflightIdleExpr,
+	})
+}
+
 func TestBrowserCloseResetsDaemonStart(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
 	browser := NewBrowser("https://127.0.0.1:1234")

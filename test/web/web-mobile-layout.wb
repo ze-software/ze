@@ -18,4 +18,6 @@ action=open:path=/admin/peer/
 expect=element:text=admin
 
 action=open:path=/cli
-expect=element:id=cli-input
+# The default workbench CLI page renders the terminal input as id=terminal-input;
+# id=cli-input is the Finder-mode bar (ze.web.ui=finder), not this page.
+expect=element:id=terminal-input

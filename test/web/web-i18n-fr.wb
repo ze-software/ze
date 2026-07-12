@@ -4,14 +4,21 @@
 # PREVENTS: an i18n regression where the locale is ignored and the UI stays
 #           English, or a missing key renders blank
 #
-# option=auth forces real authentication so an unauthenticated GET / renders the
+# option=auth forces real authentication so an unauthenticated GET renders the
 # login page; option=locale sets the browser Accept-Language the server reads
 # via LocaleFromRequest.
+#
+# Open /login (not /) directly: an unauthenticated GET / issues a 302 to /show/,
+# and the browser does NOT resend option=locale's simulated Accept-Language
+# header across that redirect (agent-browser sets it via CDP extraHTTPHeaders,
+# which a real French browser's native Accept-Language would survive but this
+# simulation does not). GET /login renders the same login page with a 401 and no
+# redirect, so the locale header reaches LocaleFromRequest and French renders.
 
 option=timeout:value=30s
 option=auth:user=admin:password=ze-web-admin
 option=locale:lang=fr
 
-action=open:path=/
+action=open:path=/login
 expect=element:text=Connexion
 expect=element:text=Se connecter

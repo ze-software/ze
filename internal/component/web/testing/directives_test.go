@@ -65,7 +65,8 @@ func TestParseViewportRejectsNonNumeric(t *testing.T) {
 }
 
 // TestSetViewportEmitsCommand verifies the viewport directive drives the real
-// agent-browser "set viewport <w> <h>" command.
+// agent-browser "set viewport <w> <h>" command. As the first command on a fresh
+// browser it also starts the daemon, so it must carry --ignore-https-errors.
 func TestSetViewportEmitsCommand(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
 	b := NewBrowser("https://127.0.0.1:1234")
@@ -73,13 +74,15 @@ func TestSetViewportEmitsCommand(t *testing.T) {
 		t.Fatalf("SetViewport: %v", err)
 	}
 	cmds := readAgentLog(t, logPath)
-	if !slices.Contains(cmds, "set viewport 390 844") {
-		t.Errorf("commands = %v, want 'set viewport 390 844'", cmds)
+	if !slices.Contains(cmds, "--ignore-https-errors set viewport 390 844") {
+		t.Errorf("commands = %v, want '--ignore-https-errors set viewport 390 844'", cmds)
 	}
 }
 
 // TestSetLocaleEmitsAcceptLanguageHeader verifies the locale directive drives
-// the agent-browser "set headers" command with an Accept-Language override.
+// the agent-browser "set headers" command with an Accept-Language override. As
+// the first command on a fresh browser it also starts the daemon, so it must
+// carry --ignore-https-errors.
 func TestSetLocaleEmitsAcceptLanguageHeader(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
 	b := NewBrowser("https://127.0.0.1:1234")
@@ -87,8 +90,8 @@ func TestSetLocaleEmitsAcceptLanguageHeader(t *testing.T) {
 		t.Fatalf("SetLocale: %v", err)
 	}
 	cmds := readAgentLog(t, logPath)
-	if !slices.Contains(cmds, `set headers {"Accept-Language":"fr"}`) {
-		t.Errorf("commands = %v, want the Accept-Language header set", cmds)
+	if !slices.Contains(cmds, `--ignore-https-errors set headers {"Accept-Language":"fr"}`) {
+		t.Errorf("commands = %v, want the Accept-Language header set with cert-ignore", cmds)
 	}
 }
 
@@ -124,8 +127,11 @@ func TestRunWBTestCaseAppliesViewportAndLocaleFirst(t *testing.T) {
 		t.Fatalf("run failed: %s", res.Error)
 	}
 	cmds := readAgentLog(t, logPath)
-	viewportIdx := slices.IndexFunc(cmds, func(c string) bool { return strings.HasPrefix(c, "set viewport") })
-	localeIdx := slices.IndexFunc(cmds, func(c string) bool { return strings.HasPrefix(c, "set headers") })
+	// Contains (not HasPrefix): the daemon-starting command carries a leading
+	// --ignore-https-errors global flag, so the "set viewport"/"set headers"
+	// text is not necessarily at the start of the logged line.
+	viewportIdx := slices.IndexFunc(cmds, func(c string) bool { return strings.Contains(c, "set viewport") })
+	localeIdx := slices.IndexFunc(cmds, func(c string) bool { return strings.Contains(c, "set headers") })
 	openIdx := slices.IndexFunc(cmds, func(c string) bool { return strings.Contains(c, "open https://") })
 	if viewportIdx < 0 || localeIdx < 0 || openIdx < 0 {
 		t.Fatalf("missing commands: viewport=%d locale=%d open=%d in %v", viewportIdx, localeIdx, openIdx, cmds)
