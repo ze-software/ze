@@ -195,8 +195,10 @@ func runNTPPlugin(conn net.Conn) int {
 
 	// Shutdown: save time and stop worker.
 	if worker != nil {
+		// persist-path is vestigial: a non-empty value enables the final save; the
+		// store location is the shared zefs store, not the path.
 		if worker.cfg.PersistPath != "" {
-			if err := saveTime(worker.cfg.PersistPath, currentTime()); err != nil {
+			if err := saveTime(currentTime()); err != nil {
 				log.Debug("ntp: final time save failed", "err", err)
 			}
 		}

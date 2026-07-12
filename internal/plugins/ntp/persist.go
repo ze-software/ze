@@ -1,47 +1,44 @@
-// Design: docs/features/interfaces.md -- NTP time persistence
+// Design: docs/features/interfaces.md -- NTP time persistence.
+// The last-known time persists in the shared zefs store (ai/rules/zefs-persistence.md)
+// via internal/core/statestore, not a loose file, so it lives inside the managed
+// database.zefs alongside other appliance state on the writable /perm partition.
 
 package ntp
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-// saveTime writes the current time to the given path as RFC3339 text.
-// Written atomically (tmp + rename) to avoid corrupt reads on crash.
-func saveTime(path string, t time.Time) error {
+// saveTime persists t as RFC3339 text into the shared zefs store under the NTP
+// last-time key. Best-effort: statestore is a no-op when no store is registered,
+// so an absent store returns nil. The caller logs failures at debug and never
+// treats them as fatal.
+func saveTime(t time.Time) error {
 	buf, err := t.MarshalText()
 	if err != nil {
 		return fmt.Errorf("ntp persist: marshal: %w", err)
 	}
-
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o750); err != nil {
-		return fmt.Errorf("ntp persist: mkdir %s: %w", dir, err)
-	}
-
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, buf, 0o644); err != nil { //nolint:gosec // time file is not sensitive
-		return fmt.Errorf("ntp persist: write %s: %w", tmp, err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		return fmt.Errorf("ntp persist: rename: %w", err)
+	if _, err := statestore.Put(zefs.KeyNTPLastTime.Pattern, buf); err != nil {
+		return fmt.Errorf("ntp persist: store write: %w", err)
 	}
 	return nil
 }
 
-// loadTime reads a previously saved time from the given path.
-// Returns an error if the file does not exist or is corrupt.
-func loadTime(path string) (time.Time, error) {
-	buf, err := os.ReadFile(path) //nolint:gosec // path is from config, not user input
-	if err != nil {
-		return time.Time{}, fmt.Errorf("ntp persist: read %s: %w", path, err)
+// loadTime reads a previously saved time from the shared zefs store. Returns an
+// error when no store is registered, the key is absent, the blob is corrupt, or
+// the saved year is out of range.
+func loadTime() (time.Time, error) {
+	buf, ok := statestore.Get(zefs.KeyNTPLastTime.Pattern)
+	if !ok {
+		return time.Time{}, fmt.Errorf("ntp persist: no saved time")
 	}
 	var t time.Time
 	if err := t.UnmarshalText(buf); err != nil {
-		return time.Time{}, fmt.Errorf("ntp persist: parse %s: %w", path, err)
+		return time.Time{}, fmt.Errorf("ntp persist: parse: %w", err)
 	}
 	// Reject absurd saved times.
 	if t.Year() < 2020 || t.Year() > 2100 {

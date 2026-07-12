@@ -83,7 +83,7 @@ func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
 // table is re-registered identically; the only difference is how surgical the
 // term is.
 func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddosevent.AttackFamily, phase string) {
-	if r.cfg.ResponseLevel != "enforce" {
+	if r.cfg.ResponseLevel != responseEnforce {
 		logger().Info("ddos-local: alert mode, would mitigate",
 			"target", target.DstPrefix, "family", family, "phase", phase)
 		return

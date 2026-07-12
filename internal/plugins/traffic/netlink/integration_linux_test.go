@@ -4,8 +4,6 @@ package trafficnetlink
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -132,8 +130,8 @@ func TestNetlinkIntegration_RestoreOriginalQdiscAfterRestart(t *testing.T) {
 			t.Fatalf("initial root qdisc = %q, want fq", got)
 		}
 
-		path := filepath.Join(t.TempDir(), "state", "traffic-tc-snapshots.json")
-		b := newBackendWithOps(netlinkOps{}, path, nil, "boot-1", nil)
+		registerSnapshotStore(t)
+		b := newBackendWithOps(netlinkOps{}, nil, "boot-1", nil)
 		desired := map[string]traffic.InterfaceQoS{
 			ifaceName: {
 				Interface: ifaceName,
@@ -152,23 +150,26 @@ func TestNetlinkIntegration_RestoreOriginalQdiscAfterRestart(t *testing.T) {
 		if got := rootQdiscTypeInKernel(t, ifaceName); got != "htb" {
 			t.Fatalf("applied root qdisc = %q, want htb", got)
 		}
-		if _, err := os.Stat(path); err != nil {
-			t.Fatalf("snapshot file missing after Apply: %v", err)
-		}
-
-		loaded, err := loadTCSnapshots(path)
+		loaded, err := loadTCSnapshots()
 		if err != nil {
 			t.Fatalf("load snapshots after Apply: %v", err)
 		}
-		restarted := newBackendWithOps(netlinkOps{}, path, nil, "boot-1", loaded)
+		if len(loaded) == 0 {
+			t.Fatal("no snapshot persisted after Apply")
+		}
+		restarted := newBackendWithOps(netlinkOps{}, nil, "boot-1", loaded)
 		if err := restarted.RestoreOriginal(context.Background(), ifaceName); err != nil {
 			t.Fatalf("RestoreOriginal after restart: %v", err)
 		}
 		if got := rootQdiscTypeInKernel(t, ifaceName); got != "fq" {
 			t.Fatalf("restored root qdisc = %q, want fq", got)
 		}
-		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			t.Fatalf("snapshot file still exists after restore: %v", err)
+		remaining, err := loadTCSnapshots()
+		if err != nil {
+			t.Fatalf("load snapshots after restore: %v", err)
+		}
+		if len(remaining) != 0 {
+			t.Fatalf("snapshots still persisted after restore = %v, want empty", remaining)
 		}
 	})
 }

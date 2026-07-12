@@ -2,9 +2,11 @@ package detect
 
 import (
 	"math"
-	"os"
 	"path/filepath"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 func makeSamples(n int, v float64) []float64 {
@@ -15,17 +17,35 @@ func makeSamples(n int, v float64) []float64 {
 	return s
 }
 
-// VALIDATES: a persisted snapshot round-trips through save + load unchanged.
+// useBaselineStore registers a fresh temp database.zefs as the process-wide
+// statestore so baseline persistence round-trips through the real zefs store (not a
+// loose file), and resets the store to nil on cleanup.
+func useBaselineStore(t *testing.T) {
+	t.Helper()
+	bs, err := zefs.Create(filepath.Join(t.TempDir(), "database.zefs"))
+	if err != nil {
+		t.Fatalf("zefs.Create: %v", err)
+	}
+	statestore.SetStore(bs)
+	t.Cleanup(func() {
+		statestore.SetStore(nil)
+		if err := bs.Close(); err != nil {
+			t.Fatalf("close: %v", err)
+		}
+	})
+}
+
+// VALIDATES: a persisted snapshot round-trips through save + load unchanged, via zefs.
 func TestSaveLoadBaselinesRoundTrip(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "state", "ddos-detect-baseline.json")
+	useBaselineStore(t)
 	pps := baselineState{Samples: makeSamples(300, 1000), Count: 300, P99Cache: 1000}
 	bps := baselineState{Samples: makeSamples(300, 20000), Count: 300, P99Cache: 20000}
-	if err := saveBaselines(path, pps, bps); err != nil {
+	if err := saveBaselines(pps, bps); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	blob, ok := loadBaselines(path)
+	blob, ok := loadBaselines()
 	if !ok {
-		t.Fatal("load returned ok=false for a freshly saved file")
+		t.Fatal("load returned ok=false for a freshly saved snapshot")
 	}
 	if blob.Version != baselineStateVersion {
 		t.Errorf("version = %d, want %d", blob.Version, baselineStateVersion)
@@ -40,26 +60,29 @@ func TestSaveLoadBaselinesRoundTrip(t *testing.T) {
 
 // VALIDATES: AC-6 -- a version mismatch is rejected (warm fresh, no crash).
 func TestLoadBaselines_RejectsVersion(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "baseline.json")
-	if err := os.WriteFile(path, []byte(`{"version":999,"pps":{"samples":[1,2,3]},"bps":{"samples":[]}}`), 0o600); err != nil {
+	useBaselineStore(t)
+	if _, err := statestore.Put(zefs.KeyDDoSDetectBaseline.Pattern,
+		[]byte(`{"version":999,"pps":{"samples":[1,2,3]},"bps":{"samples":[]}}`)); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := loadBaselines(path); ok {
+	if _, ok := loadBaselines(); ok {
 		t.Error("expected ok=false for a version mismatch")
 	}
 }
 
-// VALIDATES: AC-6 -- a missing/corrupt file is rejected without error.
+// VALIDATES: AC-6 -- a missing store or corrupt blob is rejected without error.
 func TestLoadBaselines_MissingAndCorrupt(t *testing.T) {
-	dir := t.TempDir()
-	if _, ok := loadBaselines(filepath.Join(dir, "absent.json")); ok {
-		t.Error("expected ok=false for a missing file")
+	// No store registered: best-effort no-op restore.
+	statestore.SetStore(nil)
+	if _, ok := loadBaselines(); ok {
+		t.Error("expected ok=false when no store is registered")
 	}
-	corrupt := filepath.Join(dir, "corrupt.json")
-	if err := os.WriteFile(corrupt, []byte(`{not json`), 0o600); err != nil {
+	// Corrupt blob under the key in a registered store.
+	useBaselineStore(t)
+	if _, err := statestore.Put(zefs.KeyDDoSDetectBaseline.Pattern, []byte(`{not json`)); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := loadBaselines(corrupt); ok {
+	if _, ok := loadBaselines(); ok {
 		t.Error("expected ok=false for corrupt JSON")
 	}
 }

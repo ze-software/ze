@@ -108,24 +108,20 @@ func TestBootWithInvalidPushedConfigFallsBack(t *testing.T) {
 func TestConfigActiveHashWritten(t *testing.T) {
 	store := setupPushedConfigTest(t)
 
-	var writtenHash string
-	writeActiveHash = func(hash string) error {
-		writtenHash = hash
-		return nil
-	}
-	t.Cleanup(func() { writeActiveHash = defaultWriteActiveHash })
-
 	writeConfigActiveHash(store, "ze.conf")
 
-	if writtenHash == "" {
-		t.Fatal("config-active-hash not written")
+	// The active-config hash is ze's own output state, persisted in the shared
+	// zefs store under KeyConfigActiveHash (not a loose file).
+	got, err := store.ReadFile(zefs.KeyConfigActiveHash.Pattern)
+	if err != nil {
+		t.Fatalf("config-active-hash not written to store: %v", err)
 	}
 
 	activeData, _ := store.ReadFile(zefs.KeyFileActive.Key("ze.conf"))
 	h := sha256.Sum256(activeData)
 	want := fmt.Sprintf("sha256:%x", h)
-	if writtenHash != want {
-		t.Errorf("hash = %q, want %q", writtenHash, want)
+	if string(got) != want {
+		t.Errorf("hash = %q, want %q", got, want)
 	}
 }
 

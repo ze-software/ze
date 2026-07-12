@@ -40,10 +40,6 @@ type detector struct {
 	// bandwidth trigger. Same type and poisoning guard as the PPS baseline; its
 	// floor is bytes/sec (cfg.BpsFloor is bits/sec, divided by 8 at construction).
 	baselineBps *baseline
-	// statePath is where both baselines are persisted (restored on start, saved on
-	// Stop and periodically) so a restart skips the BaselineWindow re-warm. Empty
-	// disables persistence -- register.go sets it before restore(); tests inject it.
-	statePath string
 	// saveMu serializes baseline persistence so the periodic save (spawned off the
 	// tick) never races the save-on-Stop on the same file.
 	saveMu  sync.Mutex
@@ -113,12 +109,12 @@ func (d *detector) Stop() {
 	d.saveBaseline()
 }
 
-// restore loads the persisted baselines from d.statePath into the live baselines so
-// a restart/reconfigure resumes detection without re-warming over BaselineWindow.
-// No-op when the file is absent or rejected (warm fresh). Called once after
-// construction, before subscribing to rates.
+// restore loads the persisted baselines from the shared zefs store into the live
+// baselines so a restart/reconfigure resumes detection without re-warming over
+// BaselineWindow. No-op when the store or key is absent or rejected (warm fresh).
+// Called once after construction, before subscribing to rates.
 func (d *detector) restore() {
-	blob, ok := loadBaselines(d.statePath)
+	blob, ok := loadBaselines()
 	if !ok {
 		return
 	}
@@ -126,26 +122,23 @@ func (d *detector) restore() {
 	rb := d.baselineBps.restore(blob.Bps)
 	if rp || rb {
 		logger().Info("ddos-detect: baseline restored from disk",
-			"path", d.statePath, "pps-ready", d.baseline.Ready(), "bps-ready", d.baselineBps.Ready())
+			"pps-ready", d.baseline.Ready(), "bps-ready", d.baselineBps.Ready())
 	}
 }
 
 // saveBaseline persists both baselines. The snapshot is taken under d.mu; the file
-// I/O runs off the lock so a slow disk never stalls the rate tick (R-4).
+// I/O runs off the lock so a slow disk never stalls the rate tick (R-4). Best-effort:
+// saveBaselines is a no-op when no shared store is registered.
 func (d *detector) saveBaseline() {
 	d.mu.Lock()
 	pps := d.baseline.snapshot()
 	bps := d.baselineBps.snapshot()
-	path := d.statePath
 	d.mu.Unlock()
-	if path == "" {
-		return
-	}
 	// Serialize concurrent saves (periodic vs on-stop) so they never overlap on the
-	// temp file. Held only around the file I/O, never with d.mu, so the tick is free.
+	// store. Held only around the file I/O, never with d.mu, so the tick is free.
 	d.saveMu.Lock()
 	defer d.saveMu.Unlock()
-	if err := saveBaselines(path, pps, bps); err != nil {
+	if err := saveBaselines(pps, bps); err != nil {
 		logger().Debug("ddos-detect: baseline save failed", "error", err)
 	}
 }

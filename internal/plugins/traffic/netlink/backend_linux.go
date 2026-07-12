@@ -17,9 +17,17 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
 )
 
 var errNoRootQdiscFound = errors.New("no root qdisc found")
+
+// errSnapshotPersistUnavailable gates the destructive qdisc replace: when no state
+// store is registered, saveTCSnapshots silently no-ops, so replacing the operator's
+// root qdisc would strand the original unrestorable across a crash/restart. The
+// backend refuses to snapshot-and-replace in that state, exactly as an unresolved
+// config directory did before persistence moved into the shared zefs store.
+var errSnapshotPersistUnavailable = errors.New("tc snapshot persistence unavailable: no state store registered")
 
 // resolveOSName translates a logical interface name to its kernel device via the
 // shared iface resolver, so tc operations honor the os-name / mac-match
@@ -40,27 +48,30 @@ func resolveOSName(name string) string {
 type backend struct {
 	mu               sync.Mutex
 	ops              tcOps
-	snapshotPath     string
 	snapshotReadyErr error
 	bootID           string
 	snapshots        map[string]tcInterfaceSnapshot
 }
 
 func newBackend() (traffic.Backend, error) {
-	path, pathErr := defaultSnapshotPath()
+	// Only a failed boot-id read gates snapshot readiness at construction, since
+	// without it snapshot identity cannot be validated. Persistence availability is
+	// not captured here: it is re-checked at snapshot time in ensureSnapshot against
+	// the process-wide statestore, so a store registered after construction is
+	// honored and a missing store blocks the destructive qdisc replace.
 	bootID, bootErr := currentBootID()
-	snapshots, loadErr := loadTCSnapshots(path)
+	snapshots, loadErr := loadTCSnapshots()
 	if loadErr != nil {
 		return nil, loadErr
 	}
-	return newBackendWithOps(netlinkOps{}, path, errors.Join(pathErr, bootErr), bootID, snapshots), nil
+	return newBackendWithOps(netlinkOps{}, bootErr, bootID, snapshots), nil
 }
 
-func newBackendWithOps(ops tcOps, snapshotPath string, snapshotReadyErr error, bootID string, snapshots map[string]tcInterfaceSnapshot) *backend {
+func newBackendWithOps(ops tcOps, snapshotReadyErr error, bootID string, snapshots map[string]tcInterfaceSnapshot) *backend {
 	if snapshots == nil {
 		snapshots = map[string]tcInterfaceSnapshot{}
 	}
-	return &backend{ops: ops, snapshotPath: snapshotPath, snapshotReadyErr: snapshotReadyErr, bootID: bootID, snapshots: snapshots}
+	return &backend{ops: ops, snapshotReadyErr: snapshotReadyErr, bootID: bootID, snapshots: snapshots}
 }
 
 // Apply programs tc configuration on each named interface: snapshot the original
@@ -148,6 +159,13 @@ func (b *backend) ensureSnapshot(link netlink.Link) error {
 	}
 	if b.snapshotReadyErr != nil {
 		return b.snapshotReadyErr
+	}
+	// Persistence interlock: a NEW snapshot is only durable if a state store is
+	// registered. With none, saveSnapshots below no-ops, so replacing the root
+	// qdisc would leave the original unrestorable after a restart. Bail BEFORE the
+	// caller's qdiscReplace rather than destroy state we cannot persist.
+	if statestore.Store() == nil {
+		return errSnapshotPersistUnavailable
 	}
 	qdiscs, err := b.ops.qdiscList(link)
 	if err != nil {
@@ -252,7 +270,7 @@ func (b *backend) restoreOriginalLocked(ifaceName string) error {
 }
 
 func (b *backend) saveSnapshots() error {
-	return saveTCSnapshots(b.snapshotPath, b.snapshots)
+	return saveTCSnapshots(b.snapshots)
 }
 
 // ListQdiscs returns current tc state for an interface.

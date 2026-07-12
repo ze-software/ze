@@ -2,9 +2,7 @@ package engine
 
 import (
 	"net/netip"
-	"os"
 	"path/filepath"
-	"strconv"
 	"testing"
 	"time"
 
@@ -13,6 +11,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
 	"codeberg.org/thomas-mangin/ze/internal/component/bfd/transport"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 const (
@@ -221,13 +221,31 @@ func TestEnsureSessionRefcount(t *testing.T) {
 }
 
 // VALIDATES: Loop.Stop closes the auth persister of every pinned
-// session so the Meticulous Keyed TX sequence reaches disk before the
-// process exits, even when ReleaseSession was never called.
+// session so the Meticulous Keyed TX sequence reaches the shared zefs
+// store before the process exits, even when ReleaseSession was never
+// called.
 // PREVENTS: regression of the bfd-auth-meticulous-persist flake where
 // the runtime teardown path skipped CloseAuth on still-pinned sessions
 // and the persister's 500 ms ticker was the only flush mechanism.
 func TestLoopStopFlushesPinnedPersister(t *testing.T) {
-	dir := t.TempDir()
+	// test-relax: the env.Set("ze.config.dir") assertion pointed the old
+	// statestore.Path() at this temp dir; statestore no longer resolves via
+	// a path, so registration replaces it. The store now stays open and is
+	// registered process-wide via statestore.SetStore, so the engine's
+	// internal persister and the reopen below both write through the same
+	// shared handle.
+	bs, err := zefs.Create(filepath.Join(t.TempDir(), "database.zefs"))
+	if err != nil {
+		t.Fatalf("zefs.Create: %v", err)
+	}
+	statestore.SetStore(bs)
+	t.Cleanup(func() {
+		statestore.SetStore(nil)
+		if err := bs.Close(); err != nil {
+			t.Fatalf("close store: %v", err)
+		}
+	})
+
 	secret := []byte("k-persist-test")
 
 	lbA, lbB := transport.Pair(api.SingleHop, netip.MustParseAddr(addrA), netip.MustParseAddr(addrB))
@@ -245,7 +263,10 @@ func TestLoopStopFlushesPinnedPersister(t *testing.T) {
 		Secret:     secret,
 		Meticulous: true,
 	}
-	req.PersistDir = dir
+	// PersistDir is now a vestigial opt-in flag: any non-empty value
+	// enables persistence, which routes to the store set up above rather
+	// than to a directory named by this value.
+	req.PersistDir = "enabled"
 
 	if _, err := loop.EnsureSession(req); err != nil {
 		t.Fatalf("EnsureSession: %v", err)
@@ -253,9 +274,9 @@ func TestLoopStopFlushesPinnedPersister(t *testing.T) {
 
 	// Wait for the express-loop to tick a handful of times so
 	// AdvanceAuthSeq has stored at least one sequence. The persister's
-	// 500 ms ticker cannot have fired yet -- if the .seq file exists
-	// after Stop, Stop's CloseAuth path is the only thing that could
-	// have written it.
+	// 500 ms ticker cannot have fired yet -- if the store holds a
+	// sequence after Stop, Stop's CloseAuth path is the only thing that
+	// could have written it.
 	deadline := time.Now().Add(250 * time.Millisecond)
 	var txFired bool
 	for time.Now().Before(deadline) {
@@ -279,42 +300,23 @@ func TestLoopStopFlushesPinnedPersister(t *testing.T) {
 		t.Fatalf("loop.Stop: %v", err)
 	}
 
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read persist dir: %v", err)
-	}
-	var seqFile string
-	for _, e := range entries {
-		if filepath.Ext(e.Name()) == ".seq" {
-			seqFile = filepath.Join(dir, e.Name())
-			break
-		}
-	}
-	if seqFile == "" {
-		t.Fatalf("no .seq file present in %s after Stop; CloseAuth did not flush", dir)
-	}
-
-	raw, err := os.ReadFile(seqFile) //nolint:gosec // test-owned tempdir
-	if err != nil {
-		t.Fatalf("read %s: %v", seqFile, err)
-	}
-	n, err := strconv.ParseUint(string(raw), 10, 32)
-	if err != nil {
-		t.Fatalf("parse %s contents %q: %v", seqFile, raw, err)
-	}
-	if n == 0 {
-		t.Fatalf("persisted sequence is zero; expected > 0 after express-loop TX")
-	}
-
-	// A fresh persister on the same directory + key must see the
-	// stored sequence as its starting floor.
+	// test-relax: the removed os.ReadDir/os.ReadFile/ParseUint assertions
+	// inspected a loose <session>.seq file, which no longer exists --
+	// persistence now routes to the shared zefs store. The reopen below
+	// replaces that coverage: it reads the sequence back through the store
+	// and proves it is the non-zero floor that Stop's flush wrote.
+	//
+	// A fresh persister on the same session key must see the sequence that
+	// Stop's CloseAuth flush wrote into the store as its starting floor.
+	// The 500 ms ticker cannot have fired within the 250 ms window above,
+	// so a non-zero Start() proves Stop performed the flush.
 	keyStr := netip.MustParseAddr(addrB).String() + "--" + api.SingleHop.String()
-	p, err := auth.NewSeqPersister(dir, keyStr)
+	p, err := auth.NewSeqPersister(keyStr)
 	if err != nil {
 		t.Fatalf("reopen NewSeqPersister: %v", err)
 	}
 	defer func() { _ = p.Close() }()
-	if got := p.Start(); uint64(got) != n {
-		t.Fatalf("reopened Start() = %d, want %d", got, n)
+	if got := p.Start(); got == 0 {
+		t.Fatalf("reopened Start() = 0; expected > 0 after express-loop TX + Stop flush")
 	}
 }

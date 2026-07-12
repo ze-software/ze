@@ -2,7 +2,6 @@ package ntp
 
 import (
 	"errors"
-	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -13,12 +12,37 @@ import (
 	"github.com/beevik/ntp"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	ntpevents "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/events"
 )
+
+// newTimeStore registers an empty database.zefs as the process-wide statestore so
+// NTP time persistence round-trips through the real zefs store (not a loose file).
+// It resets the store to nil on cleanup. The statestore is process-global, so tests
+// that call this MUST NOT call t.Parallel(): a parallel sibling would clobber the
+// registered store (see the non-parallel show-handler tests for the same pattern).
+func newTimeStore(t *testing.T) {
+	t.Helper()
+	bs, err := zefs.Create(filepath.Join(t.TempDir(), "database.zefs"))
+	if err != nil {
+		t.Fatalf("zefs.Create: %v", err)
+	}
+	statestore.SetStore(bs)
+	t.Cleanup(func() {
+		statestore.SetStore(nil)
+		// test-relax: close now runs in t.Cleanup for the process-global store; a
+		// deferred cleanup reports with the non-fatal t.Errorf (Fatal is discouraged
+		// in cleanup), not the Fatalf the old path-returning helper used inline.
+		if err := bs.Close(); err != nil {
+			t.Errorf("close store: %v", err)
+		}
+	})
+}
 
 // errTestUnreachable is the stub error for an unreachable NTP server.
 var errTestUnreachable = errors.New("test: ntp server unreachable")
@@ -149,67 +173,68 @@ func TestClockOffsetAllowedMaxStep(t *testing.T) {
 	assert.True(t, clockOffsetAllowed(24*time.Hour, 0))
 }
 
-// TestTimePersistenceSave verifies time is saved to file.
+// TestTimePersistenceSave verifies time is saved into the shared zefs store.
 //
-// VALIDATES: AC-5 - NTP query succeeds, time saved to persistence file.
-// PREVENTS: Time persistence silently failing.
+// VALIDATES: AC-5 - NTP query succeeds, time persisted under the NTP last-time key.
+// PREVENTS: Time persistence silently failing, or reverting to loose-file writes.
+// Not parallel: newTimeStore registers a process-global statestore (see helper).
 func TestTimePersistenceSave(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "timefile")
+	newTimeStore(t)
 
 	now := time.Date(2026, 4, 12, 15, 30, 0, 0, time.UTC)
-	err := saveTime(path, now)
+	err := saveTime(now)
 	require.NoError(t, err)
 
-	// Verify file exists and contains valid time.
-	data, err := os.ReadFile(path)
-	require.NoError(t, err)
+	// The RFC3339 blob is stored under the NTP last-time key in the zefs store.
+	data, ok := statestore.Get(zefs.KeyNTPLastTime.Pattern)
+	require.True(t, ok, "expected a persisted time blob under the key")
 	assert.Contains(t, string(data), "2026-04-12")
 }
 
-// TestTimePersistenceRestore verifies time is restored from file.
+// TestTimePersistenceRestore verifies time is restored from the shared zefs store.
 //
-// VALIDATES: AC-6 - Boot with persistence file, clock set to saved time.
-// PREVENTS: Saved time file ignored on boot.
+// VALIDATES: AC-6 - Boot with a persisted time, clock set to saved time.
+// PREVENTS: Saved time ignored on boot.
+// Not parallel: newTimeStore registers a process-global statestore (see helper).
 func TestTimePersistenceRestore(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "timefile")
+	newTimeStore(t)
 
 	saved := time.Date(2026, 4, 12, 15, 30, 0, 0, time.UTC)
-	require.NoError(t, saveTime(path, saved))
+	require.NoError(t, saveTime(saved))
 
-	loaded, err := loadTime(path)
+	loaded, err := loadTime()
 	require.NoError(t, err)
 	assert.Equal(t, saved.Unix(), loaded.Unix())
 }
 
-// TestTimePersistenceMissing verifies graceful handling of missing file.
+// TestTimePersistenceMissing verifies graceful handling of an absent key/store.
 //
-// VALIDATES: AC-7 - Boot without persistence file, no error.
-// PREVENTS: Crash on first boot without time file.
+// VALIDATES: AC-7 - Boot without a persisted time, no crash (error surfaced).
+// PREVENTS: Crash on first boot when the store has no saved time yet.
+// Not parallel: newTimeStore registers a process-global statestore (see helper).
 func TestTimePersistenceMissing(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "nonexistent")
-
-	_, err := loadTime(path)
+	// A store that exists but has no saved-time key yet.
+	newTimeStore(t)
+	_, err := loadTime()
 	assert.Error(t, err)
+
+	// test-relax: the old "absent store path" case is no longer expressible under
+	// the paramless API (no path argument); the no-store-registered case now lives
+	// in TestTimePersistenceNoStoreIsNoOp.
 }
 
-// TestTimePersistenceCorrupt verifies graceful handling of corrupt file.
+// TestTimePersistenceCorrupt verifies graceful handling of a corrupt blob.
 //
 // VALIDATES: loadTime rejects corrupt content.
-// PREVENTS: Panic on corrupt time file.
+// PREVENTS: Panic on a corrupt saved time.
+// Not parallel: newTimeStore registers a process-global statestore (see helper).
 func TestTimePersistenceCorrupt(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "timefile")
+	newTimeStore(t)
 
-	require.NoError(t, os.WriteFile(path, []byte("not a valid time"), 0o644))
+	_, err := statestore.Put(zefs.KeyNTPLastTime.Pattern, []byte("not a valid time"))
+	require.NoError(t, err)
 
-	_, err := loadTime(path)
+	_, err = loadTime()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "parse")
 }
@@ -218,16 +243,16 @@ func TestTimePersistenceCorrupt(t *testing.T) {
 //
 // VALIDATES: AC-14 - NTP response with absurd timestamp rejected.
 // PREVENTS: Saved time from 1970 or far future accepted.
+// Not parallel: newTimeStore registers a process-global statestore (see helper).
 func TestTimePersistenceAbsurdYear(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "timefile")
+	newTimeStore(t)
 
 	old := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	buf, _ := old.MarshalText()
-	require.NoError(t, os.WriteFile(path, buf, 0o644))
+	_, err := statestore.Put(zefs.KeyNTPLastTime.Pattern, buf)
+	require.NoError(t, err)
 
-	_, err := loadTime(path)
+	_, err = loadTime()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "out of range")
 }
@@ -711,21 +736,26 @@ func TestSyncWorkerClockSyncedNilEventBus(t *testing.T) {
 	assert.Nil(t, w.eventBus)
 }
 
-// TestPersistPathCreatesDirs verifies that saveTime creates parent dirs.
+// TestTimePersistenceNoStoreIsNoOp verifies saveTime is a best-effort no-op when
+// the shared zefs store does not exist: statestore never creates the store, so the
+// save returns nil (nothing persisted) rather than erroring or writing a loose file.
 //
-// VALIDATES: saveTime creates intermediate directories.
-// PREVENTS: Failure on first save when /perm/ze/ doesn't exist yet.
-func TestPersistPathCreatesDirs(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "sub", "dir", "timefile")
+// VALIDATES: NTP time persistence is best-effort through statestore.
+// PREVENTS: A regression that recreates loose-file writes or treats an absent store as fatal.
+// Not parallel: reads the process-global statestore, which sibling persistence
+// tests register (see newTimeStore).
+func TestTimePersistenceNoStoreIsNoOp(t *testing.T) {
+	// No store registered: statestore Put/Get are best-effort no-ops.
+	statestore.SetStore(nil)
 
 	now := time.Date(2026, 4, 12, 15, 0, 0, 0, time.UTC)
-	err := saveTime(path, now)
-	require.NoError(t, err)
+	require.NoError(t, saveTime(now), "save with no store registered should be a best-effort no-op")
 
-	_, err = os.Stat(path)
-	assert.NoError(t, err)
+	// Nothing was persisted, so loadTime reports not-found.
+	// test-relax: the old os.Stat "no loose file created" assertion is obsolete under
+	// the paramless API -- saveTime takes no path and cannot write a loose file.
+	_, err := loadTime()
+	assert.Error(t, err)
 }
 
 // TestDoSyncStopChecksBetweenServers verifies that a stop signal arriving

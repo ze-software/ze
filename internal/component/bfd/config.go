@@ -35,7 +35,13 @@ var (
 
 // pluginConfig is the validated, in-memory shape of a `bfd { ... }` block.
 type pluginConfig struct {
-	enabled    bool
+	enabled bool
+	// persistDir is vestigial back-compat: its value no longer names a
+	// directory (Meticulous TX sequences persist to the shared zefs store
+	// via internal/core/statestore, see ai/rules/zefs-persistence.md), but
+	// a non-empty value still opts a session into persistence. The
+	// persist-dir YANG leaf is retained for compatibility and flagged for
+	// later deprecation.
 	persistDir string
 	bindV6     bool
 	profiles   map[string]profileConfig
@@ -124,6 +130,10 @@ func parseBFDSection(data string) (*pluginConfig, error) {
 	if v, ok := bfdMap["enabled"].(string); ok {
 		cfg.enabled = parseBool(v, true)
 	}
+	// persist-dir is parsed for back-compat only; its value is no longer a
+	// directory. See pluginConfig.persistDir. A non-empty value opts a
+	// session into TX-sequence persistence, which routes to the shared zefs
+	// store rather than to this path.
 	if v, ok := bfdMap["persist-dir"].(string); ok {
 		cfg.persistDir = v
 	}

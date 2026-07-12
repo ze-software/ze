@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 601 packages, 600 described, 1 TODO
+Total: 602 packages, 601 described, 1 TODO
 
 
 ## `cmd/ze/`
@@ -469,6 +469,7 @@ Total: 601 packages, 600 described, 1 TODO
 | `internal/core/smart` | reads disk SMART health data via direct ATA and NVMe ioctls |  |
 | `internal/core/source` | provides a unified registry for message sources (peers, API processes, config) |  |
 | `internal/core/ssh/client` | provides SSH client connectivity for ze CLI tools |  |
+| `internal/core/statestore` | is the sanctioned way for in-core plugins and components to persist best-effort runtime STATE (rolling baselines, snapshots, sequence numbers, last-known time) into the shared zefs store... |  |
 | `internal/core/stats` | holds the domain-NEUTRAL statistical primitives shared by the traffic-analysis layers (trafficstat, trafficfeature) and the detection plugins (ddos, anomaly) |  |
 | `internal/core/stringsx` | provides string-splitting helpers that also report the resulting count |  |
 | `internal/core/subdispatch` | routes action-first CLI subcommands to registered handlers |  |

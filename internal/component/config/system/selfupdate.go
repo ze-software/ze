@@ -25,8 +25,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/identity"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/core/version"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 const (
@@ -952,13 +954,12 @@ func (su *SelfUpdater) recordEvent(from, to, result string) {
 	su.saveHistory()
 }
 
-func (su *SelfUpdater) historyPath() string {
-	return filepath.Join(filepath.Dir(su.targetPath), "ze-update-history.json")
-}
-
+// loadHistory restores the event history from the shared zefs store
+// (<config-dir>/database.zefs) under the update-history key. Best-effort: a
+// no-op when the store or key is absent, or the blob is malformed.
 func (su *SelfUpdater) loadHistory() {
-	data, err := os.ReadFile(su.historyPath())
-	if err != nil {
+	data, ok := statestore.Get(zefs.KeyConfigUpdateHistory.Pattern)
+	if !ok {
 		return
 	}
 	var events []UpdateEvent
@@ -973,6 +974,9 @@ func (su *SelfUpdater) loadHistory() {
 	su.historyMu.Unlock()
 }
 
+// saveHistory persists the event history into the shared zefs store under the
+// update-history key. Best-effort: a no-op when no store exists (statestore
+// never creates it); the next save retries.
 func (su *SelfUpdater) saveHistory() {
 	su.historyMu.Lock()
 	events := make([]UpdateEvent, len(su.history))
@@ -984,13 +988,9 @@ func (su *SelfUpdater) saveHistory() {
 		return
 	}
 
-	hp := su.historyPath()
-	var tb textbuf.Buffer
-	tmpPath := tb.Str(hp).Str(".tmp").String()
-	if writeErr := os.WriteFile(tmpPath, data, 0o600); writeErr != nil {
-		return
+	if _, perr := statestore.Put(zefs.KeyConfigUpdateHistory.Pattern, data); perr != nil {
+		slogutil.Logger("self-update").Debug("history persist failed", "error", perr)
 	}
-	os.Rename(tmpPath, hp) //nolint:errcheck // best-effort atomic persist; next save retries
 }
 
 // --- helpers ---

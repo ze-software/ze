@@ -1,5 +1,8 @@
 // Design: plan/learned/656-deployment-readiness-review.md -- tc original-qdisc restore
 // Related: ops_linux.go -- tc operation seam used by snapshot checks
+// Related: ai/rules/zefs-persistence.md -- the original-qdisc snapshot persists in
+// the shared zefs store (database.zefs) via internal/core/statestore, not a loose
+// file, so appliance state lives inside the managed, backed-up store.
 
 //go:build linux
 
@@ -10,20 +13,15 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/vishvananda/netlink"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-var (
-	errCannotResolveConfigDirectory = errors.New("cannot resolve config directory")
-	errLinuxBootIdIsEmpty           = errors.New("linux boot id is empty")
-	errTcSnapshotStorePathIsEmpty   = errors.New("tc snapshot store path is empty")
-)
+var errLinuxBootIdIsEmpty = errors.New("linux boot id is empty")
 
 const tcSnapshotVersion = 1
 
@@ -52,17 +50,6 @@ type tcQdiscAttrs struct {
 	IngressBlock *uint32 `json:"ingress-block,omitempty"`
 }
 
-func defaultSnapshotPath() (string, error) {
-	dir := env.Get("ze.config.dir")
-	if dir == "" {
-		dir = paths.DefaultConfigDir()
-	}
-	if dir == "" {
-		return "", errCannotResolveConfigDirectory
-	}
-	return filepath.Join(dir, "state", "traffic-tc-snapshots.json"), nil
-}
-
 func currentBootID() (string, error) {
 	b, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
 	if err != nil {
@@ -75,23 +62,24 @@ func currentBootID() (string, error) {
 	return id, nil
 }
 
-func loadTCSnapshots(path string) (map[string]tcInterfaceSnapshot, error) {
-	if path == "" {
+// loadTCSnapshots reads the persisted original-qdisc snapshots from the shared
+// zefs store under KeyTrafficTCSnapshot. Best-effort: an unregistered store or a
+// missing key yields an empty set (nothing to restore) with no error. A blob that
+// is present but corrupt or of an unsupported version is rejected with an error, so
+// the backend fails loudly rather than silently discarding restore state. The
+// process-wide store is registered once at startup via statestore.SetStore; tests
+// register a temp store.
+func loadTCSnapshots() (map[string]tcInterfaceSnapshot, error) {
+	data, ok := statestore.Get(zefs.KeyTrafficTCSnapshot.Pattern)
+	if !ok {
 		return map[string]tcInterfaceSnapshot{}, nil
-	}
-	b, err := os.ReadFile(path) //nolint:gosec // path is the Ze state-dir snapshot store, not external input
-	if errors.Is(err, os.ErrNotExist) {
-		return map[string]tcInterfaceSnapshot{}, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("read tc snapshot store %q: %w", path, err)
 	}
 	var store tcSnapshotStore
-	if err := json.Unmarshal(b, &store); err != nil {
-		return nil, fmt.Errorf("parse tc snapshot store %q: %w", path, err)
+	if err := json.Unmarshal(data, &store); err != nil {
+		return nil, fmt.Errorf("parse tc snapshot store: %w", err)
 	}
 	if store.Version != tcSnapshotVersion {
-		return nil, fmt.Errorf("tc snapshot store %q: unsupported version %d", path, store.Version)
+		return nil, fmt.Errorf("tc snapshot store: unsupported version %d", store.Version)
 	}
 	if store.Interfaces == nil {
 		store.Interfaces = map[string]tcInterfaceSnapshot{}
@@ -99,30 +87,24 @@ func loadTCSnapshots(path string) (map[string]tcInterfaceSnapshot, error) {
 	return store.Interfaces, nil
 }
 
-func saveTCSnapshots(path string, snapshots map[string]tcInterfaceSnapshot) error {
-	if path == "" {
-		return errTcSnapshotStorePathIsEmpty
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("create tc snapshot store directory: %w", err)
-	}
+// saveTCSnapshots persists the versioned snapshot store into the shared zefs store
+// under KeyTrafficTCSnapshot. When no snapshots remain the key is removed so a stale
+// blob does not linger. Persistence is best-effort: statestore no-ops when no store
+// is registered, so a missing store never fails Apply/Close. Callers that must NOT
+// destroy state without a durable snapshot (the qdisc-replace path) gate on
+// statestore.Store() != nil BEFORE the destructive operation rather than relying on
+// this best-effort save.
+func saveTCSnapshots(snapshots map[string]tcInterfaceSnapshot) error {
 	if len(snapshots) == 0 {
-		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("remove tc snapshot store %q: %w", path, err)
-		}
-		return nil
+		return statestore.Remove(zefs.KeyTrafficTCSnapshot.Pattern)
 	}
 	store := tcSnapshotStore{Version: tcSnapshotVersion, Interfaces: snapshots}
-	b, err := json.MarshalIndent(store, "", "  ")
+	data, err := json.Marshal(store)
 	if err != nil {
 		return fmt.Errorf("marshal tc snapshot store: %w", err)
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o600); err != nil {
-		return fmt.Errorf("write tc snapshot store %q: %w", tmp, err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		return fmt.Errorf("replace tc snapshot store %q: %w", path, err)
+	if _, err := statestore.Put(zefs.KeyTrafficTCSnapshot.Pattern, data); err != nil {
+		return fmt.Errorf("persist tc snapshot store: %w", err)
 	}
 	return nil
 }

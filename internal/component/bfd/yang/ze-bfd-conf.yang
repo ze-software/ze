@@ -30,13 +30,17 @@ module ze-bfd-conf {
         leaf persist-dir {
             type string;
             description
-                "Absolute path to the directory where the plugin
-                 persists TX sequence numbers for Meticulous Keyed
-                 authentication. RFC 5880 Section 6.7.3 requires the
-                 sequence to survive process restarts; without this
-                 leaf set, Meticulous sessions still work at runtime
-                 but a fresh process loses its sequence floor until
-                 the peer's replay window slides forward.";
+                "DEPRECATED (retained for back-compat; scheduled for
+                 removal). The value is no longer interpreted as a
+                 directory: TX sequence numbers for Meticulous Keyed
+                 authentication now persist to the shared managed state
+                 store (database.zefs) instead of a loose file. A
+                 non-empty value still opts a session into persistence.
+                 RFC 5880 Section 6.7.3 requires the sequence to survive
+                 process restarts; without this leaf set, Meticulous
+                 sessions still work at runtime but a fresh process loses
+                 its sequence floor until the peer's replay window slides
+                 forward.";
         }
 
         leaf bind-v6 {

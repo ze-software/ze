@@ -1,4 +1,4 @@
-// Design: rfc/short/rfc5880.md -- engine express-loop owning sessions and timers
+// RFC: rfc/short/rfc5880.md -- engine express-loop owning sessions and timers
 // Design: docs/research/bfd-implementation-guide.md -- BIRD express-loop pattern
 // Detail: loop.go -- express-loop goroutine and handle type
 //
@@ -368,9 +368,9 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 
 	// RFC 5880 §6.7: install the authentication pair before the
 	// session sees any packets. Build signer + verifier from the
-	// request's AuthSettings and, for Meticulous variants with a
-	// configured PersistDir, attach a SeqPersister so the TX
-	// sequence survives a restart.
+	// request's AuthSettings and, for Meticulous variants that opted
+	// into persistence (PersistDir non-empty; see buildAuthPair),
+	// attach a SeqPersister so the TX sequence survives a restart.
 	if req.Auth != nil {
 		pair, pairErr := buildAuthPair(req, key)
 		if pairErr != nil {
@@ -408,14 +408,26 @@ func buildAuthPair(req api.SessionRequest, key api.Key) (*session.AuthPair, erro
 		return nil, err
 	}
 	pair := &session.AuthPair{Signer: signer, Verifier: verifier}
+	// PersistDir is now a vestigial back-compat opt-in flag: its value no
+	// longer names a directory (persistence routes to the shared zefs store
+	// via internal/core/statestore), but a non-empty value still enables
+	// sequence persistence for the session. See ai/rules/zefs-persistence.md
+	// and the persist-dir leaf in yang/ze-bfd-conf.yang (flagged for later
+	// YANG deprecation).
 	if req.Auth.Meticulous && req.PersistDir != "" {
 		var tb textbuf.Buffer
 		keyStr := tb.Addr(key.Peer).Byte('-').Str(key.VRF).Byte('-').Str(key.Mode.String()).String()
-		p, perr := auth.NewSeqPersister(req.PersistDir, keyStr)
+		p, perr := auth.NewSeqPersister(keyStr)
 		if perr != nil {
 			return nil, perr
 		}
 		pair.Persister = p
+		// Surface a restored (non-zero) TX sequence so operators -- and the
+		// bfd-auth-meticulous-persist functional test -- can confirm the sequence
+		// survived a process restart via the shared zefs state store.
+		if s := p.Start(); s > 0 {
+			engineLog().Debug("bfd auth sequence restored", "session", keyStr, "seq", s)
+		}
 	}
 	return pair, nil
 }

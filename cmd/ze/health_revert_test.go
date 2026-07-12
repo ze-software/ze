@@ -45,25 +45,18 @@ func TestAutoRevertOnRuntimeFailure(t *testing.T) {
 	}
 
 	prevConfig := []byte("set environment log level info\n")
-	var savedPrev []byte
-	writeConfigPrevious = func(data []byte) error {
-		savedPrev = make([]byte, len(data))
-		copy(savedPrev, data)
-		return nil
-	}
-	readConfigPrevious = func() ([]byte, error) {
-		if savedPrev == nil {
-			return nil, fmt.Errorf("no previous config")
-		}
-		return savedPrev, nil
-	}
-	t.Cleanup(func() {
-		writeConfigPrevious = defaultWriteConfigPrevious
-		readConfigPrevious = defaultReadConfigPrevious
-	})
 
 	hr := NewHealthRevert(store, "ze.conf")
 	hr.Start(prevConfig)
+
+	// Start persists the pre-change snapshot into the shared zefs store.
+	savedPrev, err := store.ReadFile(zefs.KeyConfigPreviousActive.Pattern)
+	if err != nil {
+		t.Fatalf("read previous config from store: %v", err)
+	}
+	if !bytes.Equal(savedPrev, prevConfig) {
+		t.Errorf("stored previous config = %q, want %q", savedPrev, prevConfig)
+	}
 
 	hr.OnPeerClosed(nil, "connection reset")
 
@@ -90,17 +83,6 @@ func TestHealthCheckPassesWithoutFlap(t *testing.T) {
 		t.Fatalf("write new config: %v", err)
 	}
 
-	var lkgHash string
-	writeLKGPushed = func(hash string) error {
-		lkgHash = hash
-		return nil
-	}
-	writeConfigPrevious = func(_ []byte) error { return nil }
-	t.Cleanup(func() {
-		writeLKGPushed = defaultWriteLKGPushed
-		writeConfigPrevious = defaultWriteConfigPrevious
-	})
-
 	hr := NewHealthRevert(store, "ze.conf")
 	hr.Start([]byte("set environment log level info\n"))
 
@@ -118,8 +100,13 @@ func TestHealthCheckPassesWithoutFlap(t *testing.T) {
 
 	h := sha256.Sum256(newConfig)
 	want := fmt.Sprintf("sha256:%x", h)
-	if lkgHash != want {
-		t.Errorf("LKG hash = %q, want %q", lkgHash, want)
+	// The last-known-good hash is persisted to the shared zefs store.
+	got, err := store.ReadFile(zefs.KeyConfigLastGoodPushed.Pattern)
+	if err != nil {
+		t.Fatalf("read last-known-good-pushed from store: %v", err)
+	}
+	if string(got) != want {
+		t.Errorf("LKG hash = %q, want %q", got, want)
 	}
 }
 
@@ -131,17 +118,14 @@ func TestRevertFallsBackToSeedConfig(t *testing.T) {
 		t.Fatalf("write new config: %v", err)
 	}
 
-	readConfigPrevious = func() ([]byte, error) {
-		return nil, fmt.Errorf("no previous config")
-	}
-	writeConfigPrevious = func(_ []byte) error { return nil }
-	t.Cleanup(func() {
-		readConfigPrevious = defaultReadConfigPrevious
-		writeConfigPrevious = defaultWriteConfigPrevious
-	})
-
 	hr := NewHealthRevert(store, "ze.conf")
 	hr.Start([]byte("set environment log level info\n"))
+
+	// Drop the previous-config snapshot so revert must fall back to the seed
+	// template rather than the stored previous config.
+	if err := store.Remove(zefs.KeyConfigPreviousActive.Pattern); err != nil {
+		t.Fatalf("remove previous config: %v", err)
+	}
 
 	hr.OnPeerClosed(nil, "connection reset")
 

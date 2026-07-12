@@ -52,10 +52,15 @@ var (
 type ntpConfig struct {
 	Enabled         bool
 	Servers         []string
-	IntervalSec     int    // sync interval in seconds (default 3600)
-	MaxStepSec      int    // max accepted clock step in seconds; 0 means unlimited
-	SlewThresholdMs int    // max offset in ms for slew (Adjtimex); 0 = always step
-	PersistPath     string // path to save time on shutdown
+	IntervalSec     int // sync interval in seconds (default 3600)
+	MaxStepSec      int // max accepted clock step in seconds; 0 means unlimited
+	SlewThresholdMs int // max offset in ms for slew (Adjtimex); 0 = always step
+	// PersistPath is vestigial/back-compat. The last-known time now persists in the
+	// shared zefs store (database.zefs) via internal/core/statestore, not this path;
+	// the value no longer designates a file. A non-empty value still enables time
+	// persistence (the default), so the YANG leaf stays parsed and validated.
+	// TODO: consider deprecating the persist-path YANG leaf.
+	PersistPath string
 }
 
 // defaultConfig returns an ntpConfig with sensible defaults.
@@ -110,8 +115,10 @@ func (w *syncWorker) run() {
 	w.publishState(false, "", 0, 0)
 
 	// Phase 1: restore saved time (rough clock for devices without RTC).
+	// A non-empty persist-path enables persistence; the store location is the
+	// shared zefs store, not the (vestigial) path value.
 	if w.cfg.PersistPath != "" {
-		if t, err := loadTime(w.cfg.PersistPath); err == nil {
+		if t, err := loadTime(); err == nil {
 			if err := setClock(t); err != nil {
 				logger.Warn("ntp: restore clock failed", "err", err)
 			} else {
@@ -257,9 +264,10 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 		logger.Debug("ntp: rtc write failed (non-fatal)", "err", err)
 	}
 
-	// Persist time.
+	// Persist time to the shared zefs store (persist-path is vestigial: a non-empty
+	// value enables persistence, but the location is the shared zefs store).
 	if w.cfg.PersistPath != "" {
-		if err := saveTime(w.cfg.PersistPath, clockTime); err != nil {
+		if err := saveTime(clockTime); err != nil {
 			logger.Debug("ntp: time persistence failed", "err", err)
 		}
 	}

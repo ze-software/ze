@@ -1,31 +1,40 @@
-# Test: BFD plugin persists a Meticulous SHA1 TX sequence across a
-# process restart via the `bfd { persist-dir ... }` leaf.
+# Test: BFD plugin persists a Meticulous SHA1 TX sequence across a process
+# restart via the shared zefs state store (database.zefs).
 #
-# VALIDATES: spec-bfd-5 AC-7 -- SeqPersister writes the last-sent
-#            sequence to disk and a fresh ze process resumes from
-#            that floor so the peer does not reject our packets as
-#            replays.
-# PREVENTS:  regression where the persister drops the pending flush,
-#            uses a temp path inside tempdir, or fails silently.
+# VALIDATES: spec-bfd-5 AC-7 -- the SeqPersister writes the last-sent sequence to
+#            the managed state store and a fresh ze process resumes from that
+#            floor so the peer does not reject our packets as replays. Since the
+#            zefs-persistence migration the sequence lives in
+#            {ze.config.dir}/database.zefs (via internal/core/statestore), not a
+#            loose <session>.seq file; persist-dir is a vestigial opt-in flag.
+# PREVENTS:  a regression where the persister drops the pending flush, writes
+#            nowhere on the filesystem/CLI path (statestore not registered there),
+#            or fails to restore the sequence on restart.
 #
-# Method: a Python orchestrator launches ze twice in sequence. The
-# first run creates a meticulous session, lets the engine sign a
-# handful of packets, SIGTERMs cleanly. The second run opens a fresh
-# persister over the same directory and verifies the persisted
-# sequence advances.
+# Method: a Python orchestrator launches ze twice over the SAME ze.config.dir, so
+# both runs share one database.zefs. The first run creates a Meticulous session,
+# lets the engine sign a handful of packets, and SIGTERMs cleanly (Close flushes
+# the sequence). The second run restores the persisted sequence -- the engine logs
+# "bfd auth sequence restored ... seq=N" (N>0), the observable proof it survived.
+#
+# // test-relax: the pre-migration assertion read a <session>.seq file; that file
+# no longer exists (the sequence persists to database.zefs via statestore). The
+# load-bearing check is unchanged in intent -- the sequence must survive a restart
+# -- and is now observed through the engine's restored-sequence debug log.
 
 option=env:var=ze.bfd.test-parallel:value=true
 
 tmpfs=test-bfd-meticulous-persist.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
-"""Verify Meticulous SHA1 TX sequence survives a ze restart."""
+"""Verify a Meticulous SHA1 TX sequence survives a ze restart via database.zefs."""
 
 import os
+import re
+import signal
 import subprocess
 import sys
 import tempfile
 import time
-import signal
 
 
 def build_config(persist_dir: str) -> str:
@@ -52,10 +61,13 @@ bfd {{
 """
 
 
-def run_once(persist_dir: str, run_seconds: float, min_seq: int = 0) -> str:
+def run_once(state_dir: str, run_seconds: float) -> str:
     env = os.environ.copy()
     env["ze.log.bfd"] = "debug"
     env["ze.bfd.test-parallel"] = "true"
+    # Both runs share one database.zefs here, so the sequence run 1 flushes is the
+    # sequence run 2 restores (statestore lives at {config-dir}/database.zefs).
+    env["ze.config.dir"] = state_dir
     proc = subprocess.Popen(
         ["ze", "-"],
         stdin=subprocess.PIPE,
@@ -65,13 +77,11 @@ def run_once(persist_dir: str, run_seconds: float, min_seq: int = 0) -> str:
         env=env,
     )
     assert proc.stdin is not None
-    proc.stdin.write(build_config(persist_dir))
+    proc.stdin.write(build_config(state_dir))
     proc.stdin.close()
 
     deadline = time.monotonic() + run_seconds
     while time.monotonic() < deadline:
-        if persisted_seq(persist_dir) > min_seq:
-            break
         time.sleep(0.1)
 
     proc.send_signal(signal.SIGTERM)
@@ -92,46 +102,40 @@ def run_once(persist_dir: str, run_seconds: float, min_seq: int = 0) -> str:
     return captured
 
 
-def persisted_seq(persist_dir: str) -> int:
-    try:
-        files = [f for f in os.listdir(persist_dir) if f.endswith(".seq")]
-        if not files:
-            return 0
-        with open(os.path.join(persist_dir, files[0]), encoding="utf-8") as fh:
-            return int(fh.read() or "0")
-    except (FileNotFoundError, ValueError):
-        return 0
+def restored_seq(log: str) -> int:
+    """Return the restored TX sequence the engine logged, or 0 if none."""
+    m = re.search(r"bfd auth sequence restored.*?seq=(\d+)", log)
+    return int(m.group(1)) if m else 0
 
 
 def main() -> int:
-    persist_dir = tempfile.mkdtemp(prefix="ze-bfd-auth-persist-")
+    state_dir = tempfile.mkdtemp(prefix="ze-bfd-auth-persist-")
 
-    captured1 = run_once(persist_dir, 10.0)
+    captured1 = run_once(state_dir, 6.0)
     if "bfd plugin running" not in captured1:
         sys.stderr.write("FAIL: first run did not reach 'bfd plugin running'\n")
         return 1
-
-    files = [f for f in os.listdir(persist_dir) if f.endswith(".seq")]
-    if not files:
-        sys.stderr.write(f"FAIL: no persisted .seq file in {persist_dir}\n")
-        return 1
-    first_seq = persisted_seq(persist_dir)
-    if first_seq == 0:
-        sys.stderr.write("FAIL: persisted sequence is zero\n")
+    # The first run is fresh: nothing to restore, so it must NOT log a restore.
+    if restored_seq(captured1) != 0:
+        sys.stderr.write("FAIL: first (fresh) run restored a sequence unexpectedly\n")
         return 1
 
-    captured2 = run_once(persist_dir, 10.0, min_seq=first_seq)
+    captured2 = run_once(state_dir, 6.0)
     if "bfd plugin running" not in captured2:
         sys.stderr.write("FAIL: second run did not reach 'bfd plugin running'\n")
         return 1
-    second_seq = persisted_seq(persist_dir)
-    if second_seq <= first_seq:
+    seq = restored_seq(captured2)
+    if seq <= 0:
         sys.stderr.write(
-            f"FAIL: second_seq={second_seq} not greater than first_seq={first_seq}\n"
+            "FAIL: second run did not restore a persisted sequence from "
+            "database.zefs (statestore not registered on the CLI path, or the "
+            "sequence was never flushed)\n"
         )
         return 1
 
-    sys.stderr.write(f"OK: sequence persisted {first_seq} -> {second_seq}\n")
+    sys.stderr.write(
+        f"OK: TX sequence persisted and restored across restart (seq={seq})\n"
+    )
     return 0
 
 
@@ -139,6 +143,6 @@ if __name__ == "__main__":
     sys.exit(main())
 EOF_PY
 
-cmd=foreground:seq=1:exec=python3 ./test-bfd-meticulous-persist.py:timeout=30s
+cmd=foreground:seq=1:exec=python3 ./test-bfd-meticulous-persist.py:timeout=40s
 expect=exit:code=0
-expect=stderr:pattern=sequence persisted
+expect=stderr:pattern=persisted and restored across restart

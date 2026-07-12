@@ -124,6 +124,8 @@ func stagesForMode(mode, makeCmd string) []stage {
 			mk("ze-tier-check"),
 			mk("ze-iface-resolution-check"),
 			mk("ze-plugin-boundary-check"),
+			mk("ze-config-coercion-check"),
+			mk("ze-fs-persistence-check"),
 			mk("ze-port-defaults-check"),
 			mk("ze-platform-vet"),
 			mk("ze-verify-wiring-docs"),
@@ -137,6 +139,8 @@ func stagesForMode(mode, makeCmd string) []stage {
 			mk("ze-tier-check"),
 			mk("ze-iface-resolution-check"),
 			mk("ze-plugin-boundary-check"),
+			mk("ze-config-coercion-check"),
+			mk("ze-fs-persistence-check"),
 			mk("ze-port-defaults-check"),
 			mk("ze-platform-vet"),
 			mk("ze-verify-wiring-docs"),
@@ -420,9 +424,10 @@ func classifyGoTest(st stage, detailLog, text string) []failureGroup {
 		if compilePkg != "" {
 			pkg = compilePkg
 		}
+		const kindBuild = "build"
 		kind := "package"
 		if strings.Contains(line, "[build failed]") || compilePkg != "" {
-			kind = "build"
+			kind = kindBuild
 		}
 		g, ok := groupsByPkg[pkg]
 		if !ok {
@@ -430,7 +435,7 @@ func classifyGoTest(st stage, detailLog, text string) []failureGroup {
 			groupsByPkg[pkg] = g
 			order = append(order, pkg)
 		}
-		if kind == "build" {
+		if kind == kindBuild {
 			g.Kind = kind
 		}
 		if len(pendingTests) == 0 {

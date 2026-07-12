@@ -14,15 +14,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-const (
-	pushedConfigPath = "/perm/ze/config-pushed.conf"
-	configActiveHash = "/perm/ze/config-active-hash"
-)
+// pushedConfigPath is a loose-file inbox written by an EXTERNAL actor
+// (cloud-init / operator), not by ze, so it stays a raw file. Only ze's own
+// output state (the active-config hash) is persisted in the shared zefs store.
+const pushedConfigPath = "/perm/ze/config-pushed.conf"
 
 var (
 	readPushedConfig   = defaultReadPushedConfig
 	removePushedConfig = defaultRemovePushedConfig
-	writeActiveHash    = defaultWriteActiveHash
 )
 
 func defaultReadPushedConfig() ([]byte, error) {
@@ -31,10 +30,6 @@ func defaultReadPushedConfig() ([]byte, error) {
 
 func defaultRemovePushedConfig() error {
 	return os.Remove(pushedConfigPath)
-}
-
-func defaultWriteActiveHash(hash string) error {
-	return os.WriteFile(configActiveHash, []byte(hash), 0o644) //nolint:gosec // informational
 }
 
 func checkPushedConfig(store storage.Storage, configName string) (applied bool, preChange []byte) {
@@ -70,7 +65,7 @@ func writeConfigActiveHash(store storage.Storage, configName string) {
 	}
 	h := sha256.Sum256(data)
 	hash := fmt.Sprintf("sha256:%x", h)
-	if writeErr := writeActiveHash(hash); writeErr != nil {
+	if writeErr := store.WriteFile(zefs.KeyConfigActiveHash.Pattern, []byte(hash), 0); writeErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: write config-active-hash: %v\n", writeErr)
 	}
 }

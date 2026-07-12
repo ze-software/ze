@@ -50,7 +50,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/reboot"
+	internalresolve "codeberg.org/thomas-mangin/ze/internal/core/resolve"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
 	mrtcomp "codeberg.org/thomas-mangin/ze/internal/plugins/mrt"
 )
 
@@ -109,6 +111,34 @@ func RunWithManagedClient(store storage.Storage, configPath string, plugins []st
 }
 
 func run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, managedClient *managed.ClientConfig) int {
+	// Register the daemon's blob store so in-core state persisters
+	// (internal/core/statestore) write into the SAME in-memory tree as config,
+	// not a separate transient instance whose keys the config store's next flush
+	// would drop.
+	if bs, ok := storage.BlobStoreFrom(store); ok {
+		statestore.SetStore(bs)
+	} else if env.Get("ze.config.dir") != "" {
+		// Config is on a filesystem backend (the `ze -` / `ze <file>` CLI path,
+		// storage.NewFilesystem) but the operator pinned a config dir: open a
+		// SEPARATE state-only zefs store at {config-dir}/database.zefs so runtime
+		// state (BFD auth sequence, DDoS baselines, NTP last-time, ...) still
+		// persists across restarts in dev, not only on the appliance. There is no
+		// shared database.zefs with config on this path, so the lost-update BLOCKER
+		// the shared-handle design guards against cannot arise.
+		//
+		// Gated on an EXPLICIT ze.config.dir: without it the default is derived
+		// from the binary location (paths.ConfigDirFromBinary), which is shared by
+		// every `ze` invocation -- so a one-off `ze -` (and the whole functional
+		// test suite) must not create or contend on a database.zefs there. When no
+		// config dir is pinned, statestore stays a best-effort no-op, exactly as
+		// the pre-migration loose-file path was non-fatal on a read-only disk.
+		if stateStore, err := internalresolve.Storage(); err == nil {
+			if bs, ok := storage.BlobStoreFrom(stateStore); ok {
+				statestore.SetStore(bs)
+			}
+		}
+	}
+
 	if !skipRootCheck {
 		for _, w := range privilege.CheckPrivileges() {
 			fmt.Fprintln(os.Stderr, "warning: "+w)

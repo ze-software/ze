@@ -23,8 +23,8 @@ func (d *Detector) DetectPlatform() (*PlatformInfo, error) {
 		// syscall.Rlimit.Cur/.Max are uint64 on linux/darwin but int64 on
 		// freebsd; the explicit conversions are no-ops on the former and make
 		// this file vet/compile clean under GOOS=freebsd (AC-7).
-		info.FDLimitSoftCurrent = uint64(limit.Cur)
-		info.FDLimitHardMax = uint64(limit.Max)
+		info.FDLimitSoftCurrent = uint64(limit.Cur) //nolint:unconvert // int64 on freebsd; no-op cast on linux/darwin (see comment above)
+		info.FDLimitHardMax = uint64(limit.Max)     //nolint:unconvert // int64 on freebsd; no-op cast on linux/darwin (see comment above)
 		info.FDLimitRaisable = limit.Cur < limit.Max
 	}
 	return info, nil

@@ -15,6 +15,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/statestore"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 const (
@@ -663,9 +666,32 @@ func TestSelfUpdateStaleCleanup(t *testing.T) {
 	}
 }
 
+// newHistoryStore registers a fresh temp database.zefs as the process-wide
+// statestore backend, so save/loadHistory (which go through statestore) hit the
+// real zefs store, not a loose file. Resets the global store on cleanup.
+func newHistoryStore(t *testing.T) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "database.zefs")
+	bs, err := zefs.Create(path)
+	if err != nil {
+		t.Fatalf("zefs.Create: %v", err)
+	}
+	statestore.SetStore(bs)
+	t.Cleanup(func() {
+		statestore.SetStore(nil)
+		// test-relax: Close moved into t.Cleanup where t.Fatalf is unsafe
+		// (Goexit in the cleanup goroutine); t.Errorf is the correct call.
+		if cerr := bs.Close(); cerr != nil {
+			t.Errorf("close store: %v", cerr)
+		}
+	})
+}
+
+// VALIDATES: update history round-trips through the shared zefs store (save via
+// recordEvent, load into a fresh updater), not a loose JSON file.
 func TestSelfUpdateHistoryPersist(t *testing.T) {
-	dir := t.TempDir()
-	target := filepath.Join(dir, "ze-test")
+	newHistoryStore(t)
+	target := filepath.Join(t.TempDir(), "ze-test")
 
 	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
@@ -674,7 +700,7 @@ func TestSelfUpdateHistoryPersist(t *testing.T) {
 	su.recordEvent("26.01.01", "26.05.20", "success")
 	su.recordEvent("26.05.20", "26.05.21", "failed-checksum")
 
-	// New updater loads from persisted file
+	// New updater loads from the persisted zefs store.
 	su2 := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su2.targetPath = target
 	su2.loadHistory()
@@ -691,13 +717,14 @@ func TestSelfUpdateHistoryPersist(t *testing.T) {
 	}
 }
 
+// VALIDATES: a corrupt update-history blob in the zefs store yields empty history
+// without error (best-effort restore, no crash).
 func TestSelfUpdateHistoryPersistCorrupt(t *testing.T) {
-	dir := t.TempDir()
-	target := filepath.Join(dir, "ze-test")
+	newHistoryStore(t)
+	target := filepath.Join(t.TempDir(), "ze-test")
 
-	// Write corrupt history file
-	histPath := filepath.Join(dir, "ze-update-history.json")
-	if err := os.WriteFile(histPath, []byte("not json{{{"), 0o644); err != nil {
+	// Corrupt blob under the update-history key in the registered store.
+	if _, err := statestore.Put(zefs.KeyConfigUpdateHistory.Pattern, []byte("not json{{{")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -707,7 +734,7 @@ func TestSelfUpdateHistoryPersistCorrupt(t *testing.T) {
 
 	events := su.History()
 	if len(events) != 0 {
-		t.Errorf("corrupt file should yield empty history, got %d events", len(events))
+		t.Errorf("corrupt blob should yield empty history, got %d events", len(events))
 	}
 }
 

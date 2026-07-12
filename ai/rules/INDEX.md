@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 81 rules
+Total: 83 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -26,6 +26,7 @@ Total: 81 rules
 | Config Design | Decision framework (YANG vs env var): `ai/rules/config-surface.md` Naming conventions: `ai/rules/config-naming.md` | `ai/rules/config-design.md` |
 | Config Manipulation | Config content MUST be manipulated through one of two methods only. | `ai/rules/config-manipulation.md` |
 | Config Naming Conventions | Extends: `ai/rules/naming.md`, `ai/rules/config-design.md` | `ai/rules/config-naming.md` |
+| Config String Coercion | Writing or reviewing a plugin/component `config.go` that reads YANG leaf values out of the delivered config into a typed `Config` struct. | `ai/rules/config-string-coercion.md` |
 | Config Surface: YANG Config vs Env Var | Extends: `ai/rules/config-design.md`, `ai/patterns/config-option.md` Naming: `ai/rules/config-naming.md` | `ai/rules/config-surface.md` |
 | Data Flow Tracing | Trace full data flow before writing or reviewing specs. | `ai/rules/data-flow-tracing.md` |
 | Deferral Tracking | Every decision to not perform in-scope work MUST be recorded. | `ai/rules/deferral-tracking.md` |
@@ -91,3 +92,4 @@ Total: 81 rules
 | Testing | When a test fails, fix the code to make the test pass. NEVER weaken or simplify test expectations to match broken code. Tests are ground truth. Even if an underlying mechanism changed (e.g., Unix... | `ai/rules/testing.md` |
 | Wiring Completeness | Extends `no-partial-completion.md` with a mechanical check. | `ai/rules/wiring-completeness.md` |
 | Ze Divergences from Standard Go | Ze differs from typical Go projects in specific, load-bearing ways. An AI trained on standard Go patterns will default to the wrong approach unless it reads this document. Each entry names the... | `ai/rules/ze-divergences.md` |
+| zefs Persistence (no loose state files) | Writing or reviewing code under `internal/plugins`, `internal/component`, or `cmd/ze` that needs to persist daemon runtime state across a restart, reconfigure, or update (a rolling baseline, a... | `ai/rules/zefs-persistence.md` |

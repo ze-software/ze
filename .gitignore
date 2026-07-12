@@ -79,4 +79,6 @@ test/ipsec-interop/scenarios/*/ze.conf.resolved
 screenlog.*
 etc/ze/*.tmp
 etc/ze/debug.zefs
+# ddos-detect (and other plugins) persist rolling runtime state here; never commit it.
+etc/ze/state/
 internal/appliance/build/

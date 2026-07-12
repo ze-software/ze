@@ -35,4 +35,15 @@ var (
 	KeyDebugProfile          = MustRegister(KeyEntry{Pattern: "debug/profile/{name}", Description: "Named debug profile (JSON)"})
 	KeyIRRCache              = MustRegister(KeyEntry{Pattern: "meta/bgp/irr-cache", Description: "IRR-resolved prefix cache (JSON, all ASNs; legacy, migrated to meta/irr/{name})"})
 	KeyIRRPrefixCache        = MustRegister(KeyEntry{Pattern: "meta/irr/{name}", Description: "IRR-resolved prefix cache, per ASN/AS-SET (JSON)"})
+
+	// Persisted runtime state (see ai/rules/zefs-persistence.md). These live in
+	// the shared store instead of loose files so appliance state is managed.
+	KeyDDoSDetectBaseline   = MustRegister(KeyEntry{Pattern: "meta/ddos/detect-baseline", Description: "ddos-detect rolling PPS/BPS baseline snapshot (JSON)"})
+	KeyTrafficTCSnapshot    = MustRegister(KeyEntry{Pattern: "meta/traffic/tc-snapshot", Description: "traffic-usage original-qdisc snapshot for restore (JSON)"})
+	KeyNTPLastTime          = MustRegister(KeyEntry{Pattern: "meta/ntp/last-time", Description: "NTP last-known monotonic time (RFC3339)"})
+	KeyBFDAuthSeq           = MustRegister(KeyEntry{Pattern: "meta/bfd/auth/{session}", Description: "BFD meticulous-keyed TX sequence number, per session (RFC 5880)"})
+	KeyConfigPreviousActive = MustRegister(KeyEntry{Pattern: "meta/config/health-revert-previous", Description: "Pre-change active config snapshot for health-check auto-revert"})
+	KeyConfigLastGoodPushed = MustRegister(KeyEntry{Pattern: "meta/config/last-known-good-pushed", Description: "SHA-256 of the last health-confirmed pushed config"})
+	KeyConfigActiveHash     = MustRegister(KeyEntry{Pattern: "meta/config/active-hash", Description: "SHA-256 of the running active config (fleet drift detection)"})
+	KeyConfigUpdateHistory  = MustRegister(KeyEntry{Pattern: "meta/config/update-history", Description: "Self-update event history (JSON)"})
 )

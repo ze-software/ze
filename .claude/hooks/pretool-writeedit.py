@@ -1086,6 +1086,36 @@ def c_observer_sys_exit(ctx):
     )
 
 
+def c_direct_fs_state(ctx):
+    # Edit-time nudge (the authoritative block is `make ze-fs-persistence-check`,
+    # scripts/checks/direct_fs_persistence.go): runtime STATE must persist through
+    # the managed zefs store, not a loose file. Non-blocking -- kernel/proc,
+    # ephemeral, external-artifact and storage-layer writes are legitimate.
+    fp = ctx["fp"]
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp) or not ctx["content"]:
+        return None
+    if not re.search(r"/(internal/plugins|internal/component|cmd/ze)/", fp):
+        return None
+    hits = grep_lines(
+        ctx["content"],
+        r"os\.(WriteFile|Create|Rename|Symlink|Link)\(|os\.OpenFile\([^)]*O_(CREATE|WRONLY|RDWR|APPEND|TRUNC)",
+    )
+    if not hits:
+        return None
+    fix = (
+        "\n  If this persists runtime STATE (baseline, snapshot, sequence number,"
+        "\n  hash, cache), use internal/core/statestore (a registered pkg/zefs key)"
+        "\n  or your storage.Storage handle, not a loose file -- on the appliance only"
+        "\n  database.zefs is managed/backed-up. Kernel/proc, ephemeral, external and"
+        "\n  storage-layer writes are fine (allowlisted). Enforced by"
+        "\n  `make ze-fs-persistence-check`; see ai/rules/zefs-persistence.md."
+    )
+    return (
+        1,
+        f"{YELLOW}{BOLD}WARN: raw filesystem write in {fp}{RESET}{fix}",
+    )
+
+
 def c_generated_files(ctx):
     if ctx["tool"] not in ("Write", "Edit"):
         return None
@@ -1746,6 +1776,7 @@ CHECKS = (
     c_lint_exclusions,
     c_exabgp,
     c_observer_sys_exit,
+    c_direct_fs_state,
     c_fake_bufhandle,
     c_require_docs_read,
     c_require_test_first,

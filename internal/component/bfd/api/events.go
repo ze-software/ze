@@ -122,10 +122,14 @@ type SessionRequest struct {
 	// session.Machine.SetAuth before any packets flow.
 	Auth *AuthSettings
 
-	// PersistDir is the absolute path where Meticulous Keyed
-	// sequence numbers are persisted. Empty means Meticulous
-	// variants still work at runtime but a process restart loses
-	// the sequence floor until the peer's replay window slides.
+	// PersistDir is a vestigial back-compat opt-in flag. Its value no
+	// longer names a directory: Meticulous Keyed sequence numbers now
+	// persist to the shared zefs store (internal/core/statestore) under
+	// zefs.KeyBFDAuthSeq. A non-empty value still enables persistence for
+	// the session; empty means Meticulous variants work at runtime but a
+	// process restart loses the sequence floor until the peer's replay
+	// window slides. The persist-dir YANG leaf is flagged for later
+	// deprecation.
 	PersistDir string
 
 	// DesiredMinEchoTxInterval requests RFC 5880 Section 6.4 Echo

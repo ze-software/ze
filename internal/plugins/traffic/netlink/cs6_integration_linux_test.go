@@ -7,7 +7,6 @@ package trafficnetlink
 import (
 	"context"
 	"net"
-	"path/filepath"
 	"syscall"
 	"testing"
 
@@ -28,8 +27,8 @@ func TestCS6ClassifyNetns(t *testing.T) {
 		const ifaceName = "ze_cs0"
 		link := addTrafficVeth(t, ifaceName, "ze_cs1")
 
-		path := filepath.Join(t.TempDir(), "state", "traffic-tc-snapshots.json")
-		b := newBackendWithOps(netlinkOps{}, path, nil, "boot-1", nil)
+		registerSnapshotStore(t)
+		b := newBackendWithOps(netlinkOps{}, nil, "boot-1", nil)
 
 		desired := map[string]traffic.InterfaceQoS{
 			ifaceName: {

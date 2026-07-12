@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 282 design docs, 2914 files
+Total: 284 design docs, 2917 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -34,6 +34,10 @@ Total: 282 design docs, 2914 files
 | `internal/component/aaa/types.go` | AAA registry (VFS-like) |
 | `internal/component/authz/register.go` | AAA registry (VFS-like) |
 | `internal/component/tacacs/register.go` | AAA registry (VFS-like) |
+
+## `ai/rules/config-string-coercion.md`
+
+- `scripts/checks/config_string_coercion.go` -- config value-coercion guard
 
 ## `ai/rules/design-principles.md`
 
@@ -126,6 +130,12 @@ Total: 282 design docs, 2914 files
 | `internal/component/web/register_l2tp.go` | L2TP web routes self-registration |
 | `internal/component/web/register_ospf.go` | OSPF web routes self-registration |
 | `internal/component/web/webroute.go` | web route registry (registration over hardcoding) |
+
+## `ai/rules/zefs-persistence.md`
+
+- `internal/component/bfd/auth/persist.go` -- runtime state lives in the managed zefs
+- `internal/core/statestore/statestore.go` -- runtime state persists in the managed
+- `scripts/checks/direct_fs_persistence.go` -- runtime state belongs in the zefs store
 
 ## `docs/architecture/api/architecture.md`
 
@@ -1880,7 +1890,7 @@ Total: 282 design docs, 2914 files
 | `internal/plugins/ntp/clock_linux.go` | NTP system clock operations |
 | `internal/plugins/ntp/clock_other.go` | NTP clock stub for non-Linux |
 | `internal/plugins/ntp/ntp.go` | NTP client plugin |
-| `internal/plugins/ntp/persist.go` | NTP time persistence |
+| `internal/plugins/ntp/persist.go` | NTP time persistence. |
 
 ## `docs/functional-tests.md`
 
@@ -4073,13 +4083,11 @@ Total: 282 design docs, 2914 files
 | `internal/component/bfd/api/snapshot.go` | BFD observability surface |
 | `internal/component/bfd/auth/md5.go` | Keyed / Meticulous Keyed MD5 (Section 6.7.3) |
 | `internal/component/bfd/auth/meticulous.go` | Section 6.7.3 / 6.8.1 (RcvAuthSeq) |
-| `internal/component/bfd/auth/persist.go` | Section 6.7.3 (sequence persistence across restart) |
 | `internal/component/bfd/auth/sha1.go` | Keyed / Meticulous Keyed SHA1 (Section 6.7.4) |
 | `internal/component/bfd/auth/signer.go` | BFD authentication (Section 6.7) |
 | `internal/component/bfd/bfd.go` | BFD plugin entry point |
 | `internal/component/bfd/config.go` | BFD configuration model |
 | `internal/component/bfd/engine/echo.go` | Echo Function (Section 6.4) |
-| `internal/component/bfd/engine/engine.go` | engine express-loop owning sessions and timers |
 | `internal/component/bfd/engine/loop.go` | packet reception and timer firing |
 | `internal/component/bfd/engine/snapshot.go` | operator observability into live sessions |
 | `internal/component/bfd/packet/auth.go` | Authentication Section (Section 4.2-4.4) |
