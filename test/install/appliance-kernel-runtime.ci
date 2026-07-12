@@ -35,6 +35,12 @@ if [ "$1" = run ]; then
 					mkdir -p "$out/lib/modules/7.1.1-ze"
 					printf 'runtime-vmlinuz\n' > "$out/vmlinuz"
 					printf '' > "$out/lib/modules/7.1.1-ze/modules.dep"
+					# This fake kernel config must satisfy enforceKernelRequirements:
+					# every symbol in gokrazy/kernel/runtime.require and the runtime
+					# floor (internal/appliance/kernelreq.go runtimeKernelRequirements)
+					# must appear here as =y. Adding a symbol to runtime.require (e.g.
+					# CONFIG_HUGETLBFS for VPP) requires adding it here too, or this
+					# test fails with "<SYMBOL> did not resolve to =y".
 					cat > "$out/config" <<'EOF_CONFIG'
 CONFIG_IP_PNP_DHCP=y
 CONFIG_EXT4_FS=y
@@ -50,6 +56,7 @@ CONFIG_VETH=y
 CONFIG_BPF_SYSCALL=y
 CONFIG_BPF_JIT=y
 CONFIG_VIRTIO_NET=y
+CONFIG_HUGETLBFS=y
 EOF_CONFIG
 					;;
 			esac
