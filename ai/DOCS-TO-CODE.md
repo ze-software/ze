@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 285 design docs, 2920 files
+Total: 285 design docs, 2924 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1079,6 +1079,7 @@ Total: 285 design docs, 2920 files
 | `internal/plugins/firewall/nft/backend_linux.go` | nftables backend Linux implementation |
 | `internal/plugins/firewall/nft/backend_other.go` | nftables backend stub for non-Linux |
 | `internal/plugins/firewall/nft/firewallnft.go` | nftables firewall backend plugin |
+| `internal/plugins/firewall/nft/host_netns_guard_linux.go` | nftables host-safety gate (R-2) |
 | `internal/plugins/firewall/nft/lower_linux.go` | nftables expression lowering |
 | `internal/plugins/firewall/nft/readback_linux.go` | nftables read-back of ze_* tables |
 | `internal/plugins/firewall/vpp/classify_linux.go` | VPP classify pipeline for SetMark and Limit |
@@ -1443,6 +1444,9 @@ Total: 285 design docs, 2920 files
 | `internal/test/runner/loopback_darwin.go` | multi-peer loopback alias setup |
 | `internal/test/runner/loopback_linux.go` | multi-peer loopback alias setup |
 | `internal/test/runner/loopback_test.go` | multi-peer loopback alias tests |
+| `internal/test/runner/netns_linux.go` | per-test netns launch mode (Fix B) |
+| `internal/test/runner/netns_linux_test.go` | per-test netns launch mode (Fix B) |
+| `internal/test/runner/netns_other.go` | per-test netns launch mode (Fix B) |
 | `internal/test/runner/parallel.go` | test runner framework |
 | `internal/test/runner/parsing.go` | test runner framework |
 | `internal/test/runner/ports.go` | test runner framework |

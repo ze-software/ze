@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1122 summaries
+Total: 1124 summaries
 
 ## 000-099
 
@@ -1191,3 +1191,5 @@ Total: 1122 summaries
 | 1108 | ddos-detect Enhancements (bandwidth trigger, baseline persistence, incident confidence) | `plan/learned/1108-ddos-detect-enhancements.md` |
 | 1109 | ddos-detect Enhancements (bandwidth trigger, baseline persistence, incident confidence) | `plan/learned/1109-ddos-detect-enhancements.md` |
 | 1110 | ddos direction + traffic policy (allow/deny) | `plan/learned/1110-ddos-direction-allowlist.md` |
+| 1111 | ownership-0-umbrella (CLOSURE record: DESIGN-REVIEW finding #1) | `plan/learned/1111-ownership-0-umbrella.md` |
+| 1112 | netlink .ci harness (Fix A readiness, Fix B netns+setcap, Fix C EOF) | `plan/learned/1112-netlink-ci-harness.md` |
