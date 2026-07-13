@@ -429,11 +429,14 @@ ze-doc-links:
 # clean wipes bin/ and tmp/, then restores the tmp/ sentinel module
 # (tmp/go.mod) byte-identically from git so clearing scratch never shows up
 # as a phantom "deleted tmp/go.mod" in git status. See tmp/go.mod.
+# Write to a temp then mv: a redirect straight to tmp/go.mod would truncate it
+# to an empty (invalid) module before git show runs, so a git-show failure must
+# leave tmp/go.mod untouched rather than half-written.
 clean:
 	@echo "Cleaning..."
 	rm -rf bin/ tmp/
 	rm -f coverage.out coverage.html
-	@mkdir -p tmp && git show HEAD:tmp/go.mod > tmp/go.mod 2>/dev/null || true
+	@mkdir -p tmp && git show HEAD:tmp/go.mod > tmp/go.mod.new 2>/dev/null && mv tmp/go.mod.new tmp/go.mod || rm -f tmp/go.mod.new
 
 ze-clean-tmp:
 	@echo "Cleaning tmp/ scratch files older than 24h..."
