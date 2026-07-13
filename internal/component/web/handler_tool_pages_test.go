@@ -261,7 +261,7 @@ func TestToolMetricsDispatchesCommand(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "show metrics-query bgp_peer_up instance=peer1", *captured)
+	assert.Equal(t, "show metrics name bgp_peer_up instance=peer1", *captured)
 	assert.Contains(t, rec.Body.String(), "metric_value 42")
 }
 

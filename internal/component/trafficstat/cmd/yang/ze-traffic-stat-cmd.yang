@@ -2,21 +2,27 @@ module ze-traffic-stat-cmd {
     namespace "urn:ze:traffic-stat:cmd";
     prefix trafficstatcmd;
     import ze-extensions { prefix ze; }
-    description "show/monitor traffic-stat command tree. Owned by the trafficstat component.";
+    description "show/monitor traffic stat command tree. Owned by the trafficstat component. Container-merges onto the shared `traffic` namespace.";
+    revision 2026-07-13 { description "Nest under show/monitor traffic stat (was traffic-stat), per R9 namespace split."; }
     revision 2026-06-29 { description "Initial: traffic monitoring aggregation service CLI."; }
 
     container show {
         config false;
         description "Read-only commands to inspect system, protocol, and network state";
 
-        container traffic-stat {
+        container traffic {
             config false;
-            ze:command "ze-show:traffic-stat";
-            description "Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity).
+            description "Traffic subsystem: QoS control and byte-usage accounting.";
+
+            container stat {
+                config false;
+                ze:command "ze-show:traffic-stat";
+                description "Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity).
 Without arguments, shows all interfaces. With 'name <interface>', filters to one interface.";
-            leaf name {
-                type string;
-                description "Interface name filter";
+                leaf name {
+                    type string;
+                    description "Interface name filter";
+                }
             }
         }
     }
@@ -25,14 +31,19 @@ Without arguments, shows all interfaces. With 'name <interface>', filters to one
         config false;
         description "Continuous monitoring commands (Ctrl-C to stop)";
 
-        container traffic-stat {
+        container traffic {
             config false;
-            ze:command "ze-monitor:traffic-stat";
-            description "Start streaming traffic monitor (per-second snapshots).
+            description "Traffic subsystem: QoS control and byte-usage accounting.";
+
+            container stat {
+                config false;
+                ze:command "ze-monitor:traffic-stat";
+                description "Start streaming traffic monitor (per-second snapshots).
 Without arguments, shows all interfaces. With 'name <interface>', filters to one interface.";
-            leaf name {
-                type string;
-                description "Interface name filter";
+                leaf name {
+                    type string;
+                    description "Interface name filter";
+                }
             }
         }
     }

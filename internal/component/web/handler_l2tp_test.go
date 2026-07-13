@@ -269,7 +269,7 @@ func TestHandleL2TPDisconnect_DispatchesCommand(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d, want 200, body=%s", rec.Code, rec.Body.String())
 	}
-	want := `clear l2tp session teardown 42 actor web reason "maintenance" cause 6`
+	want := `clear l2tp session id 42 actor web reason "maintenance" cause 6`
 	if dispatched != want {
 		t.Errorf("dispatched=%q, want %q", dispatched, want)
 	}
@@ -407,7 +407,7 @@ func TestHandleL2TPDisconnect_ReasonQuoted(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d, want 200, body=%s", rec.Code, rec.Body.String())
 	}
-	want := `clear l2tp session teardown 42 actor web reason "maintenance cause 999"`
+	want := `clear l2tp session id 42 actor web reason "maintenance cause 999"`
 	if dispatched != want {
 		t.Errorf("dispatched=%q, want %q", dispatched, want)
 	}

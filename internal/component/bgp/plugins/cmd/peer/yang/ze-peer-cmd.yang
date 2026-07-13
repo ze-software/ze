@@ -75,15 +75,15 @@ Usage: show bgp peer <selector> rib [scope|filters|terminal].";
                     leaf selector { type string; mandatory true; description "Peer selector"; }
                 }
             }
-        }
 
-        container bgp-health {
-            config false;
-            ze:command "ze-show:bgp-health";
-            description "Quick health check for all your BGP peers.
+            container health {
+                config false;
+                ze:command "ze-show:bgp-health";
+                description "Quick health check for all your BGP peers.
 Lists every peer with address, state, ASN, and uptime. Reports how
 many are not Established. Much faster than 'show bgp peer *' when
 you just need a status overview.";
+            }
         }
     }
 

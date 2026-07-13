@@ -18,10 +18,10 @@ module ze-bgp-conf {
                      Peers inherit from group defaults; groups inherit from this global level.";
 
         // Global BGP related tools (workbench V2). Spec D7/D12.
-        // Command paths target the registered command tree: `show bgp-health`
-        // is one container under show; `show warnings` and `show errors` are
+        // Command paths target the registered command tree: `show bgp health`
+        // is a bgp namespace under show; `show warnings` and `show errors` are
         // cross-subsystem report bus snapshots.
-        ze:related 'id=bgp-health; label="BGP Health"; command="show bgp-health"; placement=global; presentation=modal; class=inspect';
+        ze:related 'id=bgp-health; label="BGP Health"; command="show bgp health"; placement=global; presentation=modal; class=inspect';
         ze:related 'id=bgp-warnings; label="BGP Warnings"; command="show warnings"; placement=global; presentation=modal; class=diagnose';
         ze:related 'id=bgp-errors; label="BGP Errors"; command="show errors"; placement=global; presentation=modal; class=diagnose';
 

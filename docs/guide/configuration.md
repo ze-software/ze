@@ -1828,7 +1828,7 @@ flow-export {
 }
 ```
 
-**Operational:** `show flow-export [<collector>]` reports per-collector
+**Operational:** `show flow export [<collector>]` reports per-collector
 datagrams-sent, bytes-sent, errors, sequence, and last-export-time. Prometheus
 metrics use the `ze_flowexport_*` prefix.
 

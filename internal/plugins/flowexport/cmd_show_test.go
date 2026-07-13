@@ -10,7 +10,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
-// VALIDATES: the `show flow-export` RPC is registered with a handler, so the
+// VALIDATES: the `show flow export` RPC is registered with a handler, so the
 // command is reachable rather than 404ing at dispatch time.
 func TestShowFlowExportRPCRegistered(t *testing.T) {
 	for _, r := range pluginserver.AllBuiltinRPCs() {
@@ -31,7 +31,7 @@ func TestShowFlowExportNotConfigured(t *testing.T) {
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 }
 
-// VALIDATES: the `show flow-recent` RPC is registered with a handler, so the
+// VALIDATES: the `show flow recent` RPC is registered with a handler, so the
 // recent-flow query is reachable at dispatch time (Wiring Test row).
 func TestShowFlowRecentRPCRegistered(t *testing.T) {
 	for _, r := range pluginserver.AllBuiltinRPCs() {

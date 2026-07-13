@@ -147,13 +147,13 @@ show system profile heap
 **Check process memory from the kernel's perspective:**
 
 ```
-show system memory-map
-```
-
-Compare VmRSS with Go's heap-in-use from `show system memory`:
-
-```
 show system memory
+```
+
+Compare VmRSS with Go's heap-in-use from `show runtime memory`:
+
+```
+show runtime memory
 ```
 
 If VmRSS is much larger than heap-in-use, memory is held outside Go's heap (cgo, mmap).
@@ -226,7 +226,7 @@ Look for "Out of memory" or "Killed process" messages.
 **Check current memory state:**
 
 ```
-show system memory-map
+show system memory
 ```
 
 **Review warnings and errors:**
@@ -333,7 +333,7 @@ show errors
 ### 17. Telemetry / Metrics Gaps
 
 ```
-show metrics-query ze_peer_state
+show metrics name ze_peer_state
 show system sockets
 show system profile cpu duration 5s
 ```

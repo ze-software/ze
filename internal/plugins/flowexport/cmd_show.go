@@ -1,6 +1,6 @@
-// Design: docs/architecture/api/commands.md — show flow-export handler.
+// Design: docs/architecture/api/commands.md — show flow export handler.
 // Owned by the flow-export component so that removing it removes the
-// `show flow-export` command, its schema, and this handler together. See
+// `show flow export` command, its schema, and this handler together. See
 // ai/rules/plugin-self-containment.md.
 
 package flowexport
@@ -56,7 +56,7 @@ func handleShowFlowExport(_ *pluginserver.CommandContext, args []string) (*plugi
 	}
 	return &plugin.Response{
 		Status: plugin.StatusError,
-		Error:  "usage: show flow-export [name <name>]",
+		Error:  "usage: show flow export [name <name>]",
 	}, nil
 }
 
@@ -108,7 +108,7 @@ func handleShowFlowRecent(_ *pluginserver.CommandContext, args []string) (*plugi
 func flowRecentUsage() *plugin.Response {
 	return &plugin.Response{
 		Status: plugin.StatusError,
-		Error:  "usage: show flow-recent [dst <prefix>]",
+		Error:  "usage: show flow recent [dst <prefix>]",
 	}
 }
 

@@ -2,18 +2,24 @@ module ze-policyroute-cmd {
     namespace "urn:ze:policyroute:cmd";
     prefix policyroutecmd;
     import ze-extensions { prefix ze; }
-    description "show policy-routes command tree. Owned by the policyroute plugin so that removing it removes the command node together with the handler. See ai/rules/plugin-self-containment.md.";
+    description "show policy routes command tree. Owned by the policyroute plugin so that removing it removes the command node together with the handler. Container-merges onto the shared `policy` namespace. See ai/rules/plugin-self-containment.md.";
+    revision 2026-07-13 { description "Nest under show policy routes (was policy-routes), per R9 namespace split."; }
     revision 2026-06-03 { description "Relocated show policy-routes out of the central show schema (plugin self-containment)."; }
 
     container show {
         config false;
         description "Read-only commands to inspect system, protocol, and network state";
 
-        container policy-routes {
+        container policy {
             config false;
-            ze:command "ze-show:policy-routes";
-            description "Show policy-based routing rules.
+            description "Inspect and test route policy filters";
+
+            container routes {
+                config false;
+                ze:command "ze-show:policy-routes";
+                description "Show policy-based routing rules.
 Lists PBR rules with match criteria and routing actions.";
+            }
         }
     }
 }

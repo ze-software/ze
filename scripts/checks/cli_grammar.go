@@ -48,12 +48,30 @@ import (
 )
 
 type result struct {
-	Findings   []grammar.Finding `json:"findings"`
-	FlagInYANG []flagHit         `json:"flag-in-yang"`
-	Exempt     map[string]int    `json:"exempt-by-category"`
-	Checked    int               `json:"commands-checked"`
-	Valid      bool              `json:"valid"`
+	Findings     []grammar.Finding `json:"findings"`
+	FlagInYANG   []flagHit         `json:"flag-in-yang"`
+	Exempt       map[string]int    `json:"exempt-by-category"`
+	Checked      int               `json:"commands-checked"`
+	PendingSplit int               `json:"pending-namespace-split"`
+	Valid        bool              `json:"valid"`
 }
+
+// pendingNamespaceSplit lists command paths that violate R9 (sibling namespace
+// collision, ai/rules/cli-grammar.md "Compound Token vs Namespace Split") but are
+// already shipped and are scheduled for the agreed rename migration (split the
+// hyphenated member into `namespace member`). They are tracked debt, NOT a permanent
+// category exemption (those are structural, keyed on wire method, in
+// grammar.ExemptCategory). Each entry is suppressed from the blocking findings and
+// counted into PendingSplit so it is reported, never silent. Remove an entry the moment
+// its command is migrated (new path + deprecated alias). A NEW R9 collision that is not
+// in this list fails the gate, which is the point: the debt only shrinks.
+// pendingNamespaceSplit holds shipped commands that violate R9 (sibling namespace
+// collision) but whose rename to the two-token form is not yet done. It is EMPTY: the
+// cli-hyphen-namespace-split migration (2026-07-13) split every one. Any NEW R9 finding
+// therefore fails the gate outright, which is the point. To stage a future split
+// migration, list the command path here (value true) so the gate reports it as debt
+// (PendingSplit) without blocking, then delete the entry when the command is renamed.
+var pendingNamespaceSplit = map[string]bool{}
 
 type flagHit struct {
 	File string `json:"file"`
@@ -109,6 +127,18 @@ func run() result {
 func walk(node *command.Node, prefix string, res *result) {
 	if node == nil {
 		return
+	}
+	// R9: sibling namespace collision, checked once per level over this node's children.
+	names := make([]string, 0, len(node.Children))
+	for name := range node.Children {
+		names = append(names, name)
+	}
+	for _, f := range grammar.CheckSiblings(prefix, names) {
+		if pendingNamespaceSplit[f.Command] {
+			res.PendingSplit++
+			continue
+		}
+		res.Findings = append(res.Findings, f)
 	}
 	for name, child := range node.Children {
 		path := name
@@ -181,6 +211,9 @@ func printResult(r result) {
 	sort.Strings(cats)
 	for _, c := range cats {
 		fmt.Fprintf(os.Stdout, "Exempt (%s): %d\n", c, r.Exempt[c])
+	}
+	if r.PendingSplit > 0 {
+		fmt.Fprintf(os.Stdout, "Pending namespace-split (R9 debt, tracked for rename migration): %d\n", r.PendingSplit)
 	}
 	fmt.Fprintln(os.Stdout)
 

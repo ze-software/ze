@@ -1,4 +1,4 @@
-# Test: `show flow-recent` recent-flow ring query dispatches through the engine.
+# Test: `show flow recent` recent-flow ring query dispatches through the engine.
 #
 # VALIDATES: cp-survival-5-detect-5 AC-11 / User Story 2 -- the flowexport
 #            recent-flow RPC is reachable via dispatch-command, returns a JSON
@@ -27,7 +27,7 @@ EOF_PEER
 
 tmpfs=flow-recent-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Dispatch `show flow-recent` and assert the recent-flow RPC is wired."""
+"""Dispatch `show flow recent` and assert the recent-flow RPC is wired."""
 import json
 import sys
 from ze_api import API
@@ -59,9 +59,9 @@ def main():
 
     try:
         # 1. No-arg: returns done + a JSON list (empty is valid off-Linux).
-        r = dispatch(api, 'show flow-recent')
+        r = dispatch(api, 'show flow recent')
         if r.get('status') != 'done':
-            print(f'FAIL: show flow-recent status={r.get("status")}', file=sys.stderr)
+            print(f'FAIL: show flow recent status={r.get("status")}', file=sys.stderr)
             sys.exit(1)
         data = as_list(r)
         if not isinstance(data, list):
@@ -69,7 +69,7 @@ def main():
             sys.exit(1)
 
         # 2. dst filter grammar dispatches and returns a list.
-        r = dispatch(api, 'show flow-recent dst 203.0.113.0/24')
+        r = dispatch(api, 'show flow recent dst 203.0.113.0/24')
         if r.get('status') != 'done':
             print(f'FAIL: dst-filter status={r.get("status")}', file=sys.stderr)
             sys.exit(1)
@@ -78,12 +78,12 @@ def main():
             sys.exit(1)
 
         # 3. Malformed grammar is rejected (not silently treated as no-arg).
-        r = dispatch(api, 'show flow-recent bogus arg')
+        r = dispatch(api, 'show flow recent bogus arg')
         if r.get('status') != 'error':
             print(f'FAIL: bad grammar status={r.get("status")}, want error', file=sys.stderr)
             sys.exit(1)
 
-        print('OK: show flow-recent reachable, list shape, dst filter, usage guard',
+        print('OK: show flow recent reachable, list shape, dst filter, usage guard',
               file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')
@@ -145,4 +145,4 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
-expect=stderr:contains=OK: show flow-recent reachable
+expect=stderr:contains=OK: show flow recent reachable

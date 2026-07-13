@@ -93,8 +93,8 @@ def dump_state(api):
         f"ddos-status={result_text_data(dispatch(api, 'show ddos status'))} "
         f"ddos-incidents={result_text_data(dispatch(api, 'show ddos incidents'))} "
         f"traffic-usage-lo={result_text_data(dispatch(api, 'show traffic usage name lo'))} "
-        f"flow-recent-all={result_text_data(dispatch(api, 'show flow-recent'))} "
-        f"flow-recent-victim={result_text_data(dispatch(api, 'show flow-recent dst 127.0.0.2'))}"
+        f"flow-recent-all={result_text_data(dispatch(api, 'show flow recent'))} "
+        f"flow-recent-victim={result_text_data(dispatch(api, 'show flow recent dst 127.0.0.2'))}"
     )
 
 

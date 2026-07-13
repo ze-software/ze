@@ -95,7 +95,7 @@ type SamplingConfig struct {
 type ConntrackConfig struct {
 	Enabled       bool `json:"enabled"`
 	ActiveTimeout int  `json:"active-timeout"`   // seconds between conntrack dumps
-	RecentRing    int  `json:"recent-flow-ring"` // recent-flow ring capacity (records) for `show flow-recent`
+	RecentRing    int  `json:"recent-flow-ring"` // recent-flow ring capacity (records) for `show flow recent`
 }
 
 // EnrichmentConfig controls BGP RIB enrichment of flow records (spec 2).

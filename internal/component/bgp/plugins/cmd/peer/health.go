@@ -1,4 +1,4 @@
-// Design: docs/architecture/api/commands.md — show bgp-health overview handler
+// Design: docs/architecture/api/commands.md — show bgp health overview handler
 // Detail: summary.go — the per-peer BGP summary this overview complements
 
 package peer

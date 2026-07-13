@@ -139,7 +139,7 @@ A central self-containment test bans every migrated token to prevent drift back.
 A command stays in the central verb package only when it has no single removable
 owner:
 
-- Aggregates a cross-plugin registry (`show policy list`, `show metrics-query`)
+- Aggregates a cross-plugin registry (`show policy list`, `show metrics name`)
 - Reads the generic core system (`show version`, `show health`, `show uptime`)
 - Is process-global (`show system memory`, `show system goroutines`)
 

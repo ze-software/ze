@@ -16,7 +16,7 @@ func init() {
 	// CI test runners
 	registerCIRoot("appliance", "appliance", "appliance", "Run appliance CLI functional tests (.ci files in test/appliance/).\nCovers ze appliance build/iso/list/help surfaces and serial login (offline; gok-dependent steps model tool absence).", 0)
 	registerCIRoot("firewall", "firewall", "firewall", "Run firewall functional tests (.ci files in test/firewall/).\nCovers component reactor wiring: boot-time parse -> validate -> Apply.", 0)
-	registerCIRoot("flow-export", "flow-export", "flow-export", "Run flow-export functional tests (.ci files in test/flow-export/).\nCovers sFlow v5, NetFlow v9, and IPFIX counter export over UDP, the show flow-export handler, packet-sampling wiring, and reload-time reconfiguration.", 0)
+	registerCIRoot("flow-export", "flow-export", "flow-export", "Run flow-export functional tests (.ci files in test/flow-export/).\nCovers sFlow v5, NetFlow v9, and IPFIX counter export over UDP, the show flow export handler, packet-sampling wiring, and reload-time reconfiguration.", 0)
 	registerCIRoot("install", "install", "install", "Run install provisioning functional tests (.ci files in test/install/).\nTests ze install CLI, config validation, and provisioning server setup.", 0)
 	registerCIRoot("ipsec", "ipsec", "IPsec", "Run IPsec/IKEv2 functional tests (.ci files in test/ipsec/).\nCovers vpn ipsec show/monitor/clear surfaces and SA lifecycle scenarios.", 0)
 	registerCIRoot("isis", "isis", "isis", "Run IS-IS functional tests (.ci files in test/isis/).\nCovers single-daemon boot: config parse -> YANG -> NET/system-id validation -> component startup, and rejection of an invalid NET.", 0)

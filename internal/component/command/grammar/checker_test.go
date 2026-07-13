@@ -1,8 +1,9 @@
-// VALIDATES: the reverse-engineered CLI grammar rules R1-R8 (ai/rules/cli-grammar.md)
+// VALIDATES: the reverse-engineered CLI grammar rules R1-R9 (ai/rules/cli-grammar.md)
 // as pure functions over command paths and command.Node structure.
 // PREVENTS: grammar drift -- a new command that is noun-first, uses a --flag,
 // carries an untyped value slot, mis-orders value-before-keyword, uses a config
-// mutation verb, or types an identifier numerically must be caught here.
+// mutation verb, types an identifier numerically, or hyphenates a namespace member
+// as a fake compound (R9) must be caught here.
 
 package grammar
 
@@ -138,6 +139,43 @@ func TestCheckNodeStringIdentifier(t *testing.T) { // R8
 	bad := &command.Node{Name: "id", WireMethod: "ze-x:y", ArgDefs: []command.ArgDef{{Name: "session-id", Kind: command.ArgUint}}}
 	if f := CheckNode("show l2tp session id", bad); !hasRule(f, "R8") {
 		t.Errorf("numeric session-id not flagged R8: %v", f)
+	}
+}
+
+func TestCheckSiblings(t *testing.T) { // R9
+	// `traffic` is a real namespace, so `traffic-stat` / `traffic-feature` are members
+	// masquerading as compounds and must be flagged; the bare `traffic` and unrelated
+	// `bgp` must not.
+	names := []string{"traffic", "traffic-stat", "traffic-feature", "bgp"}
+	f := CheckSiblings("show", names)
+	if !hasRule(f, "R9") {
+		t.Fatalf("traffic-stat/traffic-feature collision not flagged R9: %v", f)
+	}
+	flagged := map[string]bool{}
+	for _, x := range f {
+		flagged[x.Command] = true
+	}
+	if !flagged["show traffic-stat"] || !flagged["show traffic-feature"] {
+		t.Errorf("expected show traffic-stat and show traffic-feature flagged, got %v", f)
+	}
+	if flagged["show traffic"] || flagged["show bgp"] {
+		t.Errorf("bare namespace / unrelated sibling wrongly flagged: %v", f)
+	}
+
+	// A genuine compound with no colliding sibling is never flagged (low false positive).
+	if f := CheckSiblings("resolve peeringdb", []string{"as-set", "max-prefix"}); len(f) != 0 {
+		t.Errorf("genuine compounds flagged R9: %v", f)
+	}
+
+	// Conservative by design: without a bare `session`/`tunnel` sibling AT THIS LEVEL,
+	// the flat show forms are left to human review, not mechanically flagged.
+	if f := CheckSiblings("show l2tp", []string{"session-history", "session-traffic", "tunnel-history"}); len(f) != 0 {
+		t.Errorf("no sibling namespace present, must not flag: %v", f)
+	}
+
+	// Empty parent path (root level) still produces a bare command path.
+	if f := CheckSiblings("", []string{"traffic", "traffic-stat"}); len(f) != 1 || f[0].Command != "traffic-stat" {
+		t.Errorf("root-level path wrong: %v", f)
 	}
 }
 

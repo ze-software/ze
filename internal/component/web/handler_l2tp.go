@@ -336,7 +336,7 @@ func (h *L2TPHandlers) HandleL2TPDisconnect() http.HandlerFunc {
 			actor = "web"
 		}
 		var bCmd textbuf.Buffer
-		cmd := bCmd.Reset().Str("clear l2tp session teardown ").Int(int64(sid)).Byte(' ').Str("actor ").Str(actor).Str(" reason ").Str(quoteForDispatch(reason)).String()
+		cmd := bCmd.Reset().Str("clear l2tp session id ").Int(int64(sid)).Byte(' ').Str("actor ").Str(actor).Str(" reason ").Str(quoteForDispatch(reason)).String()
 		if causeStr != "" {
 			causeVal, parseErr := strconv.ParseUint(causeStr, 10, 16)
 			if parseErr != nil || causeVal > maxCauseVal {

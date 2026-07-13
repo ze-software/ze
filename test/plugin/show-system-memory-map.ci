@@ -1,4 +1,4 @@
-# Test: show system memory-map returns VmRSS/VmSize from /proc/self/status
+# Test: show system memory returns VmRSS/VmSize from /proc/self/status (OS view)
 # Exercises: dispatch-command -> ze-show:system-memory-map -> handleShowSystemMemoryMap
 # Verifies AC-15: returns JSON with VmRSS, VmSize, VmSwap, Threads (Linux-only; accepts platform error)
 
@@ -33,7 +33,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        resp = dispatch(api, 'system memory-map')
+        resp = dispatch(api, 'system memory')
         status = resp.get('status')
         if status is None:
             runtime_fail(f'memory-map: dispatch returned no status: {resp}')

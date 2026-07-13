@@ -196,7 +196,7 @@ func handleShowMetricsQuery(_ *pluginserver.CommandContext, args []string) (*plu
 		}
 	}
 	if metricName == "" {
-		return &plugin.Response{Status: plugin.StatusError, Error: "usage: metrics-query <name> [label=value ...]"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show metrics name <name> [label=value ...]"}, nil
 	}
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", http.NoBody)
 	if err != nil {

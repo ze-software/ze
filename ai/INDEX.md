@@ -29,7 +29,7 @@ and gated fresh, so they never lie about the current code.
 | Fix a failing test, gate, demo, or user-visible problem | `ai/rules/no-workarounds-for-missing-behavior.md` | Implement the missing behavior at the source, never route around it |
 | Modify wire encoding | `ai/rules/buffer-first.md` | `docs/architecture/buffer-architecture.md` |
 | Add route processing | `ai/rules/architecture-summary.md` | `docs/architecture/core-design.md` |
-| Detect and auto-mitigate a DDoS flood | `docs/guide/ddos-mitigation.md` | `ddos-detect` characterizes the attack (family + vector) from `traffic-usage`/`flow-export`; `ddos-local`/`ddos-flowspec` install surgical rules; `show flow-recent` inspects the flow ring |
+| Detect and auto-mitigate a DDoS flood | `docs/guide/ddos-mitigation.md` | `ddos-detect` characterizes the attack (family + vector) from `traffic-usage`/`flow-export`; `ddos-local`/`ddos-flowspec` install surgical rules; `show flow recent` inspects the flow ring |
 | Detect behavioral security anomalies (exfil, C2, scanning) | learned `1046`/`1048`/`1049` | Neutral facts in `internal/component/trafficfeature` (fan-out, out/in ratio, entropy, beaconing) on `internal/core/stats`; `anomaly/detect` (report-only) scores per-entity deviation + cohort rarity into incidents (`show anomaly`); `anomaly/shape` responds shadow-first (per-source rate-limit, arm/auto-revert/kill-switch, `show anomaly-shape`). Separate security domain from `ddos`. |
 | Implement an RFC | `ai/rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
 | Write a spec | `ai/rules/planning.md` | `plan/TEMPLATE.md` |
@@ -194,7 +194,7 @@ artifact type. Check them whenever your work touches the described concern.
 | `make ze-doc-test` | `mk/inventory.mk` | Documentation drift, stale source anchors, and YANG command handler contract checks. |
 | `make ze-inventory` / `make ze-inventory-json` | `mk/inventory.mk` | Registry-backed plugin, command, YANG, and test inventory. |
 | `make ze-command-list` / `make ze-command-list-json` | `mk/inventory.mk` | Live command inventory generated from registered handlers and schemas. |
-| `make ze-cli-grammar-check` / `-json` | `mk/inventory.mk` | CLI grammar gate: every built-in command obeys the verb-first rules R1-R8 (`ai/rules/cli-grammar.md`) and no `.yang` carries a `--flag`. In `make ze-verify`. |
+| `make ze-cli-grammar-check` / `-json` | `mk/inventory.mk` | CLI grammar gate: every built-in command obeys the verb-first rules R1-R9 (`ai/rules/cli-grammar.md`; R9 = compound-vs-namespace split) and no `.yang` carries a `--flag`. In `make ze-verify`. |
 | `make ze-doc-index` | `mk/inventory.mk` | Regenerate `ai/CODE-TO-DOCS.md`, the source-to-document reverse index. |
 | `make ze-ai-sync` | `scripts/dev/skill_sync.sh` | Sync canonical `ai/skills/*.md` to `.claude/skills/`, `.codex/skills/`, and `.agents/skills/`; also regenerates `CLAUDE.md` and `AGENTS.md` from `ai/INSTRUCTIONS.md`. |
 | `make ze-spec-status` / `make ze-spec-status-json` | `mk/inventory.mk` | Spec progress overview for active planning and handoff. |

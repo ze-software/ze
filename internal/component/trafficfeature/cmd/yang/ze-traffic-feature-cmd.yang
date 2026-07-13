@@ -2,22 +2,28 @@ module ze-traffic-feature-cmd {
     namespace "urn:ze:traffic-feature:cmd";
     prefix trafficfeaturecmd;
     import ze-extensions { prefix ze; }
-    description "show traffic-feature command tree. Owned by the trafficfeature component.";
+    description "show traffic feature command tree. Owned by the trafficfeature component. Container-merges onto the shared `traffic` namespace.";
+    revision 2026-07-13 { description "Nest under show traffic feature (was traffic-feature), per R9 namespace split."; }
     revision 2026-07-02 { description "Initial: neutral per-source traffic feature signals CLI."; }
 
     container show {
         config false;
         description "Read-only commands to inspect system, protocol, and network state";
 
-        container traffic-feature {
+        container traffic {
             config false;
-            ze:command "ze-show:traffic-feature";
-            description "Show neutral per-source traffic feature signals: fan-out (distinct destinations),
+            description "Traffic subsystem: QoS control and byte-usage accounting.";
+
+            container feature {
+                config false;
+                ze:command "ze-show:traffic-feature";
+                description "Show neutral per-source traffic feature signals: fan-out (distinct destinations),
 out/in byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto, and coarse beaconing.
 Without arguments, shows the top source entities. With 'name <address>', filters to one source.";
-            leaf name {
-                type string;
-                description "Source address filter";
+                leaf name {
+                    type string;
+                    description "Source address filter";
+                }
             }
         }
     }

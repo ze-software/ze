@@ -57,6 +57,13 @@ WIRING_ALLOWLIST: set[tuple[str, str]] = {
     # Cross-package test API: plugins (e.g. bgp/plugins/role) look up their
     # registered attr-mod handler in their own tests.
     ("internal/component/bgp/filterapi/filterapi.go", "AttrModHandlerFor"),
+    # R9 sibling-collision (CheckSiblings) needs the sibling token names at one
+    # tree level, so only the static grammar gate (scripts/checks/cli_grammar.go,
+    # which walks the whole YANG command tree) can run it -- per-command
+    # registration cannot see siblings. Gate-only by design; its only caller is
+    # in scripts/, which has_production_reference does not count. See the grammar
+    # package doc in checker.go.
+    ("internal/component/command/grammar/checker.go", "CheckSiblings"),
 }
 
 # User-facing area -> functional suite directory expected to change with it
@@ -396,7 +403,9 @@ def is_discovery_source(root: Path, path: str) -> bool:
     HEAD (a change either adds or removes such a header)."""
     header = ""
     if path.endswith(".go") and not path.endswith("_test.go"):
-        header = read_current_or_empty(root, path) + "\n" + read_head_or_empty(root, path)
+        header = (
+            read_current_or_empty(root, path) + "\n" + read_head_or_empty(root, path)
+        )
     return discovery_is_source(path, header)
 
 
@@ -504,6 +513,7 @@ def check_wiring(
     baseline_reader: Callable[[str], str] | None = None,
 ) -> list[str]:
     if baseline_reader is None:
+
         def baseline_reader(path: str) -> str:
             return read_head_or_empty(root, path)
 

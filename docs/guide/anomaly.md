@@ -22,8 +22,8 @@ Both detectors read from a neutral facts layer. `trafficfeature` is a second, in
 The service is lazy and consumer-refcounted, so it costs nothing until a consumer attaches. It aggregates on a one-second tick and bounds memory with per-source cardinality and idle-eviction caps. Operators can read it directly:
 
 ```text
-show traffic-feature
-show traffic-feature 203.0.113.7   // one source
+show traffic feature
+show traffic feature 203.0.113.7   // one source
 ```
 
 The output lists the top source IPs by activity with their feature vector and a `degraded` flag when no data has arrived yet.

@@ -1,6 +1,6 @@
-// Design: docs/architecture/api/commands.md — show policy-routes proxy handler.
+// Design: docs/architecture/api/commands.md — show policy routes proxy handler.
 // Owned by the policyroute plugin so that removing it removes the
-// `show policy-routes` command, its schema, and this handler together. See
+// `show policy routes` command, its schema, and this handler together. See
 // ai/rules/plugin-self-containment.md.
 
 package policyroute
@@ -10,7 +10,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
-const cmdShowPolicyRoutes = "show policy-routes"
+const cmdShowPolicyRoutes = "show policy routes"
 
 func init() {
 	pluginserver.RegisterRPCs(

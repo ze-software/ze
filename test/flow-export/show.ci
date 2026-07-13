@@ -1,4 +1,4 @@
-# Test: `show flow-export` returns the configured sFlow collector.
+# Test: `show flow export` returns the configured sFlow collector.
 #
 # VALIDATES: spec-flow-export-1 AC-7 -- the show handler surfaces per-collector
 #            status (name, address, port, protocol, datagrams-sent, bytes-sent,
@@ -11,7 +11,7 @@
 #
 # Architecture:
 #   The external observer (spawned by ze via plugin/external) dispatches
-#   `show flow-export`, asserts the configured collector is visible with the
+#   `show flow export`, asserts the configured collector is visible with the
 #   right name/address/protocol, then dispatches `daemon shutdown`.
 
 option=env:var=ze.log.flow.export:value=info
@@ -19,7 +19,7 @@ option=timeout:value=20s
 
 tmpfs=show-flow-export.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Dispatch show flow-export and assert the configured collector is present."""
+"""Dispatch show flow export and assert the configured collector is present."""
 import json
 import time
 
@@ -44,7 +44,7 @@ def main():
 
     collectors = None
     for _ in range(100):
-        r = dispatch(api, 'show flow-export')
+        r = dispatch(api, 'show flow export')
         if r.get('status') == 'done':
             try:
                 data = json.loads(r.get('data', '') or 'null')
@@ -56,7 +56,7 @@ def main():
                 break
         time.sleep(0.1)
     if collectors is None:
-        runtime_fail('no collector ever appeared in `show flow-export`')
+        runtime_fail('no collector ever appeared in `show flow export`')
 
     c = collectors[0]
     if c.get('name') != 'c1':

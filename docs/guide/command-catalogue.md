@@ -241,7 +241,7 @@ Stateful filter and ACL visibility.
 | NAT translations / pool | `show nat source translations` | `show security nat source pool all` | `show service nat pool` | `show ip nat translations` | - | | planned | nft / vpp-acl | |
 | Drop a conntrack entry | `reset conntrack-sync entry` | `clear security flow session` | - | `clear flow` | - | | planned | nl(conntrack) | |
 | Firewall ruleset resequence | `generate firewall rule-resequence <n>` | ~ | ~ | ~ | - | | scope | - | Config management convenience |
-| Policy-based routing view | `show policy route-map <name>` | `show policy <name>` | `show router policy-options` | `show route-map <name>` | `show route-map <name>` | `show policy-routes` | shipped | config+nft | Returns JSON with policy routes, interfaces, rules, actions |
+| Policy-based routing view | `show policy route-map <name>` | `show policy <name>` | `show router policy-options` | `show route-map <name>` | `show route-map <name>` | `show policy routes` | shipped | config+nft | Returns JSON with policy routes, interfaces, rules, actions |
 | QoS / traffic-control view | `show queueing interface <i>` | `show class-of-service interface <i>` | `show qos egress-queue-scheduler <i>` | `show qos interfaces <i>` | - | | planned | nl(tc) / vpp-stats | `tc`/VPP policer |
 
 ## 6. VPN / Tunnel / Services

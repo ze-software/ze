@@ -47,9 +47,9 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "subcommands:")
 	fmt.Fprintln(os.Stderr, "  decode                            Decode a hex L2TPv2 control message from stdin to JSON")
 	fmt.Fprintln(os.Stderr, "  show [tunnels|tunnel <id>|...]    Query the running daemon (forwards via SSH)")
-	fmt.Fprintln(os.Stderr, "  tunnel teardown <id>              Send StopCCN to one tunnel")
-	fmt.Fprintln(os.Stderr, "  tunnel teardown-all               Send StopCCN to every tunnel")
-	fmt.Fprintln(os.Stderr, "  session teardown <id>             Send CDN to one session")
-	fmt.Fprintln(os.Stderr, "  session teardown-all              Send CDN to every session")
+	fmt.Fprintln(os.Stderr, "  tunnel id <id>                   Send StopCCN to one tunnel")
+	fmt.Fprintln(os.Stderr, "  tunnel all                        Send StopCCN to every tunnel")
+	fmt.Fprintln(os.Stderr, "  session id <id>                  Send CDN to one session")
+	fmt.Fprintln(os.Stderr, "  session all                       Send CDN to every session")
 	fmt.Fprintln(os.Stderr, "  help                              Show this message")
 }

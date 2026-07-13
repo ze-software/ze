@@ -75,6 +75,52 @@ Correct form: `<resource> <action> <id>`.
 
 The `list` action (no identifier) already works correctly in both.
 
+## Compound Token vs Namespace Split (R9)
+
+A hyphen inside a command token joins words that name **one indivisible thing**.
+Two separate ideas are two tokens, never one hyphenated token.
+
+Decision test, in order:
+
+1. Would you naturally say the two parts separately about the object ("show the
+   *health* of *bgp*", "show the *feature* signals for *traffic*")? If yes, they are
+   two tokens. The left part becomes a container node so the tree stays object-rooted
+   and completion can enumerate the members
+   (`docs/architecture/cli/command-namespacing.md`).
+2. Is the whole string the actual name of one thing you would never break apart? An
+   industry term of art (`as-set`, `graceful-restart`, `segment-routing`,
+   `adj-rib-in`, `class-of-service`), a protocol / LSA / object name (`opaque-area`,
+   `asbr-summary`, `router-information`), or a single attribute (`asn-name`,
+   `max-prefix`, `file-descriptors`). If yes, keep the hyphen.
+3. A shared prefix is not proof of a namespace. `flow-export` (NetFlow/IPFIX) and
+   `flow-recent` (conntrack ring) share "flow" by accident; they are not
+   `show flow {export,recent}`. Split only when the prefix is a real object that owns
+   every child.
+4. A split namespace needs one owning module. If several components share the prefix,
+   one module owns the container and the others augment it (as `trafficusage` augments
+   `traffic`). Never a shared parent that multiple plugins reach up into: that is the
+   plugin-self-containment break the old `show ip` grouping caused.
+
+| Incorrect | Correct | Why |
+|-----------|---------|-----|
+| `show traffic-stat` | `show traffic stat` | `traffic` is a real namespace (traffic-cmd owns it, trafficusage augments it); `stat` is a member |
+| `show bgp-health` | `show bgp health` | `bgp` is the object namespace |
+| `show metrics-query` | `show metrics query` | `metrics` is a real namespace |
+| `show l2tp session-history` | `show l2tp session history` | `session` is a real container under `l2tp` |
+| `resolve peeringdb as-set` | `resolve peeringdb as-set` (unchanged) | `as-set` is one IRR object; no `as` sibling; keep the hyphen |
+
+**Enforcement (R9).** The static gate flags any child token whose left segment is
+itself a sibling name at the same tree level (`grammar.CheckSiblings`). R9 is the one
+rule that needs sibling context, so ONLY the static gate runs it: per-command
+registration cannot see siblings. It is deliberately conservative and fires only when
+the namespace literally exists as a sibling, so a genuine compound is never flagged.
+Shipped commands awaiting the agreed rename are listed in `pendingNamespaceSplit`
+(`scripts/checks/cli_grammar.go`) and reported as tracked debt, so the gate stays green
+while a NEW collision still fails. Migrating one is a dispatch-key change (see
+"Migrating a Built-in Command's Path" below): add the split path, keep the old form per
+"Backward Compatibility", update `.ci` senders, and remove its `pendingNamespaceSplit`
+entry.
+
 ## Choosing the Verb: Read vs Perturb (`show`/`monitor` vs `debug`)
 
 The verb is chosen by the command's **effect on live state**, not by how
@@ -229,15 +275,15 @@ ParseUint, etc.) without first matching it against a keyword set, that is a viol
 ## Mechanical Enforcement (automated)
 
 These rules are enforced automatically, not just by review. The reverse-engineered
-ruleset is R1-R8 (verb-first, token form, no `--flag`, namespace discipline,
+ruleset is R1-R9 (verb-first, token form, no `--flag`, namespace discipline,
 keyword-before-value, action-before-identifier, config-tree-mutation stays in
-`set`/`delete`, string identifiers), implemented once in
+`set`/`delete`, string identifiers, compound-vs-namespace split), implemented once in
 `internal/component/command/grammar` and read from the canonical verb registry
 `internal/component/command` (`Verbs`). Three feeders enforce it:
 
 | Feeder | What it checks | Run |
 |--------|----------------|-----|
-| Static gate | Every built-in command (YANG command tree) against R1-R8, plus no `--flag` in any `.yang` | `make ze-cli-grammar-check` (in `make ze-verify`) |
+| Static gate | Every built-in command (YANG command tree) against R1-R9 (R9 sibling-collision is static-gate-only, it needs sibling context), plus no `--flag` in any `.yang` | `make ze-cli-grammar-check` (in `make ze-verify`) |
 | Registration | Every plugin `CommandDecl` at registration (`validateCommandName`) | plugin startup in functional/exabgp suites |
 | Runtime guard | The runtime built-in assembly (`AllBuiltinRPCs` x `WireMethodToPaths`) re-checked with `ExemptCategory` by wire method; and the `CommandRegistry.Register` boundary rejecting a bad name | `TestRuntimeBuiltinSurfaceGrammar` / `TestRegistrationRejectsBadGrammar` (unit) |
 

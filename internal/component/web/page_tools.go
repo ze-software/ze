@@ -193,7 +193,7 @@ func handleMetricsSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageDa
 
 	label := strings.TrimSpace(r.PostFormValue("label"))
 	var tb textbuf.Buffer
-	tb.Str("show metrics-query ").Str(name)
+	tb.Str("show metrics name ").Str(name)
 	if label != "" {
 		tb.Byte(' ').Str(label)
 	}

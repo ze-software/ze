@@ -20,16 +20,15 @@ func cmdShow(args []string) int {
 	return forwardToDaemon(textbuf.Join(parts, " "))
 }
 
-// cmdTunnelTeardown forwards `ze l2tp tunnel teardown <id>` or
-// `ze l2tp tunnel teardown-all` to the daemon. `args` carries the
-// subcommand (`teardown` / `teardown-all`) plus any positional args
-// (the tunnel id for the single-target form).
+// cmdTunnelTeardown forwards `ze l2tp tunnel id <id>` or `ze l2tp tunnel all`
+// to the daemon as the operational `clear l2tp tunnel …` command (clear already
+// means tear down). `args` carries the subcommand (`id <id>` / `all`).
 func cmdTunnelTeardown(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "error: ze l2tp tunnel <teardown|teardown-all> [<id>]")
+		fmt.Fprintln(os.Stderr, "error: ze l2tp tunnel {id <id> | all}")
 		return 1
 	}
-	parts := append([]string{"l2tp", "tunnel"}, args...)
+	parts := append([]string{"clear", "l2tp", "tunnel"}, args...)
 	return forwardToDaemon(textbuf.Join(parts, " "))
 }
 
@@ -37,10 +36,10 @@ func cmdTunnelTeardown(args []string) int {
 // cmdTunnelTeardown.
 func cmdSessionTeardown(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "error: ze l2tp session <teardown|teardown-all> [<id>]")
+		fmt.Fprintln(os.Stderr, "error: ze l2tp session {id <id> | all}")
 		return 1
 	}
-	parts := append([]string{"l2tp", "session"}, args...)
+	parts := append([]string{"clear", "l2tp", "session"}, args...)
 	return forwardToDaemon(textbuf.Join(parts, " "))
 }
 

@@ -1,4 +1,4 @@
-# Test: `show traffic-stat` RPC dispatches through the plugin engine
+# Test: `show traffic stat` RPC dispatches through the plugin engine
 # VALIDATES: the trafficstat component's ze-show:traffic-stat RPC returns
 #   StatusDone with a snapshot map (a `degraded` flag plus an `interfaces`
 #   list) via handleShowTraffic, proving the RPC handler, YANG command
@@ -11,7 +11,7 @@
 
 tmpfs=traffic-monitor-done.run:mode=755:terminator=EOF_DONE
 #!/usr/bin/env python3
-"""Dispatch `show traffic-stat` against a configured daemon: expect done + degraded/interfaces."""
+"""Dispatch `show traffic stat` against a configured daemon: expect done + degraded/interfaces."""
 
 import json
 
@@ -35,24 +35,24 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    r = dispatch(api, 'show traffic-stat')
+    r = dispatch(api, 'show traffic stat')
     if r.get('status') != 'done':
         runtime_fail(
-            f"show traffic-stat: expected done, "
+            f"show traffic stat: expected done, "
             f"got status={r.get('status')} data={result_text_data(r)[:200]}")
 
     try:
         data = result_json_data(r, {})
     except json.JSONDecodeError as exc:
-        runtime_fail(f"show traffic-stat: invalid JSON: {exc}: {result_text_data(r)[:200]}")
+        runtime_fail(f"show traffic stat: invalid JSON: {exc}: {result_text_data(r)[:200]}")
         data = {}
 
     for key in ('degraded', 'interfaces'):
         if key not in data:
-            runtime_fail(f"show traffic-stat: missing '{key}' key: {sorted(data)}")
+            runtime_fail(f"show traffic stat: missing '{key}' key: {sorted(data)}")
     if not isinstance(data['interfaces'], list):
         runtime_fail(
-            f"show traffic-stat: 'interfaces' is {type(data['interfaces']).__name__}, not list")
+            f"show traffic stat: 'interfaces' is {type(data['interfaces']).__name__}, not list")
 
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()

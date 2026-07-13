@@ -1,4 +1,4 @@
-// Design: docs/architecture/api/commands.md -- show l2tp-health handler
+// Design: docs/architecture/api/commands.md -- show l2tp health handler
 // Detail: observer.go -- LoginSummary struct and LoginSummaries method
 
 package l2tp

@@ -16,9 +16,9 @@ import (
 )
 
 func init() {
-	pluginserver.RegisterStreamingHandler("monitor traffic-stat", streamTraffic)
+	pluginserver.RegisterStreamingHandler("monitor traffic stat", streamTraffic)
 	pluginserver.RegisterMonitorProvider(pluginserver.MonitorProvider{
-		Prefix:   "monitor traffic-stat",
+		Prefix:   "monitor traffic stat",
 		CreateFn: createTrafficMonitorSession,
 	})
 	pluginserver.RegisterRPCs(

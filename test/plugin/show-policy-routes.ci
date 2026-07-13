@@ -1,5 +1,5 @@
-# Test: show policy-routes returns JSON with configured PBR rules
-# VALIDATES: spec-cli-1-command-grammar AC-2 -- show policy-routes returns JSON with PBR policy routes
+# Test: show policy routes returns JSON with configured PBR rules
+# VALIDATES: spec-cli-1-command-grammar AC-2 -- show policy routes returns JSON with PBR policy routes
 # PREVENTS: show command returns empty or malformed JSON after CLI grammar migration
 #
 # Requires CAP_NET_ADMIN (nftables).
@@ -28,7 +28,7 @@ out = None
 for _ in range(50):
     try:
         out = subprocess.check_output(
-            ["ze", "cli", "-c", "show policy-routes"],
+            ["ze", "cli", "-c", "show policy routes"],
             text=True, stderr=subprocess.STDOUT)
         break
     except subprocess.CalledProcessError as e:

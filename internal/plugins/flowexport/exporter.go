@@ -54,7 +54,7 @@ type exporter struct {
 	stopped    bool
 	startTime  time.Time
 	// recent is a bounded ring of recently exported conntrack flows, fed from
-	// exportFlows and read by `show flow-recent` so on-box consumers (the DDoS
+	// exportFlows and read by `show flow recent` so on-box consumers (the DDoS
 	// characterizer) can inspect the current flow mix without a packet capture.
 	// nil when conntrack export is disabled (nothing would feed it).
 	recent *recentRing
@@ -277,7 +277,7 @@ func (e *exporter) exportFlows(flows []ConntrackFlow) {
 		}
 	}
 
-	// Tap the (enriched) flows into the recent-flow ring for `show flow-recent`.
+	// Tap the (enriched) flows into the recent-flow ring for `show flow recent`.
 	// Independent of collector fan-out below: the DDoS characterizer needs the
 	// ring even when no NetFlow/IPFIX collector is configured. No-op when the
 	// ring is disabled (conntrack off).

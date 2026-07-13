@@ -1,7 +1,7 @@
 // Design: plan/learned/1015-cp-survival-5-detect-5-characterization.md -- Phase 2 recent-flow tap.
 // A bounded, drop-oldest ring of recently exported conntrack flows. It is fed
 // from ExportFlows (the conntrack dump / destroy fan-out) and read by the
-// `show flow-recent` RPC so the DDoS detector's Stage-2 characterizer can
+// `show flow recent` RPC so the DDoS detector's Stage-2 characterizer can
 // inspect the live flow mix (proto/ports/TCP-state/top-sources) without a
 // packet capture. Value-type snapshots only; safe to copy out under the lock.
 

@@ -392,7 +392,7 @@ func TestCharacterizeEmitsCharacterized(t *testing.T) {
 		switch {
 		case strings.HasPrefix(cmd, "show traffic usage"):
 			return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.42","bytes":1000000}]}`), nil
-		case strings.HasPrefix(cmd, "show flow-recent"):
+		case strings.HasPrefix(cmd, "show flow recent"):
 			return statusDone, json.RawMessage(flowJSON), nil
 		}
 		return "error", nil, errors.New("unexpected command: " + cmd)
@@ -470,7 +470,7 @@ func TestCharacterizeDerivesVictimFromFlows(t *testing.T) {
 
 	bus := newDTestBus()
 	d := newDetector(floodConfig(), bus, func(_ context.Context, cmd string) (string, json.RawMessage, error) {
-		if strings.HasPrefix(cmd, "show flow-recent") {
+		if strings.HasPrefix(cmd, "show flow recent") {
 			return statusDone, json.RawMessage(flowJSON), nil
 		}
 		return "", nil, errors.New("ErrUnknownCommand") // trafficusage absent
@@ -522,7 +522,7 @@ func TestCharacterizeRetriesUntilRingWarms(t *testing.T) {
 		switch {
 		case strings.HasPrefix(cmd, "show traffic usage"):
 			return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.42","bytes":1000000}]}`), nil
-		case strings.HasPrefix(cmd, "show flow-recent"):
+		case strings.HasPrefix(cmd, "show flow recent"):
 			mu.Lock()
 			flowCalls++
 			n := flowCalls

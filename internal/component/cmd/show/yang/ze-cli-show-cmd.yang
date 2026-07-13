@@ -26,16 +26,32 @@ Returns the start time and elapsed uptime. Handy after a maintenance
 window to confirm the process restarted.";
         }
 
+        container runtime {
+            config false;
+            description "Go runtime internals of the daemon process";
+
+            container memory {
+                config false;
+                ze:command "ze-show:system-memory";
+                description "Show the Go runtime allocator memory stats.
+Returns allocated bytes, heap in-use, total allocations, GC cycles, and
+last GC pause duration. Compare over time to spot leaks. For the OS-level
+process memory (RSS/VSZ) use 'show system memory'.";
+            }
+        }
+
         container system {
             config false;
             description "Daemon process and runtime diagnostics";
 
             container memory {
                 config false;
-                ze:command "ze-show:system-memory";
-                description "Show how much memory the daemon is using.
-Returns allocated bytes, heap in-use, total allocations, GC cycles,
-and last GC pause duration. Compare over time to spot leaks.";
+                ze:command "ze-show:system-memory-map";
+                description "Show how much memory the daemon is using, from the OS's view.
+Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status
+(Linux only). This is what the operating system reports the process is
+using. For the Go runtime allocator view (heap, GC), use
+'show runtime memory'.";
             }
 
             container cpu {
@@ -169,13 +185,6 @@ Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs
                 }
             }
 
-            container memory-map {
-                config false;
-                ze:command "ze-show:system-memory-map";
-                description "Show the process memory footprint from the kernel's view.
-Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status.
-Complements 'show system memory' (Go runtime) with the OS-level picture.";
-            }
         }
 
         // NOTE: `show host` subtree is owned by the host-cmd plugin.
@@ -261,13 +270,18 @@ unhealthy with a reason. Start here when troubleshooting.";
         // NOTE: `show doctor` is owned by the doctor plugin.
         // See internal/component/doctor/schema/ze-doctor-cmd.yang.
 
-        container metrics-query {
+        container metrics {
             config false;
-            ze:command "ze-show:metrics-query";
-            description "Query a specific Prometheus metric by name.
-Usage: show metrics-query <name> [label=value ...]. Returns matching
+            description "Access Prometheus metrics and internal pool stats";
+
+            container name {
+                config false;
+                ze:command "ze-show:metrics-query";
+                description "Show one Prometheus metric by name.
+Usage: show metrics name <name> [label=value ...]. Returns matching
 time series from the internal registry. Multiple label filters are
 ANDed. More targeted than the full metrics dump.";
+            }
         }
 
         // NOTE: `show capture` subtree is owned by the diag plugin.

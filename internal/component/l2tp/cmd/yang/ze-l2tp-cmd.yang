@@ -31,20 +31,20 @@ module ze-l2tp-cmd {
     // Read tree: `show l2tp ...`
     // -----------------------------------------------------------------
     augment "/clishowcmd:show" {
-        container l2tp-health {
-            config false;
-            ze:command "ze-show:l2tp-health";
-            description "Find your worst L2TP sessions at a glance.
-Sorts sessions by echo loss ratio (worst first). Shows subscriber
-login, session state, echo count, average RTT, and CQM bucket count.
-Reports how many sessions are degraded.";
-        }
-
         container l2tp {
             config false;
             ze:command "ze-l2tp-api:summary";
             description "L2TP tunnel, session, and subscriber state.
 Without a subcommand, shows a summary of tunnels and sessions.";
+
+            container health {
+                config false;
+                ze:command "ze-show:l2tp-health";
+                description "Find your worst L2TP sessions at a glance.
+Sorts sessions by echo loss ratio (worst first). Shows subscriber
+login, session state, echo count, average RTT, and CQM bucket count.
+Reports how many sessions are degraded.";
+            }
 
             container tunnels {
                 config false;
@@ -69,6 +69,14 @@ endpoint, hello interval, and all assigned sessions.";
                         mandatory true;
                         description "Local tunnel ID";
                     }
+                }
+
+                container history {
+                    config false;
+                    ze:command "ze-l2tp-api:tunnel-history";
+                    description "Show state transitions for a tunnel over time.
+Timestamped FSM entries showing how the tunnel reached its current
+state. Use this to diagnose tunnel establishment failures.";
                 }
             }
 
@@ -95,6 +103,22 @@ negotiated LCP/NCP options, and traffic counters.";
                         mandatory true;
                         description "Local session ID";
                     }
+                }
+
+                container history {
+                    config false;
+                    ze:command "ze-l2tp-api:session-history";
+                    description "Show state transitions for a session over time.
+Timestamped FSM entries for session establishment. Use this when a
+subscriber's session fails to come up.";
+                }
+
+                container traffic {
+                    config false;
+                    ze:command "ze-l2tp-api:session-traffic";
+                    description "Show traffic counters for a subscriber's PPP interface.
+Returns byte and packet counts, error counters, and current rates.
+Compare with CQM data to get the full picture of subscriber health.";
                 }
             }
 
@@ -152,30 +176,6 @@ loss or high RTT indicates a degraded line.";
 Returns send/receive sequence numbers, window size, and retransmit
 queue depth. Check here when tunnel control messages seem stuck.";
             }
-
-            container tunnel-history {
-                config false;
-                ze:command "ze-l2tp-api:tunnel-history";
-                description "Show state transitions for a tunnel over time.
-Timestamped FSM entries showing how the tunnel reached its current
-state. Use this to diagnose tunnel establishment failures.";
-            }
-
-            container session-history {
-                config false;
-                ze:command "ze-l2tp-api:session-history";
-                description "Show state transitions for a session over time.
-Timestamped FSM entries for session establishment. Use this when a
-subscriber's session fails to come up.";
-            }
-
-            container session-traffic {
-                config false;
-                ze:command "ze-l2tp-api:session-traffic";
-                description "Show traffic counters for a subscriber's PPP interface.
-Returns byte and packet counts, error counters, and current rates.
-Compare with CQM data to get the full picture of subscriber health.";
-            }
         }
     }
 
@@ -191,17 +191,17 @@ Compare with CQM data to get the full picture of subscriber health.";
 
             container tunnel {
                 config false;
-                description "Tunnel teardown operations";
+                description "Tear down L2TP tunnels";
 
-                container teardown {
+                container id {
                     config false;
                     ze:command "ze-l2tp-api:tunnel-teardown";
                     description "Gracefully tear down one L2TP tunnel.
 Sends a StopCCN to the peer. All sessions on this tunnel will be
-disconnected. Pass the local tunnel ID.";
+disconnected. Pass the local tunnel ID: clear l2tp tunnel id <id>.";
                 }
 
-                container teardown-all {
+                container all {
                     config false;
                     ze:command "ze-l2tp-api:tunnel-teardown-all";
                     description "Tear down every L2TP tunnel on this box.
@@ -212,17 +212,17 @@ disconnected. Use with care during maintenance.";
 
             container session {
                 config false;
-                description "Session teardown operations";
+                description "Tear down L2TP sessions";
 
-                container teardown {
+                container id {
                     config false;
                     ze:command "ze-l2tp-api:session-teardown";
                     description "Disconnect one subscriber session.
-Sends a CDN to gracefully close the session. Pass the local
-session ID.";
+Sends a CDN to gracefully close the session. Pass the local session
+ID: clear l2tp session id <id> [reason <text>] [cause <code>].";
                 }
 
-                container teardown-all {
+                container all {
                     config false;
                     ze:command "ze-l2tp-api:session-teardown-all";
                     description "Disconnect every L2TP session on this box.

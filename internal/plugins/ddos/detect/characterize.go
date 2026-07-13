@@ -75,7 +75,7 @@ var reflectionPorts = map[uint16]bool{
 // live engine.
 type dispatchFunc func(ctx context.Context, command string) (status string, data json.RawMessage, err error)
 
-// flowRecord is one recent conntrack flow parsed from `show flow-recent`. Value
+// flowRecord is one recent conntrack flow parsed from `show flow recent`. Value
 // type; only the fields the classifier needs.
 type flowRecord struct {
 	SrcAddr  netip.Addr
@@ -362,7 +362,7 @@ func (d *detector) queryRecentFlows(ctx context.Context, victim netip.Prefix) ([
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("show flow-recent")
+	tb.Str("show flow recent")
 	if victim.IsValid() {
 		tb.Str(" dst ").Str(victim.String())
 	}
@@ -371,7 +371,7 @@ func (d *detector) queryRecentFlows(ctx context.Context, victim netip.Prefix) ([
 	if err != nil || status != statusDone {
 		d.flowSourceAbsentOnce.Do(func() {
 			logger().Warn("ddos-detect: flow-recent source unavailable; keeping coarse target",
-				"command", "show flow-recent", "status", status, "error", err)
+				"command", "show flow recent", "status", status, "error", err)
 		})
 		return nil, false
 	}
@@ -418,7 +418,7 @@ func parseTopDestination(data json.RawMessage) (netip.Prefix, bool) {
 	return netip.PrefixFrom(addr, addr.BitLen()), true
 }
 
-// parseFlowRecords decodes the `show flow-recent` JSON list. Malformed rows are
+// parseFlowRecords decodes the `show flow recent` JSON list. Malformed rows are
 // skipped rather than failing the whole set (the response is untrusted input).
 func parseFlowRecords(data json.RawMessage) []flowRecord {
 	var raw []struct {

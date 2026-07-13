@@ -173,6 +173,31 @@ namespace problem: the `vrf` node is owned by the VRF orchestrator plugin and
 *wraps* child trees (children never reach up into it), so plugin
 self-containment holds.
 
+## Token naming: hyphen for one name, space for a namespace
+
+Object-rooting decides the *shape* of the tree; it also decides how a single token is
+spelled. A hyphen inside a command token joins words that name **one indivisible
+thing** (a term of art like `as-set` or `graceful-restart`, an LSA/object name like
+`opaque-area`, a single attribute like `max-prefix`). When the left part is really an
+**object with members**, it is a namespace, so it gets its own token and becomes a
+container node, exactly like every other object root here: `show traffic stat`, not
+`show traffic-stat`; `show bgp health`, not `show bgp-health`. That keeps completion
+able to enumerate the members and keeps the command tree mirroring the plugin tree.
+
+Two traps this closes:
+
+- A shared prefix is not a namespace. `flow-export` (NetFlow/IPFIX) and `flow-recent`
+  (conntrack ring) share "flow" by coincidence; there is no `flow` object, so they stay
+  compound names, not `show flow {export,recent}`.
+- A split namespace needs one owning module. When two components share the prefix, one
+  owns the container and the others augment it (`trafficusage` augments `traffic`),
+  never a shared parent multiple plugins reach up into: that is the self-containment
+  break the retired `show ip` grouping caused.
+
+The rule and its automated check (R9, sibling-collision) live in
+[`ai/rules/cli-grammar.md`](../../../ai/rules/cli-grammar.md) ("Compound Token vs
+Namespace Split").
+
 ## Filters are keyword grammar, never `--flags`
 
 The through-line across every vendor above: the family / instance / table

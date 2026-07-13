@@ -1,4 +1,4 @@
-# Test: show traffic-feature returns the neutral per-source feature snapshot
+# Test: show traffic feature returns the neutral per-source feature snapshot
 # Exercises: dispatch-command -> ze-show:traffic-feature -> handleShowTrafficFeature
 # Verifies AC-9: the wire method resolves and returns structured JSON with the
 # degraded flag and a top-source-ips array (empty when there is no traffic).
@@ -34,7 +34,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        resp = dispatch(api, 'show traffic-feature')
+        resp = dispatch(api, 'show traffic feature')
         status = resp.get('status')
         if status is None:
             runtime_fail(f'traffic-feature: dispatch returned no status: {resp}')

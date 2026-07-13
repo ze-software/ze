@@ -336,12 +336,12 @@ be queued because the worker was stopped or the queue was full.
 
 ### ze show system
 
-Daemon process introspection. Three sibling commands surface the Go
-runtime state for the running ze process. Available via daemon SSH
-(online RPC); YANG registration only.
+Daemon process introspection for the running ze process. `show runtime
+memory` is the Go allocator view; `show system memory` (below) is the
+OS view. Available via daemon SSH (online RPC); YANG registration only.
 
 ```
-ze show system memory              # runtime.MemStats (alloc, heap, GC) + hardware enrichment
+ze show runtime memory             # runtime.MemStats (alloc, heap, GC) + hardware enrichment
 ze show system cpu                 # goroutine count, logical CPUs, GOMAXPROCS + hardware
 ze show system date                # wall-clock time: RFC3339, Unix, timezone
 ze show system platform            # runtime platform type and capabilities
@@ -351,7 +351,7 @@ Each response is a flat JSON map with kebab-case keys:
 
 | Command | Top-level keys |
 |---------|----------------|
-| `show system memory` | `alloc`, `total-alloc`, `sys`, `heap-alloc`, `heap-sys`, `heap-in-use`, `heap-objects`, `stack-in-use`, `num-gc`, `gc-cpu-pct`, `hardware` (optional: physical memory + ECC from `host.DetectMemory()`) |
+| `show runtime memory` | `alloc`, `total-alloc`, `sys`, `heap-alloc`, `heap-sys`, `heap-in-use`, `heap-objects`, `stack-in-use`, `num-gc`, `gc-cpu-pct`, `hardware` (optional: physical memory + ECC from `host.DetectMemory()`) |
 | `show system cpu` | `num-cpu`, `num-goroutines`, `max-procs`, `go-version`, `hardware` (optional: `host.DetectCPU()`) |
 | `show system date` | `time` (RFC3339), `unix`, `unix-nano`, `timezone`, `utc-offset-secs` |
 | `show system platform` | `type` (gokrazy, systemd, container, plain-linux, darwin), `read-only-root`, `perm-available`, `systemd-available`, `gokrazy-update-socket`, `gokrazy-ui-available`, `reboot-allowed`, `persistent-storage-writable`, `fd-limit-soft-current`, `fd-limit-hard-max`, `fd-limit-raisable` |
@@ -520,15 +520,15 @@ ze show traffic control            # Summary of all interfaces with qdiscs
 ze show traffic control <ifname>   # Detail for one interface
 ```
 
-### show flow-export
+### show flow export
 
 Per-collector flow export statistics for the `flowexport` component (sFlow v5,
 NetFlow v9, IPFIX). Returns `{"status": "not-configured"}` when no
 `flow-export { }` section is present.
 
 ```
-ze show flow-export               # All configured collectors
-ze show flow-export <collector>   # One collector by name (error if not found)
+ze show flow export               # All configured collectors
+ze show flow export <collector>   # One collector by name (error if not found)
 ```
 
 Each entry reports `name`, `address`, `port`, `protocol`, `datagrams-sent`,
@@ -539,7 +539,7 @@ See the [Flow Export guide](flow-export.md).
 <!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-show:flow-export -->
 <!-- source: internal/plugins/flowexport/exporter.go -- Exporter.Status -->
 
-### show traffic-stat
+### show traffic stat
 <!-- source: internal/component/trafficstat/cmd/traffic.go -- handleShowTraffic -->
 
 Aggregated traffic snapshot from the trafficstat service: per-interface rates,
@@ -549,11 +549,11 @@ snapshot (interface rates only) when no collector (traffic-usage / flow-export)
 is active.
 
 ```
-show traffic-stat                     # All interfaces
-show traffic-stat name <interface>    # One interface by name
+show traffic stat                     # All interfaces
+show traffic stat name <interface>    # One interface by name
 ```
 
-### monitor traffic-stat
+### monitor traffic stat
 <!-- source: internal/component/trafficstat/cmd/render.go -- createTrafficMonitorSession -->
 
 Full-screen live traffic monitor. Renders per-interface rates, top talkers,
@@ -561,11 +561,11 @@ top ports with service names and amplification labels, protocol mix percentages,
 severity badge, and a sparkline history. Esc/q to quit.
 
 ```
-monitor traffic-stat                  # All interfaces
-monitor traffic-stat name <interface> # One interface by name
+monitor traffic stat                  # All interfaces
+monitor traffic stat name <interface> # One interface by name
 ```
 
-### show traffic-feature
+### show traffic feature
 <!-- source: internal/component/trafficfeature/cmd/traffic_feature.go -- handleShowTrafficFeature, ze-show:traffic-feature -->
 
 Neutral per-source traffic feature signals (facts, not verdicts): fan-out
@@ -577,8 +577,8 @@ port-entropy, new-peer, rare-port, beaconing}]}`; `out-in-ratio` is the string
 one source.
 
 ```
-show traffic-feature                  # Top source entities
-show traffic-feature name <address>   # One source by address
+show traffic feature                  # Top source entities
+show traffic feature name <address>   # One source by address
 ```
 
 ### show anomaly detect
@@ -1096,10 +1096,10 @@ concurrent requests return an error.
 
 <!-- source: internal/component/cmd/show/profile.go -- handleShowSystemProfile -->
 
-### show system memory-map
+### show system memory
 
 ```
-ze show system memory-map    # Process memory from /proc/self/status
+ze show system memory        # OS process memory (VmRSS/VmSize) from /proc/self/status
 ```
 
 Returns vm-rss-kb, vm-size-kb, vm-swap-kb, vm-peak-kb, vm-data-kb,
@@ -2027,12 +2027,12 @@ When fib-kernel is loaded, it automatically enables IPv4 and IPv6 forwarding as 
 | `show l2tp cqm summary` | run | Aggregate CQM state across all tracked logins |
 | `show l2tp echo <login>` | run | Current echo state for a login (RTT, loss ratio, interval) |
 | `show l2tp reliable <tid>` | run | Reliable transport window state (Ns, Nr, cwnd, retransmits) |
-| `clear l2tp tunnel teardown <tid>` | run | Send StopCCN for one tunnel |
-| `clear l2tp tunnel teardown-all` | run | Send StopCCN for every tunnel |
-| `clear l2tp session teardown <sid> [reason <text...>] [cause <code>]` | run | Send CDN for one session with optional audit reason and disconnect cause |
-| `clear l2tp session teardown-all` | run | Send CDN for every session |
+| `clear l2tp tunnel id <tid>` | run | Send StopCCN for one tunnel |
+| `clear l2tp tunnel all` | run | Send StopCCN for every tunnel |
+| `clear l2tp session id <sid> [reason <text...>] [cause <code>]` | run | Send CDN for one session with optional audit reason and disconnect cause |
+| `clear l2tp session all` | run | Send CDN for every session |
 
-The `clear l2tp session teardown` command accepts optional keyword arguments:
+The `clear l2tp session id` command accepts optional keyword arguments:
 - `reason <text...>`: free-text audit reason, recorded in the per-session event ring
 - `cause <code>`: RADIUS Disconnect-Cause value (uint16), recorded alongside the reason
 

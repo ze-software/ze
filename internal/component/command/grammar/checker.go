@@ -7,7 +7,8 @@
 //
 // The authoritative prose is ai/rules/cli-grammar.md. Path-level rules (R1, R2, R3,
 // R7) need only the command name; structural rules (R5, R6, R8) need the command.Node
-// with its ArgDefs.
+// with its ArgDefs; the sibling rule (R9) needs the sibling token names at one tree
+// level, so only the static gate (which walks the tree) can run it.
 package grammar
 
 import (
@@ -134,6 +135,62 @@ func CheckNode(path string, node *command.Node) []Finding {
 	}
 
 	return out
+}
+
+// CheckSiblings applies R9 (sibling namespace collision): among the child tokens at a
+// single tree level, a hyphenated token whose left segment is itself a sibling name is a
+// namespace member masquerading as a compound name. With a `traffic` sibling and a
+// `traffic-stat` sibling, `traffic-stat` should be the two-token path `traffic stat`, so
+// the object roots the tree and completion can enumerate members (ai/rules/cli-grammar.md
+// "Compound Token vs Namespace Split"; docs/architecture/cli/command-namespacing.md).
+//
+// R9 is the one grammar rule that needs sibling context, so only the static gate (which
+// walks the whole YANG command tree) runs it; per-command registration cannot see
+// siblings. It is deliberately conservative: it fires ONLY when the colliding namespace
+// literally exists as a sibling, so a genuine compound (`as-set` with no `as` sibling) is
+// never flagged. Deeper judgement calls (a flat `foo-bar` with no bare `foo`
+// sibling at that level) are left to human review against the prose rule.
+//
+// parentPath is the command path of the level's parent ("" at the root); names are the
+// child token names at this level. The returned Command is the full path of the offending
+// token.
+func CheckSiblings(parentPath string, names []string) []Finding {
+	set := make(map[string]bool, len(names))
+	for _, n := range names {
+		set[n] = true
+	}
+	var out []Finding
+	for _, n := range names {
+		b := strings.IndexByte(n, '-')
+		for b > 0 {
+			left := n[:b]
+			if set[left] {
+				out = append(out, Finding{
+					Command: joinPath(parentPath, n),
+					Rule:    "R9",
+					Message: msg("token ", n, " collides with sibling namespace ", left,
+						" -- split into two tokens (", left, " ", n[b+1:],
+						"); reserve the hyphen for one indivisible name"),
+				})
+				break
+			}
+			next := strings.IndexByte(n[b+1:], '-')
+			if next < 0 {
+				break
+			}
+			b += 1 + next
+		}
+	}
+	return out
+}
+
+// joinPath returns "parent tok", or just "tok" at the root (empty parent).
+func joinPath(parent, tok string) string {
+	if parent == "" {
+		return tok
+	}
+	var tb textbuf.Buffer
+	return tb.Str(parent).Byte(' ').Str(tok).String()
 }
 
 // bridgeSurface is the text-bridge compatibility surface: announce/withdraw/peer/help
