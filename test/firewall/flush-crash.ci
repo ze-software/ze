@@ -1,0 +1,85 @@
+# Test: a crash (SIGKILL) keeps ze tables even with flush-on-shutdown at its
+#       default (true) -- the teardown only runs on an orderly stop, so a crash
+#       never removes protection.
+# VALIDATES: spec firewall flush-on-shutdown AC (keep-on-crash) -- SIGKILL leaves
+#            the ze_* table in the kernel because no shutdown path executes.
+# PREVENTS: a regression that moves table teardown somewhere a crash would still
+#           reach, dropping firewall/CoPP protection exactly when the box died.
+#
+# Requires CAP_NET_ADMIN.
+
+option=skip-os:value=darwin
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Verify the ze table survives a SIGKILL (crash) under the default
+flush-on-shutdown=true."""
+import os
+import signal
+import subprocess
+import sys
+import time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+
+try:
+    subprocess.check_output(["nft", "list", "table", "inet", "ze_fwcrash"], text=True)
+    print("BEFORE_CRASH: table present", file=sys.stderr)
+except subprocess.CalledProcessError:
+    sys.exit("BEFORE_CRASH: table missing")
+
+# SIGKILL: a crash. No shutdown code runs, so the table must remain.
+os.kill(pid, signal.SIGKILL)
+for _ in range(100):
+    try:
+        os.kill(pid, 0)
+        time.sleep(0.05)
+    except OSError:
+        break
+
+try:
+    subprocess.check_output(
+        ["nft", "list", "table", "inet", "ze_fwcrash"],
+        text=True, stderr=subprocess.STDOUT)
+    print("AFTER_CRASH: table persisted (OK)", file=sys.stderr)
+except subprocess.CalledProcessError:
+    print("AFTER_CRASH: table removed (FAIL)", file=sys.stderr)
+    sys.exit(1)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table fwcrash {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-ssh {
+				from { destination-port 22; }
+				then { accept; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=BEFORE_CRASH: table present
+expect=stderr:contains=AFTER_CRASH: table persisted

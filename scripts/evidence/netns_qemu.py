@@ -8,10 +8,13 @@ cross-compiled ze binaries, runs a curated firewall subset under ZE_TEST_NETNS
 and asserts the host `nft list tables` is byte-identical before and after.
 
 Why a curated subset and not `firewall --all`: 009-set-element-timeout crashes
-the Alpine QEMU kernel; 004-cli-show needs a zefs database the test daemon does
-not create (blob storage off); the copp-* tests need a firewall-backend block
-their config omits. Those are pre-existing/environment issues unrelated to the
-netns launch mode and are triaged separately -- see plan/learned/1112-netlink-ci-harness.md.
+the Alpine QEMU kernel and 004-cli-show needs a zefs database the test daemon
+does not create (blob storage off). Those are pre-existing/environment issues
+unrelated to the netns launch mode and are triaged separately -- see
+plan/learned/1112-netlink-ci-harness.md. The copp-* suites ARE included: they
+configure only `control-plane-protection` (no firewall {} block), which used to
+fail "firewall backend not loaded" until ApplyAll learned to load the OS-default
+backend on demand -- this run is that fix's Linux regression guard.
 
 The 9p workspace mount is security_model=none (no xattr), so file capabilities
 cannot be set there; ze is copied to a tmpfs dir first. That dir must be
@@ -31,6 +34,9 @@ CAPS = "cap_net_admin,cap_net_raw,cap_net_bind_service+ep"
 CAPDIR = "/tmp/zebin"
 STATE = "/tmp/zestate"
 # Confirmed host-safe green firewall subset under the netns launch mode.
+# Numeric IDs map to NNN-*.ci; the copp-* names select the CoPP suites, which
+# exercise the standalone control-plane-protection path (no firewall {} block)
+# that the ApplyAll on-demand-backend fix unblocks.
 FIREWALL_IDS = [
     "1",
     "2",
@@ -47,6 +53,11 @@ FIREWALL_IDS = [
     "15",
     "16",
     "17",
+    "copp-bgp",
+    "copp-trusted",
+    "copp-withdraw",
+    "flush-persist",
+    "flush-crash",
 ]
 
 

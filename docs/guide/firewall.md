@@ -21,6 +21,34 @@ firewall {
 }
 ```
 
+### Clean-shutdown teardown
+
+`flush-on-shutdown` controls whether stopping the `ze` process removes ze-owned
+tables from the kernel. It defaults to `true`: an orderly stop (SIGTERM, e.g.
+`systemctl stop ze`) tears the tables down so a stopped daemon leaves no rules
+behind. It keys off how the process exits, and is unrelated to BGP graceful
+restart -- that concerns only RIB/FIB route retention while a peer re-establishes
+and never restarts the daemon, so it never reaches this path.
+
+Set it to `false` to use `ze` as a **one-shot provisioner**: apply the firewall
+(and interface) configuration, let the process exit, and leave the rules running
+in the kernel -- the way `nft -f` programs a ruleset and returns. Nothing is torn
+down when `ze` quits.
+
+```
+firewall {
+    backend nft;
+    flush-on-shutdown false;   # one-shot: program the rules, exit, leave them running
+}
+```
+
+A crash (SIGKILL, panic, power loss) never runs the shutdown path, so ze-owned
+tables **always** persist across a crash regardless of this setting. The option
+governs every ze table producer that shares the backend -- the firewall
+component, `control-plane-protection`, `policy-routes`, and `ddos-local` -- and
+the firewall component performs the teardown as a single ordered actor so
+plugin table removal never races the backend close.
+
 ## Tables and Chains
 
 Ze owns all tables whose kernel name starts with `ze_`. A table contains one or
@@ -334,3 +362,11 @@ The firewall component registers with ze's engine via `registry.Register`.
 On boot and config reload, the reactor parses the `firewall { }` section,
 loads the selected backend, and calls `Apply([]Table)`. On failure,
 `sdk.Journal` triggers a rollback to the previous state.
+
+On a **clean** shutdown the component removes every ze-owned table (unless
+`flush-on-shutdown false`; see [Clean-shutdown teardown](#clean-shutdown-teardown)),
+then closes the backend. Because the firewall component owns the shared backend,
+it is the single actor that performs this teardown -- plugins that register
+tables (`control-plane-protection`, `policy-routes`, `ddos-local`) do not run
+their own shutdown withdrawal, so table removal never races the backend close.
+A crash bypasses this path entirely, leaving tables in place.

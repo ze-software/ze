@@ -83,10 +83,13 @@ func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) err
 // firewallConfig carries parsed firewall state from OnConfigVerify into
 // OnConfigApply. Backend is the selected backend name; Tables is the
 // desired kernel state. RawData carries the JSON for global-options extraction.
+// FlushOnShutdown mirrors the `flush-on-shutdown` leaf (default true): remove
+// ze-owned tables on a clean daemon stop.
 type firewallConfig struct {
-	Backend string
-	Tables  []Table
-	RawData string
+	Backend         string
+	Tables          []Table
+	RawData         string
+	FlushOnShutdown bool
 }
 
 // parseFirewallSections extracts the firewall section from the SDK
@@ -94,7 +97,7 @@ type firewallConfig struct {
 // returned config has an empty Tables slice and the default backend
 // name -- callers distinguish via hasFirewallSection.
 func parseFirewallSections(sections []sdk.ConfigSection) (*firewallConfig, error) {
-	cfg := &firewallConfig{Backend: defaultBackendName}
+	cfg := &firewallConfig{Backend: defaultBackendName, FlushOnShutdown: true}
 	for _, s := range sections {
 		if s.Root != configRootFirewall {
 			continue
@@ -106,6 +109,11 @@ func parseFirewallSections(sections []sdk.ConfigSection) (*firewallConfig, error
 		if backend != "" {
 			cfg.Backend = backend
 		}
+		flush, err := extractFlushOnShutdown(s.Data)
+		if err != nil {
+			return nil, err
+		}
+		cfg.FlushOnShutdown = flush
 		tables, err := ParseFirewallConfig(s.Data)
 		if err != nil {
 			return nil, fmt.Errorf("firewall config: %w", err)
@@ -134,6 +142,39 @@ func extractBackend(data string) (string, error) {
 	}
 	b, _ := fw["backend"].(string)
 	return b, nil
+}
+
+// extractFlushOnShutdown reads the `firewall/flush-on-shutdown` leaf. Absent or
+// empty means the default (true): remove ze-owned tables on a clean shutdown.
+// The value may arrive as a JSON bool or, from the CLI/YANG string encoding, as
+// "true"/"false"; anything else is rejected so a typo cannot silently flip the
+// fail-safe.
+func extractFlushOnShutdown(data string) (bool, error) {
+	if strings.TrimSpace(data) == "" {
+		return true, nil
+	}
+	var root map[string]any
+	if err := json.Unmarshal([]byte(data), &root); err != nil {
+		return false, fmt.Errorf("firewall config: unmarshal: %w", err)
+	}
+	fw, ok := root[configRootFirewall].(map[string]any)
+	if !ok {
+		return true, nil
+	}
+	switch v := fw["flush-on-shutdown"].(type) {
+	case nil:
+		return true, nil
+	case bool:
+		return v, nil
+	case string:
+		switch v {
+		case "true":
+			return true, nil
+		case "false":
+			return false, nil
+		}
+	}
+	return false, fmt.Errorf("firewall config: flush-on-shutdown: expected true or false, got %v", fw["flush-on-shutdown"])
 }
 
 // hasFirewallSection reports whether the SDK delivered a firewall
@@ -263,6 +304,7 @@ func runEngine(conn net.Conn) int {
 		if cfg.Backend == "" {
 			return errFirewallNoBackendConfiguredAndNo
 		}
+		SetFlushOnShutdown(cfg.FlushOnShutdown)
 
 		if err := validateBackendGate(sections, cfg.Backend); err != nil {
 			return err
@@ -310,6 +352,9 @@ func runEngine(conn net.Conn) int {
 			log.Warn("firewall config apply: no pending config (verify not called?)")
 			return nil
 		}
+		// Track the option across reloads: removing the firewall section reverts
+		// FlushOnShutdown to the parsed default (true).
+		SetFlushOnShutdown(cfg.FlushOnShutdown)
 
 		previousCfg := activeCfg.Load()
 
@@ -387,6 +432,24 @@ func runEngine(conn net.Conn) int {
 	}); err != nil {
 		log.Error("firewall plugin failed", "error", err)
 		return 1
+	}
+
+	// Orderly-stop table teardown. This runs only when the ze process stops
+	// cleanly (p.Run returned because the context was canceled by a signal); a
+	// crash never reaches here, so ze-owned tables persist across a crash. With
+	// flush-on-shutdown=false the tables are also left in place, so ze can act
+	// as a one-shot provisioner. The firewall engine owns the backend and does
+	// the flush sequentially before CloseBackend, so it is the single ordered
+	// actor: no race with the per-plugin withdraw paths (copp/policy-routes/
+	// ddos-local) that share this in-process backend.
+	if FlushOnShutdownEnabled() {
+		if err := FlushAllTables(); err != nil {
+			log.Warn("firewall flush-on-shutdown failed", "error", err)
+		} else {
+			log.Info("firewall tables flushed on clean shutdown")
+		}
+	} else {
+		log.Info("firewall flush-on-shutdown disabled: leaving tables in place")
 	}
 
 	if err := CloseBackend(); err != nil {

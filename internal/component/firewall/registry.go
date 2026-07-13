@@ -6,9 +6,51 @@ import (
 	"errors"
 	"sort"
 	"sync"
+	"sync/atomic"
 )
 
 var errFirewallBackendNotLoaded = errors.New("firewall backend not loaded")
+
+// flushOnShutdown gates whether an orderly ze process stop (SIGTERM) removes
+// ze-owned firewall tables from the kernel. Default true: stopping the daemon
+// leaves no rules behind. Set false via `firewall { flush-on-shutdown false; }`
+// to use ze as a one-shot provisioner -- program the rules, exit, and leave them
+// running (like nft -f). This keys off how the process exits and is unrelated to
+// BGP graceful restart. A crash never runs the shutdown path (no cleanup
+// executes), so tables always persist across a crash regardless of this setting.
+var flushOnShutdown atomic.Bool
+
+//nolint:gochecknoinits // package default: flush-on-shutdown is on unless config disables it
+func init() { flushOnShutdown.Store(true) }
+
+// SetFlushOnShutdown records the parsed firewall `flush-on-shutdown` option.
+// Called from the firewall engine when it processes a firewall config section;
+// a copp-only config (no firewall block) leaves the default (true) in place.
+func SetFlushOnShutdown(v bool) { flushOnShutdown.Store(v) }
+
+// FlushOnShutdownEnabled reports whether a clean shutdown should flush tables.
+func FlushOnShutdownEnabled() bool { return flushOnShutdown.Load() }
+
+// FlushAllTables removes every ze-owned table the active backend applied, by
+// clearing the registry and reconciling an empty desired state. The firewall
+// engine calls this on a CLEAN shutdown (when flush-on-shutdown is enabled)
+// before CloseBackend, so removal is a single ordered actor holding a live
+// backend -- no race with the per-plugin withdraw paths. A no-op when no
+// backend is loaded.
+func FlushAllTables() error {
+	tableRegistry.mu.Lock()
+	tableRegistry.owners = make(map[string][]Table)
+	tableRegistry.mu.Unlock()
+	return ApplyAll()
+}
+
+// defaultBackendForAutoload is the backend ApplyAll loads on demand when a
+// plugin (copp, policy-routes, ddos-local) registers tables but the operator
+// wrote no firewall {} block, so no firewall config section ever loaded a
+// backend. It mirrors defaultBackendName ("nft" on Linux, "" elsewhere) but is
+// a var so host tests can inject a fake backend name where the OS default is
+// empty (darwin).
+var defaultBackendForAutoload = defaultBackendName
 
 var tableRegistry = struct {
 	mu     sync.Mutex
@@ -53,10 +95,29 @@ func ApplyAll() error {
 	all = mergeSameNameTables(all)
 
 	backendsMu.Lock()
+	// A plugin (copp, policy-routes, ddos-local) can register tables without
+	// the operator writing a firewall {} block, so no firewall config section
+	// ever loaded a backend. Load the OS default on demand so plugin-owned
+	// tables still reach the kernel. Guarded on len(all) > 0 so a withdraw
+	// (register nil + reconcile) with nothing loaded stays a no-op instead of
+	// spinning up a backend just to apply an empty set.
+	if activeBackend == nil && len(all) > 0 && defaultBackendForAutoload != "" {
+		if err := loadBackendLocked(defaultBackendForAutoload); err != nil {
+			backendsMu.Unlock()
+			return err
+		}
+	}
 	b := activeBackend
 	backendsMu.Unlock()
 
 	if b == nil {
+		// No backend and nothing to apply: nothing to reconcile, so a
+		// plugin withdraw before any backend loaded succeeds as a no-op.
+		// No backend but tables pending (non-Linux, no OS default): surface
+		// the not-loaded error as before.
+		if len(all) == 0 {
+			return nil
+		}
 		return errFirewallBackendNotLoaded
 	}
 	return b.Apply(all)

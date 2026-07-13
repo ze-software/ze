@@ -170,14 +170,12 @@ func runCoppPlugin(conn net.Conn) int {
 		return 1
 	}
 
-	mu.Lock()
-	had := currentPolicy != nil
-	mu.Unlock()
-	if had {
-		firewall.RegisterTables("copp", nil)
-		_ = firewall.ApplyAll()
-	}
-
+	// No shutdown-time table withdrawal here: clean-shutdown teardown is owned
+	// centrally by the firewall engine (firewall.FlushAllTables, gated on the
+	// `flush-on-shutdown` option), which holds the shared in-process backend and
+	// runs as a single ordered actor. A copp-side withdraw would race that close
+	// and would also ignore the operator's flush-on-shutdown choice. Config
+	// removal while running still withdraws via OnConfigApply -> applyCoppPolicy(nil).
 	return 0
 }
 

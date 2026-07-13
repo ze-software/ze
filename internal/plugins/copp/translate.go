@@ -7,7 +7,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
-const coppTableName = "copp"
+// coppTableName carries the "ze_" ownership prefix that the firewall backend
+// uses to recognize ze-managed kernel tables (mirrors policyroute's "ze_pr"
+// and the firewall engine's tableNamePrefix). Without it the kernel table is
+// named "copp": the backend's reconcile never sees it as ze-owned, so it is
+// neither found by `nft list table inet ze_copp` nor withdrawn on removal.
+const coppTableName = "ze_copp"
 
 func translatePolicy(policy coppPolicy) firewall.Table {
 	terms := make([]firewall.Term, 0, 2+len(policy.TrustedSources))

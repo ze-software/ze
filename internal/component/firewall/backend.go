@@ -130,7 +130,14 @@ func RegisterBackend(name string, factory func() (Backend, error)) error {
 func LoadBackend(name string) error {
 	backendsMu.Lock()
 	defer backendsMu.Unlock()
+	return loadBackendLocked(name)
+}
 
+// loadBackendLocked creates and activates the named backend. Callers MUST
+// hold backendsMu. LoadBackend is the exported, self-locking entry point;
+// ApplyAll calls this directly because it already holds backendsMu when it
+// loads the OS-default backend on demand for plugin-owned tables.
+func loadBackendLocked(name string) error {
 	factory, ok := backends[name]
 	if !ok {
 		registered := make([]string, 0, len(backends))

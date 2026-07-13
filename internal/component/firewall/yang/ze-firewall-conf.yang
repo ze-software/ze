@@ -415,6 +415,22 @@ module ze-firewall-conf {
                          primitives.";
         }
 
+        leaf flush-on-shutdown {
+            type boolean;
+            default "true";
+            description "Remove ze-owned nftables tables from the kernel when the
+                         ze process stops in an orderly way (SIGTERM), default
+                         true, so a stopped daemon leaves no rules behind. Set
+                         false to use ze as a one-shot provisioner: program the
+                         rules, let the process exit, and leave them running in
+                         the kernel (like nft -f). Keys off how the process
+                         exits; unrelated to BGP graceful restart. A crash never
+                         runs the shutdown path, so tables always persist across
+                         a crash regardless of this setting. Governs every ze
+                         table producer (firewall, control-plane-protection,
+                         policy-routes, ddos-local), which share one backend.";
+        }
+
         container global-options {
             description "Network security defaults mapped to kernel sysctls.
                          Provides VyOS-compatible keyword toggles for common

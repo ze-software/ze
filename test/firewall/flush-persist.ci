@@ -1,0 +1,87 @@
+# Test: `firewall { flush-on-shutdown false }` leaves ze tables in the kernel
+#       after an orderly (SIGTERM) ze stop -- the one-shot provisioner case
+#       (program the rules, exit, leave them running).
+# VALIDATES: firewall flush-on-shutdown=false -- with the option disabled, an
+#            orderly stop keeps the ze_* table in place instead of tearing it
+#            down.
+# PREVENTS: the orderly-stop flush ignoring the operator's opt-out and removing
+#           rules a one-shot run was meant to leave behind.
+#
+# Requires CAP_NET_ADMIN.
+
+option=skip-os:value=darwin
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Verify the ze table is still present AFTER a clean SIGTERM when
+flush-on-shutdown is false."""
+import os
+import signal
+import subprocess
+import sys
+import time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+
+try:
+    subprocess.check_output(["nft", "list", "table", "inet", "ze_fwpersist"], text=True)
+    print("BEFORE_SHUTDOWN: table present", file=sys.stderr)
+except subprocess.CalledProcessError:
+    sys.exit("BEFORE_SHUTDOWN: table missing")
+
+os.kill(pid, signal.SIGTERM)
+# Wait for the daemon to exit so the clean-shutdown path has fully run.
+for _ in range(100):
+    try:
+        os.kill(pid, 0)
+        time.sleep(0.05)
+    except OSError:
+        break
+
+try:
+    subprocess.check_output(
+        ["nft", "list", "table", "inet", "ze_fwpersist"],
+        text=True, stderr=subprocess.STDOUT)
+    print("AFTER_SHUTDOWN: table persisted (OK)", file=sys.stderr)
+except subprocess.CalledProcessError:
+    print("AFTER_SHUTDOWN: table removed (FAIL)", file=sys.stderr)
+    sys.exit(1)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	flush-on-shutdown false;
+	table fwpersist {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-ssh {
+				from { destination-port 22; }
+				then { accept; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=BEFORE_SHUTDOWN: table present
+expect=stderr:contains=AFTER_SHUTDOWN: table persisted
