@@ -2433,6 +2433,11 @@ Total: 285 design docs, 2924 files
 
 - `internal/plugins/ddos/detect/persist.go` -- baseline persistence across restart.
 
+## `plan/learned/1113-fib-depth-4-srv6.md`
+
+- `internal/component/bgp/plugins/rib/pool/srv6sid.go` -- SRv6 SID extraction from PrefixSID attribute
+- `internal/plugins/fib/vpp/srv6.go` -- VPP SRv6 SR steer programming
+
 ## `plan/learned/415-prefix-data.md`
 
 - `internal/component/resolve/peeringdb/client.go` -- PeeringDB client for prefix update
@@ -3849,11 +3854,6 @@ Total: 285 design docs, 2924 files
 | `internal/plugins/cos/filter_test.go` | CoS Filter-Id parser tests |
 | `internal/plugins/cos/handler_helpers_test.go` | test helpers for CoS handler tests |
 | `internal/plugins/cos/handler_test.go` | CoS handler tests |
-
-## `plan/spec-fib-depth-4-srv6.md`
-
-- `internal/component/bgp/plugins/rib/pool/srv6sid.go` -- SRv6 SID extraction from PrefixSID attribute
-- `internal/plugins/fib/vpp/srv6.go` -- VPP SRv6 SR steer programming
 
 ## `plan/spec-fib-depth.md`
 
