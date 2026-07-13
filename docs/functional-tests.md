@@ -1526,9 +1526,10 @@ The baseline uses an exponential moving average (EMA, alpha=0.3) and requires 3 
 
 ## Route Delivery Synchronization
 
-Plugin test scripts use `wait_for_ack()` from `test/scripts/ze_api.py` to ensure routes have been delivered to peers before proceeding. This function sends a `ze-bgp:peer-flush` RPC that blocks until all forward pool workers have drained their queued items to peer sockets (deterministic barrier).
+Plugin test scripts use `wait_for_ack()` from `test/scripts/ze_api.py` to ensure routes have been delivered to peers before proceeding. It dispatches `request quiesce` (the `ze-system:quiesce` barrier), which drains BOTH the BGP forward pool (`bgp-forward-pool`) AND each peer's initial-sync opQueue (`bgp-peer-sync` / `DrainPeerSync`) before replying, so a route sent during a peer's establishment window is on the wire (past its EOR) when the call returns. It is a deterministic barrier with no `time.sleep`.
 <!-- source: test/scripts/ze_api.py -- wait_for_ack() function -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer-flush RPC handler -->
+<!-- source: internal/component/plugin/server/quiesce.go -- request quiesce / quiesceAll / registerReactorQuiescer -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync (bgp-peer-sync quiescer) -->
 <!-- source: internal/component/bgp/reactor/forward_pool_barrier.go -- forward pool flush barrier -->
 
 **When writing new plugin tests:**

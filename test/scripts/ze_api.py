@@ -1187,7 +1187,10 @@ class API:
             timeout: Unused (kept for API compatibility).
 
         Returns:
-            True once the barrier completes.
+            True (best-effort). It returns True even if the barrier reports a
+            timeout/error (e.g. a quiescer wedged past ze-system's 10s bound),
+            matching the prior contract. A caller that must assert the barrier
+            actually settled should call ``quiesce()`` directly and check its bool.
         """
         self.quiesce()
         return True

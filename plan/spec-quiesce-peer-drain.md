@@ -333,14 +333,20 @@ N/A — no wire change.
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what review reported] | file:line | fixed/deferred/acknowledged |
+| 1 | ISSUE | `DrainPeerSync`/`peerSyncDrained` comments claimed "Peers not yet Established are skipped" / `!ShouldQueue()`, contradicting the code (`PendingSync`, no state gate) and `peersSynced`'s own comment. Regression trap: a maintainer could add a state gate and break nexthop ordering | `reactor_api.go:905-908,922-923` | fixed |
+| 2 | ISSUE | Stale prose + source anchor: says `wait_for_ack` "sends a ze-bgp:peer-flush RPC"; now it dispatches `request quiesce` | `docs/functional-tests.md:1529-1531` | fixed |
+| 3 | NOTE | `wait_for_ack` returns True even if `quiesce()` reports a barrier timeout/error (best-effort, matches prior contract) | `test/scripts/ze_api.py` wait_for_ack | acknowledged; docstring made explicit |
 ### Fixes applied
+- #1: rewrote both comments to match `peersSynced`/`PendingSync` (still-establishing peer with queued routes IS waited on; only down/idle+empty skipped). Behavior already guarded by `TestPeersSyncedWaitsForQueuedRoutesWhileEstablishing` + `TestPeersSyncedSkipsIdleNonEstablished` (comment-only fix, no new test).
+- #2: prose now describes the `request quiesce` barrier (both quiescers); anchors repointed to `quiesce.go` + `reactor_api.go` (verified symbols exist).
+- #3: `wait_for_ack` docstring now states the best-effort/timeout contract and points to `quiesce()` for callers needing the bool.
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | none | Fresh pass over the 3 changed files: comment matches code, doc accurate, anchors resolve, docstring honest. `go vet` clean, python parses, test-relaxation audit clean, `ze-validate` flags 0 of this spec's symbols (its 15 issues are all other-session WIP) | - | clean |
 ### Final status
-- [ ] review shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded
+- [x] review shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded
 
 ## Pre-Commit Verification
 ### Files Exist (ls)
