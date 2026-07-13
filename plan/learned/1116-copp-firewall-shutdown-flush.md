@@ -64,21 +64,27 @@ caught by unit tests, all in the copp -> firewall-registry -> nft path.
   default (true), which is why copp-withdraw passes with no firewall block.
 
 ## Sibling triage (verified, NOT yet fixed)
-The other [[1112-netlink-ci-harness]] pre-existing failures, root-caused here for
-a future decision -- none is a copp/firewall-flush regression:
-- **004-cli-show**: `ze cli` authenticates to the daemon's SSH CLI server with
-  credentials read from `{config.dir}/database.zefs`
-  (`ssh/client/client.go: ReadCredentialsForRemote` -> `zefs.Open`). The client's
-  `ResolveDBPath` hardcodes the zefs file and, unlike `core/resolve/resolve.go`
-  (which falls back to the filesystem store when `ze.storage.blob=false`), does
-  NOT honour that env. The functional runner forces `ze.storage.blob=false` for
-  daemon configs (`runner_exec.go: zeDaemonShouldForceFileStorage`), so the
-  daemon never writes a zefs db and the cli dies with `open database: ... no such
-  file or directory`. Setting `ze.storage.blob=false` on the cli does NOT help --
-  the ssh client ignores it. A real fix means making the ssh client resolve its
-  credential store consistently with the storage backend (mirror the server's
-  `storage.Storage` abstraction, ssh.go:387/533) AND ensuring the blob=false
-  daemon writes login creds there -- security-sensitive, needs a design call.
+The other [[1112-netlink-ci-harness]] pre-existing failures -- none a
+copp/firewall-flush regression:
+- **004-cli-show (FIXED, NOT a client storage bug -- my first read was wrong)**:
+  `ze cli` reads its SSH LOGIN creds from its OWN zefs store, written by
+  `ze init`, independent of the daemon's config storage; `ze.storage.blob=false`
+  is irrelevant to it. 004 failed only because the test never set up SSH auth,
+  and four layers had to line up. (1) The netns QEMU daemon build lacked `ze_ssh`
+  -- the SSH component's `system authentication` / `environment ssh` config
+  schema is compiled in ONLY under `//go:build ze_ssh` (`all_ze_ssh.go`), and
+  `ze init` needs `ze_setup`; neither is in `ze_core zetest ze_distro`, so both
+  were added to the `ze-netns-qemu-test` daemon build. (2) The config needs a
+  `system authentication user <bcrypt>` + an `environment ssh` server. (3) The
+  driver provisions matching client creds with `ze init` into a sandbox
+  `ze.config.dir`, then runs `ze cli --user ... -c` with `ze.ssh.password` +
+  `ze.ssh.insecure`. (4) The firewall's OWN `policy drop` input chain silently
+  dropped the loopback SSH RETURN traffic -- the SYN-ACK back to the client's
+  ephemeral port (not 2222) -- so `ze cli` timed out with no auth logged; accept
+  `input-interface lo` (covers both directions). Also the command is
+  `show firewall ruleset <name>`; the old `show firewall <table>` never existed
+  (004 had never run, so it was never caught). Recipe mirrors
+  `test/plugin/ssh-user-login-yang.ci`. Green under netns QEMU (950ms).
 - **policy suite / 009-set-element-timeout**: Alpine QEMU minimal-kernel limits,
   not code bugs. policy hits `firewallnft: flush: operation not supported`
   (reproduced identically with ze as root -> kernel nft-feature gap); 009 crashes

@@ -333,7 +333,12 @@ ze-qemu-integration-test:
 ze-netns-qemu-test:
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
 	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	# ze_ssh + ze_setup are needed by 004-cli-show: ze_ssh compiles in the SSH
+	# component's `system authentication` / `environment ssh` config schema and
+	# the SSH CLI server; ze_setup provides `ze init`, which the test uses to
+	# provision client credentials. Harmless for the other firewall suites (the
+	# SSH server only starts when a config declares environment ssh).
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro ze_ssh ze_setup $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 	@echo "Running netns launch-mode evidence in QEMU Linux VM (host-safe firewall subset)..."

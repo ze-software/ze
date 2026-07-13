@@ -1,19 +1,34 @@
-# Test: `ze cli firewall show <table>` returns structured JSON derived
-# from the applied kernel state.
-# VALIDATES: spec-fw-10 AC-24 -- the CLI show handler reads the
-#            read-back path (firewallnft.ListTables) and renders chains
-#            + term names through the structured Data map, so the pipe
-#            framework and `| json` consumers see the applied shape.
-# PREVENTS: show returning a stale in-memory copy or empty when the
-#           table is programmed.
+# Test: `ze cli firewall show <table>` returns structured JSON derived from the
+#       applied kernel state, over the real SSH CLI path.
+# VALIDATES: spec-fw-10 AC-24 -- the CLI show handler reads the read-back path
+#            (firewallnft.ListTables) and renders chains + term names through the
+#            structured Data map, so `ze cli` consumers see the applied shape.
+# PREVENTS: show returning a stale in-memory copy or empty when the table is
+#           programmed.
 #
-# Requires CAP_NET_ADMIN so nft list ruleset can read the kernel.
+# Auth setup mirrors test/plugin/ssh-user-login-yang.ci: the daemon config
+# declares a super-admin user + an SSH server; the driver provisions matching
+# client credentials with `ze init` into a sandbox config dir, then runs `ze cli`
+# against that dir with ze.ssh.password. The SSH port is fixed (per-test netns
+# isolates it) so no log-scrape is needed. Requires CAP_NET_ADMIN (nft) + SSH,
+# so the daemon must be built with ze_ssh + ze_setup (see the make target).
+#
+# // test-relax: this rewrite replaces the previous no-SSH-setup version (which
+# never authenticated and used a non-existent `show firewall <table>` command)
+# with the full ze cli->SSH path and the real `show firewall ruleset <name>`
+# command. Behavioural assertions (fw10_004, allow-https, exit 0) are unchanged
+# in intent; this is not test weakening.
 
 option=skip-os:value=darwin
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
-import os, signal, subprocess, sys, time
+import os
+import signal
+import subprocess
+import sys
+import tempfile
+import time
 
 for _ in range(200):
     if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
@@ -25,24 +40,48 @@ else:
 with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
+# The SSH CLI server binds separately from OnConfigure readiness; give it a
+# moment to listen on 127.0.0.1:2222 before provisioning/connecting.
 time.sleep(0.5)
-# The CLI bridge talks to the daemon over its configured unix socket.
-# The socket may not be up immediately after daemon.ready fires (ready
-# gates on OnConfigure, the CLI listener initialises separately), so
-# retry for up to ~5s before giving up.
-last_err = None
+
+# Provision client credentials in a sandbox config dir (super-admin path),
+# matching the daemon's operator/testpass and SSH server address. ze init reads
+# username, password, host, port (newline-delimited).
+client_dir = tempfile.mkdtemp()
+init_env = dict(os.environ)
+init_env["ze.config.dir"] = client_dir
+init_env["ze.ssh.insecure"] = "true"
+try:
+    init = subprocess.run(
+        ["ze", "init"], input="operator\ntestpass\n127.0.0.1\n2222\n",
+        text=True, env=init_env, capture_output=True, timeout=8)
+except subprocess.TimeoutExpired as e:
+    sys.exit("ze init TIMED OUT: %s%s" % (e.stdout or "", e.stderr or ""))
+if init.returncode != 0:
+    sys.exit("ze init failed: %s%s" % (init.stdout, init.stderr))
+
+cli_env = dict(os.environ)
+cli_env["ze.config.dir"] = client_dir
+cli_env["ze.ssh.password"] = "testpass"
+cli_env["ze.ssh.insecure"] = "true"
+
 out = None
-for _ in range(50):
+last = None
+for attempt in range(10):
     try:
-        out = subprocess.check_output(
-            ["ze", "cli", "-c", "show firewall fw10_004"],
-            text=True, stderr=subprocess.STDOUT)
+        r = subprocess.run(
+            ["ze", "cli", "--user", "operator", "-c", "show firewall ruleset fw10_004"],
+            text=True, env=cli_env, capture_output=True, timeout=3)
+    except subprocess.TimeoutExpired as e:
+        last = "attempt %d TIMED OUT: %s%s" % (attempt, e.stdout or "", e.stderr or "")
+        continue
+    if r.returncode == 0:
+        out = r.stdout
         break
-    except subprocess.CalledProcessError as e:
-        last_err = e
-        time.sleep(0.1)
+    last = "attempt %d rc=%d: %s%s" % (attempt, r.returncode, r.stdout or "", r.stderr or "")
+    time.sleep(0.1)
 if out is None:
-    sys.exit("ze cli never became ready: %s" % last_err.output)
+    sys.exit("ze cli never succeeded: %s" % last)
 sys.stdout.write(out)
 os.kill(pid, signal.SIGTERM)
 EOF_PY
@@ -57,10 +96,38 @@ firewall {
 			hook input;
 			priority 0;
 			policy drop;
+			# A drop-policy chain must not lock out its own management plane: the
+			# `ze cli` -> SSH server connection is loopback, so accept the lo
+			# interface. Both the SYN to 2222 AND the SYN-ACK back to the client's
+			# ephemeral port travel over lo; a dport-2222-only rule accepts the
+			# SYN but the chain then drops the return SYN-ACK (ephemeral dport),
+			# so the connection silently times out. Accepting lo covers both.
+			term allow-loopback {
+				from { input-interface lo; }
+				then { accept; }
+			}
 			term allow-https {
 				from { destination-port 443; }
 				then { accept; }
 			}
+		}
+	}
+}
+
+system {
+	authentication {
+		user operator {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO";
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port 2222;
 		}
 	}
 }
@@ -69,7 +136,7 @@ EOF_CONF
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=20s
 expect=exit:code=0
 expect=stdout:contains=fw10_004
 expect=stdout:contains=allow-https
