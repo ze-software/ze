@@ -316,6 +316,7 @@ ze-system:daemon-shutdown
 ze-system:daemon-status
 ze-system:dispatch
 ze-system:help
+ze-system:quiesce
 ze-system:subsystem-list
 ze-system:version-api
 ze-system:version-software

@@ -60,6 +60,14 @@ module ze-system-api {
         description "Reload configuration";
     }
 
+    rpc quiesce {
+        description "Block until every subsystem drains pending async work; a test/operator barrier that replaces a fixed sleep";
+        output {
+            leaf-list quiesced { type string; description "Subsystems that were asked to drain"; }
+            leaf-list failed { type string; description "Subsystems that failed or timed out"; }
+        }
+    }
+
     rpc subsystem-list {
         description "List available subsystems";
         output {

@@ -126,5 +126,11 @@ module ze-system-cmd {
             ze:command "ze-system:daemon-reload";
             description "Reload the configuration without restarting.";
         }
+
+        container quiesce {
+            config false;
+            ze:command "ze-system:quiesce";
+            description "Block until every subsystem has drained pending async work, then reply. A test/operator barrier that replaces a fixed sleep.";
+        }
     }
 }

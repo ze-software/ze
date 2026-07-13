@@ -73,6 +73,7 @@ type Server struct {
 	subscriptions     *SubscriptionManager    // API-driven event subscriptions (plugin processes)
 	engineSubscribers *engineEventSubscribers // Engine-side stream subscribers (orchestrator etc.)
 	monitors          *MonitorManager         // CLI monitor subscriptions
+	quiescers         QuiescerRegistry        // Subsystem drains invoked by `request quiesce`
 
 	// Plugin registration protocol
 	coordinator       *plugin.StartupCoordinator             // Stage synchronization
@@ -179,6 +180,10 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		loadedPlugins:     make(map[string]bool),
 		runtimeFamilies:   make(map[string][]family.FamilyRegistration),
 	}
+
+	// Register the reactor's forward pool as a quiescer so `request quiesce`
+	// drains queued routes to peer sockets (see quiesce.go).
+	registerReactorQuiescer(s, reactor)
 
 	// Wire the plugin write-watchdog counter. When a write on a non-deadline
 	// transport (SSH channel, io.Pipe) stalls past the watchdog window, the rpc

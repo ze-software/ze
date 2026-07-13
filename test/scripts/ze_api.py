@@ -1137,6 +1137,23 @@ class API:
             return line
         return None
 
+    def quiesce(self) -> bool:
+        """Block until the daemon has drained all pending async work.
+
+        Sends the ze-system:quiesce barrier RPC and returns when the engine
+        replies (all registered subsystems settled, including the BGP forward
+        pool). Use this instead of ``time.sleep`` when a test must observe a
+        downstream effect (route on the wire, FIB programmed).
+
+        Returns:
+            True if the barrier completed, False if the RPC failed.
+        """
+        try:
+            self._call_engine("ze-system:quiesce", {})
+            return True
+        except RuntimeError:
+            return False
+
     def wait_for_ack(self, expected_count: int = 1, timeout: float = 2.0) -> bool:
         """Wait for route delivery after send() or any forwarded route.
 
@@ -1145,6 +1162,13 @@ class API:
         a short delay for ze-peer cmd=api command interleaving. Because
         peer-flush drains ALL forward-pool workers, this is valid for any
         forwarded route (e.g. RS-transcoded), not just send()-originated.
+
+        NOTE: the trailing sleep also covers the peer simulator's own cmd=api
+        interleaving (EOR etc.), which the ze-system:quiesce barrier does NOT
+        drain, so this is intentionally left as peer-flush + sleep. `quiesce()`
+        (added alongside) is the sleepless barrier for tests that do not depend
+        on ze-peer cmd=api timing. Migrating wait_for_ack fully is follow-on work
+        (a peer-side quiescer).
 
         Args:
             expected_count: Number of routes sent (scales post-flush delay)
@@ -1312,6 +1336,14 @@ def send(command: str) -> None:
 def wait_for_ack(expected_count: int = 1, timeout: float = 2.0) -> bool:
     """Wait for route delivery via peer-flush (any forwarded route, not just send())."""
     return _get_api().wait_for_ack(expected_count, timeout)
+
+
+def quiesce() -> bool:
+    """Block until the daemon has drained all pending async work (barrier).
+
+    Prefer this over ``time.sleep`` when a test must observe a downstream effect.
+    """
+    return _get_api().quiesce()
 
 
 def read_response(timeout: float = 2.0) -> dict | str | None:

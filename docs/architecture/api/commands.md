@@ -1127,6 +1127,65 @@ YANG-declared and served through ArgDefs.
 <!-- source: internal/component/command/node.go -- ArgDef, Node.ArgDefs -->
 <!-- source: internal/component/config/yang/command.go -- extractArgDefs -->
 
+### Plugin Command Completion
+
+Plugin-registered commands (from the plugin `CommandRegistry`, not YANG) are
+absent from the YANG-derived command tree, so they are **injected into the
+interactive completion tree after the daemon starts**.
+`CommandRegistry.VisibleCommandEntries()` returns every non-`Hidden` command as a
+`command.CommandEntry{Name, Description}`; `command.MergeCommandPaths` inserts
+each path into the tree as completion-only nodes. The merge is non-destructive:
+an existing YANG node keeps its `WireMethod` and description, so a plugin command
+never shadows a builtin at the completion layer (mirroring dispatch precedence).
+
+- **SSH** rebuilds the tree per session and merges eagerly
+  (`session_factory.go` `mergePluginCommands`), so each session reflects the
+  current registry — a plugin that has exited is simply absent next session.
+- **Web** overlays plugin commands live on every `/cli/complete` request
+  (`web_completer.go` `pluginAwareCommandCompleter`): the YANG tree stays
+  immutable and a throwaway overlay is built per request from the current
+  registry, so a plugin that registered or exited since the last keystroke is
+  reflected immediately (and the web service is built before plugins finish
+  registering, so a build-time snapshot would be empty).
+- **Shell completion** (`ze completion words`) runs in a standalone CLI process
+  with no daemon, so it stays YANG-only; the daemon's `system command complete`
+  RPC completes plugin commands directly from the registry (`Registry().Complete`).
+
+`Hidden` commands still dispatch when typed in full but never appear in
+completion or help.
+
+<!-- source: internal/component/plugin/server/command_registry.go -- VisibleCommandEntries, Complete, Hidden -->
+<!-- source: internal/component/command/node.go -- MergeCommandPaths, CommandEntry -->
+<!-- source: cmd/ze/hub/session_factory.go -- mergePluginCommands (SSH per-session) -->
+<!-- source: cmd/ze/hub/web_completer.go -- pluginAwareCommandCompleter (web live overlay) -->
+
+### Quiesce Barrier (test synchronization)
+
+`request quiesce` (`ze-system:quiesce`) **blocks until every registered
+subsystem has drained its pending asynchronous work, then replies** — a barrier
+tests use in place of a fixed `time.sleep`. It is the general form of
+`ze-bgp:peer-flush`: the control plane is already synchronous (a command reply
+lands after its handler runs), but downstream effects (routes flushed to peer
+sockets, and later FIB/tc/listeners) complete after the reply, so a test does
+`send(change); request quiesce; assert on-wire` with no sleep.
+
+Subsystems register a `Quiescer` at runtime (they need a live reference such as
+the reactor), and the handler discovers them through the registry — no
+per-subsystem switch. The BGP forward pool is auto-registered as `bgp-forward-pool`
+when the reactor attaches to the server (`registerReactorQuiescer` → the reactor's
+`FlushForwardPool`). Each drain is bounded by a per-subsystem timeout, so a wedged
+subsystem yields an error naming it instead of hanging the daemon. The test SDK
+exposes `ze_api.quiesce()`.
+
+Extension point: Layer 2/3 subsystems (a kernel-FIB quiescer, a tc/qdisc
+quiescer, a peer-side `cmd=api` quiescer) register into the same registry and
+`request quiesce` drains them with no change to the barrier. (`wait_for_ack`
+keeps its own peer-flush + sleep for now, because its sleep also covers the peer
+simulator's `cmd=api` interleaving, which the forward-pool quiesce does not drain.)
+
+<!-- source: internal/component/plugin/server/quiesce.go -- Quiescer, QuiescerRegistry, quiesceAll, handleQuiesce, registerReactorQuiescer -->
+<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request/quiesce -> ze-system:quiesce -->
+
 ### Peer Selector Parsing
 
 ```go

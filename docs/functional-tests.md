@@ -901,6 +901,24 @@ expect=json:conn=1:seq=1:json={...}
 | `action=sighup:` | `action=sighup:conn=1:seq=2` | Send SIGHUP to daemon |
 | `action=sigterm:` | `action=sigterm:conn=1:seq=2` | Send SIGTERM to daemon |
 
+### Waiting without sleep (the quiesce barrier)
+
+Prefer a completion signal over a fixed `time.sleep` (the ci-sleep ratchet in
+`scripts/dev/verify_wiring_docs.py` counts sleeps in `test/**/*.ci`). Existing
+options: `ze_api.wait_for_event` / `wait_for_shutdown` / `wait_for_post_startup`
+(block on a delivered event / bye / post-startup RPC), `expect=event`, and
+`http=wait`.
+
+For "I changed something, now assert its downstream effect", use the **quiesce
+barrier**: `ze_api.quiesce()` (or the `request quiesce` command) sends
+`ze-system:quiesce`, which blocks until every registered subsystem has drained
+its pending async work (the BGP forward pool among them) and then replies. So
+`send(route); quiesce()` guarantees the route is on the peer wire with no sleep.
+See `docs/architecture/api/commands.md` "Quiesce Barrier".
+
+<!-- source: test/scripts/ze_api.py -- quiesce (barrier helper) -->
+<!-- source: internal/component/plugin/server/quiesce.go -- ze-system:quiesce handler -->
+
 ### Tmpfs (Virtual File System)
 
 Tmpfs allows embedding config files directly in `.ci` files:
