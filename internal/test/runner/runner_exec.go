@@ -381,6 +381,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	netnsUID, netnsGID, netnsHasUID := 0, 0, false
 	if netnsMode {
 		netnsUID, netnsGID, netnsHasUID = netnsChildIDs()
+		if !netnsHasUID {
+			// ze must run as a normal user in the netns: its readiness file is
+			// written after dropPrivileges, so a root ze never writes it and the
+			// handshake times out (A-4). Fail loudly on a misconfigured netns run
+			// rather than silently run ze as root.
+			rec.Error = errNetnsNeedsUID
+			rec.FailureType = stateUnknown
+			return false
+		}
 		restore, hostInode, nsErr := enterTestNetns(testNetnsName(rec.Nick, rec.Port))
 		if nsErr != nil {
 			// AC-4: fail loudly rather than fall through and program the host
@@ -609,6 +618,16 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				if err := tmpFile.Close(); err != nil {
 					rec.Error = fmt.Errorf("close config file: %w", err)
 					return false
+				}
+				// Fix B: a credential-dropped ze reads this config, but it is
+				// created root-owned, so relying on world-read (umask 022) is
+				// fragile under a hardened umask (027/077 -> 0640/0600 -> EACCES).
+				// Own the file to the target uid so the read never depends on umask.
+				if netnsMode && netnsHasUID {
+					if chErr := os.Chown(tmpFile.Name(), netnsUID, netnsGID); chErr != nil {
+						rec.Error = fmt.Errorf("chown config file for netns child: %w", chErr)
+						return false
+					}
 				}
 				args[i] = tmpFile.Name()
 				stdinContent = nil // Don't pipe to stdin

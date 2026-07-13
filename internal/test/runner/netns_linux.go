@@ -50,6 +50,13 @@ func enterTestNetns(name string) (restore func(), hostInode uint64, err error) {
 	}
 	hostInode = st.Ino
 
+	// Best-effort: clear a stale namespace of the same name left by a prior test
+	// that was SIGKILLed before its restore ran. Per-test names derive from the
+	// recycled port, so a leaked bind-mount would otherwise fail NewNamed with
+	// EEXIST on a later same-named test. Names are unique per concurrent test
+	// (port), so this never removes a live peer's namespace.
+	netns.DeleteNamed(name) //nolint:errcheck // best-effort; absent name is fine
+
 	newNS, err := netns.NewNamed(name)
 	if err != nil {
 		orig.Close()

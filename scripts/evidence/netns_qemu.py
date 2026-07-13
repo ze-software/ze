@@ -101,6 +101,14 @@ def main():
     setcap_binaries()
     prepare_state()
 
+    # Regression guard for the config-file chown fix: a hardened umask makes the
+    # runner's root-created config files 0600, so a credential-dropped ze can only
+    # read them if the runner chowns them to the target uid (not merely relies on
+    # world-read). Set it AFTER the CAPDIR/STATE setup (which must stay
+    # world-traversable so the uid-dropped ze can exec the binary) so only the
+    # ze-test run inherits it. This proves the chown fix holds under umask 077.
+    os.umask(0o077)
+
     before = host_nft()
     rc = run_firewall()
     after = host_nft()

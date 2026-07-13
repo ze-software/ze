@@ -61,6 +61,43 @@ func TestBackgroundZeGetsReadinessEnv(t *testing.T) {
 	}
 }
 
+func TestNetnsChildIDs(t *testing.T) {
+	// VALIDATES: Fix B (A-4) -- the netns launch mode drops ze to a NON-root
+	// uid parsed from ZE_TEST_UID. A root/invalid/absent uid yields ok=false so
+	// the caller fails loudly (errNetnsNeedsUID) rather than silently running ze
+	// as root; GID defaults to the uid when ZE_TEST_GID is absent or invalid.
+	tests := []struct {
+		name    string
+		uidEnv  string
+		gidEnv  string
+		wantUID int
+		wantGID int
+		wantOK  bool
+	}{
+		{name: "unset uid rejected", uidEnv: "", gidEnv: "", wantOK: false},
+		{name: "root uid rejected", uidEnv: "0", gidEnv: "", wantOK: false},
+		{name: "negative uid rejected", uidEnv: "-1", gidEnv: "", wantOK: false},
+		{name: "non-numeric uid rejected", uidEnv: "abc", gidEnv: "", wantOK: false},
+		{name: "valid uid, gid defaults to uid", uidEnv: "1000", gidEnv: "", wantUID: 1000, wantGID: 1000, wantOK: true},
+		{name: "valid uid and gid", uidEnv: "1000", gidEnv: "2000", wantUID: 1000, wantGID: 2000, wantOK: true},
+		{name: "invalid gid falls back to uid", uidEnv: "1000", gidEnv: "bad", wantUID: 1000, wantGID: 1000, wantOK: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("ZE_TEST_UID", tt.uidEnv)
+			t.Setenv("ZE_TEST_GID", tt.gidEnv)
+			uid, gid, ok := netnsChildIDs()
+			if ok != tt.wantOK {
+				t.Fatalf("netnsChildIDs() ok = %v, want %v", ok, tt.wantOK)
+			}
+			if ok && (uid != tt.wantUID || gid != tt.wantGID) {
+				t.Fatalf("netnsChildIDs() = (%d, %d), want (%d, %d)", uid, gid, tt.wantUID, tt.wantGID)
+			}
+		})
+	}
+}
+
 func TestZeDaemonShouldForceFileStorage(t *testing.T) {
 	// VALIDATES: web functional tests keep blob storage enabled because the web
 	// server requires it, while plain daemon tests still avoid shared zefs state.

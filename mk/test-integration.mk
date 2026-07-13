@@ -130,7 +130,7 @@ ze-netns-test: bin/ze bin/ze-stripped bin/ze-test
 	for suite in $(ZE_NETNS_SUITES); do \
 		printf "\n=== netns suite: %s ===\n" "$$suite"; \
 		sudo env ZE_TEST_NETNS=1 ZE_TEST_UID=$$(id -u) ZE_TEST_GID=$$(id -g) \
-			bin/ze-test $$suite --all || failed=$$((failed + 1)); \
+			bin/ze-test $$suite --all -p 1 || failed=$$((failed + 1)); \
 	done; \
 	after=$$(sudo nft list tables 2>/dev/null | sort); \
 	sudo setcap -r bin/ze bin/ze-stripped 2>/dev/null || true; \

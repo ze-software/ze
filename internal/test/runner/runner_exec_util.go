@@ -21,6 +21,11 @@ import (
 
 var errEmptyExecCommand = errors.New("empty exec command")
 
+// errNetnsNeedsUID is returned when ZE_TEST_NETNS is active but no valid
+// non-root ZE_TEST_UID is configured. ze must run as a normal user in the netns
+// (A-4), so this is a setup error, not a silent root run.
+var errNetnsNeedsUID = errors.New("ZE_TEST_NETNS is set but no valid non-root ZE_TEST_UID is configured; ze must run as a normal user (set ZE_TEST_UID=$(id -u) ZE_TEST_GID=$(id -g))")
+
 // netnsModeActive reports whether the opt-in per-test network-namespace launch
 // mode (Fix B) is active: ZE_TEST_NETNS is set in the runner's environment and
 // the host is Linux. Off by default, so the standard host-netns/unprivileged
