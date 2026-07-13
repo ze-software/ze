@@ -38,7 +38,9 @@ STATE = "/tmp/zestate"
 # Confirmed host-safe green firewall subset under the netns launch mode.
 # Numeric IDs map to NNN-*.ci; the copp-* names select the CoPP suites, which
 # exercise the standalone control-plane-protection path (no firewall {} block)
-# that the ApplyAll on-demand-backend fix unblocks.
+# that the ApplyAll on-demand-backend fix unblocks. ddos-local-withdraw drives the
+# ddos-local responder (via the fakeddos injector) through the same on-demand
+# backend to prove a cleared mitigation's ze_ddos-local table is swept.
 FIREWALL_IDS = [
     "1",
     "2",
@@ -61,6 +63,7 @@ FIREWALL_IDS = [
     "copp-withdraw",
     "flush-persist",
     "flush-crash",
+    "ddos-local-withdraw",
 ]
 
 

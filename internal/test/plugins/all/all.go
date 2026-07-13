@@ -15,6 +15,8 @@ package all
 import (
 	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeas112"
 	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeas112/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeddos"
+	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeddos/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeenrich"
 	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakefib"
 	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakel2tp"

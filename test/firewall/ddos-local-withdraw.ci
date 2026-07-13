@@ -1,0 +1,109 @@
+# Test: A cleared ddos-local mitigation is withdrawn from the kernel.
+# VALIDATES: plan/learned/1116 -- the "ze_" ownership prefix on ddos-local's
+#            table (ze_ddos-local, not the old bare "ddos-local") lets the firewall
+#            backend's reconcile sweep it when removeMitigation registers nil +
+#            ApplyAll. Without the prefix, shouldDeleteTable ignores the table and a
+#            cleared attack leaks its drop rule.
+# PREVENTS: an orphaned ze_ddos-local nft table left behind after an attack clears.
+#
+# Requires CAP_NET_ADMIN. Runs on Linux under the netns/QEMU firewall harness
+# (real nft); skipped on darwin. The synthetic attack is injected in-process by the
+# fakeddos test plugin (zetest build): it emits AttackDetected on configure
+# (installing the table), then AttackCleared once the driver drops a trigger file
+# (withdrawing it), exercising the real detect->responder->nft path the responder's
+# unit tests can only mock.
+
+option=skip-os:value=darwin
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Confirm the ddos-local drop table is installed on attack detection, then
+withdrawn when the attack clears (the clear is driven by dropping a trigger file
+that the in-process fakeddos injector polls for)."""
+import os
+import signal
+import subprocess
+import sys
+import time
+
+
+def table_present():
+    return subprocess.run(
+        ["nft", "list", "table", "ip", "ze_ddos-local"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    print("ERROR: daemon.pid/ready never appeared", file=sys.stderr)
+    sys.exit(1)
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+# fakeddos emits AttackDetected on configure; wait for the responder's drop table.
+for _ in range(200):
+    if table_present():
+        break
+    time.sleep(0.05)
+else:
+    print("MITIGATION: ze_ddos-local never installed (FAIL)", file=sys.stderr)
+    sys.exit(1)
+print("MITIGATION: ze_ddos-local installed", file=sys.stderr)
+
+
+def daemon_alive():
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+
+
+# Ask the injector to clear the attack by dropping a trigger file in the shared
+# working directory; the responder must withdraw the table WHILE the daemon keeps
+# running. The table stays installed until now, so there is no window the poll
+# above could miss.
+with open("ddos-fake.clear", "w"):
+    pass
+
+# // test-relax: removed dev-only dump_diag/marker scaffolding (used during
+# authoring to diagnose the Emit in-process-subscriber-count bug) after the test
+# went green; the assertions below are unchanged and coverage is unaffected.
+for _ in range(200):
+    if not table_present():
+        break
+    if not daemon_alive():
+        print("WITHDRAW: daemon exited before clearing the table (FAIL)", file=sys.stderr)
+        sys.exit(1)
+    time.sleep(0.05)
+else:
+    print("WITHDRAW: ze_ddos-local still present after clear (FAIL)", file=sys.stderr)
+    sys.exit(1)
+print("WITHDRAW: ze_ddos-local removed", file=sys.stderr)
+
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+ddos {
+	local {
+		response-level enforce;
+	}
+	fake {
+		enabled true;
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.ddos-local:value=info
+option=env:var=ze.log.ddos-fake:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=MITIGATION: ze_ddos-local installed
+expect=stderr:contains=WITHDRAW: ze_ddos-local removed

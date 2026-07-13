@@ -1,0 +1,23 @@
+module ze-fakeddos-conf {
+  namespace "urn:ze:fakeddos-conf";
+  prefix fakeddos;
+
+  import ze-ddos-detect-conf { prefix dd; }
+
+  description "Test-only synthetic DDoS injector configuration. Augments the shared
+               `ddos` container (owned by ze-ddos-detect-conf) with a `fake` subtree
+               whose presence starts the injector (see internal/test/plugins/fakeddos).
+               Compiled only under the zetest build tag, so production never sees it.";
+  revision 2026-07-13 { description "Initial: presence container ddos/fake driving the ddos-local withdraw functional test."; }
+
+  augment "/dd:ddos" {
+    container fake {
+      presence "Start the synthetic DDoS attack injector (test-only).";
+      leaf enabled {
+        type boolean;
+        default false;
+        description "Reserved; the `fake` container's presence is what activates the injector.";
+      }
+    }
+  }
+}

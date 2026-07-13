@@ -22,9 +22,16 @@ caught by unit tests, all in the copp -> firewall-registry -> nft path.
   prefix in `ParseFirewallConfig` (`config.go: tableNamePrefix + name`);
   policy-routes hardcodes `ze_pr`. copp used bare `"copp"` -> kernel table
   `copp` -> invisible to `nft list table inet ze_copp` AND never withdrawn.
-  Fix: `coppTableName = "ze_copp"`. **ddos-local has the same bug** (`tableName
-  = "ddos-local"`, no prefix) -- a latent withdraw leak, not yet chased by a
-  failing test.
+  Fix: `coppTableName = "ze_copp"`. **ddos-local had the same bug** (`tableName
+  = "ddos-local"`, no prefix); fixed to `ze_ddos-local`. The leak is now closed
+  end-to-end by `test/firewall/ddos-local-withdraw.ci` + the `fakeddos` injector
+  plugin (`internal/test/plugins/fakeddos/`): it emits a synthetic AttackDetected
+  (responder installs `ze_ddos-local`), then AttackCleared (responder withdraws
+  it), and the driver asserts the real nft table is gone. This is the FIRST test
+  of the while-running `removeMitigation` -> `RegisterTables(nil)` -> `ApplyAll`
+  delete path; copp-withdraw only exercises the SHUTDOWN flush path, so the
+  responder's clear-while-running withdraw was previously unproven against a real
+  backend.
 - **Clean-shutdown table teardown is a firewall-engine responsibility, gated by
   a config option.** copp/firewall/policy-routes/ddos-local run in-process
   (`Internal: true`, set in `startup_autoload.go`) and share one `activeBackend`.
@@ -62,6 +69,25 @@ caught by unit tests, all in the copp -> firewall-registry -> nft path.
 - The firewall engine parses `flush-on-shutdown` even when otherwise idle only
   if a `firewall` section is present; a copp-only config leaves the package
   default (true), which is why copp-withdraw passes with no firewall block.
+- **`events.Event.Emit` returns the count of OUT-OF-PROCESS (RPC) subscribers
+  only, not in-process ones** (`typed.go:98`). An engine/in-process subscriber
+  (ddos-local, copp, ...) is delivered to synchronously but NOT counted, so
+  `Emit` returns 0 even when it just ran an in-process handler. The `fakeddos`
+  injector first looped "emit Detected until n>0" to wait for the responder to
+  subscribe -- an infinite loop, because n is always 0 for the in-process
+  responder even though the table WAS installed. Fix: never gate on the return
+  count for in-process delivery; `fakeddos` re-emits idempotently until the
+  driver's trigger file appears (the driver only creates it after observing the
+  table, so delivery is guaranteed by then).
+- **A test DUT plugin cannot use an "unused" signal as a control channel.**
+  `fakeddos` first took SIGUSR2 as the driver's "clear now" trigger, reasoning it
+  was unhandled by ze. But *unhandled* means Go's default disposition applies,
+  which for SIGUSR2 TERMINATES the process -- so signalling the daemon killed it
+  before the plugin could react (SIGUSR1 is already the reactor status dump;
+  `cmd/ze/hub/main.go` catches only INT/TERM/HUP). Use a filesystem handshake
+  instead: the daemon's CWD is the per-test tmpfs dir (`runner_exec.go` sets
+  `proc.Dir = TmpfsTempDir`), the same dir the driver reads daemon.pid from, so a
+  trigger file needs no path coordination.
 
 ## Sibling triage (verified, NOT yet fixed)
 The other [[1112-netlink-ci-harness]] pre-existing failures -- none a

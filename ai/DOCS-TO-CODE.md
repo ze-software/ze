@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 285 design docs, 2926 files
+Total: 286 design docs, 2927 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2439,6 +2439,10 @@ Total: 285 design docs, 2926 files
 
 - `internal/component/bgp/plugins/rib/pool/srv6sid.go` -- SRv6 SID extraction from PrefixSID attribute
 - `internal/plugins/fib/vpp/srv6.go` -- VPP SRv6 SR steer programming
+
+## `plan/learned/1116-copp-firewall-shutdown-flush.md`
+
+- `internal/test/plugins/fakeddos/fakeddos.go` -- fakeddos synthetic
 
 ## `plan/learned/415-prefix-data.md`
 

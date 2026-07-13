@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 602 packages, 601 described, 1 TODO
+Total: 604 packages, 603 described, 1 TODO
 
 
 ## `cmd/ze/`
@@ -704,6 +704,8 @@ Total: 602 packages, 601 described, 1 TODO
 | `internal/test/plugins/all` | blank-imports test-only internal plugins |  |
 | `internal/test/plugins/fakeas112` | is a test-only internal plugin that drives the AS112 redistribute producer namespace on demand, so `.ci` tests can exercise the | request fakeas112 emit |
 | `internal/test/plugins/fakeas112/yang` | provides the YANG schema for the fakeas112 test plugin |  |
+| `internal/test/plugins/fakeddos` | is a test-only plugin that drives the ddos-local responder end-to-end against a REAL nft backend |  |
+| `internal/test/plugins/fakeddos/yang` | provides the YANG schema for the fakeddos test plugin |  |
 | `internal/test/plugins/fakeenrich` | Test-only in-process enricher (harmless when not invoked) |  |
 | `internal/test/plugins/fakefib` | Test-only sysrib event emitter for FIB functional tests (use ze.fakefib) | request fakefib emit |
 | `internal/test/plugins/fakel2tp` | is a test-only internal plugin that emits synthetic route-change batches on the L2TP event namespace, allowing .ci tests | l2tp |
