@@ -11,7 +11,7 @@ Why a curated subset and not `firewall --all`: 009-set-element-timeout crashes
 the Alpine QEMU kernel; 004-cli-show needs a zefs database the test daemon does
 not create (blob storage off); the copp-* tests need a firewall-backend block
 their config omits. Those are pre-existing/environment issues unrelated to the
-netns launch mode and are triaged separately -- see plan/spec-netlink-ci-harness.md.
+netns launch mode and are triaged separately -- see plan/learned/1112-netlink-ci-harness.md.
 
 The 9p workspace mount is security_model=none (no xattr), so file capabilities
 cannot be set there; ze is copied to a tmpfs dir first. That dir must be

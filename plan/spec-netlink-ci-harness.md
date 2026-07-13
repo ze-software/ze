@@ -383,14 +383,28 @@ N/A — no wire-protocol change. This is test-harness infrastructure.
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (2026-07-13, /ze-review on commit 650e5f242)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | | | | |
+| 1 | ISSUE | dropped-ze config read depends on umask (root-owned config; 027/077 → 0640/0600 → EACCES) | `runner_exec.go` config-write paths | FIXED: `os.Chown` the config file to the target uid; AC-7 driver runs under umask 077 as regression (b5cbc5b39) |
+| 2 | ISSUE | `ze-netns-test` ran the suite in parallel; netns mode only validated with `-p 1` (R-1) | `mk/test-integration.mk` | FIXED: force `-p 1` (b5cbc5b39) |
+| 3 | NOTE | leaked netns → `EEXIST` on a port-recycled name | `netns_linux.go` `enterTestNetns` | FIXED: best-effort `DeleteNamed` before `NewNamed` (b5cbc5b39) |
+| 4 | NOTE | `ZE_TEST_UID` root/missing silently ran ze as root | `runner_exec.go` / `netnsChildIDs` | FIXED: fail loudly (`errNetnsNeedsUID`); `TestNetnsChildIDs` boundary test (b5cbc5b39) |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+> Outcome: `/ze-review` found 0 BLOCKER, 2 ISSUE, 2 NOTE; all four resolved and
+> re-validated (`make ze-netns-qemu-test` 15/15 under umask 077, host nft
+> unchanged) in commit `b5cbc5b39`. No open findings.
+>
+> Scope note (user-approved): the netns/setcap harness + Fix A/C + nft-rendering
+> fixes are delivered and validated. Four pre-existing, non-netns failures the
+> Linux run surfaced are triaged separately (they reproduce with `ze` as root, no
+> netns): policy Alpine-kernel nft-feature gap, copp `firewall backend not loaded`
+> (config lacks a `firewall { backend nft }` block), `004-cli-show` cli-vs-blob
+> storage, `009` Alpine-kernel crasher. Recorded in `plan/learned/1112-netlink-ci-harness.md`.
 
 ## Checklist
 
