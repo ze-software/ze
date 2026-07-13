@@ -16,14 +16,29 @@ type poolBuf struct {
 	b []byte
 }
 
+// maxRecordLen bounds the largest MRT record OnBGPMessage can build: the MRT
+// (extended) common header + the BGP4MP common header wrapping a maximum-size
+// BGP message. A BGP message length is a 16-bit field, so at most 65535 bytes
+// (RFC 8654 extended messages); the BGP4MP common header is at most 44 bytes
+// (PeerAS4(4)+LocalAS4(4)+IfIndex(2)+AFI(2)+two 16-byte IPv6 addresses); the MRT
+// header at most CommonHeaderLen+ExtTimestampLen. Sizing the pooled record
+// buffer to this maximum keeps a peer's max-size extended UPDATE from
+// overflowing it in OnBGPMessage (`record := pb.b[:off+msgLen]`) and panicking
+// the session goroutine -- a remotely-triggerable crash.
+const (
+	maxBGPMessageLen   = 65535 // 16-bit BGP Length field (RFC 8654 extended messages)
+	maxBGP4MPCommonLen = 44    // AS4(8)+IfIndex(2)+AFI(2)+IPv6 peer(16)+local(16)
+	maxRecordLen       = mrtfmt.CommonHeaderLen + mrtfmt.ExtTimestampLen + maxBGP4MPCommonLen + maxBGPMessageLen
+)
+
 var bufPool = sync.Pool{
-	New: func() any { return &poolBuf{b: make([]byte, 64*1024)} },
+	New: func() any { return &poolBuf{b: make([]byte, maxRecordLen)} },
 }
 
 func getBuf() *poolBuf {
 	pb, ok := bufPool.Get().(*poolBuf)
 	if !ok {
-		return &poolBuf{b: make([]byte, 64*1024)}
+		return &poolBuf{b: make([]byte, maxRecordLen)}
 	}
 	return pb
 }

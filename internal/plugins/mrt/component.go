@@ -121,7 +121,17 @@ func (c *Component) OnBGPMessage(peer *plugin.PeerInfo, msgType message.MessageT
 	peerInfoToHeader(peer, ipBuf[:], &hdr)
 	off := c.headerSize()
 	msgLen := mrtfmt.WriteBGP4MPMessage(pb.b, off, &hdr, as4, rawBytes)
-	record := pb.b[:off+msgLen]
+	total := off + msgLen
+	if total > len(pb.b) {
+		// Defense in depth: pb.b is sized to the maximum possible record
+		// (maxRecordLen), so this cannot happen today. Guard anyway so a future
+		// header change can never turn OnBGPMessage into a panic on a peer's
+		// oversized message (the reslice below would be out of range).
+		c.logger.Warn("mrt: record exceeds buffer, dropping",
+			"size", total, "cap", len(pb.b))
+		return
+	}
+	record := pb.b[:total]
 	writeHeader(record, c.config.ExtendedTimestamp, now, typ, subtype, msgLen)
 
 	if c.updates != nil && isUpdate {
