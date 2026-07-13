@@ -60,6 +60,24 @@ literally exists as a sibling, so genuine compounds are never flagged.
   methods stable, so `show system memory` (OS view) maps to
   `ze-show:system-memory-map` and `show runtime memory` (Go allocator) to
   `ze-show:system-memory`. Internal-only; documented.
+- **The command name also appears in prose the compiler/tests do not check:**
+  YANG module and leaf `description` strings, code comments, `docs/`, digests, and
+  `ze:related` workbench annotations. The literal-coupling grep above (dispatch
+  strings) is NOT enough -- a `/ze-review` completeness pass caught stale
+  `show bgp-health` / `show flow-recent` / `clear l2tp ... teardown` in
+  `ze-peer-cmd.yang` description, `ze-flowexport-conf.yang` description,
+  `command-catalogue.md`, and comments AFTER the migration commit. Grep every
+  string form of the old name, not just code. Keep the old spelling only in
+  `revision "..."` history logs and the R9 rule's before/after examples.
+- **`ze:related command="..."` is production-validated, not cosmetic.**
+  `ValidateRelatedAgainstCommandTree` (`config/related.go`) is called from
+  `config/yang_schema.go` at schema load and walks the tree token-by-token over
+  the static prefix (`commandTreeHasPath`). A rename that leaves an old
+  `ze:related` command (e.g. `show bgp-health` when the tree now has
+  `show`->`bgp`->`health`) is a real schema-load error, so the ze:related must be
+  renamed in lockstep. Unit coverage: `config/related_test.go`
+  `TestRelatedExtension_RejectsCommandNotInTree` (stub tree mirrors the nested
+  real structure).
 
 ## Verification that mattered
 

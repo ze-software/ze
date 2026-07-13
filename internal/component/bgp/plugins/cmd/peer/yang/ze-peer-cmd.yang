@@ -2,7 +2,7 @@ module ze-peer-cmd {
     namespace "urn:ze:peer:cmd";
     prefix peercmd;
     import ze-extensions { prefix ze; }
-    description "BGP peer operations: show, delete, and control peer sessions. Owns the show bgp-health overview and the delete bgp peer command surface; container-merges onto the show and delete verb roots.";
+    description "BGP peer operations: show, delete, and control peer sessions. Owns the show bgp health overview and the delete bgp peer command surface; container-merges onto the show and delete verb roots.";
     revision 2026-03-16 { description "Initial revision"; }
     revision 2026-06-03 { description "Relocated show bgp-health and delete bgp peer out of the central show/delete schemas into this owner (plugin self-containment)."; }
     revision 2026-06-04 { description "Removed bare 'summary' and 'peer list' duplicates; moved summary under show bgp; canonical paths are 'show bgp summary' and 'show bgp peer list'."; }

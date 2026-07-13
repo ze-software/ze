@@ -208,9 +208,9 @@ func TestRelatedExtension_RejectsCommandNotInTree(t *testing.T) {
 			"show": {
 				Name: "show",
 				Children: map[string]*command.Node{
-					"bgp-health": {Name: "bgp-health", WireMethod: "ze-show:bgp-health"},
-					"warnings":   {Name: "warnings", WireMethod: "ze-show:warnings"},
-					"errors":     {Name: "errors", WireMethod: "ze-show:errors"},
+					"bgp":      {Name: "bgp", Children: map[string]*command.Node{"health": {Name: "health", WireMethod: "ze-show:bgp-health"}}},
+					"warnings": {Name: "warnings", WireMethod: "ze-show:warnings"},
+					"errors":   {Name: "errors", WireMethod: "ze-show:errors"},
 				},
 			},
 			"peer": {
@@ -229,7 +229,7 @@ func TestRelatedExtension_RejectsCommandNotInTree(t *testing.T) {
 		wantErr  bool
 	}{
 		{name: "known static prefix", template: `peer ${path:connection/remote/ip|key} detail`, wantErr: false},
-		{name: "known global command", template: `show bgp-health`, wantErr: false},
+		{name: "known global command", template: `show bgp health`, wantErr: false},
 		{name: "renamed command", template: `peer ${path:connection/remote/ip|key} caps`, wantErr: false}, // suffix not validated, prefix `peer` exists
 		{name: "typo in static prefix", template: `peeer ${path:connection/remote/ip|key} detail`, wantErr: true},
 		{name: "non-existent root", template: `nonexistent`, wantErr: true},

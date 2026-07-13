@@ -656,7 +656,7 @@ func TestBuiltinReadOnlyProfile(t *testing.T) {
 		{"restart denied", "restart", true, Deny},
 		{"kill denied", "kill", true, Deny},
 		{"clear denied", "clear", true, Deny},
-		{"clear l2tp denied", "clear l2tp session teardown 42", true, Deny},
+		{"clear l2tp denied", "clear l2tp session id 42", true, Deny},
 		{"show l2tp allowed", "show l2tp sessions", true, Allow},
 		{"debug denied", "debug", true, Deny},
 		{"debug ip ospf inject denied", "debug ip ospf inject opaque scope area id 1", true, Deny},

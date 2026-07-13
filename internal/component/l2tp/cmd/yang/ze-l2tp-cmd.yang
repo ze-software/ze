@@ -180,8 +180,8 @@ queue depth. Check here when tunnel control messages seem stuck.";
     }
 
     // -----------------------------------------------------------------
-    // Destructive tree: `clear l2tp tunnel teardown ...`, `clear l2tp
-    // session teardown ...`. Under `clear` verb because they reset
+    // Destructive tree: `clear l2tp tunnel {id <id> | all}`, `clear l2tp
+    // session {id <id> | all}`. Under `clear` verb because they reset
     // runtime/operational state without touching config.
     // -----------------------------------------------------------------
     augment "/cliclearcmd:clear" {

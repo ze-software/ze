@@ -40,7 +40,7 @@ if out is None:
 try:
     data = json.loads(out)
 except json.JSONDecodeError as e:
-    sys.exit("invalid JSON from show policy-routes: %s\noutput: %s" % (e, out))
+    sys.exit("invalid JSON from show policy routes: %s\noutput: %s" % (e, out))
 
 if not isinstance(data, list) or len(data) == 0:
     sys.exit("expected non-empty list, got: %s" % out)
