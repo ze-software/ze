@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | done |
+| Status | in-progress |
 | Depends | spec-ownership-0-umbrella |
 | Phase | 6/6 |
 | Updated | 2026-07-05 |
@@ -173,22 +173,19 @@ forward to `r.api` and stay).
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
-### Run 1 (initial)
+### Run 1 (initial) — independent adversarial pass (6 axes)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | ISSUE (LOW, test-strength) | borrow-mode test asserted the error but not that the listener was released | `reactor_startup_test.go` (borrow test) | fixed: added `ListenAddr()==nil` / `ListenAddrs()` empty assertions |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- **#1:** `TestReactorBorrowModeErrorsWithoutServer` now asserts the listener is released on abort (`ListenAddr()==nil`), closing the test-strength gap.
 
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+### Run 2 (completeness verification)
+Independent completeness pass: every reactor-start caller repo-wide classified (borrow-with-server / standalone / never-started); no missed borrow-without-server caller. **0 BLOCKER / 0 ISSUE.**
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- Run 1: 1 LOW test-strength ISSUE fixed. Run 2: completeness verified, **0 BLOCKER / 0 ISSUE**. **Review Gate satisfied** (recorded in Implementation Results → "ze-review"). `ze-tier-check` / `ze-plugin-boundary-check` / `golangci-lint` (0 issues) green; reactor `-race` green.
 
 ## Checklist
 

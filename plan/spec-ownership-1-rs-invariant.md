@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | done |
+| Status | in-progress |
 | Depends | spec-ownership-0-umbrella |
 | Phase | 6/6 |
 | Updated | 2026-07-04 |
@@ -191,22 +191,22 @@ to the RS forwarding *algorithm* or its perf characteristics.
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
-### Run 1 (initial)
+### Run 1 (initial) — two independent adversarial passes (full-diff, different lenses)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | ISSUE | augment-path coverage gap: nothing guarded that all six relocated `rs-*` augment paths survive | `plugins/rs/yang/ze-rs-conf.yang` | fixed: added `test/parse/bgp-rs-augment-paths.ci` (sensitivity-proven — dropping any augment → rejected unknown field) |
+| 2 | NOTE | gate enforced only at the reactor `&&`; intent not documented for defense-in-depth | `reactor_notify.go:586` | acknowledged: defense-in-depth comment added |
+| 3 | NOTE | new `filterapi` reactor-capability seam not cataloged | `ai/patterns/registration.md` | fixed: seam documented in the registration pattern catalog |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- **#1:** `test/parse/bgp-rs-augment-paths.ci` guards all six augment paths; proven to reject if any is dropped.
+- **#2/#3:** clarity comment at the gate + `ai/patterns/registration.md` entry for the filterapi capability seam.
 
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+### Run 2 (closure re-review)
+Second independent adversarial pass over the full diff (different lens) reached the same result: **0 BLOCKER, 0 ISSUE.**
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- Run 1: 1 ISSUE fixed (augment-path guard), 2 NOTEs addressed. Run 2: 0 BLOCKER / 0 ISSUE. **Review Gate satisfied** (recorded in Implementation Results → "ze-review convergence"). Pre-existing `ze-validate` unused-export findings in reactor.go/filterapi.go predate this change and are not addressed here.
 
 ## Checklist
 

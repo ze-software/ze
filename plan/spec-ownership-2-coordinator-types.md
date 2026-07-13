@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | done |
+| Status | in-progress |
 | Depends | spec-ownership-0-umbrella |
 | Phase | 6/6 |
 | Updated | 2026-07-05 |
@@ -177,22 +177,19 @@ runtime type-assertions into compile-time-checked signatures.
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
-### Run 1 (initial)
+### Run 1 (initial) — two independent adversarial reviews (behavior-preserving retype sweep)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| — | (none) | Two independent adversarial reviews CONVERGED with no findings | — | — |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- None required. The change is a behavior-preserving `any → typed` sweep; the compiler surfaced every affected site (62 `func(any) as func(T)` compile errors were the worklist), `go vet` clean, all changed-package unit tests green.
 
 ### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+Not needed — Run 1 converged clean across both independent reviews.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- Run 1: two independent adversarial reviews, **0 BLOCKER / 0 ISSUE**, no findings. **Review Gate satisfied** (recorded in Implementation Results → AC-5 evidence). Note: an unrelated `plugin/all` `TestRegisteredWireMethods` golden red is owned by another session's uncommitted `dns-cache` rename, not this change (documented under "Known red not attributable to P2").
 
 ## Checklist
 

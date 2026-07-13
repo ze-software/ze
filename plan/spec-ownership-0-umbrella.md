@@ -2,23 +2,30 @@
 
 | Field | Value |
 |-------|-------|
-| Status | done |
+| Status | in-progress |
 | Depends | - |
 | Phase | umbrella |
 | Updated | 2026-07-05 |
 
-## Closed (2026-07-05)
+## Closed (2026-07-05; closure completed 2026-07-13)
 
-All three children implemented, reviewed (two adversarial passes each), and committed;
-`DESIGN-REVIEW.md` finding #1 annotated with the resolved status. Details:
+All three children implemented, reviewed (two adversarial passes each), and committed:
 - **P1** RS invariant — `ff686e4a2`, `plan/learned/1063-ownership-1-rs-invariant.md`
 - **P2** Coordinator types — `442125776`, `plan/learned/1064-ownership-2-coordinator-types.md`
 - **P3** reactor modes — `39d798e66`, `plan/learned/1065-ownership-3-reactor-modes.md`
 
 The already-done production ownership (hub owns Server/EventBus/Engine; BGP is a
 config-driven plugin) was preserved, not reverted. This umbrella and its three child
-specs are removed on close; the durable record is the three learned summaries above
-and the DESIGN-REVIEW finding #1 annotation.
+specs are removed on close; the durable record is the three child learned summaries
+above plus this umbrella's closure summary `plan/learned/1111-ownership-0-umbrella.md`.
+
+**Correction (2026-07-13):** success criterion 2 named annotating `DESIGN-REVIEW.md`
+finding #1. Audit found **`DESIGN-REVIEW.md` was never a tracked file in this repo**
+(`git log --all` + `find` both empty) — it was an ephemeral review artifact. There is
+therefore no file to annotate; the corrected status of finding #1 (production ownership
+already resolved; RS + Coordinator + explicit-modes tracked and now delivered) lives
+in this umbrella and the four learned summaries. Criterion 2 is satisfied-in-substance
+by that durable record, not by editing a non-existent file.
 
 ## Post-Compaction Recovery
 
@@ -100,9 +107,10 @@ efforts. Finding #1's already-done pieces (above) are closed and not reopened he
 ## Success Criteria (umbrella closes when)
 
 - All three children are either closed (implemented) or explicitly deferred with user
-  approval.
-- `DESIGN-REVIEW.md` finding #1 is annotated with the corrected status (production
-  ownership already resolved; RS + Coordinator + explicit-modes tracked here).
+  approval. — **met**: all three closed (`ff686e4a2`, `442125776`, `39d798e66`; learned 1063/1064/1065).
+- Finding #1's corrected status is durably recorded. — **met (corrected)**: `DESIGN-REVIEW.md`
+  was never a tracked repo file (see Closed note), so the record lives in this umbrella +
+  the four learned summaries rather than in a file annotation. No non-existent file is edited.
 
 ## Required Reading
 
@@ -193,22 +201,19 @@ concrete artifact is the corrected finding annotation.
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
-### Run 1 (initial)
+### Run 1 (initial) — umbrella (coordination only)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| — | (none) | This umbrella authors no product code — its only concrete artifact is a corrective record of finding #1. Each child spec carried its own `/ze-review` gate and converged 0/0 (see 1063/1064/1065). | — | — |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- None at umbrella level. The umbrella's DESIGN-REVIEW.md annotation criterion was corrected on close (the file never existed in-repo); see the Closed note.
 
 ### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+Not applicable — no umbrella-level code to review.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- **Review Gate satisfied**: no umbrella-level product code; the three children each reached 0 BLOCKER / 0 ISSUE under independent adversarial review before their own closure. NOTEs: none at umbrella level.
 
 ## Checklist
 
