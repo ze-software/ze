@@ -9,6 +9,7 @@
     "planned": 6
   },
   "generated_at": "2026-07-13",
+  "github_stars": 46,
   "interop": {
     "scenario_dirs_raw": 102,
     "scenarios": 101,
@@ -16,11 +17,11 @@
     "targets": 7
   },
   "tests": {
-    "e2e": 1400,
-    "e2e_display": "1,400",
+    "e2e": 1404,
+    "e2e_display": "1,400+",
     "fuzz": 365,
     "fuzz_display": "360+",
-    "unit": 64719,
+    "unit": 64743,
     "unit_display": "64,700+"
   }
 }

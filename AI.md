@@ -36,9 +36,8 @@ data and Markdown, not hand-edited HTML. Structure:
 ```
 gh-pages/
   data/
-    nav.json                              -- single source for the mega-menu (Project/Labs/Docs
-                                              dropdowns, top links, badges) -- every page reads
-                                              this, generated or hand-authored
+    nav.json                              -- single source for the mega-menu; the nav build step
+                                              renders assets/header.html, which every page loads
     features.json                         -- every card on features/index.html: section, category,
                                               status, chips, bullets
     milestones.json                       -- every node on milestones/index.html: date, title,
@@ -63,10 +62,10 @@ gh-pages/
   tools/
     render-css.py                         -- expands assets/css/site.css imports into
                                               the published assets/site.css bundle
-    sitelib.py                            -- shared nav/head/foot chrome, imported by every
-                                              render-*.py; also the navblock patcher for pages
-                                              with no dedicated generator, and the Markdown-mirror
-                                              machinery (see "Markdown mirrors" below)
+    sitelib.py                            -- shared head/sidebar/footer chrome and the renderer for
+                                              assets/header.html; also migrates embedded headers to
+                                              stable fragment mounts and owns Markdown mirrors
+                                              (see "Markdown mirrors" below)
     page_registry.py                      -- central registry for docs manifest, generated Markdown
                                               page sets, hand-authored nav patch targets, and
                                               destination-derived site roots
@@ -113,10 +112,10 @@ gh-pages/
 ```
 
 Pages with no dedicated generator (`zeledon/`, `labs/*/`, `talks/`,
-`style-guide/`, `performance/`) are hand-authored HTML for their body content,
-but their nav block is still patched from `data/nav.json` by `tools/build.py`
-(the `nav` step) so they can never drift from the mega-menu on every other
-page.
+`style-guide/`, `performance/`) are hand-authored HTML for their body content.
+Like generated pages, they contain only a stable shared-header mount. The `nav`
+step renders `assets/header.html` from `data/nav.json`, so menu changes update
+one fragment instead of rewriting every page.
 
 Run `./update-website.sh` (repo root) or `tools/build.py` directly, same
 thing, the script is just a short, obvious name to reach for. Pass `--only`
@@ -179,11 +178,11 @@ per-step failures.
   files for tokens, shared components, and responsive fixes. Keep new CSS in
   the smallest source file that matches the concern, then run the `css` build
   step so every generated page gets the correct asset hash.
-- **JS behavior model.** `assets/site.js` provides progressive enhancement for
-  shared behavior such as reveal effects, navigation, search-like controls,
-  and generated page explorers. Pages must remain meaningful from server
-  rendered HTML and data attributes; JavaScript may enhance interaction but
-  must not become the source of truth for content, navigation, or evidence.
+- **JS behavior model.** `assets/site.js` loads `assets/header.html` into each
+  page's stable mount, then provides navigation interactions and progressive
+  enhancement for reveal effects, search-like controls, and generated page
+  explorers. `data/nav.json` remains the navigation source of truth. Page body
+  content and evidence must remain meaningful without JavaScript.
 - **Verification commands.** Use targeted commands, not a project-wide build,
   while editing architecture scripts:
   `python3 -m py_compile tools/page_registry.py tools/build.py tools/render-docs.py tools/check-page-links.py`,
@@ -303,7 +302,8 @@ opaque blobs, unrelated palettes, or custom components without updating the
 style guide in the same change.
 
 Navigation is part of the design system. `data/nav.json` owns the top
-mega-menu, generated nav patches, and `llms.txt` page map. The footer is a
+mega-menu and `llms.txt` page map; the `nav` step publishes that menu once as
+`assets/header.html`. The footer is a
 single license line from `sitelib.footer_html`, not a sitemap or second
 call-to-action block. Group the top menu by reader job: Start, Evaluate, Docs,
 Examples, Reference, Project. Every multi-column dropdown must show a label at
@@ -334,8 +334,9 @@ generated from `data/nav.json` plus live counts, must link each page's
 
 To add, remove, or re-categorize a feature card: edit `data/features.json`,
 then run `tools/build.py --only features` (or the full build). Same for
-`data/audience.json` and `--only index`, or `data/nav.json` and the needed
-steps for pages affected by a navigation change.
+`data/audience.json` and `--only index`. For navigation, edit `data/nav.json`
+and run `tools/build.py --only nav`; only `assets/header.html` should change
+after the one-time migration to shared mounts.
 
 Command equivalence maintenance: Ze command paths come from the live CLI
 catalog, not the JSON mapping. Add vendor equivalents to

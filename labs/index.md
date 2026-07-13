@@ -8,56 +8,56 @@ Labs run against real third-party daemons (xl2tpd, accel-ppp, strongSwan), or bo
 
 ### [BGP Protocol Interop](https://ze-software.net/labs/bgp-interop/)
 
- `Daemon` `Docker`
+`Daemon` `Docker`
 
- - Real **FRR, BIRD, and GoBGP** sessions, not mocks
- - 68 scenarios across core protocol and **extensions**
+- Real **FRR, BIRD, and GoBGP** sessions, not mocks
+- 68 scenarios across core protocol and **extensions**
 
 ### [L2TP PPP/NCP Interop](https://ze-software.net/labs/l2tp-interop/)
 
- `Daemon` `Docker` `QEMU`
+`Daemon` `Docker` `QEMU`
 
- - Ze as LNS vs real **xl2tpd**/pppd LAC
- - FRR proves **BGP redistribution** from a live PPP session
+- Ze as LNS vs real **xl2tpd**/pppd LAC
+- FRR proves **BGP redistribution** from a live PPP session
 
 ### [PPPoE Interop](https://ze-software.net/labs/pppoe-interop/)
 
- `Daemon` `Docker` `QEMU`
+`Daemon` `Docker` `QEMU`
 
- - Ze's PPPoE client vs real **accel-ppp** access concentrator
- - The dominant **open-source BRAS/AC**, not a stub
+- Ze's PPPoE client vs real **accel-ppp** access concentrator
+- The dominant **open-source BRAS/AC**, not a stub
 
 ### [IPsec / IKEv2 Interop](https://ze-software.net/labs/ipsec-interop/)
 
- `Daemon` `Docker`
+`Daemon` `Docker`
 
- - Ze as IKE initiator vs real **strongSwan**/charon
- - FRR **redistribute** scenarios over the tunnel
+- Ze as IKE initiator vs real **strongSwan**/charon
+- FRR **redistribute** scenarios over the tunnel
 
 ### [VLAN QoS Wire-Level Proof](https://ze-software.net/labs/vlan-qos/)
 
- `Daemon` `AF_PACKET`
+`Daemon` `AF_PACKET`
 
- - 802.1p **PCP tagging** actually on the wire
- - Not just kernel-state **acceptance**
+- 802.1p **PCP tagging** actually on the wire
+- Not just kernel-state **acceptance**
 
 ### [Looking Glass Graph Demo](https://ze-software.net/labs/looking-glass-graph/)
 
- `Daemon` `Browsable`
+`Daemon` `Browsable`
 
- - Realistic UK topology, real external **ASNs**
- - The one lab that's actually **visual** today
+- Realistic UK topology, real external **ASNs**
+- The one lab that's actually **visual** today
 
 ### [Appliance Installer Evidence](https://ze-software.net/labs/appliance-install/)
 
- `Appliance` `QEMU`
+`Appliance` `QEMU`
 
- - Installer boots and completes for real: **HTTP/PXE, ISO, Ventoy**
- - Plus failure-path, fault, pin, and **rescue** scenarios
+- Installer boots and completes for real: **HTTP/PXE, ISO, Ventoy**
+- Plus failure-path, fault, pin, and **rescue** scenarios
 
 ### [VPP Dataplane Evidence](https://ze-software.net/labs/vpp-dataplane/)
 
- `Daemon` `Docker`
+`Daemon` `Docker`
 
- - Ze programs **FIB, traffic, and firewall** into a real VPP daemon
- - Backs the production numbers in the **VPP guide**
+- Ze programs **FIB, traffic, and firewall** into a real VPP daemon
+- Backs the production numbers in the **VPP guide**

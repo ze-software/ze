@@ -22,12 +22,16 @@ Task-oriented guides for protocol setup, access services, migration, and diagnos
 
 - [ExaBGP migration convert an existing config and process scripts](https://ze-software.net/usage/exabgp-migration/)
 - [SSH and RBAC local users, profiles, and operator access](https://ze-software.net/docs/guide/operator-access-rbac/)
+- [RADIUS operator login authenticate SSH, web, and MCP users safely](https://ze-software.net/docs/guide/radius/)
 - [FlowSpec route reflector reflect FlowSpec routes to iBGP clients](https://ze-software.net/docs/guide/flowspec-route-reflector/)
 - [FlowSpec protected router turn FlowSpec into nftables protection](https://ze-software.net/docs/guide/flowspec-protected-router/)
+- [DDoS mitigation detect floods and respond locally or upstream](https://ze-software.net/docs/guide/ddos-mitigation/)
+- [Anomaly detection baseline source behaviour and respond shadow-first](https://ze-software.net/docs/guide/anomaly/)
 - [Looking glass publish read-only BGP visibility](https://ze-software.net/docs/guide/looking-glass-howto/)
 - [Firewall and policy routing protect and steer traffic](https://ze-software.net/docs/guide/firewall/)
 - [OSPF, IS-IS, and static routes bring routing protocols online](https://ze-software.net/docs/guide/ospf/)
 - [PPPoE and L2TP access concentration paths](https://ze-software.net/docs/guide/pppoe/)
+- [Native IPsec configure IKEv2 initiator and responder tunnels](https://ze-software.net/docs/guide/ipsec/)
 - [Monitoring and diagnostics flow export, MRT, and production checks](https://ze-software.net/docs/guide/monitoring/)
 
 **Reference**

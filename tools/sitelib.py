@@ -1,11 +1,9 @@
-"""Shared chrome (nav, head, foot) for every gh-pages page generator.
+"""Shared chrome for every gh-pages page generator.
 
-Single source of truth for the ClickUp-style mega-menu (data/nav.json), the
-live GitHub star badge, and the standard page head/foot. Every render-*.py
-script imports this instead of carrying its own copy -- previously the nav
-markup was duplicated verbatim in render-doc.py, render-blog.py, and
-render-activity.py, which is how a bulk-patch bug once duplicated dropdown
-content across 82 pages: three copies to keep in sync, one code path now.
+``data/nav.json`` and ``data/site-facts.json`` feed one generated
+``assets/header.html`` fragment. Published pages contain only a stable mount;
+``assets/site.js`` loads the shared header so menu changes never rewrite page
+content. Head, sidebar, and footer rendering also live here.
 """
 
 import hashlib
@@ -14,7 +12,6 @@ import json
 import pathlib
 import re
 import sys
-import urllib.request
 from html.parser import HTMLParser
 from urllib.parse import urljoin
 
@@ -70,6 +67,7 @@ def build_warnings():
     """Every drift warning recorded via warn() so far this process."""
     return list(_BUILD_WARNINGS)
 
+
 NAV_CHEVRON = (
     '<svg viewBox="0 0 12 8" fill="none" aria-hidden="true">'
     '<path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" '
@@ -108,40 +106,28 @@ def feature_counts_by_category():
     return counts
 
 
-_GITHUB_STARS_FALLBACK = 39  # last known count, used if the API call fails
+_GITHUB_STARS_FALLBACK = 46
 _github_stars_cache = None
 _nav_data_cache = None
 _page_links_cache = None
 
 
 def get_github_stars():
-    """Live star count for ze-software/ze, fetched once per process and
-    cached (unauthenticated GitHub API allows 60 req/hour/IP -- a full site
-    build touching ~40 docs must not spend that fetching the same number 40
-    times). Falls back to the last known count on any network/API failure so
-    a regeneration never hard-fails for lack of connectivity."""
+    """Read the one star count published in data/site-facts.json."""
     global _github_stars_cache
-    if _github_stars_cache is not None:
-        return _github_stars_cache
-    try:
-        req = urllib.request.Request(
-            "https://api.github.com/repos/%s" % GITHUB_REPO,
-            headers={
-                "Accept": "application/vnd.github+json",
-                "User-Agent": "ze-site-build",
-            },
-        )
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = json.loads(resp.read())
-        _github_stars_cache = int(data["stargazers_count"])
-    except Exception as exc:
-        print(
-            "warning: could not fetch live GitHub star count (%s), using last known value %d"
-            % (exc, _GITHUB_STARS_FALLBACK),
-            file=sys.stderr,
-        )
-        _github_stars_cache = _GITHUB_STARS_FALLBACK
+    if _github_stars_cache is None:
+        try:
+            _github_stars_cache = int(sitefacts.load_facts()["github_stars"])
+        except (OSError, KeyError, TypeError, ValueError):
+            _github_stars_cache = _GITHUB_STARS_FALLBACK
     return _github_stars_cache
+
+
+def reset_nav_data_cache():
+    """Reload generated facts and nav placeholders before a final nav pass."""
+    global _github_stars_cache, _nav_data_cache
+    _github_stars_cache = None
+    _nav_data_cache = None
 
 
 DISCORD_ICON_PATH = (
@@ -277,10 +263,11 @@ def nav_dropdown(label, columns):
         '                    <button class="nav-dropdown-trigger" type="button" '
         'aria-haspopup="true" aria-expanded="false" aria-controls="%s">%s\n'
         "                        %s\n"
-        "                    </button>\n"
-        % (panel_id, html.escape(label), NAV_CHEVRON)
+        "                    </button>\n" % (panel_id, html.escape(label), NAV_CHEVRON)
     )
-    out.append('                    <div class="nav-dropdown-panel" id="%s">\n' % panel_id)
+    out.append(
+        '                    <div class="nav-dropdown-panel" id="%s">\n' % panel_id
+    )
     for col in columns:
         out.append('                    <div class="nav-dropdown-col">\n')
         for entry in col:
@@ -303,8 +290,6 @@ def nav_dropdown_rooted(root, label, columns):
         for col in columns
     ]
     return nav_dropdown(label, rooted_columns)
-
-
 
 
 def live_counts():
@@ -467,10 +452,7 @@ def page_link_spec(page_key):
         prefix = _normalize_page_key(pattern.get("prefix", ""))
         if prefix is None or not key.startswith(prefix):
             continue
-        excluded = {
-            _normalize_page_key(item)
-            for item in pattern.get("exclude", [])
-        }
+        excluded = {_normalize_page_key(item) for item in pattern.get("exclude", [])}
         if key in excluded:
             continue
         return pattern
@@ -503,9 +485,7 @@ def _page_sidebar_link(root, link, external_links):
         % html.escape(label),
     ]
     if desc:
-        out.append(
-            "                        <small>%s</small>\n" % html.escape(desc)
-        )
+        out.append("                        <small>%s</small>\n" % html.escape(desc))
     out.append("                    </a>\n")
     return "".join(out)
 
@@ -533,7 +513,9 @@ def page_sidebar(root, page_key):
             '                <p class="page-sidebar-eyebrow">%s</p>\n'
             % html.escape(spec["eyebrow"])
         )
-    out.append('                <nav class="page-sidebar-nav" aria-label="Related links">\n')
+    out.append(
+        '                <nav class="page-sidebar-nav" aria-label="Related links">\n'
+    )
     for title, links in rendered_groups:
         out.append('                <section class="page-sidebar-group">\n')
         out.append("                    <h2>%s</h2>\n" % html.escape(title))
@@ -552,7 +534,13 @@ def blog_dropdown_columns(n=5):
     desc, feature) that nav_dropdown_rooted then prefixes with the page's
     root."""
     col = [
-        ("changes/", "\U0001f4da", "All updates", "Every weekly update, newest first", False)
+        (
+            "changes/",
+            "\U0001f4da",
+            "All updates",
+            "Every weekly update, newest first",
+            False,
+        )
     ]
     for post in latest_blog_posts(n):
         title = "Week of %s" % post["slug"]
@@ -594,54 +582,74 @@ def build_navblock(root):
     return "".join(out)
 
 
-NAV_LINKS_START_RE = re.compile(r'[ \t]*<div\b[^>]*class="nav-links"[^>]*>')
-DIV_OPEN_RE = re.compile(r"<div\b")
-DIV_CLOSE_RE = re.compile(r"</div>")
+SHARED_HEADER_ROOT_TOKEN = "__ZE_SITE_ROOT__"
+SHARED_HEADER_PATH = GH_PAGES / "assets" / "header.html"
+SITE_HEADER_RE = re.compile(
+    r'[ \t]*<header\b[^>]*class="site-header"[^>]*>.*?</header>', re.DOTALL
+)
+SHARED_HEADER_MOUNT_RE = re.compile(
+    r'[ \t]*<div\b[^>]*id="site-header-mount"[^>]*></div>'
+)
 
 
-def _find_balanced_div_end(text, div_start):
-    """div_start is the index of the opening '<div' tag's '<'. Returns the
-    index just past the matching '</div>', counting nested <div> depth so a
-    naive first-</div>-wins regex can't truncate early (that was the root
-    cause of the duplicated-dropdown-content bug from a prior bulk patch)."""
-    open_end = text.index(">", div_start) + 1
-    depth = 1
-    pos = open_end
-    while depth > 0:
-        next_open = DIV_OPEN_RE.search(text, pos)
-        next_close = DIV_CLOSE_RE.search(text, pos)
-        if next_close is None:
-            raise ValueError("unbalanced <div> after position %d" % div_start)
-        if next_open and next_open.start() < next_close.start():
-            depth += 1
-            pos = next_open.end()
-        else:
-            depth -= 1
-            pos = next_close.end()
-    return pos
-
-
-def patch_navblock(html_text, root):
-    """Replace the <div class="nav-links">...</div> block in an already
-    hand-authored page with a freshly built one, so pages with no dedicated
-    generator (labs evidence pages, talks, style guide) still stay in sync
-    with data/nav.json and the live star count."""
-    m = NAV_LINKS_START_RE.search(html_text)
-    if not m:
-        raise ValueError('no <div class="nav-links"> found')
-    div_start = m.start()
-    end = _find_balanced_div_end(html_text, div_start)
-    return html_text[: m.start()] + build_navblock(root) + html_text[end:]
-
-BRAND_HOME_RE = re.compile(r'(<a class="brand" href=")[^"]*(" aria-label="Ze home">)')
-
-
-def patch_brand_home_href(html_text, root):
-    return BRAND_HOME_RE.sub(
-        r'\1' + html.escape(rooted_href(root, "index.html#top"), quote=True) + r'\2',
-        html_text,
-        count=1,
+def build_shared_header(root):
+    """Render the one shared header fragment consumed by every page."""
+    return (
+        '        <header class="site-header">\n'
+        '            <nav class="nav" aria-label="Main navigation">\n'
+        '                <a class="brand" href="%s" aria-label="Ze home">\n'
+        '                    <img src="%sassets/ze.svg" alt="" width="32" height="32" />\n'
+        "                    <span>Ze</span>\n"
+        "                </a>\n"
+        '                <button class="nav-menu-toggle" type="button" '
+        'aria-controls="site-nav-links" aria-expanded="false">\n'
+        '                    <span class="nav-menu-toggle-bars" aria-hidden="true"></span>\n'
+        "                    <span>Menu</span>\n"
+        "                </button>\n"
+        "%s\n"
+        "            </nav>\n"
+        "        </header>"
+    ) % (
+        html.escape(rooted_href(root, "index.html#top"), quote=True),
+        html.escape(root, quote=True),
+        build_navblock(root),
     )
+
+
+def build_shared_header_mount(root):
+    """Return the stable per-page mount for the external header fragment."""
+    escaped_root = html.escape(root, quote=True)
+    return (
+        '        <div id="site-header-mount" '
+        'data-header-src="%sassets/header.html" data-site-root="%s"></div>'
+    ) % (escaped_root, escaped_root)
+
+
+def write_shared_header():
+    """Write assets/header.html from data/nav.json and generated site facts."""
+    rendered = build_shared_header(SHARED_HEADER_ROOT_TOKEN) + "\n"
+    SHARED_HEADER_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if not SHARED_HEADER_PATH.exists() or SHARED_HEADER_PATH.read_text() != rendered:
+        SHARED_HEADER_PATH.write_text(rendered)
+        return True
+    return False
+
+
+def has_replaceable_header(html_text):
+    return bool(
+        SHARED_HEADER_MOUNT_RE.search(html_text) or SITE_HEADER_RE.search(html_text)
+    )
+
+
+def patch_shared_header(html_text, root):
+    """Replace an embedded header with the stable shared-fragment mount."""
+    mount = build_shared_header_mount(root)
+    match = SHARED_HEADER_MOUNT_RE.search(html_text)
+    if match is None:
+        match = SITE_HEADER_RE.search(html_text)
+    if match is None:
+        raise ValueError("no shared-header mount or embedded site header found")
+    return html_text[: match.start()] + mount + html_text[match.end() :]
 
 
 def footer_html(root):
@@ -654,8 +662,7 @@ def footer_html(root):
         '                    <a href="%s">Ze is AGPLv3 open source.</a>\n'
         "                </div>\n"
         "            </div>\n"
-        "        </footer>"
-        % html.escape(rooted_href(root, "license/"), quote=True)
+        "        </footer>" % html.escape(rooted_href(root, "license/"), quote=True)
     )
 
 
@@ -757,7 +764,7 @@ def patch_external_link_targets(html_text):
     return ANCHOR_OPEN_RE.sub(repl, html_text)
 
 
-MAIN_OPEN_RE = re.compile(r'(?P<indent>[ \t]*)<main\b(?P<attrs>[^>]*)>\n?')
+MAIN_OPEN_RE = re.compile(r"(?P<indent>[ \t]*)<main\b(?P<attrs>[^>]*)>\n?")
 MAIN_CLASS_RE = re.compile(r'class="([^"]*)"')
 PAGE_SIDEBAR_RE = re.compile(
     r'[ \t]*<aside\b[^>]*class="[^"]*\bpage-sidebar\b[^"]*"[^>]*>.*?</aside>\n?',
@@ -765,7 +772,6 @@ PAGE_SIDEBAR_RE = re.compile(
 )
 
 MAIN_CLOSE_RE = re.compile(r"[ \t]*</main>")
-
 
 
 def _main_open_tag(match, has_sidebar):
@@ -797,7 +803,9 @@ def patch_page_sidebar(html_text, root, page_key):
     close = MAIN_CLOSE_RE.search(html_text, m.end())
     if not close:
         raise ValueError("no </main> found")
-    patched = html_text[: m.start()] + _main_open_tag(m, bool(sidebar)) + html_text[m.end() :]
+    patched = (
+        html_text[: m.start()] + _main_open_tag(m, bool(sidebar)) + html_text[m.end() :]
+    )
     if not sidebar:
         return patched
     close = MAIN_CLOSE_RE.search(patched, m.end())
@@ -806,7 +814,9 @@ def patch_page_sidebar(html_text, root, page_key):
     return patched[: close.start()] + sidebar + patched[close.start() :]
 
 
-_FONT_REF_RE = re.compile(r"https://fonts\.googleapis\.com/css2\?family=Poppins[^\"']+display=swap")
+_FONT_REF_RE = re.compile(
+    r"https://fonts\.googleapis\.com/css2\?family=Poppins[^\"']+display=swap"
+)
 _STRUCTURED_DATA_RE = re.compile(
     r'[ \t]*<script type="application/ld\+json">.*?</script>\n?', re.DOTALL
 )
@@ -885,6 +895,7 @@ def patch_social_meta(html_text):
         return html_text[: m.end()] + _SOCIAL_META + html_text[m.end() :]
     return html_text.replace("    </head>\n", _SOCIAL_META + "    </head>\n", 1)
 
+
 PAGE_HEAD = """<!doctype html>
 <html lang="en">
     <head>
@@ -914,19 +925,7 @@ PAGE_HEAD = """<!doctype html>
 {json_ld}{extra_head}    </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <header class="site-header">
-            <nav class="nav" aria-label="Main navigation">
-                <a class="brand" href="{brand_href}" aria-label="Ze home">
-                    <img src="{root}assets/ze.svg" alt="" width="32" height="32" />
-                    <span>Ze</span>
-                </a>
-                <button class="nav-menu-toggle" type="button" aria-controls="site-nav-links" aria-expanded="false">
-                    <span class="nav-menu-toggle-bars" aria-hidden="true"></span>
-                    <span>Menu</span>
-                </button>
-{navblock}
-            </nav>
-        </header>
+{shared_header_mount}
 
         <main id="top"{main_class} tabindex="-1">
 """
@@ -943,7 +942,10 @@ PAGE_FOOT = """{page_sidebar}        </main>
 
 _PENDING_PAGE_SIDEBAR = ""
 
-def page_head(title, desc, root, og_title=None, og_desc=None, extra_head="", page_key=None):
+
+def page_head(
+    title, desc, root, og_title=None, og_desc=None, extra_head="", page_key=None
+):
     page_title = str(title)
     page_desc = str(desc)
     social_title = str(og_title if og_title is not None else title)
@@ -962,8 +964,7 @@ def page_head(title, desc, root, og_title=None, og_desc=None, extra_head="", pag
         root=root,
         site_css=asset_url(root, "assets/site.css"),
         font_css=html.escape(FONT_CSS_URL, quote=True),
-        brand_href=html.escape(rooted_href(root, "index.html#top"), quote=True),
-        navblock=build_navblock(root),
+        shared_header_mount=build_shared_header_mount(root),
         extra_head=extra_head,
         json_ld=structured_data_script(),
         main_class=main_class,
@@ -1323,7 +1324,11 @@ class _HTMLToMarkdown(HTMLParser):
                         heading.group(2),
                         url,
                     )
-                    return inner[: heading.start()] + linked_heading + inner[heading.end() :]
+                    return (
+                        inner[: heading.start()]
+                        + linked_heading
+                        + inner[heading.end() :]
+                    )
                 return "%s\n\n[Open page](%s)\n" % (label, url)
             parent_classes = (self.stack[-1].attrs.get("class") or "").split()
             if "link-list" in parent_classes or "contribute-start" in parent_classes:

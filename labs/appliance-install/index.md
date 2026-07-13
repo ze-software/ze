@@ -4,16 +4,16 @@ Appliance lab
 
 The installer boots and completes for real in QEMU -- across HTTP/PXE, ISO, and Ventoy-on-FAT paths, plus failure-path and rescue scenarios.
 
- `Appliance`
+`Appliance`
 
 Four QEMU evidence scripts cover the installer end to end: the PXE/HTTP chain boots the installer kernel + initrd, serves the image over HTTP, and asserts serial success markers before re-booting into the written disk and logging in over SSH. The ISO path wraps the same image in a bootable ISO and additionally verifies GPT layout and power-off-not-reboot behavior. The Ventoy path proves the installer finds the appliance ISO as a *file* on a FAT/exFAT data partition rather than as burned boot media. The scenarios script covers what the other three don't: a forced mid-init panic recovering cleanly, MAC-based install pinning on multi-homed boxes, and rescue console access.
 
 The installer kernel is operator-supplied by design -- Ze neither ships nor builds it. Point any script at one with `ZE_INSTALL_KERNEL`.
 
- - **Proves:** Installer boots and completes for real across HTTP/PXE, ISO, and Ventoy paths, plus fault/pin/rescue scenarios
- - **Environment:** QEMU only, no Docker (the installer initrd is pure Go, no busybox)
- - **Requires:** An operator-supplied installer kernel with IP_PNP_DHCP, VIRTIO_NET, VIRTIO_BLK, EXT4 built in
- - **Source:** [docs/guide/ze-install.md](https://github.com/ze-software/ze/blob/main/docs/guide/ze-install.md)
+- **Proves:** Installer boots and completes for real across HTTP/PXE, ISO, and Ventoy paths, plus fault/pin/rescue scenarios
+- **Environment:** QEMU only, no Docker (the installer initrd is pure Go, no busybox)
+- **Requires:** An operator-supplied installer kernel with IP_PNP_DHCP, VIRTIO_NET, VIRTIO_BLK, EXT4 built in
+- **Source:** [docs/guide/ze-install.md](https://github.com/ze-software/ze/blob/main/docs/guide/ze-install.md)
 
 ```
 # HTTP/PXE install chain
@@ -29,8 +29,8 @@ $ make ze-install-ventoy-qemu-test
 $ make ze-install-scenarios-qemu-test
 ```
 
- `Prerequisites`
+`Prerequisites`
 
 QEMU and an operator-supplied installer kernel (`ZE_INSTALL_KERNEL=/path/to/vmlinuz`); each script self-skips with a clear message if none is usable.
 
- [scripts/evidence/effective-install-*.py evidence scripts](https://github.com/ze-software/ze/tree/main/scripts/evidence)
+- [scripts/evidence/effective-install-*.py evidence scripts](https://github.com/ze-software/ze/tree/main/scripts/evidence)

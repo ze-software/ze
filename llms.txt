@@ -15,7 +15,7 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://codeberg.org/thomas-mangin/ze. GitHub mirror: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 47 shipped or experimental feature cards, 6 roadmap cards, 380 CLI commands, 36 config sections, 92 plugin registrations, 39 direct Go dependencies, 31 weekly change entries.
-- Test evidence counts: 64,700+ unit tests, 360+ fuzz targets, 1,400 end-to-end transcript steps, 101 interop scenarios across 7 target implementations.
+- Test evidence counts: 64,700+ unit tests, 360+ fuzz targets, 1,400+ end-to-end transcript steps, 101 interop scenarios across 7 target implementations.
 - Generated date: 2026-07-13.
 
 ## Quality and verification model
@@ -830,8 +830,12 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [Looking Glass](https://ze-software.net/docs/guide/looking-glass-howto/index.md): Publish read-only BGP visibility (web: https://ze-software.net/docs/guide/looking-glass-howto/)
 ### Access and mitigation
 - [SSH and RBAC](https://ze-software.net/docs/guide/operator-access-rbac/index.md): Local users, profiles, and operator access (web: https://ze-software.net/docs/guide/operator-access-rbac/)
+- [RADIUS Login](https://ze-software.net/docs/guide/radius/index.md): Operator authentication with safe local fallback (web: https://ze-software.net/docs/guide/radius/)
 - [FlowSpec Route Reflector](https://ze-software.net/docs/guide/flowspec-route-reflector/index.md): Reflect FlowSpec routes to clients (web: https://ze-software.net/docs/guide/flowspec-route-reflector/)
 - [FlowSpec Protection](https://ze-software.net/docs/guide/flowspec-protected-router/index.md): Turn FlowSpec into nftables and protect BGP (web: https://ze-software.net/docs/guide/flowspec-protected-router/)
+- [DDoS Mitigation](https://ze-software.net/docs/guide/ddos-mitigation/index.md): Detect floods and respond locally or upstream (web: https://ze-software.net/docs/guide/ddos-mitigation/)
+- [Anomaly Detection](https://ze-software.net/docs/guide/anomaly/index.md): Behavioural baselines with shadow-first response (web: https://ze-software.net/docs/guide/anomaly/)
+- [Native IPsec](https://ze-software.net/docs/guide/ipsec/index.md): IKEv2 initiator and responder tunnels (web: https://ze-software.net/docs/guide/ipsec/)
 
 ## Examples
 

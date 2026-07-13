@@ -4,16 +4,16 @@ Protocol lab
 
 Ze as an IKE initiator against real strongSwan/charon, with FRR redistribute scenarios over the resulting tunnel.
 
- `Daemon`
+`Daemon`
 
 A peer-isolated Docker lab runs Ze as an IKEv2 initiator against strongSwan/charon as the responder, with FRR available as a BGP peer for redistribute scenarios over the established tunnel.
 
 Unlike the L2TP and PPPoE labs, there's no long-form design document for this one yet -- the lab source itself (Docker lifecycle, PKI fixtures, scenario definitions) is the reference.
 
- - **Proves:** IKEv2 negotiation and tunnel establishment against a real, independent IKE implementation
- - **Peer:** Real strongSwan/charon (IKE responder), optional FRR for redistribute scenarios
- - **Requires:** Docker, privileged containers
- - **Source:** [test/ipsec-interop/](https://github.com/ze-software/ze/tree/main/test/ipsec-interop)
+- **Proves:** IKEv2 negotiation and tunnel establishment against a real, independent IKE implementation
+- **Peer:** Real strongSwan/charon (IKE responder), optional FRR for redistribute scenarios
+- **Requires:** Docker, privileged containers
+- **Source:** [test/ipsec-interop/](https://github.com/ze-software/ze/tree/main/test/ipsec-interop)
 
 ```
 # all scenarios
@@ -23,8 +23,8 @@ $ make ze-ipsec-interop-test
 $ make ze-ipsec-interop-test IPSEC_INTEROP_SCENARIO=name
 ```
 
- `Prerequisites`
+`Prerequisites`
 
 Docker with privileged containers (IKE/IPsec needs kernel XFRM access).
 
- [test/ipsec-interop/ lab source](https://github.com/ze-software/ze/tree/main/test/ipsec-interop)
+- [test/ipsec-interop/ lab source](https://github.com/ze-software/ze/tree/main/test/ipsec-interop)

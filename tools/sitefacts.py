@@ -4,6 +4,8 @@
 import json
 import pathlib
 import re
+import sys
+import urllib.request
 from datetime import date
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -11,6 +13,10 @@ GH_PAGES = HERE.parent
 MAIN_REPO = (GH_PAGES.parent / "main").resolve()
 DATA_DIR = GH_PAGES / "data"
 FACTS_PATH = DATA_DIR / "site-facts.json"
+
+GITHUB_REPO = "ze-software/ze"
+GITHUB_STARS_FALLBACK = 46
+_github_stars_cache = None
 
 GO_REQUIRE_BLOCK_RE = re.compile(r"require\s*\(([^)]*)\)", re.DOTALL)
 GO_REQUIRE_LINE_RE = re.compile(r"^\s*(\S+)\s+\S+(\s*//\s*indirect)?\s*$")
@@ -109,9 +115,7 @@ def count_e2e_files():
     if not test_dir.exists():
         return 0
     return sum(
-        1
-        for path in test_dir.rglob("*.ci")
-        if not under_skip_dir(path, MAIN_REPO)
+        1 for path in test_dir.rglob("*.ci") if not under_skip_dir(path, MAIN_REPO)
     )
 
 
@@ -120,9 +124,7 @@ def count_interop_targets():
     if not interop_dir.exists():
         return 0
     dockerfiles = sum(
-        1
-        for path in interop_dir.glob("Dockerfile.*")
-        if path.name != "Dockerfile.ze"
+        1 for path in interop_dir.glob("Dockerfile.*") if path.name != "Dockerfile.ze"
     )
     return dockerfiles + 1  # FRR is selected via FRR_IMAGE.
 
@@ -144,6 +146,34 @@ def count_blog_articles():
     return len(list((GH_PAGES / "blog" / "posts").glob("*.md")))
 
 
+def github_stars():
+    """Fetch the star count once, preserving the last published value offline."""
+    global _github_stars_cache
+    if _github_stars_cache is not None:
+        return _github_stars_cache
+
+    previous = load_json(FACTS_PATH, {}).get("github_stars", GITHUB_STARS_FALLBACK)
+    try:
+        req = urllib.request.Request(
+            "https://api.github.com/repos/%s" % GITHUB_REPO,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "ze-site-build",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+        _github_stars_cache = int(data["stargazers_count"])
+    except Exception as exc:
+        _github_stars_cache = int(previous)
+        print(
+            "warning: could not fetch live GitHub star count (%s), "
+            "keeping last published value %d" % (exc, _github_stars_cache),
+            file=sys.stderr,
+        )
+    return _github_stars_cache
+
+
 def build_facts():
     tests = count_go_tests()
     scenarios = count_interop_scenarios()
@@ -151,6 +181,7 @@ def build_facts():
     targets = count_interop_targets()
     facts = {
         "generated_at": date.today().isoformat(),
+        "github_stars": github_stars(),
         "features": count_features(),
         "cli_commands": count_cli_commands(),
         "config_sections": count_config_sections(),

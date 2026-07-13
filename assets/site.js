@@ -66,6 +66,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return frontendVocabPromise;
     }
 
+
     function debounce(fn, ms) {
         var timer;
         return function () {
@@ -75,6 +76,39 @@ document.addEventListener("DOMContentLoaded", function () {
                 fn.apply(null, args);
             }, ms);
         };
+    }
+
+    function loadSharedHeader() {
+        var mount = document.getElementById("site-header-mount");
+        if (!mount) return Promise.resolve();
+
+        var root = mount.getAttribute("data-site-root") || "";
+        var source = mount.getAttribute("data-header-src") || root + "assets/header.html";
+
+        function renderFallback() {
+            mount.outerHTML =
+                '<header class="site-header"><nav class="nav" aria-label="Main navigation">' +
+                '<a class="brand" href="' + root + '#top" aria-label="Ze home">' +
+                '<img src="' + root + 'assets/ze.svg" alt="" width="32" height="32" />' +
+                "<span>Ze</span></a></nav></header>";
+        }
+
+        if (!window.fetch) {
+            renderFallback();
+            return Promise.resolve();
+        }
+
+        return fetch(source)
+            .then(function (response) {
+                if (!response.ok) throw new Error("shared header");
+                return response.text();
+            })
+            .then(function (markup) {
+                mount.outerHTML = markup
+                    .split("__ZE_SITE_ROOT__")
+                    .join(root);
+            })
+            .catch(renderFallback);
     }
 
     var reveals = slice(document.querySelectorAll(".reveal"));
@@ -103,117 +137,119 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    var header = document.querySelector(".site-header");
-    if (header) {
-        var lastY = window.scrollY;
-        var hideThreshold = header.offsetHeight;
-        var suppressHide = false;
-        var suppressTimer = null;
+    function initNavigation() {
+        var header = document.querySelector(".site-header");
+        if (header) {
+            var lastY = window.scrollY;
+            var hideThreshold = header.offsetHeight;
+            var suppressHide = false;
+            var suppressTimer = null;
 
-        window.addEventListener(
-            "scroll",
-            function () {
-                var y = window.scrollY;
-                if (!suppressHide && y > lastY && y > hideThreshold) {
-                    header.classList.add("hidden");
-                } else {
+            window.addEventListener(
+                "scroll",
+                function () {
+                    var y = window.scrollY;
+                    if (!suppressHide && y > lastY && y > hideThreshold) {
+                        header.classList.add("hidden");
+                    } else {
+                        header.classList.remove("hidden");
+                    }
+                    lastY = y;
+                },
+                { passive: true },
+            );
+            header.addEventListener("focusin", function () {
+                header.classList.remove("hidden");
+            });
+            document.addEventListener("mousemove", function (event) {
+                if (event.clientY <= 12) {
                     header.classList.remove("hidden");
                 }
-                lastY = y;
-            },
-            { passive: true },
-        );
-        header.addEventListener("focusin", function () {
-            header.classList.remove("hidden");
-        });
-        document.addEventListener("mousemove", function (event) {
-            if (event.clientY <= 12) {
-                header.classList.remove("hidden");
-            }
-        });
-
-        document.querySelectorAll('a[href*="#"]').forEach(function (link) {
-            link.addEventListener("click", function () {
-                suppressHide = true;
-                header.classList.remove("hidden");
-                clearTimeout(suppressTimer);
-                suppressTimer = setTimeout(function () {
-                    suppressHide = false;
-                }, 1000);
             });
-        });
-    }
 
-    var menuToggle = document.querySelector(".nav-menu-toggle");
-    var navLinks = document.getElementById("site-nav-links");
-    if (menuToggle && navLinks) {
-        function setMenu(open) {
-            navLinks.classList.toggle("is-open", open);
-            menuToggle.setAttribute("aria-expanded", open ? "true" : "false");
+            document.querySelectorAll('a[href*="#"]').forEach(function (link) {
+                link.addEventListener("click", function () {
+                    suppressHide = true;
+                    header.classList.remove("hidden");
+                    clearTimeout(suppressTimer);
+                    suppressTimer = setTimeout(function () {
+                        suppressHide = false;
+                    }, 1000);
+                });
+            });
         }
-        menuToggle.addEventListener("click", function () {
-            setMenu(!navLinks.classList.contains("is-open"));
-        });
-        document.addEventListener("click", function (event) {
-            if (!navLinks.classList.contains("is-open")) return;
-            if (event.target.closest(".nav")) return;
-            setMenu(false);
-        });
-        document.addEventListener("keydown", function (event) {
-            if (event.key === "Escape") setMenu(false);
-        });
-    }
 
-    function setDropdown(dropdown, open) {
-        var trigger = dropdown.querySelector(".nav-dropdown-trigger");
-        dropdown.classList.toggle("is-open", open);
-        if (trigger) trigger.setAttribute("aria-expanded", open ? "true" : "false");
-    }
-
-    document.querySelectorAll(".nav-dropdown").forEach(function (dropdown) {
-        var trigger = dropdown.querySelector(".nav-dropdown-trigger");
-        if (!trigger) return;
-        trigger.addEventListener("click", function (event) {
-            event.preventDefault();
-            var open = __omp_shell("dropdown.classList.contains(\"is-open\");")
-            document.querySelectorAll(".nav-dropdown.is-open").forEach(function (other) {
-                if (other !== dropdown) setDropdown(other, false);
+        var menuToggle = document.querySelector(".nav-menu-toggle");
+        var navLinks = document.getElementById("site-nav-links");
+        if (menuToggle && navLinks) {
+            function setMenu(open) {
+                navLinks.classList.toggle("is-open", open);
+                menuToggle.setAttribute("aria-expanded", open ? "true" : "false");
+            }
+            menuToggle.addEventListener("click", function () {
+                setMenu(!navLinks.classList.contains("is-open"));
             });
-            setDropdown(dropdown, open);
-        });
-        dropdown.addEventListener("mouseenter", function () {
-            trigger.setAttribute("aria-expanded", "true");
-        });
-        dropdown.addEventListener("mouseleave", function () {
-            if (!dropdown.classList.contains("is-open")) {
-                trigger.setAttribute("aria-expanded", "false");
-            }
-        });
-        dropdown.addEventListener("focusin", function () {
-            trigger.setAttribute("aria-expanded", "true");
-        });
-        dropdown.addEventListener("focusout", function (event) {
-            if (!dropdown.contains(event.relatedTarget) && !dropdown.classList.contains("is-open")) {
-                trigger.setAttribute("aria-expanded", "false");
-            }
-        });
-    });
+            document.addEventListener("click", function (event) {
+                if (!navLinks.classList.contains("is-open")) return;
+                if (event.target.closest(".nav")) return;
+                setMenu(false);
+            });
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") setMenu(false);
+            });
+        }
 
-    document.addEventListener("click", function (event) {
-        if (event.target.closest(".nav-dropdown")) return;
-        document.querySelectorAll(".nav-dropdown.is-open").forEach(function (dropdown) {
-            setDropdown(dropdown, false);
-        });
-    });
+        function setDropdown(dropdown, open) {
+            var trigger = dropdown.querySelector(".nav-dropdown-trigger");
+            dropdown.classList.toggle("is-open", open);
+            if (trigger) trigger.setAttribute("aria-expanded", open ? "true" : "false");
+        }
 
-    document.addEventListener("keydown", function (event) {
-        if (event.key !== "Escape") return;
-        document.querySelectorAll(".nav-dropdown.is-open").forEach(function (dropdown) {
-            setDropdown(dropdown, false);
+        document.querySelectorAll(".nav-dropdown").forEach(function (dropdown) {
+            var trigger = dropdown.querySelector(".nav-dropdown-trigger");
+            if (!trigger) return;
+            trigger.addEventListener("click", function (event) {
+                event.preventDefault();
+                var open = !dropdown.classList.contains("is-open");
+                document.querySelectorAll(".nav-dropdown.is-open").forEach(function (other) {
+                    if (other !== dropdown) setDropdown(other, false);
+                });
+                setDropdown(dropdown, open);
+            });
+            dropdown.addEventListener("mouseenter", function () {
+                trigger.setAttribute("aria-expanded", "true");
+            });
+            dropdown.addEventListener("mouseleave", function () {
+                if (!dropdown.classList.contains("is-open")) {
+                    trigger.setAttribute("aria-expanded", "false");
+                }
+            });
+            dropdown.addEventListener("focusin", function () {
+                trigger.setAttribute("aria-expanded", "true");
+            });
+            dropdown.addEventListener("focusout", function (event) {
+                if (!dropdown.contains(event.relatedTarget) && !dropdown.classList.contains("is-open")) {
+                    trigger.setAttribute("aria-expanded", "false");
+                }
+            });
         });
-        var active = document.activeElement;
-        if (active && active.closest(".nav-dropdown")) active.blur();
-    });
+
+        document.addEventListener("click", function (event) {
+            if (event.target.closest(".nav-dropdown")) return;
+            document.querySelectorAll(".nav-dropdown.is-open").forEach(function (dropdown) {
+                setDropdown(dropdown, false);
+            });
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key !== "Escape") return;
+            document.querySelectorAll(".nav-dropdown.is-open").forEach(function (dropdown) {
+                setDropdown(dropdown, false);
+            });
+            var active = document.activeElement;
+            if (active && active.closest(".nav-dropdown")) active.blur();
+        });
+    }
 
     function searchTokens(query) {
         return String(query || "").toLowerCase().split(/\s+/).filter(Boolean);
@@ -1473,7 +1509,10 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    initSearchOverlay();
+    loadSharedHeader().then(function () {
+        initNavigation();
+        initSearchOverlay();
+    });
     initSearchPage();
     initFeatureFilters();
     initTimelineFilters();

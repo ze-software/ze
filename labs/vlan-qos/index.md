@@ -4,16 +4,16 @@ Wire lab
 
 Proves that VLAN 802.1p QoS maps work on the wire, not just in kernel state.
 
- `Daemon`
+`Daemon`
 
 Two network namespaces joined by a veth pair. One side has a VLAN sub-interface with egress/ingress QoS maps; the other is a raw capture/inject endpoint. Egress: send UDP with a given `SO_PRIORITY`, the egress map stamps the matching PCP bit in the 802.1Q header, and a capture on the peer side confirms it. Ingress: a raw 802.1Q frame with a given PCP arrives, the 8021q module strips the tag, and the ingress map translates PCP back to `skb->priority`, verified with an nftables counter.
 
 **Limitations, stated by the lab itself:** proves behavior on veth pairs (software), not physical NICs with hardware VLAN offload. Single-tag 802.1Q only -- QinQ is out of scope. No throughput or latency assertions; this proves marking correctness, not QoS scheduling behavior.
 
- - **Proves:** 802.1p PCP tagging/classification actually on the wire (AF_PACKET capture + nftables counters)
- - **Scenarios:** Egress (PCP on the wire), Ingress (PCP classification), Full chain (DSCP to PCP)
- - **Requires:** Linux with network namespace support, root (CAP_NET_ADMIN), iproute2, tcpdump, python3
- - **Source:** [test/vlan-qos-lab/](https://github.com/ze-software/ze/tree/main/test/vlan-qos-lab)
+- **Proves:** 802.1p PCP tagging/classification actually on the wire (AF_PACKET capture + nftables counters)
+- **Scenarios:** Egress (PCP on the wire), Ingress (PCP classification), Full chain (DSCP to PCP)
+- **Requires:** Linux with network namespace support, root (CAP_NET_ADMIN), iproute2, tcpdump, python3
+- **Source:** [test/vlan-qos-lab/](https://github.com/ze-software/ze/tree/main/test/vlan-qos-lab)
 
 ```
 # interactive (requires Linux root)
@@ -23,8 +23,8 @@ $ sudo ./test/vlan-qos-lab/run.sh
 $ sudo ./test/vlan-qos-lab/run.sh --selftest
 ```
 
- `Prerequisites`
+`Prerequisites`
 
 Linux with network namespace support and root (CAP_NET_ADMIN). No Docker, no QEMU needed.
 
- [test/vlan-qos-lab/README.md full lab documentation](https://github.com/ze-software/ze/blob/main/test/vlan-qos-lab/README.md)
+- [test/vlan-qos-lab/README.md full lab documentation](https://github.com/ze-software/ze/blob/main/test/vlan-qos-lab/README.md)

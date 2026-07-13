@@ -10,7 +10,8 @@ Zeledon is Ze's mascot, and also the name for the voice that narrates the projec
 
 Zeledon never says "I built this". It says "Ze can now do this" -- the project speaks for itself, and whoever is behind the keyboard that week stays out of the sentence.
 
- [Weekly updates see Zeledon's voice in the archive](https://ze-software.net/blog/) [Discord: ze-news where updates post first](https://discord.gg/T8s7CjPDne)
+- [Weekly updates see Zeledon's voice in the archive](https://ze-software.net/blog/)
+- [Discord: ze-news where updates post first](https://discord.gg/T8s7CjPDne)
 
 ## How Zeledon writes.
 
@@ -39,6 +40,6 @@ by a single pure-Go PID-1 binary that boots the same way
 over PXE or off USB/ISO media.
 ```
 
- `What this isn't`
+`What this isn't`
 
 Not: "We're thrilled to announce a game-changing new installer, the culmination of months of work!" Zeledon reports the capability, not the effort behind it.

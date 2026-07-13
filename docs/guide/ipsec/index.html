@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Native IKEv2 and IPsec - Ze</title>
+        <meta name="description" content="Ze documentation: guide/ipsec.md" />
+        <meta property="og:title" content="Native IKEv2 and IPsec - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/ipsec.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Native IKEv2 and IPsec - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/ipsec.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="../../../assets/site.css?v=482c51956e" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../"></div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-secure">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="native-ikev2-and-ipsec">Native IKEv2 and IPsec</h1>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#architecture">Architecture</a></li>
+<li><a href="#configuration">Configuration</a></li>
+<li><a href="#ike-features">IKE features</a></li>
+<li><a href="#ikev2-responder-role">IKEv2 responder role</a></li>
+<li><a href="#rekeying">Rekeying</a></li>
+<li><a href="#child-sa-and-dataplane">Child SA and dataplane</a></li>
+<li><a href="#pki-certificate-store">PKI certificate store</a></li>
+<li><a href="#xfrm-interfaces">XFRM interfaces</a></li>
+<li><a href="#cli">CLI</a></li>
+<li><a href="#health-and-metrics">Health and metrics</a></li>
+<li><a href="#interop-testing">Interop testing</a></li>
+<li><a href="#see-also">See also</a></li>
+</ol></nav>
+<blockquote>
+<p><strong>Pre-Alpha.</strong> This page describes behavior that may change.</p>
+</blockquote>
+<p>Ze implements native IKEv2 in Go for route-based IPsec VPN tunnels. It does not require strongSwan, libreswan, or another external IKE daemon. The IKE engine, cryptographic primitives, wire codec, and XFRM dataplane integration are all in-tree. The Ze binary negotiates IKE SAs, installs XFRM policies and states, and programs routes through XFRM interfaces from the same YANG config tree as every other subsystem.</p>
+<h2 id="architecture">Architecture</h2>
+<p>The IPsec stack is split across several packages:</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>internal/component/ike/wire</code></td>
+<td>IKEv2 wire format codec for RFC 7296 payloads</td>
+</tr>
+<tr>
+<td><code>internal/component/ike/crypto</code></td>
+<td>DH groups, PRFs, integrity, encryption, and key derivation</td>
+</tr>
+<tr>
+<td><code>internal/component/ike/transport</code></td>
+<td>UDP transport with NAT-T keepalives and port 4500 encapsulation</td>
+</tr>
+<tr>
+<td><code>internal/component/ike/eap</code></td>
+<td>EAP-MSCHAPv2 and EAP-TLS authentication</td>
+</tr>
+<tr>
+<td><code>internal/component/ike/engine</code></td>
+<td>IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, and INFORMATIONAL state machines for initiator and responder roles, rekeying, and DPD</td>
+</tr>
+<tr>
+<td><code>internal/component/ike/ipsec</code></td>
+<td>YANG schema, configuration, and validation</td>
+</tr>
+<tr>
+<td><code>internal/component/ike/dataplane</code></td>
+<td>XFRM policy and state programming through netlink</td>
+</tr>
+<tr>
+<td><code>internal/component/pki</code></td>
+<td>X.509 certificate and private-key store</td>
+</tr>
+</tbody>
+</table>
+<h2 id="configuration">Configuration</h2>
+<p>IPsec is configured under <code>vpn { ipsec { } }</code>. Named <code>ike-group</code> and <code>esp-group</code> blocks hold the IKE and ESP proposals and lifetimes. Each <code>site-to-site</code> peer references a group pair, sets its authentication, and binds to an XFRM interface for route-based forwarding.</p>
+<pre><code class="language-text">pki {
+    certificate my-cert {
+        certificate-file /etc/ze/certs/router.pem;
+        private-key-file /etc/ze/certs/router-key.pem;
+    }
+    ca-certificate my-ca {
+        certificate-file /etc/ze/certs/ca.pem;
+    }
+}
+
+vpn {
+    ipsec {
+        interface eth0;
+
+        ike-group site-b-ike {
+            key-exchange ikev2;
+            lifetime     28800;
+            proposal 1 {
+                encryption aes256gcm;
+                hash       sha256;
+                dh-group   14;
+            }
+            dead-peer-detection { interval 30; timeout 120; }
+        }
+
+        esp-group site-b-esp {
+            lifetime 3600;
+            pfs      enable;
+            proposal 1 { encryption aes256gcm; }
+        }
+
+        site-to-site {
+            peer site-b {
+                ike-group       site-b-ike;
+                esp-group       site-b-esp;
+                connection-type initiate;
+                local-address   198.51.100.2;
+                remote-address  198.51.100.1;
+                authentication {
+                    mode           x509;
+                    certificate    my-cert;
+                    ca-certificate my-ca;
+                }
+                vti { bind vti0; }
+            }
+        }
+    }
+}
+</code></pre>
+<p>Traffic selectors are not listed per tunnel. Route-based IPsec encrypts traffic that the routing table forwards through the bound XFRM interface. The generated <a href="https://github.com/ze-software/ze/tree/main/docs/../config-reference" target="_blank" rel="noopener">configuration reference</a> documents the XFRM interface leaves.</p>
+<h2 id="ike-features">IKE features</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IKEv2, RFC 7296</td>
+<td>Full IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, and INFORMATIONAL exchange support</td>
+</tr>
+<tr>
+<td>Role</td>
+<td>Initiator or responder per peer through <code>connection-type initiate</code> or <code>respond</code></td>
+</tr>
+<tr>
+<td>Proposals</td>
+<td>AES-CBC, AES-GCM 128/256, and ChaCha20-Poly1305; MODP 2048/3072/4096/8192 and ECP 256/384/521 DH groups; SHA-256/384/512 PRFs</td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>Pre-shared key, X.509 certificates, EAP-MSCHAPv2, and EAP-TLS; Ze acts as the EAP authenticator in responder mode</td>
+</tr>
+<tr>
+<td>NAT-T, RFC 3948</td>
+<td>Automatic NAT detection, UDP encapsulation on port 4500, and keepalives</td>
+</tr>
+<tr>
+<td>DPD</td>
+<td>Dead Peer Detection through INFORMATIONAL exchanges with configurable interval and timeout</td>
+</tr>
+<tr>
+<td>Rekeying</td>
+<td>On-wire CREATE_CHILD_SA rekeying for IKE and Child SAs, make-before-break installation, and collision handling</td>
+</tr>
+<tr>
+<td>MOBIKE, RFC 4555</td>
+<td>Not implemented; an endpoint address change requires the SA to be re-established</td>
+</tr>
+<tr>
+<td>Virtual IP pool</td>
+<td>Remote-access server assignment from a configured pool</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ikev2-responder-role">IKEv2 responder role</h2>
+<p>Ze can act as the IKEv2 responder as well as the initiator. A peer with <code>connection-type respond</code> waits for an unsolicited inbound IKE_SA_INIT from its configured <code>remote-address</code>, answers IKE_AUTH, and installs the first Child SA. <code>connection-type initiate</code>, the default, starts the exchange. The UDP transport always listens, so responder mode does not need a separate listen switch.</p>
+<p>As responder, Ze authenticates with a pre-shared key, X.509 certificate, or EAP. For EAP it acts as the EAP-MSCHAPv2 or EAP-TLS server for a road-warrior client. It presents its own certificate or PSK first, runs the EAP method, and derives session keys from the EAP MSK.</p>
+<pre><code class="language-text">vpn {
+    ipsec {
+        interface eth0;
+        ike-group IKE-PSK {
+            key-exchange ikev2;
+            proposal 1 { encryption aes256gcm; hash sha256; dh-group 14; }
+        }
+        esp-group ESP-PSK {
+            pfs enable;
+            proposal 1 { encryption aes256gcm; }
+        }
+        site-to-site {
+            peer swan {
+                ike-group       IKE-PSK;
+                esp-group       ESP-PSK;
+                connection-type respond;
+                local-address   172.28.0.2;
+                remote-address  172.28.0.3;
+                authentication {
+                    mode              pre-shared-secret;
+                    local-id          &quot;172.28.0.2&quot;;
+                    remote-id         &quot;172.28.0.3&quot;;
+                    pre-shared-secret &quot;$9$encoded&quot;;
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<p>For a road-warrior EAP server, set <code>authentication { mode eap-mschapv2 }</code> or <code>eap-tls</code>, then reference a device <code>certificate</code> and <code>ca-certificate</code> from the PKI store. The <code>remote-access</code> container assigns client addresses from a <code>pool</code> and holds per-user EAP credentials in an <code>eap-user</code> list.</p>
+<h2 id="rekeying">Rekeying</h2>
+<p>Both Child SAs and IKE SAs are rekeyed with an on-wire CREATE_CHILD_SA exchange. This replaced an earlier local-only key roll that could silently desynchronise a live tunnel. A Child SA rekey carries <code>N(REKEY_SA)</code> with fresh nonces and traffic selectors. An IKE SA rekey performs a fresh Diffie-Hellman exchange and resets the message-ID counters.</p>
+<p>Rekeying is make-before-break: the replacement SA is installed before the old one is deleted, so forwarding does not pause. Simultaneous rekeys are resolved by the RFC 7296 nonce rule, where the lower nonce wins, so both ends converge on one SA. Ze rekeys at the ESP or IKE soft lifetime and retransmits a lost CREATE_CHILD_SA before tearing the tunnel down. Rekeys are counted by <code>ze_ipsec_rekey_total{peer}</code> and streamed as <code>child-rekey</code> events by <code>monitor vpn ipsec</code>.</p>
+<h2 id="child-sa-and-dataplane">Child SA and dataplane</h2>
+<p>Child SAs define traffic selectors and the ESP proposal. Ze programs XFRM policies and states through netlink. Route-based IPsec uses XFRM interfaces.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ESP proposals</td>
+<td>AES-GCM-16 128/256 and AES-CBC with HMAC-SHA-256/384/512</td>
+</tr>
+<tr>
+<td>Traffic selectors</td>
+<td>IPv4 and IPv6 CIDR prefixes</td>
+</tr>
+<tr>
+<td>Connection</td>
+<td><code>connection-type initiate</code> starts the exchange; <code>connection-type respond</code> waits for the peer</td>
+</tr>
+<tr>
+<td>Replay protection</td>
+<td>Anti-replay window, default 32</td>
+</tr>
+<tr>
+<td>Lifetime</td>
+<td>Time-based and byte-based rekeying thresholds</td>
+</tr>
+</tbody>
+</table>
+<h2 id="pki-certificate-store">PKI certificate store</h2>
+<p>The <code>pki { }</code> block stores X.509 certificates, private keys, and CA certificates. Certificates are loaded from PEM files and validated at commit time. The PKI store also serves TLS certificates for the web UI and gRPC API.</p>
+<p>Health monitoring reports certificate expiry as a warning at 30 days and an error after expiry. Prometheus exposes <code>ze_pki_certificate_expiry_seconds</code> and <code>ze_pki_certificate_valid</code>.</p>
+<h2 id="xfrm-interfaces">XFRM interfaces</h2>
+<p>XFRM interfaces provide route-based IPsec. Traffic routed through the XFRM interface is encrypted, and incoming traffic is decrypted before it appears on the interface. The generated <a href="https://github.com/ze-software/ze/tree/main/docs/../config-reference" target="_blank" rel="noopener">configuration reference</a> documents the interface surface.</p>
+<h2 id="cli">CLI</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>show vpn ipsec status</code></td>
+<td>Tunnel and peer status summary</td>
+</tr>
+<tr>
+<td><code>show vpn ipsec sa</code></td>
+<td>Active IKE and Child SAs, including algorithms, byte counts, rekey timers, SPIs, NAT detection, and initiator role</td>
+</tr>
+<tr>
+<td><code>show vpn ipsec peer name &lt;name&gt;</code></td>
+<td>Detail for one configured peer</td>
+</tr>
+<tr>
+<td><code>clear vpn ipsec sa [peer &lt;name&gt;]</code></td>
+<td>Tear down and re-establish SAs, optionally for one peer</td>
+</tr>
+<tr>
+<td><code>monitor vpn ipsec</code></td>
+<td>Stream <code>sa-up</code>, <code>sa-down</code>, <code>child-up</code>, <code>child-down</code>, and <code>child-rekey</code> lifecycle events</td>
+</tr>
+<tr>
+<td><code>show pki certificates</code></td>
+<td>List loaded certificates with expiry information</td>
+</tr>
+</tbody>
+</table>
+<h2 id="health-and-metrics">Health and metrics</h2>
+<p>The IPsec component registers with the health registry. It reports <code>healthy</code> when all configured tunnels are established, <code>degraded</code> when some are down, and <code>down</code> when critical tunnels fail.</p>
+<p>Prometheus exposes <code>ze_ipsec_sa_count</code>, <code>ze_ipsec_tunnel_up{peer}</code>, and <code>ze_ipsec_rekey_total{peer}</code>.</p>
+<h2 id="interop-testing">Interop testing</h2>
+<p>The IKE implementation includes interop tests against strongSwan 5.9.14, the version in the Alpine 3.21 test image. The test infrastructure in <code>test/ipsec-interop/</code> drives strongSwan containers as remote IKE peers. Coverage includes PSK, X.509, EAP-MSCHAPv2, and EAP-TLS authentication; Ze as a PSK and EAP-MSCHAPv2 responder against a strongSwan initiator; Child SA rekeying with make-before-break; and IKE SA rekeying initiated by strongSwan.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li>The generated <a href="https://github.com/ze-software/ze/tree/main/docs/../config-reference" target="_blank" rel="noopener">configuration reference</a> covers every IPsec and XFRM configuration leaf.</li>
+<li><a href="../monitoring/">Monitoring</a> covers the health registry and operational visibility.</li>
+<li><a href="../../features/">Feature inventory</a> shows the maturity of each IKE and IPsec capability.</li>
+</ul>
+<!-- source: internal/component/ike/engine/fsm.go -- IKE exchange state machine -->
+<!-- source: internal/component/ike/engine/responder.go -- responder role -->
+<!-- source: internal/component/ike/engine/rekey.go -- make-before-break rekeying -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- XFRM state and policy programming -->
+<!-- source: internal/component/ike/ipsec/config.go -- configuration and validation -->
+<!-- source: test/ipsec-interop/run.py -- strongSwan interoperability scenarios -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../docs/guide/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js?v=8f166ca02d" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

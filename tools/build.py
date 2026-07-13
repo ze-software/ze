@@ -406,21 +406,48 @@ def step_llms():
 
 
 def step_nav():
-    for rel in page_registry.NAV_PATCH_TARGETS:
-        root = page_registry.page_root_for_dest(rel)
-        path = GH_PAGES / rel
-        text = sitelib.patch_navblock(path.read_text(), root)
-        text = sitelib.patch_brand_home_href(text, root)
-        text = sitelib.patch_page_sidebar(text, root, sitelib.page_key_for_path(rel))
-        text = sitelib.patch_footer(text, root)
-        text = sitelib.patch_asset_versions(text)
-        path.write_text(text)
-        base_url = sitelib.SITE_BASE + str(pathlib.PurePosixPath(rel).parent) + "/"
-        md_text = sitelib.html_to_markdown(
-            sitelib.extract_main(text), base_url=base_url
-        )
-        sitelib.write_markdown_sibling(path, md_text)
-        print("patched nav+footer, wrote index.md -> %s" % rel)
+    """Publish one shared header fragment and stable mounts on every page."""
+    sitelib.reset_nav_data_cache()
+    header_changed = sitelib.write_shared_header()
+    rich_targets = set(page_registry.NAV_PATCH_TARGETS)
+    patched = 0
+    for path in sorted(GH_PAGES.rglob("*.html")):
+        rel = path.relative_to(GH_PAGES)
+        if rel.parts and rel.parts[0] == "presentations":
+            continue
+        rel_text = rel.as_posix()
+        if path == sitelib.SHARED_HEADER_PATH:
+            continue
+        text = path.read_text()
+        if not sitelib.has_replaceable_header(text):
+            continue
+
+        root = page_registry.page_root_for_dest(rel_text)
+        updated = sitelib.patch_shared_header(text, root)
+        if rel_text in rich_targets:
+            updated = sitelib.patch_page_sidebar(
+                updated, root, sitelib.page_key_for_path(rel_text)
+            )
+            updated = sitelib.patch_footer(updated, root)
+        updated = sitelib.patch_asset_versions(updated)
+        if updated != text:
+            path.write_text(updated)
+            patched += 1
+
+        if rel_text in rich_targets:
+            base_url = (
+                sitelib.SITE_BASE + str(pathlib.PurePosixPath(rel_text).parent) + "/"
+            )
+            md_text = sitelib.html_to_markdown(
+                sitelib.extract_main(updated), base_url=base_url
+            )
+            sitelib.write_markdown_sibling(path, md_text)
+
+    state = "updated" if header_changed else "unchanged"
+    print(
+        "shared header %s -> %s; patched mounts -> %d html files"
+        % (state, sitelib.SHARED_HEADER_PATH, patched)
+    )
     return 0
 
 
@@ -614,6 +641,30 @@ def main():
             continue
         if rc:
             failures.append(step)
+
+    if "facts" not in steps:
+        # Every partial build refreshes the one public snapshot used by menus.
+        print("=== facts (always runs) ===")
+        try:
+            rc = step_facts()
+        except Exception as exc:
+            print("error: step facts raised %r" % exc, file=sys.stderr)
+            failures.append("facts")
+        else:
+            if rc:
+                failures.append("facts")
+
+    if "nav" not in steps:
+        # Apply final facts and menu data after every selected renderer.
+        print("=== nav (always runs) ===")
+        try:
+            rc = step_nav()
+        except Exception as exc:
+            print("error: step nav raised %r" % exc, file=sys.stderr)
+            failures.append("nav")
+        else:
+            if rc:
+                failures.append("nav")
 
     if "links" not in steps and "linkcheck" not in steps:
         # Runs even when --only excludes it: external links should consistently

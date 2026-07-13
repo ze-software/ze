@@ -57,8 +57,12 @@
                 [
                     {"label_only": "Access and mitigation"},
                     {"href": "docs/guide/operator-access-rbac/", "icon": "🔐", "title": "SSH and RBAC", "desc": "Local users, profiles, and operator access"},
+                    {"href": "docs/guide/radius/", "icon": "🔑", "title": "RADIUS Login", "desc": "Operator authentication with safe local fallback"},
                     {"href": "docs/guide/flowspec-route-reflector/", "icon": "🔁", "title": "FlowSpec Route Reflector", "desc": "Reflect FlowSpec routes to clients"},
-                    {"href": "docs/guide/flowspec-protected-router/", "icon": "🛡️", "title": "FlowSpec Protection", "desc": "Turn FlowSpec into nftables and protect BGP"}
+                    {"href": "docs/guide/flowspec-protected-router/", "icon": "🛡️", "title": "FlowSpec Protection", "desc": "Turn FlowSpec into nftables and protect BGP"},
+                    {"href": "docs/guide/ddos-mitigation/", "icon": "🚨", "title": "DDoS Mitigation", "desc": "Detect floods and respond locally or upstream"},
+                    {"href": "docs/guide/anomaly/", "icon": "🔎", "title": "Anomaly Detection", "desc": "Behavioural baselines with shadow-first response"},
+                    {"href": "docs/guide/ipsec/", "icon": "🔒", "title": "Native IPsec", "desc": "IKEv2 initiator and responder tunnels"}
                 ]
             ]
         },

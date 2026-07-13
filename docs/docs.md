@@ -23,12 +23,16 @@ job you are trying to do, then follow the links inside that path.
         <div class="link-list">
             <a href="../usage/exabgp-migration/">ExaBGP migration <span>convert an existing config and process scripts</span></a>
             <a href="guide/operator-access-rbac/">SSH and RBAC <span>local users, profiles, and operator access</span></a>
+            <a href="guide/radius/">RADIUS operator login <span>authenticate SSH, web, and MCP users safely</span></a>
             <a href="guide/flowspec-route-reflector/">FlowSpec route reflector <span>reflect FlowSpec routes to iBGP clients</span></a>
             <a href="guide/flowspec-protected-router/">FlowSpec protected router <span>turn FlowSpec into nftables protection</span></a>
+            <a href="guide/ddos-mitigation/">DDoS mitigation <span>detect floods and respond locally or upstream</span></a>
+            <a href="guide/anomaly/">Anomaly detection <span>baseline source behaviour and respond shadow-first</span></a>
             <a href="guide/looking-glass-howto/">Looking glass <span>publish read-only BGP visibility</span></a>
             <a href="guide/firewall/">Firewall and policy routing <span>protect and steer traffic</span></a>
             <a href="guide/ospf/">OSPF, IS-IS, and static routes <span>bring routing protocols online</span></a>
             <a href="guide/pppoe/">PPPoE and L2TP <span>access concentration paths</span></a>
+            <a href="guide/ipsec/">Native IPsec <span>configure IKEv2 initiator and responder tunnels</span></a>
             <a href="guide/monitoring/">Monitoring and diagnostics <span>flow export, MRT, and production checks</span></a>
         </div>
     </article>

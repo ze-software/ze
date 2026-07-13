@@ -10,65 +10,65 @@ Seven candy hues on a calm blush base.
 
 Each hue ships four tones in `assets/site.css?v=482c51956e`: `-base` (the vivid candy color), `-deep` (text-safe dark), `-chip` (pill background), and `-tint` (card surface), plus a `-glow` for hue-tinted shadows. Never mix tones across hues on one component.
 
- Operate
+**Operate**
 
 ### Sky
 
- `--sky-*`
+`--sky-*`
 
 Operator surfaces: SSH CLI, YANG configuration, web workbench, looking glass.
 
- Routing
+**Routing**
 
 ### Tangerine
 
- `--tangerine-*`
+`--tangerine-*`
 
 Control plane: BGP engine, static routes, BFD, MRT, MPLS signaling.
 
- Services
+**Services**
 
 ### Teal
 
- `--teal-*`
+`--teal-*`
 
 Network services and data plane: VPN, BNG, firewall, interfaces, VPP, DNS.
 
- Automate
+**Automate**
 
 ### Grape
 
- `--grape-*`
+`--grape-*`
 
 Programmability: plugins, APIs, MCP, ExaBGP migration, fleet management.
 
- Observe
+**Observe**
 
 ### Mint
 
- `--mint-*`
+`--mint-*`
 
 Visibility and evidence: telemetry, health, diagnostics, testing proof.
 
- Secure
+**Secure**
 
 ### Pink
 
- `--pink-*`
+`--pink-*`
 
 Security: SSH and RBAC, RPKI, TACACS+, audit trail, PKI store.
 
- Platform
+**Platform**
 
 ### Lemon
 
- `--lemon-*`
+`--lemon-*`
 
 Packaging and lifecycle: appliance and daemon targets, install, Docker, tunables.
 
 ### Neutrals and brand
 
- `--bg / --text / --purple`
+`--bg / --text / --purple`
 
 A flat dimmed-blush page background, deep plum text, grape-violet headings. Surfaces stay lighter than the page so cards float. Cards without a category stay blush-white.
 
@@ -78,21 +78,21 @@ On feature cards, color is information, never decoration.
 
 A `cat-*` class on the card sets one accent hue for everything on it: the category chip, the title, the tech chips, the bullet markers, the bold words, and the hover glow. Do not color cards by position (`nth-child` cycling is banned for cards) and do not mix hues within one card. Decorative variety is fine only where order carries no meaning -- the homepage proof strip and audience trio.
 
- Routing
+**Routing**
 
 ### A well-formed card
 
- `RFC 0000` `Tech`
+`RFC 0000` `Tech`
 
- - One hue, **every element**
- - Chips name **technologies**
- - Bullets state **facts**
+- One hue, **every element**
+- Chips name **technologies**
+- Bullets state **facts**
 
- Platform
+**Platform**
 
 ### Mode chips
 
- `Daemon only` `Example`
+`Daemon only` `Example`
 
 Features run in both daemon and appliance modes by default; a solid mode chip flags the exception. No "Both" pill on every card.
 
