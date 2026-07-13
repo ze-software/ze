@@ -78,6 +78,27 @@ BGP forwarding/update pools do not run (the peer never establishes). The cap-512
 buffer is elsewhere; the captured crash stack will pin it. Owner: in-progress
 this session (debugging continues).
 
+**UPDATE 2026-07-13 — the cap-512 diagnosis is DISPROVEN; likely already-fixed or
+misattributed.** Two independent exhaustive static sweeps (share-registry send
+path + repo-wide pooled/fixed-cap reslice) found NO cap-512 buffer resliced to a
+data-driven length on any boot-reachable path: the registry send is
+`json.Marshal` + `append` (`plugin/server/startup.go:733` -> `ipc/rpc.go:171` ->
+`rpc/mux.go:110`/`conn.go:286` -> `framePool` cap **4096**, append-grown); the BGP
+`SessionBuffer` is 4096/65535, never 512 (`core/bgp/wire/writer.go:48`); the only
+cap-512 format scratches (`format/text_human.go:219`, `text_json.go:370`) are
+guarded and hold <=512 raw bytes. Dynamic: **0 reproductions in 160 runs** (40
+isolated + 120 under `scripts/dev/stress-repro.py` full-core CPU+GC load,
+`GOTRACEBACK=all`). The 2026-07-04 crash also predates the plugin
+startup/RPC-dispatch refactors (`1eb89f509`, `3404c4396`, `8f3203ef5`, 07-07/08)
+that rewrote this exact area. Conclusion: either already fixed by those refactors,
+or the truncated 2-line aggregator stack misattributed another concurrent suite's
+`ze` crash to rsvpte. **Do not chase the cap-512 share-registry hypothesis.** If a
+`rsvpte-lsp` exit-2 recurs, reproduce with `scripts/dev/stress-repro.py rsvpte`
+(keeps the untruncated stack) and grep every concurrent daemon's stderr in the
+failing run before attributing. A separate `rsvpte-lsp-teardown` exit-2 (no stack
+in the 200-line capture) was seen once on 2026-07-13 and did not reproduce in 160
+runs; it is not the same panic and its cause is unverified.
+
 ### `internal/chaos/inprocess` `TestInProcessChaosReconnect` -- flaky under `-race`
 
 Observed 2026-07-08 in `ze-verify-changed` (`-race`): `assert.Greater(established,

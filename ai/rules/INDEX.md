@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 83 rules
+Total: 84 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -43,6 +43,7 @@ Total: 83 rules
 | Exact Or Reject | If the implementation cannot deliver EXACTLY what the operator's config asks for, `ze config verify` / `ze config commit` MUST fail with a clear error. Silent approximation, truncation, or... | `ai/rules/exact-or-reject.md` |
 | Feature-Gate Registration (compile-out-able features) | How to add or change a compile-out-able feature: a subsystem that can be dropped from the `ze` binary at build time via a `//go:build ze_<feature>` tag, for a smaller binary and a smaller attack... | `ai/rules/feature-gate-registration.md` |
 | File Modularity | Each `.go` source file contains exactly one concern — a cohesive group of types and functions serving a single responsibility. | `ai/rules/file-modularity.md` |
+| Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures | a functional-test failure (panic, crash, exit-code mismatch, timeout) appears only in a full `make ze-verify` / `ze-functional-test` run and cannot be reproduced by rerunning the one suite in... | `ai/rules/flaky-under-load.md` |
 | Friction Reporting | During research, implementation, review, or verification, if you encounter a recurring problem pattern, repeated surprise, stale guidance, tooling friction, or wasted effort, report it immediately... | `ai/rules/friction-reporting.md` |
 | Functional Test Gate | Every user-facing behavior MUST have a functional test that exercises it through a user entry point. Unit tests (`_test.go`) prove internal logic. Functional tests (`.ci`, `.et`) prove the feature... | `ai/rules/functional-test-gate.md` |
 | Git Safety | Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, and verify-status handling. | `ai/rules/git-safety.md` |

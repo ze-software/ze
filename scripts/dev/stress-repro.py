@@ -1,0 +1,307 @@
+#!/usr/bin/env python3
+"""Reproduce load-dependent / flaky-under-concurrency functional-test failures
+WITHOUT running the full functional suite.
+
+Some Ze failures only appear under the scheduling and GC pressure of a full
+`make ze-functional-test` run (all ~22 suites on all cores). Running one suite
+in isolation never triggers them (e.g. the `rsvpte-lsp` boot-frame panic:
+`slice bounds out of range [:5448] with capacity 512`, 0/40 in isolation but
+~1/4 in full verify). The full suite is far too slow to loop while hunting such
+a bug.
+
+This tool recreates that pressure cheaply: it pegs every core with CPU + GC
+churn ("burners") and runs MANY concurrent copies of a single target suite in a
+loop, capturing the FIRST failure's complete, untruncated output (panic stack,
+race report) instead of the 2-line summary the verify aggregator keeps.
+
+It also makes the failure SELF-REPORT:
+  * GOTRACEBACK=all -> a panic dumps every goroutine stack, so the goroutine
+    racing on the corrupt buffer is captured alongside the crashing one.
+  * --race          -> builds a race-instrumented ze; a genuine data race then
+    prints the two conflicting accesses (file:line) directly.
+
+Usage:
+  python3 scripts/dev/stress-repro.py <suite> [options]
+
+Examples:
+  # Hunt the rsvpte boot panic under heavy load, capture the stack:
+  python3 scripts/dev/stress-repro.py rsvpte --iterations 80
+
+  # Same, but race-instrumented so a data race self-reports its two accesses:
+  python3 scripts/dev/stress-repro.py rsvpte --race --iterations 40
+
+  # A specific test only, lighter load:
+  python3 scripts/dev/stress-repro.py rsvpte --test 4 --burners 8 --parallel 2
+
+Exit status: 0 = reproduced (details in the saved log), 1 = not reproduced,
+2 = setup error (missing binaries, build failure).
+
+See ai/tools/stress-repro.md for the full guide and when to reach for this.
+"""
+
+import argparse
+import os
+import subprocess
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from multiprocessing import Process
+
+REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+# Signatures that mean "the daemon (or runner) crashed", not a normal assert.
+CRASH_SIGNATURES = (
+    "slice bounds out of range",
+    "panic:",
+    "fatal error:",
+    "DATA RACE",
+    "runtime error:",
+    "index out of range",
+    "invalid memory address",
+    "nil pointer dereference",
+)
+
+
+def _burn(deadline):
+    """One burner process: CPU spin + unbounded-then-trimmed allocation to keep
+    the Go GC and OS scheduler under real pressure (a pure spin loop does not
+    churn memory, which is what widens buffer-reuse race windows)."""
+    x = 0
+    sink = []
+    while time.time() < deadline:
+        for _ in range(50_000):
+            x = (x * 1103515245 + 12345) & 0x7FFFFFFF
+        sink.append(bytearray(64 * 1024))
+        if len(sink) > 96:  # ~6 MB, then drop half -> steady GC churn
+            del sink[: len(sink) // 2]
+    return x
+
+
+def build_race_ze(tags, out_path):
+    """Build a race-instrumented, full-feature ze (CGO required for -race)."""
+    ldflags = "-X main.version=stress -X main.buildDate=stress"
+    cmd = [
+        "go",
+        "build",
+        "-race",
+        "-tags",
+        tags,
+        "-ldflags",
+        ldflags,
+        "-o",
+        out_path,
+        "./cmd/ze",
+    ]
+    env = dict(os.environ, CGO_ENABLED="1")
+    print(f"building race ze: {' '.join(cmd)}", flush=True)
+    r = subprocess.run(cmd, cwd=REPO, env=env, capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.stderr.write(r.stdout + r.stderr)
+        return False
+    return True
+
+
+def ensure_binaries(ze_bin, test_bin):
+    missing = [p for p in (ze_bin, test_bin) if not os.path.isfile(p)]
+    if not missing:
+        return True
+    print(
+        f"missing prebuilt binaries: {missing}\n"
+        f"  build them first, e.g.: make ze-functional-test (or make bin/ze-test)",
+        file=sys.stderr,
+    )
+    return False
+
+
+def run_once(suite, sel, ze_bin, test_bin, timeout, extra_tags):
+    """One `ze-test <suite> <sel> -v` invocation with prebuilt binaries and
+    full-goroutine tracebacks. Returns (returncode, combined_output)."""
+    env = dict(os.environ)
+    env["ze.bin"] = ze_bin
+    env["ze.test.bin"] = test_bin
+    env["ZE_TEST_NO_BUILD"] = "1"
+    env["GOTRACEBACK"] = "all"  # every goroutine on panic -> the racer shows up
+    if extra_tags:
+        env["ze.tags"] = extra_tags
+    args = [test_bin, suite]
+    if sel:
+        args.append(sel)
+    else:
+        args.append("--all")
+    args.append("-v")
+    try:
+        r = subprocess.run(
+            args, cwd=REPO, env=env, capture_output=True, text=True, timeout=timeout
+        )
+        return r.returncode, (r.stdout or "") + (r.stderr or "")
+    except subprocess.TimeoutExpired as e:
+        out = (e.stdout or "") + (e.stderr or "") if e.stdout or e.stderr else ""
+        return 124, out + "\n[stress-repro: invocation timed out]\n"
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="Load-stress reproducer for flaky-under-concurrency test failures"
+    )
+    ap.add_argument("suite", help="functional suite name (e.g. rsvpte, bgp, ospf)")
+    ap.add_argument(
+        "--test", dest="sel", default="", help="specific test selector (default: --all)"
+    )
+    ap.add_argument(
+        "--iterations", type=int, default=80, help="max target invocations (default 80)"
+    )
+    ap.add_argument(
+        "--parallel",
+        type=int,
+        default=0,
+        help="concurrent invocations per round (default: NCPU//2)",
+    )
+    ap.add_argument(
+        "--burners",
+        type=int,
+        default=0,
+        help="CPU+GC burner processes (default: 2*NCPU)",
+    )
+    ap.add_argument(
+        "--minutes", type=float, default=20.0, help="wall-clock cap (default 20)"
+    )
+    ap.add_argument(
+        "--timeout",
+        type=int,
+        default=120,
+        help="per-invocation timeout seconds (default 120)",
+    )
+    ap.add_argument(
+        "--race", action="store_true", help="build+use a race-instrumented ze"
+    )
+    ap.add_argument("--tags", default="", help="extra ze.tags for the runner build")
+    args = ap.parse_args()
+
+    ncpu = os.cpu_count() or 8
+    parallel = args.parallel or max(2, ncpu // 2)
+    nburn = args.burners if args.burners else 2 * ncpu
+
+    ze_bin = os.path.join(REPO, "bin", "ze")
+    test_bin = os.path.join(REPO, "bin", "ze-test")
+
+    if args.race:
+        # Mirror the runner's full-feature tag set so the command registry
+        # (hence the boot dump size) matches a real functional run.
+        race_tags = (
+            "ze_core ze_distro ze_setup ze_gnmi ze_grpc ze_isis ze_ldp "
+            "ze_lg ze_mcp ze_ospf ze_rest ze_rsvpte ze_ssh ze_telemetry ze_web"
+        )
+        if args.tags:
+            race_tags += " " + args.tags
+        ze_bin = os.path.join(REPO, "bin", "ze-race")
+        if not build_race_ze(race_tags, ze_bin):
+            print("race build failed", file=sys.stderr)
+            return 2
+
+    if not ensure_binaries(ze_bin, test_bin):
+        return 2
+
+    ts = time.strftime("%Y%m%d-%H%M%S")
+    outdir = os.path.join(REPO, "tmp", "stress-repro")
+    os.makedirs(outdir, exist_ok=True)
+    logpath = os.path.join(outdir, f"{args.suite}-{ts}.log")
+
+    deadline = time.time() + args.minutes * 60
+    print(
+        f"stress-repro: suite={args.suite} sel={args.sel or '--all'} "
+        f"burners={nburn} parallel={parallel} iterations={args.iterations} "
+        f"race={args.race} ncpu={ncpu}",
+        flush=True,
+    )
+    print(f"  log: {logpath}", flush=True)
+
+    burners = [
+        Process(target=_burn, args=(deadline,), daemon=True) for _ in range(nburn)
+    ]
+    for p in burners:
+        p.start()
+
+    reproduced = False
+    done = 0
+    try:
+        with open(logpath, "w") as log:
+            log.write(
+                f"stress-repro {args.suite} {ts}\n"
+                f"burners={nburn} parallel={parallel} race={args.race} ncpu={ncpu}\n"
+            )
+            log.flush()
+            with ThreadPoolExecutor(max_workers=parallel) as pool:
+                while (
+                    done < args.iterations and time.time() < deadline and not reproduced
+                ):
+                    batch = min(parallel, args.iterations - done)
+                    futs = {
+                        pool.submit(
+                            run_once,
+                            args.suite,
+                            args.sel,
+                            ze_bin,
+                            test_bin,
+                            args.timeout,
+                            args.tags,
+                        ): j
+                        for j in range(batch)
+                    }
+                    for fut in as_completed(futs):
+                        done += 1
+                        rc, out = fut.result()
+                        crash = next((s for s in CRASH_SIGNATURES if s in out), None)
+                        log.write(
+                            f"\n===== invocation {done} exit={rc} "
+                            f"{'CRASH:' + crash if crash else 'ok'} =====\n"
+                        )
+                        if crash:
+                            log.write(out)
+                            log.flush()
+                            reproduced = True
+                            print(
+                                f"\n*** REPRODUCED on invocation {done} "
+                                f"(exit {rc}, signature: {crash!r}) ***",
+                                flush=True,
+                            )
+                            _print_crash_excerpt(out)
+                            break
+                        else:
+                            log.write(out[-500:] + "\n")
+                        log.flush()
+    finally:
+        for p in burners:
+            p.terminate()
+        for p in burners:
+            p.join(timeout=5)
+
+    if reproduced:
+        print(f"full capture: {logpath}", flush=True)
+        return 0
+    print(
+        f"not reproduced in {done} invocation(s) under load "
+        f"(try --race, more --burners, or higher --parallel). log: {logpath}",
+        flush=True,
+    )
+    return 1
+
+
+def _print_crash_excerpt(out):
+    """Print the lines around the first crash signature so the site is visible
+    without opening the full log."""
+    lines = out.splitlines()
+    idx = next(
+        (i for i, ln in enumerate(lines) if any(s in ln for s in CRASH_SIGNATURES)),
+        None,
+    )
+    if idx is None:
+        return
+    lo = max(0, idx - 2)
+    hi = min(len(lines), idx + 40)
+    print("--- crash excerpt ---", flush=True)
+    for ln in lines[lo:hi]:
+        print("  " + ln, flush=True)
+    print("--- end excerpt ---", flush=True)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

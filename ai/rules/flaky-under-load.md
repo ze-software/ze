@@ -1,0 +1,47 @@
+# Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures
+
+**When:** a functional-test failure (panic, crash, exit-code mismatch, timeout)
+appears only in a full `make ze-verify` / `ze-functional-test` run and cannot be
+reproduced by rerunning the one suite in isolation.
+
+Some failures only surface under the scheduling and GC pressure of the full
+~22-suite run (many concurrent `ze` daemons on all cores). Rerunning the single
+suite never triggers them, and looping the full suite to hunt the bug is
+impractical (minutes per run, low hit rate). The verify aggregator also
+truncates the crashing daemon's goroutine stack to ~2 lines, so the crash site
+is usually lost.
+
+## Use the stress reproducer, not the full suite
+
+`scripts/dev/stress-repro.py <suite>` recreates that pressure cheaply: CPU + GC
+"burner" processes oversubscribe every core while many concurrent copies of one
+suite loop, and it captures the FIRST failure's complete, untruncated output.
+
+```
+python3 scripts/dev/stress-repro.py rsvpte --iterations 80        # hunt + capture the stack
+python3 scripts/dev/stress-repro.py rsvpte --race                 # data race self-reports its two accesses
+python3 scripts/dev/stress-repro.py bgp --burners 32 --parallel 8 # more pressure
+```
+
+It sets `GOTRACEBACK=all` so a panic dumps every goroutine (the one racing on
+the corrupt buffer shows up next to the crasher), reuses the prebuilt
+`bin/ze`/`bin/ze-test` via `ze.bin` + `ZE_TEST_NO_BUILD` (no rebuilds under
+load), and writes the full capture to `tmp/stress-repro/<suite>-<ts>.log`. Exit
+0 = reproduced, 1 = not reproduced, 2 = setup error.
+
+## Rules
+
+- **Never loop `make ze-functional-test` / `make ze-verify` to hunt a flake.**
+  Use the stress reproducer against the suspected suite.
+- **Static-clear the hypothesized site before trusting it.** Read the function
+  that PRODUCES the crash (the reslice, the buffer allocation), not a byte-count
+  inference (`ai/rules/no-fabrication.md`). The `rsvpte-lsp` "cap-512
+  share-registry" diagnosis in `plan/known-failures.md` was inference from the
+  5448-byte payload size and did not survive reading the producers — the send
+  path is `json.Marshal` + `append` with no 512-cap buffer.
+- **If it will not reproduce under stress AND the site is statically clear,**
+  suspect misattribution (the aggregator tagged another concurrent suite's crash
+  to this one) or an already-landed fix, and say so in `plan/known-failures.md`
+  rather than "fixing" a phantom.
+- A genuine reproduction's log (`tmp/stress-repro/…`) carries the real stack —
+  attach it when filing or fixing the bug.
