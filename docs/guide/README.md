@@ -56,11 +56,13 @@
 | [Route Injection](route-injection.md) | Announce routes at runtime | Text, hex, base64 UPDATE commands, commit workflow |
 | [Static Routes](static-routes.md) | ECMP, BFD failover, PBR | Named tables, weighted next-hops, blackhole/reject |
 | [Firewall](firewall.md) | Packet filter and NAT | nftables and VPP backends, FlowSpec bridge |
+| [DDoS Mitigation](ddos-mitigation.md) | Detect and stop volumetric floods | Baseline detection, local nftables, FlowSpec, and cloud reporting |
+| [Anomaly Detection](anomaly.md) | Detect unusual source behaviour | Per-source baselines and shadow-first response |
 | [BFD](bfd.md) | Sub-second failure detection | RFC 5880, auth, echo mode, BGP opt-in |
 | [BMP](bmp.md) | BGP monitoring protocol | Receiver, sender, Adj-RIB-Out, looking glass |
 | [L2TP/PPP](l2tp.md) | BNG subscriber access | RFC 2661, RADIUS, CQM, web UI |
 | [PPPoE](pppoe.md) | Direct-attach subscribers | RFC 2516 access concentrator |
-| [IPsec VPN](../config-reference.md#ipsec-vpn) | Site-to-site VPN | Native IKEv2, XFRM, EAP, NAT-T |
+| [IPsec VPN](ipsec.md) | Site-to-site and remote-access VPN | Native IKEv2 initiator and responder, XFRM, EAP, NAT-T |
 | [Zero-Touch Provisioning](ze-install.md) | PXE bare-metal provisioning | DHCP+TFTP+HTTP image server |
 | [VPP Data Plane](vpp.md) | High-throughput forwarding | Ze manages VPP lifecycle and programs its FIB directly via GoVPP |
 
