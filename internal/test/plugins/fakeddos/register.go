@@ -35,14 +35,14 @@ const (
 	Name = "ddos-fake"
 	// configRoot is the nested YANG path (ddos/fake): the plugin augments the
 	// shared `ddos` container with a `fake` subtree, mirroring ddos-local's
-	// `ddos/local`. Its presence in the config starts the injector.
+	// `ddos/local`. The injector starts only when `enabled true` is set there.
 	configRoot = "ddos/fake"
 )
 
 func init() {
 	reg := registry.Registration{
 		Name:         Name,
-		Description:  "Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake; }` is configured)",
+		Description:  "Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured)",
 		Features:     "yang",
 		YANG:         fakeddosyang.ZeFakeddosConfYANG,
 		ConfigRoots:  []string{configRoot},
@@ -77,38 +77,40 @@ func runEngine(conn net.Conn) int {
 		if started {
 			return nil
 		}
-		for _, s := range sections {
-			if s.Root != configRoot {
-				continue
-			}
-			bus, err := loadBus()
-			if err != nil {
-				return err
-			}
-			started = true
-			// The driver's "clear now" channel: it creates clearTriggerFile in the
-			// daemon's working directory once it has observed the mitigation. Poll for
-			// it and, when it appears, unblock runScenario's withdraw.
-			clear := make(chan struct{}, 1)
-			go func() {
-				for {
-					select {
-					case <-ctx.Done():
-						return
-					case <-time.After(50 * time.Millisecond):
-					}
-					if _, err := os.Stat(clearTriggerFile); err == nil {
-						select {
-						case clear <- struct{}{}:
-						default:
-						}
-						return
-					}
-				}
-			}()
-			go runScenario(ctx, bus, clear)
-			break
+		active, err := activationFromSections(sections)
+		if err != nil {
+			return err
 		}
+		if !active {
+			log.Info("fakeddos: configured but not enabled, injector inert")
+			return nil
+		}
+		bus, err := loadBus()
+		if err != nil {
+			return err
+		}
+		started = true
+		// The driver's "clear now" channel: it creates clearTriggerFile in the
+		// daemon's working directory once it has observed the mitigation. Poll for
+		// it and, when it appears, unblock runScenario's withdraw.
+		clear := make(chan struct{}, 1)
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(50 * time.Millisecond):
+				}
+				if _, err := os.Stat(clearTriggerFile); err == nil {
+					select {
+					case clear <- struct{}{}:
+					default:
+					}
+					return
+				}
+			}
+		}()
+		go runScenario(ctx, bus, clear)
 		return nil
 	})
 

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -61,6 +62,38 @@ var _ ze.EventBus = (*countingBus)(nil)
 // /32 victim, so the responder builds an `ip`-family table and resolves the
 // direction as local (INPUT drop). The driver greps `nft list table ip
 // ze_ddos-local`; a non-v4 or non-host prefix would change the family/hook.
+// TestActivationFromSections locks the `enabled` leaf gate: the injector starts
+// only when the ddos/fake section sets enabled=true. The "enabled false stays
+// inert" case is the regression for a review finding where enabled was parsed by
+// YANG but never read, so `fake { enabled false; }` still activated the injector.
+func TestActivationFromSections(t *testing.T) {
+	tests := []struct {
+		name     string
+		sections []sdk.ConfigSection
+		want     bool
+		wantErr  bool
+	}{
+		{"enabled true (framework string form)", []sdk.ConfigSection{{Root: "ddos/fake", Data: `{"ddos":{"fake":{"enabled":"true"}}}`}}, true, false},
+		{"enabled false stays inert", []sdk.ConfigSection{{Root: "ddos/fake", Data: `{"ddos":{"fake":{"enabled":"false"}}}`}}, false, false},
+		{"enabled native bool true", []sdk.ConfigSection{{Root: "ddos/fake", Data: `{"ddos":{"fake":{"enabled":true}}}`}}, true, false},
+		{"enabled absent defaults inert", []sdk.ConfigSection{{Root: "ddos/fake", Data: `{"ddos":{"fake":{}}}`}}, false, false},
+		{"our section absent", []sdk.ConfigSection{{Root: "bgp", Data: `{}`}}, false, false},
+		{"no sections", nil, false, false},
+		{"malformed json errors", []sdk.ConfigSection{{Root: "ddos/fake", Data: `{not json`}}, false, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := activationFromSections(tt.sections)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("activationFromSections err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Fatalf("activationFromSections = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestTargetPrefixIsHostV4(t *testing.T) {
 	p := netip.MustParsePrefix(targetPrefix)
 	if !p.Addr().Is4() {

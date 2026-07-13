@@ -6,13 +6,17 @@ package fakeddos
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -38,6 +42,51 @@ func logger() *slog.Logger {
 		return l
 	}
 	return slog.Default()
+}
+
+// activationFromSections reports whether the ddos/fake config section is present
+// AND enabled. runEngine starts the injector only when this returns true, so a
+// registered-but-not-enabled fakeddos stays inert (the DUT "harmless when not
+// invoked" convention).
+func activationFromSections(sections []sdk.ConfigSection) (bool, error) {
+	for _, s := range sections {
+		if s.Root != configRoot {
+			continue
+		}
+		return parseEnabled(s.Data)
+	}
+	return false, nil
+}
+
+// parseEnabled reads the `enabled` leaf from a ddos/fake section. The section is
+// wrapped {"ddos":{"fake":{...}}} (nested ConfigRoot, see ddos-local's parser).
+// Absent or false -> inert; only enabled=true activates. Values arrive as the
+// framework's string form or a native JSON bool, so both are accepted.
+func parseEnabled(data string) (bool, error) {
+	if strings.TrimSpace(data) == "" {
+		return false, nil
+	}
+	var root map[string]any
+	if err := json.Unmarshal([]byte(data), &root); err != nil {
+		return false, fmt.Errorf("fakeddos config: %w", err)
+	}
+	ddos, ok := root["ddos"].(map[string]any)
+	if !ok {
+		return false, nil
+	}
+	fake, ok := ddos["fake"].(map[string]any)
+	if !ok {
+		return false, nil
+	}
+	switch v := fake["enabled"].(type) {
+	case bool:
+		return v, nil
+	case string:
+		b, err := strconv.ParseBool(strings.TrimSpace(v))
+		return err == nil && b, nil
+	default:
+		return false, nil
+	}
 }
 
 var eventBusPtr atomic.Pointer[ze.EventBus]

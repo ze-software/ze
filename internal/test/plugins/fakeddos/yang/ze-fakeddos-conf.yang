@@ -12,11 +12,11 @@ module ze-fakeddos-conf {
 
   augment "/dd:ddos" {
     container fake {
-      presence "Start the synthetic DDoS attack injector (test-only).";
+      presence "Configure the synthetic DDoS attack injector (test-only).";
       leaf enabled {
         type boolean;
         default false;
-        description "Reserved; the `fake` container's presence is what activates the injector.";
+        description "When true, start the injector: emit a synthetic AttackDetected then, on the driver's trigger, AttackCleared. Default false leaves it inert.";
       }
     }
   }
