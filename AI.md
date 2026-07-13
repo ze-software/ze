@@ -192,6 +192,72 @@ per-step failures.
   `tools/build.py --only links`. Use `tools/check-page-links.py --check-network`
   only when external reachability is the thing being verified.
 
+### Markdown to HTML contract
+
+Ordinary Markdown pages use `tools/render-doc.py`. Do not add a renderer for a
+page whose body is already Markdown. A dedicated renderer is justified only
+when the HTML is computed from structured data, live command output, source
+extraction, or another input that needs its own transformation.
+
+New standalone Markdown sources should carry scalar front matter:
+
+```yaml
+---
+description: Configure and operate the Ze DNS resolver.
+destination: docs/features/dns-resolver/
+category: services
+journey: Feature
+table-columns: true
+---
+```
+
+The supported fields are:
+
+| Field | Requirement | Meaning |
+| --- | --- | --- |
+| `description` | Required for new pages | SEO and social-card description. |
+| `destination` | Required when the command does not pass an output path | Site-relative directory or a path ending in `index.html`. The renderer rejects paths outside the site root. |
+| `title` | Optional | Browser and social title. The first level-one heading is used when omitted. The body should still have one level-one heading. |
+| `category` | Optional | Heading colour: `operate`, `routing`, `automate`, `observe`, `secure`, `services`, or `platform`. |
+| `journey` | Optional | Short label shown in the page hero. The renderer derives it from the destination when omitted. |
+| `table-columns` | Optional, defaults to `true` | Enables shared show/hide controls for tables on the page. |
+
+Front matter is deliberately limited to top-level `key: value` scalars. This
+keeps the website build independent from a YAML package. Explicit arguments
+from an existing batch builder take precedence, so old manifests can move to
+front matter one page at a time.
+
+With a `destination`, one command is enough:
+
+```sh
+tools/render-doc.py path/to/page.md
+```
+
+The renderer strips front matter, converts Markdown with `tables`,
+`fenced_code`, `sane_lists`, and `toc`, applies the shared evidence-cell and
+link passes, builds the hero and table of contents, then wraps the result with
+`sitelib.page_head()` and `sitelib.page_foot()`. It writes the HTML destination
+and its `index.md` mirror. The browser loads `assets/site.js` from the shared
+page shell, so per-page JavaScript is not part of this pipeline.
+
+Column controls are progressive enhancement. A table remains complete when
+JavaScript is unavailable. With JavaScript, every table with at least two
+columns gets a checkbox per heading, plus `All` and `Default` actions. At least
+one column remains visible.
+
+Place this marker immediately before a Markdown table when column controls are
+not useful:
+
+```markdown
+<!-- table-columns: off -->
+| Key | Value |
+| --- | --- |
+```
+
+For a raw HTML table, set `<table data-column-controls="off">`. Set
+`table-columns: false` in front matter only when every table on the page should
+remain fixed.
+
 ### Markdown mirrors
 
 Every published page -- generated or hand-authored -- gets an `index.md`

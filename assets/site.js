@@ -1074,7 +1074,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
         var state = {};
         order.forEach(function (label) {
-            state[label] = __omp_shell("defaultLabels.length || defaultKeys[label.toLowerCase()];")
+            state[label] = !defaultLabels.length || !!defaultKeys[label.toLowerCase()];
         });
         if (!order.some(function (label) { return state[label]; })) state[order[0]] = true;
 
@@ -1093,7 +1093,7 @@ document.addEventListener("DOMContentLoaded", function () {
             slice(entry.table.rows).forEach(function (row) {
                 var cell = row.cells[entry.index];
                 if (!cell) return;
-                cell.hidden = __omp_shell("visible;")
+                cell.hidden = !visible;
                 cell.classList.toggle("column-selector-hidden", !visible);
                 cell.classList.toggle("compare-column-hidden", !visible);
             });
@@ -1180,7 +1180,7 @@ document.addEventListener("DOMContentLoaded", function () {
             defaultButton.textContent = "Default";
             defaultButton.addEventListener("click", function () {
                 order.forEach(function (label) {
-                    state[label] = __omp_shell("defaultLabels.length || defaultKeys[label.toLowerCase()];")
+                    state[label] = !defaultLabels.length || !!defaultKeys[label.toLowerCase()];
                 });
                 if (!order.some(function (label) { return state[label]; })) state[order[0]] = true;
                 applyColumns();
@@ -1222,6 +1222,85 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    function tableColumnControlsDisabled(table) {
+        if (
+            table.getAttribute("data-column-controls") === "off"
+            || table.classList.contains("no-column-controls")
+            || table.closest('[data-table-columns="off"]')
+        ) return true;
+
+        var marker = table.previousSibling;
+        while (marker && marker.nodeType === 3 && !columnSelectorClean(marker.textContent)) {
+            marker = marker.previousSibling;
+        }
+        if (!marker || marker.nodeType !== 8) return false;
+        return /^(?:table-columns|column-controls):\s*(?:off|false)$/i.test(
+            columnSelectorClean(marker.nodeValue)
+        );
+    }
+
+    function initAutomaticTableColumnSelectors(root, includeComparison) {
+        var tables = [];
+        if (root && root.matches && root.matches("table")) tables.push(root);
+        if (root && root.querySelectorAll) {
+            tables = tables.concat(slice(root.querySelectorAll("table")));
+        }
+        tables.forEach(function (table) {
+            if (
+                table.classList.contains("column-selector-active")
+                || table.getAttribute("data-auto-column-selector") === "true"
+                || tableColumnControlsDisabled(table)
+            ) return;
+
+            var content = table.closest(".md-content");
+            if (!includeComparison && content && content.querySelector("[data-compare-filter]")) return;
+
+            var header = table.tHead && table.tHead.rows.length
+                ? table.tHead.rows[0]
+                : table.rows[0];
+            if (!header || header.cells.length < 2) return;
+
+            var host = document.createElement("div");
+            host.className = "column-selector table-column-selector";
+            host.setAttribute("data-auto-column-selector", "true");
+            var status = document.createElement("p");
+            status.className = "column-selector-status";
+            status.setAttribute("aria-live", "polite");
+            host.appendChild(status);
+            table.parentNode.insertBefore(host, table);
+
+            var selector = initColumnSelector({
+                host: host,
+                tables: [table],
+                legend: "Show columns",
+                mode: "checks",
+                kind: "columns",
+                actions: true,
+                status: status,
+                insertBefore: status,
+                minColumns: 2,
+                updateStatus: true,
+            });
+            if (!selector) {
+                host.parentNode.removeChild(host);
+                return;
+            }
+            table.setAttribute("data-auto-column-selector", "true");
+        });
+    }
+
+    function observeAutomaticTableColumnSelectors() {
+        if (!window.MutationObserver || !document.body) return;
+        var observer = new MutationObserver(function (mutations) {
+            mutations.forEach(function (mutation) {
+                slice(mutation.addedNodes).forEach(function (node) {
+                    if (node.nodeType === 1) initAutomaticTableColumnSelectors(node);
+                });
+            });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
     function initComparisonFilters() {
         var tools = slice(document.querySelectorAll("[data-compare-filter]"));
         if (!tools.length) return;
@@ -1239,7 +1318,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             function initColumnControls(tool, content, status) {
-                initColumnSelector({
+                return initColumnSelector({
                     host: tool,
                     content: content,
                     tableSelector: "table",
@@ -1260,7 +1339,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 var status = tool.querySelector("[data-compare-status]");
                 var content = tool.closest(".md-content");
                 if (!input || !select || !status || !content) return;
-                initColumnControls(tool, content, status);
+                if (!initColumnControls(tool, content, status)) {
+                    initAutomaticTableColumnSelectors(content, true);
+                }
 
                 var headings = slice(content.querySelectorAll("h2"));
                 var groups = headings.map(function (heading, index) {
@@ -1403,6 +1484,8 @@ document.addEventListener("DOMContentLoaded", function () {
     initFeatureTooltips();
     initGenericColumnSelectors();
     initComparisonFilters();
+    initAutomaticTableColumnSelectors(document);
+    observeAutomaticTableColumnSelectors();
     initSourceLinks();
     initCodeCopyButtons();
 });

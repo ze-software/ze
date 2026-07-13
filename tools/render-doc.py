@@ -1,14 +1,13 @@
 #!/usr/bin/env -S uv run --with markdown python3
-"""Render a markdown file into a site-shell-wrapped HTML page.
+"""Render Markdown into a site-shell-wrapped HTML page.
 
 Usage:
-    tools/render-doc.py <source.md> <dest/index.html> [--root ../]
+    tools/render-doc.py <source.md> [<dest/index.html>] [--root ../]
 
-The destination is wrapped in the same header/nav/footer markup as every
-other gh-pages page (via tools/sitelib.py) and linked against
-assets/site.css. Re-run this after editing the source markdown to refresh
-the published page -- same workflow as presentations/tools/bundle-html.py
-for presentation content.
+Front matter may provide ``destination`` and the page presentation metadata,
+which makes the source self-contained and leaves this as the single renderer
+for ordinary Markdown pages. Explicit command-line values remain available to
+the existing batch builders and take precedence over front matter.
 """
 
 import argparse
@@ -27,6 +26,84 @@ import sitelib
 def first_h1(md_text):
     match = re.search(r"^#\s+(.+)$", md_text, re.MULTILINE)
     return match.group(1).strip() if match else "Ze"
+
+
+FRONT_MATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|$)", re.S)
+PAGE_CATEGORIES = {
+    "operate",
+    "routing",
+    "automate",
+    "observe",
+    "secure",
+    "services",
+    "platform",
+}
+TRUE_VALUES = {"1", "true", "yes", "on"}
+FALSE_VALUES = {"0", "false", "no", "off"}
+
+
+def parse_front_matter(md_text):
+    """Return scalar page metadata and the Markdown body."""
+    match = FRONT_MATTER_RE.match(md_text)
+    if not match:
+        return {}, md_text
+
+    metadata = {}
+    for line_number, line in enumerate(match.group(1).splitlines(), start=2):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if ":" not in line:
+            raise ValueError("front matter line %d must be `key: value`" % line_number)
+        key, _, value = line.partition(":")
+        key = key.strip().lower()
+        value = value.strip()
+        if not key:
+            raise ValueError("front matter line %d has an empty key" % line_number)
+        if key in metadata:
+            raise ValueError("duplicate front matter key: %s" % key)
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+            value = value[1:-1]
+        metadata[key] = value
+    return metadata, md_text[match.end() :]
+
+
+def metadata_bool(metadata, key, default):
+    if key not in metadata:
+        return default
+    value = metadata[key].lower()
+    if value in TRUE_VALUES:
+        return True
+    if value in FALSE_VALUES:
+        return False
+    raise ValueError(
+        "front matter `%s` must be one of: true, false, yes, no, on, off, 1, 0" % key
+    )
+
+
+def page_destination(value):
+    """Resolve a front-matter destination relative to the site root."""
+    rel = pathlib.PurePosixPath(value.strip().lstrip("/"))
+    if ".." in rel.parts:
+        raise ValueError("front matter `destination` must stay inside the site root")
+    if rel.suffix != ".html":
+        rel = rel / "index.html"
+    if rel.name != "index.html":
+        raise ValueError(
+            "front matter `destination` must end in index.html or a directory"
+        )
+    return pathlib.Path(__file__).resolve().parent.parent / pathlib.Path(*rel.parts)
+
+
+def page_root(dest):
+    site_root = pathlib.Path(__file__).resolve().parent.parent
+    try:
+        rel = dest.resolve().relative_to(site_root.resolve())
+    except ValueError as exc:
+        raise ValueError("destination must stay inside the gh-pages site root") from exc
+    if rel.name != "index.html":
+        raise ValueError("destination must end in index.html")
+    return "../" * (len(rel.parts) - 1)
 
 
 FIRST_H1_P_RE = re.compile(
@@ -202,8 +279,11 @@ def _classify_code(inner):
 
 
 def _is_separator(text):
-    return "." not in text and "(" not in text and ")" not in text and bool(
-        SEP_RE.match(text)
+    return (
+        "." not in text
+        and "(" not in text
+        and ")" not in text
+        and bool(SEP_RE.match(text))
     )
 
 
@@ -266,8 +346,7 @@ def _relayout_cell(inner):
         return None
     prose_html = _clean_prose("".join(prose))
     refs = "".join(
-        '<span class="ev-ref">%s</span>'
-        % ", ".join(_strip_repo_prefix(s) for s in g)
+        '<span class="ev-ref">%s</span>' % ", ".join(_strip_repo_prefix(s) for s in g)
         for g in groups
     )
     lead = (prose_html + " ") if prose_html else ""
@@ -281,6 +360,8 @@ def relayout_evidence_cells(body_html):
         return m.group(0) if new_inner is None else "<td%s>%s</td>" % (attrs, new_inner)
 
     return TD_RE.sub(repl, body_html)
+
+
 CELL_CLASSES = (
     (re.compile(r"^yes\b", re.I), "cell-yes"),
     (re.compile(r"^no\b", re.I), "cell-no"),
@@ -316,7 +397,7 @@ def colorcode_cells(body_html):
 
 
 HREF_RE = re.compile(r'href="([^"]*)"')
-MD_LINK_RE = re.compile(r'\[([^\]]*)\]\(([^)\s]+)\)')
+MD_LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)\s]+)\)")
 
 
 def markdown_base_url(dest):
@@ -343,7 +424,9 @@ def rewrite_doc_links_markdown(md_text, doc_rel, manifest, dest_rel_dir):
             return m.group(0)
         if path_part.endswith("/"):
             target_doc_rel = posixpath.normpath(posixpath.join(source_dir, path_part))
-            new_target = "https://github.com/ze-software/ze/tree/main/docs/%s" % target_doc_rel
+            new_target = (
+                "https://github.com/ze-software/ze/tree/main/docs/%s" % target_doc_rel
+            )
             return "[%s](%s)" % (label, new_target)
         if not path_part.endswith(".md"):
             return m.group(0)
@@ -353,7 +436,9 @@ def rewrite_doc_links_markdown(md_text, doc_rel, manifest, dest_rel_dir):
             rel = posixpath.relpath(target_dest_dir, dest_rel_dir)
             new_target = rel + "/index.md" + (("#" + fragment) if sep else "")
             return "[%s](%s)" % (label, new_target)
-        new_target = "https://github.com/ze-software/ze/blob/main/docs/%s" % target_doc_rel
+        new_target = (
+            "https://github.com/ze-software/ze/blob/main/docs/%s" % target_doc_rel
+        )
         if sep:
             new_target += "#" + fragment
         return "[%s](%s)" % (label, new_target)
@@ -402,15 +487,25 @@ def render(
     source,
     dest,
     root,
-    desc,
+    desc=None,
     manifest=None,
     doc_rel=None,
     dest_rel_dir=None,
     cat=None,
     journey_label=None,
 ):
-    md_text = source.read_text()
-    title = first_h1(md_text)
+    source_text = source.read_text()
+    metadata, md_text = parse_front_matter(source_text)
+    title = metadata.get("title") or first_h1(md_text)
+    description = desc or metadata.get("description") or "Ze documentation."
+    category = cat or metadata.get("category")
+    if category and category not in PAGE_CATEGORIES:
+        raise ValueError(
+            "front matter `category` must be one of: %s"
+            % ", ".join(sorted(PAGE_CATEGORIES))
+        )
+    table_columns = metadata_bool(metadata, "table-columns", True)
+
     md = markdown.Markdown(extensions=["tables", "fenced_code", "sane_lists", "toc"])
     body_html = md.convert(md_text)
     toc_html = render_doc_toc(md.toc_tokens)
@@ -427,20 +522,29 @@ def render(
     body_html = colorcode_cells(body_html)
     body_html = sitelib.patch_external_link_targets(body_html)
     body_html = wrap_journey_hero(
-        body_html, journey_label or default_journey_label(dest, doc_rel)
+        body_html,
+        journey_label
+        or metadata.get("journey")
+        or default_journey_label(dest, doc_rel),
     )
     body_html = insert_doc_toc(body_html, toc_html)
-    section_class = "md-content reveal cat-%s" % cat if cat else "md-content reveal"
+    section_class = (
+        "md-content reveal cat-%s" % category if category else "md-content reveal"
+    )
+    table_attr = "" if table_columns else ' data-table-columns="off"'
     full_title = "%s - Ze" % title
     head = sitelib.page_head(
         full_title,
-        desc,
+        description,
         root,
         og_title=full_title,
-        og_desc=desc,
+        og_desc=description,
         page_key=sitelib.page_key_for_path(dest),
     )
-    head += '            <section class="%s">\n' % section_class
+    head += '            <section class="%s"%s>\n' % (
+        section_class,
+        table_attr,
+    )
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(
         head + body_html + "\n            </section>\n" + sitelib.page_foot(root)
@@ -452,9 +556,17 @@ def render(
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=pathlib.Path)
-    parser.add_argument("dest", type=pathlib.Path)
-    parser.add_argument("--root", default="../", help="relative path back to site root")
-    parser.add_argument("--desc", default="Ze documentation.", help="meta description")
+    parser.add_argument(
+        "dest",
+        type=pathlib.Path,
+        nargs="?",
+        help="output index.html; may be supplied by `destination` front matter",
+    )
+    parser.add_argument(
+        "--root",
+        help="relative path back to site root; derived from the destination by default",
+    )
+    parser.add_argument("--desc", help="meta description; overrides front matter")
     parser.add_argument(
         "--manifest",
         type=pathlib.Path,
@@ -472,15 +584,7 @@ def main():
     )
     parser.add_argument(
         "--cat",
-        choices=[
-            "operate",
-            "routing",
-            "automate",
-            "observe",
-            "secure",
-            "services",
-            "platform",
-        ],
+        choices=sorted(PAGE_CATEGORIES),
         help="topic category, colors the h1 per the site's color convention "
         "(same seven hues as the Features category legend)",
     )
@@ -494,18 +598,32 @@ def main():
         print("error: source not found: %s" % args.source, file=sys.stderr)
         return 1
 
-    manifest = json.loads(args.manifest.read_text()) if args.manifest else None
-    render(
-        args.source,
-        args.dest,
-        args.root,
-        args.desc,
-        manifest=manifest,
-        doc_rel=args.doc_rel,
-        dest_rel_dir=args.dest_rel_dir,
-        cat=args.cat,
-        journey_label=args.journey_label,
-    )
+    try:
+        metadata, _body = parse_front_matter(args.source.read_text())
+        dest = args.dest
+        if dest is None:
+            destination = metadata.get("destination")
+            if not destination:
+                parser.error(
+                    "dest is required unless front matter defines `destination`"
+                )
+            dest = page_destination(destination)
+        root = args.root or page_root(dest)
+        manifest = json.loads(args.manifest.read_text()) if args.manifest else None
+        render(
+            args.source,
+            dest,
+            root,
+            args.desc,
+            manifest=manifest,
+            doc_rel=args.doc_rel,
+            dest_rel_dir=args.dest_rel_dir,
+            cat=args.cat,
+            journey_label=args.journey_label,
+        )
+    except (OSError, ValueError) as exc:
+        print("error: %s: %s" % (args.source, exc), file=sys.stderr)
+        return 1
     return 0
 
 

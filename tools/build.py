@@ -156,17 +156,15 @@ def load_module(stem):
     spec.loader.exec_module(module)
     return module
 
+
 def step_css():
     render_css = load_module("render-css")
     return render_css.main()
 
 
-
-
 def step_docs():
     render_docs = load_module("render-docs")
     return render_docs.main()
-
 
 
 def step_usage():
@@ -182,6 +180,7 @@ def step_usage():
         )
     return 0
 
+
 def step_labdetails():
     render_doc = load_module("render-doc")
     for page in page_registry.LAB_DETAIL_PAGES:
@@ -194,8 +193,6 @@ def step_labdetails():
             journey_label="Lab details",
         )
     return 0
-
-
 
 
 def step_blog():
@@ -240,6 +237,7 @@ def step_deps():
     render_dependencies = load_module("render-dependencies")
     return render_dependencies.main()
 
+
 def step_quality():
     render_doc = load_module("render-doc")
     for page in page_registry.QUALITY_PAGES:
@@ -265,6 +263,7 @@ def step_config():
     render_config_reference = load_module("render-config-reference")
     return render_config_reference.main()
 
+
 def step_plugins():
     extract_plugin_registry = load_module("extract-plugin-registry")
     rc = extract_plugin_registry.main()
@@ -277,8 +276,6 @@ def step_plugins():
 def step_facts():
     render_site_facts = load_module("render-site-facts")
     return render_site_facts.main()
-
-
 
 
 def step_contribute():
@@ -387,11 +384,10 @@ def step_search():
     render_search_index = load_module("render-search-index")
     return render_search_index.main()
 
+
 def step_seo():
     render_seo = load_module("render-seo")
     return render_seo.main()
-
-
 
 
 def step_talks():
@@ -436,10 +432,11 @@ def step_links():
             continue
         text = path.read_text()
         updated = sitelib.patch_external_link_targets(text)
+        updated = sitelib.patch_asset_versions(updated)
         if updated != text:
             path.write_text(updated)
             patched += 1
-    print("patched external link targets -> %d html files" % patched)
+    print("patched external links and asset versions -> %d html files" % patched)
     return 0
 
 
@@ -630,7 +627,6 @@ def main():
         else:
             if rc:
                 failures.append("links")
-
 
     if "linkcheck" not in steps:
         print("=== linkcheck (always runs) ===")
