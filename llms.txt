@@ -856,7 +856,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ### Generated references
 - [CLI Reference](https://ze-software.net/cli/index.md): 380 commands, generated from the live binary (web: https://ze-software.net/cli/)
-- [Configuration Reference](https://ze-software.net/config-reference/index.md): 35 sections, indexed from live YANG (web: https://ze-software.net/config-reference/)
+- [Configuration Reference](https://ze-software.net/config-reference/index.md): 36 sections, indexed from live YANG (web: https://ze-software.net/config-reference/)
 - [Command Equivalents](https://ze-software.net/command-equivalents/index.md): Search Ze commands against Junos MX, IOS XR, SR OS, and VyOS (web: https://ze-software.net/command-equivalents/)
 - [RFC Status](https://ze-software.net/docs/features/rfc-status/index.md): Implemented RFCs, partial support, and known gaps (web: https://ze-software.net/docs/features/rfc-status/)
 
