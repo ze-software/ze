@@ -1074,17 +1074,14 @@ def latest_blog_posts(n):
 #
 # llms.txt (tools/render-llms-txt.py) links every page to a sibling index.md
 # instead of its index.html, so an LLM fetching the site never has to parse
-# HTML tags/CSS/JS to get at the content. Pages with a real Markdown source
-# (docs, compare, contribute, blog posts) publish that source directly --
-# see render-doc.py / render-blog.py. Pages built from JSON data (features,
-# CLI, dependencies) render Markdown straight from the same data dict as the
-# HTML -- see render-features.py etc. Pages with neither (labs/*, talks/,
-# style-guide/, performance/, zeledon/ -- hand-authored HTML using this
-# site's own component classes rather than plain tags) fall back to the
-# functions below: extract_main() pulls the <main> content out of the
-# rendered HTML, html_to_markdown() converts it. Wired into tools/build.py's
-# "nav" step, so it can never drift from whatever HTML the page currently
-# has -- same zero-drift philosophy as the rest of the build.
+# HTML tags/CSS/JS to get at the content. Plain Markdown sources publish that
+# source directly; render-doc.py converts sources containing layout HTML from
+# the rendered body instead. Pages built from JSON data (features, CLI,
+# dependencies) render Markdown straight from the same data dict as the HTML.
+# Pages with neither (labs/*, talks/, style-guide/, performance/, zeledon/)
+# fall back to the functions below: extract_main() pulls the <main> content
+# out of the rendered HTML, then html_to_markdown() converts it. That path is
+# wired into tools/build.py's "nav" step, so it cannot drift from the page.
 
 MAIN_START_RE = re.compile(r'<main\b[^>]*\bid="top"[^>]*>')
 
@@ -1099,6 +1096,17 @@ def extract_main(html_text):
     start = m.end()
     end = html_text.index("</main>", start)
     return html_text[start:end]
+
+
+MARKDOWN_BLOCK_HTML_RE = re.compile(
+    r"^\s*</?(?:article|details|div|form|section|summary|table|tbody|td|tfoot|th|thead|tr)\b",
+    re.MULTILINE,
+)
+
+
+def contains_block_html(text):
+    """Return whether text contains site-layout HTML on its own line."""
+    return bool(MARKDOWN_BLOCK_HTML_RE.search(text))
 
 
 def write_markdown_sibling(dest_html_path, md_text):
@@ -1128,6 +1136,7 @@ _MD_WS_RE = re.compile(r"\s+")
 _MD_TRAILING_WS_RE = re.compile(r"[ \t]+\n")
 _MD_BLANK_RUN_RE = re.compile(r"\n{3,}")
 _MD_MULTI_SPACE_RE = re.compile(r"[ \t]{2,}")
+_MD_SINGLE_INDENT_RE = re.compile(r"(?m)^ (?=(?:(?:[-*+]|\d+\.) |\*\*|`))")
 _MD_LABEL_VALUE_RE = re.compile(r"([^\s:])(\*\*)(\s*)")
 
 
@@ -1145,6 +1154,7 @@ def _collapse_spaces_outside_code(text):
     parts = text.split("```")
     for i in range(0, len(parts), 2):
         parts[i] = _MD_MULTI_SPACE_RE.sub(" ", parts[i])
+        parts[i] = _MD_SINGLE_INDENT_RE.sub("", parts[i])
     return "```".join(parts)
 
 
@@ -1218,7 +1228,13 @@ class _HTMLToMarkdown(HTMLParser):
             return
         attrs_d = dict(attrs)
         classes = (attrs_d.get("class") or "").split()
-        if tag in _MD_SKIP_TAGS or "terminal-dots" in classes or "page-sidebar" in classes:
+        if (
+            tag in _MD_SKIP_TAGS
+            or "terminal-dots" in classes
+            or "page-sidebar" in classes
+            or "faq-index" in classes
+            or attrs_d.get("aria-hidden") == "true"
+        ):
             self.skip_depth = 1
             return
         if tag == "br":
@@ -1284,6 +1300,7 @@ class _HTMLToMarkdown(HTMLParser):
 
     def _render_node(self, tag, node):
         inner = node.raw()
+        classes = (node.attrs.get("class") or "").split()
         if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
             text = inner.strip()
             return "\n\n%s %s\n\n" % ("#" * int(tag[1]), text) if text else ""
@@ -1298,6 +1315,19 @@ class _HTMLToMarkdown(HTMLParser):
             url = href
             if not href.startswith(("http://", "https://", "mailto:")):
                 url = urljoin(self.base_url, href)
+            if "card" in classes:
+                heading = re.search(r"(?m)^(#{1,6}) ([^\n]+)$", inner)
+                if heading:
+                    linked_heading = "%s [%s](%s)" % (
+                        heading.group(1),
+                        heading.group(2),
+                        url,
+                    )
+                    return inner[: heading.start()] + linked_heading + inner[heading.end() :]
+                return "%s\n\n[Open page](%s)\n" % (label, url)
+            parent_classes = (self.stack[-1].attrs.get("class") or "").split()
+            if "link-list" in parent_classes or "contribute-start" in parent_classes:
+                return "- [%s](%s)\n" % (label, url)
             return "[%s](%s)" % (label, url)
         if tag in ("strong", "b"):
             text = inner.strip()
@@ -1306,7 +1336,7 @@ class _HTMLToMarkdown(HTMLParser):
             text = inner.strip()
             return "*%s*" % text if text else ""
         if tag == "code":
-            return "`%s`" % inner.strip()
+            return inner if self.pre_depth else "`%s`" % inner.strip()
         if tag == "pre":
             code = inner.strip("\n")
             return "\n\n```\n%s\n```\n\n" % code if code else ""
@@ -1329,8 +1359,11 @@ class _HTMLToMarkdown(HTMLParser):
                 return ""
             quoted = "\n".join("> " + line for line in text.splitlines())
             return "\n\n%s\n\n" % quoted
-        classes = (node.attrs.get("class") or "").split()
-        if tag == "div" and ("status-row" in classes or "stat" in classes):
+        if tag == "div" and (
+            "status-row" in classes
+            or "stat" in classes
+            or "quality-meter-row" in classes
+        ):
             # <div class="status-row"><strong>Label</strong><span>Value</span></div>
             # (or the reverse order for .stat) concatenates with no
             # separator in the source HTML -- insert "label: value" so the
@@ -1338,9 +1371,27 @@ class _HTMLToMarkdown(HTMLParser):
             text = inner.strip()
             text = _MD_LABEL_VALUE_RE.sub(_label_value_repl, text, count=1)
             return "- %s\n" % text if text else ""
-        if "chip" in classes or "tag" in classes or "card-label" in classes:
+        if (
+            "chip" in classes
+            or "tag" in classes
+            or "card-label" in classes
+            or "roadmap-chip" in classes
+        ):
             text = inner.strip()
             return "`%s` " % text if text else ""
+        if "quality-stage-number" in classes:
+            text = inner.strip()
+            return "\n\n**Step %s**\n\n" % text if text else ""
+        if (
+            "contribute-label" in classes
+            or "contribute-route-kicker" in classes
+            or "quality-hero-kicker" in classes
+        ):
+            text = inner.strip()
+            return "\n\n**%s**\n\n" % text if text else ""
+        if "cat" in classes:
+            text = inner.strip()
+            return "\n\n**%s**\n\n" % text if text else ""
         # Transparent containers (div, span, section, article, details, and
         # any other unrecognized tag/class): pass children through as-is
         # rather than dropping content the converter has no special case for.

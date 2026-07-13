@@ -1,71 +1,67 @@
 # Documentation
 
-Pick the path that matches your intent. Start with the card that describes the
-job you are trying to do, then follow the links inside that path.
+Pick the path that matches your intent. Start with the card that describes the job you are trying to do, then follow the links inside that path.
 
-<div class="docs-path-grid cards" aria-label="Documentation paths">
-    <article class="card docs-path-card cat-operate">
-        <span class="cat">Start</span>
-        <h2>Get Ze running</h2>
-        <p>Learning-oriented pages that take you from a blank shell to a working setup.</p>
-        <div class="link-list">
-            <a href="guide/quickstart/">Quickstart <span>two BGP peers talking in under five minutes</span></a>
-            <a href="guide/ze-install/">Install Ze <span>daemon install or bootable appliance</span></a>
-            <a href="guide/ubuntu-build-install/">Build on Ubuntu <span>compile, install, create zefs, set up SSH</span></a>
-            <a href="features/configuration/">Configuration <span>the YANG model Ze uses everywhere</span></a>
-            <a href="features/cli-commands/"><code>CLI</code> commands <span>diff, commit, history, and operator commands</span></a>
-        </div>
-    </article>
-    <article class="card docs-path-card cat-routing">
-        <span class="cat">Operate</span>
-        <h2>Do a specific job</h2>
-        <p>Task-oriented guides for protocol setup, access services, migration, and diagnostics.</p>
-        <div class="link-list">
-            <a href="../usage/exabgp-migration/">ExaBGP migration <span>convert an existing config and process scripts</span></a>
-            <a href="guide/operator-access-rbac/">SSH and RBAC <span>local users, profiles, and operator access</span></a>
-            <a href="guide/flowspec-route-reflector/">FlowSpec route reflector <span>reflect FlowSpec routes to iBGP clients</span></a>
-            <a href="guide/flowspec-protected-router/">FlowSpec protected router <span>turn FlowSpec into nftables protection</span></a>
-            <a href="guide/looking-glass-howto/">Looking glass <span>publish read-only BGP visibility</span></a>
-            <a href="guide/firewall/">Firewall and policy routing <span>protect and steer traffic</span></a>
-            <a href="guide/ospf/">OSPF, IS-IS, and static routes <span>bring routing protocols online</span></a>
-            <a href="guide/pppoe/">PPPoE and L2TP <span>access concentration paths</span></a>
-            <a href="guide/monitoring/">Monitoring and diagnostics <span>flow export, MRT, and production checks</span></a>
-        </div>
-    </article>
-    <article class="card docs-path-card cat-platform">
-        <span class="cat">Reference</span>
-        <h2>Look up generated facts</h2>
-        <p>Information-oriented pages generated from live data where possible.</p>
-        <div class="link-list">
-            <a href="../features/">Features <span>capabilities by category and maturity</span></a>
-            <a href="features/rfc-status/">RFC status <span>implemented RFCs, partial support, and remaining gaps</span></a>
-            <a href="../cli/">CLI reference <span>all generated commands in one place</span></a>
-            <a href="../config-reference/">Configuration reference <span>the whole config as a searchable tree</span></a>
-            <a href="../dependencies/">Dependencies <span>direct Go packages and why they exist</span></a>
-        </div>
-    </article>
-    <article class="card docs-path-card cat-automate">
-        <span class="cat">Design</span>
-        <h2>Understand the system</h2>
-        <p>Explanation pages for architecture, comparisons, performance, labs, and deployment shapes.</p>
-        <div class="link-list">
-            <a href="architecture/">Architecture <span>engine, config, plugins, and operator surfaces</span></a>
-            <a href="../compare/">Compare <span>Ze against BIRD, FRR, GoBGP, and others</span></a>
-            <a href="../performance/">Performance <span>measured BGP benchmarks and methodology</span></a>
-            <a href="research/vpp-deployment-reference/">VPP deployment reference <span>startup.conf, NIC, LCP, and notes</span></a>
-            <a href="../labs/">Labs and usage examples <span>interop proof and deployment shapes</span></a>
-        </div>
-    </article>
-    <article class="card docs-path-card cat-secure">
-        <span class="cat">Community</span>
-        <h2>Keep up and contribute</h2>
-        <p>Project context for people deciding whether to try Ze or help shape it.</p>
-        <div class="link-list">
-            <a href="../roadmap/">Roadmap <span>the path to the first release</span></a>
-            <a href="../changes/">Changes <span>what shipped, week by week</span></a>
-            <a href="../blog/">Blog <span>longer notes behind the work</span></a>
-            <a href="../faq/">FAQ <span>answers before you commit time</span></a>
-            <a href="../contribute/">Contribute <span>code, bug reports, and interop results</span></a>
-        </div>
-    </article>
-</div>
+**Start**
+
+## Get Ze running
+
+Learning-oriented pages that take you from a blank shell to a working setup.
+
+- [Quickstart two BGP peers talking in under five minutes](https://ze-software.net/docs/guide/quickstart/)
+- [Install Ze daemon install or bootable appliance](https://ze-software.net/docs/guide/ze-install/)
+- [Build on Ubuntu compile, install, create zefs, set up SSH](https://ze-software.net/docs/guide/ubuntu-build-install/)
+- [Configuration the YANG model Ze uses everywhere](https://ze-software.net/docs/features/configuration/)
+- [`CLI` commands diff, commit, history, and operator commands](https://ze-software.net/docs/features/cli-commands/)
+
+**Operate**
+
+## Do a specific job
+
+Task-oriented guides for protocol setup, access services, migration, and diagnostics.
+
+- [ExaBGP migration convert an existing config and process scripts](https://ze-software.net/usage/exabgp-migration/)
+- [SSH and RBAC local users, profiles, and operator access](https://ze-software.net/docs/guide/operator-access-rbac/)
+- [FlowSpec route reflector reflect FlowSpec routes to iBGP clients](https://ze-software.net/docs/guide/flowspec-route-reflector/)
+- [FlowSpec protected router turn FlowSpec into nftables protection](https://ze-software.net/docs/guide/flowspec-protected-router/)
+- [Looking glass publish read-only BGP visibility](https://ze-software.net/docs/guide/looking-glass-howto/)
+- [Firewall and policy routing protect and steer traffic](https://ze-software.net/docs/guide/firewall/)
+- [OSPF, IS-IS, and static routes bring routing protocols online](https://ze-software.net/docs/guide/ospf/)
+- [PPPoE and L2TP access concentration paths](https://ze-software.net/docs/guide/pppoe/)
+- [Monitoring and diagnostics flow export, MRT, and production checks](https://ze-software.net/docs/guide/monitoring/)
+
+**Reference**
+
+## Look up generated facts
+
+Information-oriented pages generated from live data where possible.
+
+- [Features capabilities by category and maturity](https://ze-software.net/features/)
+- [RFC status implemented RFCs, partial support, and remaining gaps](https://ze-software.net/docs/features/rfc-status/)
+- [CLI reference all generated commands in one place](https://ze-software.net/cli/)
+- [Configuration reference the whole config as a searchable tree](https://ze-software.net/config-reference/)
+- [Dependencies direct Go packages and why they exist](https://ze-software.net/dependencies/)
+
+**Design**
+
+## Understand the system
+
+Explanation pages for architecture, comparisons, performance, labs, and deployment shapes.
+
+- [Architecture engine, config, plugins, and operator surfaces](https://ze-software.net/docs/architecture/)
+- [Compare Ze against BIRD, FRR, GoBGP, and others](https://ze-software.net/compare/)
+- [Performance measured BGP benchmarks and methodology](https://ze-software.net/performance/)
+- [VPP deployment reference startup.conf, NIC, LCP, and notes](https://ze-software.net/docs/research/vpp-deployment-reference/)
+- [Labs and usage examples interop proof and deployment shapes](https://ze-software.net/labs/)
+
+**Community**
+
+## Keep up and contribute
+
+Project context for people deciding whether to try Ze or help shape it.
+
+- [Roadmap the path to the first release](https://ze-software.net/roadmap/)
+- [Changes what shipped, week by week](https://ze-software.net/changes/)
+- [Blog longer notes behind the work](https://ze-software.net/blog/)
+- [FAQ answers before you commit time](https://ze-software.net/faq/)
+- [Contribute code, bug reports, and interop results](https://ze-software.net/contribute/)

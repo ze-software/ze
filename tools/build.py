@@ -55,11 +55,11 @@ Steps (default order, also the --only vocabulary):
               its index.md sibling on disk.
 
 Every published page (generated or hand-authored) gets an index.md sibling
-next to its index.html -- the docs, blog, compare, contribute, and quality pages
-publish their real Markdown source (link-rewritten to sibling .md paths);
-config-reference/activity/talks render Markdown straight from the same data
-the HTML comes from; labs/style-guide/performance/zeledon (no source of
-either kind) get it via the "nav" step's HTML->Markdown extraction. llms.txt
+next to its index.html. Plain Markdown sources are published directly, while
+sources containing layout HTML are converted from their rendered body so tags
+and browser-only controls never leak into the text mirror. Pages built from
+structured data render Markdown from that same data; pages with no separate
+source use the "nav" step's HTML->Markdown extraction. llms.txt
 links every entry to its .md (for an LLM to fetch) alongside the human-
 facing HTML page (for when a link needs to be shown to a person) -- see
 tools/render-llms-txt.py.
@@ -530,6 +530,18 @@ def check_llms_md_siblings():
             )
 
 
+def check_markdown_mirrors():
+    """Fail the build when an index.md still contains site-layout HTML."""
+    for md_path in GH_PAGES.rglob("index.md"):
+        rel = md_path.relative_to(GH_PAGES)
+        if rel.parts and rel.parts[0] == "presentations":
+            continue
+        if sitelib.contains_block_html(md_path.read_text()):
+            sitelib.warn(
+                "%s contains block HTML instead of plain Markdown" % rel.as_posix()
+            )
+
+
 def check_performance_stat_drift():
     """performance/index.html's status-row (convergence/throughput/withdrawal)
     is hand-copied from ../main/test/perf/results/ze.json's last real
@@ -642,6 +654,8 @@ def main():
         else:
             if rc:
                 failures.append("llms")
+
+    check_markdown_mirrors()
 
     # Drift warnings (sitelib.warn) fail the build here, at the very end, so
     # the whole site is still generated but the build goes red until every one

@@ -319,6 +319,12 @@ HREF_RE = re.compile(r'href="([^"]*)"')
 MD_LINK_RE = re.compile(r'\[([^\]]*)\]\(([^)\s]+)\)')
 
 
+def markdown_base_url(dest):
+    """Canonical directory URL used to resolve links extracted from HTML."""
+    key = sitelib.page_key_for_path(dest).strip("/")
+    return sitelib.SITE_BASE + (key + "/" if key else "")
+
+
 def rewrite_doc_links_markdown(md_text, doc_rel, manifest, dest_rel_dir):
     """Markdown-flavored twin of rewrite_doc_links: rewrites [text](target.md)
     links in the *source* markdown (not the rendered HTML) so the published
@@ -408,12 +414,17 @@ def render(
     md = markdown.Markdown(extensions=["tables", "fenced_code", "sane_lists", "toc"])
     body_html = md.convert(md_text)
     toc_html = render_doc_toc(md.toc_tokens)
-    body_html = relayout_evidence_cells(body_html)
-    body_html = colorcode_cells(body_html)
     md_out = md_text
     if manifest is not None:
         body_html = rewrite_doc_links(body_html, doc_rel, manifest, dest_rel_dir)
         md_out = rewrite_doc_links_markdown(md_text, doc_rel, manifest, dest_rel_dir)
+    if sitelib.contains_block_html(md_text):
+        md_out = sitelib.html_to_markdown(
+            body_html,
+            base_url=markdown_base_url(dest),
+        )
+    body_html = relayout_evidence_cells(body_html)
+    body_html = colorcode_cells(body_html)
     body_html = sitelib.patch_external_link_targets(body_html)
     body_html = wrap_journey_hero(
         body_html, journey_label or default_journey_label(dest, doc_rel)
