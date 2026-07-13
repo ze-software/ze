@@ -20,6 +20,7 @@
 .PHONY: ze-stress-test ze-stress-bird-test ze-stress-profile ze-stress-web-test ze-stress-fleet-test
 .PHONY: ze-live-test ze-live-rpki-test
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-integration-gtsm-test ze-integration-as112-test
+.PHONY: ze-netns-test ze-netns-qemu-test
 .PHONY: ze-release-check ze-deployment-vpp-test ze-deployment-vpp-iface-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-deployment-pppoe-accel-docker-test
@@ -103,6 +104,45 @@ ze-integration-as112-test:
 	$(GO) test -tags integration -count=1 -race -timeout 60s ./internal/plugins/as112/...
 
 ze-integration-test: ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-integration-gtsm-test ze-integration-as112-test
+
+# ─── Per-test netns launch mode (Fix B, spec-netlink-ci-harness) ─────────────
+# Run the netlink functional .ci suites (firewall/policy/ospf/ospfv3) HOST-SAFELY
+# on a Linux host: each test gets its own throwaway network namespace and the ze
+# daemon runs as a NORMAL user off a setcap'd binary (ambient CAP_NET_ADMIN), so
+# the nft firewall / FIB it programs lives in the per-test netns and the host is
+# never touched. The runner (root, via sudo) creates the netns (CAP_SYS_ADMIN)
+# and drops ze via SysProcAttr.Credential; ZE_TEST_NETNS=1 arms the path.
+#
+# Requires Linux + sudo + setcap (libcap) + nft (nftables). Asserts the host
+# `nft list tables` is byte-identical before and after (R-2 host-safety). The
+# setcap'd binary refuses to program nft if it ever lands in the host netns
+# (refuseHostNetnsFirewall), the belt to this braces. See docs/functional-tests.md.
+ZE_NETNS_SUITES ?= firewall policy ospf ospfv3
+ZE_NETNS_CAPS   ?= cap_net_admin,cap_net_raw,cap_net_bind_service+ep
+ze-netns-test: bin/ze bin/ze-stripped bin/ze-test
+	@[ "$$(uname)" = "Linux" ] || { echo "ze-netns-test requires Linux (netns/nft); on macOS use ze-netns-qemu-test"; exit 1; }
+	@command -v setcap >/dev/null 2>&1 || { echo "error: setcap not found (install libcap2-bin / libcap)"; exit 1; }
+	@command -v nft    >/dev/null 2>&1 || { echo "error: nft not found (install nftables)"; exit 1; }
+	@echo "Granting ambient caps to bin/ze + bin/ze-stripped ($(ZE_NETNS_CAPS))..."
+	sudo setcap $(ZE_NETNS_CAPS) bin/ze
+	sudo setcap $(ZE_NETNS_CAPS) bin/ze-stripped
+	@before=$$(sudo nft list tables 2>/dev/null | sort); failed=0; \
+	for suite in $(ZE_NETNS_SUITES); do \
+		printf "\n=== netns suite: %s ===\n" "$$suite"; \
+		sudo env ZE_TEST_NETNS=1 ZE_TEST_UID=$$(id -u) ZE_TEST_GID=$$(id -g) \
+			bin/ze-test $$suite --all || failed=$$((failed + 1)); \
+	done; \
+	after=$$(sudo nft list tables 2>/dev/null | sort); \
+	sudo setcap -r bin/ze bin/ze-stripped 2>/dev/null || true; \
+	if [ "$$before" != "$$after" ]; then \
+		printf "\033[31mHOST-SAFETY FAILURE: host nft tables changed during netns run\033[0m\n"; \
+		printf -- "--- before ---\n%s\n--- after ---\n%s\n" "$$before" "$$after"; \
+		failed=$$((failed + 1)); \
+	else \
+		printf "\033[32mhost nft tables unchanged (host-safe)\033[0m\n"; \
+	fi; \
+	[ $$failed -eq 0 ] || { printf "\033[31mnetns run FAILED (%d issue(s))\033[0m\n" "$$failed"; exit 1; }; \
+	printf "\033[32mnetns run OK\033[0m\n"
 
 # ─── Deployment evidence ────────────────────────────────────────────────────
 
@@ -283,6 +323,24 @@ ze-qemu-integration-test:
 	python3 scripts/evidence/qemu-run.py \
 		--packages "nftables iproute2 iputils-ping kmod iptables" \
 		--run 'go test -tags integration -count=1 -timeout 120s $(ZE_QEMU_INTEGRATION_PKGS) ./internal/plugins/firewall/vpp/...'
+
+# AC-7: exercise the per-test netns launch mode (Fix B) end-to-end under QEMU on a
+# real Linux kernel (macOS has no netns/nft). Cross-compiles ze/ze-stripped/ze-test,
+# boots the Alpine VM, setcaps ze, and runs a host-safe firewall subset under
+# ZE_TEST_NETNS (see scripts/evidence/netns_qemu.py), asserting the host firewall is
+# untouched. The R-2 host-netns guard unit test (refuseHostNetnsFirewall) is covered
+# separately by ze-qemu-integration-test (it is in the nft integration package).
+ze-netns-qemu-test:
+	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
+	@mkdir -p bin
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
+	@echo "Running netns launch-mode evidence in QEMU Linux VM (host-safe firewall subset)..."
+	python3 scripts/evidence/qemu-run.py \
+		--packages "nftables iproute2 python3 libcap kmod iptables iputils-ping" \
+		--timeout 1200 \
+		--run 'QEMU_GOARCH=$(QEMU_GOARCH) python3 scripts/evidence/netns_qemu.py'
 
 ze-qemu-ldp-frr-test:
 	@echo "Running LDP interop test against FRR ldpd in QEMU Linux VM (installs frr)..."

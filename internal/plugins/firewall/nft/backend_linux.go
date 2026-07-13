@@ -38,6 +38,14 @@ func newBackend() (firewall.Backend, error) {
 // Creates new ze_* tables, replaces changed ones, deletes orphans.
 // All operations are atomic via Flush().
 func (b *backend) Apply(desired []firewall.Table) error {
+	// R-2 host-safety gate: under the functional-test netns launch mode, refuse
+	// to touch the kernel firewall unless this process is provably in an isolated
+	// namespace. No-op in production (the env is test-only). Runs before any
+	// kernel op so a refused apply never stages, let alone flushes, to the host.
+	if err := refuseHostNetnsFirewall(); err != nil {
+		return err
+	}
+
 	desiredNames := tableNameSet(desired)
 
 	// List current ze_* tables.

@@ -57,5 +57,7 @@ cmd=background:seq=1:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=firewall config applied
-expect=stdout:contains=tcp dport 5060
-expect=stdout:contains=ip dscp set
+# nft renders the unqualified dport as `tcp dport` or generic `th dport` by version.
+expect=stdout:pattern=(tcp|th) dport 5060
+# nft renders a DSCP set as `ip dscp set` or the raw payload `@nh,8,8 set` by version.
+expect=stdout:pattern=(ip dscp set|@nh,8,8 set)

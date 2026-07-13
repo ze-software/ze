@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -367,6 +368,41 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 	rec.State = StateRunning
 
+	// Fix B: opt-in per-test network-namespace isolation. When ZE_TEST_NETNS is
+	// set (Linux only) this locks the goroutine's OS thread into a fresh netns
+	// before spawning any child. ze / ze-peer / driver.py fork-inherit it (A-5),
+	// so they share one throwaway namespace, reach each other over 127.0.0.1, and
+	// the nft firewall the daemon programs stays in that netns -- the host
+	// firewall is untouched. The whole orchestration below (syslog socket, HTTP
+	// checks) runs on this locked thread so it too reaches the daemon inside the
+	// netns. All of it is gated on netnsMode, so the default path is unchanged.
+	netnsMode := netnsModeActive()
+	var netnsHostInode uint64
+	netnsUID, netnsGID, netnsHasUID := 0, 0, false
+	if netnsMode {
+		netnsUID, netnsGID, netnsHasUID = netnsChildIDs()
+		restore, hostInode, nsErr := enterTestNetns(testNetnsName(rec.Nick, rec.Port))
+		if nsErr != nil {
+			// AC-4: fail loudly rather than fall through and program the host
+			// firewall. A netlink suite that cannot get its own namespace is a
+			// setup error (missing CAP_SYS_ADMIN / not under sudo), not a pass.
+			rec.Error = nsErr
+			rec.FailureType = stateUnknown
+			return false
+		}
+		defer restore()
+		netnsHostInode = hostInode
+		// The ze daemon is dropped to a normal user; make it own its tmpfs workdir
+		// so it can chdir in, read config, and write daemon.ready (see chownTree).
+		if netnsHasUID && rec.TmpfsTempDir != "" {
+			if chErr := chownTree(rec.TmpfsTempDir, netnsUID, netnsGID); chErr != nil {
+				rec.Error = fmt.Errorf("prepare tmpfs dir for netns child: %w", chErr)
+				rec.FailureType = stateUnknown
+				return false
+			}
+		}
+	}
+
 	// Start test-syslog server if syslog patterns are expected or rejected.
 	// Mirrors the setup in the non-orchestrated path: bound ze process env
 	// gets ze.log.backend=syslog and ze.log.destination=<host:port>.
@@ -549,6 +585,16 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 						return false
 					}
 					tmpFilesToClean = append(tmpFilesToClean, configDir)
+					// Fix B: this branch handles a tmpfs-less ze (e.g. `ze config
+					// validate -`). MkdirTemp is 0700-root, so a credential-dropped
+					// ze cannot read its own config -- chown the dir to the target
+					// user, mirroring the chownTree done for TmpfsTempDir.
+					if netnsMode && netnsHasUID {
+						if chErr := chownTree(configDir, netnsUID, netnsGID); chErr != nil {
+							rec.Error = fmt.Errorf("chown temp config dir for netns child: %w", chErr)
+							return false
+						}
+					}
 					tmpFile, err = os.Create(filepath.Join(configDir, zeDefaultConfigName)) //nolint:gosec // test runner, path from temp dir
 				}
 				if err != nil {
@@ -614,6 +660,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				textbuf.StrInt("ze.log.destination=127.0.0.1:", int64(syslogSrv.Port())),
 			)
 		}
+		// Fix B (R-2 gate): tell ze which netns inode is the HOST so it refuses to
+		// program nft if it somehow ended up there (netns isolation silently
+		// failed). Only ze needs it -- it owns the firewall Apply chokepoint.
+		if netnsMode && binName == "ze" {
+			proc.Env = append(proc.Env,
+				textbuf.StrInt("ZE_TEST_NETNS_HOST=", int64(netnsHostInode)))
+		}
 		// Add test-specific environment variables (option=env:var=KEY:value=VALUE).
 		// $PORT/$PORT2 expand like exec strings so per-test ports work in env
 		// knobs too (e.g. ze.test.ike.port shared by a two-daemon IKE pair).
@@ -663,6 +716,17 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		default:
 			proc.Stdout = &clientStdout
 			proc.Stderr = &clientStderr
+		}
+
+		// Fix B: drop the ze daemon to a normal user so its readiness handshake
+		// works (A-4: the readiness file is written after dropPrivileges, so a
+		// root ze never writes it). The setcap'd binary keeps ambient CAP_NET_ADMIN
+		// for nft. ze-peer / driver.py stay privileged (root under sudo) so they
+		// can read nft state and signal the daemon.
+		if netnsMode && netnsHasUID && binName == "ze" {
+			proc.SysProcAttr = &syscall.SysProcAttr{
+				Credential: &syscall.Credential{Uid: uint32(netnsUID), Gid: uint32(netnsGID)}, //nolint:gosec // uid/gid from local dev env
+			}
 		}
 
 		// Start the process, retrying on ETXTBSY (see startWithETXTBSYRetry).

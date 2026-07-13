@@ -71,4 +71,7 @@ cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=firewall config applied
 expect=stdout:contains=table inet ze_fw10_001
-expect=stdout:contains=tcp dport 22 accept
+# nft renders an unqualified L4 dport match as `tcp dport` or the generic
+# `th dport` depending on version; accept either (the programmed rule matches
+# destination port 22 the same way regardless of how nft prints it).
+expect=stdout:pattern=(tcp|th) dport 22 accept

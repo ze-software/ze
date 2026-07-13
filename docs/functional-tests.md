@@ -261,6 +261,60 @@ integration test (`//go:build integration && linux`) run via
 <!-- source: test/traffic/022-boot-qdisc-tc.ci -- needs-linux tc qdisc assertion -->
 <!-- source: internal/chaos/peer/simulator_actions_iface_linux.go -- iface fault executor -->
 
+### Netns launch mode for netlink `.ci` suites (host-safe firewall/policy/OSPF)
+
+The netlink functional suites (`firewall`, `policy`, `ospf`, `ospfv3`, and any
+suite whose `ze` daemon needs `CAP_NET_ADMIN` for nft/FIB) carry
+`option=skip-os:value=darwin` and program real kernel state. Run unprivileged the
+nft backend hard-fails; run with caps in the host namespace they reprogram the
+operator's real firewall. An **opt-in per-test network-namespace launch mode**
+makes them runnable host-safely on Linux:
+
+```bash
+make ze-netns-test                                   # firewall policy ospf ospfv3
+make ze-netns-test ZE_NETNS_SUITES=firewall          # one suite
+```
+
+Requires Linux + `sudo` + `setcap` (libcap) + `nft` (nftables). The target
+`setcap cap_net_admin,cap_net_raw,cap_net_bind_service+ep`s `bin/ze` and
+`bin/ze-stripped`, then runs each suite under `sudo` with `ZE_TEST_NETNS=1
+ZE_TEST_UID=$(id -u) ZE_TEST_GID=$(id -g)`, and asserts the host `nft list tables`
+is byte-identical before and after (removing the caps afterward).
+
+How the runner isolates each test (all gated on `ZE_TEST_NETNS`; the default path
+is byte-identical for every suite that passes today):
+
+1. Before spawning any child, the per-test goroutine `runtime.LockOSThread()`s and
+   enters a fresh named network namespace (`netns.NewNamed`), bringing `lo` up in
+   it. `ze`, `ze-peer`, and driver.py are all fork+exec'd from that locked thread,
+   so they **inherit the same throwaway netns** (validated by
+   `TestNetnsLaunchChildInheritsNamespace`) and reach each other over 127.0.0.1.
+2. The runner (root, via `sudo`) creates the netns (`CAP_SYS_ADMIN`) and execs `ze`
+   with `SysProcAttr.Credential` set to a normal user, so the **setcap'd `ze` runs
+   non-root** with ambient `CAP_NET_ADMIN`. `ze` must not be root: its readiness
+   file is written after `dropPrivileges`, so a root `ze` never writes it and the
+   `daemon.ready` handshake times out. `ze-peer`/driver.py stay root so they can
+   read nft state and signal the daemon.
+3. The nft tables `ze` programs live in the per-test netns; on test end the runner
+   restores the original netns and deletes the throwaway one. The host firewall is
+   never touched.
+
+**R-2 host-safety gate.** As belt-and-braces, a setcap'd `ze` that lands in the
+host netns (isolation silently failed) refuses to program nft: the runner passes
+the host netns inode via `ZE_TEST_NETNS_HOST`, and `firewallnft.Apply` aborts
+before any kernel op if the current netns matches it (`refuseHostNetnsFirewall`).
+The env is test-only, so production is unaffected.
+
+**macOS / QEMU.** netns and nft do not exist on macOS; `make ze-netns-qemu-test`
+exercises the launch path (child-inherits-netns + R-2 guard unit tests, and a
+firewall subset under `ZE_TEST_NETNS`) inside the QEMU Alpine VM.
+
+<!-- source: internal/test/runner/netns_linux.go -- enterTestNetns, testNetnsName -->
+<!-- source: internal/test/runner/netns_linux_test.go -- TestNetnsLaunchChildInheritsNamespace (A-5) -->
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated netns entry + SysProcAttr credential drop -->
+<!-- source: internal/plugins/firewall/nft/host_netns_guard_linux.go -- refuseHostNetnsFirewall (R-2) -->
+<!-- source: mk/test-integration.mk -- ze-netns-test / ze-netns-qemu-test -->
+
 ### In-process integration tests (feeds that can't cross the plugin boundary)
 
 Some chains are driven by `internal/core/observation`, a **process-local** feed

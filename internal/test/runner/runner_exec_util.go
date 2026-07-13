@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -18,6 +20,53 @@ import (
 )
 
 var errEmptyExecCommand = errors.New("empty exec command")
+
+// netnsModeActive reports whether the opt-in per-test network-namespace launch
+// mode (Fix B) is active: ZE_TEST_NETNS is set in the runner's environment and
+// the host is Linux. Off by default, so the standard host-netns/unprivileged
+// launch path is byte-identical for every suite that passes today (AC-6).
+func netnsModeActive() bool {
+	return runtime.GOOS == "linux" && os.Getenv("ZE_TEST_NETNS") != ""
+}
+
+// netnsChildIDs parses the normal-user uid/gid the netns mode drops the ze
+// daemon to (ZE_TEST_UID, ZE_TEST_GID). ze must NOT run as root in the netns:
+// its readiness file is created after dropPrivileges, so a root ze never writes
+// it and the handshake times out (assumption A-4). The make target passes
+// ZE_TEST_UID=$(id -u) ZE_TEST_GID=$(id -g); GID defaults to UID when unset.
+// ok is false when no valid non-root uid is configured, in which case the caller
+// leaves the child as-is (runner-privileged) rather than silently mis-dropping.
+func netnsChildIDs() (uid, gid int, ok bool) {
+	us := os.Getenv("ZE_TEST_UID")
+	if us == "" {
+		return 0, 0, false
+	}
+	u, err := strconv.Atoi(us)
+	if err != nil || u <= 0 {
+		return 0, 0, false
+	}
+	g := u
+	if gs := os.Getenv("ZE_TEST_GID"); gs != "" {
+		if parsed, gerr := strconv.Atoi(gs); gerr == nil && parsed >= 0 {
+			g = parsed
+		}
+	}
+	return u, g, true
+}
+
+// chownTree recursively chowns root to uid:gid. In netns mode the runner (root,
+// under sudo) has already written the per-test tmpfs dir and its config files;
+// the ze daemon is dropped to a normal user and must be able to chdir into that
+// dir, read its config, and write daemon.ready there. os.MkdirTemp creates the
+// dir 0700-root, so without this the dropped ze cannot enter its own workdir.
+func chownTree(root string, uid, gid int) error {
+	return filepath.Walk(root, func(p string, _ os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		return os.Chown(p, uid, gid)
+	})
+}
 
 // zeRepoRootEnv renders the ZE_REPO_ROOT=<baseDir> environment entry exported
 // to every exec'd test process. Shell-script tests use it to locate the source
@@ -278,6 +327,9 @@ func startWithETXTBSYRetry(ctx context.Context, binPath string, args []string, p
 			proc.Stdin = old.Stdin
 			proc.Stdout = old.Stdout
 			proc.Stderr = old.Stderr
+			// Preserve the netns-mode credential drop (Fix B); losing it on retry
+			// would silently re-run ze as root and break the readiness handshake.
+			proc.SysProcAttr = old.SysProcAttr
 		}
 		startErr = proc.Start()
 		if startErr == nil || !errors.Is(startErr, syscall.ETXTBSY) {

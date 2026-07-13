@@ -49,5 +49,6 @@ cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=copp table applied
 expect=stdout:contains=table inet ze_copp
-expect=stdout:contains=tcp dport 179
+# nft renders the unqualified dport as `tcp dport` or generic `th dport` by version.
+expect=stdout:pattern=(tcp|th) dport 179
 expect=stdout:contains=limit rate

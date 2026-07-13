@@ -54,6 +54,7 @@ var allowlist = map[string]string{
 	"internal/component/doctor/":                           "one-shot root CLI (ze doctor) with no iface backend loaded; a resolver call would error on every check. Honors no selectors by design.",
 	"internal/component/l2tp/ppp/":                         "pppN device names are kernel-assigned per session (created/point-to-point kinds), never config-sourced logical names, so no selector applies (umbrella assumption A-5).",
 	"internal/chaos/peer/simulator_actions_iface_linux.go": "chaos fault injector manipulating a raw veth it created inside its own private netns (integration harness); the iface param is an explicit operator/test input, never a ze logical-interface name, and the chaos simulator process has no iface backend loaded.",
+	"internal/test/runner/netns_linux.go":                  "functional-test runner bringing the literal \"lo\" loopback up inside a fresh per-test network namespace it just created (Fix B netns launch mode); \"lo\" is a fixed kernel device name, not a config-sourced logical selector, and the test-runner process has no iface backend loaded.",
 }
 
 // patterns match a direct kernel name->device resolution CALL. The trailing '('

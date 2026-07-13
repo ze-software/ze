@@ -68,5 +68,6 @@ cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=firewall config applied
 expect=stdout:contains=table inet ze_fw8_012
-expect=stdout:contains=icmp type 8 accept
-expect=stdout:contains=icmpv6 type 128 accept
+# nft renders numeric ICMP types as symbolic names (8 -> echo-request); accept either.
+expect=stdout:pattern=icmp type (8|echo-request) accept
+expect=stdout:pattern=icmpv6 type (128|echo-request) accept

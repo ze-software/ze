@@ -65,4 +65,6 @@ cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=firewall config applied
 expect=stdout:contains=set blocked
-expect=stdout:contains=ip saddr @blocked drop
+# nft renders a set-lookup on the source address as `ip saddr @set` or the raw
+# payload expression `@nh,96,32 @set` depending on version; accept either.
+expect=stdout:pattern=(ip saddr|@nh,96,32) @blocked drop

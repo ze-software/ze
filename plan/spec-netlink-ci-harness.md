@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | Fix C + Fix A DONE — TDD red→green, reload/managed/l2tp/ipsec regression-clean; Fix B pending |
+| Phase | Fix C + Fix A + Fix B DONE — netns launch mode validated host-safe in QEMU; nft-rendering brittleness fixed; pre-existing non-netns reds logged for triage |
 | Updated | 2026-07-13 |
 
 ## Progress
@@ -47,7 +47,59 @@
   skip-os, runs on macOS) is RED for an INDEPENDENT reason: `parse config: line 4:
   unknown field in route: next-hop` (stale static route config syntax) — the daemon
   dies before readiness, so Fix A alone will not green it. Log for triage.
-- Fix B (per-test netns + setcap) pending.
+- **Fix B (per-test netns + setcap): DONE, validated host-safe in QEMU.**
+  Opt-in `ZE_TEST_NETNS` launch mode: the runner locks the per-test goroutine's
+  thread into a fresh named netns before spawning, and execs `ze` as a normal
+  user (`SysProcAttr.Credential` from `ZE_TEST_UID`) off a setcap'd binary, so the
+  daemon programs nft inside a throwaway netns as a non-root process with ambient
+  caps. `ze`/`ze-peer`/driver.py fork-inherit the netns (A-5).
+  → Files: `internal/test/runner/netns_linux.go` (`enterTestNetns`, `testNetnsName`,
+    `bringLoopbackUp`) + `netns_other.go` stub; `runner_exec.go` `runOrchestrated`
+    (netns entry + `chownTree` of the tmpfs/config dir + `SysProcAttr` credential +
+    `ZE_TEST_NETNS_HOST` env); `runner_exec_util.go` (`netnsModeActive`,
+    `netnsChildIDs`, `chownTree`; `startWithETXTBSYRetry` preserves `SysProcAttr`).
+  → R-2 gate: `internal/plugins/firewall/nft/host_netns_guard_linux.go`
+    (`refuseHostNetnsFirewall`) called first in `(*backend).Apply` — refuses nft if
+    `ZE_TEST_NETNS_HOST` is set but the process is in the host netns (fails closed).
+    Env is test-only → production unaffected.
+  → Constraint (sub-fix for AC-2): the tmpfs-less config path (`ze-config-*`,
+    0700-root) must be chowned to the dropped uid too, else offline `ze config
+    validate -` gets EACCES. Fixed (006-dscp-ipv6-rejected went red→green).
+  → Make targets: `mk/test-integration.mk` `ze-netns-test` (real Linux host: setcap
+    + `sudo ZE_TEST_NETNS=1` per suite, host-nft-unchanged assertion) and
+    `ze-netns-qemu-test` (AC-7, macOS via QEMU). Docs: `docs/functional-tests.md`
+    "Netns launch mode for netlink .ci suites".
+  TDD: `TestNetnsLaunchChildInheritsNamespace` (A-5, netns_linux_test.go) and
+  `TestRefuseHostNetnsFirewall` (R-2, host_netns_guard_linux_test.go) — both GREEN
+  in QEMU. E2e (`make ze-netns-qemu-test`): host-safe firewall subset **15/15 PASS**
+  (001,002,003,005,006,007,008,010-016,command-owner), host `nft list tables`
+  byte-identical before/after. `make ze-lint-changed` = 0 issues.
+  → A-4 re-confirmed (A-5 already): a `ze` run as ROOT reaches the firewall Apply but
+    the readiness file (written after dropPrivileges) never appears → dropping to a
+    normal user is required. → A-5 validated: child `/proc/self/ns/net` differs from
+    host (`net:[4026531840]` vs `net:[4026532218]`).
+- **nft-rendering brittleness FIXED (per user scope decision).** The `.ci` expect
+  strings were authored against an older nft; Alpine nft 1.1.1 renders the same rules
+  differently. Made version-robust with `expect=stdout:pattern=` alternations
+  (confirmed 4/4 green): `001` `(tcp|th) dport 22 accept`, `005`
+  `(ip saddr|@nh,96,32) @blocked drop`, `007` `(tcp|th) dport 5060` +
+  `(ip dscp set|@nh,8,8 set)`, `012` `icmp type (8|echo-request)` /
+  `icmpv6 type (128|echo-request)`, `copp-bgp` `(tcp|th) dport 179`.
+- **Newly found — pre-existing, NOT Fix B (orthogonal; logged for triage):**
+  These fail the SAME with `ze` as root in the host netns (no netns/uid-drop), so the
+  netns launch mode does not cause them:
+  - `test/firewall/004-cli-show.ci`: `ze cli` opens a `zefs` database, but the test
+    daemon runs `ze.storage.blob=false` → no `database.zefs`. cli↔storage interaction.
+  - `test/firewall/009-set-element-timeout.ci`: crashes the Alpine QEMU kernel on nft
+    set-element-timeout (already skipped by `ZE_QEMU_SKIP_SUITES`).
+  - `test/firewall/copp-{bgp,trusted,withdraw}.ci`: `copp apply: firewall backend not
+    loaded` — the copp config has no `firewall { backend nft }` block, so the nft
+    backend is never loaded (plugin-wiring, confirmed by reading the config).
+  - `test/policy/*.ci`: `firewallnft: flush: netlink receive: operation not supported`
+    — Alpine QEMU kernel lacks an nft feature `policy-routes` programs. Reproduces
+    identically with `ze` as root, no netns (attribution run B/C). A full-kernel Linux
+    host is expected to pass. `ospf --all` (97 tests) is mostly offline config/doctor
+    tests and is the wrong granularity for suite-wide netns mode.
 
 ## Post-Compaction Recovery
 
@@ -160,9 +212,9 @@ defects surface the first time the release-evidence matrix runs on Linux:
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Runner goroutine ↔ per-test netns | LockOSThread + netns.Set, children fork-inherit | [ ] |
-| Runner ↔ child `ze` privilege | SysProcAttr.Credential drops uid; setcap grants caps | [ ] |
-| Host netns ↔ test netns | new netns per test; nft is netns-scoped | [x] (prototype: host nft byte-identical before/after) |
+| Runner goroutine ↔ per-test netns | LockOSThread + netns.Set, children fork-inherit | [x] (A-5 QEMU: child netns ≠ host) |
+| Runner ↔ child `ze` privilege | SysProcAttr.Credential drops uid; setcap grants caps | [x] (QEMU: ze uid 1000 programs nft; firewall subset 15/15) |
+| Host netns ↔ test netns | new netns per test; nft is netns-scoped | [x] (QEMU e2e: host nft byte-identical before/after) |
 
 ### Integration Points
 - Reuse vendored `github.com/vishvananda/netns` (already used by integration tests).
@@ -182,8 +234,8 @@ defects surface the first time the release-evidence matrix runs on Linux:
 | A-1 | With CAP_NET_ADMIN the nft firewall plugin applies cleanly | ran `sudo unshare -n bin/ze-test firewall 1` → `firewall config applied tables=1` | Fix B insufficient; deeper firewall issue | prototype run | confirmed |
 | A-2 | Per-test `unshare -n` keeps host nft untouched | prototype: host `nft list tables` byte-identical before/after | host-safety broken; cannot run on shared box | prototype run | confirmed |
 | A-3 | Background `ze` gets no daemon.pid/ready today | only writers are `runner_exec.go:628` (foreground) + `:724` (foreground); passing daemon.pid tests all use `cmd=foreground:exec=ze` | Fix A misplaced | grep + reading | confirmed |
-| A-4 | Running `ze` as a normal user (not root) is required for the readiness handshake | root run reached "daemon readiness files missing"; the readiness file is created after dropPrivileges | may run ze as root in netns (simpler) | isolate root-vs-normaluser once Fix A lands | unvalidated |
-| A-5 | Fork-inherited netns covers exec'd children when the goroutine thread is locked + Set | integration `withNetNS` relies on this for in-thread ops; child inheritance is standard clone() semantics | need explicit setns wrapper / nsenter | unit test spawning a child that reads /proc/self/ns/net | unvalidated |
+| A-4 | Running `ze` as a normal user (not root) is required for the readiness handshake | root run reaches firewall Apply but the readiness file (written after dropPrivileges) never appears | may run ze as root in netns (simpler) | isolate root-vs-normaluser once Fix A lands | **confirmed** (QEMU: root ze never writes daemon.ready) |
+| A-5 | Fork-inherited netns covers exec'd children when the goroutine thread is locked + Set | integration `withNetNS` relies on this for in-thread ops; child inheritance is standard clone() semantics | need explicit setns wrapper / nsenter | unit test spawning a child that reads /proc/self/ns/net | **confirmed** (`TestNetnsLaunchChildInheritsNamespace`: child `net:[…218]` ≠ host `net:[…840]`) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

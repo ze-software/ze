@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+"""In-VM driver for `make ze-netns-qemu-test` (Fix B, spec-netlink-ci-harness).
+
+Runs INSIDE the QEMU Alpine VM as root, cwd=/workspace. Exercises the per-test
+network-namespace launch mode end-to-end on a real Linux kernel: it setcaps the
+cross-compiled ze binaries, runs a curated firewall subset under ZE_TEST_NETNS
+(so `ze` is dropped to a normal user and programs nft inside a throwaway netns),
+and asserts the host `nft list tables` is byte-identical before and after.
+
+Why a curated subset and not `firewall --all`: 009-set-element-timeout crashes
+the Alpine QEMU kernel; 004-cli-show needs a zefs database the test daemon does
+not create (blob storage off); the copp-* tests need a firewall-backend block
+their config omits. Those are pre-existing/environment issues unrelated to the
+netns launch mode and are triaged separately -- see plan/spec-netlink-ci-harness.md.
+
+The 9p workspace mount is security_model=none (no xattr), so file capabilities
+cannot be set there; ze is copied to a tmpfs dir first. That dir must be
+world-traversable because the credential-dropped ze (uid 1000) execs it, and a
+pinned ze.config.dir gives the daemon and any `ze cli` a shared writable state
+path independent of the (VM-only) binary location.
+"""
+
+import os
+import subprocess
+import sys
+
+ARCH = os.environ.get("QEMU_GOARCH") or (
+    "arm64" if os.uname().machine in ("aarch64", "arm64") else "amd64"
+)
+CAPS = "cap_net_admin,cap_net_raw,cap_net_bind_service+ep"
+CAPDIR = "/tmp/zebin"
+STATE = "/tmp/zestate"
+# Confirmed host-safe green firewall subset under the netns launch mode.
+FIREWALL_IDS = [
+    "1",
+    "2",
+    "3",
+    "5",
+    "6",
+    "7",
+    "8",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15",
+    "16",
+    "17",
+]
+
+
+def sh(cmd, **kw):
+    print(f"+ {cmd}", flush=True)
+    return subprocess.run(cmd, shell=True, **kw)
+
+
+def setcap_binaries():
+    os.makedirs(CAPDIR, exist_ok=True)
+    for name in ("ze", "ze-stripped"):
+        src = f"bin/{name}-linux-{ARCH}"
+        dst = f"{CAPDIR}/{name}"
+        if sh(f"cp {src} {dst} && chmod 0755 {dst}").returncode != 0:
+            sys.exit(f"copy {src} failed")
+        if sh(f"setcap {CAPS} {dst}").returncode != 0:
+            sys.exit(f"setcap {dst} failed (no xattr support?)")
+    sh(f"getcap {CAPDIR}/ze")
+
+
+def prepare_state():
+    sh(
+        f"rm -rf {STATE} && mkdir -p {STATE} && chown 1000:1000 {STATE} && chmod 0755 {STATE}"
+    )
+
+
+def host_nft():
+    return subprocess.run(
+        ["nft", "list", "tables"], capture_output=True, text=True
+    ).stdout
+
+
+def run_firewall():
+    env = {
+        **os.environ,
+        "ZE_TEST_NO_BUILD": "1",
+        "ZE_QEMU": "1",
+        "ZE_BIN": f"{CAPDIR}/ze",
+        "ZE_STRIPPED_BIN": f"{CAPDIR}/ze-stripped",
+        "ZE_TEST_BIN": f"bin/ze-test-linux-{ARCH}",
+        "ZE_TEST_NETNS": "1",
+        "ZE_TEST_UID": "1000",
+        "ZE_TEST_GID": "1000",
+        "ze.config.dir": STATE,
+    }
+    cmd = [f"bin/ze-test-linux-{ARCH}", "firewall", "-p", "1", *FIREWALL_IDS]
+    print(f"+ {' '.join(cmd)}", flush=True)
+    return subprocess.run(cmd, env=env).returncode
+
+
+def main():
+    setcap_binaries()
+    prepare_state()
+
+    before = host_nft()
+    rc = run_firewall()
+    after = host_nft()
+
+    ok = True
+    if rc != 0:
+        print(f"FAIL: firewall netns subset returned {rc}")
+        ok = False
+    if before != after:
+        print("HOST-SAFETY FAIL: host nft tables changed during the netns run")
+        print(f"--- before ---\n{before}\n--- after ---\n{after}")
+        ok = False
+    else:
+        print("HOST-SAFE: host nft tables unchanged")
+
+    print("netns-qemu:", "PASS" if ok else "FAIL")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
