@@ -206,6 +206,108 @@ func TestCommandRegistry_Complete(t *testing.T) {
 	}
 }
 
+// completeTexts returns the completion texts a TreeCompleter offers for input,
+// mapped to their descriptions. Shared by the injection tests below.
+func completeTexts(tree *command.Node, input string) map[string]string {
+	out := map[string]string{}
+	for _, c := range command.NewTreeCompleter(tree).Complete(input) {
+		out[c.Text] = c.Description
+	}
+	return out
+}
+
+// TestCommandRegistryInjectsIntoCompletionTree verifies plugin-registered
+// commands surface in tab-completion after injection into the command tree.
+//
+// VALIDATES: AC-1 -- registered plugin commands appear in the completion tree.
+// PREVENTS: plugin commands that dispatch but never surface in tab-completion.
+func TestCommandRegistryInjectsIntoCompletionTree(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
+	registry.Register(proc, []CommandDef{
+		{Name: "show status", Description: "Show status"},
+		{Name: "show statistics", Description: "Show statistics"},
+	})
+
+	tree := &command.Node{Children: map[string]*command.Node{
+		"show": {Name: "show", Children: map[string]*command.Node{}},
+	}}
+	command.MergeCommandPaths(tree, registry.VisibleCommandEntries())
+
+	got := completeTexts(tree, "show st")
+	if got["status"] != "Show status" {
+		t.Errorf("status missing/wrong description: %v", got)
+	}
+	if got["statistics"] != "Show statistics" {
+		t.Errorf("statistics missing/wrong description: %v", got)
+	}
+}
+
+// TestHiddenCommandExcludedFromInjectedTree verifies a Hidden command is absent
+// from the injected completion tree but still dispatches when typed in full.
+// (The sibling TestHiddenCommandExcludedFromCompletion covers the registry
+// Complete() path used by shell completion; this covers the tree path used by
+// interactive SSH/web completion via VisibleCommandEntries + MergeCommandPaths.)
+//
+// VALIDATES: AC-2 -- Hidden suppresses completion, not execution.
+// PREVENTS: a Hidden command leaking into tab-completion, or becoming
+// un-runnable.
+func TestHiddenCommandExcludedFromInjectedTree(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
+	registry.Register(proc, []CommandDef{
+		{Name: "show status", Description: "Visible"},
+		{Name: "show statistics", Description: "Hidden one", Hidden: true},
+	})
+
+	tree := &command.Node{Children: map[string]*command.Node{
+		"show": {Name: "show", Children: map[string]*command.Node{}},
+	}}
+	command.MergeCommandPaths(tree, registry.VisibleCommandEntries())
+
+	got := completeTexts(tree, "show st")
+	if _, ok := got["status"]; !ok {
+		t.Errorf("visible command missing from completion: %v", got)
+	}
+	if _, ok := got["statistics"]; ok {
+		t.Errorf("Hidden command leaked into completion: %v", got)
+	}
+	// Still dispatchable when typed in full.
+	if registry.Lookup("show statistics") == nil {
+		t.Error("Hidden command must still be found by Lookup")
+	}
+}
+
+// TestUnregisteredCommandRemovedFromCompletion verifies a command that has been
+// unregistered (its process exited) is absent from a freshly rebuilt tree.
+//
+// VALIDATES: AC-3 -- unregistering removes the command from completion.
+// PREVENTS: stale completions for commands whose owning plugin is gone.
+func TestUnregisteredCommandRemovedFromCompletion(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
+	registry.Register(proc, []CommandDef{
+		{Name: "show status", Description: "Show status"},
+	})
+
+	// Present before unregister.
+	tree := &command.Node{Children: map[string]*command.Node{"show": {Name: "show"}}}
+	command.MergeCommandPaths(tree, registry.VisibleCommandEntries())
+	if _, ok := completeTexts(tree, "show ")["status"]; !ok {
+		t.Fatal("command should be present before unregister")
+	}
+
+	registry.UnregisterAll(proc)
+
+	// A tree rebuilt from current registry state (as each SSH session does) no
+	// longer offers it.
+	fresh := &command.Node{Children: map[string]*command.Node{"show": {Name: "show"}}}
+	command.MergeCommandPaths(fresh, registry.VisibleCommandEntries())
+	if _, ok := completeTexts(fresh, "show ")["status"]; ok {
+		t.Error("unregistered command still present in rebuilt completion tree")
+	}
+}
+
 // TestCommandRegistry_CaseInsensitive verifies case-insensitive matching.
 //
 // VALIDATES: Commands are matched case-insensitively.

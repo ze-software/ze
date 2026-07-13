@@ -10,8 +10,31 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
+
+// TestMergePluginCommandsNilSafe verifies the SSH per-session merge is a no-op
+// (never panics, never mutates) when the dispatcher is not yet reachable. This
+// is the early-startup race: a session factory is built before the reactor wires
+// the API server, so params.APIServer / the server may be nil on the first tab.
+//
+// VALIDATES: R-2 -- completion degrades gracefully during the startup window.
+// PREVENTS: a nil-deref crash on the SSH session goroutine at daemon start.
+func TestMergePluginCommandsNilSafe(t *testing.T) {
+	tree := &command.Node{Children: map[string]*command.Node{}}
+
+	mergePluginCommands(tree, bgpconfig.InfraHookParams{}) // APIServer field nil
+	mergePluginCommands(tree, bgpconfig.InfraHookParams{   // APIServer returns nil server
+		APIServer: func() *pluginserver.Server { return nil },
+	})
+
+	if len(tree.Children) != 0 {
+		t.Errorf("nil command source must not add nodes, got %v", tree.Children)
+	}
+}
 
 // TestSessionEditorHasReloadNotifier: the SSH session editor must be built
 // with a reload notifier so cmdCommitSession takes the transactional

@@ -57,8 +57,12 @@ func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParam
 	log := slogutil.Logger("hub.session")
 
 	return func(username, remoteAddr string) tea.Model {
-		// Build command tree for tab completion.
+		// Build command tree for tab completion. The tree is rebuilt per session
+		// and plugin commands are merged in lazily from the live dispatcher, so a
+		// plugin registered (or gone) since the daemon started is reflected in the
+		// next session's completion without a rebuild dance.
 		cmdTree := buildCommandTree()
+		mergePluginCommands(cmdTree, params)
 		cmdCompleter := cli.NewCommandCompleter(cmdTree)
 
 		// Collect login warnings.
@@ -142,6 +146,28 @@ func buildCommandTree() *command.Node {
 	tree := yang.BuildCommandTree(loader)
 	command.WireValueHints(tree)
 	return tree
+}
+
+// mergePluginCommands injects plugin-registered commands into the completion
+// tree so tab-completion offers them alongside YANG-backed commands. Entries
+// come from the live dispatcher's command registry (Hidden commands excluded),
+// resolved lazily via params.APIServer so this works even though the session
+// factory is built before the dispatcher is wired: the per-session closure runs
+// after post-start, when the registry is populated. A nil dispatcher (no plugin
+// engine, e.g. early startup) is a no-op, leaving the YANG-only tree intact.
+func mergePluginCommands(tree *command.Node, params bgpconfig.InfraHookParams) {
+	if params.APIServer == nil {
+		return
+	}
+	srv := params.APIServer()
+	if srv == nil {
+		return
+	}
+	d := srv.Dispatcher()
+	if d == nil {
+		return
+	}
+	command.MergeCommandPaths(tree, d.Registry().VisibleCommandEntries())
 }
 
 // dashboardFactoryFromExecutor creates a DashboardFactory from a CommandExecutor.

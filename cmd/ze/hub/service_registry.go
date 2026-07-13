@@ -19,6 +19,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -68,6 +69,12 @@ type ServiceDeps struct {
 	ConfigUsers       []authz.UserConfig
 	EventRing         *pluginserver.EventRing
 	WebPortalServices []webPortalService
+	// WebCommands sources plugin-registered commands (Hidden excluded) for the
+	// web terminal's tab-completion. A lazy func because the web service is built
+	// before plugins finish registering; the web factory resolves it on first
+	// completion request. Generic type (command, not a web type) so the always-on
+	// registry boundary is preserved. nil leaves web completion YANG-only.
+	WebCommands func() []command.CommandEntry
 
 	// MCP resolved bindings + command source (all generic types). Consumed only
 	// by the ze_mcp-gated factory (service_mcp.go); populated always-on so a

@@ -103,6 +103,55 @@ func BuildTree(rpcs []RPCInfo, readOnly bool) *Node {
 	return root
 }
 
+// CommandEntry is a minimal command descriptor for injecting plugin-registered
+// commands into the operational command tree for tab-completion. Plugin commands
+// dispatch through the plugin registry (not a YANG WireMethod); these entries
+// exist only so the commands surface in completion and help.
+type CommandEntry struct {
+	Name        string // full command path, space-separated (e.g. "show bgp irr")
+	Description string // help text shown alongside the completion
+}
+
+// MergeCommandPaths inserts each entry's command path into the tree as
+// completion-only nodes, creating any missing intermediate and leaf nodes.
+//
+// It is NON-DESTRUCTIVE: an existing node (a YANG-backed command or grouping
+// node) is never modified. Its WireMethod, ArgDefs, and children are left
+// intact, and an entry's Description is applied ONLY to a leaf node this call
+// creates or that has no Description yet — so a plugin command can never
+// overwrite a builtin's metadata. This preserves dispatch precedence (builtins
+// win over plugin commands) at the completion layer too.
+//
+// Entries whose Name is empty after whitespace splitting are skipped, and a nil
+// root is a no-op. Called after the YANG-derived tree is built to surface
+// plugin-registered commands (which are otherwise absent from tab-completion).
+func MergeCommandPaths(root *Node, entries []CommandEntry) {
+	if root == nil {
+		return
+	}
+	for _, e := range entries {
+		parts := splitFields(e.Name)
+		if len(parts) == 0 {
+			continue
+		}
+		current := root
+		for i, part := range parts {
+			if current.Children == nil {
+				current.Children = make(map[string]*Node)
+			}
+			child, ok := current.Children[part]
+			if !ok {
+				child = &Node{Name: part}
+				current.Children[part] = child
+			}
+			if i == len(parts)-1 && child.Description == "" {
+				child.Description = e.Description
+			}
+			current = child
+		}
+	}
+}
+
 // splitFields splits a string by whitespace, like strings.Fields but avoids the import.
 func splitFields(s string) []string {
 	var fields []string

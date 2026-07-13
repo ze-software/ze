@@ -18,6 +18,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang" // Register BGP YANG for editor tests.
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang"   // Required by ze-bgp-conf.yang.
@@ -495,6 +496,47 @@ func TestCLICompleteOperationalMode(t *testing.T) {
 	handler.ServeHTTP(w, r)
 	require.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "sh", cmdComp.seenInput)
+}
+
+// TestCLICompleteOperationalIncludesPluginCommand proves a plugin-registered
+// command, once merged into the operational command tree, is offered by the web
+// /cli/complete endpoint -- the real merge + real command completer + the exact
+// production HTTP handler + the JSON contract the browser consumes.
+//
+// VALIDATES: AC-1 -- plugin commands appear in interactive (web) tab-completion.
+// PREVENTS: plugin commands that dispatch but never surface in web completion
+// (the gap this spec closes: the tree was built YANG-only).
+func TestCLICompleteOperationalIncludesPluginCommand(t *testing.T) {
+	mgr, _ := setupCLITest(t)
+	schema, _ := buildTestSchemaAndTree()
+
+	// A YANG-derived tree has a "show" grouping node; inject a plugin command
+	// under it exactly as the daemon does from CommandRegistry.VisibleCommandEntries.
+	tree := &command.Node{Children: map[string]*command.Node{
+		"show": {Name: "show", Children: map[string]*command.Node{}},
+	}}
+	command.MergeCommandPaths(tree, []command.CommandEntry{
+		{Name: "show myplugin thing", Description: "A plugin command"},
+	})
+	handler := HandleCLICompleteWithCommandCompleter(cli.NewCompleter(), cli.NewCommandCompleter(tree), mgr, schema)
+
+	w := httptest.NewRecorder()
+	r := authedRequest(http.MethodGet, "/cli/complete?input=show+myplugin+&mode=operational", nil)
+	handler.ServeHTTP(w, r)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var items []struct {
+		Text        string `json:"text"`
+		Description string `json:"description"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &items))
+	found := false
+	for _, it := range items {
+		if it.Text == "thing" && it.Description == "A plugin command" {
+			found = true
+		}
+	}
+	assert.True(t, found, "plugin command 'thing' missing from web completion: %s", w.Body.String())
 }
 
 // VALIDATES: integrated web CLI enforces profile RBAC before config mutations.

@@ -73,6 +73,7 @@ func buildWebService(deps ServiceDeps) (Service, error) {
 		deps.Recorder,
 		deps.CommitHook,
 		deps.ConfigUsers,
+		deps.WebCommands,
 	)
 	if webSrv == nil {
 		return nil, nil //nolint:nilnil // startWebServer preserves prior best-effort skip behavior
@@ -109,7 +110,9 @@ func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	showCmd.RegisterAuditProvider(auditLog.Query)
 	// Web-only mode runs before any config is loaded, so there are no
 	// config-file users; only the zefs power user authenticates here.
-	webSrv, broker := startWebServer(store, "", listenAddrs, insecureWeb, dispatch, resolvers, nil, auditLog, nil, nil)
+	// Web-only mode runs no plugin engine, so there are no plugin commands to
+	// inject into completion (nil source).
+	webSrv, broker := startWebServer(store, "", listenAddrs, insecureWeb, dispatch, resolvers, nil, auditLog, nil, nil, nil)
 	if webSrv == nil {
 		return 1
 	}
@@ -226,7 +229,7 @@ func wireEventRingToBroker(ring *pluginserver.EventRing, broker *zeweb.EventBrok
 // Every entry in listenAddrs becomes a bound listener on the same
 // *http.Server; Shutdown closes all of them.
 // Requires blob storage -- TLS keys and config must not leak to the filesystem.
-func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, commitHook func() error, configUsers []authz.UserConfig) (*zeweb.WebServer, *zeweb.EventBroker) {
+func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, commitHook func() error, configUsers []authz.UserConfig, commandEntries func() []command.CommandEntry) (*zeweb.WebServer, *zeweb.EventBroker) {
 	dispatch = withBGPDecode(dispatch)
 
 	if !storage.IsBlobStorage(store) {
@@ -356,7 +359,15 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	var commandCompleter zeweb.CommandCompleter
 	if commandTree != nil {
-		commandCompleter = cli.NewCommandCompleter(commandTree)
+		// Plugin commands are overlaid live per completion request (plugins
+		// register after the web service is built, and may come and go), so the
+		// YANG tree stays immutable and completion always reflects the current
+		// registry. YANG-only when there is no plugin source (web-only mode).
+		if commandEntries != nil {
+			commandCompleter = newPluginAwareCommandCompleter(commandTree, commandEntries)
+		} else {
+			commandCompleter = cli.NewCommandCompleter(commandTree)
+		}
 	}
 	// Create CLI completer for Tab/? autocomplete.
 	completer := cli.NewCompleter()

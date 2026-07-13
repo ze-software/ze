@@ -430,6 +430,29 @@ func (r *CommandRegistry) All() []*RegisteredCommand {
 	return result
 }
 
+// VisibleCommandEntries returns completion-tree entries for every non-hidden
+// registered command. Hidden commands are excluded so they never surface in
+// tab-completion or help (they still dispatch when typed in full via Lookup).
+// Used to inject plugin-registered commands into the operational command tree
+// (command.MergeCommandPaths) so interactive tab-completion offers them, matching
+// the shell-completion path that already reads Complete().
+func (r *CommandRegistry) VisibleCommandEntries() []command.CommandEntry {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	entries := make([]command.CommandEntry, 0, len(r.commands))
+	for _, cmd := range r.commands {
+		if cmd.Hidden {
+			continue
+		}
+		entries = append(entries, command.CommandEntry{
+			Name:        cmd.Name,
+			Description: cmd.Description,
+		})
+	}
+	return entries
+}
+
 // Complete returns commands matching the partial input.
 // Used for CLI command completion.
 func (r *CommandRegistry) Complete(partial string) []Completion {

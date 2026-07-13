@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-13 |
+| Updated | 2026-07-13 |
 
 ## Post-Compaction Recovery
 
@@ -78,8 +78,8 @@ N/A -- not protocol work.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Plugin → Engine | CommandDecl via declare-registration RPC | [ ] |
-| Engine → CLI completion | command.Node tree | [ ] |
+| Plugin → Engine | CommandDecl via declare-registration RPC | [x] existing path; `Hidden` already carried on `CommandDecl`/`CommandDef` |
+| Engine → CLI completion | `command.Node` tree via `VisibleCommandEntries` → `MergeCommandPaths` | [x] SSH `session_factory.go` + web `web_completer.go` |
 
 ### Integration Points
 - `command.Node` tree (internal/component/command/node.go) - must accept runtime additions
@@ -97,9 +97,9 @@ N/A -- not protocol work.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | command.Node tree supports runtime insertion after BuildCommandTree | Code structure | Need a different injection point | Read BuildCommandTree | unvalidated |
-| A-2 | Plugin registration completes before CLI completion is first needed | Startup order | Need lazy injection or rebuild | Trace startup sequence | unvalidated |
-| A-3 | CommandDecl.Args provides enough info for completion hints | rpc/types.go | Need richer arg metadata | Read existing completion code | unvalidated |
+| A-1 | command.Node tree supports runtime insertion after BuildCommandTree | Code structure | Need a different injection point | Read BuildCommandTree | CONFIRMED — `command.MergeCommandPaths` (`node.go:110`) inserts into `Node.Children` after build; the completer offers name-only nodes (`completer.go:262-273` never reads `WireMethod`) |
+| A-2 | Plugin registration completes before CLI completion is first needed | Startup order | Need lazy injection or rebuild | Trace startup sequence | WRONG (as feared) — `buildServices` (main.go:729) runs before `WaitForStartupComplete` (main.go:918). Resolved by rebuilding at use time: SSH per-session (`session_factory.go`), web live per-request overlay (`web_completer.go`), so registration/unregistration is always reflected |
+| A-3 | CommandDecl.Args provides enough info for completion hints | rpc/types.go | Need richer arg metadata | Read existing completion code | N/A — completion is name-only by design (see Known Limitations); arg-value hints remain YANG/ValueHints only |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -111,19 +111,20 @@ N/A -- not protocol work.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Plugin registers CommandDecl | → | Command appears in completion tree | TestCommandRegistryInjectsIntoCompletionTree |
-| Plugin registers CommandDecl with Hidden: true | → | Command absent from completion tree | TestHiddenCommandExcludedFromCompletion |
-| User presses tab after "show bgp ir" | → | Completes to "show bgp irr" | TestPluginCommandCompletion |
+| Plugin registers CommandDecl | → | Command appears in completion tree | `TestCommandRegistryInjectsIntoCompletionTree` ✅ |
+| Plugin registers CommandDecl with Hidden: true | → | Command absent from completion tree | `TestHiddenCommandExcludedFromInjectedTree` (+ existing `TestHiddenCommandExcludedFromCompletion` for the registry path) ✅ |
+| User completes "show myplugin " over the web `/cli/complete` endpoint | → | Completes to the plugin subcommand | `TestCLICompleteOperationalIncludesPluginCommand` (end-to-end httptest) ✅ |
+| Plugin unregisters (process exits) | → | Command gone from a rebuilt tree | `TestUnregisteredCommandRemovedFromCompletion` ✅ |
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | Plugin registers a CommandDecl | Command appears in tab-completion |
-| AC-2 | Plugin registers CommandDecl with Hidden: true | Command does NOT appear in tab-completion but works when typed |
-| AC-3 | Plugin unregisters (process exits) | Command disappears from completion tree |
-| AC-4 | All 51 currently-missing commands | All appear in tab-completion (except any marked Hidden) |
-| AC-5 | Existing YANG-backed commands | Continue to work exactly as before |
+| AC ID | Input / Condition | Expected Behavior | Evidence |
+|-------|-------------------|-------------------|----------|
+| AC-1 | Plugin registers a CommandDecl | Command appears in tab-completion | ✅ `TestCommandRegistryInjectsIntoCompletionTree` (SSH/tree) + `TestCLICompleteOperationalIncludesPluginCommand` (web e2e) + `TestPluginAwareCommandCompleterIsLive` |
+| AC-2 | Plugin registers CommandDecl with Hidden: true | Command does NOT appear in tab-completion but works when typed | ✅ `TestHiddenCommandExcludedFromInjectedTree` (excluded from tree) + `Lookup` still finds it (dispatch) |
+| AC-3 | Plugin unregisters (process exits) | Command disappears from completion tree | ✅ SSH: per-session rebuild reads current registry (`TestUnregisteredCommandRemovedFromCompletion`); web: live per-request overlay (`TestPluginAwareCommandCompleterIsLive` asserts unregister removes it) |
+| AC-4 | All currently-missing commands | All appear in tab-completion (except any marked Hidden) | ✅ by construction — injection iterates `VisibleCommandEntries()` (every non-Hidden registered command), not a per-command allowlist |
+| AC-5 | Existing YANG-backed commands | Continue to work exactly as before | ✅ non-destructive merge (`TestMergeCommandPathsNonDestructive`, `TestPluginAwareCommandCompleterYANGWins`); YANG tree never mutated on the web path |
 
 ## Files to Modify
 - `pkg/plugin/rpc/types.go` - add Hidden field to CommandDecl
@@ -144,9 +145,13 @@ N/A -- not protocol work.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestCommandRegistryInjectsIntoCompletionTree` | `internal/component/plugin/server/command_registry_test.go` | AC-1: registered commands appear in tree | |
-| `TestHiddenCommandExcludedFromCompletion` | `internal/component/plugin/server/command_registry_test.go` | AC-2: Hidden suppresses completion | |
-| `TestUnregisteredCommandRemovedFromCompletion` | `internal/component/plugin/server/command_registry_test.go` | AC-3: cleanup on unregister | |
+| `TestMergeCommandPaths{InsertsNewCommand,CreatesIntermediateNodes,NonDestructive,SkipsEmptyAndNilRoot}` | `internal/component/command/node_merge_test.go` | injection primitive: insert, intermediate nodes, non-destructive, nil-safe | ✅ green |
+| `TestCommandRegistryInjectsIntoCompletionTree` | `internal/component/plugin/server/command_registry_test.go` | AC-1: registered commands appear in tree | ✅ green |
+| `TestHiddenCommandExcludedFromInjectedTree` | `internal/component/plugin/server/command_registry_test.go` | AC-2: Hidden suppresses tree injection | ✅ green |
+| `TestUnregisteredCommandRemovedFromCompletion` | `internal/component/plugin/server/command_registry_test.go` | AC-3: cleanup on unregister | ✅ green |
+| `TestPluginAwareCommandCompleterIsLive` | `cmd/ze/hub/web_completer_test.go` | web AC-1 + AC-3: live register AND unregister per request | ✅ green |
+| `TestPluginAwareCommandCompleterYANGWins` | `cmd/ze/hub/web_completer_test.go` | AC-5: YANG description not shadowed by plugin, deduped | ✅ green |
+| `TestMergePluginCommandsNilSafe` | `cmd/ze/hub/session_factory_test.go` | SSH merge is nil-safe during startup race (R-2) | ✅ green |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 N/A -- no numeric inputs.
@@ -154,7 +159,9 @@ N/A -- no numeric inputs.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-plugin-command-completion` | `test/plugin/plugin-command-completion.ci` | Tab-completion returns plugin commands | |
+| `TestCLICompleteOperationalIncludesPluginCommand` | `internal/component/web/cli_test.go` | A plugin command, merged into the tree, is returned by the real `/cli/complete` handler as JSON (real merge + real completer + production HTTP handler + JSON contract) | ✅ green |
+
+> **Why a Go httptest, not a `.ci`:** the planned `test/plugin/plugin-command-completion.ci` is impractical — the `.ci` harness's built-in `http=` verb sends no auth (`internal/test/runner/runner_validate.go:578-606`), and `/cli/complete` requires an authenticated context, so a bare `http=get` cannot reach it. A `.ci` would need a full `cmd=foreground` Python driver that boots a daemon, configures a plugin, performs a web login for a session cookie, then GETs the endpoint. The Go httptest exercises the identical production handler + JSON contract the browser consumes, at a fraction of the cost.
 
 ### Interop Tests (MANDATORY for protocol features)
 N/A -- not protocol work.
@@ -191,6 +198,30 @@ N/A -- not protocol work.
 4. **Functional tests** -- end-to-end tab-completion verification
 5. **Full verification** -- `make ze-verify`
 
+## Implementation Summary
+
+The registry already carried `Hidden` (on `CommandDef` and `CommandDecl`) and a
+`Complete()` method — so the "add Hidden" work was already shipped. The real gap
+was that the **interactive** completion tree was built from YANG only and never
+consulted the plugin registry. (Shell completion `ze completion words` runs in a
+standalone CLI process with no daemon and cannot see live plugin commands; the
+daemon's `system command complete` RPC already completed them via
+`Registry().Complete()`.)
+
+| Piece | Location |
+|-------|----------|
+| Hidden-filtered entry source | `command_registry.go` `VisibleCommandEntries()` |
+| Non-destructive tree injection primitive | `command/node.go` `MergeCommandPaths` + `CommandEntry` |
+| SSH: eager per-session merge | `session_factory.go` `mergePluginCommands` (via `params.APIServer().Dispatcher().Registry()`) |
+| Web: live per-request overlay | `web_completer.go` `pluginAwareCommandCompleter`, sourced from `main.go` → `ServiceDeps.WebCommands` → `startWebServer` |
+| Architecture doc | `docs/architecture/api/commands.md` § Plugin Command Completion |
+
+**Documentation Update Checklist:** architecture doc updated (`commands.md`
+§ Plugin Command Completion, with `<!-- source: -->` reverse-index anchors). No
+config-surface / YANG / env-var change (behavior is internal completion wiring),
+so `config-reference.md` and guide docs need no change. `Hidden` opt-out already
+documented under `docs/plugin-development/commands.md`.
+
 ## Review Gate
 
 <!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
@@ -199,22 +230,21 @@ N/A -- not protocol work.
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
-### Run 1 (initial)
+### Run 1 (adversarial review over the complete diff)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | NOTE | Web httptest uses `cli.NewCommandCompleter` directly, not the production wrapper (structural: the wrapper lives in `cmd/ze/hub` (ze_web) and can't be imported from `internal/component/web` by import direction) | `internal/component/web/cli_test.go` | acknowledged — the wrapper is covered by `TestPluginAwareCommandCompleter*` in `cmd/ze/hub` |
+| 2 | NOTE | Original `sync.Once` web design snapshotted the registry at first request, so unregister was not reflected for web until restart (AC-3 gap) | `cmd/ze/hub/web_completer.go` | **fixed** — replaced with a live per-request overlay (`pluginAwareCommandCompleter`); AC-3 now met for web (`TestPluginAwareCommandCompleterIsLive`) |
+| 3 | NOTE | `adminChildren` admin-nav is built from the YANG-only tree at setup, so plugin commands don't appear in admin nav | `cmd/ze/hub/service_web.go:493-502` | acknowledged — pre-existing, out of this spec's tab-completion scope, not regressed |
+
+Review confirmed: `MergeCommandPaths` non-destructive (no clobber/panic/mis-insert); `VisibleCommandEntries` correctly excludes Hidden; no data races (SSH tree is genuinely per-session — `BuildCommandTree` allocates fresh nodes each call; web YANG tree is never mutated); wiring fully reachable (no dead code); builtin dispatch precedence preserved; tests are genuine end-to-end, not tautological.
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
-
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+- Replaced the web `sync.Once` snapshot completer with `pluginAwareCommandCompleter`, which overlays plugin commands live on every `/cli/complete` request (immutable YANG tree + throwaway per-request overlay). This closes NOTE 2 (AC-3 for web) and matches the spec's R-1 mitigation ("clear and rebuild on re-registration").
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] Adversarial review shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above (NOTE 2 fixed; NOTE 1 and NOTE 3 acknowledged as structural / pre-existing)
 
 ## Checklist
 

@@ -742,6 +742,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		ConfigUsers:       sshCfg.Users,
 		EventRing:         apiServer.EventRing(),
 		WebPortalServices: webPortalServices,
+		// Plugin-registered commands for web tab-completion, resolved lazily
+		// (plugins register after this point; the web factory reads it on first
+		// completion request). Mirrors the SSH per-session merge.
+		WebCommands: func() []command.CommandEntry {
+			d := apiServer.Dispatcher()
+			if d == nil {
+				return nil
+			}
+			return d.Registry().VisibleCommandEntries()
+		},
 		// MCP is built through the registry (service_mcp.go, //go:build ze_mcp)
 		// like web/lg. The listen/token/config resolution stays always-on here
 		// (plain values); the gated factory converts them into zemcp types. With
