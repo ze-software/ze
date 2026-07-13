@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Depends | spec-fib-depth, bgp-nlri-srv6 |
 | Phase | - |
 | Updated | 2026-05-24 |
@@ -162,12 +162,25 @@ flow through the system to reach the FIB layer.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 kernel SEG6 encap | MET | `buildSEG6Encap` (`internal/plugins/fib/kernel/nexthop_linux.go:169`), gated `SRv6SID.Is6()` | `TestKernelSRv6Encap` (`fibkernel_test.go:707`); `test/plugin/fib-srv6-kernel.ci` |
+| AC-2 VPP SR steer | MET | `govppSRv6Backend.addSRv6Steer` (`internal/plugins/fib/vpp/srv6.go:67`) via `processSRv6Change` install (`srv6.go:35`) | `TestSRv6SteerAdd` (`apply_test.go:838`) |
+| AC-3 withdraw removes encap/policy | MET | `delSRv6Steer` (`srv6.go:90`) via `processSRv6Change` remove (`srv6.go:44`) | `TestSRv6SteerWithdraw` (`apply_test.go:869`) |
+| AC-4 zero SID -> plain route | MET | verb switch is a no-op without a SID (`srv6.go:33`) + kernel `IsValid()` gate (`fibkernel.go:195`) | `TestSRv6ZeroSIDSkipped` (`apply_test.go:895`) |
+
+**Block premise stale:** the `blocked on bgp-nlri-srv6` dependency no longer holds. SRv6 SIDs already reach the FIB via the BGP **Prefix-SID attribute** extraction (`internal/component/bgp/plugins/rib/pool/srv6sid.go`), not a dedicated SRv6 NLRI family; this spec's scope (backend programming that consumes the `SRv6SID` field) is fully delivered. Interop: `test/interop/scenarios/35-srv6-frr/`.
 
 ## Review Gate
 
+### Run 1 (retrospective close-review, 2026-07-13)
+No `/ze-review` was recorded during implementation; this is a focused close-review grounded
+in the truth-audit's verified producers and passing tests (both VPP steer producers were
+re-read first-hand at closure).
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| — | (none) | All 4 ACs met; install/remove dispatch is verb-gated and idempotent via `f.srv6Installed`; SID-absent path is a no-op | `internal/plugins/fib/vpp/srv6.go:27-53` | no change needed |
+
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- Run 1: **0 BLOCKER / 0 ISSUE**. 4/4 ACs have production code + unit tests + a functional test; the `blocked` status was stale (see block-premise note). **Review Gate satisfied.**
 
 ## Pre-Commit Verification
 

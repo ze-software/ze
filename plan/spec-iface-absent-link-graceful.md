@@ -110,7 +110,7 @@ into the config; the discovery/baking angle is a separate concern tracked in
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `cfg.Ethernet` entries are the only ones legitimately absent at apply; created types exist by Phase 2 | `config_apply.go:626` + Phase-1 creation with `record` on failure | skipping wrong entries masks real create failures | read + unit test | confirmed — only cfg.Ethernet is skipped; `TestApplyConfigSkipsAbsentEthernet` green; created types unaffected |
-| A-2 | Skipping an absent Ethernet iface leaves the rest applied (dhcp-auto + present NICs) | `dhcp-auto` is global; the baked `ens18` has no static addr (DHCP) | appliance still has no network | L2TP appliance test boots + web up | PENDING — awaiting L2TP re-run; only ens18 MAC is synchronous (skipped), DHCP is event-driven, no static addr baked |
+| A-2 | Skipping an absent Ethernet iface leaves the rest applied (dhcp-auto + present NICs) | `dhcp-auto` is global; the baked `ens18` has no static addr (DHCP) | appliance still has no network | L2TP appliance test boots + web up | CONFIRMED (2026-07-13) — the L2TP re-run landed green in the now-closed fixit-appliance-evidence-config (`f42c2ccb2`, learned 1106, 5/5 runs); ens18 MAC is synchronous (skipped), DHCP is event-driven, no static addr baked |
 | A-3 | The absent-link condition is detectable distinctly (netlink LinkNotFound / GetInterface error) | `manage_linux.go:441-443`; `GetInterface` errors on absent link | can't distinguish absent from genuine error → over/under-skip | unit test with fake backend | confirmed — absence detected via `GetInterface`; `TestApplyConfigRollsBackGenuineError` shows genuine errors still roll back |
 
 ### Risks
@@ -307,21 +307,18 @@ faithful (fail on absent + record to `macSet`) — no existing test set a MAC, s
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (retrospective close-review, 2026-07-13)
+No `/ze-review` was recorded during implementation; this is a focused close-review of the
+committed change, grounded in the truth-audit's verified producer and tests.
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | | | |
+| — | (none) | AC-1/AC-2: absent Ethernet is probed, warned, and filtered from every apply phase; created types (dummy/veth/…) stay; a genuine error still aborts+rolls back. Verified in the producer. | `internal/component/iface/config_apply.go:651-675` (skip) + `:346-350` (record→rollback) | no change needed |
 
 ### Fixes applied
--
-
-### Run 2+ (re-runs until clean)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+- None. The skip logic is small and behavior-preserving for the non-absent path.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- Run 1: **0 BLOCKER / 0 ISSUE**. AC-1/AC-2 covered by green unit tests (`TestApplyConfigSkipsAbsentEthernet`, `TestApplyConfigRollsBackGenuineError`, `config_apply_test.go`). AC-3 (full L2TP appliance proof) was legitimately tracked in `fixit-appliance-evidence-config`, now **closed green** (commit `f42c2ccb2`, learned `1106`: 5/5 L2TP runs). **Review Gate satisfied.**
 
 ## Pre-Commit Verification
 

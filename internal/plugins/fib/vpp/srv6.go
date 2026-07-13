@@ -1,4 +1,4 @@
-// Design: plan/spec-fib-depth-4-srv6.md -- VPP SRv6 SR steer programming
+// Design: plan/learned/1113-fib-depth-4-srv6.md -- VPP SRv6 SR steer programming
 // Related: mpls.go -- MPLS backend pattern (model for SRv6)
 // Related: fibvpp.go -- processEvent dispatches to SRv6 when SRv6SID present
 
