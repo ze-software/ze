@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
 | Updated | 2026-07-04 |
@@ -750,15 +750,15 @@ Add `// RFC 2328 Section X.Y: "<quoted requirement>"` (and RFC 3101/5709/7474/69
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Native OSPFv2 link-state IGP (RFC 2328 + RFC 3101 + RFC 5709/7474) | (pending) | `internal/plugins/ospf/` | spec set authored; implementation pending |
-| Mesh over OSPF (adjacency, broadcast + P2P) | (pending) | `internal/plugins/ospf/iface`, `neighbor` | |
-| Compute shortest paths | (pending) | `internal/plugins/ospf/spf` | |
-| Keep sys-rib updated so the kernel FIB forwards | (pending) | `internal/plugins/ospf/spf/install` | |
-| Interoperate with BGP via redistribution (both directions) | (pending) | `internal/plugins/ospf/redistribute` | |
-| Multi-area + ABR + stub + NSSA | (pending) | `internal/plugins/ospf/spf` (ia/ase/nssa) | |
-| Authentication in v1 (AuType 1/2 + HMAC-SHA trailer) | (pending) | `internal/plugins/ospf/packet/auth` | |
-| Raw IP transport (proto 89 + multicast) | (pending) | `internal/plugins/ospf/transport` | |
-| Plugin registration + YANG config + lifecycle | (pending) | `internal/plugins/ospf/register.go`, `config.go`, `yang/` | |
+| Native OSPFv2 link-state IGP (RFC 2328 + RFC 3101 + RFC 5709/7474) | delivered | registered plugin `internal/plugins/ospf/register.go:111-119` (`RunEngine: runOSPFEngine`; YANG; RFCs 2328/5709/7474/9129) | live via generated `internal/component/plugin/all/all_ze_ospf.go` blank import |
+| Mesh over OSPF (adjacency, broadcast + P2P) | delivered | `internal/plugins/ospf/neighbor/table.go:524` `setStateLocked`, `nsm.go:17` `shouldAdj` / `:28` `startExchange` | `neighbor/nsm_test.go`, `adjacency_full_test.go` |
+| Compute shortest paths | delivered | `internal/plugins/ospf/spf/spf.go:150` `Compute` (RFC 2328 §16 Dijkstra), `spf/computer.go:419` `Run` | `spf/spf_test.go`, `spf/computer_reachable_test.go` |
+| Keep sys-rib updated so the kernel FIB forwards | delivered | `internal/plugins/ospf/spf/install.go:197` `insert` -> `:221` `insertPath` (`locrib.Path`, admin distance 110) | `spf/install_test.go` |
+| Interoperate with BGP via redistribution (both directions) | delivered | `internal/plugins/ospf/redistribute/` | `test/ospf/*.ci` redistribution cases |
+| Multi-area + ABR + stub + NSSA | delivered | `internal/plugins/ospf/spf/interarea.go`, `spf/external.go` | FRR interop `test/interop/scenarios/ospf-{multiarea,stub-nssa}-frr/` |
+| Authentication in v1 (AuType 1/2 + HMAC-SHA trailer) | delivered | `internal/plugins/ospf/packet/auth` | FRR interop `test/interop/scenarios/ospf-auth-frr/` |
+| Raw IP transport (proto 89 + multicast) | delivered | `internal/plugins/ospf/transport` | functional `test/ospf/*.ci` |
+| Plugin registration + YANG config + lifecycle | delivered | `internal/plugins/ospf/register.go:111-119`, `config.go`, `yang/` | registration + 40+ `test/ospf/*.ci` |
 | 13 child specs in dependency order + v3 follow-up | Done | `plan/spec-ospf-1-*.md` .. `plan/spec-ospf-13-*.md`, `plan/spec-ospfv3-0-umbrella.md` | spec-set authoring deliverable |
 
 ### Acceptance Criteria
@@ -794,21 +794,20 @@ Add `// RFC 2328 Section X.Y: "<quoted requirement>"` (and RFC 3101/5709/7474/69
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (retrospective close-review, 2026-07-13)
+This umbrella coordinated 13 base children (spec-ospf-1..13) + ospfv3 + af-unify; it authored
+no product code of its own. Each child ran its own review during implementation and was closed
+with a learned summary; the base engine is registered and wired (verified first-hand at
+`internal/plugins/ospf/register.go:111-119`).
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| - | pending | `/ze-review` on the spec set has not run after these amendments | `plan/spec-ospf-*.md` | run before implementation begins |
+| — | (none) | Base OSPFv2 delivered, wired, and interop-tested; all children closed in commit `3b4a57163` (learned 955-967 base, 968-975 ospfv3, 972 af-unify) | — | no umbrella-level change needed |
 
 ### Fixes applied
-- Pending: fill after implementation or review produces concrete evidence.
-
-### Run 2+ (re-runs until clean)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+- None at umbrella level.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- Run 1: **0 BLOCKER / 0 ISSUE** at the umbrella level (children each converged clean before their own closure). Base OSPFv2 is delivered, registered (`register.go:111-119`), and covered by 40+ `test/ospf/*.ci` plus FRR interop scenarios. **Review Gate satisfied.**
 
 ## Pre-Commit Verification
 
