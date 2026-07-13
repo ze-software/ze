@@ -56,9 +56,24 @@ func (r *Runner) engineStepsForRun(steps []EngineStep) []EngineStep {
 
 const (
 	modeForeground  = "foreground"
+	modeBackground  = "background"
 	fileCheckFailed = "file_check_failed"
 	failParseError  = "parse_error"
 )
+
+// zeReadyFileEnabled reports whether a launched command is a ze daemon whose
+// readiness handshake the runner should arm: set ZE_READY_FILE so the daemon
+// writes daemon.ready after startup, and track daemon.pid. It is true for a ze
+// daemon started either foreground (the default daemon path) or background
+// (driver.py-style suites that poll daemon.pid/daemon.ready). A TmpfsTempDir is
+// required because that is where the handshake files live. Non-ze binaries
+// (ze-peer, helper scripts) are never armed.
+func zeReadyFileEnabled(mode, binName, tmpfsTempDir string) bool {
+	if binName != "ze" || tmpfsTempDir == "" {
+		return false
+	}
+	return mode == modeForeground || mode == modeBackground
+}
 
 // syncWriter is an io.Writer that captures output and supports waiting for patterns.
 // Used to wait for ze-peer's "listening on" message before starting the client.

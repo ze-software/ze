@@ -1,0 +1,85 @@
+# Test: The runner emits daemon.pid + daemon.ready for a BACKGROUND ze daemon.
+# VALIDATES: spec-netlink-ci-harness AC-1 (Fix A) -- driver.py-style suites
+#            (firewall/policy/static) launch `ze` as cmd=background and poll
+#            daemon.pid/daemon.ready. The runner must produce those files for a
+#            background ze daemon exactly as it already does for foreground ze.
+# PREVENTS: regression to the pre-Fix-A state where background ze got neither
+#           ZE_READY_FILE nor a daemon.pid write, so every driver.py that polled
+#           for readiness timed out by construction.
+#
+# No CAP_NET_ADMIN / netns needed: a plain BGP daemon with no peer reaches
+# WaitForStartupComplete and writes the readiness file, so this guards Fix A on
+# every platform (no skip-os).
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Assert the runner produced daemon.pid + daemon.ready for the background ze,
+then read the pid and SIGTERM the daemon so the test exits promptly."""
+import os
+import signal
+import sys
+import time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    print("ERROR: daemon.pid/daemon.ready never appeared for background ze",
+          file=sys.stderr)
+    sys.exit(1)
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+# daemon.pid must hold the ze daemon's pid, never this driver's own pid. If the
+# runner clobbered it with a helper-script pid, killing it would signal ourselves
+# (a mysterious exit -1) -- assert loudly instead.
+if pid == os.getpid():
+    print("ERROR: daemon.pid holds the driver's own pid, not the ze daemon",
+          file=sys.stderr)
+    sys.exit(1)
+
+print("background ze readiness files present; daemon pid=%d" % pid)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+# Minimal valid daemon config (copied from signal-stop.ci, proven valid on the
+# current parser). One peer, outbound-only to 127.0.0.1; no ze-peer runs, so the
+# connection just retries while the daemon idles -- readiness fires regardless.
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze ze-bgp.conf
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=background ze readiness files present

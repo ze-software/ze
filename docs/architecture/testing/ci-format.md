@@ -350,6 +350,14 @@ cmd=foreground:seq=<N>:exec=<command>[:stdin=<name>][:timeout=<dur>]
 
 **Background:** Starts and keeps running until test ends.
 **Foreground:** Starts and waits for completion.
+
+**Daemon readiness (`ze` only):** a `ze` daemon launched **either** foreground or
+background is told (via `ZE_READY_FILE`) to write `daemon.ready` once startup
+completes, and the runner publishes its PID to `daemon.pid` in the tmpfs directory.
+Tests poll both files -- directly or through a `driver.py` helper -- before
+signalling the daemon (`action=sighup`/`action=sigterm`) or asserting on it. This
+handshake is armed only for `ze` daemons: `ze-peer` and helper scripts never get
+`ZE_READY_FILE` and never have their PID written to `daemon.pid`.
 <!-- source: internal/test/runner/runner_exec.go -- process orchestration -->
 
 ### Example (Decode Test)

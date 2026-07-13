@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | Fix C (ze_api EOF) DONE — TDD red→green + reload regression-clean; Fix A/B pending |
-| Updated | 2026-07-12 |
+| Phase | Fix C + Fix A DONE — TDD red→green, reload/managed/l2tp/ipsec regression-clean; Fix B pending |
+| Updated | 2026-07-13 |
 
 ## Progress
 
@@ -16,10 +16,38 @@
   --all` = 33/36; the 3 fails are pre-existing (`commit-transactional`, identical
   `meta/config/rollback` error in the original run) or need CAP_NET_ADMIN (iface tunnel/wireguard),
   none caused by Fix C. Runs on all platforms (no caps needed) → guards the regression in `ze-verify`.
-- **Newly found (separate, pre-existing):** `test/reload/commit-transactional.ci` fails on a
-  missing `meta/config/rollback` file on this host (also failed in the 2026-07-12 release run). Not
-  in this spec's scope; log it for triage.
-- Fix A (background-ze readiness) and Fix B (per-test netns + setcap) pending.
+- **Fix A (background-ze readiness): DONE.** Runner now arms the readiness
+  handshake for `cmd=background` ze daemons, not just foreground.
+  → Decision: new pure helper `zeReadyFileEnabled(mode, binName, tmpfsTempDir)`
+    (`runner_exec_util.go`) gates BOTH the `ZE_READY_FILE` env (`runner_exec.go`
+    ~:628) and the `daemon.pid` write; env-arming and pid-write stay in lockstep.
+  → Decision: the `cmd=="background"` case gained a `case zeReadyFileEnabled(...)`
+    branch mirroring the foreground `default:` path — `!hasPeer` → `waitReady` on
+    `daemon.ready`, then write `daemon.pid`. ze-peer / helper-script background
+    procs keep their existing behavior (peer WaitFor / 100ms startup sleep).
+  → Constraint (sub-fix required for AC-1): the foreground `default:` branch used
+    to write `daemon.pid` for ANY foreground last-command, so a `driver.py`
+    (foreground, last) clobbered `daemon.pid` with its OWN pid and killed itself
+    (mysterious exit -1). Guarded that write on `zeReadyFileEnabled` (ze-only) too.
+    This latent bug never surfaced before because no driver.py test ever got past
+    the previously-missing readiness gate. Not scope creep: AC-1 ("driver.py-style
+    tests proceed") cannot pass without the correct daemon pid.
+  TDD: RED→GREEN via `test/reload/background-ze-readiness.ci` (background ze +
+  driver.py polling daemon.pid/daemon.ready, no caps/skip-os — guards Fix A on
+  every platform) + unit `TestBackgroundZeGetsReadinessEnv` (7 subcases).
+  Regression (rebuilt bin/ze-test): reload 25/25 (0 fail, 12 cap/os skips),
+  managed 13/13, l2tp 17/17, ipsec 6/6. `make ze-lint-changed` = 0 issues.
+  Doc: `docs/architecture/testing/ci-format.md` gained a "Daemon readiness"
+  note (foreground+background, ze-only).
+- **Newly found (separate, pre-existing):** `test/reload/commit-transactional.ci`
+  was reported failing on a missing `meta/config/rollback` file in the 2026-07-12
+  release run; in the 2026-07-13 full `bgp reload --all -p 1` run it PASSED on this
+  host. Left as an observation for triage (env-dependent), not in this spec's scope.
+- **Newly found (separate, pre-existing):** `test/static/001-boot-apply.ci` (no
+  skip-os, runs on macOS) is RED for an INDEPENDENT reason: `parse config: line 4:
+  unknown field in route: next-hop` (stale static route config syntax) — the daemon
+  dies before readiness, so Fix A alone will not green it. Log for triage.
+- Fix B (per-test netns + setcap) pending.
 
 ## Post-Compaction Recovery
 

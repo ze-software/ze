@@ -622,10 +622,12 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			kv = strings.ReplaceAll(kv, "$PORT", strconv.Itoa(rec.Port))
 			proc.Env = append(proc.Env, kv)
 		}
-		// Tell foreground ze processes to write a readiness file after signal
-		// handlers are registered. The test runner waits for this file before
-		// writing daemon.pid, eliminating a startup race condition.
-		if cmd.Mode == modeForeground && binName == "ze" && rec.TmpfsTempDir != "" {
+		// Tell ze daemons to write a readiness file after signal handlers are
+		// registered. The test runner waits for this file before writing
+		// daemon.pid, eliminating a startup race condition. Armed for both
+		// foreground (default daemon path) and background ze (driver.py-style
+		// suites poll daemon.pid/daemon.ready) -- see zeReadyFileEnabled.
+		if zeReadyFileEnabled(cmd.Mode, binName, rec.TmpfsTempDir) {
 			proc.Env = append(proc.Env,
 				"ZE_READY_FILE="+filepath.Join(rec.TmpfsTempDir, "daemon.ready"))
 		}
@@ -671,22 +673,42 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 
 		switch {
-		case cmd.Mode == "background":
+		case cmd.Mode == modeBackground:
 			bgProcs = append(bgProcs, proc)
-			// Wait for ze-peer to be ready (listening) instead of fixed sleep
-			// Skip waiting for peer if this is an exit code test (peer may not start)
-			if strings.Contains(execStr, "ze-peer") && rec.ExpectExitCode == nil {
-				po := &peerOutputs[len(peerOutputs)-1]
-				po.proc = proc
-				waitCtx, waitCancel := context.WithTimeout(testCtx, 5*time.Second)
-				if !po.stdout.WaitFor(waitCtx) {
+			switch {
+			case strings.Contains(execStr, "ze-peer"):
+				// Wait for ze-peer to be ready (listening) instead of a fixed
+				// sleep. Skip waiting for the peer on an exit-code test (the peer
+				// may not start).
+				if rec.ExpectExitCode == nil {
+					po := &peerOutputs[len(peerOutputs)-1]
+					po.proc = proc
+					waitCtx, waitCancel := context.WithTimeout(testCtx, 5*time.Second)
+					if !po.stdout.WaitFor(waitCtx) {
+						waitCancel()
+						rec.Error = fmt.Errorf("peer did not start listening within 5s (stderr=%q, stdout=%q)", po.stderr.String(), po.stdout.String())
+						return false
+					}
 					waitCancel()
-					rec.Error = fmt.Errorf("peer did not start listening within 5s (stderr=%q, stdout=%q)", po.stderr.String(), po.stdout.String())
-					return false
 				}
-				waitCancel()
-			} else if !strings.Contains(execStr, "ze-peer") {
-				// Non-peer background process: brief sleep for startup
+			case zeReadyFileEnabled(cmd.Mode, binName, rec.TmpfsTempDir):
+				// Background ze daemon (driver.py-style suites poll
+				// daemon.pid/daemon.ready). ZE_READY_FILE was armed above, so
+				// mirror the foreground daemon path: when no ze-peer provides
+				// BGP-level synchronization, wait for the readiness file, then
+				// publish daemon.pid. Without this the poller times out by
+				// construction (the runner never wrote either file).
+				if proc.Process != nil {
+					if !hasPeer {
+						readyPath := filepath.Join(rec.TmpfsTempDir, "daemon.ready")
+						waitReady(testCtx, readyPath, 5*time.Second)
+					}
+					pidPath := filepath.Join(rec.TmpfsTempDir, "daemon.pid")
+					_ = os.WriteFile(pidPath, fmt.Appendf(nil, "%d", proc.Process.Pid), 0o600)
+				}
+			default:
+				// Other non-peer background process (helper script, or a ze
+				// daemon with no tmpfs dir): brief sleep for startup.
 				time.Sleep(100 * time.Millisecond)
 			}
 		case cmd.Mode == modeForeground && binName != "ze" && binName != binNameZePeer && cmdIdx < len(cmds)-1:
@@ -712,7 +734,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			bgProcs = append(bgProcs, proc) // Track for cleanup
 
 			// Write daemon PID to tmpfs dir so background scripts can send signals.
-			if rec.TmpfsTempDir != "" && proc.Process != nil {
+			// Guard on ze: a foreground helper script that is the last command
+			// (e.g. driver.py) also lands here, and must NOT clobber daemon.pid
+			// with its own pid -- a driver that reads daemon.pid to signal the
+			// daemon would otherwise signal itself.
+			if zeReadyFileEnabled(cmd.Mode, binName, rec.TmpfsTempDir) && proc.Process != nil {
 				// When no ze-peer provides BGP-level synchronization, wait for
 				// the process readiness file before writing daemon.pid. This
 				// prevents a race where signal.sh sends SIGHUP before the

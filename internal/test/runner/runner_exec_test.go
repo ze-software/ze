@@ -28,6 +28,39 @@ func TestZeDaemonConfigArgIndex(t *testing.T) {
 	}
 }
 
+func TestBackgroundZeGetsReadinessEnv(t *testing.T) {
+	// VALIDATES: Fix A (AC-1) -- the runner arms the ze.ready.file handshake
+	// (ZE_READY_FILE env + daemon.pid tracking) for BACKGROUND ze daemons, not
+	// only foreground ones. driver.py-style suites (firewall/policy/static)
+	// launch `ze` as cmd=background and poll daemon.pid/daemon.ready; before the
+	// fix, background ze got neither and every such test timed out.
+	// Foreground behavior is unchanged (still armed).
+	tests := []struct {
+		name         string
+		mode         string
+		binName      string
+		tmpfsTempDir string
+		want         bool
+	}{
+		{name: "background ze with tmpfs", mode: "background", binName: "ze", tmpfsTempDir: "/tmp/x", want: true},
+		{name: "foreground ze with tmpfs", mode: modeForeground, binName: "ze", tmpfsTempDir: "/tmp/x", want: true},
+		{name: "background ze without tmpfs", mode: "background", binName: "ze", tmpfsTempDir: "", want: false},
+		{name: "foreground ze without tmpfs", mode: modeForeground, binName: "ze", tmpfsTempDir: "", want: false},
+		{name: "background ze-peer", mode: "background", binName: binNameZePeer, tmpfsTempDir: "/tmp/x", want: false},
+		{name: "background helper script", mode: "background", binName: "python3", tmpfsTempDir: "/tmp/x", want: false},
+		{name: "foreground helper script", mode: modeForeground, binName: "create-marker.sh", tmpfsTempDir: "/tmp/x", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := zeReadyFileEnabled(tt.mode, tt.binName, tt.tmpfsTempDir); got != tt.want {
+				t.Fatalf("zeReadyFileEnabled(%q, %q, %q) = %v, want %v",
+					tt.mode, tt.binName, tt.tmpfsTempDir, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestZeDaemonShouldForceFileStorage(t *testing.T) {
 	// VALIDATES: web functional tests keep blob storage enabled because the web
 	// server requires it, while plain daemon tests still avoid shared zefs state.
