@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1127 summaries
+Total: 1130 summaries
 
 ## 000-099
 
@@ -1196,3 +1196,6 @@ Total: 1127 summaries
 | 1112 | netlink .ci harness (Fix A readiness, Fix B netns+setcap, Fix C EOF) | `plan/learned/1112-netlink-ci-harness.md` |
 | 1113 | fib-depth-4-srv6 (CLOSURE): SRv6 FIB backend programming | `plan/learned/1113-fib-depth-4-srv6.md` |
 | 1114 | ospf-0-umbrella (CLOSURE record) | `plan/learned/1114-ospf-0-umbrella.md` |
+| 1115 | command-completion | `plan/learned/1115-command-completion.md` |
+| 1116 | CoPP standalone apply + firewall clean-shutdown flush option | `plan/learned/1116-copp-firewall-shutdown-flush.md` |
+| 1117 | test-sync-quiesce | `plan/learned/1117-test-sync-quiesce.md` |

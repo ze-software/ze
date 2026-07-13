@@ -5,6 +5,13 @@
 # PREVENTS: config parsed but never reaches nftables backend.
 #
 # Requires CAP_NET_ADMIN.
+#
+# ENVIRONMENT (not a code bug, applies to the whole test/policy/ suite): the
+# policy-route table (nft type route, hook prerouting) needs nftables features
+# the Alpine QEMU minimal kernel lacks -- it fails `nft flush: operation not
+# supported`, reproduced identically with ze as root (so not a netns/Fix-B
+# issue). The policy suite runs on a full-kernel host via `make ze-netns-test`,
+# not in QEMU. See plan/learned/1112.
 
 option=skip-os:value=darwin
 

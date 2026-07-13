@@ -393,10 +393,10 @@ Total: 602 packages, 601 described, 1 TODO
 | `internal/component/traffic/cmd` | provides traffic control (QoS) CLI command handlers and formatting helpers |  |
 | `internal/component/traffic/yang` | embeds the traffic component's YANG configuration schema and registers it with the config module registry |  |
 | `internal/component/trafficfeature` | derives neutral per-source traffic feature signals from the observation feed for detection plugins |  |
-| `internal/component/trafficfeature/cmd` | registers the show traffic-feature CLI handler that surfaces neutral per-source feature signals |  |
+| `internal/component/trafficfeature/cmd` | registers the show traffic feature CLI handler that surfaces neutral per-source feature signals |  |
 | `internal/component/trafficfeature/cmd/yang` | embeds the traffic-feature command's YANG schema and registers it with the config module registry |  |
 | `internal/component/trafficstat` | aggregates the observation feed into a lazy, consumer-refcounted snapshot of top talkers, ports, and protocols |  |
-| `internal/component/trafficstat/cmd` | registers the show and monitor traffic-stat CLI handlers |  |
+| `internal/component/trafficstat/cmd` | registers the show and monitor traffic stat CLI handlers |  |
 | `internal/component/trafficstat/cmd/yang` | embeds the traffic-stat command's YANG schema and registers it with the config module registry |  |
 | `internal/component/vpp` | manages VPP's full process lifecycle as a self-contained system | vpp |
 | `internal/component/vpp/yang` | embeds the vpp component's YANG configuration schema and registers it with the config module registry |  |

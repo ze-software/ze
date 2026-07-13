@@ -72,9 +72,12 @@ copp/firewall-flush regression:
   is irrelevant to it. 004 failed only because the test never set up SSH auth,
   and four layers had to line up. (1) The netns QEMU daemon build lacked `ze_ssh`
   -- the SSH component's `system authentication` / `environment ssh` config
-  schema is compiled in ONLY under `//go:build ze_ssh` (`all_ze_ssh.go`), and
-  `ze init` needs `ze_setup`; neither is in `ze_core zetest ze_distro`, so both
-  were added to the `ze-netns-qemu-test` daemon build. (2) The config needs a
+  schema is compiled in ONLY under `//go:build ze_ssh` (`all_ze_ssh.go`), absent
+  from `ze_core zetest ze_distro`, so `ze_ssh` was added to the
+  `ze-netns-qemu-test` daemon build (it is a default feature-gate in the real
+  `bin/ze`; `ze init` is already in `ze_core`, so no `ze_setup` is needed --
+  verified by building `ze_core ze_distro ze_ssh` and running the recipe).
+  (2) The config needs a
   `system authentication user <bcrypt>` + an `environment ssh` server. (3) The
   driver provisions matching client creds with `ze init` into a sandbox
   `ze.config.dir`, then runs `ze cli --user ... -c` with `ze.ssh.password` +

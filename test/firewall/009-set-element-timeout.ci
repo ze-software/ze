@@ -10,6 +10,13 @@
 #           the parse -> apply -> readback chain.
 #
 # Requires CAP_NET_ADMIN.
+#
+# ENVIRONMENT (not a code bug): nft set-element-timeout ops CRASH the Alpine
+# QEMU minimal kernel, so this test is deliberately EXCLUDED from the
+# scripts/evidence/netns_qemu.py host-safe subset and runs only on a
+# full-kernel host via `make ze-netns-test`. The parse -> apply -> readback
+# chain also has direct Go coverage in
+# internal/plugins/firewall/nft/*_linux_test.go. See plan/learned/1112.
 
 option=skip-os:value=darwin
 

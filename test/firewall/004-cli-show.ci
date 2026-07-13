@@ -11,7 +11,8 @@
 # client credentials with `ze init` into a sandbox config dir, then runs `ze cli`
 # against that dir with ze.ssh.password. The SSH port is fixed (per-test netns
 # isolates it) so no log-scrape is needed. Requires CAP_NET_ADMIN (nft) + SSH,
-# so the daemon must be built with ze_ssh + ze_setup (see the make target).
+# so the daemon must be built with ze_ssh (see the make target); ze init lives
+# in ze_core.
 #
 # // test-relax: this rewrite replaces the previous no-SSH-setup version (which
 # never authenticated and used a non-existent `show firewall <table>` command)

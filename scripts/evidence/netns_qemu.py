@@ -16,7 +16,7 @@ fail "firewall backend not loaded" until ApplyAll learned to load the OS-default
 backend on demand -- this run is that fix's Linux regression guard. 004-cli-show
 is ALSO included: it drives `ze cli` over the real SSH CLI path (a config-declared
 SSH user + `ze init`-provisioned client credentials), which needs the daemon
-built with ze_ssh + ze_setup (see the make target).
+built with ze_ssh (see the make target; ze init is already in ze_core).
 
 The 9p workspace mount is security_model=none (no xattr), so file capabilities
 cannot be set there; ze is copied to a tmpfs dir first. That dir must be

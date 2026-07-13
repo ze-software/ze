@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 285 design docs, 2924 files
+Total: 285 design docs, 2926 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -180,6 +180,7 @@ Total: 285 design docs, 2924 files
 | File | Topic |
 |------|-------|
 | `cmd/ze/help_command.go` | command catalog |
+| `cmd/ze/hub/web_completer.go` | plugin command completion injection |
 | `cmd/ze/internal/cmdutil/cmdutil.go` | shared CLI command utilities |
 | `cmd/ze/internal/cmdutil/cmdutil_test.go` | cmdutil tests |
 | `cmd/ze/ze_core_format.go` | ze format: offline pipe formatting |
@@ -195,7 +196,7 @@ Total: 285 design docs, 2924 files
 | `internal/component/bgp/plugins/cmd/monitor/doc.go` | BGP monitor command handlers |
 | `internal/component/bgp/plugins/cmd/monitor/format.go` | BGP monitor visual text formatting |
 | `internal/component/bgp/plugins/cmd/monitor/monitor.go` | BGP monitor command handler |
-| `internal/component/bgp/plugins/cmd/peer/health.go` | show bgp-health overview handler |
+| `internal/component/bgp/plugins/cmd/peer/health.go` | show bgp health overview handler |
 | `internal/component/bgp/plugins/cmd/peer/peer.go` | BGP peer lifecycle and introspection handlers |
 | `internal/component/bgp/plugins/cmd/peer/session.go` | BGP peer session handlers |
 | `internal/component/bgp/plugins/cmd/peer/summary.go` | BGP summary and capability handlers |
@@ -265,10 +266,11 @@ Total: 285 design docs, 2924 files
 | `internal/component/firewall/cli/register.go` | firewall command ownership |
 | `internal/component/iface/cli/register.go` | interface command ownership |
 | `internal/component/l2tp/cli/register.go` | l2tp command ownership |
-| `internal/component/l2tp/show_health.go` | show l2tp-health handler |
+| `internal/component/l2tp/show_health.go` | show l2tp health handler |
 | `internal/component/ping/cmd/monitor.go` | monitor ping command handler |
 | `internal/component/ping/cmd/stream.go` | streaming ping session |
 | `internal/component/plugin/cli/register.go` | plugin command ownership |
+| `internal/component/plugin/server/quiesce.go` | quiesce barrier (test synchronization) |
 | `internal/component/resolve/cli/register.go` | resolve command ownership |
 | `internal/component/resolve/cmd/dns.go` | clear verb RPC registration |
 | `internal/component/sysctl/cli/register.go` | sysctl command ownership |
@@ -279,12 +281,12 @@ Total: 285 design docs, 2924 files
 | `internal/component/traffic/cmd/traffic.go` | show verb RPC registration |
 | `internal/core/probe/icmp.go` | shared ICMP probe primitives |
 | `internal/plugins/completion/root_commands.go` | shell root command inventory |
-| `internal/plugins/flowexport/cmd_show.go` | show flow-export handler. |
+| `internal/plugins/flowexport/cmd_show.go` | show flow export handler. |
 | `internal/plugins/log/cmd/handlers.go` | log show and set handlers |
 | `internal/plugins/log/cmd/register.go` | log command registration |
 | `internal/plugins/meta/cmd/help.go` | command discovery handlers |
 | `internal/plugins/meta/cmd/plugin_config.go` | plugin process configuration handlers |
-| `internal/plugins/policyroute/cmd_show.go` | show policy-routes proxy handler. |
+| `internal/plugins/policyroute/cmd_show.go` | show policy routes proxy handler. |
 | `internal/plugins/static/cmd_show.go` | show static proxy handler. |
 | `scripts/checks/command_ownership.go` | command surface ownership gate |
 | `scripts/inventory/commands.go` | command verb taxonomy. |
@@ -2307,7 +2309,7 @@ Total: 285 design docs, 2924 files
 
 | File | Topic |
 |------|-------|
-| `internal/component/trafficfeature/cmd/traffic_feature.go` | show traffic-feature CLI handler |
+| `internal/component/trafficfeature/cmd/traffic_feature.go` | show traffic feature CLI handler |
 | `internal/component/trafficfeature/feature.go` | per-source neutral feature aggregation |
 | `internal/component/trafficfeature/service.go` | neutral per-source traffic feature signals |
 | `internal/component/trafficstat/window.go` | per-key rolling window and rate derivation |
@@ -2862,8 +2864,8 @@ Total: 285 design docs, 2924 files
 | `internal/component/cmd/show/fd_linux.go` | FD inspection from /proc/self/fd (lsof replacement) |
 | `internal/component/cmd/show/fd_other.go` | non-Linux stub for FD inspection |
 | `internal/component/cmd/show/goroutines.go` | goroutine dump via runtime.Stack |
-| `internal/component/cmd/show/memory_map_linux.go` | process memory map from /proc/self/status (pmap replacement) |
-| `internal/component/cmd/show/memory_map_other.go` | non-Linux stub for memory map |
+| `internal/component/cmd/show/memory_map_linux.go` | show system memory (OS view) from /proc/self/status |
+| `internal/component/cmd/show/memory_map_other.go` | non-Linux stub for show system memory (OS view) |
 | `internal/component/cmd/show/profile.go` | runtime profiling via runtime/pprof |
 | `internal/component/cmd/show/sockets_linux.go` | TCP/UDP socket state from /proc/net (ss replacement) |
 | `internal/component/cmd/show/sockets_other.go` | non-Linux stub for socket state |

@@ -12,7 +12,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/ddosevent"
 )
 
-const tableName = "ddos-local"
+// tableName carries the "ze_" ownership prefix the firewall backend uses to
+// recognize ze-managed kernel tables (mirrors copp's "ze_copp" and the firewall
+// engine's tableNamePrefix). Without it the kernel table is named "ddos-local":
+// the backend's reconcile never sees it as ze-owned, so a cleared mitigation
+// leaves the drop rule behind (removeMitigation registers nil + ApplyAll, but
+// ApplyAll's shouldDeleteTable only sweeps ze_* names). It doubles as the
+// registry owner key, which is internal so the rename is inert there.
+const tableName = "ze_ddos-local"
 
 var loggerPtr atomic.Pointer[slog.Logger]
 
