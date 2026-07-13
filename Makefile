@@ -426,14 +426,18 @@ ze-regen-check: ze-regen
 ze-doc-links:
 	@python3 scripts/dev/check_doc_links.py
 
+# clean wipes bin/ and tmp/, then restores the tmp/ sentinel module
+# (tmp/go.mod) byte-identically from git so clearing scratch never shows up
+# as a phantom "deleted tmp/go.mod" in git status. See tmp/go.mod.
 clean:
 	@echo "Cleaning..."
 	rm -rf bin/ tmp/
 	rm -f coverage.out coverage.html
+	@mkdir -p tmp && git show HEAD:tmp/go.mod > tmp/go.mod 2>/dev/null || true
 
 ze-clean-tmp:
 	@echo "Cleaning tmp/ scratch files older than 24h..."
-	@find tmp/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
+	@find tmp/ -maxdepth 1 -type f -not -name go.mod -mmin +1440 -delete 2>/dev/null || true
 	@find tmp/ -maxdepth 1 -type d -not -name tmp -not -name session \
 		-not -name go-cache -not -name golangci-lint-cache -not -name kernel \
 		-mmin +1440 -exec rm -rf {} + 2>/dev/null || true
