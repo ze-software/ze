@@ -1170,20 +1170,31 @@ sockets, and later FIB/tc/listeners) complete after the reply, so a test does
 `send(change); request quiesce; assert on-wire` with no sleep.
 
 Subsystems register a `Quiescer` at runtime (they need a live reference such as
-the reactor), and the handler discovers them through the registry — no
-per-subsystem switch. The BGP forward pool is auto-registered as `bgp-forward-pool`
-when the reactor attaches to the server (`registerReactorQuiescer` → the reactor's
-`FlushForwardPool`). Each drain is bounded by a per-subsystem timeout, so a wedged
-subsystem yields an error naming it instead of hanging the daemon. The test SDK
-exposes `ze_api.quiesce()`.
+the reactor), and the handler discovers them through the registry, with no
+per-subsystem switch. The BGP reactor auto-registers TWO quiescers when it
+attaches to the server (`registerReactorQuiescer`): `bgp-forward-pool` (the
+reactor's `FlushForwardPool`, draining post-establishment forwarded routes) and
+`bgp-peer-sync` (`DrainPeerSync`, draining each peer's initial-sync opQueue,
+which goes DIRECT to the session and bypasses the forward pool). Each drain is
+bounded by a per-subsystem timeout, so a wedged subsystem yields an error naming
+it instead of hanging the daemon.
+
+Invocation note: `request quiesce` and `request peer <sel> flush` are api-yang
+RPCs reached through **dispatch-command**, not as direct wire methods. A plugin
+calls `api.dispatch("request quiesce")` (the test SDK's `ze_api.quiesce()` and
+`ze_api.wait_for_ack()` both do this); a raw `_call_engine("ze-system:quiesce")`
+returns "unknown method" because `dispatchPluginRPC` routes only
+`ze-plugin-engine:*` engine ops plus codec RPCs.
 
 Extension point: Layer 2/3 subsystems (a kernel-FIB quiescer, a tc/qdisc
-quiescer, a peer-side `cmd=api` quiescer) register into the same registry and
-`request quiesce` drains them with no change to the barrier. (`wait_for_ack`
-keeps its own peer-flush + sleep for now, because its sleep also covers the peer
-simulator's `cmd=api` interleaving, which the forward-pool quiesce does not drain.)
+quiescer) register into the same registry and `request quiesce` drains them with
+no change to the barrier. `wait_for_ack` is now a thin, sleepless wrapper over
+this barrier: the two BGP quiescers together cover the forward pool AND the
+per-peer initial-sync drain, so a route sent during establishment is on the wire
+(past its EOR) before the barrier returns.
 
 <!-- source: internal/component/plugin/server/quiesce.go -- Quiescer, QuiescerRegistry, quiesceAll, handleQuiesce, registerReactorQuiescer -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync, peersSynced; peer.go PendingSync -->
 <!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request/quiesce -> ze-system:quiesce -->
 
 ### Peer Selector Parsing
