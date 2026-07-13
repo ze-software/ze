@@ -24,8 +24,8 @@ See also: `/ze-status` for current work context, `/ze-doc-update` for broader do
 
 Read these before drafting:
 
-1. `~/Unix/zeledon/STYLE.md`.
-2. The latest one or two files in `~/Unix/zeledon/weekly/`.
+1. `scripts/zeledon/STYLE.md`.
+2. The latest one or two files in `scripts/zeledon/weekly/`.
 3. `../gh-pages/AI.md`, especially `Weekly Update Checklist`.
 4. `../gh-pages/data/topics.json` for allowed update tags.
 5. The latest `../gh-pages/changes/posts/*.md` post, to keep format and coverage continuity.
@@ -34,7 +34,7 @@ If your working directory is `../gh-pages`, then the main repo is `../main`. If 
 
 ## Phase 1: Establish the week
 
-1. Find the newest archived Discord post in `~/Unix/zeledon/weekly/` and the newest website post in `../gh-pages/changes/posts/`.
+1. Find the newest archived Discord post in `scripts/zeledon/weekly/` and the newest website post in `../gh-pages/changes/posts/`.
 2. Determine the new `covers:` range from the previous post's end date unless Thomas gives a different range.
 3. Gather what shipped during the range from `../main`:
    - inspect `git log` for the range,
@@ -79,23 +79,23 @@ After Thomas approves the exact text:
 1. Run a dry run first:
 
 ```sh
-python3 ~/Unix/zeledon/tools/post_weekly.py ../gh-pages/changes/posts/<covers-start>.md
+python3 scripts/zeledon/post_weekly.py ../gh-pages/changes/posts/<covers-start>.md
 ```
 
 2. Check the chunk count and text. The tool splits at section boundaries for Discord's message limit.
 3. If Thomas wants a Discord preview, post to test only:
 
 ```sh
-python3 ~/Unix/zeledon/tools/post_weekly.py ../gh-pages/changes/posts/<covers-start>.md --channel ze-test --yes
+python3 scripts/zeledon/post_weekly.py ../gh-pages/changes/posts/<covers-start>.md --channel ze-test --yes
 ```
 
 4. Post to `ze-news` only after approval:
 
 ```sh
-python3 ~/Unix/zeledon/tools/post_weekly.py ../gh-pages/changes/posts/<covers-start>.md --yes
+python3 scripts/zeledon/post_weekly.py ../gh-pages/changes/posts/<covers-start>.md --yes
 ```
 
-The posting tool refuses incomplete weeks unless `--force` is used. Do not use `--force` unless Thomas explicitly asks for an in-progress week to be posted. The tool archives the exact posted text to `~/Unix/zeledon/weekly/<covers-start>-weekly.md` after a successful post.
+The posting tool refuses incomplete weeks unless `--force` is used. Do not use `--force` unless Thomas explicitly asks for an in-progress week to be posted. The tool archives the exact posted text to `scripts/zeledon/weekly/<covers-start>-weekly.md` after a successful post.
 
 ## Phase 4: Update the website
 

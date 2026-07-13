@@ -42,6 +42,11 @@ coverage.html
 # Python
 __pycache__/
 
+# Zeledon weekly-update Discord archive: authoritative copy of the text is the
+# published website (gh-pages/changes/posts/), so the local archive is kept only
+# for post_weekly.py's already-posted skip check, not committed.
+scripts/zeledon/weekly/
+
 # macOS
 .DS_Store
 

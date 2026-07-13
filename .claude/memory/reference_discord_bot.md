@@ -23,6 +23,9 @@ it in is acceptable and posting needs no setup. A 2026-06-28 session had removed
 Do NOT strip the token out again without being asked.
 
 **Weekly updates:** written as "Zeledon" (third-person, no em dashes, no internal
-process/spec language). Style guide + archive live in `~/Unix/zeledon/`:
-`STYLE.md` (read before drafting) and `weekly/<YYYY-MM-DD>-weekly.md`. Draft, get
-Thomas's approval, post to ze-news, then save the approved text to `weekly/`.
+process/spec language). Tooling lives in this repo at `scripts/zeledon/`:
+`STYLE.md` (read before drafting), `post_weekly.py` (posts + archives), and the
+`weekly/<YYYY-MM-DD>-weekly.md` archive. Follow the `ze-weekly-update` skill:
+draft, get Thomas's approval, then `post_weekly.py` posts to ze-news and archives
+the exact text. `post_weekly.py` still calls `~/Unix/bin/discord.sh` for the token
+(override with the `DISCORD_SH` env var).
