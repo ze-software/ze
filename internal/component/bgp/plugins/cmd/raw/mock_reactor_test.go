@@ -50,6 +50,7 @@ func (m *mockReactor) PausePeer(_ netip.Addr) error                             
 func (m *mockReactor) ResumePeer(_ netip.Addr) error                                      { return nil }
 func (m *mockReactor) FlushForwardPool(_ context.Context) error                           { return nil }
 func (m *mockReactor) FlushForwardPoolPeer(_ context.Context, _ string) error             { return nil }
+func (m *mockReactor) DrainPeerSync(_ context.Context) error                              { return nil }
 func (m *mockReactor) TeardownPeer(_ netip.Addr, _ uint8, _ string) error                 { return nil }
 func (m *mockReactor) RemovePeer(_ netip.Addr) error                                      { return nil }
 func (m *mockReactor) AddDynamicPeer(_ netip.Addr, _ map[string]any) error                { return nil }

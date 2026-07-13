@@ -123,7 +123,12 @@ func registerReactorQuiescer(s *Server, reactor plugin.ReactorLifecycle) {
 	if reactor == nil {
 		return
 	}
+	// Two independent drain paths: the forward pool (post-establishment routes)
+	// and the per-peer initial-sync opQueue (routes sent during establishment go
+	// direct to the session, bypassing the forward pool). `request quiesce` runs
+	// both concurrently so a "routes on the wire" barrier covers both.
 	s.RegisterQuiescer("bgp-forward-pool", reactor.FlushForwardPool)
+	s.RegisterQuiescer("bgp-peer-sync", reactor.DrainPeerSync)
 }
 
 // handleQuiesce implements `request quiesce` (ze-system:quiesce): drain every

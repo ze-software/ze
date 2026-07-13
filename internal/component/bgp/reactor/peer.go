@@ -850,6 +850,18 @@ func (p *Peer) ShouldQueue() bool {
 	return p.sendingInitialRoutes.Load() != 0 || len(p.opQueue) > 0
 }
 
+// PendingSync reports whether the peer still has route work that has not reached
+// the wire: routes queued while not-yet-established, or an in-flight initial-route
+// sync. Unlike ShouldQueue it does NOT gate on state -- a not-yet-established peer
+// with queued routes IS pending (those routes drain when it establishes), while a
+// down/idle peer with an empty queue is not. Used by the DrainPeerSync barrier so
+// a test can wait for send()-during-establishment routes to reach the wire.
+func (p *Peer) PendingSync() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.sendingInitialRoutes.Load() != 0 || len(p.opQueue) > 0
+}
+
 // QueueAnnounce queues a route announcement for when session establishes.
 // Used when session is not established to maintain operation order.
 // If queue is full, the operation is dropped with a warning.

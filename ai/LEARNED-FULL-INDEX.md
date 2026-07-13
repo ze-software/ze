@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1130 summaries
+Total: 1132 summaries
 
 ## 000-099
 
@@ -1199,3 +1199,5 @@ Total: 1130 summaries
 | 1115 | command-completion | `plan/learned/1115-command-completion.md` |
 | 1116 | CoPP standalone apply + firewall clean-shutdown flush option | `plan/learned/1116-copp-firewall-shutdown-flush.md` |
 | 1117 | test-sync-quiesce | `plan/learned/1117-test-sync-quiesce.md` |
+| 1118 | quiesce-peer-drain | `plan/learned/1118-quiesce-peer-drain.md` |
+| 1119 | cli-hyphen-namespace-split | `plan/learned/1119-cli-hyphen-namespace-split.md` |

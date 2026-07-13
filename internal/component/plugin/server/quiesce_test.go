@@ -127,12 +127,17 @@ func TestBGPForwardPoolRegistersQuiescer(t *testing.T) {
 	s := &Server{}
 	registerReactorQuiescer(s, fr)
 
-	all := s.Quiescers()
-	if len(all) != 1 || all[0].Name != "bgp-forward-pool" {
-		t.Fatalf("expected one 'bgp-forward-pool' quiescer, got %+v", all)
+	// Two quiescers: the forward pool AND the per-peer initial-sync drain.
+	byName := map[string]Quiescer{}
+	for _, q := range s.Quiescers() {
+		byName[q.Name] = q
 	}
-	if err := all[0].Quiesce(context.Background()); err != nil {
-		t.Fatalf("quiesce returned error: %v", err)
+	fp, okFP := byName["bgp-forward-pool"]
+	if _, okPS := byName["bgp-peer-sync"]; !okFP || !okPS || len(byName) != 2 {
+		t.Fatalf("expected 'bgp-forward-pool' and 'bgp-peer-sync' quiescers, got %v", byName)
+	}
+	if err := fp.Quiesce(context.Background()); err != nil {
+		t.Fatalf("forward-pool quiesce returned error: %v", err)
 	}
 	if fr.flushed != 1 {
 		t.Errorf("FlushForwardPool called %d times, want 1", fr.flushed)

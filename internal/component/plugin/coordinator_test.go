@@ -233,6 +233,7 @@ func (m *mockReactor) AddDynamicPeer(netip.Addr, map[string]any) error    { retu
 func (m *mockReactor) RemovePeer(netip.Addr) error                        { return nil }
 func (m *mockReactor) FlushForwardPool(context.Context) error             { return nil }
 func (m *mockReactor) FlushForwardPoolPeer(context.Context, string) error { return nil }
+func (m *mockReactor) DrainPeerSync(context.Context) error                { return nil }
 func (m *mockReactor) Reload() error {
 	m.reloadCalled = true
 	return nil

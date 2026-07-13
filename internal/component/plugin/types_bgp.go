@@ -338,6 +338,14 @@ type ReactorPeerController interface {
 	// peer address has drained its queued items. Returns nil immediately if no
 	// worker exists for that peer.
 	FlushForwardPoolPeer(ctx context.Context, addr string) error
+
+	// DrainPeerSync blocks until every Established peer has finished initial
+	// route sync (its opQueue drained and sendingInitialRoutes cleared). Peers
+	// not yet Established are skipped. Complements FlushForwardPool: routes sent
+	// during a peer's initial-sync window bypass the forward pool (they drain
+	// direct to the session), so a complete "routes on the wire" barrier needs
+	// both. Returns ctx.Err() if the deadline hits first.
+	DrainPeerSync(ctx context.Context) error
 }
 
 // ReactorCacheCoordinator manages BGP cache consumer registration, forwarding,

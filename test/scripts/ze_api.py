@@ -1140,55 +1140,56 @@ class API:
     def quiesce(self) -> bool:
         """Block until the daemon has drained all pending async work.
 
-        Sends the ze-system:quiesce barrier RPC and returns when the engine
-        replies (all registered subsystems settled, including the BGP forward
-        pool). Use this instead of ``time.sleep`` when a test must observe a
+        Dispatches ``request quiesce`` (the ze-system:quiesce barrier) and
+        returns when the engine replies that every registered subsystem has
+        settled: the BGP forward pool AND each peer's initial-sync opQueue.
+        Use this instead of ``time.sleep`` when a test must observe a
         downstream effect (route on the wire, FIB programmed).
 
+        NOTE: the barrier RPC is reached through dispatch-command, not a
+        direct ``_call_engine("ze-system:quiesce")`` -- the wire method has no
+        engine-op slot, so a direct call returns "unknown method". Dispatching
+        the command is the reachable path (verified against the bgp-forward-pool
+        and bgp-peer-sync quiescers).
+
         Returns:
-            True if the barrier completed, False if the RPC failed.
+            True if the barrier completed (status "done"), False otherwise.
         """
         try:
-            self._call_engine("ze-system:quiesce", {})
-            return True
+            resp = self.dispatch("request quiesce")
         except RuntimeError:
             return False
+        result = (resp or {}).get("result", {}) or {}
+        return result.get("status") == "done"
 
     def wait_for_ack(self, expected_count: int = 1, timeout: float = 2.0) -> bool:
-        """Wait for route delivery after send() or any forwarded route.
+        """Wait for route delivery after send() -- a sleepless quiesce barrier.
 
-        Sends a ze-bgp:peer-flush RPC that blocks until all forward pool
-        workers have drained their queued items to peer sockets, then adds
-        a short delay for ze-peer cmd=api command interleaving. Because
-        peer-flush drains ALL forward-pool workers, this is valid for any
-        forwarded route (e.g. RS-transcoded), not just send()-originated.
+        Runs ``request quiesce``, which drains BOTH the BGP forward pool
+        (post-establishment forwarded routes) AND each peer's initial-sync
+        opQueue. Routes sent during a peer's establishment window are diverted
+        into that opQueue and drained DIRECT to the session -- bypassing the
+        forward pool -- then the peer's EOR is sent and the sync flag cleared;
+        the bgp-peer-sync quiescer waits for exactly that. When the barrier
+        returns, every peer has finished its initial route sync (EOR on the
+        wire, every queued route sent), so a subsequent send() deterministically
+        lands as a post-EOR incremental update.
 
-        NOTE: the trailing sleep also covers the peer simulator's own cmd=api
-        interleaving (EOR etc.), which the ze-system:quiesce barrier does NOT
-        drain, so this is intentionally left as peer-flush + sleep. `quiesce()`
-        (added alongside) is the sleepless barrier for tests that do not depend
-        on ze-peer cmd=api timing. Migrating wait_for_ack fully is follow-on work
-        (a peer-side quiescer).
+        This replaces the former ``ze-bgp:peer-flush`` RPC + ``time.sleep``.
+        peer-flush was never a reachable engine RPC method (it dispatches only
+        via ``request peer <sel> flush``), so ``_call_engine("ze-bgp:peer-flush")``
+        silently returned "unknown method" and the sleep did all the work --
+        which is why removing the sleep always reintroduced flakiness. The
+        quiesce barrier is the real, deterministic synchronization.
 
         Args:
-            expected_count: Number of routes sent (scales post-flush delay)
-            timeout: Timeout in seconds (unused, kept for API compat)
+            expected_count: Unused (kept for API compatibility).
+            timeout: Unused (kept for API compatibility).
 
         Returns:
-            True (always succeeds)
+            True once the barrier completes.
         """
-        import time
-
-        try:
-            self._call_engine("ze-bgp:peer-flush", {"selector": "*"})
-        except RuntimeError:
-            pass
-        # After flush confirms forward pool drained, allow time for
-        # ze-peer cmd=api commands to be interleaved and processed.
-        # The flush guarantees OUR routes are on the wire, but ze-peer
-        # may still be sending its own commands (e.g., EOR via cmd=api).
-        delay = 0.2 * max(1, expected_count)
-        time.sleep(delay)
+        self.quiesce()
         return True
 
     def read_response(self, timeout: float = 2.0) -> dict | str | None:
@@ -1334,7 +1335,7 @@ def send(command: str) -> None:
 
 
 def wait_for_ack(expected_count: int = 1, timeout: float = 2.0) -> bool:
-    """Wait for route delivery via peer-flush (any forwarded route, not just send())."""
+    """Wait for route delivery via the quiesce barrier (forward pool + peer initial-sync)."""
     return _get_api().wait_for_ack(expected_count, timeout)
 
 

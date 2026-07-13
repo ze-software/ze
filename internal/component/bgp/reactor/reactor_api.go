@@ -902,6 +902,63 @@ func (a *reactorAPIAdapter) FlushForwardPoolPeer(ctx context.Context, addr strin
 	return a.r.fwdPool.BarrierPeer(ctx, ap)
 }
 
+// DrainPeerSync blocks until every Established peer has finished initial route
+// sync -- !ShouldQueue(): sendingInitialRoutes cleared and its opQueue drained
+// (peer_initial_sync.go). Peers not yet Established are skipped: they have no wire
+// to receive routes, and waiting on one would hang the barrier.
+//
+// This complements FlushForwardPool. Routes sent during a peer's initial-sync
+// window are diverted into the opQueue and drained DIRECT to the session (not
+// through the forward pool), so a "routes on the wire" guarantee needs BOTH
+// barriers. Registered as the bgp-peer-sync quiescer alongside bgp-forward-pool.
+//
+// No completion signal exists for sendingInitialRoutes (a plain atomic cleared at
+// several sites), so this polls the cheap ShouldQueue() condition rather than a
+// fixed sleep: it returns as soon as the condition holds, and ctx bounds it.
+func (a *reactorAPIAdapter) DrainPeerSync(ctx context.Context) error {
+	return waitForCondition(ctx, time.Millisecond, a.peerSyncDrained)
+}
+
+// peerSyncDrained reports whether every Established peer has finished initial
+// route sync. Non-established peers are skipped (nothing to drain).
+func (a *reactorAPIAdapter) peerSyncDrained() bool {
+	return peersSynced(a.r.Peers())
+}
+
+// peersSynced reports whether no peer has pending route work (!PendingSync for
+// every peer): a peer with routes queued while establishing IS waited on (those
+// routes drain when it comes up, and a test's send() must reach the wire before
+// the next send), while a down/idle peer with an empty queue is skipped.
+func peersSynced(peers []*Peer) bool {
+	for _, p := range peers {
+		if p.PendingSync() {
+			return false
+		}
+	}
+	return true
+}
+
+// waitForCondition returns nil as soon as cond() is true, or ctx.Err() if the
+// deadline hits first. It checks once up front, then polls on a ticker. Used for
+// draining barriers that have no completion signal to await.
+func waitForCondition(ctx context.Context, tick time.Duration, cond func() bool) error {
+	if cond() {
+		return nil
+	}
+	ticker := time.NewTicker(tick)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			if cond() {
+				return nil
+			}
+		}
+	}
+}
+
 // RemovePeer removes a peer by address.
 func (a *reactorAPIAdapter) RemovePeer(addr netip.Addr) error {
 	return a.r.RemovePeer(addr)

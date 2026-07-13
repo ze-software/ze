@@ -263,6 +263,15 @@ func (c *Coordinator) FlushForwardPoolPeer(ctx context.Context, addr string) err
 	return ErrNoReactor
 }
 
+// DrainPeerSync blocks until every Established peer has finished initial route
+// sync. No-op without a reactor.
+func (c *Coordinator) DrainPeerSync(ctx context.Context) error {
+	if r := c.getReactor(); r != nil {
+		return r.DrainPeerSync(ctx)
+	}
+	return nil
+}
+
 // --- ReactorStartupCoordinator ---
 
 // SignalAPIReady signals that an API process is ready. No-op without reactor.
