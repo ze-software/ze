@@ -17,6 +17,14 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 # Step 3: Send malformed UPDATE with ORIGIN length=2 (RFC 7606 Section 7.1: must be 1)
 # UPDATE: withdrawn=0, attrs=[ORIGIN(len=2,MALFORMED)+AS_PATH(empty)+NEXT_HOP(10.0.0.1)], NLRI=10.0.0.0/24
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002A020000000F40010200004002004003040A000001180A0000
+# Step 3b: Send a well-formed EOR (empty IPv4/unicast UPDATE) as a processing fence,
+# in the same seq=2 group so the peer emits it immediately after the malformed above.
+# ze increments updates-received for this EOR but NOT for the malformed treat-as-withdraw
+# (session_read.go returns before the counter). Because ze processes this connection in
+# TCP order on one session-read goroutine, the observer seeing updates-received >= 1
+# proves the malformed UPDATE was already handled. This lets the observer gate Route 2
+# on real processing instead of a blind sleep(1.0).
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
 # Step 4: Expect second valid route from plugin (10.0.1.0/24) — proves session survived
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0001
@@ -36,6 +44,20 @@ import sys
 import time
 
 from ze_api import API
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def updates_received(api):
+    r = dispatch(api, 'show bgp peer peer1 detail')
+    return r.get('data', {}).get('peers', {}).get('127.0.0.1', {}).get(
+        'updates-received', 0)
 
 
 def main() -> None:
@@ -65,8 +87,14 @@ def main() -> None:
     # Route 1: sent immediately after peer up
     api.send('peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24')
 
-    # Wait for malformed UPDATE from peer to be processed by ze
-    time.sleep(1.0)
+    # Deterministic replacement for sleep(1.0): the peer sends the malformed UPDATE
+    # followed by a well-formed EOR (see the peer block, Step 3/3b). ze counts the EOR
+    # but not the malformed treat-as-withdraw, and processes the connection in TCP order,
+    # so updates-received >= 1 proves the malformed UPDATE was already handled. Only then
+    # is it valid to send Route 2 as proof the session survived the malformed UPDATE.
+    if not api.wait_until(lambda: updates_received(api) >= 1, attempts=100, delay=0.1):
+        print('FAIL: ze never counted the post-malformed EOR fence', file=sys.stderr)
+        sys.exit(1)
 
     # Route 2: proves session survived the malformed UPDATE
     api.send('peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24')
