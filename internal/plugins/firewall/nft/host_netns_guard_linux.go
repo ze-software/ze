@@ -44,7 +44,7 @@ func refuseHostNetnsFirewall() error {
 	}
 	var st unix.Stat_t
 	if err := unix.Stat("/proc/self/ns/net", &st); err != nil {
-		return fmt.Errorf("%w: cannot read own network namespace: %v", errHostNetnsFirewall, err)
+		return fmt.Errorf("%w: cannot read own network namespace: %w", errHostNetnsFirewall, err)
 	}
 	if st.Ino == hostInode {
 		return errHostNetnsFirewall

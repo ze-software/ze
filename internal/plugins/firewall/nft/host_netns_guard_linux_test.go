@@ -24,7 +24,7 @@ func TestRefuseHostNetnsFirewall(t *testing.T) {
 	cur := st.Ino
 
 	t.Run("env unset allows production path", func(t *testing.T) {
-		os.Unsetenv(hostNetnsFirewallEnv)
+		_ = os.Unsetenv(hostNetnsFirewallEnv)
 		if err := refuseHostNetnsFirewall(); err != nil {
 			t.Fatalf("env unset must allow, got %v", err)
 		}
