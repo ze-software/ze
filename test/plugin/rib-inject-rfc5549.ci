@@ -1,0 +1,126 @@
+# Test: rib inject accepts an RFC 5549 extended next-hop (IPv4 NLRI, IPv6 next-hop)
+# VALIDATES: request bgp rib inject stores an IPv6 next-hop for an IPv4 NLRI as an
+#            MP_REACH_NLRI extended next-hop (RFC 5549/8950); the best-path show
+#            recovers and renders it via extractMPNextHopAddr (the forward path).
+# PREVENTS: inject silently discarding the IPv6 next-hop (the pre-fix behavior:
+#           "IPv6 nhop accepted but not stored in NEXT_HOP attr").
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: inject an IPv4 route with an IPv6 next-hop, then confirm the
+# best-path show reports the IPv6 extended next-hop.
+tmpfs=rib-inject-rfc5549.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import sys
+from ze_api import API, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        # RFC 5549: IPv4 unicast NLRI reachable via an IPv6 next-hop.
+        result = dispatch(
+            api,
+            'request bgp rib inject 10.0.0.99 ipv4/unicast 192.168.1.0/24 origin igp nexthop 2001:db8::1')
+        if result.get('status') != 'done':
+            print(f'FAIL: rib inject status={result.get("status")} data={result.get("data")}', file=sys.stderr)
+            sys.exit(1)
+
+        # Best-path show recovers the next-hop from the stored MP_REACH_NLRI.
+        result = dispatch(api, 'show bgp rib best')
+        if result.get('status') != 'done':
+            print(f'FAIL: rib best show status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+
+        show_data = result_text_data(result)
+        if '192.168.1.0/24' not in show_data:
+            print(f'FAIL: injected prefix not in best show: {show_data[:300]}', file=sys.stderr)
+            sys.exit(1)
+        if '2001:db8::1' not in show_data:
+            print(f'FAIL: IPv6 extended next-hop not in best show (discarded?): {show_data[:300]}', file=sys.stderr)
+            sys.exit(1)
+
+        print('OK: RFC 5549 extended next-hop stored and recovered', file=sys.stderr)
+    finally:
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rib-inject-rfc5549 {
+		run ./rib-inject-rfc5549.run
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process rib-inject-rfc5549 {
+		}
+		process bgp-rib {
+			receive [ state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

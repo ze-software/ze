@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1137 summaries
+Total: 1138 summaries
 
 ## 000-099
 
@@ -1204,5 +1204,6 @@ Total: 1137 summaries
 | 1120 | payload-predicate-waits | `plan/learned/1120-payload-predicate-waits.md` |
 | 1120 | rib-arch-1: Central Per-Protocol RIB Store vs Event-Bus Delta Model | `plan/learned/1120-rib-arch-1-store-vs-delta.md` |
 | 1121 | negative-test-must-fail-for-its-reason | `plan/learned/1121-negative-test-must-fail-for-its-reason.md` |
+| 1121 | rib-arch-3: RFC 5549 Extended Next-Hop for Injected Routes | `plan/learned/1121-rib-arch-3-inject-rfc5549.md` |
 | 1122 | vrrp-macvlan-vmac-dataplane | `plan/learned/1122-vrrp-macvlan-vmac-dataplane.md` |
 | 1123 | bare-go-test-drops-feature-tags | `plan/learned/1123-bare-go-test-drops-feature-tags.md` |

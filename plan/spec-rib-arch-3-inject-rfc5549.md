@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-08 |
+| Updated | 2026-07-14 |
 
 ## Post-Compaction Recovery
 
@@ -135,12 +135,13 @@ set.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (define at design time) | `internal/component/bgp/plugins/rib/rib_commands_test.go` | inject accepts IPv6 next-hop for IPv4 NLRI; encodes extended next-hop | |
+| `TestInjectRFC5549ExtendedNextHop` | `internal/component/bgp/plugins/rib/rib_commands_test.go` | inject IPv4/unicast + IPv6 next-hop stores MP_REACH_NLRI; `extractMPNextHopAddr` (the forward path) recovers the IPv6 next-hop | PASS (RED→GREEN captured) |
+| `TestInjectIPv6NextHopNativeFamily` | `internal/component/bgp/plugins/rib/rib_commands_test.go` | same MP_REACH path carries an IPv6 next-hop for a native IPv6 NLRI (also discarded pre-fix) | PASS |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `rib-inject-rfc5549` (new) | `test/plugin/rib-inject-rfc5549.ci` | operator injects an IPv4 route with an IPv6 next-hop; it forwards with the extended next-hop | |
+| `rib-inject-rfc5549` | `test/plugin/rib-inject-rfc5549.ci` | operator injects an IPv4 route with an IPv6 next-hop; `show bgp rib best` reports the RFC 5549 extended next-hop (recovered via the same `extractMPNextHopAddr` the forward encoder uses) | PASS (`ze-test bgp plugin rib-inject-rfc5549`) |
 
 ### Interop Tests (MANDATORY for protocol features)
 - Design decides whether an interop scenario (FRR/BIRD accepting the injected RFC 5549 route) is warranted; the parse side is already interop-tested.
@@ -172,10 +173,83 @@ set.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 
+## Design Verification (2026-07-14)
+
+Anchors re-verified (the triage's `PackContext` anchor was stale and is gone):
+
+- `injectRoute` (`rib_commands.go:225`) discarded an IPv6 next-hop for any family
+  (":280-282", "IPv6 nhop accepted but not stored"). The gap affected BOTH RFC 5549
+  (IPv4 NLRI + IPv6 NH) AND native IPv6 NLRI + IPv6 NH.
+- **A-1 confirmed:** the send-side RFC 5549 encoder already exists and is correct.
+  `useTraditionalNLRI` (`internal/component/bgp/rib/commit.go:222`) returns false for
+  IPv4/unicast + non-IPv4 next-hop, routing to `buildMPReachNLRI` (`:337` → `:484`
+  `attribute.NewMPReachNLRI`). `ValidNextHopLens` allows `{4,16}` for IPv4/unicast
+  (`attribute/mpnlri.go:267`). So no new encoder was needed.
+- The next-hop is NOT a stored field: it is recovered by parsing the stored attribute
+  bytes. `bestCandidateNextHopAddr` (`rib_bestchange.go:1022`) reads legacy NEXT_HOP
+  first, else `extractMPNextHopAddr` (`:1058`) over the MP_REACH in `OtherAttrs`. So an
+  IPv6 next-hop survives storage only as an MP_REACH_NLRI inside the attribute block.
+- **A-2 confirmed:** `isSimplePrefixFamily` (`rib_nlri.go:69`) already permits IPv4/IPv6
+  unicast/multicast; RFC 5549 fits without widening it.
+- **Fix:** in `injectRoute`, capture the IPv6 next-hop (instead of discarding it) and,
+  after building the base attributes and NLRI, append an MP_REACH_NLRI attribute built
+  via `attribute.NewMPReachNLRI` + `attribute.WriteAttrTo` (`attribute.go:237`). This
+  mirrors the receive path (`rib_structured.go:209-237`): MP_REACH inside the attribute
+  block, NLRI kept as the separate storage key. The `ExtendedNextHop` (RFC 8950)
+  capability check (`validateIPv6NextHop`) is applied only for the cross-family case
+  (`fam.AFI == IPv4`); native IPv6 needs no such capability.
+
+## Implementation Summary
+
+- `internal/component/bgp/plugins/rib/rib_commands.go` — `injectRoute` now records an
+  IPv6 next-hop and emits an MP_REACH_NLRI attribute into the stored attribute bytes
+  (RFC 5549/8950). Cross-family (IPv4 NLRI) keeps the `ExtendedNextHop` capability check.
+- Tests: `rib_commands_test.go` (2 unit tests, RED→GREEN), `test/plugin/rib-inject-rfc5549.ci`
+  (functional, PASS).
+- **AC-1 met:** injected IPv4/unicast + IPv6 next-hop stores/recovers the RFC 5549/8950
+  extended next-hop. **AC-2 (reject unencodable):** preserved by `validateIPv6NextHop`,
+  which rejects an IPv6 next-hop for a known peer that has not negotiated extended-nexthop
+  (RFC 8950) for the family.
+- **Bonus (beyond spec scope):** the same code path fixes native IPv6 NLRI + IPv6 next-hop
+  inject, which the pre-fix code also silently discarded.
+- **Deviation:** the "received" adj-rib-in show (`show bgp rib received`) renders legacy
+  NEXT_HOP only, not MP next-hops, so the .ci asserts via `show bgp rib best` (which uses
+  `extractMPNextHopAddr`, the forward path). Received IPv6/MP routes already display the
+  same way in the received show; injected RFC 5549 routes are consistent with them.
+
+## Review Gate
+
+Self-review of the diff (rib_commands.go + tests + .ci):
+- No bypassed layers: inject uses the normal attribute-build + adj-rib-in path; MP_REACH
+  reuses the existing `NewMPReachNLRI` encoder, not a new one.
+- exact-or-reject preserved: `validateIPv6NextHop` rejects an unnegotiated cross-family
+  next-hop; the forward encoder handles what inject stores.
+- Buffer handling: MP_REACH serialized into a freshly-sized buffer and concatenated into
+  a fresh combined slice (no aliasing of the builder's output).
+Findings: 0 BLOCKER, 0 ISSUE. Note: `rib_commands.go` is 1078 lines; it was already over
+the 1000-line modularity threshold before this ~30-line change, so the change does not
+introduce the largeness.
+
+## Pre-Commit Verification
+
+Re-verified 2026-07-14:
+
+| Item | Evidence |
+|------|----------|
+| Files exist | `internal/component/bgp/plugins/rib/rib_commands.go`, `rib_commands_test.go`, `test/plugin/rib-inject-rfc5549.ci` |
+| AC-1 verified | `TestInjectRFC5549ExtendedNextHop` PASS; `.ci` PASS (`ze-test bgp plugin rib-inject-rfc5549`) |
+| RED captured | with feature disabled, both unit tests fail (next-hop "invalid IP") |
+| Wiring verified | `.ci` drives `request bgp rib inject ... nexthop <ipv6>` then `show bgp rib best`, asserts the IPv6 next-hop |
+| A-1 resolved | confirmed — send-side RFC 5549 encoder exists (`commit.go:222,337,484`) |
+| A-2 resolved | confirmed — `isSimplePrefixFamily` already permits the families (`rib_nlri.go:69`) |
+| Producers read | `commit.go:222/484`, `rib_bestchange.go:1058`, `rib_structured.go:209`, `attribute.go:237` all read this session |
+
 ## RFC Documentation
 
-Add `// RFC 5549 Section X.Y` / `// RFC 8950 Section X.Y` comments above the injected
-extended-next-hop encoding and validation code.
+`// RFC 5549`/`// RFC 8950` comments are present on the injected extended-next-hop
+encoding (`rib_commands.go` nhop branch and MP_REACH emission) and the validation
+(`validateIPv6NextHop`, `rib_commands.go:333`, `:353`). The file header already carries
+`// RFC: rfc/short/rfc8950.md`.
 
 ## Notes
 - Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.

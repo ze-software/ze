@@ -350,6 +350,54 @@ func TestInjectAcceptsNexthopAlias(t *testing.T) {
 	assert.Equal(t, "10.0.0.2", route["next-hop"])
 }
 
+// TestInjectRFC5549ExtendedNextHop verifies that injecting an IPv4 unicast prefix
+// with an IPv6 next-hop stores the next-hop as an RFC 5549/8950 extended next-hop
+// (carried in MP_REACH_NLRI) instead of discarding it. The stored MP_REACH's IPv6
+// next-hop is recovered exactly as the forward path recovers it
+// (bestCandidateNextHopAddr -> extractMPNextHopAddr), so the route re-advertises
+// with the extended next-hop.
+// RFC 5549: advertising IPv4 NLRI with an IPv6 next-hop. RFC 8950: encoding.
+func TestInjectRFC5549ExtendedNextHop(t *testing.T) {
+	r := newTestRIBManager(t)
+	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
+
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "nexthop", "2001:db8::1",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+
+	nlri, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
+	require.NoError(t, err)
+	entry, found := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(ipv4Uni, nlri)
+	require.True(t, found, "injected route must be stored")
+
+	nh := extractMPNextHopAddr(entry.GetBundle())
+	assert.Equal(t, "2001:db8::1", nh.String(), "stored MP_REACH must carry the IPv6 extended next-hop")
+}
+
+// TestInjectIPv6NextHopNativeFamily verifies the same MP_REACH path carries an
+// IPv6 next-hop for a native IPv6 NLRI (ordinary MP-BGP, not RFC 5549), which the
+// pre-fix inject path also discarded.
+func TestInjectIPv6NextHopNativeFamily(t *testing.T) {
+	r := newTestRIBManager(t)
+	ipv6Uni := family.Family{AFI: 2, SAFI: 1}
+
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
+		"10.0.0.1", "ipv6/unicast", "2001:db8:1::/48", "nexthop", "2001:db8::2",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+
+	nlri, err := prefixToWire("ipv6/unicast", "2001:db8:1::/48", 0, false)
+	require.NoError(t, err)
+	entry, found := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(ipv6Uni, nlri)
+	require.True(t, found, "injected route must be stored")
+
+	nh := extractMPNextHopAddr(entry.GetBundle())
+	assert.Equal(t, "2001:db8::2", nh.String(), "stored MP_REACH must carry the IPv6 next-hop")
+}
+
 // TestWithdrawUsesProtocolSlot verifies request bgp rib withdraw reads from bgpPeers.
 func TestWithdrawUsesProtocolSlot(t *testing.T) {
 	r := newTestRIBManager(t)

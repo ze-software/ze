@@ -255,6 +255,11 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 	ab := attribute.NewBuilder()
 	ab.SetOrigin(uint8(attribute.OriginIGP)) // default
 
+	// extNextHop holds an IPv6 next-hop that must be carried in MP_REACH_NLRI
+	// (the legacy NEXT_HOP attribute is IPv4-only). Set below when the operator
+	// supplies an IPv6 next-hop; emitted as an MP_REACH attribute after the loop.
+	var extNextHop netip.Addr
+
 	for i := 0; i < len(attrArgs); i += 2 {
 		key := attrArgs[i]
 		val := attrArgs[i+1]
@@ -272,13 +277,24 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 			if err != nil {
 				return statusError, "", fmt.Errorf("invalid next-hop IP: %s", val)
 			}
-			if nhAddr.Unmap().Is4() {
-				ab.SetNextHop(nhAddr.Unmap().As4())
-			} else if err := r.validateIPv6NextHop(peer, fam); err != nil {
-				return statusError, "", err
+			nhAddr = nhAddr.Unmap()
+			if nhAddr.Is4() {
+				// Legacy NEXT_HOP attribute (type 3, IPv4 only).
+				ab.SetNextHop(nhAddr.As4())
+			} else {
+				// IPv6 next-hop. RFC 5549/8950: an IPv4 NLRI reachable via an IPv6
+				// next-hop is a cross-family extended next-hop and requires the peer
+				// to have negotiated extended-nexthop. A native IPv6 NLRI with an
+				// IPv6 next-hop is ordinary MP-BGP and needs no such capability.
+				// Either way the next-hop can only live in MP_REACH_NLRI (NEXT_HOP
+				// type 3 is IPv4-only), so record it and emit MP_REACH below.
+				if fam.AFI == family.AFIIPv4 {
+					if err := r.validateIPv6NextHop(peer, fam); err != nil {
+						return statusError, "", err
+					}
+				}
+				extNextHop = nhAddr
 			}
-			// IPv6 nhop accepted but not stored in NEXT_HOP attr (type 3 is IPv4 only).
-			// Route is injected without wire next-hop; shows in "show bgp rib" as-is.
 			continue
 		}
 		if key == "aspath" {
@@ -313,6 +329,23 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 	nlriBytes, err := prefixToWire(familyStr, prefix, 0, false)
 	if err != nil {
 		return statusError, "", fmt.Errorf("invalid prefix: %w", err)
+	}
+
+	// RFC 5549 / RFC 8950: an IPv6 next-hop (for an IPv4 NLRI -- extended next-hop
+	// -- or a native IPv6 NLRI) is carried in MP_REACH_NLRI, not the IPv4-only
+	// NEXT_HOP attribute. Mirror the receive path (rib_structured.go): store the
+	// MP_REACH inside the attribute block and keep nlriBytes as the separate
+	// storage key. On readback extractMPNextHopAddr recovers the IPv6 next-hop and
+	// the forward encoder (commit.go useTraditionalNLRI -> buildMPReachNLRI)
+	// re-emits it as an RFC 5549/8950 extended next-hop.
+	if extNextHop.IsValid() {
+		mpReach := attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI), []netip.Addr{extNextHop}, nlriBytes)
+		mpBuf := make([]byte, 4+mpReach.Len())
+		n := attribute.WriteAttrTo(mpReach, mpBuf, 0)
+		combined := make([]byte, 0, len(attrBytes)+n)
+		combined = append(combined, attrBytes...)
+		combined = append(combined, mpBuf[:n]...)
+		attrBytes = combined
 	}
 
 	r.peerMu.Lock()
