@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1132 summaries
+Total: 1133 summaries
 
 ## 000-099
 
@@ -1201,3 +1201,4 @@ Total: 1132 summaries
 | 1117 | test-sync-quiesce | `plan/learned/1117-test-sync-quiesce.md` |
 | 1118 | quiesce-peer-drain | `plan/learned/1118-quiesce-peer-drain.md` |
 | 1119 | cli-hyphen-namespace-split | `plan/learned/1119-cli-hyphen-namespace-split.md` |
+| 1120 | payload-predicate-waits | `plan/learned/1120-payload-predicate-waits.md` |

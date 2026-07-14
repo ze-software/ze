@@ -50,6 +50,7 @@ func (m *mockReactor) AddDynamicPeer(_ netip.Addr, _ map[string]any) error    { 
 // --- ReactorConfigurator ---
 
 func (m *mockReactor) Reload() error                          { return nil }
+func (m *mockReactor) DrainPeerSync(_ context.Context) error  { return nil }
 func (m *mockReactor) VerifyConfig(_ map[string]any) error    { return nil }
 func (m *mockReactor) ApplyConfigDiff(_ map[string]any) error { return nil }
 func (m *mockReactor) GetConfigTree() map[string]any          { return nil }

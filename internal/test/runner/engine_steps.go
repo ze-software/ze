@@ -6,8 +6,19 @@
 //	command=<cli command text>
 //	stream=<monitor command text>
 //	expect=output:contains=<text>[:timeout=<dur>]
+//	expect=output:matches=<regexp>[:timeout=<dur>]
+//	expect=output:absent=<text>[:timeout=<dur>]
+//	expect=output:json=<dotted.path>=<value>[:timeout=<dur>]
 //	expect=event:namespace=<ns>:name=<name>[:timeout=<dur>]
 //	expect=stream:contains=<text>[:timeout=<dur>]
+//	expect=stream:matches=<regexp>[:timeout=<dur>]
+//
+// The expect=output predicate re-dispatches the most recent command until the
+// predicate holds or the timeout expires: contains= (substring, the default),
+// matches= (regexp), absent= (substring must NOT be present, for withdrawals),
+// or json= (a dotted path into the JSON data field stringifies to the value).
+// expect=stream supports contains= / matches= over delivered stream events;
+// absent= / json= are expect=output only.
 //
 // Execution model: the runner serializes the parsed steps to
 // engine-steps.json in the test's tmpfs directory, and the .ci declares the
@@ -40,6 +51,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -65,10 +77,19 @@ const (
 // `ze-test engine-steps` executor.
 type EngineStep struct {
 	Kind      EngineStepKind `json:"kind"`
-	Text      string         `json:"text,omitempty"` // command/stream text, or contains= needle
+	Text      string         `json:"text,omitempty"` // command/stream text, or the predicate operand (contains=/matches= needle, absent= needle, or json= value)
 	Namespace string         `json:"namespace,omitempty"`
 	Name      string         `json:"name,omitempty"`
 	Timeout   time.Duration  `json:"timeout,omitempty"`
+	// Match is the expect=output/expect=stream predicate kind: "" or "contains"
+	// (substring, the default and back-compatible form), "matches" (regexp over
+	// the output), "absent" (substring must NOT be present; output-only), or
+	// "json" (dotted Path into the JSON data equals Text; output-only). omitempty
+	// keeps pre-existing contains= steps byte-identical in engine-steps.json.
+	Match string `json:"match,omitempty"`
+	// Path is the dotted JSON path for Match=="json" (e.g. "0.prefix"); segments
+	// index maps by key or arrays by integer index.
+	Path string `json:"path,omitempty"`
 }
 
 // EngineStepsFileName is the tmpfs file the runner writes and the spawned
@@ -83,8 +104,19 @@ const (
 	engineActionStream  = "stream"
 )
 
-// MarshalEngineSteps serializes steps for engine-steps.json.
-func MarshalEngineSteps(steps []EngineStep) ([]byte, error) {
+// expect=output / expect=stream predicate kinds stored in EngineStep.Match. The
+// empty string means contains= (substring, the default and back-compatible
+// form), so it is deliberately not named here.
+const (
+	engineMatchRegexp = "matches" // regexp over the output
+	engineMatchAbsent = "absent"  // substring must be absent (output-only)
+	engineMatchJSON   = "json"    // dotted Path into JSON data equals Text (output-only)
+)
+
+// marshalEngineSteps serializes steps for engine-steps.json. Runner-internal:
+// only the runner writes the file (runner_exec.go); the spawned executor reads
+// it cross-package via the exported UnmarshalEngineSteps.
+func marshalEngineSteps(steps []EngineStep) ([]byte, error) {
 	return json.Marshal(steps)
 }
 
@@ -145,23 +177,24 @@ func parseEngineExpectEvent(r *Record, kv map[string]string) error {
 	return nil
 }
 
-// parseEngineExpectContains handles expect=output / expect=stream directives,
-// whose contains= needle may itself hold ':' -- e.g. a compact-JSON fragment
-// like "rekey-count":1 that a rekey test polls for. rest is everything after
+// parseEngineExpectContains handles expect=output / expect=stream directives.
+// The predicate operand may itself hold ':' -- e.g. a compact-JSON fragment
+// like "rekey-count":1 that a rekey test polls for, or an IPv6 json= value --
+// so parseLine routes these here before the generic ':' splitter (which would
+// truncate the operand at its first colon), mirroring how command=/stream= keep
+// their raw remainder (parseEngineCmd). rest is everything after
 // "expect=output:" / "expect=stream:". The optional trailing ":timeout=<dur>"
-// is split off the end; the remainder after "contains=" is the needle verbatim,
-// colons included. This is why parseLine routes these here before applying the
-// generic ':' splitter (which would truncate the needle at its first colon),
-// mirroring how command=/stream= keep their raw remainder (parseEngineCmd).
+// is split off the END first; the remainder is one predicate:
+//
+//	contains=<needle>            substring (default kind, Match=="")
+//	matches=<regexp>             regexp, compiled here so a bad regexp fails at parse (R-3)
+//	absent=<needle>              substring must be absent (expect=output only)
+//	json=<dotted.path>=<value>   JSON path stringifies to value (expect=output only)
 func parseEngineExpectContains(r *Record, expType, rest string) error {
 	timeoutStr := ""
 	if idx := strings.LastIndex(rest, ":timeout="); idx >= 0 {
 		timeoutStr = rest[idx+len(":timeout="):]
 		rest = rest[:idx]
-	}
-	needle, ok := strings.CutPrefix(rest, "contains=")
-	if !ok || needle == "" {
-		return fmt.Errorf("expect=%s requires a non-empty contains=", expType)
 	}
 	timeout, err := parseEngineTimeout(timeoutStr)
 	if err != nil {
@@ -171,7 +204,49 @@ func parseEngineExpectContains(r *Record, expType, rest string) error {
 	if expType == engineActionStream {
 		kind = EngineStepExpectStream
 	}
-	r.EngineSteps = append(r.EngineSteps, EngineStep{Kind: kind, Text: needle, Timeout: timeout})
+	step := EngineStep{Kind: kind, Timeout: timeout}
+
+	switch {
+	case strings.HasPrefix(rest, "contains="):
+		step.Text = rest[len("contains="):]
+		if step.Text == "" {
+			return fmt.Errorf("expect=%s requires a non-empty contains=", expType)
+		}
+	case strings.HasPrefix(rest, "matches="):
+		step.Match = engineMatchRegexp
+		step.Text = rest[len("matches="):]
+		if step.Text == "" {
+			return fmt.Errorf("expect=%s requires a non-empty matches=", expType)
+		}
+		if _, reErr := regexp.Compile(step.Text); reErr != nil {
+			return fmt.Errorf("expect=%s matches= invalid regexp %q: %w", expType, step.Text, reErr)
+		}
+	case strings.HasPrefix(rest, "absent="):
+		if expType == engineActionStream {
+			return fmt.Errorf("expect=stream does not support absent= (output-only predicate)")
+		}
+		step.Match = engineMatchAbsent
+		step.Text = rest[len("absent="):]
+		if step.Text == "" {
+			return fmt.Errorf("expect=%s requires a non-empty absent=", expType)
+		}
+	case strings.HasPrefix(rest, "json="):
+		if expType == engineActionStream {
+			return fmt.Errorf("expect=stream does not support json= (output-only predicate)")
+		}
+		operand := rest[len("json="):]
+		path, value, ok := strings.Cut(operand, "=")
+		if !ok || path == "" || value == "" {
+			return fmt.Errorf("expect=%s json= requires <dotted.path>=<value>, got %q", expType, operand)
+		}
+		step.Match = engineMatchJSON
+		step.Path = path
+		step.Text = value
+	default:
+		return fmt.Errorf("expect=%s requires one of contains=/matches=/absent=/json=", expType)
+	}
+
+	r.EngineSteps = append(r.EngineSteps, step)
 	return nil
 }
 
@@ -201,7 +276,7 @@ func (b *EngineEventBuffer) OnEvent(event string) error {
 }
 
 // Len returns the number of recorded events; use it as a position marker for
-// WaitFrom to exclude deliveries that predate a step.
+// waitFrom to exclude deliveries that predate a step.
 func (b *EngineEventBuffer) Len() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -211,11 +286,11 @@ func (b *EngineEventBuffer) Len() int {
 // Wait blocks until pred matches any recorded event (scrollback included) or
 // the deadline passes. Returns the matching event or "".
 func (b *EngineEventBuffer) Wait(ctx context.Context, deadline time.Time, pred func(string) bool) string {
-	return b.WaitFrom(ctx, 0, deadline, pred)
+	return b.waitFrom(ctx, 0, deadline, pred)
 }
 
-// WaitFrom is Wait restricted to events recorded at position >= from.
-func (b *EngineEventBuffer) WaitFrom(ctx context.Context, from int, deadline time.Time, pred func(string) bool) string {
+// waitFrom is Wait restricted to events recorded at position >= from.
+func (b *EngineEventBuffer) waitFrom(ctx context.Context, from int, deadline time.Time, pred func(string) bool) string {
 	scanned := from
 	for {
 		b.mu.Lock()
@@ -262,6 +337,7 @@ func RunEngineSteps(ctx context.Context, dispatch EngineDispatch, buf *EngineEve
 
 	lastCommand := ""
 	lastOutput := ""
+	lastData := "" // raw data field alone, for json= path walks (A-3 constraint)
 	for i, step := range steps {
 		switch step.Kind {
 		case EngineStepCommand, EngineStepStream:
@@ -270,17 +346,27 @@ func RunEngineSteps(ctx context.Context, dispatch EngineDispatch, buf *EngineEve
 				return fmt.Errorf("engine step %d (%s): %w", i+1, step.Text, err)
 			}
 			lastCommand = step.Text
+			lastData = data
 			lastOutput = tb.Reset().Str(status).Byte(' ').Str(data).String()
 
 		case EngineStepExpectOutput:
+			// matches= regexps are compiled once here (parse already validated
+			// them; R-3) so the poll loop never recompiles.
+			var re *regexp.Regexp
+			if step.Match == engineMatchRegexp {
+				compiled, reErr := regexp.Compile(step.Text)
+				if reErr != nil {
+					return fmt.Errorf("engine step %d: matches= invalid regexp %q: %w", i+1, step.Text, reErr)
+				}
+				re = compiled
+			}
 			deadline := time.Now().Add(step.Timeout)
-			for !strings.Contains(lastOutput, step.Text) {
+			for !engineOutputSatisfied(step, re, lastOutput, lastData) {
 				if lastCommand == "" {
 					return fmt.Errorf("engine step %d: expect=output before any command=", i+1)
 				}
 				if time.Now().After(deadline) {
-					return fmt.Errorf("engine step %d: output missing %q within %s (last %q output %.200q)",
-						i+1, step.Text, step.Timeout, lastCommand, lastOutput)
+					return engineOutputTimeoutErr(i+1, step, lastCommand, lastOutput, lastData)
 				}
 				select {
 				case <-ctx.Done():
@@ -291,6 +377,7 @@ func RunEngineSteps(ctx context.Context, dispatch EngineDispatch, buf *EngineEve
 				if err != nil {
 					return fmt.Errorf("engine step %d re-dispatch %q: %w", i+1, lastCommand, err)
 				}
+				lastData = data
 				lastOutput = tb.Reset().Str(status).Byte(' ').Str(data).String()
 			}
 
@@ -311,7 +398,7 @@ func RunEngineSteps(ctx context.Context, dispatch EngineDispatch, buf *EngineEve
 			if status != "done" {
 				return fmt.Errorf("engine step %d subscribe %s/%s: status=%q", i+1, ns, name, status)
 			}
-			ev := buf.WaitFrom(ctx, pos, time.Now().Add(step.Timeout), func(string) bool { return true })
+			ev := buf.waitFrom(ctx, pos, time.Now().Add(step.Timeout), func(string) bool { return true })
 			unsubCmd := tb.Reset().Str("request unsubscribe ").Str(ns).Str(" event ").Str(name).String()
 			if _, _, unsubErr := dispatch(ctx, unsubCmd); unsubErr != nil {
 				return fmt.Errorf("engine step %d unsubscribe %s/%s: %w", i+1, ns, name, unsubErr)
@@ -322,14 +409,112 @@ func RunEngineSteps(ctx context.Context, dispatch EngineDispatch, buf *EngineEve
 			}
 
 		case EngineStepExpectStream:
-			needle := step.Text
-			if ev := buf.Wait(ctx, time.Now().Add(step.Timeout), func(e string) bool {
-				return strings.Contains(e, needle)
-			}); ev == "" {
+			// expect=stream supports contains= (default) and matches= only;
+			// absent=/json= are rejected at parse (output-only, AC-8).
+			var pred func(string) bool
+			if step.Match == engineMatchRegexp {
+				re, reErr := regexp.Compile(step.Text)
+				if reErr != nil {
+					return fmt.Errorf("engine step %d: matches= invalid regexp %q: %w", i+1, step.Text, reErr)
+				}
+				pred = re.MatchString
+			} else {
+				needle := step.Text
+				pred = func(e string) bool { return strings.Contains(e, needle) }
+			}
+			if ev := buf.Wait(ctx, time.Now().Add(step.Timeout), pred); ev == "" {
+				if step.Match == engineMatchRegexp {
+					return fmt.Errorf("engine step %d: stream never matched regexp %q within %s",
+						i+1, step.Text, step.Timeout)
+				}
 				return fmt.Errorf("engine step %d: stream output missing %q within %s",
-					i+1, needle, step.Timeout)
+					i+1, step.Text, step.Timeout)
 			}
 		}
 	}
 	return nil
+}
+
+// engineOutputSatisfied reports whether an expect=output predicate holds for the
+// most recent dispatch. output is "status data"; data is the raw data field
+// alone (used by json=). re is the pre-compiled matches= regexp (nil otherwise).
+// An empty/"contains" Match is the default substring check.
+func engineOutputSatisfied(step EngineStep, re *regexp.Regexp, output, data string) bool {
+	switch step.Match {
+	case engineMatchRegexp:
+		return re != nil && re.MatchString(output)
+	case engineMatchAbsent:
+		return !strings.Contains(output, step.Text)
+	case engineMatchJSON:
+		v, ok := engineJSONPathValue(data, step.Path)
+		return ok && v == step.Text
+	default: // "" or "contains"
+		return strings.Contains(output, step.Text)
+	}
+}
+
+// engineOutputTimeoutErr builds the timeout error for an expect=output step,
+// naming the predicate operand and the last observed output/data (truncated,
+// mirroring the %.200q style of the original contains= error) so a failing json=
+// path or unmatched regexp is diagnosable without re-running (R-2).
+func engineOutputTimeoutErr(stepNum int, step EngineStep, lastCommand, lastOutput, lastData string) error {
+	switch step.Match {
+	case engineMatchRegexp:
+		return fmt.Errorf("engine step %d: output never matched regexp %q within %s (last %q output %.200q)",
+			stepNum, step.Text, step.Timeout, lastCommand, lastOutput)
+	case engineMatchAbsent:
+		return fmt.Errorf("engine step %d: substring %q still present within %s (last %q output %.200q)",
+			stepNum, step.Text, step.Timeout, lastCommand, lastOutput)
+	case engineMatchJSON:
+		return fmt.Errorf("engine step %d: json path %q never equaled %q within %s (last %q data %.200q)",
+			stepNum, step.Path, step.Text, step.Timeout, lastCommand, lastData)
+	default:
+		return fmt.Errorf("engine step %d: output missing %q within %s (last %q output %.200q)",
+			stepNum, step.Text, step.Timeout, lastCommand, lastOutput)
+	}
+}
+
+// engineJSONPathValue walks a dotted path into JSON-decoded data and returns the
+// leaf stringified for comparison. Segments index a JSON object by key or a JSON
+// array by integer index (0..len-1; negative or out-of-range yields not-found,
+// never a panic). Non-JSON data, a missing key, or an out-of-range index all
+// return ("", false) -- treated as "not satisfied yet" while polling.
+func engineJSONPathValue(data, path string) (string, bool) {
+	var v any
+	if err := json.Unmarshal([]byte(data), &v); err != nil {
+		return "", false
+	}
+	for seg := range strings.SplitSeq(path, ".") {
+		switch node := v.(type) {
+		case map[string]any:
+			next, ok := node[seg]
+			if !ok {
+				return "", false
+			}
+			v = next
+		case []any:
+			idx, err := strconv.Atoi(seg)
+			if err != nil || idx < 0 || idx >= len(node) {
+				return "", false
+			}
+			v = node[idx]
+		default:
+			return "", false
+		}
+	}
+	return engineStringifyJSON(v), true
+}
+
+// engineStringifyJSON renders a JSON-decoded leaf for string comparison: a
+// string is returned verbatim; everything else (number, bool, null, or a nested
+// object/array) is marshaled back to compact JSON.
+func engineStringifyJSON(v any) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }

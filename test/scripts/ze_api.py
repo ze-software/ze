@@ -948,6 +948,24 @@ class API:
             "ze-plugin-engine:dispatch-command", {"command": command}
         )
 
+    def dispatch_until(
+        self,
+        command: str,
+        predicate: Callable[[dict], bool],
+        attempts: int = 20,
+        delay: float = 0.25,
+    ) -> dict:
+        """Dispatch ``command`` repeatedly until ``predicate(result)`` is true.
+
+        ``predicate`` receives the RPC "result" dict of each attempt. Returns the
+        first result for which ``predicate`` is true, or the last result seen once
+        ``attempts`` are exhausted (the caller inspects it and fails as needed).
+        This is the payload-predicate poll that keeps .ci observer scripts free of
+        ``time.sleep`` (the ci-sleep ratchet counts sleeps in test/**/*.ci, not in
+        this module). Thin method over the module-level :func:`dispatch_until`.
+        """
+        return dispatch_until(self, command, predicate, attempts, delay)
+
     def dispatch_until_done(
         self, command: str, attempts: int = 20, delay: float = 0.25
     ) -> dict:
@@ -955,32 +973,48 @@ class API:
 
         Returns the RPC "result" dict for the first attempt that reports
         ``status == "done"``, or the last result seen once ``attempts`` are
-        exhausted (the caller checks the status and fails as needed).
-
-        This centralizes the "poll a command until the handler is ready"
-        pattern so .ci observer scripts stay free of ``time.sleep`` (the
-        ci-sleep ratchet counts sleeps in test/**/*.ci, not in this module).
+        exhausted (the caller checks the status and fails as needed). Thin wrapper
+        over :meth:`dispatch_until` with the fixed ``status == "done"`` predicate.
         """
-        import time
+        return self.dispatch_until(
+            command, lambda r: r.get("status") == "done", attempts, delay
+        )
 
-        result: dict = {}
-        for _ in range(max(1, attempts)):
-            resp = self.dispatch(command) or {}
-            result = resp.get("result", {}) or {}
-            if result.get("status") == "done":
-                return result
-            time.sleep(delay)
-        return result
+    def wait_until(
+        self,
+        predicate: Callable[[], bool],
+        attempts: int = 20,
+        delay: float = 0.25,
+    ) -> bool:
+        """Poll ``predicate()`` until it is truthy or ``attempts`` run out.
 
-    def wait_for_event(self, timeout: float = 5.0) -> str | None:
-        """Block until the next deliver-event arrives, or until timeout.
+        Returns True on the attempt where ``predicate()`` is truthy, else False.
+        Use for a wait that is neither a dispatch result nor an event -- e.g.
+        polling kernel FIB state via ``ip route show``. Internal ``time.sleep`` is
+        exempt from the ci-sleep ratchet. Thin method over the module-level
+        :func:`wait_until`.
+        """
+        return wait_until(predicate, attempts, delay)
 
-        Returns the event JSON string, or None on timeout / shutdown.
+    def wait_for_event(
+        self,
+        timeout: float = 5.0,
+        predicate: Callable[[Any], bool] | None = None,
+    ) -> str | None:
+        """Block until a matching deliver-event arrives, or until timeout.
 
-        Caveat: returns the FIRST event of ANY subscribed type. An observer
-        subscribed to multiple types (e.g. ``receive [ update state ]``) may
-        wake on a state event, not an update. Callers needing a specific
-        event type must inspect the returned JSON.
+        Returns the raw event JSON string, or None on timeout / shutdown.
+
+        With ``predicate=None`` (the default) this returns the FIRST event of ANY
+        subscribed type -- an observer subscribed to multiple types (e.g.
+        ``receive [ update state ]``) may wake on a state event, not an update.
+        Callers needing a specific event type pass a ``predicate``.
+
+        With a ``predicate`` it returns the first event whose decoded form
+        satisfies it: each event JSON string is decoded via ``json.loads`` and
+        passed to ``predicate`` (the raw string is passed instead when the event
+        is not valid JSON); non-matching events are skipped until one matches or
+        the timeout expires. The returned value is always the raw event string.
 
         Observer scripts use this to wait for the daemon to finish processing
         instead of a fixed ``time.sleep`` (the ci-sleep ratchet counts sleeps
@@ -994,7 +1028,15 @@ class API:
             if remaining <= 0:
                 return None
             event = self.read_line(timeout=min(remaining, 0.5))
-            if event is not None:
+            if event is None:
+                continue
+            if predicate is None:
+                return event
+            try:
+                decoded = json.loads(event)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                decoded = event
+            if predicate(decoded):
                 return event
         return None
 
@@ -1358,6 +1400,56 @@ def read_response(timeout: float = 2.0) -> dict | str | None:
 def send_and_wait(command: str, timeout: float = 2.0) -> bool:
     """Send command and wait for ACK."""
     return _get_api().send_and_wait(command, timeout)
+
+
+def wait_until(
+    predicate: Callable[[], bool],
+    attempts: int = 20,
+    delay: float = 0.25,
+) -> bool:
+    """Poll ``predicate()`` until it is truthy or ``attempts`` run out.
+
+    Returns True on the attempt where ``predicate()`` is truthy, else False. The
+    payload-predicate wait for a condition that is neither a dispatch result nor
+    an event (e.g. kernel FIB state polled via ``ip route show``). Internal
+    ``time.sleep`` between attempts is exempt from the ci-sleep ratchet (it counts
+    sleeps in test/**/*.ci, not in this module). Also exposed as
+    :meth:`API.wait_until`.
+    """
+    import time
+
+    for _ in range(max(1, attempts)):
+        if predicate():
+            return True
+        time.sleep(delay)
+    return False
+
+
+def dispatch_until(
+    api: API,
+    command: str,
+    predicate: Callable[[dict], bool],
+    attempts: int = 20,
+    delay: float = 0.25,
+) -> dict:
+    """Dispatch ``command`` on ``api`` until ``predicate(result)`` is true.
+
+    ``predicate`` receives the RPC "result" dict of each attempt. Returns the
+    first result for which ``predicate`` is true, or the last result seen once
+    ``attempts`` are exhausted (the caller inspects it and fails as needed).
+    Internal ``time.sleep`` is ratchet-exempt. Also exposed as
+    :meth:`API.dispatch_until`.
+    """
+    import time
+
+    result: dict = {}
+    for _ in range(max(1, attempts)):
+        resp = api.dispatch(command) or {}
+        result = resp.get("result", {}) or {}
+        if predicate(result):
+            return result
+        time.sleep(delay)
+    return result
 
 
 def result_text_data(result: dict | None, default: str = "") -> str:

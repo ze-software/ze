@@ -385,9 +385,10 @@ Detection hook: `c_observer_sys_exit` in `.claude/hooks/pretool-writeedit.py`
 **Sleep ratchet (BLOCKING):** the total `time.sleep(` count across
 `test/**/*.ci` may only go down. The committed baseline lives in
 `test/.ci-sleep-baseline`; `make ze-verify-wiring-docs` fails when the count
-exceeds it. Use `ze_api` `wait_for_event` / `wait_for_shutdown` instead of
-sleeps (sleeps hide real races). When your change removes sleeps, lower the
-baseline in the same change. Known violations are tracked in `plan/known-failures.md`
+exceeds it. Use `ze_api` `wait_for_event` / `wait_for_shutdown` / `wait_until` /
+`dispatch_until` (the payload-predicate waits, below) instead of sleeps (sleeps
+hide real races). When your change removes sleeps, lower the baseline in the same
+change. Known violations are tracked in `plan/known-failures.md`
 and must be migrated.
 
 ## Python Observer API (`test/scripts/ze_api.py`)
@@ -402,12 +403,24 @@ the 5-stage plugin protocol and runtime assertions. Key functions:
 | `dispatch(api, cmd)` | Send command via API connection |
 | `runtime_fail(msg)` | Signal assertion failure (replaces `sys.exit(1)`) |
 | `wait_for_shutdown()` | Block until engine shuts down |
-| `wait_for_event(predicate)` | Wait for a matching event |
+| `wait_for_event(timeout, predicate=None)` | Wait for the next event, or (with `predicate`) the first event whose decoded form satisfies it |
+| `wait_until(predicate, attempts=20, delay=0.25)` | Poll an arbitrary `predicate()` (e.g. kernel FIB state) until true; returns bool |
+| `dispatch_until(api, cmd, predicate, ...)` | Re-dispatch `cmd` until `predicate(result)` is true; returns the winning result dict (also `api.dispatch_until(cmd, predicate, ...)`) |
+| `dispatch_until_done(cmd, ...)` | `dispatch_until` with the fixed `status=="done"` predicate |
+
+`wait_until` / `dispatch_until` / `wait_for_event(predicate)` are the
+payload-predicate waits: prefer them over `time.sleep` + a single-shot assert so
+a test blocks exactly until the observed payload matches, not a guessed duration.
 
 Full protocol usage: `API()` class with `declare_family()`, `declare_done()`,
 `wait_for_config()`, `capability_done()`, `wait_for_registry()`, `ready()`.
 
 Source: `test/scripts/ze_api.py` (docstring has examples).
+<!-- source: test/scripts/ze_api.py -- wait_until, dispatch_until, dispatch_until_done, wait_for_event -->
+
+First-class `.ci` engine steps have the symmetric declarative form
+(`expect=output:matches=`/`absent=`/`json=`); see
+`docs/architecture/testing/ci-format.md` "Engine Steps".
 
 ## Mutation Testing
 

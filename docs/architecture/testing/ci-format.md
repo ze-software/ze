@@ -655,6 +655,67 @@ http=get:seq=1:url=http://127.0.0.1:$PORT2/lg/graph?prefix=10.10.1.0/24&mode=asp
 http=get:seq=2:url=http://127.0.0.1:$PORT2/lg/graph?prefix=10.10.1.0/24&mode=nexthop&format=text:status=200:contains=egress
 ```
 
+## Engine Steps
+
+Engine steps drive a live daemon through CLI dispatch, first-class in `.ci`
+instead of an embedded Python observer. The runner serializes the parsed steps
+to `engine-steps.json` in the test tmpfs; the `.ci` declares the executor as an
+external plugin (`run "ze-test engine-steps ./engine-steps.json"`), which runs
+the steps from `OnAllPluginsReady` and reports failures via the
+`ZE-OBSERVER-FAIL` sentinel the runner gates on.
+
+```
+command=<cli command text>
+stream=<monitor command text>
+expect=output:<predicate>[:timeout=<dur>]
+expect=event:namespace=<ns>:name=<name>[:timeout=<dur>]
+expect=stream:<predicate>[:timeout=<dur>]
+```
+
+`command=`/`stream=` keep their full raw text (colons included). `expect=output`
+re-dispatches the most recent `command=` until its predicate holds or the
+timeout expires; `expect=stream` matches delivered `stream=` events;
+`expect=event` matches a delivered event by exclusive subscription.
+
+### expect=output / expect=stream predicates
+
+The optional trailing `:timeout=<dur>` is split off the END first, so a predicate
+operand may itself contain `:` (a compact-JSON fragment, an IPv6 address). The
+remainder is one predicate:
+
+| Predicate | Surfaces | Holds when |
+|-----------|----------|-----------|
+| `contains=<text>` | output, stream | the output contains the substring (the default) |
+| `matches=<regexp>` | output, stream | the Go `regexp` matches the output (compiled at parse time, so a bad regexp fails the test immediately, not at timeout) |
+| `absent=<text>` | output only | the output does NOT contain the substring |
+| `json=<dotted.path>=<value>` | output only | the dotted path into the JSON `data` field stringifies to `<value>` |
+
+`json=` walks the raw `data` field (not `status data`): each `.`-segment indexes
+a JSON object by key or a JSON array by integer index (0..len-1; out-of-range or
+missing is "not yet", named at timeout). The leaf is compared as a string
+(numbers/bools stringified via JSON). `absent=`/`json=` are `expect=output` only:
+they re-dispatch a query, whereas `expect=stream` is an append-only event stream
+with no "absent" and no single-event JSON path.
+
+**`absent=` must be non-vacuous.** An `absent=` on output that was never populated
+passes instantly (false green). Precede it with a step that makes the substring
+present (a `contains=`/`json=` after an inject), then the transition (e.g. a
+withdraw) the `absent=` proves. See `test/plugin/engine-steps-predicates.ci`.
+
+<!-- source: internal/test/runner/engine_steps.go -- parseEngineExpectContains, engineOutputSatisfied, engineJSONPathValue -->
+
+### Example
+
+```
+command=request bgp rib inject 10.0.0.1 ipv4/unicast 172.16.0.0/16 origin igp nexthop 10.0.0.2
+command=show rib
+expect=output:matches=172\.16\.[0-9.]+/16:timeout=10
+expect=output:json=0.prefix=172.16.0.0/16:timeout=10
+command=request bgp rib withdraw 10.0.0.1 ipv4/unicast 172.16.0.0/16
+command=show rib
+expect=output:absent=172.16.0.0/16:timeout=10
+```
+
 ## Complete Example
 
 ```

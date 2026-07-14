@@ -919,6 +919,29 @@ See `docs/architecture/api/commands.md` "Quiesce Barrier".
 <!-- source: test/scripts/ze_api.py -- quiesce (barrier helper) -->
 <!-- source: internal/component/plugin/server/quiesce.go -- ze-system:quiesce handler -->
 
+#### Payload-predicate waits
+
+When the wait is "block until an *observed payload* matches a condition" (not a
+one-shot barrier), use a payload-predicate wait so the test blocks exactly until
+the condition holds instead of a guessed duration:
+
+- `ze_api.wait_until(predicate, attempts=20, delay=0.25)` — poll an arbitrary
+  `predicate()` (e.g. kernel FIB state via `ip route show`) until true.
+- `api.dispatch_until(cmd, predicate)` — re-dispatch `cmd` until
+  `predicate(result)` is true; returns the winning result dict.
+  `dispatch_until_done(cmd)` is the `status=="done"` special case.
+- `api.wait_for_event(timeout, predicate)` — return the first delivered event
+  whose decoded (JSON) form satisfies `predicate` (`predicate=None` keeps the
+  legacy "first event of any type" behavior).
+
+The symmetric first-class form for `.ci` engine steps is the declarative
+predicate grammar `expect=output:matches=<regexp>` / `absent=<substr>` /
+`json=<path>=<value>` (and `expect=stream:matches=`); see
+`docs/architecture/testing/ci-format.md` "Engine Steps".
+
+<!-- source: test/scripts/ze_api.py -- wait_until, dispatch_until, wait_for_event -->
+<!-- source: internal/test/runner/engine_steps.go -- parseEngineExpectContains, engineOutputSatisfied -->
+
 ### Tmpfs (Virtual File System)
 
 Tmpfs allows embedding config files directly in `.ci` files:

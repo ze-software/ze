@@ -22,7 +22,6 @@ tmpfs=fib-recursive-test.run:mode=755:terminator=EOF_RUN
 
 import json
 import sys
-import time
 
 from ze_api import API, runtime_fail, result_json_data, result_text_data
 
@@ -35,13 +34,18 @@ def dispatch(api, command):
     return resp.get('result', {})
 
 
-def wait_for_rib(api):
-    for _ in range(20):
-        r = dispatch(api, 'show bgp rib status')
-        if r.get('status') == 'done':
-            return True
-        time.sleep(0.5)
-    return False
+def rib_has_recursive_route(result):
+    """True once show rib lists the recursive route 172.16.0.0/16."""
+    try:
+        entries = result_json_data(result, [])
+    except (json.JSONDecodeError, TypeError):
+        return False
+    if not isinstance(entries, list):
+        return False
+    return any(
+        isinstance(e, dict) and e.get('prefix') == '172.16.0.0/16'
+        for e in entries
+    )
 
 
 def main():
@@ -53,7 +57,8 @@ def main():
     api.ready()
 
     api.wait_for_post_startup(timeout=5.0)
-    if not wait_for_rib(api):
+    # Wait until the rib plugin reports ready (payload-predicate poll; no sleep).
+    if api.dispatch_until_done('show bgp rib status').get('status') != 'done':
         runtime_fail('rib plugin did not become ready')
 
     # Inject a connected route: 10.0.0.0/24 with no next-hop (connected).
@@ -68,22 +73,17 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'inject recursive route failed: {r}')
 
-    time.sleep(2.0)
-
-    # Verify show rib has the route.
-    r = dispatch(api, 'show rib')
+    # // test-relax: replaced the fixed 2.0s time.sleep + single-shot assert with
+    # a dispatch_until payload-predicate poll (spec-payload-predicate-waits). The
+    # AC-2 assertion (172.16.0.0/16 present in show rib) is unchanged and now
+    # strictly stronger (it polls instead of hoping 2s was enough); the folded
+    # try/except is subsumed by rib_has_recursive_route's own parse guard.
+    r = api.dispatch_until('show rib', rib_has_recursive_route)
     if r.get('status') != 'done':
         runtime_fail(f'show rib failed: {r}')
-    try:
-        entries = result_json_data(r, [])
-        if not isinstance(entries, list):
-            entries = []
-        found = any(e.get('prefix') == '172.16.0.0/16' for e in entries)
-        if not found:
-            runtime_fail(f'AC-2: 172.16.0.0/16 not in sysrib: {result_text_data(r)[:300]}')
-        print('OK AC-2: recursive route 172.16.0.0/16 present in system RIB', file=sys.stderr)
-    except (json.JSONDecodeError, TypeError):
-        runtime_fail(f'show rib parse error: {result_text_data(r)[:200]}')
+    if not rib_has_recursive_route(r):
+        runtime_fail(f'AC-2: 172.16.0.0/16 not in sysrib: {result_text_data(r)[:300]}')
+    print('OK AC-2: recursive route 172.16.0.0/16 present in system RIB', file=sys.stderr)
 
     # Verify show nexthop-table returns resolver state.
     r = dispatch(api, 'show nexthop-table')

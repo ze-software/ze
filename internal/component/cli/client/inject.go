@@ -1,4 +1,4 @@
-// Design: plan/spec-command-completion.md -- plugin command completion injection
+// Design: plan/learned/1115-command-completion.md -- plugin command completion injection
 
 package client
 

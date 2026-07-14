@@ -2440,6 +2440,10 @@ Total: 286 design docs, 2927 files
 - `internal/component/bgp/plugins/rib/pool/srv6sid.go` -- SRv6 SID extraction from PrefixSID attribute
 - `internal/plugins/fib/vpp/srv6.go` -- VPP SRv6 SR steer programming
 
+## `plan/learned/1115-command-completion.md`
+
+- `internal/component/cli/client/inject.go` -- plugin command completion injection
+
 ## `plan/learned/1116-copp-firewall-shutdown-flush.md`
 
 - `internal/test/plugins/fakeddos/fakeddos.go` -- fakeddos synthetic
@@ -3847,10 +3851,6 @@ Total: 286 design docs, 2927 files
 
 - `internal/plugins/as112/freebind_integration_linux_test.go` -- AC-11 / finding B2: IP_FREEBIND wiring proof
 - `internal/plugins/as112/integration_linux_test.go` -- end-to-end DNS-serving proof against the real privileged port 53
-
-## `plan/spec-command-completion.md`
-
-- `internal/component/cli/client/inject.go` -- plugin command completion injection
 
 ## `plan/spec-cos-dynamic.md`
 

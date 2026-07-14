@@ -1,0 +1,84 @@
+# Test: first-class .ci engine-step payload predicates (matches=/absent=/json=).
+# Spec: spec-payload-predicate-waits. The command=/expect=output directives below
+# are executed by the daemon-spawned `ze-test engine-steps` external plugin (the
+# runner writes ./engine-steps.json into the test dir; execution model in
+# internal/test/runner/engine_steps.go).
+#
+# VALIDATES: expect=output:matches= (regexp), :json=<path>=<value> (JSON path),
+#            and :absent= (withdrawal) against a live `show rib` after rib
+#            inject/withdraw -- the Go half of payload-predicate waits, end to
+#            end through CLI dispatch (no time.sleep, no embedded observer).
+# PREVENTS:  the new predicate grammar regressing the engine-step executor.
+#
+# The covering connected route resolves the recursive next-hop so 172.16.0.0/16
+# lands in the system RIB (same mechanism proven by fib-recursive.ci). absent= is
+# non-vacuous: it follows an inject that made the prefix present, then a withdraw
+# (R-1).
+
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal rib {
+		use rib
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process bgp-rib {
+		}
+		process rib {
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=30s
+
+# Inject a connected covering route + a recursive route resolved through it.
+command=request bgp rib inject 10.0.0.1 ipv4/unicast 10.0.0.0/24 origin igp
+command=request bgp rib inject 10.0.0.1 ipv4/unicast 172.16.0.0/16 origin igp nexthop 10.0.0.2
+command=show rib
+# matches=: regexp over the show rib output.
+expect=output:matches=172\.16\.[0-9.]+/16:timeout=10
+# json=: dotted path into the JSON data equals the value.
+expect=output:json=0.prefix=172.16.0.0/16:timeout=10
+# absent=: withdraw the route, then poll until it is gone (non-vacuous).
+command=request bgp rib withdraw 10.0.0.1 ipv4/unicast 172.16.0.0/16
+command=show rib
+expect=output:absent=172.16.0.0/16:timeout=10
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

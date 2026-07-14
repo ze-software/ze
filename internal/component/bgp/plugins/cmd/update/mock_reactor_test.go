@@ -66,6 +66,7 @@ func (m *mockReactor) Peers() []plugin.PeerInfo                                 
 func (m *mockReactor) Stats() plugin.ReactorStats                                      { return m.stats }
 func (m *mockReactor) Stop()                                                           {}
 func (m *mockReactor) Reload() error                                                   { return nil }
+func (m *mockReactor) DrainPeerSync(_ context.Context) error                           { return nil }
 func (m *mockReactor) VerifyConfig(_ map[string]any) error                             { return nil }
 func (m *mockReactor) ApplyConfigDiff(_ map[string]any) error                          { return nil }
 func (m *mockReactor) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding { return nil }

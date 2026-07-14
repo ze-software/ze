@@ -62,7 +62,7 @@ func cmdEngineSteps(args []string) int {
 		// The handler must return promptly (it answers an engine RPC); the
 		// steps dispatch further RPCs, so they run in their own goroutine.
 		go func() {
-			dispatch := func(dctx context.Context, command string) (string, string, error) {
+			var dispatch runner.EngineDispatch = func(dctx context.Context, command string) (string, string, error) {
 				callCtx, callCancel := context.WithTimeout(dctx, 30*time.Second)
 				defer callCancel()
 				status, data, derr := p.DispatchCommand(callCtx, command)

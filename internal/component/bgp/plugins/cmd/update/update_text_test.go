@@ -1198,6 +1198,7 @@ func (m *mockReactorBatch) Peers() []plugin.PeerInfo                            
 func (m *mockReactorBatch) Stats() plugin.ReactorStats                                { return plugin.ReactorStats{} }
 func (m *mockReactorBatch) Stop()                                                     {}
 func (m *mockReactorBatch) Reload() error                                             { return nil }
+func (m *mockReactorBatch) DrainPeerSync(_ context.Context) error                     { return nil }
 func (m *mockReactorBatch) VerifyConfig(_ map[string]any) error                       { return nil }
 func (m *mockReactorBatch) ApplyConfigDiff(_ map[string]any) error                    { return nil }
 func (m *mockReactorBatch) RemovePeer(_ netip.Addr) error                             { return nil }

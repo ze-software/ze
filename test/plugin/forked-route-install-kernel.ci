@@ -67,13 +67,11 @@ def main():
     if installed != 1:
         runtime_fail(f"route-install: expected installed=1, got {installed!r}")
 
-    found = False
-    for _ in range(40):
-        if kernel_has_ze_route('10.99.0.0/24'):
-            found = True
-            break
-        api.wait_for_event(timeout=0.25)
-    if not found:
+    # // test-relax: the two hand-rolled 40x/0.25s kernel-poll loops became
+    # wait_until(predicate) calls (spec-payload-predicate-waits). Same 40-attempt
+    # x 0.25s budget, same present->absent assertions; only the poll scaffolding
+    # (which used wait_for_event merely as a backoff) is replaced.
+    if not api.wait_until(lambda: kernel_has_ze_route('10.99.0.0/24'), attempts=40, delay=0.25):
         got = sh("ip", "route", "show", "10.99.0.0/24").stdout.strip()
         runtime_fail(f"route-install: 10.99.0.0/24 not in kernel as RTPROT_ZE; ip route showed: {got!r}")
 
@@ -84,13 +82,7 @@ def main():
         'protocol': 'bgp', 'afi': 1, 'safi': 1,
         'prefix': '10.99.0.0/24', 'instance': 0,
     }]})
-    swept = False
-    for _ in range(40):
-        if not kernel_has_ze_route('10.99.0.0/24'):
-            swept = True
-            break
-        api.wait_for_event(timeout=0.25)
-    if not swept:
+    if not api.wait_until(lambda: not kernel_has_ze_route('10.99.0.0/24'), attempts=40, delay=0.25):
         runtime_fail("route-remove: 10.99.0.0/24 still in kernel after withdrawal")
 
     print('OK: route-remove swept the forked route from the kernel', file=sys.stderr)

@@ -343,6 +343,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | ADD-PATH | `edge-cases/addpath.md` |
 | extended message | `edge-cases/extended-message.md` |
 | test, functional, .ci, verify failures | `docs/functional-tests.md` (top-level, not architecture/), `testing/ci-format.md` |
+| payload-predicate waits, sleep elimination, ci-sleep ratchet, wait_until, dispatch_until, wait_for_event predicate, engine-step predicates (matches=/absent=/json=) | `docs/functional-tests.md` ("Payload-predicate waits"), `docs/architecture/testing/ci-format.md` ("Engine Steps"), `ai/rules/testing.md` (Observer API), `test/scripts/ze_api.py`, `internal/test/runner/engine_steps.go` |
 | netdata, telemetry, prometheus, metrics, monitoring, collector | `docs/guide/monitoring.md`, `docs/features.md`, `plan/learned/653-netdata-os-collectors.md` |
 | DHCP, dhcp-server, lease, pool | `internal/plugins/dhcpserver/` (plugin), `ze-dhcp-server-conf.yang` |
 | NTP, time sync | `internal/plugins/ntp/` (plugin), `ze-ntp-conf.yang` |

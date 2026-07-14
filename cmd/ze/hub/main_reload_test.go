@@ -50,6 +50,7 @@ func (r *reloadTestReactor) PeerNegotiatedCapabilities(netip.Addr) *plugin.PeerC
 func (r *reloadTestReactor) Stop()                                        {}
 func (r *reloadTestReactor) TeardownPeer(netip.Addr, uint8, string) error { return nil }
 func (r *reloadTestReactor) Reload() error                                { return nil }
+func (r *reloadTestReactor) DrainPeerSync(_ context.Context) error        { return nil }
 func (r *reloadTestReactor) VerifyConfig(map[string]any) error            { return nil }
 func (r *reloadTestReactor) ApplyConfigDiff(map[string]any) error         { return nil }
 func (r *reloadTestReactor) RemovePeer(netip.Addr) error                  { return nil }

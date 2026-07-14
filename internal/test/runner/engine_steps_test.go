@@ -99,6 +99,110 @@ expect=stream:contains=a:b:c:timeout=3
 	}
 }
 
+func TestParseEngineExpectMatches(t *testing.T) {
+	// matches=<regex> parses to Match="matches" with the regex source in Text;
+	// the ':timeout=' suffix is still split off. A regex may contain ':'.
+	r := parseCIRecord(t, `command=show rib
+expect=output:matches=engine-(running|ready):timeout=4
+expect=stream:matches=child-(up|rekeyed)
+`)
+	want := []EngineStep{
+		{Kind: EngineStepCommand, Text: "show rib"},
+		{Kind: EngineStepExpectOutput, Match: "matches", Text: "engine-(running|ready)", Timeout: 4 * time.Second},
+		{Kind: EngineStepExpectStream, Match: "matches", Text: "child-(up|rekeyed)", Timeout: engineStepDefaultTimeout},
+	}
+	if len(r.EngineSteps) != len(want) {
+		t.Fatalf("EngineSteps len = %d, want %d (%+v)", len(r.EngineSteps), len(want), r.EngineSteps)
+	}
+	for i, w := range want {
+		g := r.EngineSteps[i]
+		if g.Kind != w.Kind || g.Match != w.Match || g.Text != w.Text || g.Timeout != w.Timeout {
+			t.Errorf("step %d = %+v, want %+v", i, g, w)
+		}
+	}
+
+	// A malformed regex must fail at PARSE time (R-3), not hang to timeout.
+	et := &EncodingTests{}
+	if err := et.parseLine(newRecord("bad-regex"), "test/engine/fake.ci", "expect=output:matches=engine-[running"); err == nil {
+		t.Error("expect=output:matches= with an invalid regex must fail parse")
+	}
+}
+
+func TestParseEngineExpectAbsent(t *testing.T) {
+	// absent=<needle> parses to Match="absent"; colons inside the needle are
+	// preserved (only the trailing ':timeout=' is split off).
+	r := parseCIRecord(t, `command=show rib
+expect=output:absent=172.16.0.0/16:timeout=3
+expect=output:absent=a:b:c
+`)
+	want := []EngineStep{
+		{Kind: EngineStepCommand, Text: "show rib"},
+		{Kind: EngineStepExpectOutput, Match: "absent", Text: "172.16.0.0/16", Timeout: 3 * time.Second},
+		{Kind: EngineStepExpectOutput, Match: "absent", Text: "a:b:c", Timeout: engineStepDefaultTimeout},
+	}
+	if len(r.EngineSteps) != len(want) {
+		t.Fatalf("EngineSteps len = %d, want %d (%+v)", len(r.EngineSteps), len(want), r.EngineSteps)
+	}
+	for i, w := range want {
+		g := r.EngineSteps[i]
+		if g.Kind != w.Kind || g.Match != w.Match || g.Text != w.Text || g.Timeout != w.Timeout {
+			t.Errorf("step %d = %+v, want %+v", i, g, w)
+		}
+	}
+
+	// absent= is output-only: expect=stream:absent= must fail parse (AC-8).
+	et := &EncodingTests{}
+	if err := et.parseLine(newRecord("stream-absent"), "test/engine/fake.ci", "expect=stream:absent=x"); err == nil {
+		t.Error("expect=stream:absent= must fail parse (absent is output-only)")
+	}
+}
+
+func TestParseEngineExpectJSON(t *testing.T) {
+	// json=<path>=<value> parses to Match="json", Path + Text split at the FIRST
+	// '='; an IPv6-colon value is preserved because ':timeout=' is stripped first.
+	r := parseCIRecord(t, `command=show rib
+expect=output:json=0.prefix=172.16.0.0/16:timeout=6
+expect=output:json=0.nexthop=2001:db8::1
+`)
+	want := []EngineStep{
+		{Kind: EngineStepCommand, Text: "show rib"},
+		{Kind: EngineStepExpectOutput, Match: "json", Path: "0.prefix", Text: "172.16.0.0/16", Timeout: 6 * time.Second},
+		{Kind: EngineStepExpectOutput, Match: "json", Path: "0.nexthop", Text: "2001:db8::1", Timeout: engineStepDefaultTimeout},
+	}
+	if len(r.EngineSteps) != len(want) {
+		t.Fatalf("EngineSteps len = %d, want %d (%+v)", len(r.EngineSteps), len(want), r.EngineSteps)
+	}
+	for i, w := range want {
+		g := r.EngineSteps[i]
+		if g.Kind != w.Kind || g.Match != w.Match || g.Path != w.Path || g.Text != w.Text || g.Timeout != w.Timeout {
+			t.Errorf("step %d = %+v, want %+v", i, g, w)
+		}
+	}
+
+	// A json= operand missing the path=value '=' must fail parse.
+	et := &EncodingTests{}
+	if err := et.parseLine(newRecord("json-novalue"), "test/engine/fake.ci", "expect=output:json=justapath"); err == nil {
+		t.Error("expect=output:json= without a path=value '=' must fail parse")
+	}
+	// json= is output-only: expect=stream:json= must fail parse (AC-8).
+	if err := et.parseLine(newRecord("stream-json"), "test/engine/fake.ci", "expect=stream:json=a=b"); err == nil {
+		t.Error("expect=stream:json= must fail parse (json is output-only)")
+	}
+}
+
+func TestParseEngineExpectContainsStillDefaults(t *testing.T) {
+	// contains= keeps Match=="" (default) so existing serialized steps are
+	// byte-identical (A-3): no "match"/"path" field is emitted.
+	r := parseCIRecord(t, "command=show x\nexpect=output:contains=engine-running\n")
+	if len(r.EngineSteps) != 2 {
+		t.Fatalf("EngineSteps = %+v", r.EngineSteps)
+	}
+	g := r.EngineSteps[1]
+	if g.Match != "" || g.Path != "" || g.Text != "engine-running" {
+		t.Errorf("contains step = %+v, want Match=\"\" Path=\"\" Text=engine-running", g)
+	}
+}
+
 func TestEngineStepsForRunWidensTimeoutsUnderParallel(t *testing.T) {
 	// The executor's internal per-step polls (e.g. an establishment wait) must
 	// get the same parallel headroom as the outer daemon budget, or they flake
@@ -135,9 +239,9 @@ func TestEngineStepsFileRoundTrip(t *testing.T) {
 		{Kind: EngineStepExpectOutput, Text: "engine-running", Timeout: 5 * time.Second},
 		{Kind: EngineStepExpectEvent, Namespace: "vpn-ipsec", Name: "sa-up", Timeout: 10 * time.Second},
 	}
-	data, err := MarshalEngineSteps(steps)
+	data, err := marshalEngineSteps(steps)
 	if err != nil {
-		t.Fatalf("MarshalEngineSteps: %v", err)
+		t.Fatalf("marshalEngineSteps: %v", err)
 	}
 	got, err := UnmarshalEngineSteps(data)
 	if err != nil {
@@ -217,24 +321,24 @@ func TestEngineEventBufferScrollbackAndPositions(t *testing.T) {
 	if got == "" {
 		t.Fatal("Wait missed the scrollback event")
 	}
-	// WaitFrom(Len()) must ignore that old event and time out.
+	// waitFrom(Len()) must ignore that old event and time out.
 	pos := b.Len()
-	got = b.WaitFrom(t.Context(), pos, time.Now().Add(50*time.Millisecond), func(string) bool {
+	got = b.waitFrom(t.Context(), pos, time.Now().Add(50*time.Millisecond), func(string) bool {
 		return true
 	})
 	if got != "" {
-		t.Fatalf("WaitFrom(Len) = %q, want timeout (old events excluded)", got)
+		t.Fatalf("waitFrom(Len) = %q, want timeout (old events excluded)", got)
 	}
-	// A post-position delivery satisfies WaitFrom.
+	// A post-position delivery satisfies waitFrom.
 	go func() {
 		time.Sleep(20 * time.Millisecond)
 		_ = b.OnEvent(`{"peer-name":"peer-2"}`)
 	}()
-	got = b.WaitFrom(t.Context(), pos, time.Now().Add(time.Second), func(string) bool {
+	got = b.waitFrom(t.Context(), pos, time.Now().Add(time.Second), func(string) bool {
 		return true
 	})
 	if got == "" {
-		t.Fatal("WaitFrom missed the post-position event")
+		t.Fatal("waitFrom missed the post-position event")
 	}
 }
 
@@ -337,6 +441,175 @@ func TestRunEngineStepsEventIgnoresPreSubscriptionDeliveries(t *testing.T) {
 	}
 	if err := RunEngineSteps(t.Context(), f.dispatch, buf, steps); err == nil {
 		t.Fatal("stale pre-subscription delivery must not satisfy expect=event")
+	}
+}
+
+func TestRunEngineStepsMatchesRegex(t *testing.T) {
+	// The executor re-dispatches lastCommand until the regexp matches lastOutput.
+	f := &fakeDispatch{responses: map[string][]string{
+		"show rib": {
+			`done {"engine-starting":true}`,
+			`done {"engine-ready":true}`,
+		},
+	}}
+	steps := []EngineStep{
+		{Kind: EngineStepCommand, Text: "show rib"},
+		{Kind: EngineStepExpectOutput, Match: "matches", Text: "engine-(running|ready)", Timeout: 3 * time.Second},
+	}
+	if err := RunEngineSteps(t.Context(), f.dispatch, NewEngineEventBuffer(), steps); err != nil {
+		t.Fatalf("RunEngineSteps: %v", err)
+	}
+	if len(f.calls) < 2 {
+		t.Fatalf("calls = %v, want re-dispatch polling until the regexp matched", f.calls)
+	}
+}
+
+func TestRunEngineStepsMatchesTimeoutNamesRegex(t *testing.T) {
+	f := &fakeDispatch{responses: map[string][]string{
+		"show rib": {`done {"engine-starting":true}`},
+	}}
+	steps := []EngineStep{
+		{Kind: EngineStepCommand, Text: "show rib"},
+		{Kind: EngineStepExpectOutput, Match: "matches", Text: "engine-(running|ready)", Timeout: 400 * time.Millisecond},
+	}
+	err := RunEngineSteps(t.Context(), f.dispatch, NewEngineEventBuffer(), steps)
+	if err == nil || !strings.Contains(err.Error(), "engine-(running|ready)") {
+		t.Fatalf("RunEngineSteps = %v, want timeout error naming the regexp", err)
+	}
+}
+
+func TestRunEngineStepsAbsent(t *testing.T) {
+	// absent= passes only after a present->absent transition (R-1): the command
+	// step sees the needle present, the executor re-dispatches until it is gone.
+	f := &fakeDispatch{responses: map[string][]string{
+		"show rib": {
+			`done {"routes":["172.16.0.0/16"]}`,
+			`done {"routes":[]}`,
+		},
+	}}
+	steps := []EngineStep{
+		{Kind: EngineStepCommand, Text: "show rib"},
+		{Kind: EngineStepExpectOutput, Match: "absent", Text: "172.16.0.0/16", Timeout: 3 * time.Second},
+	}
+	if err := RunEngineSteps(t.Context(), f.dispatch, NewEngineEventBuffer(), steps); err != nil {
+		t.Fatalf("RunEngineSteps: %v", err)
+	}
+	if len(f.calls) < 2 {
+		t.Fatalf("calls = %v, want a re-dispatch proving the present->absent transition", f.calls)
+	}
+}
+
+func TestRunEngineStepsAbsentTimeout(t *testing.T) {
+	// The needle never disappears -> timeout error naming the substring.
+	f := &fakeDispatch{responses: map[string][]string{
+		"show rib": {`done {"routes":["172.16.0.0/16"]}`},
+	}}
+	steps := []EngineStep{
+		{Kind: EngineStepCommand, Text: "show rib"},
+		{Kind: EngineStepExpectOutput, Match: "absent", Text: "172.16.0.0/16", Timeout: 400 * time.Millisecond},
+	}
+	err := RunEngineSteps(t.Context(), f.dispatch, NewEngineEventBuffer(), steps)
+	if err == nil || !strings.Contains(err.Error(), "172.16.0.0/16") {
+		t.Fatalf("RunEngineSteps = %v, want timeout error naming the substring", err)
+	}
+}
+
+func TestRunEngineStepsJSONPath(t *testing.T) {
+	// json= walks the raw JSON data (not status+data) and compares the stringified
+	// leaf. The array is empty first, then populated: the executor re-dispatches.
+	f := &fakeDispatch{responses: map[string][]string{
+		"show rib": {
+			`done []`,
+			`done [{"prefix":"172.16.0.0/16","nexthop":"10.0.0.2"}]`,
+		},
+	}}
+	steps := []EngineStep{
+		{Kind: EngineStepCommand, Text: "show rib"},
+		{Kind: EngineStepExpectOutput, Match: "json", Path: "0.prefix", Text: "172.16.0.0/16", Timeout: 3 * time.Second},
+	}
+	if err := RunEngineSteps(t.Context(), f.dispatch, NewEngineEventBuffer(), steps); err != nil {
+		t.Fatalf("RunEngineSteps: %v", err)
+	}
+	if len(f.calls) < 2 {
+		t.Fatalf("calls = %v, want re-dispatch polling until the path appeared", f.calls)
+	}
+}
+
+func TestRunEngineStepsJSONPathTimeoutNamesPath(t *testing.T) {
+	// A path that never resolves times out with an error naming the path + data.
+	f := &fakeDispatch{responses: map[string][]string{
+		"show rib": {`done [{"prefix":"10.0.0.0/24"}]`},
+	}}
+	steps := []EngineStep{
+		{Kind: EngineStepCommand, Text: "show rib"},
+		{Kind: EngineStepExpectOutput, Match: "json", Path: "0.missing", Text: "x", Timeout: 400 * time.Millisecond},
+	}
+	err := RunEngineSteps(t.Context(), f.dispatch, NewEngineEventBuffer(), steps)
+	if err == nil || !strings.Contains(err.Error(), "0.missing") {
+		t.Fatalf("RunEngineSteps = %v, want timeout error naming the json path", err)
+	}
+}
+
+func TestRunEngineStepsContainsUnchanged(t *testing.T) {
+	// Match=="" and Match=="contains" both behave exactly as the legacy contains=.
+	for _, match := range []string{"", "contains"} {
+		f := &fakeDispatch{responses: map[string][]string{
+			"show vpn ipsec status": {
+				`done {"engine-starting":true}`,
+				`done {"engine-running":true}`,
+			},
+		}}
+		steps := []EngineStep{
+			{Kind: EngineStepCommand, Text: "show vpn ipsec status"},
+			{Kind: EngineStepExpectOutput, Match: match, Text: "engine-running", Timeout: 3 * time.Second},
+		}
+		if err := RunEngineSteps(t.Context(), f.dispatch, NewEngineEventBuffer(), steps); err != nil {
+			t.Fatalf("RunEngineSteps(Match=%q): %v", match, err)
+		}
+	}
+}
+
+func TestRunEngineStepsStreamMatchesRegex(t *testing.T) {
+	// expect=stream supports matches= over delivered stream events.
+	f := &fakeDispatch{responses: map[string][]string{}}
+	buf := NewEngineEventBuffer()
+	steps := []EngineStep{
+		{Kind: EngineStepStream, Text: "monitor vpn ipsec"},
+		{Kind: EngineStepExpectStream, Match: "matches", Text: "child-(up|rekeyed)", Timeout: 2 * time.Second},
+	}
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		_ = buf.OnEvent(`{"detail":"child-rekeyed esp"}`)
+	}()
+	if err := RunEngineSteps(t.Context(), f.dispatch, buf, steps); err != nil {
+		t.Fatalf("RunEngineSteps: %v", err)
+	}
+}
+
+func TestEngineJSONPathValue(t *testing.T) {
+	// Direct coverage of the path walker, including the array-index boundary:
+	// last valid index (len-1), invalid above (index == len), invalid below
+	// (negative index) -- none may panic.
+	cases := []struct {
+		data, path, want string
+		ok               bool
+	}{
+		{`[{"prefix":"p"}]`, "0.prefix", "p", true},
+		{`{"count":3}`, "count", "3", true},          // number stringifies
+		{`{"a":{"b":"c"}}`, "a.b", "c", true},        // nested object
+		{`[1,2,3]`, "0", "1", true},                  // first valid index
+		{`[1,2,3]`, "2", "3", true},                  // last valid index (len-1)
+		{`[1,2,3]`, "3", "", false},                  // invalid above: index == len
+		{`[1,2,3]`, "-1", "", false},                 // invalid below: negative index
+		{`[{"prefix":"p"}]`, "0.missing", "", false}, // missing key
+		{`not json`, "0", "", false},                 // non-JSON data
+		{`{"ok":true}`, "ok", "true", true},          // bool stringifies
+	}
+	for _, c := range cases {
+		got, ok := engineJSONPathValue(c.data, c.path)
+		if got != c.want || ok != c.ok {
+			t.Errorf("engineJSONPathValue(%q, %q) = (%q, %v), want (%q, %v)", c.data, c.path, got, ok, c.want, c.ok)
+		}
 	}
 }
 

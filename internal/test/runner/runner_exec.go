@@ -64,7 +64,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		if len(rec.EngineSteps) > 0 {
 			// Contract with the .ci-declared external executor plugin:
 			// run "ze-test engine-steps ./engine-steps.json" (engine_steps.go).
-			stepsJSON, stepsErr := MarshalEngineSteps(r.engineStepsForRun(rec.EngineSteps))
+			stepsJSON, stepsErr := marshalEngineSteps(r.engineStepsForRun(rec.EngineSteps))
 			if stepsErr != nil {
 				rec.Error = fmt.Errorf("marshal engine steps: %w", stepsErr)
 				return false
