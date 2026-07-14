@@ -29,6 +29,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from ze_api import wait_until
 
 PEER_PORT = int(sys.argv[1])          # $PORT2: our fixed L2TP UDP port
 REST_PORT = int(sys.argv[2])          # ze REST API TCP port
@@ -67,14 +68,16 @@ def ctrl(length, tid, sid, ns, nr):
 
 def trigger_outgoing_call():
     hdrs = {"Authorization": "Bearer " + TOKEN}
-    deadline = time.time() + 12
-    while time.time() < deadline:
+    def _rest_up():
         try:
-            req = urllib.request.Request(REST + "/commands", headers=hdrs)
-            urllib.request.urlopen(req, timeout=2).read()
-            break
+            urllib.request.urlopen(
+                urllib.request.Request(REST + "/commands", headers=hdrs), timeout=2).read()
+            return True
         except (urllib.error.URLError, ConnectionRefusedError, OSError):
-            time.sleep(0.3)
+            return False
+    # // test-relax: hand-rolled REST-readiness deadline loop -> ze_api.wait_until
+    # (same 40x0.3s budget, ratchet-exempt internal sleep); paced REST polling, not a race.
+    wait_until(_rest_up, attempts=40, delay=0.3)
     payload = json.dumps(
         {"command": "request l2tp outgoing-call remote lns1 called %s" % CALLED}
     ).encode()
