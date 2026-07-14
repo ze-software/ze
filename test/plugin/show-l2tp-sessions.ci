@@ -114,8 +114,9 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("127.0.0.1", 0))
     sock.settimeout(0.25)
-    time.sleep(0.05)
 
+    # // test-relax: dropped a redundant pre-handshake settle sleep; the SCCRQ
+    # retransmit loop below already tolerates ze's L2TP listener not being ready.
     # Tunnel handshake.
     sccrp_avps = None
     for _ in range(40):
@@ -150,10 +151,20 @@ def main():
     except (socket.timeout, OSError):
         pass
 
-    # Session handshake.
-    time.sleep(0.05)
-    sock.sendto(build_icrq(local_tid, 2, 1), TARGET)
-    icrp_avps, _ = recv(sock)
+    # Session handshake. Deterministic replacement for sleep(0.05): retransmit ICRQ
+    # (same Ns=2, a valid L2TP retransmission ze dedupes) until ICRP carrying the
+    # peer's Assigned Session ID (AVP 14) arrives, instead of assuming ze processed
+    # SCCCN within 50ms.
+    sock.settimeout(0.25)
+    icrp_avps = None
+    for _ in range(40):
+        try:
+            sock.sendto(build_icrq(local_tid, 2, 1), TARGET)
+            icrp_avps, _ = recv(sock)
+        except (socket.timeout, OSError):
+            continue
+        if icrp_avps and 14 in icrp_avps:
+            break
     if icrp_avps is None:
         print(f"ERROR[{PEER_TID}]: no ICRP", file=sys.stderr)
         return 1
