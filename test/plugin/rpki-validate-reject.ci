@@ -16,8 +16,7 @@ tmpfs=rpki-reject-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
-from ze_api import API, result_text_data
+from ze_api import API, result_text_data, result_json_data
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -25,6 +24,21 @@ def dispatch(api, command):
     if resp is None:
         return {'status': 'error', 'data': 'engine call returned None'}
     return resp.get('result', {})
+
+def vrp_count(api):
+    d = result_json_data(dispatch(api, 'show bgp rpki status'), {})
+    return d.get('vrp-count-ipv4', 0) if isinstance(d, dict) else 0
+
+def updates_received(api):
+    r = dispatch(api, 'show bgp peer peer1 detail')
+    return r.get('data', {}).get('peers', {}).get('127.0.0.1', {}).get('updates-received', 0)
+
+def wait_until(api, pred, cycles=150):
+    for _ in range(cycles):
+        if pred():
+            return True
+        api.wait_for_event(timeout=0.2)
+    return False
 
 def main():
     api = API()
@@ -34,8 +48,16 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for RTR sync + BGP UPDATE + validation processing
-    time.sleep(4.0)
+    # Deterministic replacement for sleep(4.0): wait for RTR sync (VRP loaded) so
+    # validation has data, then for ze to receive the UPDATE, then quiesce so the
+    # RPKI validation decision has drained before asserting the route is absent.
+    if not wait_until(api, lambda: vrp_count(api) >= 1):
+        print('FAIL: RTR never synced a VRP', file=sys.stderr)
+        sys.exit(1)
+    if not wait_until(api, lambda: updates_received(api) >= 1):
+        print('FAIL: ze never received the UPDATE', file=sys.stderr)
+        sys.exit(1)
+    api.quiesce()
 
     try:
         # Query adj-rib-in for received routes

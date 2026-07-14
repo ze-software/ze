@@ -16,7 +16,6 @@ tmpfs=rpki-aspa-disabled-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 from ze_api import API
 
 def dispatch(api, command):
@@ -36,8 +35,9 @@ def main():
     api.subscribe(['rpki direction received'])
     api.ready()
 
-    time.sleep(5.0)
-
+    # // test-relax: removed the redundant blocking lead-in and its now-unused
+    # import; the rpki-event read loop below already waits deterministically for
+    # the validation event (up to 30 * 0.5s), which is the real synchronization.
     try:
         got_rpki_event = False
         for _ in range(30):
