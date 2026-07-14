@@ -65,10 +65,18 @@ withdraw conversion) into the `AnnounceNLRIBatch` direct-send path, or (B) make 
 flow through ForwardUpdate with `meta["stale"]` set. Both touch a hot path used by all plugin
 route injection (buffer-first / memory-architecture rules) -> design carefully. Also note the
 `.ci` needs an actual forwarding mechanism (`rs` or `redistribute`); a config with only `gr` +
-`bgp-rib` never forwards the source route to the other peers. WIP fixture (no forwarding, so it
-times out) preserved at `tmp/scratch/llgr-egress-suppress-multi-peer.ci.wip`. The RR-client
+`bgp-rib` never forwards the source route to the other peers. WIP fixture note (2026-07-14): the preserved scratch file
+`tmp/scratch/llgr-egress-suppress-multi-peer.ci.wip` has since been DELETED (transient
+`tmp/` was cleaned); the fixture must be reconstructed from this spec body, not recovered. The RR-client
 variant (`llgr-egress-rr-multi-peer.ci`) exercises the same unwired path and belongs here too.
 When this is picked up, move the spec to `design` and elevate its Status from skeleton.
+
+**Re-verification (2026-07-14): the Root Cause Finding STILL HOLDS.** `CommandContext.Meta`
+(`plugin/server/command.go:138`) has two write sites (`plugin/server/dispatch_registry.go:241`
+and `plugin/server/dispatch.go:390`) and ZERO readers tree-wide (LSP findReferences), so the
+stale metadata is dropped before `AnnounceNLRIBatch` and no egress filter runs on the
+readvertise rail. All primary anchors match with no line drift. This remains an
+unwired-feature blocker, not a test gap.
 
 ## Required Reading
 

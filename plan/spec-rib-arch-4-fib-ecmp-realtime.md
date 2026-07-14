@@ -34,6 +34,31 @@ STALE-ish ANCHOR (verified 2026-07-08): the 2026-07-06 triage said `SelectMultip
 at design time exactly what the realtime event carries versus what `show` computes, so this
 does not re-implement an already-delivered path.
 
+### Re-verification (2026-07-14): general ECMP delivery already EXISTS; re-scoped
+
+Anchors are valid, but the premise is contradicted by current code. Atomic N-nexthop ECMP
+delivery to the FIB already exists one layer below the BGP RIB plugin:
+`sysribevents.BestChangeEntry.ECMPPaths` (`internal/component/sysrib/events/events.go:62`)
+is an ON-WIRE field (`json:"ecmp-paths,omitempty"`) carrying the full equal-cost set in one
+`BestChangeBatch` per family, consumed by the real FIB backends
+(`internal/plugins/fib/{kernel,vpp,p4}`).
+
+There are TWO distinct `BestChangeEntry` types. The FIB consumes the sysrib one
+(`sysrib/events/events.go`), NOT the BGP RIB plugin one (`rib/events/events.go`, whose
+`ECMPNextHops` field at :77 is an in-process `json:"-"` hint populated by sysrib, not by
+the BGP event producer). So for intra-source ECMP (e.g. IS-IS multi-nexthop) and
+inter-protocol equal-cost, the atomic-N-nexthop gap is CLOSED.
+
+Narrowed remaining gap -- BGP equal-cost multipath specifically: `SelectMultipath`
+siblings today reach `show` ONLY. The `show`-only `bestPipeline` places them in
+`RouteItem.MultipathPeers` (`rib_pipeline_best.go:120-127`, "so the output terminal can
+render the full ECMP set"), never the realtime event or the FIB. Implementing this the
+original way (push siblings through the BGP RIB plugin event) would DUPLICATE the sysrib
+ECMP delivery and violate this spec's own "do not recompute multipath" constraint. Correct
+closure: have the BGP RIB plugin feed its multipath group into the Loc-RIB as
+`locrib.Change.ECMP`, reusing the existing atomic `ECMPPaths` delivery. If BGP-ECMP-to-FIB
+is not actually wanted, close this spec as superseded.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -80,7 +105,7 @@ does not re-implement an already-delivered path.
 ### Integration Points
 - `SelectMultipath` (`bestpath.go:157`) - the sibling source
 - `BestChangeEntry` / `BestChangeBatch` (`events.go`) - the event payload
-- FIB consumers (`internal/plugins/fib/*`) - the realtime installers
+- FIB consumers (`internal/plugins/fib/{kernel,vpp,p4}` (consume `sysribevents`)) - the realtime installers
 
 ### Architectural Verification
 - [ ] No bypassed layers (siblings flow best-path → event → FIB, no side channel)
@@ -93,7 +118,7 @@ does not re-implement an already-delivered path.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The realtime event does not already carry ECMP siblings | `BackupNextHop` is "never an ECMP sibling" (`events.go:82`) | Item already done; close as stale | read the event build path at design | unvalidated |
+| A-1 | The realtime event does not already carry ECMP siblings | `BackupNextHop` is "never an ECMP sibling" (`events.go:82`) | Item already done; close as stale | read the event build path at design | **PARTLY TRUE (2026-07-14)**: the BGP RIB event is single-best, but the sysrib event that reaches the FIB carries the full set on-wire (`sysrib/events/events.go:62`); only BGP-specific multipath remains |
 | A-2 | Adding N next-hops keeps the `BestChangeBatch` JSON contract compatible | `events.go` MarshalJSON is contract-stable | Needs explicit versioning | design review of MarshalJSON | unvalidated |
 
 ### Risks
@@ -130,7 +155,7 @@ does not re-implement an already-delivered path.
 
 - `internal/component/bgp/plugins/rib/events/events.go` - `BestChangeEntry` next-hop set
 - `internal/component/bgp/plugins/rib/rib_pipeline_best.go` - populate siblings into the event
-- FIB consumers (`internal/plugins/fib/*`) - install the N next-hops atomically
+- FIB consumers (`internal/plugins/fib/{kernel,vpp,p4}` (consume `sysribevents`)) - install the N next-hops atomically
 
 ## Implementation Steps
 

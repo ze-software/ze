@@ -53,6 +53,14 @@ both protections); (2) that a filter stalled mid-read cannot leave the engine bl
 binary write longer than the watchdog window without the fail-fast close firing; (3) that
 large raw UPDATE payloads stay within the frame bound.
 
+### Re-verification (2026-07-14)
+
+All anchors re-checked against live code: exact, zero drift. `FilterUpdateInput.Update`
+(`types.go:182`) is still the JSON text carrier; the hex `Raw` opt-in (`:183`) is
+unchanged and separate; and the conn.go write-deadline / `fireWatchdog` / 16 MB
+`MaxMessageSize` machinery the binary-carrier design must respect is all present at the
+cited lines. The gap is unchanged and this spec is accurate as written.
+
 ## Required Reading
 
 ### Architecture Docs

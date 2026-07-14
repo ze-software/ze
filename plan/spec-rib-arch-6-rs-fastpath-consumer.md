@@ -31,6 +31,18 @@ reads the zero-copy `Change.Forward` UPDATE bytes to maintain forwarding state, 
 producer wiring end-to-end. The `forward_observer.go` comment names exactly this consumer
 ("RS/RR fast-path, sysrib mirroring, etc.", :23).
 
+### Re-verification (2026-07-14)
+
+- Gap real: no production consumer reads `Change.Forward` bytes. A tree-wide search finds
+  only the debug observer referencing the field; every AddRef/Bytes read is test-only.
+  Wording note: there are additional production `OnChange` subscribers on locrib (ospf
+  `default.go:166`, sysrib `sysrib.go:852`), but only the observer touches `Change.Forward`,
+  so "the only subscriber" here means "the only Forward-consuming subscriber".
+- Assumption A-1 VALIDATED: `ribForwardHandle` (`forward_handle.go:31`) already exposes a
+  sufficient reader API -- `AddRef` (`:54`, lazy-copy on first ref via `sync.Once`),
+  `Release` (`:72`), and `Bytes` (`:88`). The missing piece is a consumer that calls them,
+  not a handle-API change.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -89,7 +101,7 @@ producer wiring end-to-end. The `forward_observer.go` comment names exactly this
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `Change.Forward` exposes an AddRef/release API sufficient for a real reader | learned 784 producer wiring | Need to extend the handle API | read `forward_handle.go` at design | unvalidated |
+| A-1 | `Change.Forward` exposes an AddRef/release API sufficient for a real reader | learned 784 producer wiring | Need to extend the handle API | read `forward_handle.go` at design | **VALIDATED (2026-07-14)**: `ribForwardHandle` (`forward_handle.go:31`) exposes AddRef (:54) / Release (:72) / Bytes (:88); consumer just needs to call them |
 | A-2 | Reading bytes under the RIB write lock is acceptable, or the handle can be read after unlock | observer runs the callback under the write lock (`forward_observer.go:28`) | Fastpath work must move off the lock | benchmark/read the lock scope at design | unvalidated |
 
 ### Risks

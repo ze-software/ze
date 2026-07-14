@@ -30,6 +30,16 @@ field/method to `ModAccumulator` and the forward-path application so a filter ca
 the announced NLRI bytes for a destination peer (e.g. prefix translation / aggregation-like
 substitution), symmetric to how attribute ops and withdraw are applied today.
 
+### Re-verification (2026-07-14)
+
+Anchors 1-6 exact; the gap is real (`ModAccumulator` has no NLRI-rewrite field/method, and
+`filter_delta.go` explicitly excludes NLRI from the attribute pipeline). The forward seam
+the rewrite must hook is `forwardUpdateCore` in
+`internal/component/bgp/reactor/reactor_api_forward.go`, which declares a fresh
+`ModAccumulator` per destination peer and applies attribute ops / `SetWithdraw` there. One
+anchor drifted: the pathID=0 comment is now at `rib_bestchange.go:1182-1183` (fn
+`reconcileBestPath` at :1184), not `:1180`.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -86,7 +96,7 @@ substitution), symmetric to how attribute ops and withdraw are applied today.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The forward path builds the per-peer UPDATE somewhere NLRI bytes can be substituted | attribute ops + withdraw already applied there | Rewrite needs a deeper encoder change | read the per-peer UPDATE build at design | unvalidated |
-| A-2 | Rewriting NLRI does not break path-id / add-path or dedup invariants | inject/withdraw build NLRI with pathID=0 (`rib_bestchange.go:1180`) | Constrain rewrite to safe cases; reject others | design review of add-path interaction | unvalidated |
+| A-2 | Rewriting NLRI does not break path-id / add-path or dedup invariants | inject/withdraw build NLRI with pathID=0 (`rib_bestchange.go:1182`, fn `reconcileBestPath` :1184) | Constrain rewrite to safe cases; reject others | design review of add-path interaction | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

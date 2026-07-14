@@ -30,6 +30,22 @@ BGP UPDATE PDU, so this needs the **UPDATE wire bytes reconstructed from the str
 best-change data** (the RIB best-change carries typed attributes/NLRI, not a ready-made
 UPDATE PDU).
 
+### Re-verification (2026-07-14)
+
+- Gap real: PeerType=3 Loc-RIB monitoring is unimplemented -- the BMP plugin does not
+  subscribe to the RIB `BestChange` event and emits per-peer monitoring only. Scaffolding
+  already exists, so the work is emission + lifecycle + a best-change subscription, NOT new
+  wire constants: `PeerTypeLocRIB uint8 = 3` (`header.go:50`, alongside the other peer-type
+  constants) and the RFC 9069 peer-flag comment (`header.go:53`) are already present.
+- Assumption A-1 CONFIRMED: a reusable UPDATE encoder exists on the forward path
+  (`internal/core/bgp/message/update_build.go`).
+- Assumption A-2 is FALSE and load-bearing. `BestChangeEntry` (`rib/events/events.go:54-85`)
+  is lossy: it carries `NextHop`, `Metric` (=MED), `OriginAS`, `ASPath` but NOT ORIGIN,
+  LOCAL_PREF, any community type, ATOMIC_AGGREGATE / AGGREGATOR, ORIGINATOR_ID /
+  CLUSTER_LIST, or unknown transitive attributes. A Route-Monitoring UPDATE built from
+  `BestChangeEntry` alone would drop all of these. The design must enrich the event OR have
+  the Loc-RIB consumer read the RIB's stored path attributes to build a faithful UPDATE.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -91,7 +107,7 @@ UPDATE PDU).
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | An UPDATE encoder can rebuild wire bytes from typed best-change attributes/NLRI | forward path encodes UPDATEs from typed data | Must build a best-change→UPDATE encoder | grep for the UPDATE encoder at design | unvalidated |
-| A-2 | `BestChangeBatch` carries enough attribute detail for a faithful RM UPDATE | events.go entry fields | RM messages lose attributes; need richer event | inspect `BestChangeEntry` fields at design | unvalidated |
+| A-2 | `BestChangeBatch` carries enough attribute detail for a faithful RM UPDATE | events.go entry fields | RM messages lose attributes; need richer event | inspect `BestChangeEntry` fields at design | **INVALID (2026-07-14)**: `BestChangeEntry` (`events.go:54-85`) lacks ORIGIN / LOCAL_PREF / communities / aggregator / unknown transitives; "need richer event" is now the primary path |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

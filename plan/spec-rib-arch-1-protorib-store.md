@@ -36,6 +36,29 @@ Scope of this spec is the DECISION plus, if store is chosen, the migration. Capt
 decision and its rationale in this spec; if the answer is "keep deltas", close as a
 recorded design decision (learned summary), not code.
 
+### Re-verification (2026-07-14): the second-consumer trigger has FIRED
+
+The premise above -- bgp-redistribute is "the sole current delta consumer" and the move
+happens only at a hypothetical *second* consumer -- is now false against live code. Two
+further production subscribers of the `BestChangeBatch` delta already exist, each
+re-implementing per-prefix accumulation + full-table-replay handling:
+- **flowexport**: `internal/plugins/flowexport/enrichbgp.go:107`
+  (`ribevents.BestChange.Subscribe(eb, b.applyBatch)`), wired at
+  `internal/plugins/flowexport/register.go:270`.
+- **forked sysrib** (conditional, forked deployments only): the `else` branch at
+  `internal/component/sysrib/sysrib.go:889` (`ribevents.BestChange.Subscribe`); the
+  in-process path uses `locrib` `OnChange` instead.
+
+Assumption A-1 is therefore INVALID, not merely unvalidated, and this spec is no longer a
+speculative "revisit at second consumer" item: the recorded trigger has fired, and
+store-vs-delta can be decided against real duplication evidence.
+
+Anchor precision (2026-07-14): `EmitBestChange` (`producer.go:40`) does NOT itself publish
+on the event bus. It is a direct in-process call from `rib_bestchange.go:1221`
+(`bgpredist.EmitBestChange(eb, batch)`) that converts each entry to a generic
+`redistevents.RouteChangeBatch`. The RIB's own bus publish of the `BestChangeBatch` delta
+is `ribevents.BestChange.Emit` at `rib_bestchange.go:1218`.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -94,7 +117,7 @@ recorded design decision (learned summary), not code.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | bgp-redistribute is still the only production delta consumer | 2026-07-08 split verification | The second-consumer trigger already fired; re-prioritise | grep for `OnChange`/best-change subscribers at design time | unvalidated |
+| A-1 | bgp-redistribute is still the only production delta consumer | 2026-07-08 split verification | The second-consumer trigger already fired; re-prioritise | grep for `OnChange`/best-change subscribers at design time | **INVALID (2026-07-14)**: flowexport (`enrichbgp.go:107`) + forked sysrib (`sysrib.go:889`) already consume the delta; trigger has fired |
 | A-2 | The delta contract can be preserved by a store without a wire change | `events.go` MarshalJSON keeps a stable JSON tag | Store needs its own contract; larger change | design review | unvalidated |
 
 ### Risks

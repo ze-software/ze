@@ -45,6 +45,34 @@ relevant child spec:
   be re-verified before designing (today `BestChangeEntry.BackupNextHop` is a dedicated
   backup, "never an ECMP sibling" -- `rib/events/events.go:82`).
 
+### Re-verification (2026-07-14)
+
+Full anchor re-check against live code, 6 days after the split. Anchors proved durable
+(only rib-arch-8 drifted, +2 lines). Material findings that change scope, not just line
+numbers:
+
+- **rib-arch-1**: the "second consumer" trigger has ALREADY fired. flowexport
+  (`internal/plugins/flowexport/enrichbgp.go:107`) and forked sysrib
+  (`internal/component/sysrib/sysrib.go:889`) both subscribe the `BestChangeBatch` delta
+  and re-implement accumulation + full-table replay. The design question is now
+  actionable, not speculative.
+- **rib-arch-4**: LARGELY SUPERSEDED. Atomic N-nexthop ECMP already reaches the FIB via
+  `sysribevents.BestChangeEntry.ECMPPaths`
+  (`internal/component/sysrib/events/events.go:62`, on-wire). Only BGP-specific
+  `SelectMultipath` multipath (today `show`-only) remains; re-scoped in the child.
+- **rib-arch-5**: assumption A-2 is FALSE. `BestChangeEntry` is lossy (no ORIGIN /
+  LOCAL_PREF / communities / aggregator / unknown transitives), so a faithful RFC 9069
+  Route-Monitoring UPDATE needs a richer event or a RIB-attribute lookup.
+- **rib-arch-7**: the 2026-07-10 Root Cause Finding still holds (`CommandContext.Meta`
+  has two write sites and zero readers); the preserved WIP fixture under `tmp/scratch/`
+  has been deleted and must be reconstructed from the child spec body.
+- **rib-arch-3 / -6**: assumptions A-1 are now VALIDATED (reusable extended-next-hop
+  encoder; sufficient Forward-handle AddRef/Release/Bytes API) -- both de-risked.
+
+Cross-cutting theme: several children (rib-arch-1 / -4 / -5) hinge on what the BGP RIB
+plugin's `BestChangeEntry` carries. It is deliberately lossy; a shared decision on
+whether to enrich it would inform all three.
+
 ### Child Specs
 
 | Spec | Item (pre-split `L#` = row in pre-triage `plan/deferrals.md`) | Verified anchor (2026-07-08) | Nature |

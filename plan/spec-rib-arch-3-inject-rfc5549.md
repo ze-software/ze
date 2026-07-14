@@ -35,6 +35,20 @@ current injection pack/encode path (starting at `injectRoute` and its `attribute
 usage, `rib_commands.go:255`) at design time and locate where an extended next-hop would be
 set.
 
+### Re-verification (2026-07-14): de-risked
+
+- Assumption A-1 is now VALIDATED. A reusable extended-next-hop encoder already exists on
+  the announce/forward path: `attribute.NewMPReachNLRI` (`internal/core/bgp/attribute/mpnlri.go:116`)
+  + `MPReachNLRI.WriteTo` (`mpnlri.go:154`), and `ValidNextHopLens(AFIIPv4, SAFIUnicast)`
+  returns `{4, 16}` (plain IPv4 or RFC 5549 IPv6) as the single source of truth for both
+  encode and decode. The remaining work is confined to the inject/attribute-assembly
+  layer (`attribute.NewBuilder()` has an IPv4-only `SetNextHop`; no MP_REACH setter).
+- Inject already has a capability-aware `validateIPv6NextHop` (`rib_commands.go`, the
+  helper called from the `nexthop` branch) that today validate-then-DROPS an IPv6
+  next-hop for an IPv4 NLRI (never encodes it into MP_REACH). This post-dates the 2026-07
+  triage framing; the gap (no extended next-hop ever emitted for an injected route)
+  remains real.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -95,7 +109,7 @@ set.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | An extended-next-hop encoder exists on the forward path to reuse | parse side exists; forward side likely symmetric | Must build the encoder too; larger scope | grep for the MP_REACH next-hop encoder at design | unvalidated |
+| A-1 | An extended-next-hop encoder exists on the forward path to reuse | parse side exists; forward side likely symmetric | Must build the encoder too; larger scope | grep for the MP_REACH next-hop encoder at design | **VALIDATED (2026-07-14)**: `NewMPReachNLRI` (`mpnlri.go:116`) + `WriteTo` (`:154`) already emit it; reuse, don't rebuild |
 | A-2 | The simple-prefix-family inject restriction can host an IPv4-over-IPv6 case | `rib_commands.go:244` | May need to widen the restriction | read the restriction check at design | unvalidated |
 
 ### Risks
