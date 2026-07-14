@@ -14,6 +14,7 @@ package rib
 
 import (
 	"net/netip"
+	"slices"
 	"sync"
 
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
@@ -699,7 +700,11 @@ func parseNextHopAddr(data []byte) netip.Addr {
 //  3. Intern the winner's fields, pack, store, and emit.
 func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, addPath bool, forward locrib.ForwardHandle) (bestChangeEntry, bool) {
 	candidates := r.gatherCandidates(fam, nlriBytes)
-	newBest := SelectBest(candidates)
+	// SelectMultipath returns the same primary winner as SelectBest plus any
+	// equal-cost siblings (rib-arch-4). When multipath is off (maximum-paths<=1,
+	// the default) it returns nil siblings with no extra work, so the single-best
+	// path is unchanged.
+	newBest, siblings := SelectMultipath(candidates, r.maximumPaths.Load(), r.relaxASPath.Load())
 
 	// Resolve the nextHop and protocol class for the winner BEFORE we take
 	// the shard lock. bestCandidateNextHopAddr acquires r.peerMu.RLock
@@ -708,10 +713,11 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	// under peerMu.Lock) and deadlock against it. Lock order contract:
 	// r.peerMu -> shard.mu, never shard.mu -> r.peerMu.
 	var (
-		nextHop    netip.Addr
-		isEBGP     bool
-		bestLabels []uint32
-		srv6SID    netip.Addr
+		nextHop      netip.Addr
+		isEBGP       bool
+		bestLabels   []uint32
+		srv6SID      netip.Addr
+		ecmpNextHops []netip.Addr
 	)
 	if newBest != nil {
 		nextHop = r.bestCandidateNextHopAddr(fam, nlriBytes, newBest)
@@ -721,6 +727,17 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		}
 		if fam.SAFI != family.SAFIMPLSLabel {
 			srv6SID = r.lookupSRv6SIDForBest(fam, nlriBytes, newBest.PeerIP)
+		}
+		// Resolve the equal-cost multipath sibling next-hops so the Loc-RIB
+		// carries the full ECMP set to the FIB (rib-arch-4). Each sibling
+		// resolves via the same accessor as the primary; dedup against the
+		// primary and each other. Resolved before the shard lock (the accessor
+		// takes r.peerMu.RLock), preserving the r.peerMu -> shard.mu lock order.
+		for _, s := range siblings {
+			nh := r.bestCandidateNextHopAddr(fam, nlriBytes, s)
+			if nh.IsValid() && nh != nextHop && !slices.Contains(ecmpNextHops, nh) {
+				ecmpNextHops = append(ecmpNextHops, nh)
+			}
 		}
 	}
 
@@ -777,6 +794,43 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	// is a redundant event-bus entry when a labeled best is unchanged, but the
 	// authoritative Loc-RIB path (the default consumer) still dedups via
 	// Path.Equal, so there is no FIB churn.
+	// mirrorToLocRIB writes the winning best path (plus its equal-cost multipath
+	// set) into the shared Loc-RIB. Called on BOTH the same-best short-circuit and
+	// the full best-change path so an ECMP-membership change is never lost when
+	// the best next-hop itself is unchanged (the same-best test below compares the
+	// best, not the sibling set); the Loc-RIB dedups a true no-op via Path.Equal.
+	mirrorToLocRIB := func() {
+		if r.locRIB == nil {
+			return
+		}
+		// AdminDistance is the classical Cisco/Juniper default (eBGP=20, iBGP=200)
+		// unless the operator overrode it under bgp/admin-distance; Metric carries MED.
+		distance := uint8(r.adminDistanceIBGP.Load()) //nolint:gosec // YANG 1..255
+		if isEBGP {
+			distance = uint8(r.adminDistanceEBGP.Load()) //nolint:gosec // YANG 1..255
+		}
+		r.locRIB.InsertForward(fam, pfx, locrib.Path{
+			Source:        bgpProtocolID,
+			Instance:      pathID,
+			NextHop:       nextHop,
+			AdminDistance: distance,
+			// Carry the eBGP/iBGP class explicitly so the sysrib replay path
+			// classifies the protocol type without re-deriving it from the
+			// (operator-overridable) AdminDistance above.
+			IsEBGP: isEBGP,
+			Metric: newBest.MED,
+			// Carry the label stack into the Loc-RIB so labeled-unicast routes
+			// reach the kernel as MPLS push entries. sysrib prefers the Loc-RIB
+			// path, so without this the labels are dropped and a plain IP route
+			// is installed.
+			Labels: bestLabels,
+			// Carry the equal-cost multipath sibling next-hops so the Loc-RIB
+			// emits Change.ECMP for a BGP multipath best (rib-arch-4); sysrib
+			// expands it into an ECMP FIB entry. Nil when multipath is off.
+			ECMP: ecmpNextHops,
+		}, forward)
+	}
+
 	if havePrev && len(bestLabels) == 0 {
 		ir := r.bestPathInterner
 		if ir.peerAt(prev.peerIdx()) == newBest.PeerAddr &&
@@ -784,6 +838,12 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			ir.metricAt(prev.metricIdx()) == newBest.MED &&
 			prev.IsEBGP() == isEBGP &&
 			!srv6SID.IsValid() && prev.Flags()&flagHadSRv6SID == 0 {
+			// The best is unchanged, but the equal-cost multipath membership may
+			// have changed (a sibling appeared or went away with the best next-hop
+			// stable). Refresh the Loc-RIB Path so its Change.ECMP tracks the
+			// current set; the Loc-RIB dedups a true no-op. Skip the expensive
+			// re-intern + event-bus entry -- the best route itself did not change.
+			mirrorToLocRIB()
 			return bestChangeEntry{}, false
 		}
 	}
@@ -810,31 +870,9 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	newRec := packBestPath(metricIdx, peerIdx, nhIdx, flags)
 
 	sh.store.insert(fam, nlriBytes, addPath, newRec)
-	// Mirror into the shared Loc-RIB. AdminDistance is the classical
-	// Cisco/Juniper default (eBGP=20, iBGP=200) unless the operator
-	// overrode it under bgp/admin-distance; Metric carries MED.
-	if r.locRIB != nil {
-		distance := uint8(r.adminDistanceIBGP.Load()) //nolint:gosec // YANG 1..255
-		if isEBGP {
-			distance = uint8(r.adminDistanceEBGP.Load()) //nolint:gosec // YANG 1..255
-		}
-		r.locRIB.InsertForward(fam, pfx, locrib.Path{
-			Source:        bgpProtocolID,
-			Instance:      pathID,
-			NextHop:       nextHop,
-			AdminDistance: distance,
-			// Carry the eBGP/iBGP class explicitly so the sysrib replay path
-			// classifies the protocol type without re-deriving it from the
-			// (operator-overridable) AdminDistance above.
-			IsEBGP: isEBGP,
-			Metric: newBest.MED,
-			// Carry the label stack into the Loc-RIB so labeled-unicast routes
-			// reach the kernel as MPLS push entries. sysrib prefers the Loc-RIB
-			// path, so without this the labels (attached to the event entry
-			// below) are dropped and a plain IP route is installed.
-			Labels: bestLabels,
-		}, forward)
-	}
+	// Mirror the best path (and its equal-cost multipath set) into the shared
+	// Loc-RIB via the same closure the same-best short-circuit uses.
+	mirrorToLocRIB()
 	action := ribevents.BestChangeAdd
 	if havePrev {
 		action = ribevents.BestChangeUpdate

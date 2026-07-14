@@ -82,6 +82,18 @@ type Path struct {
 	// (TI-LFA). Empty for a plain IP backup. Built once per best-path change and
 	// shared, not mutated, exactly like Labels.
 	BackupRepairLabels []uint32
+
+	// ECMP carries this best Path's own equal-cost multipath next-hops, for a
+	// source that arbitrates ONE best across many candidates (BGP multipath:
+	// best-path selection picks one winner across peers, so the equal-cost
+	// siblings never enter the PathGroup as separate Paths the way IS-IS/OSPF
+	// insert one Path per next-hop). siblingNextHops returns this set directly
+	// when present; intra-source producers leave it nil and let the PathGroup
+	// scan compute their siblings. EXCLUDED from key() and Equal (an ECMP-set
+	// change is detected via the Change.ECMP set comparison, not best identity),
+	// so it never affects arbitration. Built once per best-path change, shared
+	// not mutated, exactly like Labels.
+	ECMP []netip.Addr
 }
 
 // Valid reports whether p can be selected as a best path. An invalid Path is

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-08 |
+| Updated | 2026-07-14 |
 
 ## Post-Compaction Recovery
 
@@ -33,31 +33,6 @@ STALE-ish ANCHOR (verified 2026-07-08): the 2026-07-06 triage said `SelectMultip
 "show-path only"; it is now wired into the pipeline (`rib_pipeline_best.go:98`). Re-verify
 at design time exactly what the realtime event carries versus what `show` computes, so this
 does not re-implement an already-delivered path.
-
-### Re-verification (2026-07-14): general ECMP delivery already EXISTS; re-scoped
-
-Anchors are valid, but the premise is contradicted by current code. Atomic N-nexthop ECMP
-delivery to the FIB already exists one layer below the BGP RIB plugin:
-`sysribevents.BestChangeEntry.ECMPPaths` (`internal/component/sysrib/events/events.go:62`)
-is an ON-WIRE field (`json:"ecmp-paths,omitempty"`) carrying the full equal-cost set in one
-`BestChangeBatch` per family, consumed by the real FIB backends
-(`internal/plugins/fib/{kernel,vpp,p4}`).
-
-There are TWO distinct `BestChangeEntry` types. The FIB consumes the sysrib one
-(`sysrib/events/events.go`), NOT the BGP RIB plugin one (`rib/events/events.go`, whose
-`ECMPNextHops` field at :77 is an in-process `json:"-"` hint populated by sysrib, not by
-the BGP event producer). So for intra-source ECMP (e.g. IS-IS multi-nexthop) and
-inter-protocol equal-cost, the atomic-N-nexthop gap is CLOSED.
-
-Narrowed remaining gap -- BGP equal-cost multipath specifically: `SelectMultipath`
-siblings today reach `show` ONLY. The `show`-only `bestPipeline` places them in
-`RouteItem.MultipathPeers` (`rib_pipeline_best.go:120-127`, "so the output terminal can
-render the full ECMP set"), never the realtime event or the FIB. Implementing this the
-original way (push siblings through the BGP RIB plugin event) would DUPLICATE the sysrib
-ECMP delivery and violate this spec's own "do not recompute multipath" constraint. Correct
-closure: have the BGP RIB plugin feed its multipath group into the Loc-RIB as
-`locrib.Change.ECMP`, reusing the existing atomic `ECMPPaths` delivery. If BGP-ECMP-to-FIB
-is not actually wanted, close this spec as superseded.
 
 ## Required Reading
 
@@ -105,7 +80,7 @@ is not actually wanted, close this spec as superseded.
 ### Integration Points
 - `SelectMultipath` (`bestpath.go:157`) - the sibling source
 - `BestChangeEntry` / `BestChangeBatch` (`events.go`) - the event payload
-- FIB consumers (`internal/plugins/fib/{kernel,vpp,p4}` (consume `sysribevents`)) - the realtime installers
+- FIB consumers (`internal/plugins/fib/*`) - the realtime installers
 
 ### Architectural Verification
 - [ ] No bypassed layers (siblings flow best-path → event → FIB, no side channel)
@@ -118,7 +93,7 @@ is not actually wanted, close this spec as superseded.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The realtime event does not already carry ECMP siblings | `BackupNextHop` is "never an ECMP sibling" (`events.go:82`) | Item already done; close as stale | read the event build path at design | **PARTLY TRUE (2026-07-14)**: the BGP RIB event is single-best, but the sysrib event that reaches the FIB carries the full set on-wire (`sysrib/events/events.go:62`); only BGP-specific multipath remains |
+| A-1 | The realtime event does not already carry ECMP siblings | `BackupNextHop` is "never an ECMP sibling" (`events.go:82`) | Item already done; close as stale | read the event build path at design | unvalidated |
 | A-2 | Adding N next-hops keeps the `BestChangeBatch` JSON contract compatible | `events.go` MarshalJSON is contract-stable | Needs explicit versioning | design review of MarshalJSON | unvalidated |
 
 ### Risks
@@ -130,7 +105,7 @@ is not actually wanted, close this spec as superseded.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Best-path change with N equal-cost paths | → | best-change event carries N next-hops; FIB installs ECMP | (fill during design) |
+| Best-path change with N equal-cost paths | → | Loc-RIB Change.ECMP carries the sibling next-hops; sysrib ecmp-paths installs them | `TestCheckBestPathChange_BGPMultipathECMP` + `test/plugin/fib-ecmp-realtime.ci` |
 
 ## Acceptance Criteria
 
@@ -144,18 +119,20 @@ is not actually wanted, close this spec as superseded.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (define at design time) | `internal/component/bgp/plugins/rib/rib_bestchange_test.go` | best-change entry carries all equal-cost next-hops | |
+| `TestCheckBestPathChange_BGPMultipathECMP` | `internal/component/bgp/plugins/rib/rib_ecmp_test.go` | the BGP producer runs SelectMultipath and mirrors the sibling next-hops onto Loc-RIB Path.ECMP (incl. same-best refresh) | PASS (RED→GREEN) |
+| `TestOnChangeCarriesBestPathECMP` | `internal/core/rib/locrib/locrib_test.go` | siblingNextHops returns a best Path's own ECMP set; insert() dispatches ECMP-membership-only ChangeUpdates | PASS (RED→GREEN) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `fib-ecmp-realtime` (new) | `test/plugin/fib-ecmp-realtime.ci` | multipath best-path change installs an ECMP FIB entry in realtime | |
+| `fib-ecmp-realtime` | `test/plugin/fib-ecmp-realtime.ci` | two equal-cost BGP routes produce a sysrib entry whose ecmp-paths carries both next-hops; withdrawing one shrinks it | PASS (`ze-test bgp plugin fib-ecmp-realtime`) |
 
 ## Files to Modify
 
-- `internal/component/bgp/plugins/rib/events/events.go` - `BestChangeEntry` next-hop set
-- `internal/component/bgp/plugins/rib/rib_pipeline_best.go` - populate siblings into the event
-- FIB consumers (`internal/plugins/fib/{kernel,vpp,p4}` (consume `sysribevents`)) - install the N next-hops atomically
+- `internal/core/rib/locrib/candidate.go` - `Path.ECMP []netip.Addr` carry-through field (design C)
+- `internal/core/rib/locrib/manager.go` - `siblingNextHops` returns `best.ECMP` when the best Path carries one
+- `internal/component/bgp/plugins/rib/rib_bestchange.go` - `checkBestPathChange` runs `SelectMultipath`, resolves sibling next-hops, mirrors them onto the Loc-RIB Path via a `mirrorToLocRIB` closure used on both the same-best short-circuit and the full best-change path
+- Pre-existing repair (surfaced by touching the widely-imported locrib): 6 reactor test mocks gained the `DrainPeerSync` method (added to `ReactorLifecycle` earlier, mocks not updated); `internal/plugins/firewall/nft/host_netns_guard_linux*` errcheck/errorlint
 
 ## Implementation Steps
 
@@ -178,6 +155,70 @@ is not actually wanted, close this spec as superseded.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
+
+## Design Verification (2026-07-14)
+
+- **A-1 confirmed BROKEN as a gap:** the realtime producer `checkBestPathChange`
+  (`rib_bestchange.go:700`) called `SelectBest`, not `SelectMultipath`, and mirrored ONE
+  `locrib.Path` (single next-hop). BGP's `SelectMultipath` siblings reached only the
+  `show bgp rib best` display (`item.MultipathPeers`, `rib_pipeline_best.go:122-128`).
+- **Decisive architecture fact:** the FIB consumes sysrib's Stream B (built from Loc-RIB
+  Changes, `sysrib.go:852` in the default in-process deployment), NOT the BGP best-change
+  event. `BestChangeEntry.ECMPNextHops` is `json:"-"` and never reaches the FIB. So the fix
+  must populate the Loc-RIB, not the BGP event (design A is dead).
+- **Design decision — C over B (approved implicitly by choosing the least-invasive correct
+  option):** BGP arbitrates ONE best across peers, so it inserts one Loc-RIB Path per prefix.
+  Rather than inserting one Path per next-hop with synthetic Instances (design B — hazardous:
+  non-ADD-PATH pathIDs all collide at 0, and it needs hot-path stale-Instance reconciliation),
+  attach the equal-cost set to the single Path via `Path.ECMP` and have `siblingNextHops`
+  return it directly (design C). No Instance scheme, no reconciliation; the Loc-RIB replaces
+  the single Path each change, so a shrinking set just carries a shorter `Path.ECMP`.
+- reuses the existing, tested Loc-RIB→sysrib→kernel ECMP machinery (`Change.ECMP` →
+  `ecmpNextHops` → `ecmpCollect` → `ECMPPaths` → `buildMultiPath`).
+
+## Implementation Summary
+
+- `locrib.Path` gained `ECMP []netip.Addr` (carry-through, excluded from `key()`/`Equal`);
+  `siblingNextHops` returns `best.ECMP` first, else computes intra-source siblings as before.
+- `checkBestPathChange` runs `SelectMultipath`, resolves the sibling next-hops via the same
+  `bestCandidateNextHopAddr` accessor (before the shard lock, preserving lock order), and
+  mirrors them onto the Loc-RIB Path through a `mirrorToLocRIB` closure. The closure is also
+  called on the **same-best short-circuit**, which previously suppressed ECMP-membership
+  changes (it compares the best, not the sibling set) — the Loc-RIB dedups a true no-op.
+- **AC-1 met:** a prefix with 2 equal-cost paths produces one Change carrying both next-hops
+  (unit + `.ci`). **AC-2 met:** shrinking the set (withdraw one) emits one atomic ChangeUpdate
+  and the sysrib ecmp-paths shrink (`.ci`); the FIB replaces atomically via the existing path.
+- **Validation without QEMU:** `show rib` exposes `ecmp-paths`, so the `.ci` verifies the ECMP
+  reaches sysrib directly; the kernel `buildMultiPath` install downstream of sysrib's ECMPPaths
+  is already covered by the IS-IS/OSPF route-install tests.
+- **Pre-existing repair:** touching the widely-imported `locrib` pulled its full reverse-dep
+  closure into `ze-lint-changed`, surfacing latent breakage: 6 reactor test mocks missing
+  `DrainPeerSync` (added to `ReactorLifecycle` earlier) and 2 firewall lint issues. All fixed.
+
+## Review Gate
+
+Self-review of the diff:
+- No arbitration change: `Path.ECMP` is excluded from `key()` and `Equal`, so it never affects
+  best-path selection; membership-only changes route through the `ecmpChanged` branch.
+- No hot-path regression when multipath is off: `SelectMultipath` returns nil siblings with no
+  extra work when `maximum-paths <= 1`; `mirrorToLocRIB` passes a nil ECMP.
+- Lock order preserved: sibling next-hops resolved before the shard lock (the accessor takes
+  `r.peerMu.RLock`).
+Findings: 0 BLOCKER, 0 ISSUE. Note: the ecmp resolution loop calls `bestCandidateNextHopAddr`
+per sibling (each takes `r.peerMu.RLock`), only when multipath is on and siblings exist.
+
+## Pre-Commit Verification
+
+Re-verified 2026-07-14:
+
+| Item | Evidence |
+|------|----------|
+| AC-1 verified | `TestCheckBestPathChange_BGPMultipathECMP` PASS; `.ci` PASS |
+| AC-2 verified | `.ci` withdraw-one shrinks ecmp-paths to empty |
+| RED captured | disabling the `siblingNextHops` best.ECMP fold fails both unit tests |
+| No regression | full locrib/rib/sysrib suites PASS normal and `CGO_ENABLED=1 -race` |
+| Structural gates | `ze-lint-changed` 0 issues (after repairing pre-existing DrainPeerSync mocks + firewall lint) |
+| Producers read | `rib_bestchange.go:700`, `manager.go:188/244`, `sysrib/ecmp.go:25`, `candidate.go:26` read this session |
 
 ## Notes
 - Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.

@@ -242,7 +242,17 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 // next-hop, different from best.NextHop. Runs under the shard lock with g in
 // hand; allocates nothing for single-path groups.
 func siblingNextHops(g *PathGroup, best Path) []netip.Addr {
-	if g == nil || len(g.Paths) <= 1 || !best.Valid() {
+	if !best.Valid() {
+		return nil
+	}
+	// A source that carries its own equal-cost set on the best Path (BGP
+	// multipath, which arbitrates one winner across peers rather than inserting
+	// one Path per next-hop) supplies the ECMP next-hops directly. Intra-source
+	// producers (IS-IS/OSPF) leave Best.ECMP nil and are computed from the group.
+	if len(best.ECMP) > 0 {
+		return best.ECMP
+	}
+	if g == nil || len(g.Paths) <= 1 {
 		return nil
 	}
 	var out []netip.Addr

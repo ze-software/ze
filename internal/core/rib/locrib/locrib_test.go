@@ -291,6 +291,52 @@ func TestOnChangeCarriesECMPSiblings(t *testing.T) {
 	assert.Nil(t, changes[3].ECMP, "single surviving member must carry nil ECMP")
 }
 
+// TestOnChangeCarriesBestPathECMP validates the BGP-multipath shape (rib-arch-4):
+// a source that arbitrates ONE best Path and carries its own equal-cost set on
+// Best.ECMP has those next-hops surfaced on Change.ECMP without inserting one
+// Path per next-hop, and an ECMP-set change (best next-hop stable) fires a
+// membership-only ChangeUpdate.
+//
+// VALIDATES: siblingNextHops returns Best.ECMP directly; insert()'s ecmpChanged
+// branch dispatches when only the ECMP set changes.
+// PREVENTS: BGP multipath collapsing to a single kernel next-hop because BGP
+// arbitrates one best Path and the siblings never entered the PathGroup.
+func TestOnChangeCarriesBestPathECMP(t *testing.T) {
+	r := NewRIB()
+	var changes []Change
+	r.OnChange(func(c Change) { changes = append(changes, c) })
+
+	pfx := netip.MustParsePrefix("10.60.0.0/24")
+	nh1 := netip.MustParseAddr("10.0.0.1")
+	nh2 := netip.MustParseAddr("10.0.0.2")
+	nh3 := netip.MustParseAddr("10.0.0.3")
+
+	bgpMulti := func(ecmp ...netip.Addr) Path {
+		return Path{Source: idBGP, Instance: 0, NextHop: nh1, AdminDistance: 20, Metric: 0, ECMP: ecmp}
+	}
+
+	// One BGP best Path carrying its own ECMP siblings (single Path, no per-
+	// next-hop Instances).
+	r.InsertForward(famV4, pfx, bgpMulti(nh2, nh3), nil)
+	require.Len(t, changes, 1)
+	assert.Equal(t, ChangeAdd, changes[0].Kind)
+	assert.Equal(t, nh1, changes[0].Best.NextHop)
+	assert.Equal(t, []netip.Addr{nh2, nh3}, changes[0].ECMP, "Best.ECMP must surface on Change.ECMP")
+
+	// Shrink the ECMP set to [nh2]: same best next-hop, so this is an ECMP
+	// membership-only ChangeUpdate.
+	r.InsertForward(famV4, pfx, bgpMulti(nh2), nil)
+	require.Len(t, changes, 2)
+	assert.Equal(t, ChangeUpdate, changes[1].Kind)
+	assert.Equal(t, []netip.Addr{nh2}, changes[1].ECMP)
+
+	// Drop the ECMP set entirely: another membership-only ChangeUpdate to nil.
+	r.InsertForward(famV4, pfx, bgpMulti(), nil)
+	require.Len(t, changes, 3)
+	assert.Equal(t, ChangeUpdate, changes[2].Kind)
+	assert.Nil(t, changes[2].ECMP, "cleared ECMP set surfaces as nil")
+}
+
 // TestOnChangeDispatchesECMPMembershipChanges validates that adding or removing
 // an equal-cost sibling emits ChangeUpdate even when the stable first-seen best
 // Path does not change.
