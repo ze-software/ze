@@ -20,8 +20,21 @@ EOF_PEER
 
 tmpfs=remove-private-as-export.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-import time
+import sys
 from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def updates_sent(api, peer):
+    r = dispatch(api, f'show bgp peer {peer} detail')
+    for info in r.get('data', {}).get('peers', {}).values():
+        return info.get('updates-sent', 0)
+    return 0
 
 def main():
     api = API()
@@ -30,8 +43,16 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
-    time.sleep(4.0)
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
+    # Deterministic replacement for sleep(4.0): wait until ze has forwarded the
+    # policy-stripped route to the receiver peer (updates-sent increments when the
+    # UPDATE is emitted), then shut down. The runner-side conn=2 expect verifies the
+    # stripped/prepended AS_PATH on the wire.
+    if not api.wait_until(lambda: updates_sent(api, 'receiver-peer') >= 1,
+                          attempts=150, delay=0.1):
+        print('FAIL: ze never forwarded the stripped route to receiver-peer',
+              file=sys.stderr)
+        sys.exit(1)
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':
