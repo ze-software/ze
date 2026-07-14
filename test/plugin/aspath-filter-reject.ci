@@ -28,12 +28,15 @@ EOF_PEER
 tmpfs=test-aspath-reject.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Observer for as-path-list reject test: clean shutdown after filter dispatch."""
-import time
 from ze_api import API
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
+    return (resp or {}).get('result', {})
+
+def updates_received(api):
+    r = dispatch(api, 'show bgp peer peer1 detail')
+    return r.get('data', {}).get('peers', {}).get('127.0.0.1', {}).get('updates-received', 0)
 
 def main():
     api = API()
@@ -43,8 +46,14 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for session establishment and filter dispatch.
-    time.sleep(3.0)
+    # Deterministic replacement for sleep(3.0): wait until ze has RECEIVED the
+    # UPDATE from ze-peer, then quiesce so the filter decision (reject + Info log)
+    # is fully drained before ze shuts down.
+    for _ in range(100):
+        if updates_received(api) >= 1:
+            break
+        api.wait_for_event(timeout=0.2)
+    api.quiesce()
 
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()

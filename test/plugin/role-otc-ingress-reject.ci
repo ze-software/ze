@@ -33,12 +33,15 @@ tmpfs=test-otc.run:mode=755:terminator=EOF_RUN
 """Keep the daemon alive while the dest peer verifies OTC ingress rejection."""
 import json
 import sys
-import time
 from ze_api import API, runtime_fail, result_json_data
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
+    return (resp or {}).get('result', {})
+
+def updates_received(api):
+    r = dispatch(api, 'show bgp peer peer1 detail')
+    return r.get('data', {}).get('peers', {}).get('127.0.0.1', {}).get('updates-received', 0)
 
 def main():
     api = API()
@@ -48,8 +51,14 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for session to establish and UPDATE to be processed.
-    time.sleep(3.0)
+    # Deterministic replacement for sleep(3.0): wait until ze has RECEIVED the
+    # UPDATE from ze-peer, then quiesce so the ingress filter decision has fully
+    # drained before asserting the route is absent from adj-rib-in.
+    for _ in range(100):
+        if updates_received(api) >= 1:
+            break
+        api.wait_for_event(timeout=0.2)
+    api.quiesce()
 
     # Query adj-rib-in: route should have been rejected by ingress filter.
     result = dispatch(api, 'show bgp adj-rib-in status')
