@@ -62,6 +62,8 @@ import sys
 import termios
 import time
 
+from ze_api import wait_until
+
 PORT = '$PORT2'
 
 def run(cmd, **kwargs):
@@ -74,22 +76,24 @@ def run(cmd, **kwargs):
     return result
 
 def wait_for_daemon(env):
-    deadline = time.time() + 10
-    last = ''
-    while time.time() < deadline:
+    # // test-relax: replaced a hand-rolled daemon-readiness deadline loop with
+    # ze_api.wait_until (same 50x0.2s budget, ratchet-exempt internal sleep); the
+    # 0.2s poll delay here was pacing over `show version`, not race-hiding.
+    last = ['']
+    def ready():
         result = subprocess.run(
             ['ze', 'cli', '-c', 'show version'],
             env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        output = (result.stdout + result.stderr).decode(errors='replace')
         if result.returncode == 0:
-            return
-        last = output
-        time.sleep(0.2)
-    print(f'FAIL: daemon did not become reachable: {last}', file=sys.stderr)
-    sys.exit(1)
+            return True
+        last[0] = (result.stdout + result.stderr).decode(errors='replace')
+        return False
+    if not wait_until(ready, attempts=50, delay=0.2):
+        print(f'FAIL: daemon did not become reachable: {last[0]}', file=sys.stderr)
+        sys.exit(1)
 
 def read_available(fd, deadline):
     chunks = []
