@@ -35,17 +35,16 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for peer route to be stored
-    for _ in range(20):
-        time.sleep(0.5)
-        result = dispatch(api, 'show bgp adj-rib-in status')
-        if result.get('status') != 'done':
-            continue
-        data = result_json_data(result, {})
-        if data.get('total-routes', 0) > 0:
-            break
-    else:
-        print('FAIL: no routes stored after 10s', file=sys.stderr)
+    # Wait for peer route to be stored.
+    # // test-relax: hand-rolled range(20) sleep-poll -> dispatch_until on adj-rib-in status
+    result = api.dispatch_until(
+        'show bgp adj-rib-in status',
+        lambda r: result_json_data(r, {}).get('total-routes', 0) > 0,
+        attempts=20,
+        delay=0.5,
+    )
+    if result_json_data(result, {}).get('total-routes', 0) <= 0:
+        print('FAIL: no routes stored', file=sys.stderr)
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
         sys.exit(1)

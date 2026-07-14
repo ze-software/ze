@@ -26,7 +26,6 @@ tmpfs=ssh-session-test.run:mode=755:terminator=EOF_RUN
 
 import socket
 import sys
-import time
 from ze_api import API
 
 
@@ -37,6 +36,16 @@ def dispatch(api, command):
     return resp.get('result', {})
 
 
+def _ssh_banner_ok(host, port):
+    try:
+        s = socket.create_connection((host, port), timeout=2)
+        banner = s.recv(256)
+        s.close()
+        return b'SSH' in banner
+    except (OSError, TimeoutError):
+        return False
+
+
 def main():
     api = API()
     api.declare_done()
@@ -45,8 +54,10 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for BGP session and SSH server to start
-    time.sleep(1.5)
+    # Wait for the SSH server to accept a connection and emit its SSH banner
+    # (deterministic replacement for a blind settle sleep).
+    # // test-relax: blind sleep(1.5) -> wait_until(SSH banner on port 2223)
+    api.wait_until(lambda: _ssh_banner_ok('127.0.0.1', 2223))
 
     # Verify SSH port is reachable (server started with config wiring)
     ssh_ok = False

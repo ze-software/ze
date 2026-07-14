@@ -35,8 +35,8 @@ tmpfs=test-strip.run:mode=755:terminator=EOF_RUN
 """Keep the daemon alive while the dest peer proves egress stripping on the wire."""
 import json
 import sys
-import time
 from ze_api import API, runtime_fail, result_json_data, result_text_data
+# // test-relax: removed unused 'import time'; settle sleep replaced by dispatch_until + quiesce
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
@@ -50,12 +50,18 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for both sessions to establish and route to be forwarded.
-    time.sleep(5.0)
+    # Wait for the source route to land in adj-rib-in (inbound), then drain the
+    # outbound forward pool so the re-advertisement reaches the dest peer. This
+    # replaces a blind settle sleep with deterministic inbound + outbound barriers.
+    # // test-relax: blind sleep(5.0) -> dispatch_until(adj-rib-in total>=1) + quiesce (outbound)
+    result = api.dispatch_until(
+        'show bgp adj-rib-in status',
+        lambda r: result_json_data(r, {}).get('total-routes', -1) >= 1,
+    )
+    api.quiesce()
 
     # Query adj-rib-in for diagnostic context only. The strip proof is the
     # destination peer wire assertion at the bottom of this file.
-    result = dispatch(api, 'show bgp adj-rib-in status')
     data = result_json_data(result, {})
     total = data.get('total-routes', -1)
 

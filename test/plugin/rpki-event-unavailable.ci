@@ -35,29 +35,21 @@ def main():
     api.subscribe(['rpki direction received'])
     api.ready()
 
-    # Wait for BGP UPDATE (no RTR server = empty cache)
-    time.sleep(4.0)
+    # Wait for the rpki "unavailable" event via wait_for_event instead of a
+    # blind sleep + hand-rolled read_line loop.
+    # // test-relax: blind sleep(4.0) + manual read_line loop -> wait_for_event(rpki unavailable)
+    def _unavailable(evt):
+        if not isinstance(evt, dict):
+            return False
+        bgp = evt.get('bgp', {})
+        if bgp.get('message', {}).get('type') != 'rpki':
+            return False
+        rpki = bgp.get('rpki', {})
+        return isinstance(rpki, dict) and rpki.get('status') == 'unavailable'
 
     try:
-        found_unavailable = False
-        for _ in range(20):
-            event_str = api.read_line(timeout=0.5)
-            if event_str is None:
-                continue
-            try:
-                evt = json.loads(event_str)
-            except (json.JSONDecodeError, TypeError):
-                continue
-            bgp = evt.get('bgp', {})
-            msg = bgp.get('message', {})
-            if msg.get('type') != 'rpki':
-                continue
-            rpki = bgp.get('rpki', {})
-            if isinstance(rpki, dict) and rpki.get('status') == 'unavailable':
-                found_unavailable = True
-                break
-
-        if not found_unavailable:
+        event_str = api.wait_for_event(timeout=15.0, predicate=_unavailable)
+        if event_str is None:
             print('FAIL: expected rpki=unavailable, not found', file=sys.stderr)
             sys.exit(1)
 

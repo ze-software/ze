@@ -15,8 +15,8 @@ tmpfs=rpki-cache-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 from ze_api import API, result_json_data
+# // test-relax: removed unused 'import time'; blind sleep is now a dispatch_until poll
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -33,12 +33,14 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for RTR session to sync VRPs
-    time.sleep(3.0)
-
     try:
-        # Query rpki status to verify VRPs loaded
-        result = dispatch(api, 'show bgp rpki status')
+        # Query rpki status to verify VRPs loaded.
+        # // test-relax: blind sleep(3.0) + single-shot query -> dispatch_until poll (RTR VRP sync landed)
+        result = api.dispatch_until(
+            'show bgp rpki status',
+            lambda r: result_json_data(r, {}).get('vrp-count-ipv4', 0) >= 1
+            and result_json_data(r, {}).get('sessions', 0) >= 1,
+        )
         if result.get('status') != 'done':
             print(f'FAIL: rpki status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

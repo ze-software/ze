@@ -19,7 +19,7 @@ import socket
 import struct
 import sys
 import time
-from ze_api import API, result_text_data
+from ze_api import API, result_text_data, result_json_data
 
 def bmp_header(msg_type, length):
     return struct.pack('!BIB', 3, length, msg_type)
@@ -91,14 +91,17 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(('127.0.0.1', $PORT2))
     sock.sendall(bmp_initiation())
-    time.sleep(0.2)
     sock.sendall(bmp_peer_up())
-    time.sleep(0.2)
     sock.sendall(bmp_route_monitoring())
-    time.sleep(1.0)
 
-    # Verify route exists before disconnect
-    result = dispatch(api, 'show bmp rib')
+    # Verify route exists before disconnect. Poll show bmp rib until the injected
+    # route lands: BMP ingest over the raw socket is async, so this replaces the
+    # blind inter-send + settle sleeps with a deterministic payload poll.
+    # // test-relax: dropped 2x0.2 inter-send + 1.0 settle sleeps -> dispatch_until on adj-rib-in present
+    result = api.dispatch_until(
+        'show bmp rib',
+        lambda r: bool(result_json_data(r, {}).get('adj-rib-in', {})),
+    )
     data = result_text_data(result, '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
     rib_in = parsed.get('adj-rib-in', {})
@@ -108,10 +111,15 @@ def main():
 
     # Disconnect (TCP close triggers withdraw-router)
     sock.close()
-    time.sleep(2.0)
 
-    # Verify routes are withdrawn
-    result = dispatch(api, 'show bmp rib')
+    # Verify routes are withdrawn. Poll until adj-rib-in drains (the withdraw is
+    # async on session teardown); the route was present just above, so this is not
+    # vacuous. Replaces a blind sleep(2.0) settle.
+    # // test-relax: dropped 2.0 settle + 0.5 pre-shutdown pad -> dispatch_until on adj-rib-in empty
+    result = api.dispatch_until(
+        'show bmp rib',
+        lambda r: not result_json_data(r, {}).get('adj-rib-in', {}),
+    )
     data = result_text_data(result, '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
     rib_in = parsed.get('adj-rib-in', {})
@@ -121,7 +129,6 @@ def main():
 
     print('PASS: BMP routes withdrawn after session disconnect', file=sys.stderr, flush=True)
 
-    time.sleep(0.5)
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 

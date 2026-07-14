@@ -45,11 +45,8 @@ def main() -> None:
     api.ready()
 
     # Normal operation - send EOR to verify registration worked
-    time.sleep(0.1)
     api.send('peer * update text nlri ipv4/unicast eor')
-    time.sleep(0.2)
-
-    api.wait_for_ack(expected_count=1)
+    api.wait_for_ack(expected_count=1)  # // test-relax: dropped 2 redundant sleeps; ze queues pre-session sends, wait_for_ack is the outbound barrier
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

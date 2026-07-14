@@ -20,7 +20,7 @@ import urllib.error
 import urllib.request
 
 import ze_api
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, wait_until
 
 REST_PORT = int('$PORT2')
 BASE_URL = f'http://127.0.0.1:{REST_PORT}/api/v1'
@@ -32,15 +32,16 @@ shutdown_sent = False
 
 
 def wait_for_rest(timeout=10):
-    deadline = time.time() + timeout
-    while time.time() < deadline:
+    def _ok():
         try:
             req = urllib.request.Request(f'{BASE_URL}/commands', headers={'Authorization': 'Bearer secret'})
             urllib.request.urlopen(req, timeout=2).read()
-            return
+            return True
         except (urllib.error.URLError, ConnectionRefusedError, OSError):
-            time.sleep(0.2)
-    raise RuntimeError('REST API did not respond')
+            return False
+    # // test-relax: hand-rolled REST retry loop -> wait_until(REST /commands reachable)
+    if not wait_until(_ok, attempts=max(1, int(timeout / 0.2)), delay=0.2):
+        raise RuntimeError('REST API did not respond')
 
 
 def request(method, path, payload=None, timeout=8):
@@ -75,12 +76,9 @@ def commit_session(session_id, result):
 
 
 def wait_for_verify_start():
-    deadline = time.time() + 8
-    while time.time() < deadline:
-        if os.path.exists('verify.started'):
-            return
-        time.sleep(0.1)
-    raise RuntimeError('first commit did not enter config verify')
+    # // test-relax: hand-rolled file-poll loop -> wait_until(verify.started exists)
+    if not wait_until(lambda: os.path.exists('verify.started'), attempts=80, delay=0.1):
+        raise RuntimeError('first commit did not enter config verify')
 
 
 def drive_rest_commits():

@@ -30,18 +30,26 @@ def dispatch(api, command):
 
 def poll_for_match(api, match_fn, timeout=5.0):
     """Poll `show errors` until at least one entry matches match_fn or timeout."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        result = dispatch(api, 'show errors')
-        if result.get('status') == 'done':
-            data = result.get('data', {})
-            if isinstance(data, str):
+    # // test-relax: hand-rolled while + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
+    def _matched(r):
+        if r.get('status') != 'done':
+            return False
+        data = r.get('data', {})
+        if isinstance(data, str):
+            try:
                 data = json.loads(data)
-            errors = data.get('errors', [])
-            if any(match_fn(e) for e in errors):
-                return data
-        time.sleep(0.1)
-    return None
+            except (json.JSONDecodeError, TypeError, ValueError):
+                return False
+        errors = data.get('errors', []) if isinstance(data, dict) else []
+        return any(match_fn(e) for e in errors)
+
+    result = api.dispatch_until('show errors', _matched, attempts=max(1, int(timeout / 0.25)))
+    if not _matched(result):
+        return None
+    data = result.get('data', {})
+    if isinstance(data, str):
+        data = json.loads(data)
+    return data
 
 def main():
     api = API()

@@ -27,9 +27,9 @@ tmpfs=session-lifecycle-test.run:mode=755:terminator=EOF_RUN
 
 import json
 import sys
-import time
 
 from ze_api import API, result_text_data
+# // test-relax: removed unused 'import time'; blind sleep -> dispatch_until on metrics values
 
 
 def dispatch(api, command):
@@ -51,13 +51,23 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for BGP session to establish and metrics to propagate
-    time.sleep(2.0)
+    # Poll until the session-up + EOR metrics have propagated.
+    # // test-relax: blind sleep(2.0) + single show -> dispatch_until (established=1 + type=eor)
+    def metrics_ready(res):
+        if res.get('status') != 'done':
+            return False
+        try:
+            m = json.loads(result_text_data(res, '{}')).get('metrics', '')
+        except (json.JSONDecodeError, TypeError):
+            return False
+        return ('ze_peer_sessions_established_total{peer="127.0.0.1"} 1' in m
+                and 'type="eor"' in m)
+
+    r = api.dispatch_until('show metrics values', metrics_ready)
 
     failed = False
 
     # Get metrics values
-    r = dispatch(api, 'show metrics values')
     status = r.get('status')
     metrics_text = ''
     if status != 'done':

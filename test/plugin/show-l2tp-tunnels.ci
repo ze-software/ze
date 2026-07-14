@@ -183,19 +183,22 @@ def main():
     # Poll show l2tp tunnels until the peer's handshake completes
     # and the tunnel is visible. Generous budget because SCCRQ/SCCCN
     # traverses the whole reliable-delivery stack.
-    tunnels = None
-    for _ in range(100):
-        r = dispatch(api, 'show l2tp tunnels')
-        if r.get('status') == 'done':
-            try:
-                ts = result_json_data(r, [])
-            except json.JSONDecodeError:
-                ts = []
-            if isinstance(ts, list) and len(ts) >= 1:
-                tunnels = ts
-                break
-        time.sleep(0.1)
-    if tunnels is None:
+    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
+    def _has_tunnel(r):
+        if r.get('status') != 'done':
+            return False
+        try:
+            ts = result_json_data(r, [])
+        except json.JSONDecodeError:
+            return False
+        return isinstance(ts, list) and len(ts) >= 1
+
+    r = api.dispatch_until('show l2tp tunnels', _has_tunnel, attempts=100, delay=0.1)
+    try:
+        tunnels = result_json_data(r, []) if r.get('status') == 'done' else []
+    except json.JSONDecodeError:
+        tunnels = []
+    if not (isinstance(tunnels, list) and tunnels):
         runtime_fail('tunnel never appeared in `show l2tp tunnels`')
 
     t = tunnels[0]

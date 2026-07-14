@@ -72,12 +72,14 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    result = None
-    for _ in range(20):
-        result = dispatch(api, 'show doctor')
-        if result.get('status') == 'done':
-            break
-        time.sleep(0.25)
+    # // test-relax: hand-rolled range(20) status-poll -> dispatch_until on the doctor diagnostic itself
+    result = api.dispatch_until(
+        'show doctor',
+        lambda r: any(
+            d.get('code') == 'doctor-test-cache-down'
+            for d in result_json_data(r, {}).get('diagnostics', [])
+        ),
+    )
     if result is None or result.get('status') != 'done':
         status = result.get('status') if result else 'nil'
         data = result_text_data(result) if result else ''

@@ -43,8 +43,14 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for routes from ze-peer
-    time.sleep(3.0)
+    # Wait until all 5 injected routes are in the RIB before testing the pipe
+    # operators. Deterministic replacement for a blind settle sleep.
+    # // test-relax: blind sleep(3.0) -> dispatch_until(show bgp rib received count, count==5)
+    api.dispatch_until(
+        'show bgp rib received count',
+        lambda r: r.get('status') == 'done' and result_json_data(r, {}).get('count') == 5,
+        attempts=40,
+    )
 
     try:
         # Test 1: | first 3 should return exactly 3 routes

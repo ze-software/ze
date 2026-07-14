@@ -12,23 +12,23 @@ tmpfs=rest-readonly-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 import urllib.error
 import urllib.request
 from ze_api import API
+# // test-relax: dropped 'import time'; blind sleep poll -> api.wait_until(HTTP GET ok)
 
 REST_PORT = 18086
 BASE_URL = f'http://127.0.0.1:{REST_PORT}/api/v1'
 
-def wait_for_rest(url, timeout=10):
-    deadline = time.time() + timeout
-    while time.time() < deadline:
+def wait_for_rest(api, url, timeout=10):
+    # // test-relax: blind time.sleep poll -> api.wait_until(HTTP GET ok)
+    def _ok():
         try:
             urllib.request.urlopen(url, timeout=2).read()
             return True
         except (urllib.error.URLError, ConnectionRefusedError, OSError):
-            time.sleep(0.5)
-    return False
+            return False
+    return api.wait_until(_ok, attempts=max(1, int(timeout / 0.5)), delay=0.5)
 
 def post_json(url, payload):
     req = urllib.request.Request(
@@ -54,7 +54,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        if not wait_for_rest(f'{BASE_URL}/commands'):
+        if not wait_for_rest(api, f'{BASE_URL}/commands'):
             print('FAIL: REST API did not respond', file=sys.stderr)
             sys.exit(1)
 

@@ -24,6 +24,13 @@ tmpfs=announce-test.run:mode=755:terminator=EOF_RUN
 import time
 from ze_api import API, runtime_fail
 
+# // test-relax: DEFERRED sleep-conversion. Establishment here is slow/variable
+# (startup connect race + 5s DefaultReconnectMin backoff) and there is no fast
+# ze-side outbound barrier (redistribute UPDATEs bypass the updates-sent counter
+# via the forward-pool send path; quiesce blocks ~10s on the forward-pool
+# barrier), so every deterministic conversion overruns the 15s foreground
+# timeout. Original blind sleeps retained as the known-good baseline.
+
 
 def dispatch(api, command):
     return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}

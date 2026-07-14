@@ -163,19 +163,22 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    stats = None
-    for _ in range(100):
-        r = dispatch(api, 'show l2tp statistics')
-        if r.get('status') == 'done':
-            try:
-                s = result_json_data(r, {})
-            except json.JSONDecodeError:
-                s = {}
-            if s.get('tunnels-active', 0) >= 1:
-                stats = s
-                break
-        time.sleep(0.1)
-    if stats is None:
+    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
+    def _has_tunnel_active(r):
+        if r.get('status') != 'done':
+            return False
+        try:
+            s = result_json_data(r, {})
+        except json.JSONDecodeError:
+            return False
+        return isinstance(s, dict) and s.get('tunnels-active', 0) >= 1
+
+    r = api.dispatch_until('show l2tp statistics', _has_tunnel_active, attempts=100, delay=0.1)
+    try:
+        stats = result_json_data(r, {}) if r.get('status') == 'done' else {}
+    except json.JSONDecodeError:
+        stats = {}
+    if not (isinstance(stats, dict) and stats.get('tunnels-active', 0) >= 1):
         runtime_fail('statistics never reported tunnels-active >= 1')
 
     if stats.get('tunnels-active') != 1:

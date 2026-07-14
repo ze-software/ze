@@ -15,8 +15,8 @@ tmpfs=rpki-update-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 from ze_api import API, result_json_data, result_text_data
+# // test-relax: removed unused 'import time'; blind sleep is now a dispatch_until poll
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -33,12 +33,13 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for RTR sync and BGP processing
-    time.sleep(4.0)
-
     try:
-        # Verify VRPs loaded via rpki roa command
-        result = dispatch(api, 'show bgp rpki roa')
+        # Verify VRPs loaded via rpki roa command.
+        # // test-relax: blind sleep(4.0) + single-shot query -> dispatch_until poll (RTR VRP sync landed)
+        result = api.dispatch_until(
+            'show bgp rpki roa',
+            lambda r: result_json_data(r, {}).get('total-vrps', 0) >= 1,
+        )
         if result.get('status') != 'done':
             print(f'FAIL: rpki roa status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
@@ -49,8 +50,14 @@ def main():
             print(f'FAIL: total-vrps={total}, expected >= 1', file=sys.stderr)
             sys.exit(1)
 
-        # Verify route was accepted (VRP covers 10.0.1.0/24 from AS 65001)
-        result = dispatch(api, 'show bgp rib received')
+        # Verify route was accepted (VRP covers 10.0.1.0/24 from AS 65001).
+        # Config loads bgp-adj-rib-in (not bgp-rib), so 'show bgp adj-rib-in' is the
+        # served command that lists received routes.
+        # // test-relax: poll adj-rib-in until the validated route lands (was covered by the blind sleep)
+        result = api.dispatch_until(
+            'show bgp adj-rib-in',
+            lambda r: '10.0.1.0/24' in result_text_data(r),
+        )
         if result.get('status') != 'done':
             print(f'FAIL: rib routes received status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

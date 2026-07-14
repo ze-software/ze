@@ -18,8 +18,8 @@ tmpfs=firewall-irr-refresh.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Verify auto-refresh loop runs and is fail-closed."""
 import sys
-import time
 from ze_api import API, runtime_fail, result_json_data
+# // test-relax: removed unused 'import time'; blind sleep dropped (dispatch_until_done is the barrier)
 
 def main():
     api = API()
@@ -39,11 +39,8 @@ def main():
     if initial_v4 < 1:
         runtime_fail(f'expected v4 prefixes, got {initial_v4}')
 
-    # Wait for at least one refresh cycle (interval=60 in config, but the
-    # test verifies the data is still present after a short wait).
-    time.sleep(1.0)
-
     # Verify data is still cached (fail-closed: refresh preserves last-good).
+    # // test-relax: dropped blind sleep; dispatch_until_done('show firewall irr') is the barrier
     result = api.dispatch_until_done('show firewall irr')
     if result.get('status') != 'done':
         runtime_fail(f'show after wait: status={result.get("status")}')

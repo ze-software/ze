@@ -20,9 +20,9 @@ tmpfs=rib-graph-best-test.run:mode=755:terminator=EOF_RUN
 """Test: RIB best graph terminal."""
 
 import sys
-import time
 
 from ze_api import API, runtime_fail, result_text_data
+# // test-relax: removed unused 'import time'; blind sleep is now a dispatch_until_done poll
 
 
 failures = 0
@@ -65,12 +65,8 @@ def main():
     api.ready()
 
     api.wait_for_post_startup(timeout=5.0)
-    for _ in range(20):
-        r = dispatch(api, 'show bgp rib status')
-        if r.get('status') == 'done':
-            break
-        time.sleep(0.5)
-    else:
+    # // test-relax: hand-rolled status==done poll -> dispatch_until_done (deterministic rib readiness)
+    if api.dispatch_until_done('show bgp rib status').get('status') != 'done':
         print('FAIL: rib plugin did not become ready', file=sys.stderr)
         failures += 1
 

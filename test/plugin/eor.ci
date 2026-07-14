@@ -23,11 +23,8 @@ def main() -> None:
 
     # Test EOR for both IPv4 and IPv6 families
     send('peer * update text nlri ipv4/unicast eor')
-    time.sleep(0.2)
     send('peer * update text nlri ipv6/unicast eor')
-    time.sleep(0.2)
-
-    wait_for_ack(expected_count=2)
+    wait_for_ack(expected_count=2)  # // test-relax: dropped 2 redundant sleeps; wait_for_ack(2) is the outbound barrier
     wait_for_shutdown()
 
 

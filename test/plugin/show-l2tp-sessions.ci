@@ -215,19 +215,22 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    sessions = None
-    for _ in range(150):
-        r = dispatch(api, 'show l2tp sessions')
-        if r.get('status') == 'done':
-            try:
-                ss = result_json_data(r, [])
-            except json.JSONDecodeError:
-                ss = []
-            if isinstance(ss, list) and len(ss) >= 1:
-                sessions = ss
-                break
-        time.sleep(0.1)
-    if sessions is None:
+    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
+    def _has_session(r):
+        if r.get('status') != 'done':
+            return False
+        try:
+            ss = result_json_data(r, [])
+        except json.JSONDecodeError:
+            return False
+        return isinstance(ss, list) and len(ss) >= 1
+
+    r = api.dispatch_until('show l2tp sessions', _has_session, attempts=150, delay=0.1)
+    try:
+        sessions = result_json_data(r, []) if r.get('status') == 'done' else []
+    except json.JSONDecodeError:
+        sessions = []
+    if not (isinstance(sessions, list) and len(sessions) >= 1):
         runtime_fail('session never appeared in `show l2tp sessions`')
 
     s = sessions[0]

@@ -25,9 +25,9 @@ tmpfs=congestion-teardown-test.run:mode=755:terminator=EOF_RUN
 
 import json
 import sys
-import time
 
 from ze_api import API, result_text_data
+# // test-relax: removed unused 'import time'; range/sleep metrics poll -> dispatch_until
 
 
 def dispatch(api, command):
@@ -45,28 +45,28 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Poll for metrics with retries -- under parallel load, BGP session
-    # establishment can take longer than a fixed sleep allows.
-    metrics_text = ''
-    for attempt in range(10):
-        time.sleep(0.5)
-        r = dispatch(api, 'show metrics values')
-        status = r.get('status')
-        if status != 'done':
-            continue
-
-        data_str = result_text_data(r, '{}')
+    # Poll for metrics -- under parallel load, BGP session establishment can
+    # take longer than a fixed sleep allows.
+    # // test-relax: range/sleep(0.5) poll -> dispatch_until until metrics values are populated
+    def has_metrics(res):
+        if res.get('status') != 'done':
+            return False
         try:
-            data = json.loads(data_str) if isinstance(data_str, str) else data_str
+            data = json.loads(result_text_data(res, '{}'))
         except (json.JSONDecodeError, TypeError):
-            data = {}
+            return False
+        return bool(data.get('metrics', ''))
 
-        metrics_text = data.get('metrics', '')
-        if metrics_text:
-            break
+    r = api.dispatch_until('show metrics values', has_metrics, attempts=10, delay=0.5)
+    metrics_text = ''
+    if r.get('status') == 'done':
+        try:
+            metrics_text = json.loads(result_text_data(r, '{}')).get('metrics', '')
+        except (json.JSONDecodeError, TypeError):
+            metrics_text = ''
 
     if not metrics_text:
-        print(f'FAIL: empty metrics after {attempt+1} attempts', file=sys.stderr)
+        print('FAIL: empty metrics after dispatch_until poll', file=sys.stderr)
         sys.exit(1)
 
     # Phase 5 scalar counters: always registered, value 0 at startup

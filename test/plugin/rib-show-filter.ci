@@ -33,9 +33,9 @@ Empty RIB is expected — the test proves wiring, not filtering logic
 """
 
 import sys
-import time
 
 from ze_api import API, result_text_data
+# // test-relax: removed unused 'import time'; blind sleep is now a dispatch_until_done poll
 
 
 def dispatch(api, command):
@@ -64,8 +64,9 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for BGP session to establish and rib plugin to be ready
-    time.sleep(2.0)
+    # Wait for the rib plugin to register its commands (RIB may be empty).
+    # // test-relax: blind sleep(2.0) -> dispatch_until_done poll on rib count
+    api.dispatch_until_done('show bgp rib count')
 
     # Community filter on empty RIB via pipeline — done (not error)
     check('community', dispatch(api, 'show bgp rib received community 65000:100'), 'done')

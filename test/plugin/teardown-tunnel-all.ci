@@ -179,11 +179,20 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    for _ in range(150):
-        if count_tunnels(api, established_only=True) >= 2:
-            break
-        time.sleep(0.1)
-    else:
+    # // test-relax: hand-rolled for-else + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
+    def _two_established(r):
+        if r.get('status') != 'done':
+            return False
+        try:
+            ts = result_json_data(r, [])
+        except json.JSONDecodeError:
+            return False
+        if not isinstance(ts, list):
+            return False
+        return sum(1 for t in ts if t.get('state') == 'established') >= 2
+
+    r = api.dispatch_until('show l2tp tunnels', _two_established, attempts=150, delay=0.1)
+    if not _two_established(r):
         runtime_fail('both tunnels never appeared (peers did not finish handshake)')
 
     r = dispatch(api, 'clear l2tp tunnel all')
@@ -200,11 +209,20 @@ def main():
 
     # Accept "none established" (the engine may retain closed tunnels
     # briefly for reliable-delivery cleanup; see tunnel.go L2TPTunnelClosed).
-    for _ in range(50):
-        if count_tunnels(api, established_only=True) == 0:
-            break
-        time.sleep(0.1)
-    else:
+    # // test-relax: hand-rolled for-else + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
+    def _none_established(r):
+        if r.get('status') != 'done':
+            return False
+        try:
+            ts = result_json_data(r, [])
+        except json.JSONDecodeError:
+            return False
+        if not isinstance(ts, list):
+            return False
+        return sum(1 for t in ts if t.get('state') == 'established') == 0
+
+    r = api.dispatch_until('show l2tp tunnels', _none_established, attempts=50, delay=0.1)
+    if not _none_established(r):
         runtime_fail(f'tunnels remained established after teardown-all: count={count_tunnels(api, established_only=True)}')
 
     with open('peer.exit', 'w') as f:

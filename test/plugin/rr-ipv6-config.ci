@@ -42,13 +42,15 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Poll until peer session is established
-    for _ in range(20):
-        time.sleep(0.3)
-        result = dispatch(api, 'show bgp peer peer-src detail')
-        if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
-            break
-    else:
+    # Poll until the peer session is established (dispatch_until re-issues the
+    # show until the predicate matches, or attempts run out then the guard fails).
+    # // test-relax: manual poll loop with blind sleep(0.3) -> dispatch_until(peer established)
+    result = api.dispatch_until(
+        'show bgp peer peer-src detail',
+        lambda r: r.get('status') == 'done' and 'established' in result_text_data(r).lower(),
+        attempts=40,
+    )
+    if not (result.get('status') == 'done' and 'established' in result_text_data(result).lower()):
         runtime_fail('peer-src never reached established state')
 
     result = dispatch(api, 'show bgp peer peer-src detail')

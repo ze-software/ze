@@ -48,12 +48,7 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    result = None
-    for _ in range(20):
-        result = dispatch(api, 'show doctor doctor-missing-plugin.conf')
-        if result.get('status') == 'done':
-            break
-        time.sleep(0.25)
+    result = api.dispatch_until_done('show doctor doctor-missing-plugin.conf')  # // test-relax: hand-rolled status==done poll -> dispatch_until_done
     if result is None or result.get('status') != 'done':
         status = result.get('status') if result else 'nil'
         data = result_text_data(result) if result else ''

@@ -30,8 +30,8 @@ tmpfs=acme-traffic-filter.run:mode=755:terminator=EOF_RUN
 """Custom plugin with unrelated name - proves only family claims matter."""
 
 import sys
-import time
 from ze_api import API
+# // test-relax: removed unused 'import time' (sleeps replaced by quiesce)
 
 def main() -> None:
     api = API()
@@ -58,9 +58,9 @@ def main() -> None:
 
     # Send marker UPDATE to prove we're the active plugin
     # Prefix 77.77.77.0/24 (0x4d4d4d) is unique to this plugin
-    time.sleep(0.2)
+    # // test-relax: dropped 0.2 pre-send pad (ze queues sends); 0.3 post-send -> quiesce (outbound barrier)
     api.send('peer * update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 77.77.77.0/24')
-    time.sleep(0.3)
+    api.quiesce()
 
     api.wait_for_shutdown()
 

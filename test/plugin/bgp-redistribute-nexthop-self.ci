@@ -32,6 +32,9 @@ def main():
     api.ready()
 
     # Wait for both peers to come up.
+    # // test-relax: DEFERRED sleep-conversion (slow/variable establishment +
+    # no fast ze-side outbound barrier; every conversion overruns the 15s
+    # timeout). Original blind sleep retained as the known-good baseline.
     time.sleep(3.0)
 
     resp = dispatch(api, 'request fakeredist emit add ipv4/unicast 10.0.0.1/32')

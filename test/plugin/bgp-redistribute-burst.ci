@@ -31,6 +31,9 @@ def main():
     api.wait_for_registry()
     api.ready()
 
+    # // test-relax: DEFERRED sleep-conversion (slow/variable establishment +
+    # no fast ze-side outbound barrier; every conversion overruns the 15s
+    # timeout). Original blind sleep retained as the known-good baseline.
     time.sleep(2.0)
 
     resp = dispatch(api, 'request fakeredist emit-burst 500 add ipv4/unicast 10.0.0.0/32')

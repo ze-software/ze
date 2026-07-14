@@ -18,8 +18,8 @@ tmpfs=nh-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 from ze_api import API, runtime_fail, result_text_data
+# // test-relax: dropped unused 'import time'; blind sleep loop -> dispatch_until
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -36,13 +36,15 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Poll until peer session is established
-    for _ in range(20):
-        time.sleep(0.3)
-        result = dispatch(api, 'show bgp peer peer1 detail')
-        if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
-            break
-    else:
+    # Poll until peer session is established. Deterministic replacement for the
+    # blind sleep(0.3) loop; dispatch_until returns the last result so the
+    # never-established case still fails loudly below.
+    # // test-relax: blind sleep loop -> dispatch_until(peer detail established)
+    result = api.dispatch_until(
+        'show bgp peer peer1 detail',
+        lambda r: r.get('status') == 'done' and 'established' in result_text_data(r).lower(),
+    )
+    if not (result.get('status') == 'done' and 'established' in result_text_data(result).lower()):
         runtime_fail('peer1 never reached established state')
 
     result = dispatch(api, 'show bgp peer peer1 detail')
@@ -55,17 +57,19 @@ def main():
     if '"unchanged"' not in detail:
         runtime_fail(f'peer detail should show unchanged: {detail[:200]}')
 
-    # Verify RIB has the route
-    result = dispatch(api, 'show bgp rib best')
-    if result.get('status') != 'done':
-        runtime_fail(f'rib show best failed: {result}')
+    # Verify RIB has the route. Poll until the inbound UPDATE has been installed
+    # into bgp-rib: peer-established does not imply the route is processed yet, so
+    # a single-shot check races the RIB population that the old sleep-loop masked.
+    # // test-relax: single-shot RIB check -> dispatch_until(route in best-path)
+    def _route_in_rib(r):
+        if r.get('status') != 'done':
+            return False
+        d = result_text_data(r, '{}')
+        parsed = json.loads(d) if isinstance(d, str) else d
+        return any(e.get('prefix') == '10.1.0.0/24' for e in parsed.get('best-path', []))
 
-    data = result_text_data(result, '{}')
-    parsed = json.loads(data) if isinstance(data, str) else data
-    entries = parsed.get('best-path', [])
-
-    found = any(e.get('prefix') == '10.1.0.0/24' for e in entries)
-    if not found:
+    result = api.dispatch_until('show bgp rib best', _route_in_rib)
+    if not _route_in_rib(result):
         runtime_fail(f'route 10.1.0.0/24 not in RIB')
 
     print('OK: next-hop unchanged configured, route in RIB', file=sys.stderr)

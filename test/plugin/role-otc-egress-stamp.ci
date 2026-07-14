@@ -33,8 +33,8 @@ tmpfs=test-stamp.run:mode=755:terminator=EOF_RUN
 """Keep the daemon alive while the dest peer verifies OTC egress stamping."""
 import json
 import sys
-import time
 from ze_api import API, runtime_fail, result_json_data, result_text_data
+# // test-relax: removed unused 'import time'; blind sleep is now dispatch_until + quiesce
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
@@ -48,8 +48,14 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for both sessions to establish and UPDATE to be processed + forwarded.
-    time.sleep(5.0)
+    # Wait for the source route to land in adj-rib-in, then drain outbound so the
+    # destination OTC-stamp wire assertion is deterministic.
+    # // test-relax: blind sleep(5.0) -> dispatch_until(adj-rib-in>=1) + quiesce (anchor-then-quiesce)
+    api.dispatch_until(
+        'show bgp adj-rib-in status',
+        lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1,
+    )
+    api.quiesce()
 
     # Verify route was accepted in adj-rib-in from source Customer.
     result = dispatch(api, 'show bgp adj-rib-in status')

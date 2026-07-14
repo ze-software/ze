@@ -38,9 +38,9 @@ tmpfs=flap-notif-test.run:mode=755:terminator=EOF_RUN
 
 import json
 import sys
-import time
 
 from ze_api import API, result_text_data
+# // test-relax: removed unused 'import time'; blind sleeps -> wait_until metric polls
 
 
 def dispatch(api, command):
@@ -91,8 +91,14 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for BGP session to establish + metrics loop tick (interval=1s via env)
-    time.sleep(3.0)
+    # Poll until the metrics loop has ticked and session duration is populated.
+    # // test-relax: blind sleep(3.0) -> wait_until(ze_peer_session_duration_seconds > 0)
+    def duration_positive():
+        v = find_metric_value(get_metrics(api),
+            'ze_peer_session_duration_seconds{peer="127.0.0.1"}')
+        return v is not None and v > 0
+
+    api.wait_until(duration_positive, attempts=40, delay=0.25)
 
     failed = False
     errors = []
@@ -115,8 +121,14 @@ def main():
     if r.get('status') != 'done':
         errors.append(f'teardown: expected status=done, got={r.get("status")}')
 
-    # Wait for teardown to complete and metrics to update
-    time.sleep(2.0)
+    # Poll until teardown is reflected in the flap counter.
+    # // test-relax: blind sleep(2.0) -> wait_until(ze_peer_session_flaps_total >= 1)
+    def flapped():
+        v = find_metric_value(get_metrics(api),
+            'ze_peer_session_flaps_total{peer="127.0.0.1"}')
+        return v is not None and v >= 1
+
+    api.wait_until(flapped, attempts=40, delay=0.25)
 
     # Check flap and notification metrics after teardown
     metrics_after = get_metrics(api)

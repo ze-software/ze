@@ -17,9 +17,9 @@ tmpfs=rib-advertised-user-path.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 
 from ze_api import API, result_text_data, runtime_fail
+# // test-relax: dropped unused 'import time'; blind sleep poll -> dispatch_until
 
 
 def dispatch(api, command):
@@ -57,14 +57,13 @@ def main():
         require_done('user update', result)
         api.wait_for_ack(expected_count=1)
 
-        for _ in range(20):
-            result = dispatch(api, 'show bgp rib advertised prefix 1.1.0.0/24 count')
-            require_done('show advertised count', result)
-            data = parse_data(result)
-            if data.get('count') == 1:
-                break
-            time.sleep(0.1)
-        else:
+        # // test-relax: blind sleep poll -> dispatch_until(advertised count == 1)
+        result = api.dispatch_until(
+            'show bgp rib advertised prefix 1.1.0.0/24 count',
+            lambda r: parse_data(r).get('count') == 1,
+        )
+        require_done('show advertised count', result)
+        if parse_data(result).get('count') != 1:
             runtime_fail(f'FAIL: advertised count did not reach 1: {parse_data(result)}')
 
         result = dispatch(api, 'show bgp rib received prefix 1.1.0.0/24 count')

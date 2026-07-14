@@ -16,14 +16,13 @@ tmpfs=decode-mp-unreach.run:mode=755:terminator=EOF_RUN
 """Test decode-mp-unreach RPC: plugin calls engine to decode MP_UNREACH_NLRI."""
 
 import sys
-import time
 from ze_api import API
 
 
 def main() -> None:
     api = API()
     api.ready()
-    time.sleep(0.1)
+    # // test-relax: dropped unused 'import time' + pre-RPC sleep(0.1); decode-mp-unreach _call_engine is synchronous
 
     # MP_UNREACH_NLRI for IPv4 unicast:
     # AFI=1(0001), SAFI=1(01), Withdrawn=192.168.0.0/24(18C0A800)
@@ -47,8 +46,7 @@ def main() -> None:
 
     # Success: send EOR to signal completion
     api.send('peer * update text nlri ipv4/unicast eor')
-    time.sleep(0.2)
-    api.wait_for_ack(expected_count=1)
+    api.wait_for_ack(expected_count=1)  # // test-relax: dropped redundant sleep; wait_for_ack is the outbound barrier
     api.wait_for_shutdown()
 
 

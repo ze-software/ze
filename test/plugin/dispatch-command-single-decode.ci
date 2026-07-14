@@ -17,8 +17,8 @@ tmpfs=dispatch-decode-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 from ze_api import API
+# // test-relax: removed unused 'import time' after sleep->dispatch_until_done conversion
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -35,12 +35,10 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for session establishment
-    time.sleep(2.0)
-
     try:
-        # AC-1: dispatch a command that returns structured data
-        result = dispatch(api, 'show bgp rib status')
+        # AC-1: dispatch a command that returns structured data.
+        # Poll session establishment deterministically instead of a blind sleep.
+        result = api.dispatch_until_done('show bgp rib status')  # // test-relax: blind sleep(2.0) + single dispatch -> dispatch_until_done poll
         if result is None:
             print('FAIL: dispatch returned None', file=sys.stderr)
             sys.exit(1)

@@ -20,8 +20,8 @@ tmpfs=ping-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 from ze_api import API, runtime_fail, result_text_data
+# // test-relax: dropped unused 'import time'; blind sleep loop -> dispatch_until
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -38,12 +38,13 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Poll until peer session is established
-    for _ in range(20):
-        time.sleep(0.3)
-        result = dispatch(api, 'show bgp peer peer1 detail')
-        if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
-            break
+    # Poll until peer session is established. Deterministic replacement for the
+    # blind sleep(0.3) loop (best-effort, as the original proceeds either way).
+    # // test-relax: blind sleep loop -> dispatch_until(peer detail established)
+    api.dispatch_until(
+        'show bgp peer peer1 detail',
+        lambda r: r.get('status') == 'done' and 'established' in result_text_data(r).lower(),
+    )
 
     try:
         result = dispatch(api, 'resolve ping 127.0.0.1')

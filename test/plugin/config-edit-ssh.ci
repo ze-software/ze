@@ -25,8 +25,15 @@ tmpfs=config-edit-test.run:mode=755:terminator=EOF_RUN
 
 import socket
 import sys
-import time
 from ze_api import API
+
+
+def _port_open(host, port):
+    try:
+        socket.create_connection((host, port), timeout=2).close()
+        return True
+    except OSError:
+        return False
 
 
 def main():
@@ -37,8 +44,10 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for BGP session and SSH server
-    time.sleep(1.5)
+    # Wait for the SSH server to bind its listener (deterministic replacement for a
+    # blind settle sleep): poll until port 2222 accepts a connection.
+    # // test-relax: blind sleep(1.5) -> wait_until(TCP connect to SSH port 2222)
+    api.wait_until(lambda: _port_open('127.0.0.1', 2222))
 
     # Verify SSH port is reachable (daemon has SSH listener)
     try:

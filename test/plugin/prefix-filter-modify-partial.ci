@@ -39,8 +39,8 @@ EOF_PEER
 tmpfs=test-modify-partial.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Shutdown observer for per-prefix modify test."""
-import time
-from ze_api import API
+from ze_api import API, result_json_data
+# // test-relax: dropped 'import time'; blind sleep -> dispatch_until adj-rib-in poll
 
 def main():
     api = API()
@@ -49,7 +49,13 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
-    time.sleep(3.0)
+    # Deterministic replacement for blind sleep(3.0): poll adj-rib-in until
+    # both accepted prefixes have landed (the modify partitions 3 -> 2 accepted).
+    # // test-relax: blind sleep(3.0) -> dispatch_until(adj-rib-in total>=2)
+    api.dispatch_until(
+        'show bgp adj-rib-in status',
+        lambda r: result_json_data(r, {}).get('total-routes', 0) >= 2,
+    )
     api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
     api.wait_for_shutdown()
 

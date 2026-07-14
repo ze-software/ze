@@ -165,18 +165,22 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    local_tid = None
-    for _ in range(100):
-        r = dispatch(api, 'show l2tp tunnels')
-        if r.get('status') == 'done':
-            try:
-                ts = result_json_data(r, [])
-            except json.JSONDecodeError:
-                ts = []
-            if isinstance(ts, list) and len(ts) >= 1:
-                local_tid = ts[0].get('local-tid')
-                break
-        time.sleep(0.1)
+    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
+    def _has_tunnel(r):
+        if r.get('status') != 'done':
+            return False
+        try:
+            ts = result_json_data(r, [])
+        except json.JSONDecodeError:
+            return False
+        return isinstance(ts, list) and len(ts) >= 1
+
+    r = api.dispatch_until('show l2tp tunnels', _has_tunnel, attempts=100, delay=0.1)
+    try:
+        ts = result_json_data(r, []) if r.get('status') == 'done' else []
+    except json.JSONDecodeError:
+        ts = []
+    local_tid = ts[0].get('local-tid') if isinstance(ts, list) and ts else None
     if not isinstance(local_tid, int) or local_tid == 0:
         runtime_fail('tunnel never established')
 
@@ -197,18 +201,20 @@ def main():
     # StopCCN is emitted; the engine retains the closed tunnel briefly
     # for reliable-delivery cleanup. Accept either absence or a
     # non-established state (see tunnel.go: L2TPTunnelClosed).
-    for _ in range(50):
-        r = dispatch(api, 'show l2tp tunnels')
-        if r.get('status') == 'done':
-            try:
-                ts = result_json_data(r, [])
-            except json.JSONDecodeError:
-                ts = []
-            still_live = any(t.get('state') == 'established' for t in ts)
-            if not still_live:
-                break
-        time.sleep(0.1)
-    else:
+    # // test-relax: hand-rolled for-else + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
+    def _tunnel_torn_down(r):
+        if r.get('status') != 'done':
+            return False
+        try:
+            ts = result_json_data(r, [])
+        except json.JSONDecodeError:
+            return False
+        if not isinstance(ts, list):
+            return False
+        return not any(t.get('state') == 'established' for t in ts)
+
+    r = api.dispatch_until('show l2tp tunnels', _tunnel_torn_down, attempts=50, delay=0.1)
+    if not _tunnel_torn_down(r):
         runtime_fail('tunnel remained in established state after teardown')
 
     r = dispatch(api, 'clear l2tp tunnel id 65535')

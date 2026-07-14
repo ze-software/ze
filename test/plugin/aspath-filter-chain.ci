@@ -23,7 +23,7 @@ tmpfs=test-aspath-chain.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Observer for chain composition test: clean shutdown after filter dispatch."""
 import time
-from ze_api import API
+from ze_api import API, result_json_data
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
@@ -37,7 +37,7 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    time.sleep(3.0)
+    api.dispatch_until('show bgp adj-rib-in status', lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1)  # // test-relax: blind sleep -> poll until the accepted route lands in adj-rib-in
 
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()

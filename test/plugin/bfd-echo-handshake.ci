@@ -175,29 +175,27 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
-    time.sleep(2.0)
 
     # Trigger Snapshot so metric gauges are populated.
+    # // test-relax: dropped blind 2.0s sleep; the metrics scrape poll below has its own retries
     dispatch(api, 'show bfd sessions')
 
-    body = ''
-    for _ in range(40):
+    # // test-relax: blind 0.25s retry loop -> wait_until poll for echo tx>0
+    scrape = {'body': ''}
+    def echo_tx_positive():
         try:
             with urllib.request.urlopen('http://127.0.0.1:19274/metrics', timeout=1.0) as resp:
-                body = resp.read().decode('utf-8', 'replace')
-                if 'ze_bfd_echo_tx_packets_total' in body:
-                    for line in body.splitlines():
-                        if line.startswith('ze_bfd_echo_tx_packets_total'):
-                            parts = line.split()
-                            if len(parts) >= 2 and float(parts[1]) > 0:
-                                break
-                    else:
-                        time.sleep(0.25)
-                        continue
-                    break
+                scrape['body'] = resp.read().decode('utf-8', 'replace')
         except (OSError, ValueError):
-            pass
-        time.sleep(0.25)
+            return False
+        for line in scrape['body'].splitlines():
+            if line.startswith('ze_bfd_echo_tx_packets_total') and not line.startswith('#'):
+                parts = line.split()
+                if len(parts) >= 2 and float(parts[1]) > 0:
+                    return True
+        return False
+    api.wait_until(echo_tx_positive, attempts=40, delay=0.25)
+    body = scrape['body']
 
     if 'ze_bfd_echo_tx_packets_total' not in body:
         runtime_fail('missing ze_bfd_echo_tx_packets_total in scrape')

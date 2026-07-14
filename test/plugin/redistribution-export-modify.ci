@@ -14,8 +14,8 @@ EOF_PEER
 tmpfs=filter-export-modify-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import sys
-import time
 from ze_api import API
+# // test-relax: dropped 'import time'; blind sleep -> wait_for_ack() barrier
 
 export_modify_count = 0
 
@@ -52,7 +52,11 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    time.sleep(2.0)
+    # Deterministic replacement for blind sleep(2.0): quiesce drains each
+    # peer's initial-sync (EOR on the wire) and the forward pool, so the inbound
+    # route has been filtered and the export forward completed before shutdown.
+    # // test-relax: blind sleep(2.0) -> wait_for_ack() quiesce barrier
+    api.wait_for_ack()
 
     if export_modify_count > 0:
         print(f'OK: export filter modified {export_modify_count} forward(s)', file=sys.stderr)

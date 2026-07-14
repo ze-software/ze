@@ -67,16 +67,29 @@ def main():
     api.wait_for_registry()
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
-    time.sleep(0.5)
+    # // test-relax: deleted blind sleep(0.5) lead-in; the dispatch_until poll below covers session appearance
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(('127.0.0.1', $PORT2))
     sock.sendall(bmp_initiation())
-    time.sleep(0.2)
     sock.sendall(bmp_peer_up())
-    time.sleep(1.0)
 
-    result = dispatch(api, 'show bmp sessions')
+    # Poll until the BMP session appears instead of blind settle sleeps. The
+    # peer-up is processed asynchronously, so retry the show until a session
+    # is listed (or attempts run out, then the assertions below fail).
+    # // test-relax: deleted blind sleep(0.2)+sleep(1.0) -> dispatch_until(show bmp sessions non-empty)
+    def _has_session(r):
+        if r.get('status') != 'done':
+            return False
+        d = result_text_data(r, '{}')
+        try:
+            p = json.loads(d) if isinstance(d, str) else d
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return False
+        s = p.get('sessions', []) if isinstance(p, dict) else p
+        return isinstance(s, list) and len(s) > 0
+
+    result = api.dispatch_until('show bmp sessions', _has_session, attempts=40)
     status = result.get('status')
     if status != 'done':
         print(f'FAIL: show bmp sessions status={status}', file=sys.stderr, flush=True)
@@ -107,7 +120,7 @@ def main():
     print('PASS: show bmp collectors returned valid response', file=sys.stderr, flush=True)
 
     sock.close()
-    time.sleep(0.5)
+    # // test-relax: deleted blind sleep(0.5) pre-shutdown pad; request shutdown drains cleanly
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 

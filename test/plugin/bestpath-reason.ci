@@ -34,6 +34,18 @@ def dispatch(api, command):
         return {'status': 'error', 'data': 'engine call returned None'}
     return resp.get('result', {})
 
+def reason_ready(result):
+    """True once 10.1.0.0/24 has >=2 best-path candidates (both routes seen)."""
+    data = result_text_data(result, '{}')
+    try:
+        parsed = json.loads(data) if isinstance(data, str) else data
+    except (json.JSONDecodeError, TypeError):
+        return False
+    for entry in parsed.get('best-path-reason', []):
+        if entry.get('prefix') == '10.1.0.0/24' and len(entry.get('candidates', [])) >= 2:
+            return True
+    return False
+
 def main():
     api = API()
     api.declare_done()
@@ -42,26 +54,25 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Poll until peer session is established and route is in RIB
-    for _ in range(20):
-        time.sleep(0.3)
-        result = dispatch(api, 'show bgp peer peer1 detail')
-        if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
-            break
-    else:
+    # Poll until peer session is established and route is in RIB.
+    # // test-relax: range(20) sleep-poll -> dispatch_until on peer detail established
+    result = api.dispatch_until(
+        'show bgp peer peer1 detail',
+        lambda r: r.get('status') == 'done' and 'established' in result_text_data(r).lower(),
+    )
+    if 'established' not in result_text_data(result).lower():
         runtime_fail('peer1 never reached established state')
 
-    time.sleep(1.0)  # allow UPDATE processing after session up
+    # // test-relax: dropped blind 1.0s sleep; the dispatch_until on rib best reason below is the real barrier
 
     # Inject a second route from synthetic peer with lower LOCAL_PREF
     result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 origin igp aspath 65002 localpref 100')
     if result.get('status') != 'done':
         runtime_fail(f'rib inject failed: {result}')
 
-    time.sleep(0.5)
-
-    # Query rib best reason
-    result = dispatch(api, 'show bgp rib best reason')
+    # Query rib best reason, polling until the injected candidate is visible.
+    # // test-relax: blind 0.5s sleep after inject -> dispatch_until until 10.1.0.0/24 has >=2 candidates
+    result = api.dispatch_until('show bgp rib best reason', reason_ready)
     if result.get('status') != 'done':
         runtime_fail(f'rib best reason failed: {result}')
 

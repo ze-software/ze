@@ -31,8 +31,8 @@ tmpfs=test-egress.run:mode=755:terminator=EOF_RUN
 """Keep the daemon alive while the dest peer proves OTC egress suppression."""
 import json
 import sys
-import time
 from ze_api import API, runtime_fail, result_json_data
+# // test-relax: removed unused 'import time'; blind sleep is now dispatch_until + quiesce
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
@@ -46,8 +46,14 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for session and UPDATE processing.
-    time.sleep(3.0)
+    # Wait for the source route to land in adj-rib-in, then drain outbound so the
+    # destination EOR-only (suppression) assertion is deterministic.
+    # // test-relax: blind sleep(3.0) -> dispatch_until(adj-rib-in>=1) + quiesce (anchor-then-quiesce)
+    api.dispatch_until(
+        'show bgp adj-rib-in status',
+        lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1,
+    )
+    api.quiesce()
 
     # Query adj-rib-in for diagnostic context. The destination EOR-only assertion
     # is the actual egress-suppression proof.

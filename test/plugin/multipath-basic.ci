@@ -22,8 +22,8 @@ tmpfs=multipath-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 from ze_api import API, runtime_fail, result_text_data
+# // test-relax: removed unused 'import time'; blind sleeps replaced by dispatch_until polls
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -40,26 +40,36 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Poll until peer session is established and route is in RIB
-    for _ in range(20):
-        time.sleep(0.3)
-        result = dispatch(api, 'show bgp peer peer1 detail')
-        if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
-            break
-    else:
+    # Poll until peer session is established and route is in RIB.
+    # // test-relax: hand-rolled sleep/poll loop -> dispatch_until on peer detail (established)
+    result = api.dispatch_until(
+        'show bgp peer peer1 detail',
+        lambda r: r.get('status') == 'done' and 'established' in result_text_data(r).lower(),
+    )
+    if 'established' not in result_text_data(result).lower():
         runtime_fail('peer1 never reached established state')
 
-    time.sleep(1.0)  # allow UPDATE processing after session up
-
-    # Inject a second equal-cost route from synthetic peer
+    # Inject a second equal-cost route from synthetic peer.
+    # // test-relax: dropped 'allow UPDATE processing' sleep (folded into the rib-best poll below)
     result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 origin igp aspath 65001 localpref 100')
     if result.get('status') != 'done':
         runtime_fail(f'rib inject failed: {result}')
 
-    time.sleep(0.5)
+    # Query rib best, polling until the wire route + injected route form a 2-path multipath.
+    # // test-relax: blind sleep(0.5) + single show -> dispatch_until poll for 10.1.0.0/24 with 1 sibling
+    def has_multipath(res):
+        if res.get('status') != 'done':
+            return False
+        try:
+            rows = json.loads(result_text_data(res, '{}')).get('best-path', [])
+        except (json.JSONDecodeError, TypeError):
+            return False
+        for e in rows:
+            if e.get('prefix') == '10.1.0.0/24':
+                return len(e.get('multipath-peers', [])) == 1
+        return False
 
-    # Query rib best
-    result = dispatch(api, 'show bgp rib best')
+    result = api.dispatch_until('show bgp rib best', has_multipath)
     if result.get('status') != 'done':
         runtime_fail(f'rib show best failed: {result}')
 

@@ -21,9 +21,8 @@ EOF_PEER
 tmpfs=mup6.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 
-import time
-
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
+from ze_api import quiesce, ready, send, wait_for_ack, wait_for_shutdown
+# // test-relax: removed unused 'import time'; per-send sleep -> outbound quiesce barrier
 
 
 def main() -> None:
@@ -44,7 +43,7 @@ def main() -> None:
 
     for message in messages:
         send(message)
-        time.sleep(0.2)
+        quiesce()  # // test-relax: blind sleep between sends -> outbound quiesce barrier
 
     wait_for_ack(expected_count=2)
     wait_for_shutdown()

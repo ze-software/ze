@@ -208,13 +208,19 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    local_sid = None
-    for _ in range(150):
-        ss = list_sessions(api)
-        if len(ss) >= 1:
-            local_sid = ss[0].get('local-sid')
-            break
-        time.sleep(0.1)
+    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
+    def _has_session(r):
+        if r.get('status') != 'done':
+            return False
+        try:
+            ss = result_json_data(r, [])
+        except json.JSONDecodeError:
+            return False
+        return isinstance(ss, list) and len(ss) >= 1
+
+    api.dispatch_until('show l2tp sessions', _has_session, attempts=150, delay=0.1)
+    ss = list_sessions(api)
+    local_sid = ss[0].get('local-sid') if ss else None
     if not isinstance(local_sid, int) or local_sid == 0:
         runtime_fail('session never established')
 
@@ -232,13 +238,20 @@ def main():
         runtime_fail(f'teardown payload session-id={payload.get("session-id")!r} want {local_sid}')
 
     # Accept absence or non-established state.
-    for _ in range(50):
-        ss = list_sessions(api)
-        still_live = any(s.get('state') == 'established' and s.get('local-sid') == local_sid for s in ss)
-        if not still_live:
-            break
-        time.sleep(0.1)
-    else:
+    # // test-relax: hand-rolled for-else + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
+    def _torn_down(r):
+        if r.get('status') != 'done':
+            return False
+        try:
+            ss = result_json_data(r, [])
+        except json.JSONDecodeError:
+            return False
+        if not isinstance(ss, list):
+            return False
+        return not any(s.get('state') == 'established' and s.get('local-sid') == local_sid for s in ss)
+
+    r = api.dispatch_until('show l2tp sessions', _torn_down, attempts=50, delay=0.1)
+    if not _torn_down(r):
         runtime_fail(f'session remained established after teardown: {list_sessions(api)}')
 
     # Unknown SID must return StatusError naming it.

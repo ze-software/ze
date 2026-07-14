@@ -49,12 +49,7 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    r = None
-    for _ in range(20):
-        r = dispatch(api, 'show l2tp config')
-        if r.get('status') == 'done':
-            break
-        time.sleep(0.25)
+    r = api.dispatch_until_done('show l2tp config')  # // test-relax: hand-rolled status==done poll -> dispatch_until_done
     if r is None or r.get('status') != 'done':
         status = r.get('status') if r else 'nil'
         data = result_text_data(r) if r else ''

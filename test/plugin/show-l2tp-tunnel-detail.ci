@@ -165,18 +165,22 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    local_tid = None
-    for _ in range(100):
-        r = dispatch(api, 'show l2tp tunnels')
-        if r.get('status') == 'done':
-            try:
-                ts = result_json_data(r, [])
-            except json.JSONDecodeError:
-                ts = []
-            if isinstance(ts, list) and len(ts) >= 1:
-                local_tid = ts[0].get('local-tid')
-                break
-        time.sleep(0.1)
+    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
+    def _has_tunnel(r):
+        if r.get('status') != 'done':
+            return False
+        try:
+            ts = result_json_data(r, [])
+        except json.JSONDecodeError:
+            return False
+        return isinstance(ts, list) and len(ts) >= 1
+
+    r = api.dispatch_until('show l2tp tunnels', _has_tunnel, attempts=100, delay=0.1)
+    try:
+        ts = result_json_data(r, []) if r.get('status') == 'done' else []
+    except json.JSONDecodeError:
+        ts = []
+    local_tid = ts[0].get('local-tid') if isinstance(ts, list) and ts else None
     if not isinstance(local_tid, int) or local_tid == 0:
         runtime_fail('tunnel never appeared in `show l2tp tunnels`')
 

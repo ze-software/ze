@@ -17,8 +17,8 @@ tmpfs=rpki-aspa-policy-logonly-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 from ze_api import API, result_text_data
+# // test-relax: removed unused 'import time'; blind sleeps replaced by event loop + dispatch_until
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -37,8 +37,7 @@ def main():
     api.subscribe(['rpki direction received'])
     api.ready()
 
-    time.sleep(5.0)
-
+    # // test-relax: deleted blind sleep(5.0); the event read loop below polls up to ~15s for the invalid event
     try:
         # Wait for ASPA event confirming Invalid state (should still emit event)
         found_event = False
@@ -69,10 +68,14 @@ def main():
             print('FAIL: no rpki event with aspa-state=invalid', file=sys.stderr)
             sys.exit(1)
 
-        time.sleep(1.0)
-
-        # Query adj-rib-in: route should be ACCEPTED (log-only does not reject)
-        result = dispatch(api, 'show bgp rib received')
+        # Query adj-rib-in: route should be ACCEPTED (log-only does not reject).
+        # Config loads bgp-adj-rib-in (not bgp-rib), so 'show bgp adj-rib-in' is the
+        # served command that lists received routes.
+        # // test-relax: blind sleep(1.0) + single-shot -> dispatch_until poll until the accepted route lands
+        result = api.dispatch_until(
+            'show bgp adj-rib-in',
+            lambda r: '10.0.1.0/24' in result_text_data(r),
+        )
         if result.get('status') != 'done':
             print(f'FAIL: rib routes received status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

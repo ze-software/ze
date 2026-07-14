@@ -17,10 +17,10 @@ tmpfs=drive-lifecycle.run:mode=755:terminator=EOF_RUN
 """Drive config set/delete/commit via REST config sessions, verify BGP session state."""
 import json
 import sys
-import time
 import urllib.error
 import urllib.request
 from ze_api import API
+# // test-relax: dropped 'import time'; blind sleep polls -> api.wait_until
 
 REST_PORT = int('$PORT2')
 PEER_PORT = '$PORT'
@@ -43,14 +43,16 @@ def rest(method, path, payload=None):
     return json.loads(raw) if raw else {}
 
 
-def wait_for_rest(timeout=15):
-    deadline = time.time() + timeout
-    while time.time() < deadline:
+def wait_for_rest(api, timeout=15):
+    # // test-relax: blind time.sleep poll -> api.wait_until(REST GET /commands ok)
+    def _ok():
         try:
             rest('GET', '/commands')
-            return
+            return True
         except (RuntimeError, urllib.error.URLError, ConnectionRefusedError, OSError):
-            time.sleep(0.3)
+            return False
+    if api.wait_until(_ok, attempts=50, delay=0.3):
+        return
     print('FAIL: REST API did not respond', file=sys.stderr)
     sys.exit(1)
 
@@ -113,24 +115,21 @@ def get_peer_state(api, peer_ip):
 
 def wait_for_peer_state(api, peer_ip, timeout=12):
     """Wait for a peer to appear with a BGP state."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        state = get_peer_state(api, peer_ip)
-        if state is not None:
-            return state
-        time.sleep(0.5)
-    return None
+    # // test-relax: blind time.sleep poll -> api.wait_until(peer present)
+    api.wait_until(
+        lambda: get_peer_state(api, peer_ip) is not None,
+        attempts=max(1, int(timeout / 0.5)), delay=0.5,
+    )
+    return get_peer_state(api, peer_ip)
 
 
 def wait_for_peer_gone(api, peer_ip, timeout=12):
     """Wait for a peer to disappear from the BGP engine."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        state = get_peer_state(api, peer_ip)
-        if state is None:
-            return True
-        time.sleep(0.5)
-    return False
+    # // test-relax: blind time.sleep poll -> api.wait_until(peer absent)
+    return api.wait_until(
+        lambda: get_peer_state(api, peer_ip) is None,
+        attempts=max(1, int(timeout / 0.5)), delay=0.5,
+    )
 
 
 def main():
@@ -143,7 +142,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        wait_for_rest()
+        wait_for_rest(api)
 
         # Step 1: Verify initial peer-alpha has a BGP session
         state = wait_for_peer_state(api, '127.0.0.1')

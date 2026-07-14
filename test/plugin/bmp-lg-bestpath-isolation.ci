@@ -19,7 +19,7 @@ import socket
 import struct
 import sys
 import time
-from ze_api import API, result_text_data
+from ze_api import API, result_text_data, result_json_data
 
 def bmp_header(msg_type, length):
     return struct.pack('!BIB', 3, length, msg_type)
@@ -92,14 +92,16 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(('127.0.0.1', $PORT2))
     sock.sendall(bmp_initiation())
-    time.sleep(0.2)
     sock.sendall(bmp_peer_up())
-    time.sleep(0.2)
     sock.sendall(bmp_route_monitoring())
-    time.sleep(1.0)
 
-    # Verify BMP route exists in show bmp rib
-    result = dispatch(api, 'show bmp rib')
+    # Verify BMP route exists in show bmp rib. Poll until the injected route lands
+    # (async BMP ingest); replaces blind inter-send + settle sleeps.
+    # // test-relax: dropped 2x0.2 inter-send + 1.0 settle sleeps -> dispatch_until on adj-rib-in present
+    result = api.dispatch_until(
+        'show bmp rib',
+        lambda r: bool(result_json_data(r, {}).get('adj-rib-in', {})),
+    )
     data = result_text_data(result, '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
     rib_in = parsed.get('adj-rib-in', {})
@@ -131,7 +133,7 @@ def main():
     print('PASS: BMP routes isolated from best-path selection', file=sys.stderr, flush=True)
     sock.close()
 
-    time.sleep(0.5)
+    # // test-relax: dropped 0.5 pre-shutdown pad; shutdown dispatch is synchronous
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 

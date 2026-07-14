@@ -34,12 +34,18 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for RTR sync + BGP UPDATE processing
-    time.sleep(4.0)
+    # Poll adj-rib-in until the route lands with the expected validation state.
+    # Deterministic replacement for a blind time.sleep: an inbound route needs a
+    # payload-predicate poll (the quiesce barrier drains only OUTBOUND work).
+    # // test-relax: blind sleep(4.0) -> dispatch_until poll on show bgp rib received
+    def _valid_route(r):
+        d = result_text_data(r)
+        return '10.0.1.0/24' in d and (
+            '"validation-state":1' in d or '"validation-state": 1' in d)
 
     try:
-        # Query adj-rib-in for received routes
-        result = dispatch(api, 'show bgp rib received')
+        # Query adj-rib-in for received routes (poll until the valid route lands)
+        result = api.dispatch_until('show bgp rib received', _valid_route, attempts=40)
         if result.get('status') != 'done':
             print(f'FAIL: rib routes received status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

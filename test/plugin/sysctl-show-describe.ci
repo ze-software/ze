@@ -37,15 +37,8 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
-    time.sleep(0.5)
-
     # Test sysctl show: no config applied, no defaults => empty array.
-    r = None
-    for _ in range(20):
-        r = dispatch(api, 'show sysctl')
-        if r.get('status') == 'done':
-            break
-        time.sleep(0.25)
+    r = api.dispatch_until_done('show sysctl')  # // test-relax: lead-in sleep + hand-rolled poll -> dispatch_until_done
     if r is None or r.get('status') != 'done':
         runtime_fail(f'sysctl show: status={r.get("status") if r else "nil"}')
 

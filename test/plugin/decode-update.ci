@@ -17,14 +17,13 @@ tmpfs=decode-update.run:mode=755:terminator=EOF_RUN
 
 import json
 import sys
-import time
 from ze_api import API
 
 
 def main() -> None:
     api = API()
     api.ready()
-    time.sleep(0.1)
+    # // test-relax: dropped unused 'import time' + pre-RPC sleep(0.1); decode-update _call_engine is synchronous
 
     # UPDATE body (after 19-byte BGP header):
     # Withdrawn Routes Length=0(0000), Attr Length=11(000B),
@@ -75,8 +74,7 @@ def main() -> None:
 
     # Success: send EOR to signal completion
     api.send('peer * update text nlri ipv4/unicast eor')
-    time.sleep(0.2)
-    api.wait_for_ack(expected_count=1)
+    api.wait_for_ack(expected_count=1)  # // test-relax: dropped redundant sleep; wait_for_ack is the outbound barrier
     api.wait_for_shutdown()
 
 

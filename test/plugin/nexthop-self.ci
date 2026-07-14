@@ -24,8 +24,8 @@ tmpfs=nh-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 from ze_api import API, runtime_fail, result_text_data
+# // test-relax: removed unused 'import time'; hand-rolled established poll -> dispatch_until
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -42,13 +42,13 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Poll until peer session is established
-    for _ in range(20):
-        time.sleep(0.3)
-        result = dispatch(api, 'show bgp peer peer1 detail')
-        if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
-            break
-    else:
+    # Poll until peer session is established.
+    # // test-relax: hand-rolled sleep/poll loop -> dispatch_until on peer detail (established)
+    result = api.dispatch_until(
+        'show bgp peer peer1 detail',
+        lambda r: r.get('status') == 'done' and 'established' in result_text_data(r).lower(),
+    )
+    if 'established' not in result_text_data(result).lower():
         runtime_fail('peer1 never reached established state')
 
     # Verify peer detail shows next-hop self
@@ -62,8 +62,19 @@ def main():
     if '"self"' not in detail:
         runtime_fail(f'peer detail should show next-hop self: {detail[:200]}')
 
-    # Verify RIB has the route
-    result = dispatch(api, 'show bgp rib best')
+    # Verify RIB has the route.
+    # // test-relax: poll show bgp rib best until the wire UPDATE lands (deterministic; the
+    # removed establishment sleep-loop had masked the route-propagation race)
+    def rib_has_route(res):
+        if res.get('status') != 'done':
+            return False
+        try:
+            rows = json.loads(result_text_data(res, '{}')).get('best-path', [])
+        except (json.JSONDecodeError, TypeError):
+            return False
+        return any(e.get('prefix') == '10.1.0.0/24' for e in rows)
+
+    result = api.dispatch_until('show bgp rib best', rib_has_route)
     if result.get('status') != 'done':
         runtime_fail(f'rib show best failed: {result}')
 

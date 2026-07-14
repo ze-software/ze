@@ -215,12 +215,18 @@ def main():
     # keeps sessions out of the `established` state. Fall back to the
     # total count (any state) as long as at least one session exists
     # so the teardown-all iteration still has something to act on.
-    total_count = 0
-    for _ in range(200):
-        total_count = len(list_sessions(api))
-        if total_count >= 2:
-            break
-        time.sleep(0.1)
+    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
+    def _two_sessions(r):
+        if r.get('status') != 'done':
+            return False
+        try:
+            ss = result_json_data(r, [])
+        except json.JSONDecodeError:
+            return False
+        return isinstance(ss, list) and len(ss) >= 2
+
+    api.dispatch_until('show l2tp sessions', _two_sessions, attempts=200, delay=0.1)
+    total_count = len(list_sessions(api))
     if total_count < 1:
         runtime_fail('no session ever appeared')
 
@@ -238,11 +244,20 @@ def main():
 
     # After teardown-all, no session should be in the `established`
     # state (already-closed sessions are allowed to linger briefly).
-    for _ in range(50):
-        if len(list_sessions(api, established_only=True)) == 0:
-            break
-        time.sleep(0.1)
-    else:
+    # // test-relax: hand-rolled for-else + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
+    def _none_established(r):
+        if r.get('status') != 'done':
+            return False
+        try:
+            ss = result_json_data(r, [])
+        except json.JSONDecodeError:
+            return False
+        if not isinstance(ss, list):
+            return False
+        return not any(s.get('state') == 'established' for s in ss)
+
+    r = api.dispatch_until('show l2tp sessions', _none_established, attempts=50, delay=0.1)
+    if not _none_established(r):
         runtime_fail(f'sessions remained established: {list_sessions(api, established_only=True)}')
 
     with open('peer.exit', 'w') as f:

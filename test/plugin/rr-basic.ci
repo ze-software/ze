@@ -36,13 +36,16 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Poll until peer session is established (more robust than sleep)
-    for _ in range(20):
-        time.sleep(0.3)
-        result = dispatch(api, 'show bgp peer peer-src detail')
-        if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
-            break
-    else:
+    # Poll until the peer session is established. Deterministic replacement for
+    # the manual for-loop + sleep(0.3): dispatch_until re-issues the show
+    # until the predicate matches (or attempts run out, then the guard fails).
+    # // test-relax: manual poll loop with blind sleep(0.3) -> dispatch_until(peer established)
+    result = api.dispatch_until(
+        'show bgp peer peer-src detail',
+        lambda r: r.get('status') == 'done' and 'established' in result_text_data(r).lower(),
+        attempts=40,
+    )
+    if not (result.get('status') == 'done' and 'established' in result_text_data(result).lower()):
         runtime_fail('peer-src never reached established state')
 
     result = dispatch(api, 'show bgp peer peer-src detail')
@@ -55,8 +58,22 @@ def main():
     if 'cluster-id' not in detail:
         runtime_fail(f'missing cluster-id: {detail[:300]}')
 
-    # Verify RIB has the route (proves UPDATE was processed, not just config accepted)
-    result = dispatch(api, 'show bgp rib best')
+    # Verify RIB has the route (proves UPDATE was processed, not just config
+    # accepted). Establishment precedes UPDATE processing, so poll the RIB until
+    # the route lands rather than racing it with a single-shot query.
+    # // test-relax: single-shot show bgp rib best -> dispatch_until poll until 10.1.0.0/24 lands
+    def _route_present(r):
+        if r.get('status') != 'done':
+            return False
+        d = result_text_data(r, '{}')
+        try:
+            p = json.loads(d) if isinstance(d, str) else d
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return False
+        entries = p.get('best-path', []) if isinstance(p, dict) else []
+        return any(e.get('prefix') == '10.1.0.0/24' for e in entries)
+
+    result = api.dispatch_until('show bgp rib best', _route_present, attempts=40)
     if result.get('status') != 'done':
         runtime_fail(f'rib show best failed: {result}')
 

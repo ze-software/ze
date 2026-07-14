@@ -17,8 +17,8 @@ tmpfs=rpki-reg-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 from ze_api import API
+# // test-relax: removed unused 'import time'; leading blind sleep deleted (event read loop covers)
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -39,9 +39,7 @@ def main():
     # Events delivered via config: receive [ update-rpki ]
     api.ready()
 
-    # Wait for UPDATE to arrive and decorator to process it
-    time.sleep(3.0)
-
+    # // test-relax: deleted blind sleep(3.0); the read_line collection loop below polls ~10s for the event
     try:
         # Collect any update-rpki events (at least one expected from the decorator)
         found = False

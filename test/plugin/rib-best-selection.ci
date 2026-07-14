@@ -28,9 +28,9 @@ tmpfs=rib-best-selection-test.run:mode=755:terminator=EOF_RUN
 
 import json
 import sys
-import time
 
 from ze_api import API, runtime_fail, result_text_data
+# // test-relax: removed unused 'import time'; blind sleep is now a dispatch_until_done poll
 
 
 failures = 0
@@ -75,12 +75,8 @@ def find_best_for_prefix(best_paths, prefix):
 
 def wait_for_rib(api):
     """Wait for rib plugin to be ready."""
-    for _ in range(20):
-        r = dispatch(api, 'show bgp rib status')
-        if r.get('status') == 'done':
-            return True
-        time.sleep(0.5)
-    return False
+    # // test-relax: hand-rolled status==done poll -> dispatch_until_done (deterministic rib readiness)
+    return api.dispatch_until_done('show bgp rib status').get('status') == 'done'
 
 
 def main():

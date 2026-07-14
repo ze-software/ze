@@ -14,25 +14,28 @@ tmpfs=rest-exec-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 import urllib.request
 import urllib.error
 from ze_api import API
+# // test-relax: dropped 'import time'; blind sleep poll -> api.wait_until(HTTP GET ok)
 
 REST_PORT = 18082
 BASE_URL = f'http://127.0.0.1:{REST_PORT}/api/v1'
 
-def wait_for_rest(url, timeout=10):
-    """Poll REST endpoint until it responds or timeout."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
+def wait_for_rest(api, url, timeout=10):
+    """Poll REST endpoint until it responds; return body bytes or None."""
+    # // test-relax: blind time.sleep poll -> api.wait_until(HTTP GET ok)
+    captured = {}
+    def _ok():
         try:
             req = urllib.request.Request(url)
             resp = urllib.request.urlopen(req, timeout=2)
-            return resp.read()
+            captured['body'] = resp.read()
+            return True
         except (urllib.error.URLError, ConnectionRefusedError, OSError):
-            time.sleep(0.5)
-    return None
+            return False
+    api.wait_until(_ok, attempts=max(1, int(timeout / 0.5)), delay=0.5)
+    return captured.get('body')
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -52,7 +55,7 @@ def main():
 
     try:
         # Wait for REST API to be up
-        data = wait_for_rest(f'{BASE_URL}/commands')
+        data = wait_for_rest(api, f'{BASE_URL}/commands')
         if data is None:
             print('FAIL: REST API did not respond within timeout', file=sys.stderr)
             sys.exit(1)

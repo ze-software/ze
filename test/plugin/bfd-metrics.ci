@@ -40,29 +40,30 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
-    time.sleep(0.5)
 
     # Trigger Snapshot so refreshSessionsGauge runs and sets the gauge
     # for at least one (state, mode, vrf) bucket.
-    r = dispatch(api, 'show bfd sessions')
+    # // test-relax: blind 0.5s sleep + single show -> dispatch_until_done priming poll
+    r = api.dispatch_until_done('show bfd sessions')
     if r.get('status') != 'done':
         runtime_fail(f'priming: status={r.get("status")}')
 
     # Scrape the metrics endpoint. Retry briefly to absorb any late
     # registry rebinding done by the plugin's OnStarted hook.
-    body = ''
-    last = None
-    for _ in range(20):
+    # // test-relax: blind 0.25s retry loop -> wait_until poll for the metric family
+    scrape = {'body': '', 'last': None}
+    def scraped():
         try:
             with urllib.request.urlopen('http://127.0.0.1:19273/metrics', timeout=1.0) as resp:
-                body = resp.read().decode('utf-8', 'replace')
-                if 'ze_bfd_sessions' in body:
-                    break
+                scrape['body'] = resp.read().decode('utf-8', 'replace')
+                return 'ze_bfd_sessions' in scrape['body']
         except (OSError, ValueError) as exc:
-            last = exc
-        time.sleep(0.25)
+            scrape['last'] = exc
+            return False
+    api.wait_until(scraped, attempts=20, delay=0.25)
+    body = scrape['body']
     if body == '':
-        runtime_fail(f'scrape: {last}')
+        runtime_fail(f'scrape: {scrape["last"]}')
 
     # ze_bfd_sessions is the only metric guaranteed to have a sample
     # without any state transitions; refreshSessionsGauge sets it

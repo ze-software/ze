@@ -15,7 +15,7 @@ tmpfs=peer-remove-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API
+from ze_api import API, result_json_data
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -47,9 +47,12 @@ def main():
         if result.get('status') != 'done':
             print(f'FAIL: remove status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
-        time.sleep(0.5)
 
-        result = dispatch(api, 'show bgp peer list')
+        # // test-relax: blind 0.5s sleep after delete -> poll peer list until 127.0.0.1 is gone
+        result = api.dispatch_until(
+            'show bgp peer list',
+            lambda r: '127.0.0.1' not in result_json_data(r, {}).get('peers', {}),
+        )
         data = result.get('data', {})
         if isinstance(data, str):
             data = json.loads(data)

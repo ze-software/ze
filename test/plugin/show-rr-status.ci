@@ -32,9 +32,20 @@ def main():
     api.wait_for_registry()
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
-    time.sleep(0.5)
 
-    result = dispatch(api, 'show rr status')
+    # Poll until the RR subsystem reports running instead of a blind settle sleep.
+    # // test-relax: blind sleep(0.5) -> dispatch_until(show rr status, running is True)
+    def _rr_running(r):
+        if r.get('status') != 'done':
+            return False
+        d = result_text_data(r, '{}')
+        try:
+            p = json.loads(d) if isinstance(d, str) else d
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return False
+        return isinstance(p, dict) and bool(p.get('running'))
+
+    result = api.dispatch_until('show rr status', _rr_running)
     status = result.get('status')
     if status != 'done':
         print(f'FAIL: show rr status status={status} data={result.get("data")}', file=sys.stderr, flush=True)

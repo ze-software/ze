@@ -23,12 +23,11 @@ tmpfs=bmp-shutdown.run:mode=755:terminator=EOF_OBS
 """Observer: wait for the bmp-collector to signal via the .collector-done
 marker file, then dispatch daemon shutdown."""
 import os
-import time
 from ze_api import API
 
 
+# // test-relax: removed unused 'import time' + DEADLINE_SECONDS; wait_until owns the timing
 MARKER = '.collector-done'
-DEADLINE_SECONDS = 15.0
 
 
 def dispatch(api, command):
@@ -43,12 +42,10 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    deadline = time.time() + DEADLINE_SECONDS
-    while time.time() < deadline:
-        if os.path.exists(MARKER):
-            break
-        time.sleep(0.1)
-    time.sleep(0.3)
+    # Wait for the collector to finish validation and drop its marker file
+    # (deterministic replacement for a hand-rolled poll loop + grace pad).
+    # // test-relax: marker-poll loop + 0.3 grace sleep -> wait_until(marker exists)
+    api.wait_until(lambda: os.path.exists(MARKER), attempts=60, delay=0.25)
 
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()

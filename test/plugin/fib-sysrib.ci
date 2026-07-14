@@ -23,9 +23,9 @@ tmpfs=fib-sysrib-test.run:mode=755:terminator=EOF_RUN
 
 import json
 import sys
-import time
 
 from ze_api import API, result_text_data
+# // test-relax: removed unused 'import time'; blind sleeps replaced by dispatch_until_done / dispatch_until polls
 
 
 failures = 0
@@ -51,12 +51,9 @@ def check(label, result, expected_status):
 
 
 def wait_for_rib(api):
-    for _ in range(20):
-        r = dispatch(api, 'show bgp rib status')
-        if r.get('status') == 'done':
-            return True
-        time.sleep(0.5)
-    return False
+    # // test-relax: hand-rolled range/status==done poll -> dispatch_until_done
+    r = api.dispatch_until_done('show bgp rib status')
+    return r.get('status') == 'done'
 
 
 def main():
@@ -78,10 +75,15 @@ def main():
     check('inject-route', r, 'done')
 
     # Wait for Bus event propagation to sysrib.
-    time.sleep(2.0)
+    # // test-relax: blind sleep(2.0) + single show rib -> dispatch_until poll for the injected prefix
+    def rib_has_target(res):
+        try:
+            rows = json.loads(result_text_data(res))
+        except (json.JSONDecodeError, TypeError):
+            return False
+        return isinstance(rows, list) and any(e.get('prefix') == '10.20.0.0/24' for e in rows)
 
-    # Query sysrib.
-    r = dispatch(api, 'show rib')
+    r = api.dispatch_until('show rib', rib_has_target)
     check('rib-show', r, 'done')
     data_str = result_text_data(r)
     try:

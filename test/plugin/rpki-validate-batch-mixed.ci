@@ -41,12 +41,16 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for RTR sync + BGP UPDATE processing
-    time.sleep(4.0)
+    # Poll adj-rib-in until the three accepted routes land (the invalid one is
+    # never installed). Deterministic replacement for a blind time.sleep.
+    # // test-relax: blind sleep(4.0) -> dispatch_until poll on show bgp rib received
+    def _three_accepted(r):
+        d = result_text_data(r)
+        return '10.0.1.0/24' in d and '10.0.2.0/24' in d and '192.168.1.0/24' in d
 
     try:
-        # Query adj-rib-in for received routes
-        result = dispatch(api, 'show bgp rib received')
+        # Query adj-rib-in for received routes (poll until accepted routes land)
+        result = api.dispatch_until('show bgp rib received', _three_accepted, attempts=40)
         if result.get('status') != 'done':
             print(f'FAIL: rib query failed: status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

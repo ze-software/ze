@@ -15,10 +15,9 @@ EOF_PEER
 # Python observer: check aspa-state=unknown
 tmpfs=rpki-aspa-unknown-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-import json
 import sys
-import time
 from ze_api import API
+# // test-relax: removed unused 'import json'/'import time'; read loop is now wait_for_event
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -37,36 +36,22 @@ def main():
     api.subscribe(['rpki direction received'])
     api.ready()
 
-    time.sleep(5.0)
+    # // test-relax: blind sleep(5.0) + hand-rolled read loop -> wait_for_event (deterministic rpki aspa event wait)
+    def _match(evt):
+        if not isinstance(evt, dict):
+            return False
+        bgp = evt.get('bgp', {})
+        if bgp.get('message', {}).get('type') != 'rpki':
+            return False
+        rpki = bgp.get('rpki', {})
+        if not isinstance(rpki, dict) or rpki.get('status') == 'unavailable':
+            return False
+        return rpki.get('aspa-state') == 'unknown'
 
     try:
-        found = False
-        for _ in range(30):
-            event_str = api.read_line(timeout=0.5)
-            if event_str is None:
-                continue
-            try:
-                evt = json.loads(event_str)
-            except (json.JSONDecodeError, TypeError):
-                continue
-            bgp = evt.get('bgp', {})
-            msg = bgp.get('message', {})
-            if msg.get('type') != 'rpki':
-                continue
-            rpki = bgp.get('rpki', {})
-            if not isinstance(rpki, dict):
-                continue
-            if rpki.get('status') == 'unavailable':
-                continue
-            aspa_state = rpki.get('aspa-state')
-            if aspa_state == 'unknown':
-                found = True
-                print('OK: rpki event has aspa-state=unknown', file=sys.stderr)
-                break
-            elif aspa_state is not None:
-                print(f'INFO: aspa-state={aspa_state}, waiting for unknown', file=sys.stderr)
-
-        if not found:
+        if api.wait_for_event(timeout=15.0, predicate=_match) is not None:
+            print('OK: rpki event has aspa-state=unknown', file=sys.stderr)
+        else:
             print('FAIL: no rpki event with aspa-state=unknown', file=sys.stderr)
             sys.exit(1)
     finally:

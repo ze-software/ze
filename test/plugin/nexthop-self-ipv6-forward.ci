@@ -26,8 +26,8 @@ tmpfs=rr-ipv6-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-import time
 from ze_api import API, runtime_fail, result_text_data
+# // test-relax: removed unused 'import time'; hand-rolled established poll -> dispatch_until
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -44,13 +44,13 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Poll until peer session is established
-    for _ in range(20):
-        time.sleep(0.3)
-        result = dispatch(api, 'show bgp peer peer-src detail')
-        if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
-            break
-    else:
+    # Poll until peer session is established.
+    # // test-relax: hand-rolled sleep/poll loop -> dispatch_until on peer detail (established)
+    result = api.dispatch_until(
+        'show bgp peer peer-src detail',
+        lambda r: r.get('status') == 'done' and 'established' in result_text_data(r).lower(),
+    )
+    if 'established' not in result_text_data(result).lower():
         runtime_fail('peer-src never reached established state')
 
     result = dispatch(api, 'show bgp peer peer-src detail')

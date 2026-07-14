@@ -33,12 +33,18 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for BGP UPDATE to arrive + adj-rib-in sweep timeout (5s sweep interval)
-    # Route should be pending initially, then promoted after validation timeout
-    time.sleep(12.0)
+    # Poll adj-rib-in until the route is promoted out of pending (fail-open).
+    # The route starts in validation-state 4 (pending) and, after the 5s
+    # validation-timeout, is promoted to a non-pending state. Deterministic
+    # replacement for a blind time.sleep: poll until present AND not state 4.
+    # // test-relax: blind sleep(12.0) -> dispatch_until poll (route present, promoted out of state 4)
+    def _promoted(r):
+        d = result_text_data(r)
+        return '10.0.1.0/24' in d and (
+            '"validation-state":4' not in d and '"validation-state": 4' not in d)
 
     try:
-        result = dispatch(api, 'show bgp rib received')
+        result = api.dispatch_until('show bgp rib received', _promoted, attempts=60, delay=0.5)
         if result.get('status') != 'done':
             print(f'FAIL: rib routes received status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
@@ -47,6 +53,12 @@ def main():
         # Route should be promoted after timeout (fail-open)
         if '10.0.1.0/24' not in data:
             print(f'FAIL: route 10.0.1.0/24 not promoted after timeout: {data}', file=sys.stderr)
+            sys.exit(1)
+
+        # Fail-open means the route must be PROMOTED, not merely present: reject
+        # a route still stuck in validation-state 4 (pending) after the timeout.
+        if '"validation-state":4' in data or '"validation-state": 4' in data:
+            print(f'FAIL: route 10.0.1.0/24 still pending (state 4) after timeout: {data}', file=sys.stderr)
             sys.exit(1)
 
         print('OK: route 10.0.1.0/24 promoted after timeout (fail-open)', file=sys.stderr)

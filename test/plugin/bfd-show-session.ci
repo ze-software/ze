@@ -42,12 +42,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     # AC-2: known peer
-    r = None
-    for _ in range(20):
-        r = dispatch(api, 'show bfd session address 203.0.113.9')
-        if r.get('status') == 'done':
-            break
-        time.sleep(0.25)
+    r = api.dispatch_until_done('show bfd session address 203.0.113.9')  # // test-relax: hand-rolled status==done poll -> dispatch_until_done
     if r is None or r.get('status') != 'done':
         runtime_fail(f'known peer: status={r.get("status") if r else "nil"}')
 

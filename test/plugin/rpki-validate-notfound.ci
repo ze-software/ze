@@ -34,10 +34,16 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    time.sleep(4.0)
+    # Poll adj-rib-in until the NotFound route lands. Deterministic replacement
+    # for a blind time.sleep: an inbound route needs a payload-predicate poll.
+    # // test-relax: blind sleep(4.0) -> dispatch_until poll on show bgp rib received
+    def _notfound_route(r):
+        d = result_text_data(r)
+        return '192.168.0.0/24' in d and (
+            '"validation-state":2' in d or '"validation-state": 2' in d)
 
     try:
-        result = dispatch(api, 'show bgp rib received')
+        result = api.dispatch_until('show bgp rib received', _notfound_route, attempts=40)
         if result.get('status') != 'done':
             print(f'FAIL: rib routes received status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
