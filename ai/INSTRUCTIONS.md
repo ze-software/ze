@@ -84,7 +84,7 @@ vpp, web
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
 
 <!-- BEGIN GENERATED: arch-system-plugins (scripts/dev/arch_map.py; make ze-regen) -->
-63 directories under `internal/plugins/`:
+64 directories under `internal/plugins/`:
 
 aaa-cmd, anomaly, as112, completion, config-archive-cmd, config-cli,
 config-schema, config-storage, config-yang, connect, connected, copp, cos,
@@ -94,7 +94,7 @@ host-cmd, iface, imageserver, init, isis, kernel, ldp, local, log, meta,
 mpls-cmd, mrt, ntp, ospf, passwd, ping-cmd, pki-cmd, policyroute, provision,
 resolve-cmd, routingtable, rsvpte, signal, skills, static, storage-cmd,
 support, systemd, tftpserver, traceroute-cmd, traffic, traffic-cmd,
-trafficusage, update-cmd
+trafficusage, update-cmd, vrrp
 <!-- END GENERATED: arch-system-plugins -->
 
 **BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.
@@ -193,6 +193,7 @@ means "no rule applies".
 | Fix a failing test, gate, demo, or user-visible problem | `ai/rules/no-workarounds-for-missing-behavior.md` -- implement missing behavior at the source; never weaken the test |
 | Write linux-only code | `ai/rules/qemu-testing.md` -- QEMU integration tests are mandatory, never skip for "needs hardware" |
 | Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
+| Write code identifiers, comments, docs, CLI text, or error messages | `ai/rules/language-and-spelling.md` -- project language is US English; only Thomas's authored prose (`/write`) is UK English |
 | Claim work is done | `ai/rules/no-partial-completion.md`, `ai/rules/wiring-completeness.md` -- every AC implemented, tested, wired; every exported symbol has a non-test caller |
 | Finish Go edits | `ai/rules/lint-gate.md` -- run `make ze-lint-changed` before claiming done |
 | Commit | `ai/rules/git-safety.md` -- fast commit-script path; check verify status before any `ze-verify` rerun |

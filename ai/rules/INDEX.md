@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 84 rules
+Total: 85 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -58,6 +58,7 @@ Total: 84 rules
 | Feature Integration Completeness | Every new feature MUST be proven to work integrated, not just in isolation. | `ai/rules/integration-completeness.md` |
 | Interop Testing and Goal Validation | Protocol features MUST have interop tests. All features MUST have goal validation proving the feature achieves its intended purpose, not just that the code runs without error. | `ai/rules/interop-and-goal-validation.md` |
 | JSON Format | All JSON output MUST follow these conventions. | `ai/rules/json-format.md` |
+| Language and Spelling | The project language is US English. Every artifact that is part of Ze -- code, docs, and user-facing text -- uses US English spelling, wording, and date/number conventions. The single exception is... | `ai/rules/language-and-spelling.md` |
 | Lint Gate | Run before claiming implementation work is complete. | `ai/rules/lint-gate.md` |
 | Memory Architecture | Conceptual model for Ze's memory management. Ties together `buffer-first.md`, `no-sprintf-alloc.md`, and `design-principles.md` into a coherent picture. Read this before making any allocation or... | `ai/rules/memory-architecture.md` |
 | Module Tiers (core / component / plugin) | creating a new package under `internal/`, or deciding whether something belongs in `internal/core/`, `internal/component/`, or `internal/plugins/`. | `ai/rules/module-tiers.md` |
