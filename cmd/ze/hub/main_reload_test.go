@@ -76,6 +76,7 @@ func (r *reloadTestReactor) FlushForwardPool(context.Context) error {
 func (r *reloadTestReactor) FlushForwardPoolPeer(context.Context, string) error {
 	return nil
 }
+func (r *reloadTestReactor) DrainPeerSync(context.Context) error { return nil }
 func (r *reloadTestReactor) ForwardUpdatesDirect([]uint64, []netip.AddrPort, string) error {
 	return nil
 }

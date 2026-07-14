@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-08 |
+| Updated | 2026-07-14 |
 
 ## Post-Compaction Recovery
 
@@ -174,6 +174,79 @@ is `ribevents.BestChange.Emit` at `rib_bestchange.go:1218`.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
+
+## Decision (2026-07-14): Keep the event-bus delta model
+
+**Decision:** Keep the `BestChangeBatch` event-bus delta model. Do NOT build an
+engine-owned central per-protocol RIB store. No production code changes; this spec
+closes as a recorded design decision (AC-1), per the Task section's own guidance
+("if the answer is 'keep deltas', close as a recorded design decision, not code").
+
+**Trigger status — A-1 is BROKEN.** The second-consumer trigger recorded at triage
+HAS fired. Assumption A-1 ("bgp-redistribute is still the only production delta
+consumer") is false as of 2026-07-14. Three production consumers of the RIB
+best-change stream now exist (verified by reading each producer, not its caller):
+
+| Consumer | Verified file:line | What it does with the delta |
+|----------|--------------------|------------------------------|
+| bgp-redistribute (`redistribute_egress`) | subscribes the transformed `RouteChange` via `EmitBestChange` (`internal/component/bgp/redistribute/producer.go:40`, `convertBestChange` :61) | transform-and-forward; keeps no full materialized table |
+| flowexport `bgpEnrichBuilder` | `internal/plugins/flowexport/enrichbgp.go:63` `applyBatch`, `:107` `Subscribe` | accumulates its own `table map[netip.Prefix]enrich.ASEntry` and rebuilds an immutable prefix→AS radix tree, debounced 5s (`:86` `rebuild`) |
+| sysrib | `internal/component/sysrib/sysrib.go:852` (`loc.OnChange`), `:889` (Stream A fallback) | maintains its own arbitrated route table; re-emits arbitrated Stream B to FIB installers |
+
+**Why keep deltas despite the trigger firing:**
+1. A central per-protocol store would NOT remove the expensive work. flowexport's
+   cost is the O(N) radix rebuild (`enrichbgp.go:86-100`), not the cheap incremental
+   map; a store snapshot would still require that rebuild. The store saves only the
+   cheap `table` accumulation.
+2. The store's payload would be identical to `BestChangeEntry` — it must carry the
+   BGP-specific `OriginAS`/`ASPath`/`NextHop` that flowexport reads
+   (`enrichbgp.go:75-79`). It is not a cleaner abstraction, just a shared cache of the
+   same delta payload.
+3. The engine-owned central arbitrated store already exists: the Loc-RIB
+   (`internal/core/rib/locrib`), consumed by sysrib and re-emitted as arbitrated
+   Stream B for FIB installers. Consumers wanting a protocol-agnostic materialized
+   best-path view query that path. Consumers needing BGP-specific attributes
+   (flowexport) legitimately consume the BGP-RIB delta stream because the arbitrated
+   Loc-RIB does not carry AS_PATH / communities.
+4. The two BGP-RIB delta consumers have DIFFERENT query shapes (prefix→AS radix vs
+   transform-and-forward). One store fits neither cleanly — premature abstraction
+   (R-1 confirmed).
+5. The delta model preserves the `BestChangeBatch` JSON wire contract for forked
+   plugins; a store query API would need its own contract.
+
+**Revised revisit trigger:** build a central per-protocol store only when ≥2 consumers
+need the SAME materialized query shape over BGP-specific attributes (e.g. two consumers
+both wanting "current best-path set with AS_PATH, point-queryable"). Today's consumers
+do not. flowexport's own optimisation (incremental/persistent-trie rebuild,
+`plan/learned/819`) is per-consumer, reinforcing that the pain is consumer-specific,
+not delta-model-wide.
+
+## Implementation Summary
+
+- No production code changed. This is a recorded design decision (see above).
+- AC-1 satisfied: store-vs-delta decided (keep deltas) with rationale, captured here
+  and in the learned summary `plan/learned/1120-rib-arch-1-store-vs-delta.md`.
+- AC-2 not applicable: store not chosen, so no second-consumer store migration.
+- Deviation from skeleton assumption: A-1 moved `unvalidated → broken` (the
+  second-consumer trigger fired via flowexport); the decision explains why the store is
+  still not warranted.
+
+## Review Gate
+
+No production code diff (decision-only spec). Nothing to review.
+Findings: 0 BLOCKER, 0 ISSUE, 0 NOTE.
+
+## Pre-Commit Verification
+
+Re-verified from scratch on 2026-07-14:
+
+| Item | Evidence |
+|------|----------|
+| AC-1 decision recorded | Decision section above + `plan/learned/1120-rib-arch-1-store-vs-delta.md` |
+| No code changed | `git diff` touches only `plan/` (spec + learned + counter) |
+| A-1 resolved | `broken` — flowexport is a second production delta consumer (`internal/plugins/flowexport/enrichbgp.go:63,107`), read directly |
+| A-2 resolved | not exercised — store not built; `BestChangeBatch` JSON contract untouched |
+| Producers read (not callers) | `producer.go:40` `EmitBestChange`, `enrichbgp.go:63` `applyBatch`, `events.go:54` `BestChangeEntry` all read this session |
 
 ## Notes
 - Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.
