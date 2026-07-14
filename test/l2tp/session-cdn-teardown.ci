@@ -72,8 +72,9 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("127.0.0.1", 0))
     sock.settimeout(0.25)
-    time.sleep(0.05)
 
+    # // test-relax: dropped a redundant pre-handshake settle sleep; the SCCRQ
+    # retransmit loop below already tolerates ze's L2TP listener not being ready.
     # --- Tunnel handshake (SCCRQ/SCCRP/SCCCN) ---
     sccrq_body = b""
     sccrq_body += avp(True, 0, struct.pack("!H", 1))
@@ -106,7 +107,9 @@ def main():
     drain(sock)
 
     # --- Session: ICRQ -> ICRP -> ICCN ---
-    time.sleep(0.05)
+    # // test-relax: dropped sleep(0.05); ze processes ICRQ (Ns=2) only after SCCCN
+    # (Ns=1) per L2TP reliable delivery, and recv_msg's 1.0s timeout absorbs the
+    # processing delay, so the tunnel is up before ze answers with ICRP.
     icrq_body = b""
     icrq_body += avp(True, 0, struct.pack("!H", 10))
     icrq_body += avp(True, 14, struct.pack("!H", PEER_SID))
@@ -125,7 +128,9 @@ def main():
     iccn_body += avp(True, 19, struct.pack("!I", 2))
     sock.sendto(l2tp_ctrl(local_tid, ze_sid, 3, 2, iccn_body), TARGET)
     drain(sock)
-    time.sleep(0.05)
+    # // test-relax: dropped sleep(0.05); the CDN below (Ns=4) is processed after
+    # ICCN (Ns=3) per L2TP reliable delivery, so the session is established when ze
+    # handles the CDN.
 
     # --- CDN to tear down the session ---
     cdn_body = b""
