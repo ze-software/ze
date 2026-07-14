@@ -144,6 +144,40 @@ func TestModAccumulator_MultipleOps(t *testing.T) {
 	}
 }
 
+// VALIDATES: rib-arch-8 — SetNLRIRewrite / SetWithdrawnRewrite accumulate,
+// count toward HasModifications (but not Len), and clear on Reset.
+// PREVENTS: NLRI rewrite leaking across per-peer iterations or being missed by
+// the forward-path modification gate.
+func TestModAccumulator_NLRIRewrite(t *testing.T) {
+	var mods ModAccumulator
+	if mods.HasModifications() || mods.NLRIRewrite() != nil || mods.WithdrawnRewrite() != nil {
+		t.Fatal("empty ModAccumulator reports a rewrite")
+	}
+
+	nlri := []byte{24, 10, 0, 0} // 10.0.0.0/24
+	mods.SetNLRIRewrite(nlri)
+	if !bytes.Equal(mods.NLRIRewrite(), nlri) {
+		t.Fatalf("NLRIRewrite() = %x, want %x", mods.NLRIRewrite(), nlri)
+	}
+	if !mods.HasModifications() {
+		t.Fatal("HasModifications() false after SetNLRIRewrite")
+	}
+	if mods.Len() != 0 {
+		t.Fatalf("Len() = %d, want 0 (rewrite is not an attribute op)", mods.Len())
+	}
+
+	wd := []byte{24, 172, 16, 0} // 172.16.0.0/24
+	mods.SetWithdrawnRewrite(wd)
+	if !bytes.Equal(mods.WithdrawnRewrite(), wd) {
+		t.Fatalf("WithdrawnRewrite() = %x, want %x", mods.WithdrawnRewrite(), wd)
+	}
+
+	mods.Reset()
+	if mods.NLRIRewrite() != nil || mods.WithdrawnRewrite() != nil || mods.HasModifications() {
+		t.Fatal("Reset did not clear NLRI/withdrawn rewrites")
+	}
+}
+
 // --- AttrOp / AttrModHandler tests (v2 progressive build) ---
 
 // VALIDATES: AC-11 — AttrOp holds code, action, buf fields.

@@ -47,6 +47,55 @@ func TestProgressiveBuildNoMods(t *testing.T) {
 	assert.Nil(t, result, "no mods should return nil")
 }
 
+// VALIDATES: rib-arch-8 AC-1 — ModAccumulator.SetNLRIRewrite replaces the
+// announced legacy NLRI section, even with no attribute ops.
+// PREVENTS: NLRI rewrite silently ignored on the forward path.
+func TestBuildModifiedPayloadNLRIRewrite(t *testing.T) {
+	origin := makeAttr(0x40, 1, []byte{0x00}) // ORIGIN=IGP
+	nlri := []byte{24, 10, 0, 0}              // 10.0.0.0/24
+	payload := buildModTestPayload(origin, nlri)
+
+	var mods filterapi.ModAccumulator
+	rewritten := []byte{24, 172, 16, 0} // 172.16.0.0/24
+	mods.SetNLRIRewrite(rewritten)
+	require.True(t, mods.HasModifications(), "NLRI rewrite counts as a modification")
+	assert.Equal(t, 0, mods.Len(), "NLRI rewrite is not an attribute op")
+
+	result, _ := buildModifiedPayload(payload, &mods, nil, nil, nil)
+	require.NotNil(t, result, "NLRI rewrite alone must produce a modified payload")
+
+	wdLen := int(binary.BigEndian.Uint16(result[0:2]))
+	attrLen := int(binary.BigEndian.Uint16(result[2+wdLen : 2+wdLen+2]))
+	attrStart := 2 + wdLen + 2
+	nlriStart := attrStart + attrLen
+	assert.Equal(t, origin, result[attrStart:nlriStart], "attributes preserved")
+	assert.Equal(t, rewritten, result[nlriStart:], "NLRI section rewritten")
+}
+
+// VALIDATES: rib-arch-8 AC-2 — ModAccumulator.SetWithdrawnRewrite replaces the
+// withdrawn NLRI section so a rewritten route is withdrawn under the same prefix.
+// PREVENTS: adj-rib-out desync (withdrawal referencing the original prefix).
+func TestBuildModifiedPayloadWithdrawnRewrite(t *testing.T) {
+	// Pure withdrawal: withdrawn_len(2)=4, withdrawn=10.0.0.0/24, attr_len(2)=0.
+	withdrawn := []byte{24, 10, 0, 0}
+	payload := make([]byte, 2+len(withdrawn)+2)
+	binary.BigEndian.PutUint16(payload[0:2], uint16(len(withdrawn)))
+	copy(payload[2:], withdrawn)
+
+	var mods filterapi.ModAccumulator
+	rewritten := []byte{24, 172, 16, 0} // 172.16.0.0/24
+	mods.SetWithdrawnRewrite(rewritten)
+	require.True(t, mods.HasModifications())
+
+	result, _ := buildModifiedPayload(payload, &mods, nil, nil, nil)
+	require.NotNil(t, result, "withdrawn rewrite must produce a modified payload")
+
+	wdLen := int(binary.BigEndian.Uint16(result[0:2]))
+	assert.Equal(t, len(rewritten), wdLen, "withdrawn_len reflects the rewrite")
+	assert.Equal(t, rewritten, result[2:2+wdLen], "withdrawn section rewritten")
+	assert.Equal(t, uint16(0), binary.BigEndian.Uint16(result[2+wdLen:2+wdLen+2]), "attr_len stays 0")
+}
+
 // VALIDATES: AC-13, AC-14 — OTC added when source has no OTC attr.
 // PREVENTS: Progressive build fails to add new attributes.
 func TestProgressiveBuildOTCAdd(t *testing.T) {

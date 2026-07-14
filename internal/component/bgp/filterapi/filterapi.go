@@ -96,18 +96,31 @@ const modAccumulatorInlineBytes = 64
 // ModAccumulator collects per-peer route modifications from egress filters.
 // NOT safe for concurrent use. Each peer iteration gets a fresh instance.
 type ModAccumulator struct {
-	ops       []AttrOp
-	withdraw  bool // convert announce to withdrawal for this peer
-	inline    [modAccumulatorInlineBytes]byte
-	inlineOff int
+	ops              []AttrOp
+	withdraw         bool   // convert announce to withdrawal for this peer
+	nlriRewrite      []byte // replacement for the announced (reachable) NLRI section
+	withdrawnRewrite []byte // replacement for the withdrawn NLRI section
+	inline           [modAccumulatorInlineBytes]byte
+	inlineOff        int
 }
 
-// Len returns the number of accumulated modifications (excluding withdraw flag).
+// Len returns the number of accumulated attribute ops (excluding withdraw flag
+// and NLRI rewrites). Use HasModifications to gate whether the forward path must
+// rebuild the payload.
 func (a *ModAccumulator) Len() int { return len(a.ops) }
+
+// HasModifications reports whether any payload-rebuilding modification (attribute
+// op, NLRI rewrite, or withdrawn rewrite) was accumulated. Announce-to-withdraw
+// conversion is handled separately via IsWithdraw and is NOT counted here.
+func (a *ModAccumulator) HasModifications() bool {
+	return len(a.ops) > 0 || a.nlriRewrite != nil || a.withdrawnRewrite != nil
+}
 
 func (a *ModAccumulator) Reset() {
 	a.ops = a.ops[:0]
 	a.withdraw = false
+	a.nlriRewrite = nil
+	a.withdrawnRewrite = nil
 	a.inlineOff = 0
 }
 
@@ -152,6 +165,27 @@ func (a *ModAccumulator) SetWithdraw() { a.withdraw = true }
 
 // IsWithdraw returns true if the route should be converted to a withdrawal.
 func (a *ModAccumulator) IsWithdraw() bool { return a.withdraw }
+
+// SetNLRIRewrite records a replacement for the announced (reachable) legacy IPv4
+// NLRI section of the per-peer UPDATE. The forward path substitutes these bytes
+// for the original NLRI when building the peer's UPDATE, enabling per-peer prefix
+// translation. A nil rewrite leaves the NLRI unchanged; a zero-length (non-nil)
+// slice drops every legacy NLRI prefix. The bytes must be a valid wire NLRI
+// section (length-prefixed prefixes). Like Op, the accumulator does not copy the
+// slice, so the caller's bytes must stay valid until the forward call returns.
+func (a *ModAccumulator) SetNLRIRewrite(b []byte) { a.nlriRewrite = b }
+
+// NLRIRewrite returns the accumulated NLRI rewrite, or nil if none was set.
+func (a *ModAccumulator) NLRIRewrite() []byte { return a.nlriRewrite }
+
+// SetWithdrawnRewrite records a replacement for the withdrawn NLRI section of the
+// per-peer UPDATE, so a prefix rewritten on announce is withdrawn under the same
+// rewritten prefix (adj-rib-out consistency: the peer never sees a withdrawal for
+// a prefix it was not sent). A nil rewrite leaves the withdrawn section unchanged.
+func (a *ModAccumulator) SetWithdrawnRewrite(b []byte) { a.withdrawnRewrite = b }
+
+// WithdrawnRewrite returns the accumulated withdrawn-NLRI rewrite, or nil.
+func (a *ModAccumulator) WithdrawnRewrite() []byte { return a.withdrawnRewrite }
 
 // Attribute modification action constants.
 const (

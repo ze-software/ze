@@ -63,7 +63,15 @@ func buildModifiedPayload(
 	nlriOverride []byte,
 ) ([]byte, int) {
 	ops := mods.Ops()
-	if len(ops) == 0 && nlriOverride == nil {
+	// The ModAccumulator can also carry per-peer NLRI rewrites. An explicit
+	// nlriOverride argument (the legacy per-prefix modify path) takes precedence;
+	// otherwise the accumulator's announce-NLRI rewrite applies. The withdrawn
+	// rewrite has no legacy argument, so it comes only from the accumulator.
+	if nlriOverride == nil {
+		nlriOverride = mods.NLRIRewrite()
+	}
+	withdrawnOverride := mods.WithdrawnRewrite()
+	if len(ops) == 0 && nlriOverride == nil && withdrawnOverride == nil {
 		return nil, 0
 	}
 
@@ -122,13 +130,34 @@ func buildModifiedPayload(
 
 	off := 0
 
-	// Step 1: Copy withdrawn section verbatim.
-	wdSectionLen := 2 + withdrawnLen
-	if !safeCopy(buf, off, payload[:wdSectionLen]) {
-		cleanupBuf()
-		return nil, 0
+	// Step 1: Copy the withdrawn section. When withdrawnOverride is non-nil the
+	// egress filter has rewritten the withdrawn NLRI (per-peer prefix translation
+	// on withdrawal, keeping adj-rib-out consistent): write a fresh 2-byte length
+	// plus the override bytes. A zero-length (non-nil) override drops every
+	// withdrawn prefix. A nil override copies the original withdrawn section.
+	if withdrawnOverride != nil {
+		if len(withdrawnOverride) > 65535 {
+			fwdLogger().Warn("withdrawn rewrite too large, skipping mods", "len", len(withdrawnOverride))
+			cleanupBuf()
+			return nil, 0
+		}
+		binary.BigEndian.PutUint16(buf[off:], uint16(len(withdrawnOverride))) //nolint:gosec // G115: bounded by check above
+		off += 2
+		if len(withdrawnOverride) > 0 {
+			if !safeCopy(buf, off, withdrawnOverride) {
+				cleanupBuf()
+				return nil, 0
+			}
+			off += len(withdrawnOverride)
+		}
+	} else {
+		wdSectionLen := 2 + withdrawnLen
+		if !safeCopy(buf, off, payload[:wdSectionLen]) {
+			cleanupBuf()
+			return nil, 0
+		}
+		off += wdSectionLen
 	}
-	off += wdSectionLen
 
 	// Step 2: Skip attr_len (backfill later).
 	attrLenPos := off

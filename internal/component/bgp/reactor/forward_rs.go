@@ -399,7 +399,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 					"peer", facts.addr)
 				continue
 			}
-		} else if mods.Len() > 0 {
+		} else if mods.HasModifications() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := r.fwdPool.OutgoingPool(peerKey)
 			if modified, bufIdx := buildModifiedPayload(peerWire.Payload(), &mods, r.attrModHandlers, modPool, nil); modified != nil {

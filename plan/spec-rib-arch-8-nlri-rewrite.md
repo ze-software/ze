@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-08 |
+| Updated | 2026-07-14 |
 
 ## Post-Compaction Recovery
 
@@ -108,7 +108,9 @@ anchor drifted: the pathID=0 comment is now at `rib_bestchange.go:1182-1183` (fn
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Egress filter requests an NLRI rewrite for a peer | → | forward path emits an UPDATE with rewritten NLRI | (fill during design) |
+| Egress filter sets `mods.SetNLRIRewrite`/`SetWithdrawnRewrite` | → | `buildModifiedPayload` substitutes the announce/withdrawn NLRI section | `TestBuildModifiedPayloadNLRIRewrite`, `TestBuildModifiedPayloadWithdrawnRewrite` (`reactor/forward_build_test.go`) |
+
+This is an SDK primitive with no user-facing config/command surface, so the wiring test is a Go unit test on the forward-path application (no `.ci` — existing filter `.ci` suites regression-guard the unchanged filter behaviour).
 
 ## Acceptance Criteria
 
@@ -122,18 +124,20 @@ anchor drifted: the pathID=0 comment is now at `rib_bestchange.go:1182-1183` (fn
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (define at design time) | `internal/component/bgp/filterapi/filterapi_test.go` | NLRI-rewrite accumulation and per-peer isolation | |
+| `TestModAccumulator_NLRIRewrite` | `internal/component/bgp/filterapi/filterapi_test.go` | NLRI/withdrawn-rewrite accumulation, `HasModifications` (not `Len`), Reset clears, per-instance isolation | PASS |
+| `TestBuildModifiedPayloadNLRIRewrite` | `internal/component/bgp/reactor/forward_build_test.go` | announce NLRI section rewritten (AC-1), attrs preserved | PASS (RED→GREEN) |
+| `TestBuildModifiedPayloadWithdrawnRewrite` | `internal/component/bgp/reactor/forward_build_test.go` | withdrawn NLRI section rewritten + `withdrawn_len` fixed (AC-2) | PASS (RED→GREEN) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `nlri-rewrite` (new) | `test/plugin/nlri-rewrite.ci` | a filter rewrites the announced prefix to one peer; the peer receives the rewritten NLRI | |
+| N/A — internal SDK primitive, no user-facing config/command surface. No production filter requests an NLRI rewrite, and external filters already rewrite NLRI via the raw wire override (`runEgressPolicyChain` → `exportWireOverride`), so no `.ci` can drive this without adding a speculative surface. Existing filter `.ci` suites regression-guard the unchanged filter path. Go unit tests cover the mechanism. | reactor unit tests | filter behaviour unchanged end-to-end | PASS |
 
 ## Files to Modify
 
-- `internal/component/bgp/filterapi/filterapi.go` - `ModAccumulator` NLRI-rewrite field/method
-- `internal/component/bgp/reactor/filter_delta.go` - accumulate the rewrite from a filter delta
-- `internal/component/bgp/reactor/reactor_api_forward.go` - apply the rewrite when building the per-peer UPDATE
+- `internal/component/bgp/filterapi/filterapi.go` - `ModAccumulator` `nlriRewrite`/`withdrawnRewrite` fields + `SetNLRIRewrite`/`NLRIRewrite`/`SetWithdrawnRewrite`/`WithdrawnRewrite`/`HasModifications`; `Reset` clears them
+- `internal/component/bgp/reactor/forward_build.go` - `buildModifiedPayload` reads the accumulator rewrites (announce via existing `nlriOverride` slot; withdrawn via a new step-1 substitution)
+- `internal/component/bgp/reactor/reactor_api_forward.go`, `forward_rs.go` - gate on `mods.HasModifications()` so a rewrite-only mod rebuilds the payload
 
 ## Implementation Steps
 
@@ -156,6 +160,63 @@ anchor drifted: the pathID=0 comment is now at `rib_bestchange.go:1182-1183` (fn
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
+
+## Design Verification (2026-07-14)
+
+- **A-1 confirmed:** the per-peer UPDATE is (re)built by `buildModifiedPayload`
+  (`internal/component/bgp/reactor/forward_build.go:58`), which already had an
+  `nlriOverride` slot substituting the legacy IPv4 NLRI section (`:245`) for the
+  per-prefix modify path. The withdrawn section was copied verbatim (`:133`).
+- **A-2 note:** the rewrite operates on wire NLRI bytes; add-path path-ids are part of
+  those bytes, so a filter that rewrites NLRI must produce a valid section (exact-or-reject
+  is the filter's responsibility). No path-id-specific handling was added.
+- **Scope decision (approved by user 2026-07-14):** build the ModAccumulator primitive +
+  forward application + Go unit tests, WITHOUT a `.ci` or a driving filter surface. Rationale:
+  no in-process filter needs NLRI rewrite today, and external filters already rewrite NLRI via
+  the raw wire override (`runEgressPolicyChain` → `exportWireOverride` → `peerBaseWire`,
+  `reactor_api_forward.go:488,515`). The primitive is the cleaner path for a future in-process
+  filter; it stays inert until one calls it.
+
+## Implementation Summary
+
+- `filterapi.ModAccumulator` gained `nlriRewrite`/`withdrawnRewrite` (+ setters/getters),
+  `HasModifications()`, and `Reset` clears them. `Len()` still counts only attribute ops.
+- `buildModifiedPayload` reads the accumulator's rewrites: the announce NLRI via the existing
+  `nlriOverride` slot (explicit argument still takes precedence), the withdrawn NLRI via a new
+  step-1 substitution (writes a fresh `withdrawn_len` + override bytes; > 65535 abandons).
+- `reactor_api_forward.go` and `forward_rs.go` gate the rebuild on `mods.HasModifications()`
+  (was `mods.Len() > 0`), so a rewrite-only modification is applied.
+- **AC-1 met:** `TestBuildModifiedPayloadNLRIRewrite` (announce rewrite, attrs preserved).
+  **AC-2 met:** `TestBuildModifiedPayloadWithdrawnRewrite` (withdrawn rewrite keeps adj-rib-out
+  consistent — the peer is withdrawn under the same rewritten prefix it was announced).
+- **Inert-by-default:** all changes are no-ops unless a filter sets a rewrite; the full
+  `filterapi` + `reactor` suites pass unchanged (no forward-path regression).
+
+## Review Gate
+
+Self-review of the diff (filterapi.go + forward_build.go + reactor_api_forward.go + forward_rs.go + tests):
+- No signature churn: rewrites travel on the already-passed `mods` argument, so the ~24
+  `buildModifiedPayload` callers are untouched.
+- Buffer safety: withdrawn/NLRI substitution goes through `safeCopy` bounds checks and the
+  `> 65535` guard; on overflow the mod is abandoned (returns nil,0), never a truncated write.
+- Announce-vs-withdraw: `SetWithdraw` (announce→withdraw conversion) still routes to
+  `buildWithdrawalPayload`; the rewrites apply only on the `buildModifiedPayload` branch.
+Findings: 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+Re-verified 2026-07-14:
+
+| Item | Evidence |
+|------|----------|
+| AC-1 verified | `TestBuildModifiedPayloadNLRIRewrite` PASS (RED captured when the accumulator read is disabled) |
+| AC-2 verified | `TestBuildModifiedPayloadWithdrawnRewrite` PASS (RED captured) |
+| Accumulator semantics | `TestModAccumulator_NLRIRewrite` PASS (Reset clears, `HasModifications`, isolation) |
+| No forward regression | full `./internal/component/bgp/filterapi/` + `./internal/component/bgp/reactor/` suites PASS |
+| Lint | `make ze-lint-changed` 0 issues |
+| A-1 resolved | confirmed — `buildModifiedPayload:58`, `nlriOverride` slot `:245`, withdrawn copy `:133` |
+| A-2 resolved | confirmed — rewrite is raw NLRI bytes; add-path handling is the filter's responsibility (documented) |
+| Producers read | `forward_build.go`, `reactor_api_forward.go:468-601`, `forward_rs.go:390-405` all read this session |
 
 ## Notes
 - Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.

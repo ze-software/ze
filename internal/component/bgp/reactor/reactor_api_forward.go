@@ -595,7 +595,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 					"peer", facts.addr)
 				continue
 			}
-		} else if mods.Len() > 0 {
+		} else if mods.HasModifications() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := a.r.fwdPool.OutgoingPool(peerKey)
 			if modified, bufIdx := buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool, nil); modified != nil {
