@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1139 summaries
+Total: 1140 summaries
 
 ## 000-099
 
@@ -1208,3 +1208,4 @@ Total: 1139 summaries
 | 1122 | rib-arch-8: General NLRI-Byte Rewrite via ModAccumulator | `plan/learned/1122-rib-arch-8-nlri-rewrite.md` |
 | 1122 | vrrp-macvlan-vmac-dataplane | `plan/learned/1122-vrrp-macvlan-vmac-dataplane.md` |
 | 1123 | bare-go-test-drops-feature-tags | `plan/learned/1123-bare-go-test-drops-feature-tags.md` |
+| 1123 | rib-arch-6: First Production Change.Forward Consumer (RS/RR Fast Path) | `plan/learned/1123-rib-arch-6-rs-fastpath-consumer.md` |

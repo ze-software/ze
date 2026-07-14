@@ -293,6 +293,12 @@ type RIBManager struct {
 	// before rewiring to a different locRIB.
 	unsubForwardObs func()
 
+	// forwardTracker is the production Change.Forward consumer (rib-arch-6):
+	// it AddRefs and reads the zero-copy UPDATE bytes to maintain fast-path
+	// forwarding state. Created by SetLocRIB alongside the debug observer;
+	// inert until `request bgp rib fastpath enable`. Stopped before rewiring.
+	forwardTracker *forwardStateTracker
+
 	// maximumPaths is the configured N for multipath/ECMP selection.
 	// Populated from bgp/multipath/maximum-paths in the Stage 2 configure callback.
 	// Default 1 = single best-path behavior (RFC 4271 §9.1.2, no ECMP).
@@ -488,9 +494,14 @@ func (r *RIBManager) SetLocRIB(loc *locrib.RIB) {
 		r.unsubForwardObs()
 		r.unsubForwardObs = nil
 	}
+	if r.forwardTracker != nil {
+		r.forwardTracker.Stop()
+		r.forwardTracker = nil
+	}
 	r.locRIB = loc
 	if loc != nil {
 		r.unsubForwardObs = observeForwardHandles(loc)
+		r.forwardTracker = newForwardStateTracker(loc)
 	}
 }
 
@@ -668,6 +679,8 @@ func runRIBPlugin(conn net.Conn) int {
 			{Name: "show bgp rib help"},
 			{Name: "show bgp rib commands"},
 			{Name: "show bgp rib events"},
+			// Zero-copy forward-handle fast path (rib-arch-6)
+			{Name: "request bgp rib fastpath"},
 		},
 	})
 	if err != nil {

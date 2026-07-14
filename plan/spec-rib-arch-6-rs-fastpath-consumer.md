@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-08 |
+| Updated | 2026-07-14 |
 
 ## Post-Compaction Recovery
 
@@ -114,7 +114,7 @@ producer wiring end-to-end. The `forward_observer.go` comment names exactly this
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Loc-RIB change with a non-nil Forward handle | → | fastpath consumer AddRefs, reads bytes, updates state | (fill during design) |
+| Loc-RIB change with a non-nil Forward handle | → | `forwardStateTracker` AddRefs, reads bytes, updates state | `TestForwardStateTracker_ReadsAndReleases` + `test/plugin/rs-fastpath.ci` |
 
 ## Acceptance Criteria
 
@@ -128,17 +128,22 @@ producer wiring end-to-end. The `forward_observer.go` comment names exactly this
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (define at design time) | `internal/component/bgp/plugins/rib/forward_observer_test.go` | consumer AddRef/read/release lifecycle; state update from bytes | |
+| `TestForwardStateTracker_ReadsAndReleases` | `internal/component/bgp/plugins/rib/forward_tracker_test.go` | AddRef → read Bytes → Release lifecycle; state records prefix + byte length | PASS (RED→GREEN) |
+| `TestForwardStateTracker_DisabledIsInert` | `forward_tracker_test.go` | disabled tracker never AddRefs (no copy-out cost), records no state | PASS |
+| `TestForwardStateTracker_RemovePrunesState` | `forward_tracker_test.go` | ChangeRemove prunes the per-prefix state | PASS |
+| `TestForwardStateTracker_NoLeakUnderChurn` | `forward_tracker_test.go` | AC-2: AddRef/Release balance under concurrent churn; `-race` clean | PASS (`-race` clean) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `rs-fastpath` (new) | `test/plugin/rs-fastpath.ci` | route-server deployment: a best-path change updates fastpath forwarding state | |
+| `rs-fastpath` | `test/plugin/rs-fastpath.ci` | operator enables the fast path (`request bgp rib fastpath enable`), a peer announces a route, and `request bgp rib fastpath status` reports `forwarded > 0` | PASS (`ze-test bgp plugin rs-fastpath`) |
 
 ## Files to Modify
 
-- `internal/component/bgp/plugins/rib/forward_observer.go` - alongside the debug observer, register the production consumer (or a new sibling file)
-- `internal/component/bgp/plugins/rib/rib.go` - `SetLocRIB` subscription wiring for the new consumer
+- `internal/component/bgp/plugins/rib/forward_tracker.go` - new `forwardStateTracker` (production consumer) + `fastpathCommand`
+- `internal/component/bgp/plugins/rib/rib.go` - `SetLocRIB` creates/stops the tracker; `request bgp rib fastpath` CommandDecl
+- `internal/component/bgp/plugins/rib/rib_commands.go` - `request bgp rib fastpath` builtin registration
+- `internal/component/bgp/plugins/rib/protocol_test.go` - command-count guard 18 → 19
 
 ## Implementation Steps
 
@@ -162,6 +167,60 @@ producer wiring end-to-end. The `forward_observer.go` comment names exactly this
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Race detector clean on the new consumer tests
+
+## Design Verification (2026-07-14)
+
+- **A-1 confirmed:** `ForwardHandle` (`internal/core/rib/locrib/forward_handle.go:33`) exposes
+  `AddRef`/`Release`, and `ForwardBytes.Bytes()` (`:59`) returns the retained copy. First
+  AddRef materialises an owned copy; the contract is "AddRef before reading Bytes, never
+  read after the matching Release." The producer side is `ribForwardHandle`
+  (`forward_handle.go`, rib plugin) landed by learned 784.
+- **A-2 addressed:** the `OnChange` handler runs under the RIB write lock
+  (`change.go:89-98`), so the consumer does the bounded copy-out (AddRef) under the lock and
+  processes off-lock in a worker — no heavy work under the lock.
+
+## Implementation Summary
+
+- Added `forwardStateTracker` (`forward_tracker.go`): the first production consumer of
+  `Change.Forward`. Its `onChange` AddRefs under the RIB write lock and enqueues; a worker
+  reads `Bytes()` off-lock, records per-prefix forwarding state (last UPDATE byte length),
+  and Releases. A full (backpressure) queue releases the handle and counts the drop, so the
+  buffer pool never leaks.
+- Wired into `SetLocRIB` alongside the existing debug observer; stopped and re-created on
+  Loc-RIB rewire. Inert until `request bgp rib fastpath enable`, so a binary that never
+  enables it pays only a single atomic load per change.
+- Observability: `request bgp rib fastpath <enable|disable|status>` (rib_commands.go builtin
+  + CommandDecl in rib.go). The `show bgp rib` verb greedily parses trailing tokens as
+  filters, so a `show bgp rib fastpath` subcommand would need a YANG grammar container; the
+  `request` verb has no such shadow, so the diagnostic lives there.
+- **AC-1 met:** the tracker reads `Change.Forward` bytes and updates state
+  (`TestForwardStateTracker_ReadsAndReleases`; the `.ci` proves it end-to-end from a real
+  received route). **AC-2 met:** `TestForwardStateTracker_NoLeakUnderChurn` runs `-race`
+  clean with a balanced AddRef/Release count under sustained concurrent churn.
+
+## Review Gate
+
+Self-review of the diff (forward_tracker.go + rib.go SetLocRIB/CommandDecl + rib_commands.go + tests + .ci):
+- Lifecycle: AddRef strictly inside the handler (source valid); Release strictly after the
+  off-lock Bytes read; `Stop()` drains the queue and does a final non-blocking drain to
+  release a handle enqueued by an onChange that raced the stop.
+- No lock inversion: `onChange` never takes the tracker mutex (only AddRef + enqueue); all
+  `t.mu` use is in the worker/snapshot, off the RIB write lock.
+- Inert by default: a single `enabled.Load()` gates all work.
+Findings: 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+Re-verified 2026-07-14:
+
+| Item | Evidence |
+|------|----------|
+| AC-1 verified | `TestForwardStateTracker_ReadsAndReleases` PASS; `.ci` PASS (`ze-test bgp plugin rs-fastpath`) |
+| AC-2 verified | `TestForwardStateTracker_NoLeakUnderChurn` PASS under `CGO_ENABLED=1 go test -race` (balance == 0) |
+| RED captured | disabling the accumulator/tracker read makes the byte-reading tests fail; the byte-read tests assert `forwarded`/`bytes` from the handle |
+| No regression | full `./internal/component/bgp/plugins/rib/` suite PASS, normal and `-race` |
+| Structural gates | `ze-lint-changed` 0 issues; `ze-cli-grammar-check` OK (260 commands) |
+| A-1/A-2 resolved | confirmed — `forward_handle.go:33/59`, `change.go:89-98` read this session |
 
 ## Notes
 - Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.

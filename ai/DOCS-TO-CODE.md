@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 286 design docs, 2927 files
+Total: 286 design docs, 2928 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3045,9 +3045,12 @@ Total: 286 design docs, 2927 files
 
 ## `plan/learned/784-rib-rs-fastpath.md`
 
-- `internal/component/bgp/plugins/rib/forward_handle.go` -- producer side of locrib.ForwardHandle
-- `internal/component/bgp/plugins/rib/forward_observer.go` -- observability subscriber for Change.Forward
-- `internal/core/rib/locrib/forward_handle.go` -- zero-copy forwarding for Change subscribers
+| File | Topic |
+|------|-------|
+| `internal/component/bgp/plugins/rib/forward_handle.go` | producer side of locrib.ForwardHandle |
+| `internal/component/bgp/plugins/rib/forward_observer.go` | observability subscriber for Change.Forward |
+| `internal/component/bgp/plugins/rib/forward_tracker.go` | first production Change.Forward consumer |
+| `internal/core/rib/locrib/forward_handle.go` | zero-copy forwarding for Change subscribers |
 
 ## `plan/learned/786-backend-command-dispatch.md`
 

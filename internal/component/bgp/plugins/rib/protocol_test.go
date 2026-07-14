@@ -73,7 +73,9 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	assert.Contains(t, commandNames, "show bgp rib protocol")
 	assert.Contains(t, commandNames, "request bgp rib withdraw-protocol")
 	assert.Contains(t, commandNames, "request bgp rib withdraw-router")
-	assert.Len(t, regInput.Commands, 18, "bgp rib registers exactly 18 commands")
+	// Zero-copy forward-handle fast path (rib-arch-6)
+	assert.Contains(t, commandNames, "request bgp rib fastpath")
+	assert.Len(t, regInput.Commands, 19, "bgp rib registers exactly 19 commands")
 
 	require.NoError(t, mux.SendOK(ctx, stage1.ID))
 
