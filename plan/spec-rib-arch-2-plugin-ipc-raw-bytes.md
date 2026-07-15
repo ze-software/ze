@@ -176,6 +176,36 @@ cited lines. The gap is unchanged and this spec is accurate as written.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 
+## Design Finding (2026-07-15) -- kept open by user decision
+
+Research completed (full encode/decode/transport map). Two facts reshape the design:
+
+1. **The transport cannot carry true length-prefixed binary frames.** `pkg/plugin/rpc/framing.go`
+   uses `bufio.ScanLines` (`:77-83`) and appends a single `'\n'` per frame (`conn.go:300`); every
+   message is one newline-delimited JSON line (doc `ipc_protocol.md:87` "No multi-line messages").
+   A raw payload containing a `0x0A` byte would be split. The only newline-safe binary carrier is a
+   Go `[]byte` struct field, which `encoding/json` auto-base64s -- the existing precedent is
+   `InjectWireRouteInput.UpdateBody []byte` (`types.go:411-421`). So "length-prefixed raw binary as
+   a frame" is not achievable without a new framing mode across ALL plugin IPC (high blast radius).
+
+2. **The text `.Update` is a deliberate format-once / cheap-parse-many optimization, not wire bytes.**
+   The engine formats attributes to human-readable text once (`AppendUpdateForFilter`,
+   `filter_format.go:42-78`); 7 filter plugins then `strings.Fields`-parse the single field they need
+   (as-path/nlri/community). Replacing `.Update` with raw wire bytes forces every one of those plugins
+   to wire-decode BGP attributes instead. Full text-path removal (the Goal Gate) therefore means
+   rewriting all 9 `filter_*` plugins + the modify-delta apply logic (`applyFilterDelta`
+   `filter_chain.go:224`, `textDeltaToModOps` `filter_delta.go`) on the BGP filter control path. The
+   engine-side win (skip formatting bytes it already holds, `filter_ordered.go:143/203`) is real; the
+   plugin-side is a wash (wire-decode replaces `strings.Fields`).
+
+**User decision (2026-07-15): DEFER.** Given the ambiguous net perf value and the high blast radius,
+the item stays open at skeleton stage rather than being implemented now. When resumed, the
+recommended lowest-risk slice is: convert the `.Raw` carrier (`FilterUpdateInput.Raw` `:183`,
+`FilterUpdateOutput.Raw` `:190`) from a hex `string` to a `[]byte` (auto-base64) primary carrier for
+the two `raw=true` plugins (`filter_family` `filter_family.go:102`, `filter_remove_private_as`
+`:60`); the "remove the text path for all 9 plugins" gate would need explicit reaffirmation before
+the full rewrite.
+
 ## Notes
 - Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.
 - Umbrella / siblings: `spec-rib-arch-0-umbrella.md`.
