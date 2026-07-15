@@ -117,12 +117,22 @@ type InterfaceInfo struct {
 	// (IFLA_PERM_ADDRESS), distinct from the operational MAC which an
 	// operator may override. Empty for virtual/created kinds that have no
 	// permanent address.
-	PermanentMAC string          `json:"permanent-mac-address,omitempty"`
-	Addresses    []AddrInfo      `json:"addresses,omitempty"`
-	Stats        *InterfaceStats `json:"stats,omitempty"`
-	ParentIndex  int             `json:"parent-index,omitempty"`
-	VlanID       int             `json:"vlan-id,omitempty"`
-	Promisc      bool            `json:"promiscuous,omitempty"`
+	PermanentMAC string `json:"permanent-mac-address,omitempty"`
+	// Alias is the kernel IFLA_IFALIAS link alias. ze's owned-device registry
+	// writes "ze:owned:<owner>" here to mark plugin-owned macvlan devices it
+	// manages; the reconcile orphan scan reads it back to detect owner release
+	// and crash leftovers. Empty for links with no alias.
+	Alias       string          `json:"alias,omitempty"`
+	Addresses   []AddrInfo      `json:"addresses,omitempty"`
+	Stats       *InterfaceStats `json:"stats,omitempty"`
+	ParentIndex int             `json:"parent-index,omitempty"`
+	// MacvlanMode is the delivery mode ("bridge"/"private") read back for a
+	// macvlan device, so the owned-device reconcile can detect a mode drift
+	// (e.g. a device created by an older binary in the wrong mode). Empty for
+	// non-macvlan links and backends that do not report it.
+	MacvlanMode string `json:"macvlan-mode,omitempty"`
+	VlanID      int    `json:"vlan-id,omitempty"`
+	Promisc     bool   `json:"promiscuous,omitempty"`
 	// 802.1p QoS maps reported by the kernel for VLAN sub-interfaces
 	// (IEEE 802.1Q PCP, 0-7). nil when unconfigured.
 	IngressQoSMap map[uint32]uint32 `json:"ingress-qos-map,omitempty"` // received PCP -> internal priority

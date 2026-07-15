@@ -55,6 +55,7 @@ ze-clear:ospf-counters
 ze-clear:ospf-neighbor
 ze-clear:ospf-process
 ze-clear:vpn-ipsec-sa
+ze-clear:vrrp-statistics
 ze-config-archive:trigger
 ze-debug:debug-state
 ze-debug:ospf-inject
@@ -303,6 +304,9 @@ ze-show:vpp-runtime
 ze-show:vpp-trace-clear
 ze-show:vpp-trace-show
 ze-show:vpp-trace-start
+ze-show:vrrp
+ze-show:vrrp-interface
+ze-show:vrrp-statistics
 ze-show:warnings
 ze-subscriber-api:detail
 ze-subscriber-api:summary

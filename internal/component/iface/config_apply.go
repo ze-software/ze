@@ -6,6 +6,7 @@ package iface
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -882,6 +883,18 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 
 	currentAddrs := currentAddrSet(currentInfos)
 
+	// Owned-device pass (macvlan): create/re-assert/delete plugin-owned
+	// devices from the owned-device registry (device_owner.go) BEFORE the
+	// address loops, so a VIP registered on an owned device via the address
+	// registry lands on an EXISTING device this same pass (an AddAddress on a
+	// missing device fails "not found" and, in the applyConfig path, aborts +
+	// rolls back the WHOLE commit). Orphan detection reads the kernel-side
+	// IFLA_IFALIAS ownership marker, so it also cleans up crash leftovers with
+	// no in-memory history. Fails fast like the address loops.
+	if !reconcileOwnedDevices(b, journal, currentInfos, record) {
+		return errs, false
+	}
+
 	// Add missing addresses on configured interfaces.
 	for osName, desired := range desiredAddrs {
 		current := currentAddrs[osName]
@@ -966,6 +979,143 @@ func applyBackendStep(journal *sdk.Journal, apply, undo func() error) error {
 		undo = func() error { return nil }
 	}
 	return journal.Record(apply, undo)
+}
+
+// reconcileOwnedDevices creates, re-asserts, and deletes plugin-owned macvlan
+// devices to match the owned-device registry (device_owner.go). It runs inside
+// reconcileOnReadyWithJournal BEFORE the address loops so a VIP registered on
+// an owned device is applied to an existing device in the same pass.
+//
+// Desired state comes from the registry; actual state AND ownership come from
+// the kernel via the pass's existing ListInterfaces snapshot (InterfaceInfo
+// carries the "ze:owned:" IFLA_IFALIAS marker), so reconcile is stateless
+// across restarts and crashes -- no staleDevices bookkeeping.
+//
+// For each registered device: create if absent; if a foreign (non-owned)
+// device occupies the name, fail closed (never delete an operator device); if
+// an owned macvlan exists but drifted from spec, delete + recreate in this
+// same pass (VIPs are re-added by the address loop that follows). Then the
+// orphan scan deletes any aliased macvlan with no registration (owner release,
+// crash leftovers, drift remnants) -- requiring BOTH kind macvlan AND the
+// ownership alias so operator devices are never touched.
+//
+// Returns true when every device step succeeded. On the first failure it
+// records via record (which logs + appends to the pass's errs) and returns
+// false, matching the address loops' fail-fast + whole-commit-rollback
+// contract.
+func reconcileOwnedDevices(b Backend, journal *sdk.Journal, currentInfos []InterfaceInfo, record func(string, error)) bool {
+	specs, owners := ownedMacvlans()
+	log := loggerPtr.Load()
+
+	currentByName := make(map[string]InterfaceInfo, len(currentInfos))
+	for i := range currentInfos {
+		currentByName[currentInfos[i].Name] = currentInfos[i]
+	}
+
+	// Create or re-assert every registered device.
+	for name, spec := range specs {
+		desired := spec
+		desired.Alias = ownedDeviceAliasPrefix + owners[name]
+
+		cur, exists := currentByName[name]
+		if !exists {
+			if err := applyBackendStep(journal, func() error {
+				return b.CreateMacvlanDevice(desired)
+			}, func() error {
+				return b.DeleteInterface(name)
+			}); err != nil {
+				record("create owned macvlan", fmt.Errorf("%s: %w", name, err))
+				return false
+			}
+			continue
+		}
+
+		// A device already holds the desired name. A non-macvlan kind is a
+		// foreign device (operator's) and is never deleted -- fail closed. A
+		// macvlan holding a REGISTERED name is ours by construction even if
+		// its ownership alias is missing (the kernel ignores IFLA_IFALIAS at
+		// LinkAdd, so a crash between create and LinkSetAlias leaves exactly
+		// this state -- A-2 fallback): the drift path below adopts and
+		// re-marks it via delete + recreate to spec.
+		if cur.Type != zeTypeMacvlan {
+			record("owned macvlan name conflict", fmt.Errorf("%s: name occupied by a non-owned %s device", name, cur.Type))
+			return false
+		}
+		if ownedMacvlanMatchesSpec(cur, desired, currentByName) {
+			continue
+		}
+		// Drift (wrong MAC/parent/MTU, or a missing/foreign ownership alias --
+		// the adopt + re-mark case): delete + recreate to spec in the same pass.
+		log.Warn("iface owned-device: re-asserting drifted macvlan", "name", name, "owner", owners[name])
+		if err := applyBackendStep(journal, func() error {
+			return b.DeleteInterface(name)
+		}, nil); err != nil {
+			record("delete drifted owned macvlan", fmt.Errorf("%s: %w", name, err))
+			return false
+		}
+		if err := applyBackendStep(journal, func() error {
+			return b.CreateMacvlanDevice(desired)
+		}, func() error {
+			return b.DeleteInterface(name)
+		}); err != nil {
+			record("recreate drifted owned macvlan", fmt.Errorf("%s: %w", name, err))
+			return false
+		}
+	}
+
+	// Orphan scan: delete aliased macvlans with no registration.
+	for i := range currentInfos {
+		info := &currentInfos[i]
+		if info.Type != zeTypeMacvlan || !strings.HasPrefix(info.Alias, ownedDeviceAliasPrefix) {
+			continue
+		}
+		if _, registered := specs[info.Name]; registered {
+			continue
+		}
+		name := info.Name
+		if err := applyBackendStep(journal, func() error {
+			return b.DeleteInterface(name)
+		}, nil); err != nil {
+			record("delete orphan owned macvlan", fmt.Errorf("%s: %w", name, err))
+			return false
+		}
+		log.Info("iface owned-device: deleted orphan macvlan", "name", name, "alias", info.Alias)
+	}
+
+	updateOwnedDeviceGauge()
+	return true
+}
+
+// ownedMacvlanMatchesSpec reports whether an existing owned macvlan (cur, known
+// to be kind macvlan with the ownership alias) already matches the desired
+// spec, so the drift path is skipped. Compares the ownership alias, the MAC,
+// and -- when the parent is currently resolvable -- the parent index and MTU
+// (owned macvlans inherit the parent MTU, so a parent MTU change is drift,
+// eventually-consistently). Mode drift is intentionally not detected
+// (Known Limitations: InterfaceInfo carries no mode).
+func ownedMacvlanMatchesSpec(cur InterfaceInfo, desired MacvlanSpec, currentByName map[string]InterfaceInfo) bool {
+	if cur.Alias != desired.Alias {
+		return false
+	}
+	if !macEqual(cur.MAC, desired.MAC) {
+		return false
+	}
+	// A device created in the wrong delivery mode (e.g. by an older binary that
+	// only made bridge macvlans) is drift: VRRP needs private mode for the
+	// virtual MAC to answer ARP. Compare only when the backend reported the mode
+	// (empty means "unknown", so do not force a needless re-create).
+	if cur.MacvlanMode != "" && cur.MacvlanMode != desired.Mode.String() {
+		return false
+	}
+	if parent, ok := currentByName[desired.Parent]; ok {
+		if cur.ParentIndex != parent.Index {
+			return false
+		}
+		if cur.MTU != parent.MTU {
+			return false
+		}
+	}
+	return true
 }
 
 func interfaceExists(b Backend, name string) bool {

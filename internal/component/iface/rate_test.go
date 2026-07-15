@@ -209,8 +209,8 @@ func TestIfaceMetrics_BindRegistry(t *testing.T) {
 	bindMetricsRegistry(reg)
 	defer ifaceMetricsPtr.Store(nil)
 
-	if registered != 12 {
-		t.Errorf("registered %d gauges, want 12", registered)
+	if registered != 13 {
+		t.Errorf("registered %d gauges, want 13", registered)
 	}
 
 	m := ifaceMetricsPtr.Load()

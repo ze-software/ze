@@ -18,6 +18,12 @@ const (
 	zeTypeTunnel    = "tunnel"
 	zeTypeWireguard = "wireguard"
 	zeTypeXFRM      = "xfrm"
+	// zeTypeMacvlan is the kernel link type for macvlan devices. It is
+	// deliberately NOT a YANG-configurable interface type and NOT in
+	// zeManageable (config_apply.go): macvlans are plugin-owned devices
+	// (device_owner.go), created/deleted via the owned-device registry and
+	// guarded by the "ze:owned:" alias marker, never by the Phase 4 prune.
+	zeTypeMacvlan = "macvlan"
 )
 
 // SupportedTypes returns the canonical list of Ze interface type names

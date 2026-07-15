@@ -338,7 +338,7 @@ For orchestrating multiple processes:
 
 ```
 cmd=background:seq=<N>:exec=<command>[:stdin=<name>]
-cmd=foreground:seq=<N>:exec=<command>[:stdin=<name>][:timeout=<dur>]
+cmd=foreground:seq=<N>:exec=<command>[:stdin=<name>][:timeout=<dur>][:exit=<N>]
 ```
 
 | Key | Description |
@@ -347,9 +347,50 @@ cmd=foreground:seq=<N>:exec=<command>[:stdin=<name>][:timeout=<dur>]
 | `exec` | Command to execute |
 | `stdin` | Stdin block name to pipe |
 | `timeout` | Foreground timeout (e.g., `10s`) |
+| `exit` | Exit code asserted for **this** command (0..255). See below. |
+
+Markers may appear in any order; each value runs to the next known marker.
 
 **Background:** Starts and keeps running until test ends.
 **Foreground:** Starts and waits for completion.
+
+#### `exit=` vs `expect=exit:code=` (per-command vs file-level)
+
+`expect=exit:code=` is **file-level**: `Record.ExpectExitCode` is a single value
+(a later `expect=exit:code=` silently overwrites an earlier one) and the runner
+compares it against `lastQuickZeErr` -- the exit status of the **last** quick-exit
+`ze` command in the file. A file that runs several `ze config validate` commands
+therefore asserts only the final one; every earlier command can exit with any code
+and the test still passes.
+
+Use `exit=` on the `cmd=` line to assert a specific command's own exit code. It is
+checked the moment that command finishes, and names the offending `seq` on failure:
+
+```
+cmd seq=2 (ze config validate -): expected exit code 1, got 0
+```
+
+Prefer `exit=` whenever a file runs more than one quick-exit `ze` command. A
+"quick-exit `ze` command" is any foreground `ze` whose verb is not a daemon verb
+(`hub`, `start`, `cli`, `monitor`) and which has no config-file argument or
+`--web` flag.
+
+Note that stdout/stderr expectations are file-level in the same way: they match the
+**accumulated** output of every command in the file, so `expect=stdout:contains=`
+can be satisfied by a different command than the one intended, and
+`reject=stdout:pattern=` trips on any command's output. When a reject must apply to
+one command, keep that command in its own file (see `test/vrrp/vrrp-doctor-quiet.ci`).
+<!-- source: internal/test/runner/runner_exec.go -- quickZe branch, per-command exit assertion -->
+<!-- source: internal/test/runner/record_parse.go -- parseCmdExec, exitMarker -->
+<!-- source: internal/test/runner/record.go -- RunCommand.ExitCode -->
+
+<!-- test: internal/test/runner/record_newformat_test.go TestParseCmdExec -- exit= parsing, marker order, 0..255 bounds -->
+<!-- test: test/vrrp/vrrp-config-invalid.ci -- 11 rejections, each asserted via exit=1 -->
+<!-- test: test/vrrp/vrrp-doctor-quiet.ci -- single-command file so reject=stdout is meaningful -->
+
+**Known gap:** 108 quick-exit `ze` commands across 50 `.ci` files predate `exit=`
+and are still unasserted (their `expect=exit:code=` never reaches them). Arming
+them may surface real defects; tracked in `plan/known-failures.md`.
 
 **Daemon readiness (`ze` only):** a `ze` daemon launched **either** foreground or
 background is told (via `ZE_READY_FILE`) to write `daemon.ready` once startup

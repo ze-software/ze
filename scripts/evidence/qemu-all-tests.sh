@@ -142,6 +142,13 @@ fsuite rsvpte "$ZE_TEST_BIN" rsvpte --all -p "$PARALLEL"
 fsuite isis "$ZE_TEST_BIN" isis --all -p "$PARALLEL"
 fsuite ospf "$ZE_TEST_BIN" ospf --all -p "$PARALLEL"
 fsuite ospfv3 "$ZE_TEST_BIN" ospfv3 --all -p "$PARALLEL"
+# VRRP: the config/doctor tests are offline and gated natively, but every test
+# that boots a daemon is needs-linux and can ONLY execute here -- the iface
+# plugin fails its Config stage on darwin ("interface management not supported
+# on darwin"), which cascades into vrrp failing at stage Init, so no VRRP
+# runtime surface exists on the dev machine. Without this line those tests would
+# skip natively and never run anywhere.
+fsuite vrrp "$ZE_TEST_BIN" vrrp --all -p "$PARALLEL"
 # Offline wire-decode suites (cheap, gated natively as well).
 fsuite l2tp-wire "$ZE_TEST_BIN" l2tp-wire --all -p "$PARALLEL"
 fsuite isis-wire "$ZE_TEST_BIN" isis-wire --all -p "$PARALLEL"
@@ -181,6 +188,15 @@ if [ -d ./internal/plugins/ospf/transport ]; then
 fi
 if [ -d ./internal/plugins/ospf/v3/transport ]; then
 	integration_pkgs+=(./internal/plugins/ospf/v3/transport/...)
+fi
+# VRRP transport (spec-vrrp-4): raw IP proto 112 sockets, the 224.0.0.18 /
+# ff02::12 multicast joins, and the GTSM TTL=255 checks all need a real kernel
+# and CAP_NET_RAW, so these tests exist only under -tags integration on linux
+# (internal/plugins/vrrp/transport/transport_integration_linux_test.go).
+# The macvlan side (spec-vrrp-3) needs no entry here: that code lives in
+# internal/component/iface/macvlan.go, already covered by iface/... above.
+if [ -d ./internal/plugins/vrrp/transport ]; then
+	integration_pkgs+=(./internal/plugins/vrrp/transport/...)
 fi
 # IS-IS adjacency integration test (spec-isis-5): two engines reach Up over a
 # real veth pair. The root isis package carries the integration-tagged test.

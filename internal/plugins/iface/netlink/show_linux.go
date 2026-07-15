@@ -99,13 +99,41 @@ func linkToInfo(link netlink.Link) iface.InterfaceInfo {
 	if len(attrs.PermHWAddr) > 0 {
 		info.PermanentMAC = attrs.PermHWAddr.String()
 	}
+	// IFLA_IFALIAS carries the owned-device ownership marker ("ze:owned:<owner>")
+	// for plugin-owned macvlans; the reconcile orphan scan reads it back.
+	if attrs.Alias != "" {
+		info.Alias = attrs.Alias
+	}
 	if vlan, ok := link.(*netlink.Vlan); ok {
 		info.VlanID = vlan.VlanId
 		info.ParentIndex = attrs.ParentIndex
 		info.IngressQoSMap = vlan.IngressQosMap
 		info.EgressQoSMap = vlan.EgressQosMap
 	}
+	// Owned macvlans carry their parent's index; expose it so the reconcile
+	// drift check can detect a re-parented device and operators can see which
+	// parent an owned device rides (show interface).
+	if mv, ok := link.(*netlink.Macvlan); ok {
+		info.ParentIndex = attrs.ParentIndex
+		info.MacvlanMode = macvlanModeName(mv.Mode)
+	}
 	return info
+}
+
+// macvlanModeName maps the kernel macvlan mode to the canonical string used by
+// iface.MacvlanMode.String(), so the reconcile drift check compares like for
+// like. Only the two modes ze creates are named; anything else reads back as
+// "other", which never equals a desired mode and so triggers a re-create
+// (fail safe).
+func macvlanModeName(mode netlink.MacvlanMode) string {
+	switch mode {
+	case netlink.MACVLAN_MODE_PRIVATE:
+		return "private"
+	case netlink.MACVLAN_MODE_BRIDGE:
+		return "bridge"
+	default:
+		return "other"
+	}
 }
 
 // LinkSpeedDuplex reads the link speed (Mbit/s) and duplex from sysfs, the

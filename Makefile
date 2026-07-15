@@ -90,6 +90,7 @@ include mk/gokrazy.mk
 include mk/test-mutation.mk
 include mk/appliance.mk
 
+include mk/terminal-demo.mk
 # ─── Build ──────────────────────────────────────────────────────────────────
 
 all: ze-lint ze-unit-test build
@@ -561,6 +562,7 @@ help-test:
 	@echo "    ze-qemu-traffic-usage-test  traffic-usage eBPF TCX accounting in QEMU"
 	@echo "    ze-qemu-ldp-frr-test      LDP interop against FRR ldpd in QEMU"
 	@echo "    ze-qemu-isis-frr-test     IS-IS interop against FRR isisd in QEMU"
+	@echo "    ze-qemu-vrrp-keepalived-test  VRRP interop against keepalived in QEMU"
 	@echo ""
 	@echo "  Live (Docker + internet):"
 	@echo "    ze-live-test              All live tests"
@@ -587,6 +589,8 @@ help-test:
 	@echo "    ze-release-evidence-preflight  Check required tooling (Docker, QEMU)"
 	@echo "    ze-release-evidence            Full matrix: interop + chaos + fuzz + perf + QEMU + deploy"
 	@echo "    ze-perf-gate                   Perf bench (ze DUT) + regression check"
+	@echo "    ze-release-assets             Rebuild every release-owned website asset"
+	@echo "    ze-terminal-demos-release     Re-record all terminal demos for this release"
 	@echo ""
 	@echo "  Escalation: single test -> package -> component group -> ze-verify"
 	@echo "  See docs/contributing/testing.md for the full workflow."

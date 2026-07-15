@@ -1,0 +1,282 @@
+# Test: VRRP config validation, rejections (spec-vrrp-5).
+#
+# VALIDATES: every cross-leaf rule the YANG grammar cannot express is enforced
+# through the real entry point, and each rejection names the offending group so
+# an operator can find it: vrid range and mandatory-ness, duplicate vrid per
+# unit+family, priority range (255 is the owner's, assigned by ze), the
+# version-dependent interval encodings, accept-mode as a VRRPv3-only feature,
+# the IPv6 first-address link-local rule, duplicate virtual addresses, and the
+# VPP backend rejection.
+# PREVENTS: a config an operator wrote being silently ignored or half-applied.
+# Every case here was a real defect at some point: accept-mode arrived as the
+# string "true" and was dropped by a .(bool) assertion, so a v2+accept-mode
+# config validated clean.
+
+# --- vrid is mandatory: the group name carries no protocol meaning. -----------
+stdin=no-vrid:terminator=EOF_NOVRID
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group nameless {
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_NOVRID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=no-vrid:exit=1
+expect=exit:code=1
+expect=stdout:contains=vrid is required
+
+# --- vrid 0 is out of range (RFC 9568 Section 5.2.3: 1..255). -----------------
+stdin=vrid-zero:terminator=EOF_VZERO
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group bad {
+                        vrid 0;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_VZERO
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=vrid-zero:exit=1
+expect=exit:code=1
+expect=stdout:contains=vrid
+
+# --- vrid 256 is out of range. ------------------------------------------------
+stdin=vrid-256:terminator=EOF_V256
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group bad {
+                        vrid 256;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_V256
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=vrid-256:exit=1
+expect=exit:code=1
+expect=stdout:contains=vrid
+
+# --- Two groups, one vrid, one unit+family: they would be one virtual router --
+# to every peer while ze ran two state machines (RFC 9568 Section 1.2).
+stdin=dup-vrid:terminator=EOF_DUPVRID
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group first {
+                        vrid 10;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                    group second {
+                        vrid 10;
+                        virtual-address [ 192.0.2.2 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_DUPVRID
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=dup-vrid:exit=1
+expect=exit:code=1
+expect=stdout:contains=is also configured by group
+
+# --- priority 255 is the owner's, assigned by ze, never operator-set. ---------
+stdin=prio-255:terminator=EOF_P255
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group bad {
+                        vrid 10;
+                        priority 255;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_P255
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=prio-255:exit=1
+expect=exit:code=1
+expect=stdout:contains=priority
+
+# --- VRRPv3 encodes centiseconds: a sub-centisecond interval cannot go on -----
+# the wire, so it is refused rather than rounded behind the operator's back.
+stdin=v3-granularity:terminator=EOF_GRAN
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group bad {
+                        vrid 10;
+                        virtual-address [ 192.0.2.1 ];
+                        advertise-interval-milliseconds 1005;
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_GRAN
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=v3-granularity:exit=1
+expect=exit:code=1
+expect=stdout:contains=not a multiple of 10
+
+# --- VRRPv2 encodes whole seconds (RFC 3768 Section 5.3.7). -------------------
+stdin=v2-fraction:terminator=EOF_V2FRAC
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group bad {
+                        vrid 10;
+                        version 2;
+                        virtual-address [ 192.0.2.1 ];
+                        advertise-interval-milliseconds 1500;
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_V2FRAC
+
+cmd=foreground:seq=7:exec=ze config validate -:stdin=v2-fraction:exit=1
+expect=exit:code=1
+expect=stdout:contains=whole number of seconds
+
+# --- accept-mode is a VRRPv3 feature; RFC 3768 has no such concept. -----------
+stdin=accept-v2:terminator=EOF_ACCV2
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group bad {
+                        vrid 10;
+                        version 2;
+                        accept-mode true;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_ACCV2
+
+cmd=foreground:seq=8:exec=ze config validate -:stdin=accept-v2:exit=1
+expect=exit:code=1
+expect=stdout:contains=accept-mode
+
+# --- IPv6: the FIRST virtual address is the advert source identity ------------
+# (RFC 9568 Section 5.2.9, erratum 8300), so it must be the link-local.
+stdin=v6-order:terminator=EOF_V6ORD
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv6 {
+                vrrp {
+                    group bad {
+                        vrid 10;
+                        virtual-address [ 2001:db8::1 fe80::1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_V6ORD
+
+cmd=foreground:seq=9:exec=ze config validate -:stdin=v6-order:exit=1
+expect=exit:code=1
+expect=stdout:contains=link-local
+
+# --- One virtual address belongs to exactly one group. ------------------------
+stdin=dup-vip:terminator=EOF_DUPVIP
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group a {
+                        vrid 10;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                    group b {
+                        vrid 20;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_DUPVIP
+
+cmd=foreground:seq=10:exec=ze config validate -:stdin=dup-vip:exit=1
+expect=exit:code=1
+expect=stdout:contains=virtual-address
+
+# --- VRRP needs macvlan devices and raw sockets: netlink only, fail closed. ---
+stdin=vpp-backend:terminator=EOF_VPP
+interface {
+    backend vpp;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group bad {
+                        vrid 10;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_VPP
+
+cmd=foreground:seq=11:exec=ze config validate -:stdin=vpp-backend:exit=1
+expect=exit:code=1
+expect=stdout:contains=backend

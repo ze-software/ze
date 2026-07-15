@@ -96,6 +96,15 @@ type Backend interface {
 	// Keys are copied verbatim; callers must not log the returned Spec
 	// unless they have already redacted sensitive fields.
 	GetWireguardDevice(name string) (WireguardSpec, error)
+	// CreateMacvlanDevice creates a bridge-mode macvlan netdev on spec.Parent
+	// carrying spec.MAC, marked with the owned-device alias spec.Alias
+	// ("ze:owned:<owner>", set by the reconcile pass) and brought admin-up,
+	// with its MTU inherited from the parent. The MAC and alias are set
+	// atomically in the create (rtnetlink RTM_NEWLINK), so there is no
+	// create-then-mark window. Deletion uses the existing DeleteInterface;
+	// listing rides ListInterfaces (InterfaceInfo.Alias carries the marker).
+	// Non-netlink backends (VPP, non-Linux) reject under exact-or-reject.
+	CreateMacvlanDevice(spec MacvlanSpec) error
 	// CreateXFRM creates an XFRM interface netdev with the given spec.
 	// The IfID binds the interface to XFRM security associations; the
 	// optional PhysicalDev constrains the underlay device. On kernels

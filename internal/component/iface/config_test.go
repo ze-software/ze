@@ -2094,27 +2094,35 @@ type routeCall struct {
 
 // fakeBackend implements Backend for testing config application.
 type fakeBackend struct {
-	ifaces         map[string]fakeIface
-	created        map[string]bool
-	deleted        map[string]bool
-	addrs          map[string][]string
-	tunnels        map[string]TunnelSpec
-	wgConfigs      map[string]WireguardSpec
-	wgConfigCt     map[string]int
-	vlans          map[string]VLANSpec
-	routeAdds      []routeCall
-	routeRemoves   []routeCall
-	staleRoutes    []RouteInfo // returned by ListRoutes for stale cleanup tests
-	listErr        error       // if non-nil, ListInterfaces returns this instead of enumerating
-	createDummyErr map[string]error
-	addAddressErr  map[string]error
-	lcpPairs       map[string]string // vppIface -> hostName recorded by SetupLCPPair
-	macSet         map[string]string // ifaceName -> mac recorded by SetMACAddress
+	ifaces           map[string]fakeIface
+	created          map[string]bool
+	deleted          map[string]bool
+	addrs            map[string][]string
+	tunnels          map[string]TunnelSpec
+	wgConfigs        map[string]WireguardSpec
+	wgConfigCt       map[string]int
+	vlans            map[string]VLANSpec
+	routeAdds        []routeCall
+	routeRemoves     []routeCall
+	staleRoutes      []RouteInfo // returned by ListRoutes for stale cleanup tests
+	listErr          error       // if non-nil, ListInterfaces returns this instead of enumerating
+	createDummyErr   map[string]error
+	addAddressErr    map[string]error
+	lcpPairs         map[string]string      // vppIface -> hostName recorded by SetupLCPPair
+	macSet           map[string]string      // ifaceName -> mac recorded by SetMACAddress
+	macvlans         map[string]MacvlanSpec // name -> spec recorded by CreateMacvlanDevice
+	callOrder        []string               // ordered log of macvlan-create + add-address calls
+	createMacvlanErr map[string]error       // per-name CreateMacvlanDevice error injection
 }
 
 type fakeIface struct {
-	name     string
-	linkType string
+	name        string
+	linkType    string
+	mac         string
+	alias       string
+	index       int // the interface's own kernel index
+	parentIndex int // for macvlan: the parent's index
+	mtu         int
 }
 
 func (b *fakeBackend) ensureMaps() {
@@ -2216,6 +2224,32 @@ func (b *fakeBackend) CreateXFRM(spec XFRMSpec) error {
 	b.ifaces[spec.Name] = fakeIface{name: spec.Name, linkType: "xfrm"}
 	return nil
 }
+
+func (b *fakeBackend) CreateMacvlanDevice(spec MacvlanSpec) error {
+	b.ensureMaps()
+	if b.macvlans == nil {
+		b.macvlans = make(map[string]MacvlanSpec)
+	}
+	if err := b.createMacvlanErr[spec.Name]; err != nil {
+		return err
+	}
+	b.callOrder = append(b.callOrder, "create-macvlan:"+spec.Name)
+	b.created[spec.Name] = true
+	b.macvlans[spec.Name] = spec
+	// Faithful to the netlink backend: MAC + alias set atomically at create,
+	// parent index + MTU inherited from the parent (mirrored here from the
+	// parent fakeIface, so a re-run sees a spec-equal device -- no false drift).
+	p := b.ifaces[spec.Parent]
+	b.ifaces[spec.Name] = fakeIface{
+		name:        spec.Name,
+		linkType:    zeTypeMacvlan,
+		mac:         spec.MAC,
+		alias:       spec.Alias,
+		parentIndex: p.index,
+		mtu:         p.mtu,
+	}
+	return nil
+}
 func (b *fakeBackend) GetXFRMInfo(_ string) (XFRMInfo, error) { return XFRMInfo{}, nil }
 
 func (b *fakeBackend) SetAdminUp(_ string) error    { return nil }
@@ -2250,6 +2284,7 @@ func (b *fakeBackend) AddAddress(ifaceName, cidr string) error {
 	if err := b.addAddressErr[addressErrKey(ifaceName, cidr)]; err != nil {
 		return err
 	}
+	b.callOrder = append(b.callOrder, "add-address:"+ifaceName+":"+cidr)
 	b.addrs[ifaceName] = append(b.addrs[ifaceName], cidr)
 	return nil
 }
@@ -2307,7 +2342,7 @@ func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
 	}
 	var result []InterfaceInfo
 	for _, f := range b.ifaces {
-		info := InterfaceInfo{Name: f.name, Type: f.linkType}
+		info := InterfaceInfo{Name: f.name, Type: f.linkType, MAC: f.mac, Alias: f.alias, ParentIndex: f.parentIndex, MTU: f.mtu, Index: f.index}
 		if addrs, ok := b.addrs[f.name]; ok {
 			for _, a := range addrs {
 				// b.addrs stores full CIDR strings (what AddAddress received,

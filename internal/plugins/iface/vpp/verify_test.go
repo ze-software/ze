@@ -23,6 +23,19 @@ func TestHandleVPPTraceStart_InvalidNodeName(t *testing.T) {
 	require.Contains(t, resp.Error, "invalid node name")
 }
 
+// TestVPPCreateMacvlanRejects verifies AC-8: the VPP backend rejects
+// CreateMacvlanDevice fail-closed (exact-or-reject), naming the backend and the
+// device, and pointing the operator at the netlink backend -- never a silent
+// netlink-only approximation.
+func TestVPPCreateMacvlanRejects(t *testing.T) {
+	b := &vppBackendImpl{names: newNameMap()}
+	err := b.CreateMacvlanDevice(iface.MacvlanSpec{Name: "zv4-2-10", Parent: "eth0", MAC: "00:00:5e:00:01:0a"})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "VPP backend")
+	require.Contains(t, err.Error(), "netlink backend")
+	require.Contains(t, err.Error(), "zv4-2-10")
+}
+
 // TestSetupLCPPairNameTooLong verifies AC-7: a host name over the 15-byte Linux
 // limit is rejected (no silent truncation).
 func TestSetupLCPPairNameTooLong(t *testing.T) {

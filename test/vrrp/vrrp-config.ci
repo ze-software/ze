@@ -1,0 +1,177 @@
+# Test: VRRP config validation, valid shapes (spec-vrrp-5).
+#
+# VALIDATES: a `vrrp { group <name> { vrid N; ... } }` block under an interface
+# unit's ipv4/ipv6 container reaches the vrrp YANG augment and the plugin's
+# in-process verifier, and every shape the design promises validates: named
+# groups with a mandatory vrid, multiple virtual addresses, v3 defaults, the v2
+# opt-in, an IPv6 group whose first address is link-local, the address-owner
+# case, the same vrid in both families, and a VLAN unit.
+# PREVENTS: a regression where the 8 YANG augment paths are not wired (the vrrp
+# container would be an unknown field), where the vrrp plugin stops receiving the
+# shared `interface` config root, or where a legal group is rejected.
+
+# --- Full agreed shape: v3 IPv4 + v3 IPv6 on one unit. ------------------------
+stdin=vrrp-valid:terminator=EOF_VALID
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 192.0.2.251/24 ];
+                vrrp {
+                    group uplink {
+                        vrid 10;
+                        virtual-address [ 192.0.2.1 192.0.2.2 ];
+                        priority 200;
+                        preempt true;
+                        advertise-interval-milliseconds 1000;
+                    }
+                }
+            }
+            ipv6 {
+                vrrp {
+                    group uplink-v6 {
+                        vrid 10;
+                        virtual-address [ fe80::1 2001:db8::1 ];
+                        priority 200;
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=vrrp-valid:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Defaults: a group needs only a name, a vrid, and one address. ------------
+stdin=vrrp-minimal:terminator=EOF_MIN
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 192.0.2.251/24 ];
+                vrrp {
+                    group lan {
+                        vrid 1;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_MIN
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=vrrp-minimal:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- VRRPv2 opt-in (IPv4 only), whole-second interval. ------------------------
+stdin=vrrp-v2:terminator=EOF_V2
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 192.0.2.251/24 ];
+                vrrp {
+                    group legacy {
+                        vrid 20;
+                        version 2;
+                        virtual-address [ 192.0.2.5 ];
+                        advertise-interval-milliseconds 2000;
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_V2
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=vrrp-v2:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Address owner: a virtual address equal to the unit's real address. -------
+# RFC 9568 Section 5.2.4: the owner runs at priority 255, assigned by ze.
+stdin=vrrp-owner:terminator=EOF_OWNER
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 192.0.2.10/24 ];
+                vrrp {
+                    group owned {
+                        vrid 30;
+                        virtual-address [ 192.0.2.10 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_OWNER
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=vrrp-owner:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- VLAN unit: the group lives on the sub-interface, not the parent. ---------
+stdin=vrrp-vlan:terminator=EOF_VLAN
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 100 {
+            vlan-id 100;
+            ipv4 {
+                address [ 198.51.100.2/24 ];
+                vrrp {
+                    group tagged {
+                        vrid 10;
+                        virtual-address [ 198.51.100.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_VLAN
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=vrrp-vlan:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Two groups on one unit: distinct vrids and distinct addresses. -----------
+stdin=vrrp-two-groups:terminator=EOF_TWO
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 192.0.2.251/24 ];
+                vrrp {
+                    group primary {
+                        vrid 10;
+                        virtual-address [ 192.0.2.1 ];
+                        priority 200;
+                    }
+                    group secondary {
+                        vrid 20;
+                        virtual-address [ 192.0.2.2 ];
+                        priority 100;
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_TWO
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=vrrp-two-groups:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid

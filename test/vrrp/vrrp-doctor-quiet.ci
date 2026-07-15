@@ -1,0 +1,36 @@
+# Test: a healthy VRRP config produces no vrrp diagnostic (spec-vrrp-5 AC-10).
+#
+# VALIDATES: `ze doctor` stays silent on a valid vrrp group. This file contains
+# exactly ONE command on purpose: reject=stdout:pattern= is matched against the
+# WHOLE file's accumulated stdout, not per command, so a `ze explain
+# doctor-vrrp-config-invalid` in the same file would print that code and trip the
+# reject even though the config is clean (that is precisely how this test first
+# failed). Keeping the file to one command is what makes the reject meaningful.
+# PREVENTS: a check that cries wolf. The vrrp plugin shares the `interface`
+# config root, so it loads on every ze deployment; a diagnostic that fired on
+# healthy configs would appear for operators who have never configured VRRP.
+
+tmpfs=vrrp-ok.conf:terminator=EOF_OK
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 192.0.2.251/24 ];
+                vrrp {
+                    group uplink {
+                        vrid 10;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_OK
+
+cmd=foreground:seq=1:exec=ze doctor --json vrrp-ok.conf:timeout=60s:exit=0
+expect=exit:code=0
+reject=stdout:pattern=doctor-vrrp-config-invalid
+reject=stdout:pattern=doctor-vrrp-backend-unusable
+reject=stdout:pattern=doctor-vrrp-raw-socket

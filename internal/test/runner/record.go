@@ -197,6 +197,14 @@ type RunCommand struct {
 	Exec    string // Command to execute
 	Stdin   string // Name of stdin block to pipe
 	Timeout string // Timeout for foreground processes (e.g., "10s")
+
+	// ExitCode is the exit code asserted for THIS command (cmd=...:exit=N), as
+	// opposed to the file-level expect=exit:code=, which only ever reaches the
+	// last quick-exit ze command (Record.ExpectExitCode is a single value and
+	// runOrchestrated compares it against lastQuickZeErr). A file that runs
+	// several `ze config validate` commands therefore leaves every earlier one
+	// unasserted; use exit= per command to assert each. nil = not asserted.
+	ExitCode *int
 }
 
 // httpCheck represents an HTTP request assertion in a .ci test.

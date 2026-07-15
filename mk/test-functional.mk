@@ -16,6 +16,7 @@
 #   make ze-policy-test        Policy routing only
 #   make ze-appliance-test     Appliance CLI (build/iso/list/serial-login) only
 #   make ze-ospf-test          OSPF config/doctor tests
+#   make ze-vrrp-test          VRRP config/show/doctor tests
 #   make ze-static-test        Static routes (release evidence only)
 #   make ze-traffic-test       Traffic control (release evidence only)
 #   make ze-flow-export-test   Flow export sFlow/NetFlow/IPFIX (release evidence only)
@@ -28,7 +29,7 @@
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test
 .PHONY: ze-ui-test ze-editor-test ze-web-test ze-managed-test
 .PHONY: ze-l2tp-test ze-firewall-test ze-policy-test ze-appliance-test
-.PHONY: ze-static-test ze-traffic-test ze-flow-export-test ze-vpp-test ze-l2tp-wire-test ze-isis-wire-test ze-ospf-wire-test ze-isis-test ze-ospf-test ze-ospfv3-test
+.PHONY: ze-static-test ze-traffic-test ze-flow-export-test ze-vpp-test ze-l2tp-wire-test ze-isis-wire-test ze-ospf-wire-test ze-isis-test ze-ospf-test ze-ospfv3-test ze-vrrp-test
 
 # Per-suite wall-clock cap. A stuck subprocess that holds an output pipe open
 # can make ze-test's own cmd.Wait() block indefinitely after SIGKILL; `timeout`
@@ -186,3 +187,6 @@ ze-ospf-test: bin/ze-test
 
 ze-ospfv3-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test ospfv3 --all
+
+ze-vrrp-test: bin/ze-test
+	@$(SUITE_RUN) bin/ze-test vrrp --all

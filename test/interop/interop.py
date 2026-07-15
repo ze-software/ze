@@ -22,6 +22,7 @@ BIRD_CONTAINER = "ze-iop-bird-%s" % _SUFFIX
 GOBGP_CONTAINER = "ze-iop-gobgp-%s" % _SUFFIX
 BMP_CONTAINER = "ze-iop-bmp-%s" % _SUFFIX
 RPKI_CONTAINER = "ze-iop-rpki-%s" % _SUFFIX
+KEEPALIVED_CONTAINER = "ze-iop-keepalived-%s" % _SUFFIX
 
 # IP addresses on the test network.
 _BASE_SUBNET_PREFIX = "172.30.0."
@@ -34,6 +35,12 @@ BIRD_IP = "172.30.0.4"
 GOBGP_IP = "172.30.0.5"
 BMP_IP = "172.30.0.6"
 RPKI_IP = "172.30.0.7"
+KEEPALIVED_IP = "172.30.0.8"
+
+# The VRRP virtual IP the ze and keepalived scenarios contend for. It is
+# deliberately NOT any container's own address: it is owned by whichever router
+# currently holds mastership, which is the whole point of the protocol.
+VRRP_VIP = "172.30.0.100"
 
 # IPv6 link-local must be enabled in the container netns for the OSPFv3 (ospf-v6-frr)
 # scenario: OSPFv3 runs over ff02::5 on eth0. These sysctls are no-ops on hosts that
@@ -1197,8 +1204,15 @@ def wait_containers_healthy(timeout=30):
             ):
                 all_ready = False
 
-        if _check_container_running(GOBGP_CONTAINER):
-            if not _check_container_responsive(GOBGP_CONTAINER, ["gobgp", "neighbor"]):
+        # keepalived has no client CLI to interrogate (no vtysh/birdc/gobgp
+        # equivalent), so "responsive" is read from the kernel state it is
+        # responsible for: if the VRRP process is alive it can list links.
+        # Readiness here means "the container is up and usable"; whether it
+        # reached MASTER or BACKUP is a per-scenario assertion, not a health
+        # check, because for most VRRP scenarios BACKUP is the correct
+        # steady state and treating it as unhealthy would be exactly wrong.
+        if _check_container_running(KEEPALIVED_CONTAINER):
+            if not _check_container_responsive(KEEPALIVED_CONTAINER, ["ip", "link"]):
                 all_ready = False
 
         if all_ready:
@@ -1325,6 +1339,28 @@ class Scenario:
                 caps=["NET_ADMIN"],
             )
 
+        # Start keepalived if config exists (the VRRP peer, spec-vrrp-6).
+        #
+        # NET_ADMIN alone is not enough here, unlike BIRD: keepalived must add
+        # the virtual IP to an interface and (with use_vmac) create a macvlan
+        # carrying the RFC 9568 virtual MAC, and it sends VRRP adverts over a
+        # raw IP protocol 112 socket, which needs NET_RAW. NET_BROADCAST lets it
+        # reach 224.0.0.18. Without these it starts, logs, and silently never
+        # becomes Master, which reads as a ze bug.
+        keepalived_conf = os.path.join(self.scenario_dir, "keepalived.conf")
+        if os.path.isfile(keepalived_conf):
+            docker_run(
+                KEEPALIVED_CONTAINER,
+                "keepalived-interop",
+                KEEPALIVED_IP,
+                volumes=[
+                    "%s:/etc/keepalived/keepalived.conf:ro"
+                    % os.path.abspath(keepalived_conf),
+                ],
+                caps=["NET_ADMIN", "NET_RAW", "NET_BROADCAST"],
+                extra_args=_IPV6_SYSCTLS,
+            )
+
         # Start GoBGP if config exists.
         gobgp_conf = os.path.join(self.scenario_dir, "gobgp.toml")
         if os.path.isfile(gobgp_conf):
@@ -1349,6 +1385,7 @@ class Scenario:
         docker_rm(GOBGP_CONTAINER)
         docker_rm(BMP_CONTAINER)
         docker_rm(RPKI_CONTAINER)
+        docker_rm(KEEPALIVED_CONTAINER)
         subprocess.run(
             ["docker", "network", "rm", NETWORK],
             capture_output=True,
@@ -1392,6 +1429,7 @@ def global_cleanup():
         GOBGP_CONTAINER,
         BMP_CONTAINER,
         RPKI_CONTAINER,
+        KEEPALIVED_CONTAINER,
     ]:
         subprocess.run(
             ["docker", "rm", "-f", name], capture_output=True, text=True, timeout=30

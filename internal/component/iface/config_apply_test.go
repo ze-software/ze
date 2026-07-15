@@ -355,3 +355,241 @@ func TestApplyConfigRollsBackGenuineError(t *testing.T) {
 	errs := applyConfig(cfg, nil, b)
 	require.NotEmpty(t, errs, "a genuine backend error must still abort and roll back")
 }
+
+// orderIndex returns the position of want in the backend's ordered call log,
+// or -1 when absent.
+func orderIndex(order []string, want string) int {
+	for i, s := range order {
+		if s == want {
+			return i
+		}
+	}
+	return -1
+}
+
+// TestReconcileCreatesOwnedMacvlanBeforeAddressAdd proves the device pass
+// creates a plugin-owned macvlan BEFORE the address loop installs a VIP
+// registered on that device, in one reconcile pass.
+//
+// VALIDATES: Wiring row 1 + AC-1/AC-2 ordering -- CreateMacvlanDevice precedes
+// AddAddress so the VIP lands on an existing device (a missing device would
+// fail "not found" and roll back the whole commit).
+// PREVENTS: a VIP add on a not-yet-created macvlan aborting an unrelated commit.
+func TestReconcileCreatesOwnedMacvlanBeforeAddressAdd(t *testing.T) {
+	resetAddressOwners(t)
+	resetDeviceOwners(t)
+	fb := &fakeBackend{ifaces: map[string]fakeIface{"eth0": {name: "eth0", linkType: "ethernet", index: 2, mtu: 1500}}}
+
+	if err := RegisterOwnedMacvlan("redund", MacvlanSpec{Name: "zv4-2-10", Parent: "eth0", MAC: "00:00:5e:00:01:0a"}); err != nil {
+		t.Fatalf("register macvlan: %v", err)
+	}
+	if err := RegisterOwnedAddresses("zv4-2-10", "redund", []string{"192.0.2.1/32"}); err != nil {
+		t.Fatalf("register address: %v", err)
+	}
+
+	errs, deferred := reconcileOnReady(&ifaceConfig{}, fb)
+	if len(errs) != 0 || deferred {
+		t.Fatalf("reconcileOnReady = (%v, %v), want (nil, false)", errs, deferred)
+	}
+
+	createIdx := orderIndex(fb.callOrder, "create-macvlan:zv4-2-10")
+	addIdx := orderIndex(fb.callOrder, "add-address:zv4-2-10:192.0.2.1/32")
+	if createIdx < 0 {
+		t.Fatalf("CreateMacvlanDevice was not called; order=%v", fb.callOrder)
+	}
+	if addIdx < 0 {
+		t.Fatalf("AddAddress on the macvlan was not called; order=%v", fb.callOrder)
+	}
+	if createIdx >= addIdx {
+		t.Errorf("create (%d) must precede add (%d); order=%v", createIdx, addIdx, fb.callOrder)
+	}
+	if got := fb.macvlans["zv4-2-10"].Alias; got != "ze:owned:redund" {
+		t.Errorf("macvlan alias = %q, want ze:owned:redund", got)
+	}
+}
+
+// TestReconcileDeletesOrphanAliasedMacvlan proves the orphan scan deletes an
+// aliased macvlan with no registration and leaves an UNaliased macvlan alone.
+//
+// VALIDATES: AC-4 + R-2 -- deletion requires BOTH kind macvlan AND the
+// "ze:owned:" alias; an operator's unaliased macvlan is never touched.
+// PREVENTS: leaking owned devices after a crash / owner release, and destroying
+// an operator's own macvlan.
+func TestReconcileDeletesOrphanAliasedMacvlan(t *testing.T) {
+	resetAddressOwners(t)
+	resetDeviceOwners(t)
+	fb := &fakeBackend{ifaces: map[string]fakeIface{
+		"zv4-9-1": {name: "zv4-9-1", linkType: zeTypeMacvlan, alias: "ze:owned:redund"},
+		"opmv0":   {name: "opmv0", linkType: zeTypeMacvlan}, // operator device, no alias
+	}}
+
+	errs, deferred := reconcileOnReady(&ifaceConfig{}, fb)
+	if len(errs) != 0 || deferred {
+		t.Fatalf("reconcileOnReady = (%v, %v), want (nil, false)", errs, deferred)
+	}
+	if !fb.deleted["zv4-9-1"] {
+		t.Error("orphan aliased macvlan should be deleted")
+	}
+	if fb.deleted["opmv0"] {
+		t.Error("operator's unaliased macvlan must NOT be deleted")
+	}
+}
+
+// TestReconcileReassertsDriftedMacvlan proves a drifted owned macvlan (MAC
+// changed out of band) is deleted and recreated to spec in the same pass.
+//
+// VALIDATES: AC-10 -- MAC drift on a registered owned macvlan -> delete +
+// recreate.
+// PREVENTS: an owned device silently keeping an out-of-band MAC.
+func TestReconcileReassertsDriftedMacvlan(t *testing.T) {
+	resetAddressOwners(t)
+	resetDeviceOwners(t)
+	// Existing owned macvlan with the WRONG MAC; parent absent so only MAC +
+	// alias are compared (parent/MTU drift guarded on parent resolvability).
+	fb := &fakeBackend{ifaces: map[string]fakeIface{
+		"zv4-2-10": {name: "zv4-2-10", linkType: zeTypeMacvlan, alias: "ze:owned:redund", mac: "00:00:5e:00:01:ff"},
+	}}
+	if err := RegisterOwnedMacvlan("redund", MacvlanSpec{Name: "zv4-2-10", Parent: "eth0", MAC: "00:00:5e:00:01:0a"}); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	errs, deferred := reconcileOnReady(&ifaceConfig{}, fb)
+	if len(errs) != 0 || deferred {
+		t.Fatalf("reconcileOnReady = (%v, %v), want (nil, false)", errs, deferred)
+	}
+	if !fb.deleted["zv4-2-10"] {
+		t.Error("drifted macvlan should be deleted")
+	}
+	if got := fb.macvlans["zv4-2-10"].MAC; got != "00:00:5e:00:01:0a" {
+		t.Errorf("recreated macvlan MAC = %q, want the spec MAC 00:00:5e:00:01:0a", got)
+	}
+}
+
+// TestReconcileAdoptsUnmarkedRegisteredMacvlan proves that a macvlan holding a
+// REGISTERED name but missing the ownership alias (the crash window between
+// LinkAdd and LinkSetAlias -- the kernel ignores IFLA_IFALIAS at create, A-2
+// fallback) is adopted: deleted and recreated to spec with the alias set,
+// instead of failing closed forever.
+//
+// VALIDATES: A-2 fallback ("orphan scan additionally tolerates a missing alias
+// on an exactly-registered name (adopt + re-mark)").
+// PREVENTS: a crash between create and alias-set permanently blocking the
+// registration with a name-conflict error.
+func TestReconcileAdoptsUnmarkedRegisteredMacvlan(t *testing.T) {
+	resetAddressOwners(t)
+	resetDeviceOwners(t)
+	fb := &fakeBackend{ifaces: map[string]fakeIface{
+		// Correct spec but NO alias: exactly what a crash between LinkAdd and
+		// LinkSetAlias leaves behind.
+		"zv4-2-10": {name: "zv4-2-10", linkType: zeTypeMacvlan, mac: "00:00:5e:00:01:0a"},
+	}}
+	if err := RegisterOwnedMacvlan("redund", MacvlanSpec{Name: "zv4-2-10", Parent: "eth0", MAC: "00:00:5e:00:01:0a"}); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	errs, deferred := reconcileOnReady(&ifaceConfig{}, fb)
+	if len(errs) != 0 || deferred {
+		t.Fatalf("reconcileOnReady = (%v, %v), want (nil, false) -- must adopt, not fail closed", errs, deferred)
+	}
+	if !fb.deleted["zv4-2-10"] {
+		t.Error("unmarked registered macvlan should be deleted for re-mark")
+	}
+	if got := fb.macvlans["zv4-2-10"].Alias; got != "ze:owned:redund" {
+		t.Errorf("recreated macvlan alias = %q, want ze:owned:redund", got)
+	}
+}
+
+// TestReconcileFailsClosedOnForeignKindHoldingRegisteredName proves a
+// NON-macvlan device occupying a registered name is never deleted: the pass
+// records an error and aborts (fail closed, R-2).
+func TestReconcileFailsClosedOnForeignKindHoldingRegisteredName(t *testing.T) {
+	resetAddressOwners(t)
+	resetDeviceOwners(t)
+	fb := &fakeBackend{ifaces: map[string]fakeIface{
+		"zv4-2-10": {name: "zv4-2-10", linkType: "dummy"},
+	}}
+	if err := RegisterOwnedMacvlan("redund", MacvlanSpec{Name: "zv4-2-10", Parent: "eth0", MAC: "00:00:5e:00:01:0a"}); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	errs, _ := reconcileOnReady(&ifaceConfig{}, fb)
+	if len(errs) == 0 {
+		t.Fatal("pass must record an error for a foreign kind holding a registered name")
+	}
+	if fb.deleted["zv4-2-10"] {
+		t.Error("a non-macvlan device must NEVER be deleted by the owned-device pass")
+	}
+}
+
+// TestSharedTriggerServesBothRegistries proves one reconcile trigger wiring
+// serves BOTH the owned-device and the owned-address registry: a device
+// mutation and an address mutation each provoke a pass whose effects the fake
+// backend observes.
+//
+// VALIDATES: A-6 -- shared registryReconcileCh worker reconciles both
+// registries from snapshots; no second channel needed.
+// PREVENTS: a registry mutation that never reaches the kernel because only the
+// other registry's trigger was wired.
+func TestSharedTriggerServesBothRegistries(t *testing.T) {
+	resetAddressOwners(t)
+	resetDeviceOwners(t)
+	fb := setupFakeBackendForTest(t)
+	fb.ifaces["eth0"] = fakeIface{name: "eth0", linkType: "ethernet", index: 2, mtu: 1500}
+
+	var activeCfg atomic.Pointer[ifaceConfig]
+	activeCfg.Store(&ifaceConfig{})
+	shared := func() { reconcileOnRegistryChange(&activeCfg) }
+	setAddressOwnerReconcileTrigger(shared)
+	setDeviceOwnerReconcileTrigger(shared)
+	t.Cleanup(func() {
+		setAddressOwnerReconcileTrigger(nil)
+		setDeviceOwnerReconcileTrigger(nil)
+	})
+
+	// Device mutation via the shared trigger -> device created.
+	if err := RegisterOwnedMacvlan("redund", MacvlanSpec{Name: "zv4-2-10", Parent: "eth0", MAC: "00:00:5e:00:01:0a"}); err != nil {
+		t.Fatalf("register macvlan: %v", err)
+	}
+	if _, ok := fb.macvlans["zv4-2-10"]; !ok {
+		t.Error("device mutation through the shared trigger did not create the macvlan")
+	}
+
+	// Address mutation via the shared trigger -> address installed on eth0.
+	if err := RegisterOwnedAddresses("eth0", "redund", []string{"192.0.2.9/32"}); err != nil {
+		t.Fatalf("register address: %v", err)
+	}
+	found := false
+	for _, a := range fb.addrs["eth0"] {
+		if a == "192.0.2.9/32" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("address mutation through the shared trigger did not install the address; addrs=%v", fb.addrs["eth0"])
+	}
+}
+
+// TestOwnedMacvlanMatchesSpec_ModeDrift proves the reconcile drift check treats
+// a macvlan in the wrong delivery mode as drift (so VRRP's private-mode device
+// is re-created if found as bridge), while an unknown/absent mode is tolerated.
+func TestOwnedMacvlanMatchesSpec_ModeDrift(t *testing.T) {
+	desired := MacvlanSpec{Name: "zv4-2-10", Parent: "eth0", MAC: "00:00:5e:00:01:0a", Mode: MacvlanModePrivate, Alias: "ze:owned:vrrp"}
+	base := InterfaceInfo{MAC: "00:00:5e:00:01:0a", Alias: "ze:owned:vrrp"}
+
+	priv := base
+	priv.MacvlanMode = "private"
+	if !ownedMacvlanMatchesSpec(priv, desired, nil) {
+		t.Error("private device matching a private spec should NOT be drift")
+	}
+
+	bridge := base
+	bridge.MacvlanMode = "bridge"
+	if ownedMacvlanMatchesSpec(bridge, desired, nil) {
+		t.Error("bridge device for a private spec MUST be drift (re-create)")
+	}
+
+	unknown := base // MacvlanMode == "" (backend did not report it)
+	if !ownedMacvlanMatchesSpec(unknown, desired, nil) {
+		t.Error("unknown mode must be tolerated, not force a needless re-create")
+	}
+}

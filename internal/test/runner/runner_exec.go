@@ -811,6 +811,23 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// not start (and race on the client buffers) before this one finishes.
 			lastQuickZeErr = awaitQuickZe(proc, &quickStdout, &quickStderr, &clientStdout, &clientStderr)
 			quickZeRan = true
+			// Assert this command's own exit code when the test declared one.
+			// The file-level expect=exit:code= below can only ever check the
+			// LAST quick ze command (it compares one value against
+			// lastQuickZeErr), so a file running several validations needs
+			// exit= per command to assert the earlier ones at all.
+			if cmd.ExitCode != nil {
+				actual := 0
+				var exitErr *exec.ExitError
+				if errors.As(lastQuickZeErr, &exitErr) {
+					actual = exitErr.ExitCode()
+				}
+				if actual != *cmd.ExitCode {
+					rec.Error = fmt.Errorf("cmd seq=%d (%s): expected exit code %d, got %d", cmd.Seq, cmd.Exec, *cmd.ExitCode, actual)
+					rec.FailureType = "exit_code_mismatch"
+					return false
+				}
+			}
 			continue // Already finished, don't track for cleanup
 		default:
 			// Foreground daemon (ze): start but don't wait - we wait for peer instead

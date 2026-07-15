@@ -26,6 +26,10 @@ type ifaceMetrics struct {
 	txErrors  metrics.GaugeVec
 	rxDropped metrics.GaugeVec
 	txDropped metrics.GaugeVec
+	// ownedDevices counts plugin-owned devices (macvlan) per owner. Updated
+	// by the owned-device registry (device_owner.go) on register/unregister
+	// and by the reconcile device pass.
+	ownedDevices metrics.GaugeVec
 }
 
 var ifaceMetricsPtr atomic.Pointer[ifaceMetrics]
@@ -35,18 +39,19 @@ func bindMetricsRegistry(reg metrics.Registry) {
 		return
 	}
 	m := &ifaceMetrics{
-		rxBps:     reg.GaugeVec("ze_interface_rx_bytes_per_second", "Interface RX bytes per second", []string{"name"}),
-		txBps:     reg.GaugeVec("ze_interface_tx_bytes_per_second", "Interface TX bytes per second", []string{"name"}),
-		rxPps:     reg.GaugeVec("ze_interface_rx_packets_per_second", "Interface RX packets per second", []string{"name"}),
-		txPps:     reg.GaugeVec("ze_interface_tx_packets_per_second", "Interface TX packets per second", []string{"name"}),
-		rxBytes:   reg.GaugeVec("ze_interface_rx_bytes_total", "Interface total RX bytes (raw kernel counter)", []string{"name"}),
-		txBytes:   reg.GaugeVec("ze_interface_tx_bytes_total", "Interface total TX bytes (raw kernel counter)", []string{"name"}),
-		rxPackets: reg.GaugeVec("ze_interface_rx_packets_total", "Interface total RX packets (raw kernel counter)", []string{"name"}),
-		txPackets: reg.GaugeVec("ze_interface_tx_packets_total", "Interface total TX packets (raw kernel counter)", []string{"name"}),
-		rxErrors:  reg.GaugeVec("ze_interface_rx_errors_total", "Interface total RX errors (raw kernel counter)", []string{"name"}),
-		txErrors:  reg.GaugeVec("ze_interface_tx_errors_total", "Interface total TX errors (raw kernel counter)", []string{"name"}),
-		rxDropped: reg.GaugeVec("ze_interface_rx_dropped_total", "Interface total RX dropped (raw kernel counter)", []string{"name"}),
-		txDropped: reg.GaugeVec("ze_interface_tx_dropped_total", "Interface total TX dropped (raw kernel counter)", []string{"name"}),
+		rxBps:        reg.GaugeVec("ze_interface_rx_bytes_per_second", "Interface RX bytes per second", []string{"name"}),
+		txBps:        reg.GaugeVec("ze_interface_tx_bytes_per_second", "Interface TX bytes per second", []string{"name"}),
+		rxPps:        reg.GaugeVec("ze_interface_rx_packets_per_second", "Interface RX packets per second", []string{"name"}),
+		txPps:        reg.GaugeVec("ze_interface_tx_packets_per_second", "Interface TX packets per second", []string{"name"}),
+		rxBytes:      reg.GaugeVec("ze_interface_rx_bytes_total", "Interface total RX bytes (raw kernel counter)", []string{"name"}),
+		txBytes:      reg.GaugeVec("ze_interface_tx_bytes_total", "Interface total TX bytes (raw kernel counter)", []string{"name"}),
+		rxPackets:    reg.GaugeVec("ze_interface_rx_packets_total", "Interface total RX packets (raw kernel counter)", []string{"name"}),
+		txPackets:    reg.GaugeVec("ze_interface_tx_packets_total", "Interface total TX packets (raw kernel counter)", []string{"name"}),
+		rxErrors:     reg.GaugeVec("ze_interface_rx_errors_total", "Interface total RX errors (raw kernel counter)", []string{"name"}),
+		txErrors:     reg.GaugeVec("ze_interface_tx_errors_total", "Interface total TX errors (raw kernel counter)", []string{"name"}),
+		rxDropped:    reg.GaugeVec("ze_interface_rx_dropped_total", "Interface total RX dropped (raw kernel counter)", []string{"name"}),
+		txDropped:    reg.GaugeVec("ze_interface_tx_dropped_total", "Interface total TX dropped (raw kernel counter)", []string{"name"}),
+		ownedDevices: reg.GaugeVec("ze_iface_owned_devices", "Plugin-owned devices (macvlan) per owner", []string{"owner"}),
 	}
 	ifaceMetricsPtr.Store(m)
 }

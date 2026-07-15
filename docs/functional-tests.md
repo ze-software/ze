@@ -114,11 +114,32 @@ Docker form needs host-kernel `/dev/ppp` + `pppoe`; on macOS or any host without
 it, `make ze-qemu-pppoe-accel-test` runs the same proof in a QEMU netns
 (`scripts/evidence/effective-pppoe-accel.py`) using the runtime kernel built by
 `make ze-kernel`. See `docs/labs/pppoe-interop.md`.
+`make ze-qemu-vrrp-keepalived-test` runs the VRRP interop lab: Ze's VRRP against
+a real [keepalived](https://keepalived.org/) (the Alpine `keepalived` package,
+v2.3.1) on one L2 segment. Three network namespaces (Ze, keepalived, and a
+passive observer) are bridged in a fourth, so the observer sees flooded
+multicast and can prove the virtual IP moves at layer 2 and not merely in a log.
+It proves RFC 9568 VRRPv3 election, failover on node death, the prio-0 graceful
+stop, and that keepalived accepts Ze's advert format. Unlike the L2TP and PPPoE
+labs it needs no `make ze-kernel`: the stock Alpine kernel already provides
+macvlan, bridge and veth (probed 2026-07-15), so the target runs standalone.
+Keepalived state is read from its `notify_*` markers and every timing assertion
+is measured from tcpdump wire timestamps against the acceptance bands in
+`plan/spec-vrrp-6-interop.md`, never from wall clock.
+
+The Linux-only VRRP runtime `.ci` tests carry `option=needs-linux`: they SKIP on
+darwin (the `interface` plugin cannot manage devices there, which cascades into
+the vrrp plugin failing at stage Init) and run as root under
+`make ze-qemu-needs-linux-test`, where `test/vrrp` is in the QEMU suite list.
+
 <!-- source: internal/test/cli/register.go -- subcommand registry -->
 <!-- source: internal/test/cli/cmd_bgp.go -- chaos-web suite -->
 <!-- source: Makefile -- ze-linux-test -->
 <!-- source: scripts/evidence/effective-verify.sh -- clean Docker ze-verify evidence -->
 <!-- source: scripts/evidence/effective-l2tp-ppp.py -- full L2TP PPP/NCP peer evidence -->
+<!-- source: scripts/evidence/effective-vrrp-keepalived.py -- VRRP vs keepalived interop evidence -->
+<!-- source: mk/test-integration.mk -- ze-qemu-vrrp-keepalived-test -->
+<!-- source: scripts/evidence/qemu-all-tests.sh -- vrrp suite in the QEMU needs-linux run -->
 
 ---
 
@@ -179,6 +200,7 @@ and name, plus periodic progress while tests are still running.
 | Static | `ze-test static` | `test/static/*.ci` | Exercises static route installation and reload add/remove behavior. |
 | Traffic | `ze-test traffic` | `test/traffic/*.ci` | Exercises traffic-control configuration and daemon behavior. |
 | Flow export | `ze-test flow-export` | `test/flow-export/*.ci` | Exercises sFlow, NetFlow, and IPFIX export behavior. |
+| VRRP | `ze-test vrrp` | `test/vrrp/*.ci` | Exercises the vrrp YANG augment under interface units, the plugin's cross-leaf verifier (mandatory vrid and its 1..255 range, duplicate vrid or virtual-address per unit+family, the operator-assigned priority 255 rejection, the version-dependent interval encodings, accept-mode as VRRPv3-only, the IPv6 first-address link-local rule, and the VPP backend rejection), and the doctor/explain surface. Each command asserts its own exit code via `cmd=...:exit=N`, because `expect=exit:code=` only ever reaches a file's last quick-exit `ze` command. Tests that boot a daemon carry `option=needs-linux` and run only under QEMU. |
 | VPP | `ze-test vpp` | `test/vpp/*.ci` | Runs stub-backed VPP scenarios and checks the stub request log. |
 | L2TP wire | `ze-test l2tp-wire` | `test/l2tp-wire/*.ci` | Exercises L2TP wire-level encode/decode and malformed-packet handling. |
 | IS-IS wire | `ze-test isis-wire` | `test/isis-wire/*.ci` | Exercises IS-IS wire-level decode and malformed-PDU handling. |

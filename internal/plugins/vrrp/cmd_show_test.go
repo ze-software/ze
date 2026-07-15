@@ -1,0 +1,131 @@
+// Design: plan/spec-vrrp-5-plugin.md -- show/clear command tests
+//
+// VALIDATES: AC-8 (show payload shapes + interface selector), AC-9 (clear
+// resets counters without touching state).
+// PREVENTS: the CommandDecl list and the dispatch switch drifting apart (a
+// declared command that answers nothing), and a selector-less interface view
+// silently returning every instance.
+
+package vrrp
+
+import (
+	"testing"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+)
+
+// TestCommandDeclsMatchDispatch proves every declared command is answered.
+//
+// The SDK declaration and the handler switch are two lists of the same strings;
+// nothing but a test stops one from growing without the other, and the symptom
+// would be a command that exists in the CLI and errors at runtime.
+func TestCommandDeclsMatchDispatch(t *testing.T) {
+	eng, _ := newTestEngine(t)
+	for _, decl := range commandDecls() {
+		args := []string(nil)
+		if decl.Name == cmdShowVRRPInterface {
+			args = []string{"name", "eth0"} // this one requires a selector
+		}
+		status, payload, err := handleCommand(eng, decl.Name, args)
+		if err != nil {
+			t.Errorf("declared command %q returned an error: %v", decl.Name, err)
+			continue
+		}
+		if status != rpc.StatusDone {
+			t.Errorf("declared command %q returned status %q, want %q", decl.Name, status, rpc.StatusDone)
+		}
+		if payload == nil {
+			t.Errorf("declared command %q returned no payload", decl.Name)
+		}
+	}
+}
+
+// TestHandleUnknownCommand proves an undeclared command is refused, not
+// silently answered with an empty result.
+func TestHandleUnknownCommand(t *testing.T) {
+	eng, _ := newTestEngine(t)
+	status, _, err := handleCommand(eng, "show vrrp nonsense", nil)
+	if err == nil {
+		t.Fatal("unknown command must return an error")
+	}
+	if status != rpc.StatusError {
+		t.Errorf("status = %q, want %q", status, rpc.StatusError)
+	}
+}
+
+// TestShowInterfaceRequiresSelector proves the typed selector is mandatory: a
+// missing name must fail loudly rather than dumping every interface's state.
+func TestShowInterfaceRequiresSelector(t *testing.T) {
+	eng, _ := newTestEngine(t)
+	if _, _, err := handleCommand(eng, cmdShowVRRPInterface, nil); err == nil {
+		t.Fatal("show vrrp interface without a selector must error")
+	}
+}
+
+// TestSelectorValue pins the grammar `show vrrp interface name <name>`
+// (ai/rules/cli-grammar.md: a typed keyword before any free-form value).
+func TestSelectorValue(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"typed selector", []string{"name", "eth0"}, "eth0"},
+		{"bare value from a programmatic sender", []string{"eth0"}, "eth0"},
+		{"no args", nil, ""},
+		{"keyword with no value", []string{"name"}, ""},
+		{"interface literally named name", []string{"name", "name"}, "name"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := selectorValue(tc.args); got != tc.want {
+				t.Fatalf("selectorValue(%v) = %q, want %q", tc.args, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestShowInterfaceFiltersToOneParent proves the selector actually filters.
+func TestShowInterfaceFiltersToOneParent(t *testing.T) {
+	eng, _ := newTestEngine(t)
+	eth0 := testSpec()
+	eth1 := testSpec()
+	eth1.Interface = "eth1"
+	eng.apply([]GroupSpec{eth0, eth1})
+
+	views := eng.snapshotsForInterface("eth1")
+	if len(views) != 1 || views[0].Interface != "eth1" {
+		t.Fatalf("interface selector must return only eth1's instances, got %+v", views)
+	}
+}
+
+// TestClearStatisticsPreservesState proves `clear vrrp statistics` zeroes
+// counters without perturbing the protocol: an operator clearing counters must
+// never trigger a failover.
+func TestClearStatisticsPreservesState(t *testing.T) {
+	eng, _ := newTestEngine(t)
+	spec := testSpec()
+	spec.IsOwner = true // becomes Master at startup
+	eng.apply([]GroupSpec{spec})
+
+	before := eng.snapshots()
+	if len(before) != 1 {
+		t.Fatalf("instances = %d, want 1", len(before))
+	}
+
+	if cleared := eng.clearStatistics(); cleared != 1 {
+		t.Errorf("cleared = %d, want 1", cleared)
+	}
+
+	after := eng.snapshots()
+	if len(after) != 1 || after[0].State != before[0].State {
+		t.Fatalf("clear changed state %q -> %q; counters only", before[0].State, after[0].State)
+	}
+	stats := eng.statistics()
+	if len(stats) != 1 {
+		t.Fatalf("statistics = %d, want 1", len(stats))
+	}
+	if stats[0].PriorityZeroSent != 0 || stats[0].PriorityZeroReceived != 0 {
+		t.Errorf("priority-zero counters not cleared: %+v", stats[0])
+	}
+}

@@ -25,7 +25,7 @@
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-deployment-pppoe-accel-docker-test
 .PHONY: ze-docker-evidence ze-deployment-preflight
-.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-qemu-traffic-usage-test ze-vpp-hugepages-qemu-test ze-install-qemu-test ze-install-iso-qemu-test ze-install-scenarios-qemu-test ze-install-ventoy-qemu-test ze-qemu-all-test ze-qemu-needs-linux-test
+.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-qemu-vrrp-keepalived-test ze-qemu-traffic-usage-test ze-vpp-hugepages-qemu-test ze-install-qemu-test ze-install-iso-qemu-test ze-install-scenarios-qemu-test ze-install-ventoy-qemu-test ze-qemu-all-test ze-qemu-needs-linux-test
 
 # ─── Interop ────────────────────────────────────────────────────────────────
 
@@ -428,6 +428,24 @@ ze-qemu-pppoe-accel-test:
 		--packages "accel-ppp ppp iproute2 iputils-ping kmod python3" \
 		--run 'python3 scripts/evidence/effective-pppoe-accel.py' \
 		--timeout 600
+
+# VRRP interop: ze's VRRP vs a real keepalived on one L2 segment (spec-vrrp-6).
+# Three netns (ze / keepalived / observer) bridged in a fourth, so the observer
+# sees flooded multicast and can prove the VIP moves at L2, not just in a log.
+#
+# No --kernel here, unlike the l2tp/pppoe labs above: those need CONFIG_PPPOE /
+# CONFIG_PPPOL2TP, which the stock Alpine kernel lacks. VRRP needs only macvlan,
+# bridge and veth, and the stock Alpine 6.12.13-0-virt kernel has all three
+# (probed 2026-07-15: dummy/macvlan-bridge-mode/bridge/veth/netns all create
+# cleanly). Staying on the stock kernel keeps this target runnable without a
+# ~30-minute `make ze-kernel` build first, matching the isis-frr/ldp-frr labs.
+# keepalived comes from Alpine community (v2.3.1, built with VRRP + VRRP_VMAC).
+ze-qemu-vrrp-keepalived-test:
+	@echo "Running VRRP-vs-keepalived interop test in QEMU Linux VM (installs keepalived)..."
+	python3 scripts/evidence/qemu-run.py \
+		--packages "keepalived tcpdump iproute2 iputils-ping kmod python3" \
+		--run 'python3 scripts/evidence/effective-vrrp-keepalived.py' \
+		--timeout 900
 
 # Exercises the traffic-usage eBPF TCX programs against ze's own runtime kernel
 # (built from runtime.config with CONFIG_BPF_SYSCALL/CONFIG_BPF_JIT/CONFIG_VETH).

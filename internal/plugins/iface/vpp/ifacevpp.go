@@ -296,6 +296,16 @@ func (b *vppBackendImpl) CreateBridge(name string) error {
 	return nil
 }
 
+// CreateMacvlanDevice is rejected on the VPP backend: plugin-owned macvlan
+// devices are a netlink-backend mechanism, and VPP has its own dataplane model
+// for owned devices that is not yet wired. Per ai/rules/exact-or-reject.md this
+// fails closed with an actionable error rather than silently approximating the
+// device on netlink. (VPP-native support for this mechanism is tracked
+// separately, out of this pass.)
+func (b *vppBackendImpl) CreateMacvlanDevice(spec iface.MacvlanSpec) error {
+	return fmt.Errorf("ifacevpp: CreateMacvlanDevice(%q) not supported on VPP backend (owned macvlan devices require the netlink backend; VPP-native support is tracked separately)", spec.Name)
+}
+
 func (b *vppBackendImpl) CreateVLAN(spec iface.VLANSpec) error {
 	if spec.VLANID < 1 || spec.VLANID > 4094 {
 		return fmt.Errorf("ifacevpp: VLAN ID %d out of range (1-4094)", spec.VLANID)

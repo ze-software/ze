@@ -374,6 +374,11 @@ func runEngine(conn net.Conn) int {
 		}
 	}()
 	setAddressOwnerReconcileTrigger(func() { nonBlockingNotify(registryReconcileCh) })
+	// The owned-device registry (device_owner.go) shares the SAME reconcile
+	// channel and worker: reconcileOnReadyWithJournal reconciles BOTH
+	// registries from snapshots on every pass, so one worker serves both and a
+	// second channel would add interleaving without adding freshness.
+	setDeviceOwnerReconcileTrigger(func() { nonBlockingNotify(registryReconcileCh) })
 	go func() {
 		defer close(linkWorkerDone)
 		for ev := range linkEventCh {
@@ -489,6 +494,24 @@ func runEngine(conn net.Conn) int {
 					case linkEventCh <- linkEvent{name: ev.Name, up: true}:
 					default: // non-blocking: drop if buffer full (transient overload)
 					}
+					// A registered owned-macvlan parent coming up re-triggers a
+					// reconcile pass so a device whose earlier create failed
+					// (parent was absent) is retried with no plugin calls.
+					if isRegisteredMacvlanParent(ev.Name) {
+						nonBlockingNotify(registryReconcileCh)
+					}
+				}
+			})),
+			// A registered owned-macvlan parent APPEARING (first RTM_NEWLINK)
+			// re-triggers a reconcile pass so the device is created once its
+			// parent exists (holo bug 12: fire-and-forget create replaced by an
+			// event-driven retry). No I/O in the handler -- it only signals.
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventCreated, events.AsString(func(data string) {
+				var ev struct {
+					Name string `json:"name"`
+				}
+				if err := json.Unmarshal([]byte(data), &ev); err == nil && ev.Name != "" && isRegisteredMacvlanParent(ev.Name) {
+					nonBlockingNotify(registryReconcileCh)
 				}
 			})),
 			// IPv6 router discovery events from netlink neighbor monitor.

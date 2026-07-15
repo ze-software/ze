@@ -1,0 +1,16 @@
+# keepalived VRRP daemon for interoperability testing.
+# Alpine ships keepalived in its community repository (v2.3.1, built with
+# VRRP + VRRP_VMAC, verified 2026-07-15).
+#
+# iproute2 is present so a check.py can read the container's interface and
+# neighbour state (`ip -j addr`, `ip -j neigh`) over `docker exec`, which is how
+# a scenario proves the virtual IP actually moved rather than trusting a log.
+
+FROM alpine:3.21
+
+RUN apk add --no-cache keepalived iproute2 tini
+
+# -n foreground (tini reaps, docker sees the real process), -l log to stderr so
+# `docker logs` carries it, -D for protocol-level detail when a scenario fails.
+ENTRYPOINT ["tini", "--", "keepalived"]
+CMD ["-n", "-l", "-D", "-f", "/etc/keepalived/keepalived.conf"]

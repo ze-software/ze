@@ -358,6 +358,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-as112-redistribute-not-imported"},
 	},
 	{
+		Code:        "doctor-iface-macvlan",
+		Title:       "Kernel macvlan support unavailable",
+		Description: "The kernel cannot create a bridge-mode macvlan device (CONFIG_MACVLAN). ze's owned-device mechanism -- plugin-requested macvlan devices on a parent interface -- needs it; without CONFIG_MACVLAN those devices fail at apply. Enable CONFIG_MACVLAN or load the macvlan module. If the probe instead reports a permission failure, it lacked CAP_NET_ADMIN.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-iface-macvlan"},
+	},
+	{
 		Code:        "doctor-isis-raw-socket",
 		Title:       "IS-IS raw L2 socket unavailable",
 		Description: "IS-IS is configured but a raw AF_PACKET/SOCK_RAW socket cannot be opened. IS-IS runs directly over IEEE 802.3 frames (ISO/IEC 10589), so it needs CAP_NET_RAW or root; without it IS-IS cannot send or receive IIH/LSP/CSNP/PSNP PDUs and forms no adjacencies.",
@@ -374,6 +380,12 @@ var builtinCodes = []CodeMeta{
 		Title:       "OSPFv3 raw IPv6 socket unavailable",
 		Description: "OSPFv3 is configured but a raw IPv6 socket for protocol 89 (RFC 5340) cannot be opened. This requires CAP_NET_RAW or root; without it OSPFv3 cannot send or receive Hello, DD, LS Request, LS Update, or LS Ack packets.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-ospfv3-raw-socket"},
+	},
+	{
+		Code:        "doctor-vrrp-raw-socket",
+		Title:       "VRRP raw IP socket unavailable",
+		Description: "VRRP is configured but a raw IP socket for protocol 112 (RFC 9568 / RFC 3768) cannot be opened. VRRP advertisements are sent and received directly over IP protocol 112, so this requires CAP_NET_RAW or root; without it VRRP cannot send or receive advertisements and every group stays in Initialize (no failover). The transport also needs it for the gratuitous-ARP (AF_PACKET) and unsolicited-NA (raw ICMPv6) failover announcers.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-vrrp-raw-socket"},
 	},
 	{
 		Code:        "doctor-ospfv3-ipsec",

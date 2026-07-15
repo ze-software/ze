@@ -33,6 +33,7 @@ func init() {
 	registerCIRoot("static", "static", "static", "Run static route functional tests (.ci files in test/static/).\nCovers boot-time apply, reload add/remove, and show output.", 0)
 	registerCIRoot("traffic", "traffic", "traffic", "Run traffic-control functional tests (.ci files in test/traffic/).\nCovers component reactor wiring: boot-time apply and reload-time reapply.", 0)
 	registerCIRoot("ui", "ui", "UI", "Run UI functional tests (.ci files in test/ui/).\nTests config completion, editor CLI, and other UI-facing features.", 0)
+	registerCIRoot("vrrp", "vrrp", "VRRP", "Run VRRP functional tests (.ci files in test/vrrp/).\nCovers the vrrp YANG augment under interface units, the plugin's cross-leaf verifier (vrid, priority, per-version interval encodings, accept-mode, IPv6 first-address link-local, duplicate vrid/address, VPP backend rejection), and the show/doctor surfaces.", 0)
 
 	// Engine-step executor: spawned BY test daemons as an external plugin
 	// (plugin { external engine-steps { run "ze-test engine-steps ./engine-steps.json" } })

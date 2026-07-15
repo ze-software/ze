@@ -32,6 +32,21 @@ with this specific macOS host's socket stack allowing a second bind where the
 test expects exclusivity (a `SO_REUSEPORT`/dual-stack quirk). Owner: whoever
 next investigates macOS listener-probe test portability.
 
+### `internal/component/config/schema/cli` `TestCmdMethods` -- pre-existing, stale hardcoded RPC count
+
+Confirmed pre-existing 2026-07-15 by `git archive HEAD` into a scratch tree and
+running the test there: it fails identically on committed `HEAD`
+(`main_test.go:470: expected 13 system RPCs, got 14`), so the VRRP work did not
+cause it. The 14 `ze-system-api` RPCs are all generic daemon methods
+(`bin/ze schema methods`); none is VRRP.
+
+Cause: the test hardcodes per-module RPC counts, and a system RPC (the list now
+includes `ze-system:quiesce`) was added without updating the literal. Fix:
+update the count, or better, derive the expectation the way the rest of the
+inventory gates do (`ai/rules/derive-not-hardcode.md`) so the next added RPC
+does not break it. Owner: whichever session next touches
+`internal/component/config/schema/cli/main_test.go`.
+
 ### `config/cli` -- 3 tests fail, pre-existing (one root cause)
 
 Observed 2026-07-03, re-confirmed 2026-07-09:
@@ -162,6 +177,36 @@ modules.
 
 ## Harness notes (not failures)
 
+### `.ci` suites -- 108 quick-exit `ze` commands across 50 files are silently unasserted
+
+Found 2026-07-15 while building the vrrp suite. `expect=exit:code=` is
+**file-level**: `Record.ExpectExitCode` is a single value (`record_parse.go:486`
+-- a later line overwrites an earlier one) and `runOrchestrated` compares it
+against `lastQuickZeErr`, the exit status of only the **last** quick-exit `ze`
+command (`runner_exec.go:911-915`; the `case quickZe:` branch just stores the
+error and continues). A file running several `ze config validate` commands
+therefore asserts only the final one. Proven with a probe: a file whose `seq=1`
+ran a **valid** config (exit 0) under `expect=exit:code=1` **passed**.
+
+Stdout expectations are file-level in the same way (matched against accumulated
+output), so `expect=stdout:contains=` can be satisfied by a different command
+than intended -- e.g. two rejection cases both asserting `contains=vrid` are both
+satisfied by the first one's message.
+
+Fixed at the source for new tests: `cmd=...:exit=N` asserts a command's own exit
+code the moment it finishes (`ci-format.md` "Process Commands"). It is opt-in, so
+existing files are unaffected -- and consequently still unasserted.
+
+Worst offenders (`quick-ze` commands / unasserted): `test/ui/format-operators.ci`
+15/14, `test/ospf/ospf-config.ci` 7/6, `test/ospf/ospf-bfd-config.ci` 5/4,
+`test/ospf/ospf-virtual-link-config.ci` 5/4, `test/ospfv3/ospf-ipsec-config.ci`
+5/4, `test/ui/skills-list-get.ci` 5/4, `test/isis/isis-doctor.ci` 4/3.
+
+**Not yet swept:** arming the 108 belongs to the suites' owners -- it may surface
+real defects (a validation that never rejected what its test claimed). Re-measure
+with the script in the vrrp session, or by counting `cmd=foreground` quick-`ze`
+lines without `:exit=` in any file that has more than one.
+
 The full plugin suite shows load-induced flakiness under max parallelism -- e.g.
 `257`, `258`, `312` failed in one `--all` run but pass 3/3 in isolation. Running
 two full `--all` suites back-to-back melts down (resource exhaustion: ~50
@@ -180,6 +225,31 @@ memory pressure of the full parallel suite. textbuf passes 5/5 in isolation
 (`go test ./internal/core/textbuf/ -run TestPoolPreservesCapacityWithoutString
 -count=5`). Same non-deterministic class as learned 881. Triage in isolation;
 not a regression from an unrelated change.
+
+### `internal/component/iface` `TestIntegrationApplyConfigVLANUnitAddressReconcile` -- pre-existing, VLAN unit address change never applied on reload
+
+Confirmed pre-existing 2026-07-15 by `git archive HEAD` into a scratch tree and
+running the test there in the QEMU VM: it fails **identically** on committed
+`HEAD` (no VRRP work present), so `spec-vrrp-3-macvlan` did not cause it. Also
+reproduced with the new owned-device reconcile pass compiled out, and
+`config_apply.go`'s diff is purely additive (+143/-0), so the reconcile path is
+byte-identical to `HEAD` in that configuration.
+
+Symptom: `unit_integration_linux_test.go:133` -- after
+`applyConfig(current, previous, b)` swaps a VLAN unit's address from
+`10.60.200.1/24` to `10.60.200.2/24`, the new address is absent from
+`parent0.200`. The reload's `applyConfig` returns **no errors**, so the address
+loop believes it succeeded; the device itself survives (the `linkExists` check
+above passes). The initial apply and its `requireAddress` assertion both pass,
+so this is specific to the address-change-on-reload path for VLAN sub-interface
+units, not to unit creation.
+
+Fix owner: whichever session next works `internal/component/iface` VLAN unit
+reconcile (`config_apply.go` unit/address loops). Not fixed by the VRRP umbrella
+(`plan/spec-vrrp-0-umbrella.md`): unrelated code path, and VRRP's virtual
+addresses reach the kernel through the owner registry, which is covered by
+`registry_integration_linux_test.go` and the new
+`device_owner_integration_linux_test.go` and is green.
 
 ### `internal/component/l2tp` `TestPeerTeardownWithdrawsSubscriberRoute` -- genuine `-race` data race, load-sensitive
 

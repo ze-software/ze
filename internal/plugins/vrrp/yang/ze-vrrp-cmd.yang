@@ -1,0 +1,70 @@
+module ze-vrrp-cmd {
+    namespace "urn:ze:vrrp:cmd";
+    prefix vrrpcmd;
+
+    import ze-extensions    { prefix ze; }
+    import ze-types         { prefix zt; }
+    import ze-cli-show-cmd  { prefix clishowcmd; }
+    import ze-cli-clear-cmd { prefix cliclearcmd; }
+
+    description
+        "VRRP operational commands: virtual-router state, per-interface detail,
+         counters, and a counter reset. Owned by the vrrp plugin so that deleting
+         the plugin removes the commands, their schema, and their handlers
+         together (ai/rules/plugin-self-containment.md). The wire methods these
+         nodes bind are registered in cmd_show.go as plugin proxies.";
+
+    revision 2026-07-15 {
+        description "Initial revision (spec-vrrp-5).";
+    }
+
+    augment "/clishowcmd:show" {
+        container vrrp {
+            config false;
+            ze:command "ze-show:vrrp";
+            description "Show every VRRP virtual router: its group name, VRID, address
+family, state (initialize, backup, master), configured and effective priority,
+virtual addresses, and the macvlan device that carries the virtual MAC.";
+
+            container interface {
+                config false;
+                description "Show the VRRP virtual routers hosted on one interface";
+
+                container name {
+                    config false;
+                    ze:command "ze-show:vrrp-interface";
+                    description "Show the VRRP virtual routers on one parent interface.
+Pass the interface name: show vrrp interface name <interface>.";
+
+                    leaf value {
+                        type zt:node-name;
+                        description "Parent interface name";
+                    }
+                }
+            }
+
+            container statistics {
+                config false;
+                ze:command "ze-show:vrrp-statistics";
+                description "Show per-virtual-router counters: advertisements sent and
+received, priority-zero advertisements, gratuitous ARP and unsolicited neighbor
+advertisement bursts, receive-validation errors by reason, and the derived skew
+and master-down timers in microseconds (a VRRPv3 skew is sub-millisecond).";
+            }
+        }
+    }
+
+    augment "/cliclearcmd:clear" {
+        container vrrp {
+            config false;
+            description "Reset VRRP runtime counters";
+
+            container statistics {
+                config false;
+                ze:command "ze-clear:vrrp-statistics";
+                description "Reset every VRRP virtual router's counters to zero.
+Protocol state is untouched: clearing counters never triggers a failover.";
+            }
+        }
+    }
+}

@@ -85,6 +85,22 @@ def build_images(frr_image, no_build=False):
     if result.returncode != 0:
         print("  warning: GoBGP image build failed (GoBGP scenarios will fail)")
 
+    print("Building keepalived image...")
+    subprocess.run(
+        [
+            "docker",
+            "build",
+            "-t",
+            "keepalived-interop",
+            "-f",
+            os.path.join(SCRIPT_DIR, "Dockerfile.keepalived"),
+            SCRIPT_DIR,
+            "-q",
+        ],
+        check=True,
+        timeout=600,
+    )
+
     print("Pulling FRR image...")
     subprocess.run(
         ["docker", "pull", "-q", frr_image],

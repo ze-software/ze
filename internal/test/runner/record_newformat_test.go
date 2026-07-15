@@ -495,8 +495,12 @@ func TestNextMarker(t *testing.T) {
 
 // TestParseCmdExec verifies marker-based parsing of cmd=background/foreground lines.
 //
-// VALIDATES: parseCmdExec correctly extracts seq, exec (with colons), stdin, timeout.
-// PREVENTS: Colons in exec values being misinterpreted as field delimiters.
+// VALIDATES: parseCmdExec correctly extracts seq, exec (with colons), stdin,
+// timeout, and the per-command exit= assertion, in any marker order, rejecting
+// exit codes outside 0..255.
+// PREVENTS: Colons in exec values being misinterpreted as field delimiters, and
+// a malformed exit= being silently ignored -- which would leave the command
+// unasserted while the test still looked green.
 func TestParseCmdExec(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -552,6 +556,50 @@ func TestParseCmdExec(t *testing.T) {
 			mode:    "background",
 			line:    "cmd=background:seq=0:exec=something",
 			wantErr: "invalid seq=",
+		},
+		{
+			name: "exit_code",
+			mode: "foreground",
+			line: "cmd=foreground:seq=1:exec=ze config validate -:exit=1",
+			want: RunCommand{Mode: "foreground", Seq: 1, Exec: "ze config validate -", ExitCode: new(1)},
+		},
+		{
+			name: "exit_code_zero",
+			mode: "foreground",
+			line: "cmd=foreground:seq=1:exec=ze doctor:exit=0",
+			want: RunCommand{Mode: "foreground", Seq: 1, Exec: "ze doctor", ExitCode: new(0)},
+		},
+		{
+			name: "exit_code_with_stdin_and_timeout",
+			mode: "foreground",
+			line: "cmd=foreground:seq=2:exec=ze config validate -:stdin=cfg:timeout=60s:exit=1",
+			want: RunCommand{Mode: "foreground", Seq: 2, Exec: "ze config validate -", Stdin: "cfg", Timeout: "60s", ExitCode: new(1)},
+		},
+		{
+			// Marker order must not matter: exit= before stdin= must still
+			// terminate exec= and leave stdin= intact.
+			name: "exit_code_before_stdin",
+			mode: "foreground",
+			line: "cmd=foreground:seq=1:exec=ze config validate -:exit=1:stdin=cfg",
+			want: RunCommand{Mode: "foreground", Seq: 1, Exec: "ze config validate -", Stdin: "cfg", ExitCode: new(1)},
+		},
+		{
+			name:    "invalid_exit_not_a_number",
+			mode:    "foreground",
+			line:    "cmd=foreground:seq=1:exec=ze doctor:exit=yes",
+			wantErr: "invalid exit=",
+		},
+		{
+			name:    "invalid_exit_negative",
+			mode:    "foreground",
+			line:    "cmd=foreground:seq=1:exec=ze doctor:exit=-1",
+			wantErr: "invalid exit=",
+		},
+		{
+			name:    "invalid_exit_above_255",
+			mode:    "foreground",
+			line:    "cmd=foreground:seq=1:exec=ze doctor:exit=256",
+			wantErr: "invalid exit=",
 		},
 	}
 
