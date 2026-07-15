@@ -519,7 +519,7 @@ func transformStatus(ze map[string]any) map[string]any {
 
 // transformProtocols converts Ze peer summary to birdwatcher protocols format.
 func transformProtocols(ze map[string]any) map[string]any {
-	peers, _ := ze["peers"].([]any)
+	peers := summaryPeers(ze)
 
 	protocols := make(map[string]any)
 	for _, p := range peers {
@@ -528,9 +528,10 @@ func transformProtocols(ze map[string]any) map[string]any {
 			continue
 		}
 
+		addr := peerAddress(peer)
 		name := getStr(peer, "name")
 		if name == "" {
-			name = getStr(peer, "peer-address")
+			name = addr
 		}
 
 		received := getNum(peer, "routes-received")
@@ -542,7 +543,7 @@ func transformProtocols(ze map[string]any) map[string]any {
 			"bird_protocol":    name,
 			"state":            getStr(peer, "state"),
 			"state_changed":    getStr(peer, "state-changed"),
-			"neighbor_address": getStr(peer, "peer-address"),
+			"neighbor_address": addr,
 			"neighbor_as":      getNum(peer, "remote-as"),
 			"description":      getStr(peer, "description"),
 			"last_error":       getStr(peer, "last-error"),
@@ -552,7 +553,7 @@ func transformProtocols(ze map[string]any) map[string]any {
 			"routes_imported": accepted,
 			"routes_exported": sent,
 			"routes_filtered": filtered,
-			"uptime":          getNum(peer, "uptime"),
+			"uptime":          uptimeSeconds(peer),
 			// Nested routes object for Alice-LG.
 			"routes": map[string]any{
 				"imported":  accepted,
@@ -568,7 +569,7 @@ func transformProtocols(ze map[string]any) map[string]any {
 
 // transformProtocolsShort converts Ze peer summary to birdwatcher short protocols format.
 func transformProtocolsShort(ze map[string]any) map[string]any {
-	peers, _ := ze["peers"].([]any)
+	peers := summaryPeers(ze)
 
 	protocols := make(map[string]any)
 	for _, p := range peers {
@@ -579,7 +580,7 @@ func transformProtocolsShort(ze map[string]any) map[string]any {
 
 		name := getStr(peer, "name")
 		if name == "" {
-			name = getStr(peer, "peer-address")
+			name = peerAddress(peer)
 		}
 
 		protocols[name] = map[string]any{
@@ -772,6 +773,50 @@ func getStr(m map[string]any, key string) string {
 	default:
 		return ""
 	}
+}
+
+// summaryPeers extracts the peer rows from a "show bgp summary" response.
+//
+// handleBgpSummary wraps its payload in a "summary" envelope
+// (internal/component/bgp/plugins/cmd/peer/summary.go:152), so the rows live at
+// ze["summary"]["peers"]. The flat form is still accepted: parseJSON promotes a
+// bare JSON array to ze["peers"], and tests build maps that shape.
+// Mirrors the navigation in handler_ui.go.
+func summaryPeers(ze map[string]any) []any {
+	if summary, ok := ze["summary"].(map[string]any); ok {
+		if peers, ok := summary["peers"].([]any); ok {
+			return peers
+		}
+	}
+	peers, _ := ze["peers"].([]any)
+	return peers
+}
+
+// peerAddress returns a peer's IP. handleBgpSummary emits it as "address"
+// (summary.go:113); "peer-address" is accepted as a fallback for other
+// producers. Mirrors the fallback in handler_ui.go.
+func peerAddress(peer map[string]any) string {
+	if addr := getStr(peer, "address"); addr != "" {
+		return addr
+	}
+	return getStr(peer, "peer-address")
+}
+
+// uptimeSeconds returns a peer's uptime in seconds for the birdwatcher
+// "uptime" field, which Alice-LG reads as a number.
+//
+// The engine emits uptime as a Go duration string ("6m10s"), so getNum -- whose
+// type switch has no string case -- returned 0 for every real response. Parse
+// the duration here; numeric producers still pass straight through.
+func uptimeSeconds(peer map[string]any) float64 {
+	if s, ok := peer["uptime"].(string); ok {
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			return 0
+		}
+		return d.Seconds()
+	}
+	return getNum(peer, "uptime")
 }
 
 // getNum extracts a numeric value from a map, returning 0 if missing.

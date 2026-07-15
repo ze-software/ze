@@ -1,9 +1,130 @@
 package lg
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 )
+
+// realSummaryJSON is the exact payload handleBgpSummary emits, as
+// LGServer.query returns it: peers nested under a "summary" envelope, the peer
+// IP under "address" (not "peer-address"), and uptime as a Go duration string
+// (not a number).
+//
+// Producer: internal/component/bgp/plugins/cmd/peer/summary.go:112-152.
+// Keep this in sync with that handler -- it is the contract this transform
+// consumes in production.
+const realSummaryJSON = `{"summary":{` +
+	`"router-id":"10.0.0.1","local-as":65000,"uptime":"1h2m3s",` +
+	`"peers-configured":1,"peers-established":1,"peers":[{` +
+	`"address":"192.0.2.1","name":"peer1","description":"transit",` +
+	`"remote-as":65001,"peer-type":"external","state":"established",` +
+	`"uptime":"6m10s","updates-received":10,"updates-sent":5,` +
+	`"keepalives-received":100,"keepalives-sent":50,` +
+	`"eor-received":1,"eor-sent":1,"connections-dropped":0}]}}`
+
+// TestTransformProtocolsRealSummaryShape feeds transformProtocols the payload
+// the engine actually produces, rather than a hand-built map.
+//
+// VALIDATES: peers are found inside the "summary" envelope; the peer is keyed
+// and addressed from "address"; uptime is a number of seconds.
+// PREVENTS: the /api/looking-glass/protocols/bgp endpoint returning an empty
+// protocols map. transformProtocols read ze["peers"], but handleBgpSummary
+// returns {"summary":{"peers":[...]}}, so every peer was dropped and Alice-LG
+// saw no sessions at all.
+func TestTransformProtocolsRealSummaryShape(t *testing.T) {
+	var ze map[string]any
+	if err := json.Unmarshal([]byte(realSummaryJSON), &ze); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	bw := transformProtocols(ze)
+
+	protocols, ok := bw["protocols"].(map[string]any)
+	if !ok {
+		t.Fatal("missing protocols map")
+	}
+	if len(protocols) != 1 {
+		t.Fatalf("protocols has %d entries, want 1 (peers were dropped)", len(protocols))
+	}
+
+	peer, ok := protocols["peer1"].(map[string]any)
+	if !ok {
+		t.Fatal("missing peer1 in protocols")
+	}
+
+	if got, _ := peer["neighbor_address"].(string); got != "192.0.2.1" {
+		t.Errorf("neighbor_address = %q, want %q", got, "192.0.2.1")
+	}
+	if got, _ := peer["neighbor_as"].(float64); got != 65001 {
+		t.Errorf("neighbor_as = %v, want 65001", got)
+	}
+	// "6m10s" -> 370 seconds. Alice-LG expects a number, not the raw string.
+	if got, _ := peer["uptime"].(float64); got != 370 {
+		t.Errorf("uptime = %v, want 370", got)
+	}
+}
+
+// TestTransformProtocolsShortRealSummaryShape is the short-format counterpart.
+//
+// VALIDATES: the short protocols endpoint finds peers in the "summary" envelope.
+// PREVENTS: /api/looking-glass/protocols returning an empty map for the same
+// envelope reason as the full transform.
+func TestTransformProtocolsShortRealSummaryShape(t *testing.T) {
+	var ze map[string]any
+	if err := json.Unmarshal([]byte(realSummaryJSON), &ze); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	bw := transformProtocolsShort(ze)
+
+	protocols, ok := bw["protocols"].(map[string]any)
+	if !ok {
+		t.Fatal("missing protocols map")
+	}
+	if len(protocols) != 1 {
+		t.Fatalf("protocols has %d entries, want 1 (peers were dropped)", len(protocols))
+	}
+
+	peer, ok := protocols["peer1"].(map[string]any)
+	if !ok {
+		t.Fatal("missing peer1 in protocols")
+	}
+	if got, _ := peer["state"].(string); got != "established" {
+		t.Errorf("state = %q, want %q", got, "established")
+	}
+}
+
+// TestUptimeSecondsFormats verifies uptime coercion across both producer shapes.
+//
+// VALIDATES: Go duration strings convert to seconds; numeric input passes through.
+// PREVENTS: regressing to getNum's behavior, which had no string case and so
+// silently returned 0 for every real engine response.
+func TestUptimeSecondsFormats(t *testing.T) {
+	cases := []struct {
+		name string
+		in   any
+		want float64
+	}{
+		{"duration string", "6m10s", 370},
+		{"hours", "1h2m3s", 3723},
+		{"zero", "0s", 0},
+		{"numeric passthrough", float64(3600), 3600},
+		{"unparseable", "not-a-duration", 0},
+		{"missing", nil, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			peer := map[string]any{}
+			if tc.in != nil {
+				peer["uptime"] = tc.in
+			}
+			if got := uptimeSeconds(peer); got != tc.want {
+				t.Errorf("uptimeSeconds(%v) = %v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
 
 func TestTransformStatusFields(t *testing.T) {
 	// VALIDATES: birdwatcher status field mapping from ze JSON.
