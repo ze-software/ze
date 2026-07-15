@@ -6,7 +6,6 @@ package filter_remove_private_as
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"strconv"
 	"strings"
 )
@@ -111,17 +110,6 @@ func buildDirectiveDelta(mode removeMode, asPathValue string, asPathChanged bool
 	b.WriteByte(' ')
 	b.WriteString(mode.String())
 	return b.String()
-}
-
-func hasPrivateAS4Path(rawHex string) bool {
-	if rawHex == "" {
-		return false
-	}
-	payload, err := hex.DecodeString(rawHex)
-	if err != nil {
-		return false
-	}
-	return hasPrivateAS4PathPayload(payload)
 }
 
 func hasPrivateAS4PathPayload(payload []byte) bool {

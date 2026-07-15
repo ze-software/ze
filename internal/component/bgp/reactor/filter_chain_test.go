@@ -210,7 +210,7 @@ func TestPolicyFilterChainRawTerminal(t *testing.T) {
 	fn := func(_, filterName, _, _ string, _ uint32, _ string) PolicyResponse {
 		calls++
 		if filterName == "strip" {
-			return PolicyResponse{Action: PolicyModify, Raw: "00000000"}
+			return PolicyResponse{Action: PolicyModify, Raw: []byte{0, 0, 0, 0}}
 		}
 		return PolicyResponse{Action: PolicyAccept}
 	}
@@ -219,19 +219,20 @@ func TestPolicyFilterChainRawTerminal(t *testing.T) {
 		"origin igp", fn,
 	)
 	assert.Equal(t, PolicyModify, res.Action)
-	assert.Equal(t, "00000000", res.Raw)
+	assert.Equal(t, []byte{0, 0, 0, 0}, res.Raw)
 	assert.Equal(t, 1, calls) // raw rewrite is terminal: second filter never called
 }
 
-// TestDecodeFilterRawOverride verifies hex decoding and bounds rejection.
+// TestDecodeFilterRawOverride verifies the raw override bounds rejection
+// (rib-arch-2: the override is now raw []byte, not a hex string).
 //
-// VALIDATES: raw override decode rejects malformed/too-short bodies (fail-safe).
+// VALIDATES: raw override rejects nil/too-short bodies (fail-safe).
 // PREVENTS: a malformed raw response replacing the payload with garbage.
 func TestDecodeFilterRawOverride(t *testing.T) {
-	assert.Nil(t, decodeFilterRawOverride(""))     // empty
-	assert.Nil(t, decodeFilterRawOverride("zz"))   // not hex
-	assert.Nil(t, decodeFilterRawOverride("0000")) // 2 bytes < 4-byte minimum
-	assert.Equal(t, []byte{0, 0, 0, 0}, decodeFilterRawOverride("00000000"))
+	assert.Nil(t, decodeFilterRawOverride(nil))          // nil
+	assert.Nil(t, decodeFilterRawOverride([]byte{}))     // empty
+	assert.Nil(t, decodeFilterRawOverride([]byte{0, 0})) // 2 bytes < 4-byte minimum
+	assert.Equal(t, []byte{0, 0, 0, 0}, decodeFilterRawOverride([]byte{0, 0, 0, 0}))
 }
 
 // TestApplyFilterDelta verifies delta application.

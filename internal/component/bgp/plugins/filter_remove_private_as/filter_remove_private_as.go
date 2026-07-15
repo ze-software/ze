@@ -82,7 +82,7 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 
 	asPath := extractASPathField(in.Update)
 	rewritten, asPathChanged := rewriteASPathText(asPath, def.mode, in.PeerAS)
-	as4Changed := hasPrivateAS4Path(in.Raw)
+	as4Changed := hasPrivateAS4PathPayload(in.Raw)
 	if !asPathChanged && !as4Changed {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 	}

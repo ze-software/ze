@@ -1,7 +1,6 @@
 package filter_family
 
 import (
-	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,7 +17,7 @@ func setInstances(t *testing.T, m map[string]*familyFilter) {
 }
 
 func famInput(filter, direction string, body []byte) *sdk.FilterUpdateInput {
-	return &sdk.FilterUpdateInput{Filter: filter, Direction: direction, Raw: hex.EncodeToString(body)}
+	return &sdk.FilterUpdateInput{Filter: filter, Direction: direction, Raw: body}
 }
 
 func flowInstances() map[string]*familyFilter {
@@ -53,8 +52,9 @@ func TestHandleRemoveMixedStrips(t *testing.T) {
 	require.Equal(t, sdk.FilterModify, out.Action)
 	require.NotEmpty(t, out.Raw)
 
-	body, err := hex.DecodeString(out.Raw)
-	require.NoError(t, err)
+	// test-relax: out.Raw is now a raw []byte (rib-arch-2), not a hex string, so
+	// there is no decode step / decode-error to assert -- use the bytes directly.
+	body := out.Raw
 	hasMP := familyFromMPOnly(body)
 	assert.False(t, hasMP, "MP_REACH must be stripped")
 	assert.Equal(t, nlri, legacyNLRI(t, body), "legacy NLRI preserved")

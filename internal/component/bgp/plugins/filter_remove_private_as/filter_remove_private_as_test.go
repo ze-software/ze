@@ -2,7 +2,6 @@ package filter_remove_private_as
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"testing"
 
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -43,7 +42,7 @@ func TestRemovePrivateASFilterUpdateAS4Path(t *testing.T) {
 		Filter: "STRIP",
 		PeerAS: 65001,
 		Update: "origin igp as-path 23456",
-		Raw:    hex.EncodeToString(raw),
+		Raw:    raw,
 	})
 	if out.Action != sdk.FilterModify {
 		t.Fatalf("action = %v, want modify", out.Action)

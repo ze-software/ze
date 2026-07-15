@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1143 summaries
+Total: 1144 summaries
 
 ## 000-099
 
@@ -1212,3 +1212,4 @@ Total: 1143 summaries
 | 1124 | rib-arch-4: BGP Multipath ECMP to the FIB in Realtime | `plan/learned/1124-rib-arch-4-fib-ecmp-realtime.md` |
 | 1125 | rib-arch-5: RFC 9069 BMP Loc-RIB Monitoring (PeerType=3) | `plan/learned/1125-rib-arch-5-bmp-locrib.md` |
 | 1126 | rib-arch-7: LLGR Egress Filter on the Readvertise Rail | `plan/learned/1126-rib-arch-7-llgr-multipeer-readvertise.md` |
+| 1127 | rib-arch-2: Binary `[]byte` Raw Carrier for the Filter IPC | `plan/learned/1127-rib-arch-2-filter-raw-bytes.md` |

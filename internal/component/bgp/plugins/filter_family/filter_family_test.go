@@ -1,7 +1,6 @@
 package filter_family
 
 import (
-	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,7 +27,7 @@ func TestConfigureToHandlerEndToEnd(t *testing.T) {
 	out := handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter:    "NoFlow",
 		Direction: "import",
-		Raw:       hex.EncodeToString(buildUpdate(mpFlowReachAttr(), nil)),
+		Raw:       buildUpdate(mpFlowReachAttr(), nil),
 	})
 	assert.Equal(t, sdk.FilterReject, out.Action)
 }

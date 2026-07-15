@@ -8,10 +8,7 @@
 package filter_family
 
 import (
-	"encoding/hex"
-
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -42,8 +39,8 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
-	payload, err := hex.DecodeString(in.Raw)
-	if err != nil || len(payload) < 4 {
+	payload := in.Raw
+	if len(payload) < 4 {
 		logger().Debug("filter-family: missing/short raw body, accepting", "filter", in.Filter, "peer", in.Peer)
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 	}
@@ -85,5 +82,5 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 	logger().Info("filter-family remove (strip MP)", "filter", in.Filter, "peer", in.Peer, "family", fam.String())
-	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Raw: textbuf.StringHexUpper(newPayload)}
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Raw: newPayload}
 }

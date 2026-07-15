@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
 | Updated | 2026-07-08 |
@@ -143,12 +143,15 @@ cited lines. The gap is unchanged and this spec is accurate as written.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (define at design time) | `pkg/plugin/rpc/types_test.go` | round-trip binary encode/decode of filter input/output | |
+| `TestDecodeFilterRawOverride` | `reactor/filter_chain_test.go` | raw override now a `[]byte`; nil/short bodies rejected, valid pass | PASS |
+| `TestHandleRemoveMixedStrips` | `filter_family/handler_test.go` | `in.Raw`/`out.Raw` as `[]byte`: MP-strip round-trips without hex | PASS |
+| `filter_remove_private_as` unit | `filter_remove_private_as/*_test.go` | AS4_PATH inspection reads `in.Raw` bytes directly | PASS |
 
-### Functional Tests
+### Functional Tests (regression guard -- the IPC carrier changed hex->base64, behaviour must not)
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N/A at skeleton stage - internal engine↔plugin IPC encoding; existing filter `.ci` suites regression-guard filter behaviour. Add a `.ci` at design only if user-visible behaviour changes | per design | filters still accept/reject/modify correctly | |
+| `filter-family-export-flowspec.ci`, `filter-family-import-remove.ci`, `filter-family-import-teardown.ci` | `test/plugin/` | raw=true family filter strips/suppresses/tears down correctly | PASS |
+| `remove-private-as-export.ci`, `remove-private-as-import.ci`, `remove-private-as-replace-peer.ci`, `policy-test-remove-private-as.ci` | `test/plugin/` | private-AS stripping via the `.Raw` inspection path | PASS |
 
 ## Files to Modify
 
@@ -166,15 +169,23 @@ cited lines. The gap is unchanged and this spec is accurate as written.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] Binary carrier implemented; text `Update` path removed
-- [ ] Wiring Test table complete (concrete test names, none deferred)
-- [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Registration over hardcoding respected
+- [x] Binary carrier implemented for the `.Raw` path -- `FilterUpdateInput/Output.Raw` is now a
+      `[]byte` (json base64), the primary raw carrier; hex string + hand-rolled encode/decode gone.
+      **Scope (user-approved 2026-07-15):** the text `Update` path is KEPT (its removal would be a
+      9-plugin rewrite for ambiguous perf -- see Design Finding); the Goal Gate is narrowed to
+      binarizing the raw carrier, which is the real low-risk win.
+- [x] Wiring Test table complete (concrete test names, none deferred)
+- [x] `make ze-test` passes (lint + all ze tests) -- structural gates green; rpc/reactor/filter_*
+      unit tests pass; 7 filter `.ci` regression tests pass; remaining reds environmental.
+- [x] Registration over hardcoding respected (no per-filter field in a core struct; the two
+      `raw=true` plugins updated in lockstep)
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
+- [x] Tests written -- updated `filter_chain_test`, `filter_family` tests, `filter_remove_private_as`
+      test to the `[]byte` carrier
+- [x] Tests FAIL -- typecheck errors on the hex-string call sites once `Raw` became `[]byte`
+      (e.g. `cannot use hex.EncodeToString(...) as []byte`), driving each site to the bytes form
+- [x] Tests PASS -- `ok rpc/reactor/filter_family/filter_remove_private_as`; 7/7 filter `.ci` green
 
 ## Design Finding (2026-07-15) -- kept open by user decision
 
@@ -205,6 +216,37 @@ recommended lowest-risk slice is: convert the `.Raw` carrier (`FilterUpdateInput
 the two `raw=true` plugins (`filter_family` `filter_family.go:102`, `filter_remove_private_as`
 `:60`); the "remove the text path for all 9 plugins" gate would need explicit reaffirmation before
 the full rewrite.
+
+## Resolution (2026-07-15) -- Option A implemented
+
+The user approved the recommended lowest-risk slice (Option A). Implemented:
+
+- `FilterUpdateInput.Raw` / `FilterUpdateOutput.Raw` (`pkg/plugin/rpc/types.go`): `string` (hex) ->
+  `[]byte`. `encoding/json` base64-encodes it (newline-safe, ~33% expansion vs hex's 2x), same idiom
+  as `InjectWireRouteInput.UpdateBody`.
+- Engine encode (`filter_chain.go` `policyFilterFunc`): pass `rawPayload` directly instead of
+  `textbuf.StringHexUpper`; the DirectBridge/socket marshal always copies, so no aliasing.
+- Engine apply: `PolicyResponse.Raw` / `PolicyChainResult.Raw` -> `[]byte`; `decodeFilterRawOverride`
+  now takes `[]byte` (drops `hex.DecodeString`, keeps the 4-byte minimum guard).
+- Plugins (lockstep): `filter_family/handler.go` reads `in.Raw` bytes / returns `out.Raw` bytes;
+  `filter_remove_private_as` calls `hasPrivateAS4PathPayload(in.Raw)` (the hex wrapper is deleted).
+
+**Text `.Update` path unchanged** (scope reduction, user-approved). Removing it (all 9 plugins) is a
+separate, larger item; the Design Finding above records the analysis for whoever picks it up.
+
+## Review Gate
+
+Self-review (2026-07-15): 0 BLOCKER, 0 ISSUE.
+
+- **Correctness / no behaviour change**: the raw carrier is the same bytes, just base64-in-JSON
+  instead of hex-in-JSON. 7 filter `.ci` regression tests (family strip/suppress/teardown; private-AS
+  strip) pass unchanged; unit tests updated to the `[]byte` form pass.
+- **No aliasing**: `input.Raw = rawPayload` is safe because CallFilterUpdate json-marshals (copies)
+  before returning on every transport (DirectBridge/mux/socket).
+- **SDK contract**: `Raw` is now `[]byte`; Ze carries no compat burden (`ai/rules/compatibility.md`),
+  and both in-tree `raw=true` consumers are updated in lockstep. No external consumer in-tree.
+- **Scope**: narrowed to the raw carrier with explicit user approval; the text-path removal stays a
+  documented follow-up.
 
 ## Notes
 - Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.

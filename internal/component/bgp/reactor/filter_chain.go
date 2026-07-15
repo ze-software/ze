@@ -6,7 +6,6 @@ package reactor
 
 import (
 	"context"
-	"encoding/hex"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -125,11 +124,11 @@ type PolicyResponse struct {
 	// Delta contains only changed attribute text (action=modify).
 	// Empty for accept/reject.
 	Delta string
-	// Raw, when non-empty on a modify, is a hex-encoded full UPDATE-body
-	// replacement produced by a raw=true filter (e.g. MP_REACH/MP_UNREACH
-	// surgery the text delta cannot express). A raw rewrite is terminal for the
-	// chain: it cannot be composed with downstream text deltas.
-	Raw string
+	// Raw, when non-empty on a modify, is a raw full UPDATE-body replacement
+	// produced by a raw=true filter (e.g. MP_REACH/MP_UNREACH surgery the text
+	// delta cannot express). A raw rewrite is terminal for the chain: it cannot
+	// be composed with downstream text deltas.
+	Raw []byte
 	// Teardown requests the session be terminated (NOTIFICATION + close) after
 	// the import chain. Honored only for import (received) UPDATEs. The route is
 	// dropped. NotifyCode/NotifySubcode default to Cease / Connection Rejected.
@@ -143,9 +142,9 @@ type PolicyChainResult struct {
 	Action PolicyAction
 	// Text is the accumulated modified update text (valid unless Action==PolicyReject).
 	Text string
-	// Raw is a hex-encoded full-payload replacement from a raw filter; terminal.
+	// Raw is a raw full-payload replacement from a raw filter; terminal.
 	// Empty when no raw filter rewrote the payload.
-	Raw string
+	Raw []byte
 	// Teardown (import only) requests NOTIFICATION + session close; route dropped.
 	Teardown      bool
 	NotifyCode    uint8
@@ -201,7 +200,7 @@ func PolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer string,
 			return PolicyChainResult{Action: PolicyReject}
 		case PolicyModify:
 			// A raw full-payload rewrite is terminal (see doc comment).
-			if result.Raw != "" {
+			if len(result.Raw) > 0 {
 				return PolicyChainResult{Action: PolicyModify, Text: current, Raw: result.Raw}
 			}
 			current = applyFilterDelta(current, result.Delta)
@@ -374,10 +373,12 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 		// Look up filter declaration for AC-13 (attribute validation) and AC-15 (raw mode).
 		declaredAttrs, wantsRaw := r.api.FilterInfo(pluginName, filterName)
 
-		// AC-15: If filter declared raw=true, include hex-encoded raw UPDATE body.
-		var rawHex string
+		// AC-15: If filter declared raw=true, include the raw UPDATE body as bytes
+		// (encoding/json base64-encodes it; the plugin always receives a copy via
+		// the DirectBridge/socket marshal, so passing rawPayload directly is safe).
+		var rawBytes []byte
 		if wantsRaw && len(rawPayload) > 0 {
-			rawHex = textbuf.StringHexUpper(rawPayload)
+			rawBytes = rawPayload
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), policyFilterTimeout)
@@ -389,7 +390,7 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 			Peer:      peer,
 			PeerAS:    peerAS,
 			Update:    updateText,
-			Raw:       rawHex,
+			Raw:       rawBytes,
 		}
 
 		out, err := r.api.CallFilterUpdate(ctx, pluginName, input)
@@ -433,19 +434,15 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 	}
 }
 
-// decodeFilterRawOverride decodes a hex-encoded full UPDATE-body replacement from
-// a raw policy filter. Returns nil on empty/malformed input or a body too short
-// to be a valid UPDATE (the caller then keeps the unmodified payload). A valid
-// UPDATE body is at least 4 bytes: withdrawn-routes-length(2) + path-attr-length(2).
-func decodeFilterRawOverride(rawHex string) []byte {
-	if rawHex == "" {
+// decodeFilterRawOverride validates a full UPDATE-body replacement from a raw
+// policy filter. Returns nil on empty input or a body too short to be a valid
+// UPDATE (the caller then keeps the unmodified payload). A valid UPDATE body is
+// at least 4 bytes: withdrawn-routes-length(2) + path-attr-length(2).
+func decodeFilterRawOverride(raw []byte) []byte {
+	if len(raw) < 4 {
 		return nil
 	}
-	b, err := hex.DecodeString(rawHex)
-	if err != nil || len(b) < 4 {
-		return nil
-	}
-	return b
+	return raw
 }
 
 // validateModifyDelta checks that a modify delta only contains attributes

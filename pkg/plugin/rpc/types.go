@@ -175,19 +175,27 @@ type FilterDecl struct {
 
 // FilterUpdateInput is the input for ze-plugin-callback:filter-update (runtime).
 type FilterUpdateInput struct {
-	Filter    string `json:"filter"`        // Filter name to invoke
-	Direction string `json:"direction"`     // "import" or "export"
-	Peer      string `json:"peer"`          // Peer IP address
-	PeerAS    uint32 `json:"peer-as"`       // Peer ASN
-	Update    string `json:"update"`        // Text-format attributes and NLRI
-	Raw       string `json:"raw,omitempty"` // Hex-encoded raw UPDATE body (if filter declared raw=true)
+	Filter    string `json:"filter"`    // Filter name to invoke
+	Direction string `json:"direction"` // "import" or "export"
+	Peer      string `json:"peer"`      // Peer IP address
+	PeerAS    uint32 `json:"peer-as"`   // Peer ASN
+	Update    string `json:"update"`    // Text-format attributes and NLRI
+	// Raw is the raw BGP UPDATE body (RFC 4271 Section 4.3, without the 19-byte
+	// header) delivered when the filter declared raw=true. A []byte field so
+	// encoding/json base64-encodes it on the wire (newline-safe, ~33% expansion)
+	// instead of the former hex string (2x) with hand-rolled encode/decode -- see
+	// InjectWireRouteInput.UpdateBody for the same idiom.
+	Raw []byte `json:"raw,omitempty"`
 }
 
 // FilterUpdateOutput is the output for ze-plugin-callback:filter-update.
 type FilterUpdateOutput struct {
 	Action FilterAction `json:"action"`           // Typed decision; wire form is "accept"/"reject"/"modify"
 	Update string       `json:"update,omitempty"` // Delta-only modified attributes (only for action=modify)
-	Raw    string       `json:"raw,omitempty"`    // Full raw UPDATE body replacement (only for action=modify with raw)
+	// Raw is a full raw UPDATE-body replacement (only for action=modify with
+	// raw). []byte so encoding/json base64-encodes it on the wire (see the input
+	// field above).
+	Raw []byte `json:"raw,omitempty"`
 
 	// Teardown requests the engine terminate the BGP session after the import
 	// filter chain, sending a NOTIFICATION with the given code/subcode. Honored
