@@ -397,10 +397,13 @@ crafted LSA into this router's LSDB, which then floods normally.";
 
         container ip {
             config false;
+            description "IPv4 OSPF debug commands.";
             container ospf {
                 config false;
+                description "OSPFv2 debug commands.";
                 container inject {
                     config false;
+                    description "Inject crafted OSPFv2 LSAs for testing.";
                     container opaque {
                         config false;
                         ze:command "ze-debug:ospf-inject";
@@ -416,10 +419,13 @@ standards-track consumer. Requires `debug ospf inject enable`.";
 
         container ipv6 {
             config false;
+            description "IPv6 OSPF debug commands.";
             container ospf {
                 config false;
+                description "OSPFv3 debug commands.";
                 container inject {
                     config false;
+                    description "Inject crafted OSPFv3 LSAs for testing.";
                     container lsa {
                         config false;
                         ze:command "ze-debug:ospfv3-inject";
@@ -435,8 +441,10 @@ the LS Type S2/S1 bits (a reserved scope is rejected). Requires
 
         container ospf {
             config false;
+            description "Address-family-independent OSPF debug controls.";
             container inject {
                 config false;
+                description "Enable or disable OSPF debug LSA injection.";
                 container enable {
                     config false;
                     ze:command "ze-debug:ospf-inject-enable";
