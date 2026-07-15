@@ -899,7 +899,7 @@ func TestStoreAuthorizeLoginProfilesDoNotLeakAcrossUsers(t *testing.T) {
 // VALIDATES: an unresolvable mapping fails closed when assignments exist.
 // PREVENTS: a typo in tacacs-profile authorizing that user as admin -- strictly
 //
-//	worse than the pre-fallback behaviour, which denied them.
+//	worse than the pre-fallback behavior, which denied them.
 func TestStoreAuthorizeIgnoresUnresolvableLoginProfiles(t *testing.T) {
 	s := NewStore()
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
@@ -918,7 +918,7 @@ func TestStoreAuthorizeIgnoresUnresolvableLoginProfiles(t *testing.T) {
 }
 
 // TestStoreAuthorizeKeepsResolvableLoginProfiles verifies that a partially valid
-// mapping is honoured through the names that do resolve.
+// mapping is honored through the names that do resolve.
 //
 // VALIDATES: one bad name in a leaf-list does not discard the good ones.
 // PREVENTS: over-correcting the fail-open into a lockout.
