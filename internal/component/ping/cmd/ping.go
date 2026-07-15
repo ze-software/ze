@@ -22,11 +22,13 @@ import (
 // CLI argument keywords shared across the ping handlers in this package.
 const (
 	argCount   = "count"
+	argSize    = "size"
 	argTimeout = "timeout"
 )
 
 var (
 	errPingCountRequiresAValue       = errors.New("ping: count requires a value")
+	errPingSizeRequiresAValue        = errors.New("ping: size requires a value (bytes)")
 	errPingTimeoutRequiresAValueE    = errors.New("ping: timeout requires a value (e.g. 5s)")
 	errPingMissingDestinationAddress = errors.New("ping: missing destination address")
 )
@@ -36,25 +38,32 @@ const (
 	maxPingCount       = 100
 	defaultPingTimeout = 5 * time.Second
 	maxPingTimeout     = 30 * time.Second
+	// maxPingSize is the largest ICMP echo payload that still fits a 65535-byte
+	// IP datagram after the 20-byte IPv4 and 8-byte ICMP headers.
+	maxPingSize = 65507
 )
 
 // handleShowPing is the RPC handler for `show ping` (ze-show:ping): a bounded
 // batch of ICMP echo requests sent from the router, returning per-reply RTT
 // and an aggregate summary.
 func handleShowPing(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	dest, count, timeout, err := parsePingArgs(args)
+	dest, count, timeout, opts, err := parsePingArgs(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	results, pingErr := doPing(dest, count, timeout, pingOpts{})
+	results, pingErr := doPing(dest, count, timeout, opts)
 	if pingErr != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: pingErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(results)}, nil
 }
 
-func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
+// parsePingArgs parses `show ping <dest> [count <n>] [size <bytes>]
+// [timeout <dur>]`. The returned pingOpts carries the optional ICMP payload
+// size; its zero value means the engine picks its default.
+func parsePingArgs(args []string) (netip.Addr, int, time.Duration, pingOpts, error) {
 	var dest netip.Addr
+	var opts pingOpts
 	count := defaultPingCount
 	timeout := defaultPingTimeout
 
@@ -62,41 +71,51 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
 		switch args[i] {
 		case argCount:
 			if i+1 >= len(args) {
-				return dest, 0, 0, errPingCountRequiresAValue
+				return dest, 0, 0, opts, errPingCountRequiresAValue
 			}
 			n, err := strconv.Atoi(args[i+1])
 			if err != nil || n < 1 || n > maxPingCount {
-				return dest, 0, 0, fmt.Errorf("ping: count must be 1-%d", maxPingCount)
+				return dest, 0, 0, opts, fmt.Errorf("ping: count must be 1-%d", maxPingCount)
 			}
 			count = n
 			i++
+		case argSize:
+			if i+1 >= len(args) {
+				return dest, 0, 0, opts, errPingSizeRequiresAValue
+			}
+			n, err := strconv.Atoi(args[i+1])
+			if err != nil || n < 1 || n > maxPingSize {
+				return dest, 0, 0, opts, fmt.Errorf("ping: size must be 1-%d", maxPingSize)
+			}
+			opts.size = n
+			i++
 		case argTimeout:
 			if i+1 >= len(args) {
-				return dest, 0, 0, errPingTimeoutRequiresAValueE
+				return dest, 0, 0, opts, errPingTimeoutRequiresAValueE
 			}
 			d, err := time.ParseDuration(args[i+1])
 			if err != nil || d < time.Second || d > maxPingTimeout {
-				return dest, 0, 0, fmt.Errorf("ping: timeout must be 1s-%s", maxPingTimeout)
+				return dest, 0, 0, opts, fmt.Errorf("ping: timeout must be 1s-%s", maxPingTimeout)
 			}
 			timeout = d
 			i++
 		default:
 			if !dest.IsValid() {
 				if err := validateResolveTarget(args[i]); err != nil {
-					return dest, 0, 0, fmt.Errorf("ping: invalid destination %q: %w", args[i], err)
+					return dest, 0, 0, opts, fmt.Errorf("ping: invalid destination %q: %w", args[i], err)
 				}
 				addr, err := probe.ResolveTarget(args[i])
 				if err != nil {
-					return dest, 0, 0, fmt.Errorf("ping: invalid destination %q: %w", args[i], err)
+					return dest, 0, 0, opts, fmt.Errorf("ping: invalid destination %q: %w", args[i], err)
 				}
 				dest = addr
 			}
 		}
 	}
 	if !dest.IsValid() {
-		return dest, 0, 0, errPingMissingDestinationAddress
+		return dest, 0, 0, opts, errPingMissingDestinationAddress
 	}
-	return dest, count, timeout, nil
+	return dest, count, timeout, opts, nil
 }
 
 type pingOpts struct {

@@ -667,3 +667,69 @@ func isOverlayIDChar(r rune) bool {
 	}
 	return r == '-' || r == '_'
 }
+
+// TestHandlePingSubmit_PassesPacketSize verifies the Ping tool's Packet Size
+// field reaches the dispatched command.
+//
+// VALIDATES: a submitted size becomes `size <bytes>` in the `show ping` command.
+// PREVENTS: the operator trap this fixes. tool_ping.html has always rendered a
+// Packet Size input, but handlePingSubmit never read the field, so the form
+// accepted a size and pinged with the default payload regardless.
+func TestHandlePingSubmit_PassesPacketSize(t *testing.T) {
+	disp := &fakeDispatcher{response: "OK"}
+	form := url.Values{
+		"destination": {"192.0.2.1"},
+		"count":       {"3"},
+		"size":        {"1400"},
+		"timeout":     {"5"},
+	}
+
+	data := handlePingSubmit(toolsRequest("/show/tools/ping/", form, "thomas"), disp.dispatch())
+
+	assert.Empty(t, data.Error)
+	assert.Equal(t, "show ping 192.0.2.1 count 3 size 1400 timeout 5s", disp.command)
+}
+
+// TestHandlePingSubmit_OmitsSizeWhenBlank verifies a blank size leaves the
+// command unchanged rather than sending `size 0`, which the command rejects.
+//
+// VALIDATES: an empty size field produces no size argument.
+// PREVENTS: `show ping ... size 0` reaching the engine and failing the 1-65507
+// bound for operators who clear the field.
+func TestHandlePingSubmit_OmitsSizeWhenBlank(t *testing.T) {
+	disp := &fakeDispatcher{response: "OK"}
+	form := url.Values{
+		"destination": {"192.0.2.1"},
+		"count":       {"3"},
+		"size":        {""},
+		"timeout":     {"5"},
+	}
+
+	data := handlePingSubmit(toolsRequest("/show/tools/ping/", form, "thomas"), disp.dispatch())
+
+	assert.Empty(t, data.Error)
+	assert.Equal(t, "show ping 192.0.2.1 count 3 timeout 5s", disp.command)
+}
+
+// TestHandlePingSubmit_RejectsOutOfRangeSize verifies the size bound is enforced
+// server-side, not only by the form's max attribute.
+//
+// VALIDATES: sizes outside 1-65507 are rejected before dispatch.
+// PREVENTS: a hand-crafted POST bypassing the HTML min/max and reaching the
+// command with an unusable payload size.
+func TestHandlePingSubmit_RejectsOutOfRangeSize(t *testing.T) {
+	for _, size := range []string{"0", "65508", "abc"} {
+		t.Run(size, func(t *testing.T) {
+			disp := &fakeDispatcher{response: "OK"}
+			form := url.Values{
+				"destination": {"192.0.2.1"},
+				"size":        {size},
+			}
+
+			data := handlePingSubmit(toolsRequest("/show/tools/ping/", form, "thomas"), disp.dispatch())
+
+			assert.Contains(t, data.Error, "Packet size must be")
+			assert.Empty(t, disp.command, "must not dispatch on invalid input")
+		})
+	}
+}

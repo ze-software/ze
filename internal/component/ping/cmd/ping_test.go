@@ -11,57 +11,115 @@ import (
 )
 
 func TestPingParseArgsValid(t *testing.T) {
-	dest, count, timeout, err := parsePingArgs([]string{"127.0.0.1"})
+	dest, count, timeout, opts, err := parsePingArgs([]string{"127.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "127.0.0.1", dest.String())
 	assert.Equal(t, defaultPingCount, count)
 	assert.Equal(t, defaultPingTimeout, timeout)
+	assert.Equal(t, 0, opts.size, "size unset means the engine default")
 }
 
 func TestPingParseArgsWithCount(t *testing.T) {
-	dest, count, _, err := parsePingArgs([]string{"10.0.0.1", "count", "3"})
+	dest, count, _, _, err := parsePingArgs([]string{"10.0.0.1", "count", "3"})
 	require.NoError(t, err)
 	assert.Equal(t, "10.0.0.1", dest.String())
 	assert.Equal(t, 3, count)
 }
 
 func TestPingParseArgsWithTimeout(t *testing.T) {
-	_, _, timeout, err := parsePingArgs([]string{"10.0.0.1", "timeout", "2s"})
+	_, _, timeout, _, err := parsePingArgs([]string{"10.0.0.1", "timeout", "2s"})
 	require.NoError(t, err)
 	assert.Equal(t, 2*time.Second, timeout)
 }
 
+// TestPingParseArgsWithSize verifies `show ping <dest> size <bytes>` reaches opts.
+//
+// VALIDATES: the size argument parses and lands in pingOpts, which doPing uses
+// to build the ICMP payload.
+// PREVENTS: the web Ping tool's Packet Size field being silently dropped.
+// handleShowPing used to pass a zero pingOpts and parsePingArgs had no size
+// case, so an operator-chosen size never changed the packet.
+func TestPingParseArgsWithSize(t *testing.T) {
+	dest, _, _, opts, err := parsePingArgs([]string{"10.0.0.1", "size", "1400"})
+	require.NoError(t, err)
+	assert.Equal(t, "10.0.0.1", dest.String())
+	assert.Equal(t, 1400, opts.size)
+}
+
+// TestPingParseArgsSizeBounds pins the accepted size range.
+//
+// VALIDATES: 1 and maxPingSize are accepted; 0 and maxPingSize+1 are rejected.
+// PREVENTS: a size that cannot fit an IP datagram reaching the ICMP engine, and
+// drift from the range on the show/ping size leaf in ze-ping-cmd.yang.
+func TestPingParseArgsSizeBounds(t *testing.T) {
+	cases := []struct {
+		name    string
+		size    string
+		want    int
+		wantErr bool
+	}{
+		{name: "minimum", size: "1", want: 1},
+		{name: "maximum", size: "65507", want: maxPingSize},
+		{name: "zero", size: "0", wantErr: true},
+		{name: "above maximum", size: "65508", wantErr: true},
+		{name: "not a number", size: "big", wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, _, opts, err := parsePingArgs([]string{"127.0.0.1", "size", tc.size})
+			if tc.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "size must be")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, opts.size)
+		})
+	}
+}
+
+// TestPingParseArgsSizeMissingValue verifies a trailing `size` is rejected.
+//
+// VALIDATES: `size` without a value errors instead of being ignored.
+// PREVENTS: silently pinging with the default payload when the operator asked
+// for a specific size.
+func TestPingParseArgsSizeMissingValue(t *testing.T) {
+	_, _, _, _, err := parsePingArgs([]string{"127.0.0.1", "size"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "size requires a value")
+}
+
 func TestPingParseArgsMissingDest(t *testing.T) {
-	_, _, _, err := parsePingArgs([]string{})
+	_, _, _, _, err := parsePingArgs([]string{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "missing destination")
 }
 
 func TestPingParseArgsInvalidDest(t *testing.T) {
-	_, _, _, err := parsePingArgs([]string{"not-an-ip"})
+	_, _, _, _, err := parsePingArgs([]string{"not-an-ip"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid destination")
 }
 
 func TestPingParseArgsCountTooHigh(t *testing.T) {
-	_, _, _, err := parsePingArgs([]string{"127.0.0.1", "count", "200"})
+	_, _, _, _, err := parsePingArgs([]string{"127.0.0.1", "count", "200"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "count must be")
 }
 
 func TestPingParseArgsCountZero(t *testing.T) {
-	_, _, _, err := parsePingArgs([]string{"127.0.0.1", "count", "0"})
+	_, _, _, _, err := parsePingArgs([]string{"127.0.0.1", "count", "0"})
 	assert.Error(t, err)
 }
 
 func TestPingParseArgsTimeoutTooHigh(t *testing.T) {
-	_, _, _, err := parsePingArgs([]string{"127.0.0.1", "timeout", "60s"})
+	_, _, _, _, err := parsePingArgs([]string{"127.0.0.1", "timeout", "60s"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "timeout must be")
 }
 
 func TestPingParseArgsIPv6(t *testing.T) {
-	dest, _, _, err := parsePingArgs([]string{"::1"})
+	dest, _, _, _, err := parsePingArgs([]string{"::1"})
 	require.NoError(t, err)
 	assert.True(t, dest.Is6())
 }
@@ -77,7 +135,7 @@ func TestPingParseArgsShellMeta(t *testing.T) {
 	}
 	for _, target := range bad {
 		t.Run(target, func(t *testing.T) {
-			_, _, _, err := parsePingArgs([]string{target})
+			_, _, _, _, err := parsePingArgs([]string{target})
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "invalid destination")
 		})

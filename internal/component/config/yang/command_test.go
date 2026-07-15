@@ -1119,7 +1119,7 @@ func TestArgDefsPopulated(t *testing.T) {
 		"show system kernel-log":       2, // level, count
 		"show system profile":          2, // type, duration
 		"show audit":                   6, // action, actor, surface, since, until, count
-		"show ping":                    3, // dest, count, timeout
+		"show ping":                    4, // dest, count, size, timeout
 		"show traceroute":              4, // dest, max-hops, timeout, probes
 		"show tcp-check":               4, // host, port, source, timeout
 		"show probe-round":             4, // dest, probes, max-hops, timeout

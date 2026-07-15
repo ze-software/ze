@@ -41,14 +41,14 @@ func init() {
 }
 
 func showPingLocal(args []string) int {
-	dest, count, timeout, err := parsePingArgs(args)
+	dest, count, timeout, opts, err := parsePingArgs(args)
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("show ping: ").Err(err).Byte('\n')
 		os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // stderr
 		return 1
 	}
-	results, pingErr := doPing(dest, count, timeout, pingOpts{})
+	results, pingErr := doPing(dest, count, timeout, opts)
 	if pingErr != nil {
 		var tb textbuf.Buffer
 		tb.Str("show ping: ").Err(pingErr).Byte('\n')
@@ -60,7 +60,9 @@ func showPingLocal(args []string) int {
 }
 
 func monitorPingLocal(args []string) int {
-	dest, _, timeout, err := parsePingArgs(args)
+	// count and size are parsed but unused here: NewPingSession streams until
+	// interrupted with a fixed probe payload, so neither is plumbed through.
+	dest, _, timeout, _, err := parsePingArgs(args)
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("monitor ping: ").Err(err).Byte('\n')

@@ -5,6 +5,10 @@
 #           (unprivileged runner) the handler returns a deterministic error that
 #           names CAP_NET_RAW (ping.go:129); both branches are asserted, so the
 #           test is green unprivileged and green under a privileged/QEMU-root run.
+#           Also asserts the `size` argument is wired: a valid size is accepted
+#           (never a parse error) and an out-of-range size is rejected by name.
+#           parsePingArgs runs before any socket, so the rejection is
+#           deterministic even unprivileged.
 # NOTE: raw ICMP (ip4:icmp) needs CAP_NET_RAW; the default bin/ze-test runner is
 #       unprivileged, so the error branch is what executes here.
 
@@ -57,6 +61,39 @@ def check_happy_path(resp):
         runtime_fail(f'ping: missing "rtt-ms" in reply: {reply}')
     print(f'OK: show ping (privileged) received={data["received"]} loss={data["loss-percent"]}', file=sys.stderr)
 
+def check_size_accepted(api):
+    # A valid size must reach doPing. Unprivileged that surfaces as the same
+    # CAP_NET_RAW error as the plain ping; privileged it completes. What must
+    # never appear is a parse error -- that would mean `size` is not wired.
+    resp = dispatch(api, 'show ping 127.0.0.1 count 1 size 1400 timeout 2s')
+    status = resp.get('status')
+    err = resp.get('error') or ''
+    if status == 'done':
+        print('OK: show ping size 1400 accepted (privileged)', file=sys.stderr)
+        return
+    if status != 'error':
+        runtime_fail(f'ping size: unexpected status={status!r} resp={resp}')
+    if 'CAP_NET_RAW' not in err:
+        runtime_fail(f'ping size: size not wired, got parse/other error: {err!r}')
+    print(f'OK: show ping size 1400 reached doPing: {err}', file=sys.stderr)
+
+def check_size_rejected(api):
+    # Rejection happens before any socket, so this is deterministic regardless
+    # of CAP_NET_RAW. Two layers can reject, and either is a pass as long as the
+    # 65507 bound is named:
+    #   - the range "1..65507" on the show/ping size leaf (ze-ping-cmd.yang),
+    #     which the dispatcher enforces -> "value 99999 out of range 1..65507";
+    #   - parsePingArgs' own maxPingSize check (ping.go), which guards the
+    #     offline `show ping` path that never goes through YANG validation
+    #     -> "ping: size must be 1-65507".
+    resp = dispatch(api, 'show ping 127.0.0.1 count 1 size 99999 timeout 2s')
+    err = resp.get('error') or result_text_data(resp) or ''
+    if resp.get('status') != 'error':
+        runtime_fail(f'ping size: expected error for size 99999, got {resp!r}')
+    if '65507' not in err:
+        runtime_fail(f'ping size: expected a bound error naming 65507, got {err!r}')
+    print(f'OK: show ping rejects out-of-range size: {err}', file=sys.stderr)
+
 def main():
     api = API()
     api.declare_done()
@@ -78,6 +115,9 @@ def main():
             print(f'OK: show ping wired; raw ICMP needs CAP_NET_RAW: {err}', file=sys.stderr)
         else:
             runtime_fail(f'ping: unexpected status={status!r} resp={resp}')
+
+        check_size_accepted(api)
+        check_size_rejected(api)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()

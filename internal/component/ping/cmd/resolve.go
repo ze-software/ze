@@ -60,12 +60,12 @@ func handleResolvePing(ctx *pluginserver.CommandContext, args []string) (*plugin
 			}
 			n, _ := strconv.Atoi(args[i])
 			count = n
-		case "size":
+		case argSize:
 			if i+1 >= len(args) {
 				return errResolveResponse("ping: \"size\" requires a value"), nil
 			}
 			i++
-			if err := validateUint(args[i], "size", 1, 65507); err != nil {
+			if err := validateUint(args[i], argSize, 1, maxPingSize); err != nil {
 				return errResolveResponse(err.Error()), nil
 			}
 			n, _ := strconv.ParseUint(args[i], 10, 64)

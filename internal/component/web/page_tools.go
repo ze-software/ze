@@ -102,6 +102,19 @@ func handlePingSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageData 
 		count = v
 	}
 
+	// 65507 is the largest ICMP payload that fits a 65535-byte IP datagram
+	// after the IPv4 and ICMP headers; it matches maxPingSize in the ping
+	// module and the range on the show/ping size leaf in ze-ping-cmd.yang.
+	sizeStr := strings.TrimSpace(r.PostFormValue("size"))
+	size := 0
+	if sizeStr != "" {
+		v, err := strconv.Atoi(sizeStr)
+		if err != nil || v < 1 || v > 65507 {
+			return ToolPageData{Error: "Packet size must be between 1 and 65507 bytes."}
+		}
+		size = v
+	}
+
 	timeoutStr := strings.TrimSpace(r.PostFormValue("timeout"))
 	timeout := 5
 	if timeoutStr != "" {
@@ -113,7 +126,11 @@ func handlePingSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageData 
 	}
 
 	var bCmd textbuf.Buffer
-	cmd := bCmd.Reset().Str("show ping ").Str(dest).Str(" count ").Int(int64(count)).Str(" timeout ").Int(int64(timeout)).Str("s").String()
+	bCmd.Reset().Str("show ping ").Str(dest).Str(" count ").Int(int64(count))
+	if size > 0 {
+		bCmd.Str(" size ").Int(int64(size))
+	}
+	cmd := bCmd.Str(" timeout ").Int(int64(timeout)).Str("s").String()
 
 	return dispatchToolCommand(r, dispatch, cmd)
 }
