@@ -116,6 +116,13 @@ type PeerInfo struct {
 	LastNotifRecv    bool
 	LastNotifTime    time.Time
 
+	// LastStateChange is the time of the peer's most recent FSM transition.
+	// Zero means the peer has never transitioned. Unlike Uptime (derived from
+	// EstablishedAt, which ClearStats zeroes on teardown) this survives a
+	// session going down, so it can answer "when did this peer last change
+	// state" for a peer that is currently DOWN.
+	LastStateChange time.Time
+
 	// Activity timestamps.
 	LastReadTime  time.Time
 	LastWriteTime time.Time

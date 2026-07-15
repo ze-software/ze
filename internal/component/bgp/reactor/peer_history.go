@@ -58,6 +58,21 @@ func (h *fsmHistory) snapshot() []FSMTransition {
 	return out
 }
 
+// newest returns the most recent transition. The bool is false when the peer
+// has never transitioned. O(1): unlike snapshot it does not copy the ring, so
+// callers that only need the latest change (per-peer status polling) do not
+// allocate peerHistoryCapacity records per peer per call.
+func (h *fsmHistory) newest() (FSMTransition, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.count == 0 {
+		return FSMTransition{}, false
+	}
+	idx := (h.head - 1 + len(h.records)) % len(h.records)
+	return h.records[idx], true
+}
+
 // FSMHistory returns a snapshot of this peer's FSM transition history,
 // newest first.
 func (p *Peer) FSMHistory() []FSMTransition {
@@ -65,4 +80,21 @@ func (p *Peer) FSMHistory() []FSMTransition {
 		return []FSMTransition{}
 	}
 	return p.history.snapshot()
+}
+
+// LastStateChange returns the time of this peer's most recent FSM transition.
+// Returns the zero time when the peer has never transitioned, which is the
+// "never came up" case callers must render as empty rather than as an epoch.
+//
+// Distinct from EstablishedAt: that is cleared by ClearStats on teardown, so it
+// cannot express when a currently-down peer last changed state.
+func (p *Peer) LastStateChange() time.Time {
+	if p.history == nil {
+		return time.Time{}
+	}
+	t, ok := p.history.newest()
+	if !ok {
+		return time.Time{}
+	}
+	return t.Timestamp
 }

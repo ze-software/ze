@@ -441,6 +441,131 @@ func TestBgpPeerStatisticsUptimeTruncatedRatesExact(t *testing.T) {
 	assert.Equal(t, 2.0, data["rate-updates-received"])
 }
 
+// TestBgpSummaryEmitsStateChangedAndLastError verifies the summary peer row
+// carries the two fields the birdwatcher transform reads.
+//
+// VALIDATES: state-changed is RFC3339; last-error names the NOTIFICATION
+// code/subcode (AC-1, AC-3).
+// PREVENTS: transformProtocols emitting a permanently empty state_changed /
+// last_error. It reads these keys (handler_api.go), but handleBgpSummary never
+// emitted them, so Alice-LG showed a blank "since" and no reason for a peer
+// going down.
+func TestBgpSummaryEmitsStateChangedAndLastError(t *testing.T) {
+	changed := time.Date(2026, 7, 15, 10, 30, 0, 0, time.UTC)
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address:         netip.MustParseAddr("192.0.2.1"),
+				PeerAS:          65001,
+				State:           plugin.PeerStateEstablished,
+				Uptime:          5 * time.Minute,
+				LastStateChange: changed,
+				// Cease / Administrative Shutdown (RFC 4271 4.5, RFC 9003).
+				LastNotifCode:    6,
+				LastNotifSubcode: 2,
+				LastNotifRecv:    true,
+				LastNotifTime:    changed,
+			},
+		},
+		stats: plugin.ReactorStats{PeerCount: 1, RouterID: 0x0a000001, LocalAS: 65000},
+	}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleBgpSummary(ctx, nil)
+	require.NoError(t, err)
+
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	summary, ok := data["summary"].(map[string]any)
+	require.True(t, ok)
+	peers, ok := summary["peers"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, peers, 1)
+
+	assert.Equal(t, "2026-07-15T10:30:00Z", peers[0]["state-changed"])
+	assert.Equal(t, "Cease/Administrative Shutdown", peers[0]["last-error"])
+}
+
+// TestBgpSummaryStateChangedAndLastErrorEmpty verifies a fresh peer reports
+// neither a state change nor an error, rather than a zero epoch or a fake one.
+//
+// VALIDATES: AC-2 and AC-4 -- never-transitioned and never-errored peers emit "".
+// PREVENTS: rendering time.Time{} as "0001-01-01T00:00:00Z" in Alice-LG, and
+// inventing a "none" error for a peer that never failed.
+func TestBgpSummaryStateChangedAndLastErrorEmpty(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address: netip.MustParseAddr("192.0.2.2"),
+				PeerAS:  65002,
+				State:   plugin.PeerStateStopped,
+			},
+		},
+		stats: plugin.ReactorStats{PeerCount: 1, RouterID: 0x0a000001, LocalAS: 65000},
+	}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleBgpSummary(ctx, nil)
+	require.NoError(t, err)
+
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	summary, ok := data["summary"].(map[string]any)
+	require.True(t, ok)
+	peers, ok := summary["peers"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, peers, 1)
+
+	assert.Equal(t, "", peers[0]["state-changed"])
+	assert.Equal(t, "", peers[0]["last-error"])
+}
+
+// TestLastErrorFormat pins the NOTIFICATION rendering.
+//
+// VALIDATES: code/subcode map to a human string via message.Notification, and an
+// unset notification yields "".
+// PREVENTS: two things. A hostile peer cannot inject text -- unknown codes go
+// through the bounded NotifyErrorCode.String() lookup ("Unknown(N)"), which
+// matters because last-error is served on the PUBLIC looking glass. And no Data
+// bytes are ever rendered, since PeerInfo does not carry them.
+func TestLastErrorFormat(t *testing.T) {
+	stamp := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name string
+		info plugin.PeerInfo
+		want string
+	}{
+		{
+			name: "cease admin shutdown",
+			info: plugin.PeerInfo{LastNotifCode: 6, LastNotifSubcode: 2, LastNotifTime: stamp},
+			want: "Cease/Administrative Shutdown",
+		},
+		{
+			name: "hold timer expired",
+			info: plugin.PeerInfo{LastNotifCode: 4, LastNotifSubcode: 0, LastNotifTime: stamp},
+			want: "Hold Timer Expired/Unspecific",
+		},
+		{
+			name: "never errored",
+			info: plugin.PeerInfo{},
+			want: "",
+		},
+		{
+			// Both halves are bounded renderings of the integers, never echoed
+			// peer bytes: NotifyErrorCode.String() -> "Unknown(250)" and the
+			// subcode default -> "Subcode(99)".
+			name: "unknown code and subcode are bounded, not echoed",
+			info: plugin.PeerInfo{LastNotifCode: 250, LastNotifSubcode: 99, LastNotifTime: stamp},
+			want: "Unknown(250)/Subcode(99)",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, lastErrorString(&tc.info))
+		})
+	}
+}
+
 // TestPeerCapabilitiesNotEstablished verifies capabilities for non-established peer.
 //
 // VALIDATES: AC-8 — non-Established peer returns negotiation-complete=false.

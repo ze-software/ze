@@ -145,6 +145,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			LastNotifTime:          stats.LastNotifTime,
 			LastReadTime:           stats.LastReadTime,
 			LastWriteTime:          stats.LastWriteTime,
+			LastStateChange:        p.LastStateChange(),
 
 			PeerType:                peerType,
 			LocalPort:               localPort,

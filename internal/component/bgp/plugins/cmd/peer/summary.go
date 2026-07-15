@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/commands.md — BGP summary and capability handlers
+// RFC: rfc/short/rfc4271.md — NOTIFICATION code/subcode rendered as last-error (Section 4.5)
 // Overview: peer.go — BGP peer lifecycle and introspection handlers
 
 package peer
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -30,6 +32,37 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-capabilities", Handler: handleBgpPeerCapabilities},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-statistics", Handler: handleBgpPeerStatistics},
 	)
+}
+
+// lastErrorString renders a peer's last NOTIFICATION for the "last-error"
+// field. Returns "" when the peer has never sent or received one, so a healthy
+// peer reports no error rather than a fabricated "none".
+//
+// RFC 4271 Section 4.5: "Error code / Error subcode". The rendering goes through
+// message.Notification, whose NotifyErrorCode.String() maps unknown codes to
+// "Unknown(N)" and unknown subcodes to "Subcode(N)" instead of echoing them, and
+// which emits no Data bytes here because PeerInfo does not carry them. That
+// bounding is load-bearing: last-error reaches the PUBLIC looking glass
+// (lg/server.go query path), and code/subcode originate from a remote peer.
+func lastErrorString(p *plugin.PeerInfo) string {
+	if p.LastNotifTime.IsZero() {
+		return ""
+	}
+	n := message.Notification{
+		ErrorCode:    message.NotifyErrorCode(p.LastNotifCode),
+		ErrorSubcode: p.LastNotifSubcode,
+	}
+	return n.String()
+}
+
+// stateChangedString renders a peer's most recent FSM transition time as
+// RFC3339. Returns "" for a peer that has never transitioned, so consumers show
+// a blank rather than the zero epoch ("0001-01-01T00:00:00Z").
+func stateChangedString(p *plugin.PeerInfo) string {
+	if p.LastStateChange.IsZero() {
+		return ""
+	}
+	return p.LastStateChange.Format(time.RFC3339)
 }
 
 // maxFamilyArgLen caps the address-family argument echoed back in
@@ -117,6 +150,8 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			"remote-as":           p.PeerAS,
 			"peer-type":           p.PeerType,
 			"state":               p.State.String(),
+			"state-changed":       stateChangedString(p),
+			"last-error":          lastErrorString(p),
 			"uptime":              p.Uptime.Truncate(time.Second).String(),
 			"updates-received":    p.UpdatesReceived,
 			"updates-sent":        p.UpdatesSent,

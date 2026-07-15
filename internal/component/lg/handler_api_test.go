@@ -19,6 +19,7 @@ const realSummaryJSON = `{"summary":{` +
 	`"peers-configured":1,"peers-established":1,"peers":[{` +
 	`"address":"192.0.2.1","name":"peer1","description":"transit",` +
 	`"remote-as":65001,"peer-type":"external","state":"established",` +
+	`"state-changed":"2026-07-15T10:30:00Z","last-error":"Cease/Administrative Shutdown",` +
 	`"uptime":"6m10s","updates-received":10,"updates-sent":5,` +
 	`"keepalives-received":100,"keepalives-sent":50,` +
 	`"eor-received":1,"eor-sent":1,"connections-dropped":0}]}}`
@@ -62,6 +63,65 @@ func TestTransformProtocolsRealSummaryShape(t *testing.T) {
 	// "6m10s" -> 370 seconds. Alice-LG expects a number, not the raw string.
 	if got, _ := peer["uptime"].(float64); got != 370 {
 		t.Errorf("uptime = %v, want 370", got)
+	}
+}
+
+// TestTransformProtocolsStateChangedAndLastError verifies the two fields that
+// handleBgpSummary now emits reach the birdwatcher output.
+//
+// VALIDATES: state_changed and last_error are populated from the real payload
+// (AC-6).
+// PREVENTS: regressing to the state where transformProtocols read `state-changed`
+// and `last-error` that no producer emitted, so Alice-LG showed a blank "since"
+// and never said why a peer went down.
+func TestTransformProtocolsStateChangedAndLastError(t *testing.T) {
+	var ze map[string]any
+	if err := json.Unmarshal([]byte(realSummaryJSON), &ze); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	bw := transformProtocols(ze)
+
+	protocols, ok := bw["protocols"].(map[string]any)
+	if !ok {
+		t.Fatal("missing protocols map")
+	}
+	peer, ok := protocols["peer1"].(map[string]any)
+	if !ok {
+		t.Fatal("missing peer1 in protocols")
+	}
+
+	if got, _ := peer["state_changed"].(string); got != "2026-07-15T10:30:00Z" {
+		t.Errorf("state_changed = %q, want %q", got, "2026-07-15T10:30:00Z")
+	}
+	if got, _ := peer["last_error"].(string); got != "Cease/Administrative Shutdown" {
+		t.Errorf("last_error = %q, want %q", got, "Cease/Administrative Shutdown")
+	}
+}
+
+// TestTransformProtocolsShortSinceFromRealSummary verifies the short format's
+// `since` is populated from the same producer key.
+//
+// VALIDATES: AC-7.
+// PREVENTS: /api/looking-glass/protocols returning peers with an empty `since`.
+func TestTransformProtocolsShortSinceFromRealSummary(t *testing.T) {
+	var ze map[string]any
+	if err := json.Unmarshal([]byte(realSummaryJSON), &ze); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	bw := transformProtocolsShort(ze)
+
+	protocols, ok := bw["protocols"].(map[string]any)
+	if !ok {
+		t.Fatal("missing protocols map")
+	}
+	peer, ok := protocols["peer1"].(map[string]any)
+	if !ok {
+		t.Fatal("missing peer1 in protocols")
+	}
+	if got, _ := peer["since"].(string); got != "2026-07-15T10:30:00Z" {
+		t.Errorf("since = %q, want %q", got, "2026-07-15T10:30:00Z")
 	}
 }
 
