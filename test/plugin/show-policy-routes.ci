@@ -15,6 +15,7 @@ import json, os, signal, subprocess, sys, time
 for _ in range(200):
     if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
         break
+    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
     time.sleep(0.05)
 else:
     sys.exit("daemon readiness files missing")
@@ -33,6 +34,7 @@ for _ in range(50):
         break
     except subprocess.CalledProcessError as e:
         last_err = e
+        # retry interval; the loop above stops on the first successful CLI response, bounded wait not a blind sleep
         time.sleep(0.1)
 if out is None:
     sys.exit("ze cli never became ready: %s" % last_err.output)

@@ -16,6 +16,7 @@
 tmpfs=wait.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 import time
+# blind hold: the backgrounded ze exposes no readiness marker to poll; hold while it fails to resolve the listen interface and logs "resolve interface failed", left un-converted (no readiness signal for a background daemon)
 time.sleep(2.0)
 EOF_PY
 

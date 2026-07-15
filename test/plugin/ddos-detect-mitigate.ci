@@ -40,6 +40,7 @@ import time
 for _ in range(400):
     if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
         break
+    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
     time.sleep(0.05)
 else:
     print("ERROR: daemon.pid/ready never appeared", file=sys.stderr)
@@ -70,6 +71,7 @@ while time.time() < deadline:
     if "ddos-local" in ruleset and target in ruleset:
         installed = True
         break
+    # poll interval; the loop above breaks once the ddos-local nft drop rule appears in the ruleset, bounded wait not a blind sleep
     time.sleep(0.2)
 
 sys.stdout.write(ruleset)

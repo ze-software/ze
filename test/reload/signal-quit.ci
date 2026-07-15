@@ -35,6 +35,7 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
+    # brief settle: let the just-sent wire message reach the peer before the observer shuts the daemon down; no per-message delivery signal exposed here
     time.sleep(1.0)
 
     try:

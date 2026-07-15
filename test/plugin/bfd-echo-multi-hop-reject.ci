@@ -67,6 +67,7 @@ def main() -> int:
         if not line:
             if proc.poll() is not None:
                 break
+            # poll interval; the loop above breaks when the observed subprocess exits, bounded wait not a blind sleep
             time.sleep(0.05)
             continue
         captured += line

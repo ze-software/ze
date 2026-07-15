@@ -76,6 +76,7 @@ tears the daemon down via the sleep timeout rather than waiting for cos's
 own exit."""
 import time
 
+# blind hold: waits for the external plugin's refuse/warn on the daemon's own relayed stderr; no queryable signal (reject-fence bucket, see spec-fixit-reject-fence-observability)
 time.sleep(4.0)
 EOF_PY
 

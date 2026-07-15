@@ -27,6 +27,7 @@ import os, signal, subprocess, sys, time
 for _ in range(200):
     if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
         break
+    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
     time.sleep(0.05)
 else:
     sys.exit("daemon readiness files missing")
@@ -34,6 +35,7 @@ else:
 with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
+# blind settle: let the firewall config reach the kernel before the nft readback; no post-apply signal to poll in this standalone driver
 time.sleep(0.5)
 out = subprocess.check_output(["nft", "list", "set", "inet", "ze_fw10_009", "transient"], text=True)
 sys.stdout.write(out)

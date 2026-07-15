@@ -23,6 +23,7 @@ tmpfs=wait.py:mode=755:terminator=EOF_PY
 and for register.go to log the resulting error."""
 import time
 
+# blind hold: the internal 5s vpp WaitConnected timeout IS the behavior under test; hold past it for the asserted log, no earlier signal to poll
 time.sleep(6.0)
 EOF_PY
 

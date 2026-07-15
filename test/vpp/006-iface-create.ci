@@ -29,6 +29,7 @@ def _wait_for_socket(path, deadline):
     while time.time() < deadline:
         if os.path.exists(path):
             return True
+        # poll interval; the loop above returns once the socket path appears, bounded wait not a blind sleep
         time.sleep(0.05)
     return False
 
@@ -113,6 +114,7 @@ def main() -> int:
                 if not line:
                     if ze.poll() is not None:
                         break
+                    # poll interval; the loop above breaks when ze logs the backend-loaded line or the observed ze process exits, bounded wait not a blind sleep
                     time.sleep(0.05)
                     continue
                 ze_stderr += line

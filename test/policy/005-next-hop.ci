@@ -15,6 +15,7 @@ import os, signal, subprocess, sys, time
 for _ in range(200):
     if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
         break
+    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
     time.sleep(0.05)
 else:
     sys.exit("daemon readiness files missing")
@@ -22,6 +23,7 @@ else:
 with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
+# blind settle: let the initial apply reach nftables before the kernel readback; this standalone driver has no post-apply signal to poll
 time.sleep(0.5)
 
 nft_out = subprocess.check_output(["nft", "list", "table", "inet", "ze_pr"], text=True)

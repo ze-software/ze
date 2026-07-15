@@ -51,6 +51,7 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'request fakefib emit srv6 failed: {r}')
 
+    # blind hold: sysrib to fib-kernel delivery is fire-and-forget with no end-to-end "programmed" signal to poll
     time.sleep(1.0)
     print('OK AC-1: SRv6 route emitted to fib-kernel via sysrib EventBus', file=sys.stderr)
 
@@ -59,6 +60,7 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'request fakefib emit withdraw failed: {r}')
 
+    # blind hold: sysrib to fib-kernel delivery is fire-and-forget with no end-to-end "programmed" signal to poll
     time.sleep(1.0)
     print('OK AC-3: SRv6 route withdrawn', file=sys.stderr)
 
@@ -67,6 +69,7 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'request fakefib emit plain route failed: {r}')
 
+    # blind hold: sysrib to fib-kernel delivery is fire-and-forget with no end-to-end "programmed" signal to poll
     time.sleep(1.0)
     print('OK AC-4: plain route (no SRv6 SID) emitted', file=sys.stderr)
 

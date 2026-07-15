@@ -82,6 +82,7 @@ def run_once(state_dir: str, run_seconds: float) -> str:
 
     deadline = time.monotonic() + run_seconds
     while time.monotonic() < deadline:
+        # run-duration tick: let the engine sign packets for run_seconds; the restored sequence is asserted after restart, so there is no earlier signal
         time.sleep(0.1)
 
     proc.send_signal(signal.SIGTERM)

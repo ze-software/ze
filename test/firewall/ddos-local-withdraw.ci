@@ -36,6 +36,7 @@ def table_present():
 for _ in range(200):
     if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
         break
+    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
     time.sleep(0.05)
 else:
     print("ERROR: daemon.pid/ready never appeared", file=sys.stderr)
@@ -48,6 +49,7 @@ with open("daemon.pid") as f:
 for _ in range(200):
     if table_present():
         break
+    # poll interval; the loop above breaks when the nft table appears, bounded wait not a blind sleep
     time.sleep(0.05)
 else:
     print("MITIGATION: ze_ddos-local never installed (FAIL)", file=sys.stderr)
@@ -79,6 +81,7 @@ for _ in range(200):
     if not daemon_alive():
         print("WITHDRAW: daemon exited before clearing the table (FAIL)", file=sys.stderr)
         sys.exit(1)
+    # poll interval; the loop above breaks once the nft table is withdrawn (or fails if the daemon dies), bounded wait not a blind sleep
     time.sleep(0.05)
 else:
     print("WITHDRAW: ze_ddos-local still present after clear (FAIL)", file=sys.stderr)

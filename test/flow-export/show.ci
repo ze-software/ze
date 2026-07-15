@@ -54,6 +54,7 @@ def main():
             if isinstance(data, list) and len(data) >= 1:
                 collectors = data
                 break
+        # poll interval; the loop above breaks once the collector list is returned, bounded wait not a blind sleep
         time.sleep(0.1)
     if collectors is None:
         runtime_fail('no collector ever appeared in `show flow export`')

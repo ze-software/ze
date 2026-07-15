@@ -22,6 +22,7 @@ def nft_table_exists(name):
 for _ in range(200):
     if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
         break
+    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
     time.sleep(0.05)
 else:
     sys.exit("daemon readiness files missing")
@@ -29,6 +30,7 @@ else:
 with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
+# blind settle: let the initial apply reach nftables before the phase 1 kernel readback; this standalone driver has no post-apply signal to poll
 time.sleep(0.5)
 
 if not nft_table_exists("ze_pr"):
@@ -41,6 +43,7 @@ sys.stdout.write("PHASE1_OK\n")
 
 shutil.copy("config2.conf", "ze-bgp.conf")
 os.kill(pid, signal.SIGHUP)
+# blind hold: SIGHUP reload exposes no completion signal to this standalone driver; hold for the reactor to re-apply before the phase 2 kernel readback
 time.sleep(1.5)
 
 if not nft_table_exists("ze_pr"):

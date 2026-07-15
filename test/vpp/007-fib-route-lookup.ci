@@ -150,6 +150,7 @@ def _wait_for_socket(path, deadline):
     while time.time() < deadline:
         if os.path.exists(path):
             return True
+        # poll interval; the loop above returns once the socket path appears, bounded wait not a blind sleep
         time.sleep(0.05)
     return False
 
@@ -213,6 +214,7 @@ def main() -> int:
                 break
             line = peer_stdout_file.readline()
             if not line:
+                # poll interval; the loop above breaks when ze-peer reports listening, bounded wait not a blind sleep
                 time.sleep(0.05)
                 continue
             sys.stderr.write(f"peer> {line}")

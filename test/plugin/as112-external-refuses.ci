@@ -75,6 +75,7 @@ relayed stderr (default relay level is WARN; the refuse message logs at
 ERROR, which is always at or above WARN)."""
 import time
 
+# blind hold: waits for the external plugin's refuse/warn on the daemon's own relayed stderr; no queryable signal (reject-fence bucket, see spec-fixit-reject-fence-observability)
 time.sleep(4.0)
 EOF_PY
 

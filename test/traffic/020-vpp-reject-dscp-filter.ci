@@ -21,6 +21,7 @@ tmpfs=wait.py:mode=755:terminator=EOF_PY
 rejection, then exit."""
 import time
 
+# blind hold: a backgrounded ze gets no ZE_READY_FILE marker to poll; hold until OnConfigure emits the asserted log line, left un-converted (no readiness signal for a background daemon)
 time.sleep(2.5)
 EOF_PY
 

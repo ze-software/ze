@@ -47,6 +47,7 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'request fakefib emit failed: {r}')
 
+    # blind hold: sysrib to fib-kernel delivery is fire-and-forget with no end-to-end "programmed" signal to poll
     time.sleep(1.0)
 
     print('OK AC-1: blackhole route emitted to fib-kernel via sysrib EventBus', file=sys.stderr)

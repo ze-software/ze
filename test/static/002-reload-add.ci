@@ -3,62 +3,100 @@
 #            route appears in static show output.
 # PREVENTS: reload accepted but new routes not programmed (diff
 #           engine or apply path broken).
+#
+# Requires a Linux kernel (netlink route programming): gated needs-linux
+# and validated under QEMU (make ze-qemu-needs-linux-test). setup.py first
+# creates a dummy interface carrying the next-hop subnets so the gateways
+# resolve in the bare VM (otherwise RouteReplace fails ENETUNREACH).
+
+option=needs-linux
+
+tmpfs=setup.py:mode=755:terminator=EOF_SETUP
+#!/usr/bin/env python3
+# Create a dummy interface carrying the next-hop subnets (192.168.1.0/24,
+# 10.0.0.0/24) so the static routes' gateways resolve. Idempotent: "exists"
+# errors are ignored so repeat/parallel runs are safe.
+import subprocess
+def ip(*args):
+    subprocess.run(["ip", *args], stderr=subprocess.DEVNULL)
+ip("link", "add", "zens0", "type", "dummy")
+ip("addr", "add", "192.168.1.2/24", "dev", "zens0")
+ip("addr", "add", "10.0.0.100/24", "dev", "zens0")
+ip("link", "set", "zens0", "up")
+EOF_SETUP
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
-import os, signal, subprocess, sys, time
+import os, signal, subprocess, sys
 
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    time.sleep(0.05)
-else:
+from ze_api import wait_until
+
+# // test-relax: daemon-readiness for-loop -> ze_api.wait_until (ratchet-exempt sleep).
+if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
+                  attempts=200, delay=0.05):
     sys.exit("daemon readiness files missing")
 
 with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
-time.sleep(0.5)
+# // test-relax: `ze cli show static` needs SSH the static config does not declare;
+# verify the kernel FIB directly. Wait for the initial route to be programmed
+# before reloading.
+def _initial():
+    out = subprocess.run(["ip", "route", "show", "table", "all"], capture_output=True, text=True).stdout
+    return "10.0.0.0/8" in out
+if not wait_until(_initial, attempts=100, delay=0.1):
+    sys.exit("initial static route not programmed before reload")
 
 # Rewrite config to add a new route
 with open("ze-bgp.conf", "w") as f:
     f.write("""static {
     table default {
         route 10.0.0.0/8 {
-            next-hop 192.168.1.1 { }
+            next {
+                hop 192.168.1.1 { }
+            }
         }
         route 172.16.0.0/12 {
-            next-hop 10.0.0.1 { }
+            next {
+                hop 10.0.0.1 { }
+            }
         }
     }
 }
 """)
 
 os.kill(pid, signal.SIGHUP)
-time.sleep(1.0)
 
-last_err = None
-out = None
-for _ in range(50):
-    try:
-        out = subprocess.check_output(
-            ["ze", "cli", "-c", "show static"],
-            text=True, stderr=subprocess.STDOUT)
-        break
-    except subprocess.CalledProcessError as e:
-        last_err = e
-        time.sleep(0.1)
-if out is None:
-    sys.exit("ze cli never became ready: %s" % last_err.output)
-sys.stdout.write(out)
+# // test-relax: fixed post-SIGHUP sleep + SSH show -> poll the kernel FIB until
+# the newly added route appears.
+_out = {}
+def _reloaded():
+    _out["s"] = subprocess.run(["ip", "route", "show", "table", "all"], capture_output=True, text=True).stdout
+    return "172.16.0.0/12" in _out["s"]
+if not wait_until(_reloaded, attempts=100, delay=0.1):
+    sys.exit("reload did not add 172.16.0.0/12 to kernel:\n%s" % _out.get("s", ""))
+sys.stdout.write("172.16.0.0/12\n")
+
 os.kill(pid, signal.SIGTERM)
+# Wait for the daemon to exit so rm.shutdown() removes the routes before the
+# next test (kernel tables are shared; show static is per-daemon in-memory).
+def _dead():
+    try:
+        os.kill(pid, 0)
+        return False
+    except OSError:
+        return True
+wait_until(_dead, attempts=100, delay=0.05)
 EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 static {
     table default {
         route 10.0.0.0/8 {
-            next-hop 192.168.1.1 { }
+            next {
+                hop 192.168.1.1 { }
+            }
         }
     }
 }
@@ -66,8 +104,9 @@ EOF_CONF
 
 option=env:var=ze.log.static:value=info
 
-cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+cmd=foreground:seq=1:exec=python3 setup.py
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=python3 driver.py:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=static routes reloaded
 expect=stdout:contains=172.16.0.0/12

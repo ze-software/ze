@@ -23,6 +23,7 @@ import time
 for _ in range(200):
     if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
         break
+    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
     time.sleep(0.05)
 else:
     print("ERROR: daemon.pid/daemon.ready never appeared for background ze",

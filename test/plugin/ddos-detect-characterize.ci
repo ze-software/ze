@@ -43,6 +43,7 @@ import time
 for _ in range(400):
     if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
         break
+    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
     time.sleep(0.05)
 else:
     print("ERROR: daemon.pid/ready never appeared", file=sys.stderr)
@@ -75,6 +76,7 @@ def blast(n):
 #    one conntrack dump (active-timeout=1s) land it in the recent-flow ring.
 for _ in range(3):
     blast(50)
+    # deliberate pacing: 1s between pre-warm blasts so a conntrack dump (active-timeout 1s) lands the flow in the recent-flow ring before the flood
     time.sleep(1.0)
 
 # 2. Flood hard so the detector confirms and characterization runs against the
@@ -92,6 +94,7 @@ while time.time() < deadline:
     if "ddos-local" in ruleset and victim in ruleset and "11211" in ruleset:
         narrowed = True
         break
+    # poll interval; the loop above breaks once the narrowed nft rule appears in the ruleset, bounded wait not a blind sleep
     time.sleep(0.2)
 
 sys.stdout.write(ruleset)

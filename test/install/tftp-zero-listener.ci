@@ -19,6 +19,7 @@ option=needs-linux
 tmpfs=wait.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 import time
+# blind hold: the backgrounded ze exposes no readiness marker to poll; hold while it attempts the failing bind and logs "no interfaces bound", left un-converted (no readiness signal for a background daemon)
 time.sleep(2.0)
 EOF_PY
 

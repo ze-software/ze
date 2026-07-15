@@ -137,6 +137,7 @@ def main():
     et.start()
     try:
         while True:
+            # keep-alive tick: the helper idles until its parent exits; not a readiness wait
             time.sleep(1)
     except KeyboardInterrupt:
         pass

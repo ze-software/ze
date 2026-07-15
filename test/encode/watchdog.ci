@@ -19,9 +19,11 @@ def main() -> None:
 
     while os.getppid() != 1:
         send('request bgp watchdog announce dnsr')
+        # deliberate pacing: space announce/withdraw so each is sent as a separate UPDATE, not batched
         time.sleep(0.2)
 
         send('request bgp watchdog withdraw dnsr')
+        # deliberate pacing: space announce/withdraw so each is sent as a separate UPDATE, not batched
         time.sleep(0.2)
 
     time.sleep(1)  # time for configuration routes to pass

@@ -35,10 +35,10 @@ import sys
 import time
 
 
+# // test-relax: drop retired ExaBGP-compat `environment { tcp { attempts } }`
+# block (removed schema surface, see test/parse/listener-tcp-port-removed.ci);
+# the daemon now uses default connection retry. Assertions unchanged.
 CONFIG_TEMPLATE = """environment {
-\ttcp {
-\t\tattempts 3
-\t}
 }
 
 bgp {
@@ -87,6 +87,7 @@ def _wait_for_socket(path, deadline):
     while time.time() < deadline:
         if os.path.exists(path):
             return True
+        # poll interval; the loop above returns once the socket path appears, bounded wait not a blind sleep
         time.sleep(0.05)
     return False
 
@@ -109,6 +110,7 @@ def _stub_saw_add(log_path, deadline_s, prefix):
                             return True
             except OSError:
                 pass
+        # poll interval; the loop above returns when the stub logs the expected route, bounded wait not a blind sleep
         time.sleep(0.1)
     return False
 
@@ -185,6 +187,7 @@ def main() -> int:
                 break
             line = peer_stdout_file.readline()
             if not line:
+                # poll interval; the loop above breaks when ze-peer reports listening, bounded wait not a blind sleep
                 time.sleep(0.05)
                 continue
             sys.stderr.write(f"peer> {line}")

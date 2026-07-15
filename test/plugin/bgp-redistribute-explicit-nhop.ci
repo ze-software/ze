@@ -38,6 +38,7 @@ def main():
         runtime_fail(f'request fakeredist emit failed: {result}')
         return
 
+    # blind hold: no queryable signal that the emitted route finished dispatching; left un-converted pending the redistribute P0 investigation
     time.sleep(2.0)
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()

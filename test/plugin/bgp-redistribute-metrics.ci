@@ -33,6 +33,7 @@ def main():
     api.wait_for_registry()
     api.ready()
 
+    # blind hold: no fast barrier for BGP establishment here; the P0 establishment stall blocks converting this (see spec-fixit-redistribute-establishment-stall)
     time.sleep(2.0)
 
     sequence = [
@@ -48,8 +49,10 @@ def main():
         if result.get('status') != 'done':
             runtime_fail(f'{cmd}: status={result.get("status")} data={result.get("data")}')
             return
+        # deliberate pacing: space each emit so the consumer handles them as separate events, not batched
         time.sleep(0.2)
 
+    # blind hold: no queryable signal that the emitted routes finished dispatching; left un-converted pending the redistribute P0 investigation
     time.sleep(2.0)
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()

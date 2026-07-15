@@ -28,6 +28,7 @@ and run the conntrack worker. Background processes do not receive the
 ZE_READY_FILE marker, so the wait is a plain sleep."""
 import time
 
+# blind hold: a backgrounded ze gets no ZE_READY_FILE marker to poll; hold until OnConfigure emits the asserted log line, left un-converted (no readiness signal for a background daemon)
 time.sleep(2.5)
 EOF_PY
 

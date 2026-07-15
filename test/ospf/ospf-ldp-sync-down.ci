@@ -52,6 +52,7 @@ def wait_state(api, iface, want, timeout=6.0):
         row = ldp_row(api, iface)
         if row and row.get('state') == want:
             return row
+        # poll interval; the loop above returns once the ldp-sync state reaches the target, bounded wait not a blind sleep
         time.sleep(0.2)
     runtime_fail(f"eth0 did not reach {want}; last = {row!r}")
 

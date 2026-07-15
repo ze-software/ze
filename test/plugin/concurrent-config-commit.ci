@@ -141,6 +141,7 @@ def main():
         if candidate_has_router_id(params, '10.0.0.2'):
             with open('verify.started', 'w', encoding='utf-8') as fh:
                 fh.write('started\n')
+            # deliberate timer: the 3s verify hold IS the concurrency race window under test, do NOT convert
             time.sleep(3)
         return {'status': 'ok'}
 

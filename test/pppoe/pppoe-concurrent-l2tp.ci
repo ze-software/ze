@@ -65,6 +65,7 @@ def test_l2tp():
                 sock.close()
                 return True
         except (socket.timeout, OSError):
+            # retry backoff; the loop above returns on the first valid response, bounded wait not a blind sleep
             time.sleep(0.1)
             continue
     sock.close()
@@ -94,6 +95,7 @@ def test_pppoe():
                 sock.close()
                 return True
         except (socket.timeout, OSError):
+            # retry backoff; the loop above returns on the first valid response, bounded wait not a blind sleep
             time.sleep(0.1)
             continue
     sock.close()
@@ -102,6 +104,7 @@ def test_pppoe():
 
 
 def main():
+    # blind settle: give both subsystems a moment to bind their sockets before probing (needs-linux netns test)
     time.sleep(0.5)
     l2tp_ok = test_l2tp()
     pppoe_ok = test_pppoe()

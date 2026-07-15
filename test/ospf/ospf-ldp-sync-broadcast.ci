@@ -64,6 +64,7 @@ def main():
         row = ldp_row(api, 'eth0')
         if row and row.get('state') == 'synchronized':
             break
+        # poll interval; the loop above breaks once the ldp-sync state reaches synchronized, bounded wait not a blind sleep
         time.sleep(0.2)
     if row is None or row.get('state') != 'synchronized':
         runtime_fail(f"broadcast eth0 did not synchronize; last = {row!r}")

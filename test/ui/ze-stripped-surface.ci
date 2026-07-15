@@ -74,6 +74,7 @@ try:
             raise SystemExit('daemon exited early\nstdout:\n' + out + '\nstderr:\n' + err)
         if os.path.exists('ssh.addr') and os.path.exists('ready'):
             break
+        # poll interval; the loop above breaks once ssh.addr and ready exist (or fails if the daemon exits early), bounded wait not a blind sleep
         time.sleep(0.1)
     else:
         raise SystemExit('daemon did not become ready')
