@@ -289,6 +289,12 @@ type Reactor struct {
 	// orderedEgressSteps is the egress twin, used by forwardUpdateCore only: the
 	// in-process egress filters plus the export policy chain, in declared order.
 	orderedEgressSteps []orderedEgressStep
+	// readvertiseEgressFilters are the egress filters that opted into the RIB
+	// stale-readvertise rail (filterapi Readvertise). AnnounceNLRIBatch runs only
+	// these, per destination peer, on a batch with Stale > 0 (the LLGR readvertise
+	// path; see filterapi.ReadvertiseEgressFuncs and gr_egress.go). Built once at
+	// construction; nil (and inert) when no such filter is registered.
+	readvertiseEgressFilters []filterapi.EgressFilterFunc
 	// Attr mod handlers: per-attribute-code handlers for progressive build.
 	// Keyed by attribute type code (uint8). Collected from registry at startup.
 	attrModHandlers map[uint8]filterapi.AttrModHandler
@@ -1206,6 +1212,7 @@ func (r *Reactor) startAPIServer() error {
 	// Built once here (r.api is set by now); the per-UPDATE passes only iterate them.
 	r.orderedIngressSteps = buildOrderedIngressSteps()
 	r.orderedEgressSteps = buildOrderedEgressSteps()
+	r.readvertiseEgressFilters = filterapi.ReadvertiseEgressFuncs()
 	r.AddPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
 	r.SetAPIProcessCount(len(r.config.Plugins))
 

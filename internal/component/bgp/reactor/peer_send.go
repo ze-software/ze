@@ -1,3 +1,4 @@
+// RFC: rfc/short/rfc4271.md
 // Design: docs/architecture/core-design.md — BGP UPDATE sending
 // Overview: peer.go — Peer struct and FSM state machine
 
@@ -8,6 +9,7 @@ import (
 	"net/netip"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -135,6 +137,25 @@ func (p *Peer) sendUpdateWithSplit(update *message.Update, maxSize int, addPath 
 		return fmt.Errorf("splitting update: %w", err)
 	}
 	return nil
+}
+
+// sendBodyWithSplit reconstructs a *message.Update from a flat UPDATE body
+// (RFC 4271 Section 4.3: withdrawn-length + withdrawn + attr-length + attrs +
+// NLRI) and sends it with message splitting. Used by the LLGR stale-readvertise
+// path, which applies attribute modifications on the flat body (buildModifiedPayload)
+// and then needs the same size-aware split send as the batch announce rail. The
+// section slices are copied because the caller's flat body is pooled/transient.
+func (p *Peer) sendBodyWithSplit(body []byte, maxSize int, addPath bool) error {
+	sec, err := wire.ParseUpdateSections(body)
+	if err != nil {
+		return fmt.Errorf("parse modified update body: %w", err)
+	}
+	u := &message.Update{
+		WithdrawnRoutes: append([]byte(nil), sec.Withdrawn(body)...),
+		PathAttributes:  append([]byte(nil), sec.Attrs(body)...),
+		NLRI:            append([]byte(nil), sec.NLRI(body)...),
+	}
+	return p.sendUpdateWithSplit(u, maxSize, addPath)
 }
 
 // PauseReading pauses reading from this peer's session.

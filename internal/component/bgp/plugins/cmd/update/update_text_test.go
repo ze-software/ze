@@ -3874,3 +3874,31 @@ func TestParseUpdateText_SRPolicyUnknownKeyword(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown keyword")
 }
+
+// TestStaleLevelFromMeta verifies the LLGR stale-level extraction (RFC 9494)
+// that DispatchNLRIGroups uses to carry meta["stale"] onto NLRIBatch.Stale.
+// It must accept the uint8 the RIB sets in-process and the float64 a forked
+// plugin's JSON round-trip produces, and default to 0 otherwise.
+func TestStaleLevelFromMeta(t *testing.T) {
+	cases := []struct {
+		name string
+		meta map[string]any
+		want uint8
+	}{
+		{"nil meta", nil, 0},
+		{"no stale key", map[string]any{"other": 1}, 0},
+		{"uint8 in-process", map[string]any{"stale": uint8(2)}, 2},
+		{"int", map[string]any{"stale": 3}, 3},
+		{"float64 json round-trip", map[string]any{"stale": float64(4)}, 4},
+		{"out-of-range int", map[string]any{"stale": 300}, 0},
+		{"negative int", map[string]any{"stale": -1}, 0},
+		{"wrong type", map[string]any{"stale": "high"}, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := staleLevelFromMeta(tc.meta); got != tc.want {
+				t.Errorf("staleLevelFromMeta(%v) = %d, want %d", tc.meta, got, tc.want)
+			}
+		})
+	}
+}

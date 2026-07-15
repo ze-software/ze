@@ -241,6 +241,16 @@ type Filter struct {
 	Priority int               // Fine ordering within a stage; equal priority sorted by name
 	Ingress  IngressFilterFunc // nil = no ingress filtering
 	Egress   EgressFilterFunc  // nil = no egress filtering
+	// Readvertise opts an egress filter into the RIB stale-readvertise announce
+	// rail (AnnounceNLRIBatch) in addition to the ForwardUpdate rail. It exists
+	// for the LLGR egress filter (RFC 9494): when a peer's GR window expires its
+	// routes are readvertised via AnnounceNLRIBatch, which runs no general egress
+	// chain, so only filters that key off route metadata (meta["stale"]) and must
+	// re-decide per destination peer opt in here. The reactor runs ONLY the
+	// Readvertise-opted egress funcs on stale batches, never the full chain, so a
+	// readvertise does not re-apply OTC/community/policy that already ran at the
+	// original announce. Requires Egress != nil.
+	Readvertise bool
 }
 
 var (
@@ -360,6 +370,21 @@ func EgressOrdered() []Filter {
 	mu.RLock()
 	defer mu.RUnlock()
 	return sortedFilters(func(f Filter) bool { return f.Egress != nil })
+}
+
+// ReadvertiseEgressFuncs returns the egress filter funcs that opted into the RIB
+// stale-readvertise rail (Readvertise == true), in pipeline order. The reactor
+// caches these once at construction and runs only them on a stale AnnounceNLRIBatch
+// (RFC 9494 LLGR), leaving the common announce path filter-free.
+func ReadvertiseEgressFuncs() []EgressFilterFunc {
+	mu.RLock()
+	defer mu.RUnlock()
+	entries := sortedFilters(func(f Filter) bool { return f.Egress != nil && f.Readvertise })
+	funcs := make([]EgressFilterFunc, 0, len(entries))
+	for _, e := range entries {
+		funcs = append(funcs, e.Egress)
+	}
+	return funcs
 }
 
 // IngressFilters returns all registered ingress filter functions,

@@ -196,6 +196,13 @@ type NLRIBatch struct {
 	// peers (normal export prepend). Distinct from a verbatim `as-path` (route
 	// server transparency). Zero uses the legacy default AS_PATH synthesis.
 	OriginAS uint32
+	// Stale is the LLGR stale level (RFC 9494) carried from the RIB
+	// readvertise producer (meta["stale"]). When >0, AnnounceNLRIBatch runs the
+	// registered readvertise egress filters per destination peer so stale routes
+	// are kept+marked for LLGR-capable peers, depreferenced for non-LLGR iBGP
+	// peers, and converted to withdrawals for non-LLGR eBGP peers. Zero (the
+	// common case) takes the unchanged grouped announce path.
+	Stale uint8
 }
 
 // RIBStatsInfo holds RIB statistics for Adj-RIB-In and Adj-RIB-Out.

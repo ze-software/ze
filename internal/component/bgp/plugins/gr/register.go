@@ -30,9 +30,13 @@ func init() {
 
 	// Route filter pipeline contribution (BGP-owned seam, not the generic registry).
 	if err := filterapi.Register(filterapi.Filter{
-		Name:   "bgp-gr",
-		Stage:  filterapi.FilterStageAnnotation,
-		Egress: LLGREgressFilter,
+		Name:  "bgp-gr",
+		Stage: filterapi.FilterStageAnnotation,
+		// RFC 9494: the LLGR egress decision (keep+mark / depreference / withdraw)
+		// must run per destination peer on the RIB stale-readvertise rail, not just
+		// on ForwardUpdate. Readvertise opts it into AnnounceNLRIBatch for stale batches.
+		Egress:      LLGREgressFilter,
+		Readvertise: true,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "gr: filter registration failed: %v\n", err)
 		os.Exit(1)

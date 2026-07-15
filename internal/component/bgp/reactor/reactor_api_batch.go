@@ -1,3 +1,4 @@
+// RFC: rfc/short/rfc4271.md
 // Design: docs/architecture/core-design.md — NLRI batch announce/withdraw and wire attribute building
 // Overview: reactor_api.go — API command handling core
 // Related: reactor_api_forward.go — forwarding and grouped sending
@@ -10,6 +11,7 @@ import (
 	"fmt"
 	"net/netip"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
@@ -102,6 +104,19 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 			nc := peer.negotiated.Load()
 			if nc == nil || !nc.Has(batch.Family) {
 				continue // Skip peer that doesn't support this family
+			}
+
+			// LLGR stale readvertise (RFC 9494): run the per-peer readvertise
+			// egress filter so the route is kept+marked for LLGR-capable peers,
+			// depreferenced for non-LLGR iBGP, or withdrawn for non-LLGR eBGP.
+			// Rare (GR-expiry) path; the common Stale==0 path is untouched.
+			if batch.Stale > 0 && len(a.r.readvertiseEgressFilters) > 0 {
+				if a.sendStaleReadvertise(peer, batch, nextHop, isIBGP, nc) {
+					acceptedCount++
+				} else {
+					lastErr = route.ErrNoPeersAcceptedFamily
+				}
+				continue
 			}
 
 			if groupsEnabled {
@@ -785,4 +800,94 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 	}
 
 	return updatesSent
+}
+
+// sendStaleReadvertise handles one destination peer on a stale (LLGR) announce
+// batch. It builds the announce, runs the registered readvertise egress filters
+// (RFC 9494 LLGR) with meta["stale"] and the peer as destination, then realizes
+// the per-peer decision: withdrawal for a non-LLGR eBGP peer (mods.IsWithdraw),
+// a depreferenced announce for a non-LLGR iBGP peer (attribute mods), or the
+// unchanged announce for an LLGR-capable peer. Returns true when a message was
+// accepted for sending. The filter chain here is ONLY the Readvertise-opted
+// filters, never the full egress chain, so a readvertise does not re-apply
+// OTC/community/policy that already ran at the original announce.
+func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP bool, nc *NegotiatedCapabilities) bool {
+	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
+	addPath := peer.addPathFor(batch.Family)
+	asn4 := peer.asn4()
+	localAS := peer.Settings().LocalAS
+
+	attrHandle := getBuildBuf()
+	nlriHandle := getBuildBuf()
+	defer putBuildBuf(attrHandle)
+	defer putBuildBuf(nlriHandle)
+	update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, asn4, addPath, localAS)
+
+	// Run the readvertise egress filters. LLGREgressFilter keys off meta["stale"]
+	// and the destination peer's LLGR capability; it writes into mods.
+	body := fwdPackUpdateBody(update)
+	dest := filterapi.PeerFilterInfo{
+		Address: peer.Settings().Address,
+		PeerAS:  peer.Settings().PeerAS,
+		LocalAS: localAS,
+	}
+	outcome, modified := a.decideStaleReadvertise(dest, body, batch.Stale)
+
+	switch outcome {
+	case staleSuppress:
+		return false // filter suppressed the route for this peer
+	case staleWithdraw:
+		// Non-LLGR eBGP peer: send a withdrawal for the same NLRIs.
+		wdAttr := getBuildBuf()
+		wdNlri := getBuildBuf()
+		defer putBuildBuf(wdAttr)
+		defer putBuildBuf(wdNlri)
+		wd := a.buildBatchWithdrawUpdate(wdAttr.Buf, wdNlri.Buf, batch, addPath)
+		return peer.sendUpdateWithSplit(wd, maxMsgSize, addPath) == nil
+	case staleModify:
+		// Non-LLGR iBGP peer: apply the depreference mods (NO_EXPORT + LOCAL_PREF=0).
+		if modified == nil {
+			return peer.sendUpdateWithSplit(update, maxMsgSize, addPath) == nil
+		}
+		return peer.sendBodyWithSplit(modified, maxMsgSize, addPath) == nil
+	default: // staleKeep
+		// LLGR-capable peer: send the stale route unchanged.
+		return peer.sendUpdateWithSplit(update, maxMsgSize, addPath) == nil
+	}
+}
+
+// staleOutcome is the per-peer decision of the readvertise egress filters.
+type staleOutcome int
+
+const (
+	staleKeep     staleOutcome = iota // send the stale route unchanged (LLGR-capable peer)
+	staleModify                       // send with attribute mods (non-LLGR iBGP depreference)
+	staleWithdraw                     // send a withdrawal (non-LLGR eBGP)
+	staleSuppress                     // a filter rejected the route for this peer
+)
+
+// decideStaleReadvertise runs the registered readvertise egress filters for one
+// destination peer over the packed announce body and returns the outcome plus,
+// for staleModify, the modified UPDATE body. It is the pure decision half of
+// sendStaleReadvertise, split out so the filter->outcome mapping is unit-testable
+// without a live session. LLGREgressFilter (RFC 9494) is the sole registered
+// filter today; it reads dest + meta["stale"] and writes into mods.
+func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo, body []byte, stale uint8) (staleOutcome, []byte) {
+	meta := map[string]any{"stale": stale}
+	var src filterapi.PeerFilterInfo
+	var mods filterapi.ModAccumulator
+	for _, f := range a.r.readvertiseEgressFilters {
+		if !safeEgressFilter(f, src, dest, body, meta, &mods) {
+			return staleSuppress, nil
+		}
+	}
+	switch {
+	case mods.IsWithdraw():
+		return staleWithdraw, nil
+	case mods.HasModifications():
+		modified, _ := buildModifiedPayload(body, &mods, a.r.attrModHandlers, nil, nil)
+		return staleModify, modified
+	default:
+		return staleKeep, nil
+	}
 }

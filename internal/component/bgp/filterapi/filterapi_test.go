@@ -526,3 +526,34 @@ func TestPeerFilterInfoFields(t *testing.T) {
 		t.Errorf("GroupName = %q, want %q", info.GroupName, "transit")
 	}
 }
+
+// TestReadvertiseEgressFuncs verifies that only egress filters that opt in via
+// Readvertise are returned for the RIB stale-readvertise rail (RFC 9494 LLGR),
+// and that a plain egress filter and an ingress filter are excluded.
+func TestReadvertiseEgressFuncs(t *testing.T) {
+	snap := Snapshot()
+	t.Cleanup(func() { Restore(snap) })
+	ResetForTest()
+
+	egress := func(_, _ PeerFilterInfo, _ []byte, _ map[string]any, _ *ModAccumulator) bool { return true }
+
+	if err := Register(Filter{Name: "plain-egress", Stage: FilterStageAnnotation, Egress: egress}); err != nil {
+		t.Fatal(err)
+	}
+	if err := Register(Filter{Name: "readv-egress", Stage: FilterStageAnnotation, Egress: egress, Readvertise: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := Register(Filter{Name: "ingress-only", Stage: FilterStagePolicy, Ingress: noopIngress}); err != nil {
+		t.Fatal(err)
+	}
+
+	funcs := ReadvertiseEgressFuncs()
+	if len(funcs) != 1 {
+		t.Fatalf("ReadvertiseEgressFuncs() len = %d, want 1 (only the Readvertise-opted egress filter)", len(funcs))
+	}
+	// EgressFilters (all egress) returns both egress filters, confirming the
+	// Readvertise filter is a strict subset.
+	if got := len(EgressFilters()); got != 2 {
+		t.Fatalf("EgressFilters() len = %d, want 2", got)
+	}
+}

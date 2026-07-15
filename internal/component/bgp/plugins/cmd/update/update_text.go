@@ -774,6 +774,11 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 	var announced, withdrawn int
 	var warnings []string
 
+	// RFC 9494: the LLGR readvertise producer stamps meta["stale"] on the
+	// UpdateRoute RPC; carry it onto the announce batch so AnnounceNLRIBatch runs
+	// the per-peer readvertise egress filters. Zero for every non-stale command.
+	staleLevel := staleLevelFromMeta(ctx.Meta)
+
 	for _, group := range groups {
 		if len(group.Announce) > 0 {
 			batch := bgptypes.NLRIBatch{
@@ -782,6 +787,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				NextHop:  group.NextHop,
 				Wire:     group.Wire,
 				OriginAS: group.OriginAS,
+				Stale:    staleLevel,
 			}
 			if err := bgpReactor.AnnounceNLRIBatch(sel, batch); err != nil {
 				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {
@@ -829,4 +835,30 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 		Status: plugin.StatusDone,
 		Data:   result,
 	}, nil
+}
+
+// staleLevelFromMeta reads the LLGR stale level (RFC 9494) from route metadata.
+// Returns 0 when meta is nil or carries no "stale" key. In-process (DirectBridge)
+// the value arrives as the uint8 the RIB set; a forked plugin's JSON round-trip
+// decodes numbers as float64, so both are accepted.
+func staleLevelFromMeta(meta map[string]any) uint8 {
+	if meta == nil {
+		return 0
+	}
+	switch v := meta["stale"].(type) {
+	case uint8:
+		return v
+	case int:
+		if v < 0 || v > 255 {
+			return 0
+		}
+		return uint8(v)
+	case float64:
+		if v < 0 || v > 255 {
+			return 0
+		}
+		return uint8(v)
+	default:
+		return 0
+	}
 }

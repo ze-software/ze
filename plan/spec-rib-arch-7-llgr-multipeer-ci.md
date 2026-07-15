@@ -208,6 +208,36 @@ N/A: this is a functional test fixture, not enforcing code. RFC 9494 LLGR behavi
 already documented at its enforcing site (`internal/component/bgp/plugins/gr/gr_egress.go`,
 `filterapi.go:149`). Add `// RFC 9494 Section X.Y` comments only if step 3 changes feature code.
 
+## Progress (2026-07-15) -- egress-filter wiring landed; end-to-end `.ci` still open
+
+**Done + validated (the scoped feature the user approved):** the LLGR egress filter now
+runs per destination peer on the RIB stale-readvertise announce rail. Design (all reused
+the forward rail's tested machinery, common announce path untouched):
+
+- `filterapi.Filter.Readvertise` opt-in + `ReadvertiseEgressFuncs()` (registration over
+  hardcoding -- the reactor never spells "bgp-gr"); `gr/register.go` sets `Readvertise: true`.
+- `bgptypes.NLRIBatch.Stale` carries the LLGR level; `DispatchNLRIGroups` populates it from
+  `ctx.Meta["stale"]` via `staleLevelFromMeta` (`update_text.go`) -- closes the meta drop.
+- `Reactor.readvertiseEgressFilters` built at construction; `AnnounceNLRIBatch` takes a
+  per-peer branch ONLY when `Stale > 0` -> `sendStaleReadvertise` / `decideStaleReadvertise`:
+  withdraw (`buildBatchWithdrawUpdate`) for non-LLGR eBGP, depreference
+  (`buildModifiedPayload` -> `sendBodyWithSplit`) for non-LLGR iBGP, keep for LLGR-capable.
+
+**Tests (all green, no reactor/gr/filterapi/update regression):**
+`decideStaleReadvertise` (4 outcomes), `staleLevelFromMeta` (8 cases), `ReadvertiseEgressFuncs`,
+plus the existing 8 `gr_egress` unit tests.
+
+**Still OPEN -- the end-to-end `.ci` (Goal Gate).** A multi-peer `.ci` needs a
+source-attributed STALE route in the OTHER peers' rib-out to readvertise. Getting there is a
+separate, deeper layer: the source's peer-learned route must be PROPAGATED into the other
+peers' rib-out first. The RS fast path forwards only to already-established peers and bypasses
+rib-out (so late peers get nothing); an observer-driven `cache forward` -> `mark-stale` ->
+`clear bgp rib out` sequence is the deterministic alternative but is blocked on multi-peer iBGP
+establishment + dispatch-command plumbing in the harness. WIP fixture:
+`tmp/scratch/llgr-multipeer-readvertise.ci.wip`. When resumed: confirm the peers establish
+(the immediate blocker), then wire the propagation-into-rib-out so a late/stale route reaches
+the non-source peers.
+
 ## Notes
 - Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.
 - Umbrella / siblings: `spec-rib-arch-0-umbrella.md`.
