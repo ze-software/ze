@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | ready |
-| Depends | spec-migrate-sleeps-infra (infra-gated carve-out) |
+| Depends | spec-fixit-migrate-sleeps-infra (infra-gated carve-out) |
 | Phase | 0/1 |
 | Updated | 2026-07-14 |
 
@@ -11,7 +11,7 @@
 
 Add a plugin-visible "operation processed" observability signal so tests that prove a
 REJECTION or NO-OP can wait deterministically instead of sleeping. Three infra-gated
-tests under spec-migrate-sleeps-infra keep a `time.sleep` for exactly this reason: the
+tests under spec-fixit-migrate-sleeps-infra keep a `time.sleep` for exactly this reason: the
 only evidence the operation ran is a relayed-stderr line the runner checks, with no
 signal a pollable observer can see.
 

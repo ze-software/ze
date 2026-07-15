@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | in-progress |
-| Depends | spec-migrate-sleeps-infra (P0 carve-out); spec-redistribute-late-join-replay |
+| Depends | spec-fixit-migrate-sleeps-infra (P0 carve-out); spec-redistribute-late-join-replay |
 | Phase | 0/1 (investigation) |
 | Updated | 2026-07-15 |
 
@@ -15,7 +15,7 @@ or even a bare `wait_for_event` callback read) during BGP session establishment,
 **single-peer redistribute session never establishes** (`connections-established`
 stays 0). Only the original blind `time.sleep` (observer fully idle, not even reading
 its callback connection) lets it establish. This blocks deterministic-wait conversion
-of the redistribute test bucket under spec-migrate-sleeps-infra:
+of the redistribute test bucket under spec-fixit-migrate-sleeps-infra:
 `bgp-redistribute-{announce,burst,explicit-nhop,filtered-out,metrics,nexthop-self,withdraw}.ci`
 (7 tests, ~16 sleeps), plus `api-raw.ci` / `api-route-refresh.ci` if they share the trigger.
 
@@ -79,7 +79,7 @@ remain blind-sleep (annotated, passing) until this is resolved.
 - `internal/component/bgp/plugins/redistribute_egress/replay.go` (replay-on-request flow + coordinator)
 - `internal/component/bgp/reactor/session_read.go` (`processMessage`, establishment path)
 - `internal/component/bgp/reactor/reactor_notify.go` (message counters, `notifyMessageReceiver`)
-- `plan/spec-migrate-sleeps-infra.md` (Mistake Log / Failed Approaches: the bisection)
+- `plan/spec-fixit-migrate-sleeps-infra.md` (Mistake Log / Failed Approaches: the bisection)
 - `plan/spec-redistribute-late-join-replay.md` (the behavior the fix must not regress)
 - `ai/rules/diagnosis-before-fix.md`, `ai/rules/no-fabrication.md`
 
