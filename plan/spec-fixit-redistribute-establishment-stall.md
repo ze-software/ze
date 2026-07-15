@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-migrate-sleeps-infra (P0 carve-out); spec-redistribute-late-join-replay |
 | Phase | 0/1 (investigation) |
-| Updated | 2026-07-14 |
+| Updated | 2026-07-15 |
 
 ## Task
 
@@ -18,6 +18,60 @@ its callback connection) lets it establish. This blocks deterministic-wait conve
 of the redistribute test bucket under spec-migrate-sleeps-infra:
 `bgp-redistribute-{announce,burst,explicit-nhop,filtered-out,metrics,nexthop-self,withdraw}.ci`
 (7 tests, ~16 sleeps), plus `api-raw.ci` / `api-route-refresh.ci` if they share the trigger.
+
+## Investigation Findings (2026-07-15)
+
+A long investigation this session. Net: **part fixed and committed; a deeper part
+diagnosed but not fixed.** Two of my intermediate hypotheses were disproven -- both
+recorded here so the next session does not repeat them.
+
+### Fixed + committed
+- **`fix(bgp): reconnect backoff floor 5s, not 120s connect-retry` (commit 44ad25d23).**
+  `internal/component/bgp/reactor/peer.go` NewPeer(:294) set `reconnectMin :=
+  settings.ConnectRetry` (default 120s, RFC 4271 ConnectRetryTimer, `peersettings.go:66`),
+  while `reconnectMax = DefaultReconnectMax` (60s). So the backoff floor (120s) exceeded
+  its ceiling (60s), contradicting the design in `peer_run.go:24` ("min 5s, max 60s") and
+  `DefaultReconnectMin` (5s, peer.go:81). A failed first connect stranded the peer
+  `connecting` for 2 minutes. Fix: `reconnectMin := DefaultReconnectMin`. ConnectRetry keeps
+  its real role as a connect timeout (`reactor_dynamic.go:343`). Reconnect unit tests use
+  `SetReconnectDelay` overrides, so unaffected. Verified: converted `announce` 25/25 (was
+  ~80% flaky pre-fix); reactor package unit tests green.
+
+### CONFIRMED (evidence)
+- NOT a mutex deadlock: a 122-goroutine dump has zero `[semacquire]`. Refutes H1-H3 as
+  *deadlock* hypotheses.
+- `announce` (auto-loads the orchestrator) converts to a deterministic
+  `wait_until(state=='established')` + `quiesce()` recipe and passes 25/25.
+- The 6 *explicit* `internal redistribute-orchestrator` tests (explicit-nhop, filtered-out,
+  withdraw, burst, metrics, nexthop-self) DO NOT pass when converted: the peer stays
+  `connecting`; the reactor.peer log shows every dial `connection refused` with a doubling
+  backoff (5->10->20->40s), so it never establishes inside the test window.
+- The committed **blind-sleep** versions of those 6 PASS with a proper build; my observer-only
+  conversion (any dispatch during establishment) is what breaks them. Confirmed via HEAD vs
+  converted A/B with the proper `zetest` build.
+- Full untruncated startup timeline (manual harness): `StartPeers` fires FAST (~0.26s after
+  startup begins), and with a LONG-LIVED peer the session establishes on the 2nd dial (5s
+  backoff). So the failure is a TIMING interaction with the ze-test peer's lifetime, not a
+  slow StartPeers.
+
+### DISPROVEN (do not repeat)
+- "Committed plugin-startup regression (closed pipe)": FALSE. Artifact of running with
+  `ZE_TEST_NO_BUILD=1 ZE_BIN=bin/ze` where `bin/ze` was a `make ze` **core** build lacking the
+  `zetest` fake plugins (fakeredist/fakefib). With the default `zetest` build (buildZe,
+  `cmd_bgp.go:458` uses `runner.TestBuildTags()`), `redistribute-as112-announce` passes.
+  Always let ze-test build (do not pin ZE_BIN to a core binary) for the `bgp plugin` suite.
+- "~20s StartPeers delay from observer polling": FALSE. That number conflated the ze-test
+  `go build` time with startup. The manual full-log capture shows StartPeers is fast.
+
+### REMAINING (the real open question)
+Why does the ze-test check-mode peer never accept a connection when the observer polls during
+establishment, while a long-lived sink peer does? Every dial is `connection refused`, so the
+ze-test peer is not listening at dial time -- pin whether the observer's dispatch shifts ze's
+first-dial timing relative to ze-test peer bind/lifetime, or whether the ze-test peer exits
+early. Then decide: (a) event-driven establishment wait in the observer (subscribe to the
+peer-up `state` event, never dispatch during the connect window), or (b) an engine change so a
+plugin's dispatch during establishment cannot perturb peer connect timing. Redistribute tests
+remain blind-sleep (annotated, passing) until this is resolved.
 
 ## Required Reading
 
