@@ -124,6 +124,12 @@ module ze-bmp-conf {
                     description "Enable Route Mirroring (RFC 7854 S4.7): stream verbatim copies of all BGP messages to collectors";
                 }
 
+                leaf loc-rib {
+                    type boolean;
+                    default false;
+                    description "Enable Loc-RIB monitoring (RFC 9069, PeerType=3): stream local RIB best-path changes to collectors as Route Monitoring messages with a Loc-RIB peer header";
+                }
+
                 leaf statistics-timeout {
                     type uint16 {
                         range "0..65535";

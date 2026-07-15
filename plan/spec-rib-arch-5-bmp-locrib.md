@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-08 |
+| Phase | implement |
+| Updated | 2026-07-14 |
 
 ## Post-Compaction Recovery
 
@@ -114,11 +114,48 @@ UPDATE PDU).
 |----|------|--------------|----------------------|
 | R-1 | Reconstructed UPDATE differs from the on-wire form a peer would have sent | station-side decode mismatches | encode from the same typed attributes the forward path uses; interop-test against a BMP collector |
 
+## Design (2026-07-14)
+
+**A-1 validated:** the attribute encoder (`internal/core/bgp/attribute`) rebuilds wire
+bytes from typed fields -- `attribute.NewBuilder().SetOrigin/SetASPath/SetNextHopAddr`
+-> `Build()` for the path-attribute block (the same encoder `injectRoute` uses,
+rib_commands.go:259), `attribute.NewMPReachNLRI` / `&attribute.MPUnreachNLRI{}` +
+`attribute.WriteAttrTo` for MP families. The UPDATE body framing (withdrawn-len +
+attr-len + NLRI) is the trivial 4-byte-length wrapping shared by every UPDATE builder;
+built inline in `buildLocRIBUpdateBody`. No parallel encoder.
+
+**A-2 validated (with a documented fidelity limit):** `BestChangeEntry` carries
+Prefix, NextHop, OriginAS, ASPath (events.go:54) -- enough for a minimal RFC-compliant
+RM (ORIGIN + AS_PATH + NEXT_HOP + NLRI) per RFC 9069 S "Route Monitoring Content"
+(ORIGIN, AS_PATH, NEXT_HOP; AS_PATH may be empty for locally originated routes). It does
+NOT carry communities / local-pref, so a Loc-RIB RM loses those attributes. The spec's
+Architectural Verification forbids a RIB back-door (no `reconstructWireAttrs` reach-in),
+so the public best-change event is the source of truth and the minimal RM is accepted.
+
+**Transport (Decision):** bmp is an in-process BGP plugin, so it subscribes to the same
+`ze.EventBus` the rib publishes on, exactly like `redistribute_egress` (register.go
+`ConfigureEventBus` -> atomic holder; `ribevents.BestChange.Subscribe(bus, cb)`). No
+cross-process pull command. On Loc-RIB monitoring enable, bmp emits a broadcast
+`ribevents.ReplayRequest` (mirrors sysrib.go:896) so an operator enabling BMP Loc-RIB on
+a running router gets the initial dump (RFC 9069 "Initial dump sends full Loc-RIB
+contents"). Cost: the broadcast replay re-drives every best-change subscriber (sysrib);
+those paths are idempotent (locrib/kernel dedup), so it is safe, just work.
+
+**Peer header (Decision):** PeerType=3, Flags=0 (F=0 in-Loc-RIB; V/L/A/O MUST be 0 --
+RFC 9069), Peer Address=0, Peer AS=0, Peer BGP ID = local router-id, extracted from a
+cached sent OPEN's BGP Identifier (`bgpIdentifierFromSentOpen`, offset 24) -- no new
+config surface. Loc-RIB Peer Up carries zero-length OPENs (RFC 9069) and Local/Remote
+Port=0. Peer Up sent once (lazy, on first best-change batch, guarded by `locRIBUp`);
+Peer Down emitted best-effort on sender shutdown.
+
+**Config (Decision):** new `leaf loc-rib` (boolean, default false) in the sender
+container of `ze-bmp-conf.yang`; parsed into `senderConfig.LocRIB`.
+
 ## Wiring Test (MANDATORY)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Best-path change with BMP Loc-RIB configured | → | PeerType=3 Route Monitoring message emitted | (fill during design) |
+| Best-path change with BMP Loc-RIB configured | → | PeerType=3 Route Monitoring message emitted | `TestBuildLocRIBUpdateBody_IPv4Announce`, `test/plugin/bmp-locrib.ci` |
 
 ## Acceptance Criteria
 
@@ -132,12 +169,17 @@ UPDATE PDU).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (define at design time) | `internal/component/bgp/plugins/bmp/msg_test.go` | PeerType=3 header + UPDATE PDU reconstruction from best-change data | |
+| `TestLocRIBPeerHeader` | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go` | PeerType=3, Flags=0, Address/AS=0, BGP ID=router-id (RFC 9069) | written |
+| `TestBuildLocRIBUpdateBody_IPv4Announce` | `bmp_locrib_test.go` | announce -> parseable UPDATE body with ORIGIN+AS_PATH+NEXT_HOP+NLRI | written |
+| `TestBuildLocRIBUpdateBody_IPv4Withdraw` | `bmp_locrib_test.go` | withdraw -> UPDATE body with the prefix in withdrawn-routes | written |
+| `TestBuildLocRIBUpdateBody_IPv6Announce` | `bmp_locrib_test.go` | IPv6 announce -> MP_REACH_NLRI carrying next-hop + NLRI | written |
+| `TestBgpIdentifierFromSentOpen` | `bmp_locrib_test.go` | BGP Identifier extracted from a sent OPEN PDU | written |
+| `TestHandleBestChangeEmitsPeerUpThenRM` | `bmp_locrib_test.go` | replay batch -> Peer Up (type 3) then RM per best path (AC-2) | written |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bmp-locrib` (new) | `test/plugin/bmp-locrib.ci` | operator enables Loc-RIB BMP; a route change reaches the BMP station as PeerType=3 | |
+| `bmp-locrib` (new) | `test/plugin/bmp-locrib.ci` | operator enables Loc-RIB BMP; a route change reaches the BMP station as PeerType=3 | written |
 
 ### Interop Tests (MANDATORY for protocol features)
 - Design decides an interop scenario against a real BMP collector (e.g. OpenBMP/pmacct) to validate the reconstructed UPDATE decodes.
@@ -161,20 +203,43 @@ UPDATE PDU).
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] PeerType=3 Route Monitoring emitted from best-change data
-- [ ] Wiring Test table complete (concrete test names, none deferred)
-- [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Registration over hardcoding respected
+- [x] PeerType=3 Route Monitoring emitted from best-change data
+- [x] Wiring Test table complete (concrete test names, none deferred)
+- [x] `make ze-test` passes (lint + all ze tests) -- scoped: bmp unit + bmp `.ci`
+- [x] Registration over hardcoding respected (EventBus subscription; YANG leaf)
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
+- [x] Tests written
+- [x] Tests FAIL -- `TestHandleBestChangeEmitsPeerUpThenRM` failed:
+      `read peer up: peer up sent open: bmp: BGP OPEN too short: need 19 bytes`
+      (the decoder could not parse an RFC 9069 zero-length-OPEN Loc-RIB Peer Up)
+- [x] Tests PASS -- after fixing `decodePeerUp` for PeerType=3:
+      `ok bmp 0.013s` (7/7 unit), `PASS 93 bmp-locrib` (`.ci`)
 
 ## RFC Documentation
 
 Add `// RFC 9069 Section X.Y` comments above the PeerType=3 header, Peer Up/Down, and
 Route Monitoring construction code.
+
+## Review Gate
+
+Self-review (2026-07-15): 0 BLOCKER, 0 ISSUE.
+
+- **Correctness**: `buildLocRIBUpdateBody` covers all four quadrants (v4/v6 x
+  announce/withdraw), each asserted against `wire.ParseUpdateSections` + an
+  attribute walk. Peer header matches RFC 9069 (PeerType=3, Flags=0, Address/AS=0,
+  BGP ID=router-id). Lifecycle: Peer Up once before RM, Peer Down on shutdown.
+- **Latent bug fixed**: `decodePeerUp` could not round-trip an RFC 9069 zero-length-OPEN
+  Loc-RIB Peer Up (surfaced by the unit test decoding the emitted bytes); now skips OPEN
+  extraction for PeerType=3.
+- **Wiring**: EventBus subscription (register.go `ConfigureEventBus`), `sender/loc-rib`
+  YANG leaf, `OnConfigure` -> `startLocRIB`; every new symbol has a non-test caller.
+- **Gates**: lint/tier/vet/iface/plugin-boundary/config-coercion/fs-persistence/
+  port-defaults/wiring-docs all green. bmp unit tests 7/7 (`-race`), `bmp-locrib.ci`
+  PASS, existing bmp `.ci` no regression. Remaining `ze-verify` reds are environmental
+  (cgo/-race make target; netns/root/capabilities for as112/firewall/ddos/watchdog).
+- **ci-sleep baseline** raised 456 -> 463 with explicit user approval (2 new sleeps reuse
+  the accepted bmp observer pattern; 456->461 was pre-existing drift).
 
 ## Notes
 - Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.

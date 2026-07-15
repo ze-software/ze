@@ -8,6 +8,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 func init() {
@@ -21,6 +22,11 @@ func init() {
 		RunEngine:   RunBMPPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
+		},
+		// RFC 9069 Loc-RIB monitoring subscribes to the RIB's best-change
+		// events on the in-process EventBus (mirrors redistribute_egress).
+		ConfigureEventBus: func(eb ze.EventBus) {
+			setEventBus(eb)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

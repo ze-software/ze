@@ -161,21 +161,28 @@ func decodePeerUp(buf []byte, off, end int) (*PeerUp, error) {
 	pu.RemotePort = binary.BigEndian.Uint16(buf[off+18 : off+20])
 	off += peerUpFixedSize
 
-	// Sent OPEN: BGP header (19 bytes) + optional params.
-	sentOpen, n, err := extractBGPOpen(buf, off, end)
-	if err != nil {
-		return nil, fmt.Errorf("peer up sent open: %w", err)
-	}
-	pu.SentOpenMsg = sentOpen
-	off += n
+	// RFC 9069 Section 5.2: a Loc-RIB (Peer Type 3) Peer Up carries zero-length
+	// sent/received OPEN messages -- only optional Information TLVs may follow
+	// the fixed fields. Skip OPEN extraction so the receiver decodes it (and the
+	// sender round-trips its own Loc-RIB Peer Up); Adj-RIB peer types keep the
+	// mandatory sent/received OPEN parsing.
+	if peer.PeerType != PeerTypeLocRIB {
+		// Sent OPEN: BGP header (19 bytes) + optional params.
+		sentOpen, n, err := extractBGPOpen(buf, off, end)
+		if err != nil {
+			return nil, fmt.Errorf("peer up sent open: %w", err)
+		}
+		pu.SentOpenMsg = sentOpen
+		off += n
 
-	// Received OPEN.
-	recvOpen, n, err := extractBGPOpen(buf, off, end)
-	if err != nil {
-		return nil, fmt.Errorf("peer up received open: %w", err)
+		// Received OPEN.
+		recvOpen, n, err := extractBGPOpen(buf, off, end)
+		if err != nil {
+			return nil, fmt.Errorf("peer up received open: %w", err)
+		}
+		pu.ReceivedOpenMsg = recvOpen
+		off += n
 	}
-	pu.ReceivedOpenMsg = recvOpen
-	off += n
 
 	// Optional trailing TLVs (RFC 9736).
 	if off < end {

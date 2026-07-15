@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 286 design docs, 2928 files
+Total: 287 design docs, 2929 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -4154,3 +4154,7 @@ Total: 286 design docs, 2928 files
 ## `rfc/short/rfc7012.md`
 
 - `internal/plugins/flowexport/ipfix/ie.go` -- IPFIX Information Element definitions
+
+## `rfc/short/rfc9069.md`
+
+- `internal/component/bgp/plugins/bmp/bmp_locrib.go` -- BMP Loc-RIB monitoring (PeerType=3)

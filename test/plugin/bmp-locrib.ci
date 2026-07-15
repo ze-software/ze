@@ -1,0 +1,237 @@
+# Test: BMP sender emits RFC 9069 Loc-RIB Route Monitoring (PeerType=3).
+# VALIDATES: with `loc-rib true`, a best-path change in ze's local RIB reaches
+#            the BMP collector as a Route Monitoring message whose per-peer
+#            header has Peer Type = 3 (Loc-RIB) and whose embedded PDU is a
+#            complete BGP UPDATE (marker + length + type=UPDATE). A Loc-RIB
+#            Peer Up (Peer Type 3) precedes it.
+# PREVENTS:  regressing rib-arch-5 -- Loc-RIB monitoring silently not emitting,
+#            or emitting with the wrong peer type / a malformed UPDATE PDU.
+#
+# Flow:
+# 1. Start a Python BMP collector listener on $PORT2.
+# 2. Start ze as BMP sender (loc-rib enabled), peered with ze-peer.
+# 3. ze-peer announces a prefix -> ze's RIB selects it as best -> the bmp
+#    plugin builds a PeerType=3 Route Monitoring from the best-change event.
+# 4. Collector validates a PeerType=3 Route Monitoring PDU, then prints a
+#    sentinel. Per-peer (PeerType=0) monitoring messages are ignored.
+# 5. Test matches the sentinel on stderr.
+
+option=env:var=ze.log.bgp.bmp:value=info
+option=timeout:value=20s
+
+tmpfs=bmp-shutdown.run:mode=755:terminator=EOF_OBS
+#!/usr/bin/env python3
+"""Observer: wait for the bmp-collector to signal via the .collector-done
+marker file (written after validation completes), then dispatch daemon
+shutdown. Falls back to a timeout so the test never hangs if the collector
+crashes before writing the marker."""
+import os
+import time
+from ze_api import API
+
+
+MARKER = '.collector-done'
+DEADLINE_SECONDS = 15.0
+
+
+def dispatch(api, command):
+    api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    deadline = time.time() + DEADLINE_SECONDS
+    while time.time() < deadline:
+        if os.path.exists(MARKER):
+            break
+        time.sleep(0.1)
+    # Small grace period so any in-flight BMP writes flush before we kill ze.
+    time.sleep(0.3)
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_OBS
+
+tmpfs=bmp-collector.py:mode=755:terminator=EOF_COLLECTOR
+#!/usr/bin/env python3
+"""BMP collector: accept one ze connection, validate a PeerType=3 (Loc-RIB)
+Route Monitoring PDU per RFC 9069."""
+import socket
+import struct
+import sys
+import time
+
+BMP_PORT = $PORT2
+VALID_SENTINEL = "BMP-COLLECTOR: valid-locrib-route-monitoring"
+INVALID_SENTINEL = "BMP-COLLECTOR: invalid-pdu"
+DONE_SENTINEL = "BMP-COLLECTOR: done"
+PEER_UP_SENTINEL = "BMP-COLLECTOR: locrib-peer-up"
+
+MSG_ROUTE_MONITORING = 0
+MSG_PEER_UP = 3
+
+PEER_TYPE_LOCRIB = 3
+BGP_UPDATE = 2
+BGP_MARKER = b"\xff" * 16
+PEER_HEADER_LEN = 42
+
+
+def log(msg):
+    print(msg, file=sys.stderr, flush=True)
+
+
+def read_exact(sock, n):
+    buf = b""
+    while len(buf) < n:
+        chunk = sock.recv(n - len(buf))
+        if not chunk:
+            return None
+        buf += chunk
+    return buf
+
+
+def peer_type(payload):
+    # Per-peer header starts with a 1-byte Peer Type (RFC 7854 S4.2).
+    return payload[0] if payload else -1
+
+
+def validate_locrib_route_monitoring(payload):
+    # BMP Route Monitoring payload = PeerHeader(42) + BGP UPDATE PDU.
+    if len(payload) < PEER_HEADER_LEN + 19:
+        log(f"{INVALID_SENTINEL}: payload too short ({len(payload)} bytes)")
+        return False
+    pdu = payload[PEER_HEADER_LEN:]
+    if pdu[:16] != BGP_MARKER:
+        log(f"{INVALID_SENTINEL}: marker mismatch {pdu[:16].hex()}")
+        return False
+    length = struct.unpack("!H", pdu[16:18])[0]
+    if length < 19 or length > 4096 or length != len(pdu):
+        log(f"{INVALID_SENTINEL}: length={length} pdu={len(pdu)}")
+        return False
+    if pdu[18] != BGP_UPDATE:
+        log(f"{INVALID_SENTINEL}: type={pdu[18]} (want {BGP_UPDATE})")
+        return False
+    log(VALID_SENTINEL)
+    return True
+
+
+def main():
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", BMP_PORT))
+    srv.listen(1)
+    srv.settimeout(15.0)
+    log(f"BMP-COLLECTOR: listening on {BMP_PORT}")
+
+    try:
+        conn, _ = srv.accept()
+    except socket.timeout:
+        log(f"{INVALID_SENTINEL}: no connection accepted before timeout")
+        sys.exit(1)
+
+    conn.settimeout(10.0)
+    got_valid = False
+    deadline = time.time() + 10.0
+    while time.time() < deadline:
+        header = read_exact(conn, 6)
+        if header is None:
+            break
+        version, length, msg_type = struct.unpack("!BIB", header)
+        if version != 3 or length < 6 or length > 65535:
+            log(f"{INVALID_SENTINEL}: BMP version={version} length={length}")
+            break
+        payload = read_exact(conn, length - 6)
+        if payload is None:
+            break
+        if msg_type == MSG_PEER_UP and peer_type(payload) == PEER_TYPE_LOCRIB:
+            log(PEER_UP_SENTINEL)
+        elif msg_type == MSG_ROUTE_MONITORING and peer_type(payload) == PEER_TYPE_LOCRIB:
+            if validate_locrib_route_monitoring(payload):
+                got_valid = True
+                break
+    log(DONE_SENTINEL)
+    conn.close()
+    srv.close()
+    # Signal the shutdown observer that validation is complete.
+    try:
+        with open(".collector-done", "w") as f:
+            f.write("1\n")
+    except OSError as e:
+        log(f"BMP-COLLECTOR: marker write failed: {e}")
+    sys.exit(0 if got_valid else 1)
+
+
+if __name__ == "__main__":
+    main()
+EOF_COLLECTOR
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=update:value=send-route:prefix=10.20.30.0/24:origin-as=65001:next-hop=101.1.101.1
+# ze replies with EOR after the initial RIB exchange
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+    router-id 1.2.3.5;
+    bmp {
+        sender {
+            collector test-collector {
+                address 127.0.0.1;
+                port $PORT2;
+            }
+            loc-rib true;
+        }
+    }
+    peer test-peer {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 65000;
+                remote 65001;
+            }
+            router-id 1.2.3.5;
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        behavior {
+            group-updates disable;
+        }
+    }
+}
+plugin {
+    external bmp-shutdown {
+        run ./bmp-shutdown.run;
+        encoder json;
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=python3 ./bmp-collector.py
+cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
+expect=exit:code=0
+expect=stderr:pattern=BMP-COLLECTOR: listening on
+expect=stderr:pattern=BMP-COLLECTOR: valid-locrib-route-monitoring
+reject=stderr:pattern=BMP-COLLECTOR: invalid-pdu
+expect=stderr:pattern=BMP-COLLECTOR: done

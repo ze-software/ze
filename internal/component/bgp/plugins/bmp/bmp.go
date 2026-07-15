@@ -1,3 +1,4 @@
+// RFC: rfc/short/rfc9069.md
 // Design: docs/architecture/core-design.md -- BMP plugin lifecycle
 //
 // Related: header.go -- wire format encode/decode
@@ -43,6 +44,10 @@ const sessionReadDeadline = 30 * time.Second
 // A full Internet table is ~1M prefixes; 100k covers realistic churn.
 const maxDedupPerPeer = 100_000
 
+// yangTrue is the string form the YANG config tree delivers for a boolean
+// leaf set to true (all config values arrive as strings).
+const yangTrue = "true"
+
 // loggerPtr is the package-level logger, disabled by default.
 var loggerPtr atomic.Pointer[slog.Logger]
 
@@ -81,6 +86,7 @@ type senderConfig struct {
 	RouteMonitoringPolicy string                     `json:"route-monitoring-policy"`
 	RouteMirroring        string                     `json:"route-mirroring"`
 	StatisticsTimeout     string                     `json:"statistics-timeout"`
+	LocRIB                string                     `json:"loc-rib"` // RFC 9069 Loc-RIB monitoring (PeerType=3)
 }
 
 type collectorConfig struct {
@@ -135,6 +141,12 @@ type BMPPlugin struct {
 	routeMonitorPolicy string // "pre-policy", "post-policy", "all"
 	routeMirroring     bool
 
+	// Loc-RIB monitoring state (RFC 9069, PeerType=3). locRIBUnsub is the
+	// best-change EventBus unsubscribe (nil when not subscribed). locRIBUp
+	// guards the one-shot Loc-RIB Peer Up. Protected by mu.
+	locRIBUnsub func()
+	locRIBUp    bool
+
 	// openCache stores real OPEN PDUs per peer for Peer Up messages.
 	// Key is peer address string. Populated by OPEN message events,
 	// consumed by state events. Protected by mu.
@@ -172,6 +184,8 @@ func RunBMPPlugin(conn net.Conn) int {
 
 	defer func() {
 		close(bp.stopCh)
+		bp.stopLocRIB()         // unsubscribe from best-change
+		bp.sendLocRIBPeerDown() // RFC 9069 Peer Down, before senders close
 		bp.stopSenders()
 		bp.stopListeners()
 		bp.sessions.Wait()
@@ -218,7 +232,7 @@ func RunBMPPlugin(conn net.Conn) int {
 					logger().Error("bmp: receiver config parse failed", "error", err)
 					return err
 				}
-				if rcv.Enabled == "true" && len(rcv.Servers) > 0 {
+				if rcv.Enabled == yangTrue && len(rcv.Servers) > 0 {
 					bp.startReceiver(rcv)
 				}
 			case "bgp":
@@ -230,9 +244,14 @@ func RunBMPPlugin(conn net.Conn) int {
 				if snd.RouteMonitoringPolicy != "" {
 					bp.routeMonitorPolicy = snd.RouteMonitoringPolicy
 				}
-				bp.routeMirroring = snd.RouteMirroring == "true"
+				bp.routeMirroring = snd.RouteMirroring == yangTrue
 				if len(snd.Collectors) > 0 {
 					bp.startSender(snd)
+				}
+				// RFC 9069 Loc-RIB monitoring: subscribe to best-change once
+				// senders exist. startLocRIB is idempotent across reloads.
+				if snd.LocRIB == yangTrue {
+					bp.startLocRIB()
 				}
 			}
 		}
