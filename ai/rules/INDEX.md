@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 85 rules
+Total: 86 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -19,6 +19,7 @@ Total: 85 rules
 | Before Writing Code | Complete before writing any code, tests, or documentation. | `ai/rules/before-writing-code.md` |
 | Buffer-First Encoding -- Mechanical Reference | All wire encoding MUST write into pooled, bounded buffers. | `ai/rules/buffer-first.md` |
 | Canonical Sources and Sync Direction | Never edit a generated file. Edit the canonical source, then sync. Project behavior rules belong in `ai/rules/` and project startup guidance belongs in `ai/INSTRUCTIONS.md`, so Claude, Codex, and... | `ai/rules/canonical-sources.md` |
+| CI Sleep Justification | Adding, editing, or reviewing any `time.sleep(` in a `test//*.ci` functional test. Every sleep must carry a comment explaining why it is there. | `ai/rules/ci-sleep-justification.md` |
 | CLI Grammar: Keywords Before Values | Every CLI command must place a closed keyword before any user-supplied value. This eliminates ambiguity where a free-form value could collide with a keyword. | `ai/rules/cli-grammar.md` |
 | CLI Patterns | All CLI commands MUST follow these patterns. | `ai/rules/cli-patterns.md` |
 | Comparison Honesty | Comparing Ze with another product, project, daemon, appliance, distribution, or vendor feature set. | `ai/rules/comparison-honesty.md` |

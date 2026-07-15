@@ -391,6 +391,12 @@ hide real races). When your change removes sleeps, lower the baseline in the sam
 change. Known violations are tracked in `plan/known-failures.md`
 and must be migrated.
 
+**Sleep justification (BLOCKING):** every `time.sleep(` that the ratchet tolerates
+MUST carry a comment (on the line above, or trailing) explaining why it is there /
+why it was not converted to a deterministic wait. `make ze-verify-wiring-docs`
+fails on any unjustified sleep in a changed `.ci`. See
+`ai/rules/ci-sleep-justification.md`.
+
 ## Python Observer API (`test/scripts/ze_api.py`)
 
 Python plugins embedded in `.ci` tests via `tmpfs=*.py` can import `ze_api` for

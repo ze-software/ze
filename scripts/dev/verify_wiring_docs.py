@@ -158,13 +158,14 @@ def main() -> int:
         return 0
 
     ratchet_rc = check_ci_sleep_ratchet(root, changed)
+    justif_rc = check_ci_sleep_justification(root, changed)
     design_rc = check_design_refs(root)
 
     if not targets:
         print("No wiring/doc/inventory checks needed")
         if advisory:
             print(advisory)
-        return ratchet_rc or design_rc
+        return ratchet_rc or justif_rc or design_rc
 
     if "wiring" in targets:
         issues = check_wiring(root, changed)
@@ -182,8 +183,8 @@ def main() -> int:
 
     if advisory:
         print(advisory)
-    if ratchet_rc or design_rc:
-        return ratchet_rc or design_rc
+    if ratchet_rc or justif_rc or design_rc:
+        return ratchet_rc or justif_rc or design_rc
     print("Wiring/doc/inventory gates passed")
     return 0
 
@@ -232,6 +233,72 @@ def check_ci_sleep_ratchet(root: Path, changed: Iterable[str]) -> int:
         )
     else:
         print(f"ci-sleep ratchet OK ({count} <= baseline {baseline})")
+    return 0
+
+
+def _sleep_is_justified(lines: list[str], idx: int) -> bool:
+    """True when the time.sleep on line `idx` (0-based) carries an explanatory
+    comment: either a `#` trailing the call on the same line, or a `#` comment on
+    the nearest preceding non-blank line. Mirrors the placement the annotation
+    playbook enforces so a reader can see why the sleep was not converted to a
+    deterministic wait (ai/rules/ci-sleep-justification.md)."""
+    after = lines[idx].split("time.sleep(", 1)[1]
+    if "#" in after:
+        return True
+    j = idx - 1
+    while j >= 0:
+        stripped = lines[j].strip()
+        if not stripped:
+            j -= 1
+            continue
+        return stripped.startswith("#")
+    return False
+
+
+def check_ci_sleep_justification(root: Path, changed: Iterable[str]) -> int:
+    """Every time.sleep( in a CHANGED .ci test must be justified by a comment.
+
+    The ratchet caps how MANY sleeps exist; this caps how many are unexplained.
+    A blind sleep hides why it was left un-converted (deliberate timer, needs-linux
+    QEMU-only effect, no queryable readiness signal). Requiring a comment on/above
+    each sleep makes that reason auditable. Scoped to changed files: a session is
+    responsible for the sleeps in the .ci files it touches, not the whole tree.
+    Returns the process exit contribution (0 ok, 1 failed).
+    """
+    ci_changed = [p for p in changed if p.startswith("test/") and p.endswith(".ci")]
+    if not ci_changed:
+        return 0
+    violations: list[str] = []
+    checked = 0
+    for rel in ci_changed:
+        try:
+            lines = (root / rel).read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for i, line in enumerate(lines):
+            if not SLEEP_RE.search(line):
+                continue
+            if line.strip().startswith("#"):
+                continue  # the sleep is itself commented out; nothing to justify
+            checked += 1
+            if not _sleep_is_justified(lines, i):
+                violations.append(f"{rel}:{i + 1}: {line.strip()}")
+    if violations:
+        print("ci-sleep justification FAILED:")
+        print("  Every time.sleep( in a changed .ci test must carry a comment on the")
+        print("  line directly above it (or trailing it) explaining why it is there /")
+        print("  why it was not converted to a deterministic wait. Unjustified sleeps:")
+        for v in violations:
+            print("    " + v)
+        print(
+            "  Add a `#` comment (poll interval, deliberate timer, needs-linux effect,"
+        )
+        print(
+            "  or no queryable readiness signal). See ai/rules/ci-sleep-justification.md."
+        )
+        return 1
+    if checked:
+        print(f"ci-sleep justification OK ({checked} sleeps, all commented)")
     return 0
 
 

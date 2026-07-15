@@ -89,6 +89,7 @@ wiring-at-commit, doc-drift) used to sit here but gated on the literal
 | yagni-violations | `design-principles.md` | `.go` | Blocks speculative-feature comments. BLOCKING. |
 | fake-bufhandle | (pool correctness) | `.go` | Blocks `BufHandle{Buf: make(...)}` outside `testPoolBuf`. BLOCKING. |
 | observer-sys-exit | `testing.md` | `.ci` | Warns about `sys.exit(1)` in observers without `runtime_fail`. Advisory. |
+| ci-sleep-justification | `ci-sleep-justification.md` | `.ci` | Warns when a `time.sleep(` is introduced with no comment above/trailing it. Advisory (blocking gate is `make ze-verify-wiring-docs`). |
 | hardcoded-commands | `derive-not-hardcode.md` | `.go` | Blocks hardcoded command-list literals. BLOCKING. |
 | switch-dispatch | `registration-dispatch.md` | `.go` | Blocks `switch args[0]` subcommand dispatch; use `subdispatch.New()` + `Register()`. BLOCKING. |
 | json-kebab | `json-format.md` | `.go` | Blocks non-kebab-case JSON tags. BLOCKING. |

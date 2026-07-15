@@ -1741,6 +1741,58 @@ def c_switch_dispatch(ctx):
     return None
 
 
+def c_ci_sleep_justification(ctx):
+    # Edit-time nudge; the authoritative BLOCK is check_ci_sleep_justification in
+    # scripts/dev/verify_wiring_docs.py (run by the inventory make gate). Every
+    # time.sleep( in a .ci functional test must carry a comment on the line above
+    # it (or trailing it) saying why it is there / why it was not converted to a
+    # deterministic wait. A blind sleep hides real races and hides why it was left.
+    # See ai/rules/ci-sleep-justification.md. Non-blocking: an Edit fragment may not
+    # show the comment that already sits above the sleep in the file, so warn only.
+    fp = ctx["fp"]
+    if not fp.endswith(".ci") or "/test/" not in fp:
+        return None
+    tool = ctx["tool"]
+    if tool == "Write":
+        new = ctx["ti"].get("content") or ""
+    elif tool == "MultiEdit":
+        new = "\n".join(
+            (e.get("new_string") or "") for e in (ctx["ti"].get("edits") or [])
+        )
+    elif tool == "Edit":
+        new = ctx["ti"].get("new_string") or ""
+    else:
+        return None
+    lines = new.split("\n")
+    bad = []
+    for i, line in enumerate(lines):
+        if "time.sleep(" not in line:
+            continue
+        if line.strip().startswith("#"):
+            continue  # the sleep is itself commented out
+        after = line.split("time.sleep(", 1)[1]
+        if "#" in after:
+            continue  # trailing comment on the same line
+        prev = lines[i - 1].strip() if i > 0 else ""
+        if prev.startswith("#"):
+            continue  # comment on the line directly above
+        bad.append((i + 1, line.strip()))
+    if not bad:
+        return None
+    detail = "\n".join(f"  +{n}: {l}" for n, l in bad[:4])
+    fix = (
+        "\n  Add a `#` comment on the line directly above each sleep explaining why it\n"
+        "  is not a deterministic wait: poll interval, deliberate timer, needs-linux\n"
+        "  effect, or no queryable readiness signal. Enforced at commit by the\n"
+        "  inventory gate (scripts/dev/verify_wiring_docs.py);\n"
+        "  see ai/rules/ci-sleep-justification.md."
+    )
+    return (
+        1,
+        f"{YELLOW}{BOLD}WARN: unjustified time.sleep( in {fp}{RESET}\n{detail}{fix}",
+    )
+
+
 CHECKS = (
     c_generated_files,
     c_design_without_lsp,
@@ -1776,6 +1828,7 @@ CHECKS = (
     c_lint_exclusions,
     c_exabgp,
     c_observer_sys_exit,
+    c_ci_sleep_justification,
     c_direct_fs_state,
     c_fake_bufhandle,
     c_require_docs_read,
