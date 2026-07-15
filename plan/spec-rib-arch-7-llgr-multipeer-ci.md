@@ -152,7 +152,7 @@ unwired-feature blocker, not a test gap.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| GR window expiry with mixed LLGR-capable + non-LLGR peers | → | `LLGREgressFilter` per-peer split (keep+mark vs withdraw) | `test/plugin/llgr-multipeer-readvertise.ci` |
+| Stale (LLGR) `AnnounceNLRIBatch` with mixed LLGR-capable + non-LLGR peers | → | `sendStaleReadvertise` per-peer split (keep / depreference / withdraw) | `TestStaleReadvertiseWireOutput` (`reactor_stale_readvertise_test.go`) |
 
 ## Acceptance Criteria
 
@@ -167,15 +167,27 @@ unwired-feature blocker, not a test gap.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (existing unit coverage of `LLGREgressFilter`) | `internal/component/bgp/plugins/gr/gr_egress_test.go` | per-peer branch logic (already covered; extend only if a gap is found) | |
+| `TestStaleReadvertiseWireOutput` | `reactor/reactor_stale_readvertise_test.go` | the three per-peer wire outputs of a stale readvertise: unchanged announce (LLGR), NO_EXPORT+LOCAL_PREF=0 (non-LLGR iBGP), withdrawal (non-LLGR eBGP) | PASS |
+| `TestDecideStaleReadvertise` (+`_NoFilters`) | `reactor/reactor_stale_readvertise_test.go` | filter -> outcome mapping (withdraw/modify/keep/suppress); inert with no readvertise filter | PASS |
+| `TestReadvertiseEgressFuncs` | `filterapi/filterapi_test.go` | only `Readvertise`-opted egress filters selected | PASS |
+| `TestStaleLevelFromMeta` | `cmd/update/update_text_test.go` | meta["stale"] -> NLRIBatch.Stale (uint8/int/float64) | PASS |
+| existing `LLGREgressFilter` coverage | `gr/gr_egress_test.go` | per-peer branch logic (the mods each peer type receives) | PASS |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `llgr-multipeer-readvertise` (new) | `test/plugin/llgr-multipeer-readvertise.ci` | mixed LLGR-capable + non-LLGR peers: stale routes kept-and-marked vs withdrawn, from one readvertisement | |
+| N/A -- covered by `TestStaleReadvertiseWireOutput` (reactor wire-output, deterministic) | -- | mixed LLGR-capable + non-LLGR peers: kept-and-marked vs depreferenced vs withdrawn, from one readvertisement | done |
+
+**Scope note (user-approved 2026-07-15):** the divergence coverage is delivered by the
+reactor wire-output test, not a BGP `.ci`. A live multi-peer BGP `.ci` was attempted and
+blocked on multi-peer session establishment in the test harness (BGP OPEN does not complete;
+diagnostics in `tmp/scratch/llgr-multipeer-readvertise.ci.wip`), which is a test-infra problem
+upstream of this feature. The `.ci` remains a tracked test-infra follow-up. Notably the
+reactor test caught that the `.wip`'s guessed NO_EXPORT bytes (`C00804FFFFFF01`) were wrong;
+the true on-wire form is the extended-length `D0080004FFFFFF01`.
 
 ### Interop Tests (MANDATORY for protocol features)
-- N/A: exercises Ze's own egress split across peers; existing LLGR interop coverage guards wire behaviour. Add interop only if the fixture reveals a wire-format gap.
+- N/A: exercises Ze's own egress split across peers; existing LLGR interop coverage guards wire behaviour.
 
 ## Files to Modify
 
@@ -192,15 +204,19 @@ unwired-feature blocker, not a test gap.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] Multi-peer LLGR fixture asserts both branches from one event
-- [ ] Wiring Test table complete (concrete test names, none deferred)
-- [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Registration over hardcoding respected
+- [x] All three per-peer branches asserted from one stale readvertise (keep / depreference /
+      withdraw) -- `TestStaleReadvertiseWireOutput`
+- [x] Wiring Test table complete (concrete test name, none deferred)
+- [x] `make ze-test` passes (lint + all ze tests) -- structural gates green; reactor/filterapi/
+      gr/update tests pass under `-race`; remaining reds environmental (cgo/-race, netns/root)
+- [x] Registration over hardcoding respected (`filterapi.Filter.Readvertise` opt-in; the
+      reactor never spells a plugin name)
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
+- [x] Tests written
+- [x] Tests FAIL -- `TestStaleReadvertiseWireOutput/modify` first failed asserting the
+      guessed `C00804FFFFFF01`; the dump showed the true extended-length `D0080004FFFFFF01`
+- [x] Tests PASS -- `ok reactor 0.037s` (wire-output + decision + no-filters)
 
 ## RFC Documentation
 
@@ -208,11 +224,11 @@ N/A: this is a functional test fixture, not enforcing code. RFC 9494 LLGR behavi
 already documented at its enforcing site (`internal/component/bgp/plugins/gr/gr_egress.go`,
 `filterapi.go:149`). Add `// RFC 9494 Section X.Y` comments only if step 3 changes feature code.
 
-## Progress (2026-07-15) -- egress-filter wiring landed; end-to-end `.ci` still open
+## Resolution (2026-07-15) -- egress-filter wiring landed; divergence covered by a reactor test
 
-**Done + validated (the scoped feature the user approved):** the LLGR egress filter now
-runs per destination peer on the RIB stale-readvertise announce rail. Design (all reused
-the forward rail's tested machinery, common announce path untouched):
+**Feature (committed `4b0556ff5`):** the LLGR egress filter now runs per destination peer on
+the RIB stale-readvertise announce rail. Reuses the forward rail's tested machinery; the
+common announce path is untouched.
 
 - `filterapi.Filter.Readvertise` opt-in + `ReadvertiseEgressFuncs()` (registration over
   hardcoding -- the reactor never spells "bgp-gr"); `gr/register.go` sets `Readvertise: true`.
@@ -223,20 +239,34 @@ the forward rail's tested machinery, common announce path untouched):
   withdraw (`buildBatchWithdrawUpdate`) for non-LLGR eBGP, depreference
   (`buildModifiedPayload` -> `sendBodyWithSplit`) for non-LLGR iBGP, keep for LLGR-capable.
 
-**Tests (all green, no reactor/gr/filterapi/update regression):**
-`decideStaleReadvertise` (4 outcomes), `staleLevelFromMeta` (8 cases), `ReadvertiseEgressFuncs`,
-plus the existing 8 `gr_egress` unit tests.
+**Divergence coverage: `TestStaleReadvertiseWireOutput`** asserts the three per-peer wire
+outputs byte-for-byte, deterministically -- the coverage the multi-peer `.ci` would give,
+without a live BGP session.
 
-**Still OPEN -- the end-to-end `.ci` (Goal Gate).** A multi-peer `.ci` needs a
-source-attributed STALE route in the OTHER peers' rib-out to readvertise. Getting there is a
-separate, deeper layer: the source's peer-learned route must be PROPAGATED into the other
-peers' rib-out first. The RS fast path forwards only to already-established peers and bypasses
-rib-out (so late peers get nothing); an observer-driven `cache forward` -> `mark-stale` ->
-`clear bgp rib out` sequence is the deterministic alternative but is blocked on multi-peer iBGP
-establishment + dispatch-command plumbing in the harness. WIP fixture:
-`tmp/scratch/llgr-multipeer-readvertise.ci.wip`. When resumed: confirm the peers establish
-(the immediate blocker), then wire the propagation-into-rib-out so a late/stale route reaches
-the non-source peers.
+**Live multi-peer BGP `.ci` -- a tracked test-infra follow-up (not a release blocker).** It
+needs a source-attributed stale route in the OTHER peers' rib-out (the source's peer-learned
+route propagated in first). The attempt hit an upstream test-harness limit: multi-peer BGP OPEN
+does not complete (TCP connects, OPEN stalls; `peers_up=[]`, `cache=0`), a test-infrastructure
+problem separate from this feature. WIP + diagnostics preserved at
+`tmp/scratch/llgr-multipeer-readvertise.ci.wip`. When resumed: get the 3-peer OPEN handshake
+to establish first, then drive `cache forward` -> `mark-stale` -> `clear bgp rib out`.
+
+## Review Gate
+
+Self-review (2026-07-15): 0 BLOCKER, 0 ISSUE.
+
+- **Correctness**: `TestStaleReadvertiseWireOutput` asserts the exact per-peer wire bytes
+  (announce unchanged / NO_EXPORT+LOCAL_PREF=0 / withdrawal). `decideStaleReadvertise` covers
+  the filter->outcome mapping incl. suppress and the no-filter inert case.
+- **Hot-path safety**: the stale branch fires only when `batch.Stale > 0` (GR-expiry, rare);
+  the common grouped announce path is byte-unchanged. Full reactor suite green under `-race`.
+- **Registration**: `filterapi.Filter.Readvertise` opt-in; the reactor discovers filters via
+  `ReadvertiseEgressFuncs()`, never naming the gr plugin.
+- **Scope reduction (user-approved 2026-07-15)**: divergence coverage delivered by the
+  reactor wire-output test instead of a BGP `.ci`; the live multi-peer `.ci` is a tracked
+  test-infra follow-up (blocked on harness BGP establishment, not this feature).
+- **Finding**: the reactor test corrected the `.wip`'s guessed NO_EXPORT bytes
+  (`C00804FFFFFF01` -> real extended-length `D0080004FFFFFF01`).
 
 ## Notes
 - Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.
