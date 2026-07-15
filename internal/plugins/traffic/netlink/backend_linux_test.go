@@ -87,7 +87,7 @@ func (f *fakeTCOps) filterAdd(filter netlink.Filter) error {
 // tests must materialize it first. The store is kept open for the test's lifetime
 // (Get/Put/Remove share this one handle) and reset to filesystem-fallback on
 // cleanup so a later test that expects no store is not polluted.
-func registerSnapshotStore(t *testing.T) *zefs.BlobStore {
+func registerSnapshotStore(t *testing.T) {
 	t.Helper()
 	bs, err := zefs.Create(filepath.Join(t.TempDir(), "database.zefs"))
 	if err != nil {
@@ -96,12 +96,11 @@ func registerSnapshotStore(t *testing.T) *zefs.BlobStore {
 	statestore.SetStore(bs)
 	t.Cleanup(func() {
 		statestore.SetStore(nil)
-		// test-relax: the store now stays open for the test's lifetime (shared
-		// handle) and is closed best-effort at cleanup, so a close error no longer
-		// fails the test as it did when each op reopened the file.
+		// The store stays open for the test's lifetime (shared handle) and is
+		// closed best-effort at cleanup, so a close error no longer fails the test
+		// as it did when each op reopened the file.
 		bs.Close() //nolint:errcheck // best-effort cleanup
 	})
-	return bs
 }
 
 func testBackend(t *testing.T, ops *fakeTCOps) *backend {

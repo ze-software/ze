@@ -44,7 +44,7 @@ func enterTestNetns(name string) (restore func(), hostInode uint64, err error) {
 
 	var st unix.Stat_t
 	if err := unix.Fstat(int(orig), &st); err != nil {
-		orig.Close()
+		orig.Close() //nolint:errcheck // best-effort close on cleanup/error path
 		runtime.UnlockOSThread()
 		return nil, 0, fmt.Errorf("stat host network namespace: %w", err)
 	}
@@ -59,7 +59,7 @@ func enterTestNetns(name string) (restore func(), hostInode uint64, err error) {
 
 	newNS, err := netns.NewNamed(name)
 	if err != nil {
-		orig.Close()
+		orig.Close() //nolint:errcheck // best-effort close on cleanup/error path
 		runtime.UnlockOSThread()
 		return nil, 0, fmt.Errorf("create per-test network namespace %q (needs CAP_SYS_ADMIN; run the netlink suites under sudo with ZE_TEST_NETNS=1): %w", name, err)
 	}
@@ -69,8 +69,8 @@ func enterTestNetns(name string) (restore func(), hostInode uint64, err error) {
 	// to this locked thread's (new) namespace, so lo is brought up inside it.
 	if err := bringLoopbackUp(); err != nil {
 		_ = netns.Set(orig)
-		orig.Close()
-		newNS.Close()
+		orig.Close()            //nolint:errcheck // best-effort close on cleanup/error path
+		newNS.Close()           //nolint:errcheck // best-effort close on cleanup/error path
 		netns.DeleteNamed(name) //nolint:errcheck // best-effort cleanup on error path
 		runtime.UnlockOSThread()
 		return nil, 0, fmt.Errorf("bring loopback up in per-test network namespace %q: %w", name, err)
@@ -80,8 +80,8 @@ func enterTestNetns(name string) (restore func(), hostInode uint64, err error) {
 		if setErr := netns.Set(orig); setErr != nil {
 			logger().Warn("restore original network namespace", "netns", name, "error", setErr)
 		}
-		orig.Close()
-		newNS.Close()
+		orig.Close()  //nolint:errcheck // best-effort close on cleanup/error path
+		newNS.Close() //nolint:errcheck // best-effort close on cleanup/error path
 		if delErr := netns.DeleteNamed(name); delErr != nil {
 			logger().Warn("delete per-test network namespace", "netns", name, "error", delErr)
 		}

@@ -61,7 +61,7 @@ func TestNetnsLaunchChildInheritsNamespace(t *testing.T) {
 	if err != nil {
 		// EPERM/EACCES on an unprivileged host: the assumption can only be
 		// validated where namespace creation is permitted (QEMU root).
-		origNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort close on cleanup/skip path
 		runtime.UnlockOSThread()
 		t.Skipf("requires CAP_SYS_ADMIN: cannot create namespace: %v", err)
 	}
@@ -69,8 +69,8 @@ func TestNetnsLaunchChildInheritsNamespace(t *testing.T) {
 		if restoreErr := netns.Set(origNS); restoreErr != nil {
 			t.Errorf("restore original namespace: %v", restoreErr)
 		}
-		origNS.Close()
-		newNS.Close()
+		origNS.Close()            //nolint:errcheck // best-effort close on cleanup/skip path
+		newNS.Close()             //nolint:errcheck // best-effort close on cleanup path
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
 		runtime.UnlockOSThread()
 	})
@@ -87,7 +87,7 @@ func TestNetnsLaunchChildInheritsNamespace(t *testing.T) {
 	}
 
 	// The child is fork+exec'd from this locked thread and must inherit its netns.
-	out, err := exec.Command("readlink", "/proc/self/ns/net").Output() //nolint:gosec // fixed args, test-only
+	out, err := exec.Command("readlink", "/proc/self/ns/net").Output() //nolint:gosec,noctx // fixed args, test-only; must run on THIS locked netns thread (no ctx plumbing)
 	if err != nil {
 		t.Fatalf("child readlink /proc/self/ns/net: %v", err)
 	}
