@@ -11,7 +11,30 @@ structurally broken; fix it at the source. `scripts/dev/commit_helper.py` enforc
 this by refusing `--unverified` while a structural gate is red (see
 `ai/rules/git-safety.md` "Structural Gates Are Never Known-Red").
 
-**Status 2026-07-04: three open entries (below).**
+## BEFORE LOGGING ANYTHING HERE: reproduce with the Makefile's build tags
+
+Bare `go test ./...` is **NOT** equivalent to `make ze-unit-test` in this repo.
+Features compile out behind build tags (`//go:build ze_isis`, `ze_ospf`, `ze_web`,
+`ze_ssh`, ...), and the Makefile always supplies them (`Makefile:51` `ZE_FEATURES`
+read from `feature-gates.txt`, `Makefile:65` `GO_TEST_TAGS`). A bare run silently
+drops those plugins, so their registrations, validators and listeners never exist
+and unrelated tests fail with phantom reds.
+
+```
+go test -tags "ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')" ./path/...
+```
+
+This is not hypothetical: on 2026-07-15 two of the four entries below (7 tests)
+were disproven as pure tags artifacts. Both had been logged with a confident but
+wrong root cause (a "macOS socket-stack quirk", a "broken listener-conflict
+validator"), and one had been "re-confirmed" six days later by repeating the same
+flawed invocation. Reproducing a symptom is not attributing a cause.
+
+**Status 2026-07-15: 1 open entry (`rsvpte-lsp-setup`, genuinely
+non-deterministic). Of the other three: 2 disproven as tags artifacts (7 tests,
+never broken) and 1 fixed (`TestCmdMethods`, a real stale literal).**
+
+**Status 2026-07-04 (historical): three open entries (below).**
 `TestBuildCommandTreeEnsureExists` (config/yang) is now resolved (stale test
 retargeted to the typed name selector -- see Resolved). A new open entry, the
 `rsvpte-lsp-setup` load-only panic, is added. The OSPF build break and
@@ -20,48 +43,82 @@ concurrent OSPF session's `multi_instance.go` work landed and snapshots are
 current). Every previously tracked entry from 2026-07-01 and earlier remains
 resolved (see below).
 
-### `internal/component/doctor` -- 4 listener/schema tests fail on this macOS dev machine, pre-existing
+### ~~`internal/component/doctor` -- 4 listener/schema tests fail on macOS~~ -- RESOLVED 2026-07-15: DISPROVEN, was a missing-build-tags artifact
 
-Observed 2026-07-02, re-confirmed 2026-07-03: `TestCheckListeners_PortInUse`,
-`TestCheckListeners_API`, `TestCollectSchemaListeners_SSHDefault`,
-`TestCollectSchemaListeners_SSHExplicit` fail consistently. All four exercise
-`checkListeners`/`collectSchemaListeners` in `checks_listener.go`.
-`TestCheckListeners_PortInUse` and `_API` bind a real `127.0.0.1:0` listener,
-then assert `checkListeners` reports that same port as unavailable -- consistent
-with this specific macOS host's socket stack allowing a second bind where the
-test expects exclusivity (a `SO_REUSEPORT`/dual-stack quirk). Owner: whoever
-next investigates macOS listener-probe test portability.
+**The macOS diagnosis was wrong. These tests pass. Nothing to fix.**
 
-### `internal/component/config/schema/cli` `TestCmdMethods` -- pre-existing, stale hardcoded RPC count
+Original entry (2026-07-02, "re-confirmed" 2026-07-03) blamed this specific macOS
+host's socket stack for allowing a second bind where the test expects exclusivity
+(a supposed `SO_REUSEPORT`/dual-stack quirk), covering
+`TestCheckListeners_PortInUse`, `TestCheckListeners_API`,
+`TestCollectSchemaListeners_SSHDefault`, `TestCollectSchemaListeners_SSHExplicit`.
+
+Disproven 2026-07-15 on the same macOS host, by running the four tests both ways:
+
+| Invocation | Result |
+|---|---|
+| `go test ./internal/component/doctor/ -run '...'` | FAIL (all 4) |
+| `go test -tags "ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt)" ./internal/component/doctor/ -run '...'` | **PASS (all 4)** |
+
+Root cause: bare `go test` omits the feature gates the Makefile always supplies
+(`Makefile:51` `ZE_FEATURES` from `feature-gates.txt`; `Makefile:65`
+`GO_TEST_TAGS = ze_core $(ZE_FEATURES) $(ZE_TAGS)`). Without `ze_web`/`ze_ssh`/
+`ze_rest` the listeners the checks expect never register, so `checkListeners`
+correctly reports nothing and the assertions fail. The host was never at fault.
+
+**Lesson: bare `go test` is NOT equivalent to `make ze-unit-test` in this repo.**
+Feature-gated plugins compile out (`//go:build ze_isis`, `ze_ospf`, `ze_web`, ...),
+so a bare run produces phantom reds. Reproduce a red with the Makefile tags before
+logging it here.
+
+### ~~`internal/component/config/schema/cli` `TestCmdMethods`~~ -- FIXED 2026-07-15
+
+This one was REAL (it failed with the Makefile tags too, unlike the two
+disproven entries above) and the diagnosis here was correct.
 
 Confirmed pre-existing 2026-07-15 by `git archive HEAD` into a scratch tree and
-running the test there: it fails identically on committed `HEAD`
+running the test there: it failed identically on committed `HEAD`
 (`main_test.go:470: expected 13 system RPCs, got 14`), so the VRRP work did not
-cause it. The 14 `ze-system-api` RPCs are all generic daemon methods
-(`bin/ze schema methods`); none is VRRP.
+cause it. The 14 `ze-system-api` RPCs are all generic daemon methods; none is
+VRRP -- verified by enumerating them, `ze-system:quiesce` included.
 
-Cause: the test hardcodes per-module RPC counts, and a system RPC (the list now
-includes `ze-system:quiesce`) was added without updating the literal. Fix:
-update the count, or better, derive the expectation the way the rest of the
-inventory gates do (`ai/rules/derive-not-hardcode.md`) so the next added RPC
-does not break it. Owner: whichever session next touches
-`internal/component/config/schema/cli/main_test.go`.
+Cause: the test hardcodes per-module RPC counts, and `ze-system:quiesce` was
+added without updating the literal.
 
-### `config/cli` -- 3 tests fail, pre-existing (one root cause)
+Fixed by bumping the literal to 14 (`main_test.go`). The suggestion to derive the
+expectation instead (`ai/rules/derive-not-hardcode.md`) was considered and NOT
+taken: a count derived from the same registry the test reads would be
+tautological. The shape that actually catches silent removal is a golden snapshot
+file, as `plugin/all/testdata/*.snapshot` does. Left as a note in the test rather
+than a silent bump; converting these four counts to a snapshot remains open for
+whoever next touches that file.
 
-Observed 2026-07-03, re-confirmed 2026-07-09:
-- `TestValidateListenerConflictRelated` (config/cli): expects a
-  `config-listener-conflict` diagnostic for a bgp-less `environment { web {
-  server ... } }` with two servers on the same ip:port; none produced.
-- `TestConfigFixPlanRepairIDs`, `TestConfigFixPlanRepairIDsFromFix`
-  (cmd_validate_test.go:492, cmd_fix_test.go:106): the SAME config (two web
-  servers on `0.0.0.0:8080`) expecting at least one diagnostic carrying a repair
-  ID. They fail for the identical reason -- the `config-listener-conflict`
-  validator produces no diagnostic (hence no repair) in this build.
+### ~~`config/cli` -- 3 tests fail, pre-existing~~ -- RESOLVED 2026-07-15: DISPROVEN, same missing-build-tags artifact
 
-One root cause (the listener-conflict validator not firing), three tests. In a
-subsystem with concurrent web work in the busy tree. Owner: whichever session
-edits web listener-conflict validation.
+**The `config-listener-conflict` validator is NOT broken. These tests pass.**
+
+Original entry (2026-07-03, "re-confirmed" 2026-07-09) claimed the validator
+produced no diagnostic "in this build", covering
+`TestValidateListenerConflictRelated` (cmd_validate_test.go),
+`TestConfigFixPlanRepairIDs` and `TestConfigFixPlanRepairIDsFromFix`
+(cmd_fix_test.go:106).
+
+Disproven 2026-07-15 by running the three tests both ways:
+
+| Invocation | Result |
+|---|---|
+| `go test ./internal/component/config/cli/ -run '...'` | FAIL (all 3) |
+| `go test -tags "ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt)" ./internal/component/config/cli/ -run '...'` | **PASS (all 3)** |
+
+Root cause: identical to the doctor entry above. All three fixtures configure
+`environment { web { server ... } }`, so they need `ze_web`. Bare `go test` omits
+it, the web listener validator never registers, no diagnostic is produced, and the
+tests fail. "In this build" was the clue -- it was literally a different build.
+
+Note the failure mode this created: the entry named a specific producing
+component as broken, and a later session "re-confirmed" it by repeating the same
+flawed invocation. Symptom-matching a red does not attribute it. Reproduce with
+the Makefile tags first.
 
 ### `rsvpte-lsp-setup` -- load-only `slice bounds` panic in `ze`, pre-existing
 

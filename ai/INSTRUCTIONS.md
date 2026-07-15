@@ -197,7 +197,7 @@ means "no rule applies".
 | Claim work is done | `ai/rules/no-partial-completion.md`, `ai/rules/wiring-completeness.md` -- every AC implemented, tested, wired; every exported symbol has a non-test caller |
 | Finish Go edits | `ai/rules/lint-gate.md` -- run `make ze-lint-changed` before claiming done |
 | Commit | `ai/rules/git-safety.md` -- fast commit-script path; check verify status before any `ze-verify` rerun |
-| Run any test/build/lint command | `ai/rules/bash-output.md` -- no pipes, read log after |
+| Run any test/build/lint command | `ai/rules/bash-output.md` -- prefer `make`; a bare `go test` drops feature tags and fakes reds; no pipes, read log after |
 | Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first for user-visible or uncommitted work; this is the standing exception to "don't ask" |
 | Complete work autonomously | `ai/rules/no-asking.md` -- finish the task, then report; ask only for destructive actions or genuine scope changes |
 | Understand architecture or how Ze diverges from standard Go | `docs/architecture/core-design.md`, `ai/rules/ze-divergences.md` |

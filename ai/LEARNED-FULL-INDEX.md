@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1134 summaries
+Total: 1136 summaries
 
 ## 000-099
 
@@ -1203,3 +1203,5 @@ Total: 1134 summaries
 | 1119 | cli-hyphen-namespace-split | `plan/learned/1119-cli-hyphen-namespace-split.md` |
 | 1120 | payload-predicate-waits | `plan/learned/1120-payload-predicate-waits.md` |
 | 1121 | negative-test-must-fail-for-its-reason | `plan/learned/1121-negative-test-must-fail-for-its-reason.md` |
+| 1122 | vrrp-macvlan-vmac-dataplane | `plan/learned/1122-vrrp-macvlan-vmac-dataplane.md` |
+| 1123 | bare-go-test-drops-feature-tags | `plan/learned/1123-bare-go-test-drops-feature-tags.md` |

@@ -466,8 +466,15 @@ func TestCmdMethods(t *testing.T) {
 	if modules["ze-bgp-api"] != 26 {
 		t.Errorf("expected 26 BGP RPCs, got %d", modules["ze-bgp-api"])
 	}
-	if modules["ze-system-api"] != 13 {
-		t.Errorf("expected 13 system RPCs, got %d", modules["ze-system-api"])
+	// 14 since ze-system:quiesce was added. These are hardcoded per-module
+	// counts, so every new RPC breaks them until the literal is bumped; that is
+	// how this sat red in plan/known-failures.md. Deriving the expectation the
+	// way the inventory gates do (ai/rules/derive-not-hardcode.md) would be
+	// better, but a count checked against the same registry it reads would be
+	// tautological -- a golden snapshot file (see plugin/all/testdata) is the
+	// shape that actually catches silent removal.
+	if modules["ze-system-api"] != 14 {
+		t.Errorf("expected 14 system RPCs, got %d", modules["ze-system-api"])
 	}
 	if modules["ze-plugin-api"] != 8 {
 		t.Errorf("expected 8 plugin RPCs, got %d", modules["ze-plugin-api"])
