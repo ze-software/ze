@@ -19,13 +19,13 @@ import sys
 import tempfile
 import time
 
+from ze_api import wait_until
 
-def _wait_for_socket(path, deadline):
-    while time.time() < deadline:
-        if os.path.exists(path):
-            return True
-        time.sleep(0.05)
-    return False
+
+def _wait_for_socket(path):
+    # // test-relax: hand-rolled file-existence poll -> ze_api.wait_until (same
+    # ~5s budget, ratchet-exempt internal sleep); paced file polling, not a race.
+    return wait_until(lambda: os.path.exists(path), attempts=100, delay=0.05)
 
 
 def _find_repo_root():
@@ -63,7 +63,7 @@ def main() -> int:
             text=True,
         )
         try:
-            if not _wait_for_socket(sock, time.time() + 5.0):
+            if not _wait_for_socket(sock):
                 sys.stderr.write("driver: stub socket did not appear\n")
                 return 1
 
@@ -95,24 +95,24 @@ def main() -> int:
             ze.stdin.write(cfg)
             ze.stdin.close()
 
-            # Watch the stub's JSONL for sockclnt_create within 5s.
-            deadline = time.time() + 5.0
-            saw_create = False
+            # Watch the stub's JSONL for sockclnt_create within ~5s.
+            def _saw_create():
+                if not os.path.exists(log):
+                    return False
+                with open(log, "r", encoding="utf-8") as fh:
+                    for line in fh:
+                        try:
+                            entry = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        if entry.get("msg") == "sockclnt_create":
+                            return True
+                return False
+
+            # // test-relax: hand-rolled JSONL-watch poll -> ze_api.wait_until (same
+            # ~5s budget, ratchet-exempt internal sleep); paced log polling, not a race.
+            saw_create = wait_until(_saw_create, attempts=50, delay=0.1)
             ze_stderr = ""
-            while time.time() < deadline:
-                if os.path.exists(log):
-                    with open(log, "r", encoding="utf-8") as fh:
-                        for line in fh:
-                            try:
-                                entry = json.loads(line)
-                            except json.JSONDecodeError:
-                                continue
-                            if entry.get("msg") == "sockclnt_create":
-                                saw_create = True
-                                break
-                if saw_create:
-                    break
-                time.sleep(0.1)
 
             # Drain ze stderr so we can assert on "GoVPP connected".
             deadline2 = time.time() + 2.0
@@ -121,10 +121,9 @@ def main() -> int:
                     break
                 line = ze.stderr.readline()
                 if not line:
-                    if ze.poll() is not None:
-                        break
-                    time.sleep(0.05)
-                    continue
+                    # // test-relax: blocking readline returns "" only at EOF (ze closed
+                    # stderr / exited), so break instead of a sleep-paced re-poll.
+                    break
                 ze_stderr += line
                 sys.stderr.write(line)
                 if "GoVPP connected" in line:
