@@ -365,6 +365,82 @@ func TestPeerShowStatisticsZeroUptime(t *testing.T) {
 	assert.Equal(t, 0.0, data["rate-keepalives-sent"])
 }
 
+// TestBgpSummaryUptimeTruncatedToSecond verifies uptime is rendered as whole
+// seconds, not Go's default nanosecond-precision duration string.
+//
+// VALIDATES: peer and aggregate uptime are truncated to the second.
+// PREVENTS: a 9-digit fraction ("6m10.766415123s") reaching operators. The CLI
+// dashboard takes this string verbatim into a 10-wide Uptime column that pads
+// without truncating, so an over-width value shifted every column right of it
+// out of alignment.
+func TestBgpSummaryUptimeTruncatedToSecond(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address: netip.MustParseAddr("192.0.2.1"),
+				PeerAS:  65001,
+				State:   plugin.PeerStateEstablished,
+				Uptime:  6*time.Minute + 10*time.Second + 766415123*time.Nanosecond,
+			},
+		},
+		stats: plugin.ReactorStats{
+			PeerCount: 1,
+			Uptime:    time.Hour + 2*time.Minute + 3*time.Second + 456789123*time.Nanosecond,
+			RouterID:  0x0a000001,
+			LocalAS:   65000,
+		},
+	}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleBgpSummary(ctx, nil)
+	require.NoError(t, err)
+
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	summary, ok := data["summary"].(map[string]any)
+	require.True(t, ok)
+
+	assert.Equal(t, "1h2m3s", summary["uptime"])
+
+	peers, ok := summary["peers"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, peers, 1)
+	assert.Equal(t, "6m10s", peers[0]["uptime"])
+}
+
+// TestBgpPeerStatisticsUptimeTruncatedRatesExact verifies the statistics
+// handler truncates the displayed uptime while still computing rates from the
+// full-precision duration.
+//
+// VALIDATES: "uptime" is whole seconds; rate-* keep sub-second accuracy.
+// PREVENTS: truncating the shared uptime value at the source, which would skew
+// every rate. With 21 updates over 10.5s the true rate is 2.0/s; a truncated
+// 10s divisor yields 2.1/s.
+func TestBgpPeerStatisticsUptimeTruncatedRatesExact(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address:         netip.MustParseAddr("192.0.2.1"),
+				PeerAS:          65001,
+				State:           plugin.PeerStateEstablished,
+				Uptime:          10*time.Second + 500*time.Millisecond,
+				UpdatesReceived: 21,
+			},
+		},
+	}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "192.0.2.1"
+
+	resp, err := handleBgpPeerStatistics(ctx, nil)
+	require.NoError(t, err)
+
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+
+	assert.Equal(t, "10s", data["uptime"])
+	assert.Equal(t, 2.0, data["rate-updates-received"])
+}
+
 // TestPeerCapabilitiesNotEstablished verifies capabilities for non-established peer.
 //
 // VALIDATES: AC-8 — non-Established peer returns negotiation-complete=false.

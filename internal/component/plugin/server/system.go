@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"runtime"
 	"strings"
+	"time"
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -203,7 +204,7 @@ func handleDaemonStatus(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"uptime":     stats.Uptime.String(),
+			"uptime":     stats.Uptime.Truncate(time.Second).String(),
 			"peer_count": stats.PeerCount,
 			"start_time": stats.StartTime.Format("2006-01-02T15:04:05Z07:00"),
 		},

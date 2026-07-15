@@ -11,6 +11,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -116,7 +117,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			"remote-as":           p.PeerAS,
 			"peer-type":           p.PeerType,
 			"state":               p.State.String(),
-			"uptime":              p.Uptime.String(),
+			"uptime":              p.Uptime.Truncate(time.Second).String(),
 			"updates-received":    p.UpdatesReceived,
 			"updates-sent":        p.UpdatesSent,
 			"keepalives-received": p.KeepalivesReceived,
@@ -139,7 +140,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	summary := map[string]any{
 		"router-id":         routerID,
 		"local-as":          stats.LocalAS, // global BGP local AS, kept as "local-as" for summary context
-		"uptime":            stats.Uptime.String(),
+		"uptime":            stats.Uptime.Truncate(time.Second).String(),
 		"peers-configured":  len(allPeers),
 		"peers-established": established,
 		"peers":             peerRows,
@@ -297,7 +298,7 @@ func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, args []string) (*
 			"address":             p.Address.String(),
 			"remote-as":           p.PeerAS,
 			"state":               p.State.String(),
-			"uptime":              p.Uptime.String(),
+			"uptime":              p.Uptime.Truncate(time.Second).String(),
 			"updates-received":    p.UpdatesReceived,
 			"updates-sent":        p.UpdatesSent,
 			"keepalives-received": p.KeepalivesReceived,
