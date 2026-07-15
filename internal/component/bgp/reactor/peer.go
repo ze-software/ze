@@ -291,10 +291,15 @@ type Peer struct {
 
 // NewPeer creates a new peer for the given settings.
 func NewPeer(settings *PeerSettings) *Peer {
-	reconnectMin := settings.ConnectRetry
-	if reconnectMin == 0 {
-		reconnectMin = DefaultReconnectMin
-	}
+	// Reconnect backoff uses the exponential range DefaultReconnectMin..
+	// DefaultReconnectMax (see peer_run.go run()), NOT the RFC 4271
+	// ConnectRetryTimer (settings.ConnectRetry, default 120s). Wiring ConnectRetry
+	// in as the backoff floor made floor(120s) exceed ceiling(60s) and stranded a
+	// peer 'connecting' for 2 minutes after a single failed attempt, so any
+	// transient establishment hiccup read as "never established"
+	// (spec-fixit-redistribute-establishment-stall). ConnectRetry remains the
+	// connect timeout (reactor_dynamic.go).
+	reconnectMin := DefaultReconnectMin
 	addrStr := settings.Address.String()
 	clk := clock.RealClock{}
 
