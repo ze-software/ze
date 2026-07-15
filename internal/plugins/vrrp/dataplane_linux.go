@@ -1,4 +1,4 @@
-// Design: plan/spec-vrrp-6-interop.md -- virtual-MAC dataplane (ARP/ND ownership)
+// Design: plan/learned/1122-vrrp-macvlan-vmac-dataplane.md -- virtual-MAC dataplane (ARP/ND ownership)
 //
 // Making the virtual IP answer with the VIRTUAL MAC (RFC 9568 Section 7.3) is
 // not automatic on Linux: when the macvlan's PARENT holds a real address in the

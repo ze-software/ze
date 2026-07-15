@@ -1,4 +1,4 @@
-// Design: plan/spec-vrrp-6-interop.md -- virtual-MAC dataplane (ARP/ND ownership)
+// Design: plan/learned/1122-vrrp-macvlan-vmac-dataplane.md -- virtual-MAC dataplane (ARP/ND ownership)
 //
 // The virtual-MAC ARP recipe (dataplane_linux.go) is Linux-only: it writes
 // procfs sysctls and only matters where the netlink backend runs macvlans. Off

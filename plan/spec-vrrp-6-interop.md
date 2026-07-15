@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | done |
 | Depends | spec-vrrp-5 |
 | Phase | - |
 | Updated | 2026-07-14 |
@@ -593,20 +593,30 @@ the .ci injector document their field layout byte by byte.
 
 ## Review Gate
 
+Satisfied by an owner-requested critical review of the landed dataplane work
+(2026-07-15), not the `/ze-review` multi-agent flow. Full detail is in the
+Mistake Log "critical self-review" row.
+
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | Address-owner VIP (== parent real addr) installed at subnet prefix -> duplicate connected route, resolves to parent MAC (confirmed in QEMU) | `register.go` vipMaskBits | Fixed: owner VIP installed as /32 host route |
+| 2 | ISSUE | vipMaskBits fell back to a non-containing parent prefix's length for an out-of-subnet VIP (bogus route) | `register.go` vipMaskBits | Fixed: host-route fallback |
+| 3 | ISSUE | IPv6 L2 ownership assumed native, untested | `dataplane_linux.go` | Validated in QEMU (6/6 to vMAC6, no sysctls); no-op path proven correct |
+| 4 | ISSUE | iface re-emits parent ARP sysctls on apply, can clobber the recipe | `dataplane_linux.go` / `engine.go` | Fixed: re-assert recipe every apply (`reassertDataplaneSysctls`) |
+| 5 | ISSUE | macvlan mode drift undetectable (InterfaceInfo carried no mode) | `config_apply.go` / `show_linux.go` | Fixed: MacvlanMode readback + drift check |
+| 6 | NOTE | `disable_ipv6` cargo-culted; cold-start race; `all.rp_filter=0` host-global | recipe | Removed disable_ipv6; race + rp_filter documented (keepalived-parity) |
 
 ### Fixes applied
-- (fill during /ze-review)
+- All BLOCKER/ISSUE findings fixed with unit tests (owner/fallback masks, mode drift, per-apply re-assert) and re-validated: interop lab QS-1/2/3 pass, 11 Go packages green, lint 0, `-race` clean.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | none: re-run after fixes surfaced no new findings | - | - |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- Critical review complete: 0 BLOCKER, 0 ISSUE remaining; NOTEs recorded above and in `docs/guide/vrrp.md`.
 
 ## Pre-Commit Verification
 
