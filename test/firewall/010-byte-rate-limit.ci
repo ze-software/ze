@@ -15,20 +15,30 @@ option=skip-os:value=darwin
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
-import os, signal, subprocess, sys, time
+import os, signal, subprocess, sys
 
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    time.sleep(0.05)
-else:
+from ze_api import wait_until
+
+# // test-relax: hand-rolled daemon-readiness for-loop -> ze_api.wait_until (same
+# 200x0.05s budget, ratchet-exempt internal sleep); paced marker polling, not a race.
+if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
+                  attempts=200, delay=0.05):
     sys.exit("daemon readiness files missing")
 
 with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
-time.sleep(0.5)
-out = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_010"], text=True)
+# Deterministic replacement for sleep(0.5): poll until Apply() programmed the object.
+_out = {}
+def _ready():
+    try:
+        _out["s"] = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_010"], text=True, stderr=subprocess.DEVNULL)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+if not wait_until(_ready, attempts=100, delay=0.05):
+    sys.exit("firewall object never programmed")
+out = _out["s"]
 sys.stdout.write(out)
 os.kill(pid, signal.SIGTERM)
 EOF_PY
