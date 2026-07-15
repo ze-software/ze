@@ -435,13 +435,9 @@ func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args
 	}
 
 	if s.dispatcher != nil && !s.dispatcher.isAuthorizedCommandArgs(cmdCtx, command, args, peer, false) {
-		authInput := aaa.CanonicalCommand(command, args, peer)
 		return &rpc.DispatchCommandOutput{
 			Status: plugin.StatusError,
-			Error: func() string {
-				var tb textbuf.Buffer
-				return tb.Str("authorization denied for ").Str(authInput).String()
-			}(),
+			Error:  unauthorizedError(aaa.CanonicalCommand(command, args, peer)),
 		}, ErrUnauthorized
 	}
 

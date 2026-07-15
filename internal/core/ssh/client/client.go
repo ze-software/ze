@@ -94,12 +94,24 @@ func ExecCommand(creds Credentials, command string) (string, error) {
 	output, err := session.CombinedOutput(command)
 	if err != nil {
 		if len(output) > 0 {
-			return "", fmt.Errorf("%s", strings.TrimSpace(string(output)))
+			return "", errors.New(TrimErrorPrefix(strings.TrimSpace(string(output))))
 		}
 		return "", err
 	}
 
 	return strings.TrimSpace(string(output)), nil
+}
+
+// errorPrefix is how the daemon's ssh exec handler formats a failure on the
+// session's stderr, so that `ssh <host> <command>` reads well on its own.
+const errorPrefix = "error: "
+
+// TrimErrorPrefix removes the daemon's display prefix from a remote failure.
+// The prefix is formatting for a human reading raw ssh output; once the text
+// becomes an error value it is data, and every caller that prints it adds its
+// own "error: ". Without this the CLI renders "error: error: <msg>".
+func TrimErrorPrefix(s string) string {
+	return strings.TrimPrefix(s, errorPrefix)
 }
 
 // StreamCommand connects to the daemon via SSH and runs a streaming command.

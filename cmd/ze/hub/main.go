@@ -717,6 +717,23 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			swapAAABundle(aaaBundle, aaaLog)
 		}
 
+		// Authorization must be wired here, not only in infra_setup.go. That
+		// hook runs from the reactor's post-start callback, which only exists
+		// when the config has a bgp{} block; on this path it never runs, so
+		// without this the dispatcher's authorizer stays nil and
+		// Dispatcher.isAuthorized allows every command. An ssh-only box (the
+		// gokrazy appliance, environment{}-only configs) would then accept
+		// system.authorization profiles and silently enforce none of them --
+		// authentication would pass and RBAC would not apply at all.
+		//
+		// liveAAABundleAuthorizer resolves the bundle per call rather than
+		// pinning the one built above, so a reload that changes profiles takes
+		// effect without re-wiring.
+		if d := apiServer.Dispatcher(); d != nil {
+			d.SetAuthorizer(liveAAABundleAuthorizer{})
+			aaaLog.Info("authorization configured", "source", "live aaa bundle", "path", "ssh-standalone")
+		}
+
 		if stop := sshBuildStandalone(inputs); stop != nil {
 			defer stop()
 		}

@@ -139,6 +139,15 @@ func (r RawJSON) MarshalJSON() ([]byte, error) {
 	return b, nil
 }
 
+// UnauthorizedMessage is the canonical operator-facing text for a command
+// refused by authorization, shared by every surface that can refuse one (SSH,
+// CLI, web, REST, gRPC) so an operator reads the same sentence everywhere.
+//
+// It must stay distinguishable from an unknown-command error: telling an
+// operator "unknown command" when their profile is what blocked them sends
+// them hunting for a typo that does not exist.
+const UnauthorizedMessage = "command restricted by access control"
+
 // Response represents an API command response.
 // Serial is included only if command had #N prefix.
 type Response struct {

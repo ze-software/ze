@@ -141,7 +141,9 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 
 		// Authorization check — same path as Dispatch() in command.go
 		if s.dispatcher != nil && !s.dispatcher.isAuthorized(ctx, cliCommand, readOnly) {
-			return nil, rpc.NewCodedError("unauthorized", "unauthorized")
+			// The code stays "unauthorized" (wire contract); only the human
+			// text carries the operator-facing wording.
+			return nil, rpc.NewCodedError("unauthorized", plugin.UnauthorizedMessage)
 		}
 
 		resp, err := handler(ctx, rpcParams.Args)

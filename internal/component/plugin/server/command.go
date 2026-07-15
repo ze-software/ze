@@ -27,7 +27,17 @@ var ErrUnknownCommand = errors.New("unknown command")
 var ErrEmptyCommand = errors.New("empty command")
 
 // ErrUnauthorized is returned when a command is denied by authorization.
-var ErrUnauthorized = errors.New("unauthorized")
+// Its text is plugin.UnauthorizedMessage because operators read it directly:
+// the ssh exec handler prints this error, not the Response.Error below.
+var ErrUnauthorized = errors.New(plugin.UnauthorizedMessage)
+
+// unauthorizedError builds the Response.Error for a denied command. Surfaces
+// that render Response.Error rather than the returned error still name the
+// command, which the operator needs when a whole pipeline is denied.
+func unauthorizedError(input string) string {
+	var tb textbuf.Buffer
+	return tb.Str(plugin.UnauthorizedMessage).Str(": ").Str(input).String()
+}
 
 // ErrPluginProcessNotRunning is returned when a plugin command targets a non-running process.
 var ErrPluginProcessNotRunning = errors.New("plugin process not running")
@@ -565,7 +575,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		if !d.isAuthorized(ctx, input, matchedCmd.ReadOnly) {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Error:  func() string { var tb textbuf.Buffer; return tb.Str("authorization denied for ").Str(input).String() }(),
+				Error:  unauthorizedError(input),
 			}, ErrUnauthorized
 		}
 
@@ -594,25 +604,41 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		return resp, handlerErr
 	}
 
-	// If no builtin match, try forked subsystems and plugin registry.
-	// Authorization applies to these paths too, treat as non-read-only (write).
-	if !d.isAuthorized(ctx, input, false) {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  func() string { var tb textbuf.Buffer; return tb.Str("authorization denied for ").Str(input).String() }(),
-		}, ErrUnauthorized
-	}
-	if d.subsystems != nil {
-		if handler := d.subsystems.FindHandler(input); handler != nil {
-			return d.dispatchSubsystem(ctx, handler, input)
-		}
-	}
-
+	// No builtin match: the command is a forked subsystem's, a plugin's, or
+	// nobody's. Resolve which BEFORE authorizing, so a command that exists
+	// nowhere reports ErrUnknownCommand for every caller. Authorizing first
+	// makes any typo come back as an authorization denial for a read-only
+	// profile (this path authorizes as a write), which sends the operator to
+	// debug their RBAC config for a command that never existed.
 	pluginInput := input
 	pluginLower := strings.ToLower(strings.TrimSpace(input))
 	peerSelector := "*"
 	if ctx != nil {
 		peerSelector = ctx.PeerSelector()
+	}
+
+	var subsystemHandler *SubsystemHandler
+	if d.subsystems != nil {
+		subsystemHandler = d.subsystems.FindHandler(input)
+	}
+	if subsystemHandler == nil {
+		if matched, _ := d.matchPluginCommand(pluginLower); matched == nil {
+			// dispatchPlugin re-resolves and logs the registry contents.
+			return d.dispatchPlugin(ctx, pluginInput, pluginLower, peerSelector)
+		}
+	}
+
+	// The command exists. Authorization applies to these paths too; treat as
+	// non-read-only (write), as before.
+	if !d.isAuthorized(ctx, input, false) {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Error:  unauthorizedError(input),
+		}, ErrUnauthorized
+	}
+
+	if subsystemHandler != nil {
+		return d.dispatchSubsystem(ctx, subsystemHandler, input)
 	}
 	return d.dispatchPlugin(ctx, pluginInput, pluginLower, peerSelector)
 }
@@ -774,10 +800,16 @@ func (d *Dispatcher) ForwardToPlugin(cmdCtx *CommandContext, command string, arg
 	return d.routeToProcess(cmdCtx, cmd, args, peerSelector)
 }
 
-// dispatchPlugin routes a command to a plugin process.
-// lowerInput must already be lowercased by the caller (Dispatch).
-func (d *Dispatcher) dispatchPlugin(ctx *CommandContext, input, lowerInput, peerSelector string) (*plugin.Response, error) {
-	// Find longest matching plugin command
+// matchPluginCommand finds the longest registered plugin command that prefixes
+// lowerInput on a word boundary, falling back to deprecated aliases. It returns
+// the match and the length of the matched prefix, or (nil, 0) when the command
+// is registered nowhere.
+//
+// Split out of dispatchPlugin so Dispatch can answer "does this command exist?"
+// without executing it: authorization must not report a denial for a command
+// that exists nowhere.
+// lowerInput must already be lowercased by the caller.
+func (d *Dispatcher) matchPluginCommand(lowerInput string) (*RegisteredCommand, int) {
 	var matchedPlugin *RegisteredCommand
 	var matchedLen int
 
@@ -798,6 +830,13 @@ func (d *Dispatcher) dispatchPlugin(ctx *CommandContext, input, lowerInput, peer
 	if matchedPlugin == nil {
 		matchedPlugin, matchedLen = d.registry.LookupDeprecatedPrefix(lowerInput)
 	}
+	return matchedPlugin, matchedLen
+}
+
+// dispatchPlugin routes a command to a plugin process.
+// lowerInput must already be lowercased by the caller (Dispatch).
+func (d *Dispatcher) dispatchPlugin(ctx *CommandContext, input, lowerInput, peerSelector string) (*plugin.Response, error) {
+	matchedPlugin, matchedLen := d.matchPluginCommand(lowerInput)
 
 	if matchedPlugin == nil {
 		all := d.registry.All()

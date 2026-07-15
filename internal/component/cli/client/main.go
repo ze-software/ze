@@ -26,6 +26,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	pingcmd "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd" // init() registers ping RPCs; NewPingSession used below
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 
 	// plugin/all is GENERATED (scripts/codegen/plugin_imports.go) and blank-
 	// imports every schema, RPC command, and plugin package -- including the
@@ -127,7 +128,7 @@ func runInteractiveWithDispatch(dispatch CommandFunc) int {
 
 	m.SetDashboardFactory(func() (func() (string, error), error) {
 		return func() (string, error) {
-			return dispatch("bgp summary")
+			return dispatch("show bgp summary")
 		}, nil
 	})
 
@@ -218,7 +219,7 @@ func runInteractiveSession(client *cliClient) int {
 
 	m.SetDashboardFactory(func() (func() (string, error), error) {
 		return func() (string, error) {
-			return client.SendCommand("bgp summary")
+			return client.SendCommand("show bgp summary")
 		}, nil
 	})
 
@@ -294,10 +295,12 @@ func runBGP(args []string) int {
 	client := newCLIClient(creds)
 
 	// Verify daemon is reachable before entering interactive mode.
-	// An "unauthorized" error proves the daemon is running -- only treat
-	// connection-level failures as unreachable.
+	// An authorization refusal proves the daemon is running -- only treat
+	// connection-level failures as unreachable. A profile that denies `show
+	// version` must not send the operator to the offline fallback with
+	// "is the daemon running?".
 	if _, err := client.SendCommand("show version"); err != nil {
-		if !strings.Contains(err.Error(), "unauthorized") {
+		if !strings.Contains(err.Error(), plugin.UnauthorizedMessage) {
 			// Daemon unreachable: try an in-process offline fallback before
 			// giving up. The fallback registry is consulted ONLY here, after a
 			// connection-level failure, so it never shadows the daemon command

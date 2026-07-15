@@ -149,7 +149,7 @@ func TestEngineExecuteUnauthorized(t *testing.T) {
 	result, err := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: "readonly"}, Command: "daemon reload"})
 	assert.ErrorIs(t, err, ErrUnauthorized)
 	assert.Equal(t, StatusError, result.Status)
-	assert.Contains(t, result.Error, "authorization denied")
+	assert.Contains(t, result.Error, plugin.UnauthorizedMessage)
 }
 
 // VALIDATES: AC-8 -- a no-auth/read-only API caller can run reads but not writes.
@@ -164,7 +164,7 @@ func TestEngineReadOnlyCallerDeniedWrite(t *testing.T) {
 	writeResult, writeErr := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: "api", ReadOnly: true}, Command: "daemon reload"})
 	assert.ErrorIs(t, writeErr, ErrUnauthorized)
 	assert.Equal(t, StatusError, writeResult.Status)
-	assert.Contains(t, writeResult.Error, "authorization denied")
+	assert.Contains(t, writeResult.Error, plugin.UnauthorizedMessage)
 }
 
 // VALIDATES: Execute propagates executor errors.

@@ -1,0 +1,89 @@
+// Design: docs/architecture/core-design.md -- AAA login-resolved profiles
+// Related: types.go -- AuthResult.Profiles, the value recorded here
+// Related: ../authz/authz.go -- Store.Authorize consumes this as a fallback
+//
+// Why this exists: a backend decides which authz profiles a user holds at
+// AUTHENTICATION time. The local backend reads them from
+// system.authentication.user[*].profile, but TACACS+ derives them from the
+// server's priv-lvl reply via the tacacs-profile mapping -- a value that exists
+// nowhere in config keyed by username.
+//
+// Authorization runs later, on a different call, and receives only the username.
+// Without somewhere to put the login-time answer, authz.Store could only look up
+// its static config assignments, find nothing for a TACACS+ user, and fall
+// through to the built-in admin profile: the priv-lvl mapping was logged at login
+// and then ignored, so every TACACS+ user was authorized as admin.
+//
+// Only profile NAMES are recorded, never a resolved Profile. Authorization looks
+// each name up in the live store, so a reload that changes what "read-only" means
+// takes effect on the next command rather than being pinned at login.
+
+package aaa
+
+import "sync"
+
+// loginProfiles maps username -> authz profile names resolved at authentication.
+//
+// Keyed by username alone, not by session: authorizers receive a username and a
+// remote address, but the remote address of a command is not the address of the
+// login for every surface. A username is one identity here -- two sessions for
+// the same name are the same user -- so the last successful authentication wins.
+//
+// Entries are not evicted on logout. The map is bounded by the number of distinct
+// usernames that have ever authenticated successfully, an entry costs a name and
+// a short slice, and a stale entry cannot outlive its meaning: it holds names,
+// and a name that no longer resolves in the live store contributes nothing.
+var loginProfiles sync.Map // string -> []string
+
+// RecordLoginProfiles stores the authz profile names a backend resolved for a
+// successful authentication. Build wraps the composed authenticator so this is
+// called for every surface (ssh, web, api) rather than at each call site.
+//
+// An authentication that resolves no profiles records nothing: it must not erase
+// a mapping from an earlier login that did resolve some, and an empty entry is
+// indistinguishable from "never seen" to the reader anyway.
+func RecordLoginProfiles(username string, profiles []string) {
+	if username == "" || len(profiles) == 0 {
+		return
+	}
+	// Copy: the caller's slice belongs to an AuthResult that it may reuse.
+	stored := make([]string, len(profiles))
+	copy(stored, profiles)
+	loginProfiles.Store(username, stored)
+}
+
+// LoginProfiles returns the profile names recorded for username at its last
+// successful authentication. The returned slice is read-only; callers must not
+// mutate it.
+func LoginProfiles(username string) ([]string, bool) {
+	v, ok := loginProfiles.Load(username)
+	if !ok {
+		return nil, false
+	}
+	profiles, ok := v.([]string)
+	if !ok || len(profiles) == 0 {
+		return nil, false
+	}
+	return profiles, true
+}
+
+// ForgetLoginProfiles drops the recorded profiles for username. Exported for
+// tests, which must not leak identities into each other through this map.
+func ForgetLoginProfiles(username string) {
+	loginProfiles.Delete(username)
+}
+
+// profileRecordingAuthenticator wraps the composed authenticator chain so that a
+// successful authentication publishes its resolved profiles to authorization.
+// It sits in Build rather than in each transport so no surface can forget it.
+type profileRecordingAuthenticator struct {
+	next Authenticator
+}
+
+func (p profileRecordingAuthenticator) Authenticate(request AuthRequest) (AuthResult, error) {
+	result, err := p.next.Authenticate(request)
+	if err == nil && result.Authenticated {
+		RecordLoginProfiles(request.Username, result.Profiles)
+	}
+	return result, err
+}

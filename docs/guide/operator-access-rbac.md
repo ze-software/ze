@@ -120,18 +120,28 @@ ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
   /usr/local/bin/ze cli --user operator -c "help"
 ```
 
-Test that NOC cannot enter the edit path:
+Test that NOC is refused a command its profile denies. The `read-only` profile above denies the `clear` prefix:
 
 ```bash
 ZE_SSH_PASSWORD='CHANGE_ME_NOC' \
-  /usr/local/bin/ze cli --user noc -c "configure"
+  /usr/local/bin/ze cli --user noc -c "clear interface counters"
 ```
 
-The command should be rejected by authorization. Check the daemon logs if it succeeds.
+Authorization refuses it, and says so:
+
+```
+error: command restricted by access control
+```
+
+Check the daemon logs if it succeeds instead:
 
 ```bash
 journalctl -u ze.service -n 100 --no-pager
 ```
+
+Pick a real command the profile denies when you write your own check. A command Ze does not have reports `unknown command` and exits non-zero for everyone, authorized or not, so testing with one proves nothing about your profiles: the check would pass even with authorization disabled. `configure` is one of these. It is a mode switch inside the interactive CLI, not a daemon command, so `ze cli -c "configure"` is never an authorization test. To check the edit path, run a command that writes, such as `set system ...`, or log in and try `configure` interactively.
+
+<!-- terminal-demo: rbac -->
 
 ## 5. Add SSH public keys
 

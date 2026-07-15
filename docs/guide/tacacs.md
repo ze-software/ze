@@ -93,6 +93,37 @@ Levels not present in `tacacs-profile` reject the login. Look for
 `TACACS+ unmapped privilege level` in the daemon log when extending the
 upstream config.
 
+### What the mapped profiles govern
+
+The mapped profiles decide every command the session may run, not just whether
+the login succeeds. Ze resolves them once at authentication and authorizes each
+command against them, so `tacacs-profile 1 { profile [ read-only ]; }` gives that
+session exactly what the local `read-only` profile allows and refuses the rest
+with `command restricted by access control`.
+
+Only the profile *names* are fixed at login. Each command is evaluated against
+the profile as it is defined at that moment, so editing `read-only` and
+committing applies to sessions already open, without a reconnect.
+
+A local `system.authentication.user` block with the same username takes
+precedence over the mapped profiles: an explicit local assignment is a stated
+intent for that name, so it is not widened or narrowed by how the user logged in.
+
+Verify the mapping with a command the profile denies, not with one Ze does not
+have. A command that does not exist reports `unknown command` and exits non-zero
+for everyone, so it passes whatever the mapping says and proves nothing.
+
+<!-- source: internal/component/aaa/login_profiles.go -- login-resolved profiles reaching authorization -->
+<!-- source: internal/component/authz/authz.go -- Store.Authorize, config assignment precedence -->
+<!-- source: test/plugin/tacacs-readonly.ci -- priv-lvl 1 allowed a read, refused a write -->
+<!-- source: test/plugin/tacacs-author.ci -- per-command AUTHOR REQUEST, FAIL blocks the command -->
+<!-- source: internal/component/tacacs/authorizer.go -- per-command authorization when `authorization true` -->
+
+Setting `authorization true` moves the per-command decision to the TACACS+ server
+itself: Ze sends an AUTHOR REQUEST per command, and the profiles above apply only
+as the fallback when the server is unreachable, unless `strict-fallback true`
+makes that case deny.
+
 <!-- source: internal/component/tacacs/authenticator.go -- handlePass priv-lvl lookup -->
 
 ## Accounting

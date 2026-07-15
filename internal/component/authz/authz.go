@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 )
 
 var errProfileNameCannotBeEmpty = errors.New("profile name cannot be empty")
@@ -348,6 +350,22 @@ func (s *Store) Authorize(username, command string, isReadOnly bool) Action {
 	}
 
 	profileNames, hasAssignment := s.assignments[username]
+	if !hasAssignment || len(profileNames) == 0 {
+		// Fall back to the profiles the user's authentication resolved. A local
+		// user's profiles reach us as a config assignment above, but a TACACS+
+		// user's come from the server's priv-lvl reply via the tacacs-profile
+		// mapping and appear nowhere in config keyed by username. Without this the
+		// mapping is logged at login and then ignored: an unassigned user falls
+		// through to the admin default below (or to Deny once any local user
+		// exists), so priv-lvl 1 mapped to read-only would authorize as admin.
+		//
+		// Config assignments win when both exist: an explicit local assignment is
+		// the operator's stated intent for that name.
+		if loginNames, ok := aaa.LoginProfiles(username); ok {
+			profileNames = loginNames
+			hasAssignment = true
+		}
+	}
 	if !hasAssignment || len(profileNames) == 0 {
 		if hasUsers {
 			return Deny

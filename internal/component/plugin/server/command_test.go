@@ -723,7 +723,8 @@ func TestDispatcherAuthorizationDeny(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Error, "authorization denied")
+	assert.Contains(t, resp.Error, plugin.UnauthorizedMessage)
+	assert.Contains(t, resp.Error, "restart", "the denial must name the command it refused")
 }
 
 // TestDispatcherNoAuthorizerAllowsAll verifies nil authorizer permits everything.
@@ -923,22 +924,57 @@ func TestDispatcherWithAuthzStore(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 }
 
-// TestDispatcherAuthorizationAppliesToUnknownCommands verifies that authorization
-// is checked even for commands that don't match any builtin handler (subsystem/plugin path).
+// TestDispatcherAuthorizationAppliesToPluginCommands verifies that authorization
+// is checked for commands that reach the plugin path rather than a builtin
+// handler. The command is registered as a plugin command (not a builtin), so a
+// denial here proves the check happens before the dispatcher routes to the
+// plugin process, not that the command was simply unrecognized.
 //
 // VALIDATES: AC-4 — Authorization applies to all command paths, not just builtins.
-// PREVENTS: Authorization bypass by sending unregistered commands to plugin/subsystem dispatch.
-func TestDispatcherAuthorizationAppliesToUnknownCommands(t *testing.T) {
+// PREVENTS: Authorization bypass by sending plugin/subsystem commands, which skip
+//
+//	the builtin authorization check in Dispatch.
+func TestDispatcherAuthorizationAppliesToPluginCommands(t *testing.T) {
 	d := NewDispatcher()
 	d.SetAuthorizer(&mockAuthorizer{allow: false})
 
-	// Don't register "custom plugin cmd" as a builtin — it falls to plugin dispatch.
+	// Register as a PLUGIN command, so it resolves on the plugin path and is not
+	// a builtin. Authorization must still deny it before it routes to the process.
+	const pluginCmd = "show custom-probe"
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
+	results := d.registry.Register(proc, []CommandDef{
+		{Name: pluginCmd, Description: "Plugin-provided command"},
+	})
+	require.Len(t, results, 1)
+	require.True(t, results[0].OK, "plugin command registration must succeed: %s", results[0].Error)
+
 	ctx := &CommandContext{Username: "noc-user"}
-	resp, err := d.Dispatch(ctx, "custom plugin cmd")
+	resp, err := d.Dispatch(ctx, pluginCmd)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Error, "authorization denied")
+	assert.Contains(t, resp.Error, plugin.UnauthorizedMessage)
+}
+
+// TestDispatcherUnknownCommandNotReportedAsUnauthorized verifies that a command
+// registered nowhere reports ErrUnknownCommand even when the authorizer denies
+// everything. Nothing can execute, so there is no authorization to bypass, and
+// reporting a denial would send an operator to debug their RBAC profile for what
+// is really a typo.
+//
+// VALIDATES: A denial message means "your profile blocked this", not "no such command".
+// PREVENTS: Every typo coming back as "restricted by access control" for read-only
+//
+//	profiles, whose Edit section denies this path by default.
+func TestDispatcherUnknownCommandNotReportedAsUnauthorized(t *testing.T) {
+	d := NewDispatcher()
+	d.SetAuthorizer(&mockAuthorizer{allow: false})
+
+	ctx := &CommandContext{Username: "noc-user"}
+	_, err := d.Dispatch(ctx, "no such command anywhere")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUnknownCommand), "want ErrUnknownCommand, got %v", err)
+	assert.False(t, errors.Is(err, ErrUnauthorized), "a command that exists nowhere is not an authorization failure")
 }
 
 // fakeAccountant records accounting calls for testing.

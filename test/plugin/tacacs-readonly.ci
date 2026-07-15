@@ -4,11 +4,17 @@
 # 1. Mock accepts noc:nocpass at priv-lvl 1
 # 2. Daemon maps priv-lvl 1 -> [ read-only ]; profile read-only allows run, denies edit
 # 3. ze cli -c "show bgp summary" succeeds (run section, default allow)
-# 4. ze cli -c "configure" fails (edit section, default deny)
+# 4. ze cli -c "request quiesce" is refused (edit section, default deny)
 #
 # VALIDATES: AC-7 -- TACACS+ priv-lvl 1 mapped to read-only profile.
 # PREVENTS: priv-lvl mapping table parsed but never consulted, every TACACS+ user
 #           getting admin by accident.
+#
+# Step 4 must use a command Ze actually has, and must assert WHY it failed. This
+# test previously described a `configure` step it never ran, so only the allow side
+# was covered: nothing here would have failed if priv-lvl 1 had wrongly mapped to
+# admin. `configure` could not have covered it either, being an interactive-CLI mode
+# switch that fails as "unknown command" for every user, denied or not.
 
 tmpfs=test-tacacs-readonly.sh:mode=755:terminator=EOF_SH
 #!/bin/sh
@@ -110,6 +116,33 @@ OUTPUT=$(ZE_CONFIG_DIR="$NOC_DIR" ZE_SSH_PASSWORD="nocpass" ze cli -c "show bgp 
 }
 echo "OK: noc allowed summary (priv-lvl 1 -> read-only)" >&2
 
+# The deny side: this profile's edit section defaults to deny, so a command the
+# dispatcher classifies as a write must be refused. This is what proves priv-lvl 1
+# mapped to read-only rather than admin -- the allow above passes under either
+# mapping.
+#
+# `request quiesce` is a write command, so it lands in the edit section. A `clear`
+# would NOT work here: clears are operational commands evaluated against the run
+# section, which this profile leaves at default-action allow (the built-in
+# read-only profile is the one that denies `clear` explicitly, in run).
+if OUTPUT=$(ZE_CONFIG_DIR="$NOC_DIR" ZE_SSH_PASSWORD="nocpass" ze cli -c "request quiesce" 2>&1); then
+	echo "FAIL: noc (priv-lvl 1 -> read-only) must not be allowed a write command" >&2
+	echo "OUTPUT: $OUTPUT" >&2
+	echo "--- daemon log ---" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+case "$OUTPUT" in
+	*"command restricted by access control"*)
+		echo "OK: noc refused write (edit default-action deny)" >&2
+		;;
+	*)
+		echo "FAIL: expected an access-control refusal, got: $OUTPUT" >&2
+		cat daemon.log >&2
+		exit 1
+		;;
+esac
+
 sleep 0.3
 cat daemon.log >&2
 
@@ -123,3 +156,6 @@ expect=stderr:pattern=auth success.*source=tacacs
 # The profiles list in the SSH auth log comes from the priv-lvl mapping
 # (handlePass). If the mapping is broken, profiles=[] and the assertion fails.
 expect=stderr:pattern=profiles=\[read-only\]
+# The mapped profile is actually enforced: a login-time profiles=[read-only] log
+# line proves only that the mapping was read, not that any command obeys it.
+expect=stderr:pattern=OK: noc refused write \(edit default-action deny\)

@@ -238,3 +238,59 @@ func TestReadCredentialsNonInteractiveNoPassword(t *testing.T) {
 		t.Errorf("error %q must name user and ze.ssh.password env var", got)
 	}
 }
+
+// VALIDATES: TrimErrorPrefix strips the daemon's "error: " display prefix so a
+// caller that prints "error: %v" renders one prefix, not "error: error: ...".
+// PREVENTS: regression of the doubled prefix operators saw on every failed
+// command (e.g. "error: error: unknown command").
+func TestTrimErrorPrefix(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "daemon-formatted failure loses exactly one prefix",
+			in:   "error: command restricted by access control",
+			want: "command restricted by access control",
+		},
+		{
+			name: "unprefixed message is untouched",
+			in:   "connection refused",
+			want: "connection refused",
+		},
+		{
+			name: "only a leading prefix is stripped",
+			in:   "error: parse failed: error: inner detail",
+			want: "parse failed: error: inner detail",
+		},
+		{
+			name: "a doubled prefix loses only the outer one, so the daemon can still say 'error:'",
+			in:   "error: error: unknown command",
+			want: "error: unknown command",
+		},
+		{
+			name: "multi-line output keeps its trailing lines",
+			in:   "error: unknown command\nhint: run 'help'",
+			want: "unknown command\nhint: run 'help'",
+		},
+		{
+			name: "a message that merely mentions error: is untouched",
+			in:   "peer reported error: hold timer expired",
+			want: "peer reported error: hold timer expired",
+		},
+		{
+			name: "empty stays empty",
+			in:   "",
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := TrimErrorPrefix(tt.in); got != tt.want {
+				t.Errorf("TrimErrorPrefix(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}

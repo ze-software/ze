@@ -3,6 +3,7 @@ package authz
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
@@ -810,5 +811,78 @@ func TestRegexInvalidPatternInMatches(t *testing.T) {
 	e := Entry{Number: 10, Action: Allow, Match: "[invalid", Regex: true}
 	if e.matches("anything") {
 		t.Error("expected false for invalid regex, got true")
+	}
+}
+
+// TestStoreAuthorizeUsesLoginResolvedProfiles verifies that a user whose profiles
+// were resolved at authentication is authorized against those profiles.
+//
+// A TACACS+ user has no system.authentication.user block, so the store holds no
+// assignment for their username. Their profiles come from the server's priv-lvl
+// reply through the tacacs-profile mapping, recorded at login.
+//
+// VALIDATES: tacacs-profile priv-lvl mapping governs command authorization.
+// PREVENTS: regression to every TACACS+-authenticated user being authorized as
+//
+//	admin because the store found no config assignment and fell through to
+//	BuiltinAdminProfile -- the mapping logged at login and then ignored.
+func TestStoreAuthorizeUsesLoginResolvedProfiles(t *testing.T) {
+	s := NewStore()
+	s.AddProfile(Profile{
+		Name: "read-only",
+		Run:  Section{Default: Allow},
+		Edit: Section{Default: Deny},
+	})
+
+	// Deliberately no AssignProfiles for this user: that is the TACACS+ shape.
+	aaa.RecordLoginProfiles("tacacs-noc", []string{"read-only"})
+	t.Cleanup(func() { aaa.ForgetLoginProfiles("tacacs-noc") })
+
+	if got := s.Authorize("tacacs-noc", "show bgp summary", true); got != Allow {
+		t.Errorf("run section defaults to allow: expected Allow, got %v", got)
+	}
+	if got := s.Authorize("tacacs-noc", "request quiesce", false); got != Deny {
+		t.Errorf("edit section defaults to deny: expected Deny, got %v (admin fallthrough?)", got)
+	}
+}
+
+// TestStoreAuthorizeConfigAssignmentWinsOverLogin verifies that an explicit config
+// assignment takes precedence over profiles recorded at login.
+//
+// VALIDATES: system.authentication.user[*].profile is the operator's stated intent
+//
+//	for a name and is not overridden by a login-time resolution.
+//
+// PREVENTS: a login from silently widening a locally assigned profile.
+func TestStoreAuthorizeConfigAssignmentWinsOverLogin(t *testing.T) {
+	s := NewStore()
+	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
+	s.AddProfile(Profile{Name: "admin-like", Run: Section{Default: Allow}, Edit: Section{Default: Allow}})
+	s.AssignProfiles("dual", []string{"read-only"})
+
+	aaa.RecordLoginProfiles("dual", []string{"admin-like"})
+	t.Cleanup(func() { aaa.ForgetLoginProfiles("dual") })
+
+	if got := s.Authorize("dual", "request quiesce", false); got != Deny {
+		t.Errorf("config assignment must win: expected Deny, got %v", got)
+	}
+}
+
+// TestStoreAuthorizeLoginProfilesDoNotLeakAcrossUsers verifies that recording
+// profiles for one user leaves another user's decision untouched.
+//
+// VALIDATES: login-resolved profiles are keyed per username.
+// PREVENTS: one user's login granting or restricting a different account.
+func TestStoreAuthorizeLoginProfilesDoNotLeakAcrossUsers(t *testing.T) {
+	s := NewStore()
+	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
+	s.AssignProfiles("known", []string{"read-only"})
+
+	aaa.RecordLoginProfiles("known", []string{"read-only"})
+	t.Cleanup(func() { aaa.ForgetLoginProfiles("known") })
+
+	// "other" never authenticated. Assignments exist, so it fails closed.
+	if got := s.Authorize("other", "show bgp summary", true); got != Deny {
+		t.Errorf("unassigned user with assignments present must fail closed: got %v", got)
 	}
 }

@@ -7,10 +7,10 @@ package api
 import (
 	"context"
 	"errors"
-	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Errors returned by the engine.
@@ -91,6 +91,15 @@ func (e *APIEngine) DescribeCommand(req *DescribeCommandRequest) (CommandMeta, e
 	return CommandMeta{}, ErrNotFound
 }
 
+// unauthorizedError builds the operator-facing text for a command this engine
+// refused. It quotes the command because REST/gRPC callers send arbitrary
+// strings, and an unquoted empty or whitespace command reads as a truncated
+// message.
+func unauthorizedError(command string) string {
+	var tb textbuf.Buffer
+	return tb.Str(plugin.UnauthorizedMessage).Str(": ").Quoted(command).String()
+}
+
 // Execute runs a command and returns the result.
 // Returns ErrUnauthorized if the auth checker denies the request.
 func (e *APIEngine) Execute(ctx context.Context, req *ExecuteRequest) (*ExecResult, error) {
@@ -98,13 +107,13 @@ func (e *APIEngine) Execute(ctx context.Context, req *ExecuteRequest) (*ExecResu
 	if req.Caller.ReadOnly && !readOnly {
 		return &ExecResult{
 			Status: StatusError,
-			Error:  "authorization denied for " + strconv.Quote(req.Command),
+			Error:  unauthorizedError(req.Command),
 		}, ErrUnauthorized
 	}
 	if e.auth != nil && !e.auth(req.Caller.Username, req.Command) {
 		return &ExecResult{
 			Status: StatusError,
-			Error:  "authorization denied for " + strconv.Quote(req.Command),
+			Error:  unauthorizedError(req.Command),
 		}, ErrUnauthorized
 	}
 

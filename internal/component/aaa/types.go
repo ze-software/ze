@@ -254,10 +254,14 @@ func (r *BackendRegistry) Build(params BuildParams) (*Bundle, error) {
 	if len(authChain) == 0 {
 		return nil, errNoAuthenticationBackendConfigured
 	}
+	// Wrap the chain so a successful authentication publishes the profiles it
+	// resolved (see login_profiles.go). Authorization runs on a later call that
+	// carries only a username, so this is the one place the login-time answer can
+	// be captured for every surface at once.
 	if len(authChain) == 1 {
-		bundle.Authenticator = authChain[0]
+		bundle.Authenticator = profileRecordingAuthenticator{next: authChain[0]}
 		return bundle, nil
 	}
-	bundle.Authenticator = &ChainAuthenticator{Backends: authChain}
+	bundle.Authenticator = profileRecordingAuthenticator{next: &ChainAuthenticator{Backends: authChain}}
 	return bundle, nil
 }
