@@ -406,11 +406,8 @@ func hostKeyCallback(host string) (ssh.HostKeyCallback, error) {
 	}
 }
 
-// ResolveDBPath determines the database.zefs path from env or default config dir.
+// ResolveDBPath determines the database.zefs path from the resolved config dir.
 func ResolveDBPath() string {
-	if dir := env.Get("ze.config.dir"); dir != "" {
-		return filepath.Join(dir, "database.zefs")
-	}
 	dir := paths.DefaultConfigDir()
 	if dir == "" {
 		return ""

@@ -294,3 +294,20 @@ func TestTrimErrorPrefix(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: ResolveDBPath resolves the store under ze.config.dir.
+// PREVENTS: the CLI's credential lookup drifting from where ze init writes the
+// store. That split is exactly how `ze data` broke: two resolvers disagreeing
+// about the config dir, so one wrote a store the other could not find.
+func TestResolveDBPath_HonorsConfigDirEnv(t *testing.T) {
+	dir := t.TempDir()
+	orig := env.Get("ze.config.dir")
+	t.Cleanup(func() { _ = env.Set("ze.config.dir", orig) })
+	if err := env.Set("ze.config.dir", dir); err != nil {
+		t.Fatalf("env.Set ze.config.dir: %v", err)
+	}
+
+	if got, want := ResolveDBPath(), filepath.Join(dir, "database.zefs"); got != want {
+		t.Errorf("ResolveDBPath() = %q, want %q", got, want)
+	}
+}
