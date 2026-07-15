@@ -12,32 +12,43 @@ option=skip-os:value=darwin
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
-import os, shutil, signal, subprocess, sys, time
+import os, shutil, signal, subprocess, sys
 
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    time.sleep(0.05)
-else:
+from ze_api import wait_until
+
+# // test-relax: daemon-readiness for-loop -> ze_api.wait_until (ratchet-exempt sleep).
+if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
+                  attempts=200, delay=0.05):
     sys.exit("daemon readiness files missing")
 
 with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
-time.sleep(0.5)
-before = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_002"], text=True)
-if "dport 22 accept" not in before:
-    sys.exit("initial state missing dport 22 rule; got:\n" + before)
+# Poll until the initial rule is programmed instead of sleep(0.5).
+_b = {}
+def _initial():
+    try:
+        _b["s"] = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_002"], text=True, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        return False
+    return "dport 22 accept" in _b["s"]
+if not wait_until(_initial, attempts=100, delay=0.05):
+    sys.exit("initial state missing dport 22 rule")
+before = _b["s"]
 
 shutil.copy("config2.conf", "ze-bgp.conf")
 os.kill(pid, signal.SIGHUP)
-time.sleep(1.5)
-
-after = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_002"], text=True)
-if "dport 22 accept" in after:
-    sys.exit("post-reload still contains dport 22 rule; got:\n" + after)
-if "dport 443 accept" not in after:
-    sys.exit("post-reload missing dport 443 rule; got:\n" + after)
+# Poll until the reload converged (old rule gone, new rule present) instead of sleep(1.5).
+_a = {}
+def _converged():
+    try:
+        _a["s"] = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_002"], text=True, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        return False
+    return "dport 22 accept" not in _a["s"] and "dport 443 accept" in _a["s"]
+if not wait_until(_converged, attempts=200, delay=0.05):
+    sys.exit("reload did not converge; got:\n" + _a.get("s", ""))
+after = _a["s"]
 
 sys.stdout.write("reload converged: before=%d bytes, after=%d bytes\n" % (len(before), len(after)))
 

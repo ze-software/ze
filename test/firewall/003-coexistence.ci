@@ -32,23 +32,31 @@ EOF_SETUP
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
-import os, signal, subprocess, sys, time
+import os, signal, subprocess, sys
+
+from ze_api import wait_until
 
 try:
-    for _ in range(200):
-        if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-            break
-        time.sleep(0.05)
-    else:
+    # // test-relax: daemon-readiness for-loop -> ze_api.wait_until (ratchet-exempt sleep).
+    if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
+                      attempts=200, delay=0.05):
         sys.exit("daemon readiness files missing")
 
     with open("daemon.pid") as f:
         pid = int(f.read().strip())
 
-    time.sleep(0.5)
-    # ze_fw10_003 must be programmed, surfprotect must still be present
-    # (surfprotect was created by setup.py BEFORE ze started).
-    ze_table = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_003"], text=True)
+    # Poll until ze_fw10_003 is programmed instead of sleep(0.5); surfprotect was
+    # created by setup.py BEFORE ze started, so it is already present.
+    _z = {}
+    def _prog():
+        try:
+            _z["s"] = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_003"], text=True, stderr=subprocess.DEVNULL)
+            return True
+        except subprocess.CalledProcessError:
+            return False
+    if not wait_until(_prog, attempts=100, delay=0.05):
+        sys.exit("ze_fw10_003 never programmed")
+    ze_table = _z["s"]
     surf_table = subprocess.check_output(["nft", "list", "table", "inet", "surfprotect"], text=True)
     sys.stdout.write("ZE:\n" + ze_table + "\nSURF:\n" + surf_table)
 

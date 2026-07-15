@@ -19,34 +19,37 @@ import os
 import signal
 import subprocess
 import sys
-import time
 
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    time.sleep(0.05)
-else:
+from ze_api import wait_until
+
+# // test-relax: daemon-readiness for-loop -> ze_api.wait_until (ratchet-exempt sleep).
+if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
+                  attempts=200, delay=0.05):
     sys.exit("daemon readiness files missing")
 
 with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
-time.sleep(0.5)
-
-try:
-    subprocess.check_output(["nft", "list", "table", "inet", "ze_fwpersist"], text=True)
-    print("BEFORE_SHUTDOWN: table present", file=sys.stderr)
-except subprocess.CalledProcessError:
+# Poll until the table is programmed instead of sleep(0.5).
+def _present():
+    try:
+        subprocess.check_output(["nft", "list", "table", "inet", "ze_fwpersist"], text=True, stderr=subprocess.DEVNULL)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+if not wait_until(_present, attempts=100, delay=0.05):
     sys.exit("BEFORE_SHUTDOWN: table missing")
+print("BEFORE_SHUTDOWN: table present", file=sys.stderr)
 
 os.kill(pid, signal.SIGTERM)
-# Wait for the daemon to exit so the clean-shutdown path has fully run.
-for _ in range(100):
+# Poll until the daemon has exited so the clean-shutdown path has fully run.
+def _dead():
     try:
         os.kill(pid, 0)
-        time.sleep(0.05)
+        return False
     except OSError:
-        break
+        return True
+wait_until(_dead, attempts=100, delay=0.05)
 
 try:
     subprocess.check_output(
