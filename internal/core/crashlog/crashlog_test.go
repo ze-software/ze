@@ -133,6 +133,34 @@ func TestAutodetectExplicitFallsThrough(t *testing.T) {
 	}
 }
 
+// VALIDATES: with no ze.crash.dir, crash logs land under the pinned ze.config.dir.
+// PREVENTS: crash reports splitting away from the config directory the operator
+// actually pinned, landing in a binary-derived tree they never chose and do not
+// collect. Deliberate: on systemd and gokrazy the pinned dir and the binary-derived
+// dir agree, so this only takes effect where they diverge.
+func TestAutodetectFollowsConfigDir(t *testing.T) {
+	setEnv(t, "ze.crash.dir", "")
+	dir := t.TempDir()
+	setEnv(t, "ze.config.dir", dir)
+
+	want := filepath.Join(dir, "crash")
+	if result := resolveCrashDir(); result != want {
+		t.Errorf("expected %s, got %s", want, result)
+	}
+}
+
+// VALIDATES: ze.crash.dir still outranks ze.config.dir.
+// PREVENTS: the config-dir fallback silently overriding an explicit crash-dir choice.
+func TestAutodetectCrashDirBeatsConfigDir(t *testing.T) {
+	crashDir := t.TempDir()
+	setEnv(t, "ze.crash.dir", crashDir)
+	setEnv(t, "ze.config.dir", t.TempDir())
+
+	if result := resolveCrashDir(); result != crashDir {
+		t.Errorf("expected %s, got %s", crashDir, result)
+	}
+}
+
 func TestParseCrashKeepDefault(t *testing.T) {
 	setEnv(t, "ze.crash.keep", "")
 	if n := parseCrashKeep(); n != defaultKeep {

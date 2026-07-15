@@ -1,0 +1,37 @@
+# Test: ze data resolves its store through ZE_CONFIG_DIR, not the binary location.
+#
+# VALIDATES: `ze data check` reads the same database.zefs that `ze init` wrote when
+#   ZE_CONFIG_DIR pins the config dir. Both commands must agree on the location.
+# PREVENTS: regression of the split where `ze init` wrote $ZE_CONFIG_DIR/database.zefs
+#   while `ze data check` derived <binary-prefix>/etc/ze/database.zefs from the binary
+#   location and reported "no such file or directory" against a healthy store, because
+#   paths.DefaultConfigDir ignored the ze.config.dir override registered in its own file.
+#
+# The store lives in an `mktemp -d` outside the test tree, so it can never coincide with
+# the binary-derived path. If ze data stops honoring the override, check fails on ENOENT.
+# Asymmetry is the point: ze init resolves through the env-aware path, so a test where
+# both commands shared one resolver would pass even with the bug present.
+
+tmpfs=test-data-config-dir.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+INIT_DIR=$(mktemp -d)
+trap 'rm -rf "$INIT_DIR"' EXIT
+
+# ze init writes the store through the env-honoring resolver.
+printf 'admin\nsecret123\n127.0.0.1\n2222\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init >/dev/null
+
+if [ ! -f "$INIT_DIR/database.zefs" ]; then
+	echo "FAIL: ze init did not create $INIT_DIR/database.zefs" >&2
+	exit 1
+fi
+
+# ze data must resolve that same store rather than one derived from its own location.
+ZE_CONFIG_DIR="$INIT_DIR" ze data check
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-data-config-dir.sh:timeout=10s
+expect=exit:code=0
+expect=stdout:contains=ok:
+expect=stdout:contains=magic ok

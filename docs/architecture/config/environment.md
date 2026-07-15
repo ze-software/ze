@@ -47,8 +47,9 @@ See `ai/rules/config-surface.md` for the YANG vs env-only decision framework.
 | `ze.pid.file` | string | (unset) | YANG | PID file path written at hub startup, removed at clean shutdown |
 | `ze.pprof` | string | (unset) | YANG | pprof HTTP server address (e.g. `:6060`); empty disables |
 | `ze.ready.file` | string | (unset) | ENV | Test infrastructure: signal file written when hub is ready |
-| `ze.config.dir` | string | (unset) | ENV | Override default config directory (bootstrap) |
+| `ze.config.dir` | string | (unset) | ENV | Override default config directory; when unset the directory is derived from the binary location |
 <!-- source: internal/component/config/environment.go -- env var registrations -->
+<!-- source: internal/core/paths/paths.go -- ze.config.dir registration; DefaultConfigDir override-then-binary resolution -->
 <!-- source: cmd/ze/hub/pidfile.go -- writePIDFile, removePIDFile -->
 
 When `ze.user` is not set, no privilege dropping occurs.

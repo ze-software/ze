@@ -26,10 +26,7 @@ func Storage() (storage.Storage, error) {
 	if v := env.Get("ze.storage.blob"); strings.EqualFold(v, "false") {
 		return storage.NewFilesystem(), nil
 	}
-	configDir := env.Get("ze.config.dir")
-	if configDir == "" {
-		configDir = paths.DefaultConfigDir()
-	}
+	configDir := paths.DefaultConfigDir()
 	if configDir == "" {
 		return storage.NewFilesystem(), nil
 	}

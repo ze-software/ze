@@ -1,10 +1,14 @@
 package paths_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 )
 
@@ -59,4 +63,34 @@ func TestConfigDir_UnknownLocation(t *testing.T) {
 	assert.Equal(t, "", paths.ConfigDirFromBinary("/tmp/ze"))
 	assert.Equal(t, "", paths.ConfigDirFromBinary("/ze"))
 	assert.Equal(t, "", paths.ConfigDirFromBinary("ze"))
+}
+
+// setConfigDirEnv sets ze.config.dir for the duration of the test.
+func setConfigDirEnv(t *testing.T, value string) {
+	t.Helper()
+	orig := env.Get("ze.config.dir")
+	t.Cleanup(func() { _ = env.Set("ze.config.dir", orig) })
+	require.NoError(t, env.Set("ze.config.dir", value))
+}
+
+// VALIDATES: ze.config.dir overrides binary-relative resolution.
+// PREVENTS: `ze data check` opening <prefix>/etc/ze/database.zefs while `ze init`
+// writes $ZE_CONFIG_DIR/database.zefs. The override is registered in this package
+// but DefaultConfigDir never read it, so `ze data` resolved a store nobody wrote.
+func TestDefaultConfigDir_EnvOverride(t *testing.T) {
+	setConfigDirEnv(t, "/custom/config")
+	assert.Equal(t, "/custom/config", paths.DefaultConfigDir())
+}
+
+// VALIDATES: an unset ze.config.dir still falls back to the binary location.
+// PREVENTS: the env override breaking system-installed and gokrazy layouts.
+func TestDefaultConfigDir_EnvUnsetFallsBackToBinary(t *testing.T) {
+	setConfigDirEnv(t, "")
+
+	exe, err := os.Executable()
+	require.NoError(t, err)
+	resolved, err := filepath.EvalSymlinks(exe)
+	require.NoError(t, err)
+
+	assert.Equal(t, paths.ConfigDirFromBinary(resolved), paths.DefaultConfigDir())
 }

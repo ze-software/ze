@@ -1152,6 +1152,43 @@ func TestDoctorStoreIntegrityCodeRegistered(t *testing.T) {
 	assert.NotEmpty(t, meta.Title)
 }
 
+// pinConfigDir points ze.config.dir at dir for the duration of the test.
+func pinConfigDir(t *testing.T, dir string) {
+	t.Helper()
+	orig := env.Get("ze.config.dir")
+	t.Cleanup(func() { _ = env.Set("ze.config.dir", orig) })
+	require.NoError(t, env.Set("ze.config.dir", dir))
+}
+
+// VALIDATES: checkStoreIntegrity reads the store at ze.config.dir and reports
+// corruption found there.
+// PREVENTS: the silent skip where checkStoreIntegrity resolved the store from the
+// binary location, os.Stat missed the operator's real store, and it returned nil --
+// so ze doctor reported a healthy store it had never opened. Reachable in production
+// via `ze install systemd --config <dir>`, which pins ZE_CONFIG_DIR in the generated
+// unit (internal/plugins/systemd/unit.go) while the binary sits in a standard prefix.
+func TestCheckStoreIntegrity_HonorsConfigDirEnv(t *testing.T) {
+	dir := t.TempDir()
+	// Not a valid zefs container: Check must fail on the CONTENT, which proves the
+	// file was actually opened rather than skipped as missing.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "database.zefs"), []byte("not a valid zefs store"), 0o600))
+	pinConfigDir(t, dir)
+
+	diags := checkStoreIntegrity()
+
+	require.Len(t, diags, 1, "corrupt store at ze.config.dir must produce a diagnostic, not a silent skip")
+	assert.Equal(t, "doctor-store-integrity", diags[0].Code)
+}
+
+// VALIDATES: checkStoreIntegrity stays silent when the pinned dir holds no store.
+// PREVENTS: ze doctor reporting a spurious integrity error on a host that has not
+// run ze init yet -- absence is not corruption.
+func TestCheckStoreIntegrity_NoStoreIsSilent(t *testing.T) {
+	pinConfigDir(t, t.TempDir())
+
+	assert.Empty(t, checkStoreIntegrity(), "missing store must report nothing")
+}
+
 func TestDoctorCoverageCodesRegistered(t *testing.T) {
 	// VALIDATES: AC-17 every new doctor coverage diagnostic code is registered for ze explain.
 	// PREVENTS: ze doctor emitting codes that ze explain cannot describe.

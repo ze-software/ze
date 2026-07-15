@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	internalresolve "codeberg.org/thomas-mangin/ze/internal/core/resolve"
 )
@@ -23,10 +22,7 @@ import (
 // The caller falls through to the existing bootstrap which creates
 // network config from template or interface discovery.
 func gokrazyAutoInit() (storage.Storage, error) {
-	configDir := env.Get("ze.config.dir")
-	if configDir == "" {
-		configDir = paths.DefaultConfigDir()
-	}
+	configDir := paths.DefaultConfigDir()
 	if configDir == "" {
 		return nil, fmt.Errorf("no config dir (ze.config.dir unset, binary location unknown)")
 	}

@@ -24,6 +24,11 @@ func isBinDir(name string) bool {
 //   - /opt/app/bin/ze → /opt/app/etc/ze
 //   - ./bin/ze → etc/ze (relative)
 //   - unknown layout → "" (caller must provide explicit config path)
+//
+// This is a pure mapping and deliberately ignores the ze.config.dir override: it
+// answers "where would the config for THIS binary live", which the installers ask
+// about a binary they are placing, not about the running process. To resolve the
+// running process's config dir, call DefaultConfigDir, which applies the override.
 func ConfigDirFromBinary(binaryPath string) string {
 	dir := filepath.Dir(binaryPath)
 	base := filepath.Base(dir)
@@ -54,9 +59,19 @@ func ConfigDirFromBinary(binaryPath string) string {
 	return filepath.Join(prefix, "etc", "ze")
 }
 
-// DefaultConfigDir resolves the config directory from the running binary's location.
-// Returns "" if the binary location cannot be determined or doesn't match a known layout.
+// DefaultConfigDir resolves the config directory, preferring the ze.config.dir
+// override and falling back to the running binary's location.
+// Returns "" if the override is unset and the binary location cannot be
+// determined or doesn't match a known layout.
+//
+// The override must be honored here rather than at each call site: a caller
+// that reached for the binary-relative path alone resolved a store that `ze
+// init` had never written (`ze data` did exactly that).
 func DefaultConfigDir() string {
+	if dir := env.Get("ze.config.dir"); dir != "" {
+		return dir
+	}
+
 	exe, err := os.Executable()
 	if err != nil {
 		return ""

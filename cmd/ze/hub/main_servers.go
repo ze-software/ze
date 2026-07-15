@@ -15,7 +15,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -96,10 +95,7 @@ func mergeAuthUsers(zefsUsers, configUsers []authz.UserConfig) []authz.UserConfi
 
 // loadZefsUsers reads credentials from the zefs database (created by ze init).
 func loadZefsUsers() ([]authz.UserConfig, error) {
-	dir := env.Get("ze.config.dir")
-	if dir == "" {
-		dir = paths.DefaultConfigDir()
-	}
+	dir := paths.DefaultConfigDir()
 	if dir == "" {
 		return nil, errCannotResolveConfigDirectory
 	}

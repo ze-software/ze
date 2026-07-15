@@ -5,7 +5,6 @@ package filter_irr
 import (
 	"path/filepath"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 )
 
@@ -13,10 +12,7 @@ import (
 // It is empty when no config dir is known, in which case persistence is a
 // no-op and the store works in memory only.
 func cacheStorePath() string {
-	configDir := env.Get("ze.config.dir")
-	if configDir == "" {
-		configDir = paths.DefaultConfigDir()
-	}
+	configDir := paths.DefaultConfigDir()
 	if configDir == "" {
 		return ""
 	}
