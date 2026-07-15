@@ -886,3 +886,53 @@ func TestStoreAuthorizeLoginProfilesDoNotLeakAcrossUsers(t *testing.T) {
 		t.Errorf("unassigned user with assignments present must fail closed: got %v", got)
 	}
 }
+
+// TestStoreAuthorizeIgnoresUnresolvableLoginProfiles verifies that login-resolved
+// profile names the store does not define are ignored rather than treated as an
+// assignment.
+//
+// ValidateAuthzConfig checks user[*].profile references but not tacacs-profile
+// ones, so `tacacs-profile 1 { profile [ typo ]; }` loads fine. If such a name
+// counted as an assignment, the profile loop would skip every unknown name, leave
+// firstDefault nil, and fall through to the admin default.
+//
+// VALIDATES: an unresolvable mapping fails closed when assignments exist.
+// PREVENTS: a typo in tacacs-profile authorizing that user as admin -- strictly
+//
+//	worse than the pre-fallback behaviour, which denied them.
+func TestStoreAuthorizeIgnoresUnresolvableLoginProfiles(t *testing.T) {
+	s := NewStore()
+	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
+	// A local user exists, so hasUsers is true and an unassigned user fails closed.
+	s.AssignProfiles("local-admin", []string{"read-only"})
+
+	aaa.RecordLoginProfiles("tacacs-typo", []string{"does-not-exist"})
+	t.Cleanup(func() { aaa.ForgetLoginProfiles("tacacs-typo") })
+
+	if got := s.Authorize("tacacs-typo", "request quiesce", false); got != Deny {
+		t.Errorf("unresolvable profile name must not authorize as admin: got %v", got)
+	}
+	if got := s.Authorize("tacacs-typo", "show bgp summary", true); got != Deny {
+		t.Errorf("unresolvable profile name must not authorize as admin: got %v", got)
+	}
+}
+
+// TestStoreAuthorizeKeepsResolvableLoginProfiles verifies that a partially valid
+// mapping is honoured through the names that do resolve.
+//
+// VALIDATES: one bad name in a leaf-list does not discard the good ones.
+// PREVENTS: over-correcting the fail-open into a lockout.
+func TestStoreAuthorizeKeepsResolvableLoginProfiles(t *testing.T) {
+	s := NewStore()
+	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
+
+	aaa.RecordLoginProfiles("mixed", []string{"does-not-exist", "read-only"})
+	t.Cleanup(func() { aaa.ForgetLoginProfiles("mixed") })
+
+	if got := s.Authorize("mixed", "show bgp summary", true); got != Allow {
+		t.Errorf("resolvable name must still apply: got %v", got)
+	}
+	if got := s.Authorize("mixed", "request quiesce", false); got != Deny {
+		t.Errorf("resolvable name's edit deny must apply: got %v", got)
+	}
+}

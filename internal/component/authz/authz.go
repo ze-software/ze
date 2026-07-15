@@ -361,9 +361,25 @@ func (s *Store) Authorize(username, command string, isReadOnly bool) Action {
 		//
 		// Config assignments win when both exist: an explicit local assignment is
 		// the operator's stated intent for that name.
+		//
+		// Only names this store actually defines count. ValidateAuthzConfig checks
+		// user[*].profile references but NOT tacacs-profile ones, so a mapping may
+		// name a profile that does not exist. Accepting such a name as an
+		// assignment would be worse than ignoring it: the loop below skips every
+		// unknown name, leaves firstDefault nil, and falls through to the admin
+		// default -- turning a typo in tacacs-profile into allow-all. Dropping
+		// them here leaves the decision to the fail-closed branch below.
 		if loginNames, ok := aaa.LoginProfiles(username); ok {
-			profileNames = loginNames
-			hasAssignment = true
+			known := make([]string, 0, len(loginNames))
+			for _, name := range loginNames {
+				if s.profiles[name] != nil {
+					known = append(known, name)
+				}
+			}
+			if len(known) > 0 {
+				profileNames = known
+				hasAssignment = true
+			}
 		}
 	}
 	if !hasAssignment || len(profileNames) == 0 {

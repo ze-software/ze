@@ -84,3 +84,30 @@ clause is a wish.
   own DEBUG line (`dispatchPlugin: no match`) is what actually proved execution
   had passed the authorization check. Prove control flow with a log on the path
   you care about, or with a behavioral probe, not with silence elsewhere.
+
+## The fix for a fail-open can be a fail-open (found in review, same change)
+
+Routing login-resolved profiles into `Store.Authorize` set `hasAssignment = true`
+for whatever names authentication returned. But `ValidateAuthzConfig`
+(`bgp/config/loader.go`) validates `user[*].profile` references and **not**
+`tacacs-profile <N> { profile [...] }` ones, so a typo'd mapping loads fine. An
+unknown name then survived to the profile loop, which skips names it cannot
+resolve (`p == nil`), left `firstDefault` nil, and hit "all referenced profiles
+were missing -> admin default" (`authz.go`). A typo in `tacacs-profile` would
+have authorized that user as **admin** -- strictly worse than the bug being
+fixed, since the old code denied them via the `hasUsers` branch.
+
+Fixed by only accepting login-resolved names the store actually defines, so an
+unresolvable mapping falls to the fail-closed branch instead of past it.
+
+Two generalisations worth carrying:
+
+- **When you widen an input to a decision, check every downstream branch that
+  input can now reach.** The new value was legal at the entry point and toxic
+  three branches later. Grep the function's tail for its fall-throughs before
+  assuming a new caller is safe.
+- **An "unknown -> permissive default" fall-through is a landmine.** Ze has two
+  live ones in `Store.Authorize`: unassigned user with no local users, and all
+  referenced profiles missing. Both read as reasonable locally and both mean
+  allow-all. Treat any `if nothing matched { admin }` as a finding, not a
+  default.
