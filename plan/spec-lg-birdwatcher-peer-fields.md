@@ -23,7 +23,14 @@
   (4 subtests), `TestTransformProtocolsStateChangedAndLastError`,
   `TestTransformProtocolsShortSinceFromRealSummary`. All green.
 
-**Phase 4 (`routes_*`) NOT implemented — see the A-4 resolution below.**
+**Phase 4 (`routes_*`) COMPLETED 2026-07-16** by `spec-bgp-summary-route-counts`
+(the "own spec" the A-4 resolution called for). `show bgp summary` now emits
+per-peer `routes-received`/`routes-accepted` (Adj-RIB-In size) and `routes-sent`
+(Adj-RIB-Out size), merged from the `bgp-rib` plugin via `ForwardToPlugin`;
+`transformProtocols` already read those keys, so the LG lit up with no change.
+`routes_filtered` stays 0 by design (Ze does not retain filtered routes). See the
+A-4 resolution below for why `filtered` and a distinct pre-policy `received` were
+left out. This spec and the counts spec close together.
 
 ## Post-Compaction Recovery
 

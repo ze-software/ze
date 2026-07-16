@@ -68,6 +68,17 @@ The looking glass exposes a birdwatcher-compatible JSON API for integration with
 
 All API responses use `Content-Type: application/json` with birdwatcher-convention `snake_case` field names (not Ze's standard `kebab-case`).
 
+The per-peer route counts on `/protocols/bgp` come from the `bgp-rib` plugin's
+Adj-RIB-In and Adj-RIB-Out sizes, merged into `show bgp summary`:
+`routes_received` and `routes_imported` are both the Adj-RIB-In size (Ze retains
+only accepted routes, so there is no distinct pre-policy received count here),
+and `routes_exported` is the Adj-RIB-Out size. `routes_filtered` is always `0`:
+Ze does not retain import-filtered routes (unlike BIRD's "import keep filtered"),
+so the `/routes/filtered/{name}` endpoint also returns an empty list. Route
+counts are only present when the `bgp-rib` plugin is loaded.
+
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- fetchRibRouteCounts, mergeRibRouteCounts -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- status per-peer route-counts -->
 <!-- source: internal/component/lg/handler_api.go -- API handlers and birdwatcher transform -->
 
 ## Alice-LG Integration

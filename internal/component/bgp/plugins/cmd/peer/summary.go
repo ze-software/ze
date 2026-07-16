@@ -5,6 +5,7 @@
 package peer
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -63,6 +64,81 @@ func stateChangedString(p *plugin.PeerInfo) string {
 		return ""
 	}
 	return p.LastStateChange.Format(time.RFC3339)
+}
+
+// cmdRibStatus is the bgp-rib plugin's status command. Kept as a string
+// constant, not an import: cmd/peer reaches the RIB plugin's per-peer route
+// counts by runtime dispatch (ForwardToPlugin), preserving plugin
+// self-containment, exactly as cmd/rib does. See ai/rules/plugin-self-containment.md.
+const cmdRibStatus = "show bgp rib status"
+
+// ribRouteCount is a peer's Adj-RIB-In (in) and Adj-RIB-Out (out) size.
+type ribRouteCount struct {
+	in  int
+	out int
+}
+
+// fetchRibRouteCounts asks the bgp-rib plugin for its per-peer route counts.
+// Best-effort by design: returns nil when the plugin is not loaded
+// (ForwardToPlugin -> ErrUnknownCommand) or on any error, so the summary still
+// renders — the route-count keys are omitted, never faked to 0.
+func fetchRibRouteCounts(ctx *pluginserver.CommandContext) map[string]ribRouteCount {
+	d := ctx.Dispatcher()
+	if d == nil {
+		return nil
+	}
+	resp, err := d.ForwardToPlugin(ctx, cmdRibStatus, nil, "")
+	if err != nil || resp == nil || resp.Status != plugin.StatusDone {
+		return nil
+	}
+	raw, ok := resp.Data.(plugin.RawJSON)
+	if !ok {
+		return nil
+	}
+	return parseRibRouteCounts([]byte(raw))
+}
+
+// parseRibRouteCounts extracts the per-peer `route-counts` map from a
+// `show bgp rib status` JSON response (produced by RIBManager.status). Returns
+// nil on absence or malformed input; a nil map merges as "no counts".
+func parseRibRouteCounts(raw []byte) map[string]ribRouteCount {
+	if len(raw) == 0 {
+		return nil
+	}
+	var payload struct {
+		RouteCounts map[string]struct {
+			In  int `json:"in"`
+			Out int `json:"out"`
+		} `json:"route-counts"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil
+	}
+	if len(payload.RouteCounts) == 0 {
+		return nil
+	}
+	counts := make(map[string]ribRouteCount, len(payload.RouteCounts))
+	for addr, c := range payload.RouteCounts {
+		counts[addr] = ribRouteCount{in: c.In, out: c.Out}
+	}
+	return counts
+}
+
+// mergeRibRouteCounts adds the birdwatcher route-count keys to a peer row when
+// the RIB reported counts for that address. routes-received and routes-accepted
+// are both the Adj-RIB-In size: Ze retains only accepted routes (rejects are
+// dropped at the reactor gate and never stored), so there is no separate
+// pre-policy received count here. routes-filtered is deliberately never emitted
+// — Ze does not retain filtered routes (ai/rules/project-knowledge.md).
+// When counts is nil (RIB absent) the keys are omitted rather than faked to 0.
+func mergeRibRouteCounts(row map[string]any, addr string, counts map[string]ribRouteCount) {
+	c, ok := counts[addr]
+	if !ok {
+		return
+	}
+	row["routes-received"] = c.in
+	row["routes-accepted"] = c.in
+	row["routes-sent"] = c.out
 }
 
 // maxFamilyArgLen caps the address-family argument echoed back in
@@ -129,6 +205,10 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 		seen = make(map[string]struct{})
 		famFilter, _ = family.LookupFamily(familyFilter)
 	}
+	// Per-peer route counts owned by the bgp-rib plugin (Adj-RIB-In/Out sizes).
+	// Best-effort: nil when the plugin is absent, in which case the route-count
+	// keys are simply omitted (never faked to 0).
+	ribCounts := fetchRibRouteCounts(ctx)
 	for i := range allPeers {
 		p := &allPeers[i]
 		if familyFilter != "" {
@@ -143,7 +223,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 		if p.State == plugin.PeerStateEstablished {
 			established++
 		}
-		peerRows = append(peerRows, map[string]any{
+		row := map[string]any{
 			"address":             p.Address.String(),
 			"name":                p.Name,
 			"description":         p.GroupName,
@@ -160,7 +240,9 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			"eor-received":        p.EORReceived,
 			"eor-sent":            p.EORSent,
 			"connections-dropped": p.ConnectionsDropped,
-		})
+		}
+		mergeRibRouteCounts(row, p.Address.String(), ribCounts)
+		peerRows = append(peerRows, row)
 	}
 	if familyFilter != "" && !matched {
 		return rejectFamily(familyFilter, seen)

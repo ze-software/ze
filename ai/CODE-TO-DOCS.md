@@ -418,7 +418,7 @@ Files: 4 | Docs: `docs/architecture/api/commands.md`, `docs/features.md`, `docs/
 
 - `internal/component/bgp/plugins/cmd/peer/peer.go` -> `docs/features/api-commands.md`, `docs/guide/cli.md`, `docs/guide/command-reference.md`
 - `internal/component/bgp/plugins/cmd/peer/prefix_update.go` -> `docs/guide/command-reference.md`
-- `internal/component/bgp/plugins/cmd/peer/summary.go` -> `docs/guide/command-reference.md`
+- `internal/component/bgp/plugins/cmd/peer/summary.go` -> `docs/guide/command-reference.md`, `docs/guide/looking-glass.md`
 
 ## `internal/component/bgp/plugins/cmd/peer/yang/`
 
@@ -667,7 +667,7 @@ Files: 10 | Docs: `docs/DESIGN.md`, `docs/architecture/wire/attributes.md`, `doc
 
 ## `internal/component/bgp/plugins/rib/`
 
-Files: 7 | Docs: `docs/DESIGN.md`, `docs/architecture.md`, `docs/architecture/api/capability-contract.md`, `docs/architecture/api/commands.md`, `docs/architecture/behavior/fsm-established.md`, `docs/architecture/core-design.md`, `docs/architecture/decisions/001-pull-model-metrics.md`, `docs/architecture/memory/lifetime-contracts.md`, `docs/architecture/perf-round-3.md`, `docs/architecture/plugin/plugin-relationships.md`, `docs/architecture/plugin/rib-storage-design.md`, `docs/architecture/pool-architecture.md`, `docs/architecture/route-selection.md`, `docs/features.md`, `docs/features/api-commands.md`, `docs/features/plugins.md`, `docs/features/srv6.md`, `docs/guide/command-reference.md`, `docs/guide/plugins.md`, `docs/guide/route-reflection.md`, `docs/plugin-development/metrics.md`, `docs/plugin-development/schema.md`, `docs/plugin-overview.md`
+Files: 7 | Docs: `docs/DESIGN.md`, `docs/architecture.md`, `docs/architecture/api/capability-contract.md`, `docs/architecture/api/commands.md`, `docs/architecture/behavior/fsm-established.md`, `docs/architecture/core-design.md`, `docs/architecture/decisions/001-pull-model-metrics.md`, `docs/architecture/memory/lifetime-contracts.md`, `docs/architecture/perf-round-3.md`, `docs/architecture/plugin/plugin-relationships.md`, `docs/architecture/plugin/rib-storage-design.md`, `docs/architecture/pool-architecture.md`, `docs/architecture/route-selection.md`, `docs/features.md`, `docs/features/api-commands.md`, `docs/features/plugins.md`, `docs/features/srv6.md`, `docs/guide/command-reference.md`, `docs/guide/looking-glass.md`, `docs/guide/plugins.md`, `docs/guide/route-reflection.md`, `docs/plugin-development/metrics.md`, `docs/plugin-development/schema.md`, `docs/plugin-overview.md`
 
 | File | Docs |
 |------|------|
@@ -677,7 +677,7 @@ Files: 7 | Docs: `docs/DESIGN.md`, `docs/architecture.md`, `docs/architecture/ap
 | `rib.go` | `docs/architecture/behavior/fsm-established.md`, `docs/architecture/decisions/001-pull-model-metrics.md`, `docs/plugin-development/metrics.md` |
 | `rib_attr_format.go` | `docs/architecture/perf-round-3.md` |
 | `rib_bestchange.go` | `docs/architecture.md`, `docs/architecture/core-design.md`, `docs/architecture/plugin/rib-storage-design.md`, `docs/features.md`, `docs/features/srv6.md`, `docs/guide/plugins.md` |
-| `rib_commands.go` | `docs/architecture/api/commands.md`, `docs/architecture/plugin/rib-storage-design.md`, `docs/features.md`, `docs/features/api-commands.md` |
+| `rib_commands.go` | `docs/architecture/api/commands.md`, `docs/architecture/plugin/rib-storage-design.md`, `docs/features.md`, `docs/features/api-commands.md`, `docs/guide/looking-glass.md` |
 
 ## `internal/component/bgp/plugins/rib/pool/`
 

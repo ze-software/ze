@@ -22,6 +22,7 @@ const realSummaryJSON = `{"summary":{` +
 	`"state-changed":"2026-07-15T10:30:00Z","last-error":"Cease/Administrative Shutdown",` +
 	`"uptime":"6m10s","updates-received":10,"updates-sent":5,` +
 	`"keepalives-received":100,"keepalives-sent":50,` +
+	`"routes-received":60,"routes-accepted":60,"routes-sent":50,` +
 	`"eor-received":1,"eor-sent":1,"connections-dropped":0}]}}`
 
 // TestTransformProtocolsRealSummaryShape feeds transformProtocols the payload
@@ -96,6 +97,44 @@ func TestTransformProtocolsStateChangedAndLastError(t *testing.T) {
 	}
 	if got, _ := peer["last_error"].(string); got != "Cease/Administrative Shutdown" {
 		t.Errorf("last_error = %q, want %q", got, "Cease/Administrative Shutdown")
+	}
+}
+
+// TestTransformProtocolsRouteCountsFromRealSummary verifies the birdwatcher
+// route-count fields are populated from the summary's per-peer keys.
+//
+// VALIDATES: AC-7 — routes_received/routes_imported come from routes-received/
+// routes-accepted, routes_exported from routes-sent, and routes_filtered stays 0
+// (Ze does not retain filtered routes).
+// PREVENTS: the endpoint reporting all-zero route counts, which is what it did
+// before summary.go emitted the keys (the consumer was always wired).
+func TestTransformProtocolsRouteCountsFromRealSummary(t *testing.T) {
+	var ze map[string]any
+	if err := json.Unmarshal([]byte(realSummaryJSON), &ze); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	bw := transformProtocols(ze)
+	protocols, ok := bw["protocols"].(map[string]any)
+	if !ok {
+		t.Fatal("missing protocols map")
+	}
+	peer, ok := protocols["peer1"].(map[string]any)
+	if !ok {
+		t.Fatal("missing peer1 in protocols")
+	}
+
+	if got, _ := peer["routes_received"].(float64); got != 60 {
+		t.Errorf("routes_received = %v, want 60", got)
+	}
+	if got, _ := peer["routes_imported"].(float64); got != 60 {
+		t.Errorf("routes_imported = %v, want 60", got)
+	}
+	if got, _ := peer["routes_exported"].(float64); got != 50 {
+		t.Errorf("routes_exported = %v, want 50", got)
+	}
+	if got, _ := peer["routes_filtered"].(float64); got != 0 {
+		t.Errorf("routes_filtered = %v, want 0 (Ze does not retain filtered routes)", got)
 	}
 }
 

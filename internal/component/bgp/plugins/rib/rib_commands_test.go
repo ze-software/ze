@@ -227,6 +227,51 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 	assert.Equal(t, "65000:1:2", largeCommunities[0])
 }
 
+// TestRibStatusEmitsPerPeerRouteCounts verifies status() reports per-peer
+// Adj-RIB-In and Adj-RIB-Out sizes, not only the global sums.
+//
+// VALIDATES: AC-6 — show bgp rib status carries a route-counts map keyed by peer
+// address with {in, out}. summary.go merges this into the per-peer summary rows.
+// PREVENTS: the birdwatcher routes_* fields staying 0 because the RIB only
+// exposed global route totals.
+func TestRibStatusEmitsPerPeerRouteCounts(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
+	// Peer .1: two received routes (Adj-RIB-In) and three advertised (Adj-RIB-Out).
+	in1 := storage.NewPeerRIB("192.0.2.1")
+	in1.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 0}, true)
+	in1.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 0, 1}, true)
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = in1
+	r.ribOut[netip.MustParseAddr("192.0.2.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
+			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1", Origin: new(OriginIGP)},
+			"10.0.1.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "10.0.0.1", Origin: new(OriginIGP)},
+			"10.0.2.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", NextHop: "10.0.0.1", Origin: new(OriginIGP)},
+		},
+	})
+	// Peer .2: one received route, nothing advertised.
+	in2 := storage.NewPeerRIB("192.0.2.2")
+	in2.Insert(family.IPv4Unicast, attrBytes, []byte{24, 10, 1, 0}, true)
+	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = in2
+
+	status, ok := r.status().(map[string]any)
+	require.True(t, ok)
+
+	counts, ok := status["route-counts"].(map[string]any)
+	require.True(t, ok, "status must carry a route-counts map")
+
+	p1, ok := counts["192.0.2.1"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 2, p1["in"], "peer .1 Adj-RIB-In size")
+	assert.Equal(t, 3, p1["out"], "peer .1 Adj-RIB-Out size")
+
+	p2, ok := counts["192.0.2.2"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 1, p2["in"], "peer .2 Adj-RIB-In size")
+	assert.Equal(t, 0, p2["out"], "peer .2 advertised nothing")
+}
+
 // TestInboundShowFamilyFilter verifies family filter restricts results.
 //
 // VALIDATES: AC-6 — show bgp rib received with family filter returns only matching family.

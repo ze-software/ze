@@ -662,11 +662,31 @@ func (r *RIBManager) status() any {
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 
+	// Per-peer Adj-RIB-In / Adj-RIB-Out sizes, keyed by peer address. summary.go
+	// merges these into `show bgp summary` (routes-received/accepted from "in",
+	// routes-sent from "out") via ForwardToPlugin, so the birdwatcher LG can show
+	// per-peer route counts without cmd/peer importing this plugin. Only BGP
+	// peers (bgpPeers/ribOut, keyed by netip.Addr) are per-peer; ribInPool holds
+	// non-BGP redistribution sources that do not map to a BGP peer row.
+	// RFC 4271 Section 3.2: Adj-RIB-In holds routes advertised by a peer,
+	// Adj-RIB-Out holds routes advertised to a peer.
+	peerCounts := make(map[string]any, len(r.bgpPeers))
+	perPeer := func(addr netip.Addr) map[string]any {
+		key := addr.String()
+		if m, ok := peerCounts[key].(map[string]any); ok {
+			return m
+		}
+		m := map[string]any{"in": 0, "out": 0}
+		peerCounts[key] = m
+		return m
+	}
+
 	routesIn := 0
 	staleRoutes := 0
-	for _, peerRIB := range r.bgpPeers {
+	for addr, peerRIB := range r.bgpPeers {
 		routesIn += peerRIB.Len()
 		staleRoutes += peerRIB.StaleCount()
+		perPeer(addr)["in"] = peerRIB.Len()
 	}
 	for _, protoPeers := range r.ribInPool {
 		for _, peerRIB := range protoPeers {
@@ -676,10 +696,13 @@ func (r *RIBManager) status() any {
 	}
 
 	routesOut := 0
-	for _, peerFamilies := range r.ribOut {
+	for addr, peerFamilies := range r.ribOut {
+		peerOut := 0
 		for _, familyRoutes := range peerFamilies {
-			routesOut += len(familyRoutes)
+			peerOut += len(familyRoutes)
 		}
+		routesOut += peerOut
+		perPeer(addr)["out"] = peerOut
 	}
 
 	result := map[string]any{
@@ -688,6 +711,7 @@ func (r *RIBManager) status() any {
 		"routes-in":    routesIn,
 		"routes-out":   routesOut,
 		"stale-routes": staleRoutes,
+		"route-counts": peerCounts,
 	}
 
 	// Add per-peer GR state if any peers have stale routes.

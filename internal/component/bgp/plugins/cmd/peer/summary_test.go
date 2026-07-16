@@ -566,6 +566,91 @@ func TestLastErrorFormat(t *testing.T) {
 	}
 }
 
+// TestParseRibRouteCounts verifies the per-peer route-counts map is extracted
+// from a `show bgp rib status` JSON payload.
+//
+// VALIDATES: the shape RIBManager.status() emits (route-counts: {addr:{in,out}})
+// round-trips through JSON into ribRouteCount values.
+// PREVENTS: a producer/consumer contract break between the RIB status output and
+// the summary merge — the exact class of bug that left the birdwatcher fields 0.
+func TestParseRibRouteCounts(t *testing.T) {
+	raw := []byte(`{"running":true,"routes-in":3,"route-counts":{` +
+		`"192.0.2.1":{"in":2,"out":3},"192.0.2.2":{"in":1,"out":0}}}`)
+	counts := parseRibRouteCounts(raw)
+	require.Len(t, counts, 2)
+	assert.Equal(t, ribRouteCount{in: 2, out: 3}, counts["192.0.2.1"])
+	assert.Equal(t, ribRouteCount{in: 1, out: 0}, counts["192.0.2.2"])
+
+	// Best-effort: absent map, malformed JSON, and empty input all yield nil.
+	assert.Nil(t, parseRibRouteCounts([]byte(`{"running":true}`)))
+	assert.Nil(t, parseRibRouteCounts([]byte(`not json`)))
+	assert.Nil(t, parseRibRouteCounts(nil))
+}
+
+// TestMergeRibRouteCounts verifies the birdwatcher route-count keys are added
+// only for peers the RIB reported, and never faked.
+//
+// VALIDATES: AC-1/AC-3 — routes-received and routes-accepted both = Adj-RIB-In
+// size; routes-sent = Adj-RIB-Out size; a peer absent from the RIB map gets no
+// keys; a nil map (RIB absent) adds nothing.
+// PREVENTS: faking accepted/exported to 0 when the RIB is unavailable (AC-5).
+func TestMergeRibRouteCounts(t *testing.T) {
+	counts := map[string]ribRouteCount{"192.0.2.1": {in: 60, out: 50}}
+
+	row := map[string]any{"address": "192.0.2.1"}
+	mergeRibRouteCounts(row, "192.0.2.1", counts)
+	assert.Equal(t, 60, row["routes-received"])
+	assert.Equal(t, 60, row["routes-accepted"], "received == accepted (Ze retains only accepted)")
+	assert.Equal(t, 50, row["routes-sent"])
+	_, hasFiltered := row["routes-filtered"]
+	assert.False(t, hasFiltered, "routes-filtered is never emitted (AC-4)")
+
+	// Peer not in the RIB map: no keys added.
+	other := map[string]any{"address": "192.0.2.9"}
+	mergeRibRouteCounts(other, "192.0.2.9", counts)
+	_, has := other["routes-received"]
+	assert.False(t, has, "absent peer gets no route-count keys")
+
+	// Nil map (RIB absent): no keys added, no panic.
+	nilRow := map[string]any{"address": "192.0.2.1"}
+	mergeRibRouteCounts(nilRow, "192.0.2.1", nil)
+	_, has = nilRow["routes-received"]
+	assert.False(t, has, "nil counts (RIB absent) adds nothing, not a faked 0")
+}
+
+// TestBgpSummaryWithoutRibOmitsRouteCounts verifies the end-to-end degradation:
+// with no RIB plugin registered, `show bgp summary` still renders and the peer
+// rows carry no route-count keys.
+//
+// VALIDATES: AC-5 — best-effort dispatch; ForwardToPlugin returns
+// ErrUnknownCommand, so the counts are omitted, not faked.
+// PREVENTS: a hard dependency on the RIB plugin breaking `show bgp summary` on a
+// minimal build.
+func TestBgpSummaryWithoutRibOmitsRouteCounts(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+		},
+		stats: plugin.ReactorStats{PeerCount: 1, RouterID: 0x0a000001, LocalAS: 65000},
+	}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleBgpSummary(ctx, nil)
+	require.NoError(t, err)
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	summary, ok := data["summary"].(map[string]any)
+	require.True(t, ok)
+	peers, ok := summary["peers"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, peers, 1)
+
+	for _, key := range []string{"routes-received", "routes-accepted", "routes-sent", "routes-filtered"} {
+		_, has := peers[0][key]
+		assert.False(t, has, "%s must be omitted when the RIB plugin is absent", key)
+	}
+}
+
 // TestPeerCapabilitiesNotEstablished verifies capabilities for non-established peer.
 //
 // VALIDATES: AC-8 — non-Established peer returns negotiation-complete=false.
