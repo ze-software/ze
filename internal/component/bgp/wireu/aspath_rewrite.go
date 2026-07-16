@@ -2,6 +2,7 @@
 // RFC: rfc/short/rfc4271.md — AS_PATH prepend on EBGP (Section 5.1.2)
 // RFC: rfc/short/rfc6793.md — 4-byte ASN AS_PATH rewriting
 // Related: aspath_transcode.go — transcode-only (no prepend) for RS-client forwarding
+// Related: aspath_as4.go — shared AS4_PATH construction rule (RFC 6793 Section 4.2.2)
 
 package wireu
 
@@ -137,9 +138,13 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 		return n, nil
 	}
 
-	// Slow path: cross-encoding or complex AS_PATH. Scan for
-	// AGGREGATOR/AS4_AGGREGATOR. The duplicate bounds checks keep this
-	// rescan locally safe if the initial scan changes later.
+	// Slow path: cross-encoding, complex AS_PATH, or a non-mappable ASN to
+	// prepend for an OLD speaker. Scan for AS4_PATH/AGGREGATOR/AS4_AGGREGATOR.
+	// The duplicate bounds checks keep this rescan locally safe if the initial
+	// scan changes later.
+	as4PathAttrOff := -1
+	as4PathHdrLen := 0
+	as4PathValueLen := 0
 	aggAttrOff := -1
 	aggHdrLen := 0
 	aggValueLen := 0
@@ -170,6 +175,11 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 			return 0, fmt.Errorf("rewrite AS_PATH: attribute value overflows attribute section: %w", ErrUpdateMalformed)
 		}
 
+		if code == attribute.AttrAS4Path {
+			as4PathAttrOff = off
+			as4PathHdrLen = hdrLen
+			as4PathValueLen = length
+		}
 		if code == attribute.AttrAggregator {
 			aggAttrOff = off
 			aggHdrLen = hdrLen
@@ -186,6 +196,7 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 
 	return rewritePrependASPathFull(dst, payload, asns, srcASN4, dstASN4,
 		aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen, nlriStart,
+		as4PathAttrOff, as4PathHdrLen, as4PathValueLen,
 		aggAttrOff, aggHdrLen, aggValueLen,
 		as4AggAttrOff, as4AggHdrLen, as4AggValueLen)
 }
@@ -217,18 +228,55 @@ func rewriteInsertASPath(dst, payload []byte, asns []uint32, dstASN4 bool,
 	}
 	newAttrWireSize := newHdrLen + newValueLen
 
-	// Copy everything before NLRI (includes wdLen, withdrawn, attrLen, all attrs)
-	off := copy(dst, payload[:nlriStart])
+	// RFC 6793 Section 4.2.2: "The NEW BGP speaker MUST also send the AS path
+	// information in the AS4_PATH attribute (encoded with four-octet AS
+	// numbers), except for the case where all of the AS path information is
+	// composed of mappable four-octet AS numbers only."
+	//
+	// This is the locally-originated route case (no AS_PATH on the way in).
+	// Without AS4_PATH, ze's own four-octet ASN is unrecoverable behind the
+	// AS_TRANS written into the inserted AS_PATH.
+	as4Path := as4PathForPath(newPath, dstASN4)
+	newAS4WireSize := as4PathWireSize(as4Path)
+
+	// Copy wdLen, withdrawn and attrLen, then the attributes. Any existing
+	// AS4_PATH is dropped when we emit our own so the output never carries
+	// two; an UPDATE with AS4_PATH but no AS_PATH is already malformed
+	// (RFC 4271 Section 5: AS_PATH is a well-known mandatory attribute).
+	// The caller bounds-checked the whole attribute section, so this rescan
+	// cannot run off the end.
+	attrsStart := attrLenOff + 2
+	off := copy(dst, payload[:attrsStart])
+	droppedAS4 := 0
+	for p := attrsStart; p < nlriStart; {
+		flags := attribute.AttributeFlags(payload[p])
+		code := attribute.AttributeCode(payload[p+1])
+		length := int(payload[p+2])
+		hl := 3
+		if flags.IsExtLength() {
+			length = int(binary.BigEndian.Uint16(payload[p+2 : p+4]))
+			hl = 4
+		}
+		if code == attribute.AttrAS4Path && as4Path != nil {
+			droppedAS4 += hl + length
+		} else {
+			off += copy(dst[off:], payload[p:p+hl+length])
+		}
+		p += hl + length
+	}
 
 	// Write new AS_PATH attribute at end of attrs section
 	off += attribute.WriteHeaderTo(dst, off, attribute.FlagTransitive, attribute.AttrASPath, uint16(newValueLen)) //nolint:gosec // bounded by BGP max
 	off += newPath.WriteToWithASN4(dst, off, dstASN4)
 
+	// Write new AS4_PATH attribute (nil when RFC 6793 does not require one).
+	off += writeAS4PathAttr(dst, off, as4Path)
+
 	// Copy NLRI (if any)
 	off += copy(dst[off:], payload[nlriStart:])
 
 	// Update global attrLen
-	newAttrLen := attrLen + newAttrWireSize
+	newAttrLen := attrLen + newAttrWireSize + newAS4WireSize - droppedAS4
 	binary.BigEndian.PutUint16(dst[attrLenOff:attrLenOff+2], uint16(newAttrLen)) //nolint:gosec // bounded by BGP max
 
 	return off, nil
@@ -242,6 +290,20 @@ func tryDirectPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 bool,
 	aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen int) (int, bool) {
 
 	if srcASN4 != dstASN4 || len(asns) != 1 {
+		return 0, false
+	}
+
+	// RFC 6793 Section 4.2.2: "The NEW BGP speaker MUST also send the AS path
+	// information in the AS4_PATH attribute (encoded with four-octet AS
+	// numbers), except for the case where all of the AS path information is
+	// composed of mappable four-octet AS numbers only."
+	//
+	// A non-mappable ASN prepended for an OLD speaker becomes AS_TRANS below,
+	// which obliges us to add an AS4_PATH attribute. This path only shifts
+	// existing bytes and cannot add one, so hand over to the full rewrite.
+	// One comparison: peers with 4-byte support and mappable local ASNs stay
+	// on the allocation-free path.
+	if !dstASN4 && asns[0] > 0xFFFF {
 		return 0, false
 	}
 
@@ -311,6 +373,7 @@ func tryDirectPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 bool,
 // cross-ASN-encoding, multi-ASN prepend, and AGGREGATOR transcoding.
 func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstASN4 bool,
 	aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen, nlriStart int,
+	as4PathAttrOff, as4PathHdrLen, as4PathValueLen int,
 	aggAttrOff, aggHdrLen, aggValueLen int,
 	as4AggAttrOff, as4AggHdrLen, as4AggValueLen int) (int, error) {
 
@@ -321,6 +384,21 @@ func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstAS
 	existingPath, err := attribute.ParseASPath(aspValue, srcASN4)
 	if err != nil {
 		return 0, fmt.Errorf("rewrite AS_PATH: parse existing: %w", err)
+	}
+
+	// Parse a received AS4_PATH before prepending: for an OLD source it holds
+	// the real four-octet ASNs that AS_PATH masks with AS_TRANS.
+	var recvAS4Path *attribute.AS4Path
+	if as4PathAttrOff != -1 {
+		as4ValueStart := as4PathAttrOff + as4PathHdrLen
+		recvAS4Path, err = attribute.ParseAS4Path(payload[as4ValueStart : as4ValueStart+as4PathValueLen])
+		if err != nil {
+			// RFC 6793 Section 6: "A NEW BGP speaker that receives a malformed
+			// AS4_PATH attribute in an UPDATE message from an OLD BGP speaker
+			// MUST discard the attribute and continue processing the UPDATE
+			// message."
+			recvAS4Path = nil
+		}
 	}
 
 	// Prepend each ASN in order: asns[0] first (innermost), asns[len-1] last (outermost).
@@ -335,6 +413,12 @@ func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstAS
 	if newValueLen > 255 {
 		newHdrLen = 4
 	}
+
+	// --- AS4_PATH construction (RFC 6793 Section 4.2.2) ---
+	// as4PathForRewrite owns the "required or forbidden" rule, shared with
+	// TranscodeASPath. A nil result leaves any received AS4_PATH untouched.
+	as4Path := as4PathForRewrite(existingPath, recvAS4Path, asns, srcASN4, dstASN4)
+	newAS4PathWireSize := as4PathWireSize(as4Path)
 
 	// --- AGGREGATOR transcoding (RFC 6793 Section 4.2.2) ---
 
@@ -360,6 +444,14 @@ func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstAS
 
 	newAttrLen := attrLen
 	newAttrLen += (newHdrLen + newValueLen) - (aspHdrLen + aspValueLen)
+
+	if as4Path != nil {
+		// The received AS4_PATH (if any) is replaced by the one appended below.
+		if as4PathAttrOff != -1 {
+			newAttrLen -= as4PathHdrLen + as4PathValueLen
+		}
+		newAttrLen += newAS4PathWireSize
+	}
 
 	if newAggValueLen != 0 {
 		newAttrLen += (3 + newAggValueLen) - (aggHdrLen + aggValueLen)
@@ -394,6 +486,12 @@ func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstAS
 			n += attribute.WriteHeaderTo(dst, n, attribute.FlagTransitive,
 				attribute.AttrASPath, uint16(newValueLen)) //nolint:gosec // bounded by BGP max
 			n += existingPath.WriteToWithASN4(dst, n, dstASN4)
+
+		case attribute.AttrAS4Path:
+			if as4Path == nil {
+				n += copy(dst[n:], payload[off:off+hl+length])
+			}
+			// Otherwise skip: replaced by the AS4_PATH appended at the end.
 
 		case attribute.AttrAggregator:
 			if newAggValueLen != 0 {
@@ -432,6 +530,9 @@ func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstAS
 
 		off += hl + length
 	}
+
+	// Append new AS4_PATH.
+	n += writeAS4PathAttr(dst, n, as4Path)
 
 	// Append new AS4_AGGREGATOR.
 	if needAS4Agg {

@@ -2,6 +2,7 @@
 // RFC: rfc/short/rfc6793.md -- ASN4-to-ASN2 transcoding for RS-client forwarding
 // RFC: rfc/short/rfc7947.md -- Route Server: MUST NOT modify AS_PATH semantics
 // Related: aspath_rewrite.go -- RewriteASPath (prepend + transcode, used by EBGP non-RS)
+// Related: aspath_as4.go -- shared AS4_PATH construction rule (RFC 6793 Section 4.2.2)
 
 package wireu
 
@@ -143,18 +144,10 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 		}
 	}
 
-	// RFC 6793 Section 4.2.2: compute AS4_PATH if non-mappable ASNs present.
-	var as4Path *attribute.AS4Path
-	var newAS4ValLen, newAS4WireSize int
-	if existingPath != nil && !dstASN4 && hasNonMappableASN(existingPath) {
-		as4Path = &attribute.AS4Path{Segments: existingPath.Segments}
-		newAS4ValLen = as4Path.Len()
-		as4HdrSize := 3
-		if newAS4ValLen > 255 {
-			as4HdrSize = 4
-		}
-		newAS4WireSize = as4HdrSize + newAS4ValLen
-	}
+	// RFC 6793 Section 4.2.2: emit AS4_PATH when the path holds a non-mappable
+	// ASN and the destination is an OLD speaker. as4PathForPath owns the rule.
+	as4Path := as4PathForPath(existingPath, dstASN4)
+	newAS4WireSize := as4PathWireSize(as4Path)
 
 	// --- AGGREGATOR transcoding (RFC 6793 Section 4.2.2) ---
 
@@ -270,12 +263,7 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 	}
 
 	// Append new AS4_PATH.
-	if as4Path != nil {
-		n += attribute.WriteHeaderTo(dst, n,
-			attribute.FlagOptional|attribute.FlagTransitive,
-			attribute.AttrAS4Path, uint16(newAS4ValLen)) //nolint:gosec // bounded by BGP max
-		n += as4Path.WriteTo(dst, n)
-	}
+	n += writeAS4PathAttr(dst, n, as4Path)
 
 	// Append new AS4_AGGREGATOR.
 	if needAS4Agg {
@@ -294,17 +282,4 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 	binary.BigEndian.PutUint16(dst[attrLenOff:attrLenOff+2], uint16(newAttrLen)) //nolint:gosec // bounded by BGP max
 
 	return n, nil
-}
-
-// hasNonMappableASN returns true if any ASN in the path exceeds 65535.
-// RFC 6793: non-mappable ASNs require AS4_PATH when sending to OLD speakers.
-func hasNonMappableASN(p *attribute.ASPath) bool {
-	for _, seg := range p.Segments {
-		for _, asn := range seg.ASNs {
-			if asn > 65535 {
-				return true
-			}
-		}
-	}
-	return false
 }

@@ -618,3 +618,325 @@ func TestRewriteASPath_MalformedAggregatorTombstone(t *testing.T) {
 	assert.Equal(t, TombstoneInvalidLength, reason)
 	assert.Equal(t, 5, valLen)
 }
+
+// --- RFC 6793 Section 4.2.2 AS4_PATH on the EBGP prepend path ---
+
+// TestRewriteASPath_AS4PathWireBytes verifies the exact wire bytes produced when
+// the prepended local ASN is non-mappable and the destination is an OLD speaker.
+//
+// The expectation below is derived from RFC 6793 and RFC 4271 attribute encoding,
+// not from ze's output:
+//
+//	AS_PATH  (RFC 4271 well-known transitive, type 2, 2-octet ASNs per RFC 6793 4.2.2):
+//	  40 02 08 | 02 03 | 5BA0 FC00 FC01
+//	  flags=0x40 (transitive), code=2, len=8
+//	  seg type=2 (AS_SEQUENCE), count=3
+//	  23456 (AS_TRANS, 0x5BA0) FC00=64512 FC01=64513
+//
+//	AS4_PATH (RFC 6793 Section 3: optional transitive, type 17, 4-octet ASNs):
+//	  C0 11 0E | 02 03 | 00030D40 0000FC00 0000FC01
+//	  flags=0xC0 (optional|transitive), code=17 (0x11), len=14 (0x0E)
+//	  seg type=2 (AS_SEQUENCE), count=3
+//	  200000 (0x00030D40) 64512 64513
+//
+// Attribute order (AS4_PATH appended last) is not RFC-constrained; it matches the
+// order TranscodeASPath produces.
+//
+// VALIDATES: AC-1 — RFC 6793 Section 4.2.2 "The NEW BGP speaker MUST also send the
+// AS path information in the AS4_PATH attribute (encoded with four-octet AS numbers)".
+// PREVENTS: Irrecoverable loss of a >65535 ASN behind AS_TRANS on the eBGP forward path.
+func TestRewriteASPath_AS4PathWireBytes(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512, 64513}},
+	}, true)
+	payload := buildPayload(nil, concatAttrs(origin, aspath), nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := RewriteASPath(dst, payload, 200000, true, false)
+	require.NoError(t, err)
+
+	want := []byte{
+		0x00, 0x00, // withdrawn routes length = 0
+		0x00, 0x20, // total path attribute length = 32
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x08, // AS_PATH, len 8
+		0x02, 0x03, // AS_SEQUENCE, 3 ASNs
+		0x5B, 0xA0, // 23456 = AS_TRANS
+		0xFC, 0x00, // 64512
+		0xFC, 0x01, // 64513
+		0xC0, 0x11, 0x0E, // AS4_PATH, len 14
+		0x02, 0x03, // AS_SEQUENCE, 3 ASNs
+		0x00, 0x03, 0x0D, 0x40, // 200000
+		0x00, 0x00, 0xFC, 0x00, // 64512
+		0x00, 0x00, 0xFC, 0x01, // 64513
+	}
+	assert.Equal(t, want, dst[:n])
+}
+
+// TestRewriteASPath_AS4PathFromNonMappablePathASN verifies AS4_PATH is emitted when
+// the non-mappable ASN comes from the received AS_PATH rather than the local ASN.
+//
+// VALIDATES: AC-2 — RFC 6793 Section 4.2.2 AS4_PATH carries the full AS path
+// information, including path ASNs replaced by AS_TRANS in AS_PATH.
+// PREVENTS: A transit 4-byte ASN being flattened to AS_TRANS with no recovery.
+func TestRewriteASPath_AS4PathFromNonMappablePathASN(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{200000, 64512}},
+	}, true)
+	payload := buildPayload(nil, concatAttrs(origin, aspath), nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := RewriteASPath(dst, payload, 65000, true, false)
+	require.NoError(t, err)
+	result := dst[:n]
+
+	path := parseASPathFromPayload(t, result, false)
+	require.Len(t, path.Segments, 1)
+	assert.Equal(t, []uint32{65000, attribute.ASTrans, 64512}, path.Segments[0].ASNs)
+
+	as4 := parseAS4PathFromPayload(t, result)
+	require.NotNil(t, as4, "AS4_PATH must be present when the path holds a non-mappable ASN")
+	require.Len(t, as4.Segments, 1)
+	assert.Equal(t, attribute.ASSequence, as4.Segments[0].Type)
+	assert.Equal(t, []uint32{65000, 200000, 64512}, as4.Segments[0].ASNs)
+}
+
+// TestRewriteASPath_AS4PathSameEncodingASN2 verifies AS4_PATH is emitted when the
+// source already used 2-octet encoding (OLD peer in, OLD peer out) and the local
+// ASN is non-mappable. This is the direct-prepend fast path.
+//
+// VALIDATES: AC-3 — RFC 6793 Section 4.2.2 applies whenever the destination is an
+// OLD speaker, regardless of the source encoding.
+// PREVENTS: The zero-copy fast path silently skipping the AS4_PATH MUST.
+func TestRewriteASPath_AS4PathSameEncodingASN2(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512, 64513}},
+	}, false)
+	payload := buildPayload(nil, concatAttrs(origin, aspath), nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := RewriteASPath(dst, payload, 200000, false, false)
+	require.NoError(t, err)
+	result := dst[:n]
+
+	path := parseASPathFromPayload(t, result, false)
+	require.Len(t, path.Segments, 1)
+	assert.Equal(t, []uint32{attribute.ASTrans, 64512, 64513}, path.Segments[0].ASNs)
+
+	as4 := parseAS4PathFromPayload(t, result)
+	require.NotNil(t, as4, "AS4_PATH must be present for a non-mappable local ASN")
+	require.Len(t, as4.Segments, 1)
+	assert.Equal(t, []uint32{200000, 64512, 64513}, as4.Segments[0].ASNs)
+}
+
+// TestRewriteASPath_AS4PathPrependedToReceivedAS4Path verifies that a received
+// AS4_PATH is extended with the local ASN rather than replaced or left stale.
+//
+// RFC 6793 Section 4.2.3 reconstruction prepends (count(AS_PATH) - count(AS4_PATH))
+// leading AS_PATH ASNs to AS4_PATH. Prepending to AS_PATH only would leave the
+// receiver prepending AS_TRANS, losing the real local ASN.
+//
+// VALIDATES: AC-4 — local ASN appears in AS4_PATH ahead of the received AS4_PATH,
+// and exactly one AS4_PATH attribute is emitted.
+// PREVENTS: Stale AS4_PATH making the receiver reconstruct AS_TRANS for our hop.
+func TestRewriteASPath_AS4PathPrependedToReceivedAS4Path(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{attribute.ASTrans, 64512}},
+	}, false)
+	as4in := buildAS4PathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{131072, 64512}},
+	})
+	payload := buildPayload(nil, concatAttrs(origin, aspath, as4in), nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := RewriteASPath(dst, payload, 200000, false, false)
+	require.NoError(t, err)
+	result := dst[:n]
+
+	path := parseASPathFromPayload(t, result, false)
+	require.Len(t, path.Segments, 1)
+	assert.Equal(t, []uint32{attribute.ASTrans, attribute.ASTrans, 64512}, path.Segments[0].ASNs)
+
+	as4 := parseAS4PathFromPayload(t, result)
+	require.NotNil(t, as4)
+	require.Len(t, as4.Segments, 1)
+	assert.Equal(t, []uint32{200000, 131072, 64512}, as4.Segments[0].ASNs)
+	assert.Equal(t, 1, countAttrOccurrences(t, result, attribute.AttrAS4Path),
+		"exactly one AS4_PATH attribute must be emitted")
+}
+
+// TestRewriteASPath_NoAS4PathWhenAllMappable verifies the MUST NOT half of the rule.
+//
+// VALIDATES: AC-5 — RFC 6793 Section 4.2.2 "except for the case where all of the AS
+// path information is composed of mappable four-octet AS numbers only ... the NEW BGP
+// speaker MUST NOT send the AS4_PATH attribute".
+// PREVENTS: Emitting AS4_PATH where the RFC forbids it.
+func TestRewriteASPath_NoAS4PathWhenAllMappable(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512, 64513}},
+	}, true)
+	payload := buildPayload(nil, concatAttrs(origin, aspath), nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := RewriteASPath(dst, payload, 65000, true, false)
+	require.NoError(t, err)
+
+	assert.Nil(t, parseAS4PathFromPayload(t, dst[:n]),
+		"AS4_PATH MUST NOT be sent when every ASN is mappable")
+}
+
+// TestRewriteASPath_NoAS4PathToNewSpeaker verifies AS4_PATH is never sent to a peer
+// that negotiated four-octet AS support, even with a non-mappable ASN in the path.
+//
+// VALIDATES: AC-6 — RFC 6793 Section 4.1 "The new attributes, AS4_PATH and
+// AS4_AGGREGATOR, MUST NOT be carried in an UPDATE message between NEW BGP speakers."
+// PREVENTS: Over-applying the AS4_PATH rule to ASN4 peers.
+func TestRewriteASPath_NoAS4PathToNewSpeaker(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{200000, 64512}},
+	}, true)
+	payload := buildPayload(nil, concatAttrs(origin, aspath), nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := RewriteASPath(dst, payload, 200001, true, true)
+	require.NoError(t, err)
+
+	assert.Nil(t, parseAS4PathFromPayload(t, dst[:n]),
+		"AS4_PATH MUST NOT be carried between NEW BGP speakers")
+}
+
+// TestRewriteASPath_AS4PathExcludesConfedSegments verifies confederation segments are
+// excluded from the constructed AS4_PATH while remaining in AS_PATH.
+//
+// VALIDATES: AC-7 — RFC 6793 Section 4.2.2 "the NEW BGP speaker MUST exclude such path
+// segments from the AS4_PATH attribute being constructed".
+// PREVENTS: Leaking AS_CONFED_* segments outside the confederation via AS4_PATH.
+func TestRewriteASPath_AS4PathExcludesConfedSegments(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASConfedSequence, ASNs: []uint32{65001}},
+		{Type: attribute.ASSequence, ASNs: []uint32{200000}},
+	}, true)
+	payload := buildPayload(nil, concatAttrs(origin, aspath), nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := RewriteASPath(dst, payload, 65000, true, false)
+	require.NoError(t, err)
+	result := dst[:n]
+
+	path := parseASPathFromPayload(t, result, false)
+	require.Len(t, path.Segments, 3)
+	assert.Equal(t, attribute.ASSequence, path.Segments[0].Type)
+	assert.Equal(t, []uint32{65000}, path.Segments[0].ASNs)
+	assert.Equal(t, attribute.ASConfedSequence, path.Segments[1].Type)
+
+	as4 := parseAS4PathFromPayload(t, result)
+	require.NotNil(t, as4)
+	for _, seg := range as4.Segments {
+		assert.NotEqual(t, attribute.ASConfedSequence, seg.Type, "AS4_PATH MUST NOT carry AS_CONFED_SEQUENCE")
+		assert.NotEqual(t, attribute.ASConfedSet, seg.Type, "AS4_PATH MUST NOT carry AS_CONFED_SET")
+	}
+}
+
+// TestRewriteASPathDual_AS4Path verifies the dual-AS prepend also emits AS4_PATH.
+//
+// VALIDATES: AC-8 — RFC 6793 Section 4.2.2 applies to the local-as dual prepend.
+// PREVENTS: The dual-AS override path losing a 4-byte local AS behind AS_TRANS.
+func TestRewriteASPathDual_AS4Path(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512}},
+	}, true)
+	payload := buildPayload(nil, concatAttrs(origin, aspath), nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := RewriteASPathDual(dst, payload, 200000, 65000, true, false)
+	require.NoError(t, err)
+	result := dst[:n]
+
+	path := parseASPathFromPayload(t, result, false)
+	require.Len(t, path.Segments, 1)
+	assert.Equal(t, []uint32{attribute.ASTrans, 65000, 64512}, path.Segments[0].ASNs)
+
+	as4 := parseAS4PathFromPayload(t, result)
+	require.NotNil(t, as4)
+	require.Len(t, as4.Segments, 1)
+	assert.Equal(t, []uint32{200000, 65000, 64512}, as4.Segments[0].ASNs)
+}
+
+// countAttrOccurrences counts how many times an attribute code appears in a payload.
+func countAttrOccurrences(t *testing.T, payload []byte, want attribute.AttributeCode) int {
+	t.Helper()
+	wdLen := int(binary.BigEndian.Uint16(payload[0:2]))
+	attrLenOff := 2 + wdLen
+	attrLen := int(binary.BigEndian.Uint16(payload[attrLenOff : attrLenOff+2]))
+	attrsStart := attrLenOff + 2
+
+	count := 0
+	off := attrsStart
+	for off < attrsStart+attrLen {
+		_, code, length, hl, err := attribute.ParseHeader(payload[off:])
+		require.NoError(t, err)
+		if code == want {
+			count++
+		}
+		off += hl + int(length)
+	}
+	return count
+}
+
+// TestRewriteASPath_AS4PathMappabilityBoundary pins the mappable/non-mappable
+// boundary that decides whether AS4_PATH is emitted.
+//
+// RFC 6793 Terminology: "Mappable AS -- Four-octet AS where high two octets are
+// zero (fits in two octets)". The boundary is therefore 65535 (last mappable) /
+// 65536 (first non-mappable).
+//
+// VALIDATES: AC-9 — AS4_PATH emitted iff the local ASN exceeds 65535.
+// PREVENTS: An off-by-one at the boundary emitting or omitting AS4_PATH wrongly.
+func TestRewriteASPath_AS4PathMappabilityBoundary(t *testing.T) {
+	tests := []struct {
+		name       string
+		localASN   uint32
+		wantAS4    bool
+		wantInPath uint32
+	}{
+		{"last mappable", 65535, false, 65535},
+		{"first non-mappable", 65536, true, attribute.ASTrans},
+		{"max 4-byte ASN", 4294967295, true, attribute.ASTrans},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origin := buildOriginAttr()
+			aspath := buildASPathAttr([]attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: []uint32{64512}},
+			}, true)
+			payload := buildPayload(nil, concatAttrs(origin, aspath), nil)
+
+			dst := make([]byte, len(payload)+128)
+			n, err := RewriteASPath(dst, payload, tt.localASN, true, false)
+			require.NoError(t, err)
+			result := dst[:n]
+
+			path := parseASPathFromPayload(t, result, false)
+			require.Len(t, path.Segments, 1)
+			assert.Equal(t, tt.wantInPath, path.Segments[0].ASNs[0])
+
+			as4 := parseAS4PathFromPayload(t, result)
+			if !tt.wantAS4 {
+				assert.Nil(t, as4, "AS4_PATH MUST NOT be sent for a mappable ASN")
+				return
+			}
+			require.NotNil(t, as4, "AS4_PATH MUST be sent for a non-mappable ASN")
+			require.Len(t, as4.Segments, 1)
+			assert.Equal(t, []uint32{tt.localASN, 64512}, as4.Segments[0].ASNs)
+		})
+	}
+}
