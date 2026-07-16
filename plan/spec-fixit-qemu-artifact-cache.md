@@ -23,8 +23,22 @@ Three defects, one mechanism:
 
 1. Valuable artifacts live under `tmp/` (kernel `~30 min`, Alpine ISO 76 MB download).
 2. Nothing evicts: a version bump strands the old artifact forever.
-3. CONFIRMED BUG: the extracted Alpine initramfs is NOT version-keyed, so bumping
-   `ALPINE_VERSION` pairs a new ISO with the old initramfs.
+3. ~~The extracted Alpine initramfs is NOT version-keyed~~ **FIXED 2026-07-16**, see
+   below. Defects 1 and 2 remain and are the work here.
+
+### Fixed already
+- **The stale-extract bug is fixed.** `_extract_dir_for()` (`qemu-run.py:118-127`)
+  now keys the extract directory by the ISO filename, which already carries version
+  and arch, so a cached extract cannot outlive the ISO it came from. Regression test:
+  `qemu-run.py --selftest`, run by `TestQemuRunSelftest`
+  (`scripts/evidence/qemu_run_test.go:27`), which `make ze-unit-test` picks up because
+  `go list ./...` includes the package. Against the old fixed-name path the test
+  failed with "stale hit: a version bump reused the previous ISO's initramfs"; it
+  passes now. AC-3 is therefore already satisfied. Keep that test when reshaping the
+  cache.
+- Note for the eviction work: the legacy `tmp/qemu/iso/alpine-extract/` directory
+  (~77 MB) is orphaned by the rename and nothing reclaims it. That is AC-4's job, not
+  the bug fix's.
 
 ## Origin
 
@@ -238,8 +252,9 @@ files run on.
 
 ## Implementation Steps
 
-1. CANDIDATE: fix the stale-extract bug first. It is a real bug, it is small, and it
-   is independent of where the cache lives. Land it alone.
+1. ~~Fix the stale-extract bug first.~~ DONE 2026-07-16, landed alone as predicted:
+   `_extract_dir_for()` keys the extract to its ISO, with `TestQemuRunSelftest` as the
+   regression test. See "Fixed already" above.
 2. CANDIDATE: identify `tmp/qemu/build` (3.4G) and decide which artifacts are
    genuinely durable versus disposable.
 3. CANDIDATE: choose the cache root (see Open Questions).

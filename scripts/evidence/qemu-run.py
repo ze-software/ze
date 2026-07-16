@@ -115,9 +115,21 @@ def ensure_iso(cdir: Path) -> Path:
     return iso
 
 
+def _extract_dir_for(iso: Path) -> Path:
+    """Directory holding the contents extracted from `iso`.
+
+    Keyed by the ISO's filename, which already carries version and arch (see
+    ensure_iso). A shared, unkeyed directory made the extract outlive the ISO it
+    came from: bumping ALPINE_VERSION downloaded a new ISO, then booted it with
+    the previous version's initramfs, because the early return in
+    _extract_alpine_initramfs only tests that initramfs-virt exists.
+    """
+    return iso.parent / f"{iso.stem}-extract"
+
+
 def _extract_alpine_initramfs(iso: Path) -> Path:
     """Extract initramfs-virt from Alpine ISO (needed for custom kernel boot)."""
-    extract_dir = iso.parent / "alpine-extract"
+    extract_dir = _extract_dir_for(iso)
     initrd = extract_dir / "boot" / "initramfs-virt"
     if initrd.is_file():
         return initrd
@@ -477,11 +489,69 @@ def run_in_vm(
         proc.wait()
 
 
+def _selftest() -> int:
+    """Fixture tests for the ISO extract cache. Run by qemu_run_test.go so
+    `make ze-unit-test` covers this without QEMU, a download, or 7z.
+
+    Guards the invariant that a cached extract belongs to exactly one ISO: the
+    ISO filename is version-keyed (see ensure_iso), so its extract must be too,
+    or bumping ALPINE_VERSION boots a new ISO with the previous initramfs.
+    """
+    import tempfile
+
+    failures: list[str] = []
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        iso_a = d / f"alpine-virt-3.21.3-{ALPINE_ARCH}.iso"
+        iso_b = d / f"alpine-virt-3.22.0-{ALPINE_ARCH}.iso"
+        iso_a.write_bytes(b"not-a-real-iso")
+        iso_b.write_bytes(b"not-a-real-iso-either")
+
+        # Simulate a completed extract of iso_a.
+        initrd_a = _extract_dir_for(iso_a) / "boot" / "initramfs-virt"
+        initrd_a.parent.mkdir(parents=True, exist_ok=True)
+        initrd_a.write_bytes(b"initramfs-from-3.21.3")
+
+        # Same ISO: the extract is reused, no re-extraction.
+        if _extract_alpine_initramfs(iso_a) != initrd_a:
+            failures.append("cached extract was not reused for the same ISO")
+
+        # Different ISO: iso_a's extract must NOT be reused. iso_b is a stub that
+        # cannot really be extracted, so a correct implementation fails loudly
+        # here; a buggy one silently returns iso_a's initramfs.
+        if _extract_dir_for(iso_b) == _extract_dir_for(iso_a):
+            failures.append(
+                "extract dir is not keyed to the ISO: "
+                f"{iso_a.name} and {iso_b.name} share {_extract_dir_for(iso_a).name}"
+            )
+        got: Path | None
+        try:
+            got = _extract_alpine_initramfs(iso_b)
+        except SystemExit:
+            got = None  # correct: tried to extract the stub iso_b and failed
+        if got is not None and got == initrd_a:
+            failures.append(
+                "stale hit: a version bump reused the previous ISO's initramfs"
+            )
+
+    for f in failures:
+        print(f"selftest FAILED: {f}", file=sys.stderr)
+    if failures:
+        return 1
+    print("qemu-run selftest OK")
+    return 0
+
+
 def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(
         description="Run commands in a QEMU Linux VM with full kernel capabilities.",
+    )
+    parser.add_argument(
+        "--selftest",
+        action="store_true",
+        help="Run the ISO-cache fixture tests and exit (no QEMU or download needed)",
     )
     parser.add_argument(
         "--run",
@@ -509,6 +579,11 @@ def main() -> int:
         help="Path to custom kernel (e.g. tmp/kernel/vmlinuz for gokrazy kernel with PPPoL2TP)",
     )
     args = parser.parse_args()
+
+    # Before the QEMU probe: the selftest is pure fixture work, so it must run
+    # on a host without qemu installed.
+    if args.selftest:
+        return _selftest()
 
     if shutil.which(QEMU_BIN) is None:
         raise SystemExit(f"missing: {QEMU_BIN} (brew install qemu)")
