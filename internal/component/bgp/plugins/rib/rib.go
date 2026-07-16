@@ -1030,10 +1030,19 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	isUp := state == rpc.SessionStateUp
 	r.peerUp[peerAddr] = isUp
 
+	// cameUp records the down->up TRANSITION explicitly. It must not be inferred
+	// from replayGroups != nil: collectGroupedRibOutRoutes returns nil both when
+	// the peer did not come up and when it came up with nothing to replay, and a
+	// fresh session is always the latter. Conflating the two made
+	// replayRoutesWithCursor's empty-groups ready signal (rib_replay.go:250-253)
+	// unreachable and delayed every fresh session's EOR by 2.5s.
+	// See ai/rules/fail-closed-guards.md (the zero-value trap).
+	cameUp := false
 	var replayGroups []replayGroup
 	var pendingPurgeEmits map[family.Family][]bestChangeEntry
 
 	if isUp && !wasUp {
+		cameUp = true
 		delete(r.retainedPeers, peerAddr)
 		replayGroups = r.collectGroupedRibOutRoutes(peerAddr)
 	} else if !isUp && wasUp {
@@ -1063,7 +1072,10 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 
 	r.emitPurgedWithdraws(pendingPurgeEmits)
 
-	if replayGroups != nil {
+	// Call on every peer-up, including with zero groups: replayRoutesWithCursor
+	// is what signals "plugin session ready", and an empty Adj-RIB-Out still has
+	// to say "nothing to replay, proceed".
+	if cameUp {
 		r.replayRoutesWithCursor(se.PeerAddress, replayGroups)
 	}
 }
@@ -1085,11 +1097,15 @@ func (r *RIBManager) handleState(event *Event) {
 	isUp := state == "up"
 	r.peerUp[peerAddr] = isUp
 
+	// See handleStructuredState for why the transition is tracked explicitly
+	// rather than inferred from replayGroups != nil.
+	cameUp := false
 	var replayGroups []replayGroup
 	var pendingPurgeEmits map[family.Family][]bestChangeEntry
 
 	if isUp && !wasUp {
 		// Peer came up - clear retain flag (fresh session replaces stale state).
+		cameUp = true
 		delete(r.retainedPeers, peerAddr)
 		replayGroups = r.collectGroupedRibOutRoutes(peerAddr)
 	} else if !isUp && wasUp {
@@ -1111,8 +1127,9 @@ func (r *RIBManager) handleState(event *Event) {
 
 	r.emitPurgedWithdraws(pendingPurgeEmits)
 
-	// I/O operations after releasing lock
-	if replayGroups != nil {
+	// I/O operations after releasing lock. Called on every peer-up, including
+	// with zero groups (see handleStructuredState).
+	if cameUp {
 		r.replayRoutesWithCursor(event.GetPeerAddress(), replayGroups)
 	}
 }

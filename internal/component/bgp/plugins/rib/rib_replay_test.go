@@ -1,6 +1,7 @@
 package rib
 
 import (
+	"net/netip"
 	"strings"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // TestReplayGroupsByAttrHandle verifies grouping by AttrHandle reduces decode count.
@@ -168,17 +170,123 @@ func TestReplayHashIncludesAllCommunities(t *testing.T) {
 	assert.NotEqual(t, hashC, hashD, "different extended-communities should produce different hashes")
 }
 
-// TestReplayEmptyRibOut verifies empty ribOut produces only "plugin session ready".
+// TestReplayEmptyRibOut verifies an empty ribOut collects to an empty group set.
+//
+// test-relax: the previous body asserted nothing about ze. It declared a nil
+// slice, ran `if len(groups) == 0 { commands = append(..., "plugin session ready") }`
+// INLINE in the test, and asserted on the result: a tautology over the Go
+// language that called no production function and stayed green for the entire
+// life of the 2.5s EOR stall this file's fix removes. Coverage is not lost but
+// REPLACED and strengthened: the "empty ribOut produces plugin session ready"
+// claim is now made against real code by TestPeerUpEmptyRibOutSignalsReady,
+// which drives handleState/handleStructuredState end to end. This test keeps the
+// collector half of that claim, against the real collector.
+//
+// VALIDATES: the collector reports "nothing to replay" for a peer with no ribOut.
+// PREVENTS: a collector change that invents phantom groups for an empty peer.
 func TestReplayEmptyRibOut(t *testing.T) {
-	var commands []string
-	groups := []replayGroup(nil)
+	r := newTestRIBManager(t)
 
-	if len(groups) == 0 {
-		commands = append(commands, "plugin session ready")
-	}
+	groups := r.collectGroupedRibOutRoutes(netip.MustParseAddr("10.0.0.1"))
 
-	require.Len(t, commands, 1)
-	assert.Equal(t, "plugin session ready", commands[0])
+	assert.Empty(t, groups, "a peer with no Adj-RIB-Out has nothing to replay")
+}
+
+// TestPeerUpEmptyRibOutSignalsReady drives the two peer-up ENTRY POINTS with an
+// empty Adj-RIB-Out, which is the state of every fresh BGP session before any
+// route is originated. It must reach replayRoutesWithCursor's len(groups)==0
+// branch and dispatch "plugin session ready".
+//
+// This asserts a LATENCY behavior, not a return value. The reactor arms
+// waitForAPISync(2s) (reactor/peer.go:423) for every peer with a `send [ update ]`
+// process and sends its EOR only after that wait returns
+// (reactor/peer_initial_sync.go:329-337). The signal asserted here is the ONLY
+// thing that ends the wait early (reactor/api_sync.go:176 -> peer.go:409). No
+// signal means the peer burns the full 2s and the EOR lands 2.5s late.
+//
+// Deliberately driven from handleState/handleStructuredState rather than by
+// calling replayRoutesWithCursor(addr, nil) directly: the bug was never in the
+// helper, it was that no caller ever reached it with an empty collection. A test
+// on the helper stays green through the entire bug (see
+// TestReplayReadySignalUsesRequestPeer, which did). Per ai/rules/fail-closed-guards.md
+// "Test corollary": drive the guard from the entry point that triggers it.
+//
+// VALIDATES: a fresh peer with no routes to replay signals ready promptly, so its
+// EOR is not delayed by the API-sync timeout.
+// PREVENTS: the nil-vs-empty conflation returning, in which
+// collectGroupedRibOutRoutesFiltered's nil-on-empty made `if replayGroups != nil`
+// skip the replay call entirely and stall the EOR by 2.5s on every fresh session.
+func TestPeerUpEmptyRibOutSignalsReady(t *testing.T) {
+	const addr = "10.0.0.1"
+
+	// Both peer-up entry points must behave identically. handleState parses a
+	// JSON *Event; handleStructuredState takes the DirectBridge struct.
+	t.Run("handleState", func(t *testing.T) {
+		r := newTestRIBManager(t)
+		var dispatched []string
+		r.dispatchHook = func(cmd string) { dispatched = append(dispatched, cmd) }
+
+		// No r.ribOut entry for this peer at all: a fresh session that has never
+		// been sent a route. This is collectGroupedRibOutRoutesFiltered's
+		// `peerFamilies == nil` return path (rib_replay.go:54-56).
+		require.Empty(t, r.ribOut, "precondition: Adj-RIB-Out must be empty")
+
+		r.handleState(&Event{
+			Peer: mustMarshal(t, map[string]any{
+				"state":  "up",
+				"remote": map[string]any{"address": addr, "as": uint32(65001)},
+			}),
+		})
+
+		require.Equal(t, []string{"request peer " + addr + " plugin session ready"}, dispatched,
+			"a peer coming up with an empty Adj-RIB-Out must signal ready immediately; "+
+				"without it the reactor waits the full waitForAPISync(2s) and the EOR is 2.5s late")
+	})
+
+	t.Run("handleStructuredState", func(t *testing.T) {
+		r := newTestRIBManager(t)
+		var dispatched []string
+		r.dispatchHook = func(cmd string) { dispatched = append(dispatched, cmd) }
+
+		require.Empty(t, r.ribOut, "precondition: Adj-RIB-Out must be empty")
+
+		r.handleStructuredState(&rpc.StructuredEvent{
+			PeerAddress: addr,
+			State:       rpc.SessionStateUp,
+		})
+
+		require.Equal(t, []string{"request peer " + addr + " plugin session ready"}, dispatched,
+			"the structured peer-up path must signal ready on an empty Adj-RIB-Out too")
+	})
+}
+
+// TestPeerUpEmptyRibOutSignalsReadyOnceOnly pins the other half of the contract:
+// the ready signal follows a genuine down->up TRANSITION, and a repeated "up"
+// event for an already-up peer must not re-signal. The fix replaces a
+// `replayGroups != nil` guard with an explicit cameUp boolean, and the cheap way
+// to get that wrong is to signal on every up event.
+//
+// VALIDATES: only the down->up edge signals ready.
+// PREVENTS: duplicate ready signals inflating apiSyncCount (reactor/peer.go:410),
+// which would let a multi-plugin peer's wait finish before every plugin reported.
+func TestPeerUpEmptyRibOutSignalsReadyOnceOnly(t *testing.T) {
+	const addr = "10.0.0.1"
+	r := newTestRIBManager(t)
+	var dispatched []string
+	r.dispatchHook = func(cmd string) { dispatched = append(dispatched, cmd) }
+
+	up := &rpc.StructuredEvent{PeerAddress: addr, State: rpc.SessionStateUp}
+	r.handleStructuredState(up)
+	require.Len(t, dispatched, 1, "the down->up edge signals ready")
+
+	r.handleStructuredState(up)
+	assert.Len(t, dispatched, 1, "a repeated up event is not a transition and must not re-signal")
+
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: addr, State: rpc.SessionStateDown})
+	assert.Len(t, dispatched, 1, "a down event must not signal ready")
+
+	r.handleStructuredState(up)
+	assert.Len(t, dispatched, 2, "a fresh down->up edge signals ready again")
 }
 
 // TestReplayReadySignalUsesRequestPeer verifies the post-replay "plugin session
