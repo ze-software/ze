@@ -66,11 +66,28 @@ worked:
   tentative (unreachable) for ~1s after every promotion. Proven end to end against
   keepalived IPv6 (QEMU): adverts accepted both ways, election, node-death
   failover, unsolicited NA burst, and the observer resolving the VIP to
-  00:00:5e:00:02:{vrid}. One cosmetic quirk left un-fixed: the FIRST advert
-  sources from the macvlan's auto (EUI-64) link-local, not the configured
-  `fe80::1`, because the FSM sends the first advert before InstallVIPs puts
-  `fe80::1` on the device; the auto link-local is a valid RFC 9568 5.1.2.2 source
-  and keepalived accepts it, so it is a non-issue.
+  00:00:5e:00:02:{vrid}.
+- **The FIRST v6 advert sources from the macvlan's auto (EUI-64) link-local, not
+  `fe80::1` -- and this CANNOT be fixed by FSM action ordering. Do not try.**
+  Ground truth (QEMU, captured resolver output): the kernel gives the macvlan a
+  transient EUI-64 link-local (`fe80::200:5eff:fe00:20a`) at creation; installing
+  the VIPs REPLACES it, so at steady state the macvlan holds only `fe80::1` +
+  the global VIP (the auto link-local is gone). The source resolver
+  (`macvlanLinkLocal`) returns the first non-tentative link-local, so once VIPs
+  are installed it yields `fe80::1`. The first advert predates that: `InstallVIPs`
+  calls `iface.RegisterOwnedAddresses`, which is ASYNCHRONOUS (it registers the
+  addr in a map + fires a reconcile trigger and returns; the kernel apply happens
+  on a LATER reconcile pass -- `address_owner.go:80`). So the `SendAdvert` that
+  runs in the same dispatcher loop resolves before `fe80::1` exists and picks the
+  auto link-local. Reordering `promoteToMaster` to `InstallVIPs, SendAdvert, ...`
+  was tried and PROVEN INEFFECTIVE against the keepalived IPv6 lab (first advert
+  still from the auto link-local) because ordering cannot win an async race; it
+  only churns the spec-annotated AC-3/R-4 order. A real fix would gate the first
+  advert on `fe80::1` being present (delays the mastership claim by ~1 advert
+  interval -- a failover-latency regression) or make the shared address-owner
+  registry apply synchronously (invasive). Both are disproportionate: the auto
+  link-local is a valid RFC 9568 link-local source, keepalived accepts it, and
+  election/failover/dataplane are unaffected. Leave it; it is genuinely cosmetic.
 - **You are fighting the iface component for the parent's sysctls.** iface emits
   `arp_ignore`/`arp_filter`/`rp_filter` from unit config on every apply, which
   clobbers the recipe. The engine re-asserts on every config apply
