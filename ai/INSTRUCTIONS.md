@@ -183,6 +183,7 @@ means "no rule applies".
 | Make a behavioral claim about code, or recommend work based on one | `ai/rules/no-fabrication.md` -- cite the producing function `file:line`; read the producer, not the caller; if you can't cite it, label it unverified |
 | Find recurring development friction or problem patterns | `ai/rules/friction-reporting.md` -- report the pattern and decide whether a new or changed rule would prevent it |
 | Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/`, `ai/rules/hook-mapping.md` (which checks will fire) |
+| Write or review a guard (auth check, validator, constraint, ratchet, lookup that gates behavior) | `ai/rules/fail-closed-guards.md` -- fail closed or say something; a zero value must never be a valid-looking answer; drive the guard's test from its entry point, never the helper alone |
 | Add terminal colors or TUI styling | `docs/architecture/cli/color-system.md` -- 7 semantic roles, consistent palette across all surfaces |
 | Touch wire encoding, allocate memory, or build strings | `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md`, `ai/rules/no-sprintf-alloc.md` -- load-bearing divergence from standard Go |
 | Add a YANG leaf, env var, or config option | `ai/rules/config-surface.md` (YANG vs env var decision), `ai/rules/config-naming.md` (naming), `ai/patterns/config-option.md` (structural template) |

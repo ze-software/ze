@@ -316,6 +316,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | pool, memory, dedup, zero-copy, lifecycle | `ai/rules/memory-architecture.md`, `core-design.md`, `pool-architecture.md`, `encoding-context.md` |
 | textbuf, string building, AppendTo, alloc-free | `ai/rules/no-sprintf-alloc.md`, `ai/rules/memory-architecture.md`, `internal/core/textbuf/` |
 | error message, actionable error, corrective action, remediation, fail closed | `ai/rules/error-messages.md`, `ai/rules/exact-or-reject.md`, `ai/rules/derive-not-hardcode.md` |
+| guard, fail open, fail closed, silent no-op, zero value, valid-looking zero, bare map read, permissive default, inert constraint, dead guard | `ai/rules/fail-closed-guards.md`, `plan/learned/1157-fail-open-auth-empty-profiles.md` |
 | sync.Pool, buffer pool, ring buffer, peerPool | `ai/rules/memory-architecture.md`, `forward-congestion-pool.md` |
 | forward, reflect, wire cache | `core-design.md`, `encoding-context.md`, `update-building.md` |
 | route, rib, storage | `core-design.md`, `route-types.md`, `rib-transition.md`, `plugin/rib-storage-design.md` |

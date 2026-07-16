@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 86 rules
+Total: 87 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -42,6 +42,7 @@ Total: 86 rules
 | Prefer Typed Numeric Over String | Hot paths use typed numeric identity (enum, registered ID, bitset, packed integer), not strings. Across component/engine seams the rule holds plus pointer restrictions... | `ai/rules/enum-over-string.md` |
 | Error Messages | Every error, log line, and failure output you write must let a human or an agent see what failed, why, and what to do next, without opening the source. The error is the corrective signal: if it does... | `ai/rules/error-messages.md` |
 | Exact Or Reject | If the implementation cannot deliver EXACTLY what the operator's config asks for, `ze config verify` / `ze config commit` MUST fail with a clear error. Silent approximation, truncation, or... | `ai/rules/exact-or-reject.md` |
+| Fail-Closed Guards | A guard must fail closed or say something. Silent degradation into a permissive no-op is the bug, and a zero value that downstream reads as a legitimate answer is how it hides. | `ai/rules/fail-closed-guards.md` |
 | Feature-Gate Registration (compile-out-able features) | How to add or change a compile-out-able feature: a subsystem that can be dropped from the `ze` binary at build time via a `//go:build ze_<feature>` tag, for a smaller binary and a smaller attack... | `ai/rules/feature-gate-registration.md` |
 | File Modularity | Each `.go` source file contains exactly one concern — a cohesive group of types and functions serving a single responsibility. | `ai/rules/file-modularity.md` |
 | Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures | a functional-test failure (panic, crash, exit-code mismatch, timeout) appears only in a full `make ze-verify` / `ze-functional-test` run and cannot be reproduced by rerunning the one suite in... | `ai/rules/flaky-under-load.md` |

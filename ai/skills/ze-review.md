@@ -108,8 +108,18 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
     | Shadowed variable | `:=` in inner scope hiding an outer variable the function relies on |
     | Integer truncation | `uint16(bigValue)` silently wrapping, `int(uint32Val)` on 32-bit |
     | Nil dereference path | Method call on a receiver that could be nil (check callers) |
+    | Guard that fails open | A check whose miss/error/empty path returns the permissive value (allow, admin, nil error, "no violation") instead of denying. See `ai/rules/fail-closed-guards.md` |
+    | Valid-looking zero value | A bare map read (`m[k]`) or lookup whose zero result reads downstream as a legitimate answer: allow, match-nothing, success, count-of-1. `v, ok := m[k]` and handle `!ok`. Note a present-but-empty value passes `ok`: check `!ok \|\| len(v) == 0` when empty is also wrong |
 
     For each function: does the code do what the function name says?
+
+    **Guard audit (BLOCKING when the diff adds or changes a guard).** For every check in the diff whose purpose is to reject, ask:
+
+    1. **Does it fail closed?** Name the miss/error/empty path and the value it returns. If that value is permissive, it is a BLOCKER. A guard that neither denies nor logs does not exist.
+    2. **Is the guard driven from its entry point in a test?** A unit test on the helper proves the helper, not that any caller reaches it with the input that matters. A green unit test on an uncalled guard is worse than no test: report as BLOCKER, "guard tested only via helper, no test drives it from [entry point]." Check the guard is reachable with the rejecting input at all: a constraint that cannot receive the value it rejects is inert.
+    3. **Does the diff assert a safety property it does not prove?** Any doc, comment, or spec line in the diff claiming a check denies something ("RBAC denies privileged actions", "validated by YANG") must be traced to the producing function. If the diff does not prove it, report as BLOCKER: a false safety claim is the shield that stops the next reviewer asking. Per `ai/rules/no-fabrication.md`.
+
+    Never discard a finding here for being "unlikely": these degrade silently and each looks correct locally.
 
 14. **Performance review:** Check changed code for unnecessary allocations and algorithmic issues, especially on hot paths (see `no-sprintf-alloc.md` "Hot Path Rule" for the list).
 
