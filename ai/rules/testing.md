@@ -228,6 +228,26 @@ tool, `ai/INDEX.md` (task navigation) if it changes task selection, this file fo
 usage, and `docs/architecture/testing/` or `docs/contributing/` for detailed
 operator documentation.
 
+## Testing Python Tooling (scripts/)
+
+There is no `pytest` and no `unittest discover` in this repo. A Python test that
+nothing invokes never runs, and reads as coverage while providing none. Eight
+`scripts/dev/*_test.py` files sat unexecuted this way until 2026-07-16. Use one of
+the two wired conventions, never a bare test file plus hope:
+
+| Your tool | Convention | Runs because |
+|-----------|-----------|--------------|
+| Has its own unit tests | Name them `scripts/dev/<tool>_test.py` (unittest, with `unittest.main()`) | `TestPythonUnitTests` (`scripts/dev/python_tests_test.go`) globs `*_test.py` and runs each. A new file is picked up automatically |
+| Wants fixture tests inside the script | Add a `--selftest` flag, then a small Go test that shells out to it | The pattern of `dep_audit.py`, `migrate_module.py`, `qemu-run.py`. See `scripts/dev/migrate_module_test.go` |
+
+Both land inside `go test`, so `make ze-unit-test` covers them via `go list ./...`
+and no make target is needed. `scripts/dev` and `scripts/evidence` are test-only Go
+packages that exist for exactly this.
+
+Do not add a `*_test.py` outside a directory covered by one of the above without
+wiring it, and do not "fix" a discovery glob by replacing it with a hardcoded list:
+the glob is what stops the next file from rotting.
+
 ## Temporary Files
 
 Use project `tmp/` (gitignored) for scratch files — never `/tmp`.
