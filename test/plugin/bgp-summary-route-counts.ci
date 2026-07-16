@@ -110,6 +110,9 @@ def main():
 
         # All-family: 1 IPv4 (wire) + 1 IPv6 (inject) = 2.
         both = find_peer(result_json_data(dispatch(api, 'show bgp summary'), {}).get('summary', {}), '127.0.0.1')
+        if both is None:
+            print('FAIL: 127.0.0.1 absent from all-family summary', file=sys.stderr)
+            sys.exit(1)
         if both.get('routes-received') != 2:
             print(f'FAIL: all-family routes-received={both.get("routes-received")}, want 2', file=sys.stderr)
             sys.exit(1)
