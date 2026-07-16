@@ -38,27 +38,18 @@ type terminalResponse struct {
 	Mode     string `json:"mode,omitempty"`
 }
 
-// HandleCLITerminal returns a POST handler for /cli/terminal that processes
-// commands in terminal mode. Returns a JSON response with structured output
-// so the client can update the output viewport and message area separately,
-// matching the SSH CLI's layout.
+// HandleCLITerminalWithDispatchAuthorizerAndAudit returns a POST handler for
+// /cli/terminal that processes commands in terminal mode, supporting both config
+// mode and operational mode. It returns a JSON response with structured output so
+// the client can update the output viewport and message area separately, matching
+// the SSH CLI's layout.
 //
 // The committed tree is used for show output so the CLI displays the same
 // config the workbench shows (the daemon's running config, not just the
 // editor's on-disk file).
-func HandleCLITerminal(mgr *EditorManager, schema *config.Schema, tree *config.Tree) http.HandlerFunc {
-	return HandleCLITerminalWithAuthorizerAndAudit(mgr, schema, tree, nil, nil)
-}
-
-// HandleCLITerminalWithAuthorizerAndAudit returns a terminal-mode handler that
-// enforces profile-based RBAC before direct editor mutations and records
-// successful commit/discard/rollback actions.
-func HandleCLITerminalWithAuthorizerAndAudit(mgr *EditorManager, schema *config.Schema, tree *config.Tree, authorizer aaa.Authorizer, recorder audit.Recorder) http.HandlerFunc {
-	return HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, authorizer, recorder)
-}
-
-// HandleCLITerminalWithDispatchAuthorizerAndAudit returns a terminal-mode
-// handler that supports both config mode and operational mode.
+//
+// authorizer enforces profile-based RBAC before direct editor mutations and
+// recorder records successful commit/discard/rollback actions; either may be nil.
 func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema *config.Schema, tree *config.Tree, dispatch CommandDispatcher, authorizer aaa.Authorizer, recorder audit.Recorder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -255,7 +246,10 @@ func executeTerminalOperational(dispatch CommandDispatcher, username, remoteAddr
 	if dispatch == nil {
 		return "error: operational command dispatch not available"
 	}
-	cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(input)
+	// No session format override: the web terminal has no `set cli format` surface
+	// (that command is dispatched only by the SSH/TUI model), so it always uses the
+	// configured default.
+	cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(input, "")
 	if pipeErr != "" {
 		var tb textbuf.Buffer
 		return tb.Str("pipe error: ").Str(pipeErr).String()

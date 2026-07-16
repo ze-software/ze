@@ -1,0 +1,60 @@
+# Test: show saved | compare isolates the changed part, like the working config does
+# VALIDATES: AC-1 for the saved source (not only source=="")
+# PREVENTS: A second compare path. showAlternateSource took PRE-RENDERED text, so it
+#           could not prune: after the working-config path was fixed,
+#           `show saved | compare` still dumped the whole configuration. cmdShowPipe
+#           lifts confirmed/saved out of args[0] and passes BOTH source and
+#           CompareTarget to cmdShowDisplayWithSource, so this path is reachable and
+#           was silently unfixed. Every leaf here exists in ze-bgp-conf.yang.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4
+  session {
+    asn {
+      local 65000
+    }
+  }
+  peer alpha {
+    connection {
+      remote {
+        ip 10.0.0.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+# Change exactly one leaf, then persist it as a draft.
+input=type:text=set bgp router-id 9.9.9.9
+input=enter
+expect=dirty:true
+expect=error:none
+
+input=type:text=save
+input=enter
+expect=status:contains=saved
+expect=error:none
+
+# Compare the SAVED source against committed.
+input=type:text=show saved | compare
+input=enter
+expect=error:none
+
+# The change is present...
+expect=viewport:contains=9.9.9.9
+
+# ...and the untouched config is pruned, exactly as for the working config.
+expect=viewport:not-contains=alpha
+expect=viewport:not-contains=10.0.0.1
+expect=viewport:not-contains=65001
+expect=viewport:not-contains=65000

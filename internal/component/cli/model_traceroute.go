@@ -235,16 +235,6 @@ func (m *Model) SetTracerouteFactory(f TracerouteFactory) {
 	m.tracerouteFactory = f
 }
 
-// IsTraceroute returns true if the traceroute monitor is active.
-func (m Model) IsTraceroute() bool {
-	return m.traceroute != nil
-}
-
-// IsTraceroutePiped returns true if a piped traceroute session is active.
-func (m Model) IsTraceroutePiped() bool {
-	return m.traceroutePiped != nil
-}
-
 func (m *Model) startTraceroute(input string) tea.Cmd {
 	if m.tracerouteFactory == nil {
 		m.statusMessage = "traceroute not available (no daemon connection)"
@@ -277,7 +267,7 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 		return nil
 	}
 
-	cmdStr, formatFn, pipeFlags, pipeErr := command.ProcessPipesDetectLog(input)
+	cmdStr, formatFn, pipeFlags, pipeErr := command.ProcessPipesDetectLog(input, m.cliFormat)
 	if pipeErr != "" {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("pipe error: ").Str(pipeErr).String()

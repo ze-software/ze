@@ -102,6 +102,33 @@ func (t *Tree) ClearLeafInactive(name string) {
 	delete(t.inactiveValues, name)
 }
 
+// removeValue deletes every leaf-level trace of name: the scalar value, its
+// leaf-list members, the insertion-order entry, and the deactivation state that is
+// sibling to both. Mirrors the field set pruneInactiveLeaves clears -- any leaf
+// removal that misses one of these leaves the tree internally inconsistent
+// (e.g. a valuesOrder entry with no value, which Values() would still report).
+//
+// Unexported because leaf state is package-internal: the exported API removes
+// containers (RemoveContainer), list entries (RemoveListEntry) and leaf-list
+// members (RemoveMultiValueMember), but never a whole leaf.
+func (t *Tree) removeValue(name string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.values, name)
+	delete(t.multiValues, name)
+	delete(t.inactiveValues, name)
+	delete(t.inactiveMembers, name)
+	if len(t.valuesOrder) > 0 {
+		filtered := t.valuesOrder[:0]
+		for _, n := range t.valuesOrder {
+			if n != name {
+				filtered = append(filtered, n)
+			}
+		}
+		t.valuesOrder = filtered
+	}
+}
+
 // pruneInactiveLeaves removes every leaf entry whose name appears in
 // inactiveValues from values, multiValues, valuesOrder, and the marker
 // map itself. Called by pruneNode -- callers outside the prune walker
@@ -674,15 +701,6 @@ func (t *Tree) CopyListEntry(listName, srcKey, dstKey string) error {
 	}
 
 	return nil
-}
-
-// ClearList removes all entries from a list.
-// Used by migrations that need bulk list replacement.
-func (t *Tree) ClearList(name string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	delete(t.lists, name)
-	delete(t.listOrder, name)
 }
 
 // Insert position constants for InsertMultiValue.

@@ -12,11 +12,21 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
-// AnnotatedView returns config content annotated with the enabled metadata columns.
+// annotatedView returns config content annotated with the enabled metadata columns.
 // When setFormat is true, produces flat set commands; otherwise hierarchical tree.
 // At a sub-path, the metadata tree is walked to match the context path.
-func (e *Editor) AnnotatedView(path []string, columns config.ShowColumns, setFormat bool) string {
-	tree := e.tree
+func (e *Editor) annotatedView(path []string, columns config.ShowColumns, setFormat bool) string {
+	return e.annotatedViewOf(e.tree, path, columns, setFormat)
+}
+
+// annotatedViewOf is annotatedView over an explicitly supplied tree, so callers can
+// annotate a derived tree (e.g. one pruned by config.PruneUnchanged for compare)
+// rather than the editor's working tree.
+//
+// The metadata tree is NOT pruned in step: SerializeAnnotated* walks the config tree
+// and looks metadata up per node, so nodes absent from a pruned tree are simply never
+// consulted.
+func (e *Editor) annotatedViewOf(tree *config.Tree, path []string, columns config.ShowColumns, setFormat bool) string {
 	meta := e.meta
 	schema := e.schema
 	if meta == nil {
@@ -25,13 +35,12 @@ func (e *Editor) AnnotatedView(path []string, columns config.ShowColumns, setFor
 
 	// Walk to sub-path if needed
 	if len(path) > 0 && e.treeValid {
-		subtree, schemaNode := e.walkPathWithSchema(path)
+		subtree, schemaNode := e.walkPathWithSchemaFrom(tree, path)
 		if subtree != nil && schemaNode != nil {
-			tree = subtree
 			// Walk meta tree in parallel
 			meta = e.walkMetaPath(meta, path)
 			// Use SerializeAnnotatedTree/Set with a schema wrapper
-			return e.annotatedAtNode(tree, meta, schemaNode, columns, setFormat)
+			return e.annotatedAtNode(subtree, meta, schemaNode, columns, setFormat)
 		}
 	}
 
@@ -185,17 +194,17 @@ func newShowColumnDefaults() map[string]bool {
 	}
 }
 
-// ShowColumnEnabled returns whether a show column is enabled.
-func (e *Editor) ShowColumnEnabled(column string) bool {
+// showColumnEnabled returns whether a show column is enabled.
+func (e *Editor) showColumnEnabled(column string) bool {
 	if e.showColumns == nil {
 		return false
 	}
 	return e.showColumns[column]
 }
 
-// SetShowColumn enables or disables a show column preference.
+// setShowColumn enables or disables a show column preference.
 // Only valid column names (author, date, source, changes) are accepted.
-func (e *Editor) SetShowColumn(column string, enabled bool) {
+func (e *Editor) setShowColumn(column string, enabled bool) {
 	if e.showColumns == nil {
 		e.showColumns = newShowColumnDefaults()
 	}
@@ -205,21 +214,21 @@ func (e *Editor) SetShowColumn(column string, enabled bool) {
 	e.showColumns[column] = enabled
 }
 
-// DiffGutterEnabled returns whether the diff gutter (+/-) markers are shown.
-func (e *Editor) DiffGutterEnabled() bool {
+// diffGutterEnabled returns whether the diff gutter (+/-) markers are shown.
+func (e *Editor) diffGutterEnabled() bool {
 	return e.diffGutter
 }
 
-// SetDiffGutter enables or disables the diff gutter (+/-) markers.
-func (e *Editor) SetDiffGutter(enabled bool) {
+// setDiffGutter enables or disables the diff gutter (+/-) markers.
+func (e *Editor) setDiffGutter(enabled bool) {
 	e.diffGutter = enabled
 }
 
-// ContentWithoutUser returns the config as it would be without the specified user's changes.
+// contentWithoutUser returns the config as it would be without the specified user's changes.
 // Clones the working tree, then reverts each leaf that the user changed to its Previous value.
 // Leaves with no Previous value (new additions by the user) are deleted.
 // Returns serialized tree content, or empty string if no metadata or no changes by that user.
-func (e *Editor) ContentWithoutUser(username string) string {
+func (e *Editor) contentWithoutUser(username string) string {
 	if e.meta == nil || e.tree == nil || e.schema == nil || !e.treeValid {
 		return ""
 	}
@@ -279,9 +288,9 @@ func revertUserChanges(tree *config.Tree, meta *config.MetaTree, username string
 	}
 }
 
-// SavedDraftContent returns the content of the saved draft file on disk.
+// savedDraftContent returns the content of the saved draft file on disk.
 // Returns empty string if no draft exists.
-func (e *Editor) SavedDraftContent() string {
+func (e *Editor) savedDraftContent() string {
 	var tb textbuf.Buffer
 	draftPath := tb.Str(e.originalPath).Str(".draft").String()
 	data, err := e.store.ReadFile(draftPath)

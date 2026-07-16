@@ -2,6 +2,11 @@
 # VALIDATES: Pipe to compare shows diff of current section
 # VALIDATES: Works like compare command but for specific section
 # PREVENTS: Pipe compare broken
+#
+# Every leaf below must exist in ze-bgp-conf.yang. This test previously added
+# "listen 0.0.0.0:179", which is not a BGP leaf: the parse failed, the editor fell
+# back to raw-text mode (treeValid=false, editor_commands.go:66-78), and the schema
+# tree diff never ran -- so the test passed without exercising compare at all.
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -34,7 +39,9 @@ bgp {
   		local 65000
   	}
   }
-  listen 0.0.0.0:179;
+  multipath {
+  	maximum-paths 4
+  }
   peer peer1 {
   	connection {
   		remote {
@@ -65,4 +72,8 @@ expect=error:none
 
 # Should show diff with added content
 expect=viewport:contains=+
-expect=viewport:contains=listen
+expect=viewport:contains=maximum-paths
+
+# ...and only the added content: the untouched peer and asn are pruned away.
+expect=viewport:not-contains=peer1
+expect=viewport:not-contains=65001

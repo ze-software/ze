@@ -1,0 +1,52 @@
+# Test: show | compare shows markers even when the changes column is disabled
+# VALIDATES: AC-4 -- compare forces the diff gutter
+# PREVENTS: Compare silently degrading to a plain show. setViewportData gates the
+#           gutter on `forceChanges || !hasEditor() || DiffGutterEnabled()`
+#           (model_render.go). `show changes` set forceChanges; compare did not, so
+#           `option changes disable` turned show | compare into a marker-less show.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4
+  session {
+    asn {
+      local 65000
+    }
+  }
+}
+EOF_CONF
+
+tmpfs=modified.conf:terminator=EOF_MODIFIED
+bgp {
+  router-id 1.2.3.4
+  session {
+    asn {
+      local 65000
+    }
+  }
+  multipath {
+    maximum-paths 4
+  }
+}
+EOF_MODIFIED
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=load file absolute replace modified.conf
+input=enter
+expect=dirty:true
+expect=error:none
+
+# Turn the changes column off: a plain `show` would then carry no markers at all.
+input=type:text=option changes disable
+input=enter
+expect=error:none
+
+input=type:text=show | compare
+input=enter
+expect=error:none
+
+# The marker survives regardless of the column setting.
+expect=viewport:contains=+
+expect=viewport:contains=maximum-paths

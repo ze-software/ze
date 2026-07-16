@@ -94,7 +94,7 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.confirmQuit = false
 				m.confirmExitConfig = false
 				m.textInput.SetValue("")
-				m.SwitchMode(ModeOperational)
+				m.switchMode(ModeOperational)
 				m.updateCompletions()
 				return m, nil
 			}
@@ -425,7 +425,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.textInput.SetValue("")
-		m.SwitchMode(ModeConfig)
+		m.switchMode(ModeConfig)
 		m.updateCompletions()
 		return m, nil
 	}
@@ -437,7 +437,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	}
 	if m.mode == ModeOperational && isConfigCommand(input) {
 		if m.hasEditor() {
-			m.SwitchMode(ModeConfig)
+			m.switchMode(ModeConfig)
 			// Fall through to normal dispatch -- history/clear happens below,
 			// executeCommand runs with the switched mode.
 		} else if !isOperationalVerb(input) {
@@ -461,7 +461,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.textInput.SetValue("")
-			m.SwitchMode(ModeOperational)
+			m.switchMode(ModeOperational)
 			m.updateCompletions()
 			return m, nil
 		}
@@ -634,7 +634,7 @@ func (m Model) finishPasteMode() (tea.Model, tea.Cmd) {
 	}
 
 	// Apply the result
-	m.ApplyResult(result)
+	m.applyResult(result)
 	return m, nil
 }
 
@@ -718,7 +718,7 @@ func handleSetCLIFormat(input string, m *Model) bool {
 	m.textInput.SetValue("")
 
 	if rest == "" {
-		current := env.Get("ze.cli.format")
+		current := m.sessionFormat()
 		if current == "" {
 			current = "text"
 		}
@@ -733,8 +733,21 @@ func handleSetCLIFormat(input string, m *Model) bool {
 		return true
 	}
 
-	_ = env.Set("ze.cli.format", rest)
+	// Record on the session, NOT via env.Set: env.Set writes a process-global cache
+	// and os.Setenv (env.go), so one session's choice would change the default output
+	// format for every other concurrent SSH and web CLI session.
+	m.cliFormat = rest
 	var tb textbuf.Buffer
 	m.statusMessage = tb.Str("cli format set to ").Str(rest).String()
 	return true
+}
+
+// sessionFormat returns the format this session should use: its `set cli format`
+// override if any, otherwise the configured default (the environment cli format
+// default YANG leaf, plumbed to ze.cli.format). Empty means neither is set.
+func (m *Model) sessionFormat() string {
+	if m.cliFormat != "" {
+		return m.cliFormat
+	}
+	return env.Get("ze.cli.format")
 }

@@ -1,0 +1,101 @@
+# Test: show | compare isolates at a nested context path
+# VALIDATES: AC-20 -- isolation applies after `edit <path>`
+# PREVENTS: Isolation working only at root. The gutter's tree diff needs root
+#           context (model_render.go requires len(contextPath)==0) and falls back to
+#           the LCS line diff at a sub-path, but pruning happens BEFORE serialization
+#           and so is independent of which diff renders the markers.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4
+  session {
+    asn {
+      local 65000
+    }
+  }
+  peer alpha {
+    connection {
+      remote {
+        ip 10.0.0.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+  peer beta {
+    connection {
+      remote {
+        ip 10.0.0.2
+      }
+    }
+    session {
+      asn {
+        remote 65002
+      }
+    }
+  }
+}
+EOF_CONF
+
+tmpfs=modified.conf:terminator=EOF_MODIFIED
+bgp {
+  router-id 1.2.3.4
+  session {
+    asn {
+      local 65000
+    }
+  }
+  peer alpha {
+    connection {
+      remote {
+        ip 10.9.9.9
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+  peer beta {
+    connection {
+      remote {
+        ip 10.0.0.2
+      }
+    }
+    session {
+      asn {
+        remote 65002
+      }
+    }
+  }
+}
+EOF_MODIFIED
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=load file absolute replace modified.conf
+input=enter
+expect=dirty:true
+expect=error:none
+
+# Descend into bgp, then compare from there.
+input=type:text=edit bgp
+input=enter
+expect=error:none
+
+input=type:text=show | compare
+input=enter
+expect=error:none
+
+# The change is present at this context...
+expect=viewport:contains=10.9.9.9
+
+# ...and the untouched peer is still pruned away.
+expect=viewport:not-contains=beta
+expect=viewport:not-contains=10.0.0.2
+expect=viewport:not-contains=65002

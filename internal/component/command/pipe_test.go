@@ -317,7 +317,7 @@ func TestApplyPipesCountOfCount(t *testing.T) {
 	}
 }
 
-// VALIDATES: FoldFilters folds registered filters into command args.
+// VALIDATES: foldFilters folds registered filters into command args.
 // PREVENTS: filters being hardcoded in generic pipe code.
 func TestFoldFilters(t *testing.T) {
 	ResetPipeFiltersForTest()
@@ -436,7 +436,7 @@ func TestFoldFilters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd, ops, _ := FoldFilters(tt.command, tt.ops)
+			cmd, ops, _ := foldFilters(tt.command, tt.ops)
 			if cmd != tt.wantCmd {
 				t.Errorf("command = %q, want %q", cmd, tt.wantCmd)
 			}
@@ -487,7 +487,7 @@ func TestFoldFiltersValidationErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd, ops := ParsePipe(tt.input)
-			_, ops, _ = FoldFilters(cmd, ops)
+			_, ops, _ = foldFilters(cmd, ops)
 			if got := ValidatePipes(ops); got != tt.want {
 				t.Fatalf("validation error = %q, want %q", got, tt.want)
 			}
@@ -523,7 +523,7 @@ func TestProcessPipesDefaultFormat_FilterKeepsJSON(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	cmd, format := ProcessPipesDefaultFormat("show routes | count | json")
+	cmd, format, _ := ProcessPipesDefaultFormatChecked("show routes | count | json", "")
 	if cmd != "show routes count" {
 		t.Fatalf("command = %q, want %q", cmd, "show routes count")
 	}
@@ -579,7 +579,7 @@ func TestApplyPipesMultipleFormats(t *testing.T) {
 
 // TestProcessPipesDefaultFormat verifies default format is applied when no format pipe present.
 //
-// VALIDATES: ProcessPipesDefaultFormat uses configuredDefault() (text by default).
+// VALIDATES: ProcessPipesDefaultFormatChecked uses configuredDefault() (text by default).
 // PREVENTS: Editor command mode showing raw JSON instead of formatted output.
 func TestProcessPipesDefaultFormat(t *testing.T) {
 	env.ResetCache()
@@ -604,7 +604,7 @@ func TestProcessPipesDefaultFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd, format := ProcessPipesDefaultFormat(tt.input)
+			cmd, format, _ := ProcessPipesDefaultFormatChecked(tt.input, "")
 			if cmd != tt.wantCmd {
 				t.Errorf("command = %q, want %q", cmd, tt.wantCmd)
 			}
@@ -639,7 +639,7 @@ func TestConfiguredDefault(t *testing.T) {
 			env.ResetCache()
 			t.Cleanup(env.ResetCache)
 
-			cmd, format := ProcessPipesDefaultFormat("peer list")
+			cmd, format, _ := ProcessPipesDefaultFormatChecked("peer list", "")
 			if cmd != "peer list" {
 				t.Errorf("command = %q, want peer list", cmd)
 			}
@@ -655,6 +655,43 @@ func TestConfiguredDefault(t *testing.T) {
 	}
 }
 
+// TestSessionFormatOverridesConfiguredDefault verifies precedence: a session's
+// `set cli format` override beats the configured default, and an empty override
+// leaves the configured default in force.
+//
+// VALIDATES: AC-16, AC-17 -- session override > config/env > built-in default.
+// PREVENTS: The leak fix breaking the config default, or the override being ignored.
+func TestSessionFormatOverridesConfiguredDefault(t *testing.T) {
+	jsonInput := `[{"name":"a","value":1}]`
+	isTable := func(s string) bool { return strings.Contains(s, "┌") || strings.Contains(s, "│") }
+
+	t.Setenv("ze.cli.format", "table")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	// No session override: the configured default (table) applies.
+	_, format, _ := ProcessPipesDefaultFormatChecked("peer list", "")
+	if !isTable(format(jsonInput)) {
+		t.Errorf("no override: want the configured default (table)")
+	}
+
+	// Session override wins over the configured default.
+	_, format, _ = ProcessPipesDefaultFormatChecked("peer list", "json")
+	result := format(jsonInput)
+	if isTable(result) {
+		t.Errorf("session override ignored; got table:\n%s", result)
+	}
+	if !strings.Contains(result, "\"name\"") {
+		t.Errorf("session override should produce json; got:\n%s", result)
+	}
+
+	// One session's override must not alter what the next resolves.
+	_, format, _ = ProcessPipesDefaultFormatChecked("peer list", "")
+	if !isTable(format(jsonInput)) {
+		t.Errorf("a session override must not persist into a session that has none")
+	}
+}
+
 // TestConfiguredDefaultInvalid verifies configuredDefault() falls back to pipeText for invalid values.
 func TestConfiguredDefaultInvalid(t *testing.T) {
 	t.Setenv("ze.cli.format", "bogus")
@@ -662,7 +699,7 @@ func TestConfiguredDefaultInvalid(t *testing.T) {
 	t.Cleanup(env.ResetCache)
 
 	jsonInput := `[{"name":"a","value":1}]`
-	_, format := ProcessPipesDefaultFormat("peer list")
+	_, format, _ := ProcessPipesDefaultFormatChecked("peer list", "")
 	result := format(jsonInput)
 	hasTable := strings.Contains(result, "┌") || strings.Contains(result, "│")
 	if hasTable {
@@ -679,7 +716,7 @@ func TestProcessPipesDefaultFormat_Configured(t *testing.T) {
 	jsonInput := `[{"name":"a","value":1}]`
 
 	// Explicit | table should produce table even when default is json.
-	_, format := ProcessPipesDefaultFormat("peer list | table")
+	_, format, _ := ProcessPipesDefaultFormatChecked("peer list | table", "")
 	result := format(jsonInput)
 	hasTable := strings.Contains(result, "┌") || strings.Contains(result, "│")
 	if !hasTable {
@@ -766,7 +803,7 @@ func TestApplyJSON_PrettyIsValidJSON(t *testing.T) {
 
 func TestApplyNDJSON(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"10.0.0.1","rtt-ms":1.5},{"ttl":2,"addr":"10.0.0.2","rtt-ms":2.5}]}`
-	result := ApplyNDJSON(input)
+	result := applyNDJSON(input)
 	lines := strings.Split(strings.TrimSpace(result), "\n")
 	if len(lines) != 2 {
 		t.Errorf("expected 2 NDJSON lines, got %d: %q", len(lines), result)
@@ -862,7 +899,7 @@ func TestApplyPipes_JSONThenResolve(t *testing.T) {
 }
 
 func TestProcessPipesDetectLog_HasFormat(t *testing.T) {
-	_, _, flags, errMsg := ProcessPipesDetectLog("monitor ping 1.1.1.1 | log | json")
+	_, _, flags, errMsg := ProcessPipesDetectLog("monitor ping 1.1.1.1 | log | json", "")
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -875,7 +912,7 @@ func TestProcessPipesDetectLog_HasFormat(t *testing.T) {
 }
 
 func TestProcessPipesDetectLog_NoExplicitFormat(t *testing.T) {
-	_, _, flags, errMsg := ProcessPipesDetectLog("monitor ping 1.1.1.1 | log")
+	_, _, flags, errMsg := ProcessPipesDetectLog("monitor ping 1.1.1.1 | log", "")
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -888,7 +925,7 @@ func TestProcessPipesDetectLog_NoExplicitFormat(t *testing.T) {
 }
 
 func TestProcessPipesDetectLog_NDJSON(t *testing.T) {
-	_, formatFn, flags, errMsg := ProcessPipesDetectLog("monitor ping 1.1.1.1 | log | ndjson")
+	_, formatFn, flags, errMsg := ProcessPipesDetectLog("monitor ping 1.1.1.1 | log | ndjson", "")
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1021,7 +1058,7 @@ func TestFoldFiltersFirst(t *testing.T) {
 		PipeFilter{Name: "last", Description: "Take last N", TakesArg: true},
 	)
 
-	cmd, ops, _ := FoldFilters("show routes", []pipeOp{{kind: pipeFirst, arg: "10"}})
+	cmd, ops, _ := foldFilters("show routes", []pipeOp{{kind: pipeFirst, arg: "10"}})
 	if cmd != "show routes first 10" {
 		t.Errorf("command = %q, want %q", cmd, "show routes first 10")
 	}
@@ -1034,7 +1071,7 @@ func TestFoldFiltersFirstNotRegistered(t *testing.T) {
 	ResetPipeFiltersForTest()
 	t.Cleanup(ResetPipeFiltersForTest)
 
-	cmd, ops, _ := FoldFilters("peer list", []pipeOp{{kind: pipeFirst, arg: "5"}})
+	cmd, ops, _ := foldFilters("peer list", []pipeOp{{kind: pipeFirst, arg: "5"}})
 	if cmd != "peer list" {
 		t.Errorf("command = %q, want %q", cmd, "peer list")
 	}

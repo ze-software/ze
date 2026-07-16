@@ -1,0 +1,82 @@
+# Test: show | compare | format config isolates in set format too
+# VALIDATES: AC-9 -- isolation applies to both formats
+# PREVENTS: Isolating in one format only. compare selects the data and format
+#           presents it, so the prune runs on the TREE before either serializer
+#           (fmtConfig -> FilterSetByPath(SerializeSet), fmtTree -> Serialize).
+#           Pruning rendered lines instead would fix the tree format and leave
+#           `| format config` dumping the whole configuration.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4
+  session {
+    asn {
+      local 65000
+    }
+  }
+  peer alpha {
+    connection {
+      remote {
+        ip 10.0.0.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}
+EOF_CONF
+
+tmpfs=modified.conf:terminator=EOF_MODIFIED
+bgp {
+  router-id 1.2.3.4
+  session {
+    asn {
+      local 65000
+    }
+  }
+  peer alpha {
+    connection {
+      remote {
+        ip 10.9.9.9
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}
+EOF_MODIFIED
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=load file absolute replace modified.conf
+input=enter
+expect=dirty:true
+expect=error:none
+
+input=type:text=show | compare | format config
+input=enter
+expect=error:none
+
+# Set format still carries a change marker. This is A-5: with fmtConfig the content
+# is set-format text, so computeTreeAnnotatedDiff's config.NewParser cannot make a
+# hierarchical tree of it and the annotation falls back to the LCS line diff
+# (diff_tree.go). Isolation happens before serialization either way; this asserts the
+# markers survive the fallback. The fixture MODIFIES a leaf, so the marker is '*'
+# (diff.go: diffModified), not '+'.
+expect=viewport:contains=*
+
+# Set format carries the change...
+expect=viewport:contains=10.9.9.9
+expect=viewport:contains=set bgp
+
+# ...and only the change.
+expect=viewport:not-contains=65001
+expect=viewport:not-contains=65000
+expect=viewport:not-contains=router-id

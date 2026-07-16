@@ -1,0 +1,107 @@
+# Test: show | compare presents ONLY the modified part of the YANG tree
+# VALIDATES: AC-1 -- unchanged config is not presented
+# VALIDATES: AC-2 -- enclosing containers kept so the change stays locatable
+# PREVENTS: The reported bug -- show | compare rendering the entire configuration
+#           with one changed line buried in it. compare is a data-selection pipe:
+#           it prunes the tree to what differs (config.PruneUnchanged) before the
+#           format pipe serializes it.
+#
+# NOTE: every leaf here must exist in ze-bgp-conf.yang. An unknown leaf makes the
+# parse fail, which drops the editor into raw-text mode (treeValid=false) where
+# compare cannot prune -- the test would then pass vacuously.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4
+  session {
+    asn {
+      local 65000
+    }
+  }
+  peer alpha {
+    connection {
+      remote {
+        ip 10.0.0.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+  peer beta {
+    connection {
+      remote {
+        ip 10.0.0.2
+      }
+    }
+    session {
+      asn {
+        remote 65002
+      }
+    }
+  }
+}
+EOF_CONF
+
+tmpfs=modified.conf:terminator=EOF_MODIFIED
+bgp {
+  router-id 1.2.3.4
+  session {
+    asn {
+      local 65000
+    }
+  }
+  peer alpha {
+    connection {
+      remote {
+        ip 10.9.9.9
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+  peer beta {
+    connection {
+      remote {
+        ip 10.0.0.2
+      }
+    }
+    session {
+      asn {
+        remote 65002
+      }
+    }
+  }
+}
+EOF_MODIFIED
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Change exactly one thing: peer alpha's remote ip.
+input=type:text=load file absolute replace modified.conf
+input=enter
+expect=dirty:true
+expect=error:none
+
+input=type:text=show | compare
+input=enter
+expect=error:none
+
+# The change itself is present, with its enclosing containers for context.
+expect=viewport:contains=10.9.9.9
+expect=viewport:contains=alpha
+expect=viewport:contains=bgp
+
+# Everything that did not change is absent. Before this fix every one of these
+# appeared in the compare output.
+expect=viewport:not-contains=beta
+expect=viewport:not-contains=10.0.0.2
+expect=viewport:not-contains=65002
+expect=viewport:not-contains=65000
+expect=viewport:not-contains=router-id

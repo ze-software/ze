@@ -55,8 +55,8 @@ func (m Model) Mode() EditorMode {
 	return m.mode
 }
 
-// SwitchMode switches the editor to the given mode, saving and restoring screen state.
-func (m *Model) SwitchMode(target EditorMode) {
+// switchMode switches the editor to the given mode, saving and restoring screen state.
+func (m *Model) switchMode(target EditorMode) {
 	if m.mode == target {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("already in ").Str(target.String()).Str(" mode").String()
@@ -152,7 +152,7 @@ func (m Model) executeOperationalCommand(input string) tea.Cmd {
 				err: errNoDaemonConnectionOperationalModeRequires,
 			}
 		}
-		cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(input)
+		cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(input, m.cliFormat)
 		if pipeErr != "" {
 			var tb2 textbuf.Buffer
 			return commandResultMsg{err: errors.New(tb2.Str("pipe error: ").Str(pipeErr).String())}

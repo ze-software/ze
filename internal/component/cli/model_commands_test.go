@@ -567,7 +567,7 @@ func TestSetCommandModifiesConfig(t *testing.T) {
 	// Enter peer context
 	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
-	model.ApplyResult(editResult)
+	model.applyResult(editResult)
 
 	// Set description
 	result, err := model.dispatchCommand(`set description "test peer"`)
@@ -682,7 +682,7 @@ func TestSetCommandUpdatesExistingValue(t *testing.T) {
 	// Enter peer context
 	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
-	model.ApplyResult(editResult)
+	model.applyResult(editResult)
 
 	// Set new description (should replace existing)
 	_, err = model.dispatchCommand(`set description "new value"`)
@@ -719,7 +719,7 @@ func TestSetCommandRejectsInvalidValue(t *testing.T) {
 	// Enter peer context
 	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
-	model.ApplyResult(editResult)
+	model.applyResult(editResult)
 
 	// Set receive-hold-time to invalid string — should fail
 	_, err = model.dispatchCommand("set timer receive-hold-time abc")
@@ -839,7 +839,7 @@ func TestSetInQuotedListEntry(t *testing.T) {
 	// Enter the group context using full path (JUNOS-style)
 	editResult, err := model.cmdEdit([]string{"bgp", "group", "my group"})
 	require.NoError(t, err)
-	model.ApplyResult(editResult)
+	model.applyResult(editResult)
 
 	// Set a value inside the group block
 	setResult, err := model.cmdSet([]string{"session", "asn", "remote", "65002"})
@@ -1162,7 +1162,7 @@ func TestSetInContextPreserved(t *testing.T) {
 	// Enter peer context
 	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
-	model.ApplyResult(editResult)
+	model.applyResult(editResult)
 
 	// Set within context — should still work
 	result, err := model.dispatchCommand("set timer receive-hold-time 120")
@@ -2150,7 +2150,7 @@ func TestRenameListEntryWithContext(t *testing.T) {
 	// Enter bgp context
 	editResult, err := model.cmdEdit([]string{"bgp"})
 	require.NoError(t, err)
-	model.ApplyResult(editResult)
+	model.applyResult(editResult)
 
 	// Rename relative to context
 	result, err := model.cmdRename([]string{"peer", "peer1", "to", "london"})
@@ -2406,12 +2406,12 @@ func TestCopyListEntryDeepCopy(t *testing.T) {
 	// Copy peer1 to peer2
 	result, err := model.cmdCopy([]string{"bgp", "peer", "peer1", "to", "peer2"})
 	require.NoError(t, err)
-	model.ApplyResult(result)
+	model.applyResult(result)
 
 	// Modify peer2's IP
 	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer2"})
 	require.NoError(t, err)
-	model.ApplyResult(editResult)
+	model.applyResult(editResult)
 
 	_, err = model.cmdSet([]string{"connection", "remote", "ip", "2.2.2.2"})
 	require.NoError(t, err)
@@ -2446,7 +2446,7 @@ func TestCopyListEntryWithContext(t *testing.T) {
 	// Enter bgp context
 	editResult, err := model.cmdEdit([]string{"bgp"})
 	require.NoError(t, err)
-	model.ApplyResult(editResult)
+	model.applyResult(editResult)
 
 	result, err := model.cmdCopy([]string{"peer", "peer1", "to", "london"})
 	require.NoError(t, err)
@@ -2949,7 +2949,10 @@ func TestCopyViaDispatch(t *testing.T) {
 	assert.Contains(t, content, "peer cloned-peer")
 }
 
-// TestSetCLIFormat verifies `set cli format json` sets the env var.
+// TestSetCLIFormat verifies `set cli format json` records the choice on the session.
+//
+// The choice used to be stored via env.Set, which is process-global: see
+// TestSetCLIFormatIsSessionScoped for why that was wrong.
 func TestSetCLIFormat(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
@@ -2958,7 +2961,31 @@ func TestSetCLIFormat(t *testing.T) {
 	ok := handleSetCLIFormat("set cli format json", m)
 	assert.True(t, ok, "should handle set cli format")
 	assert.Equal(t, "cli format set to json", m.statusMessage)
-	assert.Equal(t, "json", env.Get("ze.cli.format"))
+	assert.Equal(t, "json", m.cliFormat, "choice recorded on the session")
+}
+
+// TestSetCLIFormatIsSessionScoped verifies one operator's format choice does not
+// change what every other operator sees.
+//
+// VALIDATES: AC-16 -- set cli format in session A leaves session B alone.
+// PREVENTS: The pre-existing leak. env.Set (env.go:111-119) writes a package-global
+// cache AND calls os.Setenv, so `set cli format json` over one SSH session changed
+// the default output format for every other concurrent SSH and web CLI session on
+// the box. The Model is per-session (session_factory.go:87), so the override
+// belongs on it.
+func TestSetCLIFormatIsSessionScoped(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	sessionA := &Model{}
+	sessionB := &Model{}
+
+	require.True(t, handleSetCLIFormat("set cli format json", sessionA))
+
+	assert.Equal(t, "json", sessionA.cliFormat, "session A took the override")
+	assert.Empty(t, sessionB.cliFormat, "session B must not inherit session A's choice")
+	assert.NotEqual(t, "json", env.Get("ze.cli.format"),
+		"set cli format must not write process-global state")
 }
 
 // TestSetCLIFormatInvalid verifies `set cli format bogus` returns an error.

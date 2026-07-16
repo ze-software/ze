@@ -228,16 +228,6 @@ func (m *Model) SetPingFactory(f PingFactory) {
 	m.pingFactory = f
 }
 
-// IsPingMonitor returns true if the ping monitor is active.
-func (m Model) IsPingMonitor() bool {
-	return m.pingMonitor != nil
-}
-
-// IsPingMonitorPiped returns true if a piped ping session is active.
-func (m Model) IsPingMonitorPiped() bool {
-	return m.pingMonitorPiped != nil
-}
-
 func (m *Model) startPingMonitor(input string) tea.Cmd {
 	if m.pingFactory == nil {
 		m.statusMessage = "ping monitor not available (no daemon connection)"
@@ -281,7 +271,7 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 		return nil
 	}
 
-	cmdStr, formatFn, pipeFlags, pipeErr := command.ProcessPipesDetectLog(input)
+	cmdStr, formatFn, pipeFlags, pipeErr := command.ProcessPipesDetectLog(input, m.cliFormat)
 	if pipeErr != "" {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("pipe error: ").Str(pipeErr).String()

@@ -2,6 +2,13 @@
 # VALIDATES: Compare command shows actual differences
 # VALIDATES: Added content shows with + prefix
 # VALIDATES: Compare works after load command modifies content
+#
+# Every leaf below must exist in ze-bgp-conf.yang. This test previously added
+# "listen 0.0.0.0:179", which is not a BGP leaf: the parse failed, the editor fell
+# back to raw-text mode (treeValid=false, editor_commands.go:66-78), and the schema
+# tree diff never ran. The assertions passed anyway because raw text still differs
+# from the serialized baseline and still gets a gutter -- so this test covered only
+# the LCS fallback while claiming to cover compare.
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -22,7 +29,9 @@ bgp {
   		local 65000
   	}
   }
-  listen 0.0.0.0:179;
+  multipath {
+  	maximum-paths 4
+  }
 }
 EOF_MODIFIED
 
@@ -36,12 +45,15 @@ expect=dirty:false
 input=type:text=load file absolute replace modified.conf
 input=enter
 expect=dirty:true
-expect=viewport:contains=listen
+expect=viewport:contains=maximum-paths
 expect=error:none
 
 # Compare should show the difference
 input=type:text=show | compare
 input=enter
 expect=viewport:contains=+
-expect=viewport:contains=listen
+expect=viewport:contains=maximum-paths
 expect=error:none
+
+# Compare presents only what changed: the untouched leaves are gone.
+expect=viewport:not-contains=65000

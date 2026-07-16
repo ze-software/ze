@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -116,13 +117,13 @@ func TestCmdOptionColumnToggle(t *testing.T) {
 	result, err := m.cmdOption([]string{colAuthor, cmdEnable})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "author column enabled")
-	assert.True(t, m.editor.ShowColumnEnabled(colAuthor))
+	assert.True(t, m.editor.showColumnEnabled(colAuthor))
 
 	// Disable author column
 	result, err = m.cmdOption([]string{colAuthor, cmdDisable})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "author column disabled")
-	assert.False(t, m.editor.ShowColumnEnabled(colAuthor))
+	assert.False(t, m.editor.showColumnEnabled(colAuthor))
 
 	// Query column state
 	result, err = m.cmdOption([]string{colAuthor})
@@ -141,19 +142,19 @@ func TestCmdOptionAllNone(t *testing.T) {
 	result, err := m.cmdOption([]string{cmdAll})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "All columns enabled")
-	assert.True(t, m.editor.ShowColumnEnabled(colAuthor))
-	assert.True(t, m.editor.ShowColumnEnabled(colDate))
-	assert.True(t, m.editor.ShowColumnEnabled(colSource))
-	assert.True(t, m.editor.ShowColumnEnabled(colChanges))
+	assert.True(t, m.editor.showColumnEnabled(colAuthor))
+	assert.True(t, m.editor.showColumnEnabled(colDate))
+	assert.True(t, m.editor.showColumnEnabled(colSource))
+	assert.True(t, m.editor.showColumnEnabled(colChanges))
 
 	// Disable all
 	result, err = m.cmdOption([]string{cmdNone})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "All columns disabled")
-	assert.False(t, m.editor.ShowColumnEnabled(colAuthor))
-	assert.False(t, m.editor.ShowColumnEnabled(colDate))
-	assert.False(t, m.editor.ShowColumnEnabled(colSource))
-	assert.False(t, m.editor.ShowColumnEnabled(colChanges))
+	assert.False(t, m.editor.showColumnEnabled(colAuthor))
+	assert.False(t, m.editor.showColumnEnabled(colDate))
+	assert.False(t, m.editor.showColumnEnabled(colSource))
+	assert.False(t, m.editor.showColumnEnabled(colChanges))
 }
 
 // TestCmdOptionChangesEnableDisambiguation verifies "option changes enable" toggles column,
@@ -168,7 +169,7 @@ func TestCmdOptionChangesEnableDisambiguation(t *testing.T) {
 	result, err := m.cmdOption([]string{colChanges, cmdEnable})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "changes column enabled")
-	assert.True(t, m.editor.ShowColumnEnabled(colChanges))
+	assert.True(t, m.editor.showColumnEnabled(colChanges))
 
 	// "option changes" without enable/disable -> reports column state
 	result, err = m.cmdOption([]string{colChanges})
@@ -217,14 +218,179 @@ func TestCmdShowDisplayConfigFormat(t *testing.T) {
 //
 // VALIDATES: AC-8 -- show | compare committed shows diff markers.
 // PREVENTS: Compare mode losing diff baseline (original content).
+//
+// Compare now presents only what differs, so this needs a real edit: with no changes
+// both sides prune to empty (AC-3), which is the point of the feature rather than a
+// lost baseline.
 func TestCmdShowDisplayCompare(t *testing.T) {
 	m := testShowModel(t)
+	require.NoError(t, m.editor.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
 
 	result, err := m.cmdShowDisplay(fmtTree, srcConfirmed)
 	require.NoError(t, err)
 	require.NotNil(t, result.configView, "compare mode returns configView")
 	assert.True(t, result.configView.hasOriginal, "compare mode sets hasOriginal")
 	assert.NotEmpty(t, result.configView.originalContent, "compare mode provides original content")
+	assert.Contains(t, result.configView.originalContent, "1.2.3.4",
+		"baseline carries the pre-change value")
+	assert.Contains(t, result.configView.content, "9.9.9.9",
+		"working side carries the new value")
+}
+
+// TestCmdShowDisplayCompareNoChanges verifies compare presents nothing when nothing
+// changed, rather than dumping the whole configuration.
+//
+// VALIDATES: AC-3 -- no changes produces no output.
+// PREVENTS: The reported bug -- show | compare rendering the entire config.
+func TestCmdShowDisplayCompareNoChanges(t *testing.T) {
+	m := testShowModel(t)
+
+	result, err := m.cmdShowDisplay(fmtTree, srcConfirmed)
+	require.NoError(t, err)
+	require.NotNil(t, result.configView, "compare mode returns configView")
+	assert.Empty(t, strings.TrimSpace(result.configView.content),
+		"unchanged config must not be presented")
+	assert.Empty(t, strings.TrimSpace(result.configView.originalContent),
+		"unchanged baseline must not be presented")
+}
+
+// TestCmdShowDisplayCompareFormatConfig verifies isolation applies to the set format
+// as well as the tree format.
+//
+// VALIDATES: AC-9 -- show | compare | format config presents only changed parts.
+// PREVENTS: Isolating in one format only. compare selects the data and format
+// presents it, so pruning happens on the TREE, before either serializer runs
+// (renderTreeAtPath: fmtConfig -> FilterSetByPath(SerializeSet), fmtTree ->
+// Serialize). Pruning rendered lines instead would fix fmtTree and leave fmtConfig
+// dumping the whole config.
+func TestCmdShowDisplayCompareFormatConfig(t *testing.T) {
+	m := testShowModel(t)
+	require.NoError(t, m.editor.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+
+	result, err := m.cmdShowDisplay(fmtConfig, srcConfirmed)
+	require.NoError(t, err)
+	require.NotNil(t, result.configView, "compare mode returns configView")
+	assert.Contains(t, result.configView.content, "set bgp router-id 9.9.9.9",
+		"changed leaf present in set format")
+	assert.NotContains(t, result.configView.content, "local 65000",
+		"unchanged leaf pruned in set format too")
+	assert.Contains(t, result.configView.originalContent, "1.2.3.4",
+		"baseline rendered in set format carries the pre-change value")
+}
+
+// TestCmdShowDisplayCompareAlternateSourceIsolates verifies compare isolates for
+// `show saved | compare` and `show confirmed | compare`, not just the working config.
+//
+// VALIDATES: AC-1 for every source, not only source=="".
+// PREVENTS: A second compare path. showAlternateSource took PRE-RENDERED text, so it
+// structurally could not prune: `show saved | compare` kept dumping the whole config
+// after the working-config path was fixed. cmdShowPipe reaches it by lifting
+// confirmed/saved out of args[0] (model_load.go) and passing BOTH source and
+// CompareTarget to cmdShowDisplayWithSource.
+func TestCmdShowDisplayCompareAlternateSourceIsolates(t *testing.T) {
+	m := testShowModel(t)
+	m.editor.SetSession(NewEditSession("alice", "local"))
+
+	// Save a draft that differs from committed, then compare the SAVED source.
+	require.NoError(t, m.editor.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+	require.NoError(t, m.editor.SaveDraft())
+
+	result, err := m.cmdShowPipe([]string{srcSaved}, []PipeFilter{{Type: cmdCompare, Arg: srcConfirmed}})
+	require.NoError(t, err)
+	require.NotNil(t, result.configView, "saved compare returns configView")
+	assert.True(t, result.configView.forceChanges, "saved compare forces the gutter too")
+	assert.Contains(t, result.configView.content, "9.9.9.9", "the change is shown")
+	assert.NotContains(t, result.configView.content, "local 65000",
+		"unchanged config must be pruned for the saved source too")
+}
+
+// TestCmdShowDisplayCompareUnparseableBaselineStaysVisible verifies that a baseline
+// which cannot be parsed falls back to the unpruned text views rather than an empty
+// baseline.
+//
+// VALIDATES: Behavior to preserve -- renderRawSourceAtPath returns raw content on
+// parse failure "so legacy files remain visible instead of blank".
+// PREVENTS: A legacy or corrupt committed config diffing against nothing, which
+// renders the entire configuration as added.
+func TestCmdShowDisplayCompareUnparseableBaselineStaysVisible(t *testing.T) {
+	m := testShowModel(t)
+
+	// A committed config the schema parser cannot accept (unknown leaf).
+	m.editor.originalContent = "bgp {\n  not-a-real-leaf 1\n}\n"
+	require.NoError(t, m.editor.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+
+	result, err := m.cmdShowDisplay(fmtTree, srcConfirmed)
+	require.NoError(t, err)
+	require.NotNil(t, result.configView, "compare still returns configView")
+	assert.NotEmpty(t, result.configView.originalContent,
+		"an unparseable baseline must stay visible as raw text, not collapse to empty")
+	assert.Contains(t, result.configView.originalContent, "not-a-real-leaf",
+		"the legacy baseline content is what the operator needs to see")
+}
+
+// TestCmdShowDisplayComparePrunedSuppressesValidationHighlight verifies the pruned
+// compare view does not claim validation-error positions it cannot know.
+//
+// VALIDATES: AC-8 -- compare never highlights the wrong line.
+// PREVENTS: Misleading highlighting. runValidation validates
+// `m.editor.ContentAtPath(nil)` (model_commands_commit.go:106) -- the FULL config
+// serialized at root -- "so that line numbers align with what the user sees". The
+// pruned compare view is a DIFFERENT string, so lineMapping's working-line numbers
+// (diff_tree.go renderDiffLines) no longer index the validated content, and
+// highlightValidationIssues (model_render.go:223,230) would style an innocent line.
+func TestCmdShowDisplayComparePrunedSuppressesValidationHighlight(t *testing.T) {
+	m := testShowModel(t)
+	require.NoError(t, m.editor.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+
+	result, err := m.cmdShowDisplay(fmtTree, srcConfirmed)
+	require.NoError(t, err)
+	require.NotNil(t, result.configView, "compare mode returns configView")
+	assert.True(t, result.configView.noValidationHighlight,
+		"a pruned compare view must not position validation errors it cannot map")
+}
+
+// TestSetViewportDataHonorsNoValidationHighlight verifies the suppression flag
+// actually reaches the renderer rather than only being set.
+//
+// VALIDATES: AC-8 -- the flag is wired, not decorative.
+// PREVENTS: Setting the field and never reading it (highlight still applied).
+func TestSetViewportDataHonorsNoValidationHighlight(t *testing.T) {
+	m := testShowModel(t)
+	m.validationErrors = []ConfigValidationError{{Message: "boom", Severity: severityError, Line: 1}}
+
+	m.setViewportData(viewportData{
+		content:               "bgp {\n\trouter-id 9.9.9.9\n}",
+		noValidationHighlight: true,
+	})
+	suppressed := m.viewportContent
+
+	m.setViewportData(viewportData{content: "bgp {\n\trouter-id 9.9.9.9\n}"})
+	highlighted := m.viewportContent
+
+	assert.NotEqual(t, highlighted, suppressed,
+		"suppression must change the rendered output; otherwise the flag is not read")
+	assert.NotContains(t, suppressed, "\x1b[",
+		"suppressed view carries no styling escape codes")
+}
+
+// TestCmdShowDisplayCompareForcesChanges verifies compare forces the diff gutter
+// on even when the changes column is disabled.
+//
+// VALIDATES: AC-4 -- show | compare shows markers regardless of the changes column.
+// PREVENTS: Compare silently degrading to a plain show when `option changes disable`
+// is set -- setViewportData gates the gutter on
+// `forceChanges || !hasEditor() || diffGutterEnabled()` (model_render.go:122), and
+// `show changes` sets forceChanges (model_commands_session.go:50) while compare did not.
+func TestCmdShowDisplayCompareForcesChanges(t *testing.T) {
+	m := testShowModel(t)
+	m.editor.setDiffGutter(false)
+	m.editor.setShowColumn(colChanges, false)
+
+	result, err := m.cmdShowDisplay(fmtTree, srcConfirmed)
+	require.NoError(t, err)
+	require.NotNil(t, result.configView, "compare mode returns configView")
+	assert.True(t, result.configView.forceChanges,
+		"compare must force the diff gutter even when the changes column is disabled")
 }
 
 // TestCmdShowPipeFormatConfig verifies format pipe through cmdShowPipe.
@@ -374,7 +540,7 @@ func TestCmdShowPipeCompareSavedScopesPath(t *testing.T) {
 	assert.NotContains(t, result.configView.content, "uplink")
 }
 
-// TestEditorShowColumnPreferences verifies ShowColumnEnabled and SetShowColumn.
+// TestEditorShowColumnPreferences verifies showColumnEnabled and setShowColumn.
 //
 // VALIDATES: Column preferences round-trip correctly.
 // PREVENTS: Unknown column names accepted, nil map panic.
@@ -389,22 +555,22 @@ func TestEditorShowColumnPreferences(t *testing.T) {
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
 	// Initially all disabled
-	assert.False(t, ed.ShowColumnEnabled(colAuthor))
-	assert.False(t, ed.ShowColumnEnabled(colDate))
+	assert.False(t, ed.showColumnEnabled(colAuthor))
+	assert.False(t, ed.showColumnEnabled(colDate))
 
 	// Enable author
-	ed.SetShowColumn(colAuthor, true)
-	assert.True(t, ed.ShowColumnEnabled(colAuthor))
-	assert.False(t, ed.ShowColumnEnabled(colDate))
+	ed.setShowColumn(colAuthor, true)
+	assert.True(t, ed.showColumnEnabled(colAuthor))
+	assert.False(t, ed.showColumnEnabled(colDate))
 
 	// Unknown column name rejected
-	ed.SetShowColumn("invalid", true)
-	assert.False(t, ed.ShowColumnEnabled("invalid"))
+	ed.setShowColumn("invalid", true)
+	assert.False(t, ed.showColumnEnabled("invalid"))
 }
 
-// TestEditorSavedDraftContent verifies SavedDraftContent returns draft or empty.
+// TestEditorSavedDraftContent verifies savedDraftContent returns draft or empty.
 //
-// VALIDATES: SavedDraftContent returns content when draft exists, empty otherwise.
+// VALIDATES: savedDraftContent returns content when draft exists, empty otherwise.
 // PREVENTS: Panic on missing draft file.
 func TestEditorSavedDraftContent(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -417,14 +583,14 @@ func TestEditorSavedDraftContent(t *testing.T) {
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
 	// No draft exists -- empty string
-	assert.Empty(t, ed.SavedDraftContent())
+	assert.Empty(t, ed.savedDraftContent())
 
 	// Create a draft file
 	draftPath := configPath + ".draft"
 	err = os.WriteFile(draftPath, []byte("draft content here"), 0o600)
 	require.NoError(t, err)
 
-	assert.Equal(t, "draft content here", ed.SavedDraftContent())
+	assert.Equal(t, "draft content here", ed.savedDraftContent())
 }
 
 // TestWalkMetaPath verifies metadata tree navigation in parallel with config tree.
@@ -518,7 +684,7 @@ func TestCmdShowDisplayWithColumns(t *testing.T) {
 	m := testShowModel(t)
 
 	// Enable author column
-	m.editor.SetShowColumn(colAuthor, true)
+	m.editor.setShowColumn(colAuthor, true)
 
 	result, err := m.cmdShowDisplay(fmtTree, "")
 	require.NoError(t, err)
@@ -599,12 +765,19 @@ func TestCmdShowPipeCompareRollback(t *testing.T) {
 	require.NoError(t, err)
 	m := &model
 
+	// The backup is a copy of the current config, so edit the working tree to make the
+	// rollback baseline actually differ. Without a difference both sides prune to
+	// empty (AC-3) and there is no baseline to assert on.
+	require.NoError(t, m.editor.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+
 	// compare rollback 1 should return configView with original from backup.
 	result, err := m.cmdShowPipe(nil, []PipeFilter{{Type: cmdCompare, Arg: "rollback 1"}})
 	require.NoError(t, err)
 	require.NotNil(t, result.configView, "rollback compare returns configView")
 	assert.True(t, result.configView.hasOriginal, "rollback compare sets hasOriginal")
 	assert.NotEmpty(t, result.configView.originalContent, "rollback compare provides backup content")
+	assert.Contains(t, result.configView.originalContent, "1.2.3.4",
+		"rollback baseline carries the backed-up value")
 }
 
 // TestCmdShowPipeCompareRollbackInvalid verifies rollback N rejects invalid N.

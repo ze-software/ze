@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1151 summaries
+Total: 1152 summaries
 
 ## 000-099
 
@@ -1220,3 +1220,4 @@ Total: 1151 summaries
 | 1157 | an empty profile set authenticated as admin (TACACS+ and RADIUS) | `plan/learned/1157-fail-open-auth-empty-profiles.md` |
 | 1158 | cross-plugin-count-aggregation-via-dispatch | `plan/learned/1158-cross-plugin-count-aggregation-via-dispatch.md` |
 | 1159 | Fixit: CLI Credential Resolution | `plan/learned/1159-fixit-cli-credential-resolution.md` |
+| 1160 | cli-compare-isolate-changes | `plan/learned/1160-cli-compare-isolate-changes.md` |

@@ -109,11 +109,11 @@ func ParsePipe(input string) (command string, ops []pipeOp) {
 	return command, ops
 }
 
-// FoldFilters rewrites command-owned pipe filters into command arguments.
+// foldFilters rewrites command-owned pipe filters into command arguments.
 // Generic display and transform pipes stay client-side.
 // Returns pipe metadata recording all data-shaping modifiers (both folded
 // and remaining). Display-only pipes are excluded from metadata.
-func FoldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any) {
+func foldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any) {
 	meta := collectPipeMeta(ops)
 
 	trimmed := strings.TrimSpace(command)
@@ -313,7 +313,7 @@ func ApplyPipes(output string, ops []pipeOp, meta map[string]any) (string, strin
 		case pipeJSON:
 			result = ApplyJSON(result, op.arg)
 		case pipeNDJSON:
-			result = ApplyNDJSON(result)
+			result = applyNDJSON(result)
 		case pipeTable:
 			result = ApplyTable(result)
 		case pipeText:
@@ -343,9 +343,9 @@ func ApplyPipes(output string, ops []pipeOp, meta map[string]any) (string, strin
 	return result, ""
 }
 
-// HasFormatOp returns true if the pipe chain contains an explicit display format.
+// hasFormatOp returns true if the pipe chain contains an explicit display format.
 // Count is a data transform (not a format) — it produces JSON for downstream formatting.
-func HasFormatOp(ops []pipeOp) bool {
+func hasFormatOp(ops []pipeOp) bool {
 	for _, op := range ops {
 		if op.kind == pipeJSON || op.kind == pipeNDJSON || op.kind == pipeTable || op.kind == pipeText || op.kind == pipeYAML {
 			return true
@@ -394,8 +394,8 @@ func ValidatePipes(ops []pipeOp) string {
 	return ""
 }
 
-// HasLogOp returns true if the pipe chain contains | log.
-func HasLogOp(ops []pipeOp) bool {
+// hasLogOp returns true if the pipe chain contains | log.
+func hasLogOp(ops []pipeOp) bool {
 	for _, op := range ops {
 		if op.kind == pipeLog {
 			return true
@@ -602,9 +602,9 @@ func ApplyJSON(input, mode string) string {
 	return string(out)
 }
 
-// ApplyNDJSON reformats JSON output as newline-delimited JSON (one compact
+// applyNDJSON reformats JSON output as newline-delimited JSON (one compact
 // object per line). Single-key wrapper maps containing arrays are unwrapped.
-func ApplyNDJSON(input string) string {
+func applyNDJSON(input string) string {
 	var data any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
 		return input
@@ -666,21 +666,14 @@ func pipeError(msg string) string {
 	return tb.Str("pipe error: ").Str(msg).String()
 }
 
-// ProcessPipes splits user input into a command and a formatting function.
-// The returned function applies pipe operators (table, json, yaml, match, count)
-// to raw JSON output. If no pipes are present, the formatter returns raw JSON unchanged.
-func ProcessPipes(input string) (command string, format func(string) string) {
-	command, format, errMsg := ProcessPipesChecked(input)
-	if errMsg != "" {
-		return command, func(string) string { return pipeError(errMsg) }
-	}
-	return command, format
-}
-
-// ProcessPipesChecked is ProcessPipes with upfront pipe validation.
+// ProcessPipesChecked splits user input into a command and a formatting function,
+// validating the pipe chain upfront. The returned function applies pipe operators
+// (table, json, yaml, match, count) to raw JSON output. If no pipes are present,
+// the formatter returns raw JSON unchanged. Returns a non-empty errMsg (and a nil
+// format) if the pipe chain is invalid.
 func ProcessPipesChecked(input string) (command string, format func(string) string, errMsg string) {
 	command, ops := ParsePipe(input)
-	command, ops, meta := FoldFilters(command, ops)
+	command, ops, meta := foldFilters(command, ops)
 	if msg := ValidatePipes(ops); msg != "" {
 		return command, nil, msg
 	}
@@ -706,18 +699,21 @@ type PipeFlags struct {
 	HasFormat bool
 }
 
-// ProcessPipesDetectLog is like ProcessPipesDefaultFormat but also reports
+// ProcessPipesDetectLog is like ProcessPipesDefaultFormatChecked but also reports
 // pipe flags (log, resolve, origin) and validates the pipe chain upfront.
 // Returns a non-empty errMsg if the pipe chain is invalid.
-func ProcessPipesDetectLog(input string) (cmd string, format func(string) string, flags PipeFlags, errMsg string) {
+//
+// sessionFormat is the caller's per-session format override; pass "" for none.
+// See configuredDefault.
+func ProcessPipesDetectLog(input, sessionFormat string) (cmd string, format func(string) string, flags PipeFlags, errMsg string) {
 	cmd, ops := ParsePipe(input)
-	cmd, ops, meta := FoldFilters(cmd, ops)
+	cmd, ops, meta := foldFilters(cmd, ops)
 
 	if msg := ValidatePipes(ops); msg != "" {
 		return cmd, nil, PipeFlags{}, msg
 	}
 
-	flags.Log = HasLogOp(ops)
+	flags.Log = hasLogOp(ops)
 	for _, op := range ops {
 		switch op.kind { //nolint:exhaustive // only checking data-transform flags
 		case pipeResolve:
@@ -736,10 +732,10 @@ func ProcessPipesDetectLog(input string) (cmd string, format func(string) string
 	}
 	ops = filtered
 
-	flags.HasFormat = HasFormatOp(ops)
+	flags.HasFormat = hasFormatOp(ops)
 
 	if !flags.HasFormat {
-		ops = append(ops, pipeOp{kind: configuredDefault()})
+		ops = append(ops, pipeOp{kind: configuredDefault(sessionFormat)})
 	}
 
 	return cmd, func(rawJSON string) string {
@@ -753,11 +749,22 @@ func ProcessPipesDetectLog(input string) (cmd string, format func(string) string
 
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.cli.format", Type: "string", Default: "text", Description: "Default CLI output format (text, table, json, yaml, ndjson)"})
 
-// configuredDefault returns the user-configured default pipe format.
-// Reads ze.cli.format env var (set from YANG config or `set cli format`).
+// configuredDefault returns the default pipe format to use when the input has no
+// explicit format pipe.
+//
+// sessionFormat is the caller's per-session `set cli format` override; empty means
+// "no override", in which case the configured default (ze.cli.format, plumbed from
+// the environment cli format default YANG leaf) applies. The override is passed in
+// rather than read from a global because it is per-session state: a CLI session
+// storing it in the environment would change the format for every other concurrent
+// session in the process.
+//
 // Falls back to pipeText if unset or invalid.
-func configuredDefault() pipeKind {
-	v := env.Get("ze.cli.format")
+func configuredDefault(sessionFormat string) pipeKind {
+	v := sessionFormat
+	if v == "" {
+		v = env.Get("ze.cli.format")
+	}
 	switch v {
 	case "text":
 		return pipeText
@@ -774,26 +781,21 @@ func configuredDefault() pipeKind {
 	}
 }
 
-// ProcessPipesDefaultFormat is like ProcessPipes but defaults to the configured
-// format when no explicit format pipe (json, table, yaml, text) is specified.
-func ProcessPipesDefaultFormat(input string) (command string, format func(string) string) {
-	command, format, errMsg := ProcessPipesDefaultFormatChecked(input)
-	if errMsg != "" {
-		return command, func(string) string { return pipeError(errMsg) }
-	}
-	return command, format
-}
-
-// ProcessPipesDefaultFormatChecked is ProcessPipesDefaultFormat with upfront pipe validation.
-func ProcessPipesDefaultFormatChecked(input string) (command string, format func(string) string, errMsg string) {
+// ProcessPipesDefaultFormatChecked is ProcessPipesChecked but defaults to the
+// configured format when no explicit format pipe (json, table, yaml, text) is
+// specified.
+//
+// sessionFormat is the caller's per-session format override; pass "" for none.
+// See configuredDefault.
+func ProcessPipesDefaultFormatChecked(input, sessionFormat string) (command string, format func(string) string, errMsg string) {
 	command, ops := ParsePipe(input)
-	command, ops, meta := FoldFilters(command, ops)
+	command, ops, meta := foldFilters(command, ops)
 	if msg := ValidatePipes(ops); msg != "" {
 		return command, nil, msg
 	}
 
-	if !HasFormatOp(ops) {
-		ops = append(ops, pipeOp{kind: configuredDefault()})
+	if !hasFormatOp(ops) {
+		ops = append(ops, pipeOp{kind: configuredDefault(sessionFormat)})
 	}
 
 	return command, func(rawJSON string) string {
@@ -805,15 +807,15 @@ func ProcessPipesDefaultFormatChecked(input string) (command string, format func
 	}, ""
 }
 
-// ProcessPipesDefaultFunc is like ProcessPipes but applies defaultFn as the
+// ProcessPipesDefaultFunc is like ProcessPipesChecked but applies defaultFn as the
 // formatter when no explicit format pipe (json, table, yaml, text) is specified.
 // This allows callers to provide a domain-specific formatter (e.g., compact
 // one-liner for streaming monitors) while still respecting explicit pipes.
 func ProcessPipesDefaultFunc(input string, defaultFn func(string) string) (command string, format func(string) string) {
 	command, ops := ParsePipe(input)
-	command, ops, meta := FoldFilters(command, ops)
+	command, ops, meta := foldFilters(command, ops)
 
-	if !HasFormatOp(ops) {
+	if !hasFormatOp(ops) {
 		if len(ops) == 0 {
 			return command, func(s string) string { return defaultFn(injectPipeMeta(s, meta)) }
 		}

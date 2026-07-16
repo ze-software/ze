@@ -53,8 +53,21 @@ type viewportData struct {
 	content         string      // The text content to display
 	originalContent string      // Original content for diff gutter
 	hasOriginal     bool        // True when originalContent was explicitly set (distinguishes "not set" from "empty = new block")
-	forceChanges    bool        // Force diff gutter even when changes column is disabled (used by show changes)
+	forceChanges    bool        // Force diff gutter even when changes column is disabled (used by show changes and show | compare)
 	lineMapping     map[int]int // Maps displayed line (1-based) to original line (1-based), nil for full content
+
+	// noValidationHighlight suppresses validation error/warning styling for views
+	// whose lines do not correspond to the validated content.
+	//
+	// runValidation validates ContentAtPath(nil) -- the full config serialized at
+	// root -- specifically "so that line numbers align with what the user sees"
+	// (model_commands_commit.go). A pruned compare view is a DIFFERENT string, so
+	// its working-line numbers do not index the validated content and
+	// highlightValidationIssues would style an unrelated line. Mapping pruned lines
+	// back is not reliable either: identical lines (closing braces, or the same leaf
+	// value under two peers) bind to the wrong parent. Showing no marker beats
+	// showing a wrong one -- `show | errors` remains the accurate view.
+	noValidationHighlight bool
 }
 
 // CommandModeCompleter provides completions for command mode.
@@ -98,10 +111,19 @@ type Model struct {
 	showHelp        bool   // Whether help overlay is shown
 	showHints       bool   // Whether inline diagnostic hints are shown (← missing: ...)
 	statusMessage   string // Temporary status message (clears on next command)
-	err             error
-	width           int
-	height          int
-	quitting        bool
+
+	// cliFormat is this session's `set cli format` override. Empty means "use the
+	// configured default" (ze.cli.format, from the environment cli format default
+	// YANG leaf). Session-scoped on purpose: the Model is per-session
+	// (cmd/ze/hub/session_factory.go), and one operator's display choice must not
+	// change what other concurrent SSH/web sessions see. Storing it via env.Set
+	// would, because env.Set writes a process-global cache and os.Setenv.
+	cliFormat string
+
+	err      error
+	width    int
+	height   int
+	quitting bool
 
 	// Quit confirmation state
 	confirmQuit       bool // True if waiting for y/n/Esc to confirm quit
@@ -965,9 +987,9 @@ func (m *Model) UpdateCompletions() {
 	m.updateCompletions()
 }
 
-// ApplyResult applies a commandResult to the model.
+// applyResult applies a commandResult to the model.
 // Useful for testing to simulate what the Update handler does.
-func (m *Model) ApplyResult(r commandResult) {
+func (m *Model) applyResult(r commandResult) {
 	if r.clearContext {
 		m.contextPath = nil
 		m.isTemplate = false

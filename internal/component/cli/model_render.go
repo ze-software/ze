@@ -119,7 +119,7 @@ func (m *Model) setViewportData(data viewportData) {
 	// Apply diff gutter when original was explicitly provided, content differs,
 	// and the changes column is enabled. The changes column controls all change indicators
 	// (both diff gutter markers and annotated column markers).
-	changesEnabled := data.forceChanges || !m.hasEditor() || m.editor.DiffGutterEnabled()
+	changesEnabled := data.forceChanges || !m.hasEditor() || m.editor.diffGutterEnabled()
 	if changesEnabled && data.hasOriginal && data.originalContent != data.content {
 		if m.hasEditor() && m.editor.schema != nil && len(m.contextPath) == 0 {
 			content, lineMapping = annotateContentWithTreeDiff(data.originalContent, data.content, m.editor.schema)
@@ -128,7 +128,15 @@ func (m *Model) setViewportData(data viewportData) {
 		}
 	}
 
-	highlighted := highlightValidationIssues(content, m.validationErrors, m.validationWarnings, lineMapping, m.showHints)
+	// Validation line numbers index the validated content (runValidation validates
+	// ContentAtPath(nil)). A view that renders a different string cannot position
+	// them, so it opts out rather than styling an unrelated line.
+	errs, warns := m.validationErrors, m.validationWarnings
+	if data.noValidationHighlight {
+		errs, warns = nil, nil
+	}
+
+	highlighted := highlightValidationIssues(content, errs, warns, lineMapping, m.showHints)
 	m.viewportContent = highlighted
 	m.viewport.SetContent(highlighted)
 	m.viewport.GotoTop()
