@@ -39,7 +39,7 @@ func TestModelCommitConfirmStartsTimer(t *testing.T) {
 	require.NoError(t, err)
 
 	// Apply result to model (simulating what Update handler does)
-	model.ApplyResult(result)
+	model.applyResult(result)
 
 	// Should have status message about confirm
 	assert.Contains(t, result.statusMessage, "confirm", "status should mention confirm")
@@ -120,13 +120,13 @@ func TestModelConfirmCancelsTimer(t *testing.T) {
 	// Start commit confirm
 	commitResult, err := model.cmdCommitConfirmed(60, false)
 	require.NoError(t, err)
-	model.ApplyResult(commitResult)
+	model.applyResult(commitResult)
 	require.True(t, model.ConfirmTimerActive(), "timer should be active")
 
 	// Confirm
 	result, err := model.cmdConfirm()
 	require.NoError(t, err)
-	model.ApplyResult(result)
+	model.applyResult(result)
 
 	// Timer should be canceled
 	assert.False(t, model.ConfirmTimerActive(), "timer should be canceled after confirm")
@@ -162,12 +162,12 @@ func TestModelAbortRollsBack(t *testing.T) {
 	// Start commit confirm (this saves with backup)
 	commitResult, err := model.cmdCommitConfirmed(60, false)
 	require.NoError(t, err)
-	model.ApplyResult(commitResult)
+	model.applyResult(commitResult)
 
 	// Abort - should rollback
 	result, err := model.cmdAbort()
 	require.NoError(t, err)
-	model.ApplyResult(result)
+	model.applyResult(result)
 
 	// Timer should be canceled
 	assert.False(t, model.ConfirmTimerActive(), "timer should be canceled after abort")
@@ -628,7 +628,7 @@ description "new peer"`
 	// Enter peer context
 	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
-	model.ApplyResult(editResult)
+	model.applyResult(editResult)
 
 	// Load relative replace - should replace peer block content only
 	result, err := model.dispatchCommand("load file relative replace " + loadPath)
@@ -688,7 +688,7 @@ timer { receive-hold-time 180; }`
 	// Enter peer context
 	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
-	model.ApplyResult(editResult)
+	model.applyResult(editResult)
 
 	// Load relative merge
 	result, err := model.dispatchCommand("load file relative merge " + mergePath)
@@ -824,7 +824,7 @@ peer peer1 {
 	// Enter bgp context (single-element contextPath = ["bgp"])
 	editResult, err := model.cmdEdit([]string{"bgp"})
 	require.NoError(t, err)
-	model.ApplyResult(editResult)
+	model.applyResult(editResult)
 
 	// Verify we have single-element context
 	assert.Equal(t, []string{"bgp"}, model.ContextPath(), "should have single-element context")
@@ -884,7 +884,7 @@ description "merged content"`
 	// Enter bgp context (single-element contextPath = ["bgp"])
 	editResult, err := model.cmdEdit([]string{"bgp"})
 	require.NoError(t, err)
-	model.ApplyResult(editResult)
+	model.applyResult(editResult)
 
 	// Verify we have single-element context
 	assert.Equal(t, []string{"bgp"}, model.ContextPath(), "should have single-element context")
@@ -941,7 +941,7 @@ func TestCommitConfirmTriggersReload(t *testing.T) {
 
 	result, err := model.cmdCommitConfirmed(60, false)
 	require.NoError(t, err)
-	model.ApplyResult(result)
+	model.applyResult(result)
 
 	assert.True(t, notified, "reload notifier should be called during commit-confirm")
 	assert.True(t, model.ConfirmTimerActive(), "timer should be active")
@@ -972,7 +972,7 @@ func TestCommitConfirmReloadFailsGracefully(t *testing.T) {
 
 	result, err := model.cmdCommitConfirmed(60, false)
 	require.NoError(t, err, "commit confirm should not fail on reload error")
-	model.ApplyResult(result)
+	model.applyResult(result)
 
 	assert.Contains(t, result.statusMessage, "reload errors", "status should warn about reload failure")
 	assert.True(t, model.ConfirmTimerActive(), "timer should still be active")
@@ -1006,13 +1006,13 @@ func TestConfirmTriggersReload(t *testing.T) {
 	// Start commit confirm
 	commitResult, err := model.cmdCommitConfirmed(60, false)
 	require.NoError(t, err)
-	model.ApplyResult(commitResult)
+	model.applyResult(commitResult)
 	assert.Equal(t, 1, reloadCount, "first reload during commit-confirm")
 
 	// Confirm
 	confirmResult, err := model.cmdConfirm()
 	require.NoError(t, err)
-	model.ApplyResult(confirmResult)
+	model.applyResult(confirmResult)
 
 	assert.Equal(t, 2, reloadCount, "second reload during confirm")
 	assert.False(t, model.ConfirmTimerActive(), "timer should be canceled")
@@ -1047,13 +1047,13 @@ func TestAbortTriggersReload(t *testing.T) {
 	// Start commit confirm
 	commitResult, err := model.cmdCommitConfirmed(60, false)
 	require.NoError(t, err)
-	model.ApplyResult(commitResult)
+	model.applyResult(commitResult)
 	assert.Equal(t, 1, reloadCount, "first reload during commit-confirm")
 
 	// Abort - should rollback and reload
 	abortResult, err := model.cmdAbort()
 	require.NoError(t, err)
-	model.ApplyResult(abortResult)
+	model.applyResult(abortResult)
 
 	assert.Equal(t, 2, reloadCount, "second reload during abort")
 	assert.False(t, model.ConfirmTimerActive(), "timer should be canceled")

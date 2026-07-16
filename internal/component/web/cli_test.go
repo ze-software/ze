@@ -417,7 +417,7 @@ func TestTerminalModeCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	schema, tree := buildTestSchemaAndTree()
-	handler := HandleCLITerminal(mgr, schema, tree)
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, nil)
 
 	body := url.Values{
 		"command": {"help"},
@@ -569,7 +569,7 @@ func TestTerminalModeRBACDeny(t *testing.T) {
 	store.AddProfile(authz.BuiltinReadOnlyProfile())
 	store.AssignProfiles("testuser", []string{"read-only"})
 	authorizer := authz.StoreAuthorizer{Store: store}
-	handler := HandleCLITerminalWithAuthorizerAndAudit(mgr, schema, tree, authorizer, nil)
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, authorizer, nil)
 
 	body := url.Values{"command": {"set router-id 10.0.0.2"}}
 	w := httptest.NewRecorder()
@@ -586,7 +586,7 @@ func TestTerminalModeCommitAuditRecord(t *testing.T) {
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
 	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "10.0.0.2"))
-	handler := HandleCLITerminalWithAuthorizerAndAudit(mgr, schema, tree, nil, recorder)
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, recorder)
 
 	resp := runTerminalCommand(t, handler, "commit")
 	require.Equal(t, "commit successful", resp.Output)
@@ -604,7 +604,7 @@ func TestTerminalModeDiscardAuditRecord(t *testing.T) {
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
 	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "10.0.0.2"))
-	handler := HandleCLITerminalWithAuthorizerAndAudit(mgr, schema, tree, nil, recorder)
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, recorder)
 
 	resp := runTerminalCommand(t, handler, "discard")
 	require.Equal(t, "changes discarded", resp.Output)
@@ -694,7 +694,7 @@ func TestTerminalPipes(t *testing.T) {
 			_, err := mgr.GetOrCreate("testuser")
 			require.NoError(t, err)
 
-			handler := HandleCLITerminal(mgr, schema, tree)
+			handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, nil)
 
 			body := url.Values{"command": {tt.command}}
 			w := httptest.NewRecorder()
@@ -732,7 +732,7 @@ func TestTerminalCompareTargets(t *testing.T) {
 	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9"))
 
 	schema, tree := buildTestSchemaAndTree()
-	handler := HandleCLITerminal(mgr, schema, tree)
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, nil)
 
 	tests := []struct {
 		name        string
@@ -811,7 +811,7 @@ func TestTerminalShowUsesWorkingTreeAtPath(t *testing.T) {
 	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9"))
 	require.NoError(t, mgr.SetValue("testuser", []string{"interface", "ethernet", "eth0"}, "description", "working uplink"))
 
-	handler := HandleCLITerminal(mgr, schema, tree)
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, nil)
 	resp := runTerminalCommand(t, handler, "show bgp")
 
 	assert.Contains(t, resp.Output, "9.9.9.9")
@@ -827,7 +827,7 @@ func TestTerminalCompareCommittedScopesToShowPath(t *testing.T) {
 	_, err := mgr.GetOrCreate("testuser")
 	require.NoError(t, err)
 
-	handler := HandleCLITerminal(mgr, schema, tree)
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, nil)
 
 	require.NoError(t, mgr.SetValue("testuser", []string{"interface", "ethernet", "eth0"}, "description", "working uplink"))
 	resp := runTerminalCommand(t, handler, "show bgp | compare confirmed")
@@ -856,7 +856,7 @@ func TestTerminalCompareSavedScopesToShowPath(t *testing.T) {
 	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9"))
 	require.NoError(t, mgr.SetValue("testuser", []string{"interface", "ethernet", "eth0"}, "description", "working uplink"))
 
-	handler := HandleCLITerminal(mgr, schema, tree)
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, nil)
 	resp := runTerminalCommand(t, handler, "show bgp | compare saved")
 
 	assert.Contains(t, resp.Output, "router-id")
@@ -889,7 +889,7 @@ func TestTerminalCompareRollbackScopesToShowPath(t *testing.T) {
 	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9"))
 	require.NoError(t, mgr.SetValue("testuser", []string{"interface", "ethernet", "eth0"}, "description", "working uplink"))
 
-	handler := HandleCLITerminal(mgr, schema, tree)
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, nil)
 	resp := runTerminalCommand(t, handler, "show bgp | compare rollback 1")
 
 	assert.Contains(t, resp.Output, "router-id")

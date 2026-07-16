@@ -833,12 +833,12 @@ func TestSetHistoryPreloadsOtherMode(t *testing.T) {
 	store.Close() //nolint:errcheck // test cleanup
 
 	// Switch to command mode.
-	m.SwitchMode(ModeOperational)
+	m.switchMode(ModeOperational)
 	assert.Equal(t, []string{"peer list", "daemon status"}, m.history.Entries(),
 		"command history should be pre-loaded from store")
 
 	// Switch back to edit.
-	m.SwitchMode(ModeConfig)
+	m.switchMode(ModeConfig)
 	assert.Equal(t, []string{"show"}, m.history.Entries(),
 		"edit history should survive mode round-trip")
 }

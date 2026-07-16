@@ -206,7 +206,7 @@ func (m Model) handleConfirmCountdown() (tea.Model, tea.Cmd) {
 		if err != nil {
 			m.err = err
 		}
-		m.ApplyResult(result)
+		m.applyResult(result)
 		m.statusMessage = "Timeout: configuration automatically rolled back."
 		return m, nil
 	}

@@ -69,9 +69,9 @@ func (m *Model) cmdOptionColumnToggle(args []string) (commandResult, error) {
 		// Just "option <column>" -- report current state and refresh viewport.
 		var enabled bool
 		if args[0] == colChanges {
-			enabled = m.editor.DiffGutterEnabled()
+			enabled = m.editor.diffGutterEnabled()
 		} else {
-			enabled = m.editor.ShowColumnEnabled(args[0])
+			enabled = m.editor.showColumnEnabled(args[0])
 		}
 		state := cmdDisable
 		if enabled {
@@ -88,14 +88,14 @@ func (m *Model) cmdOptionColumnToggle(args []string) (commandResult, error) {
 
 	switch args[1] {
 	case cmdEnable:
-		m.editor.SetShowColumn(args[0], true)
+		m.editor.setShowColumn(args[0], true)
 		if args[0] == colChanges {
-			m.editor.SetDiffGutter(true)
+			m.editor.setDiffGutter(true)
 		}
 	case cmdDisable:
-		m.editor.SetShowColumn(args[0], false)
+		m.editor.setShowColumn(args[0], false)
 		if args[0] == colChanges {
-			m.editor.SetDiffGutter(false)
+			m.editor.setDiffGutter(false)
 		}
 	default: // reject unknown action
 		return commandResult{}, fmt.Errorf("usage: option %s enable|disable", args[0])
@@ -114,9 +114,9 @@ func (m *Model) cmdOptionColumnToggle(args []string) (commandResult, error) {
 // cmdOptionAllColumns enables or disables all four display columns and refreshes the viewport.
 func (m *Model) cmdOptionAllColumns(enable bool) (commandResult, error) {
 	for _, col := range optionColumnNames {
-		m.editor.SetShowColumn(col, enable)
+		m.editor.setShowColumn(col, enable)
 	}
-	m.editor.SetDiffGutter(enable)
+	m.editor.setDiffGutter(enable)
 	result, err := m.cmdShowDisplay(fmtTree, "")
 	if err != nil {
 		return result, err
