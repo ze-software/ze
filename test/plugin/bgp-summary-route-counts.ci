@@ -43,20 +43,22 @@ def main():
     api.wait_for_registry()
     api.ready()
 
+    def peer_ready(r):
+        # Ready when the inbound route has landed in the summary's per-peer
+        # route-counts AND ze has sent its EOR to the peer. Gating on eor-sent
+        # closes the teardown race: without it, `request shutdown` can close the
+        # session before ze writes the EOR the ze-peer expects, and the peer's
+        # exchange assertion fails under load. Both are read from one poll.
+        p = find_peer(result_json_data(r, {}).get('summary', {}), '127.0.0.1')
+        if p is None:
+            return False
+        return p.get('routes-received', 0) >= 1 and p.get('eor-sent', 0) >= 1
+
     try:
-        # Wait for the inbound route to reach the bgp-rib plugin's Adj-RIB-In,
-        # polling its per-peer route-counts (the map summary.go merges). This is
-        # the same structure the summary reads, so a hit here means the summary
-        # will see it too.
-        # // test-relax: dispatch_until poll, not a blind sleep -- outbound
-        # quiesce cannot wait on an inbound route landing in a plugin.
-        api.dispatch_until(
-            'show bgp rib status',
-            lambda r: result_json_data(r, {})
-                .get('route-counts', {})
-                .get('127.0.0.1', {})
-                .get('in', 0) >= 1,
-        )
+        # // test-relax: dispatch_until poll, not a blind sleep -- the inbound
+        # route landing in a plugin and the EOR being sent are async engine
+        # states with no outbound-quiesce barrier to wait on.
+        api.dispatch_until('show bgp summary', peer_ready)
 
         result = dispatch(api, 'show bgp summary')
         if result.get('status') != 'done':
