@@ -154,7 +154,10 @@ func TestVerifyWiringDocsSleepRatchetSuggestsLowering(t *testing.T) {
 	root := makeFixtureRoot(t)
 	writeFixture(t, root, "go.mod", "module example.com/m\n")
 	writeFixture(t, root, "test/.ci-sleep-baseline", "5\n")
-	writeFixture(t, root, "test/x/a.ci", "run=python\ntime.sleep(1)\n")
+	// The sleep carries a justifying comment so this fixture isolates the
+	// ratchet's advisory path: an unjustified sleep would additionally trip
+	// check_ci_sleep_justification and exit non-zero, which runCommand rejects.
+	writeFixture(t, root, "test/x/a.ci", "run=python\n# deliberate timer, kept\ntime.sleep(1)\n")
 
 	out := runCommand(t, repoRoot(t), "python3",
 		"scripts/dev/verify_wiring_docs.py", "--root", root,
