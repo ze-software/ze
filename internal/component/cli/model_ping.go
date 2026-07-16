@@ -23,7 +23,12 @@ const pingDrainInterval = 50 * time.Millisecond
 
 // PingFactory starts a continuous ping session. The returned channel
 // receives per-reply results until the context is canceled.
-type PingFactory func(ctx context.Context, target string, interval, timeout time.Duration) (<-chan map[string]any, context.CancelFunc, error)
+//
+// count bounds the probes (0 = stream until canceled); size is the ICMP payload
+// in bytes (0 = the engine default). Both are passed as primitives rather than a
+// ping/cmd options struct so this package keeps its inversion: cli defines the
+// contract and never imports the ping engine.
+type PingFactory func(ctx context.Context, target string, interval, timeout time.Duration, count, size int) (<-chan map[string]any, context.CancelFunc, error)
 
 type pingPollMsg struct{}
 type pingPipedPollMsg struct{}
@@ -94,9 +99,23 @@ type pingPipedState struct {
 	cancel        context.CancelFunc
 }
 
+// Monitor-ping argument bounds.
+//
+// Duplicated deliberately rather than imported: this package defines the
+// PingFactory contract and never imports the ping engine, so the limits are
+// restated here. They MUST match internal/component/ping/cmd/ping.go
+// (minPingMonitorInterval / maxPingMonitorInterval / maxPingCount /
+// maxPingSize), which the offline `monitor ping` parser enforces -- the two
+// paths are the same command and must accept the same input. 65507 is the
+// largest ICMP payload that still fits a 65535-byte IP datagram after the
+// 20-byte IPv4 and 8-byte ICMP headers.
 const (
 	defaultPingMonitorInterval = time.Second
 	defaultPingMonitorTimeout  = 5 * time.Second
+	minPingMonitorInterval     = 100 * time.Millisecond
+	maxPingMonitorInterval     = 30 * time.Second
+	maxPingMonitorCount        = 100
+	maxPingMonitorSize         = 65507
 )
 
 func isPingMonitorCommand(input string) bool {
@@ -116,9 +135,27 @@ func isPipedPingMonitorCommand(input string) bool {
 	return strings.HasPrefix(strings.TrimSpace(cmd), "monitor ping ")
 }
 
-func parsePingMonitorArgs(input string) (target string, interval, timeout time.Duration, errMsg string) {
-	interval = defaultPingMonitorInterval
-	timeout = defaultPingMonitorTimeout
+// parsePingMonitorArgs parses
+// `monitor ping <target> [interval <dur>] [timeout <dur>] [count <n>] [size <bytes>]`.
+//
+// count 0 streams until stopped; size 0 sends the engine's default payload.
+// Bounds here must match the offline parser (internal/component/ping/cmd/ping.go
+// parseMonitorPingArgs) so the command behaves identically with and without a
+// daemon; that parser owns the same limits.
+// pingMonitorArgs is the parsed form of a `monitor ping` invocation.
+type pingMonitorArgs struct {
+	Target   string
+	Interval time.Duration
+	Timeout  time.Duration
+	Count    int // 0 = stream until stopped
+	Size     int // 0 = engine default payload
+}
+
+func parsePingMonitorArgs(input string) (pingMonitorArgs, string) {
+	out := pingMonitorArgs{
+		Interval: defaultPingMonitorInterval,
+		Timeout:  defaultPingMonitorTimeout,
+	}
 
 	trimmed := strings.TrimSpace(input)
 	after := strings.TrimPrefix(trimmed, "monitor ping ")
@@ -128,38 +165,62 @@ func parsePingMonitorArgs(input string) (target string, interval, timeout time.D
 		switch args[i] {
 		case "interval":
 			if i+1 >= len(args) {
-				return "", 0, 0, "interval requires a value"
+				return pingMonitorArgs{}, "interval requires a value"
 			}
 			d, err := time.ParseDuration(args[i+1])
-			if err != nil || d < 100*time.Millisecond || d > 30*time.Second {
+			if err != nil || d < minPingMonitorInterval || d > maxPingMonitorInterval {
 				var b textbuf.Buffer
 				b.Str("interval must be 100ms-30s, got ").Str(args[i+1])
-				return "", 0, 0, b.String()
+				return pingMonitorArgs{}, b.String()
 			}
-			interval = d
+			out.Interval = d
 			i++
 		case "timeout":
 			if i+1 >= len(args) {
-				return "", 0, 0, "timeout requires a value"
+				return pingMonitorArgs{}, "timeout requires a value"
 			}
 			d, err := time.ParseDuration(args[i+1])
 			if err != nil || d < time.Second || d > 30*time.Second {
 				var b textbuf.Buffer
 				b.Str("timeout must be 1s-30s, got ").Str(args[i+1])
-				return "", 0, 0, b.String()
+				return pingMonitorArgs{}, b.String()
 			}
-			timeout = d
+			out.Timeout = d
+			i++
+		case "count":
+			if i+1 >= len(args) {
+				return pingMonitorArgs{}, "count requires a value"
+			}
+			n, err := strconv.Atoi(args[i+1])
+			if err != nil || n < 1 || n > maxPingMonitorCount {
+				var b textbuf.Buffer
+				b.Str("count must be 1-").Int(int64(maxPingMonitorCount)).Str(", got ").Str(args[i+1])
+				return pingMonitorArgs{}, b.String()
+			}
+			out.Count = n
+			i++
+		case "size":
+			if i+1 >= len(args) {
+				return pingMonitorArgs{}, "size requires a value"
+			}
+			n, err := strconv.Atoi(args[i+1])
+			if err != nil || n < 1 || n > maxPingMonitorSize {
+				var b textbuf.Buffer
+				b.Str("size must be 1-").Int(int64(maxPingMonitorSize)).Str(", got ").Str(args[i+1])
+				return pingMonitorArgs{}, b.String()
+			}
+			out.Size = n
 			i++
 		default:
-			if target == "" {
-				target = args[i]
+			if out.Target == "" {
+				out.Target = args[i]
 			} else {
 				var tb textbuf.Buffer
-				return "", 0, 0, tb.Str("unexpected argument: ").Str(args[i]).Str(" (use | for pipe operators)").String()
+				return pingMonitorArgs{}, tb.Str("unexpected argument: ").Str(args[i]).Str(" (use | for pipe operators)").String()
 			}
 		}
 	}
-	return target, interval, timeout, ""
+	return out, ""
 }
 
 // SetPingFactory sets the factory used to run continuous ping sessions.
@@ -183,18 +244,18 @@ func (m *Model) startPingMonitor(input string) tea.Cmd {
 		return nil
 	}
 
-	target, interval, timeout, argErr := parsePingMonitorArgs(input)
+	mp, argErr := parsePingMonitorArgs(input)
 	if argErr != "" {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("monitor ping: ").Str(argErr).String()
 		return nil
 	}
-	if target == "" {
+	if mp.Target == "" {
 		m.statusMessage = "monitor ping: missing target address"
 		return nil
 	}
 
-	ch, cancel, err := m.pingFactory(context.Background(), target, interval, timeout)
+	ch, cancel, err := m.pingFactory(context.Background(), mp.Target, mp.Interval, mp.Timeout, mp.Count, mp.Size)
 	if err != nil {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("monitor ping: ").Err(err).String()
@@ -202,9 +263,9 @@ func (m *Model) startPingMonitor(input string) tea.Cmd {
 	}
 
 	m.pingMonitor = &pingState{
-		target:   target,
-		interval: interval,
-		timeout:  timeout,
+		target:   mp.Target,
+		interval: mp.Interval,
+		timeout:  mp.Timeout,
 		stats:    pingStats{min: math.MaxFloat64},
 		poller:   m.pingFactory,
 		replyCh:  ch,
@@ -226,18 +287,18 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 		m.statusMessage = tb.Str("pipe error: ").Str(pipeErr).String()
 		return nil
 	}
-	target, interval, timeout, argErr := parsePingMonitorArgs(cmdStr)
+	mp, argErr := parsePingMonitorArgs(cmdStr)
 	if argErr != "" {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("monitor ping: ").Str(argErr).String()
 		return nil
 	}
-	if target == "" {
+	if mp.Target == "" {
 		m.statusMessage = "monitor ping: missing target address"
 		return nil
 	}
 
-	ch, cancel, err := m.pingFactory(context.Background(), target, interval, timeout)
+	ch, cancel, err := m.pingFactory(context.Background(), mp.Target, mp.Interval, mp.Timeout, mp.Count, mp.Size)
 	if err != nil {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("monitor ping: ").Err(err).String()
@@ -245,9 +306,9 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 	}
 
 	m.pingMonitorPiped = &pingPipedState{
-		target:        target,
-		interval:      interval,
-		timeout:       timeout,
+		target:        mp.Target,
+		interval:      mp.Interval,
+		timeout:       mp.Timeout,
 		stats:         pingStats{min: math.MaxFloat64},
 		poller:        m.pingFactory,
 		formatFn:      formatFn,
@@ -261,7 +322,7 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 
 	if pipeFlags.Log {
 		var hdr textbuf.Buffer
-		hdr.Str("--- monitor ping ").Str(target).Str(" | log (Esc to stop) ---\n")
+		hdr.Str("--- monitor ping ").Str(mp.Target).Str(" | log (Esc to stop) ---\n")
 		m.outputBuf.WriteString(hdr.Slice())
 		m.setViewportTextBottom(m.outputBuf.String())
 	}

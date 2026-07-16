@@ -42,7 +42,7 @@ func (fakeMonitorOriginResolver) LookupOrigin(_ context.Context, ip string) (com
 // fakePingFactory returns a reply channel pre-filled with three deterministic
 // replies (two ok, one timeout) and already closed: the first poll drains the
 // session and the monitor stops on its own.
-func fakePingFactory(ctx context.Context, _ string, _, _ time.Duration) (<-chan map[string]any, context.CancelFunc, error) {
+func fakePingFactory(ctx context.Context, _ string, _, _ time.Duration, _, _ int) (<-chan map[string]any, context.CancelFunc, error) {
 	ch := make(chan map[string]any, 3)
 	ch <- map[string]any{"seq": 0, "status": "ok", "rtt-ms": 1.234}
 	ch <- map[string]any{"seq": 1, "status": "ok", "rtt-ms": 2.345}

@@ -13,7 +13,8 @@ import (
 )
 
 func TestParsePingMonitorArgs(t *testing.T) {
-	target, interval, timeout, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4")
+	mp, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4")
+	target, interval, timeout := mp.Target, mp.Interval, mp.Timeout
 	require.Empty(t, errMsg)
 	assert.Equal(t, "1.2.3.4", target)
 	assert.Equal(t, defaultPingMonitorInterval, interval)
@@ -21,47 +22,130 @@ func TestParsePingMonitorArgs(t *testing.T) {
 }
 
 func TestParsePingMonitorArgsWithInterval(t *testing.T) {
-	target, interval, _, errMsg := parsePingMonitorArgs("monitor ping 10.0.0.1 interval 500ms")
+	mp, errMsg := parsePingMonitorArgs("monitor ping 10.0.0.1 interval 500ms")
+	target, interval := mp.Target, mp.Interval
 	require.Empty(t, errMsg)
 	assert.Equal(t, "10.0.0.1", target)
 	assert.Equal(t, 500*time.Millisecond, interval)
 }
 
 func TestParsePingMonitorArgsWithTimeout(t *testing.T) {
-	_, _, timeout, errMsg := parsePingMonitorArgs("monitor ping 10.0.0.1 timeout 2s")
+	mp, errMsg := parsePingMonitorArgs("monitor ping 10.0.0.1 timeout 2s")
+	timeout := mp.Timeout
 	require.Empty(t, errMsg)
 	assert.Equal(t, 2*time.Second, timeout)
 }
 
 func TestParsePingMonitorArgsOnlyKeywords(t *testing.T) {
-	target, _, _, errMsg := parsePingMonitorArgs("monitor ping interval 1s")
+	mp, errMsg := parsePingMonitorArgs("monitor ping interval 1s")
+	target := mp.Target
 	assert.Empty(t, target)
 	assert.Empty(t, errMsg)
 }
 
 func TestParsePingMonitorArgsIntervalMissingValue(t *testing.T) {
-	_, _, _, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 interval")
+	_, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 interval")
 	assert.Contains(t, errMsg, "interval requires a value")
 }
 
 func TestParsePingMonitorArgsTimeoutMissingValue(t *testing.T) {
-	_, _, _, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 timeout")
+	_, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 timeout")
 	assert.Contains(t, errMsg, "timeout requires a value")
 }
 
 func TestParsePingMonitorArgsIntervalTooLow(t *testing.T) {
-	_, _, _, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 interval 10ms")
+	_, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 interval 10ms")
 	assert.Contains(t, errMsg, "interval must be")
 }
 
 func TestParsePingMonitorArgsTimeoutTooHigh(t *testing.T) {
-	_, _, _, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 timeout 60s")
+	_, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 timeout 60s")
 	assert.Contains(t, errMsg, "timeout must be")
 }
 
 func TestParsePingMonitorArgsUnexpected(t *testing.T) {
-	_, _, _, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 extra")
+	_, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 extra")
 	assert.Contains(t, errMsg, "unexpected argument")
+}
+
+// TestParsePingMonitorArgsCountAndSize verifies the interactive CLI accepts both.
+//
+// VALIDATES: `monitor ping <t> count 5 size 1400` parses; omitting them leaves
+// zero, which means stream-until-stopped with the default payload.
+// PREVENTS: a regression to the previous behavior, where this parser had no
+// count/size case and both fell to the default branch, rejecting them as
+// "unexpected argument" while the offline path silently ignored them. The two
+// paths are the same command and must accept the same input.
+func TestParsePingMonitorArgsCountAndSize(t *testing.T) {
+	mp, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 count 5 size 1400")
+	require.Empty(t, errMsg)
+	assert.Equal(t, "1.2.3.4", mp.Target)
+	assert.Equal(t, 5, mp.Count)
+	assert.Equal(t, 1400, mp.Size)
+
+	mp, errMsg = parsePingMonitorArgs("monitor ping 1.2.3.4")
+	require.Empty(t, errMsg)
+	assert.Equal(t, 0, mp.Count, "no count streams until stopped")
+	assert.Equal(t, 0, mp.Size, "no size uses the default payload")
+}
+
+// TestParsePingMonitorArgsCountSizeBounds pins the accepted ranges.
+//
+// VALIDATES: count 1-100 and size 1-65507, rejecting outside.
+// PREVENTS: drift from the offline parser
+// (internal/component/ping/cmd/ping.go parseMonitorPingArgs), which enforces the
+// same limits. If these two disagree, `monitor ping` accepts different input
+// depending on whether a daemon is running.
+func TestParsePingMonitorArgsCountSizeBounds(t *testing.T) {
+	cases := []struct {
+		name    string
+		input   string
+		wantErr string
+	}{
+		{name: "count minimum", input: "monitor ping 1.2.3.4 count 1"},
+		{name: "count maximum", input: "monitor ping 1.2.3.4 count 100"},
+		{name: "count zero", input: "monitor ping 1.2.3.4 count 0", wantErr: "count must be"},
+		{name: "count above", input: "monitor ping 1.2.3.4 count 101", wantErr: "count must be"},
+		{name: "count missing", input: "monitor ping 1.2.3.4 count", wantErr: "count requires a value"},
+		{name: "size minimum", input: "monitor ping 1.2.3.4 size 1"},
+		{name: "size maximum", input: "monitor ping 1.2.3.4 size 65507"},
+		{name: "size zero", input: "monitor ping 1.2.3.4 size 0", wantErr: "size must be"},
+		{name: "size above", input: "monitor ping 1.2.3.4 size 65508", wantErr: "size must be"},
+		{name: "size missing", input: "monitor ping 1.2.3.4 size", wantErr: "size requires a value"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, errMsg := parsePingMonitorArgs(tc.input)
+			if tc.wantErr != "" {
+				assert.Contains(t, errMsg, tc.wantErr)
+				return
+			}
+			assert.Empty(t, errMsg)
+		})
+	}
+}
+
+// TestStartPingMonitorPassesCountAndSize verifies the parsed values reach the
+// factory, not just the parser.
+//
+// VALIDATES: startPingMonitor threads count and size into PingFactory.
+// PREVENTS: the exact class of bug being fixed -- arguments parsed correctly and
+// then dropped before the probe. Unit-testing the parser alone would not catch a
+// call site that forgets to pass them.
+func TestStartPingMonitorPassesCountAndSize(t *testing.T) {
+	var gotCount, gotSize int
+	m := NewCommandModel()
+	m.pingFactory = func(_ context.Context, _ string, _, _ time.Duration, count, size int) (<-chan map[string]any, context.CancelFunc, error) {
+		gotCount, gotSize = count, size
+		ch := make(chan map[string]any)
+		close(ch)
+		_, cancel := context.WithCancel(context.Background())
+		return ch, cancel, nil
+	}
+
+	m.startPingMonitor("monitor ping 192.0.2.1 count 7 size 512")
+	assert.Equal(t, 7, gotCount)
+	assert.Equal(t, 512, gotSize)
 }
 
 func TestIsPingMonitorCommand(t *testing.T) {
@@ -142,7 +226,7 @@ func TestPingReplyToJSONFloat64Seq(t *testing.T) {
 // pingTestFactory returns a PingFactory whose channel is pre-filled with the
 // given replies and closed, so a single poll drains the whole session.
 func pingTestFactory(replies []map[string]any) PingFactory {
-	return func(_ context.Context, _ string, _, _ time.Duration) (<-chan map[string]any, context.CancelFunc, error) {
+	return func(_ context.Context, _ string, _, _ time.Duration, _, _ int) (<-chan map[string]any, context.CancelFunc, error) {
 		ch := make(chan map[string]any, len(replies)+1)
 		for _, r := range replies {
 			ch <- r

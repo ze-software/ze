@@ -1187,10 +1187,12 @@ the daemon running (registered as local handlers). `monitor ping` and `monitor
 traceroute` also work offline, streaming results until Ctrl-C.
 
 ```
-ze show ping 8.8.8.8                       # 5 probes, 5s timeout
-ze show ping 8.8.8.8 count 10 timeout 3s   # count 1-100, timeout 1s-30s
-ze show ping 8.8.8.8 size 1400             # ICMP payload bytes (1-65507)
-ze monitor ping 8.8.8.8 interval 500ms     # stream until Ctrl-C (100ms-30s)
+ze show ping 8.8.8.8                          # 5 probes, 5s timeout
+ze show ping 8.8.8.8 count 10 timeout 3s      # count 1-100, timeout 1s-30s
+ze show ping 8.8.8.8 size 1400                # ICMP payload bytes (1-65507)
+ze monitor ping 8.8.8.8 interval 500ms        # stream until Ctrl-C (100ms-30s)
+ze monitor ping 8.8.8.8 count 5               # stop after 5 probes
+ze monitor ping 8.8.8.8 size 1400 count 20    # 20 probes carrying a 1400-byte payload
 ```
 
 `size` is the ICMP **payload** length, not the total packet: `size 1400` sends
@@ -1199,9 +1201,12 @@ from `ping(8)`, whose familiar "64 bytes" counts the whole ICMP message (56
 payload + 8 header). Omit `size` and the engine sends its small default payload.
 The 65507 ceiling is what still fits a 65535-byte IP datagram after both headers.
 
-`count` and `size` are `show ping` only. `monitor ping` streams a fixed probe
-until interrupted, so both are rejected there rather than silently ignored;
-`monitor ping` takes `interval` and `timeout`.
+Both commands take `count` (1-100) and `size` (1-65507). They mean the same thing
+in each: `show ping` runs a bounded batch and prints a summary, while `monitor
+ping` streams live statistics. Omitting `count` on `monitor ping` streams until
+Ctrl-C, which is the difference between them; `monitor ping` additionally takes
+`interval` (100ms-30s). The two accept identical arguments whether or not a
+daemon is running.
 
 <!-- source: internal/component/ping/cmd/register.go -- showPingLocal -->
 <!-- source: internal/component/ping/cmd/ping.go -- parsePingArgs -->

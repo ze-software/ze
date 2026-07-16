@@ -21,7 +21,11 @@ import (
 // NewPingSession starts a continuous ping stream to the given target.
 // Each reply is sent as a map on the returned channel. The channel is
 // closed when the context is canceled. Cancel stops the session.
-func NewPingSession(ctx context.Context, target string, interval, timeout time.Duration) (<-chan map[string]any, context.CancelFunc, error) {
+//
+// count bounds the number of probes; 0 streams until the context is canceled,
+// which is the `monitor ping <dest>` default. size is the ICMP echo payload in
+// bytes; 0 sends the small default payload.
+func NewPingSession(ctx context.Context, target string, interval, timeout time.Duration, count, size int) (<-chan map[string]any, context.CancelFunc, error) {
 	addr, err := probe.ResolveTarget(target)
 	if err != nil {
 		return nil, nil, err
@@ -30,12 +34,12 @@ func NewPingSession(ctx context.Context, target string, interval, timeout time.D
 	ch := make(chan map[string]any, 64)
 	pingCtx, cancel := context.WithCancel(ctx)
 
-	go streamPing(pingCtx, addr, interval, timeout, ch)
+	go streamPing(pingCtx, addr, interval, timeout, count, size, ch)
 
 	return ch, cancel, nil
 }
 
-func streamPing(ctx context.Context, dest netip.Addr, interval, timeout time.Duration, out chan<- map[string]any) {
+func streamPing(ctx context.Context, dest netip.Addr, interval, timeout time.Duration, count, size int, out chan<- map[string]any) {
 	defer close(out)
 
 	network := probe.NetworkICMPv4
@@ -55,14 +59,20 @@ func streamPing(ctx context.Context, dest netip.Addr, interval, timeout time.Dur
 	defer func() { _ = conn.Close() }()
 
 	pid := uint16(os.Getpid() & 0xffff)
-	rb := make([]byte, 1500)
 
-	for seq := 0; ; seq++ {
+	// Same payload contract as the batch engine, via the shared helper. The read
+	// buffer must clear the echoed payload, so it grows with size rather than
+	// staying at the 1500 default.
+	payload := pingPayload(size)
+	rb := make([]byte, max(1500, size+8))
+
+	// count == 0 streams until the context is canceled (the monitor default).
+	for seq := 0; count <= 0 || seq < count; seq++ {
 		if ctx.Err() != nil {
 			return
 		}
 
-		pkt := probe.BuildICMPEcho(icmpEcho, pid, uint16(seq&0xffff), []byte("ze-ping"))
+		pkt := probe.BuildICMPEcho(icmpEcho, pid, uint16(seq&0xffff), payload)
 		start := time.Now()
 
 		if deadlineErr := conn.SetDeadline(start.Add(timeout)); deadlineErr != nil {
@@ -109,6 +119,14 @@ func streamPing(ctx context.Context, dest netip.Addr, interval, timeout time.Dur
 		select {
 		case out <- result:
 		case <-ctx.Done():
+			return
+		}
+
+		// The inter-probe wait is a gap BETWEEN probes, so skip it after the
+		// last one. Without this a bounded run idles for up to interval after
+		// its final reply before the loop condition ends it -- 30s of apparent
+		// hang for `count 5 interval 30s`.
+		if count > 0 && seq == count-1 {
 			return
 		}
 

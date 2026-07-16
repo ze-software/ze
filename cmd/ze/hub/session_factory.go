@@ -174,7 +174,7 @@ func mergePluginCommands(tree *command.Node, params bgpconfig.InfraHookParams) {
 func dashboardFactoryFromExecutor(cmdExec zessh.CommandExecutor) cli.DashboardFactory {
 	return func() (func() (string, error), error) {
 		return func() (string, error) {
-			return cmdExec("summary")
+			return cmdExec("show bgp summary")
 		}, nil
 	}
 }
@@ -183,6 +183,6 @@ func streamingTracerouteFactory(ctx context.Context, target string, maxHops int)
 	return traceroutecmd.NewTracerouteSession(ctx, target, maxHops)
 }
 
-func streamingPingFactory(ctx context.Context, target string, interval, timeout time.Duration) (<-chan map[string]any, context.CancelFunc, error) {
-	return pingcmd.NewPingSession(ctx, target, interval, timeout)
+func streamingPingFactory(ctx context.Context, target string, interval, timeout time.Duration, count, size int) (<-chan map[string]any, context.CancelFunc, error) {
+	return pingcmd.NewPingSession(ctx, target, interval, timeout, count, size)
 }

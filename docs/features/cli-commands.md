@@ -68,12 +68,13 @@
 | `ze show <command>` | Read-only daemon commands |
 
 **Ping and traceroute:** `show ping` and `show traceroute` run one-shot ICMP checks from the router itself using ze's internal engine -- no daemon required, they work as local handlers. `monitor ping` and `monitor traceroute` open a live, continuously-updating view (Ctrl-C to stop); pipe either through `| log` for scrollback, or add `| resolve` / `| origin` to enrich traceroute hops with reverse DNS or ASN info.
-`size` sets the ICMP payload length (1-65507), not the total packet: unlike `ping(8)`'s "64 bytes" (56 payload + 8 header), `size 1400` sends 1400 payload bytes on top of the ICMP and IP headers. `count` and `size` are `show ping` only -- `monitor ping` streams a fixed probe until Ctrl-C and takes `interval` / `timeout`, rejecting the other two rather than ignoring them.
+`size` sets the ICMP payload length (1-65507), not the total packet: unlike `ping(8)`'s "64 bytes" (56 payload + 8 header), `size 1400` sends 1400 payload bytes on top of the ICMP and IP headers. Both `show ping` and `monitor ping` take `count` (1-100) and `size`; omitting `count` on `monitor ping` is what makes it stream until Ctrl-C, and it additionally takes `interval` (100ms-30s).
 ```
 ze show ping 8.8.8.8 count 5 timeout 3s
 ze show ping 8.8.8.8 size 1400
 ze show traceroute 8.8.8.8 max-hops 10 probes 1
 ze cli -c "monitor ping 8.8.8.8 interval 500ms"
+ze cli -c "monitor ping 8.8.8.8 count 5 size 1400"
 ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
 ```
 <!-- source: internal/component/ping/cmd/register.go -- showPingLocal, monitorPingLocal -->

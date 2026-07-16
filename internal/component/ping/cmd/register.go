@@ -59,18 +59,19 @@ func showPingLocal(args []string) int {
 }
 
 func monitorPingLocal(args []string) int {
-	dest, interval, timeout, err := parseMonitorPingArgs(args)
+	mp, err := parseMonitorPingArgs(args)
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Err(err).Byte('\n')
 		os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // stderr
 		return 1
 	}
+	dest := mp.Dest
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	ch, cancel, sessionErr := NewPingSession(ctx, dest.String(), interval, timeout)
+	ch, cancel, sessionErr := NewPingSession(ctx, dest.String(), mp.Interval, mp.Timeout, mp.Count, mp.Size)
 	if sessionErr != nil {
 		var tb textbuf.Buffer
 		tb.Str("monitor ping: ").Err(sessionErr).Byte('\n')

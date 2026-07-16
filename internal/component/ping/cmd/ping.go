@@ -52,64 +52,92 @@ const (
 	maxPingMonitorInterval     = 30 * time.Second
 )
 
-// parseMonitorPingArgs parses `monitor ping <dest> [interval <dur>] [timeout <dur>]`.
+// monitorPingArgs is the parsed form of a `monitor ping` invocation.
+// Count 0 streams until interrupted; Size 0 sends the default payload.
+type monitorPingArgs struct {
+	Dest     netip.Addr
+	Interval time.Duration
+	Timeout  time.Duration
+	Count    int
+	Size     int
+}
+
+// parseMonitorPingArgs parses
+// `monitor ping <dest> [interval <dur>] [timeout <dur>] [count <n>] [size <bytes>]`.
 //
-// Deliberately NOT parsePingArgs: monitor streams a fixed probe until
-// interrupted, so `count` and `size` cannot mean anything here and are rejected
-// rather than accepted and dropped. It previously shared parsePingArgs and
-// silently ignored both, plus `interval` -- which the docs advertise -- because
-// parsePingArgs has no interval case and the value fell through to the
-// destination branch. Each command now parses exactly what it honors.
-func parseMonitorPingArgs(args []string) (netip.Addr, time.Duration, time.Duration, error) {
-	var dest netip.Addr
-	interval := defaultPingMonitorInterval
-	timeout := defaultPingTimeout
+// Deliberately NOT parsePingArgs. That parser has no interval case, so `monitor
+// ping <dest> interval 500ms` -- which the docs advertise -- fell through to the
+// destination branch and streamed at a hardcoded 1s. Bounds here match the
+// interactive CLI's own monitor parser (internal/component/cli/model_ping.go
+// parsePingMonitorArgs) so the command behaves the same with and without a
+// daemon.
+func parseMonitorPingArgs(args []string) (monitorPingArgs, error) {
+	out := monitorPingArgs{
+		Interval: defaultPingMonitorInterval,
+		Timeout:  defaultPingTimeout,
+	}
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case argInterval:
 			if i+1 >= len(args) {
-				return dest, 0, 0, errPingIntervalRequiresAValue
+				return out, errPingIntervalRequiresAValue
 			}
 			d, err := time.ParseDuration(args[i+1])
 			if err != nil || d < minPingMonitorInterval || d > maxPingMonitorInterval {
-				return dest, 0, 0, fmt.Errorf("monitor ping: interval must be %s-%s", minPingMonitorInterval, maxPingMonitorInterval)
+				return out, fmt.Errorf("monitor ping: interval must be %s-%s", minPingMonitorInterval, maxPingMonitorInterval)
 			}
-			interval = d
+			out.Interval = d
 			i++
 		case argTimeout:
 			if i+1 >= len(args) {
-				return dest, 0, 0, errPingTimeoutRequiresAValueE
+				return out, errPingTimeoutRequiresAValueE
 			}
 			d, err := time.ParseDuration(args[i+1])
 			if err != nil || d < time.Second || d > maxPingTimeout {
-				return dest, 0, 0, fmt.Errorf("monitor ping: timeout must be 1s-%s", maxPingTimeout)
+				return out, fmt.Errorf("monitor ping: timeout must be 1s-%s", maxPingTimeout)
 			}
-			timeout = d
+			out.Timeout = d
 			i++
 		case argCount:
-			return dest, 0, 0, fmt.Errorf("monitor ping: %q is not supported (monitor streams until interrupted); use: show ping <dest> count <n>", argCount)
+			if i+1 >= len(args) {
+				return out, errPingCountRequiresAValue
+			}
+			n, err := strconv.Atoi(args[i+1])
+			if err != nil || n < 1 || n > maxPingCount {
+				return out, fmt.Errorf("monitor ping: count must be 1-%d", maxPingCount)
+			}
+			out.Count = n
+			i++
 		case argSize:
-			return dest, 0, 0, fmt.Errorf("monitor ping: %q is not supported (monitor sends a fixed probe); use: show ping <dest> size <bytes>", argSize)
+			if i+1 >= len(args) {
+				return out, errPingSizeRequiresAValue
+			}
+			n, err := strconv.Atoi(args[i+1])
+			if err != nil || n < 1 || n > maxPingSize {
+				return out, fmt.Errorf("monitor ping: size must be 1-%d", maxPingSize)
+			}
+			out.Size = n
+			i++
 		default:
-			if !dest.IsValid() {
+			if !out.Dest.IsValid() {
 				if err := validateResolveTarget(args[i]); err != nil {
-					return dest, 0, 0, fmt.Errorf("monitor ping: invalid destination %q: %w", args[i], err)
+					return out, fmt.Errorf("monitor ping: invalid destination %q: %w", args[i], err)
 				}
 				addr, err := probe.ResolveTarget(args[i])
 				if err != nil {
-					return dest, 0, 0, fmt.Errorf("monitor ping: invalid destination %q: %w", args[i], err)
+					return out, fmt.Errorf("monitor ping: invalid destination %q: %w", args[i], err)
 				}
-				dest = addr
+				out.Dest = addr
 				continue
 			}
-			return dest, 0, 0, fmt.Errorf("monitor ping: unexpected argument %q", args[i])
+			return out, fmt.Errorf("monitor ping: unexpected argument %q", args[i])
 		}
 	}
-	if !dest.IsValid() {
-		return dest, 0, 0, errPingMissingDestinationAddress
+	if !out.Dest.IsValid() {
+		return out, errPingMissingDestinationAddress
 	}
-	return dest, interval, timeout, nil
+	return out, nil
 }
 
 // handleShowPing is the RPC handler for `show ping` (ze-show:ping): a bounded
@@ -192,6 +220,21 @@ type pingOpts struct {
 	size   int
 }
 
+// pingPayload returns the ICMP echo payload for a requested size. size <= 0
+// yields the small default marker; otherwise the payload is exactly size bytes
+// with the marker copied into the front, so a capture still identifies the
+// sender. Shared by the batch engine (doPing) and the streaming session
+// (streamPing) so `show ping ... size N` and `monitor ping ... size N` put the
+// same bytes on the wire.
+func pingPayload(size int) []byte {
+	if size <= 0 {
+		return []byte("ze-ping")
+	}
+	b := make([]byte, size)
+	copy(b, "ze-ping")
+	return b
+}
+
 func doPing(dest netip.Addr, count int, timeout time.Duration, opts pingOpts) (map[string]any, error) {
 	return doPingCtx(context.Background(), dest, count, timeout, opts)
 }
@@ -218,11 +261,7 @@ func doPingCtx(ctx context.Context, dest netip.Addr, count int, timeout time.Dur
 	}
 	defer func() { _ = conn.Close() }()
 
-	payload := []byte("ze-ping")
-	if opts.size > 0 {
-		payload = make([]byte, opts.size)
-		copy(payload, "ze-ping")
-	}
+	payload := pingPayload(opts.size)
 
 	rbSize := max(1500, opts.size+8)
 
