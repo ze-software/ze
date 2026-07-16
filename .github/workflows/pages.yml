@@ -50,6 +50,9 @@ jobs:
       - name: Generate terminal media
         run: make -C main ze-terminal-demos-release TERMINAL_DEMO_OUTPUT="$GITHUB_WORKSPACE/site/assets/demos"
 
+      - name: Build documentation binary
+        run: make -C main bin/ze
+
       - name: Build website
         run: uv run --with markdown python3 tools/build.py
         working-directory: site
