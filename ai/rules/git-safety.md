@@ -1,6 +1,6 @@
 # Git Safety
 
-**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, and verify-status handling.
+**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why shared plan files (deferrals, known-failures, .counter) cross-commit between concurrent sessions.
 
 Rationale: `ai/rationale/git-safety.md`
 
